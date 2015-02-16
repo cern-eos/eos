@@ -44,6 +44,9 @@
 #include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 #include <climits>
+#include <queue>
+#include <sstream>
+#include <string>
 #include <stdint.h>
 #include <iostream>
 #include <libgen.h>
@@ -81,7 +84,6 @@
 #endif
 
 static FuseWriteCache* XFC;
-
 static XrdOucHash<XrdOucString>* passwdstore;
 static XrdOucHash<XrdOucString>* stringstore;
 
@@ -91,14 +93,11 @@ XrdSysMutex environmentmutex;
 XrdSysMutex connectionIdMutex;
 int connectionId = 0;
 
-int fuse_cache_read;
-int fuse_cache_write;
-
-bool fuse_exec = false; // indicates if files should be make exectuble
-
-bool fuse_shared = false; // inidicated if this is eosd = true or eosfsd = false
-
-XrdOucString MgmHost; // host name of our FUSE contact point
+int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
+int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
+bool fuse_exec = false; ///< indicates if files should be make exectuble
+bool fuse_shared = false; ///< inidicated if this is eosd = true or eosfsd = false
+XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
 using eos::common::LayoutId;
 
@@ -126,7 +125,6 @@ STRINGSTORE (const char* __charptr__)
     return (char*) newstring->c_str();
   }
 }
-
 
 
 //------------------------------------------------------------------------------
@@ -330,7 +328,7 @@ xrd_forget_p2i (unsigned long long inode)
   if (inode2path.count(inode))
   {
     std::string path = inode2path[inode];
-  
+
     path2inode.erase(path);
     inode2path.erase(inode);
   }
@@ -678,8 +676,8 @@ xrd_generate_fd ()
 int
 xrd_add_fd2file (eos::fst::Layout* raw_file,
                  unsigned long inode,
-                 uid_t uid, 
-		 const char* path="")
+                 uid_t uid,
+                 const char* path="")
 {
   eos_static_debug("file raw ptr=%p, inode=%lu, uid=%lu",
                    raw_file, inode, (unsigned long) uid);
@@ -774,8 +772,8 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
       const char* path=0;
       if ( (path=fabst->GetUtimes(utimes)) )
       {
-	// run the utimes command now after the close
-	xrd_utimes(path, utimes, uid,0,0);
+        // run the utimes command now after the close
+        xrd_utimes(path, utimes, uid,0,0);
       }
       delete fabst;
       fabst = 0;
@@ -1520,10 +1518,10 @@ xrd_chmod (const char* path,
 //------------------------------------------------------------------------------
 // Postpone utimes to a file close if still open
 //------------------------------------------------------------------------------
-int 
-xrd_set_utimes_close(unsigned long long inode, 
-		    struct timespec* tvp,
-		    uid_t uid)
+int
+xrd_set_utimes_close(unsigned long long inode,
+                    struct timespec* tvp,
+                    uid_t uid)
 {
   // try to attach the utimes call until a referenced filedescriptor on that path is closed
   std::ostringstream sstr;
@@ -1534,13 +1532,13 @@ xrd_set_utimes_close(unsigned long long inode,
     if (iter_fd != inodeuser2fd.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
-	iter_file = fd2fabst.find(iter_fd->second);
-      
-      if (iter_file != fd2fabst.end())      
+        iter_file = fd2fabst.find(iter_fd->second);
+
+      if (iter_file != fd2fabst.end())
       {
-	iter_file->second->SetUtimes(tvp);
-	return 0;
-      } 
+        iter_file->second->SetUtimes(tvp);
+        return 0;
+      }
     }
   }
   return 1;
@@ -2678,13 +2676,14 @@ xrd_user_url (uid_t uid,
               pid_t pid)
 {
   XrdOucString url = "root://";
+
   if (fuse_shared)
   {
     url += xrd_mapuser(uid, gid, pid);
     url += "@";
   }
 
-  url += MgmHost.c_str();
+  url += gMgmHost.c_str();
   url += "/";
 
   eos_static_debug("uid=%lu gid=%lu pid=%lu url=%s",
@@ -2692,6 +2691,180 @@ xrd_user_url (uid_t uid,
                    (unsigned long) gid,
                    (unsigned long) pid, url.c_str());
   return STRINGSTORE(url.c_str());
+}
+
+
+//------------------------------------------------------------------------------
+// Cache that holds just one element namely the mapping from a pid to a bool
+// variable which is true if this is a top level rm operation and false other-
+// wise. It is used by recursive rm commands which belong to the same pid in
+// order to decide if his operation is denied or not.
+//------------------------------------------------------------------------------
+std::map<pid_t, bool> mMapPidDenyRm;
+
+//------------------------------------------------------------------------------
+// Decide if this is an 'rm -rf' command issued on the toplevel directory or
+// anywhere whithin the EOS_FUSE_RMLVL_PROTECT levels from the root directory
+//------------------------------------------------------------------------------
+int is_toplevel_rm(int pid, char* local_dir)
+{
+  // Check the cache
+  std::map<pid_t, bool>::iterator it_map = mMapPidDenyRm.find(pid);
+
+  if (it_map != mMapPidDenyRm.end())
+  {
+    eos_static_debug("found in cache pid=%i, rm_deny=%i", it_map->first,
+                    it_map->second);
+    return (it_map->second ? 1 : 0);
+  }
+
+  mMapPidDenyRm.clear();
+
+  // Try to print the command triggering the unlink
+  std::string token, cmd;
+  std::ostringstream oss;
+  oss << "/proc/" << pid << "/cmdline";
+  std::ifstream infile(oss.str(), std::ios_base::binary | std::ios_base::in);
+  std::set<std::string> rm_entries;
+
+  while (std::getline(infile, token, '\0'))
+  {
+    rm_entries.insert(token);
+    cmd += token;
+    cmd += ' ';
+  }
+
+  eos_static_debug("comandline:%s", cmd.c_str());
+  infile.close();
+
+  // Check if this is an 'rm -rf ' or 'rm -r '
+  if ((cmd.find("rm -rf ") != 0) && (cmd.find("rm -r ") != 0))
+    return 0;
+
+  // Get mountpoint on the localhost
+  oss.str("");
+  oss.clear();
+  oss << "/proc/" << pid << "/cwd";
+  size_t cwd_sz = 2056;
+  char cwd[cwd_sz];
+  ssize_t len = readlink(oss.str().c_str(), cwd, sizeof(cwd) - 1);
+
+  if (len == -1)
+  {
+    eos_static_err("error while reading cwd for path=%s", oss.str().c_str());
+    mMapPidDenyRm[pid] = false;
+    return 0;
+  }
+
+  cwd[len] = '\0';
+  std::string scwd (cwd);
+
+  // Make sure both the cwd and local mount dir ends with '/'
+  std::string mount_dir(local_dir);
+
+  if (*mount_dir.rbegin() != '/')
+    mount_dir += '/';
+
+  if (*scwd.rbegin() != '/')
+    scwd += '/';
+
+  // First check if the command was launched from a location inside the hierarchy
+  // of the local mount point
+  eos_static_debug("cwd=%s, mount_dir=%s", scwd.c_str(), mount_dir.c_str());
+  std::string rel_path;
+  int level;
+
+  if (scwd.find(mount_dir) == 0)
+  {
+    rel_path = scwd.substr(mount_dir.length());
+    level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
+    eos_static_debug("rm_int current_lvl=%i, protect_lvl=%i", level, rm_level_protect);
+
+    if (level <= rm_level_protect)
+    {
+      mMapPidDenyRm[pid] = true;
+      return 1;
+    }
+  }
+
+  // Now check if the cmd was launched from a different location but exactly on
+  // the mount point and therefore the process command line contains the full
+  // path of the directories to delete
+  for (std::set<std::string>::iterator it = rm_entries.begin();
+       it != rm_entries.end(); ++it)
+  {
+    if (it->find(mount_dir) == 0)
+    {
+      rel_path = it->substr(mount_dir.length());
+      level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
+      eos_static_debug("rm_ext current_lvl=%i, protect_lvl=%i", level,
+                      rm_level_protect);
+
+      if (level <= rm_level_protect)
+      {
+        mMapPidDenyRm[pid] = true;
+        return 1;
+      }
+    }
+
+    // Another case is when the delete command is issued on a directory higher
+    // up in the hierarchy where the mountpoint was done
+    if (mount_dir.find(*it) == 0)
+    {
+      level = 1;
+
+      if (level <= rm_level_protect)
+      {
+        mMapPidDenyRm[pid] = true;
+        return 1;
+      }
+    }
+  }
+
+  mMapPidDenyRm[pid] = false;
+  return 0;
+}
+
+
+//------------------------------------------------------------------------------
+// Extract the EOS MGM endpoint for connection and also check that the MGM
+// daemon is available.
+//
+// @return 1 if MGM avilable, otherwise 0
+//------------------------------------------------------------------------------
+int xrd_check_mgm()
+{
+  std::string address = getenv("EOS_RDRURL");
+
+  if (address == "")
+  {
+    fprintf(stderr, "error: EOS_RDRURL is not defined so we fall back to "
+            "root://localhost:1094// \n");
+    address = "root://localhost:1094//";
+  }
+
+  XrdCl::URL url(address);
+
+  if (!url.IsValid())
+  {
+    eos_static_err("URL is not valid: %s", address.c_str());
+    return 0;
+  }
+
+  // Check MGM is available
+  uint16_t timeout = 3;
+  XrdCl::FileSystem fs (url);
+  XrdCl::XRootDStatus st = fs.Ping(timeout);
+
+  if (!st.IsOK())
+  {
+    eos_static_err("Unable to contact MGM at address=%s", address.c_str());
+    return 0;
+  }
+
+  gMgmHost = address.c_str();
+  gMgmHost.replace("root://", "");
+  return 1;
 }
 
 //------------------------------------------------------------------------------
@@ -2763,6 +2936,10 @@ xrd_init ()
   eos::common::Logging::gShortFormat = true;
   XrdOucString fusedebug = getenv("EOS_FUSE_DEBUG");
 
+  // Extract MGM endpoint and check availability
+  if (xrd_check_mgm() == 0)
+    exit(-1);
+
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
   {
     eos::common::Logging::SetLogPriority(LOG_DEBUG);
@@ -2774,37 +2951,16 @@ xrd_init ()
     else
       eos::common::Logging::SetLogPriority(LOG_INFO);
   }
-  //............................................................................
-  // Initialise the XrdClFileSystem object
-  //............................................................................
-  std::string address = getenv("EOS_RDRURL");
-  if (address == "")
-  {
-    fprintf(stderr, "error: EOS_RDRURL is not defined so we fall back to  "
-            "root://localhost:1094// \n");
-    address = "root://localhost:1094//";
-  }
-
-  XrdCl::URL url(address);
-
-  if (!url.IsValid())
-  {
-    eos_static_err("URL is not valid: %s", address.c_str());
-    exit(-1);
-  }
-
-  MgmHost = address.c_str();
-  MgmHost.replace("root://", "");
 
   // Check if we should set files executable
   if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC"), "1")))
     fuse_exec = true;
 
   // Initialise the XrdFileCache
-  fuse_cache_read = false;
   fuse_cache_write = false;
 
-  if ((!(getenv("EOS_FUSE_CACHE"))) || (getenv("EOS_FUSE_CACHE") && (!strcmp(getenv("EOS_FUSE_CACHE"), "0"))))
+  if ((!(getenv("EOS_FUSE_CACHE"))) ||
+      (getenv("EOS_FUSE_CACHE") && (!strcmp(getenv("EOS_FUSE_CACHE"), "0"))))
   {
     eos_static_notice("cache=false");
     XFC = NULL;
@@ -2814,20 +2970,21 @@ xrd_init ()
     if (!getenv("EOS_FUSE_CACHE_SIZE"))
       setenv("EOS_FUSE_CACHE_SIZE", "30000000", 1); // ~300MB
 
-    eos_static_notice("cache=true size=%s cache-read=%s cache-write=%s exec=%d",
+    eos_static_notice("cache=true size=%s cache-write=%s exec=%d",
                       getenv("EOS_FUSE_CACHE_SIZE"),
-                      getenv("EOS_FUSE_CACHE_READ"),
-                      getenv("EOS_FUSE_CACHE_WRITE"),
-                      fuse_exec);
+                      getenv("EOS_FUSE_CACHE_WRITE"), fuse_exec);
 
-    XFC = FuseWriteCache::GetInstance(static_cast<size_t> (atol(getenv("EOS_FUSE_CACHE_SIZE"))));
-
-    if (getenv("EOS_FUSE_CACHE_READ") && atoi(getenv("EOS_FUSE_CACHE_READ")))
-      fuse_cache_read = true;
+    XFC = FuseWriteCache::GetInstance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));
 
     if (getenv("EOS_FUSE_CACHE_WRITE") && atoi(getenv("EOS_FUSE_CACHE_WRITE")))
       fuse_cache_write = true;
   }
+
+  // Get the number of levels in the top hierarchy protected agains deletions
+  if (!getenv("EOS_FUSE_RMLVL_PROTECT"))
+    rm_level_protect = 1;
+  else
+    rm_level_protect = atoi(getenv("EOS_FUSE_RMLVL_PROTECT"));
 
   passwdstore = new XrdOucHash<XrdOucString > ();
   stringstore = new XrdOucHash<XrdOucString > ();

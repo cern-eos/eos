@@ -24,6 +24,8 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/WebDAVHandler.hh"
 #include "mgm/http/webdav/PropFindResponse.hh"
+#include "mgm/http/webdav/PropPatchResponse.hh"
+#include "mgm/http/webdav/LockResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
@@ -65,28 +67,33 @@ WebDAVHandler::HandleRequest (eos::common::HttpRequest *request)
   switch (meth)
   {
   case PROPFIND:
+    gOFS->MgmStats.Add("Http-PROPFIND", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
     response = new PropFindResponse(request, mVirtualIdentity);
     break;
   case PROPPATCH:
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+    gOFS->MgmStats.Add("Http-PROPPATCH", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+    response = new PropPatchResponse(request, mVirtualIdentity);
     break;
   case MKCOL:
+    gOFS->MgmStats.Add("Http-MKCOL", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
     response = MkCol(request);
     break;
   case COPY:
+    gOFS->MgmStats.Add("Http-COPY", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
     response = Copy(request);
     break;
   case MOVE:
+    gOFS->MgmStats.Add("Http-MOVE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
     response = Move(request);
     break;
   case LOCK:
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+    gOFS->MgmStats.Add("Http-LOCK", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+    response = new LockResponse(request, mVirtualIdentity);
     break;
   case UNLOCK:
+    gOFS->MgmStats.Add("Http-UNLOCK", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
     response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::NOT_IMPLEMENTED);
+    response->SetResponseCode(eos::common::HttpResponse::NO_CONTENT);
     break;
   default:
     response = new eos::common::PlainHttpResponse();
@@ -266,7 +273,8 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
         if (error.getErrInfo() == EEXIST)
         {
           // resource exists
-          if (request->GetHeaders()["overwrite"] == "T")
+	  // webdav specifies to overwrite by default if the special header is not set to F
+          if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
           {
             // force the rename
             struct stat buf;
@@ -361,6 +369,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
       // everything went well
       response = new eos::common::PlainHttpResponse();
       response->SetResponseCode(response->CREATED);
+      response->AddHeader("Location",request->GetHeaders()["destination"].c_str());
     }
   }
 
@@ -428,7 +437,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
       if (rc == EEXIST)
       {
         // resource exists
-        if (request->GetHeaders()["overwrite"] == "T")
+	if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
         {
           // force overwrite
           info += "&mgm.file.option=f";

@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------
 // File: com_fuse.cc
 // Author: Andreas-Joachim Peters - CERN
-// -----------------------------------B-----------------------------------
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -181,17 +181,6 @@ com_fuse (char* arg1)
       env += " EOS_FUSE_CACHE_WRITE=1";
     }
 
-    if (getenv("EOS_FUSE_CACHE_READ"))
-    {
-      env += " EOS_FUSE_CACHE_READ=";
-      env += getenv("EOS_FUSE_CACHE_READ");
-    }
-    else
-    {
-      setenv("EOS_FUSE_CACHE_READ", "0", 1);
-      env += " EOS_FUSE_CACHE_READ=0";
-    }
-
     if (getenv("EOS_FUSE_CACHE_SIZE"))
     {
       env += " EOS_FUSE_CACHE_SIZE=";
@@ -225,11 +214,23 @@ com_fuse (char* arg1)
       env += " EOS_FUSE_DEBUG=0";
     }
 
+    if (getenv("EOS_FUSE_RMLVL_PROTECT"))
+    {
+      env += " EOS_FUSE_RMLVL_PROTECT=";
+      env += getenv("EOS_FUSE_RMLVL_PROTECT");
+    }
+    else
+    {
+      setenv("EOS_FUSE_RMLVL_PROTECT", "1", 1);
+      env += " EOS_FUSE_RMLVL_PROTECT=1";
+    }
+
     fprintf(stderr, "===> xrootd ra             : %s\n", getenv("EOS_FUSE_READAHEADSIZE"));
     fprintf(stderr, "===> xrootd cache          : %s\n", getenv("EOS_FUSE_READCACHESIZE"));
     fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
     fprintf(stderr, "===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE_WRITE"));
     fprintf(stderr, "===> fuse write-cache-size : %s\n", getenv("EOS_FUSE_CACHE_SIZE"));
+    fprintf(stderr, "===> fuse rm level protect : %s\n", getenv("EOS_FUSE_RMLVL_PROTECT"));
 
     XrdOucString mount = env;
     mount += " eosfsd ";
@@ -245,7 +246,7 @@ com_fuse (char* arg1)
       int rc = system(mount.c_str());
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: mount failed");
+        fprintf(stderr, "error: failed mount, check log for details\n");
       }
     }
     else
@@ -254,28 +255,31 @@ com_fuse (char* arg1)
       int rc = system(mount.c_str());
       if (WEXITSTATUS(rc))
       {
-        fprintf(stderr, "error: mount failed\n");
-	exit(-1);
+        fprintf(stderr, "error: failed mount, check log for details\n");
+        exit(-1);
       }
     }
 
     bool mountok=false;
 
-    for (size_t i=0; i< 50; i++) 
+    // Keep checking for 5 seconds
+    for (size_t i=0; i< 50; i++)
     {
       if(stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino) )
       {
-	usleep(100000);
+        usleep(100000);
       }
       else
       {
-	mountok=true;
-	break;
-      }	
+        mountok=true;
+        break;
+      }
     }
+
     if (!mountok)
     {
-      fprintf(stderr, "error: mount failed at %s\n", mountpoint.c_str());
+      fprintf(stderr, "error: failed mount at %s, check log for details\n",
+              mountpoint.c_str());
       exit(-1);
     }
   }

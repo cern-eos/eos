@@ -529,7 +529,8 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     // File
   else
   {
-    if (resourceType) propNotFound->append_node(resourceType);
+    if (resourceType) propFound->append_node(resourceType);
+
     if (contentLength)
     {
       SetValue(contentLength, std::to_string((long long) statInfo.st_size).c_str());

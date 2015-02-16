@@ -51,7 +51,7 @@ XrdMgmOfs::_chown (const char *path,
  * this operation in the Ofs interface. root can alwasy run the operation.
  * Users with the admin role can run the operation. Normal users can run the operation
  * if they have the 'c' permissions in 'sys.acl'. File ownership can only be changed
- * with the root or admin role. If gid=0xffffffff, we don't set the group
+ * with the root or admin role. If uid,gid=0xffffffff, we don't set the uid/group
  */
 /*----------------------------------------------------------------------------*/
 
@@ -100,9 +100,12 @@ XrdMgmOfs::_chown (const char *path,
     }
     else
     {
-      // change the owner
-      cmd->setCUid(uid);
-      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) && (gid != 0xffffffff))
+      if ( (unsigned int) uid != 0xffffffff) 
+      {
+	// change the owner
+	cmd->setCUid(uid);
+      }
+      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) && ( (unsigned int)gid != 0xffffffff))
       {
         // change the group
         cmd->setCGid(gid);
@@ -146,8 +149,11 @@ XrdMgmOfs::_chown (const char *path,
           quotanode->removeFile(fmd);
         }
 
-        // change the owner
-        fmd->setCUid(uid);
+	if ( (unsigned int) uid != 0xffffffff) 
+        {
+	  // change the owner
+	  fmd->setCUid(uid);
+	}
 
         // re-add the file
         if (quotanode)
@@ -157,15 +163,10 @@ XrdMgmOfs::_chown (const char *path,
 
         if (!vid.uid)
         {
-          if (gid)
+	  if ( (unsigned int) gid != 0xffffffff) 
           {
             // change the group
             fmd->setCGid(gid);
-          }
-          else
-          {
-            if (!uid)
-              fmd->setCGid(uid);
           }
         }
 

@@ -331,7 +331,7 @@ Fsck::Check (void)
       }
       else
       {
-        eos_static_err("Can not parse fsck response: %s\n", lines[nlines].c_str());
+        eos_static_err("Can not parse fsck response: %s", lines[nlines].c_str());
       }
     }
 

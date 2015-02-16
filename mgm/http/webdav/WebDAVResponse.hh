@@ -136,6 +136,17 @@ public:
   AllocateAttribute (const char *name, const char *value);
 
   /**
+   * Clone a node and all it's children
+   *
+   * @param node  the node to clone
+   *
+   * @return a cloned XML node
+   */
+  rapidxml::xml_node<>*
+  CloneNode (rapidxml::xml_node<> *node);
+
+
+  /**
    * Add a string to the response XML document memory pool.
    *
    * @param value  the string to be allocated

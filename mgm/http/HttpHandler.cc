@@ -62,37 +62,47 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
   int meth = ParseMethodString(request->GetMethod());
   switch (meth)
   {
-  case GET:
-    response = Get(request);
-    break;
-  case HEAD:
-    response = Head(request);
-    break;
-  case POST:
-    response = Post(request);
-    break;
-  case PUT:
-    response = Put(request);
-    break;
-  case DELETE:
-    response = Delete(request);
-    break;
-  case TRACE:
-    response = Trace(request);
-    break;
-  case OPTIONS:
-    response = Options(request);
-    break;
-  case CONNECT:
-    response = Connect(request);
-    break;
-  case PATCH:
-    response = Patch(request);
-    break;
-  default:
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
-    response->SetBody("No such method");
+    case GET:
+      gOFS->MgmStats.Add("Http-GET", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Get(request);
+      break;
+    case HEAD:
+      gOFS->MgmStats.Add("Http-HEAD", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Head(request);
+      response->SetBody("");
+      break;
+    case POST:
+      gOFS->MgmStats.Add("Http-POST", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Post(request);
+      break;
+    case PUT:
+      gOFS->MgmStats.Add("Http-PUT", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Put(request);
+      break;
+    case DELETE:
+      gOFS->MgmStats.Add("Http-DELETE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Delete(request);
+      break;
+    case TRACE:
+      gOFS->MgmStats.Add("Http-TRACE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Trace(request);
+      break;
+    case OPTIONS:
+      gOFS->MgmStats.Add("Http-OPTIONS", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Options(request);
+      break;
+    case CONNECT:
+      gOFS->MgmStats.Add("Http-CONNECT", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Connect(request);
+      break;
+    case PATCH:
+      gOFS->MgmStats.Add("Http-PATCH", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Patch(request);
+      break;
+    default:
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
+      response->SetBody("No such method");
   }
 
   mHttpResponse = response;
@@ -191,50 +201,40 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
                                        response->NOT_MODIFIED);
     }
 
-    if (spath.endswith("/"))
+    // find out if it is a file or directory
+    if (S_ISDIR(buf.st_mode)) 
     {
       isfile = false;
+      if (isHEAD) 
+      {
+	// HEAD requests for dirs just act like 'exists'
+	eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
+			buf.st_size,
+			url.c_str());
+	
+	response = new eos::common::PlainHttpResponse();
+	response->SetBody("");
+	response->AddHeader("ETag", etag);
+	response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+	return response;
+      }
     }
     else
     {
-      // find out if it is a file or directory
-      if (S_ISDIR(buf.st_mode)) 
+      isfile = true;
+      if (isHEAD)
       {
-        isfile = false;
-	if (isHEAD) 
-	{
-	  // HEAD requests for dirs just act like 'exists'
-          eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
-                          buf.st_size,
-                          url.c_str());
-	  
-	  response = new eos::common::PlainHttpResponse();
-	  response->SetBody("");
-	  response->AddHeader("ETag", etag);
-	  response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-	  return response;
-	}
-      }
-      else
-      {
-        if (isHEAD)
-        {
-          std::string basename = url.substr(url.rfind("/") + 1);
-          eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
-                          buf.st_size,
-                          url.c_str());
-          // HEAD requests on files can return from the MGM without redirection
-          response = HttpServer::HttpHead(buf.st_size, basename);
-          response->AddHeader("ETag", etag);
-          response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-          return response;
-        }
+	std::string basename = url.substr(url.rfind("/") + 1);
+	eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
+			buf.st_size,
+			url.c_str());
+	// HEAD requests on files can return from the MGM without redirection
+	response = HttpServer::HttpHead(buf.st_size, basename);
+	response->AddHeader("ETag", etag);
+	response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+	return response;
       }
     }
-  }
-  else
-  {
-    isfile = true;
   }
 
   if (isfile)
@@ -396,8 +396,8 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
              (entryname == "..")))
           continue;
 
-        result += "<tr>\n";
-        result += "  <td style=\"padding-right: 5px\">";
+        result += "       <tr>\n";
+        result += "       <td style=\"padding-right: 5px\">";
         result += "       <a title=\"\" class=\"hasmenu\" href=\"";
         if (entryname == ".")
         {
@@ -473,12 +473,12 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
             </a>
             )literal";
         }
-        result += "  </td>\n";
+        result += "       </td>\n";
 
         // ---------------------------------------------------------------------
         // file size
         // ---------------------------------------------------------------------
-        result += "  <td style=\"padding-right: 5px\">";
+        result += "       <td style=\"padding-right: 5px\">";
         result += "<font size=\"2\">";
         if (S_ISDIR(buf.st_mode))
           result += "";
@@ -560,14 +560,14 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         // ---------------------------------------------------------------------
         // show creation date
         // ---------------------------------------------------------------------
-        result += "<td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
+        result += "       <td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
         result += t_creat;
         result += "</font></td>\n";
 
         // ---------------------------------------------------------------------
         // show permissions
         // ---------------------------------------------------------------------
-        result += "<td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
+        result += "       <td style=\"padding-right: 5px\"><font size=\"2\" face=\"Courier New\" color=\"darkgrey\">";
         result += modestr;
         result += "</font></td>\n";
         // ---------------------------------------------------------------------
@@ -580,7 +580,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         // ---------------------------------------------------------------------
         // show group name
         // ---------------------------------------------------------------------
-        result += "<td style=\"padding-right: 5px\"><font color=\"grey\">\n";
+        result += "       <td style=\"padding-right: 5px\"><font color=\"grey\">\n";
         result += gidlimit;
         result += "</font></td>\n";
 
@@ -588,28 +588,28 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         // show acl's if there
         // ---------------------------------------------------------------------
         XrdOucString acl;
-        result += "<td style=\"padding-right: 5px\"><font color=\"#81DAF5\">";
+        result += "       <td style=\"padding-right: 5px\"><font color=\"#81DAF5\">";
         if (S_ISDIR(buf.st_mode))
         {
-        if (!gOFS->attr_get(linkname.c_str(),
-                            error,
-                            &client,
-                            "",
-                            "sys.acl",
-                            acl))
-        {
-          result += acl.c_str();
-        }
+          if (!gOFS->attr_get(linkname.c_str(),
+                              error,
+                              &client,
+                              "",
+                              "sys.acl",
+                              acl))
+          {
+            result += acl.c_str();
+          }
         }
         result += "</font></td>\n";
-        result += "</tr>\n";
+        result += "       </tr>\n";
       }
       // -----------------------------------------------------------------------
       // terminate table, body and html
       // ---------------------------------------------------------------------
-      result += "</table></div>\n";
-      result += "</body>\n";
-      result += "</html>\n";
+      result += "       </table></div>\n";
+      result += "       </body>\n";
+      result += "       </html>\n";
       response = new eos::common::PlainHttpResponse();
       response->SetBody(result);
       response->AddHeader("ETag", etag);
@@ -631,6 +631,7 @@ HttpHandler::Head (eos::common::HttpRequest * request)
 {
   eos::common::HttpResponse *response = Get(request, true);
   response->mUseFileReaderCallback = false;
+  response->SetBody("");
   return response;
 }
 
@@ -942,7 +943,7 @@ HttpHandler::Options (eos::common::HttpRequest * request)
   eos::common::HttpResponse *response = new eos::common::PlainHttpResponse();
   response->AddHeader("DAV", "1,2");
   response->AddHeader("Allow", "OPTIONS,GET,HEAD,PUT,DELETE,TRACE,"\
-                               "PROPFIND,MKCOL,COPY,MOVE");
+                               "PROPFIND,PROPPATCH,MKCOL,COPY,MOVE,LOCK,UNLOCK");
   response->AddHeader("Content-Length", "0");
 
   return response;

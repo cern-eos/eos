@@ -72,6 +72,9 @@ char mounthostport[1024];
 //! Mount prefix
 char mountprefix[1024];
 
+//! Local mount point
+char local_mount_dir[1024];
+
 //! We need to track the access time of/to use autofs
 static time_t eosatime;
 
@@ -309,12 +312,19 @@ eosdfs_mkdir (const char* path, mode_t mode)
 static int
 eosdfs_unlink (const char* path)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  fprintf (stderr, "[%s] path=%s, pid=%u\n", __FUNCTION__, path, getpid());
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
-  strcat (rootpath, mountprefix);
-  strcat (rootpath, path);
+  strcat(rootpath, mountprefix);
+  strcat(rootpath, path);
+
+  // Check and prevent top level deletions
+  struct fuse_context* fuse_ctx = fuse_get_context();
+
+  if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
+    return -EPERM;
+
   int res = xrd_unlink (rootpath, uid, gid, pid);
 
   if (res)
@@ -337,6 +347,13 @@ eosdfs_rmdir (const char* path)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
+
+  // Check and prevent top level deletions
+  struct fuse_context* fuse_ctx = fuse_get_context();
+
+  if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
+    return -EPERM;
+
   int res = xrd_rmdir (rootpath, uid, gid, pid);
 
   if (res)
@@ -777,6 +794,9 @@ main (int argc, char* argv[])
       exit (-2);
     }
 #endif
+
+  // Save local mount directory to check for toplevel deletions
+  strcpy(local_mount_dir, argv[1]);
 
   for (i = 0; i < argc; i++)
   {

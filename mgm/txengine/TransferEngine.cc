@@ -400,7 +400,7 @@ TransferEngine::Scheduler()
     XrdSysThread::SetCancelOff();
     // schedule here
     {
-      eos_static_debug("gettaing next transfer");
+      eos_static_debug("getting next transfer");
       TransferDB::transfer_t transfer = GetNextTransfer(kInserted);
       if (transfer.count("error")) {
 	eos_static_debug("GetNextTransfer(kInserted) returned %s", transfer["error"].c_str());
@@ -414,6 +414,29 @@ TransferEngine::Scheduler()
 	  // ------------------------------------------------------------
 	  // trivial scheduling engine
 	  // ------------------------------------------------------------
+
+	  bool no_gw=true;
+	  while (no_gw)
+	  {	    
+	    {
+	      eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+	      eos::common::RWMutexReadLock gwlock(FsView::gFsView.GwMutex);
+	      if (FsView::gFsView.mGwNodes.size())
+		no_gw = false;
+	    }
+	    
+	    if (no_gw)
+	    {
+	      XrdSysThread::SetCancelOn();
+	      eos_static_info("msg=\"no gw available to run transfer\"");
+	      for (size_t i=0; i< 60; i++) {
+		XrdSysTimer sleeper;
+		sleeper.Wait(1000);
+		XrdSysThread::CancelPoint();
+	      }
+	      XrdSysThread::SetCancelOff();
+	    }
+	  }
 
 	  // ------------------------------------------------------------
 	  // select round-robin a gw to deal with it
@@ -429,14 +452,6 @@ TransferEngine::Scheduler()
 	
 	  if (it != FsView::gFsView.mGwNodes.end()) {
 	    eos_static_info("selected gw: %s", it->c_str());
-	  } else {
-	    XrdSysThread::SetCancelOn();
-	    eos_static_info("msg=\"now gw available to run transfer\"");
-	    for (size_t i=0; i< 60; i++) {
-	      XrdSysTimer sleeper;
-	      sleeper.Wait(1000);
-	      XrdSysThread::CancelPoint();
-	    }
 	  }
 	  
 	  // ------------------------------------------------------------------------
