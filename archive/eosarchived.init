@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/bash
 #
 #-------------------------------------------------------------------------------
 # File: eosarchiverd.init
@@ -26,95 +26,95 @@
 # description: EOS archive daemon init script
 # ------------------------------------------------------------------------------
 
-# Source function library.
+# Source function library
 . /etc/rc.d/init.d/functions
 
-# Variables
+# Daemon specific variables
 NAME="eosarchived"
-export DAEMON_COREFILE_LIMIT="unlimited"
+DAEMON=/usr/bin/$NAME.py
+PIDFILE=/var/run/$NAME.pid
+LOCKFILE=/var/lock/subsys/$NAME
 RETVAL=0
 
 # Source sysconfig files
 if [ -f /etc/sysconfig/$NAME ]; then
-        . /etc/sysconfig/$NAME
+    . /etc/sysconfig/$NAME
+else
+    echo -n "File /etc/sysconfig/$NAME not found"
+    echo_failure
+    echo
+    exit 6
 fi
 
-# Create and set ownership on the log directory
-mkdir -p $LOG_DIR
-chown -R $USER:$GROUP $LOG_DIR
-
-# Create and set ownership on the directory where files for each archive transfer
-# are saved by the worker processes. Each process saves 3 files with the following
-# extensions:
-#  .tx - the actual archive file copied from EOS
-#  .log - log file for the running transfer
-#  .ps - status file for the running transfer
-mkdir -p $EOS_ARCHIVE_DIR
-chown -R $USER:$GROUP $EOS_ARCHIVE_DIR
-
 start() {
-        # Run daemon
-        echo -n $"Starting $NAME: "
+    # Check if the file is executable
+    [ -x $DAEMON ] || exit 5
 
-        cd /var/log/eos/
-        daemon --user=$USER /usr/bin/$NAME.py $EOSARCHIVERD_OPTIONS
+    # Check the status of the process
+    if [ -e ${PIDFILE} ]; then
+	status -p $PIDFILE $DAEMON && status="0" || status="$?"
+	# If status is SUCCESS, we don't need to start again
+	if [ $status = "0" ]; then
+	    exit
+	fi
+    fi
 
-        # Write the pid to a file.
-        RETVAL=$?
-        if [ $RETVAL -eq 0 ]; then
-                pid=`ps -eo pid,ppid,comm | egrep " 1 $NAME.py\$" | awk '{print $1}'`
-                rm -f /var/run/$NAME.pid
-                if [ -n "$pid" ]; then
-                        echo $pid > /var/run/$NAME.pid
-                        RETVAL=0
-                else
-                        RETVAL=1
-                fi
-        fi
+    # Start the daemon
+    daemon --user=$USER $DAEMON $EOSARCHIVERD_OPTIONS
 
-        [ $RETVAL -eq 0 ] && success $"$base startup" || failure $"$base startup"
-        echo
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$NAME
-        return $RETVAL
+    # Write the pid to a file
+    RETVAL=$?
+    if [ $RETVAL -eq 0 ]; then
+	pid=`ps -eo pid,ppid,comm | egrep " 1 $NAME.py\$" | awk '{print $1}'`
+	rm -f $PIDFILE
+	if [ -n "$pid" ]; then
+	    echo $pid > $PIDFILE
+	    RETVAL=0
+	else
+	    RETVAL=1
+	fi
+    fi
+
+    action "Starting $NAME: " [ $RETVAL -eq 0 ]
+    [ $RETVAL -eq 0 ] && touch $LOCKFILE
+    return $RETVAL
 }
 
 stop() {
-        echo -n $"Stopping $NAME: "
-        killproc -p "/var/run/$NAME.pid"
-        RETVAL=$?
-
-        echo
-        [ -f /var/lock/subsys/$NAME ] && rm -f /var/lock/subsys/$NAME
-        return $RETVAL
+    echo -n "Shutting down $NAME: "
+    killproc -p $PIDFILE "$NAME.py"
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $LOCKFILE
+    return $RETVAL
 }
 
 restart() {
-        stop
-        start
+    stop
+    start
 }
 
 # See how we were called
 case "$1" in
-
-        start)
-                start
-                ;;
-        stop)
-                stop
-                ;;
-        status)
-                status $NAME
-                RETVAL=$?
-                ;;
-        restart)
-                restart
-                ;;
-        condrestart)
-                [ -f /var/lock/subsys/$NAME ] && restart || :
-                ;;
-        *)
-                echo $"Usage: $0 {start|stop|status|restart|condrestart}"
-                exit 1
+    start)
+	start
+	;;
+    stop)
+	stop
+	;;
+    status)
+	status $NAME
+	RETVAL=$?
+	;;
+    restart)
+	restart
+	;;
+    condrestart)
+	[ -f /var/lock/subsys/$NAME ] && restart || :
+	;;
+    *)
+	echo $"Usage: $0 {start|stop|status|restart|condrestart}"
+	exit 1
 esac
 
 exit $RETVAL
