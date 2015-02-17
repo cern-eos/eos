@@ -422,4 +422,9 @@ def main():
             logger.exception(err)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except ValueError as __:
+        # This is to deal the exception thrown when trying to close the log
+        # file which is already deleted manualy by an exterior process
+        pass
