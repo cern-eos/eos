@@ -2721,25 +2721,61 @@ int is_toplevel_rm(int pid, char* local_dir)
   mMapPidDenyRm.clear();
 
   // Try to print the command triggering the unlink
-  std::string token, cmd;
+  std::string token, rm_cmd;
+  std::set<std::string> rm_entries; // rm command argument entries
+  std::set<std::string> rm_opt; // rm command options (long and short)
   std::ostringstream oss;
   oss << "/proc/" << pid << "/cmdline";
   std::ifstream infile(oss.str(), std::ios_base::binary | std::ios_base::in);
-  std::set<std::string> rm_entries;
+  int count = 0;
 
   while (std::getline(infile, token, '\0'))
   {
-    rm_entries.insert(token);
-    cmd += token;
-    cmd += ' ';
+    count ++;
+
+    if (count == 1)
+    {
+      rm_cmd = token;
+      continue;
+    }
+
+    // Long option
+    if (token.find("--") == 0)
+    {
+      token.erase(0, 2);
+      rm_opt.insert(token);
+    }
+    else if (token.find('-') == 0)
+    {
+      token.erase(0, 1);
+
+      // Short option
+      size_t length = token.length();
+
+      for (size_t i = 0; i != length; ++i)
+        rm_opt.insert(std::string(&token[i], 1));
+    }
+    else
+      rm_entries.insert(token);
   }
 
-  eos_static_debug("comandline:%s", cmd.c_str());
   infile.close();
+  eos_static_debug("command=%s", rm_cmd.c_str());
 
-  // Check if this is an 'rm -rf ' or 'rm -r '
-  if ((cmd.find("rm -rf ") != 0) && (cmd.find("rm -r ") != 0))
+  for (std::set<std::string>::iterator it = rm_opt.begin();
+       it != rm_opt.end(); ++it)
+  {
+    eos_static_info("rm option:%s", it->c_str());
+  }
+
+  // Exit if this is not a recursive removal
+  if ((rm_cmd != "rm") ||
+      (rm_cmd == "rm" &&
+       rm_opt.find("r") == rm_opt.end() &&
+       rm_opt.find("recursive") == rm_opt.end()))
+  {
     return 0;
+  }
 
   // Get mountpoint on the localhost
   oss.str("");
@@ -2774,6 +2810,19 @@ int is_toplevel_rm(int pid, char* local_dir)
   std::string rel_path;
   int level;
 
+  // Detect remove from higher up in the hierarchy from the mount point
+  if (mount_dir.find(scwd) == 0)
+  {
+    level = 1;
+
+    if (level <= rm_level_protect)
+    {
+      mMapPidDenyRm[pid] = true;
+      return 1;
+    }
+  }
+
+  // Detect remove from inside the mount point hierarchy
   if (scwd.find(mount_dir) == 0)
   {
     rel_path = scwd.substr(mount_dir.length());
