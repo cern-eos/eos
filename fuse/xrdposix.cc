@@ -2765,7 +2765,7 @@ int is_toplevel_rm(int pid, char* local_dir)
   for (std::set<std::string>::iterator it = rm_opt.begin();
        it != rm_opt.end(); ++it)
   {
-    eos_static_info("rm option:%s", it->c_str());
+    eos_static_debug("rm option:%s", it->c_str());
   }
 
   // Exit if this is not a recursive removal
@@ -2810,18 +2810,6 @@ int is_toplevel_rm(int pid, char* local_dir)
   std::string rel_path;
   int level;
 
-  // Detect remove from higher up in the hierarchy from the mount point
-  if (mount_dir.find(scwd) == 0)
-  {
-    level = 1;
-
-    if (level <= rm_level_protect)
-    {
-      mMapPidDenyRm[pid] = true;
-      return 1;
-    }
-  }
-
   // Detect remove from inside the mount point hierarchy
   if (scwd.find(mount_dir) == 0)
   {
@@ -2836,15 +2824,24 @@ int is_toplevel_rm(int pid, char* local_dir)
     }
   }
 
-  // Now check if the cmd was launched from a different location but exactly on
-  // the mount point and therefore the process command line contains the full
-  // path of the directories to delete
+  // Check if the removal is done using full or relative paths and in either case
+  // construct the full path and get the deepness level it reaches inside the EOS
+  // mount point so that we can take the right decision
   for (std::set<std::string>::iterator it = rm_entries.begin();
        it != rm_entries.end(); ++it)
   {
-    if (it->find(mount_dir) == 0)
+    // Construct full path if relative path provided
+    if (it->at(0) != '/')
     {
-      rel_path = it->substr(mount_dir.length());
+      token = scwd;
+      token += *it;
+    }
+    else
+      token = *it;
+
+    if (token.find(mount_dir) == 0)
+    {
+      rel_path = token.substr(mount_dir.length());
       level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
       eos_static_debug("rm_ext current_lvl=%i, protect_lvl=%i", level,
                       rm_level_protect);
