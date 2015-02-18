@@ -6,7 +6,19 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.97 Beryl-Aquamarine``
+New Features
+------------
+- forbid 'rm -r' & 'rm -rf' on a predefined tree deepness
+
+Bug Fixes 
+---------
+- various fixes in archive daemon
+- improve speed of HTTP HEAD requests with trailing /  
+- store proxy and client identity properly in VID structure
+
 ``Version V0.3.96 Beryl-Aquamarine``
+
 Bug Fixes
 ---------
 - fix -1 bug in 'chown' 
