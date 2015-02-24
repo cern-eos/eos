@@ -329,7 +329,10 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           //
           response->AddHeader("ETag", etag);
         }
-        response->SetResponseCode(response->OK);
+	if (mRangeRequest)
+	  response->SetResponseCode(response->PARTIAL_CONTENT);
+	else
+	  response->SetResponseCode(response->OK);
       }
     }
   }
@@ -507,6 +510,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           //
           response->AddHeader("ETag", etag);
         }
+	response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }
@@ -551,6 +555,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           eos::common::StringConversion::GetSizeString(ocid, mFileId << 28);
           response->AddHeader("OC-FileId", ocid);
         }
+	response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }
