@@ -698,19 +698,18 @@ public:
   int Emsg (const char *, XrdOucErrInfo&, int, const char *x,
             const char *y = "");
 
-  // ---------------------------------------------------------------------------
-  // Constructor
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @brief the MGM Ofs object constructor
+  //----------------------------------------------------------------------------
   XrdMgmOfs (XrdSysError *lp);
 
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-
   virtual
-  ~XrdMgmOfs ()
-  {
-  }
+  ~XrdMgmOfs() { }
 
   // ---------------------------------------------------------------------------
   // Configuration routine
@@ -991,10 +990,12 @@ public:
   bool UTF8; //< true if running in less restrictive character set mode
 
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
+  std::string mFstGwHost; ///< FST gateway redirect fqdn host
+  int mFstGwPort; ///< FST gateway redirect port, default 1094
   
 private:
 
-  eos::common::Mapping::VirtualIdentity vid; //< virtual identity
+  eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

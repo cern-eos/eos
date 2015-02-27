@@ -147,12 +147,9 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief the MGM Ofs object constructor
- */
-/*----------------------------------------------------------------------------*/
+XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
+mFstGwHost(""),
+mFstGwPort(0)
 {
   eDest = ep;
   ConfigFN = 0;
@@ -768,4 +765,3 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
   ofs->FsConfigListener();
   return 0;
 }
-
