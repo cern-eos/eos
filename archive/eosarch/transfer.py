@@ -519,7 +519,7 @@ class Transfer(object):
         # For inital PUT copy also the archive file to tape
         if self.init_put:
             __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
-            self.list_jobs.append((self.efile_full, dst))
+            self.list_jobs.append((self.efile_full "?eos.ruid=0&eos.rgid=0", dst))
 
         # Copy files
         for fentry in self.archive.files():
