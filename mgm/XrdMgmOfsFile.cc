@@ -1482,8 +1482,10 @@ XrdMgmOfsFile::open (const char *inpath,
     return Emsg(epname, error, ENONET,
                 "received non-existent filesystem", path);
 
-  // Set the FST gateway if this is available otherwise the actual FST
-  if (!gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
+  // Set the FST gateway if this is available otherwise the actual FST but do
+  // this only for clients who are geotagged with default
+  if ((vid.geolocation == eos::common::Mapping::PROXY_GEOTAG) &&
+      !gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
   {
     // Build the URL for the forwarding proxy and must have the following
     // signature: xroot://proxy:port//xroot://endpoint:port/abspath
@@ -1756,7 +1758,8 @@ XrdMgmOfsFile::open (const char *inpath,
         if (replace)
         {
           // Set the FST gateway if this is available otherwise the actual FST
-          if (!gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
+          if ((vid.geolocation == eos::common::Mapping::PROXY_GEOTAG) &&
+              !gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
           {
             // Build the URL for the forwarding proxy and must have the following
             // signature: xroot://proxy:port//xroot://endpoint:port/abspath
