@@ -60,6 +60,9 @@ class Mapping {
 private:
 public:
 
+  // Constants used throughout the Mapping class
+  static const std::string PROXY_GEOTAG;
+
   typedef std::vector<uid_t> uid_vector; //< typdef of list storing valid uids of a user
   typedef std::vector<gid_t> gid_vector; //< typdef of list storing valid gids of a user
   typedef std::map<uid_t, uid_vector > UserRoleMap_t; //< typedef of map storing uid vectors per uid

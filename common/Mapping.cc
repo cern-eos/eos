@@ -32,6 +32,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+// Constants
+const std::string Mapping::PROXY_GEOTAG = "proxy";
+
 /*----------------------------------------------------------------------------*/
 // global mapping objects
 /*----------------------------------------------------------------------------*/

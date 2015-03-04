@@ -116,7 +116,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
   EXEC_TIMING_BEGIN("Open");
   SetLogId(logId, tident);
-  
+
   {
     EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap(client, ininfo, tident, vid);
@@ -321,16 +321,12 @@ XrdMgmOfsFile::open (const char *inpath,
   }
 
   int rcode = SFS_ERROR;
-
   XrdOucString redirectionhost = "invalid?";
-
   XrdOucString targethost = "";
   int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
-
   int ecode = 0;
   unsigned long fmdlid = 0;
   unsigned long long cid = 0;
-
   eos_debug("mode=%x create=%x truncate=%x", open_mode, SFS_O_CREAT, SFS_O_TRUNC);
 
   // proc filter
@@ -444,15 +440,15 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       if (dmd)
       {
-	if (ocUploadUuid.length()) 
-	{
-	  eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),ocUploadUuid));
-	  fmd = dmd->findFile(aPath.GetName());
-	}
-	else 
-	{
-	  fmd = dmd->findFile(cPath.GetName());
-	}
+        if (ocUploadUuid.length())
+        {
+          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),ocUploadUuid));
+          fmd = dmd->findFile(aPath.GetName());
+        }
+        else
+        {
+          fmd = dmd->findFile(cPath.GetName());
+        }
 
         if (!fmd)
         {
@@ -462,7 +458,7 @@ XrdMgmOfsFile::open (const char *inpath,
           }
           else
           {
-	    errno = ENOENT;
+            errno = ENOENT;
           }
         }
         else
@@ -755,14 +751,14 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
       }
-      
-      if (!ocUploadUuid.length()) 
+
+      if (!ocUploadUuid.length())
       {
-	fmd = 0;
+        fmd = 0;
       }
       else
       {
-	eos_info("keep attached to existing fmd in chunked upload");
+        eos_info("keep attached to existing fmd in chunked upload");
       }
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     }
@@ -814,16 +810,16 @@ XrdMgmOfsFile::open (const char *inpath,
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
           try
           {
-	    if (!fmd) 
-	    {
-	      // we create files with the uid/gid of the parent directory
-	      if (isAtomicUpload)
-	      {
-		eos::common::Path cPath(path);
-		creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
-		eos_info("atomic-path=%s", creation_path.c_str());
-	      }
-	      
+            if (!fmd)
+            {
+              // we create files with the uid/gid of the parent directory
+              if (isAtomicUpload)
+              {
+                eos::common::Path cPath(path);
+                creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
+                eos_info("atomic-path=%s", creation_path.c_str());
+              }
+
               fmd = gOFS->eosView->createFile(creation_path.c_str(), vid.uid, vid.gid);
               if (ocUploadUuid.length())
                 fmd->setFlags(0);
@@ -1431,7 +1427,7 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
-	// we do the same for chunked/parallel uploads
+        // we do the same for chunked/parallel uploads
         // ---------------------------------------------------------------------
         {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -1486,11 +1482,28 @@ XrdMgmOfsFile::open (const char *inpath,
     return Emsg(epname, error, ENONET,
                 "received non-existent filesystem", path);
 
-  targethost = filesystem->GetString("host").c_str();
-  targetport = atoi(filesystem->GetString("port").c_str());
+  // Set the FST gateway if this is available otherwise the actual FST but do
+  // this only for clients who are geotagged with default
+  if ((vid.geolocation == eos::common::Mapping::PROXY_GEOTAG) &&
+      !gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
+  {
+    // Build the URL for the forwarding proxy and must have the following
+    // signature: xroot://proxy:port//xroot://endpoint:port/abspath
+    targetport = gOFS->mFstGwPort;
+    targethost = gOFS->mFstGwHost.c_str();
+    std::ostringstream oss;
+    oss << targethost << "?" << "eos.fstfrw=" << filesystem->GetString("host").c_str()
+        << ":" << filesystem->GetString("port").c_str();
+    redirectionhost = oss.str().c_str();
+  }
+  else
+  {
+    targethost = filesystem->GetString("host").c_str();
+    targetport = atoi(filesystem->GetString("port").c_str());
+    redirectionhost = targethost;
+    redirectionhost += "?";
+  }
 
-  redirectionhost = targethost;
-  redirectionhost += "?";
 
   // ---------------------------------------------------------------------------
   // Rebuild the layout ID (for read it should indicate only the number of
@@ -1509,14 +1522,13 @@ XrdMgmOfsFile::open (const char *inpath,
   }
 
 
-  newlayoutId =
-          eos::common::LayoutId::GetId(
-                                       isPio ? eos::common::LayoutId::kPlain :
-                                       eos::common::LayoutId::GetLayoutType(layoutId),
-                                       isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
-                                       isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
-                                       eos::common::LayoutId::GetBlocksizeType(layoutId),
-                                       eos::common::LayoutId::GetBlockChecksum(layoutId));
+  newlayoutId = eos::common::LayoutId::GetId(
+      isPio ? eos::common::LayoutId::kPlain :
+      eos::common::LayoutId::GetLayoutType(layoutId),
+      isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
+      isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
+      eos::common::LayoutId::GetBlocksizeType(layoutId),
+      eos::common::LayoutId::GetBlockChecksum(layoutId));
 
   capability += "&mgm.lid=";
   capability += static_cast<int> (newlayoutId);
@@ -1737,20 +1749,38 @@ XrdMgmOfsFile::open (const char *inpath,
       if (!repfilesystem)
       {
         // don't fail IO on a shadow file system but throw a ciritical error message
-        eos_crit("msg=\"Unable to get replica filesystem information\" path=\"%s\" fsid=%d", path, selectedfs[i]);
+        eos_crit("msg=\"Unable to get replica filesystem information\" "
+                 "path=\"%s\" fsid=%d", path, selectedfs[i]);
         continue;
       }
       else
       {
         if (replace)
         {
-          // we have now a new target host which will do the reconstruction
-          targethost = repfilesystem->GetString("host").c_str();
-          targetport = atoi(repfilesystem->GetString("port").c_str());
+          // Set the FST gateway if this is available otherwise the actual FST
+          if ((vid.geolocation == eos::common::Mapping::PROXY_GEOTAG) &&
+              !gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
+          {
+            // Build the URL for the forwarding proxy and must have the following
+            // signature: xroot://proxy:port//xroot://endpoint:port/abspath
+            targetport = gOFS->mFstGwPort;
+            std::ostringstream oss;
+            oss << gOFS->mFstGwHost.c_str() << "?eos.fstfrw="
+                << filesystem->GetString("host").c_str() << ":"
+                << filesystem->GetString("port").c_str();
+            targethost = oss.str().c_str();
+            redirectionhost = targethost;
+          }
+          else
+          {
+            // We now have a new target host which will do the reconstruction
+            targethost = repfilesystem->GetString("host").c_str();
+            targetport = atoi(repfilesystem->GetString("port").c_str());
+            redirectionhost = targethost;
+            redirectionhost += "?";
+          }
 
-          redirectionhost = targethost;
-          redirectionhost += "?";
-          // point into the right vector entry
+          // point at the right vector entry
           fsIndex = i;
         }
       }
@@ -1795,6 +1825,7 @@ XrdMgmOfsFile::open (const char *inpath,
       capability += i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
+
       if (isPio)
       {
         if (replacedfs[i])
