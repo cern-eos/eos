@@ -1488,20 +1488,20 @@ XrdMgmOfsFile::open (const char *inpath,
     // Build the URL for the forwarding proxy and must have the following
     // signature: xroot://proxy:port//xroot://endpoint:port/abspath
     targetport = gOFS->mFstGwPort;
+    targethost = gOFS->mFstGwHost.c_str();
     std::ostringstream oss;
-    oss << gOFS->mFstGwHost.c_str() << ":" << targetport
-        << "//xroot://" << filesystem->GetString("host").c_str() << ":"
-        << atoi(filesystem->GetString("port").c_str()) << "/";
-    targethost = oss.str().c_str();
+    oss << targethost << "?" << "eos.fstfrw=" << filesystem->GetString("host").c_str()
+        << ":" << filesystem->GetString("port").c_str();
+    redirectionhost = oss.str().c_str();
   }
   else
   {
     targethost = filesystem->GetString("host").c_str();
     targetport = atoi(filesystem->GetString("port").c_str());
+    redirectionhost = targethost;
+    redirectionhost += "?";
   }
 
-  redirectionhost = targethost;
-  redirectionhost += "?";
 
   // ---------------------------------------------------------------------------
   // Rebuild the layout ID (for read it should indicate only the number of
@@ -1520,14 +1520,13 @@ XrdMgmOfsFile::open (const char *inpath,
   }
 
 
-  newlayoutId =
-          eos::common::LayoutId::GetId(
-                                       isPio ? eos::common::LayoutId::kPlain :
-                                       eos::common::LayoutId::GetLayoutType(layoutId),
-                                       isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
-                                       isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
-                                       eos::common::LayoutId::GetBlocksizeType(layoutId),
-                                       eos::common::LayoutId::GetBlockChecksum(layoutId));
+  newlayoutId = eos::common::LayoutId::GetId(
+      isPio ? eos::common::LayoutId::kPlain :
+      eos::common::LayoutId::GetLayoutType(layoutId),
+      isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
+      isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
+      eos::common::LayoutId::GetBlocksizeType(layoutId),
+      eos::common::LayoutId::GetBlockChecksum(layoutId));
 
   capability += "&mgm.lid=";
   capability += static_cast<int> (newlayoutId);
@@ -1763,20 +1762,21 @@ XrdMgmOfsFile::open (const char *inpath,
             // signature: xroot://proxy:port//xroot://endpoint:port/abspath
             targetport = gOFS->mFstGwPort;
             std::ostringstream oss;
-            oss << gOFS->mFstGwHost.c_str() << ":" << targetport
-                << "//xroot://" << filesystem->GetString("host").c_str() << ":"
-                << atoi(filesystem->GetString("port").c_str()) << "/";
+            oss << gOFS->mFstGwHost.c_str() << "?eos.fstfrw="
+                << filesystem->GetString("host").c_str() << ":"
+                << filesystem->GetString("port").c_str();
             targethost = oss.str().c_str();
+            redirectionhost = targethost;
           }
           else
           {
             // We now have a new target host which will do the reconstruction
             targethost = repfilesystem->GetString("host").c_str();
             targetport = atoi(repfilesystem->GetString("port").c_str());
+            redirectionhost = targethost;
+            redirectionhost += "?";
           }
 
-          redirectionhost = targethost;
-          redirectionhost += "?";
           // point at the right vector entry
           fsIndex = i;
         }
@@ -1875,11 +1875,13 @@ XrdMgmOfsFile::open (const char *inpath,
     // Set the FST gateway if this is available otherwise the actual FST
     if (!gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
     {
-      targethost = gOFS->mFstGwHost.c_str();
-      targetport = gOFS->mFstGwPort;
+      // Add fst proxy using the eos.fstproxy tag
       redirectionhost = gOFS->mFstGwHost.c_str();
       redirectionhost += "?";
-      redirectionhost += piolist;
+      std::ostringstream oss;
+      oss << piolist << "eos.fstproxy=" << gOFS->mFstGwHost.c_str() << ":"
+          << gOFS->mFstGwPort << "&";
+      redirectionhost = oss.str().c_str();
     }
     else
     {
