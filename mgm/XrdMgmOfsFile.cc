@@ -1872,22 +1872,7 @@ XrdMgmOfsFile::open (const char *inpath,
   int caplen = 0;
   if (isPio)
   {
-    // Set the FST gateway if this is available otherwise the actual FST
-    if (!gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
-    {
-      // Add fst proxy using the eos.fstproxy tag
-      redirectionhost = gOFS->mFstGwHost.c_str();
-      redirectionhost += "?";
-      std::ostringstream oss;
-      oss << piolist << "eos.fstproxy=" << gOFS->mFstGwHost.c_str() << ":"
-          << gOFS->mFstGwPort << "&";
-      redirectionhost = oss.str().c_str();
-    }
-    else
-    {
-      redirectionhost = piolist;
-    }
-
+    redirectionhost = piolist;
     redirectionhost += "mgm.lid=";
     redirectionhost += static_cast<int> (layoutId);
     redirectionhost += "&mgm.logid=";
