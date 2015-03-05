@@ -368,13 +368,13 @@ class Dispatcher(object):
 
 def main():
     """ Main function """
-    try:
-        config = Configuration()
-    except Exception as err:
-        print("Configuration failed, error:{0}".format(err), file=sys.stderr)
-        raise
-
     with daemon.DaemonContext():
+        try:
+            config = Configuration()
+        except Exception as err:
+            print("Configuration failed, error:{0}".format(err), file=sys.stderr)
+            raise
+
         config.start_logging("dispatcher", config.LOG_FILE, True)
         logger = logging.getLogger("dispatcher")
         config.display()
@@ -396,22 +396,22 @@ def main():
                 pass  # directory exists
 
         # Prepare ZMQ IPC files
-            for ipc_file in [config.FRONTEND_IPC,
-                             config.BACKEND_REQ_IPC,
-                             config.BACKEND_PUB_IPC]:
-                if not os.path.exists(ipc_file):
-                    try:
-                        open(ipc_file, 'w').close()
-                        os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-                    except OSError as err:
-                        err_msg = ("Failed setting permissioins on the IPC socket"
-                                   " file={0}").format(ipc_file)
-                        logger.error(err_msg)
-                        raise
-                    except IOError as err:
-                        err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
-                        logger.error(err_msg)
-                        raise
+        for ipc_file in [config.FRONTEND_IPC,
+                         config.BACKEND_REQ_IPC,
+                         config.BACKEND_PUB_IPC]:
+            if not os.path.exists(ipc_file):
+                try:
+                    open(ipc_file, 'w').close()
+                    os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+                except OSError as err:
+                    err_msg = ("Failed setting permissioins on the IPC socket"
+                               " file={0}").format(ipc_file)
+                    logger.error(err_msg)
+                    raise
+                except IOError as err:
+                    err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
+                    logger.error(err_msg)
+                    raise
 
         # Create dispatcher object
         dispatcher = Dispatcher(config)
