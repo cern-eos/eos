@@ -17,7 +17,7 @@ Requires: globus-gridftp-server-progs
 BuildRequires: globus-gridftp-server-devel
 BuildRequires: xrootd-cl >= 3.3.0
 BuildRequires: xrootd-cl-devel >= 3.3.0
-
+BuildRequires: cmake
 
 %description
 XROOTD gridftp DSI plugin
