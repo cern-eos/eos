@@ -551,26 +551,35 @@ XrdMgmOfsFile::open (const char *inpath,
     // Check for sys.ownerauth entries, which let people operate as the owner of
     // the directory
     // -------------------------------------------------------------------------
+    bool sticky_owner = false;
+
     if (attrmap.count("sys.owner.auth"))
     {
-      attrmap["sys.owner.auth"] += ",";
-      std::string ownerkey = vid.prot.c_str();
-      ownerkey += ":";
-      if (vid.prot == "gsi")
+      if (attrmap["sys.owner.auth"] == "*") 
       {
-        ownerkey += vid.dn.c_str();
-      }
+	sticky_owner = true;
+      } 
       else
       {
-        ownerkey += vid.uid_string.c_str();
-      }
-      if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
-      {
-        eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
-        // yes the client can operate as the owner, we rewrite the virtual
-        // identity to the directory uid/gid pair
-        vid.uid = d_uid;
-        vid.gid = d_gid;
+	attrmap["sys.owner.auth"] += ",";
+	std::string ownerkey = vid.prot.c_str();
+	ownerkey += ":";
+	if (vid.prot == "gsi")
+	{
+	  ownerkey += vid.dn.c_str();
+	}
+	else
+	{
+	  ownerkey += vid.uid_string.c_str();
+	}
+	if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
+	{
+	  eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
+	  // yes the client can operate as the owner, we rewrite the virtual
+	  // identity to the directory uid/gid pair
+	  vid.uid = d_uid;
+	  vid.gid = d_gid;
+	}
       }
     }
 
@@ -632,6 +641,12 @@ XrdMgmOfsFile::open (const char *inpath,
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file", path);
       }
+    }
+    if (sticky_owner) 
+    {
+      eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
+      vid.uid = d_uid;
+      vid.gid = d_gid;
     }
   }
 

@@ -180,28 +180,37 @@ XrdMgmOfs::_mkdir (const char *path,
         errno = EPERM;
         return Emsg(epname, error, EPERM, "create directory - immutable", cPath.GetParentPath());
       }
+      bool sticky_owner = false;
+
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
       if (attrmap.count("sys.owner.auth"))
       {
-        attrmap["sys.owner.auth"] += ",";
-        std::string ownerkey = vid.prot.c_str();
-        ownerkey += ":";
-        if (vid.prot == "gsi")
-        {
-          ownerkey += vid.dn.c_str();
-        }
-        else
-        {
-          ownerkey += vid.uid_string.c_str();
-        }
-        if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
-        {
-          eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-                   path, vid.uid, vid.gid, d_uid, d_gid);
-          // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
-          vid.uid = d_uid;
-          vid.gid = d_gid;
-        }
+	if (attrmap["sys.owner.auth"] == "*") 
+	{
+	  sticky_owner = true;
+	}
+	else
+	{
+	  attrmap["sys.owner.auth"] += ",";
+	  std::string ownerkey = vid.prot.c_str();
+	  ownerkey += ":";
+	  if (vid.prot == "gsi")
+	  {
+	    ownerkey += vid.dn.c_str();
+	  }
+	  else
+	  {
+	    ownerkey += vid.uid_string.c_str();
+	  }
+	  if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
+	  {
+	    eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+		     path, vid.uid, vid.gid, d_uid, d_gid);
+	    // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+	    vid.uid = d_uid;
+	    vid.gid = d_gid;
+	  }
+	}
       }
       bool stdpermcheck = false;
 
@@ -226,6 +235,14 @@ XrdMgmOfs::_mkdir (const char *path,
 
         errno = EPERM;
         return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
+      }
+      if (sticky_owner) 
+      {
+	eos_info("msg=\"client actingd as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+		 path, vid.uid, vid.gid, d_uid, d_gid);
+	// yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+	vid.uid = d_uid;
+	vid.gid = d_gid;
       }
     }
   }

@@ -254,3 +254,16 @@ A directory shared by a <group> with variable members should be setup like this:
 
    chmod 550 <groupdir>
    eos attr set sys.acl="egroup:<group>:rw!m"
+
+Sticky Ownership
++++++++++++++++++++++++++++++++++++++++
+
+The ACL tag sys.owner.auth allows to tag clients acting as the owner of a directory. The value normally is composed by the authentication method and the user name or can be a wildcard.
+If a wild card is specified, everybody resulting in having write permission can use the sticky ownership and write into a directory on behalf of the owner e.g. the file is owned by the directory
+owner and not by the authenticated client and quota is booked on the directory owner.
+
+.. code-block:: bash
+
+   eos attr set sys.owner.auth="krb5:prod"
+   eos attr set sys.owner.auth="*"
+
