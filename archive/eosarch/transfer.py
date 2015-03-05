@@ -327,6 +327,8 @@ class Transfer(object):
 
         # For retry get the first corrupted entry
         if self.do_retry:
+            msg = "verify last run"
+            self.set_status(msg)
             check_ok, err_entry = self.archive.verify(False)
 
             if check_ok:
@@ -569,7 +571,7 @@ class Transfer(object):
             self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
 
-            if len(self.list_jobs) == self.config.BATCH_SIZE:
+            if len(self.list_jobs) >= self.config.BATCH_SIZE:
                 st = self.flush_files(False)
 
                 # For archives we fail immediately, for backups it's best-effort
