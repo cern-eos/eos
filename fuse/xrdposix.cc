@@ -2926,7 +2926,14 @@ xrd_init ()
   {
     fuse_shared = false; //eosfsd
     char logfile[1024];
-    snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
+    if (getenv("EOS_FUSE_LOGFILE")) 
+    {
+      snprintf(logfile, sizeof ( logfile) - 1, "%s", getenv("EOS_FUSE_LOGFILE"));
+    }
+    else 
+    {
+      snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
+    }
 
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
     if (!(fstderr = freopen(logfile, "a+", stderr)))
