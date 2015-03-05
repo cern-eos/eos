@@ -277,7 +277,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   }
 
   // ==== update the penalties vectors if necessary
-  if(!pFsId2FsPtr.empty() && fsn.mId>(--pFsId2FsPtr.end())->first)
+  if((fsn.mId+1)>pFsId2LatencyStats.size())
   {
     for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
     {
