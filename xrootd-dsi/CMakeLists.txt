@@ -44,8 +44,14 @@ else (RELEASE)
 set(RELEASE "head")
 endif (RELEASE)
 
+if (DEFINED PACKAGEONLY AND PACKAGEONLY)
+   message(STATUS "Runing CMake in package only mode")
+endif (DEFINED PACKAGEONLY AND PACKAGEONLY)
+
+if (NOT DEFINED PACKAGEONLY)
 find_package(GlobusGridFtpServer REQUIRED)
 find_package(XRootD REQUIRED)
+endif (NOT DEFINED PACKAGEONLY)
 
 ######################################################################################################################
 # Platform Specific
