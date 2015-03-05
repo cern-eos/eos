@@ -112,6 +112,8 @@ add_library(
   http/webdav/WebDAVHandler.cc
   http/webdav/WebDAVResponse.cc
   http/webdav/PropFindResponse.cc
+  http/webdav/LockResponse.cc
+  http/webdav/PropPatchResponse.cc
   Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
