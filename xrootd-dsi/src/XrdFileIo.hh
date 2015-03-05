@@ -33,7 +33,7 @@
 #include "SimpleHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
-#include "XrdSys/XrdSysInterface.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include <queue>
 
