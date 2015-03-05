@@ -19,6 +19,7 @@ BuildRequires: xrootd-cl >= 3.3.0
 BuildRequires: xrootd-cl-devel >= 3.3.0
 BuildRequires: cmake
 BuildRequires: xrootd-devel >= 3.3.0
+BuildRequires: xrootd-server-devel >= 3.3.0
 
 %description
 XROOTD gridftp DSI plugin
