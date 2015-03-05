@@ -5,8 +5,22 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.99 Beryl-Aquamarine``
+
+New Features
+------------
+- allow 'sys.owner.auth=*' to have sticky uid/gids for such directories
+- new FST proxy redirection to send file IO through a proxy frontend
+- recursive 'rm -r' protection in fuse
+- add MIME type suffix detection 
+
+Bug Fixes
+---------
+- remove PrivGuards from Transfer cmds enabling krb5/x509 delegation
+- fix HTTP return codes for Put and Range Requests
 
 ``Version V0.3.97 Beryl-Aquamarine``
+
 New Features
 ------------
 - forbid 'rm -r' & 'rm -rf' on a predefined tree deepness
