@@ -33,6 +33,8 @@
 /*----------------------------------------------------------------------------*/
 #include "common/http/HttpHandler.hh"
 #include "common/http/HttpResponse.hh"
+#include "common/http/MimeTypes.hh"
+
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
@@ -78,7 +80,7 @@ public:
 
   static XrdSysMutex mOpenMutexMapMutex;
   static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
-
+  static eos::common::MimeTypes gMime;
   /**
    * Constructor
    */

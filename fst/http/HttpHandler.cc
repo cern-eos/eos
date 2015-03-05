@@ -29,6 +29,8 @@
 #include "common/http/HttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
+#include "common/http/MimeTypes.hh"
+
 #include "fst/XrdFstOfs.hh"
 //#include "common/S3.hh"
 /*----------------------------------------------------------------------------*/
@@ -41,6 +43,8 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
+eos::common::MimeTypes HttpHandler::gMime;
+
 /*----------------------------------------------------------------------------*/
 
 bool
@@ -295,7 +299,8 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         if (mOffsetMap.size() == 1)
         {
           // if there is only one range we don't send a multipart response
-          response->AddHeader("Content-Type", "application/octet-stream");
+	  //          response->AddHeader("Content-Type", "application/octet-stream");
+	  response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
           response->AddHeader("Content-Range", mSinglepartHeader);
         }
         else
@@ -315,7 +320,8 @@ HttpHandler::Get (eos::common::HttpRequest *request)
                  (unsigned long long) mFile->getOpenSize());
         mRequestSize = mFile->getOpenSize();
         response->mResponseLength = mRequestSize;
-        response->AddHeader("Content-Type", "application/octet-stream");
+        //          response->AddHeader("Content-Type", "application/octet-stream");
+	response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
         response->AddHeader("Content-Length", clength);
       }
 
