@@ -299,7 +299,6 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         if (mOffsetMap.size() == 1)
         {
           // if there is only one range we don't send a multipart response
-	  //          response->AddHeader("Content-Type", "application/octet-stream");
 	  response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
           response->AddHeader("Content-Range", mSinglepartHeader);
         }
@@ -320,7 +319,6 @@ HttpHandler::Get (eos::common::HttpRequest *request)
                  (unsigned long long) mFile->getOpenSize());
         mRequestSize = mFile->getOpenSize();
         response->mResponseLength = mRequestSize;
-        //          response->AddHeader("Content-Type", "application/octet-stream");
 	response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
         response->AddHeader("Content-Length", clength);
       }
@@ -440,13 +438,18 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       int chunk_max = 0;
       XrdOucString chunk_uuid;
 
-      if (!eos::common::OwnCloud::getContentSize(request))
-      {
-	mErrCode = response->BAD_REQUEST;
-	mErrText = "Missing total length in OC request";
-        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-        return response;
-      }
+      //      if (!eos::common::OwnCloud::getContentSize(request))
+      //      {
+	//	mErrCode = response->BAD_REQUEST;
+	//	mErrText = "Missing total length in OC request";
+	//        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+	//        return response;
+	// -------------------------------------------------------
+	// WARNING: 
+	// there is buggy ANDROID client not providing this header 
+	// in this case we have to assume 1MB chunks 
+	// -------------------------------------------------------
+      //      }
 
       eos::common::OwnCloud::GetChunkInfo(request->GetQuery().c_str(),
                                           chunk_n,
@@ -474,9 +477,17 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       }
       else
       {
+	// -------------------------------------------------------
+	// WARNING: 
+	// there is buggy ANDROID client not providing this header 
+	// in this case we have to assume 1MB chunks 
+	// -------------------------------------------------------
+
         // the last chunks has to be written at offset=total-length - chunk-length
         mCurrentCallbackOffset =
-                eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
+	  eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request))?
+	  eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)): (chunk_n * (1*1024*1024));
+	
         mCurrentCallbackOffset -= contentlength;
 	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
 	mLastChunk = true;
