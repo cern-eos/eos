@@ -41,11 +41,10 @@ print(sysconfig.get_python_lib(True));
   endif()
 
   string(REGEX REPLACE "\n" "" PythonSitePkg_PATH ${PythonSitePkg_PATH})
-  message(STATUS "PythonSitePkg_PATH = ${PythonSitePkg_PATH}")
 
   include (FindPackageHandleStandardArgs)
   find_package_handle_standard_args(
-    python
+    PythonSitePkg
     DEFAULT_MSG PythonSitePkg_PATH)
 
   mark_as_advanced(PythonSitePkg_PATH)
