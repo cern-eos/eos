@@ -22,7 +22,7 @@ else()
     COMMAND "${PYTHON_EXECUTABLE}" "-c"
     "from __future__ import print_function;
 from distutils import sysconfig;
-print(sysconfig.get_python_lib(True));
+print(sysconfig.get_python_lib());
 "
     RESULT_VARIABLE _PYTHON_SUCCESS
     ERROR_VARIABLE _PYTHON_ERROR_VALUE
