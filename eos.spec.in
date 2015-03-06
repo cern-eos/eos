@@ -31,6 +31,7 @@ BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 BuildRequires: protobuf >= 2.3.0
 BuildRequires: protobuf-devel >= 2.3.0
+BuildRequires: krb5-devel >=1.6.1
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static, sparsehash-devel
@@ -207,6 +208,7 @@ Group: Applications/File
 Requires: xrootd-client
 Requires: eos-client
 Requires: fuse
+Requires: krb5-libs
 
 %description -n eos-fuse
 The EOS fuse client.
