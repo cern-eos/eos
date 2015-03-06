@@ -52,7 +52,6 @@ endif(PREFIX)
 
 include(EosUtils)
 include(GNUInstallDirs)
-include(FindPythonInterp)
 
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
@@ -71,6 +70,7 @@ EOS_DefineOperatingSystem()
 set(PACKAGEONLY CACHE BOOL false)
 
 if (NOT PACKAGEONLY)
+  find_package(PythonSitePkg REQUIRED)
   find_package(XRootD REQUIRED)
   find_package(fuse REQUIRED)
   find_package(Threads REQUIRED)
@@ -165,7 +165,10 @@ endif (NOT MICROHTTPD_FOUND)
 #-------------------------------------------------------------------------------
 # Generate client commands doc
 #-------------------------------------------------------------------------------
-add_custom_target(doc COMMAND python ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
+if(PYTHONINTERP_FOUND)
+  add_custom_target(doc
+    COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
+endif()
 
 
 #-------------------------------------------------------------------------------
