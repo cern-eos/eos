@@ -27,7 +27,8 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${FUSE_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS})
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${KRB5_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -40,16 +41,38 @@ add_subdirectory(FuseCache)
 #-------------------------------------------------------------------------------
 add_executable(
   eosfsd
+  ProcCache.cc ProcCache.hh
+  ProcCacheC.cc ProcCacheC.h
   eosfs.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
 
 add_executable(
   eosd
+  ProcCache.cc ProcCache.hh
+  ProcCacheC.cc ProcCacheC.h
   eosd.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
 
+add_executable(
+  proccachetest
+  ProcCache.cc ProcCache.hh ProcCacheTest.cc )
+target_link_libraries(
+  proccachetest
+  eosCommon
+  ${Z_LIBRARY}
+  ${ZMQ_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${KRB5_LIBRARIES})
+
+  
 if(MacOSX)
   target_link_libraries(
     eosfsd
@@ -57,7 +80,8 @@ if(MacOSX)
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES})
 
   target_link_libraries(
     eosd
@@ -66,7 +90,8 @@ if(MacOSX)
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UNTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES})
 
   set_target_properties(
     eosd eosfsd
@@ -79,7 +104,8 @@ else(MacOSX)
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES})
 
   target_link_libraries(
     eosd
@@ -88,7 +114,8 @@ else(MacOSX)
     ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES})
 
   set_target_properties(
     eosd eosfsd

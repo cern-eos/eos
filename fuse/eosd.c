@@ -82,6 +82,40 @@ double readopentime = 5.0;
                  snprintf ( (_url) , sizeof( (_url)) -1, "root://%s@%s//%s%s", (_user), \
                            (_hostport), (_prefix), (_parent) )
 
+//------------------------------------------------------------------------------
+// Convenience macro to get the proc cache ready
+//------------------------------------------------------------------------------
+//#define STR_EXPAND(tok) #tok
+//#define STR(tok) STR_EXPAND(tok)
+//#define UPDATEPROCCACHE \
+//  do { \
+//    if(req->ctx.uid<3) \
+//    { \
+//      char buf[512]; \
+//      snprintf(buf,512,"%s:" STR(__FILE__) ":" STR(__LINE__) ":" "user id is %d",__FUNCTION__,(int)req->ctx.uid); \
+//      xrd_logdebug( (const char *)buf ); \
+//      return; \
+//    } \
+//    else \
+//    { \
+//      int errCode; \
+//      if( (errCode=update_proc_cache(req->ctx.pid)) )\
+//      { \
+//        fuse_reply_err (req, errCode); \
+//        return; \
+//      } \
+//    } \
+//  } while (0)
+
+#define UPDATEPROCCACHE \
+  do { \
+    int errCode; \
+    if( (errCode=update_proc_cache(req->ctx.pid)) )\
+    { \
+      fuse_reply_err (req, errCode); \
+      return; \
+    } \
+  } while (0)
 
 //------------------------------------------------------------------------------
 // Get file attributes
@@ -94,6 +128,8 @@ eosfs_ll_getattr (fuse_req_t req,
   struct stat stbuf;
   memset (&stbuf, 0, sizeof ( struct stat));
   char fullpath[16384];
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
@@ -115,7 +151,7 @@ eosfs_ll_getattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, ino);
+  int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino);
 
   if (!retc)
   {
@@ -143,6 +179,8 @@ eosfs_ll_setattr (fuse_req_t req,
   char fullpath[16384];
   char url[1024];
   unsigned long rinode = 0;
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
@@ -265,7 +303,7 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (!retc)
   {
-    retc = xrd_stat (fullpath, &newattr, req->ctx.uid, req->ctx.gid, ino);
+    retc = xrd_stat (fullpath, &newattr, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino);
 
     if (!retc)
       fuse_reply_attr (req, &newattr, attrcachetime);
@@ -291,6 +329,8 @@ eosfs_ll_lookup (fuse_req_t req,
   const char* parentpath = NULL;
   char fullpath[16384];
   char ifullpath[16384];
+
+  //UPDATEPROCCACHE;
 
   if (isdebug)
   {
@@ -347,7 +387,7 @@ eosfs_ll_lookup (fuse_req_t req,
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
     int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid,
-                         req->ctx.gid, entry_inode);
+                         req->ctx.gid, req->ctx.pid, entry_inode);
 
     if (!retc)
     {
@@ -435,6 +475,8 @@ eosfs_ll_readdir (fuse_req_t req,
   struct dirbuf* tmp_buf;
   struct stat attr;
 
+  UPDATEPROCCACHE;
+
   xrd_lock_r_p2i (); // =>
   const char* tmpname = xrd_path ((unsigned long long) ino);
 
@@ -481,7 +523,7 @@ eosfs_ll_readdir (fuse_req_t req,
   if (!(b = xrd_dirview_getbuffer (ino, 1)))
   {
     // No dirview entry, try to use the directory cache
-    retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, ino);
+    retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino);
 
 #ifdef __APPLE__
     dir_status = xrd_dir_cache_get (ino, attr.st_mtimespec, &tmp_buf);
@@ -605,6 +647,8 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
   char rootpath[16384];
   struct statvfs svfs, svfs2;
 
+  UPDATEPROCCACHE;
+
   xrd_lock_r_p2i (); // =>
   const char* tmppath = xrd_path ((unsigned long long) ino);
 
@@ -628,7 +672,7 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
 
   sprintf (rootpath, "/%s", mountprefix);
   strcat (rootpath, path);
-  res = xrd_statfs (rootpath, &svfs2);
+  res = xrd_statfs (rootpath, &svfs2,req->ctx.uid,req->ctx.gid,req->ctx.pid);
   free (path);
 
   if (res)
@@ -659,6 +703,8 @@ eosfs_ll_mkdir (fuse_req_t req,
 {
   char parentpath[16384];
   char fullpath[16384];
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* tmp = xrd_path ((unsigned long long) parent);
@@ -752,6 +798,8 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
   const char* parentpath = NULL;
   char fullpath[16384];
 
+  UPDATEPROCCACHE;
+
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
 
@@ -785,6 +833,8 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
 {
   const char* parentpath = NULL;
   char fullpath[16384];
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
@@ -835,6 +885,8 @@ eosfs_ll_rename (fuse_req_t req,
   char newfullpath[16384];
   char iparentpath[16384];
 
+  UPDATEPROCCACHE;
+
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
 
@@ -862,7 +914,7 @@ eosfs_ll_rename (fuse_req_t req,
   xrd_unlock_r_p2i (); // <=
 
   struct stat stbuf;
-  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, 0);
+  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, req->ctx.pid, 0);
 
   if (isdebug)
   {
@@ -910,6 +962,8 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
   char fullpath[16384];
   const char* name = NULL;
 
+  UPDATEPROCCACHE;
+
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
 
@@ -936,8 +990,14 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     return;
   }
 
-  int retc = xrd_access (fullpath, mask, req->ctx.uid,
-                         req->ctx.gid, req->ctx.pid);
+  // this is useful only if krb5 is not enabled
+  uid_t fsuid = req->ctx.uid;
+  gid_t fsgid = req->ctx.gid;
+
+  proccache_GetFsUidGid (req->ctx.pid , &fsuid, &fsgid);
+
+  int retc = xrd_access (fullpath, mask, fsuid,
+                         fsgid, req->ctx.pid);
 
   if (!retc)
     fuse_reply_err (req, 0);
@@ -959,6 +1019,8 @@ eosfs_ll_open (fuse_req_t req,
   mode_t mode = 0;
   char fullpath[16384];
   const char* name = NULL;
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1034,6 +1096,8 @@ eosfs_ll_read (fuse_req_t req,
 
   if (fi && fi->fh)
   {
+    UPDATEPROCCACHE;
+
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_rd_buff (pthread_self(), size);
     
@@ -1076,6 +1140,8 @@ eosfs_ll_write (fuse_req_t req,
 {
   if (fi && fi->fh)
   {
+    UPDATEPROCCACHE;
+
     struct fd_user_info* info = (fd_user_info*) fi->fh;
 
     if (isdebug)
@@ -1117,6 +1183,8 @@ eosfs_ll_release (fuse_req_t req,
 
   if (fi && fi->fh)
   {
+    //UPDATEPROCCACHE; -> this one is not called bythe usr process
+
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     int fd = info->fd;
 
@@ -1150,6 +1218,8 @@ eosfs_ll_fsync (fuse_req_t req,
 {
   if (fi && fi->fh)
   {
+    UPDATEPROCCACHE;
+
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     if (isdebug)
     {
@@ -1193,6 +1263,8 @@ eosfs_ll_flush (fuse_req_t req,
 
   if (fi && fi->fh)
   {
+    UPDATEPROCCACHE;
+
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     int err_flush = xrd_flush (info->fd);
 
@@ -1226,6 +1298,8 @@ eosfs_ll_getxattr (fuse_req_t req,
   size_t init_size = size;
   char fullpath[16384];
   const char* name = NULL;
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1282,6 +1356,8 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   size_t init_size = size;
   char fullpath[16384];
   const char* name = NULL;
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1340,6 +1416,8 @@ eosfs_ll_removexattr (fuse_req_t req,
   char fullpath[16384];
   const char* name = NULL;
 
+  UPDATEPROCCACHE;
+
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
 
@@ -1381,6 +1459,8 @@ eosfs_ll_setxattr (fuse_req_t req,
   int retc = 0;
   char fullpath[16384];
   const char* name = NULL;
+
+  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1427,6 +1507,8 @@ eosfs_ll_create(fuse_req_t req,
     char partialpath[16384];
     char fullpath[16384];
     char ifullpath[16384];
+
+    UPDATEPROCCACHE;
 
     xrd_lock_r_p2i (); // =>
     parentpath = xrd_path ((unsigned long long) parent);

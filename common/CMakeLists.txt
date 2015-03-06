@@ -168,7 +168,8 @@ install(
 
 #-------------------------------------------------------------------------------
 # Create helper executables
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------i
+if(NOT CLIENT)
 if (Linux)
   add_executable(dbmaptestburn dbmaptest/DbMapTestBurn.cc)
   add_executable(mutextest mutextest/RWMutexTest.cc)
@@ -186,4 +187,5 @@ if (Linux)
     eosCommon
     ${PROTOBUF_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
+endif()
 endif()

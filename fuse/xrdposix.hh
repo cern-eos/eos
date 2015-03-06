@@ -71,12 +71,13 @@ struct dirbuf
   size_t size;
 };
 
-
 #ifdef __cplusplus
 
 extern "C"
 {
 #endif
+
+  void xrd_logdebug(const char *msg);
 
   typedef struct fd_user_info
   {
@@ -398,13 +399,17 @@ extern "C"
                 struct stat* buf,
                 uid_t uid,
                 gid_t gid,
+                pid_t pid,
                 unsigned long inode);
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
   int xrd_statfs (const char* path,
-                  struct statvfs* stbuf
+                  struct statvfs* stbuf,
+                  uid_t uid,
+                  gid_t gid,
+                  pid_t pid
                   );
 
   //----------------------------------------------------------------------------
@@ -611,7 +616,23 @@ extern "C"
   const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
-  //! Create an URL with a user private physical channel e.g. root://<uid-gid>@<host
+  //! updates the proccache entry for the given pid (only if needed)
+  //! the proccache entry contains the environment, the command line
+  //! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
+  //! used in it
+  //----------------------------------------------------------------------------
+  int update_proc_cache(pid_t pid);
+
+  //----------------------------------------------------------------------------
+  //! Create the cgi argument to be added to the url to use the kerberos cc file
+  //!   for the given pid. e.g. xrd.k5ccname=<krb5login>
+  //----------------------------------------------------------------------------
+  const char* xrd_krb5_cgi (pid_t pid);
+
+  //----------------------------------------------------------------------------
+  //! Create an URL
+  //! - with a user private physical channel e.g. root://<uid-gid>@<host> if krb5 is not used
+  //! - with kerberos authentication if used e.g. root://<krb5login>@<host>
   //----------------------------------------------------------------------------
   const char* xrd_user_url (uid_t uid, gid_t gid, pid_t pid);
 

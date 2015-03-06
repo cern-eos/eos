@@ -38,6 +38,7 @@
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 #include "FuseCacheEntry.hh"
+#include "ProcCacheC.h"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
@@ -93,6 +94,7 @@ XrdSysMutex environmentmutex;
 XrdSysMutex connectionIdMutex;
 int connectionId = 0;
 
+bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
 int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
 int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
 bool fuse_exec = false; ///< indicates if files should be make exectuble
@@ -101,6 +103,10 @@ XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
 using eos::common::LayoutId;
 
+void xrd_logdebug(const char *msg)
+{
+  eos_static_debug(msg);
+}
 //------------------------------------------------------------------------------
 // String store
 //------------------------------------------------------------------------------
@@ -937,7 +943,11 @@ xrd_rmxattr (const char* path,
   request += xattr_name;
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -991,7 +1001,7 @@ xrd_setxattr (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=xattr&";
   request += "mgm.subcmd=set&";
   request += "mgm.xattrname=";
@@ -1001,7 +1011,11 @@ xrd_setxattr (const char* path,
   request += std::string(xattr_value, size);
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1054,14 +1068,17 @@ xrd_getxattr (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=xattr&";
   request += "mgm.subcmd=get&";
   request += "mgm.xattrname=";
   request += xattr_name;
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1129,12 +1146,15 @@ xrd_listxattr (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=xattr&";
   request += "mgm.subcmd=ls";
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1190,6 +1210,7 @@ xrd_stat (const char* path,
           struct stat* buf,
           uid_t uid,
           gid_t gid,
+          pid_t pid,
           unsigned long inode)
 {
   eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
@@ -1248,11 +1269,15 @@ xrd_stat (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=stat";
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, 0));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  eos_static_debug("stat url is %s",surl.c_str());
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -1356,7 +1381,10 @@ xrd_stat (const char* path,
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
 int
-xrd_statfs (const char* path, struct statvfs* stbuf)
+xrd_statfs (const char* path, struct statvfs* stbuf,
+            uid_t uid,
+            gid_t gid,
+            pid_t pid)
 {
   eos_static_info("path=%s", path);
   static unsigned long long a1 = 0;
@@ -1390,12 +1418,16 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=statvfs&";
   request += "path=";
   request += path;
   arg.FromString(request);
-  XrdCl::URL Url(xrd_user_url(2, 2, 0));
+
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1474,12 +1506,15 @@ xrd_chmod (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=chmod&mode=";
   request += smode.c_str();
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1563,7 +1598,7 @@ xrd_utimes (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=utimes&tv1_sec=";
   char lltime[1024];
   sprintf(lltime, "%llu", (unsigned long long) tvp[0].tv_sec);
@@ -1579,7 +1614,10 @@ xrd_utimes (const char* path,
   request += lltime;
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1633,11 +1671,15 @@ xrd_access (const char* path,
   char smode[16];
   snprintf(smode, sizeof (smode) - 1, "%d", mode);
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=access&mode=";
   request += smode;
   arg.FromString(request);
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -1701,6 +1743,10 @@ xrd_inodirlist (unsigned long long dirinode,
     request.insert(a_pos,"#AND#");
     a_pos+=4;
   }
+
+  // add the kerberos token
+  if(use_user_krb5cc && fuse_shared) request += '&';
+  request += xrd_krb5_cgi(pid);
 
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
   request.insert(0, xrd_user_url(uid, gid, pid));
@@ -1827,7 +1873,10 @@ xrd_readdir (const char* path_dir, size_t *size,
   XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
   string path_str = path_dir;
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.DirList(path_str, flags, response);
 
@@ -1889,13 +1938,16 @@ xrd_mkdir (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += "?";
+  request += '?';
   request += "mgm.pcmd=mkdir";
   request += "&mode=";
   request += (int) mode;
   arg.FromString(request);
 
-  XrdCl::URL Url(xrd_user_url(uid, gid, 0));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1999,7 +2051,11 @@ int
 xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.RmDir(path);
 
@@ -2131,7 +2187,11 @@ xrd_open (const char* path,
     if (spath.endswith("/proc/whoami"))
     {
       spath.replace("/proc/whoami", "/proc/user/");
-      spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
+      //spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
+      spath += '?';
+      spath += xrd_krb5_cgi(pid);
+      if(use_user_krb5cc && fuse_shared) spath += '&';
+      spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
 
@@ -2155,7 +2215,11 @@ xrd_open (const char* path,
     if (spath.endswith("/proc/who"))
     {
       spath.replace("/proc/who", "/proc/user/");
-      spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
+      //spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
+      spath += '?';
+      spath += xrd_krb5_cgi(pid);
+      if(use_user_krb5cc && fuse_shared) spath += '&';
+      spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
       XrdOucString open_path = get_url_nocgi(spath.c_str());
@@ -2178,7 +2242,11 @@ xrd_open (const char* path,
     if (spath.endswith("/proc/quota"))
     {
       spath.replace("/proc/quota", "/proc/user/");
-      spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
+      //spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
+      spath += '?';
+      spath += xrd_krb5_cgi(pid);
+      if(use_user_krb5cc && fuse_shared) spath += '&';
+      spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
 
@@ -2213,10 +2281,15 @@ xrd_open (const char* path,
       file_path.erase(0, spos + 1);
 
     std::string request = file_path;
-    request += "?mgm.pcmd=open";
+    //request += "?mgm.pcmd=open";
+    request += '?';
+    request += "mgm.pcmd=open";
     arg.FromString(request);
 
-    XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+    std::string surl=xrd_user_url(uid, gid, pid);
+    if(use_user_krb5cc && fuse_shared) surl += '?';
+    surl += xrd_krb5_cgi(pid);
+    XrdCl::URL Url(surl.c_str());
     XrdCl::FileSystem fs(Url);
     status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
@@ -2316,9 +2389,16 @@ xrd_open (const char* path,
       eos_static_err("error=failed get request for pio read");
   }
 
+  if(use_user_krb5cc && fuse_shared && spath.find("xrd.k5ccname")<0)
+  {
+    spath += (spath.find('?')>=0)?"&":"?";
+    spath += xrd_krb5_cgi(pid);
+  }
+
   eos_static_debug("the spath is:%s", spath.c_str());
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl);
+
   retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse&eos.bookingsize=0");
 
   if (retc)
@@ -2592,7 +2672,10 @@ xrd_unlink (const char* path,
             pid_t pid)
 {
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Rm(path);
 
@@ -2620,7 +2703,10 @@ xrd_rename (const char* oldpath,
   // XRootd move cannot deal with space in the path names
   sOldPath.replace(" ","#space#");
   sNewPath.replace(" ","#space#");
-  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  std::string surl=xrd_user_url(uid, gid, pid);
+  if(use_user_krb5cc && fuse_shared) surl += '?';
+  surl += xrd_krb5_cgi(pid);
+  XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
 
@@ -2666,6 +2752,59 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
   return STRINGSTORE(sid.c_str());
 }
 
+int update_proc_cache (pid_t pid)
+{
+  int errCode;
+  if ( (errCode=proccache_InsertEntry (pid, use_user_krb5cc)) ) // we don't care about kerberos stuff if the user is root
+  {
+    eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid,errCode);
+    return errCode;
+  }
+
+  if (LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)
+  {
+    uid_t _uid;
+    gid_t _gid;
+    char cmd[512], klogin[512];
+    proccache_GetArgsStr (pid, cmd, 512);
+    proccache_GetKrb5UserName (pid, klogin, 512);
+    proccache_GetFsUidGid (pid, &_uid, &_gid);
+    eos_static_debug(
+        "PROCCACHE UPDATE FOR PID=%d   =>   || cmd=\"%s\" | fsuid=%d | fsgid=%d | klogin=%s ||",
+        (int )pid, cmd, (int )_uid, (int )_gid, klogin);
+  }
+  return errCode;
+}
+
+const char* xrd_krb5_cgi (pid_t pid)
+{
+  XrdOucString str = "";
+
+  if (fuse_shared && use_user_krb5cc)
+  {
+    char buffer[256];
+    if(!proccache_GetEnv(pid,"KRB5CCNAME",buffer,256))
+    {
+      if(strlen(buffer)>5 && !strncmp("FILE:",buffer,5))
+      {
+        str += "xrd.k5ccname=";
+        str += (buffer+5);
+      }
+      else
+      {
+        eos_static_err("cannot handle KRB5CCNAME=%s",buffer);
+      }
+    }
+    else
+      eos_static_err("KRB5CCNAME not defined");
+  }
+
+  eos_static_debug("pid=%lu sep=%s",
+                   (unsigned long) pid, str.c_str());
+
+  return STRINGSTORE(str.c_str());
+}
+
 //------------------------------------------------------------------------------
 // Get a user private physical connection URL like root://<user>@<host>
 // - if we are a user private mount we don't need to specify that
@@ -2679,8 +2818,24 @@ xrd_user_url (uid_t uid,
 
   if (fuse_shared)
   {
-    url += xrd_mapuser(uid, gid, pid);
-    url += "@";
+    if (use_user_krb5cc)
+    {
+      char buffer[256];
+      if(proccache_GetKrb5UserName(pid,buffer,256))
+      {
+        eos_static_err("error retrieving kerberos user name");
+      }
+      else
+      {
+        url += buffer;
+        url += "@";
+      }
+    }
+    else
+    {
+      url += xrd_mapuser (uid, gid, pid);
+      url += "@";
+    }
   }
 
   url += gMgmHost.c_str();
@@ -2985,6 +3140,14 @@ xrd_init ()
     rm_level_protect = 1;
   else
     rm_level_protect = atoi(getenv("EOS_FUSE_RMLVL_PROTECT"));
+
+  // Get the the shared access mode
+  if (getenv("EOS_FUSE_USER_KRB5CC") && (atoi(getenv("EOS_FUSE_USER_KRB5CC"))==1) )
+    use_user_krb5cc = true;
+  else
+    use_user_krb5cc = false;
+
+  eos_static_notice("krb5=%d",use_user_krb5cc?1:0);
 
   passwdstore = new XrdOucHash<XrdOucString > ();
   stringstore = new XrdOucHash<XrdOucString > ();

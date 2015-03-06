@@ -98,7 +98,7 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_stat(rootpath, stbuf, uid, gid, xrd_inode(rootpath));
+  res = xrd_stat(rootpath, stbuf, uid, gid, pid,xrd_inode(rootpath));
 
   if (res == 0)
   {
@@ -147,7 +147,7 @@ eosdfs_fgetattr (const char* path,
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  int res = xrd_stat(rootpath, stbuf, uid, gid, info->ino);
+  int res = xrd_stat(rootpath, stbuf, uid, gid, pid,info->ino);
   
   if (res == 0)
   {
@@ -575,7 +575,7 @@ eosdfs_statfs (const char* path, struct statvfs* stbuf)
   strcat (rootpath, mountprefix);
   strcat (rootpath, "/");
   strcat (rootpath, path);
-  int res = xrd_statfs (rootpath, stbuf);
+  int res = xrd_statfs (rootpath, stbuf, uid, gid, pid);
 
   if (res)
     return -errno;
