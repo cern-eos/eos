@@ -68,7 +68,9 @@ endif()
 
 EOS_DefineOperatingSystem()
 
-if (NOT DEFINED PACKAGEONLY)
+set(PACKAGEONLY CACHE BOOL false)
+
+if (NOT PACKAGEONLY)
   find_package(XRootD REQUIRED)
   find_package(fuse REQUIRED)
   find_package(Threads REQUIRED)
@@ -154,7 +156,7 @@ else (CLIENT)
 endif (CLIENT)
 
 if (NOT MICROHTTPD_FOUND)
-  message("  Warning: MicroHttpd not found, no httpd access available")
+  message("Warning: MicroHttpd not found, no httpd access available")
 else (NOT MICROHTTPD_FOUND)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif (NOT MICROHTTPD_FOUND)
