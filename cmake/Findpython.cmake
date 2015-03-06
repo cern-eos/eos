@@ -9,7 +9,7 @@ if(EOS_PYTHON_LIBDIR)
   set(PYTHON_FIND_QUIETLY TRUE)
 else()
   execute_process(
-    COMMAND python -c "from distutils import sysconfig; print sysconfig.get_python_lib()"
+    COMMAND python -c "from __future__ import print_function; from distutils import sysconfig; print(sysconfig.get_python_lib(True))"
     OUTPUT_VARIABLE EOS_PYTHON_LIBDIR)
 
   string(REGEX REPLACE "\n" "" EOS_PYTHON_LIBDIR ${EOS_PYTHON_LIBDIR})
