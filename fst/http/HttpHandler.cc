@@ -484,11 +484,18 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 	// -------------------------------------------------------
 
         // the last chunks has to be written at offset=total-length - chunk-length
-        mCurrentCallbackOffset =
-	  eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request))?
-	  eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)): (chunk_n * (1*1024*1024));
-	
-        mCurrentCallbackOffset -= contentlength;
+
+	if ( eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)) )
+	{
+	  mCurrentCallbackOffset =
+	    eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
+	  mCurrentCallbackOffset -= contentlength;	  
+	}
+	else
+	{
+	  mCurrentCallbackOffset = (chunk_n * (1*1024*1024));
+	}
+
 	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
 	mLastChunk = true;
       }
