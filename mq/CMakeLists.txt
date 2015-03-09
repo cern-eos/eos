@@ -70,10 +70,8 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
 
-target_link_libraries (XrdMqClient XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
-target_link_libraries (XrdMqOfs    XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
-
 set_target_properties(
+  XrdMqOfs
   XrdMqClient
   PROPERTIES
   VERSION ${VERSION}
