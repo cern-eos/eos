@@ -62,9 +62,20 @@
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
+#include "fuse/ProcCacheC.h"
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 /*----------------------------------------------------------------------------*/
+
+#define UPDATEPROCCACHE \
+  do { \
+    int errCode; \
+    if( (errCode=update_proc_cache(fuse_ctx->pid)) )\
+    { \
+      return -errCode; \
+    } \
+  } while (0)
+
 
 //! Mount hostport;
 char mounthostport[1024];
@@ -322,6 +333,8 @@ eosdfs_unlink (const char* path)
   // Check and prevent top level deletions
   struct fuse_context* fuse_ctx = fuse_get_context();
 
+  UPDATEPROCCACHE;
+
   if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
     return -EPERM;
 
@@ -350,6 +363,8 @@ eosdfs_rmdir (const char* path)
 
   // Check and prevent top level deletions
   struct fuse_context* fuse_ctx = fuse_get_context();
+
+  UPDATEPROCCACHE;
 
   if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
     return -EPERM;

@@ -56,6 +56,7 @@
 
 int isdebug = 0; ///< set debug on/off
 
+char* mountpoint;
 char mounthostport[1024]; ///< mount hostport of the form: hostname:port
 char mountprefix[1024]; ///< mount prefix of the form: dir1/dir2/dir3
 
@@ -800,6 +801,12 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
 
   UPDATEPROCCACHE;
 
+  if (is_toplevel_rm(req->ctx.pid, mountpoint) == 1)
+  {
+    fuse_reply_err (req, EPERM);
+    return;
+  }
+
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
 
@@ -835,6 +842,12 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
   char fullpath[16384];
 
   UPDATEPROCCACHE;
+
+  if (is_toplevel_rm(req->ctx.pid, mountpoint) == 1)
+  {
+    fuse_reply_err (req, EPERM);
+    return;
+  }
 
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
@@ -1652,7 +1665,6 @@ main (int argc, char* argv[])
   time_t xcfsatime;
 
   int err = -1;
-  char* mountpoint;
   char* epos;
   char* spos;
   char* rdr;

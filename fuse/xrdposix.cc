@@ -2849,13 +2849,23 @@ xrd_user_url (uid_t uid,
 }
 
 
+////------------------------------------------------------------------------------
+//// Cache that holds just one element namely the mapping from a pid to a bool
+//// variable which is true if this is a top level rm operation and false other-
+//// wise. It is used by recursive rm commands which belong to the same pid in
+//// order to decide if his operation is denied or not.
+////------------------------------------------------------------------------------
+//std::map<pid_t, bool> mMapPidDenyRm;
+
 //------------------------------------------------------------------------------
-// Cache that holds just one element namely the mapping from a pid to a bool
+// Cache that holds the mapping from a pid to a time stamp (to see if the cache needs
+// to be refreshed and bool to check if the operation needs to be denied.
 // variable which is true if this is a top level rm operation and false other-
 // wise. It is used by recursive rm commands which belong to the same pid in
 // order to decide if his operation is denied or not.
 //------------------------------------------------------------------------------
-std::map<pid_t, bool> mMapPidDenyRm;
+eos::common::RWMutex mMapPidDenyRmMutex;
+std::map<pid_t, std::pair<time_t,bool> > mMapPidDenyRm;
 
 //------------------------------------------------------------------------------
 // Decide if this is an 'rm -rf' command issued on the toplevel directory or
@@ -2863,38 +2873,55 @@ std::map<pid_t, bool> mMapPidDenyRm;
 //------------------------------------------------------------------------------
 int is_toplevel_rm(int pid, char* local_dir)
 {
-  // Check the cache
-  std::map<pid_t, bool>::iterator it_map = mMapPidDenyRm.find(pid);
+  eos_static_debug("is_toplevel_rm for pid %d and mountpoint %s",pid,local_dir);
 
-  if (it_map != mMapPidDenyRm.end())
+  time_t psstime;
+  if(proccache_GetPsStartTime(pid,&psstime))
+    eos_static_err("could not get process start time");
+
+  // Check the cache
   {
-    eos_static_debug("found in cache pid=%i, rm_deny=%i", it_map->first,
-                    it_map->second);
-    return (it_map->second ? 1 : 0);
+    eos::common::RWMutexReadLock rlock (mMapPidDenyRmMutex);
+    auto it_map = mMapPidDenyRm.find (pid);
+
+    if (it_map != mMapPidDenyRm.end ())
+    {
+      eos_static_debug("found an entry");
+      // if the cached denial is up to date, return it
+      if (psstime <= it_map->second.first)
+      {
+        eos_static_debug("found in cache pid=%i, rm_deny=%i", it_map->first, it_map->second.second);
+        if (it_map->second.second)
+        {
+          std::string cmd = gProcCache.GetEntry (pid)->GetArgsStr ();
+          eos_static_notice("rejected toplevel recursive deletion command %s", cmd.c_str ());
+        }
+        return (it_map->second.second ? 1 : 0);
+      }
+      eos_static_debug("the entry is oudated in cache %d, current %d", (int )it_map->second.first, (int )psstime);
+    }
   }
 
-  mMapPidDenyRm.clear();
+  // create an entry if it does not exist or if it's outdated
+  eos_static_debug("no entry found or outdated entry, creating entry with psstime %d",(int)psstime);
+  auto entry = std::make_pair(psstime,false);
 
   // Try to print the command triggering the unlink
-  std::string token, cmd;
   std::ostringstream oss;
-  oss << "/proc/" << pid << "/cmdline";
-  std::ifstream infile(oss.str(), std::ios_base::binary | std::ios_base::in);
+  const auto &cmdv = gProcCache.GetEntry(pid)->GetArgsVec();
+  std::string cmd = gProcCache.GetEntry(pid)->GetArgsStr();
+  eos_static_debug("is_toplevel_rm cmdline is %s",cmd.c_str());
   std::set<std::string> rm_entries;
-
-  while (std::getline(infile, token, '\0'))
-  {
-    rm_entries.insert(token);
-    cmd += token;
-    cmd += ' ';
-  }
-
-  eos_static_debug("comandline:%s", cmd.c_str());
-  infile.close();
+  rm_entries.insert(cmdv.begin(),cmdv.end());
 
   // Check if this is an 'rm -rf ' or 'rm -r '
   if ((cmd.find("rm -rf ") != 0) && (cmd.find("rm -r ") != 0))
+  {
+    mMapPidDenyRmMutex.LockWrite();
+    mMapPidDenyRm[pid] = entry;
+    mMapPidDenyRmMutex.UnLockWrite();
     return 0;
+  }
 
   // Get mountpoint on the localhost
   oss.str("");
@@ -2907,7 +2934,6 @@ int is_toplevel_rm(int pid, char* local_dir)
   if (len == -1)
   {
     eos_static_err("error while reading cwd for path=%s", oss.str().c_str());
-    mMapPidDenyRm[pid] = false;
     return 0;
   }
 
@@ -2937,7 +2963,11 @@ int is_toplevel_rm(int pid, char* local_dir)
 
     if (level <= rm_level_protect)
     {
-      mMapPidDenyRm[pid] = true;
+      entry.second = true;
+      mMapPidDenyRmMutex.LockWrite();
+      mMapPidDenyRm[pid] = entry;
+      mMapPidDenyRmMutex.UnLockWrite();
+      eos_static_notice("rejected toplevel recursive deletion command %s",cmd.c_str());
       return 1;
     }
   }
@@ -2957,7 +2987,11 @@ int is_toplevel_rm(int pid, char* local_dir)
 
       if (level <= rm_level_protect)
       {
-        mMapPidDenyRm[pid] = true;
+        entry.second = true;
+        mMapPidDenyRmMutex.LockWrite();
+        mMapPidDenyRm[pid] = entry;
+        mMapPidDenyRmMutex.UnLockWrite();
+        eos_static_notice("rejected toplevel recursive deletion command %s",cmd.c_str());
         return 1;
       }
     }
@@ -2970,13 +3004,19 @@ int is_toplevel_rm(int pid, char* local_dir)
 
       if (level <= rm_level_protect)
       {
-        mMapPidDenyRm[pid] = true;
+        entry.second = true;
+        mMapPidDenyRmMutex.LockWrite();
+        mMapPidDenyRm[pid] = entry;
+        mMapPidDenyRmMutex.UnLockWrite();
+        eos_static_notice("rejected toplevel recursive deletion command %s",cmd.c_str());
         return 1;
       }
     }
   }
 
-  mMapPidDenyRm[pid] = false;
+  mMapPidDenyRmMutex.LockWrite();
+  mMapPidDenyRm[pid] = entry;
+  mMapPidDenyRmMutex.UnLockWrite();
   return 0;
 }
 

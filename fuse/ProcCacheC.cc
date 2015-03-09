@@ -34,9 +34,9 @@ int proccache_HasEntry (int pid)
   return gProcCache.HasEntry(pid);
 }
 
-int proccache_InsertEntry (int pid, bool useKrb5)
+int proccache_InsertEntry (int pid, int useKrb5)
 {
-  return gProcCache.InsertEntry(pid,useKrb5);
+  return gProcCache.InsertEntry(pid,useKrb5!=0);
 }
 
 int proccache_RemoveEntry (int pid)
@@ -122,6 +122,20 @@ int proccache_GetErrorMessage(int pid, char*buffer, size_t bufsize)
   strcpy(buffer,errMesg.c_str());
   return 0;
 }
+
+int proccache_GetPsStartTime (int pid, time_t*startTime)
+{
+  if(!gProcCache.HasEntry(pid))
+    return 1;
+
+  time_t value = gProcCache.GetEntry(pid)->GetProcessStartTime();
+  if(!value)
+    return 2;
+
+  *startTime=value;
+  return 0;
+}
+
 
 #ifdef __cplusplus
 }

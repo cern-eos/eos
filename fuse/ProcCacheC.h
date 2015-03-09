@@ -21,10 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __PROCCACHE__HH__
-#define __PROCCACHE__HH__
+#ifndef __PROCCACHEC__HH__
+#define __PROCCACHEC__HH__
 
 #ifdef __cplusplus
+#include "fuse/ProcCache.hh"
+extern ProcCache gProcCache;
 extern "C"
 {
 #endif
@@ -35,7 +37,7 @@ extern "C"
 
 //! returns 0 if the cache has an up-to-date entry after the call.
 //! returns 1 if the proccache does not have an entry for the given pid
-  int proccache_InsertEntry (int pid, bool useKrb5);
+  int proccache_InsertEntry (int pid, int useKrb5);
 
 //! returns 0 if the entry is removed after the call
 //! returns 1 if the proccache does not have an entry for the given pid
@@ -73,6 +75,11 @@ extern "C"
 //! returns 2 if the is no error message for the given pid
 //! returns 3 if the buffer is too short to write the value of the error message
   int proccache_GetErrorMessage (int pid, char*buffer, size_t bufsize);
+
+//! returns 0 if the start time of the pid process has been written to the pointee
+//! returns 1 if the proccache does not have an entry for the given pid
+//! returns 2 if the start time of the pid process could not be obtained
+  int proccache_GetPsStartTime (int pid, time_t*startTime);
 
 #ifdef __cplusplus
 }

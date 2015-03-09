@@ -134,7 +134,7 @@ class ProcCacheEntry
   pid_t pPid;
   uid_t pFsUid;
   gid_t pFsGid;
-  unsigned int pStartTime;
+  time_t pStartTime;
   time_t pKrb5CcModTime;
   std::string pProcPrefix;
   std::map<std::string, std::string> pEnv;
@@ -233,6 +233,13 @@ public:
     return pErrMessage;
   }
 
+  time_t
+  GetProcessStartTime () const
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    return pStartTime;
+  }
+
 };
 
 /*----------------------------------------------------------------------------*/
@@ -254,6 +261,9 @@ public:
   }
   ~ProcCache ()
   {
+    eos::common::RWMutexWriteLock lock(pMutex);
+    for(auto it=pCatalog.begin(); it!=pCatalog.end(); it++)
+      delete it->second;
   }
 
   //! returns true if the cache has an entry for the given pid, false else
