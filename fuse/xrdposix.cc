@@ -2849,14 +2849,6 @@ xrd_user_url (uid_t uid,
 }
 
 
-////------------------------------------------------------------------------------
-//// Cache that holds just one element namely the mapping from a pid to a bool
-//// variable which is true if this is a top level rm operation and false other-
-//// wise. It is used by recursive rm commands which belong to the same pid in
-//// order to decide if his operation is denied or not.
-////------------------------------------------------------------------------------
-//std::map<pid_t, bool> mMapPidDenyRm;
-
 //------------------------------------------------------------------------------
 // Cache that holds the mapping from a pid to a time stamp (to see if the cache needs
 // to be refreshed and bool to check if the operation needs to be denied.
@@ -2912,14 +2904,46 @@ int is_toplevel_rm(int pid, char* local_dir)
   std::string cmd = gProcCache.GetEntry(pid)->GetArgsStr();
   eos_static_debug("is_toplevel_rm cmdline is %s",cmd.c_str());
   std::set<std::string> rm_entries;
-  rm_entries.insert(cmdv.begin(),cmdv.end());
-
-  // Check if this is an 'rm -rf ' or 'rm -r '
-  if ((cmd.find("rm -rf ") != 0) && (cmd.find("rm -r ") != 0))
+  std::set<std::string> rm_opt; // rm command options (long and short)
+  std::string rm_cmd = *cmdv.begin();
+  std::string token;
+  for(auto it=cmdv.begin()+1; it!=cmdv.end();it++)
   {
-    mMapPidDenyRmMutex.LockWrite();
-    mMapPidDenyRm[pid] = entry;
-    mMapPidDenyRmMutex.UnLockWrite();
+    token = *it;
+    // Long option
+    if (token.find("--") == 0)
+    {
+      token.erase(0, 2);
+      rm_opt.insert(token);
+    }
+    else if (token.find('-') == 0)
+    {
+      token.erase(0, 1);
+
+      // Short option
+      size_t length = token.length();
+
+      for (size_t i = 0; i != length; ++i)
+        rm_opt.insert(std::string(&token[i], 1));
+    }
+    else
+      rm_entries.insert(token);
+  }
+
+  eos_static_debug("command=%s", rm_cmd.c_str());
+
+  for (std::set<std::string>::iterator it = rm_opt.begin();
+       it != rm_opt.end(); ++it)
+  {
+    eos_static_debug("rm option:%s", it->c_str());
+  }
+
+  // Exit if this is not a recursive removal
+  if ((rm_cmd != "rm") ||
+      (rm_cmd == "rm" &&
+       rm_opt.find("r") == rm_opt.end() &&
+       rm_opt.find("recursive") == rm_opt.end()))
+  {
     return 0;
   }
 
@@ -2955,6 +2979,7 @@ int is_toplevel_rm(int pid, char* local_dir)
   std::string rel_path;
   int level;
 
+  // Detect remove from inside the mount point hierarchy
   if (scwd.find(mount_dir) == 0)
   {
     rel_path = scwd.substr(mount_dir.length());
@@ -2972,15 +2997,24 @@ int is_toplevel_rm(int pid, char* local_dir)
     }
   }
 
-  // Now check if the cmd was launched from a different location but exactly on
-  // the mount point and therefore the process command line contains the full
-  // path of the directories to delete
+  // Check if the removal is done using full or relative paths and in either case
+  // construct the full path and get the deepness level it reaches inside the EOS
+  // mount point so that we can take the right decision
   for (std::set<std::string>::iterator it = rm_entries.begin();
        it != rm_entries.end(); ++it)
   {
-    if (it->find(mount_dir) == 0)
+    // Construct full path if relative path provided
+    if (it->at(0) != '/')
     {
-      rel_path = it->substr(mount_dir.length());
+      token = scwd;
+      token += *it;
+    }
+    else
+      token = *it;
+
+    if (token.find(mount_dir) == 0)
+    {
+      rel_path = token.substr(mount_dir.length());
       level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
       eos_static_debug("rm_ext current_lvl=%i, protect_lvl=%i", level,
                       rm_level_protect);
@@ -3075,7 +3109,14 @@ xrd_init ()
   {
     fuse_shared = false; //eosfsd
     char logfile[1024];
-    snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
+    if (getenv("EOS_FUSE_LOGFILE")) 
+    {
+      snprintf(logfile, sizeof ( logfile) - 1, "%s", getenv("EOS_FUSE_LOGFILE"));
+    }
+    else 
+    {
+      snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
+    }
 
     // Running as a user ... we log into /tmp/eos-fuse.$UID.log
     if (!(fstderr = freopen(logfile, "a+", stderr)))

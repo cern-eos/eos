@@ -29,6 +29,8 @@
 #include "common/http/HttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
+#include "common/http/MimeTypes.hh"
+
 #include "fst/XrdFstOfs.hh"
 //#include "common/S3.hh"
 /*----------------------------------------------------------------------------*/
@@ -41,6 +43,8 @@ EOSFSTNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
+eos::common::MimeTypes HttpHandler::gMime;
+
 /*----------------------------------------------------------------------------*/
 
 bool
@@ -295,7 +299,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         if (mOffsetMap.size() == 1)
         {
           // if there is only one range we don't send a multipart response
-          response->AddHeader("Content-Type", "application/octet-stream");
+	  response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
           response->AddHeader("Content-Range", mSinglepartHeader);
         }
         else
@@ -315,7 +319,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
                  (unsigned long long) mFile->getOpenSize());
         mRequestSize = mFile->getOpenSize();
         response->mResponseLength = mRequestSize;
-        response->AddHeader("Content-Type", "application/octet-stream");
+	response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
         response->AddHeader("Content-Length", clength);
       }
 
@@ -329,7 +333,10 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           //
           response->AddHeader("ETag", etag);
         }
-        response->SetResponseCode(response->OK);
+	if (mRangeRequest)
+	  response->SetResponseCode(response->PARTIAL_CONTENT);
+	else
+	  response->SetResponseCode(response->OK);
       }
     }
   }
@@ -431,13 +438,18 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       int chunk_max = 0;
       XrdOucString chunk_uuid;
 
-      if (!eos::common::OwnCloud::getContentSize(request))
-      {
-	mErrCode = response->BAD_REQUEST;
-	mErrText = "Missing total length in OC request";
-        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-        return response;
-      }
+      //      if (!eos::common::OwnCloud::getContentSize(request))
+      //      {
+	//	mErrCode = response->BAD_REQUEST;
+	//	mErrText = "Missing total length in OC request";
+	//        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+	//        return response;
+	// -------------------------------------------------------
+	// WARNING: 
+	// there is buggy ANDROID client not providing this header 
+	// in this case we have to assume 1MB chunks 
+	// -------------------------------------------------------
+      //      }
 
       eos::common::OwnCloud::GetChunkInfo(request->GetQuery().c_str(),
                                           chunk_n,
@@ -465,10 +477,25 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       }
       else
       {
+	// -------------------------------------------------------
+	// WARNING: 
+	// there is buggy ANDROID client not providing this header 
+	// in this case we have to assume 1MB chunks 
+	// -------------------------------------------------------
+
         // the last chunks has to be written at offset=total-length - chunk-length
-        mCurrentCallbackOffset =
-                eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
-        mCurrentCallbackOffset -= contentlength;
+
+	if ( eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)) )
+	{
+	  mCurrentCallbackOffset =
+	    eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
+	  mCurrentCallbackOffset -= contentlength;	  
+	}
+	else
+	{
+	  mCurrentCallbackOffset = (chunk_n * (1*1024*1024));
+	}
+
 	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
 	mLastChunk = true;
       }
@@ -507,6 +534,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           //
           response->AddHeader("ETag", etag);
         }
+	response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }
@@ -551,6 +579,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           eos::common::StringConversion::GetSizeString(ocid, mFileId << 28);
           response->AddHeader("OC-FileId", ocid);
         }
+	response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }

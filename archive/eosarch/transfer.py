@@ -327,6 +327,8 @@ class Transfer(object):
 
         # For retry get the first corrupted entry
         if self.do_retry:
+            msg = "verify last run"
+            self.set_status(msg)
             check_ok, err_entry = self.archive.verify(False)
 
             if check_ok:
@@ -520,7 +522,7 @@ class Transfer(object):
         # For inital PUT copy also the archive file to tape
         if self.init_put:
             __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
-            self.list_jobs.append((self.efile_full, dst))
+            self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0", dst))
 
         # Copy files
         for fentry in self.archive.files():
@@ -570,7 +572,7 @@ class Transfer(object):
             self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
 
-            if len(self.list_jobs) == self.config.BATCH_SIZE:
+            if len(self.list_jobs) >= self.config.BATCH_SIZE:
                 st = self.flush_files(False)
 
                 # For archives we fail immediately, for backups it's best-effort

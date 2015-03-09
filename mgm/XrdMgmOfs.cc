@@ -142,8 +142,8 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
-  mFrontendPort(0),
-  mNumAuthThreads(0)
+mFstGwHost(""),
+mFstGwPort(0)
 {
   eDest = ep;
   ConfigFN = 0;

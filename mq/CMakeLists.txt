@@ -70,14 +70,8 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY})
 
-set_target_properties(
-  XrdMqOfs
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES ""
-  MACOSX_RPATH TRUE)
+target_link_libraries (XrdMqClient XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
+target_link_libraries (XrdMqOfs    XrdUtils  XrdCl crypto ${UUID_LIBRARIES} ${NCURSES_LIBRARIES})
 
 set_target_properties(
   XrdMqClient

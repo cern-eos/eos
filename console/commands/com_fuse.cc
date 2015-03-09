@@ -145,6 +145,7 @@ com_fuse (char* arg1)
     if (logfile.length())
     {
       fprintf(stderr, "===> Log File     : %s\n", logfile.c_str());
+      setenv("EOS_FUSE_LOGFILE", logfile.c_str(),1);
     }
 
     XrdOucString env = "env";
@@ -332,7 +333,7 @@ com_fuse (char* arg1)
   exit(0);
 
 com_fuse_usage:
-  fprintf(stdout, "usage: fuse mount  <mount-point> [-o <fuseparamaterlist>] [-l <logfile>] : mount connected eos pool on <mount-point>\n");
+  fprintf(stdout, "usage: fuse mount  [-o <fuseparamaterlist>] [-l <logfile>] <mount-point> : mount connected eos pool on <mount-point>\n");
   fprintf(stdout, "       fuse umount <mount-point>                                         : unmount eos pool from <mount-point>\n");
   exit(-1);
 }

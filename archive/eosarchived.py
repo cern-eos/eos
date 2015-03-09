@@ -113,7 +113,7 @@ class Dispatcher(object):
                     reply = "ERROR error: operation not supported"
                     raise
 
-                frontend.send_string(reply)
+                frontend.send_string(reply.encode("utf-8"))
 
     def get_orphans(self):
         """ Get orphan transfer processes from previous runs of the daemon
@@ -343,7 +343,7 @@ class Dispatcher(object):
             proc = self.procs[job_uuid]
         except KeyError as __:
             msg = "ERROR error: job not found"
-            return
+            return msg
 
         if (uid == 0 or uid == proc.uid or
             (uid != proc.uid and gid == proc.gid)):
@@ -368,13 +368,13 @@ class Dispatcher(object):
 
 def main():
     """ Main function """
-    try:
-        config = Configuration()
-    except Exception as err:
-        print("Configuration failed, error:{0}".format(err), file=sys.stderr)
-        raise
-
     with daemon.DaemonContext():
+        try:
+            config = Configuration()
+        except Exception as err:
+            print("Configuration failed, error:{0}".format(err), file=sys.stderr)
+            raise
+
         config.start_logging("dispatcher", config.LOG_FILE, True)
         logger = logging.getLogger("dispatcher")
         config.display()
@@ -396,22 +396,22 @@ def main():
                 pass  # directory exists
 
         # Prepare ZMQ IPC files
-            for ipc_file in [config.FRONTEND_IPC,
-                             config.BACKEND_REQ_IPC,
-                             config.BACKEND_PUB_IPC]:
-                if not os.path.exists(ipc_file):
-                    try:
-                        open(ipc_file, 'w').close()
-                        os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-                    except OSError as err:
-                        err_msg = ("Failed setting permissioins on the IPC socket"
-                                   " file={0}").format(ipc_file)
-                        logger.error(err_msg)
-                        raise
-                    except IOError as err:
-                        err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
-                        logger.error(err_msg)
-                        raise
+        for ipc_file in [config.FRONTEND_IPC,
+                         config.BACKEND_REQ_IPC,
+                         config.BACKEND_PUB_IPC]:
+            if not os.path.exists(ipc_file):
+                try:
+                    open(ipc_file, 'w').close()
+                    os.chmod(ipc_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+                except OSError as err:
+                    err_msg = ("Failed setting permissioins on the IPC socket"
+                               " file={0}").format(ipc_file)
+                    logger.error(err_msg)
+                    raise
+                except IOError as err:
+                    err_msg = ("Failed creating IPC socket file={0}").format(ipc_file)
+                    logger.error(err_msg)
+                    raise
 
         # Create dispatcher object
         dispatcher = Dispatcher(config)
@@ -422,4 +422,9 @@ def main():
             logger.exception(err)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except ValueError as __:
+        # This is to deal the exception thrown when trying to close the log
+        # file which is already deleted manualy by an exterior process
+        pass

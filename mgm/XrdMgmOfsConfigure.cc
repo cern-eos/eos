@@ -536,7 +536,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             MgmOfsName = val;
           }
         }
-        
+
         if (!strcmp("targetport", var))
         {
           if (!(val = Config.GetWord()))
@@ -636,9 +636,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
         if (!strcmp("authorize", var))
         {
-          if ((!(val = Config.GetWord())) || (strcmp("true", val) && strcmp("false", val) && strcmp("1", val) && strcmp("0", val)))
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val)))
           {
-            Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. Must be <true>,<false>,<1> or <0>!");
+            Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
             NoGo = 1;
           }
           else
@@ -656,9 +659,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
         if (!strcmp("errorlog", var))
         {
-          if ((!(val = Config.GetWord())) || (strcmp("true", val) && strcmp("false", val) && strcmp("1", val) && strcmp("0", val)))
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val)))
           {
-            Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. Must be <true>,<false>,<1> or <0>!");
+            Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
             NoGo = 1;
           }
           else
@@ -680,9 +686,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
         if (!strcmp("redirector", var))
         {
-          if ((!(val = Config.GetWord())) || (strcmp("true", val) && strcmp("false", val) && strcmp("1", val) && strcmp("0", val)))
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val)))
           {
-            Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. Must be <true>,<false>,<1> or <0>!");
+            Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
+                        "Must be <true>,<false>,<1> or <0>!");
             NoGo = 1;
           }
           else
@@ -816,7 +825,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
             if (::access(MgmMetaLogDir.c_str(), W_OK | R_OK | X_OK))
             {
-              Eroute.Emsg("Config", "I cannot acccess the meta data changelog directory for r/w!", MgmMetaLogDir.c_str());
+              Eroute.Emsg("Config", "cannot acccess the meta data changelog "
+                          "directory for r/w!", MgmMetaLogDir.c_str());
               NoGo = 1;
             }
             else
@@ -852,7 +862,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
             if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK))
             {
-              Eroute.Emsg("Config", "I cannot acccess the transfer directory for r/w!", MgmTxDir.c_str());
+              Eroute.Emsg("Config", "cannot acccess the transfer directory for r/w:", MgmTxDir.c_str());
               NoGo = 1;
             }
             else
@@ -894,7 +904,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
             if (::access(MgmAuthDir.c_str(), W_OK | R_OK | X_OK))
             {
-              Eroute.Emsg("Config", "I cannot acccess the transfer directory for r/w!", MgmAuthDir.c_str());
+              Eroute.Emsg("Config", "cannot acccess the authentication directory "
+                          "for r/w:", MgmAuthDir.c_str());
               NoGo = 1;
             }
             else
@@ -930,7 +941,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
             if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK))
             {
-              Eroute.Emsg("Config", "I cannot acccess the reportstore directory for r/w!", IoReportStorePath.c_str());
+              Eroute.Emsg("Config", "cannot acccess the reportstore directory "
+                          "for r/w:", IoReportStorePath.c_str());
               NoGo = 1;
             }
             else
@@ -938,7 +950,35 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
               Eroute.Say("=====> mgmofs.reportstorepath: ", IoReportStorePath.c_str(), "");
             }
           }
+        }
 
+        // Get the fst gateway hostname and port
+        if (!strcmp("fstgw", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "fst gateway value not specified");
+            NoGo = 1;
+          }
+          else
+          {
+            mFstGwHost = val;
+            size_t pos = mFstGwHost.find(':');
+
+            if (pos == std::string::npos)
+            {
+              // Use a default value if no port is specified
+              mFstGwPort = 1094;
+            }
+            else
+            {
+              mFstGwPort = atoi(mFstGwHost.substr(pos + 1).c_str());
+              mFstGwHost = mFstGwHost.erase(pos);
+            }
+
+            Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
+                       std::to_string((long long int)mFstGwPort).c_str());
+          }
         }
 
         if (!strcmp("trace", var))

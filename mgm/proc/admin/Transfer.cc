@@ -27,8 +27,8 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Macros.hh"
 /*----------------------------------------------------------------------------*/
-#include "XrdSys/XrdSysPriv.hh"
 
+#include <sys/fsuid.h>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -195,7 +195,6 @@ ProcCommand::Transfer ()
    }
 
    {
-     XrdSysPrivGuard priv(pVid->uid, pVid->gid);
      if (!::stat(krbcred.c_str(), &krbbuf))
      {
        usekrb = true;
@@ -206,14 +205,17 @@ ProcCommand::Transfer ()
      }
    }
 
-
+   fprintf(stderr,"usekrb %d usegsi %d\n", usekrb, usegsi);
    if (usegsi)
    {
      // put the current running user as the owner before loading
      // load the gsi credential
      {
-       XrdSysPrivGuard priv(pVid->uid, pVid->gid);
+       setfsuid((uid_t)pVid->uid);
+       setfsgid((gid_t)pVid->gid);
        eos::common::StringConversion::LoadFileIntoString(gsicred.c_str(), credential);
+       setfsuid(2);
+       setfsgid(2);
      }
      Credential = credential.c_str();
      if (eos::common::SymKey::Base64Encode((char*) Credential.c_str(), Credential.length() + 1, CredentialB64))
@@ -229,7 +231,6 @@ ProcCommand::Transfer ()
        char* krb5buf = (char*) malloc(krbbuf.st_size);
        if (krb5buf)
        {
-         XrdSysPrivGuard priv(pVid->uid, pVid->gid);
          int fd = ::open(krbcred.c_str(), 0);
          if (fd >= 0)
          {

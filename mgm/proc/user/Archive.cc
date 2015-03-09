@@ -777,7 +777,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
            << "\"mode\", \"xstype\", \"xs\"], "
            << "\"uid\": \"" << pVid->uid << "\", "
            << "\"gid\": \"" << pVid->gid << "\", "
-           << "\"timestamp\": " << std::setw(10) << ", "
+           << "\"timestamp\": " << std::setw(10) << "" << ", "
            << "\"num_dirs\": " << std::setw(10) << "" << ", "
            << "\"num_files\": " << std::setw(10) << ""
            << "}" << std::endl;

@@ -62,6 +62,9 @@ mgmofs.autosaveconfig true
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos
 #mgmofs.alias eosdev.cern.ch
 
+###########################################################
+# Set the FST gateway host and port
+mgmofs.fstgw someproxy.cern.ch:3001
 
 ################################################################################
 #  --- Configuration for the authentication plugin EosAuth ---
