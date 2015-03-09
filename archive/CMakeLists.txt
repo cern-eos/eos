@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-if(PythonSitePkg_FOUND)
+if(PYTHONSITEPKG_FOUND)
     install(PROGRAMS eosarchived.py eosarch_run.py eosarch_reconstruct.py
 	    DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
 	    PERMISSIONS OWNER_READ OWNER_EXECUTE
@@ -29,7 +29,7 @@ if(PythonSitePkg_FOUND)
 			WORLD_READ WORLD_EXECUTE)
 
     install(DIRECTORY eosarch
-	    DESTINATION ${PythonSitePkg_PATH}
+	    DESTINATION ${PYTHONSITEPKG_PATH}
 	    PATTERN "tests" EXCLUDE
 	    PATTERN "*~" EXCLUDE
 	    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
