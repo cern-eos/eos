@@ -58,7 +58,8 @@ public:
   std::string Match(const std::string path) 
   {
     std::string suffix = path;
-    suffix.erase(path.rfind("."));
+    if (path.rfind(".") != std::string::npos) 
+      suffix.erase(path.rfind("."));
     return MimeType(suffix.c_str());
   }
 
