@@ -493,7 +493,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 	}
 	else
 	{
-	  mCurrentCallbackOffset = (chunk_n * (1*1024*1024));
+	  mCurrentCallbackOffset = (chunk_n * (1*1024*1000)); // ANDROID client
 	}
 
 	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
