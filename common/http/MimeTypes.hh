@@ -268,7 +268,7 @@ public:
     mTypes[".movie"]="video/x-sgi-movie";
     mTypes[".mp2"]="audio/mpeg";
     mTypes[".mp3"]="audio/mpeg";
-    mTypes[".mp4"]="audio/mp4";
+    mTypes[".mp4"]="video/mp4";
     mTypes[".m4a"]="audio/m4a";
     mTypes[".mpa"]="audio/mpeg";
     mTypes[".mpc"]="application/x-project";
