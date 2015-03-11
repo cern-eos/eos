@@ -145,7 +145,7 @@ class ProcCacheEntry
   mutable std::string pErrMessage;
 
   //! return >0 if success 0 if failure
-  unsigned int
+  time_t
   ReadStartingTime () const;
   //! return true fs success, false if failure
   bool
@@ -288,7 +288,7 @@ public:
 
     if ((errCode = GetEntry (pid)->UpdateIfPsChanged ()))
     {
-      //eos_static_debug("something wrong happened %d",pid);
+      //eos_static_debug("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
       delete pCatalog[pid];
       pCatalog.erase (pid);
@@ -297,6 +297,7 @@ public:
 
     if (useKrb5 && (errCode = GetEntry (pid)->UpdateIfKrb5Changed ()))
     {
+      //eos_static_debug("something wrong happened in krb5 proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
       delete pCatalog[pid];
       pCatalog.erase (pid);

@@ -32,10 +32,12 @@ bool ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
 {
   std::ifstream file (pFileName.c_str ());
   std::string token;
-  while (!file.eof ())
+  while (true)
   {
     token.clear ();
     std::getline (file, token, (char) 0);
+    if(file.eof ())
+      break;
     // insert the environment variable in the map
     cmdLine.push_back (token);
   }
@@ -166,7 +168,7 @@ bool ProcReaderEnv::ReadContent (std::map<std::string, std::string> &dict)
   return true;
 }
 
-unsigned int ProcCacheEntry::ReadStartingTime () const
+time_t ProcCacheEntry::ReadStartingTime () const
 {
   std::ifstream statFile ((pProcPrefix + "/stat").c_str ());
   if (!statFile.is_open ())
@@ -179,7 +181,7 @@ unsigned int ProcCacheEntry::ReadStartingTime () const
   std::string line;
   std::getline (statFile, line);
   // the startup time is at the 22th position
-  int cursor = -1, count = 0;
+  int cursor = 0, count = 0;
   while (count < 21 && cursor < (int) line.length ())
   {
     if (line[cursor] == ' ') count++;
@@ -199,7 +201,7 @@ unsigned int ProcCacheEntry::ReadStartingTime () const
       // SUCCESS
       line[count] = 0;
       int stime = strtol (&line[cursor], NULL, 10);
-      return stime;
+      return (time_t)stime;
     }
   }
   eos::common::RWMutexWriteLock lock (pMutex);
@@ -245,7 +247,7 @@ bool ProcCacheEntry::ReadContentFromFiles ()
 
 int ProcCacheEntry::UpdateIfPsChanged ()
 {
-  unsigned int procStartTime = 0;
+  time_t procStartTime = 0;
   procStartTime = ReadStartingTime ();
 
   if (procStartTime > pStartTime)

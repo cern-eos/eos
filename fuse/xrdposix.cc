@@ -2755,7 +2755,7 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 int update_proc_cache (pid_t pid)
 {
   int errCode;
-  if ( (errCode=proccache_InsertEntry (pid, use_user_krb5cc)) ) // we don't care about kerberos stuff if the user is root
+  if ( (errCode=proccache_InsertEntry (pid, use_user_krb5cc?1:0)) ) 
   {
     eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid,errCode);
     return errCode;
