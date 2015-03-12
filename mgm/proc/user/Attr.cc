@@ -49,9 +49,9 @@ ProcCommand::Attr ()
   spath = cPath.GetPath();
 
   if ((!spath.length()) ||
-      ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") && (mSubCmd != "rm")))
+      ((mSubCmd != "set") && (mSubCmd != "get") && (mSubCmd != "ls") && (mSubCmd != "rm") && (mSubCmd != "fold")))
   {
-    stdErr = "error: you have to give a path name to call 'attr' and one of the subcommands 'ls', 'get','rm','set' !";
+    stdErr = "error: you have to give a path name to call 'attr' and one of the subcommands 'ls', 'get','rm','set', 'fold' !";
     retc = EINVAL;
   }
   else
@@ -97,10 +97,12 @@ ProcCommand::Attr ()
         {
           {
             eos::ContainerMD::XAttrMap map;
-            if (mSubCmd == "ls")
+            eos::ContainerMD::XAttrMap linkmap;
+
+            if ( (mSubCmd == "ls") )
             {
               XrdOucString partialStdOut = "";
-              if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map))
+              if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, true))
               {
                 stdErr += "error: unable to list attributes in directory ";
                 stdErr += foundit->first.c_str();
@@ -210,6 +212,57 @@ ProcCommand::Attr ()
                 stdOut += "\n";
               }
             }
+	    
+	    if (mSubCmd == "fold")
+	    {
+	      int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
+	      if ( (!retc) && map.count("sys.attr.link"))
+		retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid, (const char*) 0, linkmap, true, true);
+	      
+	      if (retc)
+	      {
+                stdErr += "error: unable to list attributes in directory ";
+                stdErr += foundit->first.c_str();
+                retc = errno;
+              }
+              else
+              {
+		XrdOucString partialStdOut;
+                eos::ContainerMD::XAttrMap::const_iterator it;
+                if (option == "r")
+                {
+                  stdOut += foundit->first.c_str();
+                  stdOut += ":\n";
+                }
+
+                for (it = map.begin(); it != map.end(); ++it)
+                {
+		  if ( linkmap.count(it->first) &&
+		       linkmap[it->first] == map[it->first] ) 
+		  {
+		    if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0, it->first.c_str()))
+		    {
+		      stdErr += "error [ attr fold ] : unable to remove local attribute ";
+		      stdErr += it->first.c_str();
+		      stdErr += "\n";
+		      retc = errno;
+		    }
+		    else
+		    {
+		      stdOut += "info [ attr fold ] : removing local attribute ";
+		      stdOut += (it->first).c_str();
+		      stdOut += "=";
+		      stdOut += "\"";
+		      stdOut += (it->second).c_str();
+		      stdOut += "\"";
+		      stdOut += "\n";
+		    }
+		  }
+                }
+                if (option == "r")
+                  stdOut += "\n";
+              }
+	    }
           }
         }
       }

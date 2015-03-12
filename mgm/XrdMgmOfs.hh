@@ -523,7 +523,8 @@ public:
                 eos::common::Mapping::VirtualIdentity &vid,
                 const char *opaque,
                 eos::ContainerMD::XAttrMap &map,
-		bool lock=true);
+		bool lock=true,
+		bool links=false);
 
   // ---------------------------------------------------------------------------
   // set extended attribute by vid

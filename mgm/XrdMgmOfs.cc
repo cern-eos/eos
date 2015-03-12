@@ -107,7 +107,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 
   XrdOucString vs = "MgmOfs (meta data redirector) ";
   vs += VERSION;
-  gMgmOfsEroute.Say("++++++ (c) 2012 CERN/IT-DSS ", vs.c_str());
+  gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
 
   // ---------------------------------------------------------------------------
   // Initialize the subsystems
