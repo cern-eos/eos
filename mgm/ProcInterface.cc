@@ -635,6 +635,7 @@ ProcCommand::open (const char* inpath,
     else if (mCmd == "attr")
     {
       Attr();
+      mDoSort = false;
     }
     else if (mCmd == "chmod")
     {
