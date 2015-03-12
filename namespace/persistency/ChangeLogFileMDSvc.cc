@@ -1177,7 +1177,7 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
-  // Commit the compacting infomrmation.
+  // Commit the compacting information.
   //----------------------------------------------------------------------------
   void ChangeLogFileMDSvc::compactCommit( void *compactingData )
     throw( MDException )
