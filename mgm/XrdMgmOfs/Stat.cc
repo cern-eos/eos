@@ -148,7 +148,7 @@ XrdMgmOfs::_stat (const char *path,
   {
     if (!gOFS->MgmMaster.IsMaster())
     {
-      return Emsg(epname, error, ENOENT, "stat", cPath.GetPath());
+      return Emsg(epname, error, ENODEV, "stat", cPath.GetPath());
     }
   }
   // ---------------------------------------------------------------------------
