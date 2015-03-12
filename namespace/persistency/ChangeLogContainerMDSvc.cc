@@ -989,6 +989,7 @@ namespace eos
     // Replace the logs
     //--------------------------------------------------------------------------
     pChangeLog = data->newLog;
+    pChangeLog->addCompactionMark();
     pChangeLogPath = data->logFileName;
     data->newLog = 0;
     data->originalLog->close();
