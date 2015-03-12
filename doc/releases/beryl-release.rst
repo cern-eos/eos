@@ -7,7 +7,15 @@ Beryl Release Notes
 ===================
 
 ``Version V0.3.100 Beryl-Aquamarine``
+
+New Features
+------------
 - add online compaction for directories selectable via 'ns compact' (see help)
+- support for symbolic attributes 'attr link', 'attr unlink', 'attr fold' to reduce directory memory footprint
+
+Bug Fixes
+---------
+- fix bug leading to wrong dual master detection after online compaction was running on the master
 
 ``Version V0.3.99 Beryl-Aquamarine``
 
