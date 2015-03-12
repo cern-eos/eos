@@ -5,6 +5,10 @@
 
 Beryl Release Notes
 ===================
+
+``Version V0.3.100 Beryl-Aquamarine``
+- add online compaction for directories selectable via 'ns compact' (see help)
+
 ``Version V0.3.99 Beryl-Aquamarine``
 
 New Features

@@ -198,10 +198,12 @@ The interface for online compactification is
 
 .. code-block:: bash
 
-   eos -b ns compact on : schedules online compactification immedeatly. Immedeatly means that the compactification starts within the next minute.
-   eos -b ns compact on 100 : schedules online compactificiation with a delay of 100 seconds. The compactification starts with a delay of 100 to max. 160 seconds.
-   eos -b ns compact on 1 86400 : schedules online compactification with a delay of 1 seconds. The compactification is rescheduled always one day later automatically.
-
+   eos -b ns compact on : schedules online compactification for files immedeatly. Immedeatly means that the compactification starts within the next minute.
+   eos -b ns compact on 100 : schedules online compactificiation for files with a delay of 100 seconds. The compactification starts with a delay of 100 to max. 160 seconds.
+   eos -b ns compact on 1 86400 : schedules online compactification for files with a delay of 1 seconds. The compactification is rescheduled always one day later automatically.
+   eos -b ns compact on 60 0 all : schedule online compactification for files and directories once in one minute.
+   eos -b ns compact on 60 0 files : schedule online compactification for files once in one minute.
+   eos -b ns compact on 60 0 directories : schedule online compactification for files once in one minute.
 
 The RW MGM signals a RO slave when the compactification starts and when it is 
 finished and triggers a reload of the namespace on the RO MGM once the 
