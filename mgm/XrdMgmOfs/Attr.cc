@@ -279,7 +279,7 @@ XrdMgmOfs::_attr_ls (const char *path,
     if (!errno)errno = EPERM;
 
   // check for attribute references
-  if (links && map.count("sys.attr.link")) 
+  if (map.count("sys.attr.link")) 
   {
     try
     {
