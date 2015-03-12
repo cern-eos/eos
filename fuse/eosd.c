@@ -331,7 +331,7 @@ eosfs_ll_lookup (fuse_req_t req,
   char fullpath[16384];
   char ifullpath[16384];
 
-  //UPDATEPROCCACHE;
+  UPDATEPROCCACHE;
 
   if (isdebug)
   {
@@ -1109,7 +1109,7 @@ eosfs_ll_read (fuse_req_t req,
 
   if (fi && fi->fh)
   {
-    UPDATEPROCCACHE;
+    //UPDATEPROCCACHE;
 
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_rd_buff (pthread_self(), size);
@@ -1153,7 +1153,7 @@ eosfs_ll_write (fuse_req_t req,
 {
   if (fi && fi->fh)
   {
-    UPDATEPROCCACHE;
+    //UPDATEPROCCACHE;
 
     struct fd_user_info* info = (fd_user_info*) fi->fh;
 
@@ -1231,7 +1231,7 @@ eosfs_ll_fsync (fuse_req_t req,
 {
   if (fi && fi->fh)
   {
-    UPDATEPROCCACHE;
+    //UPDATEPROCCACHE;
 
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     if (isdebug)
@@ -1276,7 +1276,7 @@ eosfs_ll_flush (fuse_req_t req,
 
   if (fi && fi->fh)
   {
-    UPDATEPROCCACHE;
+    //UPDATEPROCCACHE;
 
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     int err_flush = xrd_flush (info->fd);
