@@ -532,6 +532,10 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
        file = NULL;
      }
    }
+   else
+   {
+     mLastUrl = file->GetLastUrl();
+   }
 
    mStripeFiles.push_back(file);
    mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
