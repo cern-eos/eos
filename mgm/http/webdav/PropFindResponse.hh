@@ -90,7 +90,8 @@ public:
     GET_ETAG = 0x0100,
     QUOTA_AVAIL = 0x0200,
     QUOTA_USED = 0x0400,
-    GET_OCID = 0x0800
+    GET_OCID = 0x0800, 
+    ALLPROP_MARKER = 0xf000
   };
 
 protected:

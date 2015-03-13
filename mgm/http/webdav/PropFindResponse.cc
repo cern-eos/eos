@@ -273,6 +273,7 @@ PropFindResponse::ParseRequestPropertyTypes (rapidxml::xml_node<> *node)
     mRequestPropertyTypes |= PropertyTypes::RESOURCE_TYPE;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_IN;
     mRequestPropertyTypes |= PropertyTypes::CHECKED_OUT;
+    mRequestPropertyTypes |= PropertyTypes::ALLPROP_MARKER;
     return;
   }
 
@@ -328,6 +329,8 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   struct stat statInfo;
   std::string etag;
   std::string id;
+
+  bool allpropresponse=false;
 
   XrdOucString urlp = url.c_str();
   XrdOucString hrefp = hrefurl.c_str();
@@ -429,6 +432,8 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     checkedOut = AllocateNode("d:checked-out");
   if (mRequestPropertyTypes & PropertyTypes::GET_OCID)
     ocid = AllocateNode("oc:id");
+  if (mRequestPropertyTypes & PropertyTypes::ALLPROP_MARKER)
+    allpropresponse=true;
 
   if ((S_ISDIR(statInfo.st_mode)) &&
       ((mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||
@@ -510,7 +515,13 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
       resourceType->append_node(container);
       propFound->append_node(resourceType);
     }
-    if (contentLength) propNotFound->append_node(contentLength);
+
+    if (!allpropresponse) 
+    {
+      // ANDROID does not digest this response properly in allprop requests
+      if (contentLength) propNotFound->append_node(contentLength);
+    }
+
     if (contentType)
     {
       SetValue(contentType, "httpd/unix-directory");
@@ -544,8 +555,12 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   }
 
   // We don't use these (yet)
-  if (checkedIn) propNotFound->append_node(checkedIn);
-  if (checkedOut) propNotFound->append_node(checkedOut);
+  if (!allpropresponse) 
+  {
+    // ANDROID does not digest this response properly in allprop requests
+    if (checkedIn) propNotFound->append_node(checkedIn);
+    if (checkedOut) propNotFound->append_node(checkedOut);
+  }
 
   return responseNode;
 }
