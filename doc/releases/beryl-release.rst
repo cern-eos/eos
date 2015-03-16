@@ -6,6 +6,14 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.101 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- avoid negative sleep times in scrub loops induced by very slow disks
+- apply ANDROID patch for chunked uploads only if 'cbox-chunked-android-issue-900' special header has been added by NGINX proxy
+- make MIME type detection case-insensitive
+
 ``Version V0.3.100 Beryl-Aquamarine``
 
 New Features
