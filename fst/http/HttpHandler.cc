@@ -110,28 +110,29 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       // use path dependent locks for opens
       // we will accumulate up to 64k mutexes for this
       Adler lHash;
-      lHash.Add(openUrl.c_str(),openUrl.length(),0);
+      lHash.Add(openUrl.c_str(), openUrl.length(), 0);
       lHash.Finalize();
       {
-	XrdSysMutexHelper oLock(mOpenMutexMapMutex);
+        XrdSysMutexHelper oLock(mOpenMutexMapMutex);
 
-	if (!mOpenMutexMap.count(lHash.GetAdler())) {
-	  hMutex = new XrdSysMutex();
-	  mOpenMutexMap[lHash.GetAdler()] = hMutex;
-	} 
-	else 
-	{
-	  hMutex = mOpenMutexMap[lHash.GetAdler()];
-	}
+        if (!mOpenMutexMap.count(lHash.GetAdler()))
+        {
+          hMutex = new XrdSysMutex();
+          mOpenMutexMap[lHash.GetAdler()] = hMutex;
+        }
+        else
+        {
+          hMutex = mOpenMutexMap[lHash.GetAdler()];
+        }
       }
     }
     {
       XrdSysMutexHelper oLock(*hMutex);
       mRc = mFile->open(openUrl.c_str(),
-			open_mode,
-			create_mode,
-			&mClient,
-			query.c_str());
+                        open_mode,
+                        create_mode,
+                        &mClient,
+                        query.c_str());
     }
 
     mFileSize = mFile->getOpenSize();
@@ -243,11 +244,12 @@ HttpHandler::Get (eos::common::HttpRequest *request)
   {
     mErrCode = response->REQUESTED_RANGE_NOT_SATISFIABLE;
     mErrText = "Illegal Range request";
-    response = HttpServer::HttpError(mErrText.c_str(),mErrCode);
+    response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
   }
   else
   {
-    if (mErrCode) {
+    if (mErrCode)
+    {
       eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
       response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       return response;
@@ -257,14 +259,14 @@ HttpHandler::Get (eos::common::HttpRequest *request)
     {
       if (mRc == SFS_REDIRECT)
       {
-	mErrCode = response->INTERNAL_SERVER_ERROR;
-	mErrText = mFile->error.getErrText();
- 	response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        mErrCode = response->INTERNAL_SERVER_ERROR;
+        mErrText = mFile->error.getErrText();
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else if (mRc == SFS_ERROR)
       {
-	mErrCode = mFile->error.getErrInfo();
-	mErrText = mFile->error.getErrText();
+        mErrCode = mFile->error.getErrInfo();
+        mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else if (mRc == SFS_DATA)
@@ -299,7 +301,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         if (mOffsetMap.size() == 1)
         {
           // if there is only one range we don't send a multipart response
-	  response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
+          response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
           response->AddHeader("Content-Range", mSinglepartHeader);
         }
         else
@@ -319,7 +321,7 @@ HttpHandler::Get (eos::common::HttpRequest *request)
                  (unsigned long long) mFile->getOpenSize());
         mRequestSize = mFile->getOpenSize();
         response->mResponseLength = mRequestSize;
-	response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
+        response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
         response->AddHeader("Content-Length", clength);
       }
 
@@ -333,10 +335,10 @@ HttpHandler::Get (eos::common::HttpRequest *request)
           //
           response->AddHeader("ETag", etag);
         }
-	if (mRangeRequest)
-	  response->SetResponseCode(response->PARTIAL_CONTENT);
-	else
-	  response->SetResponseCode(response->OK);
+        if (mRangeRequest)
+          response->SetResponseCode(response->PARTIAL_CONTENT);
+        else
+          response->SetResponseCode(response->OK);
       }
     }
   }
@@ -380,8 +382,9 @@ HttpHandler::Put (eos::common::HttpRequest *request)
                   request->GetBodySize());
 
   eos::common::HttpResponse *response = 0;
-  
-  if (mErrCode) {
+
+  if (mErrCode)
+  {
     eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
     response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
     return response;
@@ -393,16 +396,16 @@ HttpHandler::Put (eos::common::HttpRequest *request)
     {
       if (mRc == SFS_REDIRECT)
       {
-	// we cannot redirect the PUT at this point, just send an error back
-	mErrCode = response->INTERNAL_SERVER_ERROR;
-	mErrText = mFile->error.getErrText();
- 	response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        // we cannot redirect the PUT at this point, just send an error back
+        mErrCode = response->INTERNAL_SERVER_ERROR;
+        mErrText = mFile->error.getErrText();
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else
         if (mRc == SFS_ERROR)
       {
-	mErrCode = mFile->error.getErrInfo();
-	mErrText = mFile->error.getErrText();
+        mErrCode = mFile->error.getErrInfo();
+        mErrText = mFile->error.getErrText();
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       }
       else
@@ -438,18 +441,21 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       int chunk_max = 0;
       XrdOucString chunk_uuid;
 
-      //      if (!eos::common::OwnCloud::getContentSize(request))
-      //      {
-	//	mErrCode = response->BAD_REQUEST;
-	//	mErrText = "Missing total length in OC request";
-	//        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
-	//        return response;
-	// -------------------------------------------------------
-	// WARNING: 
-	// there is buggy ANDROID client not providing this header 
-	// in this case we have to assume 1MB chunks 
-	// -------------------------------------------------------
-      //      }
+      if ((!request->GetHeaders().count("cbox-chunked-android-issue-900")) &&
+          (!eos::common::OwnCloud::getContentSize(request)))
+      {
+        // -------------------------------------------------------
+        // WARNING:
+        // there is buggy ANDROID client not providing this header
+        // but we let it pass if a special cbox header allows a
+        // bypass
+        // -------------------------------------------------------
+
+        mErrCode = response->BAD_REQUEST;
+        mErrText = "Missing total length in OC request";
+        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        return response;
+      }
 
       eos::common::OwnCloud::GetChunkInfo(request->GetQuery().c_str(),
                                           chunk_n,
@@ -460,8 +466,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         // there is something inconsistent here
         // HTTP write error
-	mErrCode = response->BAD_REQUEST;
-	mErrText = "Illegal chunks specified in OC request";
+        mErrCode = response->BAD_REQUEST;
+        mErrText = "Illegal chunks specified in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         return response;
       }
@@ -472,32 +478,32 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         // the first n-1 chunks have a straight forward offset
         mCurrentCallbackOffset = contentlength * chunk_n;
-	eos_static_debug("setting to false %lld", mCurrentCallbackOffset);
-	mLastChunk = false;
+        eos_static_debug("setting to false %lld", mCurrentCallbackOffset);
+        mLastChunk = false;
       }
       else
       {
-	// -------------------------------------------------------
-	// WARNING: 
-	// there is buggy ANDROID client not providing this header 
-	// in this case we have to assume 1MB chunks 
-	// -------------------------------------------------------
+        // -------------------------------------------------------
+        // WARNING:
+        // there is buggy ANDROID client not providing this header
+        // in this case we have to assume 1MB chunks
+        // -------------------------------------------------------
 
         // the last chunks has to be written at offset=total-length - chunk-length
 
-	if ( eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)) )
-	{
-	  mCurrentCallbackOffset =
-	    eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
-	  mCurrentCallbackOffset -= contentlength;	  
-	}
-	else
-	{
-	  mCurrentCallbackOffset = (chunk_n * (1*1024*1000)); // ANDROID client
-	}
+        if (eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)))
+        {
+          mCurrentCallbackOffset =
+            eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
+          mCurrentCallbackOffset -= contentlength;
+        }
+        else
+        {
+          mCurrentCallbackOffset = (chunk_n * (1 * 1024 * 1000)); // ANDROID client
+        }
 
-	eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
-	mLastChunk = true;
+        eos_static_debug("setting to true %lld", mCurrentCallbackOffset);
+        mLastChunk = true;
       }
     }
 
@@ -512,8 +518,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       if (stored != *request->GetBodySize())
       {
         // HTTP write error
-	mErrCode = response->SERVICE_UNAVAILABLE;
-	mErrText = "Write error occured";
+        mErrCode = response->SERVICE_UNAVAILABLE;
+        mErrText = "Write error occured";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
         return response;
       }
@@ -534,7 +540,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           //
           response->AddHeader("ETag", etag);
         }
-	response->SetResponseCode(eos::common::HttpResponse::CREATED);
+        response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }
@@ -549,17 +555,17 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mFile->SetForcedMtime(strtoull(header["x-oc-mtime"].c_str(), 0, 10), 0);
       }
 
-      if ( (!mLastChunk) && (request->GetHeaders().count("oc-chunked")) )
+      if ((!mLastChunk) && (request->GetHeaders().count("oc-chunked")))
       {
-	// WARNING: this assumes that chunks are uploaded in order
-	mFile->disableChecksum();
+        // WARNING: this assumes that chunks are uploaded in order
+        mFile->disableChecksum();
       }
 
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
-	mErrCode = response->SERVICE_UNAVAILABLE;
-	mErrText = "File close failed";
+        mErrCode = response->SERVICE_UNAVAILABLE;
+        mErrText = "File close failed";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
 
         mCloseCode = 0; // we don't want to create a second response down
@@ -569,17 +575,17 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         response = new eos::common::PlainHttpResponse();
 
-        if (header.count("x-oc-mtime") && ( mLastChunk || (!request->GetHeaders().count("oc-chunked"))))
+        if (header.count("x-oc-mtime") && (mLastChunk || (!request->GetHeaders().count("oc-chunked"))))
         {
-	  response->AddHeader("ETag", mFile->GetETag());
-	  // only normal uploads or the last chunk receive these extra response headers
+          response->AddHeader("ETag", mFile->GetETag());
+          // only normal uploads or the last chunk receive these extra response headers
           response->AddHeader("X-OC-Mtime", "accepted");
           // return the OC-FileId header
           std::string ocid;
           eos::common::StringConversion::GetSizeString(ocid, mFileId << 28);
           response->AddHeader("OC-FileId", ocid);
         }
-	response->SetResponseCode(eos::common::HttpResponse::CREATED);
+        response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;
       }
     }
@@ -644,17 +650,17 @@ HttpHandler::DecodeByteRange (std::string rangeheader,
     }
     else
     {
-      if (filesize>0)
-	stop = filesize-1;
+      if (filesize > 0)
+        stop = filesize - 1;
       else
-	stop = 0;
+        stop = 0;
     }
 
-    if (!sstart.length()) 
+    if (!sstart.length())
     {
       // case '-X' = the last X bytes
-      start = filesize-stop;
-      stop = filesize-1;
+      start = filesize - stop;
+      stop = filesize - 1;
     }
 
     if ((start > filesize) || (stop > filesize))
