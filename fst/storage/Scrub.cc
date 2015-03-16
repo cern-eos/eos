@@ -26,7 +26,7 @@
 #include "fst/XrdFstOfs.hh"
 /*----------------------------------------------------------------------------*/
 
-#ifdef __APPLE__ 
+#ifdef __APPLE__
 #define O_DIRECT 0
 #endif
 
@@ -124,8 +124,12 @@ Storage::Scrub ()
     time_t stop = time(0);
 
     int nsleep = ((300)-(stop - start));
-    eos_static_debug("Scrubber will pause for %u seconds", nsleep);
-    sleep(nsleep);
+    if (nsleep > 0)
+    {
+      eos_static_debug("Scrubber will pause for %u seconds", nsleep);
+      XrdSysTimer sleeper;
+      sleeper.Snooze(nsleep);
+    }
   }
 }
 
@@ -225,7 +229,7 @@ Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long 
             }
             else
             {
-              // this is real fatal error 
+              // this is real fatal error
               eberrors++;
             }
           }
