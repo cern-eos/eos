@@ -56,7 +56,7 @@
 
 int isdebug = 0; ///< set debug on/off
 
-char* mountpoint;
+char *local_mount_dir;
 char mounthostport[1024]; ///< mount hostport of the form: hostname:port
 char mountprefix[1024]; ///< mount prefix of the form: dir1/dir2/dir3
 
@@ -801,7 +801,7 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
 
   UPDATEPROCCACHE;
 
-  if (is_toplevel_rm(req->ctx.pid, mountpoint) == 1)
+  if (is_toplevel_rm(req->ctx.pid, local_mount_dir) == 1)
   {
     fuse_reply_err (req, EPERM);
     return;
@@ -843,7 +843,7 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
 
   UPDATEPROCCACHE;
 
-  if (is_toplevel_rm(req->ctx.pid, mountpoint) == 1)
+  if (is_toplevel_rm(req->ctx.pid, local_mount_dir) == 1)
   {
     fuse_reply_err (req, EPERM);
     return;
@@ -1800,8 +1800,8 @@ main (int argc, char* argv[])
   unsetenv ("KRB5CCNAME");
   unsetenv ("X509_USER_PROXY");
 
-  if (fuse_parse_cmdline (&args, &mountpoint, NULL, NULL) != -1 &&
-      (ch = fuse_mount (mountpoint, &args)) != NULL)
+  if (fuse_parse_cmdline (&args, &local_mount_dir, NULL, NULL) != -1 &&
+      (ch = fuse_mount (local_mount_dir, &args)) != NULL)
   {
     struct fuse_session* se;
     se = fuse_lowlevel_new (&args, &eosfs_ll_oper, sizeof ( eosfs_ll_oper), NULL);
@@ -1828,7 +1828,7 @@ main (int argc, char* argv[])
       fuse_session_destroy (se);
     }
 
-    fuse_unmount (mountpoint, ch);
+    fuse_unmount (local_mount_dir, ch);
   }
 
   fuse_opt_free_args (&args);

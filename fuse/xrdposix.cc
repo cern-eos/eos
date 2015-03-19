@@ -45,6 +45,7 @@
 #include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 #include <climits>
+#include <cstdlib>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -54,6 +55,7 @@
 #include <pwd.h>
 #include <string.h>
 #include <pthread.h>
+#include <algorithm>
 /*----------------------------------------------------------------------------*/
 #include "FuseCache/FuseWriteCache.hh"
 #include "FuseCache/FileAbstraction.hh"
@@ -96,9 +98,12 @@ int connectionId = 0;
 
 bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
 int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
+std::string rm_command; ///< full path of the system rm command (e.g. "/bin/rm" )
+bool rm_watch_relpath; ///< indicated if the system rm command changes it CWD making relative path expansion impossible
 int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
 bool fuse_exec = false; ///< indicates if files should be make exectuble
 bool fuse_shared = false; ///< inidicated if this is eosd = true or eosfsd = false
+extern "C" char* local_mount_dir;
 XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
 using eos::common::LayoutId;
@@ -107,6 +112,10 @@ void xrd_logdebug(const char *msg)
 {
   eos_static_debug(msg);
 }
+
+char *
+myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
+
 //------------------------------------------------------------------------------
 // String store
 //------------------------------------------------------------------------------
@@ -2866,6 +2875,8 @@ std::map<pid_t, std::pair<time_t,bool> > mMapPidDenyRm;
 int is_toplevel_rm(int pid, char* local_dir)
 {
   eos_static_debug("is_toplevel_rm for pid %d and mountpoint %s",pid,local_dir);
+  if(rm_level_protect==0)
+    return 0;
 
   time_t psstime;
   if(proccache_GetPsStartTime(pid,&psstime))
@@ -2878,7 +2889,7 @@ int is_toplevel_rm(int pid, char* local_dir)
 
     if (it_map != mMapPidDenyRm.end ())
     {
-      eos_static_debug("found an entry");
+      eos_static_debug("found an entry in the cache");
       // if the cached denial is up to date, return it
       if (psstime <= it_map->second.first)
       {
@@ -2902,10 +2913,21 @@ int is_toplevel_rm(int pid, char* local_dir)
   std::ostringstream oss;
   const auto &cmdv = gProcCache.GetEntry(pid)->GetArgsVec();
   std::string cmd = gProcCache.GetEntry(pid)->GetArgsStr();
-  eos_static_debug("is_toplevel_rm cmdline is %s",cmd.c_str());
   std::set<std::string> rm_entries;
   std::set<std::string> rm_opt; // rm command options (long and short)
-  std::string rm_cmd = *cmdv.begin();
+  char exe[PATH_MAX];
+  oss.str("");
+  oss.clear();
+  oss << "/proc/" << pid << "/exe";
+  ssize_t len = readlink(oss.str().c_str(), exe, sizeof(exe) - 1);
+  if (len == -1)
+  {
+    eos_static_err("error while reading cwd for path=%s", oss.str().c_str());
+    return 0;
+  }
+  exe[len] = '\0';
+  //std::string rm_cmd = *cmdv.begin();
+  std::string rm_cmd = exe;
   std::string token;
   for(auto it=cmdv.begin()+1; it!=cmdv.end();it++)
   {
@@ -2930,7 +2952,13 @@ int is_toplevel_rm(int pid, char* local_dir)
       rm_entries.insert(token);
   }
 
-  eos_static_debug("command=%s", rm_cmd.c_str());
+  bool skip_relpath = !rm_watch_relpath;
+  if( (!skip_relpath) && (rm_cmd!=rm_command) )
+  {
+    eos_static_warning("using rm command %s different from the system rm command %s : cannot watch recursive deletion on relative paths"
+        ,rm_cmd.c_str(),rm_command.c_str());
+    skip_relpath = true;
+  }
 
   for (std::set<std::string>::iterator it = rm_opt.begin();
        it != rm_opt.end(); ++it)
@@ -2939,22 +2967,26 @@ int is_toplevel_rm(int pid, char* local_dir)
   }
 
   // Exit if this is not a recursive removal
-  if ((rm_cmd != "rm") ||
-      (rm_cmd == "rm" &&
+  auto fname  = rm_cmd.length()<2?rm_cmd:rm_cmd.substr(rm_cmd.length()-2,2);
+  bool isrm = rm_cmd.length()<=2?(fname=="rm"):( fname=="rm" && rm_cmd[rm_cmd.length()-3]=='/');
+  if ( !isrm ||
+      ( isrm &&
        rm_opt.find("r") == rm_opt.end() &&
        rm_opt.find("recursive") == rm_opt.end()))
   {
+    eos_static_debug("%s is not an rm command",rm_cmd.c_str());
+    mMapPidDenyRmMutex.LockWrite();
+    mMapPidDenyRm[pid] = entry;
+    mMapPidDenyRmMutex.UnLockWrite();
     return 0;
   }
 
-  // Get mountpoint on the localhost
+  // get the current working directory
   oss.str("");
   oss.clear();
   oss << "/proc/" << pid << "/cwd";
-  size_t cwd_sz = 2056;
-  char cwd[cwd_sz];
-  ssize_t len = readlink(oss.str().c_str(), cwd, sizeof(cwd) - 1);
-
+  char cwd[PATH_MAX];
+  len = readlink(oss.str().c_str(), cwd, sizeof(cwd) - 1);
   if (len == -1)
   {
     eos_static_err("error while reading cwd for path=%s", oss.str().c_str());
@@ -2964,23 +2996,53 @@ int is_toplevel_rm(int pid, char* local_dir)
   cwd[len] = '\0';
   std::string scwd (cwd);
 
+  if (*scwd.rbegin() != '/')
+      scwd += '/';
+
+  // we are dealing with an rm command
+  {
+    std::set<std::string> rm_entries2;
+    for (auto it = rm_entries.begin (); it != rm_entries.end (); it++)
+    {
+      char resolved_path[PATH_MAX];
+      auto path2resolve = *it;
+      eos_static_debug("path2resolve %s", path2resolve.c_str());
+      if(path2resolve[0] != '/')
+      {
+        if(skip_relpath)
+          {
+          eos_static_debug("skipping recusive deletion check on command %s on relative path %s because rm command used is likely to chdir"
+              ,cmd.c_str(),path2resolve.c_str());
+          continue;
+          }
+        path2resolve = scwd + path2resolve;
+      }
+      if (myrealpath (path2resolve.c_str(), resolved_path,pid))
+      {
+        rm_entries2.insert (resolved_path);
+        eos_static_debug("path %s resolves to realpath %s", path2resolve.c_str (), resolved_path);
+      }
+      else
+        eos_static_warning("could not resolve path %s for top level recursive deletion protection", path2resolve.c_str ());
+
+    }
+    std::swap(rm_entries, rm_entries2);
+  }
+
   // Make sure both the cwd and local mount dir ends with '/'
   std::string mount_dir(local_dir);
 
   if (*mount_dir.rbegin() != '/')
     mount_dir += '/';
 
-  if (*scwd.rbegin() != '/')
-    scwd += '/';
-
   // First check if the command was launched from a location inside the hierarchy
   // of the local mount point
-  eos_static_debug("cwd=%s, mount_dir=%s", scwd.c_str(), mount_dir.c_str());
+  eos_static_debug("cwd=%s, mount_dir=%s, skip_relpath=%d", scwd.c_str(), mount_dir.c_str(),skip_relpath?1:0);
   std::string rel_path;
   int level;
 
   // Detect remove from inside the mount point hierarchy
-  if (scwd.find(mount_dir) == 0)
+  if (!skip_relpath && scwd.find(mount_dir) == 0)
   {
     rel_path = scwd.substr(mount_dir.length());
     level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
@@ -2997,19 +3059,12 @@ int is_toplevel_rm(int pid, char* local_dir)
     }
   }
 
-  // Check if the removal is done using full or relative paths and in either case
-  // construct the full path and get the deepness level it reaches inside the EOS
+  // At this point, absolute path are used.
+  // Get the deepness level it reaches inside the EOS
   // mount point so that we can take the right decision
   for (std::set<std::string>::iterator it = rm_entries.begin();
        it != rm_entries.end(); ++it)
   {
-    // Construct full path if relative path provided
-    if (it->at(0) != '/')
-    {
-      token = scwd;
-      token += *it;
-    }
-    else
       token = *it;
 
     if (token.find(mount_dir) == 0)
@@ -3221,6 +3276,52 @@ xrd_init ()
     rm_level_protect = 1;
   else
     rm_level_protect = atoi(getenv("EOS_FUSE_RMLVL_PROTECT"));
+  if(rm_level_protect)
+  {
+    rm_watch_relpath = false;
+    char rm_cmd[PATH_MAX];
+    FILE *f = popen("`which which` --skip-alias --skip-functions --skip-dot rm","r");
+    if(!fscanf(f,"%s",rm_cmd))
+      eos_static_err("cannot get rm command to watch");
+    else
+    {
+      pclose (f);
+      eos_static_notice("rm command to watch is %s", rm_cmd);
+      rm_command = rm_cmd;
+      char cmd[PATH_MAX+16];
+      sprintf(cmd,"%s --version",rm_cmd);
+      f = popen (cmd, "r");
+      if(!f)
+        eos_static_err("could not run the rm command to watch");
+      char *line = NULL;
+      size_t len = 0;
+      if (getline (&line, &len, f)==-1)
+        eos_static_err("could not read rm command version to watch");
+      else if (line)
+      {
+        char *lasttoken = strrchr (line, ' ');
+        if (lasttoken)
+        {
+          float rmver;
+          if(!sscanf(lasttoken,"%f",&rmver))
+            eos_static_err("could not interpret rm command version to watch %s",lasttoken);
+          else
+          {
+            int rmmajv=floor(rmver);
+            eos_static_notice("top level recursive deletion command to watch is %s, version is %f, major version is %d",rm_cmd,rmver,rmmajv);
+            if(rmmajv>=8)
+            {
+              rm_watch_relpath = true;
+              eos_static_notice("top level recursive deletion CAN watch relative path removals");
+            }
+            else
+              eos_static_warning("top level recursive deletion CANNOT watch relative path removals");
+          }
+        }
+        free (line);
+      }
+    }
+  }
 
   // Get the the shared access mode
   if (getenv("EOS_FUSE_USER_KRB5CC") && (atoi(getenv("EOS_FUSE_USER_KRB5CC"))==1) )
@@ -3233,3 +3334,269 @@ xrd_init ()
   passwdstore = new XrdOucHash<XrdOucString > ();
   stringstore = new XrdOucHash<XrdOucString > ();
 }
+
+//------------------------------------------------------------------------------
+// this function is just to make it possible to use BSD realpath implementation
+//------------------------------------------------------------------------------
+size_t strlcat (char *dst, const char *src, size_t siz)
+{
+  register char *d = dst;
+  register const char *s = src;
+  register size_t n = siz;
+  size_t dlen;
+
+  /* Find the end of dst and adjust bytes left but don't go past end */
+  while (n-- != 0 && *d != '\0')
+    d++;
+  dlen = d - dst;
+  n = siz - dlen;
+
+  if (n == 0) return (dlen + strlen (s));
+  while (*s != '\0')
+  {
+    if (n != 1)
+    {
+      *d++ = *s;
+      n--;
+    }
+    s++;
+  }
+  *d = '\0';
+
+  return (dlen + (s - src)); /* count does not include NUL */
+}
+
+//------------------------------------------------------------------------------
+// this function is a workaround to avoid that
+// fuse calls itself while using realpath
+// that would require to trace back the user process which made the first call
+// to fuse. That would involve keeping track of fuse self call to stat
+// especially in is_toplevel_rm
+//------------------------------------------------------------------------------
+int mylstat (const char *__restrict name, struct stat *__restrict __buf, pid_t pid)
+{
+  std::string path (name);
+  if (path.find (local_mount_dir) == 0)
+  {
+    eos_static_debug("name=%%s\n", name);
+
+    uid_t uid;
+    gid_t gid;
+    if (proccache_GetFsUidGid (pid, &uid, &gid)) return ESRCH;
+
+    mutex_inode_path.LockRead ();
+    unsigned long long ino = path2inode.count (name) ? path2inode[name] : 0;
+    mutex_inode_path.UnLockRead ();
+    return xrd_stat (name, __buf, uid, gid, pid, ino);
+  }
+  else
+    return lstat (name, __buf);
+}
+
+//------------------------------------------------------------------------------
+// this is code from taken from BSD implementation
+// it was just made ok for C++ compatibility
+// and regular lstat was replaced with the above mylstat
+//------------------------------------------------------------------------------
+char *
+myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid)
+{
+  struct stat sb;
+  char *p, *q, *s;
+  size_t left_len, resolved_len;
+  unsigned symlinks;
+  int m, serrno, slen;
+  char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
+
+  if (path == NULL)
+  {
+    errno = EINVAL;
+    return (NULL);
+  }
+  if (path[0] == '\0')
+  {
+    errno = ENOENT;
+    return (NULL);
+  }
+  serrno = errno;
+  if (resolved == NULL)
+  {
+    resolved = (char*) malloc (PATH_MAX);
+    if (resolved == NULL) return (NULL);
+    m = 1;
+  }
+  else
+    m = 0;
+  symlinks = 0;
+  if (path[0] == '/')
+  {
+    resolved[0] = '/';
+    resolved[1] = '\0';
+    if (path[1] == '\0') return (resolved);
+    resolved_len = 1;
+    left_len = strlcpy (left, path + 1, sizeof(left));
+  }
+  else
+  {
+    if (getcwd (resolved, PATH_MAX) == NULL)
+    {
+      if (m)
+        free (resolved);
+      else
+      {
+        resolved[0] = '.';
+        resolved[1] = '\0';
+      }
+      return (NULL);
+    }
+    resolved_len = strlen (resolved);
+    left_len = strlcpy (left, path, sizeof(left));
+  }
+  if (left_len >= sizeof(left) || resolved_len >= PATH_MAX)
+  {
+    if (m) free (resolved);
+    errno = ENAMETOOLONG;
+    return (NULL);
+  }
+
+  /*
+   * Iterate over path components in `left'.
+   */
+  while (left_len != 0)
+  {
+    /*
+     * Extract the next path component and adjust `left'
+     * and its length.
+     */
+    p = strchr (left, '/');
+    s = p ? p : left + left_len;
+    if (s - left >= (int) sizeof(next_token))
+    {
+      if (m) free (resolved);
+      errno = ENAMETOOLONG;
+      return (NULL);
+    }
+    memcpy (next_token, left, s - left);
+    next_token[s - left] = '\0';
+    left_len -= s - left;
+    if (p != NULL) memmove (left, s + 1, left_len + 1);
+    if (resolved[resolved_len - 1] != '/')
+    {
+      if (resolved_len + 1 >= PATH_MAX)
+      {
+        if (m) free (resolved);
+        errno = ENAMETOOLONG;
+        return (NULL);
+      }
+      resolved[resolved_len++] = '/';
+      resolved[resolved_len] = '\0';
+    }
+    if (next_token[0] == '\0')
+      continue;
+    else if (strcmp (next_token, ".") == 0)
+      continue;
+    else if (strcmp (next_token, "..") == 0)
+    {
+      /*
+       * Strip the last path component except when we have
+       * single "/"
+       */
+      if (resolved_len > 1)
+      {
+        resolved[resolved_len - 1] = '\0';
+        q = strrchr (resolved, '/') + 1;
+        *q = '\0';
+        resolved_len = q - resolved;
+      }
+      continue;
+    }
+
+    /*
+     * Append the next path component and lstat() it. If
+     * lstat() fails we still can return successfully if
+     * there are no more path components left.
+     */
+    resolved_len = strlcat (resolved, next_token, PATH_MAX);
+    if (resolved_len >= PATH_MAX)
+    {
+      if (m) free (resolved);
+      errno = ENAMETOOLONG;
+      return (NULL);
+    }
+    if (mylstat (resolved, &sb, pid) != 0)
+    {
+      if (errno == ENOENT && p == NULL)
+      {
+        errno = serrno;
+        return (resolved);
+      }
+      if (m) free (resolved);
+      return (NULL);
+    }
+    if (S_ISLNK(sb.st_mode))
+    {
+      if (symlinks++ > MAXSYMLINKS)
+      {
+        if (m) free (resolved);
+        errno = ELOOP;
+        return (NULL);
+      }
+      slen = readlink (resolved, symlink, sizeof(symlink) - 1);
+      if (slen < 0)
+      {
+        if (m) free (resolved);
+        return (NULL);
+      }
+      symlink[slen] = '\0';
+      if (symlink[0] == '/')
+      {
+        resolved[1] = 0;
+        resolved_len = 1;
+      }
+      else if (resolved_len > 1)
+      {
+        /* Strip the last path component. */
+        resolved[resolved_len - 1] = '\0';
+        q = strrchr (resolved, '/') + 1;
+        *q = '\0';
+        resolved_len = q - resolved;
+      }
+
+      /*
+       * If there are any path components left, then
+       * append them to symlink. The result is placed
+       * in `left'.
+       */
+      if (p != NULL)
+      {
+        if (symlink[slen - 1] != '/')
+        {
+          if (slen + 1 >= (int) sizeof(symlink))
+          {
+            if (m) free (resolved);
+            errno = ENAMETOOLONG;
+            return (NULL);
+          }
+          symlink[slen] = '/';
+          symlink[slen + 1] = 0;
+        }
+        left_len = strlcat (symlink, left, sizeof(left));
+        if (left_len >= sizeof(left))
+        {
+          if (m) free (resolved);
+          errno = ENAMETOOLONG;
+          return (NULL);
+        }
+      }
+      left_len = strlcpy (left, symlink, sizeof(left));
+    }
+  }
+
+  /*
+   * Remove trailing slash except when the resolved pathname
+   * is a single "/".
+   */
+  if (resolved_len > 1 && resolved[resolved_len - 1] == '/') resolved[resolved_len - 1] = '\0';
+  return (resolved);
+}
+
