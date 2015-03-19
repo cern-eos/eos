@@ -34,6 +34,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -52,10 +53,10 @@ PropPatchResponse::BuildResponse (eos::common::HttpRequest *request)
   // Root node <propertyupdate/>
   xml_node<> *updateNode = mXMLRequestDocument.first_node();
   if (!updateNode)
-    {
-      SetResponseCode(ResponseCodes::BAD_REQUEST);
-      return this;
-    }
+  {
+    SetResponseCode(ResponseCodes::BAD_REQUEST);
+    return this;
+  }
 
   // Build the response
   // xml declaration
@@ -67,13 +68,14 @@ PropPatchResponse::BuildResponse (eos::common::HttpRequest *request)
   // <multistatus/> node
   xml_node<> *multistatusNode = AllocateNode("d:multistatus");
   multistatusNode->append_attribute(AllocateAttribute("xmlns:d", "DAV:"));
-  
+
   // add custom namespaces
   NamespaceMap::const_iterator it;
-  for (it = mCustomNamespaces.begin(); it != mCustomNamespaces.end(); ++it) 
+  for (it = mCustomNamespaces.begin(); it != mCustomNamespaces.end(); ++it)
   {
-    std::string ns = "xmlns:"; ns += it->first;
-    multistatusNode->append_attribute(AllocateAttribute(ns.c_str() , it->second.c_str()));
+    std::string ns = "xmlns:";
+    ns += it->first;
+    multistatusNode->append_attribute(AllocateAttribute(ns.c_str(), it->second.c_str()));
   }
 
   mXMLResponseDocument.append_node(multistatusNode);
@@ -87,53 +89,55 @@ PropPatchResponse::BuildResponse (eos::common::HttpRequest *request)
   responseNode->append_node(hrefNode);
 
   // now get all the set/remove nodes and send a fake OK for each of them
-  xml_node<> *setNode = GetNode(updateNode,"set");
+  xml_node<> *setNode = GetNode(updateNode, "set");
   xml_node<> *removeNode = GetNode(updateNode, "remove");
 
-  if (setNode) 
+  if (setNode)
   {
-    xml_node<> *propNode = GetNode(setNode,"prop");
-    if (propNode) 
+    xml_node<> *propNode = GetNode(setNode, "prop");
+    if (propNode)
     {
       xml_node<> *prop = propNode->first_node();
-      while (prop) {
-	xml_node<> *propStat = AllocateNode("d:propstat");
-	responseNode->append_node(propStat);
+      while (prop)
+      {
+        xml_node<> *propStat = AllocateNode("d:propstat");
+        responseNode->append_node(propStat);
 
-	xml_node<> *propResponse = AllocateNode("d:prop");
-	propStat->append_node(propResponse);
+        xml_node<> *propResponse = AllocateNode("d:prop");
+        propStat->append_node(propResponse);
 
-	xml_node<> *propKey = AllocateNode(prop->name());
-	propResponse->append_node(propKey);
+        xml_node<> *propKey = AllocateNode(prop->name());
+        propResponse->append_node(propKey);
 
-	xml_node<> *status = AllocateNode("d:status");
-	SetValue(status,"HTTP/1.1 200 OK");
-	propStat->append_node(status);
-	prop = prop->next_sibling();
+        xml_node<> *status = AllocateNode("d:status");
+        SetValue(status, "HTTP/1.1 200 OK");
+        propStat->append_node(status);
+        prop = prop->next_sibling();
       }
     }
   }
 
-  if (removeNode) 
+  if (removeNode)
   {
-    xml_node<> *propNode = GetNode(setNode,"prop");
-    if (propNode) 
+    xml_node<> *propNode = GetNode(setNode, "prop");
+    if (propNode)
     {
       xml_node<> *prop = propNode->first_node();
-      while (prop) {
-	xml_node<> *propStat = AllocateNode("d:propstat");
-	responseNode->append_node(propStat);
+      while (prop)
+      {
+        xml_node<> *propStat = AllocateNode("d:propstat");
+        responseNode->append_node(propStat);
 
-	xml_node<> *propResponse = AllocateNode("d:prop");
-	propStat->append_node(propResponse);
+        xml_node<> *propResponse = AllocateNode("d:prop");
+        propStat->append_node(propResponse);
 
-	xml_node<> *propKey = AllocateNode(prop->name());
-	propResponse->append_node(propKey);
+        xml_node<> *propKey = AllocateNode(prop->name());
+        propResponse->append_node(propKey);
 
-	xml_node<> *status = AllocateNode("d:status");
-	SetValue(status,"HTTP/1.1 200 OK");
-	propStat->append_node(status);
-	prop = prop->next_sibling();
+        xml_node<> *status = AllocateNode("d:status");
+        SetValue(status, "HTTP/1.1 200 OK");
+        propStat->append_node(status);
+        prop = prop->next_sibling();
       }
     }
   }
@@ -141,6 +145,8 @@ PropPatchResponse::BuildResponse (eos::common::HttpRequest *request)
   std::string responseString;
   rapidxml::print(std::back_inserter(responseString), mXMLResponseDocument, rapidxml::print_no_indenting);
   mXMLResponseDocument.clear();
+
+  SetResponseCode(HttpResponse::MULTI_STATUS);
 
   AddHeader("Content-Length", std::to_string((long long) responseString.size()));
   AddHeader("Content-Type", "application/xml; charset=utf-8");
