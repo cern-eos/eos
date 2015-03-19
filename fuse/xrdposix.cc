@@ -3281,8 +3281,15 @@ xrd_init ()
     rm_watch_relpath = false;
     char rm_cmd[PATH_MAX];
     FILE *f = popen("`which which` --skip-alias --skip-functions --skip-dot rm","r");
-    if(!fscanf(f,"%s",rm_cmd))
+    if(!f)
+    {
+      eos_static_err("could not run the system wide rm command procedure");
+    }
+    else if(!fscanf(f,"%s",rm_cmd))
+    {
+      pclose (f);
       eos_static_err("cannot get rm command to watch");
+    }
     else
     {
       pclose (f);
@@ -3295,10 +3302,14 @@ xrd_init ()
         eos_static_err("could not run the rm command to watch");
       char *line = NULL;
       size_t len = 0;
-      if (getline (&line, &len, f)==-1)
-        eos_static_err("could not read rm command version to watch");
+      if ( f && getline (&line, &len, f)==-1)
+      {
+        pclose(f);
+        if(f) eos_static_err("could not read rm command version to watch");
+      }
       else if (line)
       {
+        pclose(f);
         char *lasttoken = strrchr (line, ' ');
         if (lasttoken)
         {
