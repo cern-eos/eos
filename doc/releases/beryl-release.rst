@@ -6,6 +6,14 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.102 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix 'attr' get' function if no attribute links are used
+- use '_attr_ls' consistently instead of directy namespace map (to enable links everywhere)
+- fix PROPPATCH response to be 'multi-status' 207
+
 ``Version V0.3.101 Beryl-Aquamarine``
 
 Bug Fixes
