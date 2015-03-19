@@ -169,7 +169,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
 
   switch (open_mode & (SFS_O_RDONLY | SFS_O_WRONLY | SFS_O_RDWR |
-                       SFS_O_CREAT | SFS_O_TRUNC))
+          SFS_O_CREAT | SFS_O_TRUNC))
   {
     case SFS_O_CREAT: open_flag = O_RDWR | O_CREAT | O_EXCL;
       crOpts |= XRDOSS_new;
@@ -432,17 +432,21 @@ XrdMgmOfsFile::open (const char *inpath,
     try
     {
       dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+
       // get the attributes out
-      eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+      gOFS->_attr_ls(cPath.GetParentPath(),
+                     error,
+                     vid,
+                     0,
+                     attrmap,
+                     false,
+                     true);
+
       if (dmd)
       {
         if (ocUploadUuid.length())
         {
-          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),ocUploadUuid));
+          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
           fmd = dmd->findFile(aPath.GetName());
         }
         else
@@ -499,11 +503,14 @@ XrdMgmOfsFile::open (const char *inpath,
         {
           dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
           // get the attributes out
-          eos::ContainerMD::XAttrMap::const_iterator it;
-          for (it = dmd->attributesBegin(); it != dmd->attributesEnd(); ++it)
-          {
-            attrmap[it->first] = it->second;
-          }
+          gOFS->_attr_ls(cPath.GetSubPath(2),
+                         error,
+                         vid,
+                         0,
+                         attrmap,
+                         false,
+                         true);
+
         }
         catch (eos::MDException &e)
         {
@@ -555,31 +562,31 @@ XrdMgmOfsFile::open (const char *inpath,
 
     if (attrmap.count("sys.owner.auth"))
     {
-      if (attrmap["sys.owner.auth"] == "*") 
+      if (attrmap["sys.owner.auth"] == "*")
       {
-	sticky_owner = true;
-      } 
+        sticky_owner = true;
+      }
       else
       {
-	attrmap["sys.owner.auth"] += ",";
-	std::string ownerkey = vid.prot.c_str();
-	ownerkey += ":";
-	if (vid.prot == "gsi")
-	{
-	  ownerkey += vid.dn.c_str();
-	}
-	else
-	{
-	  ownerkey += vid.uid_string.c_str();
-	}
-	if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
-	{
-	  eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
-	  // yes the client can operate as the owner, we rewrite the virtual
-	  // identity to the directory uid/gid pair
-	  vid.uid = d_uid;
-	  vid.gid = d_gid;
-	}
+        attrmap["sys.owner.auth"] += ",";
+        std::string ownerkey = vid.prot.c_str();
+        ownerkey += ":";
+        if (vid.prot == "gsi")
+        {
+          ownerkey += vid.dn.c_str();
+        }
+        else
+        {
+          ownerkey += vid.uid_string.c_str();
+        }
+        if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
+        {
+          eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
+          // yes the client can operate as the owner, we rewrite the virtual
+          // identity to the directory uid/gid pair
+          vid.uid = d_uid;
+          vid.gid = d_gid;
+        }
       }
     }
 
@@ -642,7 +649,7 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", path);
       }
     }
-    if (sticky_owner) 
+    if (sticky_owner)
     {
       eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid, vid.gid, d_uid, d_gid);
       vid.uid = d_uid;
@@ -692,15 +699,15 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     if (isRewrite &&
         (
-         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
-          eos::common::LayoutId::kRaidDP) ||
+        (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+        eos::common::LayoutId::kRaidDP) ||
 
-         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
-          eos::common::LayoutId::kArchive) ||
+        (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+        eos::common::LayoutId::kArchive) ||
 
-         (eos::common::LayoutId::GetLayoutType(fmdlid) ==
-          eos::common::LayoutId::kRaid6)
-         )
+        (eos::common::LayoutId::GetLayoutType(fmdlid) ==
+        eos::common::LayoutId::kRaid6)
+        )
         &&
         (vid.uid > 3)
         )
@@ -1508,7 +1515,7 @@ XrdMgmOfsFile::open (const char *inpath,
     targethost = gOFS->mFstGwHost.c_str();
     std::ostringstream oss;
     oss << targethost << "?" << "eos.fstfrw=" << filesystem->GetString("host").c_str()
-        << ":" << filesystem->GetString("port").c_str();
+            << ":" << filesystem->GetString("port").c_str();
     redirectionhost = oss.str().c_str();
   }
   else
@@ -1538,12 +1545,12 @@ XrdMgmOfsFile::open (const char *inpath,
 
 
   newlayoutId = eos::common::LayoutId::GetId(
-      isPio ? eos::common::LayoutId::kPlain :
-      eos::common::LayoutId::GetLayoutType(layoutId),
-      isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
-      isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
-      eos::common::LayoutId::GetBlocksizeType(layoutId),
-      eos::common::LayoutId::GetBlockChecksum(layoutId));
+                                             isPio ? eos::common::LayoutId::kPlain :
+                                             eos::common::LayoutId::GetLayoutType(layoutId),
+                                             isPio ? eos::common::LayoutId::kNone : eos::common::LayoutId::GetChecksum(layoutId),
+                                             isPioReconstruct ? static_cast<int> (ufs.size()) : static_cast<int> (selectedfs.size()),
+                                             eos::common::LayoutId::GetBlocksizeType(layoutId),
+                                             eos::common::LayoutId::GetBlockChecksum(layoutId));
 
   capability += "&mgm.lid=";
   capability += static_cast<int> (newlayoutId);
@@ -1781,8 +1788,8 @@ XrdMgmOfsFile::open (const char *inpath,
             targetport = gOFS->mFstGwPort;
             std::ostringstream oss;
             oss << gOFS->mFstGwHost.c_str() << "?eos.fstfrw="
-                << filesystem->GetString("host").c_str() << ":"
-                << filesystem->GetString("port").c_str();
+                    << filesystem->GetString("host").c_str() << ":"
+                    << filesystem->GetString("port").c_str();
             targethost = oss.str().c_str();
             redirectionhost = targethost;
           }
@@ -1910,7 +1917,7 @@ XrdMgmOfsFile::open (const char *inpath,
     else
     {
       if ((!isRW) && (eos::common::LayoutId::GetLayoutType(layoutId) ==
-                      eos::common::LayoutId::kReplica))
+          eos::common::LayoutId::kReplica))
       {
         redirectionhost += "&mgm.blockchecksum=ignore";
       }
@@ -1998,10 +2005,10 @@ XrdMgmOfsFile::open (const char *inpath,
     const char* app = 0;
     if (!(app = openOpaque->Get("eos.app")) ||
         (
-         (strcmp(app, "balancer")) &&
-         (strcmp(app, "drainer")) &&
-         (strcmp(app, "converter"))
-         )
+        (strcmp(app, "balancer")) &&
+        (strcmp(app, "drainer")) &&
+        (strcmp(app, "converter"))
+        )
         )
     {
       // we are supposed to update the change time with the access since this
