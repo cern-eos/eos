@@ -154,36 +154,36 @@ Recycle::Recycler ()
     {
       if (attrmap.count(Recycle::gRecyclingKeepRatio))
       {
-	// one can define a space threshold which actually leaves even older files in the garbage bin until the threshold is reached
-	// for simplicity we apply this threshold to volume & inodes
+        // one can define a space threshold which actually leaves even older files in the garbage bin until the threshold is reached
+        // for simplicity we apply this threshold to volume & inodes
 
-	lSpaceKeepRatio = strtod(attrmap[Recycle::gRecyclingKeepRatio].c_str(), 0);
-	
-	eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-	SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
-	if (spacequota)
-	{
-	  spacequota->Refresh();
-	  unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
-	  unsigned long long maxbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
-	  unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
-	  unsigned long long maxfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesTarget, Quota::gProjectId);
-	  
-	  if ( (lSpaceKeepRatio > (1.0 * usedbytes/(maxbytes?maxbytes:999999999)) ) &&
-	       (lSpaceKeepRatio > (1.0 * usedfiles/(maxfiles?maxfiles:999999999) ) ) )
-	  {	       
-	    eos_static_debug("msg=\"skipping recycle clean-up - ratio still low\" ratio=%.02f space-ratio=%.02f inode-ratio=%.02f",
-			     lSpaceKeepRatio, 
-			     1.0 * usedbytes/(maxbytes?maxbytes:999999999),
-			     1.0 * usedfiles/(maxfiles?maxfiles:999999999));
-	    continue;
-	  }
-	  if ((lSpaceKeepRatio - 0.1)  > 0)
-	    lSpaceKeepRatio -= 0.1;
-	  lLowInodesWatermark =  (maxfiles*lSpaceKeepRatio);
-	  lLowSpaceWatermark = (maxbytes*lSpaceKeepRatio);
-	  eos_static_info("msg=\"cleaning by ratio policy\" low-inodes-mark=%lld low-space-mark=%lld mark=%.02f", lLowInodesWatermark, lLowSpaceWatermark, lSpaceKeepRatio);
-	}
+        lSpaceKeepRatio = strtod(attrmap[Recycle::gRecyclingKeepRatio].c_str(), 0);
+
+        eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+        SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
+        if (spacequota)
+        {
+          spacequota->Refresh();
+          unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+          unsigned long long maxbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
+          unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
+          unsigned long long maxfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesTarget, Quota::gProjectId);
+
+          if ((lSpaceKeepRatio > (1.0 * usedbytes / (maxbytes ? maxbytes : 999999999))) &&
+              (lSpaceKeepRatio > (1.0 * usedfiles / (maxfiles ? maxfiles : 999999999))))
+          {
+            eos_static_debug("msg=\"skipping recycle clean-up - ratio still low\" ratio=%.02f space-ratio=%.02f inode-ratio=%.02f",
+                             lSpaceKeepRatio,
+                             1.0 * usedbytes / (maxbytes ? maxbytes : 999999999),
+                             1.0 * usedfiles / (maxfiles ? maxfiles : 999999999));
+            continue;
+          }
+          if ((lSpaceKeepRatio - 0.1) > 0)
+            lSpaceKeepRatio -= 0.1;
+          lLowInodesWatermark = (maxfiles * lSpaceKeepRatio);
+          lLowSpaceWatermark = (maxbytes * lSpaceKeepRatio);
+          eos_static_info("msg=\"cleaning by ratio policy\" low-inodes-mark=%lld low-space-mark=%lld mark=%.02f", lLowInodesWatermark, lLowSpaceWatermark, lSpaceKeepRatio);
+        }
       }
       if (attrmap.count(Recycle::gRecyclingTimeAttribute))
       {
@@ -303,30 +303,30 @@ Recycle::Recycler ()
                 // this entry can be removed
                 //...............................................................
 
-		// if there is a keep-ratio policy defined we abort deletion once we are enough under the thresholds
-		if (attrmap.count(Recycle::gRecyclingKeepRatio))
-		{
-		  // extract the current usage
-		  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-		  SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
-		  if (spacequota)
-		  {
-		    spacequota->Refresh();
-		    unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
-		    unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
-		    eos_static_debug("low-volume=%lld is-volume=%lld low-inodes=%lld is-inodes=%lld",
-				     usedfiles,
-				     lLowInodesWatermark,
-				     usedbytes,
-				     lLowSpaceWatermark);
-		    if ( (lLowInodesWatermark >= usedfiles) &&
-			 (lLowSpaceWatermark >= usedbytes) )
-		    {
-		      eos_static_debug("msg=\"skipping recycle clean-up - ratio went under low watermarks\"");
-		      break; // leave the deletion loop
-		    }
-		  }
-		}
+                // if there is a keep-ratio policy defined we abort deletion once we are enough under the thresholds
+                if (attrmap.count(Recycle::gRecyclingKeepRatio))
+                {
+                  // extract the current usage
+                  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
+                  SpaceQuota* spacequota = Quota::GetResponsibleSpaceQuota((Recycle::gRecyclingPrefix + "/").c_str());
+                  if (spacequota)
+                  {
+                    spacequota->Refresh();
+                    unsigned long long usedbytes = spacequota->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+                    unsigned long long usedfiles = spacequota->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
+                    eos_static_debug("low-volume=%lld is-volume=%lld low-inodes=%lld is-inodes=%lld",
+                                     usedfiles,
+                                     lLowInodesWatermark,
+                                     usedbytes,
+                                     lLowSpaceWatermark);
+                    if ((lLowInodesWatermark >= usedfiles) &&
+                        (lLowSpaceWatermark >= usedbytes))
+                    {
+                      eos_static_debug("msg=\"skipping recycle clean-up - ratio went under low watermarks\"");
+                      break; // leave the deletion loop
+                    }
+                  }
+                }
 
                 XrdOucString delpath = it->second.c_str();
                 if ((it->second.length()) && (delpath.endswith(Recycle::gRecyclingPostFix.c_str())))
@@ -717,10 +717,10 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 char deltime[256];
                 snprintf(deltime, sizeof (deltime) - 1, "%llu", (unsigned long long) buf.st_ctime);
                 stdOut += deltime;
-		stdOut += " type=";
-		stdOut += type.c_str();
-		stdOut += " keylength.restore-path=";
-		stdOut += (int)origpath.length();
+                stdOut += " type=";
+                stdOut += type.c_str();
+                stdOut += " keylength.restore-path=";
+                stdOut += (int) origpath.length();
                 stdOut += " restore-path=";
                 stdOut += origpath.c_str();
                 stdOut += " restore-key=";
@@ -747,12 +747,12 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 stdOut += "\n";
               }
               count++;
-              if ( (vid.uid) && (!vid.sudoer) && ( count > 100000) )
+              if ((vid.uid) && (!vid.sudoer) && (count > 100000))
               {
                 stdOut += "... (truncated)\n";
                 retc = E2BIG;
                 stdErr += "warning: list too long - truncated after 100000 entries!\n";
-		return;
+                return;
               }
             }
           }
@@ -807,7 +807,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                  usedbytes * 100.0 / maxbytes,
                  usedfiles * 100.0 / maxfiles,
                  attrmap.count(Recycle::gRecyclingTimeAttribute) ? attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "-1",
-		 attrmap.count(Recycle::gRecyclingKeepRatio) ? attrmap[Recycle::gRecyclingKeepRatio].c_str() : "-1");
+                 attrmap.count(Recycle::gRecyclingKeepRatio) ? attrmap[Recycle::gRecyclingKeepRatio].c_str() : "-1");
         stdOut += sline;
         stdOut += "\n";
       }
@@ -851,15 +851,16 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     {
     }
 
-    if ( (!fmd) ||
-	 (!repath.beginswith(Recycle::gRecyclingPrefix.c_str())) ) {
+    if ((!fmd) ||
+        (!repath.beginswith(Recycle::gRecyclingPrefix.c_str())))
+    {
       // if the recycling ID does not point to a file in the recycle bin
       // try if it points to a directory in the recycling bin
       try
       {
-	cmd = gOFS->eosDirectoryService->getContainerMD(fid);
-	recyclepath = gOFS->eosView->getUri(cmd);
-	repath = recyclepath.c_str();
+        cmd = gOFS->eosDirectoryService->getContainerMD(fid);
+        recyclepath = gOFS->eosView->getUri(cmd);
+        repath = recyclepath.c_str();
       }
       catch (eos::MDException &e)
       {
@@ -1249,13 +1250,13 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
       return EINVAL;
     }
 
-    double ratio = strtod(arg,0);
+    double ratio = strtod(arg, 0);
     if (!ratio)
     {
       stdErr = "error: ratio must be != 0\n";
       return EINVAL;
     }
-    if ( (ratio <= 0) || (ratio > 0.99) )
+    if ((ratio <= 0) || (ratio > 0.99))
     {
       stdErr = "error: a recycle bin ratio has to be 0 < ratio < 1.0!\n";
       return EINVAL;
