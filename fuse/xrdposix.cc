@@ -2395,13 +2395,8 @@ xrd_open (const char* path,
         eos_static_debug("error=opaque info not what we expected");
     }
     else
-      eos_static_err("error=failed get request for pio read");
-  }
-
-  if(use_user_krb5cc && fuse_shared && spath.find("xrd.k5ccname")<0)
-  {
-    spath += (spath.find('?')>=0)?"&":"?";
-    spath += xrd_krb5_cgi(pid);
+      eos_static_err("error=failed get request for pio read. URL to open was: %s. REQUEST was: %s.",
+                     surl.c_str(),request.c_str());
   }
 
   eos_static_debug("the spath is:%s", spath.c_str());
