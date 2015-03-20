@@ -53,6 +53,8 @@ add_library( EosFstIo-Static STATIC
   	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/KineticsIo.cc               io/KineticsIo.hh
+	     io/RadosIo.cc                  io/RadosIo.hh
 	     io/XrdIo.cc                    io/XrdIo.hh
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh

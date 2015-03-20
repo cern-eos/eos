@@ -33,15 +33,31 @@ using eos::common::LayoutId;
 
 FileIo*
 FileIoPlugin::GetIoObject (int ioType,
-    XrdFstOfsFile* file ,
-    const XrdSecEntity* client) {
+                           XrdFstOfsFile* file,
+                           const XrdSecEntity* client)
+{
 
   if (ioType == LayoutId::kLocal)
   {
     return static_cast<FileIo*> (new LocalIo(file, client));
   }
-
-  return FileIoPluginHelper::GetIoObject (ioType, file, client);
+  else
+    if (ioType == LayoutId::kXrdCl)
+  {
+    return static_cast<FileIo*> (new XrdIo());
+  }
+  else
+    if (ioType == LayoutId::kKinetics)
+  {
+    return static_cast<FileIo*> (new KineticsIo(file, client));
+  }
+  else
+    if (ioType == LayoutId::kRados)
+  {
+    return static_cast<FileIo*> (new RadosIo(file, client));
+  }
+  else
+    return FileIoPluginHelper::GetIoObject(ioType, file, client);
 }
 
 EOSFSTNAMESPACE_END
