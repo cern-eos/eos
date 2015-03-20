@@ -2395,8 +2395,8 @@ xrd_open (const char* path,
         eos_static_debug("error=opaque info not what we expected");
     }
     else
-      eos_static_err("error=failed get request for pio read. URL to open was: %s. REQUEST was: %s.",
-                     surl.c_str(),request.c_str());
+      eos_static_debug("error=failed get request for pio read. URL to open was: %s. REQUEST was: %s. ERROR is %s. This might be harmlessly caused by a zero-sized file.",
+                     surl.c_str(),request.c_str(),status.ToString().c_str());
   }
 
   eos_static_debug("the spath is:%s", spath.c_str());
