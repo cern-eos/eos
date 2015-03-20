@@ -44,8 +44,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class with static members helping to deal with layout types
 //------------------------------------------------------------------------------
-class LayoutId
-{
+class LayoutId {
 public:
   typedef unsigned long layoutid_t;
 
@@ -57,8 +56,7 @@ public:
   //! Definition of layout errors
   //--------------------------------------------------------------------------
 
-  enum eLayoutError
-  {
+  enum eLayoutError {
     // this is used on FSTs in the Fmd Synchronization
     kOrphan = 0x1, ///< layout produces an orphan
     kUnregistered = 0x2, ///< layout has an unregistered stripe
@@ -71,8 +69,7 @@ public:
   //! Definition of checksum types
   //--------------------------------------------------------------------------
 
-  enum eChecksum
-  {
+  enum eChecksum {
     kNone = 0x1,
     kAdler = 0x2,
     kCRC32 = 0x3,
@@ -87,8 +84,7 @@ public:
   //! Definition of file layout types
   //--------------------------------------------------------------------------
 
-  enum eLayoutType
-  {
+  enum eLayoutType {
     kPlain = 0x0,
     kReplica = 0x1,
     kArchive = 0x2,
@@ -101,19 +97,31 @@ public:
   //! Definition of IO types
   //--------------------------------------------------------------------------
 
-  enum eIoType
-  {
+  enum eIoType {
     kLocal = 0x0,
-    kXrdCl = 0x1
+    kXrdCl = 0x1,
+    kRados = 0x2,
+    kKinetics = 0x3,
   };
 
+  static int
+  GetIoType (const char* path)
+  {
+    XrdOucString spath = path;
+    if (spath.beginswith("root://"))
+      return kXrdCl;
+    if (spath.beginswith("kinetics://"))
+      return kKinetics;
+    if (spath.beginswith("rados://"))
+      return kRados;
+    return kLocal;
+  }
 
   //--------------------------------------------------------------------------
   //! Definition of predefined block sizes
   //--------------------------------------------------------------------------
 
-  enum eBlockSize
-  {
+  enum eBlockSize {
     k4k = 0x0,
     k64k = 0x1,
     k128k = 0x2,
@@ -128,8 +136,7 @@ public:
   //! Definition of stripe number
   //--------------------------------------------------------------------------
 
-  enum eStripeNumber
-  {
+  enum eStripeNumber {
     kOneStripe = 0x0,
     kTwoStripe = 0x1,
     kThreeStripe = 0x2,
@@ -168,7 +175,7 @@ public:
                         ((stripewidth & 0xf) << 16) |
                         ((blockchecksum & 0xf) << 20) |
                         ((excessreplicas & 0xf) << 24));
-  
+
     // Set the number of parity stripes depending on the layout type if not
     // already set explicitly
     if (redundancystripes == 0)
@@ -180,8 +187,8 @@ public:
       else if (layout == kArchive)
         redundancystripes = 3;
     }
-        
-    id |= ((redundancystripes & 0x7) << 28);    
+
+    id |= ((redundancystripes & 0x7) << 28);
     return id;
   }
 
@@ -281,11 +288,12 @@ public:
   //--------------------------------------------------------------------------
   //! Modify layout stripe number
   //--------------------------------------------------------------------------
+
   static void
   SetStripeNumber (unsigned long &layout, int stripes)
   {
     unsigned long tmp = stripes & 0xff;
-    tmp <<= 8 ;
+    tmp <<= 8;
     tmp &= 0xff00;
     layout &= 0xffff00ff;
     layout |= tmp;
@@ -384,11 +392,11 @@ public:
       return 1.0 * (GetStripeNumber(layout) + 1 + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kRaidDP)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 )) /
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kRaid6)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 )) /
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
                      (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kArchive)
@@ -678,21 +686,21 @@ public:
   //----------------------------------------------------------------------------
 
   static const char*
-  GetEnvFromConversionIdString (XrdOucString& out, 
+  GetEnvFromConversionIdString (XrdOucString& out,
                                 const char* conversionlayoutidstring)
   {
     if (!conversionlayoutidstring)
       return NULL;
 
     std::string keyval = conversionlayoutidstring;
-    
+
     // check if this is already a complete env representation
-    if ( (keyval.find("eos.layout.type") != std::string::npos) &&
-	 (keyval.find("eos.layout.nstripes") != std::string::npos) &&
-	 (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
-	 (keyval.find("eos.layout.checksum") != std::string::npos) &&
-	 (keyval.find("eos.layout.blocksize") != std::string::npos) &&
-	 (keyval.find("eos.space") != std::string::npos) )
+    if ((keyval.find("eos.layout.type") != std::string::npos) &&
+        (keyval.find("eos.layout.nstripes") != std::string::npos) &&
+        (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
+        (keyval.find("eos.layout.checksum") != std::string::npos) &&
+        (keyval.find("eos.layout.blocksize") != std::string::npos) &&
+        (keyval.find("eos.space") != std::string::npos))
     {
       out = conversionlayoutidstring;
       return out.c_str();
@@ -700,8 +708,8 @@ public:
 
     std::string space;
     std::string layout;
-    
-    if (!eos::common::StringConversion::SplitKeyValue(keyval, space,layout, "#"))
+
+    if (!eos::common::StringConversion::SplitKeyValue(keyval, space, layout, "#"))
       return NULL;
 
     errno = 0;
@@ -748,6 +756,7 @@ public:
   //! @return SFS-like open flags
   //!
   //----------------------------------------------------------------------------
+
   static XrdSfsFileOpenMode
   MapFlagsPosix2Sfs (int oflags)
   {
@@ -778,11 +787,11 @@ public:
     // Could also forward O_EXLC as XrdCl::OpenFlags::Flags::New but there is
     // no corresponding flag in SFS
     // !!!
-    
+
     return sfs_flags;
   }
 
-  
+
   //----------------------------------------------------------------------------
   //! Map SFS-like open flags to XrdCl open flags
   //!
@@ -791,6 +800,7 @@ public:
   //! @return XrdCl-like open flags
   //!
   //----------------------------------------------------------------------------
+
   static XrdCl::OpenFlags::Flags
   MapFlagsSfs2XrdCl (XrdSfsFileOpenMode flags_sfs)
   {
@@ -829,7 +839,7 @@ public:
     }
     if (flags_sfs & SFS_O_RAWIO)
     {
-      // no idea what to do 
+      // no idea what to do
     }
     if (flags_sfs & SFS_O_RESET)
     {
@@ -856,6 +866,7 @@ public:
   //! @return XrdCl-like open mode
   //!
   //----------------------------------------------------------------------------
+
   static XrdCl::Access::Mode
   MapModeSfs2XrdCl (mode_t mode_sfs)
   {
