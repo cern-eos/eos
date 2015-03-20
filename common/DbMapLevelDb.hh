@@ -144,6 +144,8 @@ inline void _testLvDbError_(const leveldb::Status &s, void* _this, const char* _
     //exit(1);
     abort();
   }
+  else
+    eos_static_err(" LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
 }
 #define TestLvDbError(s,_this) _testLvDbError_(s,_this,__FILE__,__LINE__);
 /*----------------------------------------------------------------------------*/
