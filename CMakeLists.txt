@@ -43,12 +43,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# Set /usr/ installation prefix if not specified otherwise
-set(CMAKE_INSTALL_PREFIX /usr CACHE STRING "Default install prefix is: /usr")
-
-if(PREFIX)
-  set(CMAKE_INSTALL_PREFIX ${PREFIX})
-endif(PREFIX)
+# Set "/usr" installation prefix if not specified otherwise
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install prefix: /usr" FORCE)
+endif()
 
 include(EosUtils)
 include(GNUInstallDirs)
