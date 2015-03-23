@@ -185,7 +185,7 @@ if (Linux)
     dbmaptestfunc
     eosCommonServer
     eosCommon
-    ${PROTOBUF_LIBRARY}
+    ${PROTOBUF_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
 endif()

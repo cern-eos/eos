@@ -119,8 +119,7 @@ add_library(
   GeoBalancer.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc
-  ${STAT_SRCS}     ${STAT_HDRS})
+  geotree/SchedulingTreeCommon.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
@@ -198,7 +197,7 @@ if (Linux)
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     INTERFACE_LINK_LIBRARIES "")
-endif(Linux)
+endif()
 
 install(
   TARGETS XrdEosMgm

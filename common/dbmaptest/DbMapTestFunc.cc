@@ -32,8 +32,8 @@
 #include<string>
 #include<common/DbMap.hh>
 #include<pthread.h>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include "google/protobuf/text_format.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "dbmaptest/test.pb.h"
 
 #define NUM_THREADS     5
