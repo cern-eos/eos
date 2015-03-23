@@ -43,8 +43,8 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# Force /usr/ installation prefix
-set(CMAKE_INSTALL_PREFIX /usr)
+# Set /usr/ installation prefix if not specified otherwise
+set(CMAKE_INSTALL_PREFIX /usr CACHE STRING "Default install prefix is: /usr")
 
 if(PREFIX)
   set(CMAKE_INSTALL_PREFIX ${PREFIX})
