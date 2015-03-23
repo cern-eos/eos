@@ -29,7 +29,7 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/LocalIo.hh"
 #include "fst/io/XrdIo.hh"
-#include "fst/io/KineticsIo.hh"
+#include "fst/io/KineticIo.hh"
 #include "fst/io/RadosIo.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
