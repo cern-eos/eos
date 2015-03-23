@@ -47,9 +47,9 @@ FileIoPlugin::GetIoObject (int ioType,
     return static_cast<FileIo*> (new XrdIo());
   }
   else
-    if (ioType == LayoutId::kKinetics)
+    if (ioType == LayoutId::kKinetic)
   {
-    return static_cast<FileIo*> (new KineticsIo(file, client));
+    return static_cast<FileIo*> (new KineticIo(file, client));
   }
   else
     if (ioType == LayoutId::kRados)
