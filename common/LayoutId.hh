@@ -101,7 +101,7 @@ public:
     kLocal = 0x0,
     kXrdCl = 0x1,
     kRados = 0x2,
-    kKinetics = 0x3,
+    kKinetic = 0x3,
   };
 
   static int
@@ -110,8 +110,8 @@ public:
     XrdOucString spath = path;
     if (spath.beginswith("root://"))
       return kXrdCl;
-    if (spath.beginswith("kinetics://"))
-      return kKinetics;
+    if (spath.beginswith("kinetic://"))
+      return kKinetic;
     if (spath.beginswith("rados://"))
       return kRados;
     return kLocal;
