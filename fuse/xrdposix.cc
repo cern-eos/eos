@@ -978,7 +978,10 @@ xrd_rmxattr (const char* path,
       errno = retc;
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code==XrdCl::errAuthFailed?EPERM:EFAULT;
+  }
 
   COMMONTIMING("END", &rmxattrtiming);
 
@@ -1045,7 +1048,10 @@ xrd_setxattr (const char* path,
       errno = retc;
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
   COMMONTIMING("END", &setxattrtiming);
 
@@ -1125,7 +1131,11 @@ xrd_getxattr (const char* path,
     }
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
+
 
   COMMONTIMING("END", &getxattrtiming);
 
@@ -1198,7 +1208,11 @@ xrd_listxattr (const char* path,
     }
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
+
 
   COMMONTIMING("END", &listxattrtiming);
 
@@ -1367,8 +1381,8 @@ xrd_stat (const char* path,
   }
   else
   {
-    eos_static_err("error=status is NOT ok");
-    errno = EFAULT;
+    eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+    errno = (status.code==XrdCl::errAuthFailed)?EPERM:EFAULT;
   }
 
   // If got size using opened file then return this value
@@ -1483,7 +1497,8 @@ xrd_statfs (const char* path, struct statvfs* stbuf,
   else
   {
     statmutex.UnLock();
-    errno = EFAULT;
+    eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
   }
 
   COMMONTIMING("END", &statfstiming);
@@ -1553,7 +1568,10 @@ xrd_chmod (const char* path,
       errno = retc;
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
   delete response;
   return errno;
@@ -1649,7 +1667,10 @@ xrd_utimes (const char* path,
       errno = retc;
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
   delete response;
   return errno;
@@ -1715,7 +1736,10 @@ xrd_access (const char* path,
       errno = retc;
   }
   else
-    errno = EFAULT;
+  {
+	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+  }
 
   delete response;
   return errno;
@@ -1768,7 +1792,8 @@ xrd_inodirlist (unsigned long long dirinode,
   {
     eos_static_err("error=got an error to request.");
     delete file;
-    errno = ENOENT;
+    eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
+    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
     return errno;
   }
 
@@ -2793,6 +2818,7 @@ const char* xrd_krb5_cgi (pid_t pid)
       {
         str += "xrd.k5ccname=";
         str += (buffer+5);
+        str += "&xrd.wantprot=krb5";
       }
       else
       {

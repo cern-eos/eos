@@ -162,7 +162,7 @@ eosfs_ll_getattr (fuse_req_t req,
     fuse_reply_attr (req, &stbuf, attrcachetime);
   }
   else
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, retc);
   }
 
 
