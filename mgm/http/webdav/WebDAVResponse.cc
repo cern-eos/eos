@@ -87,7 +87,7 @@ WebDAVResponse::ParseNamespaces ()
         // split off the xmlns:<ns> (if any)
         int colon = 0;
         if ((colon = attributeName.find(':')) != STR_NPOS)
-          ns = std::string(std::string(attributeName.c_str()) + ":", colon + 1);
+          ns = std::string(std::string(attributeName.c_str()), colon + 1);
 
         eos_static_debug("namespace=\"%s\"", ns != "" ? ns.c_str() : "default");
 
