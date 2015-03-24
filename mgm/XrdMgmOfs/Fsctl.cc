@@ -75,7 +75,7 @@ XrdMgmOfs::fsctl (const int cmd,
     char* buff = error.getMsgBuff(blen);
     XrdOucString space = "default";
 
-    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex;)
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
 
