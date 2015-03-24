@@ -992,8 +992,7 @@ com_cp (char* argin)
         }
         if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
         {
-          fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
-          continue;
+          fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
         }
       }
       else
@@ -1002,8 +1001,7 @@ com_cp (char* argin)
         {
           if (!stat(targetfile.c_str(), &buf))
           {
-            fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
-            continue;
+            fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
           }
         }
       }
