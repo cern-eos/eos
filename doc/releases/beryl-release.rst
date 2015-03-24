@@ -6,6 +6,15 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.104 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix custom namespace parsing for PROPPATCH requests
+- allow 'eos cp' to copy files/dirs with $
+- fix missing unlock of quota mutex in error return path
+- fix mutex inversion in STATLS function
+
 ``Version V0.3.102 Beryl-Aquamarine``
 
 Bug Fixes
