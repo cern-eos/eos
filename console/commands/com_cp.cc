@@ -457,7 +457,6 @@ com_cp (char* argin)
 
       if (l.length())
       {
-        int item;
         char* f2c=0;
 	size_t len = 4096;
 	while ((getline(&f2c, &len, fp)) != -1)
@@ -993,8 +992,7 @@ com_cp (char* argin)
         }
         if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
         {
-          fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
-          continue;
+          fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
         }
       }
       else
@@ -1003,8 +1001,7 @@ com_cp (char* argin)
         {
           if (!stat(targetfile.c_str(), &buf))
           {
-            fprintf(stderr, "error: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
-            continue;
+            fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
           }
         }
       }
@@ -1032,9 +1029,9 @@ com_cp (char* argin)
       {
         cmdline += "-k ";
       }
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += arg1;
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += " |";
       rstdin = true;
       noprogress = true;
@@ -1052,9 +1049,9 @@ com_cp (char* argin)
       XrdOucString s3arg = arg1;
       s3arg.replace("as3:", "");
       cmdline += "s3 get ";
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += s3arg;
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += " |";
       rstdin = true;
     }
@@ -1062,9 +1059,9 @@ com_cp (char* argin)
     if (arg1.beginswith("gsiftp:"))
     {
       cmdline += "globus-url-copy ";
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += arg1;
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += " - |";
       rstdin = true;
       noprogress = true;
@@ -1104,20 +1101,20 @@ com_cp (char* argin)
     if (transfersize.length()) cmdline += "-T ";
     cmdline += transfersize;
     cmdline += " ";
-    cmdline += "-N \"";
+    cmdline += "-N '";
     XrdOucString safepath=cPath.GetName();
     while(safepath.replace("&","#AND#")) {}
     cmdline += safepath.c_str();
-    cmdline += "\" ";
+    cmdline += "' ";
     if (rstdin)
     {
       cmdline += "- ";
     }
     else
     {
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += arg1;
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += " ";
     }
     if (rstdout)
@@ -1126,9 +1123,9 @@ com_cp (char* argin)
     }
     else
     {
-      cmdline += "\"";
+      cmdline += "'";
       cmdline += arg2;
-      cmdline += "\"";
+      cmdline += "'";
     }
 
     if (arg2.beginswith("as3:"))

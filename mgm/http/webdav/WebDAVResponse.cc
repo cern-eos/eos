@@ -115,7 +115,7 @@ WebDAVResponse::GetNode (rapidxml::xml_node<> *node, const char *name)
   {
     for (auto it = mDAVNamespaces.begin(); it != mDAVNamespaces.end(); ++it)
     {
-      std::string full(it->first + name);
+      std::string full(it->first + ":" + name);
       eos_static_debug("namespace=\"%s\" child=\"%s\"", full.c_str(), child->name());
       if (std::string(child->name()) == full)
         return child;
