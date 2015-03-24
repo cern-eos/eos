@@ -380,6 +380,8 @@ XrdMgmOfs::_rem (const char *path,
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {
+	  if (lock_quota) 
+	    Quota::gQuotaMutex.LockRead();
           return rc;
         }
       }
