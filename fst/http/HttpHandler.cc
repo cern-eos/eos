@@ -66,17 +66,13 @@ void
 HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 {
   eos_static_debug("Handling HTTP request");
-  bool isOcChunkUpload = false;
 
   if (!mFile)
-  {
     Initialize(request);
-  }
 
   if (!mFile)
   {
     mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
-
 
     // default modes are for GET=read
     XrdSfsFileOpenMode open_mode = 0;
@@ -93,10 +89,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       if (!request->GetHeaders().count("oc-chunked"))
       {
         open_mode |= SFS_O_TRUNC;
-      }
-      else
-      {
-        isOcChunkUpload = true;
       }
 
       open_mode |= SFS_O_RDWR;

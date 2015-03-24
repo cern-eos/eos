@@ -853,7 +853,7 @@ main (int argc, char* argv[])
   char* pmounthostport = 0;
   char* smountprefix = 0;
 
-  setenv("EOS_RDRURL", rdrurl,1);
+  (void) setenv("EOS_RDRURL", rdrurl, 1);
 
   pmounthostport = strstr (rdrurl, "root://");
 
