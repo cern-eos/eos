@@ -75,8 +75,7 @@ XrdMgmOfs::fsctl (const int cmd,
     char* buff = error.getMsgBuff(blen);
     XrdOucString space = "default";
 
-    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex;)
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
 
@@ -89,7 +88,6 @@ XrdMgmOfs::fsctl (const int cmd,
       if ((path == "/") || (path == ""))
       {
         space = "default";
-        eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
         freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
         maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
       }
