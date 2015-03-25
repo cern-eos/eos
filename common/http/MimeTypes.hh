@@ -337,6 +337,7 @@ public:
     mTypes[".ppm"] = "image/x-portable-pixmap";
     mTypes[".pps"] = "application/mspowerpoint";
     mTypes[".ppt"] = "application/mspowerpoint";
+    mTypes['.pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     mTypes[".ppz"] = "application/mspowerpoint";
     mTypes[".pre"] = "application/x-freelance";
     mTypes[".prt"] = "application/pro_eng";
