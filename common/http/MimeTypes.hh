@@ -50,7 +50,8 @@ private:
 public:
 
   std::string
-  MimeType (const char* suffix) {
+  MimeType (const char* suffix)
+  {
     if (mTypes.count(suffix))
       return mTypes[suffix];
     else
@@ -58,7 +59,8 @@ public:
   }
 
   std::string
-  Match (const std::string path) {
+  Match (const std::string path)
+  {
     std::string suffix = path;
     if (path.rfind(".") != std::string::npos)
       suffix.erase(path.rfind("."));
@@ -66,7 +68,8 @@ public:
     return MimeType(lower_case_suffix.c_str());
   }
 
-  MimeTypes () {
+  MimeTypes ()
+  {
     mTypes[".3dm"] = "x-world/x-3dmf";
     mTypes[".3dmf"] = "x-world/x-3dmf";
     mTypes[".a"] = "application/octet-stream";
@@ -133,6 +136,10 @@ public:
     mTypes[".dir"] = "application/x-director";
     mTypes[".dl"] = "video/dl";
     mTypes[".doc"] = "application/msword";
+    mTypes[".docm"] = "application/vnd.ms-word.document.macroEnabled.12";
+    mTypes[".docx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    mTypes[".dotm"] = "application/vnd.ms-word.templatet.macroEnabled.12";
+    mTypes[".dotx"] = "application/vnd.openxmlformats-officedocument.wordprocessingml.template";
     mTypes[".dot"] = "application/msword";
     mTypes[".dp"] = "application/commonground";
     mTypes[".drw"] = "application/drafting";
@@ -188,7 +195,6 @@ public:
     mTypes[".hpg"] = "application/vnd.hp-hpgl";
     mTypes[".hpgl"] = "application/vnd.hp-hpgl";
     mTypes[".hqx"] = "application/binhex";
-    mTypes[".hqx"] = "application/binhex4";
     mTypes[".hta"] = "application/hta";
     mTypes[".htc"] = "text/x-component";
     mTypes[".htm"] = "text/html";
@@ -214,6 +220,7 @@ public:
     mTypes[".ivr"] = "i-world/i-vrml";
     mTypes[".ivy"] = "application/x-livescreen";
     mTypes[".jam"] = "audio/x-jam";
+    mTypes[".jar"] = "application/java-archive";
     mTypes[".jav"] = "text/plain";
     mTypes[".jav"] = "text/x-java-source";
     mTypes[".java"] = "text/plain";
@@ -259,6 +266,7 @@ public:
     mTypes[".mht"] = "message/rfc822";
     mTypes[".mhtml"] = "message/rfc822";
     mTypes[".mid"] = "audio/midi";
+    mTypes[".midi"] = "audio/midi";
     mTypes[".mif"] = "application/x-mif";
     mTypes[".mime"] = "www/mime";
     mTypes[".mjf"] = "audio/x-vnd.audioexplosion.mjuicemediafile";
@@ -299,6 +307,7 @@ public:
     mTypes[".nvd"] = "application/x-navidoc";
     mTypes[".o"] = "application/octet-stream";
     mTypes[".oda"] = "application/oda";
+    mTypes[".ogg"] = "application/ogg";
     mTypes[".omc"] = "application/x-omc";
     mTypes[".omcd"] = "application/x-omcdatamaker";
     mTypes[".omcr"] = "application/x-omcregerator";
@@ -331,13 +340,19 @@ public:
     mTypes[".pm5"] = "application/x-pagemaker";
     mTypes[".png"] = "image/png";
     mTypes[".pnm"] = "application/x-portable-anymap";
-    mTypes[".pot"] = "application/mspowerpoint";
+    mTypes[".pot"] = "application/vnd.ms-powerpoint";
+    mTypes[".potm"] = "application/vnd.ms-powerpoint.template.macroEnabled.12";
+    mTypes[".potx"] = "application/vnd.openxmlformats-officedocument.presentationml.template";
     mTypes[".pov"] = "model/x-pov";
     mTypes[".ppa"] = "application/vnd.ms-powerpoint";
+    mTypes[".ppam"] = "application/vnd.ms-powerpoint.addin.macroEnabled.12";
     mTypes[".ppm"] = "image/x-portable-pixmap";
-    mTypes[".pps"] = "application/mspowerpoint";
-    mTypes[".ppt"] = "application/mspowerpoint";
-    mTypes['.pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    mTypes[".pps"] = "application/vnd.ms-powerpoint";
+    mTypes[".ppsm"] = "application/vnd.ms-powerpoint.slideshow.macroEnabled.12";
+    mTypes[".ppsx"] = "application/vnd.openxmlformats-officedocument.presentationml.slideshow";
+    mTypes[".ppt"] = "application/vnd.ms-powerpoint";
+    mTypes[".pptm"] = "application/vnd.ms-powerpoint.presentation.macroEnabled.12";
+    mTypes[".pptx"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     mTypes[".ppz"] = "application/mspowerpoint";
     mTypes[".pre"] = "application/x-freelance";
     mTypes[".prt"] = "application/pro_eng";
@@ -399,6 +414,7 @@ public:
     mTypes[".skp"] = "application/x-koan";
     mTypes[".skt"] = "application/x-koan";
     mTypes[".sl"] = "application/x-seelogo";
+    mTypes[".sldx"] = "application/vnd.openxmlformats-officedocument.presentationml.slide";
     mTypes[".smi"] = "application/smil";
     mTypes[".smil"] = "application/smil";
     mTypes[".snd"] = "audio/basic";
@@ -417,6 +433,7 @@ public:
     mTypes[".sv4cpio"] = "application/x-sv4cpio";
     mTypes[".sv4crc"] = "application/x-sv4crc";
     mTypes[".svf"] = "image/vnd.dwg";
+    mTypes[".svg"] = "image/svg+xml";
     mTypes[".svr"] = "application/x-world";
     mTypes[".swf"] = "application/x-shockwave-flash";
     mTypes[".t"] = "application/x-troff";
@@ -498,20 +515,24 @@ public:
     mTypes[".xdr"] = "video/x-amt-demorun";
     mTypes[".xgz"] = "xgl/drawing";
     mTypes[".xif"] = "image/vnd.xiff";
-    mTypes[".xl"] = "application/excel";
-    mTypes[".xla"] = "application/excel";
+    mTypes[".xl"] = "application/vnd-ms.excel";
+    mTypes[".xla"] = "application/vnd-ms.excel";
+    mTypes[".xlam"] = "application/vnd.ms-excel.addin.macroEnabled.12";
     mTypes[".xlb"] = "application/x-excel";
-    mTypes[".xlc"] = "application/excel";
+    mTypes[".xlc"] = "application/vnd-ms.excel";
     mTypes[".xlc"] = "application/x-excel";
-    mTypes[".xld"] = "application/excel";
-    mTypes[".xlk"] = "application/excel";
-    mTypes[".xll"] = "application/excel";
+    mTypes[".xld"] = "application/vnd.ms-excel";
+    mTypes[".xlk"] = "application/vnd.ms-excel";
+    mTypes[".xll"] = "application/vnd.ms-excel";
     mTypes[".xll"] = "application/x-excel";
-    mTypes[".xlm"] = "application/excel";
-    mTypes[".xls"] = "application/excel";
-    mTypes[".xlt"] = "application/excel";
-    mTypes[".xlv"] = "application/excel";
-    mTypes[".xlw"] = "application/excel";
+    mTypes[".xlm"] = "application/vnd-ms.excel";
+    mTypes[".xls"] = "application/vnd.ms.excel";
+    mTypes[".xlsb"] = "application/vnd.ms-excel.sheet.binary.macroEnabled.12";
+    mTypes[".xlsx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    mTypes[".xltx"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.template";
+    mTypes[".xlt"] = "application/vnd.ms-excel";
+    mTypes[".xlv"] = "application/vnd.ms-excel";
+    mTypes[".xlw"] = "application/vnd.ms-excel";
     mTypes[".xlw"] = "application/x-msexcel";
     mTypes[".xm"] = "audio/xm";
     mTypes[".xml"] = "text/xml";
