@@ -104,15 +104,15 @@ public:
     kKinetic = 0x3,
   };
 
-  static int
+  static eIoType
   GetIoType (const char* path)
   {
     XrdOucString spath = path;
-    if (spath.beginswith("root://"))
+    if (spath.beginswith("root:"))
       return kXrdCl;
-    if (spath.beginswith("kinetic://"))
+    if (spath.beginswith("kinetic:"))
       return kKinetic;
-    if (spath.beginswith("rados://"))
+    if (spath.beginswith("rados:"))
       return kRados;
     return kLocal;
   }
