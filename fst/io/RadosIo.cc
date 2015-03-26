@@ -46,6 +46,7 @@ mSecEntity (client)
   // In this case the logical file is the same as the local physical file
   //............................................................................
   // empty
+  mType = "RadosIO";
 }
 
 

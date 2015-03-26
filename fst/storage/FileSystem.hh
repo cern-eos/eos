@@ -26,6 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/ScanDir.hh"
+#include "fst/io/FileIoPlugin.hh"
 #include "fst/txqueue/TransferQueue.hh"
 #include "fst/txqueue/TransferMultiplexer.hh"
 #include "common/Logging.hh"
@@ -46,8 +47,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-class FileSystem : public eos::common::FileSystem, eos::common::LogId
-{
+class FileSystem : public eos::common::FileSystem, eos::common::LogId {
 private:
   XrdOucString transactionDirectory;
 
@@ -56,7 +56,7 @@ private:
   unsigned long last_blocks_free;
   time_t last_status_broadcast;
   eos::common::FileSystem::fsstatus_t mLocalBootStatus; // the internal boot state not stored in the shared hash
-  
+
   TransferQueue* mTxDrainQueue;
   TransferQueue* mTxBalanceQueue;
   TransferQueue* mTxExternQueue;
@@ -68,6 +68,7 @@ private:
 
   long long seqBandwidth; // measurement of sequential bandwidth
   int IOPS; // measurement of IOPS
+  FileIo* mFileIO; // file io plugin used for statfs calls
 
 public:
   FileSystem (const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
@@ -129,20 +130,20 @@ public:
   }
 
   void
-  SetStatus(eos::common::FileSystem::fsstatus_t status)
+  SetStatus (eos::common::FileSystem::fsstatus_t status)
   {
     mLocalBootStatus = status;
     eos::common::FileSystem::SetStatus(status);
   }
-  
+
   eos::common::FileSystem::fsstatus_t
-  GetStatus()
+  GetStatus ()
   {
     // we patch this function because we don't want to see the shared information
     // but the 'true' information created locally
-    return mLocalBootStatus;  
+    return mLocalBootStatus;
   }
-  
+
   void BroadcastError (const char* msg);
   void BroadcastError (int errc, const char* errmsg);
   void BroadcastStatus ();
@@ -169,10 +170,17 @@ public:
 
   eos::common::Statfs* GetStatfs ();
 
-  void IoPing();
+  void IoPing ();
 
-  long long getSeqBandwidth() {return seqBandwidth;}
-  int getIOPS() {return IOPS;}
+  long long getSeqBandwidth ()
+  {
+    return seqBandwidth;
+  }
+
+  int getIOPS ()
+  {
+    return IOPS;
+  }
 };
 
 EOSFSTNAMESPACE_END

@@ -44,8 +44,7 @@ typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 //! Struct that holds a readahead buffer and corresponding handler
 //------------------------------------------------------------------------------
 
-struct ReadaheadBlock
-{
+struct ReadaheadBlock {
   static const uint64_t sDefaultBlocksize; ///< default value for readahead
 
   //----------------------------------------------------------------------------
@@ -55,7 +54,7 @@ struct ReadaheadBlock
   //!
   //----------------------------------------------------------------------------
 
-  ReadaheadBlock(uint64_t blocksize = sDefaultBlocksize)
+  ReadaheadBlock (uint64_t blocksize = sDefaultBlocksize)
   {
     buffer = new char[blocksize];
     handler = new SimpleHandler();
@@ -71,7 +70,7 @@ struct ReadaheadBlock
   //!
   //----------------------------------------------------------------------------
 
-  void Update(uint64_t offset, uint32_t length, bool isWrite)
+  void Update (uint64_t offset, uint32_t length, bool isWrite)
   {
     handler->Update(offset, length, isWrite);
   }
@@ -81,7 +80,7 @@ struct ReadaheadBlock
   //! Destructor
   //----------------------------------------------------------------------------
 
-  virtual ~ReadaheadBlock()
+  virtual ~ReadaheadBlock ()
   {
     delete[] buffer;
     delete handler;
@@ -96,8 +95,7 @@ struct ReadaheadBlock
 //! Class used for doing remote IO operations using the Xrd client
 //------------------------------------------------------------------------------
 
-class XrdIo : public FileIo
-{
+class XrdIo : public FileIo {
 public:
 
   static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
@@ -206,7 +204,7 @@ public:
                               const char* buffer,
                               XrdSfsXferSize length,
                               uint16_t timeout = 0);
-  
+
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -267,12 +265,95 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object 
+  //! Get pointer to async meta handler object
   //!
-  //! @return pointer to async handler, NULL otherwise 
+  //! @return pointer to async handler, NULL otherwise
   //!
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler ();
+
+
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  int Statfs (const char* path, struct statfs* statFs)
+  {
+    eos_info("path=%s", path);
+    return -ENODATA;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Class implementing extended attribute support
+  //--------------------------------------------------------------------------
+
+  class Attr : public FileIo::Attr {
+  public:
+    // -----------------------------------------------------------------------
+    //! Set a binary attribute
+    // -----------------------------------------------------------------------
+
+    virtual bool Set (const char* name, const char* value, size_t len)
+    {
+      return false;
+    }
+
+    // -----------------------------------------------------------------------
+    //! Set a string attribute
+    // -----------------------------------------------------------------------
+
+    virtual bool Set (std::string key, std::string value)
+    {
+      return false;
+    }
+
+    // -----------------------------------------------------------------------
+    //! Get a binary attribute by name
+    // -----------------------------------------------------------------------
+
+    virtual bool Get (const char* name, char* value, size_t &size)
+    {
+      return false;
+    }
+
+    // -----------------------------------------------------------------------
+    //! Get a string attribute by name (name has to start with 'user.' !!!)
+    // -----------------------------------------------------------------------
+
+    virtual std::string Get (std::string name)
+    {
+      return false;
+    }
+
+    // -----------------------------------------------------------------------
+    //! Non-static Factory function to create an attribute object
+    // -----------------------------------------------------------------------
+
+    virtual Attr* OpenAttribute (const char* path)
+    {
+      return 0;
+    }
+
+    // -----------------------------------------------------------------------
+    // Constructor
+    // -----------------------------------------------------------------------
+
+    Attr () : FileIo::Attr (0)
+    {
+    }
+
+    Attr (const char* path) : FileIo::Attr (path)
+    {
+    }
+
+    virtual ~Attr ()
+    {
+    }
+  };
 
 private:
 
@@ -285,7 +366,7 @@ private:
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
   XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
 
-  
+
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
   //!
@@ -310,8 +391,8 @@ private:
   //!         is found we return the iterator to the end of the map
   //!
   //--------------------------------------------------------------------------
-  PrefetchMap::iterator FindBlock(uint64_t offset);
-  
+  PrefetchMap::iterator FindBlock (uint64_t offset);
+
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor

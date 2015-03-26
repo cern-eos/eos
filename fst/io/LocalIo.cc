@@ -37,15 +37,15 @@ EOSFSTNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 LocalIo::LocalIo (XrdFstOfsFile* file,
-                          const XrdSecEntity* client) :
-    FileIo(),
-    mLogicalFile(file),
-    mSecEntity(client)
-{  
+                  const XrdSecEntity* client) :
+FileIo (),
+mLogicalFile (file),
+mSecEntity (client)
+{
   //............................................................................
   // In this case the logical file is the same as the local physical file
   //............................................................................
-  // empty
+  mType = "LocalIo";
 }
 
 
@@ -53,7 +53,8 @@ LocalIo::LocalIo (XrdFstOfsFile* file,
 // Destructor
 //------------------------------------------------------------------------------
 
-LocalIo::~LocalIo () {
+LocalIo::~LocalIo ()
+{
   //empty
 }
 
@@ -64,10 +65,10 @@ LocalIo::~LocalIo () {
 
 int
 LocalIo::Open (const std::string& path,
-                   XrdSfsFileOpenMode flags,
-                   mode_t mode,
-                   const std::string& opaque,
-                   uint16_t timeout)
+               XrdSfsFileOpenMode flags,
+               mode_t mode,
+               const std::string& opaque,
+               uint16_t timeout)
 {
   if (!mLogicalFile)
   {
@@ -79,11 +80,11 @@ LocalIo::Open (const std::string& path,
   errno = 0;
   eos_info("flags=%x", flags);
   int retc = mLogicalFile->openofs(mFilePath.c_str(),
-				   flags,
-				   mode,
-				   mSecEntity,
-				   opaque.c_str());
-  if (retc != SFS_OK) 
+                                   flags,
+                                   mode,
+                                   mSecEntity,
+                                   opaque.c_str());
+  if (retc != SFS_OK)
     eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
   return retc;
 }
@@ -95,9 +96,9 @@ LocalIo::Open (const std::string& path,
 
 int64_t
 LocalIo::Read (XrdSfsFileOffset offset,
-                   char* buffer,
-                   XrdSfsXferSize length,
-                   uint16_t timeout)
+               char* buffer,
+               XrdSfsXferSize length,
+               uint16_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t> (offset),
@@ -303,8 +304,9 @@ LocalIo::Remove (uint16_t timeout)
 
 
 //------------------------------------------------------------------------------
-// Get pointer to async meta handler object 
+// Get pointer to async meta handler object
 //------------------------------------------------------------------------------
+
 void*
 LocalIo::GetAsyncHandler ()
 {

@@ -29,6 +29,7 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
+#include "common/Statfs.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 
@@ -50,8 +51,8 @@ class XrdFstOfsFile;
 //------------------------------------------------------------------------------
 //! Abstract class modelling an IO plugin
 //------------------------------------------------------------------------------
-class FileIo : public eos::common::LogId
-{
+
+class FileIo : public eos::common::LogId {
 public:
 
   //--------------------------------------------------------------------------
@@ -61,10 +62,12 @@ public:
   //! @param client security entity
   //!
   //--------------------------------------------------------------------------
+
   FileIo () :
   eos::common::LogId (),
   mFilePath (""),
-  mLastUrl("")
+  mLastUrl (""),
+  mType ("FileIo")
   {
     //empty
   }
@@ -75,7 +78,8 @@ public:
   //--------------------------------------------------------------------------
 
   virtual
-  ~FileIo () {
+  ~FileIo ()
+  {
     //empty
   }
 
@@ -166,8 +170,8 @@ public:
   virtual int64_t WriteAsync (XrdSfsFileOffset offset,
                               const char* buffer,
                               XrdSfsXferSize length,
-                                uint16_t timeout = 0) = 0;
-  
+                              uint16_t timeout = 0) = 0;
+
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -235,7 +239,7 @@ public:
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //!  
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
@@ -265,11 +269,11 @@ public:
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
 
-  
+
   //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object 
+  //! Get pointer to async meta handler object
   //!
-  //! @return pointer to async handler, NULL otherwise 
+  //! @return pointer to async handler, NULL otherwise
   //!
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler () = 0;
@@ -288,17 +292,78 @@ public:
   //--------------------------------------------------------------------------
   //! Get last used URL to current file
   //--------------------------------------------------------------------------
+
   const std::string&
   GetLastUrl ()
   {
     return mLastUrl;
   }
 
+  //--------------------------------------------------------------------------
+  //! Callback function to fill a statfs structure about the storage filling
+  //! state
+  //! @param data containing path, return code and statfs structure
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  static int StatfsCB (eos::common::Statfs::Callback::callback_data* data)
+  {
+    data->retc = ((FileIo*) (data->caller))->Statfs(data->path, data->statfs);
+    return data->retc;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  virtual int Statfs (const char* path, struct statfs* statFs)
+  {
+    eos_warning("msg=\"base class statfs called\"");
+    return -ENODATA;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Class implementing extended attribute support
+  //--------------------------------------------------------------------------
+
+  class Attr : public eos::common::Attr {
+  public:
+    // -----------------------------------------------------------------------
+    // Constructor
+    // -----------------------------------------------------------------------
+
+    Attr ()
+    {
+    }
+
+    Attr (const char* path) : eos::common::Attr (path)
+    {
+    }
+
+    // -----------------------------------------------------------------------
+    // Destructor
+    // -----------------------------------------------------------------------
+
+    virtual ~Attr ()
+    {
+    }
+  };
+
+  Attr& DoAttr ()
+  {
+    return mAttr;
+  }
+
+
 protected:
-
+  Attr mAttr;
   std::string mFilePath; ///< path to current physical file
-  std::string mLastUrl;  ///< last used url if remote file
-
+  std::string mLastUrl; ///< last used url if remote file
+  std::string mType; ///< type
 };
 
 EOSFSTNAMESPACE_END

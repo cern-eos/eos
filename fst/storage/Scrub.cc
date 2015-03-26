@@ -100,10 +100,14 @@ Storage::Scrub ()
         if (configstatus < eos::common::FileSystem::kWO)
           continue;
 
+        // don't scrub on filesystems which are not booted
         if (bootstatus != eos::common::FileSystem::kBooted)
           continue;
 
-        // don't scrub on filesystems which are not booted
+
+        // don't scrub filesystems which are 'remote'
+        if (path[0] != '/')
+          continue;
 
         if (ScrubFs(path.c_str(), free, blocks, id))
         {

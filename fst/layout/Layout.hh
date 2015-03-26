@@ -46,8 +46,7 @@ class XrdFstOfsFile;
 //! Class which abstracts the physical layout of the file
 //------------------------------------------------------------------------------
 
-class Layout : public eos::common::LogId
-{
+class Layout : public eos::common::LogId {
 public:
 
   //--------------------------------------------------------------------------
@@ -67,7 +66,7 @@ public:
   //! @param client security information
   //! @param outError error information
   //! @param io access type informatio ( ofs/xrd )
-  //! @param timeout timeout value 
+  //! @param timeout timeout value
   //!
   //--------------------------------------------------------------------------
   Layout (XrdFstOfsFile* file,
@@ -119,6 +118,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
+
   const std::string&
   GetLastUrl ()
   {
@@ -270,6 +270,20 @@ public:
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf) = 0;
 
+  //--------------------------------------------------------------------------
+  //! Get stats about the file
+  //!
+  //! @param buf stat buffer
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  FileIo* GetFileIo ()
+  {
+    return mFileIO;
+  }
+
 protected:
 
   bool mIsEntryServer; ///< mark entry server
@@ -283,6 +297,7 @@ protected:
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
+  FileIo* mFileIO; //< IO object as entry server
 
 };
 

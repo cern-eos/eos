@@ -25,6 +25,7 @@
 #include "fst/layout/PlainLayout.hh"
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/XrdFstOfsFile.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -38,12 +39,13 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           XrdOucErrInfo* outError,
                           eos::common::LayoutId::eIoType io,
                           uint16_t timeout) :
-    Layout (file, lid, client, outError, io, timeout)
+Layout (file, lid, client, outError, io, timeout)
 {
   //............................................................................
   // For the plain layout we use only the LocalFileIo type
   //............................................................................
   mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
+  mFileIO = mPlainFile;
   mIsEntryServer = true;
 }
 

@@ -91,6 +91,8 @@ add_library( EosFstIo SHARED
   	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/KineticIo.cc                io/KineticIo.hh
+	     io/RadosIo.cc                  io/RadosIo.hh
 	     io/XrdIo.cc                    io/XrdIo.hh
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -150,6 +152,8 @@ add_library( XrdEosFst SHARED
   	     io/FileIoPlugin.hh
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/KineticIo.cc                io/KineticIo.hh
+	     io/RadosIo.cc                  io/RadosIo.hh
 	     io/XrdIo.cc                    io/XrdIo.hh
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -211,6 +215,8 @@ add_library( XrdEosFst MODULE
   	     io/FileIoPlugin.hh
 	     io/FileIo.hh 
   	     io/LocalIo.cc                  io/LocalIo.hh
+	     io/KineticIo.cc                io/KineticIo.hh
+	     io/RadosIo.cc                  io/RadosIo.hh
 	     io/XrdIo.cc                    io/XrdIo.hh
 	     io/HeaderCRC.cc                io/HeaderCRC.hh
 	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh

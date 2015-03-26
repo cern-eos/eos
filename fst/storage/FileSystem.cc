@@ -10,7 +10,7 @@
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
  * the Free Software Foundation, either version 3 of the License, or    *
- * (at your option) any later version.                                
+ * (at your option) any later version.
  *                                                                      *
  * This program is distributed in the hope that it will be useful,      *
  * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
-#ifdef __APPLE__ 
+#ifdef __APPLE__
 #define O_DIRECT 0
 #endif
 
@@ -52,9 +52,9 @@ FileSystem::FileSystem (const char* queuepath,
   n2 += "/balance";
   std::string n3 = queuepath;
   n3 += "/extern";
-  
+
   mLocalBootStatus = eos::common::FileSystem::kDown;
-  
+
   mTxDrainQueue = new TransferQueue(&mDrainQueue, n1.c_str());
   mTxBalanceQueue = new TransferQueue(&mBalanceQueue, n2.c_str());
   mTxExternQueue = new TransferQueue(&mExternQueue, n3.c_str());
@@ -64,6 +64,7 @@ FileSystem::FileSystem (const char* queuepath,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
 
+  mFileIO = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(GetPath().c_str()));
 }
 
 /*----------------------------------------------------------------------------*/
@@ -74,6 +75,9 @@ FileSystem::~FileSystem ()
     delete scanDir;
   }
 
+  if (mFileIO)
+    delete mFileIO;
+
   // ----------------------------------------------------------------------------
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
@@ -81,7 +85,7 @@ FileSystem::~FileSystem ()
   gFmdSqliteHandler.ShutdownDB(GetId());
 
   // ----------------------------------------------------------------------------
-  // @todo we accept this tiny memory leak to be able to let running 
+  // @todo we accept this tiny memory leak to be able to let running
   // transfers callback their queue
   // -> we don't delete them here!
   //  if (mTxDrainQueue) {
@@ -100,14 +104,14 @@ FileSystem::~FileSystem ()
 void
 FileSystem::BroadcastError (const char* msg)
 {
-  bool shutdown=false;
+  bool shutdown = false;
   {
     XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
     if (gOFS.Shutdown)
       shutdown = true;
   }
 
-  if(!shutdown) 
+  if (!shutdown)
   {
     SetStatus(eos::common::FileSystem::kOpsError);
     SetError(errno ? errno : EIO, msg);
@@ -125,7 +129,7 @@ FileSystem::BroadcastError (int errc, const char* errmsg)
       shutdown = true;
   }
 
-  if (!shutdown) 
+  if (!shutdown)
   {
     SetStatus(eos::common::FileSystem::kOpsError);
     SetError(errno ? errno : EIO, errmsg);
@@ -136,7 +140,15 @@ FileSystem::BroadcastError (int errc, const char* errmsg)
 eos::common::Statfs*
 FileSystem::GetStatfs ()
 {
-  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
+  eos::common::Statfs::Callback::callback_data_t lData;
+  lData.path = GetPath().c_str();
+  lData.caller = (void*) mFileIO;
+  // lData.statfs is set in DoStatfs
+
+  eos::common::Statfs::Callback::callback_t lCallback = FileIo::StatfsCB;
+
+  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str(), lCallback, &lData);
+
   if ((!statFs) && GetPath().length())
   {
     eos_err("cannot statfs");
@@ -186,24 +198,24 @@ FileSystem::CleanTransactions ()
           }
         }
 
-	if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
+        if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
         {
 
-	  FmdSqlite* fMd = 0;
-	  fMd = gFmdSqliteHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+          FmdSqlite* fMd = 0;
+          fMd = gFmdSqliteHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
-	  if (fMd) 
-	  {
-	    std::set<eos::common::FileSystem::fsid_t> location_set = FmdSqlite::GetLocations(fMd->fMd);
-	    if (location_set.count(GetId()))
-	    {
-	      // close that transaction and keep the file
-	      gOFS.Storage->CloseTransaction(GetId(), fileid);
-	      delete fMd;
-	      continue;
-	    }
-	    delete fMd;
-	  }
+          if (fMd)
+          {
+            std::set<eos::common::FileSystem::fsid_t> location_set = FmdSqlite::GetLocations(fMd->fMd);
+            if (location_set.count(GetId()))
+            {
+              // close that transaction and keep the file
+              gOFS.Storage->CloseTransaction(GetId(), fileid);
+              delete fMd;
+              continue;
+            }
+            delete fMd;
+          }
 
           eos_static_info("action=delete transaction=%llx fstpath=%s",
                           sname.c_str(),
@@ -242,7 +254,7 @@ FileSystem::CleanTransactions ()
 bool
 FileSystem::SyncTransactions (const char* manager)
 {
-  bool ok=true;
+  bool ok = true;
 
   DIR* tdir = opendir(GetTransactionDirectory());
   if (tdir)
@@ -267,24 +279,24 @@ FileSystem::SyncTransactions (const char* manager)
                                                 localprefix, fstPath);
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 
-	// try to sync this file from the MGM
-	if (gFmdSqliteHandler.ResyncMgm(GetId(), fid, manager))
-	{
-	  eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
-	}
-	else
-	{
-	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
-	  ok=false;
-	  continue;
-	}
+        // try to sync this file from the MGM
+        if (gFmdSqliteHandler.ResyncMgm(GetId(), fid, manager))
+        {
+          eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
+        }
+        else
+        {
+          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
+          ok = false;
+          continue;
+        }
       }
     }
     closedir(tdir);
   }
   else
   {
-    ok=false;
+    ok = false;
     eos_static_err("Unable to open transactiondirectory %s",
                    GetTransactionDirectory());
   }
@@ -295,11 +307,14 @@ FileSystem::SyncTransactions (const char* manager)
 void
 FileSystem::RunScanner (Load* fstLoad, time_t interval)
 {
+  // don't scan filesystems which are 'remote'
+  if (GetPath()[0] != '/')
+    return;
   if (scanDir)
   {
     delete scanDir;
   }
-  
+
   // create the object running the scanner thread
   scanDir = new ScanDir(GetPath().c_str(), GetId(), fstLoad, true, interval);
   eos_info("Started 'ScanDir' thread with interval time of %u seconds",
@@ -339,32 +354,38 @@ FileSystem::CloseTransaction (unsigned long long fid)
   return true;
 }
 
-
 /*----------------------------------------------------------------------------*/
 void
 FileSystem::IoPing ()
 {
-  std::string cmdbw="eos-iobw "; cmdbw += GetPath().c_str();
-  std::string cmdiops="eos-iops "; cmdiops += GetPath().c_str();
+
+  std::string cmdbw = "eos-iobw ";
+  cmdbw += GetPath().c_str();
+  std::string cmdiops = "eos-iops ";
+  cmdiops += GetPath().c_str();
 
   eos_info("\"%s\" \"%s\"", cmdbw.c_str(), cmdiops.c_str());
 
-  std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdbw.c_str());
-  std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdiops.c_str());
+  seqBandwidth = 0;
+  IOPS = 0;
+  // ----------------------
+  // exclude 'remote' disks
+  // ----------------------
+  if (GetPath()[0] == '/')
+  {
+    std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd(cmdbw.c_str());
+    std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd(cmdiops.c_str());
 
-  if ( 
-      bwMeasurement.length() &&
-      iopsMeasurement.length() )
-  {
-    seqBandwidth = strtol(bwMeasurement.c_str(),0,10);
-    IOPS = atoi(iopsMeasurement.c_str());
+
+    if (
+        bwMeasurement.length() &&
+        iopsMeasurement.length())
+    {
+      seqBandwidth = strtol(bwMeasurement.c_str(), 0, 10);
+      IOPS = atoi(iopsMeasurement.c_str());
+    }
   }
-  else
-  {
-    seqBandwidth = 0;
-    IOPS = 0;
-  }
-  eos_info("bw=%lld iops=%d",seqBandwidth,IOPS);
+  eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
 }
 
 

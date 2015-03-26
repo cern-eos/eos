@@ -323,7 +323,7 @@ Storage::Boot (FileSystem *fs)
     return;
 
   // try to statfs the filesystem
-  eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(fs->GetPath().c_str());
+  eos::common::Statfs* statfs = fs->GetStatfs();
   if (!statfs)
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -331,45 +331,51 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
-  // test if we have rw access
-  struct stat buf;
-  if (::stat(fs->GetPath().c_str(), &buf) ||
-      (buf.st_uid != geteuid()) ||
-      ((buf.st_mode & S_IRWXU) != S_IRWXU))
+  // --------------------
+  // exclude remote disks
+  // --------------------
+  if (fs->GetPath()[0] == '/')
   {
-
-    if ((buf.st_mode & S_IRWXU) != S_IRWXU)
+    // test if we have rw access
+    struct stat buf;
+    if (::stat(fs->GetPath().c_str(), &buf) ||
+        (buf.st_uid != geteuid()) ||
+        ((buf.st_mode & S_IRWXU) != S_IRWXU))
     {
-      errno = EPERM;
+
+      if ((buf.st_mode & S_IRWXU) != S_IRWXU)
+      {
+        errno = EPERM;
+      }
+
+      if (buf.st_uid != geteuid())
+      {
+        errno = ENOTCONN;
+      }
+
+      fs->SetStatus(eos::common::FileSystem::kBootFailure);
+      fs->SetError(errno ? errno : EIO, "cannot have <rw> access");
+      return;
     }
 
-    if (buf.st_uid != geteuid())
-    {
-      errno = ENOTCONN;
-    }
-
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno ? errno : EIO, "cannot have <rw> access");
-    return;
-  }
-
-  // test if we are on the root partition
-  struct stat root_buf;
-  if (::stat("/", &root_buf))
-  {
-    fs->SetStatus(eos::common::FileSystem::kBootFailure);
-    fs->SetError(errno ? errno : EIO, "cannot stat root / filesystems");
-    return;
-  }
-
-  if (root_buf.st_dev == buf.st_dev)
-  {
-    // this filesystem is on the ROOT partition
-    if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true))
+    // test if we are on the root partition
+    struct stat root_buf;
+    if (::stat("/", &root_buf))
     {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(EIO, "filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
+      fs->SetError(errno ? errno : EIO, "cannot stat root / filesystems");
       return;
+    }
+
+    if (root_buf.st_dev == buf.st_dev)
+    {
+      // this filesystem is on the ROOT partition
+      if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true))
+      {
+        fs->SetStatus(eos::common::FileSystem::kBootFailure);
+        fs->SetError(EIO, "filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
+        return;
+      }
     }
   }
 
@@ -394,15 +400,16 @@ Storage::Boot (FileSystem *fs)
   }
 
   bool resyncmgm = (gFmdSqliteHandler.IsDirty(fsid) ||
-                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+          (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
   bool resyncdisk = (gFmdSqliteHandler.IsDirty(fsid) ||
-                     (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
+          (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
 
   eos_info("msg=\"start disk synchronisation\"");
-  // resync the SQLITE DB 
+  // resync the SQLITE DB
   gFmdSqliteHandler.StayDirty(fsid, true); // indicate the flag to keep the DP dirty
 
-  if (resyncdisk)
+  // sync only local disks
+  if (resyncdisk && (fs->GetPath()[0] == '/'))
   {
     if (resyncmgm)
     {
@@ -455,7 +462,8 @@ Storage::Boot (FileSystem *fs)
 
   gFmdSqliteHandler.StayDirty(fsid, false); // indicate the flag to unset the DB dirty flag at shutdown
 
-  // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
+
+  // check if there is a label on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid))
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -472,7 +480,18 @@ Storage::Boot (FileSystem *fs)
 
   // create FS transaction directory
   std::string transactionDirectory = fs->GetPath();
-  transactionDirectory += "/.eostransaction";
+
+  if (fs->GetPath()[0] != '/')
+  {
+    transactionDirectory = metaDirectory.c_str();
+    transactionDirectory += "/.eostransaction";
+    transactionDirectory += "-";
+    transactionDirectory += (int) fs->GetId();
+  }
+  else
+  {
+    transactionDirectory += "/.eostransaction";
+  }
 
   if (mkdir(transactionDirectory.c_str(),
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
@@ -511,6 +530,12 @@ Storage::FsLabel (std::string path,
   //----------------------------------------------------------------
   //! writes file system label files .eosfsid .eosuuid according to config (if they didn't exist!)
   //----------------------------------------------------------------
+
+  // --------------------
+  // exclude remote disks
+  // --------------------
+  if (path[0] != '/')
+    return true;
 
   XrdOucString fsidfile = path.c_str();
   fsidfile += "/.eosfsid";
@@ -569,9 +594,15 @@ Storage::CheckLabel (std::string path,
                      eos::common::FileSystem::fsid_t fsid,
                      std::string uuid, bool failenoid, bool failenouuid)
 {
-  //----------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! checks that the label on the filesystem is the same as the configuration
-  //----------------------------------------------------------------
+  //----------------------------------------------------------------------------
+
+  // --------------------
+  // exclude remote disks
+  // --------------------
+  if (path[0] != '/')
+    return true;
 
   XrdOucString fsidfile = path.c_str();
   fsidfile += "/.eosfsid";
@@ -641,7 +672,7 @@ Storage::CheckLabel (std::string path,
       close(fd);
       // for protection
       suuid[4095] = 0;
-      // remove \n 
+      // remove \n
       if (suuid[strnlen(suuid, sizeof (suuid)) - 1] == '\n')
         suuid[strnlen(suuid, sizeof (suuid)) - 1] = 0;
 

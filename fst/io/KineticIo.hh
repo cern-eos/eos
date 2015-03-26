@@ -45,7 +45,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   KineticIo (XrdFstOfsFile* file,
-              const XrdSecEntity* client);
+             const XrdSecEntity* client);
 
 
   //--------------------------------------------------------------------------
@@ -232,6 +232,88 @@ public:
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler ();
 
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  virtual int Statfs (const char* path, struct statfs* statFs)
+  {
+    //! IMPLEMENT ME PROPERLY!
+    eos_static_info("path=%s", path);
+    statFs->f_type = 0xcafe;
+    statFs->f_bsize = 1 * 1024 * 1024;
+    statFs->f_blocks = 4 * 1024 * 1024;
+    statFs->f_bfree = 4 * 1024 * 1024;
+    statFs->f_bavail = 4 * 1024 * 1024;
+    statFs->f_files = 4 * 1024 * 1024;
+    statFs->f_ffree = 4 * 1024 * 1024;
+    return 0;
+  }
+
+  class Attr : public FileIo::Attr {
+    // ------------------------------------------------------------------------
+    //! Set a binary attribute
+    // ------------------------------------------------------------------------
+
+    virtual bool Set (const char* name, const char* value, size_t len)
+    {
+      return false;
+    }
+
+    // ------------------------------------------------------------------------
+    //! Set a string attribute
+    // ------------------------------------------------------------------------
+
+    virtual bool Set (std::string key, std::string value)
+    {
+      return false;
+    }
+
+    // ------------------------------------------------------------------------
+    //! Get a binary attribute by name
+    // ------------------------------------------------------------------------
+
+    virtual bool Get (const char* name, char* value, size_t &size)
+    {
+      return false;
+    }
+
+
+    // ------------------------------------------------------------------------
+    //! Get a string attribute by name (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+
+    virtual std::string Get (std::string name)
+    {
+      return "";
+    }
+
+    // ------------------------------------------------------------------------
+    //! Non-static Factory function to create an attribute object
+    // ------------------------------------------------------------------------
+
+    virtual Attr* OpenAttribute (const char* path)
+    {
+      return new Attr(path);
+    }
+
+    // ------------------------------------------------------------------------
+    // Constructor
+    // ------------------------------------------------------------------------
+
+    Attr (const char* path)
+    {
+    }
+
+    // ------------------------------------------------------------------------
+    // Destructor
+    // ------------------------------------------------------------------------
+    virtual ~Attr ();
+  };
 
 private:
 

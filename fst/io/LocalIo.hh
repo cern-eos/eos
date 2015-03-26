@@ -27,6 +27,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -34,8 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class used for doing local IO operations
 //------------------------------------------------------------------------------
-class LocalIo : public FileIo
-{
+class LocalIo : public FileIo {
 public:
   //--------------------------------------------------------------------------
   //! Constructor
@@ -45,7 +45,7 @@ public:
   //!
   //--------------------------------------------------------------------------
   LocalIo (XrdFstOfsFile* file,
-               const XrdSecEntity* client);
+           const XrdSecEntity* client);
 
 
   //--------------------------------------------------------------------------
@@ -140,7 +140,7 @@ public:
                               const char* buffer,
                               XrdSfsXferSize length,
                               uint16_t timeout = 0);
-  
+
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -194,7 +194,7 @@ public:
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //! 
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //--------------------------------------------------------------------------
@@ -225,14 +225,45 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object 
+  //! Get pointer to async meta handler object
   //!
-  //! @return pointer to async handler, NULL otherwise 
+  //! @return pointer to async handler, NULL otherwise
   //!
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler ();
 
+  virtual int Statfs (const char* path, struct statfs* statFs)
+  {
+    eos_info("path=%s", path);
+    return ::statfs(path, statFs);
+  }
 
+  //--------------------------------------------------------------------------
+  //! Class implementing extended attribute support
+  //--------------------------------------------------------------------------
+
+  class Attr : public eos::common::Attr {
+  public:
+    // -----------------------------------------------------------------------
+    // Constructor
+    // -----------------------------------------------------------------------
+
+    Attr () : eos::common::Attr (0)
+    {
+    }
+
+    Attr (const char* path) : eos::common::Attr (path)
+    {
+    }
+
+    // -----------------------------------------------------------------------
+    // Destructor
+    // -----------------------------------------------------------------------
+
+    virtual ~Attr ()
+    {
+    }
+  };
 private:
 
   XrdFstOfsFile* mLogicalFile; ///< handler to logical file
