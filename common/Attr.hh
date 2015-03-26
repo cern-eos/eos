@@ -23,10 +23,10 @@
 
 /**
  * @file   Attr.hh
- * 
+ *
  * @brief  Interface to extended attributes on file level.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_ATTR__HH__
@@ -51,10 +51,11 @@ EOSCOMMONNAMESPACE_BEGIN;
 
 /*----------------------------------------------------------------------------*/
 //! Class to modify extended attributes on files.
+
 /*----------------------------------------------------------------------------*/
 
 class Attr {
-private:
+protected:
   std::string mName; //< File Name storing the attributes
   char mBuffer[1024];
 
@@ -62,37 +63,49 @@ public:
   // ------------------------------------------------------------------------
   //! Set a binary attribute (name has to start with 'user.' !!!)
   // ------------------------------------------------------------------------
-  bool Set(const char* name, const char* value, size_t len); 
+  virtual bool Set (const char* name, const char* value, size_t len);
 
   // ------------------------------------------------------------------------
   //! Set a string attribute (name has to start with 'user.' !!!)
   // ------------------------------------------------------------------------
-  bool Set(std::string key, std::string value);          
+  virtual bool Set (std::string key, std::string value);
 
   // ------------------------------------------------------------------------
-  //! Get a binary attribute by name (name has to starte with 'user.' !!!)
+  //! Get a binary attribute by name (name has to start with 'user.' !!!)
   // ------------------------------------------------------------------------
-  bool Get(const char* name, char* value, size_t &size); 
+  virtual bool Get (const char* name, char* value, size_t &size);
 
   // ------------------------------------------------------------------------
-  //! Get a string attribute by name (name has to starte with 'user.' !!!)
+  //! Get a string attribute by name (name has to start with 'user.' !!!)
   // ------------------------------------------------------------------------
-  std::string Get(std::string name);                     
-  
+  virtual std::string Get (std::string name);
+
   // ------------------------------------------------------------------------
   //! Factory function to create an attribute object
   // ------------------------------------------------------------------------
-  static Attr* OpenAttr(const char* file);               
+  static Attr* OpenAttr (const char* file);
+
+  // ------------------------------------------------------------------------
+  //! Non static Factory function to create an attribute object
+  // ------------------------------------------------------------------------
+
+  virtual Attr* OpenAttribute (const char* path)
+  {
+    return OpenAttr(path);
+  }
 
   // ------------------------------------------------------------------------
   // Constructor
   // ------------------------------------------------------------------------
-  Attr(const char* file);                                
-  
+
+  Attr ();
+
+  Attr (const char* file);
+
   // ------------------------------------------------------------------------
   // Destructor
   // ------------------------------------------------------------------------
-  ~Attr();                                               
+  virtual ~Attr ();
 };
 
 /*----------------------------------------------------------------------------*/
