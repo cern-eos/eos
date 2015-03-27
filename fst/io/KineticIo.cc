@@ -1,318 +1,291 @@
-//------------------------------------------------------------------------------
-// File: KineticIo.cc
-// Author: Elvin-Alin Sindrilaru - CERN
-//------------------------------------------------------------------------------
-
-/************************************************************************
- * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
- *                                                                      *
- * This program is free software: you can redistribute it and/or modify *
- * it under the terms of the GNU General Public License as published by *
- * the Free Software Foundation, either version 3 of the License, or    *
- * (at your option) any later version.                                  *
- *                                                                      *
- * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
- * GNU General Public License for more details.                         *
- *                                                                      *
- * You should have received a copy of the GNU General Public License    *
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
- ************************************************************************/
-
-/*----------------------------------------------------------------------------*/
-#include "fst/XrdFstOfsFile.hh"
-#include "fst/io/KineticIo.hh"
-/*----------------------------------------------------------------------------*/
-#ifndef __APPLE__
-#include <xfs/xfs.h>
-#endif
-
-/*----------------------------------------------------------------------------*/
+#include "KineticIo.hh"
+#include "KineticChunk.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-KineticIo::KineticIo (XrdFstOfsFile* file,
-                        const XrdSecEntity* client) :
-FileIo (),
-mLogicalFile (file),
-mSecEntity (client)
+using std::shared_ptr;
+using std::unique_ptr;
+using std::string;
+using namespace kinetic;
+using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
+
+
+KineticIo::KineticIo (ConnectionPointer con, size_t cache_capacity) :
+		connection(con), cache_capacity(cache_capacity)
 {
-  //............................................................................
-  // In this case the logical file is the same as the local physical file
-  //............................................................................
-  // empty
 }
 
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
 
 KineticIo::~KineticIo ()
+{}
+
+int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
+		mode_t mode, const std::string& opaque, uint16_t timeout)
 {
-  //empty
+	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
+	path = p;
+	unique_ptr<string> version;
+	KineticStatus status = connection->GetVersion(path+"_0", version);
+	if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
+		errno = EIO;
+		return SFS_ERROR;
+	}
+
+	// can only create when file doesn't exist already
+	if (flags & SFS_O_CREAT){
+		if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND)
+			return SFS_OK;
+		errno = EEXIST;
+		return SFS_ERROR;
+	}
+
+	// can only open without create if file exists
+	if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
+		errno = ENOENT;
+		return SFS_ERROR;
+	}
+	return SFS_OK;
 }
 
-
-//------------------------------------------------------------------------------
-// Open file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Open (const std::string& path,
-                  XrdSfsFileOpenMode flags,
-                  mode_t mode,
-                  const std::string& opaque,
-                  uint16_t timeout)
+int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
 {
-  if (!mLogicalFile)
-  {
-    eos_err("error= the logical file must exist already");
-    return SFS_ERROR;
-  }
+	if(cache.count(chunk_number)){
+		chunk = cache.at(chunk_number);
+		return 0;
+	}
 
-  mFilePath = path;
-  errno = 0;
-  eos_info("flags=%x", flags);
-  int retc = mLogicalFile->openofs(mFilePath.c_str(),
-                                   flags,
-                                   mode,
-                                   mSecEntity,
-                                   opaque.c_str());
-  if (retc != SFS_OK)
-    eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
-  return retc;
+	if(cache_fifo.size() >= cache_capacity){
+	   auto old = cache.at(cache_fifo.front());
+	   if(old->dirty())
+		   if(int err = old->flush())
+			   return err;
+	   cache_fifo.pop();
+	 }
+
+	chunk.reset(new KineticChunk(connection, path + "_" + std::to_string(chunk_number)));
+	cache.insert(std::make_pair(chunk_number, chunk));
+	cache_fifo.push(chunk_number);
+	return 0;
 }
 
-
-//------------------------------------------------------------------------------
-// Read from file - sync
-//------------------------------------------------------------------------------
-
-int64_t
-KineticIo::Read (XrdSfsFileOffset offset,
-                  char* buffer,
-                  XrdSfsXferSize length,
-                  uint16_t timeout)
+int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer,
+		XrdSfsXferSize length, uint16_t timeout)
 {
-  eos_debug("offset = %lld, length = %lld",
-            static_cast<int64_t> (offset),
-            static_cast<int64_t> (length));
-  return mLogicalFile->readofs(offset, buffer, length);
-}
+	shared_ptr<KineticChunk> chunk;
+	int length_todo = length;
+	int offset_done = 0;
 
+	while(length_todo){
 
-//------------------------------------------------------------------------------
-// Write to file - sync
-//------------------------------------------------------------------------------
+		int chunk_number = (offset+offset_done) / KineticChunk::capacity;
+		int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
+		int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
 
-int64_t
-KineticIo::Write (XrdSfsFileOffset offset,
-                   const char* buffer,
-                   XrdSfsXferSize length,
-                   uint16_t timeout)
-{
-  eos_debug("offset = %lld, length = %lld",
-            static_cast<int64_t> (offset),
-            static_cast<int64_t> (length));
-  return mLogicalFile->writeofs(offset, buffer, length);
-}
+		errno = getChunk(chunk_number, chunk);
+		if(errno) return SFS_ERROR;
+		errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
+		if(errno) return SFS_ERROR;
 
-
-//------------------------------------------------------------------------------
-// Read from file async - falls back on synchronous mode
-//------------------------------------------------------------------------------
-
-int64_t
-KineticIo::ReadAsync (XrdSfsFileOffset offset,
-                       char* buffer,
-                       XrdSfsXferSize length,
-                       bool readahead,
-                       uint16_t timeout)
-{
-  return Read(offset, buffer, length, timeout);
-}
-
-
-//------------------------------------------------------------------------------
-// Write to file async - falls back on synchronous mode
-//------------------------------------------------------------------------------
-
-int64_t
-KineticIo::WriteAsync (XrdSfsFileOffset offset,
-                        const char* buffer,
-                        XrdSfsXferSize length,
-                        uint16_t timeout)
-{
-  return Write(offset, buffer, length, timeout);
-}
-
-
-//------------------------------------------------------------------------------
-// Truncate file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
-{
-  return mLogicalFile->truncateofs(offset);
-}
-
-
-//------------------------------------------------------------------------------
-// Allocate space for file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Fallocate (XrdSfsFileOffset length)
-{
-  eos_debug("fallocate with length = %lli", length);
-  XrdOucErrInfo error;
-
-  if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
-  {
-    return SFS_ERROR;
-  }
-
-#ifdef __APPLE__
-  // no pre-allocation
-  return 0;
-#else
-  int fd = error.getErrInfo();
-
-  if (platform_test_xfs_fd(fd))
-  {
-    //..........................................................................
-    // Select the fast XFS allocation function if available
-    //..........................................................................
-    xfs_flock64_t fl;
-    fl.l_whence = 0;
-    fl.l_start = 0;
-    fl.l_len = (off64_t) length;
-    return xfsctl(NULL, fd, XFS_IOC_RESVSP64, &fl);
-  }
-  else
-  {
-    return posix_fallocate(fd, 0, length);
-  }
-#endif
-  return SFS_ERROR;
-}
-
-
-//------------------------------------------------------------------------------
-// Deallocate space reserved for file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset,
-                         XrdSfsFileOffset toOffset)
-{
-  eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
-  XrdOucErrInfo error;
-
-  if (mLogicalFile->fctl(SFS_FCTL_GETFD, 0, error))
-    return SFS_ERROR;
-
-#ifdef __APPLE__
-  // no de-allocation
-  return 0;
-#else
-  int fd = error.getErrInfo();
-  if (fd > 0)
-  {
-    if (platform_test_xfs_fd(fd))
-    {
-      //........................................................................
-      // Select the fast XFS deallocation function if available
-      //........................................................................
-      xfs_flock64_t fl;
-      fl.l_whence = 0;
-      fl.l_start = fromOffset;
-      fl.l_len = (off64_t) toOffset - fromOffset;
-      return xfsctl(NULL, fd, XFS_IOC_UNRESVSP64, &fl);
+        length_todo -= chunk_length;
+        offset_done += chunk_length;
     }
-    else
-    {
-      return 0;
-    }
-  }
 
-  return SFS_ERROR;
-#endif
+	return length;
 }
 
-
-//------------------------------------------------------------------------------
-// Sync file to disk
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Sync (uint16_t timeout)
+int64_t KineticIo::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout)
 {
-  return mLogicalFile->syncofs();
+	shared_ptr<KineticChunk> chunk;
+	int length_todo = length;
+	int offset_done = 0;
+
+	while(length_todo){
+
+		int chunk_number = (offset+offset_done) / KineticChunk::capacity;
+		int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
+		int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
+
+		errno = getChunk(chunk_number, chunk);
+		if(errno) return SFS_ERROR;
+		errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
+		if(errno) return SFS_ERROR;
+
+		if(chunk_offset + chunk_length == KineticChunk::capacity){
+			errno = chunk->flush();
+			if(errno) return SFS_ERROR;
+		}
+
+		length_todo -= chunk_length;
+		offset_done += chunk_length;
+	}
+
+	return length;
 }
 
-
-//------------------------------------------------------------------------------
-// Get stats about the file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Stat (struct stat* buf, uint16_t timeout)
+int64_t KineticIo::ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
-  XrdOfsFile* pOfsFile = mLogicalFile;
-  return pOfsFile->XrdOfsFile::stat(buf);
+	// ignore async for now
+	return Read(offset, buffer, length, timeout);
 }
 
-
-//------------------------------------------------------------------------------
-// Close file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Close (uint16_t timeout)
+int64_t KineticIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout)
 {
-  return mLogicalFile->closeofs();
+	// ignore async for now
+	return Write(offset, buffer, length, timeout);
 }
 
-
-//------------------------------------------------------------------------------
-// Remove file
-//------------------------------------------------------------------------------
-
-int
-KineticIo::Remove (uint16_t timeout)
+int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
-  struct stat buf;
+	shared_ptr<KineticChunk> chunk;
+	int chunk_number = offset / KineticChunk::capacity;
+	int chunk_offset = offset - chunk_number * KineticChunk::capacity;
 
-  if (Stat(&buf))
-  {
-    //..........................................................................
-    // Only try to delete if there is something to delete!
-    //..........................................................................
-    return unlink(mLogicalFile->GetFstPath().c_str());
-  }
+	errno = getChunk(chunk_number, chunk);
+	if(errno) return SFS_ERROR;
 
-  return SFS_OK;
+	errno = chunk->truncate(chunk_offset);
+	if(errno) return SFS_ERROR;
+
+	return SFS_OK;
 }
 
-
-//------------------------------------------------------------------------------
-// Get pointer to async meta handler object
-//------------------------------------------------------------------------------
-
-void*
-KineticIo::GetAsyncHandler ()
+int KineticIo::Fallocate (XrdSfsFileOffset lenght)
 {
-  return NULL;
+	// TODO: handle quota here
+	return true;
 }
+
+int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
+{
+	// TODO: handle quota here
+	return true;
+}
+
+int KineticIo::Remove (uint16_t timeout)
+{
+	cache.clear();
+	cache_fifo = std::queue<int>();
+
+	unique_ptr<vector<std::string>> keys(new vector<string>());
+	size_t max_size = 100;
+	do {
+		keys->clear();
+		connection->GetKeyRange(path,false,path+"__",false,false,max_size,keys);
+		for (auto& element : *keys){
+			KineticStatus status = connection->Delete(element,"",WriteMode::IGNORE_VERSION);
+			if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
+				errno = EIO;
+				return SFS_ERROR;
+			}
+		}
+	}while(keys->size() == max_size);
+
+	return SFS_OK;
+}
+
+int KineticIo::Sync (uint16_t timeout)
+{
+	for (auto it=cache.begin(); it!=cache.end(); ++it){
+		if(it->second->dirty()){
+			errno = it->second->flush();
+			if(errno) return SFS_ERROR;
+		}
+	}
+	return SFS_OK;
+}
+
+int KineticIo::Close (uint16_t timeout)
+{
+	return Sync(timeout);
+}
+
+int KineticIo::Stat (struct stat* buf, uint16_t timeout)
+{
+	errno = Sync(timeout);
+	if(errno) return SFS_ERROR;
+
+	unique_ptr<string> key;
+	unique_ptr<KineticRecord> record;
+
+	KineticStatus status = connection->GetPrevious(path+"__",key,record);
+
+	if(!status.ok()){
+		errno = EIO;
+		return SFS_ERROR;
+	}
+	memset(buf,0,sizeof(struct stat));
+	buf->st_blksize = KineticChunk::capacity;
+
+	// empty file -> no data keys for path
+	if(key->substr(0,path.length()).compare(path))
+		return SFS_OK;
+
+	int chunk_number = std::stoll(key->substr(key->find_first_of('_')+1,key->length()));
+	buf->st_blocks = chunk_number+1;
+	buf->st_size = chunk_number * KineticChunk::capacity + record->value()->size();
+
+	return 0;
+}
+
+void* KineticIo::GetAsyncHandler ()
+{
+	// no async for now
+	return nullptr;
+}
+
+
+
+
+
+KineticIo::Attr::Attr(const char* path, KineticIo& parent) : kio(parent)
+{}
+
+KineticIo::Attr::~Attr()
+{}
+
+bool KineticIo::Attr::Get(const char* name, char* value, size_t& size)
+{
+    unique_ptr<KineticRecord> record;
+    KineticStatus status = kio.connection->Get(kio.path+"_"+name,record);
+    if(!status.ok())
+        return false;
+    size = record->value()->size();
+    record->value()->copy(value, size, 0);
+    return true;
+}
+
+string KineticIo::Attr::Get(string name)
+{
+	char buffer[1024];
+	string value;
+	size_t size;
+	if(Get(name.c_str(),buffer, size))
+            return string(buffer,size);
+        return string("");
+}
+
+bool KineticIo::Attr::Set(const char * name, const char * value, size_t size)
+{
+	KineticRecord record(string(value, size), "", "", Command_Algorithm_SHA1);
+	KineticStatus status = kio.connection->Put(kio.path+"_"+name, "", WriteMode::IGNORE_VERSION, record);
+	if(!status.ok())
+		return false;
+	return true;
+}
+
+bool KineticIo::Attr::Set(std::string key, std::string value)
+{
+	return Set(key.c_str(), value.c_str(), value.size());
+}
+
+KineticIo::Attr* KineticIo::Attr::OpenAttribute (const char* path)
+{
+	return new Attr(path, kio);
+}
+
+
 
 EOSFSTNAMESPACE_END
-
-

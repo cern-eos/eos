@@ -112,6 +112,26 @@ find_package(apr)
 endif (CLIENT)
 endif (NOT DEFINED PACKAGEONLY)
 
+include(ExternalProject)        
+ExternalProject_add(
+    kinetic_cpp_client
+    PREFIX kinetic
+    GIT_REPOSITORY https://github.com/Seagate/kinetic-cpp-client
+    GIT_TAG cmake-BUILD_PROTO
+    CMAKE_ARGS -DBUILD_PROTO=OFF
+    INSTALL_COMMAND ""
+)
+
+find_library(GLOG glog)
+find_library(GFLAGS gflags)
+
+ExternalProject_Get_Property(kinetic_cpp_client binary_dir)
+set(KINETIC_LIBRARIES ${binary_dir}/libkinetic_client.a
+    ${GLOG} ${GFLAGS} protobuf ssl crypto uuid)
+ExternalProject_Get_Property(kinetic_cpp_client source_dir)
+set(KINETIC_INCLUDE_DIR  ${source_dir}/include
+                         ${source_dir}/src/main/generated)
+
 
 ################################################################################
 # Check for Gcc >=4.4

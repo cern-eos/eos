@@ -31,6 +31,21 @@ EOSFSTNAMESPACE_BEGIN
 
 using eos::common::LayoutId;
 
+ConnectionPointer makeConnection(){
+    kinetic::ConnectionOptions options;
+    options.host = "localhost";
+    options.port = 8113;
+    options.use_ssl = false;
+    options.user_id = 1;
+    options.hmac_key = "asdfasdf";
+
+    kinetic::KineticConnectionFactory factory = kinetic::NewKineticConnectionFactory();
+    std::shared_ptr<kinetic::BlockingKineticConnection> con;
+
+    factory.NewBlockingConnection(options, con, 30);
+    return con;
+}
+
 FileIo*
 FileIoPlugin::GetIoObject (int ioType,
                            XrdFstOfsFile* file,
@@ -49,7 +64,7 @@ FileIoPlugin::GetIoObject (int ioType,
   else
     if (ioType == LayoutId::kKinetic)
   {
-    return static_cast<FileIo*> (new KineticIo(file, client));
+    return static_cast<FileIo*> (new KineticIo(makeConnection(), 10));
   }
   else
     if (ioType == LayoutId::kRados)

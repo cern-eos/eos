@@ -21,13 +21,14 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../ 
-                     ./
-                     ${XROOTD_INCLUDE_DIR} 
-                     ${XROOTD_PRIVATE_INCLUDE_DIR}
-                     ${SPARSEHASH_INCLUDE_DIR}
-                     ${NCURSES_INCLUDE_DIR}
-		     ${Z_INCLUDE_DIR}
+include_directories(../ 
+                    ./
+                    ${XROOTD_INCLUDE_DIR} 
+                    ${XROOTD_PRIVATE_INCLUDE_DIR}
+                    ${SPARSEHASH_INCLUDE_DIR}
+                    ${NCURSES_INCLUDE_DIR}
+                    ${Z_INCLUDE_DIR}
+                    ${KINETIC_INCLUDE_DIR}
 )
 
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
@@ -49,208 +50,216 @@ target_link_libraries( EosFstOss
 )
 
 
-add_library( EosFstIo-Static STATIC
-  	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
-	     io/FileIo.hh 
-  	     io/LocalIo.cc                  io/LocalIo.hh
-	     io/KineticIo.cc                io/KineticIo.hh
-	     io/RadosIo.cc                  io/RadosIo.hh
-	     io/XrdIo.cc                    io/XrdIo.hh
-	     io/HeaderCRC.cc                io/HeaderCRC.hh
-	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	     io/ChunkHandler.cc             io/ChunkHandler.hh
-	     io/SimpleHandler.cc            io/SimpleHandler.hh
-	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
-	     checksum/Adler.cc   	    checksum/Adler.hh
-	     checksum/crc32c.cc             checksum/crc32ctables.cc
-	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	     layout/Layout.cc               layout/Layout.hh
-	     layout/PlainLayout.cc          layout/PlainLayout.hh
-	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
-	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
-	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
-	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
-	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
-	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
+add_library(EosFstIo-Static STATIC
+            io/FileIoPlugin.hh             io/FileIoPlugin.cc
+            io/FileIo.hh 
+            io/LocalIo.cc                  io/LocalIo.hh
+            io/KineticIo.cc                io/KineticIo.hh
+            io/KineticChunk.cc             io/KineticChunk.hh
+            io/RadosIo.cc                  io/RadosIo.hh
+            io/XrdIo.cc                    io/XrdIo.hh
+            io/HeaderCRC.cc                io/HeaderCRC.hh
+            io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+            io/ChunkHandler.cc             io/ChunkHandler.hh
+            io/SimpleHandler.cc            io/SimpleHandler.hh
+            checksum/CheckSum.cc           checksum/CheckSum.hh	     
+            checksum/Adler.cc   	    checksum/Adler.hh
+            checksum/crc32c.cc             checksum/crc32ctables.cc
+            layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+            layout/Layout.cc               layout/Layout.hh
+            layout/PlainLayout.cc          layout/PlainLayout.hh
+            layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+            layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+            layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+            layout/ReedSLayout.cc          layout/ReedSLayout.hh
+            layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+            layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+            layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+            layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+            layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
-target_link_libraries( EosFstIo-Static
-		       eosCommon-Static
-		       XrdCl	
-		       XrdUtils 
-		       crypto                  ${NCURSES_LIBRARIES}
-		       dl                      ${Z_LIBRARIES}  
-                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries(  EosFstIo-Static
+                        eosCommon-Static
+                        XrdCl	
+                        XrdUtils 
+                        crypto                  ${NCURSES_LIBRARIES}
+                        dl                      ${Z_LIBRARIES}  
+                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${CMAKE_THREAD_LIBS_INIT}                  
 )
 
 add_library( EosFstIo SHARED
-  	     io/FileIoPlugin.hh             io/FileIoPlugin.cc
-	     io/FileIo.hh 
-  	     io/LocalIo.cc                  io/LocalIo.hh
-	     io/KineticIo.cc                io/KineticIo.hh
-	     io/RadosIo.cc                  io/RadosIo.hh
-	     io/XrdIo.cc                    io/XrdIo.hh
-	     io/HeaderCRC.cc                io/HeaderCRC.hh
-	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	     io/ChunkHandler.cc             io/ChunkHandler.hh
-	     io/SimpleHandler.cc            io/SimpleHandler.hh
-	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
-	     checksum/Adler.cc   	    checksum/Adler.hh
-	     checksum/crc32c.cc             checksum/crc32ctables.cc
-	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	     layout/Layout.cc               layout/Layout.hh
-	     layout/PlainLayout.cc          layout/PlainLayout.hh
-	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
-	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
-	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
-	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
-	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
-	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
+                io/FileIoPlugin.hh             io/FileIoPlugin.cc
+                io/FileIo.hh 
+                io/LocalIo.cc                  io/LocalIo.hh
+                io/KineticIo.cc                io/KineticIo.hh
+                io/KineticChunk.cc             io/KineticChunk.hh
+                io/RadosIo.cc                  io/RadosIo.hh
+                io/XrdIo.cc                    io/XrdIo.hh
+                io/HeaderCRC.cc                io/HeaderCRC.hh
+                io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+                io/ChunkHandler.cc             io/ChunkHandler.hh
+                io/SimpleHandler.cc            io/SimpleHandler.hh
+                checksum/CheckSum.cc           checksum/CheckSum.hh	     
+                checksum/Adler.cc              checksum/Adler.hh
+                checksum/crc32c.cc             checksum/crc32ctables.cc
+                layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+                layout/Layout.cc               layout/Layout.hh
+                layout/PlainLayout.cc          layout/PlainLayout.hh
+                layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+                layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+                layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+                layout/ReedSLayout.cc          layout/ReedSLayout.hh
+                layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+                layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+                layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+                layout/jerasure/galois.cc	   layout/jerasure/galois.hh
+                layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
-target_link_libraries( EosFstIo
-		       XrdEosFst
-		       eosCommon
-		       XrdCl	
-		       XrdUtils 
-		       crypto                  ${NCURSES_LIBRARIES}
-		       dl                      ${Z_LIBRARIES}  
-                       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries(  EosFstIo
+                        XrdEosFst
+                        eosCommon
+                        XrdCl	
+                        XrdUtils 
+                        crypto                  ${NCURSES_LIBRARIES}
+                        dl                      ${Z_LIBRARIES}  
+                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${CMAKE_THREAD_LIBS_INIT}
 )
 
 if (CLIENT)
-add_library( XrdEosFst SHARED
-	     XrdFstOfs.cc                   XrdFstOfs.hh
-  	     io/FileIoPlugin-Server.cc
-	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
-	     storage/Balancer.cc
-	     storage/Cleaner.cc             storage/Comunicator.cc
-	     storage/Drainer.cc             storage/ErrorReport.cc
-	     storage/FileSystem.cc	    storage/MgmSyncer.cc
-	     storage/Publish.cc             storage/Remover.cc
-	     storage/Report.cc              storage/Scrub.cc
-	     storage/Storage.cc             storage/Supervisor.cc
-	     storage/Trim.cc                storage/Verify.cc
-	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	     layout/Layout.cc               layout/Layout.hh
-	     layout/PlainLayout.cc          layout/PlainLayout.hh
-	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
-	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
-	     checksum/Adler.cc   	    checksum/Adler.hh
-	     checksum/crc32c.cc             checksum/crc32ctables.cc
-  	     io/FileIoPlugin.hh
-	     io/FileIo.hh 
-  	     io/LocalIo.cc                  io/LocalIo.hh
-	     io/KineticIo.cc                io/KineticIo.hh
-	     io/RadosIo.cc                  io/RadosIo.hh
-	     io/XrdIo.cc                    io/XrdIo.hh
-	     io/HeaderCRC.cc                io/HeaderCRC.hh
-	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	     io/ChunkHandler.cc             io/ChunkHandler.hh
-	     io/SimpleHandler.cc            io/SimpleHandler.hh
-	     Config.cc
-	     Load.cc
-	     ScanDir.cc
-	     Messaging.cc
-	     txqueue/TransferMultiplexer.cc
-	     txqueue/TransferJob.cc
-	     txqueue/TransferQueue.cc
-	     FmdSqlite.cc
-	     FmdClient.cc 
-         http/HttpServer.cc
-         http/HttpHandler.cc
-         http/s3/S3Handler.cc
-	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
-	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
-	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
-	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
-	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
+add_library(XrdEosFst SHARED
+            XrdFstOfs.cc                   XrdFstOfs.hh
+            io/FileIoPlugin-Server.cc
+            XrdFstOfsFile.cc               XrdFstOfsFile.hh
+            storage/Balancer.cc
+            storage/Cleaner.cc             storage/Comunicator.cc
+            storage/Drainer.cc             storage/ErrorReport.cc
+            storage/FileSystem.cc	    storage/MgmSyncer.cc
+            storage/Publish.cc             storage/Remover.cc
+            storage/Report.cc              storage/Scrub.cc
+            storage/Storage.cc             storage/Supervisor.cc
+            storage/Trim.cc                storage/Verify.cc
+            layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+            layout/Layout.cc               layout/Layout.hh
+            layout/PlainLayout.cc          layout/PlainLayout.hh
+            layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+            layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+            layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+            layout/ReedSLayout.cc          layout/ReedSLayout.hh
+            checksum/CheckSum.cc           checksum/CheckSum.hh	     
+            checksum/Adler.cc   	    checksum/Adler.hh
+            checksum/crc32c.cc             checksum/crc32ctables.cc
+            io/FileIoPlugin.hh
+            io/FileIo.hh 
+            io/LocalIo.cc                  io/LocalIo.hh
+            io/KineticIo.cc                io/KineticIo.hh
+            io/KineticChunk.cc             io/KineticChunk.hh
+            io/RadosIo.cc                  io/RadosIo.hh
+            io/XrdIo.cc                    io/XrdIo.hh
+            io/HeaderCRC.cc                io/HeaderCRC.hh
+            io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+            io/ChunkHandler.cc             io/ChunkHandler.hh
+            io/SimpleHandler.cc            io/SimpleHandler.hh
+            Config.cc
+            Load.cc
+            ScanDir.cc
+            Messaging.cc
+            txqueue/TransferMultiplexer.cc
+            txqueue/TransferJob.cc
+            txqueue/TransferQueue.cc
+            FmdSqlite.cc
+            FmdClient.cc 
+            http/HttpServer.cc
+            http/HttpHandler.cc
+            http/s3/S3Handler.cc
+            layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+            layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+            layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+            layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+            layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
 
-target_link_libraries( XrdEosFst 
-		       eosCommon
-		       eosCommonServer         eosCapability-Static
-		       XrdMqClient-Static      XrdCl	
-		       XrdUtils                 
-		       crypto                  ${NCURSES_LIBRARIES}
-		       dl                      ${Z_LIBRARIES}  
-		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries(  XrdEosFst 
+                        eosCommon
+                        eosCommonServer         eosCapability-Static
+                        XrdMqClient-Static      XrdCl	
+                        XrdUtils                 
+                        crypto                  ${NCURSES_LIBRARIES}
+                        dl                      ${Z_LIBRARIES}  
+                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${CMAKE_THREAD_LIBS_INIT}
 )
 else (CLIENT)
-add_library( XrdEosFst MODULE
-	     XrdFstOfs.cc                   XrdFstOfs.hh
-  	     io/FileIoPlugin-Server.cc
-	     XrdFstOfsFile.cc               XrdFstOfsFile.hh
-	     storage/Balancer.cc
-	     storage/Cleaner.cc             storage/Comunicator.cc
-	     storage/Drainer.cc             storage/ErrorReport.cc
-	     storage/FileSystem.cc	    storage/MgmSyncer.cc
-	     storage/Publish.cc             storage/Remover.cc
-	     storage/Report.cc              storage/Scrub.cc
-	     storage/Storage.cc             storage/Supervisor.cc
-	     storage/Trim.cc                storage/Verify.cc
-	     layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
-	     layout/Layout.cc               layout/Layout.hh
-	     layout/PlainLayout.cc          layout/PlainLayout.hh
-	     layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
-	     layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
-	     layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
-	     layout/ReedSLayout.cc          layout/ReedSLayout.hh
-	     checksum/CheckSum.cc           checksum/CheckSum.hh	     
-	     checksum/Adler.cc   	    checksum/Adler.hh
-	     checksum/crc32c.cc             checksum/crc32ctables.cc
-  	     io/FileIoPlugin.hh
-	     io/FileIo.hh 
-  	     io/LocalIo.cc                  io/LocalIo.hh
-	     io/KineticIo.cc                io/KineticIo.hh
-	     io/RadosIo.cc                  io/RadosIo.hh
-	     io/XrdIo.cc                    io/XrdIo.hh
-	     io/HeaderCRC.cc                io/HeaderCRC.hh
-	     io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
-	     io/ChunkHandler.cc             io/ChunkHandler.hh
-	     io/SimpleHandler.cc            io/SimpleHandler.hh
-	     Config.cc
-	     Load.cc
-	     ScanDir.cc
-	     Messaging.cc
-	     txqueue/TransferMultiplexer.cc
-	     txqueue/TransferJob.cc
-	     txqueue/TransferQueue.cc
-	     FmdSqlite.cc
-	     FmdClient.cc 
-         http/HttpServer.cc
-         http/HttpHandler.cc
-         http/s3/S3Handler.cc
-	     layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
-	     layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
-	     layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
-	     layout/jerasure/galois.cc	        layout/jerasure/galois.hh
-	     layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
+add_library(XrdEosFst MODULE
+            XrdFstOfs.cc                   XrdFstOfs.hh
+            io/FileIoPlugin-Server.cc
+            XrdFstOfsFile.cc               XrdFstOfsFile.hh
+            storage/Balancer.cc
+            storage/Cleaner.cc             storage/Comunicator.cc
+            storage/Drainer.cc             storage/ErrorReport.cc
+            storage/FileSystem.cc	    storage/MgmSyncer.cc
+            storage/Publish.cc             storage/Remover.cc
+            storage/Report.cc              storage/Scrub.cc
+            storage/Storage.cc             storage/Supervisor.cc
+            storage/Trim.cc                storage/Verify.cc
+            layout/LayoutPlugin.cc         layout/LayoutPlugin.hh
+            layout/Layout.cc               layout/Layout.hh
+            layout/PlainLayout.cc          layout/PlainLayout.hh
+            layout/ReplicaParLayout.cc     layout/ReplicaParLayout.hh
+            layout/RaidMetaLayout.cc       layout/RaidMetaLayout.hh
+            layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
+            layout/ReedSLayout.cc          layout/ReedSLayout.hh
+            checksum/CheckSum.cc           checksum/CheckSum.hh	     
+            checksum/Adler.cc   	    checksum/Adler.hh
+            checksum/crc32c.cc             checksum/crc32ctables.cc
+            io/FileIoPlugin.hh
+            io/FileIo.hh 
+            io/LocalIo.cc                  io/LocalIo.hh
+            io/KineticIo.cc                io/KineticIo.hh
+            io/KineticChunk.cc             io/KineticChunk.hh
+            io/RadosIo.cc                  io/RadosIo.hh
+            io/XrdIo.cc                    io/XrdIo.hh
+            io/HeaderCRC.cc                io/HeaderCRC.hh
+            io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
+            io/ChunkHandler.cc             io/ChunkHandler.hh
+            io/SimpleHandler.cc            io/SimpleHandler.hh
+            Config.cc
+            Load.cc
+            ScanDir.cc
+            Messaging.cc
+            txqueue/TransferMultiplexer.cc
+            txqueue/TransferJob.cc
+            txqueue/TransferQueue.cc
+            FmdSqlite.cc
+            FmdClient.cc 
+            http/HttpServer.cc
+            http/HttpHandler.cc
+            http/s3/S3Handler.cc
+            layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
+            layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
+            layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
+            layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+            layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
 
 
-target_link_libraries( XrdEosFst 
-		       eosCommon
-		       eosCommonServer         eosCapability-Static
-		       XrdMqClient-Static      XrdCl	
-		       XrdUtils                 
-		       crypto                  ${NCURSES_LIBRARIES}
-		       dl                      ${Z_LIBRARIES}  
-		       ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-		       ${RT_LIBRARIES}         ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries(  XrdEosFst 
+                        eosCommon
+                        eosCommonServer         eosCapability-Static
+                        XrdMqClient-Static      XrdCl	
+                        XrdUtils                 
+                        crypto                  ${NCURSES_LIBRARIES}
+                        dl                      ${Z_LIBRARIES}  
+                        ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
+                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${CMAKE_THREAD_LIBS_INIT}
 )
 endif (CLIENT)
 
@@ -365,3 +374,5 @@ install( TARGETS EosFstOss XrdEosFst eoscp
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 endif (MacOSX)
+
+add_subdirectory(tests)

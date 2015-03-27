@@ -28,7 +28,8 @@ include_directories( ./
 		     ../ 
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR}
-		     ${SPARSEHASH_INCLUDE_DIR} 
+		     ${SPARSEHASH_INCLUDE_DIR}
+                     ${KINETIC_INCLUDE_DIR}
 		     ../common/ulib/ 
 )
 
@@ -121,7 +122,7 @@ add_executable( eos-io-tool
 add_executable (testhmacsha256
 	        TestHmacSha256.cc
 		../common/SymKeys.hh            ../common/SymKeys.cc
-)					
+)		
 
 target_link_libraries(xrdstress.exe XrdPosix XrdUtils  ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(xrdcpabort XrdPosix XrdUtils)
@@ -137,7 +138,7 @@ target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(xrdcpupdate XrdPosix XrdUtils)
 target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static)
+target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static ${KINETIC_LIBRARIES})
 
 target_link_libraries(eos-udp-dumper)
 target_link_libraries(eosnsbench eosCommon-Static eosNamespace-Static)

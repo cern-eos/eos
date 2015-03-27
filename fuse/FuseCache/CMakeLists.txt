@@ -23,7 +23,8 @@
 
 include_directories( ${CMAKE_SOURCE_DIR}
 		     ${CMAKE_CURRENT_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} )
+		     ${XROOTD_INCLUDE_DIR}
+                     ${KINETIC_INCLUDE_DIR} )
 
 link_directories( ${XROOTD_LIB_DIR} )
 
@@ -43,6 +44,7 @@ target_link_libraries(
   XrdUtils 
   EosFstIo
   eosCommon 
+  ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
 
@@ -58,6 +60,7 @@ target_link_libraries(
   XrdUtils 
   EosFstIo-Static 
   eosCommon 
+  ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
 add_library( 
@@ -72,6 +75,7 @@ target_link_libraries(
   XrdUtils   
   EosFstIo-Static 
   eosCommon-Static 
+  ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
 set_target_properties( FuseCache-Static PROPERTIES 

@@ -326,7 +326,7 @@ public:
 
     virtual std::string Get (std::string name)
     {
-      return false;
+      return "";
     }
 
     // -----------------------------------------------------------------------
