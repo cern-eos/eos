@@ -6,6 +6,18 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.107 Beryl-Aquamarine``
+
+New Features
+------------
+- support for secondary group evaluation in ACLs (enable secondary groups via /etc/sysonfig/eos:export EOS_SECONDARY_GROUPS=1
+
+``Version V0.3.106 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- update MIME types to reflect most recent mappings for office types
+
 ``Version V0.3.104 Beryl-Aquamarine``
 
 Bug Fixes
