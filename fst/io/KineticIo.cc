@@ -232,8 +232,32 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 
 void* KineticIo::GetAsyncHandler ()
 {
-	// no async for now
-	return nullptr;
+    // no async for now
+    return nullptr;
+}
+
+int KineticIo::Statfs (const char* path, struct statfs* sfs)
+{
+   unique_ptr<kinetic::DriveLog> log;
+   vector<kinetic::Command_GetLog_Type> types;
+   types.push_back(kinetic::Command_GetLog_Type::Command_GetLog_Type_CAPACITIES);
+
+   KineticStatus status = connection->GetLog(types,log);
+   if(!status.ok())
+       return EIO;
+ 
+   long capacity = log->capacity.nominal_capacity_in_bytes;
+   long free     = capacity - (capacity * log->capacity.portion_full); 
+   
+    sfs->f_frsize = 4096; /* Minimal allocated block size. Set to 4K because that's the maximum accepted value. */
+    sfs->f_bsize  = KineticChunk::capacity; /* Preferred file system block size for I/O requests */
+    sfs->f_blocks = (fsblkcnt_t) (capacity / sfs->f_frsize); /* Blocks on FS in units of f_frsize */
+    sfs->f_bavail = (fsblkcnt_t) (free / sfs->f_frsize); /* Free blocks */
+    sfs->f_bfree  = sfs->f_bavail; /* Free blocks available to non root user */
+    sfs->f_files   = capacity / KineticChunk::capacity; /* Total inodes */
+    sfs->f_ffree   = free / KineticChunk::capacity ; /* Free inodes */
+
+   return 0;
 }
 
 

@@ -55,6 +55,7 @@ public:
   int Close (uint16_t timeout = 0);
   int Stat (struct stat* buf, uint16_t timeout = 0);
   void* GetAsyncHandler ();
+  int Statfs (const char* path, struct statfs* statFs);
 
   // For now just using a single connection. In the future, get a cluster description and
   // connection map (shared across objects) and decide on the appropriate connection(s) in
