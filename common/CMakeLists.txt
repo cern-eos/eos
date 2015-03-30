@@ -160,6 +160,7 @@ target_link_libraries ( eosCommon-Static
                         XrdUtils 
                         XrdCl 
                         crypto 
+                        rt
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
                         ${Z_LIBRARIES} 

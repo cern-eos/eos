@@ -11,4 +11,5 @@ add_dependencies(kinetic-test kinetic_cpp_client)
 target_link_libraries(kinetic-test 
         eosCommon
         ${KINETIC_LIBRARIES}
+        ${CMAKE_THREAD_LIBS_INIT}
         )
