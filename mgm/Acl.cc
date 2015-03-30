@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include <regex.h>
 #include <string>
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -65,6 +66,7 @@ Acl::Acl (std::string sysacl,
 //! @param allowUserAcl if true evaluate the user acl for permissions
 //!
 //------------------------------------------------------------------------------
+
 void
 Acl::Set (std::string sysacl,
           std::string useracl,
@@ -110,6 +112,7 @@ Acl::Set (std::string sysacl,
   if (!acl.length())
     return;
 
+
   int errc = 0;
   std::vector<std::string> rules;
   std::string delimiter = ",";
@@ -119,211 +122,219 @@ Acl::Set (std::string sysacl,
   XrdOucString sizestring1;
   XrdOucString sizestring2;
 
-  std::string userid = eos::common::StringConversion::GetSizeString(sizestring1, (unsigned long long) vid.uid);
-  std::string groupid = eos::common::StringConversion::GetSizeString(sizestring2, (unsigned long long) vid.gid);
-
-  std::string usertag = "u:";
-  usertag += userid;
-  usertag += ":";
-  std::string grouptag = "g:";
-  grouptag += groupid;
-  grouptag += ":";
-
-  std::string username = eos::common::Mapping::UidToUserName(vid.uid, errc);
-
-  if (errc)
-    username = "_INVAL_";
-
-  std::string groupname = eos::common::Mapping::GidToGroupName(vid.gid, errc);
-
-  if (errc)
-    groupname = "_INVAL_";
-
-  std::string usertagfn = "u:";
-  usertagfn += username;
-  usertagfn += ":";
-  std::string grouptagfn = "g:";
-  grouptagfn += groupname;
-  grouptagfn += ":";
-  std::string ztag = "z:";
-
-  // ---------------------------------------------------------------------------
-  // Rule interpretation logic
-  // ---------------------------------------------------------------------------
-  for (it = rules.begin(); it != rules.end(); it++)
+  for (size_t n_gid = 0; n_gid < vid.gid_list.size(); ++n_gid)
   {
-    bool egroupmatch = false;
-    // -------------------------------------------------------------------------
-    // check for e-group membership
-    // -------------------------------------------------------------------------
-    if (!it->compare(0, strlen("egroup:"), "egroup:"))
-    {
-      std::vector<std::string> entry;
-      std::string delimiter = ":";
-      eos::common::StringConversion::Tokenize(*it, entry, delimiter);
+    gid_t chk_gid = vid.gid_list[n_gid];
+    // only check non system groups
+    if (chk_gid < 100)
+      continue;
+    std::string userid = eos::common::StringConversion::GetSizeString(sizestring1, (unsigned long long) vid.uid);
+    std::string groupid = eos::common::StringConversion::GetSizeString(sizestring2, (unsigned long long) chk_gid);
 
-      if (entry.size() < 3)
-        continue;
+    std::string usertag = "u:";
+    usertag += userid;
+    usertag += ":";
+    std::string grouptag = "g:";
+    grouptag += groupid;
+    grouptag += ":";
 
-      egroupmatch = Egroup::Member(username, entry[1]);
-      hasEgroup = egroupmatch;
-    }
+    std::string username = eos::common::Mapping::UidToUserName(vid.uid, errc);
+
+    if (errc)
+      username = "_INVAL_";
+
+    std::string groupname = eos::common::Mapping::GidToGroupName(chk_gid, errc);
+
+    if (errc)
+      groupname = "_INVAL_";
+
+    std::string usertagfn = "u:";
+    usertagfn += username;
+    usertagfn += ":";
+    std::string grouptagfn = "g:";
+    grouptagfn += groupname;
+    grouptagfn += ":";
+    std::string ztag = "z:";
+
     // ---------------------------------------------------------------------------
-    // match 'our' rule
+    // Rule interpretation logic
     // ---------------------------------------------------------------------------
-    if ((!it->compare(0, usertag.length(), usertag)) ||
-        (!it->compare(0, grouptag.length(), grouptag)) ||
-        (!it->compare(0, ztag.length(), ztag)) ||
-        (egroupmatch) ||
-        (!it->compare(0, usertagfn.length(), usertagfn))
-        || (!it->compare(0, grouptagfn.length(), grouptagfn)))
+    for (it = rules.begin(); it != rules.end(); it++)
     {
-      // that is our rule
-      std::vector<std::string> entry;
-      std::string delimiter = ":";
-      eos::common::StringConversion::Tokenize(*it, entry, delimiter);
-
-      if (entry.size() < 3)
+      bool egroupmatch = false;
+      // -------------------------------------------------------------------------
+      // check for e-group membership
+      // -------------------------------------------------------------------------
+      if (!it->compare(0, strlen("egroup:"), "egroup:"))
       {
-        // z tag entries have only two fields
-        if (it->compare(0, ztag.length(), ztag) || (entry.size() < 2))
+        std::vector<std::string> entry;
+        std::string delimiter = ":";
+        eos::common::StringConversion::Tokenize(*it, entry, delimiter);
+
+        if (entry.size() < 3)
           continue;
-        // add an empty entry field
-        entry.resize(3);
-        entry[2] = entry[1];
+
+        egroupmatch = Egroup::Member(username, entry[1]);
+        hasEgroup = egroupmatch;
       }
 
-      // 'a' defines archiving permission
-      if ((entry[2].find("a")) != std::string::npos)
+      // ---------------------------------------------------------------------------
+      // match 'our' rule
+      // ---------------------------------------------------------------------------
+      if ((!it->compare(0, usertag.length(), usertag)) ||
+          (!it->compare(0, grouptag.length(), grouptag)) ||
+          (!it->compare(0, ztag.length(), ztag)) ||
+          (egroupmatch) ||
+          (!it->compare(0, usertagfn.length(), usertagfn))
+          || (!it->compare(0, grouptagfn.length(), grouptagfn)))
       {
-        canArchive = true;
-        hasAcl = true;
-      }
+        // that is our rule
+        std::vector<std::string> entry;
+        std::string delimiter = ":";
+        eos::common::StringConversion::Tokenize(*it, entry, delimiter);
 
-      // -----------------------------------------------------------------------
-      // 'r' defines read permission
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("r")) != std::string::npos)
-      {
-        canRead = true;
-        hasAcl = true;
-      }
-
-      // -----------------------------------------------------------------------
-      // 'x' defines browsing permission
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("x")) != std::string::npos)
-      {
-        canBrowse = true;
-        hasAcl = true;
-      }
-
-      // -----------------------------------------------------------------------
-      // 'm' defines mode change permission
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("m")) != std::string::npos)
-      {
-        if ((entry[2].find("!m")) != std::string::npos)
+        if (entry.size() < 3)
         {
-          canNotChmod = true;
-        }
-        else
-        {
-          canChmod = true;
-        }
-        hasAcl = true;
-      }
-
-      // -----------------------------------------------------------------------
-      // 'c' defines owner change permission (for directories)
-      // -----------------------------------------------------------------------
-      if ((!useracl.length()) && ((entry[2].find("c")) != std::string::npos))
-      {
-        // this is only valid if only a sysacl is present
-        canChown = true;
-        hasAcl = true;
-      }
-
-      // -----------------------------------------------------------------------
-      // '!d' forbids deletion
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("!d")) != std::string::npos)
-      {
-        // canDelete is true, if deletion has been explicitly allowed by a rule
-        // and in this case we don't forbid deletion even if another rule
-        // says that
-        if (!canDelete)
-        {
-          canNotDelete = true;
+          // z tag entries have only two fields
+          if (it->compare(0, ztag.length(), ztag) || (entry.size() < 2))
+            continue;
+          // add an empty entry field
+          entry.resize(3);
+          entry[2] = entry[1];
         }
 
-        hasAcl = true;
-      }
+        // 'a' defines archiving permission
+        if ((entry[2].find("a")) != std::string::npos)
+        {
+          canArchive = true;
+          hasAcl = true;
+        }
 
-      // -----------------------------------------------------------------------
-      // '+d' adds deletion
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("+d")) != std::string::npos)
-      {
-        canDelete = true;
-        canNotDelete = false;
-        canWriteOnce = false;
-        hasAcl = true;
-      }
+        // -----------------------------------------------------------------------
+        // 'r' defines read permission
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("r")) != std::string::npos)
+        {
+          canRead = true;
+          hasAcl = true;
+        }
 
-      // -----------------------------------------------------------------------
-      // '!u' removes update
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("!u")) != std::string::npos)
-      {
-        canUpdate = false;
-        hasAcl = true;
-      }
+        // -----------------------------------------------------------------------
+        // 'x' defines browsing permission
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("x")) != std::string::npos)
+        {
+          canBrowse = true;
+          hasAcl = true;
+        }
 
-      // -----------------------------------------------------------------------
-      // '+u' adds update
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("+u")) != std::string::npos)
-      {
-        canUpdate = true;
-        hasAcl = true;
-      }
+        // -----------------------------------------------------------------------
+        // 'm' defines mode change permission
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("m")) != std::string::npos)
+        {
+          if ((entry[2].find("!m")) != std::string::npos)
+          {
+            canNotChmod = true;
+          }
+          else
+          {
+            canChmod = true;
+          }
+          hasAcl = true;
+        }
 
-      // -----------------------------------------------------------------------
-      // 'wo' defines write once permissions
-      // -----------------------------------------------------------------------
-      if (((entry[2].find("wo")) != std::string::npos))
-      {
-        canWriteOnce = true;
-        hasAcl = true;
-      }
+        // -----------------------------------------------------------------------
+        // 'c' defines owner change permission (for directories)
+        // -----------------------------------------------------------------------
+        if ((!useracl.length()) && ((entry[2].find("c")) != std::string::npos))
+        {
+          // this is only valid if only a sysacl is present
+          canChown = true;
+          hasAcl = true;
+        }
 
-      // -----------------------------------------------------------------------
-      // 'w' defines write permissions if 'wo' is not granted
-      // -----------------------------------------------------------------------
-      if ((!canWriteOnce) && (entry[2].find("w")) != std::string::npos)
-      {
-        canWrite = true;
-        hasAcl = true;
-      }
+        // -----------------------------------------------------------------------
+        // '!d' forbids deletion
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("!d")) != std::string::npos)
+        {
+          // canDelete is true, if deletion has been explicitly allowed by a rule
+          // and in this case we don't forbid deletion even if another rule
+          // says that
+          if (!canDelete)
+          {
+            canNotDelete = true;
+          }
 
-      // -----------------------------------------------------------------------
-      // 'q' defines quota set permission
-      // -----------------------------------------------------------------------
-      if ((!useracl.length()) && ((entry[2].find("q")) != std::string::npos))
-      {
-        // this is only valid if only a sys acl is present
-        canSetQuota = true;
-        hasAcl = true;
-      }
+          hasAcl = true;
+        }
 
-      // -----------------------------------------------------------------------
-      // 'i' makes directories immutable
-      // -----------------------------------------------------------------------
-      if ((entry[2].find("i")) != std::string::npos)
-      {
-        isMutable = false;
-        hasAcl = true;
+        // -----------------------------------------------------------------------
+        // '+d' adds deletion
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("+d")) != std::string::npos)
+        {
+          canDelete = true;
+          canNotDelete = false;
+          canWriteOnce = false;
+          hasAcl = true;
+        }
+
+        // -----------------------------------------------------------------------
+        // '!u' removes update
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("!u")) != std::string::npos)
+        {
+          canUpdate = false;
+          hasAcl = true;
+        }
+
+        // -----------------------------------------------------------------------
+        // '+u' adds update
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("+u")) != std::string::npos)
+        {
+          canUpdate = true;
+          hasAcl = true;
+        }
+
+        // -----------------------------------------------------------------------
+        // 'wo' defines write once permissions
+        // -----------------------------------------------------------------------
+        if (((entry[2].find("wo")) != std::string::npos))
+        {
+          canWriteOnce = true;
+          hasAcl = true;
+        }
+
+        // -----------------------------------------------------------------------
+        // 'w' defines write permissions if 'wo' is not granted
+        // -----------------------------------------------------------------------
+        if ((!canWriteOnce) && (entry[2].find("w")) != std::string::npos)
+        {
+          canWrite = true;
+          hasAcl = true;
+        }
+
+        // -----------------------------------------------------------------------
+        // 'q' defines quota set permission
+        // -----------------------------------------------------------------------
+        if ((!useracl.length()) && ((entry[2].find("q")) != std::string::npos))
+        {
+          // this is only valid if only a sys acl is present
+          canSetQuota = true;
+          hasAcl = true;
+        }
+
+        // -----------------------------------------------------------------------
+        // 'i' makes directories immutable
+        // -----------------------------------------------------------------------
+        if ((entry[2].find("i")) != std::string::npos)
+        {
+          isMutable = false;
+          hasAcl = true;
+        }
       }
     }
   }
@@ -340,6 +351,7 @@ Acl::Set (std::string sysacl,
 //!
 //! return boolean indicating validity
 //------------------------------------------------------------------------------
+
 bool
 Acl::IsValid (const std::string value,
               XrdOucErrInfo &error,
@@ -353,14 +365,14 @@ Acl::IsValid (const std::string value,
   int result;
   regex_t regex;
   std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|"
-                            "(egroup:([\\.[:alnum:]-]+))):"
-                            "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+          "(egroup:([\\.[:alnum:]-]+))):"
+          "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
 
   if (sysacl)
   {
     regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|"
-                  "(egroup:([\\.[:alnum:]-]+))|"
-                  "(z)):(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
+            "(egroup:([\\.[:alnum:]-]+))|"
+            "(z)):(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   }
 
   // Compile regex
