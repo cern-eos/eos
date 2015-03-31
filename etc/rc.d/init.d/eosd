@@ -125,8 +125,8 @@ start() {
             echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
             echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
             echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
-            echo "EOS_FUSE_USER_GSIPROXY      : ${EOS_FUSE_USER_GSIPROXY}"
-            echo "EOS_FUSE_KRB5FIRST      : ${EOS_FUSE_KRB5FIRST}"
+            echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
+            echo "EOS_FUSE_USER_KRB5FIRST   : ${EOS_FUSE_USER_KRB5FIRST}"
             echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
 	else 
             echo eosd already running. Pid is $eosdpid 
