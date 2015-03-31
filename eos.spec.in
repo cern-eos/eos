@@ -34,6 +34,7 @@ BuildRequires: protobuf-devel >= 2.3.0
 BuildRequires: krb5-devel >= 1.6.1
 BuildRequires: globus-gsi-credential-devel
 BuildRequires: globus-common-devel
+BuildRequires: globus-gsi-proxy-core-devel
 
 %if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static, sparsehash-devel
