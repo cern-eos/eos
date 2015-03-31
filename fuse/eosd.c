@@ -83,39 +83,17 @@ double readopentime = 5.0;
                  snprintf ( (_url) , sizeof( (_url)) -1, "root://%s@%s//%s%s", (_user), \
                            (_hostport), (_prefix), (_parent) )
 
-//------------------------------------------------------------------------------
-// Convenience macro to get the proc cache ready
-//------------------------------------------------------------------------------
-//#define STR_EXPAND(tok) #tok
-//#define STR(tok) STR_EXPAND(tok)
-//#define UPDATEPROCCACHE \
-//  do { \
-//    if(req->ctx.uid<3) \
-//    { \
-//      char buf[512]; \
-//      snprintf(buf,512,"%s:" STR(__FILE__) ":" STR(__LINE__) ":" "user id is %d",__FUNCTION__,(int)req->ctx.uid); \
-//      xrd_logdebug( (const char *)buf ); \
-//      return; \
-//    } \
-//    else \
-//    { \
-//      int errCode; \
-//      if( (errCode=update_proc_cache(req->ctx.pid)) )\
-//      { \
-//        fuse_reply_err (req, errCode); \
-//        return; \
-//      } \
-//    } \
-//  } while (0)
-
 #define UPDATEPROCCACHE \
   do { \
     int errCode; \
-    if( (errCode=update_proc_cache(req->ctx.pid)) )\
+    xrd_lock_w_pcache (req->ctx.pid); \
+    if( (errCode=update_proc_cache(req->ctx.uid,req->ctx.pid)) )\
     { \
+      xrd_unlock_w_pcache (req->ctx.pid); \
       fuse_reply_err (req, errCode); \
       return; \
     } \
+    xrd_unlock_w_pcache (req->ctx.pid); \
   } while (0)
 
 //------------------------------------------------------------------------------

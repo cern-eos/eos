@@ -67,15 +67,26 @@
 #include "xrdposix.hh"
 /*----------------------------------------------------------------------------*/
 
+//#define UPDATEPROCCACHE \
+//  do { \
+//    int errCode; \
+//    if( (errCode=update_proc_cache(fuse_ctx->pid)) )\
+//    { \
+//      return -errCode; \
+//    } \
+//  } while (0)
+
 #define UPDATEPROCCACHE \
   do { \
     int errCode; \
-    if( (errCode=update_proc_cache(fuse_ctx->pid)) )\
+    xrd_lock_w_pcache (fuse_ctx->pid); \
+    if( (errCode=update_proc_cache(fuse_ctx->uid,fuse_ctx->pid)) )\
     { \
+      xrd_unlock_w_pcache (fuse_ctx->pid); \
       return -errCode; \
     } \
+    xrd_unlock_w_pcache (fuse_ctx->pid); \
   } while (0)
-
 
 //! Mount hostport;
 char mounthostport[1024];

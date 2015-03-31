@@ -34,9 +34,9 @@ int proccache_HasEntry (int pid)
   return gProcCache.HasEntry(pid);
 }
 
-int proccache_InsertEntry (int pid, int useKrb5)
+int proccache_InsertEntry (int pid, int useKrb5, int useGsi, int tryKrb5First)
 {
-  return gProcCache.InsertEntry(pid,useKrb5!=0);
+  return gProcCache.InsertEntry(pid,useKrb5!=0,useGsi!=0,tryKrb5First!=0);
 }
 
 int proccache_RemoveEntry (int pid)
@@ -73,6 +73,38 @@ int proccache_GetKrb5UserName (int pid , char *buffer, size_t bufsize)
     return 3;
 
   strcpy(buffer,usrname.c_str());
+  return 0;
+}
+
+int proccache_GetGsiIdentity (int pid , char *buffer, size_t bufsize)
+{
+  if(!gProcCache.HasEntry(pid))
+    return 1;
+
+  std::string identity;
+  if(!gProcCache.GetEntry(pid)->GetGsiIdentity(identity))
+    return 2;
+
+  if(identity.length()+1>bufsize)
+    return 3;
+
+  strcpy(buffer,identity.c_str());
+  return 0;
+}
+
+int proccache_GetAuthMethod (int pid , char *buffer, size_t bufsize)
+{
+  if(!gProcCache.HasEntry(pid))
+    return 1;
+
+  std::string method;
+  if(!gProcCache.GetEntry(pid)->GetAuthMethod(method))
+    return 2;
+
+  if(method.length()+1>bufsize)
+    return 3;
+
+  strcpy(buffer,method.c_str());
   return 0;
 }
 

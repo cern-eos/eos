@@ -81,6 +81,8 @@ start() {
     export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
     export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
     export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
+    export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
+    export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
     export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
 
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
@@ -123,6 +125,8 @@ start() {
             echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
             echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
             echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
+            echo "EOS_FUSE_USER_GSIPROXY      : ${EOS_FUSE_USER_GSIPROXY}"
+            echo "EOS_FUSE_KRB5FIRST      : ${EOS_FUSE_KRB5FIRST}"
             echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
 	else 
             echo eosd already running. Pid is $eosdpid 

@@ -23,7 +23,13 @@
 
 #include "ProcCache.hh"
 #include "common/Logging.hh"
-#include <krb5.h>
+#include "globus_common.h"
+#include "globus_error.h"
+#include "globus_gsi_cert_utils.h"
+#include "globus_gsi_system_config.h"
+#include "globus_gsi_proxy.h"
+#include "globus_gsi_credential.h"
+#include "globus_openssl.h"
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctime>
@@ -78,69 +84,168 @@ bool ProcReaderFsUid::ReadContent (uid_t &fsUid, gid_t &fsGid)
   return retval;
 }
 
+krb5_context ProcReaderKrb5UserName::sKcontext;
+bool ProcReaderKrb5UserName::sKcontextOk = (!krb5_init_context (&ProcReaderKrb5UserName::sKcontext)) || (!eos_static_crit("error initializing Krb5"));
+
+void ProcReaderKrb5UserName::StaticDestroy()
+{
+  if(sKcontextOk) krb5_free_context(sKcontext);
+}
+
 bool ProcReaderKrb5UserName::ReadUserName (string &userName)
 {
-  krb5_context kcontext;
-  krb5_principal princ;
-  krb5_ccache cache;
+  if(!sKcontextOk) return false;
 
-  // Init krb5
-  auto retval = krb5_init_context (&kcontext);
-  if (retval)
-  {
-    eos_static_err("while initializing krb5, error code is %d", (int )retval);
-    krb5_free_context (kcontext);
-    return false;
-  }
+  bool result = false;
+  krb5_principal princ=NULL;
+  krb5_ccache cache=NULL;
+  int retval;
+  size_t where;
+  char *ptrusername = NULL;
 
   // get the credential cache
-  krb5_cc_resolve (kcontext, pKrb5CcName.c_str (), &cache);
+  if( (retval=krb5_cc_resolve (sKcontext, pKrb5CcFile.c_str (), &cache)) )
+  {
+    eos_static_err("error resolving Krb5 credential cache%s, error code is %d", pKrb5CcFile.c_str (), (int )retval);
+    goto cleanup;
+  }
 
   // get the principal of the cache
-  if ((retval = krb5_cc_get_principal (kcontext, cache, &princ)))
+  if ((retval = krb5_cc_get_principal (sKcontext, cache, &princ)))
   {
-    eos_static_err("while getting principal of krb5cc %s, error code is %d", pKrb5CcName.c_str (), (int )retval);
-    krb5_free_context (kcontext);
-    return false;
+    eos_static_err("while getting principal of krb5cc %s, error code is %d", pKrb5CcFile.c_str (), (int )retval);
+    goto cleanup;
   }
 
   // get the name of the principal
-  char *ptrusername = NULL;
   // get the name of the principal
-  if ((retval = krb5_unparse_name (kcontext, princ, &ptrusername)))
+  if ((retval = krb5_unparse_name (sKcontext, princ, &ptrusername)))
   {
-    eos_static_err("while getting name of principal of krb5cc %s, error code is %d", pKrb5CcName.c_str (), (int )retval);
-    krb5_free_context (kcontext);
-    return false;
+    eos_static_err("while getting name of principal of krb5cc %s, error code is %d", pKrb5CcFile.c_str (), (int )retval);
+    goto cleanup;
   }
   userName.assign (ptrusername);
 
   // parse the user name
-  size_t where = userName.find ('@');
+  where = userName.find ('@');
   if (where == std::string::npos)
   {
     eos_static_err("while parsing username of principal name %s, could not find '@'", userName.c_str ());
-    krb5_free_context (kcontext);
-    return false;
+    goto cleanup;
   }
 
   userName.resize (where);
 
   eos_static_debug("parsed user name  %s", userName.c_str ());
-  krb5_free_context (kcontext);
-  return true;
+
+  result = true;
+
+cleanup:
+  if(cache) krb5_cc_close(sKcontext, cache);
+  if(princ) krb5_free_principal(sKcontext,princ);
+  if(ptrusername) krb5_free_unparsed_name(sKcontext,ptrusername);
+  return result;
 }
 
 time_t ProcReaderKrb5UserName::GetModifTime ()
 {
   struct tm* clock;
   struct stat attrib;
-  if (pKrb5CcName.substr (0, 5) != "FILE:")
+  if (pKrb5CcFile.substr (0, 5) != "FILE:")
   {
-    eos_static_err("expecting a credential cache file and got %s", pKrb5CcName.c_str ());
+    eos_static_err("expecting a credential cache file and got %s", pKrb5CcFile.c_str ());
     return 0;
   }
-  if (stat (pKrb5CcName.c_str () + 5, &attrib)) return 0;
+  if (stat (pKrb5CcFile.c_str () + 5, &attrib)) return 0;
+  clock = gmtime (&(attrib.st_mtime));     // Get the last modified time and put it into the time structure
+
+  return mktime (clock);
+}
+
+bool ProcReaderGsiIdentity::sInitOk =
+    ( (globus_module_activate(GLOBUS_OPENSSL_MODULE) == (int)GLOBUS_SUCCESS) &&
+    (globus_module_activate(GLOBUS_GSI_PROXY_MODULE) == (int)GLOBUS_SUCCESS) )
+    || (!eos_static_crit("error initializing GSI"));
+
+void ProcReaderGsiIdentity::StaticDestroy()
+{
+  if(sInitOk)
+  {
+    globus_module_deactivate(GLOBUS_OPENSSL_MODULE);
+    globus_module_activate(GLOBUS_GSI_PROXY_MODULE);
+  }
+}
+
+bool
+ProcReaderGsiIdentity::ReadIdentity (string &sidentity)
+{
+  globus_gsi_cred_handle_t proxy_cred = NULL;
+  X509_NAME * x509_identity = NULL;
+  char* identity = NULL;
+  char* identity2 = NULL;
+  BIO * mem = NULL;
+  bool result = false;
+
+  if (globus_gsi_cred_handle_init (&proxy_cred, NULL) != GLOBUS_SUCCESS)
+  {
+    eos_static_err("error initializing GSI credential handle");
+    goto cleanup;
+  }
+  if (globus_gsi_cred_read_proxy (proxy_cred, pGsiProxyFile.c_str ()) != GLOBUS_SUCCESS)
+  {
+    eos_static_err("error reading GSI proxy file %s",pGsiProxyFile.c_str());
+    goto cleanup;
+  }
+
+  if (false)
+  {
+    x509_identity = NULL;
+    mem = BIO_new (BIO_s_mem ());
+    size_t len;
+    if (globus_gsi_cred_get_X509_identity_name (proxy_cred, &x509_identity) != GLOBUS_SUCCESS)
+    {
+      eos_static_err( "\nERROR: Couldn't get a valid identity "
+	  "name from the proxy credential.\n");
+      goto cleanup;
+    }
+    if (X509_NAME_print_ex (mem, x509_identity, 0, XN_FLAG_RFC2253))
+    {
+      eos_static_err("error printing content of the x509_identity");
+      goto cleanup;
+    }
+    len = BIO_ctrl_pending (mem);
+    identity = new char[len + 1];
+    identity[len] = 0;
+    BIO_read (mem, identity, len);
+    sidentity = identity;
+  }
+  else
+  {
+    if (globus_gsi_cred_get_identity_name (proxy_cred, &identity2) != GLOBUS_SUCCESS)
+    {
+      eos_static_err("\nERROR: Couldn't get a valid identity "
+	  "name from the proxy credential.\n");
+      goto cleanup;
+    }
+    sidentity = identity2;
+  }
+
+  result = true;
+
+  cleanup: if (proxy_cred) globus_gsi_cred_handle_destroy (proxy_cred);
+  if (mem) BIO_free (mem);
+  if (x509_identity) X509_NAME_free (x509_identity);
+  if (identity) delete[] identity;
+  if (identity2) free (identity2);
+
+  return result;
+}
+
+time_t ProcReaderGsiIdentity::GetModifTime ()
+{
+  struct tm* clock;
+  struct stat attrib;
+  if (stat (pGsiProxyFile.c_str (), &attrib)) return 0;
   clock = gmtime (&(attrib.st_mtime));     // Get the last modified time and put it into the time structure
 
   return mktime (clock);
@@ -276,7 +381,7 @@ int ProcCacheEntry::UpdateIfKrb5Changed ()
 {
   if (!pEnv.count ("KRB5CCNAME") || pEnv["KRB5CCNAME"].substr (0, 5) != "FILE:")
   {
-    eos_static_err("could not get krb5 credential cache file location");
+    eos_static_debug("could not get krb5 credential cache file location");
     return EACCES;
   }
 
@@ -286,7 +391,7 @@ int ProcCacheEntry::UpdateIfKrb5Changed ()
 
   if (!krb5ModTime)
   {
-    eos_static_err("could not stat krb5 credential cache file %s", pEnv["KRB5CCNAME"].c_str ());
+    eos_static_debug("could not stat krb5 credential cache file %s", pEnv["KRB5CCNAME"].c_str ());
     return EACCES;
   }
 
@@ -295,6 +400,38 @@ int ProcCacheEntry::UpdateIfKrb5Changed ()
     if (pkrb.ReadUserName (pKrb5UserName))
     {
       pKrb5CcModTime = krb5ModTime;
+      return 0;
+    }
+
+    return EACCES;
+  }
+
+  return 0;
+}
+
+int ProcCacheEntry::UpdateIfGsiChanged()
+{
+  if (!pEnv.count ("X509_USER_PROXY"))
+  {
+    eos_static_debug("could not get GSI proxy file location");
+    return EACCES;
+  }
+
+  ProcReaderGsiIdentity pgsi (pEnv["X509_USER_PROXY"]);
+
+  time_t gsiModTime = pgsi.GetModifTime ();
+
+  if (!gsiModTime)
+  {
+    eos_static_debug("could not stat GSI proxy file %s", pEnv["X509_USER_PROXY"].c_str ());
+    return EACCES;
+  }
+
+  if (gsiModTime > pGsiProxyModTime)
+  {
+    if (pgsi.ReadIdentity(pGsiIdentity))
+    {
+      pGsiProxyModTime = gsiModTime;
       return 0;
     }
 

@@ -137,6 +137,27 @@ extern "C"
     int got_destroy;
   };
 
+  //------------------------------------------------------------------------------
+  // Lock
+  //------------------------------------------------------------------------------
+
+  void
+  xrd_lock_r_pcache (pid_t pid);
+
+  void
+  xrd_lock_w_pcache (pid_t pid);
+
+
+  //------------------------------------------------------------------------------
+  // Unlock
+  //------------------------------------------------------------------------------
+
+  void
+  xrd_unlock_r_pcache (pid_t pid);
+
+  void
+  xrd_unlock_w_pcache (pid_t pid);
+
   //----------------------------------------------------------------------------
   //                ******* Path translation *******
   //----------------------------------------------------------------------------
@@ -621,13 +642,13 @@ extern "C"
   //! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
   //! used in it
   //----------------------------------------------------------------------------
-  int update_proc_cache(pid_t pid);
+  int update_proc_cache(uid_t uid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Create the cgi argument to be added to the url to use the kerberos cc file
   //!   for the given pid. e.g. xrd.k5ccname=<krb5login>
   //----------------------------------------------------------------------------
-  const char* xrd_krb5_cgi (pid_t pid);
+  const char* xrd_strongauth_cgi (pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Create an URL

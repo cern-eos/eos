@@ -33,6 +33,7 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+#include <krb5.h>
 #include "common/Logging.hh"
 
 /*----------------------------------------------------------------------------*/
@@ -99,16 +100,18 @@ public:
 
 /*----------------------------------------------------------------------------*/
 /**
- * @brief Class to read the startup environment of a pid through proc files
+ * @brief Class to read the Krb5 login in a credential cache file
  *
  */
 /*----------------------------------------------------------------------------*/
 class ProcReaderKrb5UserName
 {
-  std::string pKrb5CcName;
+  std::string pKrb5CcFile;
+  static krb5_context sKcontext;
+  static bool sKcontextOk;
 public:
-  ProcReaderKrb5UserName (const std::string &krb5ccname) :
-      pKrb5CcName (krb5ccname)
+  ProcReaderKrb5UserName (const std::string &krb5ccfile) :
+      pKrb5CcFile (krb5ccfile)
   {
   }
   ~ProcReaderKrb5UserName ()
@@ -116,6 +119,30 @@ public:
   }
   bool ReadUserName (std::string &userName);
   time_t GetModifTime ();
+  static void StaticDestroy();
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Class to read the GSI identity in a GSI proxy file
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class ProcReaderGsiIdentity
+{
+  std::string pGsiProxyFile;
+  static bool sInitOk;
+public:
+  ProcReaderGsiIdentity (const std::string &gsiproxyfile) :
+	  pGsiProxyFile (gsiproxyfile)
+  {
+  }
+  ~ProcReaderGsiIdentity ()
+  {
+  }
+  bool ReadIdentity (std::string &sidentity);
+  time_t GetModifTime ();
+  static void StaticDestroy();
 };
 
 /*----------------------------------------------------------------------------*/
@@ -136,11 +163,14 @@ class ProcCacheEntry
   gid_t pFsGid;
   time_t pStartTime;
   time_t pKrb5CcModTime;
+  time_t pGsiProxyModTime;
   std::string pProcPrefix;
   std::map<std::string, std::string> pEnv;
   std::string pCmdLineStr;
   std::vector<std::string> pCmdLineVect;
   std::string pKrb5UserName;
+  std::string pGsiIdentity;
+  std::string pAuthMethod;
   mutable int pError;
   mutable std::string pErrMessage;
 
@@ -157,10 +187,14 @@ class ProcCacheEntry
   int
   UpdateIfKrb5Changed ();
 
+  //! return true if the GSI information is up-to-date after the call, false else
+  int
+  UpdateIfGsiChanged ();
+
 public:
 
   ProcCacheEntry (unsigned int pid) :
-      pPid (pid), pFsUid(-1), pFsGid(-1), pStartTime (0), pKrb5CcModTime (0), pError (0)
+      pPid (pid), pFsUid(-1), pFsGid(-1), pStartTime (0), pKrb5CcModTime (0), pGsiProxyModTime(0), pError (0)
   {
     std::stringstream ss;
     ss << "/proc/" << pPid;
@@ -194,6 +228,24 @@ public:
     eos::common::RWMutexReadLock lock (pMutex);
     if (pKrb5UserName.empty ()) return false;
     value = pKrb5UserName;
+    return true;
+  }
+
+  //
+  bool GetGsiIdentity (std::string &value) const
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    if (pGsiIdentity.empty ()) return false;
+    value = pGsiIdentity;
+    return true;
+  }
+
+  //
+  bool GetAuthMethod (std::string &value) const
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    if (pAuthMethod.empty ()) return false;
+    value = pAuthMethod;
     return true;
   }
 
@@ -275,7 +327,7 @@ public:
   }
 
   //! returns true if the cache has an up-to-date entry after the call
-  int InsertEntry (int pid, bool useKrb5)
+  int InsertEntry (int pid, bool useKrb5, bool useGsi, bool tryKrb5First=false)
   {
     int errCode;
 
@@ -285,8 +337,8 @@ public:
       eos::common::RWMutexWriteLock lock (pMutex);
       pCatalog[pid] = new ProcCacheEntry (pid);
     }
-
-    if ((errCode = GetEntry (pid)->UpdateIfPsChanged ()))
+    auto entry = GetEntry (pid);
+    if ((errCode = entry->UpdateIfPsChanged ()))
     {
       //eos_static_debug("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
@@ -295,16 +347,33 @@ public:
       return errCode;
     }
 
-    if (useKrb5 && (errCode = GetEntry (pid)->UpdateIfKrb5Changed ()))
+    // if we don't use any strong authentication, we're done
+    if(!useKrb5 && !useGsi)
+      return 0;
+
+    // we use at least one strong authentication method
+    auto tryFirst  = useGsi?&ProcCacheEntry::UpdateIfGsiChanged:NULL;
+    auto trySecond  = useKrb5?&ProcCacheEntry::UpdateIfKrb5Changed:NULL;
+    if(tryKrb5First) std::swap(tryFirst,trySecond);
+
+    if (tryFirst && (errCode=(entry ->* tryFirst)())==0)
     {
-      //eos_static_debug("something wrong happened in krb5 proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
+      entry->pAuthMethod = (tryFirst==&ProcCacheEntry::UpdateIfGsiChanged)?"gsi":"krb5";
+      return 0;
+    }
+    else if(trySecond && (errCode=(entry->*trySecond)())==0)
+    {
+      entry->pAuthMethod = (trySecond==&ProcCacheEntry::UpdateIfGsiChanged)?"gsi":"krb5";
+      return 0;
+    }
+    else // using strong authentication and failed
+    {
+      entry->pAuthMethod = "";
       eos::common::RWMutexWriteLock lock (pMutex);
       delete pCatalog[pid];
       pCatalog.erase (pid);
       return errCode;
     }
-
-    return 0;
   }
 
   //! returns true if the entry is removed after the call

@@ -56,6 +56,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <algorithm>
+#include <limits>
 /*----------------------------------------------------------------------------*/
 #include "FuseCache/FuseWriteCache.hh"
 #include "FuseCache/FileAbstraction.hh"
@@ -94,9 +95,14 @@ XrdSysMutex passwdstoremutex;
 XrdSysMutex stringstoremutex;
 XrdSysMutex environmentmutex;
 XrdSysMutex connectionIdMutex;
+std::vector<RWMutex> proccachemutexes;
+uint64_t pid_max;
+uint64_t uid_max;
 int connectionId = 0;
 
 bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
+bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
+bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
 int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
 std::string rm_command; ///< full path of the system rm command (e.g. "/bin/rm" )
 bool rm_watch_relpath; ///< indicated if the system rm command changes it CWD making relative path expansion impossible
@@ -141,6 +147,8 @@ STRINGSTORE (const char* __charptr__)
   }
 }
 
+const char* xrd_user_url (uid_t uid, gid_t gid, pid_t pid);
+const char* xrd_strongauth_cgi (pid_t pid);
 
 //------------------------------------------------------------------------------
 //             ******* Implementation Translations *******
@@ -175,6 +183,40 @@ xrd_unlock_r_p2i ()
 {
   mutex_inode_path.UnLockRead();
 }
+
+//------------------------------------------------------------------------------
+// Lock
+//------------------------------------------------------------------------------
+
+void
+xrd_lock_r_pcache (pid_t pid)
+{
+  proccachemutexes[pid].LockRead();
+}
+
+void
+xrd_lock_w_pcache (pid_t pid)
+{
+  proccachemutexes[pid].LockWrite();
+}
+
+
+//------------------------------------------------------------------------------
+// Unlock
+//------------------------------------------------------------------------------
+
+void
+xrd_unlock_r_pcache (pid_t pid)
+{
+  proccachemutexes[pid].UnLockRead();
+}
+
+void
+xrd_unlock_w_pcache (pid_t pid)
+{
+  proccachemutexes[pid].UnLockWrite();
+}
+
 
 
 //------------------------------------------------------------------------------
@@ -953,8 +995,8 @@ xrd_rmxattr (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
 
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
@@ -1024,8 +1066,8 @@ xrd_setxattr (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
 
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
@@ -1091,9 +1133,9 @@ xrd_getxattr (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1171,9 +1213,9 @@ xrd_listxattr (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1297,8 +1339,8 @@ xrd_stat (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
   eos_static_debug("stat url is %s",surl.c_str());
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
@@ -1448,9 +1490,9 @@ xrd_statfs (const char* path, struct statvfs* stbuf,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1536,9 +1578,9 @@ xrd_chmod (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1642,9 +1684,9 @@ xrd_utimes (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1707,9 +1749,9 @@ xrd_access (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -1778,8 +1820,8 @@ xrd_inodirlist (unsigned long long dirinode,
   }
 
   // add the kerberos token
-  if(use_user_krb5cc && fuse_shared) request += '&';
-  request += xrd_krb5_cgi(pid);
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) request += '&';
+  request += xrd_strongauth_cgi(pid);
 
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
   request.insert(0, xrd_user_url(uid, gid, pid));
@@ -1908,9 +1950,9 @@ xrd_readdir (const char* path_dir, size_t *size,
   string path_str = path_dir;
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.DirList(path_str, flags, response);
 
@@ -1979,9 +2021,9 @@ xrd_mkdir (const char* path,
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -2087,9 +2129,9 @@ xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
 
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.RmDir(path);
 
@@ -2223,8 +2265,8 @@ xrd_open (const char* path,
       spath.replace("/proc/whoami", "/proc/user/");
       //spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-      spath += xrd_krb5_cgi(pid);
-      if(use_user_krb5cc && fuse_shared) spath += '&';
+      spath += xrd_strongauth_cgi(pid);
+      if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
@@ -2251,8 +2293,8 @@ xrd_open (const char* path,
       spath.replace("/proc/who", "/proc/user/");
       //spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-      spath += xrd_krb5_cgi(pid);
-      if(use_user_krb5cc && fuse_shared) spath += '&';
+      spath += xrd_strongauth_cgi(pid);
+      if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
@@ -2278,8 +2320,8 @@ xrd_open (const char* path,
       spath.replace("/proc/quota", "/proc/user/");
       //spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       spath += '?';
-      spath += xrd_krb5_cgi(pid);
-      if(use_user_krb5cc && fuse_shared) spath += '&';
+      spath += xrd_strongauth_cgi(pid);
+      if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                          eos::common::LayoutId::kXrdCl);
@@ -2321,9 +2363,9 @@ xrd_open (const char* path,
     arg.FromString(request);
 
     std::string surl=xrd_user_url(uid, gid, pid);
-    if(use_user_krb5cc && fuse_shared) surl += '?';
-    surl += xrd_krb5_cgi(pid);
-    XrdCl::URL Url(surl.c_str());
+    if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+    surl += xrd_strongauth_cgi(pid);
+    XrdCl::URL Url(surl);
     XrdCl::FileSystem fs(Url);
     status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
@@ -2702,9 +2744,9 @@ xrd_unlink (const char* path,
 {
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Rm(path);
 
@@ -2733,9 +2775,9 @@ xrd_rename (const char* oldpath,
   sOldPath.replace(" ","#space#");
   sNewPath.replace(" ","#space#");
   std::string surl=xrd_user_url(uid, gid, pid);
-  if(use_user_krb5cc && fuse_shared) surl += '?';
-  surl += xrd_krb5_cgi(pid);
-  XrdCl::URL Url(surl.c_str());
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
+  surl += xrd_strongauth_cgi(pid);
+  XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
 
@@ -2744,7 +2786,6 @@ xrd_rename (const char* oldpath,
   else
     return 0;
 }
-
 
 //------------------------------------------------------------------------------
 // Get user name from the uid and change the effective user ID of the thread
@@ -2781,39 +2822,180 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
   return STRINGSTORE(sid.c_str());
 }
 
-int update_proc_cache (pid_t pid)
+//------------------------------------------------------------------------------
+// Helper structure to get the xrootd login from uid and authid when using secured authentication
+// each user can use up to 4096 different ids simultaneously (krb5 and gsi cummulated)
+//------------------------------------------------------------------------------
+struct map_user
 {
-  int errCode;
-  if ( (errCode=proccache_InsertEntry (pid, use_user_krb5cc?1:0)) ) 
+  uid_t uid;
+  uint16_t authid;
+  // first 6 bytes for user id (in uuencode , it covers the range of uint32_t)
+  // 2 following bytes for authid (in uuencode , it provides 4096 possible authid per user)
+  // the final byte is NULL to get a c string termination
+  char base64buf[9];
+  bool base64computed;
+  static const char base64digits[];
+
+  map_user (uid_t _uid, uint32_t _authid) :
+      uid (_uid), authid(_authid), base64computed(false)
   {
-    eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid,errCode);
+  }
+
+  char*
+  base64 ()
+  {
+    if (!base64computed)
+    {
+      auto luid = uid;
+      auto laid = authid & 0xfff; // restict to 12 bits (2base64 digits)
+      // encode uid
+      for (int pos = 5; pos >= 0; pos--)
+      {
+	base64buf[pos] = base64digits[luid & 0x3f];
+	luid >>= 6;
+      }
+      // encode auhtid
+      for (int pos = 7; pos >= 6; pos--)
+      {
+	base64buf[pos] = base64digits[laid & 0x3f];
+	laid >>= 6;
+      }
+      base64buf[8]=0;
+      base64computed = true;
+    }
+    return base64buf;
+  }
+};
+
+//------------------------------------------------------------------------------
+// Alphabet used in the base64 encoding of the xrd login
+//------------------------------------------------------------------------------
+const char map_user::base64digits[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+//------------------------------------------------------------------------------
+// Class in charge of managing the xroot login (i.e. xroot connection)
+// logins are 8 characters long : ABgE73AA23@myrootserver
+// it's base 64 , first 6 are userid and 2 lasts are authid
+// authid is an idx a pool of identities for the specified user
+// if the user comes with a new identity, it's added the pool
+// if the identity is already in the pool, the connection is reused
+// identity are NEVER removed from the pool
+// for a given identity, the SAME conneciton is ALWAYS reused
+//------------------------------------------------------------------------------
+class AuthIdManager
+{
+  friend void xrd_init (); // to allow the sizing of pid2StrongLogin
+  // mutex protecting the maps
+  RWMutex pMutex;
+  // maps userid -> ( identity -> authid ) , identity being krb5:<some_identity> or gsi:<some_identity>
+  // several threads (each from different process) might concurrently access this
+  std::map<uid_t, std::map<std::string, uint32_t> > uid2IdenAuthid;
+  // maps procid -> xrootd_login
+  // only one thread per process will access this (protected by one mutex per process)
+  std::vector<std::string> pid2StrongLogin;
+
+public:
+  int
+  updateProcCache (uid_t uid, pid_t pid)
+  {
+    // when entering this function proccachemutexes[pid] must be write locked
+    int errCode;
+    if ((errCode = proccache_InsertEntry (pid, use_user_krb5cc ? 1 : 0, use_user_gsiproxy ? 1 : 0, tryKrb5First ? 1 : 0)))
+    {
+      eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
+      return errCode;
+    }
+    if (use_user_krb5cc || use_user_gsiproxy)
+    {
+      char buffer[1024];
+      proccache_GetAuthMethod (pid, buffer, 1024);
+      // at this point, authmethod cannot be empty because the update would have returned an error
+      std::string sAuthMeth (buffer);
+      if (sAuthMeth == "krb5")
+	proccache_GetKrb5UserName (pid, buffer, 1024);
+      else if (sAuthMeth == "gsi")
+	proccache_GetGsiIdentity (pid, buffer, 1024);
+      else
+      {
+	eos_static_err("authentication method value [%s] not expected should be [krb5] or [gsi].", sAuthMeth.c_str ());
+	return EACCES;
+      }
+      std::string sId (sAuthMeth + ":" + buffer);
+      uint32_t authid;
+      // update uid2IdenAuthid
+      {
+	eos::common::RWMutexWriteLock lock (pMutex);
+	// this will create the entry in uid2IdenAuthid if it does not exist already
+	auto &uidEntry = uid2IdenAuthid[uid];
+	if (uidEntry.count (sId))
+	  authid = uidEntry[sId]; // if this identity already has an authid , use it
+	else
+	{
+	  uint32_t newauthid = uidEntry.size ();
+	  if(newauthid==std::numeric_limits<uint32_t>::max())
+	  {
+	    eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
+		,(int)uid,sId.c_str());
+	    return EACCES;
+	  }
+	  authid = (uidEntry[sId] = newauthid); // create a new authid if this id is not registered yet
+	}
+      }
+      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
+      map_user xrdlogin (uid, authid);
+      pid2StrongLogin[pid] = std::string (xrdlogin.base64 ());
+      eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
+		       pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
+    }
+    if (LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)
+    {
+      uid_t _uid;
+      gid_t _gid;
+      char cmd[512], klogin[512], gsiid[512], authmet[16];
+      cmd[0] = klogin[0] = gsiid[0] = authmet[0] = 0;
+      proccache_GetArgsStr (pid, cmd, 512);
+      proccache_GetKrb5UserName (pid, klogin, 512);
+      proccache_GetGsiIdentity (pid, gsiid, 512);
+      proccache_GetAuthMethod (pid, authmet, 16);
+      proccache_GetFsUidGid (pid, &_uid, &_gid);
+      eos_static_debug("proccache update for pid %d   =>   || cmd=\"%s\" | fsuid=%d | fsgid=%d | klogin=%s | gsiid=%s | auth=%s||",
+		       (int )pid, cmd, (int )_uid, (int )_gid, klogin, gsiid, authmet);
+    }
     return errCode;
   }
 
-  if (LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)
+  std::string
+  getXrdLogin (pid_t pid)
   {
-    uid_t _uid;
-    gid_t _gid;
-    char cmd[512], klogin[512];
-    proccache_GetArgsStr (pid, cmd, 512);
-    proccache_GetKrb5UserName (pid, klogin, 512);
-    proccache_GetFsUidGid (pid, &_uid, &_gid);
-    eos_static_debug(
-        "PROCCACHE UPDATE FOR PID=%d   =>   || cmd=\"%s\" | fsuid=%d | fsgid=%d | klogin=%s ||",
-        (int )pid, cmd, (int )_uid, (int )_gid, klogin);
+    eos::common::RWMutexReadLock lock (proccachemutexes[pid]);
+    return pid2StrongLogin[pid];
   }
-  return errCode;
+};
+
+AuthIdManager authidmanager;
+
+int update_proc_cache (uid_t uid, pid_t pid)
+{
+  return authidmanager.updateProcCache(uid,pid);
 }
 
-const char* xrd_krb5_cgi (pid_t pid)
+const char* xrd_strongauth_cgi (pid_t pid)
 {
   XrdOucString str = "";
 
-  if (fuse_shared && use_user_krb5cc)
+  if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy))
   {
     char buffer[256];
-    if(!proccache_GetEnv(pid,"KRB5CCNAME",buffer,256))
+    proccache_GetAuthMethod(pid,buffer,256);
+    std::string authmet(buffer);
+    if (authmet.compare (0, 4, "krb5") == 0)
     {
+      if (proccache_GetEnv (pid, "KRB5CCNAME", buffer, 256))
+      {
+	eos_static_err("KRB5CCNAME is not defined");
+	goto bye;
+      }
       if(strlen(buffer)>5 && !strncmp("FILE:",buffer,5))
       {
         str += "xrd.k5ccname=";
@@ -2823,15 +3005,29 @@ const char* xrd_krb5_cgi (pid_t pid)
       else
       {
         eos_static_err("cannot handle KRB5CCNAME=%s",buffer);
+	goto bye;
       }
     }
+    else if (authmet.compare (0, 3, "gsi") == 0)
+    {
+      if (proccache_GetEnv (pid, "X509_USER_PROXY", buffer, 256))
+      {
+	eos_static_err("X509_USER_PROXY is not defined");
+	goto bye;
+      }
+      str += "xrd.gsiusrpxy=";
+      str += buffer;
+      str += "&xrd.wantprot=gsi";
+    }
     else
-      eos_static_err("KRB5CCNAME not defined");
+    {
+      eos_static_err("don't know what to do with qualifiedid [%s]", authmet.c_str ());
+      goto bye;
+    }
   }
 
-  eos_static_debug("pid=%lu sep=%s",
-                   (unsigned long) pid, str.c_str());
-
+  bye:
+  eos_static_debug("pid=%lu sep=%s", (unsigned long ) pid, str.c_str ());
   return STRINGSTORE(str.c_str());
 }
 
@@ -2840,26 +3036,16 @@ const char* xrd_krb5_cgi (pid_t pid)
 // - if we are a user private mount we don't need to specify that
 //------------------------------------------------------------------------------
 const char*
-xrd_user_url (uid_t uid,
-              gid_t gid,
-              pid_t pid)
+xrd_user_url (uid_t uid, gid_t gid, pid_t pid)
 {
-  XrdOucString url = "root://";
+  std::string url = "root://";
 
   if (fuse_shared)
   {
-    if (use_user_krb5cc)
+    if (use_user_krb5cc || use_user_gsiproxy)
     {
-      char buffer[256];
-      if(proccache_GetKrb5UserName(pid,buffer,256))
-      {
-        eos_static_err("error retrieving kerberos user name");
-      }
-      else
-      {
-        url += buffer;
+      url += authidmanager.getXrdLogin(pid);
         url += "@";
-      }
     }
     else
     {
@@ -3355,11 +3541,65 @@ xrd_init ()
     }
   }
 
-  // Get the the shared access mode
+  // Get parameters about strong authentication
   if (getenv("EOS_FUSE_USER_KRB5CC") && (atoi(getenv("EOS_FUSE_USER_KRB5CC"))==1) )
     use_user_krb5cc = true;
   else
     use_user_krb5cc = false;
+  if (getenv("EOS_FUSE_USER_GSIPROXY") && (atoi(getenv("EOS_FUSE_USER_GSIPROXY"))==1) )
+    use_user_gsiproxy = true;
+  else
+    use_user_gsiproxy = false;
+  if (getenv("EOS_FUSE_USER_KRB5FIRST") && (atoi(getenv("EOS_FUSE_USER_KRB5FIRST"))==1) )
+    tryKrb5First= true;
+  else
+    tryKrb5First = false;
+
+  // get uid and pid specificities of the system
+  {
+    FILE *f = fopen ("/proc/sys/kernel/pid_max", "r");
+    if (f && fscanf (f, "%lu", &pid_max))
+      eos_static_notice("pid_max is %llu", pid_max);
+    else
+    {
+      eos_static_err("could not read pid_max in /proc/sys/kernel/pid_max. defaulting to 32767");
+      pid_max = 32767;
+    }
+    if(f) fclose (f);
+    f = fopen ("/etc/login.defs", "r");
+    char line[4096];
+    line[0]='\0';
+    uid_max = 0;
+    while (f && fgets (line, sizeof(line), f))
+    {
+      if(line[0]=='#') continue; //commented line on the first character
+      auto keyword = strstr(line,"UID_MAX");
+      if(!keyword) continue;
+      auto comment_tag = strstr(line,"#");
+      if(comment_tag && comment_tag<keyword) continue; // commented line with the keyword
+      char buffer[4096];
+      if(sscanf(line,"%s %lu",buffer,&uid_max)!=2)
+      {
+	eos_static_err("could not parse line %s in /etc/login.defs",line);
+	uid_max = 0;
+	continue;
+      }
+      else
+	break;
+    }
+    if(uid_max)
+    {
+      eos_static_notice("uid_max is %llu",uid_max);
+    }
+    else
+    {
+      eos_static_err("could not read uid_max value in /etc/login.defs. defaulting to 65535");
+      uid_max = 65535;
+    }
+    if (f) fclose (f);
+  }
+  proccachemutexes.resize(pid_max+1);
+  authidmanager.pid2StrongLogin.resize(pid_max+1);
 
   eos_static_notice("krb5=%d",use_user_krb5cc?1:0);
 

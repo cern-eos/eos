@@ -25,6 +25,9 @@
 
 using namespace std;
 
+bool useKrb5 = true;
+bool useGsi  = true;
+
 int main ()
 {
   ProcCache pc;
@@ -74,7 +77,7 @@ int main ()
     COMMONTIMING("START", &tm);
     for (int i = 0; i < niter; i++)
     {
-      if (pc.InsertEntry (pid,false))
+      if (pc.InsertEntry (pid,useKrb5,useGsi))
       {
         cout << "Failed to insert entry for self pid" << endl;
         return 1;
@@ -106,7 +109,7 @@ int main ()
   {
     eos::common::Timing tm ("Without timestamp");
     COMMONTIMING("START", &tm);
-    if (pc.InsertEntry (pid,false))
+    if (pc.InsertEntry (pid,useKrb5,useGsi))
     {
       cout << "Failed to insert entry for self pid" << endl;
       return 1;

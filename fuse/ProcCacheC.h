@@ -37,7 +37,7 @@ extern "C"
 
 //! returns 0 if the cache has an up-to-date entry after the call.
 //! returns 1 if the proccache does not have an entry for the given pid
-  int proccache_InsertEntry (int pid, int useKrb5);
+  int proccache_InsertEntry (int pid, int useKrb5, int useGsi, int tryKrb5First);
 
 //! returns 0 if the entry is removed after the call
 //! returns 1 if the proccache does not have an entry for the given pid
@@ -54,6 +54,18 @@ extern "C"
 //! returns 2 if the kerberos user name could not be retrieved
 //! returns 3 if the buffer is too short to write the value of kerberos user name
   int proccache_GetKrb5UserName (int pid, char *buffer, size_t bufsize);
+
+//! returns 0 if the gsi identity name if the value of the env variable was written in the buffer
+//! returns 1 if the proccache does not have an entry for the given pid
+//! returns 2 if the gsi identity name could not be retrieved
+//! returns 3 if the buffer is too short to write the value of kerberos user name
+  int proccache_GetGsiIdentity (int pid, char *buffer, size_t bufsize);
+
+//! returns 0 if the authentication method was written in the buffer
+//! returns 1 if the proccache does not have an entry for the given pid
+//! returns 2 if the authentication method could not be retrieved
+//! returns 3 if the buffer is too short to write the value of kerberos user name
+  int proccache_GetAuthMethod (int pid, char *buffer, size_t bufsize);
 
 //! returns 0 if the fsuid and the fsgid were written to the pointees passed in argument
 //! returns 1 if the proccache does not have an entry for the given pid
