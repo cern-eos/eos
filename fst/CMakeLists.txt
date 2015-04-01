@@ -89,6 +89,7 @@ target_link_libraries(  EosFstIo-Static
                         ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}                  
 )
+add_dependencies(EosFstIo-Static kinetic_cpp_client)
 
 add_library( EosFstIo SHARED
                 io/FileIoPlugin.hh             io/FileIoPlugin.cc
@@ -130,6 +131,7 @@ target_link_libraries(  EosFstIo
                         ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
+add_dependencies(EosFstIo kinetic_cpp_client)
 
 if (CLIENT)
 add_library(XrdEosFst SHARED
@@ -183,7 +185,7 @@ add_library(XrdEosFst SHARED
             layout/jerasure/galois.cc	        layout/jerasure/galois.hh
             layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
-
+add_dependencies(XrdEosFst kinetic_cpp_client)
 
 target_link_libraries(  XrdEosFst 
                         eosCommon
@@ -245,10 +247,10 @@ add_library(XrdEosFst MODULE
             layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
             layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
             layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
-            layout/jerasure/galois.cc	        layout/jerasure/galois.hh
+            layout/jerasure/galois.cc	       layout/jerasure/galois.hh
             layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
-
+add_dependencies(XrdEosFst kinetic_cpp_client)
 
 target_link_libraries(  XrdEosFst 
                         eosCommon
@@ -296,6 +298,7 @@ add_executable( eos-scan-fs
                 checksum/crc32ctables.cc
                 Load.cc 
 )
+add_dependencies(eos-scan-fs kinetic_cpp_client)
 
 
 add_executable( eos-adler32
@@ -321,7 +324,7 @@ set_target_properties( eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1 )
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${KINETIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
 
 if (MacOSX)

@@ -60,7 +60,7 @@ public:
   // For now just using a single connection. In the future, get a cluster description and
   // connection map (shared across objects) and decide on the appropriate connection(s) in
   // here.
-  explicit KineticIo (ConnectionPointer connection=nullptr, size_t cache_capacity=10);
+  explicit KineticIo (ConnectionPointer connection, size_t cache_capacity=10);
   ~KineticIo ();
 
 private:

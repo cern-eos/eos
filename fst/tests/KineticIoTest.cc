@@ -1,6 +1,54 @@
 #include "catch.hpp"
 #include "fst/io/KineticIo.hh"
 
+SCENARIO("KineticIo handles incorrect input.", "[KineticIo]"){
+    
+    GIVEN("An empty KineticIo object created with a nullpointer connection"){
+        eos::fst::KineticIo kio(nullptr);
+        THEN("All operations fail with ENXIO error code"){
+            char buffer[64];
+            REQUIRE(kio.Open("path", SFS_O_CREAT) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Read(0,buffer,64) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.ReadAsync(0,buffer,64) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Write(0,buffer,64) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.WriteAsync(0,buffer,64) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Truncate(0) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Fallocate(64) == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Remove() == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Sync() == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            REQUIRE(kio.Close() == SFS_ERROR);
+            REQUIRE(errno == ENXIO);
+            
+            struct statfs sfs;
+            REQUIRE(kio.Statfs("path", &sfs) == ENXIO);
+        }
+        THEN("Encapsulated attr functions fail"){
+            eos::fst::KineticIo::Attr a ("path", kio);
+            char buffer[64]; size_t size;
+            REQUIRE(a.Get("name",buffer,size) == false);
+            REQUIRE(a.Set("name",buffer,size) == false);
+        }
+        
+    }
+}
 
 SCENARIO("KineticIo public API test.", "[KineticIo]"){
 

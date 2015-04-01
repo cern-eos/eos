@@ -119,15 +119,18 @@ ExternalProject_add(
     GIT_REPOSITORY https://github.com/Seagate/kinetic-cpp-client
     GIT_TAG cmake-BUILD_PROTO
     CMAKE_ARGS -DBUILD_PROTO=OFF
+    UPDATE_COMMAND ""
     INSTALL_COMMAND ""
 )
 
-find_library(GLOG glog)
-find_library(GFLAGS gflags)
+find_library(GLOG_LIBRARIES glog)
+find_library(GFLAGS_LIBRARIES gflags)
 
 ExternalProject_Get_Property(kinetic_cpp_client binary_dir)
 set(KINETIC_LIBRARIES ${binary_dir}/libkinetic_client.a
-    ${GLOG} ${GFLAGS} protobuf ssl crypto uuid)
+    ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} 
+    ${PROTOBUF_LIBRARIES} ${UUID_LIBRARIES}
+    ${OPENSSL_LIBRARIES})
 ExternalProject_Get_Property(kinetic_cpp_client source_dir)
 set(KINETIC_INCLUDE_DIR  ${source_dir}/include
                          ${source_dir}/src/main/generated)

@@ -74,6 +74,10 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
 int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer,
 		XrdSfsXferSize length, uint16_t timeout)
 {
+    	if(!connection){
+                errno = ENXIO;
+                return SFS_ERROR;
+	}
 	shared_ptr<KineticChunk> chunk;
 	int length_todo = length;
 	int offset_done = 0;
@@ -98,6 +102,10 @@ int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer,
 
 int64_t KineticIo::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout)
 {
+    	if(!connection){
+                errno = ENXIO;
+                return SFS_ERROR;
+	}
 	shared_ptr<KineticChunk> chunk;
 	int length_todo = length;
 	int offset_done = 0;
@@ -139,6 +147,10 @@ int64_t KineticIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer, XrdS
 
 int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
+    	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
 	shared_ptr<KineticChunk> chunk;
 	int chunk_number = offset / KineticChunk::capacity;
 	int chunk_offset = offset - chunk_number * KineticChunk::capacity;
@@ -154,18 +166,30 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 
 int KineticIo::Fallocate (XrdSfsFileOffset lenght)
 {
+    	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
 	// TODO: handle quota here
-	return true;
+	return SFS_OK;
 }
 
 int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
+    	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
 	// TODO: handle quota here
-	return true;
+	return SFS_OK;
 }
 
 int KineticIo::Remove (uint16_t timeout)
 {
+    	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
 	cache.clear();
 	cache_fifo = std::queue<int>();
 
@@ -188,6 +212,10 @@ int KineticIo::Remove (uint16_t timeout)
 
 int KineticIo::Sync (uint16_t timeout)
 {
+    	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
 	for (auto it=cache.begin(); it!=cache.end(); ++it){
 		if(it->second->dirty()){
 			errno = it->second->flush();
@@ -204,6 +232,10 @@ int KineticIo::Close (uint16_t timeout)
 
 int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 {
+    	if(!connection){
+		errno = ENXIO;
+		return SFS_ERROR;
+	}
 	errno = Sync(timeout);
 	if(errno) return SFS_ERROR;
 
@@ -227,7 +259,7 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 	buf->st_blocks = chunk_number+1;
 	buf->st_size = chunk_number * KineticChunk::capacity + record->value()->size();
 
-	return 0;
+	return SFS_OK;
 }
 
 void* KineticIo::GetAsyncHandler ()
@@ -238,33 +270,36 @@ void* KineticIo::GetAsyncHandler ()
 
 int KineticIo::Statfs (const char* path, struct statfs* sfs)
 {
-   unique_ptr<kinetic::DriveLog> log;
-   vector<kinetic::Command_GetLog_Type> types;
-   types.push_back(kinetic::Command_GetLog_Type::Command_GetLog_Type_CAPACITIES);
+    if(!connection)
+        return ENXIO;
+    
+    unique_ptr<kinetic::DriveLog> log;
+    vector<kinetic::Command_GetLog_Type> types;
+    types.push_back(kinetic::Command_GetLog_Type::Command_GetLog_Type_CAPACITIES);
 
-   KineticStatus status = connection->GetLog(types,log);
-   if(!status.ok())
-       return EIO;
- 
-   long capacity = log->capacity.nominal_capacity_in_bytes;
-   long free     = capacity - (capacity * log->capacity.portion_full); 
-   
-    sfs->f_frsize = 4096; /* Minimal allocated block size. Set to 4K because that's the maximum accepted value. */
-    sfs->f_bsize  = KineticChunk::capacity; /* Preferred file system block size for I/O requests */
-    sfs->f_blocks = (fsblkcnt_t) (capacity / sfs->f_frsize); /* Blocks on FS in units of f_frsize */
-    sfs->f_bavail = (fsblkcnt_t) (free / sfs->f_frsize); /* Free blocks */
-    sfs->f_bfree  = sfs->f_bavail; /* Free blocks available to non root user */
-    sfs->f_files   = capacity / KineticChunk::capacity; /* Total inodes */
-    sfs->f_ffree   = free / KineticChunk::capacity ; /* Free inodes */
+    KineticStatus status = connection->GetLog(types,log);
+    if(!status.ok())
+        return EIO;
 
-   return 0;
+    long capacity = log->capacity.nominal_capacity_in_bytes;
+    long free     = capacity - (capacity * log->capacity.portion_full); 
+  
+     sfs->f_frsize = 4096; /* Minimal allocated block size. Set to 4K because that's the maximum accepted value. */
+     sfs->f_bsize  = KineticChunk::capacity; /* Preferred file system block size for I/O requests */
+     sfs->f_blocks = (fsblkcnt_t) (capacity / sfs->f_frsize); /* Blocks on FS in units of f_frsize */
+     sfs->f_bavail = (fsblkcnt_t) (free / sfs->f_frsize); /* Free blocks */
+     sfs->f_bfree  = sfs->f_bavail; /* Free blocks available to non root user */
+     sfs->f_files   = capacity / KineticChunk::capacity; /* Total inodes */
+     sfs->f_ffree   = free / KineticChunk::capacity ; /* Free inodes */
+
+    return 0;
 }
 
 
 
 
 
-KineticIo::Attr::Attr(const char* path, KineticIo& parent) : kio(parent)
+KineticIo::Attr::Attr( const char* path, KineticIo& kio) : FileIo::Attr(path), kio(kio)
 {}
 
 KineticIo::Attr::~Attr()
@@ -272,6 +307,8 @@ KineticIo::Attr::~Attr()
 
 bool KineticIo::Attr::Get(const char* name, char* value, size_t& size)
 {
+    if(!kio.connection)
+        return false;
     unique_ptr<KineticRecord> record;
     KineticStatus status = kio.connection->Get(kio.path+"_"+name,record);
     if(!status.ok())
@@ -293,10 +330,12 @@ string KineticIo::Attr::Get(string name)
 
 bool KineticIo::Attr::Set(const char * name, const char * value, size_t size)
 {
+        if(!kio.connection)
+            return false;
 	KineticRecord record(string(value, size), "", "", Command_Algorithm_SHA1);
 	KineticStatus status = kio.connection->Put(kio.path+"_"+name, "", WriteMode::IGNORE_VERSION, record);
 	if(!status.ok())
-		return false;
+            return false;
 	return true;
 }
 
