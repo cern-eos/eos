@@ -96,6 +96,45 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Disable multithreading in FUSE (default on)
 #export EOS_FUSE_NO_MT=1
 
+# Disable using access for access permission check (default on)
+# export EOS_FUSE_NOACCESS=0
+
+# Disable to use the kernel cache (default on)
+# export EOS_FUSE_KERNELCACHE=0
+
+# Bypass the buffercache for write - avoids 4k chopping of IO (default off)
+# (this is not what people understand under O_DIRECT !!!!
+# export EOS_FUSE_DIRECTIO=1
+
+# Disable the write-back cache (default on)
+# export EOS_FUSE_CACHE=0
+
+# Set the write-back cache size (default 300M)
+# export EOS_FUSE_CACHE_SIZE=0
+
+# Use the FUSE big write feature ( FUSE >=2.8 ) (default off)
+# export EOS_FUSE_BIGWRITES=1
+
+# Mount all files with 'x' bit to be able to run as an executable (default off)
+# export EOS_FUSE_EXEC=1
+
+# Enable protection against recursive deletion (rm -r command) 
+#    starting from the root of the mount (if 1)
+#    or from any of its sub directories at a maximum depth (if >1) (default 1)
+# EOS_FUSE_RMLVL_PROTECT=1
+   
+# Enable Kerberos authentication. This avoid need to set gateways on the mgm. 
+#    file cache credential should be used. (default 0)
+# EOS_FUSE_USER_KRB5CC=0
+
+# Enable X509 GSI authentication. This avoid need to set gateways on the mgm. 
+#    file user proxy should be used. (default 0)
+# EOS_FUSE_USER_GSIPROXY=0
+
+# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
+#    (default 0)
+# EOS_FUSE_USER_KRB5FIRST=0
+
 # ------------------------------------------------------------------
 # HTTPD Configuration
 # ------------------------------------------------------------------
