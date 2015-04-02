@@ -186,12 +186,12 @@ class ProcCacheEntry
   //! return true if the kerberos information is up-to-date after the call, false else
   int
   UpdateIfKrb5Changed ();
-  bool ResolveKrb5CcFile();
+  int ResolveKrb5CcFile();
 
   //! return true if the GSI information is up-to-date after the call, false else
   int
   UpdateIfGsiChanged ();
-  bool ResolveGsiProxyFile();
+  int ResolveGsiProxyFile();
 
 public:
 
@@ -363,35 +363,42 @@ public:
       bool userWantsKrb5 = (!userAuth.empty ()) && !userAuth.compare (0, 5, "krb5:");
       auto tryFirst = useGsi ? &ProcCacheEntry::ResolveGsiProxyFile : NULL;
       auto trySecond = useKrb5 ? &ProcCacheEntry::ResolveKrb5CcFile : NULL;
+      int retc=0;
       if (tryKrb5First || userWantsKrb5) std::swap (tryFirst, trySecond);
 
-      if (tryFirst && (entry->*tryFirst) ())
+      if (tryFirst && (retc=(entry->*tryFirst)())==1)
       {
 	// sucessfully parsed on first try
+	return 0;
       }
-      else if (trySecond && (entry->*trySecond) ())
+      if (trySecond && (retc==0) && (retc=(entry->*trySecond)())==1)
       {
+	// try second method only if first one failed on seomthing else that EOS_FUSE_AUTH
 	// sucessfully parsed on second try
+	return 0;
       }
       else // using strong authentication and failed
       {
 	entry->pAuthMethod = "none";
 	eos_static_debug("strong authentication enabled but could not resolve any identity");
 	// no identity could be parsed;
+	return EACCES;
       }
-    }
-
-    if(entry->pAuthMethod.compare(0,5,"krb5:")==0)
-    {
-      entry->UpdateIfKrb5Changed();
-    }
-    else if (entry->pAuthMethod.compare(0,4,"gsi:")==0)
-    {
-      entry->UpdateIfGsiChanged();
     }
     else
     {
-      return EACCES;
+      if (entry->pAuthMethod.compare (0, 5, "krb5:") == 0)
+      {
+	entry->UpdateIfKrb5Changed ();
+      }
+      else if (entry->pAuthMethod.compare (0, 4, "gsi:") == 0)
+      {
+	entry->UpdateIfGsiChanged ();
+      }
+      else
+      {
+	return EACCES;
+      }
     }
     return 0;
   }

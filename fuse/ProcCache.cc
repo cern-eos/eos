@@ -377,26 +377,54 @@ int ProcCacheEntry::UpdateIfPsChanged ()
   }
 }
 
-bool ProcCacheEntry::ResolveKrb5CcFile()
+int ProcCacheEntry::ResolveKrb5CcFile()
 {
   std::string proxyfile;
   if (pEnv.count ("EOS_FUSE_AUTH") && pEnv["EOS_FUSE_AUTH"].substr (0, 5) == "krb5:")
   {
     proxyfile=pEnv["EOS_FUSE_AUTH"].substr (5, std::string::npos);
-    eos_static_debug("using EOS_FUSE_AUTH krb5 cc file %s",proxyfile.c_str());
+    pKrb5CcModTime = 0;
+    pAuthMethod = "krb5:"+proxyfile;
+    if(UpdateIfKrb5Changed()==0)
+    {
+      eos_static_debug("using EOS_FUSE_AUTH krb5 cc file %s",proxyfile.c_str());
+      return 1; // resolve ok
+    }
+    pKrb5CcModTime = 0;
+    pAuthMethod.clear();
+    return -1; // resolve ok but bad credential for user defined, stop it!
   }
-  else if (pEnv.count ("KRB5CCNAME"))
+  if (pEnv.count ("KRB5CCNAME"))
   {
-    proxyfile=pEnv["KRB5CCNAME"];
-    eos_static_debug("using KRB5CCNAME krb5 cc file %s",proxyfile.c_str());
+    proxyfile = pEnv["KRB5CCNAME"].substr (4, std::string::npos);
+    pKrb5CcModTime = 0;
+    pAuthMethod = "krb5:"+proxyfile;
+    if (UpdateIfKrb5Changed()==0)
+    {
+      eos_static_debug("using KRB5CCNAME krb5 cc file %s",proxyfile.c_str());
+      return 1; // resolve ok
+    }
+    pKrb5CcModTime = 0;
+    pAuthMethod.clear();
+    return 0; // resolve ok but bad credential, try next authentication
   }
-  else
+  // try default location
   {
+    char buffer[64];
+    snprintf(buffer,64,"FILE:/tmp/krb5cc_%d",(int)pFsUid);
+    proxyfile = buffer;
+    pKrb5CcModTime= 0;
+    pAuthMethod = "krb5:"+proxyfile;
+    if (UpdateIfKrb5Changed() == 0)
+    {
+      eos_static_debug("using default krb5 cc file %s", proxyfile.c_str ());
+      return 1; // resolve ok
+    }
+    pKrb5CcModTime = 0;
+    pAuthMethod.clear();
     eos_static_debug("could not get krb5 CC file location : assume that user does NOT want to use krb5");
-    return false;
+    return 0; // not resolved, try next authentication
   }
-  pAuthMethod = "krb5:"+proxyfile;
-  return true;
 }
 
 int ProcCacheEntry::UpdateIfKrb5Changed ()
@@ -431,26 +459,54 @@ int ProcCacheEntry::UpdateIfKrb5Changed ()
   return 0;
 }
 
-bool ProcCacheEntry::ResolveGsiProxyFile()
+int ProcCacheEntry::ResolveGsiProxyFile()
 {
   std::string proxyfile;
   if (pEnv.count ("EOS_FUSE_AUTH") && pEnv["EOS_FUSE_AUTH"].substr (0, 4) == "gsi:")
   {
     proxyfile=pEnv["EOS_FUSE_AUTH"].substr (4, std::string::npos);
-    eos_static_debug("using EOS_FUSE_AUTH gsi proxy file %s",proxyfile.c_str());
+    pGsiProxyModTime = 0;
+    pAuthMethod = "gsi:"+proxyfile;
+    if(UpdateIfGsiChanged()==0)
+    {
+      eos_static_debug("using EOS_FUSE_AUTH gsi proxy file %s",proxyfile.c_str());
+      return 1; // resolve ok
+    }
+    pGsiProxyModTime = 0;
+    pAuthMethod.clear();
+    return -1; // resolve ok but bad credential for user defined, stop it!
   }
-  else if (pEnv.count ("X509_USER_PROXY"))
+  if (pEnv.count ("X509_USER_PROXY"))
   {
-    proxyfile=pEnv["X509_USER_PROXY"].substr (4, std::string::npos);
-    eos_static_debug("using X509_USER_PROXY gsi file %s",proxyfile.c_str());
+    proxyfile = pEnv["X509_USER_PROXY"].substr (4, std::string::npos);
+    pGsiProxyModTime = 0;
+    pAuthMethod = "gsi:"+proxyfile;
+    if (UpdateIfGsiChanged () == 0)
+    {
+      eos_static_debug("using X509_USER_PROXY gsi file %s", proxyfile.c_str ());
+      return 1; // resolve ok
+    }
+    pGsiProxyModTime = 0;
+    pAuthMethod.clear();
+    return 0; // resolve ok but bad credential, try next authentication
   }
-  else
+  // try default location
   {
+    char buffer[64];
+    snprintf(buffer,64,"/tmp/x509up_u%d",(int)pFsUid);
+    proxyfile = buffer;
+    pGsiProxyModTime = 0;
+    pAuthMethod = "gsi:"+proxyfile;
+    if (UpdateIfGsiChanged () == 0)
+    {
+      eos_static_debug("using default gsi proxy file %s", proxyfile.c_str ());
+      return 1; // resolve ok
+    }
+    pGsiProxyModTime = 0;
+    pAuthMethod.clear();
     eos_static_debug("could not get GSI proxy file location : assume that user does NOT want to use gsi");
-    return false;
+    return 0; // not resolved, try next authentication
   }
-  pAuthMethod = "gsi:"+proxyfile;
-  return true;
 }
 
 int ProcCacheEntry::UpdateIfGsiChanged()
