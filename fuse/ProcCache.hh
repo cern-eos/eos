@@ -186,10 +186,12 @@ class ProcCacheEntry
   //! return true if the kerberos information is up-to-date after the call, false else
   int
   UpdateIfKrb5Changed ();
+  bool ResolveKrb5CcFile();
 
   //! return true if the GSI information is up-to-date after the call, false else
   int
   UpdateIfGsiChanged ();
+  bool ResolveGsiProxyFile();
 
 public:
 
@@ -244,7 +246,7 @@ public:
   bool GetAuthMethod (std::string &value) const
   {
     eos::common::RWMutexReadLock lock (pMutex);
-    if (pAuthMethod.empty ()) return false;
+    if (pAuthMethod.empty () || pAuthMethod=="none") return false;
     value = pAuthMethod;
     return true;
   }
@@ -327,7 +329,8 @@ public:
   }
 
   //! returns true if the cache has an up-to-date entry after the call
-  int InsertEntry (int pid, bool useKrb5, bool useGsi, bool tryKrb5First=false)
+  int
+  InsertEntry (int pid, bool useKrb5, bool useGsi, bool tryKrb5First = false)
   {
     int errCode;
 
@@ -348,32 +351,49 @@ public:
     }
 
     // if we don't use any strong authentication, we're done
-    if(!useKrb5 && !useGsi)
-      return 0;
+    if (!useKrb5 && !useGsi) return 0;
 
-    // we use at least one strong authentication method
-    auto tryFirst  = useGsi?&ProcCacheEntry::UpdateIfGsiChanged:NULL;
-    auto trySecond  = useKrb5?&ProcCacheEntry::UpdateIfKrb5Changed:NULL;
-    if(tryKrb5First) std::swap(tryFirst,trySecond);
+    // resolve the strong authentication file to use
+    // this is done only once when inserting the process in the cache (not when refreshing)
+    // since it all depends on environment variables and the environment read from proc is static
+    if (entry->pAuthMethod.empty ())
+    {
+      // we use at least one strong authentication method
+      std::string userAuth (entry->pEnv.count ("EOS_FUSE_AUTH") ? entry->pEnv["EOS_FUSE_AUTH"] : "");
+      bool userWantsKrb5 = (!userAuth.empty ()) && !userAuth.compare (0, 5, "krb5:");
+      auto tryFirst = useGsi ? &ProcCacheEntry::ResolveGsiProxyFile : NULL;
+      auto trySecond = useKrb5 ? &ProcCacheEntry::ResolveKrb5CcFile : NULL;
+      if (tryKrb5First || userWantsKrb5) std::swap (tryFirst, trySecond);
 
-    if (tryFirst && (errCode=(entry ->* tryFirst)())==0)
-    {
-      entry->pAuthMethod = (tryFirst==&ProcCacheEntry::UpdateIfGsiChanged)?"gsi":"krb5";
-      return 0;
+      if (tryFirst && (entry->*tryFirst) ())
+      {
+	// sucessfully parsed on first try
+      }
+      else if (trySecond && (entry->*trySecond) ())
+      {
+	// sucessfully parsed on second try
+      }
+      else // using strong authentication and failed
+      {
+	entry->pAuthMethod = "none";
+	eos_static_debug("strong authentication enabled but could not resolve any identity");
+	// no identity could be parsed;
+      }
     }
-    else if(trySecond && (errCode=(entry->*trySecond)())==0)
+
+    if(entry->pAuthMethod.compare(0,5,"krb5:")==0)
     {
-      entry->pAuthMethod = (trySecond==&ProcCacheEntry::UpdateIfGsiChanged)?"gsi":"krb5";
-      return 0;
+      entry->UpdateIfKrb5Changed();
     }
-    else // using strong authentication and failed
+    else if (entry->pAuthMethod.compare(0,4,"gsi:")==0)
     {
-      entry->pAuthMethod = "";
-      eos::common::RWMutexWriteLock lock (pMutex);
-      delete pCatalog[pid];
-      pCatalog.erase (pid);
-      return errCode;
+      entry->UpdateIfGsiChanged();
     }
+    else
+    {
+      return EACCES;
+    }
+    return 0;
   }
 
   //! returns true if the entry is removed after the call

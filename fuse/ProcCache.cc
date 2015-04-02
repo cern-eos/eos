@@ -377,15 +377,37 @@ int ProcCacheEntry::UpdateIfPsChanged ()
   }
 }
 
+bool ProcCacheEntry::ResolveKrb5CcFile()
+{
+  std::string proxyfile;
+  if (pEnv.count ("EOS_FUSE_AUTH") && pEnv["EOS_FUSE_AUTH"].substr (0, 5) == "krb5:")
+  {
+    proxyfile=pEnv["EOS_FUSE_AUTH"].substr (5, std::string::npos);
+    eos_static_debug("using EOS_FUSE_AUTH krb5 cc file %s",proxyfile.c_str());
+  }
+  else if (pEnv.count ("KRB5CCNAME"))
+  {
+    proxyfile=pEnv["KRB5CCNAME"];
+    eos_static_debug("using KRB5CCNAME krb5 cc file %s",proxyfile.c_str());
+  }
+  else
+  {
+    eos_static_debug("could not get krb5 CC file location : assume that user does NOT want to use krb5");
+    return false;
+  }
+  pAuthMethod = "krb5:"+proxyfile;
+  return true;
+}
+
 int ProcCacheEntry::UpdateIfKrb5Changed ()
 {
-  if (!pEnv.count ("KRB5CCNAME") || pEnv["KRB5CCNAME"].substr (0, 5) != "FILE:")
+  if(pAuthMethod.compare(0,5,"krb5:"))
   {
-    eos_static_debug("could not get krb5 credential cache file location");
-    return EACCES;
+    eos_static_err("should have krb5: prefix");
+    return EINVAL;
   }
 
-  ProcReaderKrb5UserName pkrb (pEnv["KRB5CCNAME"]);
+  ProcReaderKrb5UserName pkrb (pAuthMethod.c_str()+5);
 
   time_t krb5ModTime = pkrb.GetModifTime ();
 
@@ -409,15 +431,37 @@ int ProcCacheEntry::UpdateIfKrb5Changed ()
   return 0;
 }
 
+bool ProcCacheEntry::ResolveGsiProxyFile()
+{
+  std::string proxyfile;
+  if (pEnv.count ("EOS_FUSE_AUTH") && pEnv["EOS_FUSE_AUTH"].substr (0, 4) == "gsi:")
+  {
+    proxyfile=pEnv["EOS_FUSE_AUTH"].substr (4, std::string::npos);
+    eos_static_debug("using EOS_FUSE_AUTH gsi proxy file %s",proxyfile.c_str());
+  }
+  else if (pEnv.count ("X509_USER_PROXY"))
+  {
+    proxyfile=pEnv["X509_USER_PROXY"].substr (4, std::string::npos);
+    eos_static_debug("using X509_USER_PROXY gsi file %s",proxyfile.c_str());
+  }
+  else
+  {
+    eos_static_debug("could not get GSI proxy file location : assume that user does NOT want to use gsi");
+    return false;
+  }
+  pAuthMethod = "gsi:"+proxyfile;
+  return true;
+}
+
 int ProcCacheEntry::UpdateIfGsiChanged()
 {
-  if (!pEnv.count ("X509_USER_PROXY"))
+  if(pAuthMethod.compare(0,4,"gsi:"))
   {
-    eos_static_debug("could not get GSI proxy file location");
-    return EACCES;
+    eos_static_err("should have gsi: prefix");
+    return EINVAL;
   }
 
-  ProcReaderGsiIdentity pgsi (pEnv["X509_USER_PROXY"]);
+  ProcReaderGsiIdentity pgsi(pAuthMethod.c_str()+4);
 
   time_t gsiModTime = pgsi.GetModifTime ();
 

@@ -2912,16 +2912,23 @@ public:
       proccache_GetAuthMethod (pid, buffer, 1024);
       // at this point, authmethod cannot be empty because the update would have returned an error
       std::string sAuthMeth (buffer);
-      if (sAuthMeth == "krb5")
+      std::string s;
+      if (sAuthMeth.compare(0,5,"krb5:")==0)
+      {
+	s = "krb5";
 	proccache_GetKrb5UserName (pid, buffer, 1024);
-      else if (sAuthMeth == "gsi")
+      }
+      else if (sAuthMeth.compare(0,4,"gsi:")==0)
+      {
+	s = "gsi";
 	proccache_GetGsiIdentity (pid, buffer, 1024);
+      }
       else
       {
 	eos_static_err("authentication method value [%s] not expected should be [krb5] or [gsi].", sAuthMeth.c_str ());
 	return EACCES;
       }
-      std::string sId (sAuthMeth + ":" + buffer);
+      std::string sId (s + ":" + buffer);
       uint32_t authid;
       // update uid2IdenAuthid
       {
@@ -2952,12 +2959,12 @@ public:
     {
       uid_t _uid;
       gid_t _gid;
-      char cmd[512], klogin[512], gsiid[512], authmet[16];
+      char cmd[512], klogin[512], gsiid[512], authmet[1024];
       cmd[0] = klogin[0] = gsiid[0] = authmet[0] = 0;
       proccache_GetArgsStr (pid, cmd, 512);
       proccache_GetKrb5UserName (pid, klogin, 512);
       proccache_GetGsiIdentity (pid, gsiid, 512);
-      proccache_GetAuthMethod (pid, authmet, 16);
+      proccache_GetAuthMethod (pid, authmet, 1024);
       proccache_GetFsUidGid (pid, &_uid, &_gid);
       eos_static_debug("proccache update for pid %d   =>   || cmd=\"%s\" | fsuid=%d | fsgid=%d | klogin=%s | gsiid=%s | auth=%s||",
 		       (int )pid, cmd, (int )_uid, (int )_gid, klogin, gsiid, authmet);
@@ -2989,17 +2996,12 @@ const char* xrd_strongauth_cgi (pid_t pid)
     char buffer[256];
     proccache_GetAuthMethod(pid,buffer,256);
     std::string authmet(buffer);
-    if (authmet.compare (0, 4, "krb5") == 0)
+    if (authmet.compare (0, 5, "krb5:") == 0)
     {
-      if (proccache_GetEnv (pid, "KRB5CCNAME", buffer, 256))
-      {
-	eos_static_err("KRB5CCNAME is not defined");
-	goto bye;
-      }
-      if(strlen(buffer)>5 && !strncmp("FILE:",buffer,5))
+      if(strlen(buffer)>5+5 && !strncmp("FILE:",buffer+5,5))
       {
         str += "xrd.k5ccname=";
-        str += (buffer+5);
+        str += (authmet.c_str()+5+5);
         str += "&xrd.wantprot=krb5";
       }
       else
@@ -3008,15 +3010,10 @@ const char* xrd_strongauth_cgi (pid_t pid)
 	goto bye;
       }
     }
-    else if (authmet.compare (0, 3, "gsi") == 0)
+    else if (authmet.compare (0, 4, "gsi:") == 0)
     {
-      if (proccache_GetEnv (pid, "X509_USER_PROXY", buffer, 256))
-      {
-	eos_static_err("X509_USER_PROXY is not defined");
-	goto bye;
-      }
       str += "xrd.gsiusrpxy=";
-      str += buffer;
+      str += authmet.c_str()+4;
       str += "&xrd.wantprot=gsi";
     }
     else
