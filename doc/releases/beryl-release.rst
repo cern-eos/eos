@@ -6,6 +6,16 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.108 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- update Drain/Balancer configuration atleast every minute to allow following master/slave failover and slot reconfiguration
+
+New Features
+------------
+- support for OC-Checksum field in GET/PUT requests
+
 ``Version V0.3.107 Beryl-Aquamarine``
 
 New Features
