@@ -325,6 +325,8 @@ Storage::Balancer ()
   unsigned long long totalscheduled = 0;
   unsigned long long totalexecuted = 0;
   unsigned int cycler = 0;
+  time_t last_config_update = 0;
+
   bool noBalancer = 0;
   XrdSysTimer sleeper;
 
@@ -336,6 +338,7 @@ Storage::Balancer ()
 
   while (1)
   {
+    time_t now = time(NULL);
     // -------------------------------------------------------------------------
     // -- 1 --
     // a balance round round
@@ -355,8 +358,19 @@ Storage::Balancer ()
     while (!nparalleltx)
     {
       GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      last_config_update = time(NULL);
       XrdSysTimer sleeper;
       sleeper.Snooze(10);
+    }
+
+    // -------------------------------------------------------------------------
+    // -- U --
+    // update the config atlast every minute
+    // -------------------------------------------------------------------------
+    if (!last_config_update || ( ((long long)now-(long long)last_config_update) > 60) )
+    {
+      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      last_config_update = now;
     }
 
     // -------------------------------------------------------------------------
