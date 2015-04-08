@@ -12,9 +12,9 @@
 typedef std::shared_ptr<kinetic::BlockingKineticConnectionInterface> ConnectionPointer;
 
 /* High(er) level API for Kinetic keys. Handles incremental updates and resolves concurrency
- * on chunk-basis. For multi-chunk atomic writes the user will have to do appropriate locking
+ * on chunk-basis. For multi-chunk atomic writes the caller will have to do appropriate locking
  * himself.*/
-class KineticChunk final {
+class KineticChunk {
 public:
 	static const int expiration_time; // 1 second staleness
 	static const int capacity; // 1 MB chunk capacity
@@ -23,7 +23,7 @@ private:
 	std::string key;
 	std::string version;
 	std::string data;
-	std::chrono::steady_clock::time_point timestamp;
+	std::chrono::system_clock::time_point timestamp;
 
 	// a list of bit-regions that have been changed since this data block has last been flushed
 	std::list<std::pair<off_t, size_t> > updates;

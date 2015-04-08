@@ -9,7 +9,7 @@ using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
 using std::unique_ptr;
 using std::string;
 using std::chrono::milliseconds;
-using std::chrono::steady_clock;
+using std::chrono::system_clock;
 using std::chrono::duration_cast;
 
 
@@ -41,14 +41,15 @@ int KineticChunk::get()
 		x = *record->value();
 		version = *record->version();
 	}
-	timestamp = steady_clock::now();
+	timestamp = system_clock::now();
 
 	x.resize(std::max(x.size(), data.size()));
-	for (auto& update : updates){
-		if(update.second)
-			x.replace(update.first, update.second, data, update.first, update.second);
-		else
-			x.resize(update.first);
+        for (auto iter = updates.begin(); iter != updates.end(); ++iter){
+            auto update = *iter;
+            if(update.second)
+                    x.replace(update.first, update.second, data, update.first, update.second);
+            else
+                    x.resize(update.first);
 	}
 
 	data = x;
@@ -57,12 +58,12 @@ int KineticChunk::get()
 
 int KineticChunk::read(char* const buffer, off_t offset, size_t length)
 {
-	if(buffer==nullptr || offset<0 || offset+length>capacity)
+	if(buffer==NULL || offset<0 || offset+length>capacity)
 		return EINVAL;
 
 	// ensure data is not too stale to read, re-read if necessary and merge on-drive
 	// value with existing local changes
-	if(duration_cast<milliseconds>(steady_clock::now() - timestamp).count() >= expiration_time){
+	if(duration_cast<milliseconds>(system_clock::now() - timestamp).count() >= expiration_time){
 		unique_ptr<string> version_on_drive;
 		KineticStatus status = connection->GetVersion(key, version_on_drive);
 
@@ -71,7 +72,7 @@ int KineticChunk::read(char* const buffer, off_t offset, size_t length)
 
 		if((status.statusCode() == StatusCode::REMOTE_NOT_FOUND && version.empty()) ||
 		   (version_on_drive->compare(version)==0))
-			timestamp = steady_clock::now();
+			timestamp = system_clock::now();
 
 		else if(int err = get())
 			return err;
@@ -86,7 +87,7 @@ int KineticChunk::read(char* const buffer, off_t offset, size_t length)
 
 int KineticChunk::write(const char* const buffer, off_t offset, size_t length)
 {
-	if(buffer==nullptr || offset<0 || offset+length>capacity)
+	if(buffer==NULL || offset<0 || offset+length>capacity)
 			return EINVAL;
 
 	data.resize(std::max((size_t) offset + length, data.size()));
@@ -126,7 +127,7 @@ int KineticChunk::flush()
 
 	updates.clear();
 	version = new_version;
-	timestamp = steady_clock::now();
+	timestamp = system_clock::now();
 	return 0;
 }
 

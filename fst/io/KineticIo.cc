@@ -65,7 +65,7 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
 	   cache_fifo.pop();
 	 }
 
-	chunk.reset(new KineticChunk(connection, path + "_" + std::to_string(chunk_number)));
+	chunk.reset(new KineticChunk(connection, path + "_" + std::to_string((long long int)chunk_number)));
 	cache.insert(std::make_pair(chunk_number, chunk));
 	cache_fifo.push(chunk_number);
 	return 0;
@@ -198,15 +198,16 @@ int KineticIo::Remove (uint16_t timeout)
 	do {
 		keys->clear();
 		connection->GetKeyRange(path,false,path+"__",false,false,max_size,keys);
-		for (auto& element : *keys){
-			KineticStatus status = connection->Delete(element,"",WriteMode::IGNORE_VERSION);
-			if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
+                for (auto iter = keys->begin(); iter != keys->end(); ++iter){
+                    KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
+                    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
 				errno = EIO;
 				return SFS_ERROR;
 			}
-		}
+                }
 	}while(keys->size() == max_size);
 
+ 
 	return SFS_OK;
 }
 
@@ -265,7 +266,7 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 void* KineticIo::GetAsyncHandler ()
 {
     // no async for now
-    return nullptr;
+    return NULL;
 }
 
 int KineticIo::Statfs (const char* path, struct statfs* sfs)
