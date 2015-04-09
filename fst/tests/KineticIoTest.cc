@@ -4,7 +4,7 @@
 SCENARIO("KineticIo handles incorrect input.", "[KineticIo]"){
     
     GIVEN("An empty KineticIo object created with a nullpointer connection"){
-        eos::fst::KineticIo kio(nullptr);
+        eos::fst::KineticIo kio(NULL);
         THEN("All operations fail with ENXIO error code"){
             char buffer[64];
             REQUIRE(kio.Open("path", SFS_O_CREAT) == SFS_ERROR);

@@ -24,7 +24,7 @@ SCENARIO("Single chunk public API test.", "[Chunk]"){
 
 		THEN("Illegal writes to the chunk fail."){
 			char buf[10];
-			REQUIRE(c.write(nullptr, 0, 0) == EINVAL);
+			REQUIRE(c.write(NULL, 0, 0) == EINVAL);
 			REQUIRE(c.write(buf,1024*1024,1) == EINVAL);
 		}
 
