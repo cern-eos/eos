@@ -396,7 +396,7 @@ int ProcCacheEntry::ResolveKrb5CcFile()
   }
   if (pEnv.count ("KRB5CCNAME"))
   {
-    proxyfile = pEnv["KRB5CCNAME"].substr (5, std::string::npos);
+    proxyfile = pEnv["KRB5CCNAME"];
     pKrb5CcModTime = 0;
     pAuthMethod = "krb5:"+proxyfile;
     if (UpdateIfKrb5Changed()==0)
@@ -441,7 +441,7 @@ int ProcCacheEntry::UpdateIfKrb5Changed ()
 
   if (!krb5ModTime)
   {
-    eos_static_debug("could not stat krb5 credential cache file %s", pEnv["KRB5CCNAME"].c_str ());
+    eos_static_debug("could not stat krb5 credential cache file %s", pAuthMethod.c_str()+5);
     return EACCES;
   }
 
@@ -478,7 +478,7 @@ int ProcCacheEntry::ResolveGsiProxyFile()
   }
   if (pEnv.count ("X509_USER_PROXY"))
   {
-    proxyfile = pEnv["X509_USER_PROXY"].substr (4, std::string::npos);
+    proxyfile = pEnv["X509_USER_PROXY"];
     pGsiProxyModTime = 0;
     pAuthMethod = "gsi:"+proxyfile;
     if (UpdateIfGsiChanged () == 0)
@@ -523,7 +523,7 @@ int ProcCacheEntry::UpdateIfGsiChanged()
 
   if (!gsiModTime)
   {
-    eos_static_debug("could not stat GSI proxy file %s", pEnv["X509_USER_PROXY"].c_str ());
+    eos_static_debug("could not stat GSI proxy file %s", pAuthMethod.c_str()+4);
     return EACCES;
   }
 
