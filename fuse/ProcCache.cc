@@ -396,7 +396,7 @@ int ProcCacheEntry::ResolveKrb5CcFile()
   }
   if (pEnv.count ("KRB5CCNAME"))
   {
-    proxyfile = pEnv["KRB5CCNAME"].substr (4, std::string::npos);
+    proxyfile = pEnv["KRB5CCNAME"].substr (5, std::string::npos);
     pKrb5CcModTime = 0;
     pAuthMethod = "krb5:"+proxyfile;
     if (UpdateIfKrb5Changed()==0)
