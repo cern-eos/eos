@@ -49,9 +49,6 @@ add_executable (
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh )
 
-add_dependencies(eosfsd kinetic_cpp_client)
-add_dependencies(eosd kinetic_cpp_client)
-
 if( MacOSX )
 target_link_libraries ( 
   eosfsd 
@@ -72,6 +69,7 @@ target_link_libraries (
   FuseCache
   eosCommon
   ${FUSE_LIBRARY}
+  ${JSONC_LIBRARIES}
   ${KINETIC_LIBRARIES}
   ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
@@ -84,6 +82,7 @@ target_link_libraries (
   FuseCache-Static
   eosCommon-Static
   ${FUSE_LIBRARY} 
+  ${JSONC_LIBRARIES}
   ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
@@ -96,6 +95,7 @@ target_link_libraries (
   eosCommon-Static
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
+  ${JSONC_LIBRARIES}
   ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 endif( MacOSX )

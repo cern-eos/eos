@@ -1,23 +1,22 @@
-#include "catch.hpp"
 #include <errno.h>
 #include <unistd.h>
 #include "fst/io/KineticChunk.hh"
-
+#include "catch.hpp"
 
 
 SCENARIO("Single chunk public API test.", "[Chunk]"){
-	kinetic::ConnectionOptions options;
-	options.host = "localhost";
-	options.port = 8443;
-	options.use_ssl = true;
-	options.user_id = 1;
-	options.hmac_key = "asdfasdf";
+    kinetic::ConnectionOptions options;
+    options.host = "localhost";
+    options.port = 8443;
+    options.use_ssl = true;
+    options.user_id = 1;
+    options.hmac_key = "asdfasdf";
 
-	kinetic::KineticConnectionFactory factory = kinetic::NewKineticConnectionFactory();
-	std::shared_ptr<kinetic::BlockingKineticConnection> con;
+    kinetic::KineticConnectionFactory factory = kinetic::NewKineticConnectionFactory();
+    std::shared_ptr<kinetic::BlockingKineticConnection> con;
 
-	REQUIRE(factory.NewBlockingConnection(options, con, 30).ok() == true);
-	REQUIRE(con->InstantErase("NULL").ok());
+    REQUIRE(factory.NewBlockingConnection(options, con, 30).ok() == true);
+    REQUIRE(con->InstantErase("NULL").ok());
 
 	GIVEN ("An empty chunk."){
 		KineticChunk c(con, "key");

@@ -234,7 +234,6 @@ public:
 
   virtual int Statfs (const char* path, struct statfs* statFs)
   {
-    eos_info("path=%s", path);
     return ::statfs(path, statFs);
   }
 

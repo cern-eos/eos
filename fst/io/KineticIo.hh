@@ -11,7 +11,8 @@
 #include "fst/io/FileIo.hh"
 #include "kinetic/kinetic.h"
 #include "KineticChunk.hh"
-#include<unordered_map>
+#include "KineticDriveMap.hh"
+#include <unordered_map>
 
 /*----------------------------------------------------------------------------*/
 
@@ -25,7 +26,7 @@ typedef std::shared_ptr<kinetic::BlockingKineticConnectionInterface> ConnectionP
 class KineticIo  : public FileIo
 {
 public:
-    class Attr : public FileIo::Attr 
+    class Attr : public FileIo::Attr, public eos::common::LogId
     {
     public:
         bool Set (const char* name, const char* value, size_t len);
@@ -57,18 +58,17 @@ public:
   void* GetAsyncHandler ();
   int Statfs (const char* path, struct statfs* statFs);
 
-  // For now just using a single connection. In the future, get a cluster description and
-  // connection map (shared across objects) and decide on the appropriate connection(s) in
-  // here.
-  explicit KineticIo (ConnectionPointer connection, size_t cache_capacity=10);
+  explicit KineticIo (size_t cache_capacity=10);
   ~KineticIo ();
 
 private:
+  int connectionFromPath();
   int getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk);
   
 private:
   ConnectionPointer connection;
   std::string path;
+  
   std::unordered_map<int, std::shared_ptr<KineticChunk>> cache;
   std::queue<int> cache_fifo;
   size_t cache_capacity;

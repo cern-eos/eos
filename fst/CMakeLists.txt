@@ -29,6 +29,7 @@ include_directories(../
                     ${NCURSES_INCLUDE_DIR}
                     ${Z_INCLUDE_DIR}
                     ${KINETIC_INCLUDE_DIR}
+                    ${JSONC_INCLUDE_DIR}
 )
 
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
@@ -56,6 +57,7 @@ add_library(EosFstIo-Static STATIC
             io/LocalIo.cc                  io/LocalIo.hh
             io/KineticIo.cc                io/KineticIo.hh
             io/KineticChunk.cc             io/KineticChunk.hh
+            io/KineticDriveMap.cc          io/KineticDriveMap.hh
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -82,14 +84,13 @@ add_library(EosFstIo-Static STATIC
 target_link_libraries(  EosFstIo-Static
                         eosCommon-Static
                         XrdCl	
-                        XrdUtils 
+                        XrdUtils                ${JSONC_LIBRARIES}
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
                         ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}                  
 )
-add_dependencies(EosFstIo-Static kinetic_cpp_client)
 
 add_library( EosFstIo SHARED
                 io/FileIoPlugin.hh             io/FileIoPlugin.cc
@@ -97,6 +98,7 @@ add_library( EosFstIo SHARED
                 io/LocalIo.cc                  io/LocalIo.hh
                 io/KineticIo.cc                io/KineticIo.hh
                 io/KineticChunk.cc             io/KineticChunk.hh
+                io/KineticDriveMap.cc          io/KineticDriveMap.hh
                 io/RadosIo.cc                  io/RadosIo.hh
                 io/XrdIo.cc                    io/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -124,14 +126,13 @@ target_link_libraries(  EosFstIo
                         XrdEosFst
                         eosCommon
                         XrdCl	
-                        XrdUtils 
+                        XrdUtils                ${JSONC_LIBRARIES}
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
                         ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
-add_dependencies(EosFstIo kinetic_cpp_client)
 
 if (CLIENT)
 add_library(XrdEosFst SHARED
@@ -161,6 +162,7 @@ add_library(XrdEosFst SHARED
             io/LocalIo.cc                  io/LocalIo.hh
             io/KineticIo.cc                io/KineticIo.hh
             io/KineticChunk.cc             io/KineticChunk.hh
+            io/KineticDriveMap.cc          io/KineticDriveMap.hh
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -185,13 +187,12 @@ add_library(XrdEosFst SHARED
             layout/jerasure/galois.cc	        layout/jerasure/galois.hh
             layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
-add_dependencies(XrdEosFst kinetic_cpp_client)
 
 target_link_libraries(  XrdEosFst 
                         eosCommon
                         eosCommonServer         eosCapability-Static
                         XrdMqClient-Static      XrdCl	
-                        XrdUtils                 
+                        XrdUtils                ${JSONC_LIBRARIES}
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -226,6 +227,7 @@ add_library(XrdEosFst MODULE
             io/LocalIo.cc                  io/LocalIo.hh
             io/KineticIo.cc                io/KineticIo.hh
             io/KineticChunk.cc             io/KineticChunk.hh
+            io/KineticDriveMap.cc          io/KineticDriveMap.hh
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -250,13 +252,12 @@ add_library(XrdEosFst MODULE
             layout/jerasure/galois.cc	       layout/jerasure/galois.hh
             layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh
 )
-add_dependencies(XrdEosFst kinetic_cpp_client)
 
 target_link_libraries(  XrdEosFst 
                         eosCommon
                         eosCommonServer         eosCapability-Static
                         XrdMqClient-Static      XrdCl	
-                        XrdUtils                 
+                        XrdUtils                ${JSONC_LIBRARIES}
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -298,8 +299,6 @@ add_executable( eos-scan-fs
                 checksum/crc32ctables.cc
                 Load.cc 
 )
-add_dependencies(eos-scan-fs kinetic_cpp_client)
-
 
 add_executable( eos-adler32
 		tools/Adler32.cc

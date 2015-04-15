@@ -64,6 +64,9 @@ export EOS_MGM_ALIAS=eosdev.cern.ch
 export EOS_MAIL_CC="apeters@mail.cern.ch"
 export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
+# Path to json file listing kinetic drive details
+#export EOS_FST_KINETIC_JSON=
+
 # Enable core dumps initiated internally 
 #export EOS_CORE_DUMP
 

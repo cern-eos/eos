@@ -58,7 +58,7 @@ int KineticChunk::get()
 
 int KineticChunk::read(char* const buffer, off_t offset, size_t length)
 {
-	if(buffer==NULL || offset<0 || offset+length>capacity)
+	if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
 		return EINVAL;
 
 	// ensure data is not too stale to read, re-read if necessary and merge on-drive
@@ -87,7 +87,7 @@ int KineticChunk::read(char* const buffer, off_t offset, size_t length)
 
 int KineticChunk::write(const char* const buffer, off_t offset, size_t length)
 {
-	if(buffer==NULL || offset<0 || offset+length>capacity)
+	if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
 			return EINVAL;
 
 	data.resize(std::max((size_t) offset + length, data.size()));
