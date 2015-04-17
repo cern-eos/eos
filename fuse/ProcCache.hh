@@ -361,10 +361,11 @@ public:
       // we use at least one strong authentication method
       std::string userAuth (entry->pEnv.count ("EOS_FUSE_AUTH") ? entry->pEnv["EOS_FUSE_AUTH"] : "");
       bool userWantsKrb5 = (!userAuth.empty ()) && !userAuth.compare (0, 5, "krb5:");
+      bool userWantsGsi = (!userAuth.empty ()) && !userAuth.compare (0, 4, "gsi:");
       auto tryFirst = useGsi ? &ProcCacheEntry::ResolveGsiProxyFile : NULL;
       auto trySecond = useKrb5 ? &ProcCacheEntry::ResolveKrb5CcFile : NULL;
       int retc=0;
-      if (tryKrb5First || userWantsKrb5) std::swap (tryFirst, trySecond);
+      if ( (tryKrb5First && !userWantsGsi) || userWantsKrb5) std::swap (tryFirst, trySecond);
 
       if (tryFirst && (retc=(entry->*tryFirst)())==1)
       {
