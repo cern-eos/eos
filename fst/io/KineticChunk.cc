@@ -18,7 +18,7 @@ const int KineticChunk::capacity = 1048576;
 
 
 KineticChunk::KineticChunk(ConnectionPointer c, std::string k, bool skip_initial_get) :
-	key(k),version(),data(),timestamp(),updates(),connection(c)
+	key(k),version(),data(),timestamp(),connection(c),updates()
 {
 	if(skip_initial_get == false)
 		get();
@@ -111,7 +111,7 @@ int KineticChunk::flush()
 {
 	uuid_t uuid;
 	uuid_generate(uuid);
-	std::string new_version(reinterpret_cast<const char *>(uuid), sizeof(uuid_t));
+	string new_version(reinterpret_cast<const char *>(uuid), sizeof(uuid_t));
 
 	KineticRecord record(data, new_version, "", Command_Algorithm_SHA1);
 	KineticStatus status = connection->Put(key, version, WriteMode::REQUIRE_SAME_VERSION, record);

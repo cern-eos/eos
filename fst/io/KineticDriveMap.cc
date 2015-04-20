@@ -7,7 +7,6 @@
 
 KineticDriveMap::KineticDriveMap(std::string path)
 {
-    google::InitGoogleLogging("");
     if(path.empty()){
         char* envstring = getenv ("EOS_FST_KINETIC_JSON");
         path = std::string(envstring);    

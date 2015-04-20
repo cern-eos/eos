@@ -9,11 +9,20 @@ using std::string;
 using namespace kinetic;
 using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
 
-
-static KineticDriveMap& dMap()
-{   
+static int getConnection(const std::string &path, ConnectionPointer &connection)
+{
     static KineticDriveMap dm(""); // initialized once due to being static
-    return dm;
+     
+    size_t wwn_start = path.find_first_of(':') + 1;
+    size_t wwn_end   = path.find_first_of(':', wwn_start);
+    std::string wwn  = path.substr(wwn_start, wwn_end-wwn_start);
+            
+    std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> con;
+    if(int err = dm.getConnection(wwn, con))
+        return err;
+    
+    connection = con;
+    return 0; 
 }
 
 
@@ -26,38 +35,25 @@ KineticIo::KineticIo (size_t cache_capacity) :
 KineticIo::~KineticIo ()
 {}
 
-int KineticIo::connectionFromPath()
-{
-    size_t wwn_start = path.find_first_of(':') + 1;
-    size_t wwn_end   = path.find_first_of(':', wwn_start);
-    std::string wwn  = path.substr(wwn_start, wwn_end-wwn_start);
-            
-    std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> con;
-    if(int err = dMap().getConnection(wwn, con))
-        return err;
-    connection = con;
-    return 0; 
-}
-
-
 int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
 		mode_t mode, const std::string& opaque, uint16_t timeout)
 {
-    path = p;
-    if((errno = connectionFromPath()))
+    if((errno = getConnection(p, connection)))
         return SFS_ERROR;
+    mFilePath = p;
     
     /* create operation */
     if (flags & SFS_O_CREAT){
- 	KineticRecord record("", "", "", Command_Algorithm_SHA1);
-	KineticStatus status = connection->Put(path+"_0", "", WriteMode::REQUIRE_SAME_VERSION, record);
+ 	KineticRecord record("", "0", "", Command_Algorithm_SHA1);
+	KineticStatus status = connection->Put(mFilePath+"_0", "", WriteMode::REQUIRE_SAME_VERSION, record);
         if(status.statusCode() == StatusCode::REMOTE_VERSION_MISMATCH){
-            eos_info("Cannot create file %s, it already exists.", path.c_str());
+            eos_info("Cannot create file %s, it already exists.", mFilePath.c_str());
             errno = EEXIST;
             return SFS_ERROR;
         }
         if(!status.ok()){
             eos_err("Invalid Connection Status: %d", status.statusCode());
+            connection.reset();
             errno = EIO;
             return SFS_ERROR;
         }
@@ -66,14 +62,15 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
     
     /* regular open operation */
     unique_ptr<string> version;
-    KineticStatus status = connection->GetVersion(path+"_0", version);
+    KineticStatus status = connection->GetVersion(mFilePath+"_0", version);
     if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
-        eos_info("Cannot open file %s, it does not exist.", path.c_str());
+        eos_info("Cannot open file %s, it does not exist.", mFilePath.c_str());
         errno = ENOENT;
         return SFS_ERROR;
     }
     if(!status.ok()){
         eos_err("Invalid Connection Status: %d", status.statusCode());
+        connection.reset();
         errno = EIO;
         return SFS_ERROR;
     }
@@ -97,7 +94,7 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
        cache_fifo.pop();
      }
 
-    chunk.reset(new KineticChunk(connection, path + "_" + std::to_string((long long int)chunk_number)));
+    chunk.reset(new KineticChunk(connection, mFilePath + "_" + std::to_string((long long int)chunk_number)));
     cache.insert(std::make_pair(chunk_number, chunk));
     cache_fifo.push(chunk_number);
     return 0;
@@ -235,11 +232,12 @@ int KineticIo::Remove (uint16_t timeout)
 	size_t max_size = 100;
 	do {
 		keys->clear();
-		connection->GetKeyRange(path,false,path+"__",false,false,max_size,keys);
+		connection->GetKeyRange(mFilePath,false,mFilePath+"__",false,false,max_size,keys);
                 for (auto iter = keys->begin(); iter != keys->end(); ++iter){
                     KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
                     if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
                         eos_err("Invalid Connection Status: %d", status.statusCode());
+                        connection.reset();
                         errno = EIO;
                         return SFS_ERROR;
                     }
@@ -268,9 +266,10 @@ int KineticIo::Sync (uint16_t timeout)
 
 int KineticIo::Close (uint16_t timeout)
 {
-    if( Sync(timeout) == SFS_ERROR)
+    if(Sync(timeout) == SFS_ERROR)
         return SFS_ERROR;
     connection.reset();
+    mFilePath = "";
     return SFS_OK;
 }
 
@@ -287,9 +286,11 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 	unique_ptr<string> key;
 	unique_ptr<KineticRecord> record;
 
-	KineticStatus status = connection->GetPrevious(path+"__",key,record);
+	KineticStatus status = connection->GetPrevious(mFilePath+"__",key,record);
 
 	if(!status.ok()){
+            eos_err("Invalid Connection Status: %d", status.statusCode());
+            connection.reset();
             errno = EIO;
             return SFS_ERROR;
 	}
@@ -314,10 +315,7 @@ void* KineticIo::GetAsyncHandler ()
 
 int KineticIo::Statfs (const char* p, struct statfs* sfs)
 {
-    eos_info("path =%s", p);
-    
-    path = p;
-    if((errno = connectionFromPath()))
+    if((errno = getConnection(p, connection)))
         return errno;
     
     unique_ptr<kinetic::DriveLog> log;
@@ -327,6 +325,7 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     KineticStatus status = connection->GetLog(types,log);
     if(!status.ok()){
         eos_err("Invalid Connection Status: %d", status.statusCode());
+        connection.reset();
         return EIO;
     }
 
@@ -348,25 +347,37 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
 
 
 
-
-KineticIo::Attr::Attr( const char* path, KineticIo& kio) : FileIo::Attr(path), kio(kio)
-{}
+KineticIo::Attr::Attr(const char* path, ConnectionPointer con) : 
+            eos::common::Attr(path), connection(con)
+{      
+}
 
 KineticIo::Attr::~Attr()
-{}
+{
+}
 
 bool KineticIo::Attr::Get(const char* name, char* value, size_t& size)
 {
-    if(!kio.connection){
+    if(!connection){
         eos_err("Connection Nullptr.");
         return false;
     }
     unique_ptr<KineticRecord> record;
-    KineticStatus status = kio.connection->Get(kio.path+"_"+name,record);
-    if(!status.ok()){
-        eos_err("Invalid Connection Status: %d", status.statusCode());
+    KineticStatus status = connection->Get(mName+"_"+name,record);
+    if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
+        eos_info("Requested attribute '%s' does not exist.", name);
         return false;
     }
+    if(!status.ok()){
+        eos_err("Invalid Connection Status: %d", status.statusCode());
+        connection.reset();
+        return false;
+    }
+    if(size < record->value()->size()){
+        eos_info("Requested attribute bigger than supplied buffer.");
+        return false; 
+    }
+    
     size = record->value()->size();
     record->value()->copy(value, size, 0);
     return true;
@@ -374,37 +385,55 @@ bool KineticIo::Attr::Get(const char* name, char* value, size_t& size)
 
 string KineticIo::Attr::Get(string name)
 {
-	char buffer[1024];
-	string value;
-	size_t size;
-	if(Get(name.c_str(),buffer, size))
-            return string(buffer,size);
-        return string("");
+    size_t size = sizeof(mBuffer);
+    if(Get(name.c_str(), mBuffer, size) == true)
+        return string(mBuffer, size);
+    return string("");
 }
 
 bool KineticIo::Attr::Set(const char * name, const char * value, size_t size)
 {
-        if(!kio.connection){
-            eos_err("Connection Nullptr.");
-            return false;
-        }
-	KineticRecord record(string(value, size), "", "", Command_Algorithm_SHA1);
-	KineticStatus status = kio.connection->Put(kio.path+"_"+name, "", WriteMode::IGNORE_VERSION, record);
-	if(!status.ok()){
-            eos_err("Invalid Connection Status: %d", status.statusCode());
-            return false;
-        }
-	return true;
+    if(!connection){
+        eos_err("Connection Nullptr.");
+        return false;
+    }
+    KineticRecord record(string(value, size), "", "", Command_Algorithm_SHA1);
+    KineticStatus status = connection->Put(mName+"_"+name, "", WriteMode::IGNORE_VERSION, record);
+    if(!status.ok()){
+        connection.reset();
+        eos_err("Invalid Connection Status: %d", status.statusCode());
+        return false;
+    }
+    return true;
 }
 
 bool KineticIo::Attr::Set(std::string key, std::string value)
 {
-	return Set(key.c_str(), value.c_str(), value.size());
+    return Set(key.c_str(), value.c_str(), value.size());
+}
+
+KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
+{
+    /* As in Attr.cc implementation, ensure that file exists 
+     * in static OpenAttr function. */
+    if (!path)
+        return 0;
+    
+    ConnectionPointer con; 
+    if(getConnection(path, con) != 0)
+        return 0;
+    
+    unique_ptr<string> version;
+    KineticStatus status = con->GetVersion(string(path)+"_0", version);
+    if(!status.ok())
+        return 0;
+    
+    return new Attr(path, con);
 }
 
 KineticIo::Attr* KineticIo::Attr::OpenAttribute (const char* path)
 {
-	return new Attr(path, kio);
+    return OpenAttr(path);
 }
 
 

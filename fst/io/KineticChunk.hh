@@ -24,11 +24,12 @@ private:
 	std::string version;
 	std::string data;
 	std::chrono::system_clock::time_point timestamp;
-
+        
+	ConnectionPointer connection;
+        
 	// a list of bit-regions that have been changed since this data block has last been flushed
 	std::list<std::pair<off_t, size_t> > updates;
-	ConnectionPointer connection;
-
+        
 private:
 	// (re)reads the on-drive value, merges in possibly existing writes
 	int get();
