@@ -6,6 +6,12 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.109 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix timed read/write locks to use absolute times
+
 ``Version V0.3.108 Beryl-Aquamarine``
 
 Bug Fixes
