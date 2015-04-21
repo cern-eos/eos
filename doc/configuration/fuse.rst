@@ -145,6 +145,12 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    # If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
    #    (default 0)
    # EOS_FUSE_USER_KRB5FIRST=0
+   
+   # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
+   #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
+   #    (default 0)
+   # EOS_FUSE_PIDMAP=0
+   
     
 Authentication
 --------------

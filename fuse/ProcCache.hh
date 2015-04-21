@@ -251,6 +251,13 @@ public:
     return true;
   }
 
+  bool SetAuthMethod (const std::string &value)
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    pAuthMethod = value;
+    return true;
+  }
+
   // return NULL if the env variable is not defined, a ptr to the value string if it is defined
   bool GetFsUidGid (uid_t &uid, gid_t &gid) const
   {

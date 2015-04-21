@@ -100,6 +100,7 @@ uint64_t pid_max;
 uint64_t uid_max;
 int connectionId = 0;
 
+bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
 bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
 bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
 bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
@@ -2895,7 +2896,78 @@ class AuthIdManager
   // only one thread per process will access this (protected by one mutex per process)
   std::vector<std::string> pid2StrongLogin;
 
+  std::string
+  symlinkCredentials (const std::string &authMethod, uid_t uid, std::string identity, const std::string &xrdlogin = "")
+  {
+    std::stringstream ss;
+    size_t i = 0;
+    // avoid characters that could mess up the link name
+    while ((i = identity.find_first_of ("\\/:\"*?<>|", i)) != std::string::npos)
+      identity[i] = '.';
+    ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
+    std::string linkname = ss.str ();
+    auto colidx = authMethod.rfind (':');
+
+    if (xrdlogin.empty ())
+    {
+      std::string filename = authMethod.substr (colidx + 1, std::string::npos);
+      if (filename.empty ()) return "";
+      if (linkname != filename)
+      {
+	unlink (linkname.c_str ()); // remove the previous link first if any
+	if (symlink (filename.c_str (), linkname.c_str ()))
+	{
+	  eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
+	  return "";
+	}
+      }
+      return authMethod.substr (0, colidx + 1) + linkname;
+    }
+    else
+    {
+      ss.str ("");
+      ss << "/var/run/eosd/credentials/xrd" << xrdlogin;
+      std::string newlinkname = ss.str ();
+      if (linkname != newlinkname)
+      {
+	unlink (newlinkname.c_str ()); // remove the previous link first if any
+	if (symlink (linkname.c_str (), newlinkname.c_str ()))
+	{
+	  eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
+	  return "";
+	}
+      }
+      return newlinkname;
+    }
+  }
+
+  void
+  symlinkPid (pid_t pid, const std::string &xrdLoginLink)
+  {
+    std::stringstream ss;
+    ss << "/var/run/eosd/credentials/pid" << pid;
+    std::string linkname = ss.str ();
+
+    if (linkname != xrdLoginLink)
+    {
+      unlink (linkname.c_str ()); // remove the previous link first if any
+      if (symlink (xrdLoginLink.c_str (), linkname.c_str ()))
+      {
+	eos_static_err("could not create pid symlink from %s to %s", xrdLoginLink.c_str (), linkname.c_str ());
+      }
+    }
+  }
+
 public:
+  void symunlinkPid (pid_t pid)
+  {
+    std::stringstream ss;
+    ss << "/var/run/eosd/credentials/pid" << pid;
+    std::string linkname = ss.str();
+
+    unlink (linkname.c_str ()); // remove the previous link first if any
+  }
+
   int
   updateProcCache (uid_t uid, pid_t pid)
   {
@@ -2928,6 +3000,13 @@ public:
 	eos_static_err("authentication method value [%s] not expected should be [krb5] or [gsi].", sAuthMeth.c_str ());
 	return EACCES;
       }
+      std::string newauthmeth = symlinkCredentials(sAuthMeth, uid,buffer);
+      if(newauthmeth.empty())
+      {
+	eos_static_err("error symlinking credential file ");
+	return EACCES;
+      }
+      proccache_SetAuthMethod(pid,newauthmeth.c_str());
       std::string sId (s + ":" + buffer);
       uint32_t authid;
       // update uid2IdenAuthid
@@ -2951,7 +3030,15 @@ public:
       }
       // update pid2StrongLogin (no lock needed as only one thread per process can access this)
       map_user xrdlogin (uid, authid);
-      pid2StrongLogin[pid] = std::string (xrdlogin.base64 ());
+      auto xrdlogins = (pid2StrongLogin[pid] = std::string (xrdlogin.base64 ()));
+      std::string newlinkname=symlinkCredentials(sAuthMeth, uid,buffer,xrdlogins);
+      if(newlinkname.empty())
+      {
+	eos_static_err("error creating symlink for cred symlink %s and xrdlogin %s",newauthmeth.c_str(),xrdlogins.c_str());
+      }
+      else
+        if(link_pidmap) symlinkPid(pid,newlinkname);
+
       eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
 		       pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
     }
@@ -2978,6 +3065,7 @@ public:
     eos::common::RWMutexReadLock lock (proccachemutexes[pid]);
     return pid2StrongLogin[pid];
   }
+
 };
 
 AuthIdManager authidmanager;
@@ -3597,6 +3685,13 @@ xrd_init ()
   }
   proccachemutexes.resize(pid_max+1);
   authidmanager.pid2StrongLogin.resize(pid_max+1);
+
+  // Get parameters about strong authentication
+  if (getenv("EOS_FUSE_PIDMAP") && (atoi(getenv("EOS_FUSE_PIDMAP"))==1) )
+    link_pidmap = true;
+  else
+    link_pidmap = false;
+
 
   eos_static_notice("krb5=%d",use_user_krb5cc?1:0);
 

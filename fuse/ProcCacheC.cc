@@ -108,6 +108,15 @@ int proccache_GetAuthMethod (int pid , char *buffer, size_t bufsize)
   return 0;
 }
 
+int proccache_SetAuthMethod (int pid , const char *buffer)
+{
+  if(!gProcCache.HasEntry(pid))
+    return 1;
+
+  gProcCache.GetEntry(pid)->SetAuthMethod(buffer);
+  return 0;
+}
+
 int proccache_GetFsUidGid (int pid , uid_t *uid, gid_t *gid)
 {
   if(!gProcCache.HasEntry(pid))

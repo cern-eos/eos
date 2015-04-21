@@ -67,6 +67,11 @@ extern "C"
 //! returns 3 if the buffer is too short to write the value of kerberos user name
   int proccache_GetAuthMethod (int pid, char *buffer, size_t bufsize);
 
+//! returns 0 if the authentication method was written in the buffer
+//! returns 1 if the proccache does not have an entry for the given pid
+//! returns 2 if something else wrong happened
+  int proccache_SetAuthMethod (int pid, const char *buffer);
+
 //! returns 0 if the fsuid and the fsgid were written to the pointees passed in argument
 //! returns 1 if the proccache does not have an entry for the given pid
   int proccache_GetFsUidGid (int pid, uid_t *uid, gid_t *gid);

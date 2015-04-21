@@ -135,6 +135,11 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    (default 0)
 # EOS_FUSE_USER_KRB5FIRST=0
 
+# If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
+#    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
+#    (default 0)
+# EOS_FUSE_PIDMAP=0
+
 # ------------------------------------------------------------------
 # HTTPD Configuration
 # ------------------------------------------------------------------

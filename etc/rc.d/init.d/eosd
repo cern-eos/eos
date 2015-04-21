@@ -83,6 +83,7 @@ start() {
     export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
     export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
     export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
+    export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
     export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
 
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
@@ -95,8 +96,11 @@ start() {
             echo -n "Starting $prog: "
 	    mkdir -p /var/run/eosd/
 	    cd /var/run/eosd/
+	    mkdir -p /var/run/eosd/credentials
+	    rm -f /var/run/eosd/credentials/*
+	    chmod 600 /var/run/eosd/credentials
 	    mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
-	    chmod -R 755 ${EOS_FUSE_MOUNTDIR-/eos/}
+	    chmod -R 733 ${EOS_FUSE_MOUNTDIR-/eos/}
 	    unset KRB5CCNAME
 	    unset X509_USER_CERT
 	    unset X509_USER_KEY
@@ -127,6 +131,7 @@ start() {
             echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
             echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
             echo "EOS_FUSE_USER_KRB5FIRST   : ${EOS_FUSE_USER_KRB5FIRST}"
+            echo "EOS_FUSE_PIDMAP           : ${EOS_FUSE_PIDMAP}"
             echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
 	else 
             echo eosd already running. Pid is $eosdpid 
