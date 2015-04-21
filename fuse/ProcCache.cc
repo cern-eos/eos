@@ -23,13 +23,13 @@
 
 #include "ProcCache.hh"
 #include "common/Logging.hh"
-#include "globus_common.h"
-#include "globus_error.h"
-#include "globus_gsi_cert_utils.h"
-#include "globus_gsi_system_config.h"
-#include "globus_gsi_proxy.h"
-#include "globus_gsi_credential.h"
-#include "globus_openssl.h"
+#include <openssl/x509v3.h>
+#include <openssl/bn.h>
+#include <openssl/asn1.h>
+#include <openssl/x509.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <ctime>
@@ -162,82 +162,52 @@ time_t ProcReaderKrb5UserName::GetModifTime ()
   return mktime (clock);
 }
 
-bool ProcReaderGsiIdentity::sInitOk =
-    ( (globus_module_activate(GLOBUS_OPENSSL_MODULE) == (int)GLOBUS_SUCCESS) &&
-    (globus_module_activate(GLOBUS_GSI_PROXY_MODULE) == (int)GLOBUS_SUCCESS) )
-    || (!eos_static_crit("error initializing GSI"));
+bool ProcReaderGsiIdentity::sInitOk = true;
 
-void ProcReaderGsiIdentity::StaticDestroy()
-{
-  if(sInitOk)
-  {
-    globus_module_deactivate(GLOBUS_OPENSSL_MODULE);
-    globus_module_activate(GLOBUS_GSI_PROXY_MODULE);
-  }
-}
+void ProcReaderGsiIdentity::StaticDestroy() {}
 
 bool
 ProcReaderGsiIdentity::ReadIdentity (string &sidentity)
 {
-  globus_gsi_cred_handle_t proxy_cred = NULL;
-  X509_NAME * x509_identity = NULL;
-  char* identity = NULL;
-  char* identity2 = NULL;
-  BIO * mem = NULL;
   bool result = false;
+  BIO          *certbio = BIO_new(BIO_s_file());
+  X509         *cert = NULL;
+  X509_NAME    *certsubject = NULL;
+  char         *subj=NULL;
 
-  if (globus_gsi_cred_handle_init (&proxy_cred, NULL) != GLOBUS_SUCCESS)
+  if(!certbio)
   {
-    eos_static_err("error initializing GSI credential handle");
-    goto cleanup;
-  }
-  if (globus_gsi_cred_read_proxy (proxy_cred, pGsiProxyFile.c_str ()) != GLOBUS_SUCCESS)
-  {
-    eos_static_err("error reading GSI proxy file %s",pGsiProxyFile.c_str());
-    goto cleanup;
+    eos_static_err("error allocating BIO buffer");
+    goto gsicleanup;
   }
 
-  if (false)
-  {
-    x509_identity = NULL;
-    mem = BIO_new (BIO_s_mem ());
-    size_t len;
-    if (globus_gsi_cred_get_X509_identity_name (proxy_cred, &x509_identity) != GLOBUS_SUCCESS)
-    {
-      eos_static_err( "\nERROR: Couldn't get a valid identity "
-	  "name from the proxy credential.\n");
-      goto cleanup;
-    }
-    if (X509_NAME_print_ex (mem, x509_identity, 0, XN_FLAG_RFC2253))
-    {
-      eos_static_err("error printing content of the x509_identity");
-      goto cleanup;
-    }
-    len = BIO_ctrl_pending (mem);
-    identity = new char[len + 1];
-    identity[len] = 0;
-    BIO_read (mem, identity, len);
-    sidentity = identity;
+  BIO_read_filename(certbio, pGsiProxyFile.c_str ());
+  if (! (cert = PEM_read_bio_X509(certbio, NULL, 0, NULL))) {
+    eos_static_err("error loading cert into memory");
+    goto gsicleanup;
   }
-  else
+
+  certsubject = X509_NAME_new();
+  if(!certsubject)
   {
-    if (globus_gsi_cred_get_identity_name (proxy_cred, &identity2) != GLOBUS_SUCCESS)
-    {
-      eos_static_err("\nERROR: Couldn't get a valid identity "
-	  "name from the proxy credential.\n");
-      goto cleanup;
-    }
-    sidentity = identity2;
+    eos_static_err("error initializing certsubject");
+    goto gsicleanup;
   }
+
+  subj = X509_NAME_oneline(X509_get_subject_name(cert), NULL, 0);
+  if(!subj)
+  {
+    eos_static_err("error reading subject name");
+    goto gsicleanup;
+  }
+  sidentity = subj;
 
   result = true;
 
-  cleanup: if (proxy_cred) globus_gsi_cred_handle_destroy (proxy_cred);
-  if (mem) BIO_free (mem);
-  if (x509_identity) X509_NAME_free (x509_identity);
-  if (identity) delete[] identity;
-  if (identity2) free (identity2);
-
+  gsicleanup:
+  if(certbio) BIO_free_all(certbio);
+  if(cert)    X509_free(cert);
+  if(subj)    OPENSSL_free(subj);
   return result;
 }
 

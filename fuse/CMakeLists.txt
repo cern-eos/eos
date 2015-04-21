@@ -29,16 +29,7 @@ include_directories(
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
-  ${GLOBUS_INCLUDE_DIRS})
-
-set( GLOBUS_LIBS
-  ${GLOBUS_gsi_credential_LIBRARY}
-  ${GLOBUS_gsi_sysconfig_LIBRARY}
-  ${GLOBUS_gsi_proxy_LIBRARY}
-  ${GLOBUS_gsi_proxy_core_LIBRARY}
-  ${GLOBUS_openssl_LIBRARY}
-  ${GLOBUS_common_LIBRARY}
-)
+  ${OPENSSL_INCLUDE_DIR} )
 
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -81,7 +72,7 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${KRB5_LIBRARIES}
-  ${GLOBUS_LIBRARIES}
+  ${OPENSSL_CRYPTO_LIBRARY}
   )
 
   
@@ -94,7 +85,7 @@ if(MacOSX)
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
-    ${GLOBUS_LIBRARIES})
+    ${OPENSSL_CRYPTO_LIBRARY} )
 
   target_link_libraries(
     eosd
@@ -105,7 +96,7 @@ if(MacOSX)
     ${XROOTD_UNTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
-    ${GLOBUS_LIBRARIES})
+    ${OPENSSL_CRYPTO_LIBRARY} )
 
   set_target_properties(
     eosd eosfsd
@@ -120,7 +111,7 @@ else(MacOSX)
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
-    ${GLOBUS_LIBRARIES})
+    ${OPENSSL_CRYPTO_LIBRARY} )
 
   target_link_libraries(
     eosd
@@ -131,7 +122,7 @@ else(MacOSX)
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
     ${KRB5_LIBRARIES}
-    ${GLOBUS_LIBRARIES})
+    ${OPENSSL_CRYPTO_LIBRARY} )
 
   set_target_properties(
     eosd eosfsd
