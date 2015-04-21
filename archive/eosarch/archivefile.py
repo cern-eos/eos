@@ -177,7 +177,10 @@ class ArchiveFile(object):
 
         src = self.header['src'] + rel_path
         dst = self.header['dst'] + rel_path
-        dst = ''.join([dst, "?svcClass=", self.header['svc_class']])
+
+        if self.header['svc_class']:
+            dst = ''.join([dst, "?svcClass=", self.header['svc_class']])
+
         return (src, dst) if self.d2t else (dst, src)
 
     def del_entry(self, rel_path, is_dir, tape_delete):
@@ -208,13 +211,13 @@ class ArchiveFile(object):
         self.logger.debug("Delete entry={0}".format(surl))
 
         if is_dir:
-            st_rm, __ = fs.rmdir(url.path + "?eos.ruid=0&eos.rgid=0")
+            st_rm, __ = fs.rmdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
         else:
-            st_rm, __ = fs.rm(url.path + "?eos.ruid=0&eos.rgid=0")
+            st_rm, __ = fs.rm((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
 
         if not st_rm.ok:
             # Check if entry exists
-            st_stat, __ = fs.stat(url.path)
+            st_stat, __ = fs.stat(url.path.encode("utf-8"))
 
             if st_stat.ok:
                 err_msg = "Error removing entry={0}".format(surl)
@@ -277,6 +280,7 @@ class ArchiveFile(object):
                 self.logger.warning(warn_msg)
             else:
                 # Remove the 'z:i' rule from the acl list
+                stdout = stdout.replace('"', '')
                 acl_val = stdout[stdout.find('=') + 1:]
                 rules  = acl_val.split(',')
                 new_rules = []
@@ -289,7 +293,7 @@ class ArchiveFile(object):
                         if pos != -1:
                             definition = definition[:pos] + definition[pos + 1:]
 
-                            if not definition:
+                            if definition:
                                 new_rules.append(':'.join([tag, definition]))
 
                             continue
@@ -297,6 +301,7 @@ class ArchiveFile(object):
                     new_rules.append(rule)
 
                 acl_val = ','.join(new_rules)
+                self.logger.error("new acl: {0}".format(acl_val))
 
                 if acl_val:
                     # Set the new sys.acl xattr
@@ -441,7 +446,7 @@ class ArchiveFile(object):
 
         if self.d2t:  # for PUT check entry size and checksum if possible
             fs = self.get_fs(dst)
-            st, stat_info = fs.stat(url.path)
+            st, stat_info = fs.stat(url.path.encode("utf-8"))
 
             if not st.ok:
                 err_msg = "Entry={0} failed stat".format(dst)
@@ -563,10 +568,10 @@ class ArchiveFile(object):
         url = client.URL(surl.encode("utf-8"))
 
         # Create directory if not already existing
-        st, __ = fs.stat(url.path + "?eos.ruid=0&eos.rgid=0")
+        st, __ = fs.stat((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
 
         if not st.ok:
-            st, __ = fs.mkdir(url.path + "?eos.ruid=0&eos.rgid=0")
+            st, __ = fs.mkdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
 
             if not st.ok:
                 err_msg = "Dir={0} failed mkdir errmsg={1}, errno={2}, code={3}".format(
@@ -615,7 +620,7 @@ class ArchiveFile(object):
 
             if int(info[2]) == 0 and int(info[3]) == 0:
                 fs = self.get_fs(dst)
-                st_rm, __ = fs.rmdir(url.path + "?eos.ruid=0&eos.rgid=0")
+                st_rm, __ = fs.rmdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
 
                 if not st_rm.ok:
                     err_msg = "Error removing entry={0}".format(dst)
