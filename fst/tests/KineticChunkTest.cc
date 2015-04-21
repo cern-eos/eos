@@ -25,53 +25,53 @@ SCENARIO("Single chunk public API test.", "[Chunk]"){
             char buf[10];
             REQUIRE(c.write(NULL, 0, 0) == EINVAL);
             REQUIRE(c.write(buf,1024*1024,1) == EINVAL);
-    }
-
-    THEN("The chunk is not dirty."){
-        REQUIRE(c.dirty() == false);
-    }
-
-    WHEN("Something is written to the chunk."){
-        char in[] = "0123456789";
-        REQUIRE(c.write(in, 0, 10) == 0);
-
-        THEN("It can be read again from memory."){
-            char out[10];
-            REQUIRE(c.read(out,0,10) == 0);
-            REQUIRE(memcmp(in,out,10) == 0);
         }
 
-        THEN("It is dirty"){
-            REQUIRE(c.dirty() == true);
+        THEN("The chunk is not dirty."){
+            REQUIRE(c.dirty() == false);
         }
 
-        AND_WHEN("It is truncated to size 0."){
-            REQUIRE(c.truncate(0) == 0);
+        WHEN("Something is written to the chunk."){
+            char in[] = "0123456789";
+            REQUIRE(c.write(in, 0, 10) == 0);
 
-            THEN("Reading from the chunk returns 0s."){
-                    char out[] = "0123456789";
-                    char compare[10];
-                    memset(compare,0,10);
-                    REQUIRE(c.read(out,0,10)==0);
-                    REQUIRE(memcmp(compare,out,10) == 0);
-            }
-        }
-
-        AND_WHEN("It is flushed."){
-            REQUIRE(c.flush() == 0 );
-
-            THEN("It can be read again from the drive."){
-                KineticChunk x(con, "key");
+            THEN("It can be read again from memory."){
                 char out[10];
-                REQUIRE(x.read(out,0,10) == 0);
+                REQUIRE(c.read(out,0,10) == 0);
                 REQUIRE(memcmp(in,out,10) == 0);
             }
 
-            THEN("It is no longer dirty."){
-                REQUIRE(c.dirty() == false);
+            THEN("It is dirty"){
+                REQUIRE(c.dirty() == true);
             }
 
-            AND_WHEN("The on-drive value is manipulated by someone else."){
+            AND_WHEN("It is truncated to size 0."){
+                REQUIRE(c.truncate(0) == 0);
+
+                THEN("Reading from the chunk returns 0s."){
+                        char out[] = "0123456789";
+                        char compare[10];
+                        memset(compare,0,10);
+                        REQUIRE(c.read(out,0,10)==0);
+                        REQUIRE(memcmp(compare,out,10) == 0);
+                }
+            }
+
+            AND_WHEN("It is flushed."){
+                REQUIRE(c.flush() == 0 );
+
+                THEN("It can be read again from the drive."){
+                    KineticChunk x(con, "key");
+                    char out[10];
+                    REQUIRE(x.read(out,0,10) == 0);
+                    REQUIRE(memcmp(in,out,10) == 0);
+                }
+
+                THEN("It is no longer dirty."){
+                    REQUIRE(c.dirty() == false);
+                }
+
+                AND_WHEN("The on-drive value is manipulated by someone else."){
                     KineticChunk x(con, "key");
                     REQUIRE(x.write("99",0,2) == 0);
                     REQUIRE(x.flush() == 0);

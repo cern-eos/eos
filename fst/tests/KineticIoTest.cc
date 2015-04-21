@@ -157,14 +157,14 @@ SCENARIO("KineticIo Public API", "[Io]"){
             }
         }
 
-        AND_WHEN("Writing data accross multiple chunks."){
+        AND_WHEN("Writing data across multiple chunks."){
             REQUIRE(kio.Write(KineticChunk::capacity-32, write_buf, buf_size) == buf_size);
 
             THEN("IO object can be synced."){
                 REQUIRE(kio.Sync() == SFS_OK);
             }
 
-            THEN("Stat will return the filesize."){
+            THEN("Stat will return the number of blocks and the filesize."){
                 struct stat stbuf;
                 REQUIRE(kio.Stat(&stbuf) == SFS_OK);
                 REQUIRE(stbuf.st_blocks == 2);

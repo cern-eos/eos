@@ -26,13 +26,10 @@ typedef std::shared_ptr<kinetic::BlockingKineticConnectionInterface> ConnectionP
 class KineticIo  : public FileIo
 {
 public:
-    //------------------------------------------------------------------------------
-    // See common/Attr.hh for documentation Attr class
     class Attr : public eos::common::Attr, public eos::common::LogId
     {    
     private:
-        ConnectionPointer connection;
-    
+        ConnectionPointer connection;   
     public:
         // ------------------------------------------------------------------------
         //! Set a binary attribute (name has to start with 'user.' !!!)
@@ -233,12 +230,34 @@ public:
     //--------------------------------------------------------------------------
     int Statfs (const char* path, struct statfs* statFs);
 
-
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //! @param cache_capacity maximum cache size 
+    //-------------------------------------------------------------------------- 
     explicit KineticIo (size_t cache_capacity=10);
+    
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //-------------------------------------------------------------------------- 
     ~KineticIo ();
 
 private:
-    int getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk);
+    //--------------------------------------------------------------------------
+    //! Obtain 1 MB chunk associated with the file path set by Open, chunk 
+    //! numbers start at 0 
+    //! @param chunk_number specifies which 1 MB chunk in the file is requested, 
+    //! @param chunk points to chunk on success, otherwise not changed 
+    //! @return 0 if successful otherwise errno
+    //-------------------------------------------------------------------------- 
+    int getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk);    
+    
+    
+    //--------------------------------------------------------------------------
+    //! Implementation of read and write functionality as most of the code is 
+    //! shared. 
+    //-------------------------------------------------------------------------- 
+    int64_t doReadWrite (XrdSfsFileOffset offset, char* buffer,
+		XrdSfsXferSize length, uint16_t timeout, int mode);
   
 private:
     ConnectionPointer connection;

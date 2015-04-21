@@ -9,13 +9,23 @@ using std::string;
 using namespace kinetic;
 using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
 
+/* Evil macros are evil, just keeping them to reduce code duplication while 
+ * retaining correct eos_err expansion. */
+#define REQ_CONNECTION if(!connection){ eos_err("Connection Nullptr."); errno = ENXIO; return SFS_ERROR; }
+#define REQ_STATUS_OK if(!status.ok()){                                      \
+            eos_err("Invalid Connection Status: %d", status.statusCode());   \
+            connection.reset();                                              \
+            errno = EIO;                                                     \
+            return SFS_ERROR;                                                \
+        }                                       
+
 static int getConnection(const std::string &path, ConnectionPointer &connection)
 {
     static KineticDriveMap dm(""); // initialized once due to being static
      
     size_t wwn_start = path.find_first_of(':') + 1;
     size_t wwn_end   = path.find_first_of(':', wwn_start);
-    std::string wwn  = path.substr(wwn_start, wwn_end-wwn_start);
+    string wwn  = path.substr(wwn_start, wwn_end-wwn_start);
             
     std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> con;
     if(int err = dm.getConnection(wwn, con))
@@ -25,15 +35,15 @@ static int getConnection(const std::string &path, ConnectionPointer &connection)
     return 0; 
 }
 
-
 KineticIo::KineticIo (size_t cache_capacity) :
     cache_capacity(cache_capacity)
 {
+    mType = "KineticIo";
 }
 
-
 KineticIo::~KineticIo ()
-{}
+{
+}
 
 int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
 		mode_t mode, const std::string& opaque, uint16_t timeout)
@@ -51,12 +61,7 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
             errno = EEXIST;
             return SFS_ERROR;
         }
-        if(!status.ok()){
-            eos_err("Invalid Connection Status: %d", status.statusCode());
-            connection.reset();
-            errno = EIO;
-            return SFS_ERROR;
-        }
+        REQ_STATUS_OK; 
         return SFS_OK;
     }
     
@@ -68,12 +73,7 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
         errno = ENOENT;
         return SFS_ERROR;
     }
-    if(!status.ok()){
-        eos_err("Invalid Connection Status: %d", status.statusCode());
-        connection.reset();
-        errno = EIO;
-        return SFS_ERROR;
-    }
+    REQ_STATUS_OK; 
     return SFS_OK;
 }
 
@@ -91,7 +91,7 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
                 eos_err("Flushing dirty chunk failed with error code: %d",err);
                 return err;
             }
-       cache_fifo.pop();
+        cache_fifo.pop();
      }
 
     chunk.reset(new KineticChunk(connection, mFilePath + "_" + std::to_string((long long int)chunk_number)));
@@ -100,161 +100,117 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
     return 0;
 }
 
-int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer,
-		XrdSfsXferSize length, uint16_t timeout)
+enum rw {READ, WRITE};
+int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
+		XrdSfsXferSize length, uint16_t timeout, int mode)
 {
-    if(!connection){
-        eos_err("Connection Nullptr.");
-        errno = ENXIO;
-        return SFS_ERROR;
-    }
+    REQ_CONNECTION;
     shared_ptr<KineticChunk> chunk;
     int length_todo = length;
     int offset_done = 0;
 
     while(length_todo){
 
-        int chunk_number = (offset+offset_done) / KineticChunk::capacity;
-        int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
-        int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
+            int chunk_number = (offset+offset_done) / KineticChunk::capacity;
+            int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
+            int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
 
-        errno = getChunk(chunk_number, chunk);
-        if(errno) return SFS_ERROR;
-        errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
-        if(errno) return SFS_ERROR;
+            errno = getChunk(chunk_number, chunk);
+            if(errno) return SFS_ERROR;
 
-        length_todo -= chunk_length;
-        offset_done += chunk_length;
+            if(mode == rw::WRITE){
+                errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
+                if(errno) return SFS_ERROR;
+                if(chunk_offset + chunk_length == KineticChunk::capacity)
+                    errno = chunk->flush();
+            }
+            else if (mode == rw::READ){
+                errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
+            }
+            if(errno) return SFS_ERROR;
+            length_todo -= chunk_length;
+            offset_done += chunk_length;
     }
 
     return length;
+    
+}
+
+int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer,
+		XrdSfsXferSize length, uint16_t timeout)
+{
+    return doReadWrite(offset, buffer, length, timeout, rw::READ);
 }
 
 int64_t KineticIo::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout)
 {
-    	if(!connection){
-            eos_err("Connection Nullptr.");
-            errno = ENXIO;
-            return SFS_ERROR;
-	}
-	shared_ptr<KineticChunk> chunk;
-	int length_todo = length;
-	int offset_done = 0;
-
-	while(length_todo){
-
-		int chunk_number = (offset+offset_done) / KineticChunk::capacity;
-		int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
-		int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
-
-		errno = getChunk(chunk_number, chunk);
-		if(errno) return SFS_ERROR;
-		errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
-		if(errno) return SFS_ERROR;
-
-		if(chunk_offset + chunk_length == KineticChunk::capacity){
-			errno = chunk->flush();
-			if(errno) return SFS_ERROR;
-		}
-
-		length_todo -= chunk_length;
-		offset_done += chunk_length;
-	}
-
-	return length;
+    return doReadWrite(offset, const_cast<char*>(buffer), length, timeout, rw::WRITE);
 }
 
 int64_t KineticIo::ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
-	// ignore async for now
-	return Read(offset, buffer, length, timeout);
+    // ignore async for now
+    return Read(offset, buffer, length, timeout);
 }
 
 int64_t KineticIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout)
 {
-	// ignore async for now
-	return Write(offset, buffer, length, timeout);
+    // ignore async for now
+    return Write(offset, buffer, length, timeout);
 }
 
 int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
-    	if(!connection){
-            eos_err("Connection Nullptr.");
-            errno = ENXIO;
-            return SFS_ERROR;
-	}
-	shared_ptr<KineticChunk> chunk;
-	int chunk_number = offset / KineticChunk::capacity;
-	int chunk_offset = offset - chunk_number * KineticChunk::capacity;
+    REQ_CONNECTION;
+    shared_ptr<KineticChunk> chunk;
+    int chunk_number = offset / KineticChunk::capacity;
+    int chunk_offset = offset - chunk_number * KineticChunk::capacity;
 
-	errno = getChunk(chunk_number, chunk);
-	if(errno) return SFS_ERROR;
+    errno = getChunk(chunk_number, chunk);
+    if(errno) return SFS_ERROR;
 
-	errno = chunk->truncate(chunk_offset);
-	if(errno) return SFS_ERROR;
+    errno = chunk->truncate(chunk_offset);
+    if(errno) return SFS_ERROR;
 
-	return SFS_OK;
+    return SFS_OK;
 }
 
 int KineticIo::Fallocate (XrdSfsFileOffset lenght)
 {
-    	if(!connection){
-            eos_err("Connection Nullptr.");
-            errno = ENXIO;
-            return SFS_ERROR;
-	}
-	// TODO: handle quota here
-	return SFS_OK;
+    REQ_CONNECTION;
+    // TODO: handle quota here
+    return SFS_OK;
 }
 
 int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
-    	if(!connection){
-            eos_err("Connection Nullptr.");
-            errno = ENXIO;
-            return SFS_ERROR;
-	}
-	// TODO: handle quota here
-	return SFS_OK;
+    REQ_CONNECTION;
+    // TODO: handle quota here
+    return SFS_OK;
 }
 
 int KineticIo::Remove (uint16_t timeout)
 {
-    	if(!connection){
-            eos_err("Connection Nullptr.");
-            errno = ENXIO;
-            return SFS_ERROR;
-	}
-	cache.clear();
-	cache_fifo = std::queue<int>();
+    REQ_CONNECTION;
+    cache.clear();
+    cache_fifo = std::queue<int>();
 
-	unique_ptr<vector<std::string>> keys(new vector<string>());
-	size_t max_size = 100;
-	do {
-		keys->clear();
-		connection->GetKeyRange(mFilePath,false,mFilePath+"__",false,false,max_size,keys);
-                for (auto iter = keys->begin(); iter != keys->end(); ++iter){
-                    KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
-                    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
-                        eos_err("Invalid Connection Status: %d", status.statusCode());
-                        connection.reset();
-                        errno = EIO;
-                        return SFS_ERROR;
-                    }
-                }
-	}while(keys->size() == max_size);
-
- 
-	return SFS_OK;
+    unique_ptr<vector<std::string>> keys(new vector<string>());
+    size_t max_size = 100;
+    do {
+        keys->clear();
+        connection->GetKeyRange(mFilePath,false,mFilePath+"__",false,false,max_size,keys);
+        for (auto iter = keys->begin(); iter != keys->end(); ++iter){
+            KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
+            REQ_STATUS_OK;
+        }
+    }while(keys->size() == max_size);
+    return SFS_OK;
 }
 
 int KineticIo::Sync (uint16_t timeout)
 {
-    if(!connection){
-        eos_err("Connection Nullptr.");
-        errno = ENXIO;
-        return SFS_ERROR;
-    }
+    REQ_CONNECTION;
     for (auto it=cache.begin(); it!=cache.end(); ++it){
         if(it->second->dirty()){
             errno = it->second->flush();
@@ -275,36 +231,27 @@ int KineticIo::Close (uint16_t timeout)
 
 int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 {
-    	if(!connection){
-            eos_err("Connection Nullptr.");
-            errno = ENXIO;
-            return SFS_ERROR;
-	}
-	errno = Sync(timeout);
-	if(errno) return SFS_ERROR;
+    REQ_CONNECTION;
+    errno = Sync(timeout);
+    if(errno) return SFS_ERROR;
 
-	unique_ptr<string> key;
-	unique_ptr<KineticRecord> record;
+    unique_ptr<string> key;
+    unique_ptr<KineticRecord> record;
 
-	KineticStatus status = connection->GetPrevious(mFilePath+"__",key,record);
+    KineticStatus status = connection->GetPrevious(mFilePath+"__",key,record);
+    REQ_STATUS_OK; 
+    
+    memset(buf,0,sizeof(struct stat));
+    buf->st_blksize = KineticChunk::capacity;
 
-	if(!status.ok()){
-            eos_err("Invalid Connection Status: %d", status.statusCode());
-            connection.reset();
-            errno = EIO;
-            return SFS_ERROR;
-	}
-	memset(buf,0,sizeof(struct stat));
-	buf->st_blksize = KineticChunk::capacity;
-        
-        
-        std::string chunkstr = key->substr(key->find_last_of('_')+1,key->length());
-	int chunk_number = chunkstr.empty() ?  0 : std::stoll(chunkstr); 
-        
-	buf->st_blocks = chunk_number+1;
-	buf->st_size = chunk_number * KineticChunk::capacity + record->value()->size();
 
-	return SFS_OK;
+    std::string chunkstr = key->substr(key->find_last_of('_')+1,key->length());
+    int chunk_number = chunkstr.empty() ?  0 : std::stoll(chunkstr); 
+
+    buf->st_blocks = chunk_number+1;
+    buf->st_size = chunk_number * KineticChunk::capacity + record->value()->size();
+
+    return SFS_OK;
 }
 
 void* KineticIo::GetAsyncHandler ()
