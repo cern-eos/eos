@@ -1489,7 +1489,8 @@ XrdFstOfsFile::verifychecksum ()
 
         if (opaqueChecksum != hexChecksum)
         {
-          eos_err("requested checksum %s does not match checksum %s of uploaded file");
+          eos_err("requested checksum %s does not match checksum %s of uploaded"
+                  " file", opaqueChecksum.c_str(), hexChecksum.c_str());
           delete checkSum;
           checkSum = 0;
           return true;
