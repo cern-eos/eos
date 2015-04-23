@@ -94,6 +94,11 @@ public:
 
   static void FidPrefix2FullPath (const char* hexstring, const char* localprefix, XrdOucString &fullpath, unsigned int subindex = 0)
   {
+    if ( (!hexstring) || (!localprefix)) {
+      fullpath="";
+      return;
+    }
+
     unsigned long long fid = Hex2Fid(hexstring);
     char sfullpath[16384];
     if (subindex)
