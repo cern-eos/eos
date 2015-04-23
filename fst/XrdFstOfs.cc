@@ -645,7 +645,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     close(fd);
   }
 
-  eos_notice("FST_HOST=%s FST_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, myPort, VERSION, RELEASE, keytabcks.c_str());
+  eos_notice("FST_HOST=%s FST_PORT=%d VERSION=%s RELEASE=%s KEYTABADLER=%s", HostName, (int)myPort, VERSION, RELEASE, keytabcks.c_str());
 
   eos::fst::Config::gConfig.KeyTabAdler = keytabcks.c_str();
 
