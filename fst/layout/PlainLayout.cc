@@ -56,7 +56,7 @@ Layout (file, lid, client, outError, io, timeout)
 
 PlainLayout::~PlainLayout ()
 {
-  delete mPlainFile;
+  // mPlainFile is deleted via mFileIO in the base class
 }
 
 
