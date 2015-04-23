@@ -30,6 +30,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/param.h>
+#include <sstream>
 
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -59,22 +60,82 @@ XrootPath::XrootPath()
 
   thePaths.Attach(pBase);
 
-  if ((lp = thePaths.GetLine())) while((tp = thePaths.GetToken()))
-  {aOK = 1;
-  if ((colon = rindex(tp, (int)':')) && *(colon+1) == '/')
-  {if (!(subs = index(colon, (int)'='))) subs = 0;
-  else if (*(subs+1) == '/') {*subs = '\0'; subs++;}
-  else if (*(subs+1)) aOK = 0;
-  else {*subs = '\0'; subs = (char*)"";}
-  } else aOK = 0;
+  if ((lp = thePaths.GetLine()))
+    while ((tp = thePaths.GetToken()))
+    {
+      aOK = 1;
+      if ((colon = rindex(tp, (int) ':')) && *(colon + 1) == '/')
+      {
+        if (!(subs = index(colon, (int) '=')))
+          aOK = 0;
+        else if (*(subs + 1) == '/')
+        {
+          *subs = '\0';
+          subs++;
+        }
+        else if (*(subs + 1))
+          aOK = 0;
+        else
+        {
+          *subs = '\0';
+          subs = (char*) "";
+        }
+      }
+      else
+        aOK = 0;
 
-  if (aOK)
-  {*colon++ = '\0';
-  while(*(colon+1) == '/') colon++;
-  xplist = new xpath(xplist, tp, colon, subs);
-  } else cerr <<"XrdUtils: Invalid XROOTD_VMP token '" <<tp <<'"' <<endl;
-  }
+      if (aOK)
+      {
+        *colon++ = '\0';
+        while (*(colon + 1) == '/')
+          colon++;
+        xplist = new xpath(xplist, tp, colon, subs);
+      }
+      else {
+        std::stringstream ss;
+        ss << "XrdUtils: Invalid XROOTD_VMP token '" << tp << '"' << endl;
+        pParseErrStr = ss.str();
+        return ;
+      }
+    }
 }
+
+
+/******************************************************************************/
+/*         X r o o t P a t h    C h e ck V M P                                */
+/******************************************************************************/
+
+bool
+XrootPath::CheckVMP(char *errbuff, int errbufflen)
+{
+  struct xpath *xpnow = xplist;
+  if (!xpnow)
+    return false;
+  // Check all the known paths
+  while (xpnow)
+  {
+    XrdCl::URL url;
+    XrdCl::XRootDStatus status;
+
+    url.FromString(xpnow->server);
+    url.SetUserName("XrootPath_CheckVMP");
+
+    XrdCl::StatInfo* xrdstatinfo = 0;
+    XrdCl::FileSystem fs(url);
+    status = fs.Stat(xpnow->nath, xrdstatinfo);
+    if (status.IsError())
+    {
+      if (xrdstatinfo)
+        delete xrdstatinfo;
+      snprintf(errbuff,errbufflen,"cannot stat Xrootd Virtual Mount Point %s   %s, error is \"%s\"",
+          xpnow->server,xpnow->nath,status.ToString().c_str());
+      return false;
+    }
+    xpnow = xpnow->next;
+  }
+  return true;
+}
+
 
 /******************************************************************************/
 /*          X r o o t P a t h    D e s t r u c t o r           */
@@ -83,7 +144,7 @@ XrootPath::XrootPath()
 XrootPath::~XrootPath()
 {
   struct xpath *xpnow;
-
+  if(pBase) free(pBase);
   while((xpnow = xplist))
   {xplist = xplist->next; delete xpnow;}
 }
