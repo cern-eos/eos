@@ -35,11 +35,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Master.hh"
-#include "namespace/persistency/LogManager.hh"
-#include "namespace/utils/DataHelper.hh"
-#include "namespace/views/HierarchicalView.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/

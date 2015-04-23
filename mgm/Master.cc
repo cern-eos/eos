@@ -36,6 +36,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "mq/XrdMqClient.hh"
 /*----------------------------------------------------------------------------*/
+#include "namespace/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
 
 // -----------------------------------------------------------------------------
@@ -744,42 +745,44 @@ Master::Compacting ()
       std::string ocfile = gOFS->MgmNsFileChangeLogFile.c_str();
       ocfile += ".oc";
       char archiveFileLogName[4096];
-      snprintf(archiveFileLogName, sizeof (archiveFileLogName) - 1, "%s.%lu", gOFS->MgmNsFileChangeLogFile.c_str(), now);
+      snprintf(archiveFileLogName, sizeof (archiveFileLogName) - 1, "%s.%lu",
+               gOFS->MgmNsFileChangeLogFile.c_str(), now);
 
       std::string archivefile = archiveFileLogName;
       if (fCompactFiles)
-	MasterLog(eos_info("archive(file)=%s oc=%s", archivefile.c_str(), ocfile.c_str()));
+        MasterLog(eos_info("archive(file)=%s oc=%s", archivefile.c_str(), ocfile.c_str()));
 
       // directory compacting
       std::string ocdir = gOFS->MgmNsDirChangeLogFile.c_str();
       ocdir += ".oc";
       char archiveDirLogName[4096];
-      snprintf(archiveDirLogName, sizeof (archiveDirLogName) - 1, "%s.%lu", gOFS->MgmNsDirChangeLogFile.c_str(), now);
+      snprintf(archiveDirLogName, sizeof (archiveDirLogName) - 1, "%s.%lu",
+               gOFS->MgmNsDirChangeLogFile.c_str(), now);
 
       std::string archivedirfile = archiveDirLogName;
       if (fCompactDirectories)
-	MasterLog(eos_info("archive(dir)=%s oc=%s", archivedirfile.c_str(), ocdir.c_str()));
+        MasterLog(eos_info("archive(dir)=%s oc=%s", archivedirfile.c_str(), ocdir.c_str()));
 
       int rc = 0;
       bool CompactFiles = fCompactFiles;
       bool CompactDirectories = fCompactDirectories;
-      if (CompactFiles) 
+      if (CompactFiles)
       {
-	// clean-up any old .oc file
-	rc = unlink(ocfile.c_str());
-	if (!WEXITSTATUS(rc))
-	{
-	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(file) unlinked\""));
-	}
+        // clean-up any old .oc file
+        rc = unlink(ocfile.c_str());
+        if (!WEXITSTATUS(rc))
+        {
+          MasterLog(eos_info("oc=%s msg=\"old online compacting file(file) unlinked\""));
+        }
       }
 
       if (CompactDirectories)
       {
-	rc = unlink(ocdir.c_str());
-	if (!WEXITSTATUS(rc))
-	{
-	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
-	}
+        rc = unlink(ocdir.c_str());
+        if (!WEXITSTATUS(rc))
+        {
+          MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
+        }
       }
 
       bool compacted = false;
@@ -791,27 +794,63 @@ Master::Compacting ()
           MasterLog(eos_info("msg=\"compact prepare\""));
           // require NS read lock
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	  if (CompactFiles)
-	    compData = gOFS->eosFileService->compactPrepare(ocfile);
-	  if (CompactDirectories)
-	    compDirData = gOFS->eosDirectoryService->compactPrepare(ocdir);
+          if (CompactFiles)
+          {
+            eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+                dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+            if (eos_chlog_filesvc)
+              compData = eos_chlog_filesvc->compactPrepare(ocfile);
+          }
+          if (CompactDirectories)
+          {
+            eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+                dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+            if (eos_chlog_dirsvc)
+              compDirData = eos_chlog_dirsvc->compactPrepare(ocdir);
+          }
         }
         {
           MasterLog(eos_info("msg=\"compacting\""));
           // require no NS lock
-	  if (CompactFiles)
-	    gOFS->eosFileService->compact(compData);
-	  if (CompactDirectories)
-	    gOFS->eosDirectoryService->compact(compDirData);
+          if (CompactFiles)
+          {
+            eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+                dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+            if (eos_chlog_filesvc)
+              eos_chlog_filesvc->compact(compData);
+          }
+          if (CompactDirectories)
+          {
+            eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+                dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+            if (eos_chlog_dirsvc)
+              eos_chlog_dirsvc->compact(compDirData);
+          }
         }
         {
           // require NS write lock
           MasterLog(eos_info("msg=\"compact commit\""));
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-	  if (CompactFiles)
-	    gOFS->eosFileService->compactCommit(compData);
-	  if (CompactDirectories) 
-	    gOFS->eosDirectoryService->compactCommit(compDirData);
+          if (CompactFiles)
+          {
+            eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+                dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+            if (eos_chlog_filesvc)
+              eos_chlog_filesvc->compactCommit(compData);
+          }
+          if (CompactDirectories)
+          {
+            eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+                dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+            if (eos_chlog_dirsvc)
+              eos_chlog_dirsvc->compactCommit(compDirData);
+          }
         }
 
         {
@@ -836,74 +875,74 @@ Master::Compacting ()
           SignalRemoteBounceToMaster();
         }
 
-	if (CompactFiles) 
-	{
-	  // file compaction archiving
-	  if (::rename(gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str()))
-	  {
-	    MasterLog(eos_crit("failed to rename %s=>%s errno=%d", gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str(), errno));
-	  }
-	  else
-	  {
-	    if (::rename(ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str()))
-	    {
-	      MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str(), errno));
-	    }
-	    else
-	    {
-	      // stat the sizes and set the compacting factor
-	      struct stat before_compacting;
-	      struct stat after_compacting;
-	      fCompactingRatio = 0.0;
-	      
-	      if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &after_compacting)) && (!::stat(archivefile.c_str(), &before_compacting)))
-	      {
-		if (after_compacting.st_size)
-		{
-		  fCompactingRatio = 1.0 * before_compacting.st_size / after_compacting.st_size;
-		}
-	      }
-	      compacted = true;
-	    }
-	  }
-	}
+        if (CompactFiles)
+        {
+          // file compaction archiving
+          if (::rename(gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str()))
+          {
+            MasterLog(eos_crit("failed to rename %s=>%s errno=%d", gOFS->MgmNsFileChangeLogFile.c_str(), archivefile.c_str(), errno));
+          }
+          else
+          {
+            if (::rename(ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str()))
+            {
+              MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocfile.c_str(), gOFS->MgmNsFileChangeLogFile.c_str(), errno));
+            }
+            else
+            {
+              // stat the sizes and set the compacting factor
+              struct stat before_compacting;
+              struct stat after_compacting;
+              fCompactingRatio = 0.0;
 
-	if (CompactDirectories)
-	{
-	  // dir compaction archiving
-	  if (::rename(gOFS->MgmNsDirChangeLogFile.c_str(), archivedirfile.c_str()))
-	  {
-	    MasterLog(eos_crit("failed to rename %s=>%s errno=%d", gOFS->MgmNsDirChangeLogFile.c_str(), archivedirfile.c_str(), errno));
-	  }
-	  else
-	  {
-	    if (::rename(ocdir.c_str(), gOFS->MgmNsDirChangeLogFile.c_str()))
-	    {
-	      MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocdir.c_str(), gOFS->MgmNsDirChangeLogFile.c_str(), errno));
-	    }
-	    else
-	      {
-		// stat the sizes and set the compacting factor
-		struct stat before_compacting;
-		struct stat after_compacting;
-		fDirCompactingRatio = 0.0;
-		
-		if ((!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &after_compacting)) && (!::stat(archivedirfile.c_str(), &before_compacting)))
-		{
-		  if (after_compacting.st_size)
-		    {
-		      fDirCompactingRatio = 1.0 * before_compacting.st_size / after_compacting.st_size;
-		    }
-		}
-		compacted = true;
-	      }
-	  }
-	}
+              if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &after_compacting)) && (!::stat(archivefile.c_str(), &before_compacting)))
+              {
+                if (after_compacting.st_size)
+                {
+                  fCompactingRatio = 1.0 * before_compacting.st_size / after_compacting.st_size;
+                }
+              }
+              compacted = true;
+            }
+          }
+        }
+
+        if (CompactDirectories)
+        {
+          // dir compaction archiving
+          if (::rename(gOFS->MgmNsDirChangeLogFile.c_str(), archivedirfile.c_str()))
+          {
+            MasterLog(eos_crit("failed to rename %s=>%s errno=%d", gOFS->MgmNsDirChangeLogFile.c_str(), archivedirfile.c_str(), errno));
+          }
+          else
+          {
+            if (::rename(ocdir.c_str(), gOFS->MgmNsDirChangeLogFile.c_str()))
+            {
+              MasterLog(eos_crit("failed to rename %s=>%s errno=%d", ocdir.c_str(), gOFS->MgmNsDirChangeLogFile.c_str(), errno));
+            }
+            else
+              {
+                // stat the sizes and set the compacting factor
+                struct stat before_compacting;
+                struct stat after_compacting;
+                fDirCompactingRatio = 0.0;
+
+                if ((!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &after_compacting)) && (!::stat(archivedirfile.c_str(), &before_compacting)))
+                {
+                  if (after_compacting.st_size)
+                    {
+                      fDirCompactingRatio = 1.0 * before_compacting.st_size / after_compacting.st_size;
+                    }
+                }
+                compacted = true;
+              }
+          }
+        }
       }
       catch (eos::MDException &e)
       {
-	errno = e.getErrno();
-	MasterLog(eos_crit("online-compacting returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
+        errno = e.getErrno();
+        MasterLog(eos_crit("online-compacting returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
       }
 
       XrdSysTimer sleeper;
@@ -1563,8 +1602,17 @@ Master::Slave2Master ()
   try
   {
     MasterLog(eos_info("msg=\"invoking slave=>master transition\""));
-    gOFS->eosDirectoryService->slave2Master(contSettings);
-    gOFS->eosFileService->slave2Master(fileSettings);
+    eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+        dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+    if (eos_chlog_dirsvc)
+      eos_chlog_dirsvc->slave2Master(contSettings);
+
+    eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+        dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+    if (eos_chlog_filesvc)
+      eos_chlog_filesvc->slave2Master(fileSettings);
   }
   catch (eos::MDException &e)
   {
@@ -1622,19 +1670,27 @@ Master::Master2MasterRO ()
   // wait that compacting is finished and block any further compacting
   // -----------------------------------------------------------
   WaitCompactingFinished();
+  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
 
-  try
+  if (eos_chlog_dirsvc && eos_chlog_filesvc)
   {
-    gOFS->eosDirectoryService->makeReadOnly();
-    gOFS->eosFileService->makeReadOnly();
+    try
+    {
+      eos_chlog_dirsvc->makeReadOnly();
+      eos_chlog_filesvc->makeReadOnly();
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+      MasterLog(eos_crit("master=>slave transition returned ec=%d %s",
+                         e.getErrno(), e.getMessage().str().c_str()));
+      fRunningState = kIsNothing;
+      return false;
+    }
   }
-  catch (eos::MDException &e)
-  {
-    errno = e.getErrno();
-    MasterLog(eos_crit("master=>slave transition returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
-    fRunningState = kIsNothing;
-    return false;
-  };
 
   // stop the recycler thread
   gOFS->Recycler.Stop();
@@ -1875,22 +1931,33 @@ Master::BootNamespace ()
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
     gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
 
-    gOFS->eosFileService->setContainerService(gOFS->eosDirectoryService);
+    eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+        dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+    eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+        dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+    if (eos_chlog_filesvc && eos_chlog_dirsvc)
+      eos_chlog_filesvc->setContainerService(eos_chlog_dirsvc);
 
     if (!IsMaster())
     {
       // slave's need access to the namespace lock
-      gOFS->eosFileService->setSlaveLock(&fNsLock);
-      gOFS->eosDirectoryService->setSlaveLock(&fNsLock);
+      if (eos_chlog_dirsvc && eos_chlog_filesvc)
+      {
+        eos_chlog_filesvc->setSlaveLock(&fNsLock);
+        eos_chlog_dirsvc->setSlaveLock(&fNsLock);
+      }
     }
 
     gOFS->eosView->configure(settings);
-
     MasterLog(eos_notice("%s", (char*) "eos directory view configure started"));
-
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
-    gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
-    gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
+
+    if (eos_chlog_dirsvc && eos_chlog_filesvc)
+    {
+      eos_chlog_filesvc->setQuotaStats(gOFS->eosView->getQuotaStats());
+      eos_chlog_dirsvc->setQuotaStats(gOFS->eosView->getQuotaStats());
+    }
 
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
@@ -2238,18 +2305,26 @@ Master::RedirectToRemoteMaster ()
   MasterLog(eos_info("msg=\"redirect to remote master\""));
   // push everything to the remote master
   Access::gRedirectionRules[std::string("*")] = fRemoteHost.c_str();
+  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
 
-  try
+  if (eos_chlog_dirsvc && eos_chlog_filesvc)
   {
-    MasterLog(eos_info("msg=\"invoking slave shutdown\""));
-    gOFS->eosDirectoryService->stopSlave();
-    gOFS->eosFileService->stopSlave();
-    MasterLog(eos_info("msg=\"stopped namespace following\""));
-  }
-  catch (eos::MDException &e)
-  {
-    errno = e.getErrno();
-    MasterLog(eos_crit("slave shutdown returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
+    try
+    {
+      MasterLog(eos_info("msg=\"invoking slave shutdown\""));
+      eos_chlog_dirsvc->stopSlave();
+      eos_chlog_filesvc->stopSlave();
+      MasterLog(eos_info("msg=\"stopped namespace following\""));
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+      MasterLog(eos_crit("slave shutdown returned ec=%d %s", e.getErrno(),
+                         e.getMessage().str().c_str()));
+    }
   }
 }
 

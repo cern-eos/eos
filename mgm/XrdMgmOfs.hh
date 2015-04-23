@@ -125,7 +125,6 @@
 #include "namespace/IView.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/IContainerMDSvc.hh"
-#include "namespace/views/HierarchicalView.hh"
 #include "namespace/accounting/FileSystemView.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
@@ -930,8 +929,8 @@ public:
   // ---------------------------------------------------------------------------
   // namespace variables
   // ---------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc *eosDirectoryService; //< changelog for directories
-  eos::ChangeLogFileMDSvc *eosFileService; //< changelog for files
+  eos::IContainerMDSvc *eosDirectoryService; //< changelog for directories
+  eos::IFileMDSvc *eosFileService; //< changelog for files
   eos::IView *eosView; //< hierarchical view of the namespace
   eos::FileSystemView *eosFsView; //< filesystem view of the namespace
   XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded

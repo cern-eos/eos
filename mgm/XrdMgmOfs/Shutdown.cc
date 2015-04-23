@@ -85,14 +85,22 @@ xrdmgmofs_shutdown (int sig)
 
       if (!gOFS->MgmMaster.IsMaster())
       {
-        // stop the follower thread ...
+        // Stop the follower thread ...
         if (gOFS->eosFileService)
         {
-          gOFS->eosFileService->stopSlave();
+          eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+              dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+          if (eos_chlog_filesvc)
+            eos_chlog_filesvc->stopSlave();
         }
         if (gOFS->eosDirectoryService)
         {
-          gOFS->eosDirectoryService->stopSlave();
+          eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+              dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+          if (eos_chlog_dirsvc)
+            eos_chlog_dirsvc->stopSlave();
         }
       }
 

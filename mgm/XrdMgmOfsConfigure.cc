@@ -36,9 +36,6 @@
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -223,16 +220,32 @@ XrdMgmOfs::InitializeFileView ()
       buf.st_size = 0;
       ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
 
+      // TODO: this must be changed to support also other types for
+      // meta-data services
+      eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+          dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
-      gOFS->eosFileService->startSlave();
-      gOFS->eosDirectoryService->startSlave();
+      eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+          dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+      if (!eos_chlog_dirsvc || !eos_chlog_filesvc)
+      {
+        eos_crit("failed cast to change log dir/file service");
+        XrdSysMutexHelper lock(InitializationMutex);
+        Initialized = kFailed;
+      }
+
+      eos_chlog_filesvc->startSlave();
+      eos_chlog_dirsvc->startSlave();
 
       // wait that the follower reaches the offset seen now
-      while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size)
+      while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
       {
         XrdSysTimer sleeper;
         sleeper.Wait(200);
-        eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
+        eos_static_debug("msg=\"waiting for the namespace to reach the follow "
+                         "point\" is-offset=%llu follow-offset=%llu",
+                         eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
       }
 
       {
@@ -243,7 +256,8 @@ XrdMgmOfs::InitializeFileView ()
 
     time_t tstop = time(0);
 
-    gOFS->MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d seconds", (tstop - tstart)));
+    gOFS->MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d "
+                                         "seconds", (tstop - tstart)));
 
     {
       eos::common::RWMutexWriteLock lock(Access::gAccessMutex);

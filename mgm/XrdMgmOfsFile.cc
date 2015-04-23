@@ -43,13 +43,6 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
-#include "namespace/IView.hh"
-#include "namespace/IFileMDSvc.hh"
-#include "namespace/IContainerMDSvc.hh"
-#include "namespace/views/HierarchicalView.hh"
-#include "namespace/accounting/FileSystemView.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
