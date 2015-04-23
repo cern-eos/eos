@@ -140,8 +140,13 @@ FileSystem::BroadcastError (int errc, const char* errmsg)
 eos::common::Statfs*
 FileSystem::GetStatfs ()
 {
+  if (!GetPath().length())
+    return 0;
+		       
   eos::common::Statfs::Callback::callback_data_t lData;
-  lData.path = GetPath().c_str();
+  std::string path = GetPath();
+
+  lData.path = path.c_str();
   lData.caller = (void*) mFileIO;
   // lData.statfs is set in DoStatfs
 
@@ -273,7 +278,8 @@ FileSystem::SyncTransactions (const char* manager)
       if (!stat(fulltransactionpath.c_str(), &buf))
       {
         XrdOucString hexfid = name->d_name;
-        const char* localprefix = GetPath().c_str();
+	std::string path = GetPath();
+        const char* localprefix = path.c_str();
         XrdOucString fstPath;
         eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                                 localprefix, fstPath);
