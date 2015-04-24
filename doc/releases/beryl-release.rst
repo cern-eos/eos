@@ -6,6 +6,13 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.110 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix copy constructor of ContainerMD impacting slave following (hiding directory contents on slave)
+- fix temp std::string assignment bugs reported by valgrind
+
 ``Version V0.3.109 Beryl-Aquamarine``
 
 Bug Fixes
