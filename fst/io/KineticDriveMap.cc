@@ -9,7 +9,7 @@ KineticDriveMap::KineticDriveMap(std::string path)
 {
     if(path.empty()){
         char* envstring = getenv ("EOS_FST_KINETIC_JSON");
-        path = std::string(envstring);    
+        if(envstring) path = std::string(envstring);    
     }
     std::ifstream file(path);
     std::stringstream buffer;
@@ -26,14 +26,14 @@ KineticDriveMap::~KineticDriveMap()
     
 }
 
-int KineticDriveMap::getConnection(const std::string & drive_wwn, std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> & connection)
+int KineticDriveMap::getConnection(const std::string & drive_wwn, std::shared_ptr<kinetic::BlockingKineticConnectionInterface> & connection)
 {
     if(!drives.count(drive_wwn)){
         eos_warning("Connection requested for nonexisting wwn: %s",drive_wwn.c_str());
         return ENODEV;
     }
      
-    KineticDrive d = drives.at(drive_wwn);    
+    KineticDrive & d = drives.at(drive_wwn);    
     
     // Avoid trying to create the same connection multiple times concurrently. Probably a bit over-the-top,
     // but can't hurt.
@@ -52,11 +52,22 @@ int KineticDriveMap::getConnection(const std::string & drive_wwn, std::shared_pt
         blocked_wwn.erase(drive_wwn);
         unblocked.notify_all();
         if(status.notOk()){
-            eos_warning("Failed creating connection to drive %s",drive_wwn.c_str());
+            eos_warning("Failed creating connection to drive %s", drive_wwn.c_str());
             return ENXIO;
         }
     }
     connection = d.connection;
+    return 0;
+}
+
+int KineticDriveMap::invalidateConnection(const std::string& drive_wwn)
+{
+    if(!drives.count(drive_wwn)){
+        eos_warning("Connection invalidation requested for nonexisting wwn: %s",drive_wwn.c_str());
+        return ENODEV;
+    }
+    KineticDrive & d = drives.at(drive_wwn);    
+    d.connection.reset();
     return 0;
 }
 

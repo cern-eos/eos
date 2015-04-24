@@ -29,13 +29,14 @@ private:
     int parseJson(const std::string & path);
     
 public:  
-    int getConnection(const std::string & drive_wwn, std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> & connection); 
+    int getConnection(const std::string & drive_wwn, std::shared_ptr<kinetic::BlockingKineticConnectionInterface> & connection); 
+    int invalidateConnection(const std::string & drive_wwn);
     int getSize();
     
     /* Constructor requires a json file listing kinetic drives. The path can 
      * either be supplied directly or stored in the EOS_FST_KINETIC_JSON
      * environmental variable. */
-    explicit KineticDriveMap(std::string path);
+    explicit KineticDriveMap(std::string path = "");
     ~KineticDriveMap();
 };
 

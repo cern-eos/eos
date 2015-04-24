@@ -9,31 +9,32 @@ using std::string;
 using namespace kinetic;
 using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
 
-/* Evil macros are evil, just keeping them to reduce code duplication while 
- * retaining correct eos_err expansion. */
-#define REQ_CONNECTION if(!connection){ eos_err("Connection Nullptr."); errno = ENXIO; return SFS_ERROR; }
-#define REQ_STATUS_OK if(!status.ok()){                                      \
-            eos_err("Invalid Connection Status: %d", status.statusCode());   \
-            connection.reset();                                              \
-            errno = EIO;                                                     \
-            return SFS_ERROR;                                                \
-        }                                       
-
-static int getConnection(const std::string &path, ConnectionPointer &connection)
+/* Static KineticDrive Map for all KineticIo objects, as well as methods for 
+ * drive map interaction.  */
+static KineticDriveMap & dm()
 {
-    static KineticDriveMap dm(""); // initialized once due to being static
-     
+    static KineticDriveMap dm("");
+    return dm;
+}
+static string extractWWN(const std::string &path)
+{
     size_t wwn_start = path.find_first_of(':') + 1;
     size_t wwn_end   = path.find_first_of(':', wwn_start);
-    string wwn  = path.substr(wwn_start, wwn_end-wwn_start);
-            
-    std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> con;
-    if(int err = dm.getConnection(wwn, con))
-        return err;
-    
-    connection = con;
-    return 0; 
+    return path.substr(wwn_start, wwn_end-wwn_start);
 }
+static int getConnection(const std::string &path, ConnectionPointer &con)
+{
+    string wwn = extractWWN(path);
+    return dm().getConnection(wwn, con);
+}
+static int invalidateConnection(const std::string &path, ConnectionPointer &con)
+{
+    string wwn = extractWWN(path);
+    dm().invalidateConnection(wwn);                  
+    con.reset(); 
+    return EIO;   
+}
+
 
 KineticIo::KineticIo (size_t cache_capacity) :
     cache_capacity(cache_capacity)
@@ -43,38 +44,6 @@ KineticIo::KineticIo (size_t cache_capacity) :
 
 KineticIo::~KineticIo ()
 {
-}
-
-int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
-		mode_t mode, const std::string& opaque, uint16_t timeout)
-{
-    if((errno = getConnection(p, connection)))
-        return SFS_ERROR;
-    mFilePath = p;
-    
-    /* create operation */
-    if (flags & SFS_O_CREAT){
- 	KineticRecord record("", "0", "", Command_Algorithm_SHA1);
-	KineticStatus status = connection->Put(mFilePath+"_0", "", WriteMode::REQUIRE_SAME_VERSION, record);
-        if(status.statusCode() == StatusCode::REMOTE_VERSION_MISMATCH){
-            eos_info("Cannot create file %s, it already exists.", mFilePath.c_str());
-            errno = EEXIST;
-            return SFS_ERROR;
-        }
-        REQ_STATUS_OK; 
-        return SFS_OK;
-    }
-    
-    /* regular open operation */
-    unique_ptr<string> version;
-    KineticStatus status = connection->GetVersion(mFilePath+"_0", version);
-    if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
-        eos_info("Cannot open file %s, it does not exist.", mFilePath.c_str());
-        errno = ENOENT;
-        return SFS_ERROR;
-    }
-    REQ_STATUS_OK; 
-    return SFS_OK;
 }
 
 int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
@@ -100,11 +69,54 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
     return 0;
 }
 
+int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
+		mode_t mode, const std::string& opaque, uint16_t timeout)
+{
+    if((errno = getConnection(p, connection)))
+        return SFS_ERROR;
+    mFilePath = p;
+    
+    KineticStatus status(kinetic::StatusCode::OK, "");
+    
+    /* create operation */
+    if (flags & SFS_O_CREAT){
+ 	KineticRecord record("", "0", "", Command_Algorithm_SHA1);
+	status = connection->Put(mFilePath+"_0", "", WriteMode::REQUIRE_SAME_VERSION, record);
+        if(status.statusCode() == StatusCode::REMOTE_VERSION_MISMATCH){
+            eos_info("Cannot create file %s, it already exists.", mFilePath.c_str());
+            errno = EEXIST;
+            return SFS_ERROR;
+        }
+    }
+    /* regular open operation */
+    else{
+        unique_ptr<string> version;
+        status = connection->GetVersion(mFilePath+"_0", version);
+        if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
+            eos_info("Cannot open file %s, it does not exist.", mFilePath.c_str());
+            errno = ENOENT;
+            return SFS_ERROR;
+        }
+    }
+    
+    if(!status.ok()){        
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+            status.statusCode(), status.message().c_str());   
+        errno = invalidateConnection(mFilePath, connection);                                        
+        return SFS_ERROR;                                                
+    }           
+    return SFS_OK;
+}
+
 enum rw {READ, WRITE};
 int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
 		XrdSfsXferSize length, uint16_t timeout, int mode)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     shared_ptr<KineticChunk> chunk;
     int length_todo = length;
     int offset_done = 0;
@@ -136,8 +148,7 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
     
 }
 
-int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer,
-		XrdSfsXferSize length, uint16_t timeout)
+int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, uint16_t timeout)
 {
     return doReadWrite(offset, buffer, length, timeout, rw::READ);
 }
@@ -161,7 +172,11 @@ int64_t KineticIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer, XrdS
 
 int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     shared_ptr<KineticChunk> chunk;
     int chunk_number = offset / KineticChunk::capacity;
     int chunk_offset = offset - chunk_number * KineticChunk::capacity;
@@ -177,21 +192,33 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 
 int KineticIo::Fallocate (XrdSfsFileOffset lenght)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     // TODO: handle quota here
     return SFS_OK;
 }
 
 int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     // TODO: handle quota here
     return SFS_OK;
 }
 
 int KineticIo::Remove (uint16_t timeout)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     cache.clear();
     cache_fifo = std::queue<int>();
 
@@ -202,7 +229,12 @@ int KineticIo::Remove (uint16_t timeout)
         connection->GetKeyRange(mFilePath,false,mFilePath+"__",false,false,max_size,keys);
         for (auto iter = keys->begin(); iter != keys->end(); ++iter){
             KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
-            REQ_STATUS_OK;
+            if(!status.ok()){                                      
+                eos_err("Invalid Connection Status: %d, error message: %s", 
+                status.statusCode(), status.message().c_str());   
+                errno = invalidateConnection(mFilePath, connection);                                        
+                return SFS_ERROR;                                                        
+            }     
         }
     }while(keys->size() == max_size);
     return SFS_OK;
@@ -210,7 +242,11 @@ int KineticIo::Remove (uint16_t timeout)
 
 int KineticIo::Sync (uint16_t timeout)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     for (auto it=cache.begin(); it!=cache.end(); ++it){
         if(it->second->dirty()){
             errno = it->second->flush();
@@ -231,7 +267,11 @@ int KineticIo::Close (uint16_t timeout)
 
 int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 {
-    REQ_CONNECTION;
+    if(!connection){ 
+        eos_err("Connection Nullptr."); 
+        errno = ENXIO; 
+        return SFS_ERROR; 
+    }
     errno = Sync(timeout);
     if(errno) return SFS_ERROR;
 
@@ -239,7 +279,12 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
     unique_ptr<KineticRecord> record;
 
     KineticStatus status = connection->GetPrevious(mFilePath+"__",key,record);
-    REQ_STATUS_OK; 
+    if(!status.ok()){                                      
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+        status.statusCode(), status.message().c_str());   
+        errno = invalidateConnection(mFilePath, connection);                                        
+        return SFS_ERROR;                                                        
+    }
     
     memset(buf,0,sizeof(struct stat));
     buf->st_blksize = KineticChunk::capacity;
@@ -261,8 +306,8 @@ void* KineticIo::GetAsyncHandler ()
 }
 
 int KineticIo::Statfs (const char* p, struct statfs* sfs)
-{
-    if((errno = getConnection(p, connection)))
+{  
+    if((errno = getConnection(string(p), connection)))
         return errno;
     
     unique_ptr<kinetic::DriveLog> log;
@@ -270,11 +315,12 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     types.push_back(kinetic::Command_GetLog_Type::Command_GetLog_Type_CAPACITIES);
 
     KineticStatus status = connection->GetLog(types,log);
-    if(!status.ok()){
-        eos_err("Invalid Connection Status: %d", status.statusCode());
-        connection.reset();
-        return EIO;
-    }
+    if(!status.ok()){                                      
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+        status.statusCode(), status.message().c_str());   
+        return invalidateConnection(mFilePath, connection);                                                                                             
+    }       
+
 
     long capacity = log->capacity.nominal_capacity_in_bytes;
     long free     = capacity - (capacity * log->capacity.portion_full); 
@@ -315,11 +361,14 @@ bool KineticIo::Attr::Get(const char* name, char* value, size_t& size)
         eos_info("Requested attribute '%s' does not exist.", name);
         return false;
     }
-    if(!status.ok()){
-        eos_err("Invalid Connection Status: %d", status.statusCode());
-        connection.reset();
-        return false;
+    if(!status.ok()){                                      
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+        status.statusCode(), status.message().c_str());   
+        invalidateConnection(mName, connection);                                        
+        return false;                                                     
     }
+    
+    
     if(size < record->value()->size()){
         eos_info("Requested attribute bigger than supplied buffer.");
         return false; 
@@ -346,11 +395,12 @@ bool KineticIo::Attr::Set(const char * name, const char * value, size_t size)
     }
     KineticRecord record(string(value, size), "", "", Command_Algorithm_SHA1);
     KineticStatus status = connection->Put(mName+"_"+name, "", WriteMode::IGNORE_VERSION, record);
-    if(!status.ok()){
-        connection.reset();
-        eos_err("Invalid Connection Status: %d", status.statusCode());
-        return false;
-    }
+    if(!status.ok()){                                      
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+        status.statusCode(), status.message().c_str());   
+        invalidateConnection(mName, connection);                                        
+        return false;                                                        
+    }    
     return true;
 }
 
@@ -367,7 +417,7 @@ KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
         return 0;
     
     ConnectionPointer con; 
-    if(getConnection(path, con) != 0)
+    if(getConnection(path, con))
         return 0;
     
     unique_ptr<string> version;

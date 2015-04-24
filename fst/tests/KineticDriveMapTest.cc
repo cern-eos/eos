@@ -18,7 +18,7 @@ SCENARIO("KineticDriveMap Public API.", "[DriveMap]"){
     }
     GIVEN("The path set in the environment variable"){
         KineticDriveMap kdm("");
-        std::shared_ptr<kinetic::ThreadsafeBlockingKineticConnection> con; 
+        std::shared_ptr<kinetic::BlockingKineticConnectionInterface> con; 
         
         THEN("DriveMap size equals number of drive entries."){
             REQUIRE(kdm.getSize() == 2);
