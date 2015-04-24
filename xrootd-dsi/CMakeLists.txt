@@ -27,7 +27,7 @@
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
 set(VERSION_PATCH "3" )
-set(RELEASE "1" )
+set(RELEASE "2" )
 
 ######################################################################################################################
 # main section

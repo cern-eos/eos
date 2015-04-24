@@ -5,7 +5,7 @@
 Summary: XROOTD gridftp DSI plugin
 Name: xrootd-dsi
 Version: 0.3.3
-Release: 1
+Release: 2
 License: none
 Group: Applications/File
 Source0: xrootd-dsi-0.3.3-%{release}.tar.gz
@@ -67,6 +67,8 @@ if [ $1 = 0 ]; then
 fi
 
 %changelog
+* Wed Feb 12 2014 <geoffray.adde@cern.ch> - dsi 0.3.3-2
+- fix a possible crash when XROOTD_VMP is not properly formated
 * Fri Nov 19 2013 <geoffray.adde@cern.ch> - dsi 0.3.3-1
 - add extra support for multiple "gridftp mounting points" -> syntax of XROOTD_VMP changed!
 - fix the xrootd id change caused by the check when the dsi plugin is getting initialized
