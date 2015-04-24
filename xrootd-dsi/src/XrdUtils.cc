@@ -30,6 +30,7 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/param.h>
+#include <sstream>
 
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -66,7 +67,7 @@ XrootPath::XrootPath()
       if ((colon = rindex(tp, (int) ':')) && *(colon + 1) == '/')
       {
         if (!(subs = index(colon, (int) '=')))
-          subs = 0;
+          aOK = 0;
         else if (*(subs + 1) == '/')
         {
           *subs = '\0';
@@ -90,8 +91,12 @@ XrootPath::XrootPath()
           colon++;
         xplist = new xpath(xplist, tp, colon, subs);
       }
-      else
-        cerr << "XrdUtils: Invalid XROOTD_VMP token '" << tp << '"' << endl;
+      else {
+        std::stringstream ss;
+        ss << "XrdUtils: Invalid XROOTD_VMP token '" << tp << '"' << endl;
+        pParseErrStr = ss.str();
+        return ;
+      }
     }
 }
 

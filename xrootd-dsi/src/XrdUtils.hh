@@ -40,6 +40,7 @@ public:
   char *BuildURL(const char *path, char *buff, int blen);
 
   static int   SplitURL(const char *url, char *server, char *path, int blen);
+  const std::string & getParseErrStr() const { return pParseErrStr; } 
 
   XrootPath();
   bool CheckVMP(char *errbuff, int errbufflen);
@@ -74,6 +75,9 @@ private:
   char         *pBase;
   char         *cwdPath;
   int           cwdPlen;
+
+  std::string pParseErrStr;
+
 };
 
 namespace XrootStatUtils {

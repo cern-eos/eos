@@ -1924,6 +1924,13 @@ extern "C"
       const size_t errBuffLen = 2048;
       char errBuff[errBuffLen];
 
+      if(!XP.getParseErrStr().empty())
+      {
+      globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error parsing Virtual Mount Point : %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
+            XP.getParseErrStr().c_str());
+        return 1;
+      }
+
       if(!XP.CheckVMP(errBuff,errBuffLen))
       {
         globus_gfs_log_message(GLOBUS_GFS_LOG_ERR, "%s: Error : %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate",
