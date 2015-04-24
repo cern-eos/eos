@@ -1281,6 +1281,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
       }
 
       arch_ofs << "}]" << std::endl;
+      attr_map.clear();
     }
   }
 
