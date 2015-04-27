@@ -111,7 +111,7 @@ XrdMgmOfs::_exists (const char *path,
 
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
 
   {
     // -------------------------------------------------------------------------
@@ -164,15 +164,15 @@ XrdMgmOfs::_exists (const char *path,
   {
     // get the parent directory
     eos::common::Path cPath(path);
-    eos::ContainerMD* dir = 0;
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD* dir = 0;
+    eos::IContainerMD::XAttrMap attrmap;
 
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       dir = eosView->getContainer(cPath.GetParentPath());
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
       {
         attrmap[it->first] = it->second;
@@ -251,7 +251,7 @@ XrdMgmOfs::_exists (const char *path,
 
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
 
   // try if that is directory
   {

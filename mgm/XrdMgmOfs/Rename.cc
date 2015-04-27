@@ -259,9 +259,9 @@ XrdMgmOfs::_rename (const char *old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* dir = 0;
-  eos::ContainerMD* newdir = 0;
-  eos::ContainerMD* rdir = 0;
+  eos::IContainerMD* dir = 0;
+  eos::IContainerMD* newdir = 0;
+  eos::IContainerMD* rdir = 0;
   eos::FileMD* file = 0;
   bool renameFile = false;
   bool renameDir = false;

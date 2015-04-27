@@ -46,12 +46,12 @@ public:
 
   ~Policy () { };
 
-  static void GetLayoutAndSpace (const char* path, 
-                                 eos::ContainerMD::XAttrMap &map, 
-                                 const eos::common::Mapping::VirtualIdentity &vid, 
-                                 unsigned long &layoutId, 
-                                 XrdOucString &space, 
-                                 XrdOucEnv &env, 
+  static void GetLayoutAndSpace (const char* path,
+                                 eos::IContainerMD::XAttrMap &map,
+                                 const eos::common::Mapping::VirtualIdentity &vid,
+                                 unsigned long &layoutId,
+                                 XrdOucString &space,
+                                 XrdOucEnv &env,
                                  unsigned long &forcedfsid,
                                  long &forcedgroup);
 

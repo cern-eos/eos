@@ -166,7 +166,7 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   try
   {
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD::XAttrMap attrmap;
     eos::ContainerMD::FileMap::iterator dh_files;
     eos::ContainerMD::ContainerMap::iterator dh_dirs;
 
@@ -207,7 +207,10 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
     if (permok)
     {
       // add all the files
-      for (dh_files = dh->filesBegin(); dh_files != dh->filesEnd(); dh_files++)
+      // TODO: fix Container interface
+      eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(dh);
+
+      for (dh_files = cont->filesBegin(); dh_files != cont->filesEnd(); dh_files++)
       {
         //
         dh_list.insert(dh_files->first);
@@ -216,9 +219,9 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
 
-      for (dh_dirs = dh->containersBegin();
-              dh_dirs != dh->containersEnd();
-              dh_dirs++)
+      for (dh_dirs = cont->containersBegin();
+           dh_dirs != cont->containersEnd();
+           dh_dirs++)
       {
         dh_list.insert(dh_dirs->first);
       }

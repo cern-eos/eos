@@ -103,8 +103,9 @@ class RWLock: public eos::LockHandler
 //------------------------------------------------------------------------------
 // Add some replicas to the files inside of a container
 //------------------------------------------------------------------------------
-void addReplicas( eos::IView *view, eos::ContainerMD *container )
+void addReplicas( eos::IView *view, eos::IContainerMD *cont )
 {
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
   eos::ContainerMD::FileMap::iterator it;
   for( it = container->filesBegin(); it != container->filesEnd(); ++it )
   {
@@ -117,8 +118,9 @@ void addReplicas( eos::IView *view, eos::ContainerMD *container )
 //------------------------------------------------------------------------------
 // Unlink some replicas from the files in the container
 //------------------------------------------------------------------------------
-void unlinkReplicas( eos::IView *view, eos::ContainerMD *container )
+void unlinkReplicas( eos::IView *view, eos::IContainerMD *cont )
 {
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
   eos::ContainerMD::FileMap::iterator it;
   for( it = container->filesBegin(); it != container->filesEnd(); ++it )
   {
@@ -142,8 +144,9 @@ void unlinkReplicas( eos::IView *view, eos::ContainerMD *container )
 //------------------------------------------------------------------------------
 // Recursively remove the files from accounting
 //------------------------------------------------------------------------------
-void cleanUpQuotaRec( eos::IView *view, eos::ContainerMD *container )
+void cleanUpQuotaRec( eos::IView *view, eos::IContainerMD *cont )
 {
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
   eos::QuotaNode *qn = view->getQuotaNode( container );
   eos::ContainerMD::FileMap::iterator it;
   for( it = container->filesBegin(); it != container->filesEnd(); ++it )
@@ -184,8 +187,9 @@ void deleteReplicas( eos::IView *view, eos::ContainerMD *container )
 //------------------------------------------------------------------------------
 // Delete all replicas from all the files in the container recursively
 //------------------------------------------------------------------------------
-void deleteAllReplicas( eos::IView *view, eos::ContainerMD *container )
+void deleteAllReplicas( eos::IView *view, eos::IContainerMD *cont )
 {
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
   eos::ContainerMD::FileMap::iterator it;
   for( it = container->filesBegin(); it != container->filesEnd(); ++it )
   {
@@ -211,10 +215,12 @@ void deleteAllReplicas( eos::IView *view, eos::ContainerMD *container )
 //------------------------------------------------------------------------------
 // Delete all replicas recursively
 //------------------------------------------------------------------------------
-void deleteAllReplicasRec( eos::IView *view, eos::ContainerMD *container )
+void deleteAllReplicasRec( eos::IView *view, eos::IContainerMD *cont )
 {
-  deleteAllReplicas( view, container );
+  deleteAllReplicas( view, cont );
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
   eos::ContainerMD::ContainerMap::iterator itC;
+
   for( itC = container->containersBegin(); itC != container->containersEnd();
        ++itC )
     deleteAllReplicasRec( view, itC->second );
@@ -225,7 +231,7 @@ void deleteAllReplicasRec( eos::IView *view, eos::ContainerMD *container )
 //------------------------------------------------------------------------------
 void deleteAllReplicasRec( eos::IView *view, const std::string &path )
 {
-  eos::ContainerMD *container = view->getContainer( path );
+  eos::IContainerMD *container = view->getContainer( path );
   deleteAllReplicasRec( view, container );
 }
 
@@ -248,8 +254,8 @@ void createSubTree( eos::IView        *view,
     createSubTree( view, o.str(), depth-1, numDirs, numFiles );
   }
 
-  eos::ContainerMD *container = view->getContainer( prefix );
-  eos::QuotaNode   *qn        = view->getQuotaNode( container );
+  eos::IContainerMD *container = view->getContainer( prefix );
+  eos::QuotaNode   *qn         = view->getQuotaNode( container );
   for( int i = 0; i < numFiles; ++i )
   {
     std::ostringstream o;
@@ -270,11 +276,13 @@ void modifySubTree( eos::IView *view, const std::string &root )
   {
     std::ostringstream o;
     o << root << "/dir" << i;
-    eos::ContainerMD *container = view->getContainer( o.str() );
-    eos::QuotaNode   *qn = view->getQuotaNode( container );
+    eos::IContainerMD *cont = view->getContainer( o.str() );
+    eos::QuotaNode   *qn = view->getQuotaNode( cont );
     eos::ContainerMD::FileMap::iterator it;
     std::vector<eos::FileMD*> toDel;
     std::vector<eos::FileMD*>::iterator itD;
+    eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
+
     for( i = 1, it = container->filesBegin();
          it != container->filesEnd();
          ++it, ++i )
@@ -321,15 +329,17 @@ void modifySubTree( eos::IView *view, const std::string &root )
 //------------------------------------------------------------------------------
 // Calculate total size
 //------------------------------------------------------------------------------
-uint64_t calcSize( eos::ContainerMD *cont )
+uint64_t calcSize( eos::IContainerMD *cont )
 {
   uint64_t size = 0;
   eos::ContainerMD::FileMap::iterator itF;
-  for( itF = cont->filesBegin(); itF != cont->filesEnd(); ++itF )
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
+
+  for( itF = container->filesBegin(); itF != container->filesEnd(); ++itF )
     size += itF->second->getSize();
 
   eos::ContainerMD::ContainerMap::iterator itC;
-  for( itC = cont->containersBegin(); itC != cont->containersEnd(); ++itC )
+  for( itC = container->containersBegin(); itC != container->containersEnd(); ++itC )
     size += calcSize( itC->second );
 
   return size;
@@ -338,12 +348,13 @@ uint64_t calcSize( eos::ContainerMD *cont )
 //------------------------------------------------------------------------------
 // Calculate number of files
 //------------------------------------------------------------------------------
-uint64_t calcFiles( eos::ContainerMD *cont )
+uint64_t calcFiles( eos::IContainerMD *cont )
 {
   uint64_t files = cont->getNumFiles();
-
   eos::ContainerMD::ContainerMap::iterator itC;
-  for( itC = cont->containersBegin(); itC != cont->containersEnd(); ++itC )
+  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
+
+  for( itC = container->containersBegin(); itC != container->containersEnd(); ++itC )
     files += calcFiles( itC->second );
 
   return files;
@@ -352,8 +363,8 @@ uint64_t calcFiles( eos::ContainerMD *cont )
 //------------------------------------------------------------------------------
 // Compare trees
 //------------------------------------------------------------------------------
-bool compareTrees( eos::IView       *view1, eos::IView       *view2,
-                   eos::ContainerMD *tree1, eos::ContainerMD *tree2 )
+bool compareTrees( eos::IView        *view1, eos::IView       *view2,
+                   eos::IContainerMD *tree1, eos::IContainerMD *tree2 )
 {
   std::string treeMsg = view1->getUri( tree1 ) + " " + view2->getUri( tree2 );
   std::ostringstream o1, o2, o3, o4;
@@ -372,7 +383,9 @@ bool compareTrees( eos::IView       *view1, eos::IView       *view2,
                           tree1->getNumContainers() == tree2->getNumContainers() );
 
   eos::ContainerMD::FileMap::iterator itF;
-  for( itF = tree1->filesBegin(); itF != tree1->filesEnd(); ++itF )
+  eos::ContainerMD* tree1md = dynamic_cast<eos::ContainerMD*>(tree1);
+
+  for( itF = tree1md->filesBegin(); itF != tree1md->filesEnd(); ++itF )
   {
     eos::FileMD *file = tree2->findFile( itF->second->getName() );
     std::string fileMsg = treeMsg + " file " + itF->second->getName();
@@ -384,9 +397,10 @@ bool compareTrees( eos::IView       *view1, eos::IView       *view2,
   }
 
   eos::ContainerMD::ContainerMap::iterator itC;
-  for( itC = tree1->containersBegin(); itC != tree1->containersEnd(); ++itC )
+
+  for( itC = tree1md->containersBegin(); itC != tree1md->containersEnd(); ++itC )
   {
-    eos::ContainerMD *container = tree2->findContainer( itC->second->getName() );
+    eos::IContainerMD *container = tree2->findContainer( itC->second->getName() );
     std::string contMsg = treeMsg + " container: " + itC->second->getName();
     CPPUNIT_ASSERT_MESSAGE( contMsg, container );
     compareTrees( view1, view2, itC->second, container );
@@ -497,8 +511,8 @@ void HierarchicalSlaveTest::functionalTest()
   modifySubTree( viewMaster, "/newdir1" );
   deleteAllReplicasRec( viewMaster, "/newdir1/dir1" );
   viewMaster->removeContainer( "/newdir1/dir1", true );
-  eos::ContainerMD *contMaster2 = 0;
-  eos::ContainerMD *contMaster3 = 0;
+  eos::IContainerMD *contMaster2 = 0;
+  eos::IContainerMD *contMaster3 = 0;
   CPPUNIT_ASSERT_NO_THROW( contMaster2 = viewMaster->createContainer( "/newdir2", true ) );
   CPPUNIT_ASSERT_NO_THROW( contMaster3 = viewMaster->createContainer( "/newdir3", true ) );
 
@@ -587,8 +601,8 @@ void HierarchicalSlaveTest::functionalTest()
   //----------------------------------------------------------------------------
   // Move some files around and rename them
   //----------------------------------------------------------------------------
-  eos::ContainerMD *parent1     = 0;
-  eos::ContainerMD *parent2     = 0;
+  eos::IContainerMD *parent1     = 0;
+  eos::IContainerMD *parent2     = 0;
   eos::FileMD      *toBeMoved   = 0;
   eos::FileMD      *toBeRenamed = 0;
   CPPUNIT_ASSERT_NO_THROW( parent1 = viewMaster->createContainer( "/dest", true ) );
@@ -620,8 +634,8 @@ void HierarchicalSlaveTest::functionalTest()
 
   eos::QuotaNode *qnSlave2 = 0;
   eos::QuotaNode *qnSlave3 = 0;
-  eos::ContainerMD *contSlave2 = viewSlave->getContainer( "/newdir2" );
-  eos::ContainerMD *contSlave3 = viewSlave->getContainer( "/newdir3" );
+  eos::IContainerMD *contSlave2 = viewSlave->getContainer( "/newdir2" );
+  eos::IContainerMD *contSlave3 = viewSlave->getContainer( "/newdir3" );
   CPPUNIT_ASSERT( contSlave2 );
   CPPUNIT_ASSERT( contSlave3 );
   CPPUNIT_ASSERT_NO_THROW( qnSlave2 = viewSlave->getQuotaNode( contSlave2 ) );

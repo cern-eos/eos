@@ -114,7 +114,7 @@ void FileSystemViewTest::fileSystemViewTest()
     fileSvc->addChangeListener( fsView );
 
     view->createContainer( "/test/embed/embed1", true );
-    eos::ContainerMD *c = view->createContainer( "/test/embed/embed2", true );
+    eos::IContainerMD *c = view->createContainer( "/test/embed/embed2", true );
     view->createContainer( "/test/embed/embed3", true );
 
     //--------------------------------------------------------------------------

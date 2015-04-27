@@ -341,7 +341,7 @@ XrdMgmOfs::HasRedirect (const char* path,
 }
 
 void
-XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id)
+XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id)
 /*----------------------------------------------------------------------------*/
 /* @brief Update the modification time for a directory to the current time
  *
@@ -361,7 +361,7 @@ XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id
 
 /*----------------------------------------------------------------------------*/
 void
-XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
+XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id,
                                                     eos::ContainerMD::ctime_t &mtime)
 /*----------------------------------------------------------------------------*/
 /* @brief Update the modification time for a directory to the given time
@@ -380,13 +380,13 @@ XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
 {
   XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
   {
-    eos::ContainerMD::id_t cid = id;
+    eos::IContainerMD::id_t cid = id;
     // mtime upstream hierarchy-up-propagation
     do
     {
       try
       {
-        eos::ContainerMD* dmd = gOFS->eosDirectoryService->getContainerMD(cid);
+        eos::IContainerMD* dmd = gOFS->eosDirectoryService->getContainerMD(cid);
         gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = mtime.tv_sec;
         gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = mtime.tv_nsec;
         if (!dmd->hasAttribute("sys.mtime.propagation"))

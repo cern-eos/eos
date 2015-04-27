@@ -407,8 +407,8 @@ XrdMgmOfsFile::open (const char *inpath,
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
 
   // get the directory meta data if exists
-  eos::ContainerMD* dmd = 0;
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD* dmd = 0;
+  eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   bool stdpermcheck = false;
 

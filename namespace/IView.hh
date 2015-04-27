@@ -29,7 +29,7 @@
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/MDException.hh"
-#include "namespace/ContainerMD.hh"
+#include "namespace/IContainerMD.hh"
 
 namespace eos
 {
@@ -120,20 +120,20 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual ContainerMD *getContainer( const std::string &uri )
+      virtual IContainerMD *getContainer( const std::string &uri )
         throw( MDException )= 0;
 
       //------------------------------------------------------------------------
       //! Create a container (directory)
       //------------------------------------------------------------------------
-      virtual ContainerMD *createContainer( const std::string &uri,
+      virtual IContainerMD *createContainer( const std::string &uri,
                                             bool createParents = false )
         throw( MDException )= 0;
 
       //------------------------------------------------------------------------
       //! Update container store
       //------------------------------------------------------------------------
-      virtual void updateContainerStore( ContainerMD *container )
+      virtual void updateContainerStore( IContainerMD *container )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
@@ -146,7 +146,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get uri for the container
       //------------------------------------------------------------------------
-      virtual std::string getUri( const ContainerMD *container ) const
+      virtual std::string getUri( const IContainerMD *container ) const
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
@@ -158,19 +158,19 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
-      virtual QuotaNode *getQuotaNode( const ContainerMD *container , bool search=true )
+      virtual QuotaNode *getQuotaNode( const IContainerMD *container , bool search=true )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
       //------------------------------------------------------------------------
-      virtual QuotaNode *registerQuotaNode( ContainerMD *container )
+      virtual QuotaNode *registerQuotaNode( IContainerMD *container )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove the quota node
       //------------------------------------------------------------------------
-      virtual void removeQuotaNode( ContainerMD *container )
+      virtual void removeQuotaNode( IContainerMD *container )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
@@ -187,7 +187,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Rename container
       //------------------------------------------------------------------------
-      virtual void renameContainer( ContainerMD *container,
+      virtual void renameContainer( IContainerMD *container,
                                     const std::string &newName )
         throw( MDException ) = 0;
  

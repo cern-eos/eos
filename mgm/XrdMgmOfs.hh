@@ -483,7 +483,7 @@ public:
                XrdOucErrInfo &out_error,
                const XrdSecEntity *client,
                const char *opaque,
-               eos::ContainerMD::XAttrMap &map);
+               eos::IContainerMD::XAttrMap &map);
 
   // ---------------------------------------------------------------------------
   // set extended attribute of a directory
@@ -521,7 +521,7 @@ public:
                 XrdOucErrInfo &out_error,
                 eos::common::Mapping::VirtualIdentity &vid,
                 const char *opaque,
-                eos::ContainerMD::XAttrMap &map,
+                eos::IContainerMD::XAttrMap &map,
 		bool lock=true,
 		bool links=false);
 
@@ -788,12 +788,12 @@ public:
   // ---------------------------------------------------------------------------
   // Update emulated in-memory directory modification time with the current time
   // ---------------------------------------------------------------------------
-  void UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id);
+  void UpdateNowInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id);
 
   // ---------------------------------------------------------------------------
   // Update emulated in-memory directory modification time with a given time
   // ---------------------------------------------------------------------------
-  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
+  void UpdateInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id,
                                                 eos::ContainerMD::ctime_t &ctime);
 
   // ---------------------------------------------------------------------------

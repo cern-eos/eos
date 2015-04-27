@@ -67,7 +67,7 @@ S3Store::Refresh ()
     XrdOucErrInfo error;
     eos::common::Mapping::VirtualIdentity vid;
     eos::common::Mapping::Root(vid);
-    eos::ContainerMD::XAttrMap map;
+    eos::IContainerMD::XAttrMap map;
 
     struct stat buf;
     if (gOFS->_stat(mS3DefContainer.c_str(), &buf, error, vid, (const char*) 0)
@@ -179,7 +179,7 @@ S3Store::ListBuckets (const std::string &id)
       XrdOucErrInfo error;
       eos::common::Mapping::VirtualIdentity vid;
       eos::common::Mapping::Root(vid);
-      eos::ContainerMD::XAttrMap map;
+      eos::IContainerMD::XAttrMap map;
 
       struct stat buf;
       if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid, (const char*) 0)

@@ -53,7 +53,7 @@
       XrdOucString subcmd = sub_cmd;
       if (subcmd == "ls")
       { //listxattr
-        eos::ContainerMD::XAttrMap map;
+        eos::IContainerMD::XAttrMap map;
         int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
 
         XrdOucString response = "lsxattr: retc=";

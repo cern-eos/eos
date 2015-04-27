@@ -218,7 +218,7 @@ LRU::LRUr ()
           // get the attributes
           // ---------------------------------------------------------------------
           eos_static_info("lru-dir=\"%s\"", it->first.c_str());
-          eos::ContainerMD::XAttrMap map;
+          eos::IContainerMD::XAttrMap map;
           if (!gOFS->_attr_ls(it->first.c_str(),
                               mError,
                               mRootVid,
@@ -406,13 +406,14 @@ LRU::AgeExpire (const char* dir,
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
-    eos::ContainerMD* cmd = 0;
+    eos::IContainerMD* cmd = 0;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
+      eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(cmd);
       eos::ContainerMD::FileMap::iterator fit;
-      for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+      for (fit = cont->filesBegin(); fit != cont->filesEnd(); ++fit)
       {
         std::string fullpath = dir;
         fullpath += fit->first;
@@ -687,7 +688,7 @@ LRU::CacheExpire (const char* dir,
 /*----------------------------------------------------------------------------*/
 void
 LRU::ConvertMatch (const char* dir,
-                   eos::ContainerMD::XAttrMap & map)
+                   eos::IContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief convert all files matching
@@ -747,13 +748,15 @@ LRU::ConvertMatch (const char* dir,
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
-    eos::ContainerMD* cmd = 0;
+    eos::IContainerMD* cmd = 0;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
       eos::ContainerMD::FileMap::iterator fit;
-      for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+      eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(cmd);
+
+      for (fit = cont->filesBegin(); fit != cont->filesEnd(); ++fit)
       {
         std::string fullpath = dir;
         fullpath += fit->first;

@@ -102,7 +102,7 @@ XrdMgmOfs::_utimes (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   bool done = false;
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
 
   EXEC_TIMING_BEGIN("Utimes");
 

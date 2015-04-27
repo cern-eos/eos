@@ -168,7 +168,7 @@
 
     // get the file meta data if exists
     eos::FileMD *fmd = 0;
-    eos::ContainerMD::id_t cid = 0;
+    eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
 
     {
@@ -480,8 +480,8 @@
       if ((commitsize) && (fmdname != atomic_path.GetName()) && ((!occhunk) || (occhunk && ocdone)))
       {
         eos_thread_info("commit: de-atomize file %s => %s", fmdname.c_str(), atomic_path.GetName());
-        eos::ContainerMD* dir = 0;
-        eos::ContainerMD* versiondir = 0;
+        eos::IContainerMD* dir = 0;
+        eos::IContainerMD* versiondir = 0;
         XrdOucString versionedname = "";
 
 

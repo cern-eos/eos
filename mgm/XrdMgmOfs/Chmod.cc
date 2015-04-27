@@ -108,10 +108,10 @@ XrdMgmOfs::_chmod (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD* cmd = 0;
-  eos::ContainerMD* pcmd = 0;
+  eos::IContainerMD* cmd = 0;
+  eos::IContainerMD* pcmd = 0;
   eos::FileMD* fmd = 0;
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
 
   errno = 0;
 
@@ -152,7 +152,7 @@ XrdMgmOfs::_chmod (const char *path,
     {
       pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
       {
         attrmap[it->first] = it->second;

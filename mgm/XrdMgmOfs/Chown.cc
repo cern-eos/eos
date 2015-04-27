@@ -62,7 +62,7 @@ XrdMgmOfs::_chown (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
   eos::FileMD* fmd = 0;
   errno = 0;
 
@@ -73,14 +73,14 @@ XrdMgmOfs::_chown (const char *path,
   // try as a directory
   try
   {
-    eos::ContainerMD* pcmd = 0;
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD* pcmd = 0;
+    eos::IContainerMD::XAttrMap attrmap;
 
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
     pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
-    eos::ContainerMD::XAttrMap::const_iterator it;
+    eos::IContainerMD::XAttrMap::const_iterator it;
     for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
     {
       attrmap[it->first] = it->second;

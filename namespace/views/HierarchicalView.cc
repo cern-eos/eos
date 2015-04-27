@@ -132,9 +132,8 @@ namespace eos
 
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;    
-
-    ContainerMD *cont = findLastContainer( elements, elements.size()-1,
-                                           position );
+    IContainerMD *cont = findLastContainer(elements, elements.size()-1,
+                                           position);
 
     if( position != elements.size()-1 )
     {
@@ -168,8 +167,8 @@ namespace eos
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;
-    ContainerMD *cont = findLastContainer( elements, elements.size()-1,
-                                           position );
+    IContainerMD *cont = findLastContainer(elements, elements.size()-1,
+                                           position);
 
     if( position != elements.size()-1 )
     {
@@ -226,8 +225,8 @@ namespace eos
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;
-    ContainerMD *cont = findLastContainer( elements, elements.size()-1,
-                                           position );
+    IContainerMD *cont = findLastContainer(elements, elements.size()-1,
+                                           position);
 
     if( position != elements.size()-1 )
     {
@@ -269,7 +268,7 @@ namespace eos
 
     if( file->getContainerId() != 0 )
     {
-      ContainerMD *cont = pContainerSvc->getContainerMD( file->getContainerId() );
+      IContainerMD *cont = pContainerSvc->getContainerMD( file->getContainerId() );
       cont->removeFile( file->getName() );
     }
     pFileSvc->removeFile( file );
@@ -278,7 +277,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get a container (directory)
   //----------------------------------------------------------------------------
-  ContainerMD *HierarchicalView::getContainer( const std::string &uri )
+  IContainerMD *HierarchicalView::getContainer( const std::string &uri )
     throw( MDException )
   {
     if( uri == "/" )
@@ -290,7 +289,7 @@ namespace eos
     eos::PathProcessor::splitPath( elements, uriBuffer );
 
     size_t position;
-    ContainerMD *cont = findLastContainer( elements, elements.size(), position );
+    IContainerMD *cont = findLastContainer( elements, elements.size(), position );
 
     if( position != elements.size() )
     {
@@ -305,8 +304,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a container (directory) 
   //----------------------------------------------------------------------------
-  ContainerMD *HierarchicalView::createContainer( const std::string &uri,
-                                                  bool createParents )
+  IContainerMD *HierarchicalView::createContainer(const std::string &uri,
+                                                  bool createParents)
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -335,7 +334,7 @@ namespace eos
     // Look for the last existing container
     //--------------------------------------------------------------------------
     size_t position;
-    ContainerMD *lastContainer = findLastContainer( elements, elements.size(),
+    IContainerMD *lastContainer = findLastContainer( elements, elements.size(),
                                                     position );
 
     if( position == elements.size() )
@@ -367,7 +366,7 @@ namespace eos
     //--------------------------------------------------------------------------
     for( size_t i = position; i < elements.size(); ++i )
     {
-      ContainerMD *newContainer = pContainerSvc->createContainer();
+      IContainerMD *newContainer = pContainerSvc->createContainer();
       newContainer->setName( elements[i] );
       newContainer->setCTimeNow();
       lastContainer->addContainer( newContainer );
@@ -401,7 +400,7 @@ namespace eos
     eos::PathProcessor::splitPath( elements, uriBuffer );
 
     size_t position;
-    ContainerMD *parent = findLastContainer( elements, elements.size()-1, position );
+    IContainerMD *parent = findLastContainer( elements, elements.size()-1, position );
     if( (position != (elements.size()-1)) )
     {
       MDException e( ENOENT );
@@ -412,7 +411,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Check if the container exist and remove it
     //--------------------------------------------------------------------------
-    ContainerMD *cont = parent->findContainer( elements[elements.size()-1] );
+    IContainerMD *cont = parent->findContainer( elements[elements.size()-1] );
     if( !cont )
     {
       MDException e( ENOENT );
@@ -440,11 +439,11 @@ namespace eos
   //----------------------------------------------------------------------------
   // Find the last existing container in the path
   //----------------------------------------------------------------------------
-  ContainerMD *HierarchicalView::findLastContainer( std::vector<char*> &elements,
+  IContainerMD *HierarchicalView::findLastContainer( std::vector<char*> &elements,
                                                     size_t end, size_t &index )
   {
-    ContainerMD *current  = pRoot;
-    ContainerMD *found    = 0;
+    IContainerMD *current  = pRoot;
+    IContainerMD *found    = 0;
     size_t       position = 0;
 
     while( position < end )
@@ -466,18 +465,9 @@ namespace eos
   //----------------------------------------------------------------------------
   // Clean up the container's children
   //----------------------------------------------------------------------------
-  void HierarchicalView::cleanUpContainer( ContainerMD *cont )
+  void HierarchicalView::cleanUpContainer( IContainerMD *cont )
   {
-    ContainerMD::FileMap::iterator itF;
-    for( itF = cont->filesBegin(); itF != cont->filesEnd(); ++itF )
-      pFileSvc->removeFile( itF->second );
-
-    ContainerMD::ContainerMap::iterator itC;
-    for( itC = cont->containersBegin(); itC != cont->containersEnd(); ++itC )
-    {
-      cleanUpContainer( itC->second );
-      pContainerSvc->removeContainer( itC->second );
-    }
+    (void) cont->cleanUp(pContainerSvc, pFileSvc);
   }
 
   //----------------------------------------------------------------------------
@@ -488,8 +478,9 @@ namespace eos
     if( file->getContainerId() == 0 )
       return;
 
-    ContainerMD *cont = 0;
-    try { cont = pContSvc->getContainerMD( file->getContainerId() ); }
+    IContainerMD *cont = 0;
+    try {
+      cont = pContSvc->getContainerMD( file->getContainerId() ); }
     catch( MDException &e ) {}
 
     if( !cont )
@@ -506,7 +497,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get uri for the container
   //----------------------------------------------------------------------------
-  std::string HierarchicalView::getUri( const ContainerMD *container ) const
+  std::string HierarchicalView::getUri( const IContainerMD *container ) const
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -524,7 +515,7 @@ namespace eos
     //--------------------------------------------------------------------------
     std::vector<std::string> elements;
     elements.reserve( 10 );
-    const ContainerMD *cursor = container;
+    const IContainerMD *cursor = container;
     while( cursor->getId() != 1 )
     {
       elements.push_back( cursor->getName() );
@@ -571,8 +562,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get quota node id concerning given container
   //----------------------------------------------------------------------------
-  QuotaNode *HierarchicalView::getQuotaNode( const ContainerMD *container,
-                                             bool               search )
+  QuotaNode *HierarchicalView::getQuotaNode( const IContainerMD *container,
+                                             bool search )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -595,7 +586,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Search for the node
     //--------------------------------------------------------------------------
-    const ContainerMD *current = container;
+    const IContainerMD *current = container;
 
     if (search)
     {
@@ -621,7 +612,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Register the container to be a quota node
   //----------------------------------------------------------------------------
-  QuotaNode *HierarchicalView::registerQuotaNode( ContainerMD *container )
+  QuotaNode *HierarchicalView::registerQuotaNode( IContainerMD *container )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -658,7 +649,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove the quota node
   //----------------------------------------------------------------------------
-  void HierarchicalView::removeQuotaNode( ContainerMD *container )
+  void HierarchicalView::removeQuotaNode( IContainerMD *container )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -705,7 +696,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Rename container
   //----------------------------------------------------------------------------
-  void HierarchicalView::renameContainer( ContainerMD *container,
+  void HierarchicalView::renameContainer( IContainerMD *container,
                                           const std::string &newName )
     throw( MDException )
   {
@@ -737,7 +728,7 @@ namespace eos
       throw ex;
     }
 
-    ContainerMD *parent = pContainerSvc->getContainerMD( container->getParentId() );
+    IContainerMD *parent = pContainerSvc->getContainerMD( container->getParentId() );
     if( parent->findContainer( newName ) )
     {
       MDException ex;
@@ -785,7 +776,7 @@ namespace eos
       throw ex;
     }
 
-    ContainerMD *parent = pContainerSvc->getContainerMD( file->getContainerId() );
+    IContainerMD *parent = pContainerSvc->getContainerMD( file->getContainerId() );
     if( parent->findContainer( newName ) )
     {
       MDException ex;

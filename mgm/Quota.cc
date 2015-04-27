@@ -54,7 +54,7 @@ SpaceQuota::SpaceQuota (const char* name)
   On = false;
 
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD *quotadir = 0;
+  eos::IContainerMD *quotadir = 0;
 
   std::string path = name;
 
@@ -129,7 +129,7 @@ bool
 SpaceQuota::UpdateQuotaNodeAddress ()
 {
   // this routine has to be called with eosViewMutexRW locked
-  eos::ContainerMD *quotadir = 0;
+  eos::IContainerMD *quotadir = 0;
 
   try
   {
@@ -158,7 +158,7 @@ SpaceQuota::RemoveQuotaNode (XrdOucString &msg, int &retc)
 
 {
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD *quotadir = 0;
+  eos::IContainerMD *quotadir = 0;
   try
   {
     quotadir = gOFS->eosView->getContainer(SpaceName.c_str());
@@ -190,7 +190,7 @@ SpaceQuota::UpdateLogicalSizeFactor ()
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   vid.sudoer = 1;
-  eos::ContainerMD::XAttrMap map;
+  eos::IContainerMD::XAttrMap map;
 
   int retc = gOFS->_attr_ls(SpaceName.c_str(),
                             error,
@@ -1507,8 +1507,8 @@ Quota::LoadNodes ()
   {
     try
     {
-      eos::ContainerMD::id_t id = it->first;
-      eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+      eos::IContainerMD::id_t id = it->first;
+      eos::IContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
       std::string quotapath = gOFS->eosView->getUri(container);
       SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), true);
       if (!spacequota)
@@ -1545,8 +1545,8 @@ Quota::NodesToSpaceQuota ()
   {
     try
     {
-      eos::ContainerMD::id_t id = it->first;
-      eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+      eos::IContainerMD::id_t id = it->first;
+      eos::IContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
       std::string quotapath = gOFS->eosView->getUri(container);
       NodeToSpaceQuota(quotapath.c_str());
     }

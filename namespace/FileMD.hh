@@ -162,7 +162,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get tag
       //------------------------------------------------------------------------
-      ContainerMD::id_t getContainerId() const
+      IContainerMD::id_t getContainerId() const
       {
         return pContainerId;
       }

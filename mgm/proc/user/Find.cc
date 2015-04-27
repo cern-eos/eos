@@ -799,7 +799,7 @@ ProcCommand::Find ()
         if (selectfaultyacl)
         {
           // get the attributes and call the verify function
-          eos::ContainerMD::XAttrMap map;
+          eos::IContainerMD::XAttrMap map;
           if (!gOFS->_attr_ls(foundit->first.c_str(),
                               *mError,
                               *pVid,
@@ -849,7 +849,7 @@ ProcCommand::Find ()
           {
             //-------------------------------------------
 	    eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-            eos::ContainerMD* mCmd = 0;
+            eos::IContainerMD* mCmd = 0;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
             try
@@ -873,7 +873,7 @@ ProcCommand::Find ()
 	      if (printuid || printgid) 
 	      {
 		eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-		eos::ContainerMD* mCmd = 0;
+		eos::IContainerMD* mCmd = 0;
 		try
 		{
 		  mCmd = gOFS->eosView->getContainer(foundit->first.c_str());

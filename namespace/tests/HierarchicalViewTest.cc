@@ -35,6 +35,7 @@
 #include "namespace/accounting/QuotaStats.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/IContainerMD.hh"
 #include "namespace/tests/TestHelpers.hh"
 
 //------------------------------------------------------------------------------
@@ -87,14 +88,14 @@ void HierarchicalViewTest::reloadTest()
     view->configure( settings );
     view->initialize();
 
-    eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
-    eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
-    eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
-    eos::ContainerMD *cont4 = view->createContainer( "/test/embed/embed4", true );
+    eos::IContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
+    eos::IContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
+    eos::IContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+    eos::IContainerMD *cont4 = view->createContainer( "/test/embed/embed4", true );
 
-    eos::ContainerMD *root  = view->getContainer( "/" );
-    eos::ContainerMD *test  = view->getContainer( "/test" );
-    eos::ContainerMD *embed = view->getContainer( "/test/embed" );
+    eos::IContainerMD *root  = view->getContainer( "/" );
+    eos::IContainerMD *test  = view->getContainer( "/test" );
+    eos::IContainerMD *embed = view->getContainer( "/test/embed" );
 
     CPPUNIT_ASSERT( root != 0 );
     CPPUNIT_ASSERT( root->getId() == root->getParentId() );
@@ -143,7 +144,7 @@ void HierarchicalViewTest::reloadTest()
     // Test the "reverse" lookup
     //--------------------------------------------------------------------------
     eos::FileMD      *file = view->getFile( "/test/embed/embed1/file3" );
-    eos::ContainerMD *container = view->getContainer( "/test/embed/embed1" );
+    eos::IContainerMD *container = view->getContainer( "/test/embed/embed1" );
 
     CPPUNIT_ASSERT( view->getUri( container ) == "/test/embed/embed1/" );
     CPPUNIT_ASSERT( view->getUri( file ) == "/test/embed/embed1/file3" );
@@ -366,11 +367,11 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Create some structures, insert quota nodes and test their correctness
   //----------------------------------------------------------------------------
-  eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
-  eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
-  eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
-  eos::ContainerMD *cont4 = view->getContainer( "/test/embed" );
-  eos::ContainerMD *cont5 = view->getContainer( "/test" );
+  eos::IContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
+  eos::IContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
+  eos::IContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+  eos::IContainerMD *cont4 = view->getContainer( "/test/embed" );
+  eos::IContainerMD *cont5 = view->getContainer( "/test" );
 
   eos::QuotaNode *qnCreated1 = view->registerQuotaNode( cont1 );
   eos::QuotaNode *qnCreated2 = view->registerQuotaNode( cont3 );
@@ -574,11 +575,11 @@ void HierarchicalViewTest::lostContainerTest()
   view->configure( settings );
   view->initialize();
 
-  eos::ContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
-  eos::ContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
-  eos::ContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
-  eos::ContainerMD *cont4 = view->createContainer( "/test/embed/embed1/embedembed", true );
-  eos::ContainerMD *cont5 = view->createContainer( "/test/embed/embed3.conflict", true );
+  eos::IContainerMD *cont1 = view->createContainer( "/test/embed/embed1", true );
+  eos::IContainerMD *cont2 = view->createContainer( "/test/embed/embed2", true );
+  eos::IContainerMD *cont3 = view->createContainer( "/test/embed/embed3", true );
+  eos::IContainerMD *cont4 = view->createContainer( "/test/embed/embed1/embedembed", true );
+  eos::IContainerMD *cont5 = view->createContainer( "/test/embed/embed3.conflict", true );
 
   //----------------------------------------------------------------------------
   // Create some files
@@ -606,10 +607,10 @@ void HierarchicalViewTest::lostContainerTest()
   // Remove one of the container keeping the files register with it to
   // simulate directory metadata loss
   //----------------------------------------------------------------------------
-  eos::ContainerMD::id_t removedId        = cont1->getId();
-  eos::ContainerMD::id_t removedEmbId     = cont4->getId();
-  eos::ContainerMD::id_t conflictId       = cont3->getId();
-  eos::ContainerMD::id_t conflictParentId = cont5->getParentId();
+  eos::IContainerMD::id_t removedId        = cont1->getId();
+  eos::IContainerMD::id_t removedEmbId     = cont4->getId();
+  eos::IContainerMD::id_t conflictId       = cont3->getId();
+  eos::IContainerMD::id_t conflictParentId = cont5->getParentId();
   view->getContainerMDSvc()->removeContainer( cont1 );
   cont5->setName( "embed3" );
   view->getContainerMDSvc()->updateStore( cont5 );
@@ -635,7 +636,7 @@ void HierarchicalViewTest::lostContainerTest()
   CPPUNIT_ASSERT_NO_THROW( cont4 = view->getContainer( s2.str() ) );
   CPPUNIT_ASSERT_NO_THROW( cont5 = view->getContainer( s3.str() ) );
 
-  eos::ContainerMD *cont6 = 0;
+  eos::IContainerMD *cont6 = 0;
   std::ostringstream s4; s4 << "/lost+found/name_conflicts/";
   s4 << cont2->getId();
   CPPUNIT_ASSERT_NO_THROW( cont6 = view->getContainer( s4.str() ) );
@@ -683,7 +684,8 @@ void CheckOnlineComp( eos::IView *view,
                       uint32_t    changedFiles )
 {
   eos::ContainerMD *cont = 0;
-  CPPUNIT_ASSERT_NO_THROW( cont = view->getContainer( "/test/" ) );
+  CPPUNIT_ASSERT_NO_THROW(
+      cont = dynamic_cast<eos::ContainerMD*>(view->getContainer( "/test/" )) );
   eos::ContainerMD::FileMap::iterator fileIt;
   uint32_t changedFound = 0;
   for( fileIt = cont->filesBegin(); fileIt != cont->filesEnd(); ++fileIt )
@@ -729,7 +731,8 @@ void HierarchicalViewTest::onlineCompactingTest()
   // Create some files
   //----------------------------------------------------------------------------
   eos::ContainerMD *cont = 0;
-  CPPUNIT_ASSERT_NO_THROW( cont = view->createContainer( "/test/", true ) );
+  CPPUNIT_ASSERT_NO_THROW(
+      cont = dynamic_cast<eos::ContainerMD*>(view->createContainer( "/test/", true )) );
   for( int i = 0; i < 10000; ++i )
   {
     std::ostringstream s; s << "/test/file" << i;

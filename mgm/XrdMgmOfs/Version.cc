@@ -208,7 +208,7 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
     // this indicates that we should read the max version depth from the parent attributes
     eos::common::Path cPath(versiondir);
     // get the attributes and call the verify function
-    eos::ContainerMD::XAttrMap map;
+    eos::IContainerMD::XAttrMap map;
     if (gOFS->_attr_ls(cPath.GetParentPath(),
                        error,
                        rootvid,

@@ -120,7 +120,7 @@ public:
   
   /* convert by match
    */
-  void ConvertMatch(const char* dir,  eos::ContainerMD::XAttrMap &map);
+  void ConvertMatch(const char* dir,  eos::IContainerMD::XAttrMap &map);
   
   static const char* gLRUPolicyPrefix;
   

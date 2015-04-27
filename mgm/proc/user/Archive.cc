@@ -550,8 +550,8 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
   proc_dir.close();
   std::istringstream iss;
-  eos::ContainerMD* cmd = 0;
-  eos::ContainerMD::id_t id;
+  eos::IContainerMD* cmd = 0;
+  eos::IContainerMD::id_t id;
   std::vector<ArchDirStatus> dirs;
 
   {
@@ -687,9 +687,8 @@ bool
 ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
 {
   bool is_allowed = false;
-  eos::ContainerMD* dir = 0;
-  eos::ContainerMD* copy_dir = 0;
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD* dir = 0;
+  eos::IContainerMD::XAttrMap attrmap;
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -698,9 +697,7 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
     try
     {
       dir = gOFS->eosView->getContainer(arch_dir.c_str());
-      copy_dir = new eos::ContainerMD(*dir);
-      dir = copy_dir;
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
 
       for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
         attrmap[it->first] = it->second;
@@ -728,9 +725,6 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
     else
       is_allowed = true;
   }
-
-  if (copy_dir)
-    delete copy_dir;
 
   return is_allowed;
 }

@@ -143,9 +143,9 @@ XrdMgmOfs::_rem (const char *path,
 
   // free the booked quota
   eos::FileMD* fmd = 0;
-  eos::ContainerMD* container = 0;
+  eos::IContainerMD* container = 0;
 
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
 
   uid_t owner_uid = 0;
@@ -175,7 +175,7 @@ XrdMgmOfs::_rem (const char *path,
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       eos_info("got container=%lld", (unsigned long long) container);
       // get the attributes out
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = container->attributesBegin(); it != container->attributesEnd(); ++it)
       {
         attrmap[it->first] = it->second;

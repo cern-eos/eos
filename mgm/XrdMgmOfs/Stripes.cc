@@ -51,7 +51,7 @@ XrdMgmOfs::_verifystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "verifystripe";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   eos::FileMD *fmd = 0;
 
   EXEC_TIMING_BEGIN("VerifyStripe");
@@ -61,7 +61,7 @@ XrdMgmOfs::_verifystripe (const char *path,
   unsigned long long cid = 0;
   int lid = 0;
 
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
 
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
 
@@ -73,7 +73,7 @@ XrdMgmOfs::_verifystripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    eos::ContainerMD::XAttrMap::const_iterator it;
+    eos::IContainerMD::XAttrMap::const_iterator it;
     for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
     {
       attrmap[it->first] = it->second;
@@ -210,7 +210,7 @@ XrdMgmOfs::_dropstripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "dropstripe";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   eos::FileMD *fmd = 0;
   errno = 0;
 
@@ -384,7 +384,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "replicatestripe";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("ReplicateStripe");

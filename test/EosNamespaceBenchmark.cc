@@ -254,7 +254,7 @@ int main( int argc, char **argv )
 	  char s_container_path[1024];
 	  snprintf(s_container_path,sizeof(s_container_path)-1,"/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/",(unsigned int)i,(unsigned int)j,(unsigned int)k);
 	  std::string container_path = s_container_path;
-	  eos::ContainerMD* cont = view->createContainer( container_path, true );
+	  eos::IContainerMD* cont = view->createContainer( container_path, true );
 	  cont->setAttribute("sys.forced.blocksize","4k");
 	  cont->setAttribute("sys.forced.checksum","adler");
 	  cont->setAttribute("sys.forced.layout","replica");

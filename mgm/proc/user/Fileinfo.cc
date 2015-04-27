@@ -621,7 +621,7 @@ ProcCommand::DirInfo (const char* path)
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
   {
-    eos::ContainerMD* fmd = 0;
+    eos::IContainerMD* fmd = 0;
 
     if ((spath.beginswith("pid:") || (spath.beginswith("pxid:"))))
     {

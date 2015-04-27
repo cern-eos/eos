@@ -148,7 +148,7 @@ ProcCommand::Fuse ()
       // check if that is a directory in case
       if (!fmd)
       {
-        eos::ContainerMD* dir = 0;
+        eos::IContainerMD* dir = 0;
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try

@@ -88,11 +88,11 @@ ConverterJob::DoIt ()
   XrdSysTimer sleeper;
 
   eos::FileMD* fmd = 0;
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   unsigned long long size = 0;
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
 
   XrdOucString sourceChecksum;
   XrdOucString sourceAfterChecksum;
@@ -116,7 +116,7 @@ ConverterJob::DoIt ()
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       // load the extended attributes
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it)
       {
         attrmap[it->first] = it->second;

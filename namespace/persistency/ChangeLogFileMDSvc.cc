@@ -131,17 +131,19 @@ namespace eos
             // attached to the parent container under the same file name.
             // It may happen that the pointers differ if there was a name
             // conflict
-            // Additionally we have to deal with detached files e.g. 
+            // Additionally we have to deal with detached files e.g.
             // containerId=0.
             //------------------------------------------------------------------
             if (currentFile->getContainerId())
             {
-              ContainerMD *container    = itP->second.ptr;
-              FileMD      *existingFile = container->findFile( currentFile->getName() );
+              ContainerMD* container = dynamic_cast<ContainerMD*>(itP->second.ptr);
+              FileMD* existingFile = container->findFile( currentFile->getName() );
+
               if( existingFile == currentFile )
               {
                 container->removeFile( currentFile->getName() );
-                QuotaNode *node = getQuotaNode( container );
+                QuotaNode *node = getQuotaNode(container);
+
                 if( node )
                   node->removeFile( currentFile );
               }
@@ -195,9 +197,9 @@ namespace eos
               // the container, if it does, we have a name conflict in which
               // case we attach the new file and remove the old one
               //----------------------------------------------------------------
-              ContainerMD *container = itP->second.ptr;
-              FileMD *existingFile   = container->findFile( currentFile->getName() );
-              QuotaNode *node        = getQuotaNode( container );
+              ContainerMD *container = dynamic_cast<ContainerMD*>(itP->second.ptr);
+              FileMD *existingFile   = container->findFile(currentFile->getName());
+              QuotaNode *node        = getQuotaNode(container);
               if( existingFile )
               {
                 if( node )
@@ -243,7 +245,7 @@ namespace eos
             // container has been removed
             //------------------------------------------------------------------
             if( itP != contIdMap->end() )
-              originalContainer = itP->second.ptr;
+              originalContainer = dynamic_cast<ContainerMD*>(itP->second.ptr);
 
             //------------------------------------------------------------------
             // The parent container did not change
@@ -353,7 +355,7 @@ namespace eos
                 // the container, if it does, we have a name conflict in which
                 // case we attach the new file and remove the old one
                 //--------------------------------------------------------------
-                ContainerMD *newContainer = itPN->second.ptr;
+                ContainerMD *newContainer = dynamic_cast<ContainerMD*>(itPN->second.ptr);
                 QuotaNode   *node         = getQuotaNode( newContainer );
                 FileMD      *existingFile =
                   newContainer->findFile( originalFile->getName() );
@@ -395,7 +397,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Get quota node id concerning given container
       //------------------------------------------------------------------------
-      QuotaNode *getQuotaNode( const ContainerMD *container )
+      QuotaNode *getQuotaNode(const ContainerMD *container)
         throw( MDException )
       {
         //----------------------------------------------------------------------
@@ -414,21 +416,23 @@ namespace eos
 
         while( current->getId() != 1 &&
                (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
-          current = pContSvc->getContainerMD( current->getParentId() );
+          current = dynamic_cast<ContainerMD*>(pContSvc->getContainerMD(
+              current->getParentId()));
 
         //----------------------------------------------------------------------
         // We have either found a quota node or reached root without finding one
         // so we need to double check whether the current container has an
         // associated quota node
         //----------------------------------------------------------------------
-        if( (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+        if((current->getFlags() & QUOTA_NODE_FLAG) == 0)
           return 0;
 
-        QuotaNode *node = pQuotaStats->getQuotaNode( current->getId() );
-        if( node )
+        QuotaNode *node = pQuotaStats->getQuotaNode(current->getId());
+
+        if(node)
           return node;
 
-        return pQuotaStats->registerNewNode( current->getId() );
+        return pQuotaStats->registerNewNode(current->getId());
       }
 
       //------------------------------------------------------------------------
@@ -760,7 +764,7 @@ namespace eos
         if( file->getContainerId() == 0 )
           continue;
 
-        ContainerMD *cont = 0;
+        IContainerMD *cont = 0;
         try { cont = pContSvc->getContainerMD( file->getContainerId() ); }
         catch( MDException &e ) {}
 
@@ -781,8 +785,8 @@ namespace eos
           cont->addFile( file );
       }
     }
-    
-    if( !pSlaveMode && !logIsCompacted ) 
+
+    if( !pSlaveMode && !logIsCompacted )
     {
       //--------------------------------------------------------------------------
       // If we have a new changelog file in master mode we add the compaction mark
@@ -1337,10 +1341,10 @@ namespace eos
                                          FileMD            *file )
   {
     std::ostringstream s1, s2;
-    ContainerMD *parentCont = pContSvc->getLostFoundContainer( parent );
+    IContainerMD *parentCont = pContSvc->getLostFoundContainer( parent );
 
     s1 << file->getContainerId();
-    ContainerMD *cont = parentCont->findContainer( s1.str() );
+    IContainerMD *cont = parentCont->findContainer( s1.str() );
     if( !cont )
       cont = pContSvc->createInParent( s1.str(), parentCont );
 
@@ -1349,4 +1353,3 @@ namespace eos
     cont->addFile( file );
   }
 }
-

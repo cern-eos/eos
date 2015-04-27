@@ -57,13 +57,13 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     containerSvc->configure( config );
     containerSvc->initialize();
   
-    eos::ContainerMD *container1 = containerSvc->createContainer();
-    eos::ContainerMD *container2 = containerSvc->createContainer();
-    eos::ContainerMD *container3 = containerSvc->createContainer();
-    eos::ContainerMD *container4 = containerSvc->createContainer();
-    eos::ContainerMD *container5 = containerSvc->createContainer();
+    eos::IContainerMD *container1 = containerSvc->createContainer();
+    eos::IContainerMD *container2 = containerSvc->createContainer();
+    eos::IContainerMD *container3 = containerSvc->createContainer();
+    eos::IContainerMD *container4 = containerSvc->createContainer();
+    eos::IContainerMD *container5 = containerSvc->createContainer();
 
-    eos::ContainerMD::id_t id = container1->getId();
+    eos::IContainerMD::id_t id = container1->getId();
 
     container1->setName( "root" );
     container1->setParentId( container1->getId() );
@@ -97,12 +97,12 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     container3->removeContainer( "subContainerLevel2-2" );
     containerSvc->removeContainer( container5 );
 
-    eos::ContainerMD *container6 = containerSvc->createContainer();
+    eos::IContainerMD *container6 = containerSvc->createContainer();
     container6->setName( "subContLevel2-3" );
     container3->addContainer( container6 );
     containerSvc->updateStore( container6 );
 
-    eos::ContainerMD::id_t idAttr = container4->getId();
+    eos::IContainerMD::id_t idAttr = container4->getId();
     container4->setAttribute( "test1", "test1" );
     container4->setAttribute( "test1", "test11" );
     container4->setAttribute( "test2", "test2" );
@@ -117,10 +117,10 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     containerSvc->finalize();
 
     containerSvc->initialize();
-    eos::ContainerMD *cont1 = containerSvc->getContainerMD( id );
+    eos::IContainerMD *cont1 = containerSvc->getContainerMD( id );
     CPPUNIT_ASSERT( cont1->getName() == "root" );
 
-    eos::ContainerMD *cont2 = cont1->findContainer( "subContLevel1-1" );
+    eos::IContainerMD *cont2 = cont1->findContainer( "subContLevel1-1" );
     CPPUNIT_ASSERT( cont2 != 0 );
     CPPUNIT_ASSERT( cont2->getName() == "subContLevel1-1" );
 
@@ -139,7 +139,7 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     CPPUNIT_ASSERT( cont1 != 0 );
     CPPUNIT_ASSERT( cont1->getName() == "subContLevel2-3" );
 
-    eos::ContainerMD *contAttrs = containerSvc->getContainerMD( idAttr );
+    eos::IContainerMD *contAttrs = containerSvc->getContainerMD( idAttr );
     CPPUNIT_ASSERT( contAttrs->numAttributes() == 3 );
     CPPUNIT_ASSERT( contAttrs->getAttribute( "test1" ) == "test11" );
     CPPUNIT_ASSERT( contAttrs->getAttribute( "test3" ) == "test3" );

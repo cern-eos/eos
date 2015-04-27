@@ -107,7 +107,7 @@ XrdMgmOfs::_access (const char *path,
 
   eos::common::Path cPath(path);
 
-  eos::ContainerMD* dh = 0;
+  eos::IContainerMD* dh = 0;
   eos::FileMD* fh = 0;
   bool permok = false;
   uint16_t flags = 0;
@@ -142,7 +142,7 @@ XrdMgmOfs::_access (const char *path,
   errno = 0;
   try
   {
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD::XAttrMap attrmap;
     if (fh || (!dh))
     {
       // if this is a file or a not existing directory we check the access on the parent directory
@@ -155,7 +155,7 @@ XrdMgmOfs::_access (const char *path,
 
     // always check for an immutable attribute
     // get attributes
-    eos::ContainerMD::XAttrMap::const_iterator it;
+    eos::IContainerMD::XAttrMap::const_iterator it;
     for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
     {
       attrmap[it->first] = it->second;

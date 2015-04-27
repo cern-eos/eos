@@ -131,7 +131,7 @@ private:
   std::string dirName;
   eos::common::Mapping::VirtualIdentity vid;
 
-  eos::ContainerMD* dh;
+  eos::IContainerMD* dh;
   std::set<std::string> dh_list;
   std::set<std::string>::const_iterator dh_it;
 };

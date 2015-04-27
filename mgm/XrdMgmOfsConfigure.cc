@@ -1548,7 +1548,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // check the '/' directory
   // ----------------------------------------------------------
 
-  eos::ContainerMD* rootmd;
+  eos::IContainerMD* rootmd;
   try
   {
     rootmd = gOFS->eosView->getContainer("/");
@@ -1592,7 +1592,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (MgmMaster.IsMaster())
   {
     // create /eos
-    eos::ContainerMD* eosmd = 0;
+    eos::IContainerMD* eosmd = 0;
     try
     {
       eosmd = gOFS->eosView->getContainer("/eos/");

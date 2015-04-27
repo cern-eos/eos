@@ -96,8 +96,8 @@ ProcCommand::Attr ()
         for (foundit = found.begin(); foundit != found.end(); foundit++)
         {
           {
-            eos::ContainerMD::XAttrMap map;
-            eos::ContainerMD::XAttrMap linkmap;
+            eos::IContainerMD::XAttrMap map;
+            eos::IContainerMD::XAttrMap linkmap;
 
             if ( (mSubCmd == "ls") )
             {
@@ -110,7 +110,7 @@ ProcCommand::Attr ()
               }
               else
               {
-                eos::ContainerMD::XAttrMap::const_iterator it;
+                eos::IContainerMD::XAttrMap::const_iterator it;
                 if (option == "r")
                 {
                   stdOut += foundit->first.c_str();
@@ -228,7 +228,7 @@ ProcCommand::Attr ()
               else
               {
 		XrdOucString partialStdOut;
-                eos::ContainerMD::XAttrMap::const_iterator it;
+                eos::IContainerMD::XAttrMap::const_iterator it;
                 if (option == "r")
                 {
                   stdOut += foundit->first.c_str();

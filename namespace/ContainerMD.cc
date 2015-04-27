@@ -23,35 +23,38 @@
 
 #include "namespace/ContainerMD.hh"
 #include "namespace/FileMD.hh"
-#include <sys/stat.h>
+#include "namespace/IContainerMDSvc.hh"
+#include "namespace/IFileMDSvc.hh"
 
 namespace eos
 {
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ContainerMD::ContainerMD( id_t id ):
-    pId( id ),
-    pParentId( 0 ),
-    pFlags( 0 ),
-    pName( "" ),
-    pCUid( 0 ),
-    pCGid( 0 ),
-    pMode( 040755 ),
-    pACLId( 0 )
+  ContainerMD::ContainerMD(id_t id):
+      IContainerMD(id)
   {
     pSubContainers.set_deleted_key( "" );
     pFiles.set_deleted_key( "" );
     pSubContainers.set_empty_key( "##_EMPTY_##" );
     pFiles.set_empty_key( "##_EMPTY_##" );
-    pCTime.tv_sec = 0;
-    pCTime.tv_nsec = 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // Virtual copy constructor
+  //----------------------------------------------------------------------------
+  ContainerMD*
+  ContainerMD::clone() const
+  {
+    return new ContainerMD(*this);
   }
 
   //----------------------------------------------------------------------------
   // Copy constructor
   //----------------------------------------------------------------------------
-  ContainerMD::ContainerMD( const ContainerMD &other )
+  ContainerMD::ContainerMD(const ContainerMD &other):
+      IContainerMD(other.getId())
   {
     *this = other;
   }
@@ -59,185 +62,106 @@ namespace eos
   //----------------------------------------------------------------------------
   // Asignment operator
   //----------------------------------------------------------------------------
-  ContainerMD &ContainerMD::operator = ( const ContainerMD &other )
+  ContainerMD& ContainerMD::operator= (const ContainerMD &other)
   {
-    pId       = other.pId;
-    pParentId = other.pParentId;
-    pFlags    = other.pFlags;
-    pCTime    = other.pCTime;
-    pName     = other.pName;
-    pCUid     = other.pCUid;
-    pCGid     = other.pCGid;
-    pMode     = other.pMode;
-    pACLId    = other.pACLId;
-    pXAttrs   = other.pXAttrs;
-    pFlags    = other.pFlags;
-
-    // pFiles & pSubContainers are not copied here!!!
-
+    *this = dynamic_cast<const IContainerMD&>(other);
     return *this;
   }
 
-
   //----------------------------------------------------------------------------
-  // Serialize the object to a buffer
+  // Copy constructor from IContainer
   //----------------------------------------------------------------------------
-  void ContainerMD::serialize( Buffer &buffer ) throw( MDException )
+  ContainerMD::ContainerMD(const IContainerMD &other):
+      IContainerMD(other.getId())
   {
-    buffer.putData( &pId,       sizeof( pId ) );
-    buffer.putData( &pParentId, sizeof( pParentId ) );
-    buffer.putData( &pFlags,    sizeof( pFlags ) );
-    buffer.putData( &pCTime,    sizeof( pCTime ) );
-    buffer.putData( &pCUid,     sizeof( pCUid ) );
-    buffer.putData( &pCGid,     sizeof( pCGid ) );
-    buffer.putData( &pMode,     sizeof( pMode ) );
-    buffer.putData( &pACLId,    sizeof( pACLId ) );
+    *this = other;
+   }
 
-    uint16_t len = pName.length()+1;
-    buffer.putData( &len,          2 );
-    buffer.putData( pName.c_str(), len );
-
-    len = pXAttrs.size();
-    buffer.putData( &len, sizeof( len ) );
-    XAttrMap::iterator it;
-    for( it = pXAttrs.begin(); it != pXAttrs.end(); ++it )
-    {
-      uint16_t strLen = it->first.length()+1;
-      buffer.putData( &strLen, sizeof( strLen ) );
-      buffer.putData( it->first.c_str(), strLen );
-      strLen = it->second.length()+1;
-      buffer.putData( &strLen, sizeof( strLen ) );
-      buffer.putData( it->second.c_str(), strLen );
-    }
+  //----------------------------------------------------------------------------
+  // Asignment operator from IContainer
+  //----------------------------------------------------------------------------
+  ContainerMD &ContainerMD::operator= (const IContainerMD &other)
+  {
+    *this = other;
+    return *this;
   }
 
   //----------------------------------------------------------------------------
-  // Deserialize the class to a buffer
+  // Find sub container
   //----------------------------------------------------------------------------
-  void ContainerMD::deserialize( Buffer &buffer ) throw( MDException )
+  IContainerMD*
+  ContainerMD::findContainer( const std::string &name )
   {
-    uint16_t offset = 0;
-    offset = buffer.grabData( offset, &pId,       sizeof( pId ) );
-    offset = buffer.grabData( offset, &pParentId, sizeof( pParentId ) );
-    offset = buffer.grabData( offset, &pFlags,    sizeof( pFlags ) );
-    offset = buffer.grabData( offset, &pCTime,    sizeof( pCTime ) );
-    offset = buffer.grabData( offset, &pCUid,     sizeof( pCUid ) );
-    offset = buffer.grabData( offset, &pCGid,     sizeof( pCGid ) );
-    offset = buffer.grabData( offset, &pMode,     sizeof( pMode ) );
-    offset = buffer.grabData( offset, &pACLId,    sizeof( pACLId ) );
+    ContainerMap::iterator it = pSubContainers.find( name );
+    if( it == pSubContainers.end() )
+      return 0;
+    return it->second;
+  }
 
-    uint16_t len;
-    offset = buffer.grabData( offset, &len, 2 );
-    char strBuffer[len];
-    offset = buffer.grabData( offset, strBuffer, len );
-    pName = strBuffer;
+  //----------------------------------------------------------------------------
+  // Remove container
+  //----------------------------------------------------------------------------
+  void
+  ContainerMD::removeContainer( const std::string &name )
+  {
+    pSubContainers.erase( name );
+  }
 
-    uint16_t len1 = 0;
-    uint16_t len2 = 0;
-    len = 0;
-    offset = buffer.grabData( offset, &len, sizeof( len ) );
-    for( uint16_t i = 0; i < len; ++i )
-    {
-      offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
-      char strBuffer1[len1];
-      offset = buffer.grabData( offset, strBuffer1, len1 );
-      offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
-      char strBuffer2[len2];
-      offset = buffer.grabData( offset, strBuffer2, len2 );
-      pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
-    }
-  };
+  //----------------------------------------------------------------------------
+  // Add container
+  //----------------------------------------------------------------------------
+  void
+  ContainerMD::addContainer( IContainerMD *container )
+  {
+    container->setParentId( pId );
+    pSubContainers[container->getName()] = container;
+  }
+
+  //----------------------------------------------------------------------------
+  // Find file
+  //----------------------------------------------------------------------------
+  FileMD*
+  ContainerMD::findFile( const std::string &name )
+  {
+    FileMap::iterator it = pFiles.find( name );
+    if( it == pFiles.end() )
+      return 0;
+    return it->second;
+  }
 
   //----------------------------------------------------------------------------
   // Add file
   //----------------------------------------------------------------------------
-  void ContainerMD::addFile( FileMD *file )
+  void
+  ContainerMD::addFile( FileMD *file )
   {
     file->setContainerId( pId );
     pFiles[file->getName()] = file;
   }
 
   //----------------------------------------------------------------------------
-  // Access checking helpers
+  // Remove file
   //----------------------------------------------------------------------------
-#define CANREAD  0x01
-#define CANWRITE 0x02
-#define CANENTER 0x04
-
-  static char convertModetUser( mode_t mode )
+  void
+  ContainerMD::removeFile( const std::string &name )
   {
-    char perms = 0;
-    if( mode & S_IRUSR ) perms |= CANREAD;
-    if( mode & S_IWUSR ) perms |= CANWRITE;
-    if( mode & S_IXUSR ) perms |= CANENTER;
-    return perms;
+    pFiles.erase( name );
   }
 
-  static char convertModetGroup( mode_t mode )
+  //------------------------------------------------------------------------
+  // Clean up the entire contents for the container. Delete files and
+  // containers recurssively
+  //------------------------------------------------------------------------
+  void
+  ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
   {
-    char perms = 0;
-    if( mode & S_IRGRP ) perms |= CANREAD;
-    if( mode & S_IWGRP ) perms |= CANWRITE;
-    if( mode & S_IXGRP ) perms |= CANENTER;
-    return perms;
-  }
+    for (auto itf = pFiles.begin(); itf != pFiles.end(); ++itf)
+      file_svc->removeFile(itf->second);
 
-  static char convertModetOther( mode_t mode )
-  {
-    char perms = 0;
-    if( mode & S_IROTH ) perms |= CANREAD;
-    if( mode & S_IWOTH ) perms |= CANWRITE;
-    if( mode & S_IXOTH ) perms |= CANENTER;
-    return perms;
-  }
-
-  static bool checkPerms( char actual, char requested )
-  {
-    for( int i = 0; i < 3; ++i )
-      if( requested & (1<<i) )
-        if( !(actual & (1<<i)) )
-          return false;
-    return true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Check the access permissions
-  //----------------------------------------------------------------------------
-  bool ContainerMD::access( uid_t uid, gid_t gid, int flags )
-  {
-    // root can do everything
-    if( uid == 0 )
-      return true;
-
-    // daemon can read everything
-    if( (uid == 2) &&
-        (!(flags & W_OK)) )
-      return true;
-
-    //--------------------------------------------------------------------------
-    // Convert the flags
-    //--------------------------------------------------------------------------
-    char convFlags = 0;
-    if( flags & R_OK ) convFlags |= CANREAD;
-    if( flags & W_OK ) convFlags |= CANWRITE;
-    if( flags & X_OK ) convFlags |= CANENTER;
-
-    //--------------------------------------------------------------------------
-    // Check the perms
-    //--------------------------------------------------------------------------
-    if( uid == pCUid )
+    for (auto itc = pSubContainers.begin(); itc != pSubContainers.end(); ++itc)
     {
-      char user = convertModetUser( pMode );
-      return checkPerms( user, convFlags );
+      (void) itc->second->cleanUp(cont_svc, file_svc);
+      cont_svc->removeContainer(itc->second);
     }
-
-    if( gid == pCGid )
-    {
-      char group = convertModetGroup( pMode );
-      return checkPerms( group, convFlags );
-    }
-
-    char other = convertModetOther( pMode );
-    return checkPerms( other, convFlags );
   }
 }

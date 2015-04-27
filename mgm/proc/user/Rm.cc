@@ -149,7 +149,7 @@ ProcCommand::Rm ()
       }
       else
       {
-        eos::ContainerMD::XAttrMap attrmap;
+        eos::IContainerMD::XAttrMap attrmap;
 
         // check if this path exists at all
         struct stat buf;

@@ -38,8 +38,8 @@ XrdMgmOfs::_find (const char *path,
                   const char* val,
                   bool nofiles,
                   time_t millisleep,
-                  bool nscounter, 
-		  int maxdepth
+                  bool nscounter,
+                  int maxdepth
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -72,7 +72,7 @@ XrdMgmOfs::_find (const char *path,
   std::vector< std::vector<std::string> > found_dirs;
 
   // try if that is directory
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
   std::string Path = path;
   XrdOucString sPath = path;
   errno = 0;
@@ -153,7 +153,10 @@ XrdMgmOfs::_find (const char *path,
 
         // add all children into the 2D vectors
         eos::ContainerMD::ContainerMap::iterator dit;
-        for (dit = cmd->containersBegin(); dit != cmd->containersEnd(); ++dit)
+        // TODO: fix container interface
+        eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(cmd);
+
+        for (dit = cont->containersBegin(); dit != cont->containersEnd(); ++dit)
         {
           std::string fpath = Path.c_str();
           fpath += dit->second->getName();
@@ -165,7 +168,7 @@ XrdMgmOfs::_find (const char *path,
             if (wkey.find("*") != STR_NPOS)
             {
               // this is a search for 'beginswith' match
-              eos::ContainerMD::XAttrMap attrmap;
+              eos::IContainerMD::XAttrMap attrmap;
               if (!gOFS->_attr_ls(fpath.c_str(),
                                   out_error,
                                   vid,
@@ -223,7 +226,10 @@ XrdMgmOfs::_find (const char *path,
         if (!nofiles)
         {
           eos::ContainerMD::FileMap::iterator fit;
-          for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+          // TODO: fix container interface
+          eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(cmd);
+
+          for (fit = cont->filesBegin(); fit != cont->filesEnd(); ++fit)
           {
             if (limitresult)
             {

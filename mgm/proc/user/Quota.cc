@@ -88,8 +88,8 @@ ProcCommand::Quota ()
   {
     // figure out if the authenticated user is a quota admin
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::ContainerMD* dh;
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD* dh;
+    eos::IContainerMD::XAttrMap attrmap;
     if (!space.beginswith("/"))
     {
       // take the proc directory
@@ -100,7 +100,7 @@ ProcCommand::Quota ()
     {
       dh = gOFS->eosView->getContainer(space.c_str());
       // get attributes
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
       {
         attrmap[it->first] = it->second;

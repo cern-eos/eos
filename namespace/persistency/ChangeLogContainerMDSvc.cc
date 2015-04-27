@@ -39,7 +39,7 @@ namespace eos
   {
     public:
       ContainerMDFollower( eos::ChangeLogContainerMDSvc *contSvc ):
-        pContSvc( contSvc ) 
+        pContSvc( contSvc )
       {
         pQuotaStats = pContSvc->pQuotaStats;
       }
@@ -55,7 +55,7 @@ namespace eos
         //----------------------------------------------------------------------
         if( type == UPDATE_RECORD_MAGIC )
         {
-          ContainerMD *container = new ContainerMD( 0 );
+          IContainerMD *container = new ContainerMD( 0 );
           container->deserialize( (Buffer&)buffer );
           ContMap::iterator it = pUpdated.find( container->getId() );
           if( it != pUpdated.end() )
@@ -80,8 +80,8 @@ namespace eos
         //----------------------------------------------------------------------
         else if( type == DELETE_RECORD_MAGIC )
         {
-          ContainerMD::id_t id;
-          buffer.grabData( 0, &id, sizeof( ContainerMD::id_t ) );
+          IContainerMD::id_t id;
+          buffer.grabData( 0, &id, sizeof( IContainerMD::id_t ) );
           ContMap::iterator it = pUpdated.find( id );
           if( it != pUpdated.end() )
           {
@@ -125,7 +125,7 @@ namespace eos
           if( itP != idMap->end() )
           {
             // make sure it's the same pointer - cover name conflicts
-            ContainerMD *cont = itP->second.ptr->findContainer( it->second.ptr->getName() );
+            IContainerMD *cont = itP->second.ptr->findContainer( it->second.ptr->getName() );
             if( cont == it->second.ptr )
               itP->second.ptr->removeContainer( it->second.ptr->getName() );
           }
@@ -134,7 +134,7 @@ namespace eos
           processed.push_back( *itD );
         }
 
-        std::list<ContainerMD::id_t>::iterator itPro;
+        std::list<IContainerMD::id_t>::iterator itPro;
         for( itPro = processed.begin(); itPro != processed.end(); ++itPro )
           pDeleted.erase( *itPro );
 
@@ -146,7 +146,7 @@ namespace eos
         {
           ChangeLogContainerMDSvc::IdMap::iterator it;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
-          ContainerMD *currentCont = itU->second;
+          IContainerMD *currentCont = itU->second;
           it = idMap->find( currentCont->getId() );
           if( it == idMap->end() )
           {
@@ -196,12 +196,12 @@ namespace eos
               }
             }
             else
-            { 
+            {
               // ---------------------------------------------------------------
               // STEP 1 container move (moving a subtree)
               // ---------------------------------------------------------------
               ChangeLogContainerMDSvc::IdMap::iterator itNP;
-              // --------------------------------------------------------------- 
+              // ---------------------------------------------------------------
               // get the old and the new parent container
               // ---------------------------------------------------------------
               itP = idMap->find(it->second.ptr->getParentId());
@@ -214,7 +214,7 @@ namespace eos
                 size_t deepness = 0;
                 ContainerMD::ContainerMap::iterator cIt;
                 ContainerMD::FileMap::iterator fIt;
-                std::vector<std::set<ContainerMD*> > dirTree;
+                std::vector<std::set<IContainerMD*> > dirTree;
                 dirTree.resize(1);
                 dirTree[0].insert(it->second.ptr);
                 do
@@ -225,19 +225,21 @@ namespace eos
                   // -----------------------------------------------------------
                   dirTree.resize(deepness + 2);
 
-                  std::set<ContainerMD*>::const_iterator dIt;
+                  std::set<IContainerMD*>::const_iterator dIt;
                   // -----------------------------------------------------------
                   // loop over all attached directories in that deepness
                   // -----------------------------------------------------------
-                  for (dIt = dirTree[deepness].begin(); 
-                       dIt != dirTree[deepness].end(); 
+                  for (dIt = dirTree[deepness].begin();
+                       dIt != dirTree[deepness].end();
                        dIt++)
                   {
                     // ---------------------------------------------------------
                     // attach the sub-container at the next deepness level
                     // ---------------------------------------------------------
-                    for (cIt = (*dIt)->containersBegin(); 
-                         cIt != (*dIt)->containersEnd(); 
+                    ContainerMD* cont_md = dynamic_cast<ContainerMD*>(*dIt);
+
+                    for (cIt = cont_md->containersBegin();
+                         cIt != cont_md->containersEnd();
                          cIt++)
                     {
                       dirTree[deepness + 1].insert(cIt->second);
@@ -245,8 +247,8 @@ namespace eos
                     // ---------------------------------------------------------
                     // remove every file from it's quota node
                     // ---------------------------------------------------------
-                    for (fIt = (*dIt)->filesBegin(); 
-                         fIt != (*dIt)->filesEnd(); 
+                    for (fIt = dynamic_cast<ContainerMD*>(*dIt)->filesBegin();
+                         fIt != dynamic_cast<ContainerMD*>(*dIt)->filesEnd();
                          fIt++)
                     {
                       QuotaNode *node = getQuotaNode(*dIt);
@@ -260,7 +262,7 @@ namespace eos
                 // -------------------------------------------------------------
                 // STEP 2 move the source container
                 // -------------------------------------------------------------
-              
+
                 // -------------------------------------------------------------
                 // first remove from the old parent container
                 // -------------------------------------------------------------
@@ -274,7 +276,7 @@ namespace eos
                 // -------------------------------------------------------------
                 itNP->second.ptr->addContainer(it->second.ptr);
                 delete currentCont;
-                
+
                 // -------------------------------------------------------------
                 // STEP 3 add all the files in the new tree to new quota node
                 // -------------------------------------------------------------
@@ -285,20 +287,20 @@ namespace eos
                 // -------------------------------------------------------------
                 while (dirTree[deepness].size())
                 {
-                  std::set<ContainerMD*>::const_iterator dIt;
+                  std::set<IContainerMD*>::const_iterator dIt;
 
                   // -----------------------------------------------------------
                   // loop over all attached directories in that deepness
                   // -----------------------------------------------------------
-                  for (dIt = dirTree[deepness].begin(); 
-                       dIt != dirTree[deepness].end(); 
+                  for (dIt = dirTree[deepness].begin();
+                       dIt != dirTree[deepness].end();
                        dIt++)
                   {
                     // ---------------------------------------------------------
                     // remove every file from it's quota node
                     // ---------------------------------------------------------
-                    for (fIt = (*dIt)->filesBegin(); 
-                         fIt != (*dIt)->filesEnd(); 
+                    for (fIt = dynamic_cast<ContainerMD*>(*dIt)->filesBegin();
+                         fIt != dynamic_cast<ContainerMD*>(*dIt)->filesEnd();
                          fIt++)
                     {
                       QuotaNode *node = getQuotaNode(*dIt);
@@ -321,13 +323,13 @@ namespace eos
       }
 
     private:
-      
+
       //------------------------------------------------------------------------
       // Get quota node id concerning given container
       //------------------------------------------------------------------------
 
       QuotaNode *
-      getQuotaNode (const ContainerMD *container)
+      getQuotaNode (const IContainerMD *container)
       throw ( MDException)
       {
         //----------------------------------------------------------------------
@@ -342,7 +344,7 @@ namespace eos
         //----------------------------------------------------------------------
         // Search for the node
         //----------------------------------------------------------------------
-        const ContainerMD *current = container;
+        const IContainerMD *current = container;
 
         while ( ( current->getId() != 1 ) &&
                 ( (current->getFlags() & QUOTA_NODE_FLAG) == 0) )
@@ -362,10 +364,10 @@ namespace eos
 
         return pQuotaStats->registerNewNode(current->getId());
       }
-      
-      typedef std::map<eos::ContainerMD::id_t, eos::ContainerMD*> ContMap;
+
+      typedef std::map<IContainerMD::id_t, eos::IContainerMD*> ContMap;
       ContMap                           pUpdated;
-      std::set<eos::ContainerMD::id_t>  pDeleted;
+      std::set<eos::IContainerMD::id_t>  pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
       QuotaStats                       *pQuotaStats;
   };
@@ -413,11 +415,11 @@ namespace
 
     ContainerRecordData() : offset(0), newOffset(0), containerId(0) { }
 
-    ContainerRecordData(uint64_t o, eos::ContainerMD::id_t i, uint64_t no = 0) :
+    ContainerRecordData(uint64_t o, eos::IContainerMD::id_t i, uint64_t no = 0) :
       offset(o), newOffset(no), containerId(i) { }
     uint64_t offset;
     uint64_t newOffset;
-    eos::ContainerMD::id_t containerId;
+    eos::IContainerMD::id_t containerId;
   };
 
   //----------------------------------------------------------------------------
@@ -468,7 +470,7 @@ namespace
     // Constructor
     //------------------------------------------------------------------------
 
-    ContainerUpdateHandler (std::map<eos::ContainerMD::id_t, ContainerRecordData> &updates,
+    ContainerUpdateHandler (std::map<eos::IContainerMD::id_t, ContainerRecordData> &updates,
                             eos::ChangeLogFile *newLog) :
       pUpdates (updates), pNewLog (newLog) { }
 
@@ -490,7 +492,7 @@ namespace
       //----------------------------------------------------------------------
       // Put the right stuff in the updates map
       //----------------------------------------------------------------------
-      eos::ContainerMD::id_t id;
+      eos::IContainerMD::id_t id;
       buffer.grabData(0, &id, sizeof ( eos::FileMD::id_t));
       if (type == eos::UPDATE_RECORD_MAGIC)
         pUpdates[id] = ContainerRecordData(offset, id, newOffset);
@@ -504,7 +506,7 @@ namespace
     // Private
     //------------------------------------------------------------------------
   private:
-    std::map<eos::ContainerMD::id_t, ContainerRecordData> &pUpdates;
+    std::map<eos::IContainerMD::id_t, ContainerRecordData> &pUpdates;
     eos::ChangeLogFile *pNewLog;
     uint64_t pCounter;
   };
@@ -726,7 +728,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get the container metadata information
   //----------------------------------------------------------------------------
-  ContainerMD *ChangeLogContainerMDSvc::getContainerMD( ContainerMD::id_t id )
+  IContainerMD *ChangeLogContainerMDSvc::getContainerMD( IContainerMD::id_t id )
     throw( MDException )
   {
     IdMap::iterator it = pIdMap.find( id );
@@ -742,9 +744,9 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a new container metadata object
   //----------------------------------------------------------------------------
-  ContainerMD *ChangeLogContainerMDSvc::createContainer() throw( MDException )
+  IContainerMD *ChangeLogContainerMDSvc::createContainer() throw( MDException )
   {
-    ContainerMD *cont = new ContainerMD( pFirstFreeId++ );
+    IContainerMD *cont = new ContainerMD( pFirstFreeId++ );
     pIdMap.insert( std::make_pair( cont->getId(), DataInfo( 0, cont ) ) );
     return cont;
   }
@@ -752,7 +754,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Update the contaienr metadata in the backing store
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::updateStore( ContainerMD *obj )
+  void ChangeLogContainerMDSvc::updateStore( IContainerMD *obj )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -780,7 +782,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove object from the store
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::removeContainer( ContainerMD *obj )
+  void ChangeLogContainerMDSvc::removeContainer( IContainerMD *obj )
     throw( MDException )
   {
     removeContainer( obj->getId() );
@@ -789,7 +791,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove object from the store
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::removeContainer( ContainerMD::id_t containerId )
+  void ChangeLogContainerMDSvc::removeContainer( IContainerMD::id_t containerId )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -839,7 +841,7 @@ namespace eos
     try
     {
       data->newLog->open(newLogFileName, ChangeLogFile::Create,
-      		   CONTAINER_LOG_MAGIC);
+                   CONTAINER_LOG_MAGIC);
       data->logFileName = newLogFileName;
       data->originalLog = pChangeLog;
       data->newRecord = pChangeLog->getNextOffset();
@@ -872,9 +874,9 @@ namespace eos
     ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
     if (!data)
       {
-	MDException e(EINVAL);
-	e.getMessage() << "Compacting data incorrect";
-	throw e;
+        MDException e(EINVAL);
+        e.getMessage() << "Compacting data incorrect";
+        throw e;
       }
     std::sort(data->records.begin(), data->records.end(),
               ::ContainerOffsetComparator());
@@ -922,12 +924,12 @@ namespace eos
     // Copy the part of the old log that has been appended after we
     // prepared
     //--------------------------------------------------------------------------
-    std::map<eos::ContainerMD::id_t, ContainerRecordData> updates;
+    std::map<eos::IContainerMD::id_t, ContainerRecordData> updates;
     try
     {
       ::ContainerUpdateHandler updateHandler(updates, data->newLog);
       data->originalLog->scanAllRecordsAtOffset(&updateHandler,
-      					  data->newRecord);
+                                          data->newRecord);
     }
     catch (MDException &e)
     {
@@ -972,7 +974,7 @@ namespace eos
     // Now we handle updates, if we don't have the container, we're messed up,
     // if the original offsets don't match we're messed up too
     //--------------------------------------------------------------------------
-    std::map<ContainerMD::id_t, ContainerRecordData>::iterator itU;
+    std::map<IContainerMD::id_t, ContainerRecordData>::iterator itU;
     for (itU = updates.begin(); itU != updates.end(); ++itU)
     {
       it = pIdMap.find(itU->second.containerId);
@@ -1066,7 +1068,7 @@ namespace eos
   {
     Buffer buffer;
     pChangeLog->readRecord( it->second.logOffset, buffer );
-    ContainerMD *container = new ContainerMD( 0 );
+    IContainerMD *container = new ContainerMD( 0 );
     container->deserialize( buffer );
     it->second.ptr = container;
 
@@ -1086,8 +1088,8 @@ namespace eos
       if( !(parentIt->second.ptr) )
         recreateContainer( parentIt, orphans, nameConflicts );
 
-      ContainerMD *parent = parentIt->second.ptr;
-      ContainerMD *child  = parent->findContainer( container->getName() );
+      IContainerMD *parent = parentIt->second.ptr;
+      IContainerMD *child  = parent->findContainer( container->getName() );
       if( !child )
         parent->addContainer( container );
       else
@@ -1101,12 +1103,12 @@ namespace eos
   //------------------------------------------------------------------------
   // Create container in parent
   //------------------------------------------------------------------------
-  ContainerMD *ChangeLogContainerMDSvc::createInParent(
+  IContainerMD *ChangeLogContainerMDSvc::createInParent(
                 const std::string &name,
-                ContainerMD       *parent )
+                IContainerMD      *parent )
                 throw( MDException )
   {
-      ContainerMD *container = createContainer();
+      IContainerMD *container = createContainer();
       container->setName( name );
       parent->addContainer( container );
       updateStore( container );
@@ -1116,12 +1118,12 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get the lost+found container, create if necessary
   //----------------------------------------------------------------------------
-  ContainerMD *ChangeLogContainerMDSvc::getLostFound() throw( MDException )
+  IContainerMD *ChangeLogContainerMDSvc::getLostFound() throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Get root
     //--------------------------------------------------------------------------
-    ContainerMD *root = 0;
+    IContainerMD *root = 0;
     try
     {
       root = getContainerMD( 1 );
@@ -1136,33 +1138,37 @@ namespace eos
     //--------------------------------------------------------------------------
     // Get or create lost+found if necessary
     //--------------------------------------------------------------------------
-    ContainerMD *lostFound = root->findContainer( "lost+found" );
+    IContainerMD *lostFound = root->findContainer( "lost+found" );
+
     if( lostFound )
       return lostFound;
+
     return createInParent( "lost+found", root );
   }
 
   //----------------------------------------------------------------------------
   // Get the orphans container
   //----------------------------------------------------------------------------
-  ContainerMD *ChangeLogContainerMDSvc::getLostFoundContainer(
+  IContainerMD *ChangeLogContainerMDSvc::getLostFoundContainer(
                 const std::string &name ) throw( MDException )
   {
-    ContainerMD *lostFound = getLostFound();
+    IContainerMD *lostFound = getLostFound();
 
     if( name.empty() )
       return lostFound;
 
-    ContainerMD *cont = lostFound->findContainer( name );
+    IContainerMD *cont = lostFound->findContainer( name );
+
     if( cont )
       return cont;
+
     return createInParent( name, lostFound );
   }
 
   //----------------------------------------------------------------------------
   // Attach broken containers to lost+found
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::attachBroken( ContainerMD   *parent,
+  void ChangeLogContainerMDSvc::attachBroken( IContainerMD   *parent,
                                               ContainerList &broken )
   {
     ContainerList::iterator it;
@@ -1170,7 +1176,8 @@ namespace eos
     {
       std::ostringstream s1, s2;
       s1 << (*it)->getParentId();
-      ContainerMD *cont = parent->findContainer( s1.str() );
+      IContainerMD *cont = parent->findContainer( s1.str() );
+
       if( !cont )
         cont = createInParent( s1.str(), parent );
 
@@ -1191,8 +1198,8 @@ namespace eos
     //--------------------------------------------------------------------------
     if( type == UPDATE_RECORD_MAGIC )
     {
-      ContainerMD::id_t id;
-      buffer.grabData( 0, &id, sizeof( ContainerMD::id_t ) );
+      IContainerMD::id_t id;
+      buffer.grabData( 0, &id, sizeof( IContainerMD::id_t ) );
       pIdMap[id] = DataInfo( offset, 0 );
       if( pLargestId < id ) pLargestId = id;
     }
@@ -1202,8 +1209,8 @@ namespace eos
     //--------------------------------------------------------------------------
     else if( type == DELETE_RECORD_MAGIC )
     {
-      ContainerMD::id_t id;
-      buffer.grabData( 0, &id, sizeof( ContainerMD::id_t ) );
+      IContainerMD::id_t id;
+      buffer.grabData( 0, &id, sizeof( IContainerMD::id_t ) );
       IdMap::iterator it = pIdMap.find( id );
       if( it != pIdMap.end() )
         pIdMap.erase( it );

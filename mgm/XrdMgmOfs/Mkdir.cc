@@ -127,9 +127,9 @@ XrdMgmOfs::_mkdir (const char *path,
   eos::common::Path cPath(path);
   bool noParent = false;
 
-  eos::ContainerMD* dir = 0;
-  eos::ContainerMD::XAttrMap attrmap;
-  eos::ContainerMD* copydir = 0;
+  eos::IContainerMD* dir = 0;
+  eos::IContainerMD::XAttrMap attrmap;
+  eos::IContainerMD* copydir = 0;
 
   {
     // -------------------------------------------------------------------------
@@ -143,7 +143,7 @@ XrdMgmOfs::_mkdir (const char *path,
         dir = eosView->getContainer(cPath.GetParentPath());
         copydir = new eos::ContainerMD(*dir);
         dir = copydir;
-        eos::ContainerMD::XAttrMap::const_iterator it;
+        eos::IContainerMD::XAttrMap::const_iterator it;
         for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
         {
           attrmap[it->first] = it->second;
@@ -185,32 +185,32 @@ XrdMgmOfs::_mkdir (const char *path,
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
       if (attrmap.count("sys.owner.auth"))
       {
-	if (attrmap["sys.owner.auth"] == "*") 
-	{
-	  sticky_owner = true;
-	}
-	else
-	{
-	  attrmap["sys.owner.auth"] += ",";
-	  std::string ownerkey = vid.prot.c_str();
-	  ownerkey += ":";
-	  if (vid.prot == "gsi")
-	  {
-	    ownerkey += vid.dn.c_str();
-	  }
-	  else
-	  {
-	    ownerkey += vid.uid_string.c_str();
-	  }
-	  if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
-	  {
-	    eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-		     path, vid.uid, vid.gid, d_uid, d_gid);
-	    // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
-	    vid.uid = d_uid;
-	    vid.gid = d_gid;
-	  }
-	}
+        if (attrmap["sys.owner.auth"] == "*")
+        {
+          sticky_owner = true;
+        }
+        else
+        {
+          attrmap["sys.owner.auth"] += ",";
+          std::string ownerkey = vid.prot.c_str();
+          ownerkey += ":";
+          if (vid.prot == "gsi")
+          {
+            ownerkey += vid.dn.c_str();
+          }
+          else
+          {
+            ownerkey += vid.uid_string.c_str();
+          }
+          if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
+          {
+            eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                     path, vid.uid, vid.gid, d_uid, d_gid);
+            // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+            vid.uid = d_uid;
+            vid.gid = d_gid;
+          }
+        }
       }
       bool stdpermcheck = false;
 
@@ -236,13 +236,13 @@ XrdMgmOfs::_mkdir (const char *path,
         errno = EPERM;
         return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
       }
-      if (sticky_owner) 
+      if (sticky_owner)
       {
-	eos_info("msg=\"client actingd as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-		 path, vid.uid, vid.gid, d_uid, d_gid);
-	// yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
-	vid.uid = d_uid;
-	vid.gid = d_gid;
+        eos_info("msg=\"client actingd as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                 path, vid.uid, vid.gid, d_uid, d_gid);
+        // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+        vid.uid = d_uid;
+        vid.gid = d_gid;
       }
     }
   }
@@ -253,7 +253,8 @@ XrdMgmOfs::_mkdir (const char *path,
     recurse = true;
     eos_debug("SFS_O_MKPATH set", path);
     // short cut if it exists already
-    eos::ContainerMD* fulldir = 0;
+    eos::IContainerMD* fulldir = 0;
+
     if (dir)
     {
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -279,7 +280,7 @@ XrdMgmOfs::_mkdir (const char *path,
 
   eos_debug("mkdir path=%s deepness=%d dirname=%s basename=%s",
             path, cPath.GetSubPathSize(), cPath.GetParentPath(), cPath.GetName());
-  eos::ContainerMD* newdir = 0;
+  eos::IContainerMD* newdir = 0;
 
   if (noParent)
   {
@@ -297,7 +298,7 @@ XrdMgmOfs::_mkdir (const char *path,
           if (copydir) delete copydir;
           dir = eosView->getContainer(cPath.GetSubPath(i));
           copydir = new eos::ContainerMD(*dir);
-          eos::ContainerMD::XAttrMap::const_iterator it;
+          eos::IContainerMD::XAttrMap::const_iterator it;
           for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
           {
             attrmap[it->first] = it->second;
@@ -375,7 +376,7 @@ XrdMgmOfs::_mkdir (const char *path,
           if (dir->getMode() & S_ISGID)
           {
             // inherit the attributes
-            eos::ContainerMD::XAttrMap::const_iterator it;
+            eos::IContainerMD::XAttrMap::const_iterator it;
             for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
             {
               newdir->setAttribute(it->first, it->second);
@@ -438,7 +439,7 @@ XrdMgmOfs::_mkdir (const char *path,
         (cPath.GetFullPath().find(EOS_COMMON_PATH_VERSION_PREFIX) == STR_NPOS))
     {
       // inherit the attributes - not for version directories
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
       {
         newdir->setAttribute(it->first, it->second);

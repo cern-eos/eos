@@ -24,7 +24,7 @@
 #ifndef EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 #define EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 
-#include "namespace/ContainerMD.hh"
+#include "namespace/IContainerMD.hh"
 #include "namespace/MDException.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
@@ -75,18 +75,6 @@ namespace eos
       virtual void initialize() throw( MDException );
 
       //------------------------------------------------------------------------
-      //! Make a transition from slave to master
-      // -----------------------------------------------------------------------
-      virtual void slave2Master( std::map<std::string, std::string> &config )
-        throw( MDException );
-
-      //------------------------------------------------------------------------
-      //! Switch the namespace to read-only mode
-      //------------------------------------------------------------------------
-      virtual void makeReadOnly()
-        throw( MDException );
-
-      //------------------------------------------------------------------------
       //! Configure the container service
       //------------------------------------------------------------------------
       virtual void configure( std::map<std::string, std::string> &config )
@@ -100,30 +88,30 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the container metadata information for the given container ID
       //------------------------------------------------------------------------
-      virtual ContainerMD *getContainerMD( ContainerMD::id_t id )
+      virtual IContainerMD *getContainerMD( IContainerMD::id_t id )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Create new container metadata object with an assigned id, the user has
       //! to fill all the remaining fields
       //------------------------------------------------------------------------
-      virtual ContainerMD *createContainer() throw( MDException );
+      virtual IContainerMD *createContainer() throw( MDException );
 
       //------------------------------------------------------------------------
       //! Update the contaienr metadata in the backing store after the
       //! ContainerMD object has been changed
       //------------------------------------------------------------------------
-      virtual void updateStore( ContainerMD *obj ) throw( MDException );
+      virtual void updateStore( IContainerMD *obj ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeContainer( ContainerMD *obj ) throw( MDException );
+      virtual void removeContainer( IContainerMD *obj ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeContainer( ContainerMD::id_t containerId )
+      virtual void removeContainer( IContainerMD::id_t containerId )
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -153,7 +141,7 @@ namespace eos
       //!                        compacting
       //------------------------------------------------------------------------
       void *compactPrepare (const std::string &newLogFileName) const
-        throw ( MDException);
+        throw (MDException);
 
       //------------------------------------------------------------------------
       //! Do the compacting.
@@ -181,6 +169,18 @@ namespace eos
       //------------------------------------------------------------------------
       void compactCommit (void *compactingData) throw ( MDException);
 
+      //------------------------------------------------------------------------
+      //! Make a transition from slave to master
+      // -----------------------------------------------------------------------
+      virtual void slave2Master( std::map<std::string, std::string> &config )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
+      //! Switch the namespace to read-only mode
+      //------------------------------------------------------------------------
+      virtual void makeReadOnly()
+        throw( MDException );
+    
       //------------------------------------------------------------------------
       //! Register slave lock
       //------------------------------------------------------------------------
@@ -210,19 +210,19 @@ namespace eos
       //------------------------------------------------------------------------
       //! Create container in parent
       //------------------------------------------------------------------------
-      ContainerMD *createInParent( const std::string &name,
-                                   ContainerMD       *parent )
+      IContainerMD *createInParent( const std::string &name,
+                                    IContainerMD       *parent )
                     throw( MDException );
 
       //------------------------------------------------------------------------
       //! Get the lost+found container, create if necessary
       //------------------------------------------------------------------------
-      ContainerMD *getLostFound() throw( MDException );
+      IContainerMD *getLostFound() throw( MDException );
 
       //------------------------------------------------------------------------
       //! Get the orphans container
       //------------------------------------------------------------------------
-      ContainerMD *getLostFoundContainer( const std::string &name )
+      IContainerMD *getLostFoundContainer( const std::string &name )
                     throw( MDException );
 
       //------------------------------------------------------------------------
@@ -272,18 +272,18 @@ namespace eos
       struct DataInfo
       {
         DataInfo(): logOffset(0), ptr(0) {} // for some reason needed by sparse_hash_map::erase
-        DataInfo( uint64_t logOffset, ContainerMD *ptr )
+        DataInfo( uint64_t logOffset, IContainerMD *ptr )
         {
           this->logOffset = logOffset;
           this->ptr       = ptr;
         }
         uint64_t     logOffset;
-        ContainerMD *ptr;
+        IContainerMD *ptr;
       };
 
-      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo> IdMap;
-      typedef std::list<IContainerMDChangeListener*>              ListenerList;
-      typedef std::list<ContainerMD*>                             ContainerList;
+      typedef google::dense_hash_map<IContainerMD::id_t, DataInfo> IdMap;
+      typedef std::list<IContainerMDChangeListener*>               ListenerList;
+      typedef std::list<IContainerMD*>                             ContainerList;
 
       //------------------------------------------------------------------------
       // Changelog record scanner
@@ -296,20 +296,20 @@ namespace eos
           {}
           virtual bool processRecord( uint64_t offset, char type,
                                       const Buffer &buffer );
-          ContainerMD::id_t getLargestId() const
+          IContainerMD::id_t getLargestId() const
           {
             return pLargestId;
           }
         private:
-          IdMap             &pIdMap;
-          ContainerMD::id_t  pLargestId;
-          bool               pSlaveMode;
+          IdMap& pIdMap;
+          IContainerMD::id_t pLargestId;
+          bool pSlaveMode;
       };
 
       //------------------------------------------------------------------------
       // Notify the listeners about the change
       //------------------------------------------------------------------------
-      void notifyListeners( ContainerMD *obj,
+      void notifyListeners( IContainerMD *obj,
                             IContainerMDChangeListener::Action a )
       {
         ListenerList::iterator it;
@@ -328,12 +328,12 @@ namespace eos
       //------------------------------------------------------------------------
       // Attach broken containers to lost+found
       //------------------------------------------------------------------------
-      void attachBroken( ContainerMD *parent, ContainerList &broken );
+      void attachBroken( IContainerMD *parent, ContainerList &broken );
 
       //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
-      ContainerMD::id_t  pFirstFreeId;
+      IContainerMD::id_t  pFirstFreeId;
       std::string        pChangeLogPath;
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;

@@ -47,7 +47,7 @@
     // ---------------------------------------------------------------------
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     eos::FileMD* fmd = 0;
-    eos::ContainerMD* container = 0;
+    eos::IContainerMD* container = 0;
     eos::QuotaNode* quotanode = 0;
 
     try

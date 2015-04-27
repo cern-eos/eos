@@ -24,7 +24,6 @@
 #ifndef EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
 #define EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
 
-#include "namespace/FileMD.hh"
 #include "namespace/MDException.hh"
 #include "namespace/IFileMDSvc.hh"
 #include "namespace/accounting/QuotaStats.hh"

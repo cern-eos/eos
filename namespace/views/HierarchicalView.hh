@@ -141,20 +141,20 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual ContainerMD *getContainer( const std::string &uri )
+      virtual IContainerMD *getContainer( const std::string &uri )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Create a container (directory)
       //------------------------------------------------------------------------
-      virtual ContainerMD *createContainer( const std::string &uri,
+      virtual IContainerMD *createContainer( const std::string &uri,
                                             bool createParents = false )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Update container store
       //------------------------------------------------------------------------
-      virtual void updateContainerStore( ContainerMD *container )
+      virtual void updateContainerStore( IContainerMD *container )
         throw( MDException )
       {
         pContainerSvc->updateStore( container );
@@ -170,7 +170,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get uri for the container
       //------------------------------------------------------------------------
-      virtual std::string getUri( const ContainerMD *container ) const
+      virtual std::string getUri( const IContainerMD *container ) const
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -182,20 +182,20 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
-      virtual QuotaNode *getQuotaNode( const ContainerMD *container,
+      virtual QuotaNode *getQuotaNode( const IContainerMD *container,
                                        bool               search = true )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
       //------------------------------------------------------------------------
-      virtual QuotaNode *registerQuotaNode( ContainerMD *container )
+      virtual QuotaNode *registerQuotaNode( IContainerMD *container )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Remove the quota node
       //------------------------------------------------------------------------
-      virtual void removeQuotaNode( ContainerMD *container )
+      virtual void removeQuotaNode( IContainerMD *container )
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -218,7 +218,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Rename container
       //------------------------------------------------------------------------
-      virtual void renameContainer( ContainerMD *container,
+      virtual void renameContainer( IContainerMD *container,
                                     const std::string &newName )
         throw( MDException );
 
@@ -229,9 +229,9 @@ namespace eos
         throw( MDException );
 
     private:
-      ContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
+      IContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
                                       size_t &index );
-      void cleanUpContainer( ContainerMD *cont );
+      void cleanUpContainer( IContainerMD *cont );
 
       //------------------------------------------------------------------------
       // File visitor for reloading
@@ -255,7 +255,7 @@ namespace eos
       IContainerMDSvc *pContainerSvc;
       IFileMDSvc      *pFileSvc;
       QuotaStats      *pQuotaStats;
-      ContainerMD     *pRoot;
+      IContainerMD     *pRoot;
   };
 };
 

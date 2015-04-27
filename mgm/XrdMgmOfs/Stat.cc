@@ -262,7 +262,7 @@ XrdMgmOfs::_stat (const char *path,
   }
 
   // try if that is directory
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
   errno = 0;
 
   // ---------------------------------------------------------------------------

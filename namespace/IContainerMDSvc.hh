@@ -24,7 +24,7 @@
 #ifndef EOS_NS_I_CONTAINER_MD_SVC_HH
 #define EOS_NS_I_CONTAINER_MD_SVC_HH
 
-#include "namespace/ContainerMD.hh"
+#include "namespace/IContainerMD.hh"
 #include "namespace/MDException.hh"
 
 #include <map>
@@ -46,7 +46,7 @@ namespace eos
           Created
         };
 
-      virtual void containerMDChanged( ContainerMD *obj, Action type );
+      virtual void containerMDChanged( IContainerMD *obj, Action type );
   };
 
   //----------------------------------------------------------------------------
@@ -80,30 +80,30 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the file metadata information for the given file ID
       //------------------------------------------------------------------------
-      virtual ContainerMD *getContainerMD( ContainerMD::id_t id )
+      virtual IContainerMD *getContainerMD( IContainerMD::id_t id )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Create new container metadata object with an assigned id, the user has
       //! to fill all the remaining fields
       //------------------------------------------------------------------------
-      virtual ContainerMD *createContainer() throw( MDException ) = 0;
+      virtual IContainerMD *createContainer() throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Update the contaienr metadata in the backing store after the
       //! ContainerMD object has been changed
       //------------------------------------------------------------------------
-      virtual void updateStore( ContainerMD *obj ) throw( MDException ) = 0;
+      virtual void updateStore( IContainerMD *obj ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeContainer( ContainerMD *obj ) throw( MDException ) = 0;
+      virtual void removeContainer( IContainerMD *obj ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeContainer( ContainerMD::id_t containerId )
+      virtual void removeContainer( IContainerMD::id_t containerId )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
@@ -119,4 +119,4 @@ namespace eos
   };
 }
 
-#endif // EOS_NS_I_FILE_MD_SVC_HH
+#endif // EOS_NS_I_CONTAINER_MD_SVC_HH
