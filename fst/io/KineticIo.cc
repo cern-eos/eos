@@ -13,24 +13,24 @@ using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
  * drive map interaction.  */
 static KineticDriveMap & dm()
 {
-    static KineticDriveMap dm("");
-    return dm;
+    static KineticDriveMap dmap;
+    return dmap;
 }
-static string extractWWN(const std::string &path)
+static string extractDriveID(const std::string &path)
 {
-    size_t wwn_start = path.find_first_of(':') + 1;
-    size_t wwn_end   = path.find_first_of(':', wwn_start);
-    return path.substr(wwn_start, wwn_end-wwn_start);
+    size_t id_start = path.find_first_of(':') + 1;
+    size_t id_end   = path.find_first_of(':', id_start);
+    return path.substr(id_start, id_end-id_start);
 }
 static int getConnection(const std::string &path, ConnectionPointer &con)
 {
-    string wwn = extractWWN(path);
-    return dm().getConnection(wwn, con);
+    return dm().getConnection(extractDriveID(path), con);
 }
 static int invalidateConnection(const std::string &path, ConnectionPointer &con)
 {
-    string wwn = extractWWN(path);
-    dm().invalidateConnection(wwn);                  
+    /* invalidate connection... forget local pointer and inform drive map to 
+     * about the connection state. */
+    dm().invalidateConnection(extractDriveID(path));                  
     con.reset(); 
     return EIO;   
 }
@@ -75,31 +75,13 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
     if((errno = getConnection(p, connection)))
         return SFS_ERROR;
     mFilePath = p;
-    
-    KineticStatus status(kinetic::StatusCode::OK, "");
-    
-    /* create operation */
-    if (flags & SFS_O_CREAT){
- 	KineticRecord record("", "0", "", Command_Algorithm_SHA1);
-	status = connection->Put(mFilePath+"_0", "", WriteMode::REQUIRE_SAME_VERSION, record);
-        if(status.statusCode() == StatusCode::REMOTE_VERSION_MISMATCH){
-            eos_info("Cannot create file %s, it already exists.", mFilePath.c_str());
-            errno = EEXIST;
-            return SFS_ERROR;
-        }
-    }
-    /* regular open operation */
-    else{
-        unique_ptr<string> version;
-        status = connection->GetVersion(mFilePath+"_0", version);
-        if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
-            eos_info("Cannot open file %s, it does not exist.", mFilePath.c_str());
-            errno = ENOENT;
-            return SFS_ERROR;
-        }
-    }
-    
-    if(!status.ok()){        
+     
+    /* All necessary checks have been done in the 993 line long XrdFstOfsFile::open method before we are called. */
+    /* Simply put an empty record to the drive if the file doesn't yet exist as (a) the file is supposed to be created
+     * when open with O_CREAT succeeds and (b) setting attributes on a freshly opened file will fail otherwise. */
+    KineticRecord record("", "0", "", Command_Algorithm_SHA1);
+    KineticStatus status = connection->Put(mFilePath+"_0", "", WriteMode::REQUIRE_SAME_VERSION, record);
+    if(status.statusCode() != StatusCode::REMOTE_VERSION_MISMATCH && !status.ok()){        
         eos_err("Invalid Connection Status: %d, error message: %s", 
             status.statusCode(), status.message().c_str());   
         errno = invalidateConnection(mFilePath, connection);                                        
@@ -107,6 +89,16 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
     }           
     return SFS_OK;
 }
+
+int KineticIo::Close (uint16_t timeout)
+{
+    if(Sync(timeout) == SFS_ERROR)
+        return SFS_ERROR;
+    connection.reset();
+    mFilePath = "";
+    return SFS_OK;
+}
+
 
 enum rw {READ, WRITE};
 int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
@@ -123,25 +115,25 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
 
     while(length_todo){
 
-            int chunk_number = (offset+offset_done) / KineticChunk::capacity;
-            int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
-            int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
+        int chunk_number = (offset+offset_done) / KineticChunk::capacity;
+        int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
+        int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
 
-            errno = getChunk(chunk_number, chunk);
-            if(errno) return SFS_ERROR;
+        errno = getChunk(chunk_number, chunk);
+        if(errno) return SFS_ERROR;
 
-            if(mode == rw::WRITE){
-                errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
-                if(errno) return SFS_ERROR;
-                if(chunk_offset + chunk_length == KineticChunk::capacity)
-                    errno = chunk->flush();
-            }
-            else if (mode == rw::READ){
-                errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
-            }
+        if(mode == rw::WRITE){
+            errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
             if(errno) return SFS_ERROR;
-            length_todo -= chunk_length;
-            offset_done += chunk_length;
+            if(chunk_offset + chunk_length == KineticChunk::capacity)
+                errno = chunk->flush();
+        }
+        else if (mode == rw::READ){
+            errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
+        }
+        if(errno) return SFS_ERROR;
+        length_todo -= chunk_length;
+        offset_done += chunk_length;
     }
 
     return length;
@@ -197,7 +189,6 @@ int KineticIo::Fallocate (XrdSfsFileOffset lenght)
         errno = ENXIO; 
         return SFS_ERROR; 
     }
-    // TODO: handle quota here
     return SFS_OK;
 }
 
@@ -208,7 +199,6 @@ int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffs
         errno = ENXIO; 
         return SFS_ERROR; 
     }
-    // TODO: handle quota here
     return SFS_OK;
 }
 
@@ -231,7 +221,7 @@ int KineticIo::Remove (uint16_t timeout)
             KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
             if(!status.ok()){                                      
                 eos_err("Invalid Connection Status: %d, error message: %s", 
-                status.statusCode(), status.message().c_str());   
+                    status.statusCode(), status.message().c_str());   
                 errno = invalidateConnection(mFilePath, connection);                                        
                 return SFS_ERROR;                                                        
             }     
@@ -256,15 +246,6 @@ int KineticIo::Sync (uint16_t timeout)
     return SFS_OK;
 }
 
-int KineticIo::Close (uint16_t timeout)
-{
-    if(Sync(timeout) == SFS_ERROR)
-        return SFS_ERROR;
-    connection.reset();
-    mFilePath = "";
-    return SFS_OK;
-}
-
 int KineticIo::Stat (struct stat* buf, uint16_t timeout)
 {
     if(!connection){ 
@@ -272,27 +253,35 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
         errno = ENXIO; 
         return SFS_ERROR; 
     }
+    /*Syncing outstanding writes to disk means we don't have to look in the cache
+     * to find the last chunk. Just being lazy. */
     errno = Sync(timeout);
     if(errno) return SFS_ERROR;
 
     unique_ptr<string> key;
     unique_ptr<KineticRecord> record;
 
+    /* We simply get the last chunk for the path existing on the drive using 
+       GetPrevious */
     KineticStatus status = connection->GetPrevious(mFilePath+"__",key,record);
-    if(!status.ok()){                                      
-        eos_err("Invalid Connection Status: %d, error message: %s", 
-        status.statusCode(), status.message().c_str());   
+    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){                                      
+        printf("Invalid Connection Status: %d, error message: %s", 
+            status.statusCode(), status.message().c_str());   
         errno = invalidateConnection(mFilePath, connection);                                        
         return SFS_ERROR;                                                        
     }
     
+    if(!key || key->size() < mFilePath.size() || key->compare(0,mFilePath.length(),mFilePath)){
+        /* The file has been removed by someone else since this IO object has been opened. */
+        errno = ENOENT;
+        return SFS_ERROR;
+    }    
+    
+    std::string chunkstr = key->substr(key->find_last_of('_')+1,key->length());
+    int chunk_number = std::stoll(chunkstr); 
+
     memset(buf,0,sizeof(struct stat));
     buf->st_blksize = KineticChunk::capacity;
-
-
-    std::string chunkstr = key->substr(key->find_last_of('_')+1,key->length());
-    int chunk_number = chunkstr.empty() ?  0 : std::stoll(chunkstr); 
-
     buf->st_blocks = chunk_number+1;
     buf->st_size = chunk_number * KineticChunk::capacity + record->value()->size();
 
@@ -307,9 +296,14 @@ void* KineticIo::GetAsyncHandler ()
 
 int KineticIo::Statfs (const char* p, struct statfs* sfs)
 {  
-    if((errno = getConnection(string(p), connection)))
-        return errno;
+    /* We don't want to allow Statfs on an Opened() object. */
+    if(mFilePath.length() && mFilePath.compare(p))
+        return EPERM; 
     
+    if(!connection && (errno = getConnection(string(p), connection)))
+        return errno;
+    mFilePath=p;
+       
     unique_ptr<kinetic::DriveLog> log;
     vector<kinetic::Command_GetLog_Type> types;
     types.push_back(kinetic::Command_GetLog_Type::Command_GetLog_Type_CAPACITIES);
@@ -332,8 +326,6 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     sfs->f_bfree  = sfs->f_bavail; /* Free blocks available to non root user */
     sfs->f_files   = capacity / KineticChunk::capacity; /* Total inodes */
     sfs->f_ffree   = free / KineticChunk::capacity ; /* Free inodes */
-
-    connection.reset();
     return 0;
 }
 
@@ -357,23 +349,21 @@ bool KineticIo::Attr::Get(const char* name, char* value, size_t& size)
     }
     unique_ptr<KineticRecord> record;
     KineticStatus status = connection->Get(mName+"_"+name,record);
+    
     if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND){
         eos_info("Requested attribute '%s' does not exist.", name);
         return false;
-    }
+    }    
     if(!status.ok()){                                      
         eos_err("Invalid Connection Status: %d, error message: %s", 
         status.statusCode(), status.message().c_str());   
         invalidateConnection(mName, connection);                                        
         return false;                                                     
-    }
-    
-    
+    }    
     if(size < record->value()->size()){
         eos_info("Requested attribute bigger than supplied buffer.");
         return false; 
-    }
-    
+    }    
     size = record->value()->size();
     record->value()->copy(value, size, 0);
     return true;
@@ -411,7 +401,7 @@ bool KineticIo::Attr::Set(std::string key, std::string value)
 
 KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
 {
-    /* As in Attr.cc implementation, ensure that file exists 
+    /* As in Attr.cc implementation, ensure that the file exists 
      * in static OpenAttr function. */
     if (!path)
         return 0;

@@ -5,20 +5,29 @@
 #include <glog/logging.h>
 
 
-KineticDriveMap::KineticDriveMap(std::string path)
+KineticDriveMap::KineticDriveMap()
 {
-    if(path.empty()){
-        char* envstring = getenv ("EOS_FST_KINETIC_JSON");
-        if(envstring) path = std::string(envstring);    
+    /* get file name */
+    char* envstring = getenv("EOS_FST_KINETIC_JSON");
+    if(!envstring){
+        eos_err("EOS_FST_KINETIC_JSON not set.");
+        return;
     }
-    std::ifstream file(path);
+    
+    /* get file content */
+    std::ifstream file(envstring);
     std::stringstream buffer;
     buffer << file.rdbuf(); 
-    if(buffer.str().empty())
-        eos_warning("Failed reading in json file.");
-    else
-    if(parseJson(buffer.str()))
+    if(buffer.str().empty()){
+        eos_err("Failed reading in json file: %s", envstring);
+        return;
+    }
+    
+    /* parse file */
+    if(parseJson(buffer.str())){
+        eos_err("Failed parsing json file: %s", envstring);
         drives.clear();
+    }
 }
 
 KineticDriveMap::~KineticDriveMap()
@@ -26,33 +35,32 @@ KineticDriveMap::~KineticDriveMap()
     
 }
 
-int KineticDriveMap::getConnection(const std::string & drive_wwn, std::shared_ptr<kinetic::BlockingKineticConnectionInterface> & connection)
+int KineticDriveMap::getConnection(const std::string & drive_id, std::shared_ptr<kinetic::BlockingKineticConnectionInterface> & connection)
 {
-    if(!drives.count(drive_wwn)){
-        eos_warning("Connection requested for nonexisting wwn: %s",drive_wwn.c_str());
+    if(!drives.count(drive_id)){
+        eos_warning("Connection requested for nonexisting drive: %s",drive_id.c_str());
         return ENODEV;
-    }
-     
-    KineticDrive & d = drives.at(drive_wwn);    
-    
-    // Avoid trying to create the same connection multiple times concurrently. Probably a bit over-the-top,
-    // but can't hurt.
+    }     
+    KineticDrive & d = drives.at(drive_id);    
+
+    /* Avoid creating the same connection multiple times concurrently, but 
+     * allow concurrent creation of different connections. Probably a bit 
+     * over-the-top but can't hurt. */
     std::unique_lock<std::mutex> locker(mutex);
-    
-    while(blocked_wwn.count(drive_wwn))
+    while(blocked_id.count(drive_id))
         unblocked.wait(locker);
     
     if(!d.connection ){
-        blocked_wwn.insert(drive_wwn);
+        blocked_id.insert(drive_id);
         locker.unlock();
     
         kinetic::KineticConnectionFactory factory = kinetic::NewKineticConnectionFactory();
         kinetic::Status status = factory.NewThreadsafeBlockingConnection(d.connection_options, d.connection, 30);
          
-        blocked_wwn.erase(drive_wwn);
+        blocked_id.erase(drive_id);
         unblocked.notify_all();
         if(status.notOk()){
-            eos_warning("Failed creating connection to drive %s", drive_wwn.c_str());
+            eos_warning("Failed creating connection to drive: %s", drive_id.c_str());
             return ENXIO;
         }
     }
@@ -60,18 +68,21 @@ int KineticDriveMap::getConnection(const std::string & drive_wwn, std::shared_pt
     return 0;
 }
 
-int KineticDriveMap::invalidateConnection(const std::string& drive_wwn)
+int KineticDriveMap::invalidateConnection(const std::string& drive_id)
 {
-    if(!drives.count(drive_wwn)){
-        eos_warning("Connection invalidation requested for nonexisting wwn: %s",drive_wwn.c_str());
+    if(!drives.count(drive_id)){
+        eos_warning("Connection invalidation requested for nonexisting drive: %s",drive_id.c_str());
         return ENODEV;
     }
-    KineticDrive & d = drives.at(drive_wwn);    
+    KineticDrive & d = drives.at(drive_id);
+    
+    std::unique_lock<std::mutex> locker(mutex);
     d.connection.reset();
     return 0;
 }
 
-int KineticDriveMap::getSize(){
+int KineticDriveMap::getSize()
+{    
     return drives.size();
 }
 
@@ -92,7 +103,7 @@ int KineticDriveMap::parseJson(const std::string& jsonString)
         eos_warning("File doesn't contain json root.");
         return EINVAL;
     }
-    
+      
     struct json_object *dlist = NULL;
     if(int err = getJsonEntry(root, dlist, "drives"))
         return err;
@@ -100,14 +111,16 @@ int KineticDriveMap::parseJson(const std::string& jsonString)
     
     struct json_object *d = NULL, *t = NULL;
     KineticDrive kd; 
-    std::string wwn;
+    std::string id;
 
     for(int i=0; i<num_drives; i++){ 
         d = json_object_array_get_idx(dlist, i);
         
-        if(int err = getJsonEntry(d,t,"wwn")) 
+        /* We could go with wwn instead of serial number. Chosen SN since it is also unique
+         * and is both shorter and contains no spaces (eos does not like spaces in the path name). */
+        if(int err = getJsonEntry(d,t,"serialNumber")) 
             return err;
-        wwn = json_object_get_string(t);
+        id = json_object_get_string(t);
         
         if(int err = getJsonEntry(d,t,"user_id")) 
             return err;
@@ -127,7 +140,7 @@ int KineticDriveMap::parseJson(const std::string& jsonString)
         
         kd.connection_options.use_ssl = false;
        
-        drives.insert(std::make_pair(wwn, kd));
+        drives.insert(std::make_pair(id, kd));
     }
     return 0;
 }

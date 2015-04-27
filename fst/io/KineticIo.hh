@@ -3,7 +3,6 @@
 //! @author Paul Hermann Lensing
 //! @brief Class used for doing Kinetic IO operations
 //------------------------------------------------------------------------------
-
 #ifndef __EOSFST_KINETICFILEIO__HH__
 #define __EOSFST_KINETICFILEIO__HH__
 
@@ -13,7 +12,6 @@
 #include "KineticChunk.hh"
 #include "KineticDriveMap.hh"
 #include <unordered_map>
-
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -80,9 +78,7 @@ public:
     //! @param mode open mode
     //! @param opaque opaque information
     //! @param timeout timeout value
-    //!
     //! @return 0 if successful, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode = 0, const std::string& opaque = "", uint16_t timeout = 0);
 
@@ -93,9 +89,7 @@ public:
     //! @param buffer where the data is read
     //! @param length read length
     //! @param timeout timeout value
-    //!
     //! @return number of bytes read or -1 if error
-    //!
     //--------------------------------------------------------------------------
     int64_t Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, uint16_t timeout = 0);
 
@@ -106,9 +100,7 @@ public:
     //! @param buffer data to be written
     //! @param length length
     //! @param timeout timeout value
-    //!
     //! @return number of bytes written or -1 if error
-    //!
     //--------------------------------------------------------------------------
     int64_t Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout = 0);
 
@@ -120,9 +112,7 @@ public:
     //! @param length read length
     //! @param readahead set if readahead is to be used
     //! @param timeout timeout value
-    //!
     //! @return number of bytes read or -1 if error
-    //!
     //--------------------------------------------------------------------------
     int64_t ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead = false, uint16_t timeout = 0);
 
@@ -133,9 +123,7 @@ public:
     //! @param buffer data to be written
     //! @param length length
     //! @param timeout timeout value
-    //!
     //! @return number of bytes written or -1 if error
-    //!
     //--------------------------------------------------------------------------
     int64_t WriteAsync (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, uint16_t timeout = 0);
 
@@ -144,9 +132,7 @@ public:
     //!
     //! @param offset truncate file to this value
     //! @param timeout timeout value
-    //!
     //! @return 0 if successful, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
 
@@ -154,9 +140,7 @@ public:
     //! Allocate file space
     //!
     //! @param length space to be allocated
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Fallocate (XrdSfsFileOffset lenght);
 
@@ -165,9 +149,7 @@ public:
     //!
     //! @param fromOffset offset start
     //! @param toOffset offset end
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
@@ -175,9 +157,7 @@ public:
     //! Remove file
     //!
     //! @param timeout timeout value
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Remove (uint16_t timeout = 0);
 
@@ -185,9 +165,7 @@ public:
     //! Sync file to disk
     //!
     //! @param timeout timeout value
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Sync (uint16_t timeout = 0);
 
@@ -195,9 +173,7 @@ public:
     //! Close file
     //!
     //! @param timeout timeout value
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Close (uint16_t timeout = 0);
 
@@ -206,10 +182,7 @@ public:
     //!
     //! @param buf stat buffer
     //! @param timeout timeout value
-    //!
-    //!
     //! @return 0 on success, -1 otherwise and error code is set
-    //!
     //--------------------------------------------------------------------------
     int Stat (struct stat* buf, uint16_t timeout = 0);
 
@@ -217,13 +190,13 @@ public:
     //! Get pointer to async meta handler object
     //!
     //! @return pointer to async handler, NULL otherwise
-    //!
     //--------------------------------------------------------------------------
     void* GetAsyncHandler ();
 
     //--------------------------------------------------------------------------
     //! Plug-in function to fill a statfs structure about the storage filling
     //! state
+    //!
     //! @param path to statfs
     //! @param statfs return struct
     //! @return 0 if successful otherwise errno
@@ -245,6 +218,7 @@ private:
     //--------------------------------------------------------------------------
     //! Obtain 1 MB chunk associated with the file path set by Open, chunk 
     //! numbers start at 0 
+    //! 
     //! @param chunk_number specifies which 1 MB chunk in the file is requested, 
     //! @param chunk points to chunk on success, otherwise not changed 
     //! @return 0 if successful otherwise errno
@@ -260,10 +234,16 @@ private:
 		XrdSfsXferSize length, uint16_t timeout, int mode);
   
 private:
+    //! we don't want to have to look in the drive map for every access
     ConnectionPointer connection;
 
+    //! caching some chunks to aggregate writes and speed up reads
     std::unordered_map<int, std::shared_ptr<KineticChunk>> cache;
+    
+    //! cache is simply fifo 
     std::queue<int> cache_fifo;
+    
+    //! maximum cache capacity as supplied to the constructor, should be #concurrent writes at least
     size_t cache_capacity;
   
 private:

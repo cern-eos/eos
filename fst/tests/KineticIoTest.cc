@@ -15,8 +15,8 @@ SCENARIO("KineticIo Public API", "[Io]"){
     REQUIRE(factory.NewBlockingConnection(cops, bcon, 30).ok());
     REQUIRE(bcon->InstantErase("NULL").ok());
     
-    eos::fst::KineticIo kio(10);
-    std::string path("kinetic:wwn1:filename");
+    eos::fst::KineticIo kio;
+    std::string path("kinetic:driveID_1:filename");
     
     int  buf_size = 64;
     char write_buf[] = "rcPOa12L3nhN5Cgvsa6Jlr3gn58VhazjA6oSpKacLFYqZBEu0khRwbWtEjge3BUA";
@@ -56,6 +56,12 @@ SCENARIO("KineticIo Public API", "[Io]"){
             REQUIRE(errno == ENXIO);
         }
         
+        THEN("Statfs succeeds"){
+            struct statfs sfs;
+            REQUIRE(kio.Statfs(path.c_str(), &sfs) == 0);
+            REQUIRE(sfs.f_bavail > 0);
+        }
+        
         WHEN("Using an illegally constructed path"){
             std::string path("path");
             
@@ -76,11 +82,6 @@ SCENARIO("KineticIo Public API", "[Io]"){
             }
         }
         
-        THEN("Open fails without create flag."){
-            REQUIRE(kio.Open(path.c_str(), 0) == SFS_ERROR);
-            REQUIRE(errno==ENOENT);
-        }
-        
         THEN("Factory function for Attribute class returns 0"){
             std::unique_ptr<eos::fst::KineticIo::Attr> a;
             a.reset( eos::fst::KineticIo::Attr::OpenAttr(path.c_str()) );
@@ -88,7 +89,7 @@ SCENARIO("KineticIo Public API", "[Io]"){
          }
     }
         
-    GIVEN("Open succeeds with create flag."){         
+    GIVEN("Open succeeds"){         
         REQUIRE(kio.Open(path.c_str(), SFS_O_CREAT) == SFS_OK);
         
         THEN("Factory function for Attribute class succeeds"){
@@ -143,17 +144,21 @@ SCENARIO("KineticIo Public API", "[Io]"){
             REQUIRE(stbuf.st_blksize == 1024*1024);
             REQUIRE(stbuf.st_size == 0);
         }
-
-        AND_WHEN("The file is closed again. "){
-            REQUIRE(kio.Close() == SFS_OK);
-
-            THEN("Trying to open again fails with EEXIST if create flag is set."){
-                REQUIRE(kio.Open(path.c_str(), SFS_O_CREAT) == SFS_ERROR);
-                REQUIRE(errno == EEXIST);
-            }
-
-            THEN("The file can be opened without create flag."){
-                REQUIRE(kio.Open(path.c_str(), 0) == SFS_OK);
+        
+        THEN("Calling statfs on the same object is illegal,"){
+            struct statfs sfs;
+            REQUIRE(kio.Statfs("kinetic:driveID_1:", &sfs) == EPERM);
+        }
+        
+        AND_WHEN("The file is removed via a second io object."){
+            eos::fst::KineticIo kio2nd;
+            REQUIRE(kio2nd.Open(path.c_str(), SFS_O_CREAT) == SFS_OK);
+            REQUIRE(kio2nd.Remove() == SFS_OK);
+            
+            THEN("Calling stat will fail with ENOENT"){
+                struct stat stbuf;
+                REQUIRE(kio.Stat(&stbuf) == SFS_ERROR);
+                REQUIRE(errno == ENOENT);
             }
         }
 
@@ -175,7 +180,6 @@ SCENARIO("KineticIo Public API", "[Io]"){
             THEN("The file can can be removed again."){
                 REQUIRE(kio.Remove() == SFS_OK);
                 REQUIRE(kio.Close() == SFS_OK);
-                REQUIRE(kio.Open(path, SFS_O_CREAT) == SFS_OK);
             }
         }
     }
