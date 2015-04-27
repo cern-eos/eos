@@ -118,6 +118,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
         (subcmd == "drop") ||
         (subcmd == "layout") ||
         (subcmd == "verify") ||
+	(subcmd == "versions") || 
         (subcmd == "rename"))) ||
       ((cmd == "attr") &&
        ((subcmd == "set") ||
