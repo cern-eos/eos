@@ -6,6 +6,12 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.111 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- redirect "file versions' to the master
+
 ``Version V0.3.110 Beryl-Aquamarine``
 
 Bug Fixes
