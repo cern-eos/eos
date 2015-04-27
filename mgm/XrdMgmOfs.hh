@@ -616,7 +616,7 @@ public:
   // ---------------------------------------------------------------------------
   // replicate stripe providing file meta data by vid
   // ---------------------------------------------------------------------------
-  int _replicatestripe (eos::FileMD* fmd,
+  int _replicatestripe (eos::IFileMD* fmd,
                         const char* path,
                         XrdOucErrInfo &error,
                         eos::common::Mapping::VirtualIdentity &vid,

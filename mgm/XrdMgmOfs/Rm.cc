@@ -142,7 +142,7 @@ XrdMgmOfs::_rem (const char *path,
   gOFS->eosViewRWMutex.LockWrite();
 
   // free the booked quota
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::IContainerMD* container = 0;
 
   eos::IContainerMD::XAttrMap attrmap;
@@ -339,7 +339,7 @@ XrdMgmOfs::_rem (const char *path,
     // -------------------------------------------------------------------------
 
     // copy the meta data to be able to unlock
-    eos::FileMD fmdCopy(*fmd);
+    eos::FileMD fmdCopy(fmd);
     fmd = &fmdCopy;
     gOFS->eosViewRWMutex.UnLockWrite();
 

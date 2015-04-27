@@ -63,11 +63,9 @@ XrdMgmOfs::_chown (const char *path,
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::IContainerMD* cmd = 0;
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   errno = 0;
-
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
-
   eos_info("path=%s uid=%u gid=%u", path, uid, gid);
 
   // try as a directory

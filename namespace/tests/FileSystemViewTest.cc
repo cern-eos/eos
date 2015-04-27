@@ -53,7 +53,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemViewTest );
 //------------------------------------------------------------------------------
 // Randomize a location
 //------------------------------------------------------------------------------
-eos::FileMD::location_t getRandomLocation()
+eos::IFileMD::location_t getRandomLocation()
 {
   return 1+random()%50;
 }
@@ -124,7 +124,7 @@ void FileSystemViewTest::fileSystemViewTest()
     {
       std::ostringstream o;
       o << "file" << i;
-      eos::FileMD *files[4];
+      eos::IFileMD *files[4];
       files[0] = view->createFile( std::string("/test/embed/") + o.str() );
       files[1] = view->createFile( std::string("/test/embed/embed1/") + o.str() );
       files[2] = view->createFile( std::string("/test/embed/embed2/") + o.str() );
@@ -167,7 +167,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "file" << i;
       // unlink some replicas
-      eos::FileMD *f = c->findFile( o.str() );
+      eos::IFileMD *f = c->findFile( o.str() );
       f->unlinkLocation( f->getLocation( 0 ) );
       f->unlinkLocation( f->getLocation( 0 ) );
       view->updateFileStore( f );
@@ -183,7 +183,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "file" << i;
       // unlink some replicas
-      eos::FileMD *f = c->findFile( o.str() );
+      eos::IFileMD *f = c->findFile( o.str() );
       f->unlinkAllLocations();
       c->removeFile( o.str() );
       f->setContainerId( 0 );
@@ -211,7 +211,7 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT( numUnlinked == 2800 );
 
     CPPUNIT_ASSERT( fsView->getNoReplicasFileList().size() == 500 );
-    eos::FileMD *f = view->getFile( std::string("/test/embed/embed1/file1") );
+    eos::IFileMD *f = view->getFile( std::string("/test/embed/embed1/file1") );
     f->unlinkAllLocations();
     numReplicas = countReplicas( fsView );
     CPPUNIT_ASSERT( numReplicas == 17195 );

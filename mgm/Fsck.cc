@@ -364,7 +364,7 @@ Fsck::Check (void)
           try
           {
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-            eos::FileMD* fmd = 0;
+            eos::IFileMD* fmd = 0;
             eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
             eos::FileSystemView::FileIterator it;
             for (it = filelist.begin(); it != filelist.end(); ++it)
@@ -398,7 +398,7 @@ Fsck::Check (void)
       try
       {
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         eos::FileSystemView::FileList filelist =
                 gOFS->eosFsView->getNoReplicasFileList();
 
@@ -480,10 +480,11 @@ Fsck::Check (void)
 
       for (it = fid2check.begin(); it != fid2check.end(); it++)
       {
-        eos::FileMD* fmd = 0;
-        eos::FileMD fmdCopy(0, 0);
+        eos::IFileMD* fmd = 0;
 
-        // Check if locations are online
+        // ---------------------------------------------------------------------
+        // check if locations are online
+        // ---------------------------------------------------------------------
         try
         {
           eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
@@ -498,13 +499,15 @@ Fsck::Check (void)
         if (!fmd)
           continue;
 
+        eos::FileMD fmdCopy(fmd);
         fmd = &fmdCopy;
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         size_t nlocations = fmd->getNumLocation();
         size_t offlinelocations = 0;
-        eos::FileMD::LocationVector::const_iterator lociter;
+        eos::IFileMD::LocationVector::const_iterator lociter;
+        eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
 
-        for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+        for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
         {
           if (*lociter)
           {
@@ -738,7 +741,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                   fidit != emapit->second.end();
                   fidit++)
           {
-            eos::FileMD* fmd = 0;
+            eos::IFileMD* fmd = 0;
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             try
             {
@@ -845,7 +848,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                     fidit != efsmapit->second.end();
                     fidit++)
             {
-              eos::FileMD* fmd = 0;
+              eos::IFileMD* fmd = 0;
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
               try
               {
@@ -956,7 +959,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                   fidit != emapit->second.end();
                   fidit++)
           {
-            eos::FileMD* fmd = 0;
+            eos::IFileMD* fmd = 0;
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             try
             {
@@ -1073,7 +1076,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                       fidit != efsmapit->second.end();
                       fidit++)
               {
-                eos::FileMD* fmd = 0;
+                eos::IFileMD* fmd = 0;
                 eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
                 try
                 {
@@ -1192,7 +1195,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         std::string path = "";
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
@@ -1302,7 +1305,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       std::set <eos::common::FileId::fileid_t>::const_iterator it;
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         std::string path = "";
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
@@ -1381,7 +1384,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         bool haslocation = false;
         std::string spath = "";
         // ---------------------------------------------------------------------
@@ -1481,7 +1484,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         bool haslocation = false;
         // ---------------------------------------------------------------------
@@ -1560,7 +1563,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         std::string path = "";
         try
         {
@@ -1641,7 +1644,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         bool haslocation = false;
         std::string path = "";
         // ---------------------------------------------------------------------
@@ -1754,13 +1757,13 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
             it != eMap["zero_replica"].end();
             it++)
     {
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
       std::string path = "";
       time_t now = time(NULL);
       out += "progress: checking fid=";
       out += (int) *it;
       out += "\n";
-      eos::FileMD::ctime_t ctime;
+      eos::IFileMD::ctime_t ctime;
       ctime.tv_sec = 0;
       ctime.tv_nsec = 0;
       try

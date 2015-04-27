@@ -314,7 +314,7 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
 /*----------------------------------------------------------------------------*/
 {
   char fileName[1024];
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
 

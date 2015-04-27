@@ -138,7 +138,7 @@
   { //extended attributes for files
 
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosView->getFile(spath.c_str());

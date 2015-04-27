@@ -51,7 +51,7 @@ namespace eos
       // Type definitions
       //------------------------------------------------------------------------
       typedef google::dense_hash_map<std::string, IContainerMD*> ContainerMap;
-      typedef google::dense_hash_map<std::string, FileMD*>       FileMap;
+      typedef google::dense_hash_map<std::string, IFileMD*>      FileMap;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -125,12 +125,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! Find file
       //------------------------------------------------------------------------
-      virtual FileMD *findFile( const std::string &name );
+      virtual IFileMD *findFile( const std::string &name );
 
       //------------------------------------------------------------------------
       //! Add file
       //------------------------------------------------------------------------
-      virtual void addFile( FileMD *file );
+      virtual void addFile( IFileMD *file );
 
       //------------------------------------------------------------------------
       //! Remove file

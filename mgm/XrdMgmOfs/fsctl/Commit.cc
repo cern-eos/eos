@@ -167,12 +167,11 @@
     }
 
     // get the file meta data if exists
-    eos::FileMD *fmd = 0;
+    eos::IFileMD *fmd = 0;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
 
     {
-
       // ---------------------------------------------------------------------
       // keep the lock order View=>Quota=>Namespace
       // ---------------------------------------------------------------------
@@ -437,7 +436,7 @@
           fmd->setChecksum(checksumbuffer);
         }
 
-        eos::FileMD::ctime_t mt;
+        eos::IFileMD::ctime_t mt;
         mt.tv_sec = mtime;
         mt.tv_nsec = mtimens;
 
@@ -488,7 +487,7 @@
         unsigned long long vfid = 0;
         {
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-          eos::FileMD* versionfmd = 0;
+          eos::IFileMD* versionfmd = 0;
           try
           {
             dname = gOFS->eosView->getUri(fmd);
@@ -527,7 +526,7 @@
             fmd = gOFS->eosFileService->getFileMD(fid);
             if (isVersioning)
             {
-              eos::FileMD* versionfmd = 0;
+              eos::IFileMD* versionfmd = 0;
               try
               {
                 versiondir = eosView->getContainer(version_path.GetParentPath());
@@ -548,7 +547,7 @@
               }
               // move to a new directory
             }
-            eos::FileMD* pfmd = 0;
+            eos::IFileMD* pfmd = 0;
             // rename the temporary upload path to the final path
             if ((pfmd = dir->findFile(atomic_path.GetName())))
             {

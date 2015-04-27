@@ -431,7 +431,7 @@ LRU::AgeExpire (const char* dir,
             // -----------------------------------------------------------------
             // full match check the age policy
             // ----------------------------------------------------------------
-            eos::FileMD::ctime_t ctime;
+            eos::IFileMD::ctime_t ctime;
             fit->second->getCTime(ctime);
             time_t age = mit->second;
             if ((ctime.tv_sec + age) < now)
@@ -774,7 +774,7 @@ LRU::ConvertMatch (const char* dir,
             // -----------------------------------------------------------------
             // full match check the age policy
             // ----------------------------------------------------------------
-            eos::FileMD::ctime_t ctime;
+            eos::IFileMD::ctime_t ctime;
             fit->second->getCTime(ctime);
             time_t age = mit->second;
             if ((ctime.tv_sec + age) < now)

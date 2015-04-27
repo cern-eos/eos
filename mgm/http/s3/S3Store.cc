@@ -383,12 +383,12 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 
       // get the file md object
       gOFS->eosViewRWMutex.LockRead();
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
       try
       {
 
         fmd = gOFS->eosView->getFile(fullname.c_str());
-        eos::FileMD fmdCopy(*fmd);
+        eos::FileMD fmdCopy(fmd);
         fmd = &fmdCopy;
         gOFS->eosViewRWMutex.UnLockRead();
         //-------------------------------------------
@@ -399,7 +399,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
         result += "</Key>";
         result += "<LastModified>";
 
-        eos::FileMD::ctime_t mtime;
+        eos::IFileMD::ctime_t mtime;
         fmd->getMTime(mtime);
 
         result += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);

@@ -110,19 +110,19 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *getFile( const std::string &uri ) throw( MDException );
+      virtual IFileMD *getFile( const std::string &uri ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Create a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *createFile( const std::string &uri,
+      virtual IFileMD *createFile( const std::string &uri,
                                   uid_t uid = 0, gid_t gid = 0 )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Update file store
       //------------------------------------------------------------------------
-      virtual void updateFileStore( FileMD *file ) throw( MDException )
+      virtual void updateFileStore( IFileMD *file ) throw( MDException )
       {
         pFileSvc->updateStore( file );
       }
@@ -136,7 +136,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Remove the file
       //------------------------------------------------------------------------
-      virtual void removeFile( FileMD *file ) throw( MDException );
+      virtual void removeFile( IFileMD *file ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Get a container (directory)
@@ -176,7 +176,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get uri for the file
       //------------------------------------------------------------------------
-      virtual std::string getUri( const FileMD *file ) const
+      virtual std::string getUri( const IFileMD *file ) const
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -225,7 +225,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Rename file
       //------------------------------------------------------------------------
-      virtual void renameFile( FileMD *file, const std::string &newName )
+      virtual void renameFile( IFileMD *file, const std::string &newName )
         throw( MDException );
 
     private:
@@ -239,10 +239,13 @@ namespace eos
       class FileVisitor: public IFileVisitor
       {
         public:
-          FileVisitor( IContainerMDSvc *contSvc, QuotaStats *quotaStats,
-                       IView *view ):
+          FileVisitor(IContainerMDSvc *contSvc,
+                      QuotaStats *quotaStats,
+                      IView *view):
             pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
-          virtual void visitFile( FileMD *file );
+
+          virtual void visitFile( IFileMD *file );
+        
         private:
           IContainerMDSvc *pContSvc;
           QuotaStats      *pQuotaStats;
@@ -255,7 +258,7 @@ namespace eos
       IContainerMDSvc *pContainerSvc;
       IFileMDSvc      *pFileSvc;
       QuotaStats      *pQuotaStats;
-      IContainerMD     *pRoot;
+      IContainerMD    *pRoot;
   };
 };
 

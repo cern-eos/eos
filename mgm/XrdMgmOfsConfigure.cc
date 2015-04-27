@@ -121,7 +121,7 @@ XrdMgmOfs::InitializeFileView ()
         XrdOucErrInfo error;
         eos::common::Mapping::VirtualIdentity vid;
         eos::common::Mapping::Root(vid);
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
 
         try
         {

@@ -110,15 +110,12 @@ XrdMgmOfs::_chmod (const char *path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::IContainerMD* cmd = 0;
   eos::IContainerMD* pcmd = 0;
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::IContainerMD::XAttrMap attrmap;
 
   errno = 0;
-
   gOFS->MgmStats.Add("Chmod", vid.uid, vid.gid, 1);
-
   eos_info("path=%s mode=%o", path, Mode);
-
   eos::common::Path cPath(path);
 
   try

@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,203 +17,116 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Class representing the file metadata
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @brief Class representing the file metadata interface
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_FILE_MD_HH
-#define EOS_NS_FILE_MD_HH
+#ifndef EOS_NS_IFILE_MD_HH
+#define EOS_NS_IFILE_MD_HH
 
 #include "namespace/persistency/Buffer.hh"
 #include "namespace/IContainerMD.hh"
-#include "namespace/IFileMD.hh"
 
 #include <stdint.h>
-#include <cstring>
 #include <string>
-#include <vector>
 
 #include <sys/time.h>
 
 namespace eos
 {
-//! Forward declration
 class IFileMDSvc;
 
 //------------------------------------------------------------------------------
-//! Class holding the metadata information concerning a single file
+//! Interface to file metadata
 //------------------------------------------------------------------------------
-class FileMD: public IFileMD
+class IFileMD
 {
   public:
     //--------------------------------------------------------------------------
-    //! Constructor
+    //! Type definitions
     //--------------------------------------------------------------------------
-    FileMD(id_t id, IFileMDSvc* fileMDSvc);
-
-    //--------------------------------------------------------------------------
-    //! Copy constructor
-    //--------------------------------------------------------------------------
-    FileMD(const FileMD& other);
-
-    //--------------------------------------------------------------------------
-    //! Asignment operator
-    //--------------------------------------------------------------------------
-    FileMD& operator = (const FileMD& other);
-
-    //--------------------------------------------------------------------------
-    // Copy constructor from IFileMD
-    //--------------------------------------------------------------------------
-    FileMD(const IFileMD* other);
-  
-    //--------------------------------------------------------------------------
-    //! Asignment operator from IFileMD
-    //--------------------------------------------------------------------------
-    FileMD& operator = (const IFileMD* other);
+    typedef uint64_t id_t;
+    typedef uint32_t location_t;
+    typedef uint32_t layoutId_t;
+    typedef struct timespec ctime_t;
+    typedef std::vector<location_t> LocationVector;
 
     //--------------------------------------------------------------------------
     //! Get file id
     //--------------------------------------------------------------------------
-    id_t getId() const
-    {
-      return pId;
-    }
+    virtual id_t getId() const = 0;
 
     //--------------------------------------------------------------------------
     //! Get creation time
     //--------------------------------------------------------------------------
-    void getCTime(ctime_t& ctime) const
-    {
-      ctime.tv_sec = pCTime.tv_sec;
-      ctime.tv_nsec = pCTime.tv_nsec;
-    }
+    virtual void getCTime(ctime_t& ctime) const = 0;
 
     //--------------------------------------------------------------------------
     //! Set creation time
     //--------------------------------------------------------------------------
-    void setCTime(ctime_t ctime)
-    {
-      pCTime.tv_sec = ctime.tv_sec;
-      pCTime.tv_nsec = ctime.tv_nsec;
-    }
+    virtual void setCTime(ctime_t ctime) = 0;
 
     //--------------------------------------------------------------------------
     //! Set creation time to now
     //--------------------------------------------------------------------------
-    void setCTimeNow()
-    {
-#ifdef __APPLE__
-      struct timeval tv;
-      gettimeofday(&tv, 0);
-      pCTime.tv_sec = tv.tv_sec;
-      pCTime.tv_nsec = tv.tv_usec * 1000;
-#else
-      clock_gettime(CLOCK_REALTIME, &pCTime);
-#endif
-    }
-
+    virtual void setCTimeNow() = 0;
 
     //--------------------------------------------------------------------------
     //! Get modification time
     //--------------------------------------------------------------------------
-    void getMTime(ctime_t& mtime) const
-    {
-      mtime.tv_sec = pMTime.tv_sec;
-      mtime.tv_nsec = pMTime.tv_nsec;
-    }
+    virtual void getMTime(ctime_t& mtime) const = 0;
 
     //--------------------------------------------------------------------------
     //! Set modification time
     //--------------------------------------------------------------------------
-    void setMTime(ctime_t mtime)
-    {
-      pMTime.tv_sec = mtime.tv_sec;
-      pMTime.tv_nsec = mtime.tv_nsec;
-    }
+    virtual void setMTime(ctime_t mtime) = 0;
 
     //--------------------------------------------------------------------------
     //! Set modification time to now
     //--------------------------------------------------------------------------
-    void setMTimeNow()
-    {
-#ifdef __APPLE__
-      struct timeval tv;
-      gettimeofday(&tv, 0);
-      pMTime.tv_sec = tv.tv_sec;
-      pMTime.tv_nsec = tv.tv_usec * 1000;
-#else
-      clock_gettime(CLOCK_REALTIME, &pMTime);
-#endif
-    }
+    virtual void setMTimeNow() = 0;
 
     //--------------------------------------------------------------------------
     //! Get size
     //--------------------------------------------------------------------------
-    uint64_t getSize() const
-    {
-      return pSize;
-    }
+    virtual uint64_t getSize() const = 0;
 
     //--------------------------------------------------------------------------
     //! Set size - 48 bytes will be used
     //--------------------------------------------------------------------------
-    void setSize(uint64_t size)
-    {
-      pSize = size & 0x0000ffffffffffff;
-    }
+    virtual void setSize(uint64_t size) = 0;
 
     //--------------------------------------------------------------------------
     //! Get tag
     //--------------------------------------------------------------------------
-    IContainerMD::id_t getContainerId() const
-    {
-      return pContainerId;
-    }
+    virtual IContainerMD::id_t getContainerId() const = 0;
 
     //--------------------------------------------------------------------------
     //! Set tag
     //--------------------------------------------------------------------------
-    void setContainerId(IContainerMD::id_t containerId)
-    {
-      pContainerId = containerId;
-    }
+    virtual void setContainerId(IContainerMD::id_t containerId) = 0;
 
     //--------------------------------------------------------------------------
     //! Get checksum
     //--------------------------------------------------------------------------
-    const Buffer& getChecksum() const
-    {
-      return pChecksum;
-    }
+    virtual const Buffer& getChecksum() const = 0;
 
     //--------------------------------------------------------------------------
     //! Compare checksums
     //! WARNING: you have to supply enough bytes to compare with the checksum
     //! stored in the object!
     //--------------------------------------------------------------------------
-    bool checksumMatch(const void* checksum) const
-    {
-      return !memcmp(checksum, pChecksum.getDataPtr(), pChecksum.getSize());
-    }
+    virtual bool checksumMatch(const void* checksum) const = 0;
 
     //--------------------------------------------------------------------------
     //! Set checksum
     //--------------------------------------------------------------------------
-    void setChecksum(const Buffer& checksum)
-    {
-      pChecksum = checksum;
-    }
+    virtual void setChecksum(const Buffer& checksum) = 0;
 
     //--------------------------------------------------------------------------
     //! Clear checksum
     //--------------------------------------------------------------------------
-    void clearChecksum(uint8_t size = 20)
-    {
-      char zero = 0;
-
-      for (uint8_t i = 0; i < size; i++)
-        pChecksum.putData(&zero, 1);
-    }
+    virtual void clearChecksum(uint8_t size = 20) = 0;
 
     //--------------------------------------------------------------------------
     //! Set checksum
@@ -221,294 +134,176 @@ class FileMD: public IFileMD
     //! @param checksum address of a memory location string the checksum
     //! @param size     size of the checksum in bytes
     //--------------------------------------------------------------------------
-    void setChecksum(const void* checksum, uint8_t size)
-    {
-      pChecksum.clear();
-      pChecksum.putData(checksum, size);
-    }
+    virtual void setChecksum(const void* checksum, uint8_t size) = 0;
 
     //--------------------------------------------------------------------------
     //! Get name
     //--------------------------------------------------------------------------
-    const std::string getName() const
-    {
-      return std::string(pName);
-    }
+    virtual const std::string getName() const = 0;
 
     //--------------------------------------------------------------------------
     //! Set name
     //--------------------------------------------------------------------------
-    void setName(const std::string& name)
-    {
-      pName = name;
-    }
-
-    //--------------------------------------------------------------------------
-    //! Start iterator for locations
-    //--------------------------------------------------------------------------
-    LocationVector::const_iterator locationsBegin() const
-    {
-      return pLocation.begin();
-    }
-
-    //--------------------------------------------------------------------------
-    //! End iterator for locations
-    //--------------------------------------------------------------------------
-    LocationVector::const_iterator locationsEnd() const
-    {
-      return pLocation.end();
-    }
-
-    //--------------------------------------------------------------------------
-    //! Start iterator for unlinked locations
-    //--------------------------------------------------------------------------
-    LocationVector::const_iterator unlinkedLocationsBegin() const
-    {
-      return pUnlinkedLocation.begin();
-    }
-
-    //--------------------------------------------------------------------------
-    //! End iterator for unlinked locations
-    //--------------------------------------------------------------------------
-    LocationVector::const_iterator unlinkedLocationsEnd() const
-    {
-      return pUnlinkedLocation.end();
-    }
+    virtual void setName(const std::string& name) = 0;
 
     //--------------------------------------------------------------------------
     //! Add location
     //--------------------------------------------------------------------------
-    void addLocation(location_t location);
+    virtual void addLocation(location_t location) = 0;
 
     //--------------------------------------------------------------------------
     //! Get vector with all the locations
     //--------------------------------------------------------------------------
-    virtual LocationVector getLocations() const;
-  
+    virtual LocationVector getLocations() const = 0;
+
     //--------------------------------------------------------------------------
     //! Get location
     //--------------------------------------------------------------------------
-    location_t getLocation(unsigned int index)
-    {
-      if (index < pLocation.size())
-        return pLocation[index];
-
-      return 0;
-    }
+    virtual location_t getLocation(unsigned int index) = 0;
 
     //--------------------------------------------------------------------------
-    //! replace location by index
+    //! Replace location by index
     //--------------------------------------------------------------------------
-    void replaceLocation(unsigned int index, location_t newlocation);
+    virtual void replaceLocation(unsigned int index, location_t newlocation) = 0;
 
     //--------------------------------------------------------------------------
     //! Remove location that was previously unlinked
     //--------------------------------------------------------------------------
-    void removeLocation(location_t location);
+    virtual void removeLocation(location_t location) = 0;
 
     //--------------------------------------------------------------------------
     //! Remove all locations that were previously unlinked
     //--------------------------------------------------------------------------
-    void removeAllLocations();
+    virtual void removeAllLocations() = 0;
 
     //--------------------------------------------------------------------------
     //! Get vector with all unlinked locations
     //--------------------------------------------------------------------------
-    virtual LocationVector getUnlinkedLocations() const;
+    virtual LocationVector getUnlinkedLocations() const = 0;
 
     //--------------------------------------------------------------------------
     //! Unlink location
     //--------------------------------------------------------------------------
-    void unlinkLocation(location_t location);
+    virtual void unlinkLocation(location_t location) = 0;
 
     //--------------------------------------------------------------------------
     //! Unlink all locations
     //--------------------------------------------------------------------------
-    void unlinkAllLocations();
+    virtual void unlinkAllLocations() = 0;
 
     //--------------------------------------------------------------------------
     //! Clear unlinked locations without notifying the listeners
     //--------------------------------------------------------------------------
-    void clearUnlinkedLocations()
-    {
-      pUnlinkedLocation.clear();
-    }
+    virtual void clearUnlinkedLocations() = 0;
 
     //--------------------------------------------------------------------------
     //! Test the unlinkedlocation
     //--------------------------------------------------------------------------
-    bool hasUnlinkedLocation(location_t location)
-    {
-      for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++)
-      {
-        if (pUnlinkedLocation[i] == location)
-          return true;
-      }
-
-      return false;
-    }
+    virtual bool hasUnlinkedLocation(location_t location) = 0;
 
     //--------------------------------------------------------------------------
     //! Get number of unlinked locations
     //--------------------------------------------------------------------------
-    size_t getNumUnlinkedLocation() const
-    {
-      return pUnlinkedLocation.size();
-    }
+    virtual size_t getNumUnlinkedLocation() const = 0;
 
     //--------------------------------------------------------------------------
     //! Clear locations without notifying the listeners
     //--------------------------------------------------------------------------
-    void clearLocations()
-    {
-      pLocation.clear();
-    }
+    virtual void clearLocations() = 0;
 
     //--------------------------------------------------------------------------
     //! Test the location
     //--------------------------------------------------------------------------
-    bool hasLocation(location_t location)
-    {
-      for (unsigned int i = 0; i < pLocation.size(); i++)
-      {
-        if (pLocation[i] == location)
-          return true;
-      }
-
-      return false;
-    }
+    virtual bool hasLocation(location_t location) = 0;
 
     //--------------------------------------------------------------------------
     //! Get number of location
     //--------------------------------------------------------------------------
-    size_t getNumLocation() const
-    {
-      return pLocation.size();
-    }
+    virtual size_t getNumLocation() const = 0;
 
     //--------------------------------------------------------------------------
     //! Get uid
     //--------------------------------------------------------------------------
-    uid_t getCUid() const
-    {
-      return pCUid;
-    }
+    virtual uid_t getCUid() const = 0;
 
     //--------------------------------------------------------------------------
     //! Set uid
     //--------------------------------------------------------------------------
-    void setCUid(uid_t uid)
-    {
-      pCUid = uid;
-    }
+    virtual void setCUid(uid_t uid) = 0;
 
     //--------------------------------------------------------------------------
     //! Get gid
     //--------------------------------------------------------------------------
-    gid_t getCGid() const
-    {
-      return pCGid;
-    }
+    virtual gid_t getCGid() const = 0;
 
     //--------------------------------------------------------------------------
     //! Set gid
     //--------------------------------------------------------------------------
-    void setCGid(gid_t gid)
-    {
-      pCGid = gid;
-    }
+    virtual void setCGid(gid_t gid) = 0;
 
     //--------------------------------------------------------------------------
     //! Get layout
     //--------------------------------------------------------------------------
-    layoutId_t getLayoutId() const
-    {
-      return pLayoutId;
-    }
+    virtual layoutId_t getLayoutId() const = 0;
 
     //--------------------------------------------------------------------------
     //! Set layout
     //--------------------------------------------------------------------------
-    void setLayoutId(layoutId_t layoutId)
-    {
-      pLayoutId = layoutId;
-    }
+    virtual void setLayoutId(layoutId_t layoutId) = 0;
 
     //--------------------------------------------------------------------------
     //! Get flags
     //--------------------------------------------------------------------------
-    uint16_t getFlags() const
-    {
-      return pFlags;
-    }
+    virtual uint16_t getFlags() const = 0;
 
     //--------------------------------------------------------------------------
     //! Get the n-th flag
     //--------------------------------------------------------------------------
-    bool getFlag(uint8_t n)
-    {
-      return pFlags & (0x0001 << n);
-    }
+    virtual bool getFlag(uint8_t n) = 0;
 
     //--------------------------------------------------------------------------
     //! Set flags
     //--------------------------------------------------------------------------
-    void setFlags(uint16_t flags)
-    {
-      pFlags = flags;
-    }
+    virtual void setFlags(uint16_t flags) = 0;
 
     //--------------------------------------------------------------------------
     //! Set the n-th flag
     //--------------------------------------------------------------------------
-    void setFlag(uint8_t n, bool flag)
-    {
-      if (flag)
-        pFlags |= (1 << n);
-      else
-        pFlags &= !(1 << n);
-    }
+    virtual void setFlag(uint8_t n, bool flag) = 0;
 
     //--------------------------------------------------------------------------
     //! Env Representation
     //--------------------------------------------------------------------------
-    void getEnv(std::string& env, bool escapeAnd = false);
+    virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
 
     //--------------------------------------------------------------------------
     //! Serialize the object to a buffer
     //--------------------------------------------------------------------------
-    void serialize(Buffer& buffer) throw(MDException);
+    virtual void serialize(Buffer& buffer) throw(MDException) = 0;
 
     //--------------------------------------------------------------------------
     //! Deserialize the class to a buffer
     //--------------------------------------------------------------------------
-    void deserialize(const Buffer& buffer) throw(MDException);
+    virtual void deserialize(const Buffer& buffer) throw(MDException) = 0;
 
     //--------------------------------------------------------------------------
     //! Set the FileMDSvc object
     //--------------------------------------------------------------------------
-    void setFileMDSvc(IFileMDSvc* fileMDSvc)
+    virtual void setFileMDSvc(IFileMDSvc* fileMDSvc) = 0;
+
+    //--------------------------------------------------------------------------
+    //! Get the FileMDSvc object
+    //--------------------------------------------------------------------------
+    IFileMDSvc* getFileMDSvc()
     {
-      pFileMDSvc = fileMDSvc;
+      return pFileMDSvc;
     }
 
   protected:
     //--------------------------------------------------------------------------
     // Data members
     //--------------------------------------------------------------------------
-    id_t                pId;
-    ctime_t             pCTime;
-    ctime_t             pMTime;
-    uint64_t            pSize;
-    IContainerMD::id_t  pContainerId;
-    uid_t               pCUid;
-    gid_t               pCGid;
-    uint32_t            pLayoutId;
-    uint16_t            pFlags;
-    std::string         pName;
-    LocationVector      pLocation;
-    LocationVector      pUnlinkedLocation;
-    Buffer              pChecksum;
+    IFileMDSvc*        pFileMDSvc;
 };
 }
 

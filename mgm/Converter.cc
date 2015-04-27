@@ -87,7 +87,7 @@ ConverterJob::DoIt ()
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
 
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::IContainerMD* cmd = 0;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;

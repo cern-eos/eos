@@ -110,7 +110,7 @@ ProcCommand::FileInfo (const char* path)
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
   {
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
 
     if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
     {
@@ -176,7 +176,7 @@ ProcCommand::FileInfo (const char* path)
     else
     {
       // make a copy of the meta data
-      eos::FileMD fmdCopy(*fmd);
+      eos::FileMD fmdCopy(fmd);
       fmd = &fmdCopy;
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
@@ -315,8 +315,8 @@ ProcCommand::FileInfo (const char* path)
         {
           char ctimestring[4096];
           char mtimestring[4096];
-          eos::FileMD::ctime_t mtime;
-          eos::FileMD::ctime_t ctime;
+          eos::IFileMD::ctime_t mtime;
+          eos::IFileMD::ctime_t ctime;
           fmd->getCTime(ctime);
           fmd->getMTime(mtime);
           time_t filectime = (time_t) ctime.tv_sec;
@@ -344,7 +344,7 @@ ProcCommand::FileInfo (const char* path)
           {
             // use inode + mtime
             char setag[256];
-            eos::FileMD::ctime_t mtime;
+            eos::IFileMD::ctime_t mtime;
             fmd->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
         snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId()<<28, (unsigned long long)filemtime);
@@ -506,9 +506,10 @@ ProcCommand::FileInfo (const char* path)
           }
 
 
-          eos::FileMD::LocationVector::const_iterator lociter;
+          eos::IFileMD::LocationVector::const_iterator lociter;
+          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
           int i = 0;
-          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+          for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
           {
             // ignore filesystem id 0
             if (!(*lociter))
@@ -589,7 +590,10 @@ ProcCommand::FileInfo (const char* path)
             }
             i++;
           }
-          for (lociter = fmd->unlinkedLocationsBegin(); lociter != fmd->unlinkedLocationsEnd(); ++lociter)
+
+          eos::IFileMD::LocationVector unlink_vect = fmd->getUnlinkedLocations();
+          
+          for (lociter = unlink_vect.begin(); lociter != unlink_vect.end(); ++lociter)
           {
             if (!Monitoring)
             {
@@ -775,8 +779,8 @@ ProcCommand::DirInfo (const char* path)
       {
         char ctimestring[4096];
         char mtimestring[4096];
-        eos::FileMD::ctime_t mtime;
-        eos::FileMD::ctime_t ctime;
+        eos::IFileMD::ctime_t mtime;
+        eos::IFileMD::ctime_t ctime;
         fmd->getCTime(ctime);
         {
           XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);

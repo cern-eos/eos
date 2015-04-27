@@ -76,13 +76,13 @@ class DummyFileMDSvc: public eos::IFileMDSvc
     virtual void configure( std::map<std::string, std::string> &config )
       throw( eos::MDException ) {}
     virtual void finalize() throw( eos::MDException ) {}
-    virtual eos::FileMD *getFileMD( eos::FileMD::id_t id )
+    virtual eos::IFileMD *getFileMD( eos::IFileMD::id_t id )
       throw( eos::MDException )
     { return 0; }
-    virtual eos::FileMD *createFile() throw( eos::MDException ) { return 0; }
-    virtual void updateStore( eos::FileMD *obj ) throw( eos::MDException ) {}
-    virtual void removeFile( eos::FileMD *obj ) throw( eos::MDException ) {}
-    virtual void removeFile( eos::FileMD::id_t fileId )
+    virtual eos::IFileMD *createFile() throw( eos::MDException ) { return 0; }
+    virtual void updateStore( eos::IFileMD *obj ) throw( eos::MDException ) {}
+    virtual void removeFile( eos::IFileMD *obj ) throw( eos::MDException ) {}
+    virtual void removeFile( eos::IFileMD::id_t fileId )
       throw( eos::MDException ) {}
     virtual uint64_t getNumFiles() const { return 0; }
     virtual void visit( eos::IFileVisitor *visitor ) {}
@@ -96,7 +96,7 @@ class DummyFileMDSvc: public eos::IFileMDSvc
 void fillFileMD( eos::FileMD &fileMetadata, int i )
 {
   uint32_t chkSum = i*423;
-  eos::FileMD::ctime_t time;
+  eos::IFileMD::ctime_t time;
   time.tv_sec = i*1234;
   time.tv_nsec = i*456;
   std::ostringstream o;
@@ -123,7 +123,7 @@ void checkFileMD( eos::FileMD &fileMetadata, unsigned i )
   std::ostringstream o;
   o << "filename_" << i;
   uint32_t checkSum = i*423;
-  eos::FileMD::ctime_t time;
+  eos::IFileMD::ctime_t time;
   eos::FileMD localMD = fileMetadata;
 
   localMD.getCTime( time );

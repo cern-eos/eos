@@ -134,7 +134,7 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosView->getFile(path);
@@ -275,7 +275,7 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosView->getFile(path);

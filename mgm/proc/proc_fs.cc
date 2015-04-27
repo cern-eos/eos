@@ -89,7 +89,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     try
     {
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
       eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
       eos::FileSystemView::FileIterator it;
       for (it = filelist.begin(); it != filelist.end(); ++it)

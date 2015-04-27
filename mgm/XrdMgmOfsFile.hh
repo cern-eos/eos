@@ -232,7 +232,7 @@ private:
   XrdOucEnv *openOpaque; //< opaque info given with 'open'
   unsigned long fileId; //< file id
   ProcCommand* procCmd; //< proc command object if a proc command was 'opened'
-  eos::FileMD* fmd; //< file meta data object
+  eos::IFileMD* fmd; //< file meta data object
   eos::common::Mapping::VirtualIdentity vid; //< virtual ID of the client
 };
 

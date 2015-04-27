@@ -1480,7 +1480,7 @@ Quota::RmSpaceQuota (XrdOucString space, XrdOucString &msg, int &retc)
 /*----------------------------------------------------------------------------*/
 
 uint64_t
-Quota::MapSizeCB (const eos::FileMD * file)
+Quota::MapSizeCB (const eos::IFileMD * file)
 {
   //------------------------------------------------------------------------
   //! Callback function for the namespace to calculate how much space a file occupies
@@ -1489,7 +1489,7 @@ Quota::MapSizeCB (const eos::FileMD * file)
   if (!file)
     return 0;
   
-  eos::FileMD::layoutId_t lid = file->getLayoutId();
+  eos::IFileMD::layoutId_t lid = file->getLayoutId();
   
   return (unsigned long long) 
     file->getSize()*eos::common::LayoutId::GetSizeFactor(lid);

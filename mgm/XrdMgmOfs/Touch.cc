@@ -57,7 +57,7 @@ XrdMgmOfs::_touch (const char *path,
   // Perform the actual deletion
   //
   errno = 0;
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
 
   if (_access(path, W_OK, error, vid, ininfo))
   {

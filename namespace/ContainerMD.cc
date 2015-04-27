@@ -22,7 +22,6 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ContainerMD.hh"
-#include "namespace/FileMD.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/IFileMDSvc.hh"
 
@@ -120,7 +119,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Find file
   //----------------------------------------------------------------------------
-  FileMD*
+  IFileMD*
   ContainerMD::findFile( const std::string &name )
   {
     FileMap::iterator it = pFiles.find( name );
@@ -133,7 +132,7 @@ namespace eos
   // Add file
   //----------------------------------------------------------------------------
   void
-  ContainerMD::addFile( FileMD *file )
+  ContainerMD::addFile( IFileMD *file )
   {
     file->setContainerId( pId );
     pFiles[file->getName()] = file;

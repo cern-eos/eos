@@ -59,11 +59,11 @@ void ChangeLogFileMDSvcTest::reloadTest()
   fileSvc->configure( config );
   CPPUNIT_ASSERT_NO_THROW( fileSvc->initialize() );
 
-  eos::FileMD *file1 = fileSvc->createFile();
-  eos::FileMD *file2 = fileSvc->createFile();
-  eos::FileMD *file3 = fileSvc->createFile();
-  eos::FileMD *file4 = fileSvc->createFile();
-  eos::FileMD *file5 = fileSvc->createFile();
+  eos::IFileMD *file1 = fileSvc->createFile();
+  eos::IFileMD *file2 = fileSvc->createFile();
+  eos::IFileMD *file3 = fileSvc->createFile();
+  eos::IFileMD *file4 = fileSvc->createFile();
+  eos::IFileMD *file5 = fileSvc->createFile();
 
   CPPUNIT_ASSERT( file1 != 0 );
   CPPUNIT_ASSERT( file2 != 0 );
@@ -77,11 +77,11 @@ void ChangeLogFileMDSvcTest::reloadTest()
   file4->setName( "file4" );
   file5->setName( "file5" );
 
-  eos::FileMD::id_t id1 = file1->getId();
-  eos::FileMD::id_t id2 = file2->getId();
-  eos::FileMD::id_t id3 = file3->getId();
-  eos::FileMD::id_t id4 = file4->getId();
-  eos::FileMD::id_t id5 = file5->getId();
+  eos::IFileMD::id_t id1 = file1->getId();
+  eos::IFileMD::id_t id2 = file2->getId();
+  eos::IFileMD::id_t id3 = file3->getId();
+  eos::IFileMD::id_t id4 = file4->getId();
+  eos::IFileMD::id_t id5 = file5->getId();
 
   fileSvc->updateStore( file1 );
   fileSvc->updateStore( file2 );
@@ -95,9 +95,9 @@ void ChangeLogFileMDSvcTest::reloadTest()
   fileSvc->finalize();
 
   CPPUNIT_ASSERT_NO_THROW( fileSvc->initialize() );
-  eos::FileMD *fileRec1 = fileSvc->getFileMD( id1 );
-  eos::FileMD *fileRec3 = fileSvc->getFileMD( id3 );
-  eos::FileMD *fileRec5 = fileSvc->getFileMD( id5 );
+  eos::IFileMD *fileRec1 = fileSvc->getFileMD( id1 );
+  eos::IFileMD *fileRec3 = fileSvc->getFileMD( id3 );
+  eos::IFileMD *fileRec5 = fileSvc->getFileMD( id5 );
 
   CPPUNIT_ASSERT( fileRec1 != 0 );
   CPPUNIT_ASSERT( fileRec3 != 0 );

@@ -52,7 +52,7 @@ XrdMgmOfs::_verifystripe (const char *path,
 {
   static const char *epname = "verifystripe";
   eos::IContainerMD *dh = 0;
-  eos::FileMD *fmd = 0;
+  eos::IFileMD *fmd = 0;
 
   EXEC_TIMING_BEGIN("VerifyStripe");
 
@@ -211,7 +211,7 @@ XrdMgmOfs::_dropstripe (const char *path,
 {
   static const char *epname = "dropstripe";
   eos::IContainerMD *dh = 0;
-  eos::FileMD *fmd = 0;
+  eos::IFileMD *fmd = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("DropStripe");
@@ -410,7 +410,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
     if (!errno) errno = EPERM;
 
-  eos::FileMD * fmd = 0;
+  eos::IFileMD * fmd = 0;
 
   // get the file
   try
@@ -444,7 +444,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   }
 
   // make a copy of the file meta data to release the lock
-  eos::FileMD fmdCopy(*fmd);
+  eos::FileMD fmdCopy(fmd);
   fmd = &fmdCopy;
 
   // ------------------------------------------
@@ -460,7 +460,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
+XrdMgmOfs::_replicatestripe (eos::IFileMD *fmd,
                              const char* path,
                              XrdOucErrInfo &error,
                              eos::common::Mapping::VirtualIdentity &vid,

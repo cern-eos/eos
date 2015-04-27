@@ -125,23 +125,27 @@ namespace eos
   //----------------------------------------------------------------------------
   // Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  void FileSystemView::fileMDRead( FileMD *obj )
+  void FileSystemView::fileMDRead( IFileMD *obj )
   {
-    FileMD::LocationVector::const_iterator it;
-    for( it = obj->locationsBegin();
-         it != obj->locationsEnd(); ++it )
+    IFileMD::LocationVector::const_iterator it;
+    IFileMD::LocationVector loc_vect = obj->getLocations();
+    
+    for( it = loc_vect.begin(); it != loc_vect.end(); ++it )
     {
       resize( pFiles, *it+1 );
       resize( pUnlinkedFiles, *it+1 );
       pFiles[*it].insert( obj->getId() );
     }
-    for( it = obj->unlinkedLocationsBegin();
-         it != obj->unlinkedLocationsEnd(); ++it )
+
+    IFileMD::LocationVector unlink_vect = obj->getUnlinkedLocations();
+    
+    for( it = unlink_vect.begin(); it != unlink_vect.end(); ++it )
     {
       resize( pFiles, *it+1 );
       resize( pUnlinkedFiles, *it+1 );
       pUnlinkedFiles[*it].insert( obj->getId() );
     }
+    
     if( obj->getNumLocation() == 0 && obj->getNumUnlinkedLocation() == 0 )
       pNoReplicas.insert( obj->getId() );
   }

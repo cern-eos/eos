@@ -381,21 +381,21 @@ ProcCommand::Find ()
               //-------------------------------------------
 
               gOFS->eosViewRWMutex.LockRead();
-              eos::FileMD* fmd = 0;
+              eos::IFileMD* fmd = 0;
               try
               {
                 bool selected = true;
 
                 unsigned long long filesize = 0;
                 fmd = gOFS->eosView->getFile(fspath.c_str());
-                eos::FileMD fmdCopy(*fmd);
+                eos::FileMD fmdCopy(fmd);
                 fmd = &fmdCopy;
                 gOFS->eosViewRWMutex.UnLockRead();
                 //-------------------------------------------
 
                 if (selectonehour)
                 {
-                  eos::FileMD::ctime_t mtime;
+                  eos::IFileMD::ctime_t mtime;
                   fmd->getMTime(mtime);
                   if (mtime.tv_sec > (time(NULL) - 3600))
                   {
@@ -405,7 +405,7 @@ ProcCommand::Find ()
 
                 if (selectoldertime)
                 {
-                  eos::FileMD::ctime_t mtime;
+                  eos::IFileMD::ctime_t mtime;
                   fmd->getMTime(mtime);
                   if (mtime.tv_sec > selectoldertime)
                   {
@@ -415,7 +415,7 @@ ProcCommand::Find ()
 
                 if (selectyoungertime)
                 {
-                  eos::FileMD::ctime_t mtime;
+                  eos::IFileMD::ctime_t mtime;
                   fmd->getMTime(mtime);
                   if (mtime.tv_sec < selectyoungertime)
                   {
@@ -436,11 +436,13 @@ ProcCommand::Find ()
                   if (selected && findgroupmix)
                   {
                     // find files which have replicas on mixed scheduling groups
-                    eos::FileMD::LocationVector::const_iterator lociter;
                     XrdOucString sGroupRef = "";
                     XrdOucString sGroup = "";
                     bool mixed = false;
-                    for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                    eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                    eos::IFileMD::LocationVector::const_iterator lociter;
+                    
+                    for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                     {
                       // ignore filesystem id 0
                       if (!(*lociter))
@@ -529,10 +531,12 @@ ProcCommand::Find ()
                         if (printfs)
                         {
                           if (!printcounter)fprintf(fstdout, " fsid=");
-                          eos::FileMD::LocationVector::const_iterator lociter;
-                          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                          eos::IFileMD::LocationVector::const_iterator lociter;
+                          
+                          for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                           {
-                            if (lociter != fmd->locationsBegin())
+                            if (lociter != loc_vect.begin())
                             {
                               if (!printcounter)fprintf(fstdout, ",");
                             }
@@ -544,8 +548,10 @@ ProcCommand::Find ()
                         {
                           fprintf(fstdout, " partition=");
                           std::set<std::string> fsPartition;
-                          eos::FileMD::LocationVector::const_iterator lociter;
-                          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                          eos::IFileMD::LocationVector::const_iterator lociter;
+                          
+                          for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                           {
                             // get host name for fs id
                             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -585,8 +591,9 @@ ProcCommand::Find ()
                         {
                           fprintf(fstdout, " hosts=");
                           std::set<std::string> fsHosts;
-                          eos::FileMD::LocationVector::const_iterator lociter;
-                          for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                          eos::IFileMD::LocationVector::const_iterator lociter;
+                          for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                           {
                             // get host name for fs id
                             eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
@@ -627,13 +634,13 @@ ProcCommand::Find ()
 
                         if (printctime)
                         {
-                          eos::FileMD::ctime_t ctime;
+                          eos::IFileMD::ctime_t ctime;
                           fmd->getCTime(ctime);
                           if (!printcounter)fprintf(fstdout, " ctime=%llu.%llu", (unsigned long long) ctime.tv_sec, (unsigned long long) ctime.tv_nsec);
                         }
                         if (printmtime)
                         {
-                          eos::FileMD::ctime_t mtime;
+                          eos::IFileMD::ctime_t mtime;
                           fmd->getMTime(mtime);
                           if (!printcounter)fprintf(fstdout, " mtime=%llu.%llu", (unsigned long long) mtime.tv_sec, (unsigned long long) mtime.tv_nsec);
                         }
@@ -712,7 +719,7 @@ ProcCommand::Find ()
             // get location
             //-------------------------------------------
             gOFS->eosViewRWMutex.LockRead();
-            eos::FileMD* fmd = 0;
+            eos::IFileMD* fmd = 0;
             try
             {
               fmd = gOFS->eosView->getFile(fspath.c_str());
@@ -724,7 +731,7 @@ ProcCommand::Find ()
 
             if (fmd)
             {
-              eos::FileMD fmdCopy(*fmd);
+              eos::FileMD fmdCopy(fmd);
               fmd = &fmdCopy;
               gOFS->eosViewRWMutex.UnLockRead();
               //-------------------------------------------

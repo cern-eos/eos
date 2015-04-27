@@ -649,7 +649,7 @@ public:
   static bool RmSpaceQuota (XrdOucString space, XrdOucString &msg, int &retc); // removes a quota space/quota node
 
   // callback function for the namespace implementation to calculate the size a file occupies
-  static uint64_t MapSizeCB (const eos::FileMD *file);
+  static uint64_t MapSizeCB (const eos::IFileMD *file);
 
   // load function to initialize all SpaceQuota's with the quota node definition from the namespace
   static void LoadNodes ();

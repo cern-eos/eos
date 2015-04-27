@@ -57,18 +57,18 @@ namespace eos
       //------------------------------------------------------------------------
       struct Event
       {
-        Event( FileMD *_file, Action _action,
-               FileMD::location_t _location = 0,
-               FileMD::location_t _oldLocation = 0 ):
+        Event( IFileMD *_file, Action _action,
+               IFileMD::location_t _location = 0,
+               IFileMD::location_t _oldLocation = 0 ):
           file( _file ),
           fileId( 0 ),
           action( _action ),
           location( _location ),
           oldLocation( _oldLocation ) {}
 
-        Event( FileMD::id_t _fileId, Action _action,
-               FileMD::location_t _location = 0,
-               FileMD::location_t _oldLocation = 0 ):
+        Event( IFileMD::id_t _fileId, Action _action,
+               IFileMD::location_t _location = 0,
+               IFileMD::location_t _oldLocation = 0 ):
           file( 0 ),
           fileId( _fileId ),
           action( _action ),
@@ -76,15 +76,15 @@ namespace eos
           oldLocation( _oldLocation ) {}
 
 
-        FileMD             *file;
-        FileMD::id_t        fileId;
+        IFileMD             *file;
+        IFileMD::id_t        fileId;
         Action              action;
-        FileMD::location_t  location;
-        FileMD::location_t  oldLocation;
+        IFileMD::location_t  location;
+        IFileMD::location_t  oldLocation;
       };
 
       virtual void fileMDChanged( Event *event ) = 0;
-      virtual void fileMDRead( FileMD *obj ) = 0;
+      virtual void fileMDRead( IFileMD *obj ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ namespace eos
   class IFileVisitor
   {
     public:
-      virtual void visitFile( FileMD *file ) = 0;
+      virtual void visitFile( IFileMD *file ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -130,29 +130,29 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the file metadata information for the given file ID
       //------------------------------------------------------------------------
-      virtual FileMD *getFileMD( FileMD::id_t id ) throw( MDException ) = 0;
+      virtual IFileMD *getFileMD( IFileMD::id_t id ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Create new file metadata object with an assigned id, the user has
       //! to fill all the remaining fields
       //------------------------------------------------------------------------
-      virtual FileMD *createFile() throw( MDException ) = 0;
+      virtual IFileMD *createFile() throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
-      //! Update the file metadata in the backing store after the FileMD object
+      //! Update the file metadata in the backing store after the IFileMD object
       //! has been changed
       //------------------------------------------------------------------------
-      virtual void updateStore( FileMD *obj ) throw( MDException ) = 0;
+      virtual void updateStore( IFileMD *obj ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeFile( FileMD *obj ) throw( MDException ) = 0;
+      virtual void removeFile( IFileMD *obj ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeFile( FileMD::id_t fileId ) throw( MDException ) = 0;
+      virtual void removeFile( IFileMD::id_t fileId ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Get number of files

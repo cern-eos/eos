@@ -25,7 +25,7 @@
 #define EOS_NS_QUOTA_STATS_HH
 
 #include "namespace/ContainerMD.hh"
-#include "namespace/FileMD.hh"
+#include "namespace/IFileMD.hh"
 #include <map>
 
 namespace eos
@@ -205,12 +205,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! Account a new file, adjust the size using the size mapping function
       //------------------------------------------------------------------------
-      void addFile( const FileMD *file );
+      void addFile( const IFileMD *file );
 
       //------------------------------------------------------------------------
       //! Remove a file, adjust the size using the size mapping function
       //------------------------------------------------------------------------
-      void removeFile( const FileMD *file );
+      void removeFile( const IFileMD *file );
 
       //------------------------------------------------------------------------
       //! Meld in another quota node
@@ -232,7 +232,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Type definitions
       //------------------------------------------------------------------------
-      typedef uint64_t (*SizeMapper)( const FileMD *file );
+      typedef uint64_t (*SizeMapper)( const IFileMD *file );
       typedef std::map<ContainerMD::id_t, QuotaNode*> NodeMap;
 
       //------------------------------------------------------------------------
@@ -272,7 +272,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Calculate the physical size the file occupies
       //------------------------------------------------------------------------
-      uint64_t getPhysicalSize( const FileMD *file ) throw( MDException )
+      uint64_t getPhysicalSize( const IFileMD *file ) throw( MDException )
       {
         if( !pSizeMapper )
         {

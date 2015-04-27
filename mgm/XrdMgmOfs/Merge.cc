@@ -51,8 +51,8 @@ XrdMgmOfs::merge (
   eos::common::Mapping::Root(rootvid);
 
   eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
-  eos::FileMD* src_fmd = 0;
-  eos::FileMD* dst_fmd = 0;
+  eos::IFileMD* src_fmd = 0;
+  eos::IFileMD* dst_fmd = 0;
 
   if (!src || !dst)
   {
@@ -75,7 +75,7 @@ XrdMgmOfs::merge (
     src_fmd->setCUid(dst_fmd->getCUid());
     src_fmd->setCGid(dst_fmd->getCGid());
     // inherit the creation time
-    eos::FileMD::ctime_t ctime;
+    eos::IFileMD::ctime_t ctime;
     dst_fmd->getCTime(ctime);
     src_fmd->setCTime(ctime);
     // change the owner of the source file

@@ -1051,7 +1051,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      eos::FileMD* fmdnew = 0;
+      eos::IFileMD* fmdnew = 0;
       try
       {
         fmdnew = gOFS->eosView->getFile(path);
@@ -1072,14 +1072,14 @@ XrdMgmOfsFile::open (const char *inpath,
       // -------------------------------------------------------------------------
       if (ext_mtime_sec)
       {
-        eos::FileMD::ctime_t mtime;
+        eos::IFileMD::ctime_t mtime;
         mtime.tv_sec = ext_mtime_sec;
         mtime.tv_nsec = ext_mtime_nsec;
         fmd->setMTime(mtime);
       }
       if (ext_ctime_sec)
       {
-        eos::FileMD::ctime_t ctime;
+        eos::IFileMD::ctime_t ctime;
         ctime.tv_sec = ext_ctime_sec;
         ctime.tv_nsec = ext_ctime_nsec;
         fmd->setCTime(ctime);
@@ -2013,7 +2013,7 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         fmd = gOFS->eosView->getFile(path);
-        eos::FileMD::ctime_t ctime;
+        eos::IFileMD::ctime_t ctime;
         fmd->getCTime(ctime);
         if ((ctime.tv_sec + age) < now)
         {

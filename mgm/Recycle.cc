@@ -833,7 +833,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   //...........................................................................
   // convert the hex inode number into decimal and retrieve path name
   //...........................................................................
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::IContainerMD* cmd = 0;
   std::string recyclepath;
   XrdOucString repath;

@@ -108,7 +108,7 @@ XrdMgmOfs::_access (const char *path,
   eos::common::Path cPath(path);
 
   eos::IContainerMD* dh = 0;
-  eos::FileMD* fh = 0;
+  eos::IFileMD* fh = 0;
   bool permok = false;
   uint16_t flags = 0;
   uid_t fuid = 99;

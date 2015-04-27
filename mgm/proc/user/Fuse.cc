@@ -126,7 +126,7 @@ ProcCommand::Fuse ()
       eos::common::Path cPath(statpath.c_str());
 
       // attach MD to get inode number
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
       inode = 0;
 
       //-------------------------------------------

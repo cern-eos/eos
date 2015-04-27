@@ -38,7 +38,7 @@ namespace eos
   //! Forward declarations
   class IContainerMDSvc;
   class IFileMDSvc;
-  class FileMD;
+  class IFileMD;
 
   //----------------------------------------------------------------------------
   //! Class holding the interface to the metadata information concerning a
@@ -102,12 +102,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! Find file
       //------------------------------------------------------------------------
-      virtual FileMD *findFile(const std::string &name) = 0;
+      virtual IFileMD *findFile(const std::string &name) = 0;
 
       //------------------------------------------------------------------------
       //! Add file
       //------------------------------------------------------------------------
-      virtual void addFile(FileMD *file) = 0;
+      virtual void addFile(IFileMD *file) = 0;
 
       //------------------------------------------------------------------------
       //! Remove file

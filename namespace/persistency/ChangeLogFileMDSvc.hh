@@ -98,28 +98,28 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the file metadata information for the given file ID
       //------------------------------------------------------------------------
-      virtual FileMD *getFileMD( FileMD::id_t id ) throw( MDException );
+      virtual IFileMD *getFileMD( IFileMD::id_t id ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Create new file metadata object with an assigned id
       //------------------------------------------------------------------------
-      virtual FileMD *createFile() throw( MDException );
+      virtual IFileMD *createFile() throw( MDException );
 
       //------------------------------------------------------------------------
       //! Update the file metadata in the backing store after the FileMD object
       //! has been changed
       //------------------------------------------------------------------------
-      virtual void updateStore( FileMD *obj ) throw( MDException );
+      virtual void updateStore( IFileMD *obj ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeFile( FileMD *obj ) throw( MDException );
+      virtual void removeFile( IFileMD *obj ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Remove object from the store
       //------------------------------------------------------------------------
-      virtual void removeFile( FileMD::id_t fileId ) throw( MDException );
+      virtual void removeFile( IFileMD::id_t fileId ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Get number of files
@@ -272,18 +272,18 @@ namespace eos
       struct DataInfo
       {
         DataInfo(): logOffset(0), ptr(0), buffer(0) {} // for some reason needed by sparse_hash_map::erase
-        DataInfo( uint64_t logOffset, FileMD *ptr )
+        DataInfo( uint64_t logOffset, IFileMD *ptr )
         {
           this->logOffset = logOffset;
           this->ptr       = ptr;
           this->buffer    = 0;
         }
-        uint64_t  logOffset;
-        FileMD   *ptr;
-        Buffer   *buffer;
+        uint64_t logOffset;
+        IFileMD* ptr;
+        Buffer*  buffer;
       };
 
-      typedef google::dense_hash_map<FileMD::id_t, DataInfo> IdMap;
+      typedef google::dense_hash_map<IFileMD::id_t, DataInfo> IdMap;
       typedef std::list<IFileMDChangeListener*>               ListenerList;
 
       //------------------------------------------------------------------------
@@ -310,12 +310,12 @@ namespace eos
       //------------------------------------------------------------------------
       // Attach a broken file to lost+found
       //------------------------------------------------------------------------
-      void attachBroken( const std::string &parent, FileMD *file );
+      void attachBroken( const std::string &parent, IFileMD *file );
 
       //------------------------------------------------------------------------
       // Data
       //------------------------------------------------------------------------
-      FileMD::id_t       pFirstFreeId;
+      IFileMD::id_t       pFirstFreeId;
       std::string        pChangeLogPath;
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;

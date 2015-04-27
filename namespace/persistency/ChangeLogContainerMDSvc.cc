@@ -493,7 +493,7 @@ namespace
       // Put the right stuff in the updates map
       //----------------------------------------------------------------------
       eos::IContainerMD::id_t id;
-      buffer.grabData(0, &id, sizeof ( eos::FileMD::id_t));
+      buffer.grabData(0, &id, sizeof ( eos::IFileMD::id_t));
       if (type == eos::UPDATE_RECORD_MAGIC)
         pUpdates[id] = ContainerRecordData(offset, id, newOffset);
       else if (type == eos::DELETE_RECORD_MAGIC)

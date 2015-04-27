@@ -29,6 +29,7 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
+#include "namespace/IFileMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -260,7 +261,7 @@ GeoBalancer::populateGeotagsInfo ()
 
 /*----------------------------------------------------------------------------*/
 bool
-GeoBalancer::fileIsInDifferentLocations(const eos::FileMD *fmd)
+GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD *fmd)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Checks if a file is spread in more than one location
@@ -269,9 +270,11 @@ GeoBalancer::fileIsInDifferentLocations(const eos::FileMD *fmd)
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::FileMD::LocationVector::const_iterator lociter;
   const std::string *geotag = 0;
-  for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+  eos::IFileMD::LocationVector::const_iterator lociter;
+  eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+
+  for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
   {
     // ignore filesystem id 0
     if (!(*lociter))
@@ -304,7 +307,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
 /*----------------------------------------------------------------------------*/
 {
   char fileName[1024];
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
 

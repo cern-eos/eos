@@ -144,7 +144,7 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   // try if that is a file
   errno = 0;
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::Path cPath(path);
 
   // ---------------------------------------------------------------------------
@@ -176,7 +176,7 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   if (fmd)
   {
-    eos::FileMD fmdCopy(*fmd);
+    eos::FileMD fmdCopy(fmd);
     fmd = &fmdCopy;
     memset(buf, 0, sizeof (struct stat));
 
@@ -195,7 +195,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_size = fmd->getSize();
     buf->st_blksize = 512;
     buf->st_blocks = Quota::MapSizeCB(fmd) / 512; // including layout factor
-    eos::FileMD::ctime_t atime;
+    eos::IFileMD::ctime_t atime;
 
     // adding also nanosecond to stat struct
     fmd->getCTime(atime);

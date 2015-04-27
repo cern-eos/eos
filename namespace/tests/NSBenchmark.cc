@@ -24,7 +24,7 @@
 //------------------------------------------------------------------------------
 // File size mapping function
 //------------------------------------------------------------------------------
-static uint64_t mapSize( const eos::FileMD *file )
+static uint64_t mapSize( const eos::IFileMD *file )
 {
   return 0;
 }

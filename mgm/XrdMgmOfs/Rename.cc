@@ -262,7 +262,7 @@ XrdMgmOfs::_rename (const char *old_name,
   eos::IContainerMD* dir = 0;
   eos::IContainerMD* newdir = 0;
   eos::IContainerMD* rdir = 0;
-  eos::FileMD* file = 0;
+  eos::IFileMD* file = 0;
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;
@@ -451,7 +451,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		  {
 		    std::string fspath = rfoundit->first;
 		    fspath += *fileit;
-		    eos::FileMD* fmd = 0;
+		    eos::IFileMD* fmd = 0;
 		    // stat this file and add to the deletion maps
 		    
 		    try

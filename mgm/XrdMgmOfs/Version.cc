@@ -56,7 +56,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   gOFS->MgmStats.Add("Versioning", vid.uid, vid.gid, 1);
 
 
-  eos::FileMD* fmd;
+  eos::IFileMD* fmd;
   std::string path;
   std::string vpath;
   std::string bname;
@@ -78,7 +78,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
       bname = cPath.GetName();
       fidvid.uid = fmd->getCUid();
       fidvid.gid = fmd->getCGid();
-      eos::FileMD::ctime_t ctime;
+      eos::IFileMD::ctime_t ctime;
       fmd->getCTime(ctime);
       filectime = (time_t) ctime.tv_sec;
     }

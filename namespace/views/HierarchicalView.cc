@@ -116,7 +116,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Retrieve a file for given uri
   //----------------------------------------------------------------------------
-  FileMD *HierarchicalView::getFile( const std::string &uri )
+  IFileMD *HierarchicalView::getFile( const std::string &uri )
     throw( MDException )
   {
     char uriBuffer[uri.length()+1];
@@ -142,7 +142,7 @@ namespace eos
       throw e;
     }
 
-    FileMD *file = cont->findFile( elements[position] );
+    IFileMD *file = cont->findFile( elements[position] );
     if( !file )
     {
       MDException e( ENOENT );
@@ -155,7 +155,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a file for given uri
   //----------------------------------------------------------------------------
-  FileMD *HierarchicalView::createFile( const std::string &uri,
+  IFileMD *HierarchicalView::createFile( const std::string &uri,
                                         uid_t uid, gid_t gid )
     throw( MDException )
   {
@@ -194,7 +194,7 @@ namespace eos
       throw e;
     }
 
-    FileMD *file = pFileSvc->createFile();
+    IFileMD *file = pFileSvc->createFile();
     if( !file )
     {
       MDException e( EIO );
@@ -235,7 +235,7 @@ namespace eos
       throw e;
     }
 
-    FileMD *file = cont->findFile( elements[position] );
+    IFileMD *file = cont->findFile( elements[position] );
 
     if( !file )
     {
@@ -253,7 +253,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove the file
   //----------------------------------------------------------------------------
-  void HierarchicalView::removeFile( FileMD *file ) throw( MDException )
+  void HierarchicalView::removeFile( IFileMD *file ) throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Check if the file can be removed
@@ -473,7 +473,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Update quota
   //----------------------------------------------------------------------------
-  void HierarchicalView::FileVisitor::visitFile( FileMD *file )
+  void HierarchicalView::FileVisitor::visitFile( IFileMD *file )
   {
     if( file->getContainerId() == 0 )
       return;
@@ -538,7 +538,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get uri for the file
   //----------------------------------------------------------------------------
-  std::string HierarchicalView::getUri( const FileMD *file ) const
+  std::string HierarchicalView::getUri( const IFileMD *file ) const
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -752,7 +752,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Rename file
   //----------------------------------------------------------------------------
-  void HierarchicalView::renameFile( FileMD *file, const std::string &newName )
+  void HierarchicalView::renameFile( IFileMD *file, const std::string &newName )
     throw( MDException )
   {
     if( !file )

@@ -117,7 +117,7 @@ void HierarchicalViewTest::reloadTest()
     view->createFile( "/test/embed/embed1/file1" );
     view->createFile( "/test/embed/embed1/file2" );
     view->createFile( "/test/embed/embed1/file3" );
-    eos::FileMD *fileR = view->createFile( "/test/embed/embed1/fileR" );
+    eos::IFileMD *fileR = view->createFile( "/test/embed/embed1/fileR" );
 
     CPPUNIT_ASSERT( view->getFile( "/test/embed/file1" ) );
     CPPUNIT_ASSERT( view->getFile( "/test/embed/file2" ) );
@@ -143,14 +143,14 @@ void HierarchicalViewTest::reloadTest()
     //--------------------------------------------------------------------------
     // Test the "reverse" lookup
     //--------------------------------------------------------------------------
-    eos::FileMD      *file = view->getFile( "/test/embed/embed1/file3" );
+    eos::IFileMD      *file = view->getFile( "/test/embed/embed1/file3" );
     eos::IContainerMD *container = view->getContainer( "/test/embed/embed1" );
 
     CPPUNIT_ASSERT( view->getUri( container ) == "/test/embed/embed1/" );
     CPPUNIT_ASSERT( view->getUri( file ) == "/test/embed/embed1/file3" );
-    CPPUNIT_ASSERT_THROW( view->getUri( (eos::FileMD*)0 ), eos::MDException );
+    CPPUNIT_ASSERT_THROW( view->getUri( (eos::IFileMD*)0 ), eos::MDException );
 
-    eos::FileMD *toBeDeleted = view->getFile( "/test/embed/embed1/file2" );
+    eos::IFileMD *toBeDeleted = view->getFile( "/test/embed/embed1/file2" );
     toBeDeleted->addLocation( 12 );
 
     //--------------------------------------------------------------------------
@@ -171,8 +171,8 @@ void HierarchicalViewTest::reloadTest()
     //--------------------------------------------------------------------------
     // We remove the replicas and the file
     //--------------------------------------------------------------------------
-    eos::FileMD::id_t id = toBeDeleted->getId();
-    toBeDeleted->removeUnlinkedLocations();
+    eos::IFileMD::id_t id = toBeDeleted->getId();
+    toBeDeleted->clearUnlinkedLocations();
     CPPUNIT_ASSERT_NO_THROW( view->removeFile( toBeDeleted ) );
     CPPUNIT_ASSERT_THROW( view->getFileMDSvc()->getFileMD( id ),
                           eos::MDException );
@@ -209,9 +209,9 @@ void HierarchicalViewTest::reloadTest()
 //------------------------------------------------------------------------------
 // File size mapping function
 //------------------------------------------------------------------------------
-static uint64_t mapSize( const eos::FileMD *file )
+static uint64_t mapSize( const eos::IFileMD *file )
 {
-  eos::FileMD::layoutId_t lid = file->getLayoutId();
+  eos::IFileMD::layoutId_t lid = file->getLayoutId();
   if( lid > 3 )
   {
     eos::MDException e( ENOENT );
@@ -234,7 +234,7 @@ static void createFiles( const std::string                          &path,
   {
     std::ostringstream p;
     p << path << "file" << i;
-    eos::FileMD *file = view->createFile( p.str() );
+    eos::IFileMD *file = view->createFile( p.str() );
     file->setCUid( random()%10+1 );
     file->setCGid( random()%3+1 );
     file->setSize( random()%1000000+1 );
@@ -598,7 +598,7 @@ void HierarchicalViewTest::lostContainerTest()
     view->createFile( s4.str() );
     view->createFile( s5.str() );
     view->createFile( s6.str() );
-    eos::FileMD *file = view->getFile( s6.str() );
+    eos::IFileMD *file = view->getFile( s6.str() );
     file->setName( "conflict_file" );
     view->updateFileStore( file );
   }

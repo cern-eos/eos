@@ -112,7 +112,7 @@ ProcCommand::File ()
         // only root can do that
         if (pVid->uid == 0)
         {
-          eos::FileMD* fmd = 0;
+          eos::IFileMD* fmd = 0;
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
           {
             unsigned long long fid = 0;
@@ -257,7 +257,7 @@ ProcCommand::File ()
       // only root can do that
       if (pVid->uid == 0)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
         {
           unsigned long long fid = 0;
@@ -317,14 +317,9 @@ ProcCommand::File ()
           // -------------------------------------------------------------------
           // copy out the locations vector
           // -------------------------------------------------------------------
-          eos::FileMD::LocationVector locations;
-          eos::FileMD::LocationVector::const_iterator it;
+          eos::IFileMD::LocationVector::const_iterator it;
 	  bool isRAIN=false;
-
-          for (it = fmd->locationsBegin(); it != fmd->locationsEnd(); ++it)
-          {
-            locations.push_back(*it);
-          }
+          eos::IFileMD::LocationVector locations = fmd->getLocations();
 	  eos::common::LayoutId::layoutid_t fmdlid = fmd->getLayoutId();
 	  eos::common::FileId::fileid_t fileid = fmd->getId();
 
@@ -883,7 +878,7 @@ ProcCommand::File ()
             else
             {
               // get the file meta data
-              eos::FileMD* fmd = 0;
+              eos::IFileMD* fmd = 0;
               int fsid = 0;
 
               eos::common::LayoutId::layoutid_t layoutid = 0;
@@ -895,8 +890,12 @@ ProcCommand::File ()
                   fmd = gOFS->eosView->getFile(spath.c_str());
                   layoutid = fmd->getLayoutId();
                   fileid = fmd->getId();
+                  
                   if (fmd->getNumLocation())
-                    fsid = *(fmd->locationsBegin());
+                  {
+                    eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                    fsid = *(loc_vect.begin());
+                  }
                 }
                 catch (eos::MDException &e)
                 {
@@ -1077,7 +1076,7 @@ ProcCommand::File ()
       // -----------------------------------------------------------------------
       if (pVid->uid == 0)
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
         bool nodrop = false;
 
         if (pOpaque->Get("mgm.file.option") &&
@@ -1158,11 +1157,10 @@ ProcCommand::File ()
         XrdOucString refspace = "";
         unsigned int forcedsubgroup = 0;
 
-
         if (fmd)
         {
           unsigned long long fid = fmd->getId();
-          eos::FileMD fmdCopy(*fmd);
+          eos::FileMD fmdCopy(fmd);
           fmd = &fmdCopy;
 
           gOFS->eosViewRWMutex.UnLockRead();
@@ -1176,16 +1174,15 @@ ProcCommand::File ()
 
             XrdOucString sizestring;
 
-            eos::FileMD::LocationVector::const_iterator lociter;
+            eos::IFileMD::LocationVector::const_iterator lociter;
             int nreplayout =
                     eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
             int nrep = (int) fmd->getNumLocation();
             int nreponline = 0;
             int ngroupmix = 0;
-            for (lociter = fmd->locationsBegin();
-                    lociter != fmd->locationsEnd();
-                    ++lociter
-                    )
+            eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+            
+            for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
             {
               // ignore filesystem id 0
               if (!(*lociter))
@@ -1286,16 +1283,10 @@ ProcCommand::File ()
               else
               {
                 unsigned long fsIndex; // this defines the fs to use in the selectefs vector
-                std::vector<unsigned int> selectedfs;
-                std::vector<unsigned int> unavailfs;
-                // fill the existing locations
-                for (lociter = fmd->locationsBegin();
-                        lociter != fmd->locationsEnd();
-                        ++lociter)
-                {
-                  selectedfs.push_back(*lociter);
-                }
-
+                // Fill the existing locations
+                eos::IFileMD::LocationVector selectedfs = fmd->getLocations();
+                eos::IFileMD::LocationVector unavailfs;
+               
                 if (!(errno = quotaspace->FileAccess(*pVid,
                                                      (unsigned long) 0,
                                                      space.c_str(),
@@ -1310,13 +1301,14 @@ ProcCommand::File ()
                   // this is now our source filesystem
                   unsigned int sourcefsid = selectedfs[fsIndex];
                   // now the just need to ask for <n> targets
-                  int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica, eos::common::LayoutId::kNone,
+                  int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
+                                                              eos::common::LayoutId::kNone,
                                                               nnewreplicas);
 
-                  // we don't know the container tag here, but we don't really care since we are scheduled as root
+                  // We don't know the container tag here, but we don't really
+                  // care since we are scheduled as root
                   if (!(errno = quotaspace->FilePlacement(spath.c_str(),
-                                                          *pVid,
-                                                          0,
+                                                          *pVid, 0,
                                                           layoutId,
                                                           selectedfs,
                                                           selectedfs,
@@ -1328,8 +1320,9 @@ ProcCommand::File ()
                     // yes we got a new replication vector
                     for (unsigned int i = 0; i < selectedfs.size(); i++)
                     {
-                      //                      stdOut += "info: replication := "; stdOut += (int) sourcefsid; stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
-                      // add replication here
+                      // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
+                      // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+                      // Add replication here
                       if (gOFS->_replicatestripe(fmd,
                                                  spath.c_str(),
                                                  *mError,
@@ -1384,14 +1377,14 @@ ProcCommand::File ()
                 std::vector<unsigned long> fsid2delete;
                 unsigned int n2delete = nrep - nreplayout;
 
-                eos::FileMD::LocationVector locvector;
                 // we build three views to sort the order of dropping
 
                 std::multimap <int /*configstate*/, int /*fsid*/> statemap;
                 std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
                 std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
 
-                // we have too many replica's online, we drop (nrepoonline-nreplayout) replicas starting with the lowest configuration state
+                // we have too many replica's online, we drop (nrepoonline-nreplayout)
+                // replicas starting with the lowest configuration state
 
                 eos_debug("trying to drop %d replicas space=%s subgroup=%d",
                           n2delete,
@@ -1399,9 +1392,8 @@ ProcCommand::File ()
                           icreationsubgroup);
 
                 // fill the views
-                for (lociter = fmd->locationsBegin();
-                        lociter != fmd->locationsEnd();
-                        ++lociter)
+                eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                 {
                   // ignore filesystem id 0
                   if (!(*lociter))
@@ -1659,7 +1651,7 @@ ProcCommand::File ()
       }
       else
       {
-        eos::FileMD* fmd = 0;
+        eos::IFileMD* fmd = 0;
 
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -1705,12 +1697,12 @@ ProcCommand::File ()
         }
         else
         {
-          eos::FileMD fmdCopy(*fmd);
+          eos::FileMD fmdCopy(fmd);
           fmd = &fmdCopy;
 
           XrdOucString sizestring;
 
-          eos::FileMD::LocationVector::const_iterator lociter;
+          eos::IFileMD::LocationVector::const_iterator lociter;
           int i = 0;
           stdOut += "&";
           stdOut += "mgm.nrep=";
@@ -1738,9 +1730,8 @@ ProcCommand::File ()
           stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
           stdOut += "&";
 
-          for (lociter = fmd->locationsBegin();
-                  lociter != fmd->locationsEnd();
-                  ++lociter)
+          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+          for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
           {
             // ignore filesystem id 0
             if (!(*lociter))

@@ -196,7 +196,7 @@
     while (fit != source_filelist.end())
     {
       // check that the target does not have this file
-      eos::FileMD::id_t fid = *fit;
+      eos::IFileMD::id_t fid = *fit;
       if (target_filelist.count(fid))
       {
         // iterate to the next file, we have this file already
@@ -234,7 +234,7 @@
         }
         else
         {
-          eos::FileMD* fmd = 0;
+          eos::IFileMD* fmd = 0;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;

@@ -89,17 +89,17 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *getFile( const std::string &uri ) throw( MDException ) = 0;
+      virtual IFileMD *getFile( const std::string &uri ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Update file store
       //------------------------------------------------------------------------
-      virtual void updateFileStore( FileMD *file ) throw( MDException ) = 0;
+      virtual void updateFileStore( IFileMD *file ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Create a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *createFile( const std::string &uri,
+      virtual IFileMD *createFile( const std::string &uri,
                                  uid_t uid = 0, gid_t gid = 0 )
         throw( MDException ) = 0;
 
@@ -107,7 +107,7 @@ namespace eos
       //! Remove the file - the pointer is not valid any more once the call
       //! returns
       //------------------------------------------------------------------------
-      virtual void removeFile( FileMD *file ) throw( MDException ) = 0;
+      virtual void removeFile( IFileMD *file ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove the file from the hierarchy so that it won't be accessible
@@ -152,7 +152,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get uri for the file
       //------------------------------------------------------------------------
-      virtual std::string getUri( const FileMD *file ) const
+      virtual std::string getUri( const IFileMD *file ) const
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
@@ -194,7 +194,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Rename file
       //------------------------------------------------------------------------
-      virtual void renameFile( FileMD *file, const std::string &newName )
+      virtual void renameFile( IFileMD *file, const std::string &newName )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------

@@ -75,7 +75,7 @@
     auto it = sZeroMove.begin();
     while (it != sZeroMove.end())
     {
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
       try
       {
         fmd = gOFS->eosFileService->getFileMD(it->first);
@@ -258,7 +258,7 @@
     {
       eos_thread_debug("checking fid %llx", *fit);
       // check that the target does not have this file
-      eos::FileMD::id_t fid = *fit;
+      eos::IFileMD::id_t fid = *fit;
       if (target_filelist.count(fid))
       {
         // iterate to the next file, we have this file already
@@ -298,7 +298,7 @@
         }
         else
         {
-          eos::FileMD* fmd = 0;
+          eos::IFileMD* fmd = 0;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;
@@ -320,8 +320,9 @@
             uid = fmd->getCUid();
             gid = fmd->getCGid();
 	    
-            eos::FileMD::LocationVector::const_iterator lociter;
-            for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+            eos::IFileMD::LocationVector::const_iterator lociter;
+            eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+            for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
             {
               // ignore filesystem id 0
               if ((*lociter))

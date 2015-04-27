@@ -67,7 +67,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Notify me about files when recovering from changelog
       //------------------------------------------------------------------------
-      virtual void fileMDRead( FileMD *obj );
+      virtual void fileMDRead( IFileMD *obj );
 
       //------------------------------------------------------------------------
       //! Get a list of files registered in given fs

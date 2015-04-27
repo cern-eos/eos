@@ -28,7 +28,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Account a new file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
-  void QuotaNode::addFile( const FileMD *file )
+  void QuotaNode::addFile( const IFileMD *file )
   {
     uint64_t size = pQuotaStats->getPhysicalSize( file );
     UsageInfo &user  = pUserUsage[file->getCUid()];
@@ -44,7 +44,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove a file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
-  void QuotaNode::removeFile( const FileMD *file )
+  void QuotaNode::removeFile( const IFileMD *file )
   {
     uint64_t size = pQuotaStats->getPhysicalSize( file );
     UsageInfo &user  = pUserUsage[file->getCUid()];

@@ -126,7 +126,7 @@ XrdMgmOfs::_utimes (const char *path,
 
   if (!cmd)
   {
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     // try as a file
     try
     {
