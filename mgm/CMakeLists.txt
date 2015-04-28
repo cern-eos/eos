@@ -71,6 +71,7 @@ add_library (XrdEosMgm MODULE
             proc/user/Fuse.cc
             proc/user/Ls.cc
             proc/user/Map.cc
+	    proc/user/Member.cc
             proc/user/Mkdir.cc
             proc/user/Motd.cc
             proc/user/Quota.cc
