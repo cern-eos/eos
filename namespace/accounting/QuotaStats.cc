@@ -74,7 +74,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get a quota node associated to the container id
   //----------------------------------------------------------------------------
-  QuotaNode *QuotaStats::getQuotaNode( ContainerMD::id_t nodeId )
+  QuotaNode *QuotaStats::getQuotaNode( IContainerMD::id_t nodeId )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
     if( it == pNodeMap.end() )
@@ -95,7 +95,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Register a new quota node
   //----------------------------------------------------------------------------
-  QuotaNode *QuotaStats::registerNewNode( ContainerMD::id_t nodeId )
+  QuotaNode *QuotaStats::registerNewNode( IContainerMD::id_t nodeId )
     throw( MDException )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
@@ -113,7 +113,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove quota node
   //----------------------------------------------------------------------------
-  void QuotaStats::removeNode( ContainerMD::id_t nodeId )
+  void QuotaStats::removeNode( IContainerMD::id_t nodeId )
     throw( MDException )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );

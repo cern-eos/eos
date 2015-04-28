@@ -233,7 +233,7 @@ namespace eos
       // Type definitions
       //------------------------------------------------------------------------
       typedef uint64_t (*SizeMapper)( const IFileMD *file );
-      typedef std::map<ContainerMD::id_t, QuotaNode*> NodeMap;
+      typedef std::map<IContainerMD::id_t, QuotaNode*> NodeMap;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -248,17 +248,17 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a quota node associated to the container id
       //------------------------------------------------------------------------
-      QuotaNode *getQuotaNode( ContainerMD::id_t nodeId );
+      QuotaNode *getQuotaNode( IContainerMD::id_t nodeId );
 
       //------------------------------------------------------------------------
       //! Register a new quota node
       //------------------------------------------------------------------------
-      QuotaNode *registerNewNode( ContainerMD::id_t nodeId ) throw( MDException );
+      QuotaNode *registerNewNode( IContainerMD::id_t nodeId ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Remove quota node
       //------------------------------------------------------------------------
-      void removeNode( ContainerMD::id_t nodeId ) throw( MDException );
+      void removeNode( IContainerMD::id_t nodeId ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Register a mapping function used to calculate the physical

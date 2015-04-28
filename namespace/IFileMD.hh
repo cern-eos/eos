@@ -26,10 +26,8 @@
 
 #include "namespace/persistency/Buffer.hh"
 #include "namespace/IContainerMD.hh"
-
 #include <stdint.h>
 #include <string>
-
 #include <sys/time.h>
 
 namespace eos
@@ -50,6 +48,11 @@ class IFileMD
     typedef uint32_t layoutId_t;
     typedef struct timespec ctime_t;
     typedef std::vector<location_t> LocationVector;
+
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //-------------------------------------------------------------------------- 
+    virtual ~IFileMD() {};
 
     //--------------------------------------------------------------------------
     //! Get file id
@@ -294,17 +297,8 @@ class IFileMD
     //--------------------------------------------------------------------------
     //! Get the FileMDSvc object
     //--------------------------------------------------------------------------
-    IFileMDSvc* getFileMDSvc()
-    {
-      return pFileMDSvc;
-    }
-
-  protected:
-    //--------------------------------------------------------------------------
-    // Data members
-    //--------------------------------------------------------------------------
-    IFileMDSvc*        pFileMDSvc;
+    virtual IFileMDSvc* getFileMDSvc() = 0;
 };
 }
 
-#endif // EOS_NS_FILE_MD_HH
+#endif // EOS_NS_IFILE_MD_HH

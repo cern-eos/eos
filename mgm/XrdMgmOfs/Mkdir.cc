@@ -141,7 +141,7 @@ XrdMgmOfs::_mkdir (const char *path,
       try
       {
         dir = eosView->getContainer(cPath.GetParentPath());
-        copydir = new eos::ContainerMD(*dir);
+        copydir = new eos::ContainerMD(dir);
         dir = copydir;
         eos::IContainerMD::XAttrMap::const_iterator it;
         for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
@@ -297,7 +297,7 @@ XrdMgmOfs::_mkdir (const char *path,
         {
           if (copydir) delete copydir;
           dir = eosView->getContainer(cPath.GetSubPath(i));
-          copydir = new eos::ContainerMD(*dir);
+          copydir = new eos::ContainerMD(dir);
           eos::IContainerMD::XAttrMap::const_iterator it;
           for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
           {
@@ -396,7 +396,7 @@ XrdMgmOfs::_mkdir (const char *path,
         if (dir)
         {
           if (copydir) delete copydir;
-          copydir = new eos::ContainerMD(*dir);
+          copydir = new eos::ContainerMD(dir);
           dir = copydir;
         }
 

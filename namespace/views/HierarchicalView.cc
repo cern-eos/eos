@@ -116,8 +116,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Retrieve a file for given uri
   //----------------------------------------------------------------------------
-  IFileMD *HierarchicalView::getFile( const std::string &uri )
-    throw( MDException )
+  IFileMD*
+  HierarchicalView::getFile(const std::string &uri) throw( MDException )
   {
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
@@ -143,25 +143,25 @@ namespace eos
     }
 
     IFileMD *file = cont->findFile( elements[position] );
+    
     if( !file )
     {
       MDException e( ENOENT );
       e.getMessage() << "File does not exist";
       throw e;
     }
+    
     return file;
   }
 
   //----------------------------------------------------------------------------
   // Create a file for given uri
   //----------------------------------------------------------------------------
-  IFileMD *HierarchicalView::createFile( const std::string &uri,
-                                        uid_t uid, gid_t gid )
-    throw( MDException )
+  IFileMD*
+  HierarchicalView::createFile( const std::string &uri, uid_t uid, gid_t gid )
+      throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Split the path and find the last container
-    //--------------------------------------------------------------------------
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
     std::vector<char*> elements;
@@ -177,9 +177,7 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Check it the file of this name can be inserted
-    //--------------------------------------------------------------------------
     if( cont->findContainer( elements[position] ) )
     {
       MDException e( EEXIST );
@@ -195,6 +193,7 @@ namespace eos
     }
 
     IFileMD *file = pFileSvc->createFile();
+    
     if( !file )
     {
       MDException e( EIO );

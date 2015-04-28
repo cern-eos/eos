@@ -52,6 +52,11 @@ class FileMD: public IFileMD
     FileMD(id_t id, IFileMDSvc* fileMDSvc);
 
     //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    virtual ~FileMD() {};
+
+    //--------------------------------------------------------------------------
     //! Copy constructor
     //--------------------------------------------------------------------------
     FileMD(const FileMD& other);
@@ -64,12 +69,12 @@ class FileMD: public IFileMD
     //--------------------------------------------------------------------------
     // Copy constructor from IFileMD
     //--------------------------------------------------------------------------
-    FileMD(const IFileMD* other);
+    FileMD(IFileMD* other);
   
     //--------------------------------------------------------------------------
     //! Asignment operator from IFileMD
     //--------------------------------------------------------------------------
-    FileMD& operator = (const IFileMD* other);
+    FileMD& operator = (IFileMD* other);
 
     //--------------------------------------------------------------------------
     //! Get file id
@@ -111,7 +116,6 @@ class FileMD: public IFileMD
       clock_gettime(CLOCK_REALTIME, &pCTime);
 #endif
     }
-
 
     //--------------------------------------------------------------------------
     //! Get modification time
@@ -283,7 +287,7 @@ class FileMD: public IFileMD
     //--------------------------------------------------------------------------
     //! Get vector with all the locations
     //--------------------------------------------------------------------------
-    virtual LocationVector getLocations() const;
+    LocationVector getLocations() const;
   
     //--------------------------------------------------------------------------
     //! Get location
@@ -314,7 +318,7 @@ class FileMD: public IFileMD
     //--------------------------------------------------------------------------
     //! Get vector with all unlinked locations
     //--------------------------------------------------------------------------
-    virtual LocationVector getUnlinkedLocations() const;
+    LocationVector getUnlinkedLocations() const;
 
     //--------------------------------------------------------------------------
     //! Unlink location
@@ -492,6 +496,15 @@ class FileMD: public IFileMD
       pFileMDSvc = fileMDSvc;
     }
 
+    //--------------------------------------------------------------------------
+    //! Get the FileMDSvc object
+    //--------------------------------------------------------------------------
+    virtual IFileMDSvc* getFileMDSvc()
+    {
+      return pFileMDSvc;
+    }
+
+
   protected:
     //--------------------------------------------------------------------------
     // Data members
@@ -503,12 +516,13 @@ class FileMD: public IFileMD
     IContainerMD::id_t  pContainerId;
     uid_t               pCUid;
     gid_t               pCGid;
-    uint32_t            pLayoutId;
+    layoutId_t          pLayoutId;
     uint16_t            pFlags;
     std::string         pName;
     LocationVector      pLocation;
     LocationVector      pUnlinkedLocation;
     Buffer              pChecksum;
+    IFileMDSvc*         pFileMDSvc;
 };
 }
 

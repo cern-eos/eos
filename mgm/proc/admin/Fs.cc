@@ -381,8 +381,8 @@ ProcCommand::Fs ()
              eos::FileSystemView::FileIterator it;
              for (it = filelist.begin(); it != filelist.end(); ++it)
              {
-               eos::IFileMD* fmd = 0;
-               fmd = gOFS->eosFileService->getFileMD(*it);
+               eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(*it);
+
                if (fmd)
                {
                  size_t nloc_ok = 0;

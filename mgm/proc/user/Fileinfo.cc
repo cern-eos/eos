@@ -691,7 +691,7 @@ ProcCommand::DirInfo (const char* path)
       size_t num_files = fmd->getNumFiles();
 
       // Make a copy of the meta data
-      eos::ContainerMD fmdCopy(*fmd);
+      eos::ContainerMD fmdCopy(fmd);
       fmd = &fmdCopy;
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------

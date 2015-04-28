@@ -39,11 +39,11 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
   pCGid(0),
   pLayoutId(0),
   pFlags(0),
-  pChecksum(0)
+  pChecksum(0),
+  pFileMDSvc(fileMDSvc)
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
-  pFileMDSvc = fileMDSvc;
 }
 
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ FileMD::operator = (const FileMD& other)
 //------------------------------------------------------------------------------
 // Copy constructor from IFileMD
 //------------------------------------------------------------------------------
-FileMD::FileMD(const IFileMD* other)
+FileMD::FileMD(IFileMD* other)
 {
   *this = other;
 }
@@ -89,9 +89,9 @@ FileMD::FileMD(const IFileMD* other)
 // Asignment operator
 //------------------------------------------------------------------------------
 FileMD&
-FileMD::operator = (const IFileMD* other)
+FileMD::operator = (IFileMD* other)
 {
-  const FileMD* fmd = dynamic_cast<const FileMD*>(other);
+  FileMD* fmd = dynamic_cast<FileMD*>(other);
   pName        = fmd->pName;
   pId          = fmd->pId;
   pSize        = fmd->pSize;
@@ -382,9 +382,7 @@ void FileMD::deserialize(const Buffer& buffer) throw(MDException)
 IFileMD::LocationVector
 FileMD::getLocations() const
 {
-  IFileMD::LocationVector result;
-  result = pLocation;
-  return std::move(result);
+  return pLocation;
 }
 
 //------------------------------------------------------------------------------

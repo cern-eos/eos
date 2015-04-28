@@ -416,7 +416,7 @@ class FileMDFollower: public eos::ILogRecordScanner
       // Check if there is any replicas to be unlinked
       IFileMD::LocationVector loc_vect1 = file1->getLocations();
 
-      for (it = loc_vect1.begin(); it != loc_vect2.end(); ++it)
+      for (it = loc_vect1.begin(); it != loc_vect1.end(); ++it)
       {
         if (!file2->hasLocation(*it))
           toBeUnlinked.insert(*it);
@@ -690,7 +690,7 @@ void ChangeLogFileMDSvc::initialize() throw(MDException)
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
     {
       // Unpack the serialized buffers
-      FileMD* file = new FileMD(0, this);
+      IFileMD* file = new FileMD(0, this);
       file->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
@@ -878,7 +878,8 @@ void ChangeLogFileMDSvc::finalize() throw(MDException)
 //------------------------------------------------------------------------------
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
-IFileMD* ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id) throw(MDException)
+IFileMD*
+ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id) throw(MDException)
 {
   IdMap::iterator it = pIdMap.find(id);
 
@@ -994,8 +995,8 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
   // Update
   if (type == UPDATE_RECORD_MAGIC)
   {
-    FileMD::id_t id;
-    buffer.grabData(0, &id, sizeof(FileMD::id_t));
+    IFileMD::id_t id;
+    buffer.grabData(0, &id, sizeof(IFileMD::id_t));
     DataInfo& d = pIdMap[id];
     d.logOffset = offset;
 
@@ -1009,8 +1010,8 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
   // Deletion
   else if (type == DELETE_RECORD_MAGIC)
   {
-    FileMD::id_t id;
-    buffer.grabData(0, &id, sizeof(FileMD::id_t));
+    IFileMD::id_t id;
+    buffer.grabData(0, &id, sizeof(IFileMD::id_t));
     IdMap::iterator it = pIdMap.find(id);
 
     if (it != pIdMap.end())
@@ -1173,7 +1174,7 @@ throw(MDException)
 
   // Now we handle updates, if we don't have the file, we're messed up,
   // if the original offsets don't match we're messed up too
-  std::map<FileMD::id_t, RecordData>::iterator itU;
+  std::map<IFileMD::id_t, RecordData>::iterator itU;
 
   for (itU = updates.begin(); itU != updates.end(); ++itU)
   {

@@ -55,7 +55,7 @@ namespace eos
         //----------------------------------------------------------------------
         if( type == UPDATE_RECORD_MAGIC )
         {
-          IContainerMD *container = new ContainerMD( 0 );
+          IContainerMD *container = new ContainerMD(IContainerMD::id_t(0));
           container->deserialize( (Buffer&)buffer );
           ContMap::iterator it = pUpdated.find( container->getId() );
           if( it != pUpdated.end() )
@@ -104,8 +104,8 @@ namespace eos
         //----------------------------------------------------------------------
         // Handle deletions
         //----------------------------------------------------------------------
-        std::set<eos::ContainerMD::id_t>::iterator itD;
-        std::list<ContainerMD::id_t> processed;
+        std::set<eos::IContainerMD::id_t>::iterator itD;
+        std::list<IContainerMD::id_t> processed;
         for( itD = pDeleted.begin(); itD != pDeleted.end(); ++itD )
         {
           ChangeLogContainerMDSvc::IdMap::iterator it;
@@ -810,7 +810,7 @@ namespace eos
     // Store the file in the changelog and notify the listener
     //--------------------------------------------------------------------------
     eos::Buffer buffer;
-    buffer.putData( &containerId, sizeof( ContainerMD::id_t ) );
+    buffer.putData( &containerId, sizeof( IContainerMD::id_t ) );
     pChangeLog->storeRecord( eos::DELETE_RECORD_MAGIC, buffer );
     notifyListeners( it->second.ptr, IContainerMDChangeListener::Deleted );
     delete it->second.ptr;
@@ -1068,7 +1068,7 @@ namespace eos
   {
     Buffer buffer;
     pChangeLog->readRecord( it->second.logOffset, buffer );
-    IContainerMD *container = new ContainerMD( 0 );
+    IContainerMD *container = new ContainerMD( IContainerMD::id_t(0) );
     container->deserialize( buffer );
     it->second.ptr = container;
 
