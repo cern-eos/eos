@@ -752,6 +752,13 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     vid.uid = sel_uid;
     vid.gid = sel_gid;
+    if (ruid.length() || rgid.length()) 
+    {
+      if (!eos::common::Mapping::HasGid(sel_gid, vid))
+	vid.gid_list.push_back(sel_gid);
+      if (!eos::common::Mapping::HasUid(sel_uid, vid))
+	vid.uid_list.push_back(sel_uid);
+    }
   }
 
   if (client->host)
