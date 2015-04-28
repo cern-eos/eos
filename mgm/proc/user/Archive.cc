@@ -1148,6 +1148,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
   std::string key, value, pair;
   std::istringstream line_iss;
   std::ifstream result_ifs(cmd_find->GetResultFn());
+  XrdOucString unseal_str;
 
   if (!result_ifs.good())
   {
@@ -1168,6 +1169,8 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     if (line.find("&mgm.proc.stdout=") == 0)
       line.erase(0, 17);
 
+    unseal_str = XrdOucString(line.c_str());
+    line = XrdMqMessage::UnSeal(unseal_str);
     num++;
     line_iss.clear();
     line_iss.str(line);

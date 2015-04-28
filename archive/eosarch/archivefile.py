@@ -27,7 +27,7 @@ import logging
 import json
 from XRootD import client
 from XRootD.client.flags import QueryCode
-from eosarch.utils import exec_cmd, get_entry_info, set_dir_info
+from eosarch.utils import exec_cmd, get_entry_info, set_dir_info, seal_path
 from eosarch.exceptions import CheckEntryException
 
 
@@ -272,7 +272,7 @@ class ArchiveFile(object):
             dir_path = url.path + dentry[1]
             fgetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/",
                                 "?mgm.cmd=attr&mgm.subcmd=get&mgm.attr.key=sys.acl",
-                                "&mgm.path=", dir_path])
+                                "&mgm.path=", seal_path(dir_path)])
             (status, stdout, __) = exec_cmd(fgetattr)
 
             if not status:
@@ -375,7 +375,7 @@ class ArchiveFile(object):
             else:
                 ffindcount = ''.join([url.protocol, "://", url.hostid,
                                       "//proc/user/?mgm.cmd=find&mgm.path=",
-                                      url.path, "&mgm.option=Z"])
+                                      seal_path(url.path), "&mgm.option=Z"])
                 (status, stdout, stderr) = exec_cmd(ffindcount)
 
                 if status:

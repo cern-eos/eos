@@ -29,6 +29,40 @@ from XRootD.client.flags import OpenFlags
 
 logger = logging.getLogger("transfer")
 
+def seal_path(path, seal_dict={'&': "#AND#"}):
+    """ Seal a path by replacing the key characters in the dictionary with their
+    values so that EOS is happy.
+
+    Args:
+        path (str): Path to be sealed
+        seal (dict): Seal dictionary
+
+    Returns:
+        The path transformed using the dictionary mapping.
+    """
+    for key, val in seal_dict.iteritems():
+        path = path.replace(key, val)
+
+    return path
+
+
+def unseal_path(path, seal_dict={"#AND#": '&'}):
+    """ Unseal a path by replacing the key characters in the dictionary with their
+    values so that we are happy.
+
+    Args:
+        path (str): Path to be unsealed
+        seal (dict): Unseal dictionary
+
+    Returns:
+        The path transformed using the dictionary mapping.
+    """
+    for key, val in seal_dict.iteritems():
+        path = path.replace(key, val)
+
+    return path
+
+
 def exec_cmd(cmd):
     """ Execute an EOS /proc/user/ command.
 
@@ -72,8 +106,10 @@ def exec_cmd(cmd):
                         status = True if (retc == "0") else False
                     elif "mgm.proc.stdout=" in elem:
                         stdout = elem[(elem.index('=') + 1):].strip()
+                        stdout = unseal_path(stdout)
                     elif "mgm.proc.stderr=" in elem:
                         stderr = elem[(elem.index('=') + 1):].strip()
+                        stderr = unseal_path(stdout)
             else:
                 stderr = "error reading response for command: {0}".format(cmd)
         else:
@@ -103,7 +139,7 @@ def get_entry_info(url, rel_path, tags, is_dir):
     """
     dinfo = []
     finfo = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
-                     "mgm.cmd=fileinfo&mgm.path=", url.path,
+                     "mgm.cmd=fileinfo&mgm.path=", seal_path(url.path),
                      "&mgm.file.info.option=-m"])
     (status, stdout, stderr) = exec_cmd(finfo)
 
@@ -123,7 +159,7 @@ def get_entry_info(url, rel_path, tags, is_dir):
         path = file_val
         path_size = int(sz_val)
 
-        while path_size != len(path.encode("utf-8")):
+        while path_size > len(path.encode("utf-8")):
             path_token, tail = tail.split(' ', 1)
             path += ' '
             path += path_token
@@ -188,7 +224,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
 
     # Change ownership of the directory
     fsetowner = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
-                         "mgm.cmd=chown&mgm.path=", url.path,
+                         "mgm.cmd=chown&mgm.path=", seal_path(url.path),
                          "&mgm.chown.owner=", dict_dinfo['uid'], ":",
                          dict_dinfo['gid']])
     (status, stdout, stderr) = exec_cmd(fsetowner)
@@ -200,7 +236,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
 
     # Set permission on the directory
     fchmod = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
-                      "mgm.cmd=chmod&mgm.path=", url.path,
+                      "mgm.cmd=chmod&mgm.path=", seal_path(url.path),
                       "&mgm.chmod.mode=", dict_dinfo['mode']])
     (status, stdout, stderr) = exec_cmd(fchmod)
 
@@ -211,7 +247,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
 
     # Remove any existing attributes
     flsattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
-                       "mgm.cmd=attr&mgm.subcmd=ls&mgm.path=", url.path])
+                       "mgm.cmd=attr&mgm.subcmd=ls&mgm.path=", seal_path(url.path)])
 
     (status, stdout, stderr) = exec_cmd(flsattr)
 
@@ -230,7 +266,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
 
         frmattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                            "mgm.cmd=attr&mgm.subcmd=rm&mgm.attr.key=", attr,
-                           "&mgm.path=", url.path])
+                           "&mgm.path=", seal_path(url.path)])
         (status, __, stderr) = exec_cmd(frmattr)
 
         if not status:
@@ -249,7 +285,7 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
 
         fsetattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                             "mgm.cmd=attr&mgm.subcmd=set&mgm.attr.key=", key,
-                            "&mgm.attr.value=", val, "&mgm.path=", url.path])
+                            "&mgm.attr.value=", val, "&mgm.path=", seal_path(url.path)])
         (status, __, stderr) = exec_cmd(fsetattr)
 
         if not status:
