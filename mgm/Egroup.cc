@@ -118,8 +118,10 @@ Egroup::Member (std::string &username, std::string & egroupname)
     if (Map[egroupname].count(username))
     {
       member = Map[egroupname][username];
-      // we know that user
-      if (LifeTime[egroupname].count(username) && (LifeTime[egroupname][username] > now))
+      time_t age = labs( LifeTime[egroupname][username] - now );
+
+      // we know that user, it has a cached entry which is not too old
+      if (LifeTime[egroupname].count(username) && (LifeTime[egroupname][username] > now) && (age < EOSEGROUPCACHETIME) )
       {
         // that is ok, we can return member or not member from the cache
         Mutex.UnLock();
@@ -151,17 +153,16 @@ Egroup::Member (std::string &username, std::string & egroupname)
     {
       (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
       // the LDAP base
-      std::string sbase = "OU=Users,Ou=Organic Units,DC=cern,DC=ch";
+      std::string sbase = "CN=";
+      sbase += username;
+      sbase += ",OU=Users,Ou=Organic Units,DC=cern,DC=ch";
+      // the LDAP attribute (recursive search)      
+      std::string attr="cn";
       // the LDAP filter
-      std::string filter = "sAMAccountName=";
-      filter += username;
-      ;
-      // the LDAP attribute
-      std::string attr = "memberOf";
-      // the LDAP match
-      std::string match = "CN=";
-      match += egroupname;
-      match += ",";
+      std::string filter;
+      filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
+      filter += egroupname; 
+      filter += ",OU=e-groups,OU=Workgroups,DC=cern,DC=ch)";
 
       char* attrs[2];
       attrs[0] = (char*) attr.c_str();
@@ -170,10 +171,17 @@ Egroup::Member (std::string &username, std::string & egroupname)
       struct timeval timeout;
       timeout.tv_sec = 10;
       timeout.tv_usec = 0;
+
+      std::string match = username;
+
+      eos_static_debug("base=%s attr=%s filter=%s match=%s\n",sbase.c_str(), attr.c_str(), filter.c_str(), match.c_str());
       int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
                                  filter.c_str(), 
                                  attrs, 0, NULL, NULL, 
                                  &timeout, LDAP_NO_LIMIT, &res);
+
+
+
       if ((rc == LDAP_SUCCESS) && (ldap_count_entries(ld, res) != 0))
       {
         LDAPMessage* e = NULL;
@@ -190,6 +198,7 @@ Egroup::Member (std::string &username, std::string & egroupname)
             for (j = 0; j < n; j++)
             {
               std::string result = v[ j ]->bv_val;
+	      eos_static_info("result=%d %s\n", n, result.c_str());
               if ((result.find(match)) != std::string::npos)
               {
                 isMember = true;
@@ -366,17 +375,14 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
     // the LDAP base
     std::string sbase = "OU=Users,Ou=Organic Units,DC=cern,DC=ch";
-    // the LDAP filter
-    std::string filter = "sAMAccountName=";
-    filter += username;
-    ;
-    // the LDAP attribute
-    std::string attr = "memberOf";
-    // the LDAP match
-    std::string match = "CN=";
-    match += egroupname;
-    match += ",";
-
+    // the LDAP attribute (recursive search)      
+    std::string attr="cn";
+    // the LDAP filter    
+    std::string filter;
+    filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
+    filter += egroupname; 
+    filter += ",OU=e-groups,OU=Workgroups,DC=cern,DC=ch)";
+    
     char* attrs[2];
     attrs[0] = (char*) attr.c_str();
     attrs[1] = NULL;
@@ -384,6 +390,10 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     struct timeval timeout;
     timeout.tv_sec = 10;
     timeout.tv_usec = 0;
+    
+    std::string match = username;
+    
+    eos_static_debug("base=%s attr=%s filter=%s match=%s\n",sbase.c_str(), attr.c_str(), filter.c_str(), match.c_str());
     int rc = ldap_search_ext_s(ld, sbase.c_str(), LDAP_SCOPE_SUBTREE,
                                filter.c_str(), attrs, 0, NULL, NULL, 
                                &timeout, LDAP_NO_LIMIT, &res);
@@ -463,5 +473,87 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   return;
 }
 
+/*----------------------------------------------------------------------------*/
+std::string
+Egroup::DumpMember (std::string &username, std::string & egroupname)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief DumpMember
+ * @param username name of the user to dump Egroup membership
+ * @param egroupname name of Egroup where to look for membership
+ * 
+ * @return egroup dump for username
+ */
+/*----------------------------------------------------------------------------*/
+{
+  // trigger refresh
+  Member(username,egroupname);
+
+  XrdSysMutexHelper lLock(Mutex);
+
+  bool member = false;
+  time_t timetolive = 0;
+  time_t now = time(NULL);
+  if (Map.count(egroupname))
+  {
+    if (Map[egroupname].count(username))
+    {
+      member = Map[egroupname][username];
+      timetolive = labs( LifeTime[egroupname][username] - now );
+    }
+  }
+  std::string rs;
+  rs += "egroup=";
+  rs += egroupname;
+  rs += " user=";
+  rs += username;
+  if (member)
+    rs += " member=true ";
+  else
+    rs += " member=false";
+  rs += " lifetime ";
+  rs += std::to_string((long long)timetolive);
+  return rs;
+}
+
+
+/*----------------------------------------------------------------------------*/
+std::string
+Egroup::DumpMembers ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief DumpMember
+ *
+ * @return egroup dump for all users
+ */
+/*----------------------------------------------------------------------------*/
+{
+  XrdSysMutexHelper lLock(Mutex);
+
+  time_t timetolive = 0;
+  time_t now = time(NULL);
+  std::string rs;
+  std::map < std::string, std::map <std::string, bool > >::iterator it;
+  for (it = Map.begin(); it != Map.end(); ++it) 
+  {
+    std::map <std::string, bool>::iterator uit;
+    for (uit = it->second.begin(); uit != it->second.end(); ++uit)
+    {
+      rs += "egroup=";
+      rs += it->first;
+      rs += " user=";
+      rs += uit->first;
+      if (uit->second) 
+	rs += " member=true";
+      else
+	rs += " member=false";
+      timetolive = labs( LifeTime[it->first][uit->first] - now );
+      rs += " lifetime=";
+      rs += std::to_string((long long)timetolive);
+      rs += "\n";
+    }
+  }
+  return rs;
+}
 
 EOSMGMNAMESPACE_END

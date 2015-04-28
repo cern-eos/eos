@@ -634,6 +634,10 @@ ProcCommand::open (const char* inpath,
     {
       Map();
     }
+    else if (mCmd == "member")
+    {
+      Member();
+    }
     else if (mCmd == "attr")
     {
       Attr();

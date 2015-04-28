@@ -346,6 +346,7 @@ public:
   int Fuse ();
   int Ls ();
   int Map ();
+  int Member ();
   int Mkdir ();
   int Motd ();
   int Quota ();
