@@ -72,6 +72,7 @@ int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk)
 int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
 		mode_t mode, const std::string& opaque, uint16_t timeout)
 {
+    eos_debug("Opening path %s",p.c_str());
     if((errno = getConnection(p, connection)))
         return SFS_ERROR;
     mFilePath = p;
@@ -87,14 +88,18 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
         errno = invalidateConnection(mFilePath, connection);                                        
         return SFS_ERROR;                                                
     }           
+    eos_debug("Opening path %s successful",p.c_str());
     return SFS_OK;
 }
 
 int KineticIo::Close (uint16_t timeout)
 {
+    eos_debug("Closing path %s",mFilePath.c_str());
     if(Sync(timeout) == SFS_ERROR)
         return SFS_ERROR;
     connection.reset();
+    
+    eos_debug("Closing path %s successful",mFilePath.c_str());
     mFilePath = "";
     return SFS_OK;
 }
@@ -104,6 +109,9 @@ enum rw {READ, WRITE};
 int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
 		XrdSfsXferSize length, uint16_t timeout, int mode)
 {
+    eos_debug("%s %ld bytes from offset %ld for path %s", 
+            mode == rw::READ ? "Reading" : "Writing", 
+            length, offset, mFilePath.c_str());
     if(!connection){ 
         eos_err("Connection Nullptr."); 
         errno = ENXIO; 
@@ -136,6 +144,9 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
         offset_done += chunk_length;
     }
 
+    eos_debug("%s %ld bytes from offset %ld for path %s successfully", 
+        mode == rw::READ ? "Read" : "Wrote", 
+        length, offset, mFilePath.c_str());
     return length;
     
 }
@@ -164,6 +175,7 @@ int64_t KineticIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer, XrdS
 
 int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
+    eos_debug("Truncating path %s to offset %ld",mFilePath.c_str(), offset);
     if(!connection){ 
         eos_err("Connection Nullptr."); 
         errno = ENXIO; 
@@ -179,6 +191,7 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
     errno = chunk->truncate(chunk_offset);
     if(errno) return SFS_ERROR;
 
+    eos_debug("Truncating path %s to offset %ld successful",mFilePath.c_str(), offset);
     return SFS_OK;
 }
 
@@ -204,6 +217,7 @@ int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffs
 
 int KineticIo::Remove (uint16_t timeout)
 {
+    eos_debug("Removing path %s",mFilePath.c_str());
     if(!connection){ 
         eos_err("Connection Nullptr."); 
         errno = ENXIO; 
@@ -227,11 +241,13 @@ int KineticIo::Remove (uint16_t timeout)
             }     
         }
     }while(keys->size() == max_size);
+    eos_debug("Removing path %s complete",mFilePath.c_str());
     return SFS_OK;
 }
 
 int KineticIo::Sync (uint16_t timeout)
 {
+    eos_debug("Syncing path %s",mFilePath.c_str());
     if(!connection){ 
         eos_err("Connection Nullptr."); 
         errno = ENXIO; 
@@ -243,20 +259,23 @@ int KineticIo::Sync (uint16_t timeout)
             if(errno) return SFS_ERROR;
         }
     }
+    eos_debug("Syncing %s successful",mFilePath.c_str());
     return SFS_OK;
 }
 
 int KineticIo::Stat (struct stat* buf, uint16_t timeout)
-{
+{   
+    eos_debug("Stat'ing path %s.",mFilePath.c_str());
     if(!connection){ 
         eos_err("Connection Nullptr."); 
         errno = ENXIO; 
         return SFS_ERROR; 
     }
-    /*Syncing outstanding writes to disk means we don't have to look in the cache
+    
+    /* Syncing outstanding writes to disk means we don't have to look in the cache
      * to find the last chunk. Just being lazy. */
-    errno = Sync(timeout);
-    if(errno) return SFS_ERROR;
+    if(Sync(timeout) == SFS_ERROR) 
+        return SFS_ERROR;
 
     unique_ptr<string> key;
     unique_ptr<KineticRecord> record;
@@ -265,7 +284,7 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
        GetPrevious */
     KineticStatus status = connection->GetPrevious(mFilePath+"__",key,record);
     if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){                                      
-        printf("Invalid Connection Status: %d, error message: %s", 
+        eos_err("Invalid Connection Status: %d, error message: %s", 
             status.statusCode(), status.message().c_str());   
         errno = invalidateConnection(mFilePath, connection);                                        
         return SFS_ERROR;                                                        
@@ -285,6 +304,7 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
     buf->st_blocks = chunk_number+1;
     buf->st_size = chunk_number * KineticChunk::capacity + record->value()->size();
 
+    eos_debug("Stat successful for path %s, size is: %ld",mFilePath.c_str(), buf->st_size);
     return SFS_OK;
 }
 
@@ -296,6 +316,8 @@ void* KineticIo::GetAsyncHandler ()
 
 int KineticIo::Statfs (const char* p, struct statfs* sfs)
 {  
+    eos_debug("Requesting statfs for path %s",p);
+    
     /* We don't want to allow Statfs on an Opened() object. */
     if(mFilePath.length() && mFilePath.compare(p))
         return EPERM; 
@@ -326,6 +348,8 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     sfs->f_bfree  = sfs->f_bavail; /* Free blocks available to non root user */
     sfs->f_files   = capacity / KineticChunk::capacity; /* Total inodes */
     sfs->f_ffree   = free / KineticChunk::capacity ; /* Free inodes */
+    
+    eos_debug("Statfs successful for path %s",p);
     return 0;
 }
 
