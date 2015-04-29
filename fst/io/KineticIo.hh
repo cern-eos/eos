@@ -12,6 +12,7 @@
 #include "KineticChunk.hh"
 #include "KineticDriveMap.hh"
 #include <unordered_map>
+#include <chrono>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -69,7 +70,7 @@ public:
         // ------------------------------------------------------------------------
         virtual ~Attr ();
     };   
-
+    
     //--------------------------------------------------------------------------
     //! Open file
     //!
@@ -221,10 +222,11 @@ private:
     //! 
     //! @param chunk_number specifies which 1 MB chunk in the file is requested, 
     //! @param chunk points to chunk on success, otherwise not changed 
+    //! @param create if set, the chunk (probably) does not exist on the drive yet 
     //! @return 0 if successful otherwise errno
     //-------------------------------------------------------------------------- 
-    int getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk);    
-    
+    int getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk, bool create=false);    
+      
     
     //--------------------------------------------------------------------------
     //! Implementation of read and write functionality as most of the code is 
@@ -237,14 +239,20 @@ private:
     //! we don't want to have to look in the drive map for every access
     ConnectionPointer connection;
 
-    //! caching some chunks to aggregate writes and speed up reads
+    //! caching some chunks to aggregate writes and speed up repeated reads
     std::unordered_map<int, std::shared_ptr<KineticChunk>> cache;
     
     //! cache is simply fifo 
     std::queue<int> cache_fifo;
     
-    //! maximum cache capacity as supplied to the constructor, should be #concurrent writes at least
+    //! maximum chunk cache capacity as supplied to the constructor, should be #concurrent writes at least
     size_t cache_capacity;
+        
+    //! tracking the last chunk for stat calls 
+    int last_chunk_number;
+    
+    //! time point it was verified that the last_chunk_number is correct (another client might have created a later chunk)
+    std::chrono::system_clock::time_point last_chunk_number_timestamp;
   
 private:
     KineticIo (const KineticIo&) = delete;

@@ -33,8 +33,9 @@ int KineticChunk::get()
     unique_ptr<KineticRecord> record;
     KineticStatus status = connection->Get(key, record);
 
-    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
+    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
         return EIO;
+    }
 
     string x;
     if(status.ok()){
@@ -136,4 +137,14 @@ int KineticChunk::flush()
 bool KineticChunk::dirty()
 {
     return !updates.empty();
+}
+
+bool KineticChunk::virgin()
+{
+    return version.empty();
+}
+
+int KineticChunk::size()
+{
+    return data.size();
 }

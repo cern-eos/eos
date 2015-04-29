@@ -59,14 +59,32 @@ public:
 
     //--------------------------------------------------------------------------
     //! Flush flushes all changes to the drive.  
+    //!
+    //! @return 0 if successful otherwise errno
     //--------------------------------------------------------------------------
     int flush();
 
     //--------------------------------------------------------------------------
-    //! Test for your flushing needs 
+    //! Return the actual value size. Is up-to-date within expiration_time limits.
+    //!
+    //! @return size in bytes of underlying value 
+    //--------------------------------------------------------------------------
+    int size(); 
+    
+    //--------------------------------------------------------------------------
+    //! Test for your flushing needs.
+    //!
+    //! @return true if unflushed changes exist, false otherwise
     //--------------------------------------------------------------------------
     bool dirty();
     
+    //--------------------------------------------------------------------------
+    //! Checking virgin status is usually frowned upon, but this is an exception. 
+    //!
+    //! @return true if the chunk has never been flushed, false otherwise
+    //--------------------------------------------------------------------------
+    bool virgin();
+        
     //--------------------------------------------------------------------------
     //! Constructor. 
     //! 
@@ -81,6 +99,8 @@ private:
     //--------------------------------------------------------------------------
     //! (Re)reads the on-drive value, merges in any existing changes made via 
     //! write and / or truncate on the local copy of the value. 
+    //! 
+    //! @return 0 if successful otherwise errno
     //--------------------------------------------------------------------------
     int get();
 
