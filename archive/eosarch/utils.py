@@ -46,7 +46,7 @@ def seal_path(path, seal_dict={'&': "#AND#"}):
     return path
 
 
-def unseal_path(path, seal_dict={"#AND#": '&'}):
+def unseal_path(path, seal_dict={"#and#": '&'}):
     """ Unseal a path by replacing the key characters in the dictionary with their
     values so that we are happy.
 

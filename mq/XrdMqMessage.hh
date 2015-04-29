@@ -112,13 +112,13 @@ protected:
 
 public:
 
-  static const char* Seal(XrdOucString &s, const char* seal="#AND#")
+  static const char* Seal(XrdOucString &s, const char* seal="#and#")
   {
     while (s.replace("&",seal)) {};
     return s.c_str();
   }
 
-  static const char* UnSeal(XrdOucString &s, const char* seal="#AND#")
+  static const char* UnSeal(XrdOucString &s, const char* seal="#and#")
   {
     while (s.replace(seal,"&")) {};
     return s.c_str();
