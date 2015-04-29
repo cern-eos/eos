@@ -30,17 +30,38 @@ KineticChunk::~KineticChunk()
 
 int KineticChunk::get()
 {
+    /* See if get is unnecessary based on expiration. */
+    if(duration_cast<milliseconds>(system_clock::now() - timestamp).count() < expiration_time)
+        return 0; 
+    /* Still try to get around a get operation by comparing versions first. */
+    else{
+        unique_ptr<string> version_on_drive;
+        KineticStatus status = connection->GetVersion(key, version_on_drive);
+
+        if(!status.ok()  && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
+            return EIO;
+
+        if((status.statusCode() == StatusCode::REMOTE_NOT_FOUND && version.empty()) ||
+           (version_on_drive->compare(version)==0)){
+            timestamp = system_clock::now();
+            return 0;  
+        }
+    }    
+    
+    /* Remote version changed, have to get record from the drive. */
     unique_ptr<KineticRecord> record;
     KineticStatus status = connection->Get(key, record);
 
-    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND){
+    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
         return EIO;
-    }
-
+   
     string x;
     if(status.ok()){
         x = *record->value();
         version = *record->version();
+    }
+    else{
+        version = "";
     }
     timestamp = system_clock::now();
 
@@ -64,23 +85,10 @@ int KineticChunk::read(char* const buffer, off_t offset, size_t length)
     if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
         return EINVAL;
 
-    /* Ensure data is not too stale to read, re-read if necessary and merge on-drive
-       value with existing local changes */
-    if(duration_cast<milliseconds>(system_clock::now() - timestamp).count() >= expiration_time){
-        unique_ptr<string> version_on_drive;
-        KineticStatus status = connection->GetVersion(key, version_on_drive);
-
-        if(!status.ok()  && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
-            return EIO;
-
-        if((status.statusCode() == StatusCode::REMOTE_NOT_FOUND && version.empty()) ||
-           (version_on_drive->compare(version)==0))
-            timestamp = system_clock::now();
-
-        else if(int err = get())
-            return err;
-    }
-
+    /* Ensure data is not too stale to read. */
+    if(int err = get())
+        return err; 
+    
     /* return 0s if client reads non-existing data (e.g. file with holes) */
     memset(buffer,0,length);
     if(data.size()>(unsigned int)offset)
@@ -146,5 +154,8 @@ bool KineticChunk::virgin()
 
 int KineticChunk::size()
 {
+    /* Ensure size is not too stale. */
+    if(int err = get())
+        return err; 
     return data.size();
 }

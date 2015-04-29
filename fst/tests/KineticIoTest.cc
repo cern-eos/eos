@@ -155,7 +155,13 @@ SCENARIO("KineticIo Public API", "[Io]"){
             REQUIRE(kio2nd.Open(path.c_str(), SFS_O_CREAT) == SFS_OK);
             REQUIRE(kio2nd.Remove() == SFS_OK);
             
-            THEN("Calling stat will fail with ENOENT"){
+            THEN("The the change will not immediately be visible to the first io object"){
+                struct stat stbuf;
+                REQUIRE(kio.Stat(&stbuf) == SFS_OK);
+            }
+            
+            THEN("Calling stat will fail with ENOENT after expiration time has run out."){
+                usleep(KineticChunk::expiration_time * 1000);
                 struct stat stbuf;
                 REQUIRE(kio.Stat(&stbuf) == SFS_ERROR);
                 REQUIRE(errno == ENOENT);
