@@ -238,6 +238,7 @@ SpaceQuota::RmQuota (unsigned long tag, unsigned long id, bool lock)
   eos_static_debug("rm quota tag=%lu id=%lu", tag, id);
   if (lock) Mutex.UnLock();
   return removed;
+  DirtyTarget = true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1419,6 +1420,7 @@ Quota::SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes
       retc = 0;
     }
 
+    spacequota->UpdateLogicalSizeFactor();
     spacequota->UpdateTargetSums();
     return true;
   }
