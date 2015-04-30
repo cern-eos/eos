@@ -128,6 +128,7 @@ int KineticChunk::flush()
     KineticStatus status = connection->Put(key, version, WriteMode::REQUIRE_SAME_VERSION, record);
 
     if (status.statusCode() == StatusCode::REMOTE_VERSION_MISMATCH){
+        timestamp = std::chrono::system_clock::time_point();
         if(int err = get())
             return err;
         return flush();
@@ -142,12 +143,12 @@ int KineticChunk::flush()
     return 0;
 }
 
-bool KineticChunk::dirty()
+bool KineticChunk::dirty() const
 {
     return !updates.empty();
 }
 
-bool KineticChunk::virgin()
+bool KineticChunk::virgin() const
 {
     return version.empty();
 }

@@ -56,7 +56,6 @@ KineticIo::~KineticIo ()
 {
 }
 
-
 int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk, bool create)
 {
     if(cache.count(chunk_number)){
@@ -85,22 +84,21 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
 {
     eos_debug("Opening path %s",p.c_str());
     
-    if((errno = getConnection(p, connection)))
-        return SFS_ERROR;
+    errno = getConnection(p, connection);
+    if(errno) return SFS_ERROR;
     mFilePath = p;
     
     /* All necessary checks have been done in the 993 line long XrdFstOfsFile::open method before we are called. */
     std::shared_ptr<KineticChunk> chunk;
-    if((errno = getChunk(0, chunk)))
-        return SFS_ERROR;
+    errno = getChunk(0, chunk);
+    if(errno) return SFS_ERROR;
 
     /* Make certain there is (at least) one chunk flushed to the drive, otherwise the attribute factory method 
        will fail for an empty opened file. */    
     if(chunk->virgin()){
-        if((errno = chunk->flush()))
-            return SFS_ERROR; 
-        last_chunk_number = 0;
-        last_chunk_number_timestamp = system_clock::now();
+        errno = chunk->flush();
+        if(errno) return SFS_ERROR; 
+        setLastChunkNumber(0);
     }
     
     eos_debug("Opening path %s successful",p.c_str());
@@ -119,7 +117,6 @@ int KineticIo::Close (uint16_t timeout)
     mFilePath = "";
     return SFS_OK;
 }
-
 
 enum rw {READ, WRITE};
 int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
@@ -210,14 +207,14 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
     int chunk_number = offset / KineticChunk::capacity;
     int chunk_offset = offset - chunk_number * KineticChunk::capacity;
     
-    /* Ensure we don't have chunks past chunk_number in the cache. */
-    if((errno = Sync()))
-        return SFS_ERROR;
+    /* Ensure we don't have chunks past chunk_number in the cache. Since truncate isn't super common, go the easy way 
+       and just sync+drop the cache. */
+    errno = Sync();
+    if(errno) return SFS_ERROR;
     cache.clear();
     cache_fifo = std::queue<int>();
         
-    /* Delete all chunks from the drive past chunk_number. If chunk_offset is zero, 
-     * we also want to delete the chunk_number chunk.  */
+    /* Delete all chunks from the drive past chunk_number. If chunk_offset is zero, we also want to delete the chunk_number chunk.  */
     bool including = (chunk_offset == 0);
     std::unique_ptr<std::vector<string>> keys;
     do{
@@ -250,11 +247,13 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 
         errno = chunk->truncate(chunk_offset);
         if(errno) return SFS_ERROR;
+        
+        setLastChunkNumber(chunk_number);
+    }
+    else{
+        setLastChunkNumber(chunk_number-1);
     }
     
-    last_chunk_number = chunk_number;
-    last_chunk_number_timestamp = system_clock::now();
-
     eos_debug("Truncating path %s to offset %ld successful",mFilePath.c_str(), offset);
     return SFS_OK;
 }
@@ -315,49 +314,13 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
         errno = ENXIO; 
         return SFS_ERROR; 
     }
-   
-    /* chunk number verification independent of standard expiration verification in KinetiChunk class. 
-     * validate last_chunk_number (another client might have created new chunks we know nothing
-       about, or truncated the file. */
-    if(duration_cast<milliseconds>(system_clock::now() - last_chunk_number_timestamp).count() >= KineticChunk::expiration_time){
-     
-        /* check if keys past the current last_chunk exist. */
-        std::unique_ptr<std::vector<string>> keys;
-        do{
-            KineticStatus status = connection->GetKeyRange( 
-                    keys ? keys->back() : chunkPath(mFilePath,last_chunk_number), 
-                    true, "|", true, false, 100, keys);
-            if(!status.ok()){                                      
-                eos_err("Invalid Connection Status: %d, error message: %s", 
-                    status.statusCode(), status.message().c_str());   
-                errno = invalidateConnection(mFilePath, connection);                                        
-                return SFS_ERROR;                                                        
-            }     
-        }while(keys->size() == 100);
-        
-        if(keys->empty()){
-            if(last_chunk_number == 0){
-                /* Somebody removed the file, even chunk 0 is no longer available. */
-                eos_info("File %s has been removed by another client.", mFilePath.c_str());
-                errno = ENOENT; 
-                return SFS_ERROR; 
-            }
-            /* The file might have been truncated, retry but start the search 
-               from chunk 0 this time. */
-            last_chunk_number = 0;
-            return Stat(buf, timeout);
-        }
-        
-        /* Get chunk number from last chunk key and update timestamp. */
-        std::string chunkstr = keys->back().substr(
-                keys->back().find_last_of('_') + 1,keys->back().length());
-        last_chunk_number = std::stoll(chunkstr);
-        last_chunk_number_timestamp = system_clock::now();
-    }
+    
+    errno = verifyLastChunkNumber(); 
+    if(errno) return SFS_ERROR;
 
     std::shared_ptr<KineticChunk> last_chunk;
-    if((errno = getChunk(last_chunk_number, last_chunk)))
-        return SFS_ERROR;    
+    errno = getChunk(last_chunk_number, last_chunk);
+    if(errno) return SFS_ERROR;    
     
     memset(buf, 0, sizeof(struct stat));
     buf->st_blksize = KineticChunk::capacity;
@@ -410,6 +373,53 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     
     eos_debug("Statfs successful for path %s",p);
     return 0;
+}
+
+void KineticIo::setLastChunkNumber(int chunk_number)
+{
+    last_chunk_number = chunk_number;
+    last_chunk_number_timestamp = system_clock::now();
+}
+
+int KineticIo::verifyLastChunkNumber()
+{
+    /* chunk number verification independent of standard expiration verification in KinetiChunk class. 
+     * validate last_chunk_number (another client might have created new chunks we know nothing
+       about, or truncated the file. */
+    if(duration_cast<milliseconds>(system_clock::now() - last_chunk_number_timestamp).count() < KineticChunk::expiration_time)
+        return 0; 
+         
+    /* Technically, we could start at chunk 0 to catch all cases... but that the file is truncated by another client
+     * while opened here is highly unlikely. And for big files this would mean unnecessary GetKeyRange requests for the 
+     * regular case.  */
+    std::unique_ptr<std::vector<string>> keys;
+    do{
+        KineticStatus status = connection->GetKeyRange( 
+                keys ? keys->back() : chunkPath(mFilePath, last_chunk_number), 
+                true, "|", true, false, 100, keys);
+        if(!status.ok()){                                      
+            eos_err("Invalid Connection Status: %d, error message: %s", 
+                status.statusCode(), status.message().c_str());   
+            return invalidateConnection(mFilePath, connection);                                                                                                
+        }     
+    }while(keys->size() == 100);
+
+    /* Success: get chunk number from last key.*/    
+    if(keys->size() > 0){
+        std::string chunkstr = keys->back().substr(keys->back().find_last_of('_') + 1,keys->back().length());
+        setLastChunkNumber(std::stoll(chunkstr));
+        return 0;
+    }
+    
+    /* No keys found. the file might have been truncated, retry but start the search from chunk 0 this time. */
+    if(last_chunk_number > 0){
+        last_chunk_number = 0;
+        return verifyLastChunkNumber(); 
+    }
+    
+    /* Somebody removed the file, even chunk 0 is no longer available. */
+    eos_info("File %s has been removed by another client.", mFilePath.c_str());
+    return ENOENT; 
 }
 
 KineticIo::Attr::Attr(const char* path, ConnectionPointer con) : 

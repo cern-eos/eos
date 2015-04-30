@@ -13,6 +13,7 @@
 #include "KineticDriveMap.hh"
 #include <unordered_map>
 #include <chrono>
+#include <thread>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -226,7 +227,21 @@ private:
     //! @return 0 if successful otherwise errno
     //-------------------------------------------------------------------------- 
     int getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk, bool create=false);    
-      
+   
+    //--------------------------------------------------------------------------
+    //! Checks if the chunk number stored in last_chunk_number is still valid, 
+    //! if not it will query the drive to obtain the up-to-date last chunk. 
+    //! 
+    //! @return 0 if successful otherwise errno
+    //-------------------------------------------------------------------------- 
+    int  verifyLastChunkNumber(); 
+    
+    //--------------------------------------------------------------------------
+    //! Set the supplied chunk number as last chunk. 
+    //! 
+    //! @param chunk_number The chunk number to be set. 
+    //--------------------------------------------------------------------------  
+    void setLastChunkNumber(int chunk_number);
     
     //--------------------------------------------------------------------------
     //! Implementation of read and write functionality as most of the code is 
@@ -234,7 +249,7 @@ private:
     //-------------------------------------------------------------------------- 
     int64_t doReadWrite (XrdSfsFileOffset offset, char* buffer,
 		XrdSfsXferSize length, uint16_t timeout, int mode);
-  
+    
 private:
     //! we don't want to have to look in the drive map for every access
     ConnectionPointer connection;
@@ -253,7 +268,7 @@ private:
     
     //! time point it was verified that the last_chunk_number is correct (another client might have created a later chunk)
     std::chrono::system_clock::time_point last_chunk_number_timestamp;
-  
+        
 private:
     KineticIo (const KineticIo&) = delete;
     KineticIo& operator = (const KineticIo&) = delete;

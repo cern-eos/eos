@@ -76,14 +76,14 @@ public:
     //!
     //! @return true if unflushed changes exist, false otherwise
     //--------------------------------------------------------------------------
-    bool dirty();
+    bool dirty() const;
     
     //--------------------------------------------------------------------------
     //! Checking virgin status is usually frowned upon, but this is an exception. 
     //!
     //! @return true if the chunk has never been flushed, false otherwise
     //--------------------------------------------------------------------------
-    bool virgin();
+    bool virgin() const;
         
     //--------------------------------------------------------------------------
     //! Constructor. 
