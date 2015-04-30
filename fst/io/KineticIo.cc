@@ -140,11 +140,10 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
         int chunk_number = (offset+offset_done) / KineticChunk::capacity;
         int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
         int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
-        bool create=false;
-        
+      
+        bool create=false; 
         if(chunk_number > last_chunk_number){
-            last_chunk_number = chunk_number;
-            last_chunk_number_timestamp = system_clock::now();
+            setLastChunkNumber(chunk_number);
             create = true; 
         }
         
@@ -154,21 +153,36 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
         if(mode == rw::WRITE){
             errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
             if(errno) return SFS_ERROR;
-            if(chunk_offset + chunk_length == KineticChunk::capacity)
+            if(chunk_offset + chunk_length == KineticChunk::capacity){
                 errno = chunk->flush();
+                if(errno) return SFS_ERROR;
+            }
         }
         else if (mode == rw::READ){
+            /* standard read */
             errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
+            if(errno) return SFS_ERROR;
+              
+             /* last chunk... only read up to filesize. */
+            if(chunk_number >= last_chunk_number){    
+                if(chunk->size() > chunk_offset)
+                    length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);
+                if(length==length_todo){
+                    errno = EFAULT;
+                    return SFS_ERROR;
+                }                
+                break;
+            }
         }
-        if(errno) return SFS_ERROR;
+
         length_todo -= chunk_length;
         offset_done += chunk_length;      
     }
 
     eos_debug("%s %d bytes from offset %ld for path %s successfully", 
         mode == rw::READ ? "Read" : "Wrote", 
-        length, offset, mFilePath.c_str());
-    return length;
+        length-length_todo, offset, mFilePath.c_str());
+    return length-length_todo;
     
 }
 

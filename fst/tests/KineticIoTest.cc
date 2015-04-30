@@ -106,6 +106,10 @@ SCENARIO("KineticIo Public API", "[Io]"){
                 REQUIRE(memcmp(write_buf,read_buf,buf_size) == 0);
             }
         }
+        
+        THEN("Reading is not possible on an empty offset."){
+            REQUIRE(kio.Read(0,read_buf,buf_size) == SFS_ERROR);
+        }
 
         THEN("Writing is possible from object start."){
             REQUIRE(kio.Write(0, write_buf, buf_size) == buf_size);
@@ -125,16 +129,11 @@ SCENARIO("KineticIo Public API", "[Io]"){
                 REQUIRE(kio.Read(1000000, read_buf, buf_size) == buf_size);
                 REQUIRE(memcmp(write_buf,read_buf,buf_size) == 0);
             }
-        }
-
-        THEN("Reading is possible from object start even if nothing was written."){
-            REQUIRE(kio.Read(0,read_buf,buf_size) == buf_size);
-            REQUIRE(memcmp(read_buf,null_buf,buf_size) == 0);
-        }
-
-        THEN("Reading is possible from an offset even if nothing was written."){
-            REQUIRE(kio.Read(1000000,read_buf,buf_size) == buf_size);
-            REQUIRE(memcmp(read_buf,null_buf,buf_size) == 0);
+            
+            AND_THEN("Reading with offset < filesize but offset+length > filesize only reads to filesize limits"){
+                memset(read_buf,0,buf_size);
+                REQUIRE(kio.Read(1000000+buf_size/2, read_buf, buf_size) == buf_size/2);
+            }
         }
 
         THEN("Stat should succeed and report a file size of 0"){
