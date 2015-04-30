@@ -8,6 +8,20 @@ Beryl Release Notes
 
 ``Version V0.3.111 Beryl-Aquamarine``
 
+New Features
+------------
+
+- add support for nested EGROUPS
+- add 'member' CLI to check egroup membership
+
+Bug Fixes
+---------
+- fix logical quota summary accounting bug
+- fix not working 'file version' command for directories with 'sys.versioning=1' configured
+- fix order violation bug in 'Drop' implementation which might lead to SEGV 
+
+``Version V0.3.111 Beryl-Aquamarine``
+
 Bug Fixes
 ---------
 - redirect "file versions' to the master
