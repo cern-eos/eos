@@ -481,31 +481,28 @@ Fsck::Check (void)
       for (it = fid2check.begin(); it != fid2check.end(); it++)
       {
         eos::FileMD* fmd = 0;
+        eos::FileMD fmdCopy(0, 0);
 
-        // ---------------------------------------------------------------------
-        // check if locations are online
-        // ---------------------------------------------------------------------
-        eos::FileMD::LocationVector::const_iterator lociter;
+        // Check if locations are online
         try
         {
           eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
           fmd = gOFS->eosFileService->getFileMD(*it);
+          fmdCopy = *fmd;
         }
         catch (eos::MDException &e)
         {
-          // -------------------------------------------------------------------
-          // nothing to catch
-          // -------------------------------------------------------------------
+          fmd = 0;
         }
+
         if (!fmd)
           continue;
 
-        eos::FileMD fmdCopy(*fmd);
         fmd = &fmdCopy;
-
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         size_t nlocations = fmd->getNumLocation();
         size_t offlinelocations = 0;
+        eos::FileMD::LocationVector::const_iterator lociter;
 
         for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
         {
