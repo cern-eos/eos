@@ -27,9 +27,18 @@ SCENARIO("Single chunk public API test.", "[Chunk]"){
             REQUIRE(c.write(buf,1024*1024,1) == EINVAL);
         }
 
-        THEN("The chunk is not dirty."){
-            REQUIRE(c.dirty() == false);
+        THEN("The chunk is dirty."){
+            REQUIRE(c.dirty() == true);
         }
+        
+        WHEN("The empty chunk is flushed."){
+            REQUIRE(c.flush() == 0);
+            THEN("The chunk is not dirty."){
+                REQUIRE(c.dirty() == false);
+            }
+        }
+        
+        
 
         WHEN("Something is written to the chunk."){
             char in[] = "0123456789";

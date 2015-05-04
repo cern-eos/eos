@@ -1,6 +1,7 @@
 #include "KineticIo.hh"
 #include <sstream>
 #include <iomanip>
+#include <thread>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -21,62 +22,41 @@ static KineticDriveMap & dm()
     static KineticDriveMap dmap;
     return dmap;
 }
-static string extractDriveID(const std::string &path)
-{
-    size_t id_start = path.find_first_of(':') + 1;
-    size_t id_end   = path.find_first_of(':', id_start);
-    return path.substr(id_start, id_end-id_start);
-}
 static int getConnection(const std::string &path, ConnectionPointer &con)
 {
-    return dm().getConnection(extractDriveID(path), con);
+    return dm().getConnection(path_util::driveID(path), con);
 }
 static int invalidateConnection(const std::string &path, ConnectionPointer &con)
 {
-    /* invalidate connection... forget local pointer and inform drive map to 
+    /* invalidate connection... forget local pointer and inform drive map to forget
      * about the connection state. */
-    dm().invalidateConnection(extractDriveID(path));                  
+    dm().invalidateConnection(path_util::driveID(path));                  
     con.reset(); 
     return EIO;   
 }
-static string chunkPath(std::string path, int chunk_number){
+
+std::string path_util::chunkString(const std::string& path, int chunk_number)
+{
     std::ostringstream ss;
     ss << std::setw(10) << std::setfill('0') << chunk_number;
     return path+"_"+ss.str();
 }
 
+std::string path_util::driveID(const std::string& path)
+{
+    size_t id_start = path.find_first_of(':') + 1;
+    size_t id_end   = path.find_first_of(':', id_start);
+    return path.substr(id_start, id_end-id_start);
+}
+
 KineticIo::KineticIo (size_t cache_capacity) :
-    connection(), cache(), cache_fifo(), cache_capacity(cache_capacity), 
-        last_chunk_number(0), last_chunk_number_timestamp()
+    connection(), cache(*this, cache_capacity), lastChunkNumber(*this)
 {
     mType = "KineticIo";
 }
 
 KineticIo::~KineticIo ()
 {
-}
-
-int KineticIo::getChunk (int chunk_number, std::shared_ptr<KineticChunk>& chunk, bool create)
-{
-    if(cache.count(chunk_number)){
-        chunk = cache.at(chunk_number);
-        return 0;
-    }
-
-    if(cache_fifo.size() >= cache_capacity){
-        auto old = cache.at(cache_fifo.front());
-        if(old->dirty())
-            if(int err = old->flush()){
-                eos_err("Flushing dirty chunk failed with error code: %d",err);
-                return err;
-            }
-        cache_fifo.pop();
-     }
-    
-    chunk.reset(new KineticChunk(connection, chunkPath(mFilePath,chunk_number), create));
-    cache.insert(std::make_pair(chunk_number, chunk));
-    cache_fifo.push(chunk_number);
-    return 0;
 }
 
 int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
@@ -90,15 +70,15 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
     
     /* All necessary checks have been done in the 993 line long XrdFstOfsFile::open method before we are called. */
     std::shared_ptr<KineticChunk> chunk;
-    errno = getChunk(0, chunk);
+    errno = cache.get(0, chunk);
     if(errno) return SFS_ERROR;
 
     /* Make certain there is (at least) one chunk flushed to the drive, otherwise the attribute factory method 
        will fail for an empty opened file. */    
-    if(chunk->virgin()){
+    if(chunk->dirty()){
         errno = chunk->flush();
         if(errno) return SFS_ERROR; 
-        setLastChunkNumber(0);
+        lastChunkNumber.set(0);
     }
     
     eos_debug("Opening path %s successful",p.c_str());
@@ -142,21 +122,21 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
         int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
       
         bool create=false; 
-        if(chunk_number > last_chunk_number){
-            setLastChunkNumber(chunk_number);
+        if(chunk_number > lastChunkNumber.get()){
+            lastChunkNumber.set(chunk_number);
             create = true; 
         }
         
-        errno = getChunk(chunk_number, chunk, create);
+        errno = cache.get(chunk_number, chunk, create);
         if(errno) return SFS_ERROR;
 
         if(mode == rw::WRITE){
             errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
             if(errno) return SFS_ERROR;
-            if(chunk_offset + chunk_length == KineticChunk::capacity){
-                errno = chunk->flush();
-                if(errno) return SFS_ERROR;
-            }
+           
+            /* flush chunk in background if writing to chunk capacity. */
+            if(chunk_offset + chunk_length == KineticChunk::capacity)
+                cache.requestFlush(chunk_number); 
         }
         else if (mode == rw::READ){
             /* standard read */
@@ -164,7 +144,7 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
             if(errno) return SFS_ERROR;
               
              /* last chunk... only read up to filesize. */
-            if(chunk_number >= last_chunk_number){    
+            if(chunk_number >= lastChunkNumber.get()){    
                 if(chunk->size() > chunk_offset)
                     length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);
                 if(length==length_todo){
@@ -226,14 +206,13 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
     errno = Sync();
     if(errno) return SFS_ERROR;
     cache.clear();
-    cache_fifo = std::queue<int>();
         
     /* Delete all chunks from the drive past chunk_number. If chunk_offset is zero, we also want to delete the chunk_number chunk.  */
     bool including = (chunk_offset == 0);
     std::unique_ptr<std::vector<string>> keys;
     do{
         KineticStatus status = connection->GetKeyRange( 
-                chunkPath(mFilePath,chunk_number), 
+                path_util::chunkString(mFilePath, chunk_number), 
                 including, "|", true, false, 100, keys);
         
         if(!status.ok()){                                      
@@ -256,16 +235,16 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
  
     if(chunk_offset){
         shared_ptr<KineticChunk> chunk;
-        errno = getChunk(chunk_number, chunk);
+        errno = cache.get(chunk_number, chunk);
         if(errno) return SFS_ERROR;
 
         errno = chunk->truncate(chunk_offset);
         if(errno) return SFS_ERROR;
         
-        setLastChunkNumber(chunk_number);
+        lastChunkNumber.set(chunk_number);
     }
     else{
-        setLastChunkNumber(chunk_number-1);
+        lastChunkNumber.set(chunk_number-1);
     }
     
     eos_debug("Truncating path %s to offset %ld successful",mFilePath.c_str(), offset);
@@ -308,12 +287,9 @@ int KineticIo::Sync (uint16_t timeout)
         errno = ENXIO; 
         return SFS_ERROR; 
     }
-    for (auto it=cache.begin(); it!=cache.end(); ++it){
-        if(it->second->dirty()){
-            errno = it->second->flush();
-            if(errno) return SFS_ERROR;
-        }
-    }
+    
+    errno = cache.flush(); 
+    if(errno) return SFS_ERROR; 
     
     eos_debug("Syncing %s successful",mFilePath.c_str());
     return SFS_OK;
@@ -329,17 +305,17 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
         return SFS_ERROR; 
     }
     
-    errno = verifyLastChunkNumber(); 
+    errno = lastChunkNumber.verify(); 
     if(errno) return SFS_ERROR;
 
     std::shared_ptr<KineticChunk> last_chunk;
-    errno = getChunk(last_chunk_number, last_chunk);
+    errno = cache.get(lastChunkNumber.get(), last_chunk);
     if(errno) return SFS_ERROR;    
     
     memset(buf, 0, sizeof(struct stat));
     buf->st_blksize = KineticChunk::capacity;
-    buf->st_blocks  = last_chunk_number + 1;
-    buf->st_size    = last_chunk_number * KineticChunk::capacity + last_chunk->size();
+    buf->st_blocks  = lastChunkNumber.get() + 1;
+    buf->st_size    = lastChunkNumber.get() * KineticChunk::capacity + last_chunk->size();
 
     eos_debug("Stat successful for path %s, size is: %ld",mFilePath.c_str(), buf->st_size);
     return SFS_OK;
@@ -389,13 +365,25 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     return 0;
 }
 
-void KineticIo::setLastChunkNumber(int chunk_number)
+KineticIo::LastChunkNumber::LastChunkNumber(KineticIo & parent) : 
+            parent(parent), last_chunk_number(0), last_chunk_number_timestamp()
+{}
+
+KineticIo::LastChunkNumber::~LastChunkNumber()
+{}
+
+int KineticIo::LastChunkNumber::get() const
+{
+    return last_chunk_number;
+}
+
+void KineticIo::LastChunkNumber::set(int chunk_number)
 {
     last_chunk_number = chunk_number;
     last_chunk_number_timestamp = system_clock::now();
 }
 
-int KineticIo::verifyLastChunkNumber()
+int KineticIo::LastChunkNumber::verify()
 {
     /* chunk number verification independent of standard expiration verification in KinetiChunk class. 
      * validate last_chunk_number (another client might have created new chunks we know nothing
@@ -408,31 +396,31 @@ int KineticIo::verifyLastChunkNumber()
      * regular case.  */
     std::unique_ptr<std::vector<string>> keys;
     do{
-        KineticStatus status = connection->GetKeyRange( 
-                keys ? keys->back() : chunkPath(mFilePath, last_chunk_number), 
+        KineticStatus status = parent.connection->GetKeyRange( 
+                keys ? keys->back() : path_util::chunkString(parent.mFilePath, last_chunk_number), 
                 true, "|", true, false, 100, keys);
         if(!status.ok()){                                      
             eos_err("Invalid Connection Status: %d, error message: %s", 
                 status.statusCode(), status.message().c_str());   
-            return invalidateConnection(mFilePath, connection);                                                                                                
+            return invalidateConnection(parent.mFilePath, parent.connection);                                                                                                
         }     
     }while(keys->size() == 100);
 
     /* Success: get chunk number from last key.*/    
     if(keys->size() > 0){
         std::string chunkstr = keys->back().substr(keys->back().find_last_of('_') + 1,keys->back().length());
-        setLastChunkNumber(std::stoll(chunkstr));
+        set(std::stoll(chunkstr));
         return 0;
     }
     
     /* No keys found. the file might have been truncated, retry but start the search from chunk 0 this time. */
     if(last_chunk_number > 0){
         last_chunk_number = 0;
-        return verifyLastChunkNumber(); 
+        return verify(); 
     }
     
     /* Somebody removed the file, even chunk 0 is no longer available. */
-    eos_info("File %s has been removed by another client.", mFilePath.c_str());
+    eos_info("File %s has been removed by another client.", parent.mFilePath.c_str());
     return ENOENT; 
 }
 
@@ -515,7 +503,7 @@ KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
         return 0;
     
     unique_ptr<string> version;
-    KineticStatus status = con->GetVersion(chunkPath(path,0), version);
+    KineticStatus status = con->GetVersion(path_util::chunkString(path,0), version);
     if(!status.ok())
         return 0;
     
@@ -525,6 +513,101 @@ KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
 KineticIo::Attr* KineticIo::Attr::OpenAttribute (const char* path)
 {
     return OpenAttr(path);
+}
+
+KineticIo::KineticChunkCache::KineticChunkCache(KineticIo & parent, size_t cache_capacity):
+    parent(parent), capacity(cache_capacity), background_run(true), background_shutdown(false)
+{
+    std::thread(&KineticChunkCache::background, this).detach();
+}
+
+KineticIo::KineticChunkCache::~KineticChunkCache()
+{
+    background_run = false; 
+    background_trigger.notify_all();
+    
+    std::unique_lock<std::mutex> lock(background_mutex);      
+    while(background_shutdown==false)
+        background_trigger.wait(lock);
+}
+
+void KineticIo::KineticChunkCache::clear()
+{
+    {
+    std::lock_guard<std::mutex> lock(background_mutex);
+    background_queue = std::queue<int>();
+    }    
+    cache.clear();
+    lru_order.clear();
+}
+
+int KineticIo::KineticChunkCache::flush()
+{
+    for (auto it=cache.begin(); it!=cache.end(); ++it){
+        int err = it->second->flush();
+        if(err) return err; 
+    }   
+    return 0;
+}
+
+int KineticIo::KineticChunkCache::get(int chunk_number, std::shared_ptr<KineticChunk>& chunk, bool create)
+{
+    if(cache.count(chunk_number)){
+        chunk = cache.at(chunk_number);
+        lru_order.remove(chunk_number);
+        lru_order.push_back(chunk_number); 
+        return 0;
+    }
+            
+    if(lru_order.size() >= capacity){   
+        if(int err = cache.at(lru_order.front())->flush())
+            return err;
+        
+        cache.erase(lru_order.front());
+        lru_order.pop_front();        
+    }
+    
+    chunk.reset(new KineticChunk(parent.connection, path_util::chunkString(parent.mFilePath, chunk_number), create));
+    cache.insert(std::make_pair(chunk_number,chunk));
+    lru_order.push_back(chunk_number); 
+    return 0;
+}
+
+void KineticIo::KineticChunkCache::requestFlush(int chunk_number)
+{
+    {
+    std::lock_guard<std::mutex> lock(background_mutex);
+    background_queue.push(chunk_number);
+    }
+    background_trigger.notify_all();
+}
+
+void KineticIo::KineticChunkCache::background()
+{
+    while(background_run){
+        
+        /* Obtain chunk number from background queue. */
+        int chunk_number;
+        {
+            std::unique_lock<std::mutex> lock(background_mutex);      
+            while(background_queue.empty() && background_run)
+                background_trigger.wait(lock);
+
+            chunk_number = background_queue.front();
+            background_queue.pop();            
+        }
+        
+        /* The chunk is not guaranteed to actually be in the cache. If it isn't 
+           no harm no foul. */
+        shared_ptr<KineticChunk> chunk;
+        try{
+            chunk = cache.at(chunk_number);
+        } catch (const std::out_of_range& oor){}
+        if(chunk) chunk->flush();   
+    }
+    
+    background_shutdown = true; 
+    background_trigger.notify_all();
 }
 
 

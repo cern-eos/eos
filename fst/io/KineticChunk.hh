@@ -7,19 +7,19 @@
 #define KINETICCHUNK_HH_
 
 /*----------------------------------------------------------------------------*/
+#include "kinetic/kinetic.h"
 #include <chrono>
 #include <string>
+#include <mutex>
 #include <list>
-#include "kinetic/kinetic.h"
 /*----------------------------------------------------------------------------*/
 
 typedef std::shared_ptr<kinetic::BlockingKineticConnectionInterface> ConnectionPointer;
 
-
 //------------------------------------------------------------------------------
 //! High(er) level API for Kinetic keys. Handles incremental updates and resolves concurrency
 //! on chunk-basis. For multi-chunk atomic writes the caller will have to do appropriate locking
-//! himself.
+//! himself. Is threadsafe to enable background flushing. 
 //------------------------------------------------------------------------------
 class KineticChunk {
 public:
@@ -58,7 +58,8 @@ public:
     int truncate(off_t offset);
 
     //--------------------------------------------------------------------------
-    //! Flush flushes all changes to the drive.  
+    //! Flush flushes all changes to the drive. Does not incur IO if chunk is
+    //! not dirty. 
     //!
     //! @return 0 if successful otherwise errno
     //--------------------------------------------------------------------------
@@ -72,19 +73,13 @@ public:
     int size(); 
     
     //--------------------------------------------------------------------------
-    //! Test for your flushing needs.
+    //! Test for your flushing needs. Chunk is considered dirty if it is either
+    //! freshly created or it has been written since its last flush. 
     //!
-    //! @return true if unflushed changes exist, false otherwise
+    //! @return true if dirty changes exist, false otherwise. 
     //--------------------------------------------------------------------------
     bool dirty() const;
     
-    //--------------------------------------------------------------------------
-    //! Checking virgin status is usually frowned upon, but this is an exception. 
-    //!
-    //! @return true if the chunk has never been flushed, false otherwise
-    //--------------------------------------------------------------------------
-    bool virgin() const;
-        
     //--------------------------------------------------------------------------
     //! Constructor. 
     //! 
@@ -122,8 +117,10 @@ private:
 
     //! a list of bit-regions that have been changed since this data block has last been flushed
     std::list<std::pair<off_t, size_t> > updates;
-};
 
+    //! thread-safety 
+    std::mutex mutex;
+};
 
 #endif
 

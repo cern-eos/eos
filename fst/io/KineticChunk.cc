@@ -13,6 +13,7 @@ using std::chrono::system_clock;
 using std::chrono::duration_cast;
 
 
+
 const int KineticChunk::expiration_time = 1000;
 const int KineticChunk::capacity = 1048576;
 
@@ -85,6 +86,8 @@ int KineticChunk::read(char* const buffer, off_t offset, size_t length)
     if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
         return EINVAL;
 
+    std::lock_guard<std::mutex> lock(mutex); 
+    
     /* Ensure data is not too stale to read. */
     if(int err = get())
         return err; 
@@ -101,6 +104,8 @@ int KineticChunk::write(const char* const buffer, off_t offset, size_t length)
     if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
         return EINVAL;
 
+    std::lock_guard<std::mutex> lock(mutex); 
+    
     data.resize(std::max((size_t) offset + length, data.size()));
     data.replace(offset, length, buffer, length);
     updates.push_back(std::pair<off_t, size_t>(offset, length));
@@ -111,7 +116,9 @@ int KineticChunk::truncate(off_t offset)
 {
     if(offset<0 || offset>capacity)
         return EINVAL;
-
+    
+    std::lock_guard<std::mutex> lock(mutex); 
+    
     data.resize(offset);
     updates.push_back(std::pair<off_t, size_t>(offset, 0));
     return 0;
@@ -119,11 +126,16 @@ int KineticChunk::truncate(off_t offset)
 
 
 int KineticChunk::flush()
-{
+{   
+    std::lock_guard<std::mutex> lock(mutex); 
+        
+    if(!dirty()) 
+        return 0;
+       
     uuid_t uuid;
     uuid_generate(uuid);
     string new_version(reinterpret_cast<const char *>(uuid), sizeof(uuid_t));
-
+   
     KineticRecord record(data, new_version, "", Command_Algorithm_SHA1);
     KineticStatus status = connection->Put(key, version, WriteMode::REQUIRE_SAME_VERSION, record);
 
@@ -145,16 +157,15 @@ int KineticChunk::flush()
 
 bool KineticChunk::dirty() const
 {
+    if(version.empty()) 
+        return true;
     return !updates.empty();
-}
-
-bool KineticChunk::virgin() const
-{
-    return version.empty();
 }
 
 int KineticChunk::size()
 {
+    std::lock_guard<std::mutex> lock(mutex); 
+    
     /* Ensure size is not too stale. */
     if(int err = get())
         return err; 
