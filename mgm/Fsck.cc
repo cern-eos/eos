@@ -480,32 +480,27 @@ Fsck::Check (void)
 
       for (it = fid2check.begin(); it != fid2check.end(); it++)
       {
-        eos::IFileMD* fmd = 0;
+        eos::IFileMD* fmd {0};
+        std::unique_ptr<eos::IFileMD> fmd_cpy {0};
 
-        // ---------------------------------------------------------------------
-        // check if locations are online
-        // ---------------------------------------------------------------------
+        // Check if locations are online
         try
         {
           eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
           fmd = gOFS->eosFileService->getFileMD(*it);
-          fmdCopy = *fmd;
+          fmd_cpy.reset(fmd->clone());
+          fmd = (eos::IFileMD*)(0);
         }
-        catch (eos::MDException &e)
-        {
-          fmd = 0;
-        }
+        catch (eos::MDException &e) {}
 
-        if (!fmd)
+        if (fmd_cpy.get() == 0)
           continue;
 
-        eos::FileMD fmdCopy(fmd);
-        fmd = &fmdCopy;
         eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-        size_t nlocations = fmd->getNumLocation();
+        size_t nlocations = fmd_cpy->getNumLocation();
         size_t offlinelocations = 0;
         eos::IFileMD::LocationVector::const_iterator lociter;
-        eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+        eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
 
         for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
         {
@@ -519,14 +514,10 @@ Fsck::Check (void)
               eos::common::FileSystem::fsstatus_t configstatus =
                       (FsView::gFsView.mIdView[*lociter]->GetConfigStatus());
 
-              bool conda =
-                      (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) == eos::common::FileSystem::kOffline);
-
-              bool condb =
-                      (bootstatus != eos::common::FileSystem::kBooted);
-
-              bool condc =
-                      (configstatus == eos::common::FileSystem::kDrainDead);
+              bool conda = (FsView::gFsView.mIdView[*lociter]->GetActiveStatus(true) ==
+                            eos::common::FileSystem::kOffline);
+              bool condb = (bootstatus != eos::common::FileSystem::kBooted);
+              bool condc = (configstatus == eos::common::FileSystem::kDrainDead);
 
               if (conda || condb || condc)
               {
@@ -1312,10 +1303,8 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
         {
           fmd = gOFS->eosFileService->getFileMD(*it);
         }
-        catch (eos::MDException &e)
-        {
-          fmd = 0;
-        }
+        catch (eos::MDException &e) { }
+
         if (fmd)
         {
           int lretc = 0;

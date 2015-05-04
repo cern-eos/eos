@@ -177,7 +177,7 @@ namespace eos
       throw e;
     }
 
-    // Check it the file of this name can be inserted
+    // Check if the file of this name can be inserted
     if( cont->findContainer( elements[position] ) )
     {
       MDException e( EEXIST );

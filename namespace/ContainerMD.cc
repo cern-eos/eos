@@ -33,6 +33,7 @@ namespace eos
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMD::ContainerMD(id_t id):
+  IContainerMD(),
   pId(id),
   pParentId(0),
   pFlags(0),
@@ -48,6 +49,15 @@ ContainerMD::ContainerMD(id_t id):
   pFiles.set_deleted_key("");
   pSubContainers.set_empty_key("##_EMPTY_##");
   pFiles.set_empty_key("##_EMPTY_##");
+}
+
+//------------------------------------------------------------------------------
+// Virtual copy constructor
+//------------------------------------------------------------------------------
+ContainerMD*
+ContainerMD::clone() const
+{
+  return new ContainerMD(*this);
 }
 
 //------------------------------------------------------------------------------
@@ -74,35 +84,6 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pACLId    = other.pACLId;
   pXAttrs   = other.pXAttrs;
   pFlags    = other.pFlags;
-  return *this;
-}
-
-//------------------------------------------------------------------------------
-// Copy constructor from IContainerMD
-//------------------------------------------------------------------------------
-ContainerMD::ContainerMD(const IContainerMD* other)
-{
-  *this = other;
-}
-
-//------------------------------------------------------------------------------
-//! Assignment operator from IContainerMD
-//------------------------------------------------------------------------------
-ContainerMD&
-ContainerMD::operator = (const IContainerMD* other)
-{
-  const ContainerMD* dmd = dynamic_cast<const ContainerMD*>(other);
-  pId       = dmd->pId;
-  pParentId = dmd->pParentId;
-  pFlags    = dmd->pFlags;
-  pCTime    = dmd->pCTime;
-  pName     = dmd->pName;
-  pCUid     = dmd->pCUid;
-  pCGid     = dmd->pCGid;
-  pMode     = dmd->pMode;
-  pACLId    = dmd->pACLId;
-  pXAttrs   = dmd->pXAttrs;
-  pFlags    = dmd->pFlags;
   return *this;
 }
 
@@ -337,5 +318,79 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 
   char other = convertModetOther(pMode);
   return checkPerms(other, convFlags);
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to first subcontainer. Must be used in conjunction with
+// nextContainer to iterate over the list of subcontainers.
+//------------------------------------------------------------------------------
+IContainerMD*
+ContainerMD::beginSubContainer()
+{
+  if (pSubContainers.empty())
+  {
+    pIterContainer = pSubContainers.end();
+    return (IContainerMD*)(0);
+  }
+  else
+  {
+    pIterContainer = pSubContainers.begin();
+    return pIterContainer->second;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to the next subcontainer object. Must be used in conjunction
+// with beginContainers to iterate over the list of subcontainers.
+//------------------------------------------------------------------------------
+IContainerMD*
+ContainerMD::nextSubContainer()
+{
+  if (pIterContainer == pSubContainers.end())
+    return (IContainerMD*)(0);
+
+  ++pIterContainer;
+
+  if (pIterContainer == pSubContainers.end())
+    return (IContainerMD*)(0);
+  else
+    return pIterContainer->second;
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to first file in the container. Must be used in conjunction
+// with nextFile to iterate over the list of files.
+//------------------------------------------------------------------------------
+IFileMD*
+ContainerMD::beginFile()
+{
+  if (pFiles.empty())
+  {
+    pIterFile = pFiles.end();
+    return (IFileMD*)(0);
+  }
+  else
+  {
+    pIterFile = pFiles.begin();
+    return pIterFile->second;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to the next file object. Must be used in conjunction
+// with beginFiles to iterate over the list of files.
+//------------------------------------------------------------------------------
+IFileMD*
+ContainerMD::nextFile()
+{
+  if (pIterFile == pFiles.end())
+    return (IFileMD*)(0);
+
+  ++pIterFile;
+
+  if (pIterFile == pFiles.end())
+    return (IFileMD*)(0);
+  else
+    return pIterFile->second;
 }
 }

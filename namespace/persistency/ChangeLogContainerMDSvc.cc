@@ -236,24 +236,21 @@ namespace eos
                     // ---------------------------------------------------------
                     // attach the sub-container at the next deepness level
                     // ---------------------------------------------------------
-                    ContainerMD* cont_md = dynamic_cast<ContainerMD*>(*dIt);
-
-                    for (cIt = cont_md->containersBegin();
-                         cIt != cont_md->containersEnd();
-                         cIt++)
+                    for (auto dmd = (*dIt)->beginSubContainer(); dmd;
+                         dmd = (*dIt)->nextSubContainer())
                     {
-                      dirTree[deepness + 1].insert(cIt->second);
+                      dirTree[deepness + 1].insert(dmd);
                     }
                     // ---------------------------------------------------------
                     // remove every file from it's quota node
                     // ---------------------------------------------------------
-                    for (fIt = dynamic_cast<ContainerMD*>(*dIt)->filesBegin();
-                         fIt != dynamic_cast<ContainerMD*>(*dIt)->filesEnd();
-                         fIt++)
+
+                    for (auto fmd = (*dIt)->beginFile(); fmd; fmd = (*dIt)->nextFile())
                     {
                       QuotaNode *node = getQuotaNode(*dIt);
+
                       if (node)
-                        node->removeFile(fIt->second);
+                        node->removeFile(fmd);
                     }
                   }
                   deepness++;
@@ -298,14 +295,13 @@ namespace eos
                   {
                     // ---------------------------------------------------------
                     // remove every file from it's quota node
-                    // ---------------------------------------------------------
-                    for (fIt = dynamic_cast<ContainerMD*>(*dIt)->filesBegin();
-                         fIt != dynamic_cast<ContainerMD*>(*dIt)->filesEnd();
-                         fIt++)
+                    // --------------------------------------------------------
+                    for (auto fmd = (*dIt)->beginFile(); fmd; fmd = (*dIt)->nextFile())
                     {
                       QuotaNode *node = getQuotaNode(*dIt);
+
                       if (node)
-                        node->addFile(fIt->second);
+                        node->addFile(fmd);
                     }
                   }
                   deepness++;

@@ -105,15 +105,12 @@ class RWLock: public eos::LockHandler
 //------------------------------------------------------------------------------
 void addReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
-  eos::ContainerMD::FileMap::iterator it;
-
-  for (it = container->filesBegin(); it != container->filesEnd(); ++it)
+  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
   {
     for (int i = 0; i < random() % 10; ++i)
-      it->second->addLocation(random() % 10);
+      fmd->addLocation(random() % 10);
 
-    view->updateFileStore(it->second);
+    view->updateFileStore(fmd);
   }
 }
 
@@ -122,12 +119,8 @@ void addReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
-  eos::ContainerMD::FileMap::iterator it;
-
-  for (it = container->filesBegin(); it != container->filesEnd(); ++it)
+  for (auto file = cont->beginFile(); file; file = cont->nextFile())
   {
-    eos::IFileMD* file = it->second;
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toUnlink;
     int n = random() % 3;
@@ -151,29 +144,22 @@ void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void cleanUpQuotaRec(eos::IView* view, eos::IContainerMD* cont)
 {
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
-  eos::QuotaNode* qn = view->getQuotaNode(container);
-  eos::ContainerMD::FileMap::iterator it;
-  eos::ContainerMD::ContainerMap::iterator itC;
+  eos::QuotaNode* qn = view->getQuotaNode(cont);
 
-  for (it = container->filesBegin(); it != container->filesEnd(); ++it)
-    qn->removeFile(it->second);
+  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+    qn->removeFile(fmd);
 
-  for (itC = container->containersBegin(); itC != container->containersEnd();
-       ++itC)
-    unlinkReplicas(view, itC->second);
+  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+    unlinkReplicas(view, dmd);
 }
 
 //------------------------------------------------------------------------------
 // Delete some replicas from the files in the container
 //------------------------------------------------------------------------------
-void deleteReplicas(eos::IView* view, eos::ContainerMD* container)
+void deleteReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  eos::ContainerMD::FileMap::iterator it;
-
-  for (it = container->filesBegin(); it != container->filesEnd(); ++it)
+  for (auto file = cont->beginFile(); file; file = cont->nextFile())
   {
-    eos::IFileMD* file = it->second;
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete;
     int n = random() % 3;
@@ -195,12 +181,8 @@ void deleteReplicas(eos::IView* view, eos::ContainerMD* container)
 //------------------------------------------------------------------------------
 void deleteAllReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
-  eos::ContainerMD::FileMap::iterator it;
-
-  for (it = container->filesBegin(); it != container->filesEnd(); ++it)
+  for (auto file = cont->beginFile(); file; file = cont->nextFile())
   {
-    eos::IFileMD* file = it->second;
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete = file->getLocations();
 
@@ -222,12 +204,9 @@ void deleteAllReplicas(eos::IView* view, eos::IContainerMD* cont)
 void deleteAllReplicasRec(eos::IView* view, eos::IContainerMD* cont)
 {
   deleteAllReplicas(view, cont);
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
-  eos::ContainerMD::ContainerMap::iterator itC;
 
-  for (itC = container->containersBegin(); itC != container->containersEnd();
-       ++itC)
-    deleteAllReplicasRec(view, itC->second);
+  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+    deleteAllReplicasRec(view, dmd);
 }
 
 //------------------------------------------------------------------------------
@@ -284,23 +263,19 @@ void modifySubTree(eos::IView* view, const std::string& root)
     o << root << "/dir" << i;
     eos::IContainerMD* cont = view->getContainer(o.str());
     eos::QuotaNode* qn = view->getQuotaNode(cont);
-    eos::ContainerMD::FileMap::iterator it;
     std::vector<eos::IFileMD*> toDel;
     std::vector<eos::IFileMD*>::iterator itD;
-    eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
+    eos::IFileMD* fmd = 0;
 
-    for (i = 1, it = container->filesBegin(); it != container->filesEnd(); ++it, ++i)
+    for (i = 1, fmd = cont->beginFile(); fmd; fmd = cont->nextFile(), ++i)
     {
-      if (qn) qn->removeFile(it->second);
-
-      it->second->setSize(random() % 1000000);
-
-      if (qn) qn->addFile(it->second);
-
-      view->updateFileStore(it->second);
+      if (qn) qn->removeFile(fmd);
+      fmd->setSize(random() % 1000000);
+      if (qn) qn->addFile(fmd);
+      view->updateFileStore(fmd);
 
       if (i % 4 == 0)
-        toDel.push_back(it->second);
+        toDel.push_back(fmd);
     }
 
     for (itD = toDel.begin(); itD != toDel.end(); ++itD)
@@ -312,20 +287,20 @@ void modifySubTree(eos::IView* view, const std::string& root)
 
       for (itD = toDel.begin(); itD != toDel.end(); ++itD)
       {
-        eos::IFileMD* file = *itD;
+        fmd = *itD;
 
-        if (file->getNumUnlinkedLocation() == 0)
+        if (fmd->getNumUnlinkedLocation() == 0)
           continue;
 
         // Remove all replicas
-        eos::IFileMD::LocationVector loc_vect = file->getLocations();
-        
-        for (auto it = loc_vect.begin(); it != loc_vect.end(); ++it)
-          file->removeLocation(*it);
-        
-        view->updateFileStore(file);
+        eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
 
-        if (file->getNumUnlinkedLocation())
+        for (auto it = loc_vect.begin(); it != loc_vect.end(); ++it)
+          fmd->removeLocation(*it);
+
+        view->updateFileStore(fmd);
+
+        if (fmd->getNumUnlinkedLocation())
           locationsLeft = true;
       }
 
@@ -337,11 +312,9 @@ void modifySubTree(eos::IView* view, const std::string& root)
 
     for (itD = toDel.begin(); itD != toDel.end(); ++itD)
     {
-      eos::IFileMD* file = *itD;
-
-      if (qn) qn->removeFile(file);
-
-      view->removeFile(file);
+      fmd = *itD;
+      if (qn) qn->removeFile(fmd);
+      view->removeFile(fmd);
     }
   }
 }
@@ -352,17 +325,12 @@ void modifySubTree(eos::IView* view, const std::string& root)
 uint64_t calcSize(eos::IContainerMD* cont)
 {
   uint64_t size = 0;
-  eos::ContainerMD::FileMap::iterator itF;
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
 
-  for (itF = container->filesBegin(); itF != container->filesEnd(); ++itF)
-    size += itF->second->getSize();
+  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+    size += fmd->getSize();
 
-  eos::ContainerMD::ContainerMap::iterator itC;
-
-  for (itC = container->containersBegin(); itC != container->containersEnd();
-       ++itC)
-    size += calcSize(itC->second);
+  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+    size += calcSize(dmd);
 
   return size;
 }
@@ -373,12 +341,9 @@ uint64_t calcSize(eos::IContainerMD* cont)
 uint64_t calcFiles(eos::IContainerMD* cont)
 {
   uint64_t files = cont->getNumFiles();
-  eos::ContainerMD::ContainerMap::iterator itC;
-  eos::ContainerMD* container = dynamic_cast<eos::ContainerMD*>(cont);
 
-  for (itC = container->containersBegin(); itC != container->containersEnd();
-       ++itC)
-    files += calcFiles(itC->second);
+  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+    files += calcFiles(dmd);
 
   return files;
 }
@@ -403,30 +368,26 @@ bool compareTrees(eos::IView*        view1, eos::IView*       view2,
   o4 << " -- " << tree1->getNumContainers() << " " << tree2->getNumContainers();
   CPPUNIT_ASSERT_MESSAGE(treeMsg + o4.str(),
                          tree1->getNumContainers() == tree2->getNumContainers());
-  eos::ContainerMD::FileMap::iterator itF;
-  eos::ContainerMD* tree1md = dynamic_cast<eos::ContainerMD*>(tree1);
 
-  for (itF = tree1md->filesBegin(); itF != tree1md->filesEnd(); ++itF)
+  for (auto fmd = tree1->beginFile(); fmd; fmd = tree1->nextFile())
   {
-    eos::IFileMD* file = tree2->findFile(itF->second->getName());
-    std::string fileMsg = treeMsg + " file " + itF->second->getName();
+    eos::IFileMD* file = tree2->findFile(fmd->getName());
+    std::string fileMsg = treeMsg + " file " + fmd->getName();
     CPPUNIT_ASSERT_MESSAGE(fileMsg + " missing", file);
     CPPUNIT_ASSERT_MESSAGE(fileMsg + " wrong size",
-                           file->getSize() == itF->second->getSize());
+                           file->getSize() == fmd->getSize());
     CPPUNIT_ASSERT_MESSAGE(fileMsg + " wrong id",
-                           file->getId() == itF->second->getId());
+                           file->getId() == fmd->getId());
     CPPUNIT_ASSERT_MESSAGE(fileMsg, file->getFileMDSvc());
-    CPPUNIT_ASSERT_MESSAGE(fileMsg, itF->second->getFileMDSvc());
+    CPPUNIT_ASSERT_MESSAGE(fileMsg, fmd->getFileMDSvc());
   }
 
-  eos::ContainerMD::ContainerMap::iterator itC;
-
-  for (itC = tree1md->containersBegin(); itC != tree1md->containersEnd(); ++itC)
+  for (auto dmd = tree1->beginSubContainer(); dmd; dmd = tree1->nextSubContainer())
   {
-    eos::IContainerMD* container = tree2->findContainer(itC->second->getName());
-    std::string contMsg = treeMsg + " container: " + itC->second->getName();
+    eos::IContainerMD* container = tree2->findContainer(dmd->getName());
+    std::string contMsg = treeMsg + " container: " + dmd->getName();
     CPPUNIT_ASSERT_MESSAGE(contMsg, container);
-    compareTrees(view1, view2, itC->second, container);
+    compareTrees(view1, view2, dmd, container);
   }
 
   return true;

@@ -175,9 +175,10 @@ ProcCommand::FileInfo (const char* path)
     }
     else
     {
-      // make a copy of the meta data
-      eos::FileMD fmdCopy(fmd);
-      fmd = &fmdCopy;
+      // Make a copy of the meta data
+      std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
+      fmd = (eos::IFileMD*)(0);
+
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
 
@@ -187,8 +188,8 @@ ProcCommand::FileInfo (const char* path)
       bool Monitoring = false;
       bool Envformat = false;
 
-      eos::common::FileId::Fid2Hex(fmd->getId(), hexfidstring);
-      eos::common::FileId::Fid2Hex(fmd->getContainerId(), hexpidstring);
+      eos::common::FileId::Fid2Hex(fmd_cpy->getId(), hexfidstring);
+      eos::common::FileId::Fid2Hex(fmd_cpy->getContainerId(), hexpidstring);
 
       if ((option.find("-m")) != STR_NPOS)
       {
@@ -204,7 +205,7 @@ ProcCommand::FileInfo (const char* path)
       if (Envformat)
       {
         std::string env;
-        fmd->getEnv(env);
+        fmd_cpy->getEnv(env);
         stdOut += env.c_str();
         eos::common::Path cPath(spath.c_str());
         stdOut += "&container=";
@@ -248,7 +249,7 @@ ProcCommand::FileInfo (const char* path)
         if ((option.find("-fid")) != STR_NPOS)
         {
           char fid[32];
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+          snprintf(fid, 32, "%llu", (unsigned long long) fmd_cpy->getId());
           if (!Monitoring)
           {
             stdOut += "fid:    ";
@@ -268,13 +269,13 @@ ProcCommand::FileInfo (const char* path)
           if (!Monitoring)
           {
             stdOut += "size:   ";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd_cpy->getSize());
             stdOut += "\n";
           }
           else
           {
             stdOut += "size=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd_cpy->getSize());
             stdOut += " ";
           }
         }
@@ -284,13 +285,13 @@ ProcCommand::FileInfo (const char* path)
           if (!Monitoring)
           {
             stdOut += "xstype: ";
-            stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetChecksumString(fmd_cpy->getLayoutId());
             stdOut += "\n";
             stdOut += "xs:     ";
-            for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+            for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId()); i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+              sprintf(hb, "%02x", (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
             stdOut += "\n";
@@ -298,13 +299,13 @@ ProcCommand::FileInfo (const char* path)
           else
           {
             stdOut += "xstype=";
-            stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetChecksumString(fmd_cpy->getLayoutId());
             stdOut += " ";
             stdOut += "xs=";
-            for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+            for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId()); i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+              sprintf(hb, "%02x", (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
             stdOut += " ";
@@ -317,26 +318,26 @@ ProcCommand::FileInfo (const char* path)
           char mtimestring[4096];
           eos::IFileMD::ctime_t mtime;
           eos::IFileMD::ctime_t ctime;
-          fmd->getCTime(ctime);
-          fmd->getMTime(mtime);
+          fmd_cpy->getCTime(ctime);
+          fmd_cpy->getMTime(mtime);
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
           char fid[32];
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+          snprintf(fid, 32, "%llu", (unsigned long long) fmd_cpy->getId());
 
           std::string etag;
           // if there is a checksum we use the checksum, otherwise we return inode+mtime
-          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId());
           if (cxlen)
           {
             // use inode + checksum
             char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd->getId()<<28);
+        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd_cpy->getId()<<28);
             etag = setag;
             for (unsigned int i = 0; i < cxlen; i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
+              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)) : 0);
               etag += hb;
             }
           }
@@ -345,9 +346,9 @@ ProcCommand::FileInfo (const char* path)
             // use inode + mtime
             char setag[256];
             eos::IFileMD::ctime_t mtime;
-            fmd->getMTime(mtime);
+            fmd_cpy->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId()<<28, (unsigned long long)filemtime);
+        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd_cpy->getId()<<28, (unsigned long long)filemtime);
             etag = setag;
           }
 
@@ -357,10 +358,10 @@ ProcCommand::FileInfo (const char* path)
             stdOut += spath;
             stdOut += "'";
             stdOut += "  Flags: ";
-            stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getFlags(), 4).c_str();
+            stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd_cpy->getFlags(), 4).c_str();
             stdOut += "\n";
             stdOut += "  Size: ";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd_cpy->getSize());
             stdOut += "\n";
             stdOut += "Modify: ";
             stdOut += ctime_r(&filemtime, mtimestring);
@@ -379,9 +380,9 @@ ProcCommand::FileInfo (const char* path)
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
             stdOut += "\n";
             stdOut += "  CUid: ";
-            stdOut += (int) fmd->getCUid();
+            stdOut += (int) fmd_cpy->getCUid();
             stdOut += " CGid: ";
-            stdOut += (int) fmd->getCGid();
+            stdOut += (int) fmd_cpy->getCGid();
 
             stdOut += "  Fxid: ";
             stdOut += hexfidstring;
@@ -390,36 +391,36 @@ ProcCommand::FileInfo (const char* path)
             stdOut += fid;
             stdOut += " ";
             stdOut += "   Pid: ";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getContainerId());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd_cpy->getContainerId());
             stdOut += "   Pxid: ";
             stdOut += hexpidstring;
             stdOut += "\n";
             stdOut += "XStype: ";
-            stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetChecksumString(fmd_cpy->getLayoutId());
             stdOut += "    XS: ";
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId());
             for (unsigned int i = 0; i < cxlen; i++)
             {
               char hb[3];
-              sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+              sprintf(hb, "%02x ", (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)));
               stdOut += hb;
             }
             stdOut += "    ETAG: ";
             stdOut += etag.c_str();
             stdOut += "\n";
             stdOut + "Layout: ";
-            stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd_cpy->getLayoutId());
             stdOut += " Stripes: ";
-            stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+            stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd_cpy->getLayoutId()) + 1);
             stdOut += " Blocksize: ";
-            stdOut += eos::common::LayoutId::GetBlockSizeString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetBlockSizeString(fmd_cpy->getLayoutId());
             stdOut += " LayoutId: ";
             XrdOucString hexlidstring;
-            eos::common::FileId::Fid2Hex(fmd->getLayoutId(), hexlidstring);
+            eos::common::FileId::Fid2Hex(fmd_cpy->getLayoutId(), hexlidstring);
             stdOut += hexlidstring;
             stdOut += "\n";
             stdOut += "  #Rep: ";
-            stdOut += (int) fmd->getNumLocation();
+            stdOut += (int) fmd_cpy->getNumLocation();
             stdOut += "\n";
           }
           else
@@ -431,7 +432,7 @@ ProcCommand::FileInfo (const char* path)
             stdOut += spath;
             stdOut += " ";
             stdOut += "size=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getSize());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd_cpy->getSize());
             stdOut += " ";
             stdOut += "mtime=";
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) mtime.tv_sec);
@@ -444,12 +445,12 @@ ProcCommand::FileInfo (const char* path)
             stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
             stdOut += " ";
             stdOut += "mode=";
-            stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getFlags(), 4).c_str();
+            stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd_cpy->getFlags(), 4).c_str();
             stdOut += " ";
             stdOut += "uid=";
-            stdOut += (int) fmd->getCUid();
+            stdOut += (int) fmd_cpy->getCUid();
             stdOut += " gid=";
-            stdOut += (int) fmd->getCGid();
+            stdOut += (int) fmd_cpy->getCGid();
             stdOut += " ";
             stdOut += "fxid=";
             stdOut += hexfidstring;
@@ -458,26 +459,26 @@ ProcCommand::FileInfo (const char* path)
             stdOut += fid;
             stdOut += " ";
             stdOut += "ino=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) eos::common::FileId::FidToInode(fmd->getId()));
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) eos::common::FileId::FidToInode(fmd_cpy->getId()));
             stdOut += " ";
             stdOut += "pid=";
-            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getContainerId());
+            stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd_cpy->getContainerId());
             stdOut += " ";
             stdOut += "pxid=";
             stdOut += hexpidstring;
             stdOut += " ";
             stdOut += "xstype=";
-            stdOut += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetChecksumString(fmd_cpy->getLayoutId());
             stdOut += " ";
             stdOut += "xs=";
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId());
 
             if (cxlen)
             {
               for (unsigned int i = 0; i < cxlen; i++)
               {
                 char hb[3];
-                sprintf(hb, "%02x", (unsigned char)(fmd->getChecksum().getDataPadded(i)));
+                sprintf(hb, "%02x", (unsigned char)(fmd_cpy->getChecksum().getDataPadded(i)));
                 stdOut += hb;
               }
             }
@@ -491,30 +492,30 @@ ProcCommand::FileInfo (const char* path)
             stdOut += etag.c_str();
             stdOut += " ";
             stdOut += "layout=";
-            stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
+            stdOut += eos::common::LayoutId::GetLayoutTypeString(fmd_cpy->getLayoutId());
             stdOut += " nstripes=";
-            stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+            stdOut += (int) (eos::common::LayoutId::GetStripeNumber(fmd_cpy->getLayoutId()) + 1);
             stdOut += " ";
             stdOut += "lid=";
             XrdOucString hexlidstring;
-            eos::common::FileId::Fid2Hex(fmd->getLayoutId(), hexlidstring);
+            eos::common::FileId::Fid2Hex(fmd_cpy->getLayoutId(), hexlidstring);
             stdOut += hexlidstring;
             stdOut += " ";
             stdOut += "nrep=";
-            stdOut += (int) fmd->getNumLocation();
+            stdOut += (int) fmd_cpy->getNumLocation();
             stdOut += " ";
           }
 
 
           eos::IFileMD::LocationVector::const_iterator lociter;
-          eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+          eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
           int i = 0;
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
           {
             // ignore filesystem id 0
             if (!(*lociter))
             {
-              eos_err("fsid 0 found fid=%lld", fmd->getId());
+              eos_err("fsid 0 found fid=%lld", fmd_cpy->getId());
               continue;
             }
 
@@ -591,7 +592,7 @@ ProcCommand::FileInfo (const char* path)
             i++;
           }
 
-          eos::IFileMD::LocationVector unlink_vect = fmd->getUnlinkedLocations();
+          eos::IFileMD::LocationVector unlink_vect = fmd_cpy->getUnlinkedLocations();
           
           for (lociter = unlink_vect.begin(); lociter != unlink_vect.end(); ++lociter)
           {
@@ -625,7 +626,7 @@ ProcCommand::DirInfo (const char* path)
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
   {
-    eos::IContainerMD* fmd = 0;
+    eos::IContainerMD* dmd = 0;
 
     if ((spath.beginswith("pid:") || (spath.beginswith("pxid:"))))
     {
@@ -646,8 +647,8 @@ ProcCommand::DirInfo (const char* path)
       gOFS->eosViewRWMutex.LockRead();
       try
       {
-        fmd = gOFS->eosDirectoryService->getContainerMD(fid);
-        std::string fullpath = gOFS->eosView->getUri(fmd);
+        dmd = gOFS->eosDirectoryService->getContainerMD(fid);
+        std::string fullpath = gOFS->eosView->getUri(dmd);
         spath = fullpath.c_str();
       }
       catch (eos::MDException &e)
@@ -665,7 +666,7 @@ ProcCommand::DirInfo (const char* path)
       gOFS->eosViewRWMutex.LockRead();
       try
       {
-        fmd = gOFS->eosView->getContainer(spath.c_str());
+        dmd = gOFS->eosView->getContainer(spath.c_str());
       }
       catch (eos::MDException &e)
       {
@@ -676,23 +677,21 @@ ProcCommand::DirInfo (const char* path)
       }
     }
 
-
-
-    if (!fmd)
+    if (!dmd)
     {
       retc = errno;
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
-
     }
     else
     {
-      size_t num_containers = fmd->getNumContainers();
-      size_t num_files = fmd->getNumFiles();
+      size_t num_containers = dmd->getNumContainers();
+      size_t num_files = dmd->getNumFiles();
 
       // Make a copy of the meta data
-      eos::ContainerMD fmdCopy(fmd);
-      fmd = &fmdCopy;
+      std::unique_ptr<eos::IContainerMD> dmd_cpy{dmd->clone()};
+      dmd = (eos::IContainerMD*)(0);
+
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
 
@@ -701,8 +700,8 @@ ProcCommand::DirInfo (const char* path)
       XrdOucString hexpidstring;
       bool Monitoring = false;
 
-      eos::common::FileId::Fid2Hex(fmd->getId(), hexfidstring);
-      eos::common::FileId::Fid2Hex(fmd->getParentId(), hexpidstring);
+      eos::common::FileId::Fid2Hex(dmd_cpy->getId(), hexfidstring);
+      eos::common::FileId::Fid2Hex(dmd_cpy->getParentId(), hexpidstring);
 
       if ((option.find("-m")) != STR_NPOS)
       {
@@ -744,7 +743,7 @@ ProcCommand::DirInfo (const char* path)
       if ((option.find("-fid")) != STR_NPOS)
       {
         char fid[32];
-        snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+        snprintf(fid, 32, "%llu", (unsigned long long) dmd_cpy->getId());
         if (!Monitoring)
         {
           stdOut += "fid:    ";
@@ -781,11 +780,11 @@ ProcCommand::DirInfo (const char* path)
         char mtimestring[4096];
         eos::IFileMD::ctime_t mtime;
         eos::IFileMD::ctime_t ctime;
-        fmd->getCTime(ctime);
+        dmd_cpy->getCTime(ctime);
         {
           XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
-          mtime.tv_sec = gOFS->MgmDirectoryModificationTime[fmd->getId()].tv_sec;
-          mtime.tv_nsec = gOFS->MgmDirectoryModificationTime[fmd->getId()].tv_nsec;
+          mtime.tv_sec = gOFS->MgmDirectoryModificationTime[dmd_cpy->getId()].tv_sec;
+          mtime.tv_nsec = gOFS->MgmDirectoryModificationTime[dmd_cpy->getId()].tv_nsec;
           if (!mtime.tv_sec)
           {
             mtime.tv_sec = ctime.tv_sec;
@@ -796,14 +795,14 @@ ProcCommand::DirInfo (const char* path)
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         char fid[32];
-        snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+        snprintf(fid, 32, "%llu", (unsigned long long) dmd_cpy->getId());
 
         std::string etag;
 
         // use inode + mtime
         char setag[256];
         filemtime = (time_t) mtime.tv_sec;
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filemtime);
+        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)dmd_cpy->getId(), (unsigned long long)filemtime);
         etag = setag;
 
         if (!Monitoring)
@@ -816,7 +815,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += "  Files: ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_files);
           stdOut += "  Flags: ";
-          stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getMode(), 4).c_str();
+          stdOut +=  eos::common::StringConversion::IntToOctal( (int) dmd_cpy->getMode(), 4).c_str();
           stdOut += "\n";
           stdOut += "Modify: ";
           stdOut += ctime_r(&filemtime, mtimestring);
@@ -835,9 +834,9 @@ ProcCommand::DirInfo (const char* path)
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
           stdOut += "\n";
           stdOut += "  CUid: ";
-          stdOut += (int) fmd->getCUid();
+          stdOut += (int) dmd_cpy->getCUid();
           stdOut += " CGid: ";
-          stdOut += (int) fmd->getCGid();
+          stdOut += (int) dmd_cpy->getCGid();
           stdOut += "  Fxid: ";
           stdOut += hexfidstring;
           stdOut += " ";
@@ -845,7 +844,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += fid;
           stdOut += " ";
           stdOut += "   Pid: ";
-          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getParentId());
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd_cpy->getParentId());
           stdOut += "   Pxid: ";
           stdOut += hexpidstring;
           stdOut += "\n";
@@ -878,12 +877,12 @@ ProcCommand::DirInfo (const char* path)
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
           stdOut += " ";
           stdOut += "mode=";
-          stdOut +=  eos::common::StringConversion::IntToOctal( (int) fmd->getMode(), 4).c_str();
+          stdOut +=  eos::common::StringConversion::IntToOctal( (int) dmd_cpy->getMode(), 4).c_str();
           stdOut += " ";
           stdOut += "uid=";
-          stdOut += (int) fmd->getCUid();
+          stdOut += (int) dmd_cpy->getCUid();
           stdOut += " gid=";
-          stdOut += (int) fmd->getCGid();
+          stdOut += (int) dmd_cpy->getCGid();
           stdOut += " ";
           stdOut += "fxid=";
           stdOut += hexfidstring;
@@ -895,7 +894,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += fid;
           stdOut += " ";
           stdOut += "pid=";
-          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getParentId());
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd_cpy->getParentId());
           stdOut += " ";
           stdOut += "pxid=";
           stdOut += hexpidstring;
@@ -904,7 +903,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += etag.c_str();
           stdOut += " ";
 
-          for (auto it_attr = fmd->attributesBegin(); it_attr != fmd->attributesEnd(); ++it_attr)
+          for (auto it_attr = dmd_cpy->attributesBegin(); it_attr != dmd_cpy->attributesEnd(); ++it_attr)
           {
             stdOut += "xattrn=";    stdOut += it_attr->first.c_str();
             stdOut += " xattrv=";  stdOut += it_attr->second.c_str();

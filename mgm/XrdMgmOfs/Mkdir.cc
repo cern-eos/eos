@@ -129,6 +129,7 @@ XrdMgmOfs::_mkdir (const char *path,
 
   eos::IContainerMD* dir = 0;
   eos::IContainerMD::XAttrMap attrmap;
+  // TODO: use std::unique_ptr to simplify the memory mgm of copydir
   eos::IContainerMD* copydir = 0;
 
   {
@@ -141,7 +142,7 @@ XrdMgmOfs::_mkdir (const char *path,
       try
       {
         dir = eosView->getContainer(cPath.GetParentPath());
-        copydir = new eos::ContainerMD(dir);
+        copydir = dir->clone();
         dir = copydir;
         eos::IContainerMD::XAttrMap::const_iterator it;
         for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
@@ -297,7 +298,7 @@ XrdMgmOfs::_mkdir (const char *path,
         {
           if (copydir) delete copydir;
           dir = eosView->getContainer(cPath.GetSubPath(i));
-          copydir = new eos::ContainerMD(dir);
+          copydir = dir->clone();
           eos::IContainerMD::XAttrMap::const_iterator it;
           for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
           {
@@ -393,10 +394,11 @@ XrdMgmOfs::_mkdir (const char *path,
         }
 
         dir = newdir;
+
         if (dir)
         {
           if (copydir) delete copydir;
-          copydir = new eos::ContainerMD(dir);
+          copydir = dir->clone();
           dir = copydir;
         }
 

@@ -334,24 +334,21 @@ XrdMgmOfs::_rem (const char *path,
 
   if (doRecycle && (!simulate))
   {
-    // -------------------------------------------------------------------------
-    // two-step deletion re-cycle logic
-    // -------------------------------------------------------------------------
-
-    // copy the meta data to be able to unlock
-    eos::FileMD fmdCopy(fmd);
-    fmd = &fmdCopy;
+    // Two-step deletion re-cycle logic
+    std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
+    fmd = (eos::IFileMD*)(0);
     gOFS->eosViewRWMutex.UnLockWrite();
+    // -------------------------------------------------------------------------
 
     SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(attrmap[Recycle::gRecyclingAttribute].c_str());
     eos_info("%llu %s", namespacequota, attrmap[Recycle::gRecyclingAttribute].c_str());
     if (namespacequota)
     {
       // there is quota defined on that recycle path
-      if (!namespacequota->CheckWriteQuota(fmd->getCUid(),
-                                           fmd->getCGid(),
-                                           fmd->getSize(),
-                                           fmd->getNumLocation()))
+      if (!namespacequota->CheckWriteQuota(fmd_cpy->getCUid(),
+                                           fmd_cpy->getCGid(),
+                                           fmd_cpy->getSize(),
+                                           fmd_cpy->getNumLocation()))
       {
         // ---------------------------------------------------------------------
         // this is the very critical case where we have to reject to delete
@@ -375,8 +372,8 @@ XrdMgmOfs::_rem (const char *path,
         int rc = 0;
 
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
-                         &vid, fmd->getCUid(), fmd->getCGid(), fmd->getId());
-
+                         &vid, fmd_cpy->getCUid(), fmd_cpy->getCGid(),
+                         fmd_cpy->getId());
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {

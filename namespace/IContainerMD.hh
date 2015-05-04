@@ -60,6 +60,11 @@ class IContainerMD
     virtual ~IContainerMD() {};
 
     //--------------------------------------------------------------------------
+    //! Virtual copy constructor
+    //--------------------------------------------------------------------------
+    virtual IContainerMD* clone() const = 0;
+
+    //--------------------------------------------------------------------------
     //! Add container
     //--------------------------------------------------------------------------
     virtual void addContainer(IContainerMD* container) = 0;
@@ -253,6 +258,38 @@ class IContainerMD
     //! Deserialize the class to a buffer
     //--------------------------------------------------------------------------
     virtual void deserialize(Buffer& buffer) throw(MDException) = 0;
+
+    //--------------------------------------------------------------------------
+    //! Get pointer to first subcontainer. *MUST* be used in conjunction with
+    //! nextContainer to iterate over the list of subcontainers.
+    //!
+    //! @return pointer to first subcontainer or 0 if no subcontainers
+    //--------------------------------------------------------------------------
+    virtual IContainerMD* beginSubContainer() = 0;
+
+    //--------------------------------------------------------------------------
+    //! Get pointer to the next subcontainer object. *MUST* be used in conjunction
+    //! with beginContainers to iterate over the list of subcontainers.
+    //!
+    //! @return pointer to next subcontainer or 0 if no subcontainers
+    //--------------------------------------------------------------------------
+    virtual IContainerMD* nextSubContainer() = 0;
+
+    //--------------------------------------------------------------------------
+    //! Get pointer to first file in the container. *MUST* be used in conjunction
+    //! with nextFile to iterate over the list of files.
+    //!
+    //! @return pointer to the first file or 0 if no files
+    //--------------------------------------------------------------------------
+    virtual IFileMD* beginFile() = 0;
+
+    //--------------------------------------------------------------------------
+    //! Get pointer to the next file object. *MUST* be used in conjunction
+    //! with beginFiles to iterate over the list of files.
+    //!
+    //! @return pointer to next file or 0 if no files
+    //--------------------------------------------------------------------------
+    virtual IFileMD* nextFile() = 0;
 };
 }
 

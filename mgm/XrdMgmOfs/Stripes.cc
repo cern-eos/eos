@@ -443,19 +443,16 @@ XrdMgmOfs::_replicatestripe (const char *path,
     return Emsg(epname, error, errno, "replicate stripe", path);
   }
 
-  // make a copy of the file meta data to release the lock
-  eos::FileMD fmdCopy(fmd);
-  fmd = &fmdCopy;
-
-  // ------------------------------------------
-
+  // Make a copy of the file meta data to release the lock
+  std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
+  fmd = (eos::IFileMD*)(0);
+  // ---------------------------------------------------------------------------
   gOFS->eosViewRWMutex.UnLockRead();
-  int retc = _replicatestripe(fmd, path, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
 
+  int retc = _replicatestripe(fmd_cpy.get(), path, error, vid, sourcefsid,
+                              targetfsid, dropsource, expressflag);
   EXEC_TIMING_END("ReplicateStripe");
-
   return retc;
-
 }
 
 /*----------------------------------------------------------------------------*/

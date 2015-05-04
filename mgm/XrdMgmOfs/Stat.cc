@@ -176,10 +176,7 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   if (fmd)
   {
-    eos::FileMD fmdCopy(fmd);
-    fmd = &fmdCopy;
     memset(buf, 0, sizeof (struct stat));
-
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
     buf->st_mode = S_IFREG;

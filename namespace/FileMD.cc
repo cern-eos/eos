@@ -32,6 +32,7 @@ namespace eos
 // Constructor
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
+  IFileMD(),
   pId(id),
   pSize(0),
   pContainerId(0),
@@ -44,6 +45,15 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
+}
+
+//------------------------------------------------------------------------------
+// Virtual copy constructor
+//------------------------------------------------------------------------------
+FileMD*
+FileMD::clone() const
+{
+  return new FileMD(*this);
 }
 
 //------------------------------------------------------------------------------
@@ -73,38 +83,6 @@ FileMD::operator = (const FileMD& other)
   pCTime       = other.pCTime;
   pMTime       = other.pMTime;
   pChecksum    = other.pChecksum;
-  pFileMDSvc   = 0;
-  return *this;
-}
-
-//------------------------------------------------------------------------------
-// Copy constructor from IFileMD
-//------------------------------------------------------------------------------
-FileMD::FileMD(IFileMD* other)
-{
-  *this = other;
-}
-
-//------------------------------------------------------------------------------
-// Asignment operator
-//------------------------------------------------------------------------------
-FileMD&
-FileMD::operator = (IFileMD* other)
-{
-  FileMD* fmd = dynamic_cast<FileMD*>(other);
-  pName        = fmd->pName;
-  pId          = fmd->pId;
-  pSize        = fmd->pSize;
-  pContainerId = fmd->pContainerId;
-  pCUid        = fmd->pCUid;
-  pCGid        = fmd->pCGid;
-  pLayoutId    = fmd->pLayoutId;
-  pFlags       = fmd->pFlags;
-  pLocation    = fmd->pLocation;
-  pUnlinkedLocation = fmd->pUnlinkedLocation;
-  pCTime       = fmd->pCTime;
-  pMTime       = fmd->pMTime;
-  pChecksum    = fmd->pChecksum;
   pFileMDSvc   = 0;
   return *this;
 }

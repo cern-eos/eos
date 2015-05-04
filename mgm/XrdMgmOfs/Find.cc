@@ -151,15 +151,11 @@ XrdMgmOfs::_find (const char *path,
           continue;
         }
 
-        // add all children into the 2D vectors
-        eos::ContainerMD::ContainerMap::iterator dit;
-        // TODO: fix container interface
-        eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(cmd);
-
-        for (dit = cont->containersBegin(); dit != cont->containersEnd(); ++dit)
+        // Add all children into the 2D vectors
+        for (auto dmd = cmd->beginSubContainer(); dmd; dmd = cmd->nextSubContainer())
         {
           std::string fpath = Path.c_str();
-          fpath += dit->second->getName();
+          fpath += dmd->getName();
           fpath += "/";
           // check if we select by tag
           if (key)
@@ -225,11 +221,7 @@ XrdMgmOfs::_find (const char *path,
 
         if (!nofiles)
         {
-          eos::ContainerMD::FileMap::iterator fit;
-          // TODO: fix container interface
-          eos::ContainerMD* cont = dynamic_cast<eos::ContainerMD*>(cmd);
-
-          for (fit = cont->filesBegin(); fit != cont->filesEnd(); ++fit)
+          for (auto fmd = cmd->beginFile(); fmd; fmd = cmd->nextFile())
           {
             if (limitresult)
             {
@@ -243,7 +235,8 @@ XrdMgmOfs::_find (const char *path,
                 break;
               }
             }
-            found[Path].insert(fit->second->getName());
+
+            found[Path].insert(fmd->getName());
             filesfound++;
           }
         }
