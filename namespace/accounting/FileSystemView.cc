@@ -154,7 +154,7 @@ namespace eos
   // Get a list of files registered in given fs
   //----------------------------------------------------------------------------
   std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
-  FileSystemView::getFiles( FileMD::location_t location )
+  FileSystemView::getFiles( IFileMD::location_t location )
     throw( MDException )
   {
     if( pFiles.size() <= location )
@@ -171,7 +171,7 @@ namespace eos
   // Get a list of unlinked but not deleted files 
   //----------------------------------------------------------------------------
   std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
-  FileSystemView::getUnlinkedFiles( FileMD::location_t location )
+  FileSystemView::getUnlinkedFiles( IFileMD::location_t location )
     throw( MDException )
   {
     if( pUnlinkedFiles.size() <= location )
@@ -199,7 +199,7 @@ namespace eos
   // Return reference to a list of files
   //----------------------------------------------------------------------------
   const FileSystemView::FileList &FileSystemView::getFileList(
-                                              FileMD::location_t location )
+                                              IFileMD::location_t location )
     throw( MDException )
   {
     if( pFiles.size() <= location )
@@ -215,7 +215,7 @@ namespace eos
   // Return reference to a list of unlinked files
   //----------------------------------------------------------------------------
   const FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
-                                              FileMD::location_t location )
+                                              IFileMD::location_t location )
     throw( MDException )
   {
     if( pUnlinkedFiles.size() <= location )

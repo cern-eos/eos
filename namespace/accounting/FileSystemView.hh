@@ -25,7 +25,6 @@
 #define EOS_NS_FILESYSTEM_VIEW_HH
 
 #include "namespace/IFileMDSvc.hh"
-#include "namespace/FileMD.hh"
 #include "namespace/MDException.hh"
 #include <utility>
 #include <list>
@@ -45,8 +44,8 @@ namespace eos
       // memory consuming. We changed to dense hash set since it is much faster
       // and the memory overhead is not visible in a million file namespace.
       //------------------------------------------------------------------------
-      typedef google::dense_hash_set<FileMD::id_t> FileList;
-      typedef FileList::iterator                   FileIterator;
+      typedef google::dense_hash_set<IFileMD::id_t> FileList;
+      typedef FileList::iterator                    FileIterator;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -73,14 +72,14 @@ namespace eos
       //! Get a list of files registered in given fs
       //------------------------------------------------------------------------
       std::pair<FileIterator, FileIterator> getFiles(
-                                               FileMD::location_t location )
+                                               IFileMD::location_t location )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Get a list of unlinked but not deleted files
       //------------------------------------------------------------------------
       std::pair<FileIterator, FileIterator> getUnlinkedFiles(
-                                                FileMD::location_t location )
+                                                IFileMD::location_t location )
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -93,14 +92,14 @@ namespace eos
       //! Return reference to a list of files
       //! BEWARE: any replica change may invalidate iterators
       //------------------------------------------------------------------------
-      const FileList &getFileList( FileMD::location_t location )
+      const FileList &getFileList( IFileMD::location_t location )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Return reference to a list of unlinked files
       //! BEWARE: any replica change may invalidate iterators
       //------------------------------------------------------------------------
-      const FileList &getUnlinkedFileList( FileMD::location_t location )
+      const FileList &getUnlinkedFileList( IFileMD::location_t location )
         throw( MDException );
 
       //------------------------------------------------------------------------
