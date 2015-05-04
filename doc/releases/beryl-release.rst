@@ -6,7 +6,13 @@
 Beryl Release Notes
 ===================
 
-``Version V0.3.111 Beryl-Aquamarine``
+``Version V0.3.114 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix temporary ro master situation when slave reloads namespace when indicated from compacted master (due to stat redirection)
+
+``Version V0.3.112 Beryl-Aquamarine``
 
 New Features
 ------------
