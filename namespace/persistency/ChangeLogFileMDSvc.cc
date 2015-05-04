@@ -125,7 +125,7 @@ class FileMDFollower: public eos::ILogRecordScanner
           // containerId=0.
           if (currentFile->getContainerId())
           {
-            ContainerMD* container = dynamic_cast<ContainerMD*>(itP->second.ptr);
+            IContainerMD* container = itP->second.ptr;
             IFileMD* existingFile = container->findFile(currentFile->getName());
 
             if (existingFile == currentFile)
@@ -177,7 +177,7 @@ class FileMDFollower: public eos::ILogRecordScanner
             // We check if the file with the given name already exists in
             // the container, if it does, we have a name conflict in which
             // case we attach the new file and remove the old one
-            ContainerMD* container = dynamic_cast<ContainerMD*>(itP->second.ptr);
+            IContainerMD* container = itP->second.ptr;
             IFileMD* existingFile   = container->findFile(currentFile->getName());
             QuotaNode* node        = getQuotaNode(container);
 
@@ -210,7 +210,7 @@ class FileMDFollower: public eos::ILogRecordScanner
           // container or might have been unlinked, so we need to check it up
           // in its original container
           IFileMD*     originalFile      = it->second.ptr;
-          ContainerMD* originalContainer = 0;
+          IContainerMD* originalContainer = 0;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
           itP = contIdMap->find(originalFile->getContainerId());
 
@@ -218,7 +218,7 @@ class FileMDFollower: public eos::ILogRecordScanner
           // either an orphan or was detached due to a conflict and it's
           // container has been removed
           if (itP != contIdMap->end())
-            originalContainer = dynamic_cast<ContainerMD*>(itP->second.ptr);
+            originalContainer = itP->second.ptr;
 
           // The parent container did not change
           if (originalFile->getContainerId() == currentFile->getContainerId())
@@ -226,7 +226,7 @@ class FileMDFollower: public eos::ILogRecordScanner
             if (originalContainer)
             {
               IFileMD* existingFile =
-                originalContainer->findFile(originalFile->getName());
+                  originalContainer->findFile(originalFile->getName());
 
               if (existingFile &&
                   existingFile->getId() == originalFile->getId())
@@ -308,10 +308,9 @@ class FileMDFollower: public eos::ILogRecordScanner
               // We check if the file with the given name already exists in
               // the container, if it does, we have a name conflict in which
               // case we attach the new file and remove the old one
-              ContainerMD* newContainer = dynamic_cast<ContainerMD*>(itPN->second.ptr);
-              QuotaNode*   node         = getQuotaNode(newContainer);
-              IFileMD*     existingFile =
-                newContainer->findFile(originalFile->getName());
+              IContainerMD* newContainer = itPN->second.ptr;
+              QuotaNode* node            = getQuotaNode(newContainer);
+              IFileMD* existingFile = newContainer->findFile(originalFile->getName());
 
               if (existingFile)
               {
@@ -349,7 +348,7 @@ class FileMDFollower: public eos::ILogRecordScanner
     //------------------------------------------------------------------------
     // Get quota node id concerning given container
     //------------------------------------------------------------------------
-    QuotaNode* getQuotaNode(const ContainerMD* container)
+    QuotaNode* getQuotaNode(const IContainerMD* container)
     throw(MDException)
     {
       // Initial sanity check
@@ -360,25 +359,22 @@ class FileMDFollower: public eos::ILogRecordScanner
         return 0;
 
       // Search for the node
-      const ContainerMD* current = container;
-
-      while (current->getId() != 1 &&
-             (current->getFlags() & QUOTA_NODE_FLAG) == 0)
-        current = dynamic_cast<ContainerMD*>(pContSvc->getContainerMD(
-                                               current->getParentId()));
+      while (container->getId() != 1 &&
+             (container->getFlags() & QUOTA_NODE_FLAG) == 0)
+        container = pContSvc->getContainerMD(container->getParentId());
 
       // We have either found a quota node or reached root without finding one
       // so we need to double check whether the current container has an
       // associated quota node
-      if ((current->getFlags() & QUOTA_NODE_FLAG) == 0)
+      if ((container->getFlags() & QUOTA_NODE_FLAG) == 0)
         return 0;
 
-      QuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
+      QuotaNode* node = pQuotaStats->getQuotaNode(container->getId());
 
       if (node)
         return node;
 
-      return pQuotaStats->registerNewNode(current->getId());
+      return pQuotaStats->registerNewNode(container->getId());
     }
 
     //------------------------------------------------------------------------
