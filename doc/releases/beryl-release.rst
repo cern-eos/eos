@@ -3,8 +3,20 @@
 .. index::
    single: Beryl(-Aquamarine)-Release
 
+
 Beryl Release Notes
 ===================
+
+``Version V0.3.115 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- reduce verbosity of eosfsd logging
+- support OC special header removing the location header from a WebDAV MOVE response
+
+Bug Fixes
+---------
+- fix temporary ro master situation when slave reloads namespace when indicated from compacted master (due to stat redirection)
 
 ``Version V0.3.114 Beryl-Aquamarine``
 
