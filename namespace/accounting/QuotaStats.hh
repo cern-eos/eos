@@ -25,7 +25,7 @@
 #define EOS_NS_QUOTA_STATS_HH
 
 #include "namespace/ContainerMD.hh"
-#include "namespace/IFileMD.hh"
+#include "namespace/FileMD.hh"
 #include <map>
 
 namespace eos

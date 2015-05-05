@@ -24,7 +24,7 @@
 #ifndef EOS_NS_I_FILE_MD_SVC_HH
 #define EOS_NS_I_FILE_MD_SVC_HH
 
-#include "namespace/FileMD.hh"
+#include "namespace/IFileMD.hh"
 #include "namespace/MDException.hh"
 
 #include <map>

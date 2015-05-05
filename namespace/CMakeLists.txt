@@ -30,10 +30,7 @@ endif(CPPUNIT_FOUND)
 
 add_library (eosNamespace SHARED
             accounting/FileSystemView.hh
-            IContainerMD.hh
-            ContainerMD.hh
             ContainerMD.cc
-            FileMD.hh
             IContainerMDSvc.hh
             IFileMDSvc.hh
             IView.hh
@@ -72,9 +69,6 @@ add_library (eosNamespace SHARED
 
 add_library (eosNamespace-Static STATIC
             accounting/FileSystemView.hh
-            ContainerMD.hh
-            FileMD.hh
-            IContainerMD.hh
             IContainerMDSvc.hh
             IFileMDSvc.hh
             IView.hh

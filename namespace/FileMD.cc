@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/FileMD.hh"
+#include "namespace/IContainerMD.hh"
 #include "namespace/IFileMDSvc.hh"
 #include <sstream>
 

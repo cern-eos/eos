@@ -27,6 +27,7 @@
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
+#include "namespace/FileMD.hh"
 
 #include <algorithm>
 #include <utility>

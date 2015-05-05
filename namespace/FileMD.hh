@@ -25,7 +25,6 @@
 #define EOS_NS_FILE_MD_HH
 
 #include "namespace/persistency/Buffer.hh"
-#include "namespace/IContainerMD.hh"
 #include "namespace/IFileMD.hh"
 
 #include <stdint.h>
@@ -37,8 +36,10 @@
 
 namespace eos
 {
+
 //! Forward declration
 class IFileMDSvc;
+class IContainerMD;
 
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single file

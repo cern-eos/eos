@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ContainerMD.hh"
+#include "namespace/FileMD.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/IFileMDSvc.hh"
 #include <sys/stat.h>

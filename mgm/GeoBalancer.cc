@@ -29,7 +29,6 @@
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
-#include "namespace/IFileMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysError.hh"

@@ -26,6 +26,7 @@
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/Constants.hh"
+#include "namespace/IFileMD.hh"
 
 #include <set>
 #include <memory>
