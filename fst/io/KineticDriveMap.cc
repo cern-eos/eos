@@ -2,30 +2,40 @@
 #include <fstream>
 #include <sstream>
 #include <stdlib.h>
-#include <glog/logging.h>
 
+
+/* Read file located at path into string buffer and return it. */
+static std::string readfile(const char* path)
+{
+    std::ifstream file(path);
+    std::stringstream buffer;
+    buffer << file.rdbuf(); 
+    return buffer.str();
+}
+enum filetype{location,security};
 
 KineticDriveMap::KineticDriveMap()
 {
-    /* get file name */
-    char* envstring = getenv("EOS_FST_KINETIC_JSON");
-    if(!envstring){
-        eos_err("EOS_FST_KINETIC_JSON not set.");
+    /* get file names */
+    const char* location = getenv("KINETIC_DRIVE_LOCATION");
+    const char* security = getenv("KINETIC_DRIVE_SECURITY");
+    if(!location || !security){
+        eos_err("KINETIC_DRIVE_LOCATION / KINETIC_DRIVE_SECURITY not set.");
+        return;
+    }     
+        
+    /* get file contents */
+    std::string location_data = readfile(location);
+    std::string security_data = readfile(security);
+    if(location_data.empty() || security_data.empty()){
+        eos_err("KINETIC_DRIVE_LOCATION / KINETIC_DRIVE_SECURITY not correct.");
         return;
     }
     
-    /* get file content */
-    std::ifstream file(envstring);
-    std::stringstream buffer;
-    buffer << file.rdbuf(); 
-    if(buffer.str().empty()){
-        eos_err("Failed reading in json file: %s", envstring);
-        return;
-    }
-    
-    /* parse file */
-    if(parseJson(buffer.str())){
-        eos_err("Failed parsing json file: %s", envstring);
+    /* parse files */
+    if( parseJson(location_data, filetype::location) ||
+        parseJson(security_data, filetype::security) ){
+        eos_err("Error during json parsing.");
         drives.clear();
     }
 }
@@ -96,51 +106,83 @@ int KineticDriveMap::getJsonEntry(json_object* parent, json_object*& entry, cons
     return 0;
 }
 
-int KineticDriveMap::parseJson(const std::string& jsonString)
+int KineticDriveMap::parseDriveInfo(struct json_object * drive)
+{  
+    struct json_object *tmp = NULL;
+    KineticDrive kd; 
+    
+    /* We could go with wwn instead of serial number. Chosen SN since it is also unique
+     * and is both shorter and contains no spaces (eos does not like spaces in the path name). */
+    if(int err = getJsonEntry(drive,tmp,"serialNumber")) 
+        return err;
+    string id = json_object_get_string(tmp);
+
+    if(int err = getJsonEntry(drive,tmp,"inet4")) 
+        return err;
+    tmp = json_object_array_get_idx(tmp, 0);
+    kd.connection_options.host = json_object_get_string(tmp);
+
+    if(int err = getJsonEntry(drive,tmp,"port")) 
+       return err;
+    kd.connection_options.port = json_object_get_int(tmp);
+
+    kd.connection_options.use_ssl = false;
+
+    drives.insert(std::make_pair(id, kd));
+    return 0;
+}
+
+int KineticDriveMap::parseDriveSecurity(struct json_object * drive)
 {
-    struct json_object *root = json_tokener_parse(jsonString.c_str());
+    struct json_object *tmp = NULL;    
+    
+    /* We could go with wwn instead of serial number. Chosen SN since it is also unique
+     * and is both shorter and contains no spaces (eos does not like spaces in the path name). */
+    if(int err = getJsonEntry(drive,tmp,"serialNumber")) 
+        return err;
+    string id = json_object_get_string(tmp);
+    
+    /* Require that drive info has been scanned already.*/
+    if(!drives.count(id))
+        return ENODEV; 
+         
+    KineticDrive & kd = drives.at(id);    
+    
+    if(int err = getJsonEntry(drive,tmp,"userId")) 
+        return err;
+    kd.connection_options.user_id = json_object_get_int(tmp);
+
+    if(int err = getJsonEntry(drive,tmp,"key")) 
+       return err;
+    kd.connection_options.hmac_key = json_object_get_string(tmp);
+    
+    return 0;   
+}
+
+
+int KineticDriveMap::parseJson(const std::string& filedata, const int type)
+{
+    struct json_object *root = json_tokener_parse(filedata.c_str());
     if(!root){
         eos_warning("File doesn't contain json root.");
         return EINVAL;
     }
       
     struct json_object *dlist = NULL;
-    if(int err = getJsonEntry(root, dlist, "drives"))
+    if(int err = getJsonEntry(root, dlist, type == filetype::location ? "location" : "security"))
         return err;
     int num_drives = json_object_array_length(dlist);
     
-    struct json_object *d = NULL, *t = NULL;
-    KineticDrive kd; 
-    std::string id;
-
+    struct json_object *d = NULL;
+    int err = 0; 
+    
     for(int i=0; i<num_drives; i++){ 
         d = json_object_array_get_idx(dlist, i);
-        
-        /* We could go with wwn instead of serial number. Chosen SN since it is also unique
-         * and is both shorter and contains no spaces (eos does not like spaces in the path name). */
-        if(int err = getJsonEntry(d,t,"serialNumber")) 
-            return err;
-        id = json_object_get_string(t);
-        
-        if(int err = getJsonEntry(d,t,"user_id")) 
-            return err;
-        kd.connection_options.user_id = json_object_get_int(t);
-        
-        if(int err = getJsonEntry(d,t,"hmac_key")) 
-            return err;
-        kd.connection_options.hmac_key = json_object_get_string(t);
-        
-        if(int err = getJsonEntry(d,t,"host")) 
-            return err;
-        kd.connection_options.host = json_object_get_string(t);
-        
-         if(int err = getJsonEntry(d,t,"port")) 
-            return err;
-        kd.connection_options.port = json_object_get_int(t);
-        
-        kd.connection_options.use_ssl = false;
-       
-        drives.insert(std::make_pair(id, kd));
+        if(type == filetype::location)
+            err = parseDriveInfo(d);
+        else if (type == filetype::security)
+            err = parseDriveSecurity(d);
+        if(err) return err; 
     }
     return 0;
 }

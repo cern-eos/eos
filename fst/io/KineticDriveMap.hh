@@ -53,7 +53,8 @@ public:
     //--------------------------------------------------------------------------
     //! Constructor. 
     //! Requires a json file listing kinetic drives to be stored at the location
-    //! indicated by the EOS_FST_KINETIC_JSON environment variable. 
+    //! indicated by the KINETIC_DRIVE_LOCATION and KINETIC_DRIVE_SECURITY environment 
+    //! variables 
     //-------------------------------------------------------------------------- 
     explicit KineticDriveMap();
     
@@ -64,18 +65,8 @@ public:
     
 private:
     //--------------------------------------------------------------------------
-    //! Build the drive map from the drive information stored in the supplied 
-    //! json string. 
-    //!
-    //! @param jsonString contents of the json file stored at EOS_FST_KINETIC_JSON
-    //! @return 0 if successful, EINVAL if drive description incomplete or incorrect json. 
-    //--------------------------------------------------------------------------
-    int parseJson(const std::string & jsonString);
-    
-    //--------------------------------------------------------------------------
-    //! This should by all rights be a lambda function inside parseJson. But 
-    //! to support gcc 4.4.7 (for SLC6) lambda functions are out the window. 
-    //!
+    //! Utility function to grab a specific json entry. 
+    //! 
     //! @param parent the json object to search in 
     //! @param entry output
     //! @param name the name of the entry to search for 
@@ -83,6 +74,29 @@ private:
     //--------------------------------------------------------------------------
     int getJsonEntry(struct json_object *parent, struct json_object *& entry, const char * name);
     
+    //--------------------------------------------------------------------------
+    //! Creates a KineticDrive object in the drive map containing the ip and port 
+    //!
+    //! @param drive json root of single drive description containing lcoation data
+    //! @return 0 if successful, EINVAL if drive description incomplete or incorrect json. 
+    int parseDriveInfo(struct json_object *drive); 
+    
+    //--------------------------------------------------------------------------
+    //! Adds security attributes to drive description
+    //!
+    //! @param drive json root of single drive description containing security data
+    //! @return 0 if successful, EINVAL if drive description incomplete or incorrect json, 
+    //!           ENODEV if drive id does not exist in map . 
+    int parseDriveSecurity(struct json_object *drive);
+
+    //--------------------------------------------------------------------------
+    //! Parse the supplied json file. 
+    //!
+    //! @param filedata contents of a json file
+    //! @param filetype specifies if filedata contains security or location information.
+    //! @return 0 if successful, EINVAL if drive description incomplete or incorrect json. 
+    //--------------------------------------------------------------------------
+    int parseJson(const std::string & filedata, int filetype);
     
 private:
     struct KineticDrive{

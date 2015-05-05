@@ -16,7 +16,7 @@ SCENARIO("KineticIo Public API", "[Io]"){
     REQUIRE(bcon->InstantErase("NULL").ok());
     
     eos::fst::KineticIo kio;
-    std::string path("kinetic:driveID_1:filename");
+    std::string path("kinetic:SN1:filename");
     
     int  buf_size = 64;
     char write_buf[] = "rcPOa12L3nhN5Cgvsa6Jlr3gn58VhazjA6oSpKacLFYqZBEu0khRwbWtEjge3BUA";
@@ -146,7 +146,7 @@ SCENARIO("KineticIo Public API", "[Io]"){
         
         THEN("Calling statfs on the same object is illegal,"){
             struct statfs sfs;
-            REQUIRE(kio.Statfs("kinetic:driveID_1:", &sfs) == EPERM);
+            REQUIRE(kio.Statfs("kinetic:SN1:", &sfs) == EPERM);
         }
         
         AND_WHEN("The file is removed via a second io object."){

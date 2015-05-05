@@ -1,0 +1,23 @@
+{ 
+   "location_comment":"Array of drive locations, format as output by kinetic-tools discover function, located at $KINETIC_DRIVE_LOCATION",
+   "location":[
+        {"inet4":["localhost","127.0.0.1"],"port":8123,"tlsPort":8443,"wwn":"WWN1","model":"Simulator","serialNumber":"SN1","firmwareVersion":"2.6.0"},
+        {"inet4":["nohost",""],"port":8123,"tlsPort":8443,"wwn":"WWN2","model":"ST4000NK001-1NX668","serialNumber":"SN2","firmwareVersion":"2.6.0"}
+    ],
+    
+    
+   "security_comment":"Array of drive access information, format as input to kinetic-tool setsecurity function (with identifiers wwn and serialNumber added), located at $KINETIC_DRIVE_SECURITY ",
+   "security":[
+        {"userId":1,"key":"asdfasdf","wwn":"WWN1","serialNumber":"SN1"},
+        {"userId":1,
+         "key":"asdfasdf",
+         "algorithm":"HmacSHA1",
+         "domains":[{"offset":0,
+                     "value":"",
+                     "roles":["READ","WRITE","DELETE","RANGE","SETUP","P2POP","GETLOG","SECURITY"]
+                    }],
+          "wwn":"WWN2",
+          "serialNumber":"SN2"
+        }
+    ]
+}
