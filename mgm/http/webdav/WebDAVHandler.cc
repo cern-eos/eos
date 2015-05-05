@@ -366,7 +366,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
       // everything went well
       response = new eos::common::PlainHttpResponse();
       response->SetResponseCode(response->CREATED);
-      if (!request->GetHeaders().count("CBOX-SKIP-LOCATION-ON-MOVE")) 
+      if (!request->GetHeaders().count("cbox-skip-location-on-move"))
       {
 	response->AddHeader("Location",request->GetHeaders()["destination"].c_str());
       }
