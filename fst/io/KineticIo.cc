@@ -121,16 +121,18 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
         int chunk_offset = (offset+offset_done) - chunk_number * KineticChunk::capacity;
         int chunk_length = std::min(length_todo, KineticChunk::capacity - chunk_offset);
       
+       /* Increase last chunk number if we write past currently known file size...
+        * also assume the file doesn't exist yet.  */
         bool create=false; 
-        if(chunk_number > lastChunkNumber.get()){
-            lastChunkNumber.set(chunk_number);
-            create = true; 
+        if(chunk_number > lastChunkNumber.get() && (mode == rw::WRITE)){
+           lastChunkNumber.set(chunk_number);
+           create = true; 
         }
-        
+
         errno = cache.get(chunk_number, chunk, create);
         if(errno) return SFS_ERROR;
-
-        if(mode == rw::WRITE){
+                   
+        if(mode == rw::WRITE){            
             errno = chunk->write(buffer+offset_done, chunk_offset, chunk_length);
             if(errno) return SFS_ERROR;
            
@@ -139,20 +141,22 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
                 cache.requestFlush(chunk_number); 
         }
         else if (mode == rw::READ){
-            /* standard read */
+            /* If we START reading past EOF set EFAULT */
+            if((chunk_number > lastChunkNumber.get()) || 
+               (chunk_number == lastChunkNumber.get() && chunk->size() < chunk_offset)){
+                errno = EFAULT;
+                return SFS_ERROR;
+            }     
+            
             errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
             if(errno) return SFS_ERROR;
-              
-             /* last chunk... only read up to filesize. */
-            if(chunk_number >= lastChunkNumber.get()){    
-                if(chunk->size() > chunk_offset)
-                    length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);
-                if(length==length_todo){
-                    errno = EFAULT;
-                    return SFS_ERROR;
-                }                
+  
+            /* If we are reading the last chunk, make sure length doesn't indicate
+             * that we read past filesize. */
+            if(chunk_number == lastChunkNumber.get()){    
+                length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);  
                 break;
-            }
+            }          
         }
 
         length_todo -= chunk_length;
@@ -354,12 +358,19 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     long free     = capacity - (capacity * log->capacity.portion_full); 
   
     sfs->f_frsize = 4096; /* Minimal allocated block size. Set to 4K because that's the maximum accepted value. */
-    sfs->f_bsize  = KineticChunk::capacity; /* Preferred file system block size for I/O requests */
+    sfs->f_bsize  = sfs->f_frsize;  /* Preferred file system block size for I/O requests */
+    
+    /* set f_frsize to the same value as f_bsize... otherwise EOS gets confused 
+     * (which is what all kernel filesystems do as well, as confusion is apparently common) */
+    
     sfs->f_blocks = (fsblkcnt_t) (capacity / sfs->f_frsize); /* Blocks on FS in units of f_frsize */
     sfs->f_bavail = (fsblkcnt_t) (free / sfs->f_frsize); /* Free blocks */
     sfs->f_bfree  = sfs->f_bavail; /* Free blocks available to non root user */
     sfs->f_files   = capacity / KineticChunk::capacity; /* Total inodes */
     sfs->f_ffree   = free / KineticChunk::capacity ; /* Free inodes */
+    
+    eos_info("Capacity is %ld bytes, %ld GB, %ld blocks of %d size each",
+            capacity, capacity / (1024*1024*1024), sfs->f_blocks, sfs->f_frsize);
     
     eos_debug("Statfs successful for path %s",p);
     return 0;
