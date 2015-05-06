@@ -496,7 +496,7 @@ class FileMDFollower: public eos::ILogRecordScanner
   
     typedef std::map<eos::IFileMD::id_t, FileHelper> FileMap;
     FileMap                       pUpdated;
-    std::set<eos::IFileMD::id_t>   pDeleted;
+    std::set<eos::IFileMD::id_t>  pDeleted;
     eos::ChangeLogFileMDSvc*      pFileSvc;
     eos::ChangeLogContainerMDSvc* pContSvc;
     eos::QuotaStats*              pQuotaStats;
@@ -668,8 +668,8 @@ void ChangeLogFileMDSvc::initialize() throw(MDException)
 
   // Rescan the change log if needed
   //
-  // In the master mode we go throug the entire file
-  // In the slave mode up untill the compaction mark or not at all
+  // In the master mode we go through the entire file
+  // In the slave mode up until the compaction mark or not at all
   // if the compaction mark is not present
   pChangeLog->open(pChangeLogPath, logOpenFlags, FILE_LOG_MAGIC);
   bool logIsCompacted = (pChangeLog->getUserFlags() & LOG_FLAG_COMPACTED);

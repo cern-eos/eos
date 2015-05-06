@@ -29,7 +29,6 @@
 #include "namespace/accounting/QuotaStats.hh"
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/IFileMDSvc.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 
 namespace eos
 {

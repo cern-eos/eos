@@ -315,7 +315,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Data
       //------------------------------------------------------------------------
-      IFileMD::id_t       pFirstFreeId;
+      IFileMD::id_t      pFirstFreeId;
       std::string        pChangeLogPath;
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;
