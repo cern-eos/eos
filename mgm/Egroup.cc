@@ -511,7 +511,7 @@ Egroup::DumpMember (std::string &username, std::string & egroupname)
     rs += " member=true ";
   else
     rs += " member=false";
-  rs += " lifetime ";
+  rs += " lifetime=";
   rs += std::to_string((long long)timetolive);
   return rs;
 }
