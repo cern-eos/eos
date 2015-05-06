@@ -141,20 +141,14 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
                 cache.requestFlush(chunk_number); 
         }
         else if (mode == rw::READ){
-            /* If we START reading past EOF set EFAULT */
-            if((chunk_number > lastChunkNumber.get()) || 
-               (chunk_number == lastChunkNumber.get() && chunk->size() < chunk_offset)){
-                errno = EFAULT;
-                return SFS_ERROR;
-            }     
-            
             errno = chunk->read(buffer+offset_done, chunk_offset, chunk_length);
             if(errno) return SFS_ERROR;
   
-            /* If we are reading the last chunk, make sure length doesn't indicate
-             * that we read past filesize. */
-            if(chunk_number == lastChunkNumber.get()){    
-                length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);  
+            /* If we are reading the last chunk (or past it) */
+            if(chunk_number >= lastChunkNumber.get()){    
+                /* make sure length doesn't indicate that we read past filesize. */
+                if(chunk->size() < chunk_offset )
+                    length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);  
                 break;
             }          
         }
