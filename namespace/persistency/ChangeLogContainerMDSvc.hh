@@ -333,7 +333,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Data members
       //------------------------------------------------------------------------
-      IContainerMD::id_t  pFirstFreeId;
+      IContainerMD::id_t pFirstFreeId;
       std::string        pChangeLogPath;
       ChangeLogFile     *pChangeLog;
       IdMap              pIdMap;

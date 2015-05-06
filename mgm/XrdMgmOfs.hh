@@ -996,6 +996,11 @@ public:
 private:
 
   eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
+
+  //----------------------------------------------------------------------------
+  //! Initialize MGM statistics to 0
+  //----------------------------------------------------------------------------
+  void InitStats();
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

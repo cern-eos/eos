@@ -118,7 +118,7 @@ Master::Init()
   XrdOucString lMaster1MQ;
   XrdOucString lMaster2MQ;
 
-  // define the MQ hosts
+  // Define the MQ hosts
   if (getenv("EOS_MQ_MASTER1"))
   {
     lMaster1MQ = getenv("EOS_MQ_MASTER1");
@@ -1157,7 +1157,7 @@ Master::ApplyMasterConfig(XrdOucString& stdOut, XrdOucString& stdErr,
 //------------------------------------------------------------------------------
 // Activate
 //------------------------------------------------------------------------------
-int
+bool
 Master::Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype)
 {
   fActivated = false;
@@ -1892,7 +1892,6 @@ Master::BootNamespace()
   gOFS->eosFsView = new eos::FileSystemView;
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
-  std::map<std::string, std::string> settings;
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   contSettings["changelog_path"] += "/directories.";
@@ -1939,7 +1938,8 @@ Master::BootNamespace()
       }
     }
 
-    gOFS->eosView->configure(settings);
+    std::map<std::string, std::string> cfg_settings;
+    gOFS->eosView->configure(cfg_settings);
     MasterLog(eos_notice("%s", (char*) "eos directory view configure started"));
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 

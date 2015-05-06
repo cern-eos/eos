@@ -324,23 +324,18 @@ namespace eos
       //------------------------------------------------------------------------
       // Get quota node id concerning given container
       //------------------------------------------------------------------------
-
       QuotaNode *
       getQuotaNode (const IContainerMD *container)
       throw ( MDException)
       {
-        //----------------------------------------------------------------------
         // Initial sanity check
-        //----------------------------------------------------------------------
         if (!container)
           return 0;
 
         if (!pQuotaStats)
           return 0;
 
-        //----------------------------------------------------------------------
         // Search for the node
-        //----------------------------------------------------------------------
         const IContainerMD *current = container;
 
         while ( ( current->getId() != 1 ) &&
@@ -406,10 +401,8 @@ namespace
   //----------------------------------------------------------------------------
   // Store info about old and new offset for a given file id
   //----------------------------------------------------------------------------
-
   struct ContainerRecordData
   {
-
     ContainerRecordData() : offset(0), newOffset(0), containerId(0) { }
 
     ContainerRecordData(uint64_t o, eos::IContainerMD::id_t i, uint64_t no = 0) :
@@ -422,7 +415,6 @@ namespace
   //----------------------------------------------------------------------------
   // Carry the data between compacting stages
   //----------------------------------------------------------------------------
-
   struct ContainerCompactingData
   {
 
@@ -445,7 +437,6 @@ namespace
   //----------------------------------------------------------------------------
   // Compare record data objects in order to sort them
   //----------------------------------------------------------------------------
-
   struct ContainerOffsetComparator
   {
 
@@ -458,7 +449,6 @@ namespace
   //----------------------------------------------------------------------------
   // Process the records being scanned and copy them to the new log
   //----------------------------------------------------------------------------
-
   class ContainerUpdateHandler : public eos::ILogRecordScanner
   {
   public:
@@ -466,31 +456,27 @@ namespace
     //------------------------------------------------------------------------
     // Constructor
     //------------------------------------------------------------------------
-
-    ContainerUpdateHandler (std::map<eos::IContainerMD::id_t, ContainerRecordData> &updates,
+    ContainerUpdateHandler (std::map<eos::IContainerMD::id_t,
+                            ContainerRecordData> &updates,
                             eos::ChangeLogFile *newLog) :
       pUpdates (updates), pNewLog (newLog) { }
 
     //------------------------------------------------------------------------
     // Process the records
     //------------------------------------------------------------------------
-
     virtual bool
     processRecord (uint64_t offset,
                    char type,
                    const eos::Buffer &buffer)
     {
-      //----------------------------------------------------------------------
       // Write to the new change log - we need to cast - nasty, but safe in
       // this case
-      //----------------------------------------------------------------------
       uint64_t newOffset = pNewLog->storeRecord(type, (eos::Buffer&)buffer);
 
-      //----------------------------------------------------------------------
       // Put the right stuff in the updates map
-      //----------------------------------------------------------------------
       eos::IContainerMD::id_t id;
       buffer.grabData(0, &id, sizeof ( eos::IFileMD::id_t));
+
       if (type == eos::UPDATE_RECORD_MAGIC)
         pUpdates[id] = ContainerRecordData(offset, id, newOffset);
       else if (type == eos::DELETE_RECORD_MAGIC)
@@ -499,9 +485,6 @@ namespace
       return true;
     }
 
-    //------------------------------------------------------------------------
-    // Private
-    //------------------------------------------------------------------------
   private:
     std::map<eos::IContainerMD::id_t, ContainerRecordData> &pUpdates;
     eos::ChangeLogFile *pNewLog;
@@ -516,10 +499,9 @@ namespace eos
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::initialize() throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Decide on how to open the change log
-    //--------------------------------------------------------------------------
     int logOpenFlags = 0;
+
     if( pSlaveMode )
     {
       if( !pSlaveLock )
@@ -533,13 +515,11 @@ namespace eos
     else
       logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
 
-    //--------------------------------------------------------------------------
     // Rescan the change log if needed
     //
     // In the master mode we go throug the entire file
-    // In the slave mode up untill the compaction mark or not at all
+    // In the slave mode up until the compaction mark or not at all
     // if the compaction mark is not present
-    //--------------------------------------------------------------------------
     pChangeLog->open( pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC );
     bool logIsCompacted = (pChangeLog->getUserFlags() & LOG_FLAG_COMPACTED);
     pFollowStart = pChangeLog->getFirstOffset();
@@ -550,9 +530,7 @@ namespace eos
       pFollowStart = pChangeLog->scanAllRecords( &scanner );
       pFirstFreeId = scanner.getLargestId()+1;
 
-      //------------------------------------------------------------------------
       // Recreate the container structure
-      //------------------------------------------------------------------------
       IdMap::iterator it;
       ContainerList   orphans;
       ContainerList   nameConflicts;
@@ -563,9 +541,7 @@ namespace eos
         recreateContainer( it, orphans, nameConflicts );
       }
 
-      //------------------------------------------------------------------------
       // Deal with broken containers if we're not in the slave mode
-      //------------------------------------------------------------------------
       if( !pSlaveMode )
       {
         attachBroken( getLostFoundContainer( "orphans" ), orphans );
@@ -575,15 +551,13 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
-  //! Make a transition from slave to master
+  // Make a transition from slave to master
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::slave2Master(
             std::map<std::string, std::string> &config)
   throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Find the new changelog path
-    //--------------------------------------------------------------------------
     std::map<std::string, std::string>::iterator it;
     it = config.find( "changelog_path" );
     if( it == config.end() )
@@ -601,9 +575,7 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Copy the current changelog file to the previous name
-    //--------------------------------------------------------------------------
     std::string tmpChangeLogPath     = pChangeLogPath;
     tmpChangeLogPath += ".tmp";
     std::string currentChangeLogPath = pChangeLogPath;
@@ -621,14 +593,10 @@ namespace eos
       e.getMessage() << pChangeLogPath << ">";
     }
 
-    //--------------------------------------------------------------------------
-    // redefine the valid changelog path
-    //--------------------------------------------------------------------------
+    // Redefine the valid changelog path
     pChangeLogPath = it->second;
 
-    //--------------------------------------------------------------------------
     // Rename the current changelog file to the new file name
-    //--------------------------------------------------------------------------
     if( rename( currentChangeLogPath.c_str(), pChangeLogPath.c_str() ) )
     {
       MDException e( EINVAL );
@@ -637,9 +605,7 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Rename the temp changelog file to the new file name
-    //--------------------------------------------------------------------------
     if( rename( tmpChangeLogPath.c_str(), currentChangeLogPath.c_str() ) )
     {
       MDException e( EINVAL );
@@ -648,14 +614,10 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Stop the follower thread
-    //--------------------------------------------------------------------------
     stopSlave();
 
-    //--------------------------------------------------------------------------
     // Reopen changelog file in writable mode = close + open (append)
-    //--------------------------------------------------------------------------
     pChangeLog->close( ) ;
     int logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
     pChangeLog->open( pChangeLogPath, logOpenFlags, CONTAINER_LOG_MAGIC );
@@ -677,14 +639,13 @@ namespace eos
   // Configure the container service
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::configure(
-                                   std::map<std::string, std::string> &config )
+      std::map<std::string, std::string> &config )
     throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Configure the changelog
-    //--------------------------------------------------------------------------
     std::map<std::string, std::string>::iterator it;
     it = config.find( "changelog_path" );
+
     if( it == config.end() )
     {
       MDException e( EINVAL );
@@ -693,10 +654,9 @@ namespace eos
     }
     pChangeLogPath = it->second;
 
-    //--------------------------------------------------------------------------
     // Check whether we should run in the slave mode
-    //--------------------------------------------------------------------------
     it = config.find( "slave_mode" );
+
     if( it != config.end() && it->second == "true" )
     {
       pSlaveMode = true;
@@ -754,9 +714,7 @@ namespace eos
   void ChangeLogContainerMDSvc::updateStore( IContainerMD *obj )
     throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Find the object in the map
-    //--------------------------------------------------------------------------
     IdMap::iterator it = pIdMap.find( obj->getId() );
     if( it == pIdMap.end() )
     {
@@ -766,9 +724,7 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Store the file in the changelog and notify the listener
-    //--------------------------------------------------------------------------
     eos::Buffer buffer;
     obj->serialize( buffer );
     it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
@@ -791,9 +747,7 @@ namespace eos
   void ChangeLogContainerMDSvc::removeContainer( IContainerMD::id_t containerId )
     throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Find the object in the map
-    //--------------------------------------------------------------------------
     IdMap::iterator it = pIdMap.find( containerId );
     if( it == pIdMap.end() )
     {
@@ -803,9 +757,7 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Store the file in the changelog and notify the listener
-    //--------------------------------------------------------------------------
     eos::Buffer buffer;
     buffer.putData( &containerId, sizeof( IContainerMD::id_t ) );
     pChangeLog->storeRecord( eos::DELETE_RECORD_MAGIC, buffer );
@@ -817,8 +769,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Add change listener
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::addChangeListener(
-                                     IContainerMDChangeListener *listener )
+  void
+  ChangeLogContainerMDSvc::addChangeListener(IContainerMDChangeListener *listener)
   {
     pListeners.push_back( listener );
   }
@@ -826,14 +778,11 @@ namespace eos
   //----------------------------------------------------------------------------
   // Prepare for online compacting.
   //----------------------------------------------------------------------------
-
   void *
   ChangeLogContainerMDSvc::compactPrepare (const std::string &newLogFileName) const
     throw ( MDException)
   {
-    //--------------------------------------------------------------------------
     // Try to open a new log file for writing
-    //--------------------------------------------------------------------------
     ::ContainerCompactingData *data = new ::ContainerCompactingData();
     try
     {
@@ -849,9 +798,7 @@ namespace eos
       throw;
     }
 
-    //--------------------------------------------------------------------------
     // Get the list of records
-    //--------------------------------------------------------------------------
     IdMap::const_iterator it;
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
       data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
@@ -861,13 +808,10 @@ namespace eos
   //----------------------------------------------------------------------------
   // Do the compacting.
   //----------------------------------------------------------------------------
-
   void
   ChangeLogContainerMDSvc::compact (void *&compactingData) throw ( MDException)
   {
-    //--------------------------------------------------------------------------
     // Sort the records to avoid random seeks
-    //--------------------------------------------------------------------------
     ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
     if (!data)
       {
@@ -878,9 +822,7 @@ namespace eos
     std::sort(data->records.begin(), data->records.end(),
               ::ContainerOffsetComparator());
 
-    //--------------------------------------------------------------------------
     // Copy the records to the new container
-    //--------------------------------------------------------------------------
     try
     {
       std::vector<ContainerRecordData>::iterator it;
@@ -904,7 +846,6 @@ namespace eos
   //----------------------------------------------------------------------------
   // Commit the compacting information.
   //----------------------------------------------------------------------------
-
   void
   ChangeLogContainerMDSvc::compactCommit (void *compactingData)
     throw ( MDException)
@@ -917,10 +858,8 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Copy the part of the old log that has been appended after we
     // prepared
-    //--------------------------------------------------------------------------
     std::map<eos::IContainerMD::id_t, ContainerRecordData> updates;
     try
     {
@@ -935,30 +874,24 @@ namespace eos
       throw;
     }
 
-    //--------------------------------------------------------------------------
     // Looks like we're all good and we won't be throwing any exceptions any
     // more so we may get to updating the in-memory structures.
     //
     // We start with the originally copied records
-    //--------------------------------------------------------------------------
     uint64_t containerCounter = 0;
     IdMap::iterator it;
     std::vector<ContainerRecordData>::iterator itO;
     for (itO = data->records.begin(); itO != data->records.end(); ++itO)
     {
-      //------------------------------------------------------------------------
       // Check if we still have the container, if not, it must have been deleted
       // so we don't care
-      //------------------------------------------------------------------------
       it = pIdMap.find(itO->containerId);
       if (it == pIdMap.end())
         continue;
 
-      //------------------------------------------------------------------------
       // If the original offset does not match it means that we must have
       // be updated later, if not we've messed up so we die in order not
       // to lose data
-      //------------------------------------------------------------------------
       assert(it->second.logOffset >= itO->offset);
       if (it->second.logOffset == itO->offset)
       {
@@ -967,10 +900,8 @@ namespace eos
       }
     }
 
-    //--------------------------------------------------------------------------
     // Now we handle updates, if we don't have the container, we're messed up,
     // if the original offsets don't match we're messed up too
-    //--------------------------------------------------------------------------
     std::map<IContainerMD::id_t, ContainerRecordData>::iterator itU;
     for (itU = updates.begin(); itU != updates.end(); ++itU)
     {
@@ -984,9 +915,7 @@ namespace eos
 
     assert(containerCounter == pIdMap.size());
 
-    //--------------------------------------------------------------------------
     // Replace the logs
-    //--------------------------------------------------------------------------
     pChangeLog = data->newLog;
     pChangeLog->addCompactionMark();
     pChangeLogPath = data->logFileName;
@@ -1069,9 +998,7 @@ namespace eos
     container->deserialize( buffer );
     it->second.ptr = container;
 
-    //--------------------------------------------------------------------------
     // For non-root containers recreate the parent
-    //--------------------------------------------------------------------------
     if( container->getId() != container->getParentId() )
     {
       IdMap::iterator parentIt = pIdMap.find( container->getParentId() );
@@ -1117,9 +1044,7 @@ namespace eos
   //----------------------------------------------------------------------------
   IContainerMD *ChangeLogContainerMDSvc::getLostFound() throw( MDException )
   {
-    //--------------------------------------------------------------------------
     // Get root
-    //--------------------------------------------------------------------------
     IContainerMD *root = 0;
     try
     {
@@ -1132,9 +1057,7 @@ namespace eos
       updateStore( root );
     }
 
-    //--------------------------------------------------------------------------
     // Get or create lost+found if necessary
-    //--------------------------------------------------------------------------
     IContainerMD *lostFound = root->findContainer( "lost+found" );
 
     if( lostFound )
@@ -1190,9 +1113,7 @@ namespace eos
   bool ChangeLogContainerMDSvc::ContainerMDScanner::processRecord(
                            uint64_t offset, char type, const Buffer &buffer )
   {
-    //--------------------------------------------------------------------------
     // Update
-    //--------------------------------------------------------------------------
     if( type == UPDATE_RECORD_MAGIC )
     {
       IContainerMD::id_t id;
@@ -1200,10 +1121,7 @@ namespace eos
       pIdMap[id] = DataInfo( offset, 0 );
       if( pLargestId < id ) pLargestId = id;
     }
-
-    //--------------------------------------------------------------------------
     // Deletion
-    //--------------------------------------------------------------------------
     else if( type == DELETE_RECORD_MAGIC )
     {
       IContainerMD::id_t id;
@@ -1214,9 +1132,7 @@ namespace eos
       if( pLargestId < id ) pLargestId = id;
     }
 
-    //--------------------------------------------------------------------------
     // Compaction mark - we stop scanning here
-    //--------------------------------------------------------------------------
     else if( type == COMPACT_STAMP_RECORD_MAGIC )
     {
       if( pSlaveMode )

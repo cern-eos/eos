@@ -157,7 +157,7 @@ class Master : public eos::common::LogId
   //! Activate the current master/slave settings = configure configuration
   //! directory and (re-)load the appropriate configuratio
   //----------------------------------------------------------------------------
-  int Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype);
+  bool Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype);
 
   //----------------------------------------------------------------------------
   //! Set the new master host
