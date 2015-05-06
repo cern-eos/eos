@@ -30,6 +30,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Statfs.hh"
+#include "common/Attr.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 
