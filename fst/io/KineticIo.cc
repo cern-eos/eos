@@ -147,7 +147,7 @@ int64_t KineticIo::doReadWrite (XrdSfsFileOffset offset, char* buffer,
             /* If we are reading the last chunk (or past it) */
             if(chunk_number >= lastChunkNumber.get()){    
                 /* make sure length doesn't indicate that we read past filesize. */
-                if(chunk->size() < chunk_offset )
+                if(chunk->size() > chunk_offset)
                     length_todo -= std::min(chunk_length, chunk->size() - chunk_offset);  
                 break;
             }          
