@@ -157,6 +157,71 @@ CheckSum::ScanFile (int fd, unsigned long long &scansize, float &scantime, int r
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+
+/* scan of a complete file using an opened layout*/
+
+
+bool 
+CheckSum::ScanFile (ReadCallBack rcb, unsigned long long &scansize, float &scantime, int rate)
+{
+  static int buffersize = 1024 * 1024;
+  struct timezone tz;
+  struct timeval opentime;
+  struct timeval currenttime;
+  scansize = 0;
+  scantime = 0;
+
+  gettimeofday(&opentime, &tz);
+
+  //move at the right location in the  file
+
+  int nread = 0;
+  off_t offset = 0;
+
+  char* buffer = (char*) malloc(buffersize);
+  if (!buffer)
+  {
+    return false;
+  }
+
+  do
+  {
+    errno = 0;
+    rcb.data.offset=offset;
+    rcb.data.buffer=buffer;
+    rcb.data.size=buffersize;
+    nread = rcb.call(&rcb.data);
+
+    if (nread < 0)
+    {
+      free(buffer);
+      return false;
+    }
+    Add(buffer, nread, offset);
+    offset += nread;
+    if (rate)
+    {
+      // regulate the verification rate
+      gettimeofday(&currenttime, &tz);
+      scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+      float expecttime = (1.0 * offset / rate) / 1000.0;
+      if (expecttime > scantime)
+      {
+        usleep(1000.0 * (expecttime - scantime));
+      }
+    }
+  }
+  while (nread == buffersize);
+
+  gettimeofday(&currenttime, &tz);
+  scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  scansize = (unsigned long long) offset;
+
+  Finalize();
+  free(buffer);
+  return true;
+}
 
 /*----------------------------------------------------------------------------*/
 
