@@ -689,7 +689,33 @@ XrdFstOfsFile::open (const char* path,
 
   }
 
-  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat)))
+  if ((val = capOpaque->Get("mgm.logid")))
+  {
+    snprintf(logId, sizeof ( logId) - 1, "%s", val);
+  }
+
+  SetLogId(logId, vid, tident);
+  eos_info("fstpath=%s", fstPath.c_str());
+
+  //............................................................................
+  // Get the layout object
+  //............................................................................
+  layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
+                                                   eos::common::LayoutId::GetIoType(fstPath.c_str()),
+                                                   msDefaultTimeout, store_recovery);
+
+  if (!layOut)
+  {
+    int envlen;
+    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
+    delete fMd;
+    return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
+                     capOpaque->Env(envlen));
+  }
+
+  layOut->SetLogId(logId, vid, tident);
+
+  if ((retc = layOut->Stat(&updateStat)))
   {
     //..........................................................................
     // File does not exist, keep the create lfag
@@ -838,32 +864,6 @@ XrdFstOfsFile::open (const char* path,
   {
     return gOFS.Emsg(epname, error, EINVAL, "open - sec gid missing", Path.c_str());
   }
-
-  if ((val = capOpaque->Get("mgm.logid")))
-  {
-    snprintf(logId, sizeof ( logId) - 1, "%s", val);
-  }
-
-  SetLogId(logId, vid, tident);
-  eos_info("fstpath=%s", fstPath.c_str());
-
-  //............................................................................
-  // Get the layout object
-  //............................................................................
-  layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
-                                                   eos::common::LayoutId::GetIoType(fstPath.c_str()),
-                                                   msDefaultTimeout, store_recovery);
-
-  if (!layOut)
-  {
-    int envlen;
-    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
-    delete fMd;
-    return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
-                     capOpaque->Env(envlen));
-  }
-
-  layOut->SetLogId(logId, vid, tident);
 
   //............................................................................
   // Attach meta data
@@ -1372,6 +1372,17 @@ XrdFstOfsFile::closeofs ()
 //
 //------------------------------------------------------------------------------
 
+int 
+XrdFstOfsFile::LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
+{
+  return ((Layout*)cbd->caller)->Read(cbd->offset,cbd->buffer,cbd->size);
+}
+
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
 bool
 XrdFstOfsFile::verifychecksum ()
 {
@@ -1405,6 +1416,7 @@ XrdFstOfsFile::verifychecksum ()
     }
     else
     {
+      eos_debug("isrw=%d max-offset=%lld opensize=%lld", isRW, checkSum->GetMaxOffset(), openSize);
       if (((!isRW) && (checkSum->GetMaxOffset() != openSize)))
       {
         eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
@@ -1430,12 +1442,17 @@ XrdFstOfsFile::verifychecksum ()
 
       if (!fctl(SFS_FCTL_GETFD, 0, error))
       {
-        int fd = error.getErrInfo();
+	// not needed anymore
+	// int fd = error.getErrInfo();
 
         //......................................................................
         // rescan the file
         //......................................................................
-        if (checkSum->ScanFile(fd, scansize, scantime))
+	eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
+	cbd.caller = (void*) layOut;
+	eos::fst::CheckSum::ReadCallBack cb(LayoutReadCB, cbd);
+
+        if (checkSum->ScanFile(cb, scansize, scantime))
         {
           XrdOucString sizestring;
           eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %x",

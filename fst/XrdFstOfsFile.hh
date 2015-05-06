@@ -54,6 +54,7 @@ EOSFSTNAMESPACE_BEGIN;
 
 // Forward declaration
 class Layout;
+class CheckSum;
 
 //------------------------------------------------------------------------------
 //! Class
@@ -415,6 +416,17 @@ protected:
   //!
   //--------------------------------------------------------------------------
   void MakeReportEnv (XrdOucString& reportString);
+
+  //--------------------------------------------------------------------------                                                                                                                               
+  //! Read callback used by CheckSum class                                                                                                                                                                   
+  //!                                                                                                                                                                                                        
+  //! @param cbd - callback data                                                                                                                                                                             
+  //!                                                                                                                                                                                                        
+  //! @return result of Layout::Read(...)                                                                                                                                                                    
+  //!                                                                                                                                                                                                     
+   
+  //--------------------------------------------------------------------------                                                                                                                                
+  static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
  private:
 
