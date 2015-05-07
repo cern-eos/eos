@@ -36,6 +36,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
+#include "common/plugin_manager/PluginManager.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -412,6 +413,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   bool ConfigAutoSave = false;
   MgmConfigAutoLoad = "";
   long myPort = 0;
+  std::string ns_lib_path {""};
 
   if (getenv("XRDDEBUG"))
     gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
@@ -629,6 +631,21 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
 
           Eroute.Say("=====> mgmofs.instance : ", MgmOfsInstanceName.c_str(), "");
+        }
+
+        if (!strcmp("nslib", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "no namespace library path provided");
+            NoGo = 1;
+          }
+          else
+          {
+            ns_lib_path = val;
+          }
+
+          Eroute.Say("=====> mgmofs.nslib : ", ns_lib_path.c_str());
         }
 
         if (!strcmp("authlib", var))
@@ -1139,6 +1156,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (!MgmArchiveDir.length())
   {
     Eroute.Say("Config notice: archive directory is not defined - archiving is disabled");
+  }
+
+  // Load the namespace plugin
+  if (!ns_lib_path.empty())
+  {
+    eos::common::PluginManager& pm = eos::common::PluginManager::GetInstance();
+    pm.LoadByPath(ns_lib_path);
   }
 
   MgmOfsBroker = MgmOfsBrokerUrl;

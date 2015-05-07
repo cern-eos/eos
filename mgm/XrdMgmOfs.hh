@@ -794,7 +794,7 @@ public:
   // Update emulated in-memory directory modification time with a given time
   // ---------------------------------------------------------------------------
   void UpdateInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id,
-                                                eos::ContainerMD::ctime_t &ctime);
+                                                eos::IContainerMD::ctime_t &ctime);
 
   // ---------------------------------------------------------------------------
   // Retrieve a mapping for a given path

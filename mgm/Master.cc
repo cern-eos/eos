@@ -28,6 +28,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Statfs.hh"
+#include "common/plugin_manager/PluginManager.hh"
 
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNet.hh"
@@ -1886,6 +1887,9 @@ Master::RemoveStatusFile(const char* path)
 bool
 Master::BootNamespace()
 {
+  using eos::common::PluginManager;
+  PluginManager& pm = PluginManager::GetInstance();
+
   gOFS->eosDirectoryService = new eos::ChangeLogContainerMDSvc;
   gOFS->eosFileService = new eos::ChangeLogFileMDSvc;
   gOFS->eosView = new eos::HierarchicalView;

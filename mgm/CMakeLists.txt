@@ -123,7 +123,7 @@ target_link_libraries( XrdEosMgm
                        XrdUtils             
                        eosCommon            eosCommonServer
                        eosNamespace-Static  eosCapability-Static
-                       XrdMqClient-Static 
+                       EosPluginManager     XrdMqClient-Static
                        crypto               dl
 		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
 		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
