@@ -30,7 +30,6 @@
 #include "common/StringConversion.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
-#include "namespace/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"

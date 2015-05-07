@@ -27,14 +27,13 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
-#include "namespace/ContainerMD.hh"
+#include "namespace/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
