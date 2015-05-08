@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.116 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix asynchronous egroup refresh query 
+
 ``Version V0.3.115 Beryl-Aquamarine``
 
 Bug Fixes
