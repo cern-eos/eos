@@ -16,13 +16,35 @@ SCENARIO("KineticIo Public API", "[Io]"){
     REQUIRE(bcon->InstantErase("NULL").ok());
     
     eos::fst::KineticIo kio;
-    std::string path("kinetic:SN1:filename");
+    std::string base_path("kinetic:SN1:");
+    std::string path(base_path+"filename");
     
     int  buf_size = 64;
     char write_buf[] = "rcPOa12L3nhN5Cgvsa6Jlr3gn58VhazjA6oSpKacLFYqZBEu0khRwbWtEjge3BUA";
     char read_buf[buf_size];
     char null_buf[buf_size];
     memset (null_buf, 0, buf_size);
+    
+      
+    GIVEN("An illegally constructed path"){
+        std::string path("path");
+
+        THEN("Calling Open fails with errno ENODEV"){
+            REQUIRE(kio.Open(path.c_str(), SFS_O_CREAT) == SFS_ERROR);
+            REQUIRE(errno == ENODEV);
+        }
+
+        THEN("Calling Statfs returns ENODEV"){
+            struct statfs sfs;
+            REQUIRE(kio.Statfs(path.c_str(), &sfs) == ENODEV);
+        }
+
+        THEN("Factory function for Attribute class returns 0"){
+            std::unique_ptr<eos::fst::KineticIo::Attr> a;
+            a.reset( eos::fst::KineticIo::Attr::OpenAttr(path.c_str()) );
+            REQUIRE(!a);
+        }
+    }
     
     GIVEN ("Open is not called first."){            
         REQUIRE(bcon->InstantErase("NULL").ok());
@@ -62,35 +84,30 @@ SCENARIO("KineticIo Public API", "[Io]"){
             REQUIRE(sfs.f_bavail > 0);
         }
         
-        WHEN("Using an illegally constructed path"){
-            std::string path("path");
-            
-            THEN("Calling Open fails with errno ENODEV"){
-                REQUIRE(kio.Open(path.c_str(), SFS_O_CREAT) == SFS_ERROR);
-                REQUIRE(errno == ENODEV);
-            }
-            
-            THEN("Calling Statfs returns ENODEV"){
-                struct statfs sfs;
-                REQUIRE(kio.Statfs(path.c_str(), &sfs) == ENODEV);
-            }
-            
-            THEN("Factory function for Attribute class returns 0"){
-                std::unique_ptr<eos::fst::KineticIo::Attr> a;
-                a.reset( eos::fst::KineticIo::Attr::OpenAttr(path.c_str()) );
-                REQUIRE(!a);
-            }
-        }
-        
         THEN("Factory function for Attribute class returns 0"){
             std::unique_ptr<eos::fst::KineticIo::Attr> a;
             a.reset( eos::fst::KineticIo::Attr::OpenAttr(path.c_str()) );
             REQUIRE(!a);
          }
+        
+        THEN("ftsRead returns \"\"."){
+            void * handle = kio.ftsOpen(base_path);
+            REQUIRE(handle != NULL);
+            REQUIRE(kio.ftsRead(handle) == "");
+            REQUIRE(kio.ftsClose(handle) == 0);
+        }
     }
         
     GIVEN("Open succeeds"){         
         REQUIRE(kio.Open(path.c_str(), SFS_O_CREAT) == SFS_OK);
+        
+        THEN("The first ftsRead returns path, the second \"\"."){
+            void * handle = kio.ftsOpen(base_path);
+            REQUIRE(handle != NULL);
+            REQUIRE(kio.ftsRead(handle) == path);
+            REQUIRE(kio.ftsRead(handle) == "");
+            REQUIRE(kio.ftsClose(handle) == 0);
+        }
         
         THEN("Factory function for Attribute class succeeds"){
             std::unique_ptr<eos::fst::KineticIo::Attr> a;
@@ -107,8 +124,8 @@ SCENARIO("KineticIo Public API", "[Io]"){
             }
         }
         
-        THEN("Reading is not possible on an empty offset."){
-            REQUIRE(kio.Read(0,read_buf,buf_size) == SFS_ERROR);
+        THEN("Attempting to read an empty file reads 0 bytes."){
+            REQUIRE(kio.Read(0,read_buf,buf_size) == 0);
         }
 
         THEN("Writing is possible from object start."){
@@ -185,6 +202,13 @@ SCENARIO("KineticIo Public API", "[Io]"){
             THEN("The file can can be removed again."){
                 REQUIRE(kio.Remove() == SFS_OK);
                 REQUIRE(kio.Close() == SFS_OK);
+                
+                AND_THEN("ftsRead returns \"\"."){
+                    void * handle = kio.ftsOpen(base_path);
+                    REQUIRE(handle != NULL);
+                    REQUIRE(kio.ftsRead(handle) == "");
+                    REQUIRE(kio.ftsClose(handle) == 0);
+                }
             }
         }
     }

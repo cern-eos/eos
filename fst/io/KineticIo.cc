@@ -69,16 +69,25 @@ int KineticIo::Open (const std::string& p, XrdSfsFileOpenMode flags,
     mFilePath = p;
     
     /* All necessary checks have been done in the 993 line long XrdFstOfsFile::open method before we are called. */
-    std::shared_ptr<KineticChunk> chunk;
-    errno = cache.get(0, chunk);
-    if(errno) return SFS_ERROR;
-
-    /* Make certain there is (at least) one chunk flushed to the drive, otherwise the attribute factory method 
-       will fail for an empty opened file. */    
-    if(chunk->dirty()){
-        errno = chunk->flush();
-        if(errno) return SFS_ERROR; 
-        lastChunkNumber.set(0);
+    
+    kinetic::KineticRecord record("", "created", "", Command_Algorithm_SHA1);
+    kinetic::KineticStatus status = connection->Put("~"+mFilePath,"",WriteMode::REQUIRE_SAME_VERSION,record);
+    /* Freshly created file. */
+    if(status.ok()){ 
+        std::shared_ptr<KineticChunk> chunk;
+        if(cache.get(0,chunk,true) || chunk->flush()){
+            eos_err("Invalid Connection Status: %d, error message: %s", 
+                status.statusCode(), status.message().c_str());   
+            errno = invalidateConnection(mFilePath, connection);                                        
+            return SFS_ERROR;  
+        }
+        this->lastChunkNumber.set(0);
+    }
+    else if(status.statusCode() != StatusCode::REMOTE_VERSION_MISMATCH){
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+                 status.statusCode(), status.message().c_str());   
+        errno = invalidateConnection(mFilePath, connection);                                        
+        return SFS_ERROR;                                        
     }
     
     eos_debug("Opening path %s successful",p.c_str());
@@ -221,7 +230,7 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
         }     
 
         for (auto iter = keys->begin(); iter != keys->end(); ++iter){
-            KineticStatus status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
+            status = connection->Delete(*iter,"",WriteMode::IGNORE_VERSION);
             if(!status.ok()){                                      
                 eos_err("Invalid Connection Status: %d, error message: %s", 
                     status.statusCode(), status.message().c_str());   
@@ -273,7 +282,17 @@ int KineticIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffs
 
 int KineticIo::Remove (uint16_t timeout)
 {
-    return Truncate(0);
+    if(Truncate(0)) 
+        return SFS_ERROR;
+    
+    KineticStatus status = connection->Delete("~"+mFilePath,"",WriteMode::IGNORE_VERSION);
+    if(!status.ok()){
+        eos_err("Invalid Connection Status: %d, error message: %s", 
+            status.statusCode(), status.message().c_str());   
+        errno = invalidateConnection(mFilePath, connection);                                        
+        return SFS_ERROR;         
+    }
+    return SFS_OK; 
 }
 
 int KineticIo::Sync (uint16_t timeout)
@@ -369,6 +388,54 @@ int KineticIo::Statfs (const char* p, struct statfs* sfs)
     eos_debug("Statfs successful for path %s",p);
     return 0;
 }
+
+
+
+struct ftsState{
+    std::unique_ptr<std::vector<string>> keys;
+    size_t index; 
+    
+    ftsState():keys(new std::vector<string>()),index(0){}
+};
+
+void* KineticIo::ftsOpen(std::string subtree)
+{
+    eos_debug("ftsOpne path %s",subtree.c_str());
+    
+    if((errno = getConnection(subtree, connection)))
+        return NULL;
+
+    return new ftsState();
+}
+
+std::string KineticIo::ftsRead(void* fts_handle)
+{
+    ftsState * state = (ftsState*) fts_handle;
+
+    if(state->keys->size() <= state->index){       
+        std::string last_entry = state->keys->empty() ? "~" : state->keys->back();
+        state->keys->clear();
+        state->index = 0;
+        connection->GetKeyRange( std::move(last_entry), 
+                false, "~~", true, false, 100, state->keys);        
+    }
+    if(state->keys->empty())
+        return "";
+    
+    std::string name = state->keys->at(state->index++);
+    return std::move(name.erase(0,1));
+}
+
+int KineticIo::ftsClose(void* fts_handle)
+{
+    ftsState * state = (ftsState*) fts_handle;
+    if(state){ 
+        delete state;
+        return 0;
+    }
+    return -1;
+}
+
 
 KineticIo::LastChunkNumber::LastChunkNumber(KineticIo & parent) : 
             parent(parent), last_chunk_number(0), last_chunk_number_timestamp()
@@ -508,7 +575,7 @@ KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
         return 0;
     
     unique_ptr<string> version;
-    KineticStatus status = con->GetVersion(path_util::chunkString(path,0), version);
+    KineticStatus status = con->GetVersion("~"+string(path), version);
     if(!status.ok())
         return 0;
     

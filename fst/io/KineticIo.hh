@@ -242,6 +242,27 @@ public:
     //! @return 0 if successful otherwise errno
     //--------------------------------------------------------------------------
     int Statfs (const char* path, struct statfs* statFs);
+    
+    //--------------------------------------------------------------------------
+    //! Open a curser to traverse a storage system
+    //! @param subtree where to start traversing
+    //! @return returns implementation dependent handle or 0 in case of error
+    //--------------------------------------------------------------------------
+    void* ftsOpen(std::string subtree);
+
+    //--------------------------------------------------------------------------
+    //! Return the next path related to a traversal cursor obtained with ftsOpen
+    //! @param fts_handle cursor obtained by ftsOpen
+    //! @return returns implementation dependent handle or 0 in case of error
+    //--------------------------------------------------------------------------
+    std::string ftsRead(void* fts_handle);
+
+    //--------------------------------------------------------------------------
+    //! Close a traversal cursor
+    //! @param fts_handle cursor to close
+    //! @return 0 if fts_handle was an open cursor, otherwise -1
+    //--------------------------------------------------------------------------
+    int ftsClose(void* fts_handle);
 
     //--------------------------------------------------------------------------
     //! Constructor
