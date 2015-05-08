@@ -374,10 +374,12 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   {
     (void) ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version);
     // the LDAP base
-    std::string sbase = "OU=Users,Ou=Organic Units,DC=cern,DC=ch";
+    std::string sbase = "CN=";
+    sbase += username;
+    sbase += ",OU=Users,Ou=Organic Units,DC=cern,DC=ch";
     // the LDAP attribute (recursive search)      
     std::string attr="cn";
-    // the LDAP filter    
+    // the LDAP filter
     std::string filter;
     filter = "(memberOf:1.2.840.113556.1.4.1941:=CN=";
     filter += egroupname; 
