@@ -301,6 +301,32 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! traversing filesystem/storage routines
+  //--------------------------------------------------------------------------
+
+  //--------------------------------------------------------------------------
+  //! Open a curser to traverse a storage system
+  //! @param subtree where to start traversing
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+
+  virtual void* ftsOpen(std::string subtree) {return 0;}
+
+  //--------------------------------------------------------------------------
+  //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //! @param fts_handle cursor obtained by ftsOpen
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  virtual std::string ftsRead(void* fts_handle) {return "";}
+
+  //--------------------------------------------------------------------------
+  //! Close a traversal cursor
+  //! @param fts_handle cursor to close
+  //! @return 0 if fts_handle was an open cursor, otherwise -1
+  //--------------------------------------------------------------------------
+  virtual int ftsClose(void* fts_handle) {return -1;}
+
+  //--------------------------------------------------------------------------
   //! Callback function to fill a statfs structure about the storage filling
   //! state
   //! @param data containing path, return code and statfs structure
