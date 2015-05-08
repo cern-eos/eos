@@ -232,23 +232,25 @@ XrdMgmOfs::InitializeFileView()
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kFailed;
       }
-
-      eos_chlog_filesvc->startSlave();
-      eos_chlog_dirsvc->startSlave();
-
-      // wait that the follower reaches the offset seen now
-      while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
+      else
       {
-        XrdSysTimer sleeper;
-        sleeper.Wait(200);
-        eos_static_debug("msg=\"waiting for the namespace to reach the follow "
-                         "point\" is-offset=%llu follow-offset=%llu",
-                         eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
-      }
+        eos_chlog_filesvc->startSlave();
+        eos_chlog_dirsvc->startSlave();
 
-      {
-        XrdSysMutexHelper lock(InitializationMutex);
-        Initialized = kBooted;
+        // wait that the follower reaches the offset seen now
+        while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
+        {
+          XrdSysTimer sleeper;
+          sleeper.Wait(200);
+          eos_static_debug("msg=\"waiting for the namespace to reach the follow "
+                           "point\" is-offset=%llu follow-offset=%llu",
+                           eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
+        }
+
+        {
+          XrdSysMutexHelper lock(InitializationMutex);
+          Initialized = kBooted;
+        }
       }
     }
 

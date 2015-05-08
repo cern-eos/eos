@@ -41,7 +41,8 @@
 #include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
 #include "mq/XrdMqMessage.hh"
-#include "namespace/accounting/QuotaStats.hh"
+// TODO: this should use only the interface
+#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"

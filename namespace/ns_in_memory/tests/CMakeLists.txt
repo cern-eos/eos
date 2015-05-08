@@ -1,11 +1,11 @@
-#-------------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Elvin Sindrilaru <esindril@cern.ch>
-#-------------------------------------------------------------------------------
+# Author: Andreas-Joachim Peters - CERN
+# ----------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2015 CERN/Switzerland                                  *
+# * Copyright (C) 2011 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,5 +21,29 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-add_subdirectory(ns_in_memory)
-#add_subdirectory(ns_on_filesystem)
+include_directories( ${CPPUNIT_INCLUDE_DIRS} )
+
+add_library (eosMemoryNsTests SHARED
+      ChangeLogContainerMDSvcTest.cc
+      ChangeLogFileMDSvcTest.cc
+      ChangeLogTest.cc
+      FileSystemViewTest.cc
+      HierarchicalViewTest.cc
+      HierarchicalSlaveTest.cc
+      LogCompactingTest.cc
+      OtherTests.cc
+      ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.hh
+      ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc
+)
+
+target_link_libraries( eosMemoryNsTests ${CPPUNIT_LIBRARIES} eosMemoryNs)
+
+add_executable(text-runner TextRunner.cc)
+target_link_libraries(text-runner eosMemoryNsTests dl)
+
+add_executable( ns-benchmark NSBenchmark.cc)
+target_link_libraries( ns-benchmark eosMemoryNs )
+
+if (Linux)
+  set_target_properties( eosMemoryNsTests PROPERTIES COMPILE_FLAGS -fPIC )
+endif (Linux)

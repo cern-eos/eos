@@ -25,7 +25,6 @@
 #include "mgm/Quota.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "namespace/accounting/QuotaStats.hh"
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 /*----------------------------------------------------------------------------*/

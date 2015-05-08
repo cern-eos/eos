@@ -37,7 +37,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "mq/XrdMqClient.hh"
 /*----------------------------------------------------------------------------*/
-#include "namespace/views/HierarchicalView.hh"
+// TODO: this should only use the interface class
+#include "namespace/ns_in_memory/views/HierarchicalView.hh"
 /*----------------------------------------------------------------------------*/
 
 // -----------------------------------------------------------------------------
@@ -634,6 +635,18 @@ Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
 void*
 Master::Compacting()
 {
+  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+  if (!eos_chlog_filesvc || !eos_chlog_dirsvc)
+  {
+    eos_notice("msg=\"namespace does not support compacting - disable it\"");
+    return 0;
+  }
+
   do
   {
     XrdSysThread::SetCancelOff();
@@ -758,44 +771,20 @@ Master::Compacting()
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
           if (CompactFiles)
-          {
-            eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-              dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
-
-            if (eos_chlog_filesvc)
               compData = eos_chlog_filesvc->compactPrepare(ocfile);
-          }
 
           if (CompactDirectories)
-          {
-            eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-              dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-
-            if (eos_chlog_dirsvc)
               compDirData = eos_chlog_dirsvc->compactPrepare(ocdir);
-          }
         }
         {
           MasterLog(eos_info("msg=\"compacting\""));
 
           // Does not require namespace lock
           if (CompactFiles)
-          {
-            eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-              dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
-
-            if (eos_chlog_filesvc)
               eos_chlog_filesvc->compact(compData);
-          }
 
           if (CompactDirectories)
-          {
-            eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-              dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-
-            if (eos_chlog_dirsvc)
               eos_chlog_dirsvc->compact(compDirData);
-          }
         }
         {
           // Requires namespace write lock
@@ -803,22 +792,10 @@ Master::Compacting()
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
           if (CompactFiles)
-          {
-            eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-              dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
-
-            if (eos_chlog_filesvc)
               eos_chlog_filesvc->compactCommit(compData);
-          }
 
           if (CompactDirectories)
-          {
-            eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-              dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-
-            if (eos_chlog_dirsvc)
               eos_chlog_dirsvc->compactCommit(compDirData);
-          }
         }
         {
           XrdSysMutexHelper cLock(fCompactingMutex);
@@ -1924,31 +1901,30 @@ Master::BootNamespace()
     gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
     gOFS->eosView->setFileMDSvc(gOFS->eosFileService);
-    eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-    eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
-
-    if (eos_chlog_filesvc && eos_chlog_dirsvc)
-      eos_chlog_filesvc->setContainerService(eos_chlog_dirsvc);
-
-    if (!IsMaster())
-    {
-      // slave's need access to the namespace lock
-      if (eos_chlog_dirsvc && eos_chlog_filesvc)
-      {
-        eos_chlog_filesvc->setSlaveLock(&fNsLock);
-        eos_chlog_dirsvc->setSlaveLock(&fNsLock);
-      }
-    }
 
     std::map<std::string, std::string> cfg_settings;
     gOFS->eosView->configure(cfg_settings);
     MasterLog(eos_notice("%s", (char*) "eos directory view configure started"));
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 
-    if (eos_chlog_dirsvc && eos_chlog_filesvc)
+    // This is only done for the ChangeLog implementation
+    eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+    eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+    if (eos_chlog_filesvc && eos_chlog_dirsvc)
     {
+      eos_chlog_filesvc->setContainerService(eos_chlog_dirsvc);
+
+      if (!IsMaster())
+      {
+        // slave's need access to the namespace lock
+        eos_chlog_filesvc->setSlaveLock(&fNsLock);
+        eos_chlog_dirsvc->setSlaveLock(&fNsLock);
+      }
+
+      // TODO: review this, maybe it should be added to the interface
       eos_chlog_filesvc->setQuotaStats(gOFS->eosView->getQuotaStats());
       eos_chlog_dirsvc->setQuotaStats(gOFS->eosView->getQuotaStats());
     }

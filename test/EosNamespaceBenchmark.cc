@@ -18,9 +18,10 @@
 
 //------------------------------------------------------------------------------
 #include <iostream>
-#include "namespace/views/HierarchicalView.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/persistency/ChangeLogFileMDSvc.hh"
+// TODO: use only interfaces here
+#include "namespace/ns_in_memory/views/HierarchicalView.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "common/Timing.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"

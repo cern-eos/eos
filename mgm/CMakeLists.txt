@@ -122,7 +122,7 @@ target_link_libraries( XrdEosMgm
                        XrdCl                XrdPosix
                        XrdUtils             
                        eosCommon            eosCommonServer
-                       eosNamespace-Static  eosCapability-Static
+                       eosMemoryNs-Static   eosCapability-Static
                        EosPluginManager     XrdMqClient-Static
                        crypto               dl
 		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
