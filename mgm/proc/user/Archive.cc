@@ -345,7 +345,7 @@ ProcCommand::Archive()
 
           if (gOFS->_stat(arch_path.c_str(), &statinfo, *mError, *pVid))
           {
-            stdErr = "error: no archive purge file in directory: ";
+            stdErr = "error: no archive init file in directory: ";
             stdErr += spath.c_str();
             retc = EINVAL;
           }
