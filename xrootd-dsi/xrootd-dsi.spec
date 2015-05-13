@@ -11,15 +11,15 @@ Group: Applications/File
 Source0: xrootd-dsi-0.4.0-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-Requires: xrootd-client >= 3.3.0
+Requires: xrootd-client
 Requires: globus-gridftp-server-progs
 
 BuildRequires: globus-gridftp-server-devel
 #BuildRequires: xrootd-client >= 3.3.0
-BuildRequires: xrootd-client-devel >= 3.3.0
+BuildRequires: xrootd-client-devel
 BuildRequires: cmake
-BuildRequires: xrootd-devel >= 3.3.0
-BuildRequires: xrootd-server-devel >= 3.3.0
+BuildRequires: xrootd-devel
+BuildRequires: xrootd-server-devel
 BuildRequires: perl
 
 %description
