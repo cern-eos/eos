@@ -75,7 +75,6 @@ add_library (globus_gridftp_server_xrootd_gcc64pthr SHARED
 	    src/ChunkHandler.cc
 	    src/SimpleHandler.cc
         src/XrdFileIo.cc
-	src/XrdCrossScheduler.cc
 )
 
 if (Linux)
