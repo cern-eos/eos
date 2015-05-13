@@ -423,6 +423,7 @@ XrdFileIo::Close ()
   if (!status.IsOK())
   {
     errno = status.errNo;
+    globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "!!OUPS %s\n", status.ToStr().c_str ());
     return SFS_ERROR;
   }
 

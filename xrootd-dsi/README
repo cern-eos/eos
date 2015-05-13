@@ -29,31 +29,54 @@ Some eos specifics can be enabled.
 More generally, the configuration of the plugin is 
 written in the file /etc/sysconfig/xrootd-gridftp-server.
 
-the testing is based on uberftp:
+Three server setups are supported.
+- standalone : 
+    In this setup the gridftp server handles requests and serve the data transfers.
+    It works as a gateway to the underlying XROOTD filesystem.
+    All the traffic flows through the server.
+    This is the LEGACY mode.
+- frontend/backend : in this setup, requests are handled by (one or sveral) "frontend" servers,
+    Transfers are served by the "backend" servers.
+    A same server can be simultaneously frontend and backend (also refered as "split").
+    A backend node can serve transfer requests from several frontend nodes.
+    In this mode, the frontend will try to make the transfer happen on a backend server.
+    ( This feature only works in delayed passive connection which requires "-dp" to be set 
+    when using globus-url-copy )
+    which hosts a local replica of the file avoiding intra-instance traffic.
+    In this mode, each frontend node nead to know which are the available backend nodes.
+    There is two ways to do this:
+    * a static list of servers in the config file
+    * dynamic autodiscovery of available gridftp backend service on accessed XRootD sevrers. 
+
+the testing for standalone is based on uberftp:
 warning!! the test has been reported working with uberftp 2.6 but NOT working with uberftp 2.4
 (take care that 2.4 is the version currently installed on slc5)
 
 OS
 --
-This plugin has been successfully tested
+In standalone mode, this plugin has been successfully tested
 - on SLC6 with eos specifics
 - on SLC6 with a pure XRootD server
 - on SLC5 with a pure XRootD server
+In frontend/backend mode, this plugin has been successfully tested
+- on an SLC5/SLC6 mix with eos specifics
+
 Because of CMake, it sould be possible to compile it without any significant change on any OS
 provided with gcc > 4.4 or an equivalent compiler.
 
 EXTERNAL DEPENDENCIES
 ---------------------
-This plugin has been developped and tested with globus-gridftp-server-devel 6.19-1 and XRootD 3.3.1-1
+This plugin has been developped and tested with globus-gridftp-server-devel 7.25 and XRootD 4.1.2
 
 To run this plugin, the following packages are required:
 - xrootd-cl
 - globus-gridftp-server-progs
 
-To Build this pluginm the following packages are required:
+To Build this plugin, the following packages are required:
 - globus-gridftp-server-devel
 - xrootd-cl-devel
 - gcc > 4.4
+- perl
 
 Minimum versions for these packages are not known.
 The testing script requires uberftp >= 2.6
@@ -98,6 +121,16 @@ KNOWN BUGS AND LIMITATIONS
   cannot be called out-of-order. The implementation of the plugin for send op is asynchronous and
   a simple mechanism has been implemented to turn it synchronous. If this limitation disappears,
   the plugin can be turned asynchronous but it requires to recompile. It's on purpose.
+- WARNING: the code dealing with frontend/back configuration uses stripped-out internal globusstructures
+  It is a dirty hack but it's the only way as globus API to DSI does not provide enough information for 
+  this implementation. 
+  The buils system performs this extraction automatically with the right version of the globus source code.
+  If it fails, the build fails.
+
+TODO
+----
+- Dynamic autodiscovery of backend gridftp server is not implementend yet
+- Striped read from multipe servers could probably be implemented
 
 CONTACT
 -------

@@ -1,4 +1,4 @@
-# Try to find leveldb
+# Try to find globus gridftp server
 # Once done, this will define
 #
 # GLOBUSGRIDFTPSERVER_FOUND       - system has GlobusGridFtpServer
@@ -14,6 +14,7 @@ FIND_PATH(GLOBUSGRIDFTPSERVER_INCLUDE_DIR globus_gridftp_server.h
   /usr
   /usr/local
   /opt/globus
+  /usr/include/globus
   PATH_SUFFIXES include/globus include/gcc64/
   PATHS /opt
 )
@@ -23,10 +24,11 @@ FIND_PATH(GLOBUSGRIDFTPSERVER_INCLUDE_DIR2 globus_config.h
   ${GLOBUSGRIDFTPSERVER_DIR}
   $ENV{GLOBUSGRIDFTPSERVER_DIR}
   /usr
+  /usr/include
   /usr/local
   /usr/lib64
   /opt/globus
-  PATH_SUFFIXES globus/include include/globus/ include/gcc64/
+  PATH_SUFFIXES globus/include globus/ gcc64/ x86_64-linux-gnu/globus/
   PATHS /opt
 )
 

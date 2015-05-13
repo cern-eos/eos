@@ -3,7 +3,7 @@
 # Init file for the Gridftp server
 #
 # chkconfig: 2345 95 15
-# description: Globus gridftp server
+# description: Globus gridftp server with XRootD/DSI plugin
 #
 # processname: globus-gridftp-server
 # config: /etc/sysconfig/xrootd-gridftp-server
@@ -43,7 +43,9 @@ RETVAL=0
 prog="globus-gridftp-server"
 
 ftpd=/usr/sbin/globus-gridftp-server
-port=${GLOBUS_GRIDFTP_PORT:-2811}
+port_standalone=${GLOBUS_GRIDFTP_PORT:-2811}
+port_frontend=$port_standalone
+port_backend=${GLOBUS_GRIDFTP_PORT_BACKEND:-7001}
 log=${GLOBUS_GRIDFTP_LOG:-/var/log/xrootd/gridftp/$prog.log}
 debuglog=${GLOBUS_GRIDFTP_DEBUGLOG:-/var/log/xrootd/gridftp/$prog-debug.log}
 debugloglevel=${GLOBUS_GRIDFTP_DEBUGLOG_LEVEL:-warn,error,info}
@@ -68,19 +70,54 @@ if [ ! -d "/var/log/xrootd/gridftp" ]; then
 	echo create /var/log/xrootd/gridftp
 fi
 
+options2=""
 if [ -z "$options" ]; then
-  options=" -S -p $port -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi xrootd -threads 1"
-  #options=" -S -p $port -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi xrootd"
+    options_standalone=" -S -p $port_standalone -log-module stdio -logfile $debuglog -log-level $debugloglevel -log-transfer $log -dsi xrootd -threads 1"
+    options_frontend=" -S -p $port_frontend -log-module stdio -logfile ${debuglog}.frontend -log-level $debugloglevel -log-transfer ${log}.frontend -dsi xrootd -threads 1"
+    options_backend=" -S -dn -p $port_backend -log-module stdio -logfile ${debuglog}.backend -log-level $debugloglevel -log-transfer ${log}.backend -dsi xrootd -threads 1"
+    case "$XROOTD_DSI_SERVER_ROLE" in
+        standalone)
+            options="$options_standalone"
+            ;;         
+        frontend)
+            options="$options_frontend"
+            ;;
+        backend)
+            options="$options_backend"
+            ;;
+        split)
+            options="$options_frontend"
+            options2="$options_backend"
+            export XROOTD_DSI_SERVER_ROLE="frontend"
+            ;;
+        *)
+            echo 'invalid value for XROOTD_DSI_SERVER_ROLE. valid values are "standalone","frontend","backend","split"'
+            RETVAL=1;
+            ;;
+    esac  
 fi
 
 start()
 {
-	echo -n "Starting $prog:"
+    if [ "$RETVAL" == 0 ]
+    then
+		echo -n "Starting $prog:"
         if test "x$user" = "x" ; then
-          daemon "$ftpd $options"
+    		daemon "$ftpd $options"
+            if [ $? = 0 ] && [ "x$options2" != "x" ] 
+            then
+                export XROOTD_DSI_SERVER_ROLE="backend"
+    	    	daemon "$ftpd $options2"
+    		fi
         else
-          daemon "--user $user $ftpd -Q -W $options"
+          	daemon "--user $user $ftpd -Q -W $options"
+            if [ $? = 0 ] && [ "x$options2" != "x" ]  
+            then
+                export XROOTD_DSI_SERVER_ROLE="backend"
+    	    	daemon "--user $user $ftpd -Q -W $options2"
+    		fi
         fi
+    fi
 	RETVAL=$?
 	[ "$RETVAL" = 0 ] && touch $lockfile
 	echo

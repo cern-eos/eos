@@ -22,15 +22,23 @@
 //! @file XrdUtils.hh
 //! @author Geoffray Adde - CERN
 //! @brief Some utility class and functions to help to use Xrd.
-//!        Most of the following code has been replicated and slightly modified
+//!        Part of the following code has been replicated and slightly modified
 //!        from XRootD source code (mainly XrdCl and XrdPosix)
 //!        The main goal is to get rid of the dependency on XrdPosix.
 //------------------------------------------------------------------------------
 
 extern "C" {
 #include "globus_gridftp_server.h"
+  typedef enum {
+  	XROOTD_FILEMODE_NONE = 0,
+	XROOTD_FILEMODE_READING,
+	XROOTD_FILEMODE_WRITING,
+	XROOTD_FILEMODE_TRUNCATE
+  } globus_l_gfs_xrootd_filemode_t;
 }
 #include "XrdCl/XrdClStatus.hh"
+#include <vector>
+#include <algorithm>
 
 class XrootPath
 {
@@ -125,6 +133,99 @@ XrdCl::XRootDStatus GetRemoteCheckSum( std::string       &checkSum,
     const std::string &checkSumType,
     const std::string &server,
     const std::string &path );
+
+void HostId2Host(char * host_id, char * host);
+
+XrdCl::XRootDStatus LocateFileXrootd(
+    std::vector<std::string> &urls,
+    std::vector<std::string> &servers,
+    const std::string &server,
+    const std::string &path,
+    globus_l_gfs_xrootd_filemode_t fileMode);
+
+XrdCl::XRootDStatus IssueEosCmd(
+    XrdOucString &rstdout,
+    const XrdOucString &sserver,
+    const XrdOucString &command,
+    const XrdOucString &opaque
+    );
+
+XrdCl::XRootDStatus LocateFileEos(
+    std::vector<std::string>       &urls,
+    std::vector<std::string>       &servers,
+    bool                           &isReplicaLayout,
+    const std::string &sserver,
+    const std::string &spath,
+    globus_l_gfs_xrootd_filemode_t fileMode);
+
+//
+  template<typename T>
+    bool
+    SortAlongFirstVect (std::vector<T>&vec1, std::vector<T>&vec2)
+    {
+      std::vector<std::pair<T, T> > vecp;
+      assert(vec1.size () == vec2.size ());
+      vecp.reserve (vec1.size ());
+
+      for (size_t t = 0; t < vec1.size (); t++)
+	vecp.push_back (std::make_pair (vec1[t], vec2[t]));
+
+      std::sort (vecp.begin (), vecp.end ());
+
+      for (size_t t = 0; t < vec1.size (); t++)
+      {
+	vec1[t] = vecp[t].first;
+	vec2[t] = vecp[t].second;
+      }
+      return true;
+    }
+
+// this expect sorted vectors as  inputs
+  template<typename T>
+    bool
+    GetSortedIntersectIdx (std::vector<size_t>&indicesInV1, const std::vector<T> &v1, const std::vector<T>&v2)
+    {
+      //std::set_intersection(v1.begin(),v1.end(),v2.begin(),v2.end(),std::back_inserter(intersectVect));
+      auto __first1 = v1.begin ();
+      auto __last1 = v1.end ();
+      size_t __idx1 = 0;
+      auto __first2 = v2.begin ();
+      auto __last2 = v2.end ();
+      auto __result = std::back_inserter (indicesInV1);
+      while (__first1 != __last1 && __first2 != __last2)
+      {
+	if (*__first1 < *__first2)
+	{
+	  ++__first1;
+	  ++__idx1;
+	}
+	else if (*__first2 < *__first1)
+	  ++__first2;
+	else
+	{
+	  *__result = __idx1;
+	  {
+	    ++__first1;
+	    ++__idx1;
+	  }
+	  ++__first2;
+	  ++__result;
+	}
+      }
+      return true;
+    }
+
+bool GetRemoteServers(
+    std::vector<size_t> &selectedServers,
+    std::string &errStr,
+    const std::vector<std::string>       allTheServers,
+    const std::string &fileServer,
+    std::string filePath,
+    const std::string &TruncationTmpFileSuffix,
+    globus_l_gfs_xrootd_filemode_t accessType,
+    bool useEosSpecifics);
+
+XrdCl::XRootDStatus RenameTmpToFinal(const std::string &temp_url, size_t suffix_size,bool useEosSpecifics);
 
 }
 #endif

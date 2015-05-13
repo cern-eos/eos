@@ -1,0 +1,345 @@
+#!/bin/bash
+mypid=$$
+# for debug only
+#mypid="9999"
+outfile=$1
+
+# get the versions of the globus components
+globuscache_dir="$(readlink -f $(dirname $0))/globus_src"
+echo "globuscache_dir is ${globuscache_dir}"
+gftp_serv_ver=$(/usr/sbin/globus-gridftp-server -V 2>&1 | grep "globus_gridftp_server:" | head -1 | awk '{print $2}')
+gftp_serv_ctrl_ver=$(/usr/sbin/globus-gridftp-server -V 2>&1 | grep "globus_gridftp_server_control:" | head -1 | awk '{print $2}')
+echo "detected griftp server version is $gftp_serv_ver"
+echo "detected griftp server control version is $gftp_serv_ctrl_ver"
+
+# try to get the source archives ftom the cache
+gftp_serv_tgz=`ls -b ${globuscache_dir}/globus_gridftp_server-${gftp_serv_ver}.tar.gz`
+gftp_serv_ctrl_tgz=`ls -b ${globuscache_dir}/globus_gridftp_server_control-${gftp_serv_ctrl_ver}.tar.gz`
+if [ "${gftp_serv_tgz}x" = "x" ]
+then
+  echo "could not find matching source archive for globus_gridftp_server in cache"
+  gftp_serv_tgz="${globuscache_dir}/globus_gridftp_server-${gftp_serv_ver}.tar.gz"
+else
+  echo "found matching source archive for globus_gridftp_server_control in cache => ${gftp_serv_tgz}"
+fi
+if [ "${gftp_serv_ctrl_tgz}x" = "x" ]
+then
+  echo "could not find matching source archive for globus_gridftp_server_control in cache"
+  gftp_serv_ctrl_tgz="${globuscache_dir}/globus_gridftp_server_control-${gftp_serv_ctrl_ver}.tar.gz"
+else
+  echo "found matching source archive for globus_gridftp_server_control_control in cache => ${gftp_serv_ctrl_tgz}"
+fi
+if [ -f $outfile ]
+then
+  echo "output file $outfile already exists. terminating without error."
+  exit 0
+fi
+
+# setup the temp dir
+rm -rf /tmp/${mypid}
+mkdir -p /tmp/${mypid}
+cd /tmp/${mypid}
+
+########
+## try to get the globus source archive from rpm if necessary
+########
+rpmnames=( "globus-gridftp-server-${gftp_serv_ver}" "globus-gridftp-server-control-${gftp_serv_ctrl_ver}" )
+tgznames=( "globus_gridftp_server-${gftp_serv_ver}.tar.gz" "globus_gridftp_server_control-${gftp_serv_ctrl_ver}.tar.gz" )
+# get the globus src rpm
+mkdir -p rpm
+cd rpm
+#for rpmname in globus-gridftp-server globus-gridftp-server-control;
+for i in `seq 0 1`;
+do
+if [ -e ${globuscache_dir}/${tgznames[i]} ]
+then
+continue
+fi
+echo "trying to get globus source archive ${tgzname[i]} from source rpm ${rpmnames[i]} "
+rm -f *.rpm *.tar.gz
+yumdownloader --source ${rpmnames[i]}
+if [ $? != 0 ]
+then
+  >&2 echo "could not get source rpm ${rpmnames[i]}"
+  exit 1
+fi
+srcrpm=`\ls -b ${rpmnames[i]}*.rpm`
+# uncompress the src rpm
+rpm2cpio ${srcrpm} | cpio -idmv
+if [ $? != 0 ]
+then
+  >&2 echo "could not decompress src rpm"
+  exit 1
+fi
+# cp the targz archive to the cache and set the variable
+if [ -e /tmp/${mypid}/rpm/${tgznames[i]} ]
+then
+  echo cp "/tmp/${mypid}/rpm/${tgznames[i]}" ${globuscache_dir}
+  cp "/tmp/${mypid}/rpm/${tgznames[i]}" ${globuscache_dir}
+else
+  >&2 echo "could not get source archive ${tgznames[i]} from src rpm ${rpmnames[i]}"
+  exit 1
+fi
+done
+########
+########
+
+# uncompress source tar.gz archives
+globussrcdir=/tmp/${mypid}/globus_src
+mkdir -p ${globussrcdir}
+cd ${globussrcdir}
+for tgz in ${tgznames[*]}
+do
+\cp ${globuscache_dir}/${tgz} .
+tar zxvf ${tgz}
+if [ $? != 0 ]
+then
+  >&2 echo "could not decompress src tar.gz"
+  exit 1
+fi
+\rm -f ${tgz}
+done
+echo "globus_gridftp_server source successfully decompressed to "${globussrcdir}
+
+# function to set the current source file 
+set_file()
+{
+  current_srcfile=`find ${globussrcdir} -name "$1"`
+  if [ "x${current_srcfile}" = "x" ]
+  then
+    >&2 echo "error : could not locate source file " "$1" " in current source file"
+    exit -1
+  else
+   >&2 echo "found source file " "$1" "at ${current_srcfile}"
+  fi
+}
+
+seps="[ \t\n]"
+word="[A-Za-z0-9_]"
+
+
+#################
+# grep perl mode
+#################
+rm -f /tmp/${mypid}/toto
+echo -e "a\nb\nc" > /tmp/${mypid}/toto
+if [ "$(grep -P "\n" /tmp/${mypid}/toto)x" != "x" ]
+then
+echo "using grep perl mode"
+extract_func_typedef()
+{
+  ret_type="$1"
+  name="$2"
+  regex="typedef${seps}+${ret_type}${seps}+\(${seps}*\*${seps}*${name}+${seps}*\)${seps}*\([^\)]*\)${seps}*\;"
+  file=$(basename $(grep -RPl "${regex}" ${globussrcdir}))
+  if [ $? != 0 ]
+  then
+    rm -f $outfile
+    >&2 echo "could not find function type definition $name"
+    exit 1
+  fi
+  if [ $file != $(basename $current_srcfile) ]
+  then
+    set_file $file
+    echo ""
+    echo "/* From $file */"
+  fi
+  grep -RP "${regex}" ${current_srcfile}
+}
+
+extract_struct_typedef()
+{
+  name="$1"
+  regex="typedef${seps}+struct${seps}+${word}*${seps}*\{[^}]*\}${seps}*${name}${seps}*\;"
+  file=$(basename $(grep -RPl "${regex}" ${globussrcdir}))
+  if [ $? != 0 ]
+  then
+    rm -f $outfile
+    >&2 echo "could not find structure definition $name"
+    exit 1
+  fi
+  if [ $file != $(basename $current_srcfile) ]
+  then
+    set_file $file
+    echo ""
+    echo "/* From $file */"
+  fi
+  grep -RP "${regex}" ${current_srcfile}
+}
+
+extract_enum_typedef()
+{
+  name="$1"
+  regex="typedef${seps}+enum${seps}+${word}*${seps}*\{[^}]*\}${seps}*${name}${seps}*\;"
+  file=$(basename $(grep -RPl "${regex}" ${globussrcdir}))
+  if [ $? != 0 ]
+  then
+    rm -f $outfile
+    >&2 echo "could not find enum type definition $name"
+    exit 1
+  fi
+  if [ $file != $(basename $current_srcfile) ]
+  then
+    set_file $file
+    echo ""
+    echo "/* From $file */"
+  fi
+  grep -RP "${regex}" ${current_srcfile}
+}
+else
+echo "grep perl mode broken : using slow workaround"
+
+mygrep()
+{
+  pattern="$1"
+  file=$2
+  echofile=$3
+  match=$(perl -0777 -nle"print $& if m{${pattern}}" ${file})
+  if [ "${match}x" != "x" ]
+  then
+    if [ $echofile = "1" ]
+    then
+    echo $file
+    else
+    perl -0777 -nle"print $& if m{${pattern}}" ${file}
+    echo ""
+    fi
+    return 0
+  else
+    return 1
+  fi
+}
+
+myrecgrep()
+{
+  pattern="$1"
+  mypath="$2"
+  echofile="$3"
+  filelist=$(find "${mypath}")
+  notfound=1
+  for f in $filelist;
+  do
+    mygrep "$pattern" "$f" $echofile
+    if [ $? = 0 ]
+    then
+    notfound=0
+    fi
+  done
+  return $notfound
+}
+
+extract_func_typedef()
+{
+  ret_type="$1"
+  name="$2"
+  regex="typedef${seps}+${ret_type}${seps}+\(${seps}*\*${seps}*${name}+${seps}*\)${seps}*\([^\)]*\)${seps}*\;"
+  file=$(basename $(myrecgrep "${regex}" ${globussrcdir} 1))
+  if [ $? != 0 ]
+  then
+    rm -f $outfile
+    >&2 echo "could not find function type definition $name"
+    exit 1
+  fi
+  if [ $file != $(basename $current_srcfile) ]
+  then
+    set_file $file
+    echo ""
+    echo "/* From $file */"
+  fi
+  myrecgrep "${regex}" ${globussrcdir} 0
+}
+
+extract_struct_typedef()
+{
+  name="$1"
+  regex="typedef${seps}+struct${seps}+${word}*${seps}*\{[^\}]*\}${seps}*${name}${seps}*\;"
+  file=$(basename $(myrecgrep "${regex}" "${globussrcdir}" 1))
+  if [ $? != 0 ]
+  then
+    rm -f $outfile
+    >&2 echo "could not find structure definition $name"
+    exit 1
+  fi
+  if [ $file != $(basename $current_srcfile) ]
+  then
+    set_file $file
+    echo ""
+    echo "/* From $file */"
+  fi
+  myrecgrep "${regex}" ${globussrcdir} 0
+}
+
+extract_enum_typedef()
+{
+  name="$1"
+  regex="typedef${seps}+enum${seps}+${word}*${seps}*\{[^\}]*\}${seps}*${name}${seps}*\;"
+  file=$(basename $(myrecgrep "${regex}" ${globussrcdir} 1))
+  if [ $? != 0 ]
+  then
+    rm -f $outfile
+    >&2 echo "could not find enum type definition $name"
+    exit 1
+  fi
+  if [ $file != $(basename $current_srcfile) ]
+  then
+    set_file $file
+    echo ""
+    echo "/* From $file */"
+  fi
+  myrecgrep "${regex}" ${globussrcdir} 0
+}
+fi
+#################
+# /grep perl mode
+#################
+
+#######################################################
+### data to be found and stripped to header outfile ###
+#######################################################
+rm -f $outfile
+echo '#include "globus_ftp_control.h"' 1> $outfile
+echo ''  >> $outfile ############################################3
+echo '/* From globus_i_gfs_acl.h */' 1>> $outfile
+set_file  globus_i_gfs_acl.h
+echo 'struct globus_i_gfs_acl_handle_s;' 1>> $outfile
+extract_enum_typedef globus_i_gfs_acl_type_t 1>> $outfile
+extract_func_typedef void globus_gfs_acl_cb_t 1>> $outfile
+extract_struct_typedef globus_i_gfs_acl_handle_t 1>> $outfile 
+echo ''  >> $outfile ############################################3
+echo '/* From globus_i_gfs_data.h */' 1>> $outfile
+set_file globus_i_gfs_data.h
+echo 'typedef globus_gfs_finished_info_t      globus_gfs_data_reply_t;' 1>> $outfile
+echo 'typedef globus_gfs_event_info_t         globus_gfs_data_event_reply_t;' 1>> $outfile
+extract_func_typedef void globus_i_gfs_data_callback_t  1>> $outfile
+extract_func_typedef void globus_i_gfs_data_event_callback_t  1>> $outfile
+echo ''  >> $outfile ############################################3
+# should come fron set_file globus_i_gfs_data.c
+extract_enum_typedef globus_l_gfs_data_state_t  1>> $outfile
+extract_enum_typedef globus_l_gfs_data_handle_state_t  1>> $outfile
+extract_enum_typedef globus_l_gfs_data_info_type_t  1>> $outfile
+extract_struct_typedef globus_l_gfs_data_path_list_t  1>> $outfile
+extract_struct_typedef globus_l_gfs_data_session_t  1>> $outfile
+extract_struct_typedef globus_l_gfs_data_handle_t  1>> $outfile
+extract_struct_typedef globus_l_gfs_data_operation_t  1>> $outfile
+echo ''  >> $outfile ############################################
+# should come from globus_i_gridftp_server_control.h
+extract_enum_typedef globus_l_gsc_data_obj_state_t  1>> $outfile
+extract_func_typedef void globus_i_gsc_auth_cb_t 1>> $outfile
+extract_func_typedef void globus_i_gsc_resource_cb_t 1>> $outfile
+extract_func_typedef void globus_i_gsc_passive_cb_t 1>> $outfile
+extract_func_typedef void globus_i_gsc_port_cb_t 1>> $outfile
+extract_func_typedef void globus_i_gsc_transfer_cb_t 1>> $outfile
+extract_struct_typedef globus_i_gsc_data_t  1>> $outfile
+extract_enum_typedef globus_i_gsc_op_type_t  1>> $outfile
+extract_struct_typedef globus_i_gsc_event_data_t  1>> $outfile
+extract_struct_typedef globus_i_gsc_op_t  1>> $outfile
+echo ''  >> $outfile ############################################3
+# should come from globus_i_gridftp_server.h
+extract_func_typedef void globus_i_gfs_server_close_cb_t  1>> $outfile
+echo ''  >> $outfile ############################################3
+#echo '/* From globus_i_gfs_control.c */' 1>> $outfile
+# should come from globus_i_gfs_control.c
+extract_struct_typedef globus_l_gfs_server_instance_t 1>> $outfile 
+extract_struct_typedef globus_l_gfs_request_info_t  1>> $outfile
+
+

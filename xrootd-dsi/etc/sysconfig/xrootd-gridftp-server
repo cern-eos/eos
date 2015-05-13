@@ -1,11 +1,21 @@
+# globus part to be set as required
+GLOBUS_TCP_PORT_RANGE=20000,21000
+GLOBUS_UDP_PORT_RANGE=20000,21000
+GLOBUS_THREAD_MODEL=pthread
+GLOBUS_GRIDFTP_DEBUGLOG_LEVEL=ALL
+DAEMON_COREFILE_LIMIT=unlimited
+# pthread should not be changed
+GLOBUS_THREAD_MODEL=pthread
 # the following variable specifies one or several virtual mount points
-# export XROOTD_VMP="machine1:port1:/grid/ftp/mount/point1=/xrootd/corresponding/path1 machine2:port2:/grid/ftp/mount/point2=/xrootd/corresponding/path2 ..."
+export XROOTD_VMP="machine1:port1:/grid/ftp/mount/point1=/xrootd/corresponding/path1 machine2:port2:/grid/ftp/mount/point2=/xrootd/corresponding/path2 ..."
 # the foloowing environment variables enable some eos specifics
 # the value of the variable doesn't matter, it works on a defined / not defined basis
 # XROOTD_DSI_EOS_CKS      # enable EOS checksum
 # XROOTD_DSI_EOS_CHMOD    # enable EOS chmod
 # XROOTD_DSI_EOS_APPTAG   # enable EOS apptag to specify that requests are from the DSI gridftp plugin
 # XROOTD_DSI_EOS_BOOK     # enable EOS space booking when receiving a file
-#export XROOTD_DSI_EOS=1         # enable ALL the EOS specifics
-GLOBUS_THREAD_MODEL=pthread
+# XROOTD_DSI_EOS_REMOTE   # enable EOS implementation for choosing the backend gridftp server
+# export XROOTD_DSI_GSIFTP_BACKENDSERVERS="host1:port1,host2:port2,host3:port3" # define backend gridftp servers
+export XROOTD_DSI_SERVER_ROLE="standalone" # valid modes are standalone , split , fontend and backend
+# export XROOTD_DSI_EOS=1         # enable ALL the EOS specifics
 

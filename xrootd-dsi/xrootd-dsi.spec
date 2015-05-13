@@ -4,22 +4,23 @@
 
 Summary: XROOTD gridftp DSI plugin
 Name: xrootd-dsi
-Version: 0.3.3
-Release: 2
+Version: 0.4.0
+Release: 1
 License: none
 Group: Applications/File
-Source0: xrootd-dsi-0.3.3-%{release}.tar.gz
+Source0: xrootd-dsi-0.4.0-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-Requires: xrootd-cl >= 3.3.0
+Requires: xrootd-client >= 3.3.0
 Requires: globus-gridftp-server-progs
 
 BuildRequires: globus-gridftp-server-devel
-BuildRequires: xrootd-cl >= 3.3.0
-BuildRequires: xrootd-cl-devel >= 3.3.0
+#BuildRequires: xrootd-client >= 3.3.0
+BuildRequires: xrootd-client-devel >= 3.3.0
 BuildRequires: cmake
 BuildRequires: xrootd-devel >= 3.3.0
 BuildRequires: xrootd-server-devel >= 3.3.0
+BuildRequires: perl
 
 %description
 XROOTD gridftp DSI plugin
@@ -35,7 +36,7 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_MODULE_PATH=cmake
 
 %install
 cd build
@@ -56,7 +57,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc
 
 %post
-/sbin/chkconfig --add xrootd
+/sbin/chkconfig --add xrootd-gridftp
 echo Starting conditional XROOTD grid-ftp services
 /sbin/service xrootd-gridftp condrestart > /dev/null 2>&1 || :
 %preun 
@@ -67,6 +68,8 @@ if [ $1 = 0 ]; then
 fi
 
 %changelog
+* Wed May 8 2015 <geoffray.adde@cern.ch> - dsi 0.4.0-1
+- add support for frontend/backend setup
 * Wed Feb 12 2014 <geoffray.adde@cern.ch> - dsi 0.3.3-2
 - fix a possible crash when XROOTD_VMP is not properly formated
 * Fri Nov 19 2013 <geoffray.adde@cern.ch> - dsi 0.3.3-1
