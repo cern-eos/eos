@@ -115,13 +115,15 @@ public:
   //! @param offset offset
   //! @param buffer place to hold the read data
   //! @param length length
+  //! @param readahead readahead switch
   //!
   //! @return number of bytes read or -1 if error
   //!
   //--------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
-                        XrdSfsXferSize length);
+                        XrdSfsXferSize length,
+                        bool readahead = false);
 
 
   //--------------------------------------------------------------------------
