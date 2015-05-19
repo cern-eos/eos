@@ -21,6 +21,8 @@ BuildRequires: cmake
 BuildRequires: xrootd-devel
 BuildRequires: xrootd-server-devel
 BuildRequires: perl
+BuildRequires: globus-gridftp-server-progs
+BuildRequires: yum-utils
 
 %description
 XROOTD gridftp DSI plugin
