@@ -7,119 +7,134 @@
 #define KINETICCHUNK_HH_
 
 /*----------------------------------------------------------------------------*/
-#include "kinetic/kinetic.h"
+#include <memory>
 #include <chrono>
 #include <string>
 #include <mutex>
 #include <list>
+#include "KineticClusterInterface.hh"
 /*----------------------------------------------------------------------------*/
 
-typedef std::shared_ptr<kinetic::BlockingKineticConnectionInterface> ConnectionPointer;
 
 //------------------------------------------------------------------------------
-//! High(er) level API for Kinetic keys. Handles incremental updates and resolves concurrency
-//! on chunk-basis. For multi-chunk atomic writes the caller will have to do appropriate locking
-//! himself. Is threadsafe to enable background flushing. 
+//! High(er) level API for Kinetic keys. Handles incremental updates and
+//! resolves concurrency on chunk-basis. For multi-chunk atomic writes the
+//! caller will have to do appropriate locking himself. Chunk size depends on
+//! cluster configuration. Is threadsafe to enable background flushing.
 //------------------------------------------------------------------------------
 class KineticChunk {
 public:
     //! Initialized to 1 second staleness (in milliseconds)
-    static const int expiration_time;  
-    //! Initialized to 1 MB chunk capacity (in bytes)
-    static const int capacity; 
+    static const int expiration_time;
 
 public:
-    //--------------------------------------------------------------------------
-    //! Reading is guaranteed up-to-date within expiration_time limits.
-    //! 
-    //! @param buffer output buffer 
-    //! @param offset offset in the chunk to start reading
-    //! @param length number of bytes to read 
-    //! @return 0 if successful otherwise errno
-    //--------------------------------------------------------------------------
-    int read(char* const buffer, off_t offset, size_t length);
+  //--------------------------------------------------------------------------
+  //! Reading is guaranteed up-to-date within expiration_time limits. Note that
+  //! any read up to the value size limit of the assigned cluster is legal. If
+  //! nothing has been written to the requested memory region, 0s will be
+  //! returned.
+  //!
+  //! @param buffer output buffer
+  //! @param offset offset in the chunk to start reading
+  //! @param length number of bytes to read
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  int read(char* const buffer, off_t offset, size_t length);
 
-    //--------------------------------------------------------------------------
-    //! Writing in-memory only, never flushes to the drive. 
-    //! 
-    //! @param buffer input buffer 
-    //! @param offset offset in the chunk to start writing
-    //! @param length number of bytes to write 
-    //! @return 0 if successful otherwise errno
-    //--------------------------------------------------------------------------
-    int write(const char* const buffer, off_t offset, size_t length);
+  //--------------------------------------------------------------------------
+  //! Writing in-memory only, never flushes to the backend. Any write up to the
+  //! value size limit of the assigned cluster is legal. Writes do not have to
+  //! be consecutive.
+  //!
+  //! @param buffer input buffer
+  //! @param offset offset in the chunk to start writing
+  //! @param length number of bytes to write
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  int write(const char* const buffer, off_t offset, size_t length);
 
-    //--------------------------------------------------------------------------
-    //! Truncate in-memory only, never flushes to the drive. 
-    //! 
-    //! @param offset the new target chunk size 
-    //! @return 0 if successful otherwise errno
-    //--------------------------------------------------------------------------
-    int truncate(off_t offset);
+  //--------------------------------------------------------------------------
+  //! Truncate in-memory only, never flushes to the backend storage.
+  //!
+  //! @param offset the new target chunk size
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  int truncate(off_t offset);
 
-    //--------------------------------------------------------------------------
-    //! Flush flushes all changes to the drive. Does not incur IO if chunk is
-    //! not dirty. 
-    //!
-    //! @return 0 if successful otherwise errno
-    //--------------------------------------------------------------------------
-    int flush();
+  //--------------------------------------------------------------------------
+  //! Flush flushes all changes to the backend. Does not incur IO if chunk is
+  //! not dirty.
+  //!
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  int flush();
 
-    //--------------------------------------------------------------------------
-    //! Return the actual value size. Is up-to-date within expiration_time limits.
-    //!
-    //! @return size in bytes of underlying value 
-    //--------------------------------------------------------------------------
-    int size(); 
-    
-    //--------------------------------------------------------------------------
-    //! Test for your flushing needs. Chunk is considered dirty if it is either
-    //! freshly created or it has been written since its last flush. 
-    //!
-    //! @return true if dirty changes exist, false otherwise. 
-    //--------------------------------------------------------------------------
-    bool dirty() const;
-    
-    //--------------------------------------------------------------------------
-    //! Constructor. 
-    //! 
-    //! @param con a connection to the drive the chunk is (to be) stored on
-    //! @param key the name of the chunk 
-    //! @param skip_initial_get if true assume that the key does not yet exist 
-    //--------------------------------------------------------------------------
-    explicit KineticChunk(ConnectionPointer con, std::string key, bool skip_initial_get=false);
-    ~KineticChunk();
+  //--------------------------------------------------------------------------
+  //! Return the actual value size. Is up-to-date within expiration_time limits.
+  //!
+  //! @return size in bytes of underlying value
+  //--------------------------------------------------------------------------
+  int size();
 
-private:
-    //--------------------------------------------------------------------------
-    //! (Re)reads the on-drive value, merges in any existing changes made via 
-    //! write and / or truncate on the local copy of the value. 
-    //! 
-    //! @return 0 if successful otherwise errno
-    //--------------------------------------------------------------------------
-    int get();
+  //--------------------------------------------------------------------------
+  //! Test for your flushing needs. Chunk is considered dirty if it is either
+  //! freshly created or it has been written since its last flush.
+  //!
+  //! @return true if dirty, false otherwise.
+  //--------------------------------------------------------------------------
+  bool dirty() const;
+
+  //--------------------------------------------------------------------------
+  //! Constructor.
+  //!
+  //! @param cluster the cluster that this chunk is (to be) stored on
+  //! @param key the name of the chunk
+  //! @param skip_initial_get if true assume that the key does not yet exist
+  //--------------------------------------------------------------------------
+  explicit KineticChunk(std::shared_ptr<KineticClusterInterface> cluster,
+                        const std::shared_ptr<const std::string> key,
+                        bool skip_initial_get=false);
+  ~KineticChunk();
 
 private:
-    //! the name of the chunk 
-    std::string key;
+  //--------------------------------------------------------------------------
+  //! Validate the in-memory version against the version stored in the cluster
+  //! assigned to this chunk.
+  //!
+  //! @return true if remote version could be verified to be equal, false
+  //!         otherwise
+  //--------------------------------------------------------------------------
+  bool validateVersion();
 
-    //! the on-drive version of the chunk 
-    std::string version;
+  //--------------------------------------------------------------------------
+  //! (Re)reads the value from the backend, merges in any existing changes made 
+  //! via write and / or truncate on the local copy of the value.
+  //!
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  int getRemoteValue();
 
-    //! the contents of the chunk 
-    std::string data;
+private:
+  //! cluster this chunk is (to be) stored on
+  const std::shared_ptr<KineticClusterInterface> cluster;
 
-    //! time the chunk was last verified to be up to date
-    std::chrono::system_clock::time_point timestamp;
+  //! the key of the chunk
+  const std::shared_ptr<const std::string> key;
 
-    //! connection to kinetic drive this chunk is (to be) stored on 
-    ConnectionPointer connection;
+  //! the latest known version of the key that is stored in the cluster
+  std::shared_ptr<const std::string> version;
 
-    //! a list of bit-regions that have been changed since this data block has last been flushed
-    std::list<std::pair<off_t, size_t> > updates;
+  //! the actual data
+  std::shared_ptr<std::string> value;
 
-    //! thread-safety 
-    std::mutex mutex;
+  //! time the chunk was last verified to be up to date
+  std::chrono::system_clock::time_point timestamp;
+
+  //! a list of bit-regions that have been changed since this data block has last been flushed
+  std::list<std::pair<off_t, size_t> > updates;
+
+  //! thread-safety
+  std::recursive_mutex mutex;
 };
 
 #endif

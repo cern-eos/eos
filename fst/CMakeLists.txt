@@ -21,9 +21,9 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(../ 
+include_directories(../
                     ./
-                    ${XROOTD_INCLUDE_DIR} 
+                    ${XROOTD_INCLUDE_DIR}
                     ${XROOTD_PRIVATE_INCLUDE_DIR}
                     ${SPARSEHASH_INCLUDE_DIR}
                     ${NCURSES_INCLUDE_DIR}
@@ -57,7 +57,8 @@ add_library(EosFstIo-Static STATIC
             io/LocalIo.cc                  io/LocalIo.hh
             io/KineticIo.cc                io/KineticIo.hh
             io/KineticChunk.cc             io/KineticChunk.hh
-            io/KineticDriveMap.cc          io/KineticDriveMap.hh
+            io/KineticClusterMap.cc          io/KineticClusterMap.hh
+            io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -98,7 +99,8 @@ add_library( EosFstIo SHARED
                 io/LocalIo.cc                  io/LocalIo.hh
                 io/KineticIo.cc                io/KineticIo.hh
                 io/KineticChunk.cc             io/KineticChunk.hh
-                io/KineticDriveMap.cc          io/KineticDriveMap.hh
+                io/KineticClusterMap.cc          io/KineticClusterMap.hh
+                io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
                 io/RadosIo.cc                  io/RadosIo.hh
                 io/XrdIo.cc                    io/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -162,7 +164,8 @@ add_library(XrdEosFst SHARED
             io/LocalIo.cc                  io/LocalIo.hh
             io/KineticIo.cc                io/KineticIo.hh
             io/KineticChunk.cc             io/KineticChunk.hh
-            io/KineticDriveMap.cc          io/KineticDriveMap.hh
+            io/KineticClusterMap.cc          io/KineticClusterMap.hh
+            io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -227,7 +230,8 @@ add_library(XrdEosFst MODULE
             io/LocalIo.cc                  io/LocalIo.hh
             io/KineticIo.cc                io/KineticIo.hh
             io/KineticChunk.cc             io/KineticChunk.hh
-            io/KineticDriveMap.cc          io/KineticDriveMap.hh
+            io/KineticClusterMap.cc          io/KineticClusterMap.hh
+            io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh

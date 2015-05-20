@@ -1,6 +1,5 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
-#include <glog/logging.h>
 
 /* Tests assume that location and security json file(s) exists and they contain information for 
  * serial numbers SN1 and SN2, where SN1 is correct and SN2 is incorrect. 
@@ -17,12 +16,9 @@ int main( int argc, char* const argv[] )
     
     std::string security(getenv("KINETIC_DRIVE_SECURITY") ? getenv("KINETIC_DRIVE_SECURITY") : "" );
     setenv("KINETIC_DRIVE_SECURITY", KINETIC_DRIVE_SECURITY, 1);
-    
-    // Init google logging so the test cases don't spam us. 
-    google::InitGoogleLogging("");
-    
-    int result = Catch::Session().run( argc, argv );
 
+    int result = Catch::Session().run( argc, argv );
+    
     // Reset environment variables back to the initial values. 
     setenv("KINETIC_DRIVE_LOCATION", location.c_str(), 1); 
     setenv("KINETIC_DRIVE_SECURITY", security.c_str(), 1); 

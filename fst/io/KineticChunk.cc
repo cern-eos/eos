@@ -1,173 +1,178 @@
 #include "KineticChunk.hh"
-
+#include "KineticClusterInterface.hh"
 #include <algorithm>
 #include <errno.h>
-#include <uuid/uuid.h>
 
-using namespace kinetic;
-using com::seagate::kinetic::client::proto::Command_Algorithm_SHA1;
 using std::unique_ptr;
+using std::shared_ptr;
 using std::string;
 using std::chrono::milliseconds;
 using std::chrono::system_clock;
 using std::chrono::duration_cast;
-
-
-
 const int KineticChunk::expiration_time = 1000;
-const int KineticChunk::capacity = 1048576;
+using namespace kinetic;
 
 
-KineticChunk::KineticChunk(ConnectionPointer c, std::string k, bool skip_initial_get) :
-	key(k),version(),data(),timestamp(),connection(c),updates()
+KineticChunk::KineticChunk(std::shared_ptr<KineticClusterInterface> c,
+        const std::shared_ptr<const std::string> k, bool skip_initial_get) :
+  cluster(c), key(k), version(new string("")), value(new string("")), timestamp(), updates()
 {
-    if(skip_initial_get == false)
-        get();
+  if(skip_initial_get == false)
+    getRemoteValue();
 }
 
 KineticChunk::~KineticChunk()
 {
 }
 
-int KineticChunk::get()
+bool KineticChunk::validateVersion()
 {
-    /* See if get is unnecessary based on expiration. */
-    if(duration_cast<milliseconds>(system_clock::now() - timestamp).count() < expiration_time)
-        return 0; 
-    /* Still try to get around a get operation by comparing versions first. */
-    else{
-        unique_ptr<string> version_on_drive;
-        KineticStatus status = connection->GetVersion(key, version_on_drive);
+  /* See if check is unnecessary based on expiration. */
+  if(duration_cast<milliseconds>(system_clock::now() - timestamp).count() < expiration_time)
+    return true;
 
-        if(!status.ok()  && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
-            return EIO;
+  /* Check remote version & compare it to in-memory version. */
+  shared_ptr<const string> remote_version;
+  shared_ptr<string> remote_value;
+  KineticStatus status = cluster->get(key,remote_version,remote_value,true);
 
-        if((status.statusCode() == StatusCode::REMOTE_NOT_FOUND && version.empty()) ||
-           (version_on_drive->compare(version)==0)){
-            timestamp = system_clock::now();
-            return 0;  
-        }
-    }    
-    
-    /* Remote version changed, have to get record from the drive. */
-    unique_ptr<KineticRecord> record;
-    KineticStatus status = connection->Get(key, record);
+   /*If no version is set, the entry has never been flushed. In this case,
+     not finding an entry with that key in the cluster is expected. */
+  if( (version->empty() && status.statusCode() == StatusCode::REMOTE_NOT_FOUND) ||
+      (status.ok() && remote_version && *version == *remote_version)
+    ){
+      /* In memory version equals remote version. Remember the time. */
+      timestamp = system_clock::now();
+      return true;
+  }
+  return false;
+}
 
-    if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
-        return EIO;
-   
-    string x;
-    if(status.ok()){
-        x = *record->value();
-        version = *record->version();
-    }
-    else{
-        version = "";
-    }
-    timestamp = system_clock::now();
+int KineticChunk::getRemoteValue()
+{
+  std::shared_ptr<string> rv;
+  KineticStatus status = cluster->get(key, version, rv, false);
 
-    /* Merge all updates done on the local data copy (data) into the freshly 
-       read-in data copy (x). */
-    x.resize(std::max(x.size(), data.size()));
-    for (auto iter = updates.begin(); iter != updates.end(); ++iter){
-        auto update = *iter;
-        if(update.second)
-            x.replace(update.first, update.second, data, update.first, update.second);
-        else
-            x.resize(update.first);
-    }
+  if(!status.ok() && status.statusCode() != StatusCode::REMOTE_NOT_FOUND)
+    return EIO;
 
-    data = x;
-    return 0;
+  /* We read in the current value from the drive. Remember the time. */
+  timestamp = system_clock::now();
+
+  /* Merge all updates done on the local data copy (data) into the freshly
+     read-in data copy. */
+  if(status.statusCode() == StatusCode::REMOTE_NOT_FOUND)
+    rv.reset(new std::string());
+  else
+    rv->resize(std::max(rv->size(), value->size()));
+
+  for (auto iter = updates.begin(); iter != updates.end(); ++iter){
+    auto update = *iter;
+    if(update.second)
+      rv->replace(update.first, update.second, value->c_str(), update.first, update.second);
+    else
+      rv->resize(update.first);
+  }
+
+  /* The remote value with the merged in changes represents the up-to-date value
+   * swap it in. */
+  std::swap(rv, value);
+  return 0;
 }
 
 int KineticChunk::read(char* const buffer, off_t offset, size_t length)
 {
-    if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
-        return EINVAL;
+  if(buffer==NULL || offset<0 || offset+length > cluster->limits().max_value_size)
+    return EINVAL;
 
-    std::lock_guard<std::mutex> lock(mutex); 
-    
-    /* Ensure data is not too stale to read. */
-    if(int err = get())
-        return err; 
-    
-    /* return 0s if client reads non-existing data (e.g. file with holes) */
+  std::lock_guard<std::recursive_mutex> lock(mutex);
+
+  /* Ensure data is not too stale to read. */
+  if(!validateVersion()){
+    const int err = getRemoteValue();
+    if(err) return err;
+  }
+
+  /* return 0s if client reads non-existing data (e.g. file with holes) */
+  if(offset+length > value->size())
     memset(buffer,0,length);
-    if(data.size()>(unsigned int)offset)
-        data.copy(buffer, std::min(length, (unsigned long)(data.size()-offset)), offset);
-    return 0;
+
+  if(value->size()>(size_t)offset){
+    size_t copy_length = std::min(length, (size_t)(value->size()-offset));
+    value->copy(buffer, copy_length, offset);
+  }
+  return 0;
 }
 
 int KineticChunk::write(const char* const buffer, off_t offset, size_t length)
 {
-    if(buffer==NULL || offset<0 || (int)(offset+length)>capacity)
-        return EINVAL;
+  if(buffer==NULL || offset<0 || offset+length>cluster->limits().max_value_size)
+      return EINVAL;
 
-    std::lock_guard<std::mutex> lock(mutex); 
-    
-    data.resize(std::max((size_t) offset + length, data.size()));
-    data.replace(offset, length, buffer, length);
-    updates.push_back(std::pair<off_t, size_t>(offset, length));
-    return 0;
+  std::lock_guard<std::recursive_mutex> lock(mutex);
+
+  /* Set new entry size. */
+  value->resize(std::max((size_t) offset + length, value->size()));
+
+  /* Copy data and remember write access. */
+  value->replace(offset, length, buffer, length);
+  updates.push_back(std::pair<off_t, size_t>(offset, length));
+  return 0;
 }
 
 int KineticChunk::truncate(off_t offset)
 {
-    if(offset<0 || offset>capacity)
-        return EINVAL;
-    
-    std::lock_guard<std::mutex> lock(mutex); 
-    
-    data.resize(offset);
-    updates.push_back(std::pair<off_t, size_t>(offset, 0));
-    return 0;
+  if(offset<0 || offset>cluster->limits().max_value_size)
+      return EINVAL;
+
+  std::lock_guard<std::recursive_mutex> lock(mutex); 
+
+  value->resize(offset);
+  updates.push_back(std::pair<off_t, size_t>(offset, 0));
+  return 0;
 }
 
-
 int KineticChunk::flush()
-{   
-    std::lock_guard<std::mutex> lock(mutex); 
-        
-    if(!dirty()) 
-        return 0;
-       
-    uuid_t uuid;
-    uuid_generate(uuid);
-    string new_version(reinterpret_cast<const char *>(uuid), sizeof(uuid_t));
-   
-    KineticRecord record(data, new_version, "", Command_Algorithm_SHA1);
-    KineticStatus status = connection->Put(key, version, WriteMode::REQUIRE_SAME_VERSION, record);
+{
+  std::lock_guard<std::recursive_mutex> lock(mutex);
 
-    if (status.statusCode() == StatusCode::REMOTE_VERSION_MISMATCH){
-        timestamp = std::chrono::system_clock::time_point();
-        if(int err = get())
-            return err;
-        return flush();
-    }
-
-    if (!status.ok())
-        return EIO;
-
-    updates.clear();
-    version = new_version;
-    timestamp = system_clock::now();
+  if(!dirty())
     return 0;
+
+  kinetic::KineticStatus status = cluster->put(key,version,value,false);
+
+  if (status.statusCode() == kinetic::StatusCode::REMOTE_VERSION_MISMATCH){
+    if(int err = getRemoteValue())
+        return err;
+    return flush();
+  }
+
+  if (!status.ok())
+    return EIO;
+
+  /* Success... we can forget about in-memory changes and set timestamp
+     to current time. */
+  updates.clear();
+  timestamp = system_clock::now();
+  return 0;
 }
 
 bool KineticChunk::dirty() const
 {
-    if(version.empty()) 
+    if(version->empty())
         return true;
     return !updates.empty();
 }
 
 int KineticChunk::size()
 {
-    std::lock_guard<std::mutex> lock(mutex); 
+    std::lock_guard<std::recursive_mutex> lock(mutex); 
     
     /* Ensure size is not too stale. */
-    if(int err = get())
-        return err; 
-    return data.size();
+    if(!validateVersion()){
+      const int err = getRemoteValue();
+      if(err) return err; 
+    }
+    
+    return value->size();
 }
