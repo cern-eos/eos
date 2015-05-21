@@ -27,6 +27,7 @@
 #include <string>
 #include <stdint.h>
 #include <ctime>
+#include <pthread.h>
 
 #include "namespace/persistency/Buffer.hh"
 #include "namespace/utils/Descriptor.hh"
@@ -112,7 +113,9 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogFile():
         pFd(-1), pInotifyFd(-1), pWatchFd(-1), pIsOpen( false ), pVersion( 0 ),
-        pUserFlags(0), pSeqNumber( 0 ), pContentFlag( 0 ) {};
+        pUserFlags(0), pSeqNumber( 0 ), pContentFlag( 0 ) {
+	pthread_mutex_init(&pWarningMessagesMutex,0);
+      };
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -186,7 +189,7 @@ namespace eos
       //!
       //! @return offset of the record following the last scanned record
       //------------------------------------------------------------------------
-      uint64_t scanAllRecords( ILogRecordScanner *scanner ) throw( MDException );
+      uint64_t scanAllRecords( ILogRecordScanner *scanner, bool autorepair=false ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file starting from a given
@@ -195,7 +198,8 @@ namespace eos
       //! @return offset of the record following the last scanned record
       //------------------------------------------------------------------------
       uint64_t scanAllRecordsAtOffset( ILogRecordScanner *scanner,
-                                       uint64_t           startOffset )
+                                       uint64_t           startOffset,
+				       bool               autorepair=false )
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -266,6 +270,43 @@ namespace eos
       //------------------------------------------------------------------------
       void addCompactionMark( ) throw( MDException );
 
+      //------------------------------------------------------------------------
+      // Find forward the next record magic
+      //------------------------------------------------------------------------
+      static off_t findRecordMagic( int fd, off_t offset, off_t limit );
+
+      //------------------------------------------------------------------------
+      // Add Warning Message
+      //------------------------------------------------------------------------
+      void addWarningMessage( std::string msg )
+      { 
+	pthread_mutex_lock(&pWarningMessagesMutex);
+	pWarningMessages.push_back(msg);
+	pthread_mutex_unlock(&pWarningMessagesMutex);
+      }
+
+      //------------------------------------------------------------------------
+      // Get Warning Messages
+      //------------------------------------------------------------------------
+      std::vector<std::string> getWarningMessages()
+      { 
+	std::vector<std::string> ret;
+	pthread_mutex_lock(&pWarningMessagesMutex);
+	ret = pWarningMessages;
+	pthread_mutex_unlock(&pWarningMessagesMutex);
+	return ret;
+      }
+
+      //------------------------------------------------------------------------
+      // Clear Warning Messages
+      //------------------------------------------------------------------------
+      void clearWarningMessages()
+      {
+	pthread_mutex_lock(&pWarningMessagesMutex);
+	pWarningMessages.clear();
+	pthread_mutex_unlock(&pWarningMessagesMutex);
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -295,6 +336,8 @@ namespace eos
       uint8_t  pUserFlags;
       uint64_t pSeqNumber;
       uint16_t pContentFlag;
+      std::vector<std::string> pWarningMessages;
+      pthread_mutex_t pWarningMessagesMutex;
   };
 }
 
