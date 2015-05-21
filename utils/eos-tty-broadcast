@@ -1,5 +1,6 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
-# File: CMakeLists.txt
+# File: eos-tty-broadcast
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
@@ -20,5 +21,17 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
+tail -f $1 | while read line || [[ -n "$line" ]];do 
+  msg=`echo $line | egrep "$2"`   
+  if [ -n "$msg" ]; then 
+    for name in `ls /dev/pts/[0-9]*`; do 
+    alrt=`echo $line | egrep ALERT`;
+    if [ -n "$alrt" ]; then 
+	echo -n -e "\n\033[47;34m\e[5m" "$msg" "\033[0m " > $name
+    else
+	echo -n -e "\n\033[47;31m\e[5m" "$msg" "\033[0m " > $name
+    fi
 
-INSTALL_PROGRAMS( /sbin FILES eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall eos-tty-broadcast )
+    done
+  fi
+done

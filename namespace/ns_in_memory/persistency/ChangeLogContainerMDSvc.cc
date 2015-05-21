@@ -529,7 +529,7 @@ namespace eos
     if( !pSlaveMode || logIsCompacted )
     {
       ContainerMDScanner scanner( pIdMap, pSlaveMode );
-      pFollowStart = pChangeLog->scanAllRecords( &scanner );
+      pFollowStart = pChangeLog->scanAllRecords( &scanner , pAutoRepair );
       pFirstFreeId = scanner.getLargestId()+1;
 
       // Recreate the container structure
@@ -670,6 +670,11 @@ namespace eos
         if( pollInterval == 0 ) pollInterval = 1000;
       }
     }
+
+    pAutoRepair = false;
+    it = config.find( "auto_repair" );
+    if (it != config.end() && it->second == "true" )
+      pAutoRepair = true;
   }
 
   //----------------------------------------------------------------------------
@@ -849,7 +854,7 @@ namespace eos
   // Commit the compacting information.
   //----------------------------------------------------------------------------
   void
-  ChangeLogContainerMDSvc::compactCommit (void *compactingData)
+  ChangeLogContainerMDSvc::compactCommit (void *compactingData, bool autorepair)
     throw ( MDException)
   {
     ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
@@ -867,7 +872,8 @@ namespace eos
     {
       ::ContainerUpdateHandler updateHandler(updates, data->newLog);
       data->originalLog->scanAllRecordsAtOffset(&updateHandler,
-                                          data->newRecord);
+						data->newRecord,
+						autorepair);
     }
     catch (MDException &e)
     {

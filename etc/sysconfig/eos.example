@@ -99,6 +99,12 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Disable multithreading in FUSE (default on)
 #export EOS_FUSE_NO_MT=1
 
+# Enable FUSE read-ahead (default off)
+#export EOS_FUSE_RDAHEAD=0
+
+# Configure FUSE read-ahead window (default 128k)
+#export EOS_FUSE_RDAHEAD_WINDOW=131072
+
 # ------------------------------------------------------------------
 # HTTPD Configuration
 # ------------------------------------------------------------------
@@ -177,3 +183,13 @@ export EOS_TEST_TESTTIMESLICE=300;
 
 # Set the CASTOR service class (svcClass) for all file transfers to CASTOR
 # export EOS_ARCHIVE_SVCCLASS=default
+
+# ------------------------------------------------------------------
+# MGM TTY Console Broadcast Configuration
+# ------------------------------------------------------------------
+
+# define the log file where you want to grep
+export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
+
+# define the log file regex you want to broad cast to all consoles
+export EOS_TTY_BROACAST_EGREP="CRIT,ALERT,EMERG"

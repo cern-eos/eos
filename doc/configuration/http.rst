@@ -117,6 +117,12 @@ verbose information you can change the log level:
    # switch back to info log level on the MGM
    eos debug info
 
+SE Linux
+--------
+
+Make sure that your proxy host is not blocking outgoing connections for NGINX to the backend MGM/FST servers (port 8000/8001). The same is true for the incoming
+connections on the HTTPS ports.
+
 Proxy Certificates
 ------------------
 

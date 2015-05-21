@@ -82,7 +82,8 @@ namespace eos
     {
       pRoot = pContainerSvc->createContainer();
       pRoot->setParentId( pRoot->getId() );
-      pContainerSvc->updateStore( pRoot );
+      if (!static_cast<ChangeLogContainerMDSvc*>(pContainerSvc)->getSlaveMode())
+	pContainerSvc->updateStore( pRoot );
     }
   }
 

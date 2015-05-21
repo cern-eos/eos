@@ -53,7 +53,7 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pQuotaStats( 0 )
+        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
@@ -164,10 +164,11 @@ namespace eos
       //!
       //! @param compactingData state information obtained from CompactPrepare
       //!                       and modified by Compact
+      //! @param autorepair     indicates to skip broken records
       //! @throw MDExcetion     failure, results of the compacting are
       //!                       are discarded, the old log will be used for
       //------------------------------------------------------------------------
-      void compactCommit (void *compactingData) throw ( MDException);
+      void compactCommit (void *compactingData, bool autorepair=false) throw ( MDException);
 
       //------------------------------------------------------------------------
       //! Make a transition from slave to master
@@ -195,6 +196,14 @@ namespace eos
       LockHandler *getSlaveLock()
       {
         return pSlaveLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! get slave mode
+      //------------------------------------------------------------------------
+      bool getSlaveMode() 
+      {
+        return pSlaveMode;
       }
 
       //------------------------------------------------------------------------
@@ -344,7 +353,8 @@ namespace eos
       bool               pSlaveStarted;
       int32_t            pSlavePoll;
       uint64_t           pFollowStart;
-      IQuotaStats        *pQuotaStats;
+      IQuotaStats       *pQuotaStats;
+      bool               pAutoRepair;
   };
 }
 

@@ -26,7 +26,7 @@
 ################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "3" )
-set(VERSION_PATCH "115" )
+set(VERSION_PATCH "118" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
 
 ################################################################################
@@ -94,6 +94,7 @@ find_package(ncurses REQUIRED)
 find_package(readline REQUIRED)
 find_package(uuid REQUIRED)
 find_package(z REQUIRED)
+find_package(Xfs REQUIRED)
 find_package(rt REQUIRED)
 find_package(ldap REQUIRED)
 find_package(ZMQ REQUIRED)

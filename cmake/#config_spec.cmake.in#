@@ -1,6 +1,6 @@
-# ----------------------------------------------------------------------
+i# ----------------------------------------------------------------------
 # File: CMakeLists.txt
-# Author: Andreas-Joachim Peters - CERN
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch>
 # ----------------------------------------------------------------------
 
 # ************************************************************************
@@ -21,4 +21,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL_PROGRAMS( /sbin FILES eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall eos-tty-broadcast )
+set(SRC_DIR @CMAKE_CURRENT_SOURCE_DIR@)
+set(CPACK_PACKAGE_NAME @CPACK_PACKAGE_NAME@)
+set(CPACK_PACKAGE_VERSION @CPACK_PACKAGE_VERSION@)
+set(CPACK_PACKAGE_RELEASE @CPACK_PACKAGE_RELEASE@)
+<<<<<<< HEAD
+configure_file(${SRC_DIR}/eos.spec.in ${SRC_DIR}/eos.spec)
+
+=======
+configure_file(${SRC_DIR}/eos.spec.in ${SRC_DIR}/eos.spec)
+>>>>>>> beryl

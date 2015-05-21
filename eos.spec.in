@@ -93,6 +93,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
+/usr/sbin/eos-tty-broadcast
 /usr/lib64/libeosCommonServer.so.%{version}
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so

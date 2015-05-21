@@ -1,0 +1,664 @@
+#!/usr/bin/perl
+
+
+$ENV{"LANGUAGE"}="en_US.UTF-8";
+$ENV{"LANG"}="en_US.UTF-8";
+$ENV{"LC_ALL"}="en_US.UTF-8";
+
+printf "# ------------------------------------\n";
+printf "# EOS Quick Deploy ...\n";
+printf "# ------------------------------------\n";
+
+if ( $< ne "0" ) {
+    printf "# error: please run me as 'root' user ... [$<] \n";
+    exit(-1);
+}
+
+my $release="aquamarine";
+
+if ( $#ARGV >= 0 ) {
+    if ( ($#ARGV>0) || ($ARGV[0] =~ /-h/ ) ||
+	 ( ($ARGV[0] ne "beryl") && 
+	   ($ARGV[0] ne "beryl-testing") &&
+	   ($ARGV[0] ne "aquamarine") &&
+	   ($ARGV[0] ne "citrine") ) ) {
+	print "Usage: eos-deploy [ beryl | beryl-testing | aquamarine | citrine ] (default=aquamarine)\n";
+        exit(-1);
+    }
+    $release=$ARGV[0];
+    shift;
+}
+
+my $flavour;
+my $nfs;
+my $hosts;
+my $instance;
+my $alicese;
+my $monalisahost;
+my $email;
+my $mgm2;
+my $thishost=`hostname -f`;
+my $thishostshort=`hostname -s`;
+my $cleanfstdisk=0;
+
+chomp $thishost;
+chomp $thishostshort;
+
+my $isalice=0;
+
+my $now=`date +%s`;
+chomp $now;
+
+open OUTPARAM, "> /root/eos-deploy.$now.config";
+
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Your MGM has hostname <$thishost> ... check that this is correct ... (uses hostname -f)\n";
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Installing from Release Branch '$release'\n";
+while(1) 
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Please enter an instance name with lower case characters containing only [a-z.] not containing the word eos \n\t : ";
+    $instance=<>;
+    chomp $instance;
+    if (!($instance =~ /eos/)) {
+	$instance =~ /([a-z.]*)/;
+	if ("$1" eq "$instance") {
+   	    print OUTPARAM $instance,"\n"; 
+	    last;
+	}
+    }
+    printf "# error: invalid input ...\n";
+}
+
+my $fstmatch;
+if ($instance =~ /alice/) {
+    while (1) {
+	$isalice=1;
+	printf "# -----------------------------------------------------------------------------------------\n";
+	printf "# Please enter the ALICE SE name ( ALICE::FOO::BAR )  \n\t : ";
+	$alicese=<>;
+	print OUTPARAM $alicese;
+	chomp $alicese; 
+	if ($alicese =~ /[a-zA-Z0-9.-_]*::[a-zA-Z0-9.-_]*::[a-zA-Z0-9.-_]*/) {
+	    last;
+	}
+	printf "# error: invalid input ...\n";
+    }
+
+    while(1) {
+	printf "# -----------------------------------------------------------------------------------------\n";
+	printf "# Please enter the ALICE MonaLisa service host name to receive XRootD and ApMon  monitoring\n\t : ";
+	
+	$monalisahost=<>;
+	chomp $monalisahost;
+	
+	if ($monalisahost =~ /(.*).(.*).(.*)/) {
+   	    print OUTPARAM $monalisahost,"\n"; 
+	    last;
+	}
+	
+	if ($monalisahost eq "") {
+   	    print OUTPARAM $monalisahost,"\n"; 
+	    last;
+	}
+	
+	printf "# error: invalid input ...\n";
+    }
+
+    while(1)  
+    {
+	printf "# -----------------------------------------------------------------------------------------\n";
+	printf "# Please enter a regexp or word match matching your FST filesystem in the df output [default 'data'] ... try if 'df | grep <match>' shows only your storage filesystems\n\t : ";
+	$fstmatch=<>;
+	chomp $fstmatch;
+	if ($fstmatch eq "") {
+	    $fstmatch = "data";
+	}
+   	print OUTPARAM $fstmatch,"\n"; 
+	last;
+    }
+
+
+}
+
+while(1) 
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# If you want to deploy a dual MGM setup enter the full qualified host name of the second MGM [otherwise leave blank] \n\t : ";
+
+    $mgm2=<>;
+    chomp $mgm2;
+
+    if ($mgm2 =~ /(.*).(.*).(.*)/) {
+   	print OUTPARAM $mgm2,"\n"; 
+	last;
+    }
+
+    if ($mgm2 eq "") {
+   	print OUTPARAM $mgm2,"\n"; 
+	last;
+    }
+
+    printf "# error: invalid input ...\n";
+}
+
+while(1) 
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Please enter an email address to notify if this EOS instance is not responive \n\t : ";
+
+    $email=<>;
+    chomp $email;
+
+    if ($email =~ /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/) {
+   	print OUTPARAM $email,"\n"; 
+	last;
+    }
+    printf "# error: invalid input ...\n";
+}
+
+while(1)  
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Please enter your SL OS flavor ... enter '5' for SL5, '6' for SL6 \n\t : ";
+    $flavour=<>;
+    chomp $flavour;
+    if ( $flavour eq "5" || $flavour eq "6" ) {
+   	print OUTPARAM $flavour,"\n"; 
+	last;	 
+    }
+    printf "# error: invalid input ...\n";
+}
+
+
+while(1)  
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Please enter how many filesystems you have per storage server \n\t : ";
+    $nfs=<>;
+    chomp $nfs;
+    if ( $nfs =~ /^\d+$/ ) {
+   	print OUTPARAM $nfs,"\n"; 
+	last;
+    }
+    printf "# error: invalid input ...\n";
+}
+
+my @remotefsts;
+
+while(1)
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# EOS assumes that you execute this script on the machine hosting the namespace (MGM server) ...\n";
+    printf "# If you want to make only a test deployment you can just press enter for the next question and deploy a storage node on this machine ...\n";
+    printf "# \n";
+    printf "# Provide a space separated list of fully qualified host names of storage servers ( needs ssh accces from this machine ) - to run the FST on this host leave it blank\n\t : ";
+    $hosts=<>;
+    chomp $hosts;
+    @remotefsts = split (" " , $hosts);
+    print OUTPARAM $hosts,"\n"; 
+    last;
+}
+
+for (@remotefsts) {
+    print "# => FST: $_\n";
+}
+
+while(1)
+{
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Do you want a clean-up of the FST disks? ... ('yes','no',<enter>=default='no')\n\t : ";
+    
+    $cleanfstdisk=<>;
+    chomp $cleanfstdisk;
+    if ( $cleanfstdisk eq "yes" ) {
+        print OUTPARAM $cleanfstdisk,"\n"; 
+	last;
+    }
+    if ( $cleanfstdisk eq "no" ) {
+        print OUTPARAM $cleanfstdisk,"\n"; 
+	last;
+    }
+    if ( $cleanfstdisk eq "" ) {
+        print OUTPARAM $cleanfstdisk,"\n"; 
+	last;
+    }
+    printf "# error: invalid input ...\n";
+}
+
+my $selfsigned=false;
+my $createdhostcert=false;
+if ( ! -e "/etc/grid-security/hostcert.pem" ) {
+    system("yum install -y openssl >& /dev/null");
+    $createdhostcert=true;
+    printf "# -----------------------------------------------------------------------------------------\n";
+    system ("mkdir -p /etc/grid-security/daemon/");
+    printf "# I didn't see a host certificate in /etc/grid-security/ ... I am creating a fake self-signed certificate there ... you can replace this later ...\n";
+    printf "# \n";
+    system (" openssl req -new -x509 -days 3650 -nodes -out /etc/grid-security/hostcert.pem -keyout /etc/grid-security/hostkey.pem >& /dev/null<< EOF
+
+
+
+
+
+
+
+
+
+
+EOF") ;
+    system("cp /etc/grid-security/hostcert.pem /etc/grid-security/daemon/hostcert.pem; cp /etc/grid-security/hostkey.pem /etc/grid-security/daemon/hostkey.pem");
+    system("chown -R daemon:daemon /etc/grid-security/daemon");
+    $selfsigned=true;
+} else {
+    system("mkdir -p /etc/grid-security/daemon/");
+    system("cp /etc/grid-security/hostcert.pem /etc/grid-security/daemon/hostcert.pem; cp /etc/grid-security/hostkey.pem /etc/grid-security/daemon/hostkey.pem");
+    system("chown -R daemon:daemon /etc/grid-security/daemon");
+}
+ 
+if ( ! -e "/etc/grid-security/hostcert.pem" || ! -e "/etc/grid-security/hostkey.pem" ) {
+    printf "# error: couldn't create the self-signed certificates!\n";
+    exit(-1);
+} else {
+    system("chmod 400 /etc/grid-security/hostkey.pem");
+    system("chmod 600 /etc/grid-security/hostcert.pem");
+}
+
+close OUTPARAM;
+
+printf "# -----------------------------------------------------------------------------------------\n";
+
+if ( ! -e "/etc/yum.repos.d/lcg-CA.repo" ) {
+    printf "# Configuring lcg-CA repo ...\n";
+    system ("cd /etc/yum.repos.d; wget http://grid-deployment.web.cern.ch/grid-deployment/glite/repos/3.2/lcg-CA.repo");
+}
+
+printf "# Installing lcg CA files ...\n";
+system ("yum install -y lcg-CA");
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Preparing an NGINX certificate bundle ...\n";
+system ("rm -rf /etc/grid-security/certificates/nginx-bundle.pem >& /dev/null; cat /etc/grid-security/certificates/*.pem > /etc/grid-security/certificates/nginx-bundle.pem");
+
+unlink "/etc/yum.repos.d/eos.repo";
+
+if ( ! -e "/etc/yum.repos.d/eos.repo" ) {
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Setting up the YUM repository /etc/yum.repos.d/eos.repo ...\n";
+    system("mkdir -p /etc/yum.repos.d/");
+    open FD, "> /etc/yum.repos.d/eos.repo";
+
+
+    if ( $flavour eq "5" ) {
+	print FD <<EOF;
+[eos-$release]
+name=EOS 0.3 Version
+baseurl=http://eos.cern.ch/rpms/eos-$release/slc-5-x86_64/
+gpgcheck=0
+enabled=1
+priority=2
+EOF
+	    
+    }
+    
+
+    if ( $flavour eq "6" ) {
+	print FD <<EOF;
+[eos-$release]
+name=EOS 0.3 Version
+baseurl=http://eos.cern.ch/rpms/eos-$release/slc-6-x86_64/
+gpgcheck=0
+enabled=1
+priority=2
+EOF
+
+    close FD;
+    }
+}
+
+if ( -r "/etc/yum.repos.d/epel.repo" ) {
+    my $epelpath = ` cat /etc/yum.repos.d/epel.repo 2> /dev/null | grep -v \\#| grep exclude | grep xrootd | grep microhttpd`;
+    chomp $epelpath;
+    if ( $epelpath eq "" ) {
+       my $replaced=0;
+       printf "# -----------------------------------------------------------------------------------------\n";
+       printf "Please disabling xrootd+libmicrohttpd in the EPEL repository (epel + epel-testing) on all MGM and FST nodes ...\n";
+       printf "Add to each section in /etc/yum.repos.d/epel.rep and /etc/yum.repos.d/epel-testing.rep : \n";
+       printf "exclude=xrootd*,libmicrohttpd*\n" ;
+       exit(-1);
+   }
+}
+
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Fetching RPM packages ...\n";
+my $addpackage="";
+if ($isalice)  {
+    $addpackage ="xrootd-alicetokenacc";
+}
+
+system ("yum erase -y eos-server eos-fuse eos-client eos-cleanup libmicrohttpd $addpackage; yum install -y eos-cleanup");
+system ("service nginx stop >& /dev/null");
+printf "# -----------------------------------------------------------------------------------------\n";
+system ("# Clean-up left-over of previous installation ...\n");
+system ("test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup");
+system ("test '$cleanfstdisk' = 'yes' &&  unlink /var/eos/md/so.fst.dump >&/dev/null;  test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup");
+system ("test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup");
+
+system ("yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup libmicrohttpd-0.9.38 jemalloc nscd $addpackage");
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Creating your private sss keytab file for you under /etc/eos.keytab ...\n";
+system ("chmod 600 /etc/eos.keytab 2>/dev/null; unlink /etc/eos.keytab 2>/dev/null; yes | xrdsssadmin -k eos -u daemon -g daemon add /etc/eos.keytab >& /dev/null; chown daemon:daemon /etc/eos.keytab >& /dev/null ; chmod 400 /etc/eos.keytab;");
+
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Creating your configuration file /etc/sysconfig/eos ...\n";
+system ("mv /etc/sysconfig/eos /etc/sysconfig/eos.save >& /dev/null");
+open OUTMGM, ">/etc/sysconfig/eos.mgm";
+open OUTFST, ">/etc/sysconfig/eos.fst";
+open IN, "/etc/sysconfig/eos.example";
+
+print OUTMGM "test -e /usr/lib64/libjemalloc.so.1 && export LD_PRELOAD=/usr/lib64/libjemalloc.so.1\n";
+print OUTFST "test -e /usr/lib64/libjemalloc.so.1 && export LD_PRELOAD=/usr/lib64/libjemalloc.so.1\n";
+
+while (<IN>) {
+    chomp $_;
+    if ($_ =~ /XRD_ROLES/) {
+        if ($hosts eq "") {
+	    print OUTMGM "XRD_ROLES=\"mq sync mgm fst\"\n";
+        } else {
+	    print OUTMGM "XRD_ROLES=\"mq sync mgm\"\n";
+	    print OUTFST "XRD_ROLES=\"fst\"\n";
+        }
+    } else {
+    if ($_ =~ /EOS_INSTANCE_NAME/) {
+        print OUTMGM "export EOS_INSTANCE_NAME=eos$instance\n";
+    } else {
+    if ($_ =~ /EOS_BROKER_URL/) {
+	print OUTMGM "export EOS_BROKER_URL=root://localhost:1097//eos/\n";
+	print OUTFST "export EOS_BROKER_URL=root://$thishost:1097//eos/\n";
+    } else {
+    if ($_ =~ /EOS_MGM_MASTER1/) {
+	print OUTMGM "export EOS_MGM_MASTER1=$thishost\n";
+    } else {
+    if ($_ =~ /EOS_MGM_MASTER2/) {
+	if ($mgm2 ne "" ) {
+	    print OUTMGM "export EOS_MGM_MASTER2=$mgm2\n";
+	} else {
+	    print OUTMGM "export EOS_MGM_MASTER2=$thishost\n";
+	}
+    } else {
+    if ($_ =~ /EOS_MGM_ALIAS/) {
+	print OUTMGM "export EOS_MGM_ALIAS=$thishost\n";
+	print OUTFST "export EOS_MGM_ALIAS=$thishost\n";
+    } else {
+    if ($_ =~ /EOS_FUSE_MGM_ALIAS/) {
+	print OUTMGM "export EOS_FUSE_MGM_ALIAS=$thishost\n";
+    } else {
+    if ($_ =~ /EOS_MAIL_CC=/) {
+	print OUTMGM "export EOS_MAIL_CC=\"$email\"\n";
+    } else {
+	print OUTMGM "$_\n";
+    }
+    if ($_ =~ /EOS_HTTP_THREADPOOL_SIZE=/) {
+	print OUTMGM "export EOS_HTTP_THREADPOOL_SIZE=32\n";
+	print OUTFST "export EOS_HTTP_THREADPOOL_SIZE=32\n";
+    }
+    if ($_ =~ /EOS_HTTP_THREADPOOL=/) {
+	print OUTMGM "export EOS_HTTP_THREADPOOL=epoll\n";
+	print OUTFST "export EOS_HTTP_THREADPOOL=epoll\n";
+    }
+    if ($_ =~ /EOS_HTTP_CONNECTION_MEMORY_LIMIT=/) {
+	print OUTMGM "export EOS_HTTP_CONNECTION_MEMORY_LIMIT=65536\n";
+	print OUTFST "export EOS_HTTP_CONNECTION_MEMORY_LIMIT=65536\n";
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+    }
+}
+
+if ($isalice) {
+    if ($hosts eq "") {
+       print OUTMGM "export APMON_INSTANCE_NAME=$alicese\n";
+       print OUTMGM "export MONALISAHOST=$monalisahost\n";
+       print OUTMGM "export APMON_STORAGEPATH=$fstmatch\n";
+    } else {
+       print OUTFST "export APMON_INSTANCE_NAME=$alicese\n";
+       print OUTFST "export MONALISAHOST=$monalisahost\n";
+       print OUTFST "export APMON_STORAGEPATH=$fstmatch\n";
+    }
+}
+
+close OUTMGM;
+close OUTFST;
+close IN;
+
+if ($isalice) {
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Rewriting /etc/xrd.cf.mgm to use ALICE token authentication ...\n";
+    system("perl -pi -e 's/^#mgmofs.authlib libXrdAliceTokenAcc.so/mgmofs.authlib \\/usr\\/lib64\\/libXrdAliceTokenAcc.so/' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/^#mgmofs.authorize/mgmofs.authorize/' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/^sec.protocol gsi/#sec.protocol gsi/' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/^sec.protbind localhost.localdomain unix sss/sec.protbind localhost.localdomain sss unix/' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/^sec.protbind localhost unix sss/sec.protbind localhost sss unix/' /etc/xrd.cf.mgm");
+    system("test -e /etc/krb5.keytab || perl -pi -e 's/^sec.protocol krb5/#sec.protocol krb5/' /etc/xrd.cf.mgm");
+    system("test -e /etc/krb5.keytab && perl -pi -e 's/krb5 gsi/krb5/' /etc/xrd.cf.mgm || perl -pi -e 's/krb5 gsi//' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/alice/$instance/' /etc/grid-security/xrootd/TkAuthz.Authorization");
+    system("perl -pi -e 's/user/grid/' /etc/grid-security/xrootd/TkAuthz.Authorization");
+    open OUT, ">> /etc/xrd.cf.mgm";
+    print OUT "###########################################################\n";
+    print OUT "# configure bypass and prefix for ALICE SE\n";
+    print OUT "###########################################################\n";
+    print OUT <<EOF
+alicetokenacc.noauthzhost localhost
+alicetokenacc.noauthzhost localhost.localdomain
+alicetokenacc.truncateprefix /eos/$instance/grid
+EOF
+} else {
+    system("perl -pi -e 's/^sec.protbind localhost.localdomain unix sss/sec.protbind localhost.localdomain sss unix/' /etc/xrd.cf.mgm");
+    system("perl -pi -e 's/^sec.protbind localhost unix sss/sec.protbind localhost sss unix/' /etc/xrd.cf.mgm");
+    if ($selfsigned) {
+      system("perl -pi -e 's/^sec.protocol gsi/#sec.protocol gsi/' /etc/xrd.cf.mgm");
+      system("perl -pi -e 's/krb5 gsi/krb5/' /etc/xrd.cf.mgm");
+    }
+}
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Disabling temporarily the firewall on port 1094,1096,1097 and 8000,443,8443 \n";
+system("iptables -I INPUT -p tcp --dport 1094 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 1096 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 1097 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 8000 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 443 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 4443 -j ACCEPT");
+system("iptables -I INPUT -p tcp --dport 8443 -j ACCEPT");
+printf "# (Re-)Starting nscd on this host (MGM) ...\n";
+system("service nscd restart");
+printf "# Allowing daemon to use /etc/krb5.keytab (MGM) ...\n";
+system("test -f /etc/krb5.keytab && chmod 660 /etc/krb5.keytab && chown root:daemon /etc/krb5.keytab");
+system("cp /etc/sysconfig/eos.mgm /etc/sysconfig/eos");
+printf "# Making your MGM a master for the EOS MGM & MQ services...\n";
+system("service eos master mgm; service eos master mq");
+printf "# Starting EOS services on this host (MGM) ...\n";
+system("service eos start");
+printf "# Starting FUSE mount on this host (MGM) ...\n";
+system("service eosd start");
+printf "# Starting NGINX HTTP(S) server (MGM) ...\n";
+system("service nginx start");
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Doing the MGM basic configuration ...\n";
+printf "# ... masking IPV6 entry in /etc/hosts ... \n";
+system("perl -pi -e 's/^::1/#::1/' /etc/hosts");
+printf "# ... create default space ...\n";
+system ("eos -b space define default\n");
+printf "# ... enable sss mapping ...\n";
+system ("eos -b vid enable sss \n");
+printf "# ... enable https mapping ...\n";
+system ("eos -b vid enable https \n");
+printf "# ... allow fuse to be daemon as localhost root user\n";
+system ("eos -b vid add gateway $thishostshort");
+
+for (my $i=0; $i< $nfs; $i++) {
+    printf "# ... create placement group default.$i  ...\n";
+    system ("eos -b group set default.$i on");
+}
+
+
+system ("eos -b space set default on \n");
+
+my $fspath="";
+for (my $fs=0;$fs< $nfs; $fs++) {
+    $fspath .= "/var/eos/fs/$fs/ ";
+}
+
+if ($hosts eq "") {
+    printf "# ... enable $thishost as FST ...\n";
+    system(" eos -b node set $thishost on\n");
+    system("iptables -I INPUT -p tcp --dport 1095 -j ACCEPT");
+    system("iptables -I INPUT -p tcp --dport 8001 -j ACCEPT");
+    system("mkdir -p $fspath; chown daemon:daemon $fspath");
+    printf "# ... registering filesystems on localhost ...\n";
+    system("eosfstregister -r $thishost /var/eos/fs/ default:$nfs");
+    system(" echo xrootd.monitor all flush 60s window 30s dest files info user $monalisahost:9930 >> /etc/xrd.cf.fst");
+} else {
+    foreach (@remotefsts) {
+	printf "# ... enable $_ as FST ...\n";
+	system(" eos -b node set $_ on\n");
+        system ("ssh $_ \"yum erase -y eos-server eos-client eos-cleanup libmicrohttpd; yum install -y eos-cleanup\"");
+        system ("ssh $_ \"test '$cleanfstdisk' = 'yes' && unlink /var/eos/md/so.fst.dump >&/dev/null; /usr/sbin/eos-fst-clean --do-cleanup ; /usr/sbin/eos-log-clean --do-cleanup ; \"");
+	printf "# ... uploading sysconfig to $_ ...\n";
+        system("scp /etc/sysconfig/eos.fst $_:/etc/sysconfig/eos");
+        printf "# ... uploading sss key to $_ ...\n";
+        system("scp /etc/eos.keytab $_:/etc/eos.keytab");
+	printf "# ... installing rpms on $_ ...\n";
+        system("scp /etc/yum.repos.d/eos.repo $_:/etc/yum.repos.d/eos.repo");
+        system("test -e /etc/yum.repos.d/epel.repo &&scp /etc/yum.repos.d/epel.repo $_:/etc/yum.repos.d/epel.repo");
+
+        system("ssh $_ yum install -y eos-server eos-client nscd jemalloc eos-apmon libmicrohttpd-0.9.38");
+	printf "# ... creating filesystem paths on $_ ...\n";
+        system("ssh $_ \"mkdir -p $fspath; chown daemon:daemon $fspath\" ");
+        printf "# ... registering filesystems on $_ ...\n";
+        system("ssh $_ eosfstregister -r $thishost /var/eos/fs/ default:$nfs");
+        printf "# ... (re-)starting nscd on $_ ...\n";
+        system("ssh $_ service nscd restart");
+        printf "# ... (re-)starting FST on $_ ...\n";
+        system("ssh $_ iptables -I INPUT -p tcp --dport 1095 -j ACCEPT");
+        system("ssh $_ iptables -I INPUT -p tcp --dport 8001 -j ACCEPT");
+        system("ssh $_ \" echo xrootd.monitor all flush 60s window 30s dest files info user $monalisahost:9930 >> /etc/xrd.cf.fst\"");
+        system("ssh $_ service eos restart fst");
+    }
+}
+
+if ($mgm2 ne "") {
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Configuring the MGM slave $mgm2 ...\n";
+    system("ssh $mgm2 service eosha stop >& /dev/null");
+    system("ssh $mgm2 yum erase -y eos-server eos-fuse eos-cleanup eos-client libmicrohttpd $addpackage; yum install -y eos-cleanup");
+    system("ssh $mgm2 service nginx stop >& /dev/null");
+    system ("# Clean-up left-over of previous installation on $mgm2 ...\n");
+    system ("ssh $mgm2 \"test -e /usr/sbin/eos-mgm-clean && /usr/sbin/eos-mgm-clean --do-cleanup\"");
+    system ("ssh $mgm2 \"test '$cleanfstdisk' = 'yes' && unlink /var/eos/md/so.fst.dump >&/dev/null; test -e /usr/sbin/eos-fst-clean && /usr/sbin/eos-fst-clean --do-cleanup\"");
+    system ("ssh $mgm2 \"test -e /usr/sbin/eos-log-clean && /usr/sbin/eos-log-clean --do-cleanup\"");
+    system("scp /etc/eos.keytab $mgm2:/etc/eos.keytab");
+    system("scp /etc/xrd.cf.mgm $mgm2:/etc/xrd.cf.mgm");
+    system("scp /etc/sysconfig/eos $mgm2:/etc/sysconfig/eos");
+    system("scp /etc/sysconfig/nginx $mgm2:/etc/sysconfig/nginx");
+    system("scp /etc/yum.repos.d/eos.repo $mgm2:/etc/yum.repos.d/eos.repo");
+    system("scp /etc/yum.repos.d/epel.repo $mgm2:/etc/yum.repos.d/epel.repo >& /dev/null");
+    system("scp /etc/yum.repos.d/lcg-CA.repo $mgm2:/etc/yum.repos.d/lcg-CA.repo >& /dev/null");
+    system("scp /etc/grid-security/xrootd/TkAuthz.Authorization $mgm2:/etc/grid-security/xrootd/TkAuthz.Authorization >& /dev/null");
+    if ($createdhostcert) {
+      system("ssh $mgm2 mkdir -p /etc/grid-security/; scp /etc/grid-security/host*.pem $mgm2:/etc/grid-security/");
+    }
+    
+    system("scp /etc/grid-security/certificates/nginx-bundle.pem $mgm2:/etc/grid-security/certificates/nginx-bundle.pem");
+    system("ssh $mgm2 yum install -y lcg-CA");
+    printf "# -----------------------------------------------------------------------------------------\n";
+    system ("ssh $mgm2 \"yum install -y eos-server eos-client eos-nginx eos-fuse eos-test eos-apmon eos-cleanup libmicrohttpd-0.9.38 ; yum install -y jemalloc nscd $addpackage\"");
+    printf "# Disabling temporarily the firewall on port 1094,1096,1097 and 8000,443,4443,8443 on $mgm2\n";
+    system("ssh $mgm2 \"iptables -I INPUT -p tcp --dport 1094 -j ACCEPT ; iptables -I INPUT -p tcp --dport 1096 -j ACCEPT;iptables -I INPUT -p tcp --dport 1097 -j ACCEPT;iptables -I INPUT -p tcp --dport 8000 -j ACCEPT;iptables -I INPUT -p tcp --dport 443 -j ACCEPT; iptables -I INPUT -p tcp --dport 4443 -j ACCEPT; iptables -I INPUT -p tcp --dport 8443 -j ACCEPT\"");
+    printf "# Allowing daemon to use /etc/krb5.keytab (MGM) ...\n";
+    system("ssh $mgm2 \"test -f /etc/krb5.keytab && chmod 660 /etc/krb5.keytab && chown root:daemon /etc/krb5.keytab\"");
+    printf "# (Re-)Starting nscd on $mgm2 (MGM) ...\n";
+    system("ssh $mgm2 service nscd restart");
+    printf "# Making MGM $mgm2 a slave for the EOS MGM & MQ services...\n";
+    system("ssh $mgm2 \"service eos slave mgm; service eos slave mq\"");
+    printf "# Starting EOS services on slave $mgm2 (MGM) ...\n";
+    system("ssh $mgm2 service eos start sync");
+    system("ssh $mgm2 service eos start mq");
+    system("service eos stop mgm");
+    system("eos-log-compact /var/eos/md/files.$thishost.mdlog /var/eos/md/files.$thishost.mdlog.compact; mv /var/eos/md/files.$thishost.mdlog.compact /var/eos/md/files.$thishost.mdlog");
+    system("eos-log-compact /var/eos/md/directories.$thishost.mdlog /var/eos/md/directories.$thishost.mdlog.compact; mv /var/eos/md/directories.$thishost.mdlog.compact /var/eos/md/directories.$thishost.mdlog;");
+    system("service eos start mgm");
+    system("service eossync restart ");
+    system("ssh $mgm2 service eos start mgm");
+    printf "# Starting FUSE mount on slave $mgm2 (MGM) ...\n";
+    system("ssh $mgm2 service eosd start");
+    printf "# Starting NGINX HTTP(S) server on $mgm2 (MGM) ...\n";
+    system("ssh $mgm2 service nginx start");
+    printf "# ... masking IPV6 entry in /etc/hosts ... \n";
+    system("ssh $mgm2 \"perl -pi -e 's/^::1/#::1/' /etc/hosts\"");
+}
+
+sleep(15);
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Setting up file scrubbing every 3 weeks ... \n";
+system("eos -b space config default space.scaninterval=1814400");
+system("eos -b space config default fs.scaninterval=1814400");
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Enable auto-repair ...\n";
+system("eos -b space config default space.autorepair=on");
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Setting up a grace period of 1 hour before auto-draining ...\n";
+system("eos -b space config default space.graceperiod=3600");
+system("eos -b space config default fs.graceperiod=3600");
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Setting up a drain period of 1 day ...\n";
+system("eos -b space config default space.drainperiod=3600");
+system("eos -b space config default fs.drainperiod=3600");
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Setting up a file system headroom of 5.1 G ...\n";
+system("eos -b space config default space.headroom=5.1G");
+system("eos -b space config default fs.headroom=5.1G");
+
+if ( -e "/etc/krb5.keytab" ) {
+  printf "# -----------------------------------------------------------------------------------------\n";
+  printf "# Allowing kerberos 5 access with CERN token ...\n";
+  system("eos -b vid enable krb5");
+}
+
+if ($isalice) {
+    printf "# -----------------------------------------------------------------------------------------\n";
+    printf "# Configuring as an ALICE SE ...\n";
+    system("for name in `seq -w 00 15`; do eos -b map link /\$name/ /eos/$instance/grid/\$name/; done");
+    system("eos -b mkdir /eos/$instance/grid ");
+    system("eos -b chown 10367:1395 /eos/$instance/grid");
+    system("eos -b chmod 750 /eos/$instance/grid");
+    system("eos -b vid set map -unix \\<pwd\\> vuid:10367");
+    system("eos -b vid set map -unix \\<pwd\\> vgid:1395");
+}
+
+if ($mgm2 ne "") {
+    printf "# Staring EOSHA keeping the instance alive and reporting failures to the given E-Mail address ...\n";
+    system("service eosha start");
+    system("ssh $mgm2 service eosha start");
+}
+
+printf "# -----------------------------------------------------------------------------------------\n";
+printf "# Your setup is now complete.\n";
+printf "# WARNING:\n";
+printf "# Please make sure that you configure the firewall settings on the MGM to open port 1094,1096,1097 & 443,8000,8443 \n";
+printf "# and on all FSTS port 1095 & 8001 for incoming connections !!!\n";
+printf "# =========================================================================================\n";
+
+
+

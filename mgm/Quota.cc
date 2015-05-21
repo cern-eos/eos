@@ -54,7 +54,6 @@ SpaceQuota::SpaceQuota (const char* name)
 
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   eos::IContainerMD *quotadir = 0;
-
   std::string path = name;
 
   if (path[0] == '/')
@@ -1500,35 +1499,45 @@ Quota::LoadNodes ()
 {
   // iterate over the defined quota nodes and make them visible as SpaceQuota
   eos::common::RWMutexReadLock lock(gQuotaMutex);
-  eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
   eos::IQuotaStats::NodeMap::iterator it;
-  for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
+  std::vector<std::string> createQuota;
+
+  // load all known nodes
   {
-    try
+    eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
+    
+    for (it = gOFS->eosView->getQuotaStats()->nodesBegin();
+         it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
     {
-      eos::IContainerMD::id_t id = it->first;
-      eos::IContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
-      std::string quotapath = gOFS->eosView->getUri(container);
-      SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), true);
-      if (!spacequota)
+      try
       {
-        spacequota = Quota::GetSpaceQuota(quotapath.c_str(), false);
-        if (spacequota)
-        {
-          eos_static_notice("Created space for quota node: %s", quotapath.c_str());
-        }
-        else
-        {
-          eos_static_err("Failed to create space for quota node: %s\n", quotapath.c_str());
-        }
+	eos::IContainerMD::id_t id = it->first;
+	eos::IContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+	std::string quotapath = gOFS->eosView->getUri(container);
+	SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), true);
+
+	if (!spacequota)
+	  createQuota.push_back(quotapath);
+      }
+      catch (eos::MDException &e)
+      {
+	errno = e.getErrno();
+	eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		       e.getErrno(), e.getMessage().str().c_str());
       }
     }
-    catch (eos::MDException &e)
-    {
-      errno = e.getErrno();
-      eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                     e.getErrno(), e.getMessage().str().c_str());
-    }
+  }
+
+  // create missing nodes without namespace mutex held
+  for (size_t i=0; i < createQuota.size(); ++i) 
+  {
+    SpaceQuota* spacequota = Quota::GetSpaceQuota(createQuota[i].c_str(), false);
+    spacequota = Quota::GetSpaceQuota(createQuota[i].c_str(), false);
+
+    if (spacequota)
+      eos_static_notice("Created space for quota node: %s", createQuota[i].c_str());
+    else
+      eos_static_err("Failed to create space for quota node: %s\n", createQuota[i].c_str());
   }
 }
 

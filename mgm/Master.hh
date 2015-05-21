@@ -135,6 +135,7 @@ class Master : public eos::common::LogId
   {
     fCompactFiles = f;
     fCompactDirectories = d;
+    fAutoRepair = r;
   }
 
   //----------------------------------------------------------------------------
@@ -233,10 +234,7 @@ class Master : public eos::common::LogId
   //! Get master Log
   //----------------------------------------------------------------------------
   void
-  GetLog(XrdOucString& stdOut)
-  {
-    stdOut = fMasterLog;
-  }
+  GetLog (XrdOucString &stdOut);
 
   //----------------------------------------------------------------------------
   //! Add to master Log

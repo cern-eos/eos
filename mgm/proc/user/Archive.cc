@@ -323,7 +323,7 @@ ProcCommand::Archive()
           arch_url += ARCH_DELETE_ERR;
         }
 
-        if (gOFS->stat(arch_err.c_str(), &statinfo, *mError))
+        if (gOFS->_stat(arch_err.c_str(), &statinfo, *mError, *pVid))
         {
           stdErr = "error: no failed ";
           stdErr += mSubCmd;
@@ -343,9 +343,9 @@ ProcCommand::Archive()
           arch_path += ARCH_INIT;
           arch_url += ARCH_INIT;
 
-          if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+          if (gOFS->_stat(arch_path.c_str(), &statinfo, *mError, *pVid))
           {
-            stdErr = "error: no archive purge file in directory: ";
+            stdErr = "error: no archive init file in directory: ";
             stdErr += spath.c_str();
             retc = EINVAL;
           }
@@ -355,7 +355,7 @@ ProcCommand::Archive()
           arch_path += ARCH_PURGE_DONE;
           arch_url += ARCH_PURGE_DONE;
 
-          if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+          if (gOFS->_stat(arch_path.c_str(), &statinfo, *mError, *pVid))
           {
             stdErr = "error: no archive purge file in directory: ";
             stdErr += spath.c_str();
@@ -366,12 +366,12 @@ ProcCommand::Archive()
         {
           arch_path += ARCH_PUT_DONE;
 
-          if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+          if (gOFS->_stat(arch_path.c_str(), &statinfo, *mError, *pVid))
           {
             arch_path = spath.c_str();
             arch_path += ARCH_GET_DONE;
 
-            if (gOFS->stat(arch_path.c_str(), &statinfo, *mError))
+            if (gOFS->_stat(arch_path.c_str(), &statinfo, *mError, *pVid))
             {
               stdErr = "error: purge can be done only after a successful " \
                 "get or put operation";
@@ -400,7 +400,7 @@ ProcCommand::Archive()
               arch_fn = spath.c_str();
               arch_fn += *it;
 
-              if ((*it != ARCH_LOG) && (!gOFS->stat(arch_fn.c_str(), &statinfo, *mError)))
+              if ((*it != ARCH_LOG) && (!gOFS->_stat(arch_fn.c_str(), &statinfo, *mError, *pVid)))
               {
                 arch_url += *it;
                 found = true;

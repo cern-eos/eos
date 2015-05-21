@@ -533,7 +533,7 @@ XrdMgmOfs::_attr_rem (const char *path,
     return Emsg(epname, error, EINVAL, "delete attribute", path);
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
     dh = gOFS->eosView->getContainer(path);

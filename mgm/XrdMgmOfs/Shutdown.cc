@@ -49,6 +49,7 @@ xrdmgmofs_shutdown (int sig)
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
 
+  eos_static_alert("msg=\"shutdown sequence started\'");
   // avoid shutdown recursions
   if (gOFS->Shutdown)
     return;
@@ -59,85 +60,6 @@ xrdmgmofs_shutdown (int sig)
   // handler to shutdown the daemon for valgrinding and clean server stop
   // (e.g. let's time to finish write operations)
   // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: grab write mutex");
-  gOFS->eosViewRWMutex.TimeoutLockWrite();
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: set stall rule");
-  eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-  Access::gStallRules[std::string("*")] = "300";
-
-  if (gOFS->ErrorLog)
-  {
-    XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
-    int rrc = system(errorlogkillline.c_str());
-    if (WEXITSTATUS(rrc))
-    {
-      eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
-    }
-  }
-  // ---------------------------------------------------------------------------
-  if (gOFS->Initialized == gOFS->kBooted)
-  {
-    eos_static_warning("Shutdown:: finalizing views ... ");
-    try
-    {
-      gOFS->MgmMaster.ShutdownSlaveFollower();
-
-      if (gOFS->eosFsView)
-      {
-        gOFS->eosFsView->finalize();
-        delete gOFS->eosFsView;
-      }
-      if (gOFS->eosView)
-      {
-        gOFS->eosView->finalize();
-        delete gOFS->eosView;
-      }
-      if (gOFS->eosDirectoryService)
-      {
-        gOFS->eosDirectoryService->finalize();
-        delete gOFS->eosDirectoryService;
-      }
-      if (gOFS->eosFileService)
-      {
-        gOFS->eosFileService->finalize();
-        delete gOFS->eosFileService;
-      }
-
-    }
-    catch (eos::MDException &e)
-    {
-      // we don't really care about any exception here!
-    }
-  }
-
-#ifdef HAVE_ZMQ
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop ZMQ...");
-  if (gOFS->zMQ)
-  {
-    delete gOFS->zMQ;
-    gOFS->zMQ = 0;
-  }
-#endif
-
-  gOFS->ConfEngine->SetAutoSave(false);
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop egroup fetching ... ");
-  gOFS->EgroupRefresh.Stop();
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop LRU thread ... ");
-  gOFS->LRUd.Stop();
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop messaging ... ");
-  if (gOFS->MgmOfsMessaging)
-  {
-    gOFS->MgmOfsMessaging->StopListener();
-  }
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop vst ... ");
@@ -169,12 +91,92 @@ xrdmgmofs_shutdown (int sig)
     XrdSysThread::Cancel(gOFS->fsconfiglistener_tid);
     XrdSysThread::Join(gOFS->fsconfiglistener_tid, 0);
   }
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop egroup fetching ... ");
+  gOFS->EgroupRefresh.Stop();
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop LRU thread ... ");
+  gOFS->LRUd.Stop();
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop messaging ... ");
+  if (gOFS->MgmOfsMessaging)
+  {
+    gOFS->MgmOfsMessaging->StopListener();
+  }
+
+
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: remove messaging ... ");
   if (gOFS->MgmOfsMessaging)
   {
     delete gOFS->MgmOfsMessaging;
   }
+
+  eos_static_warning("Shutdown:: grab write mutex");
+  gOFS->eosViewRWMutex.TimeoutLockWrite();
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: set stall rule");
+  eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
+  Access::gStallRules[std::string("*")] = "300";
+
+  if (gOFS->ErrorLog)
+  {
+    XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
+    int rrc = system(errorlogkillline.c_str());
+    if (WEXITSTATUS(rrc))
+    {
+      eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
+    }
+  }
+  // ---------------------------------------------------------------------------
+  if (gOFS->Initialized == gOFS->kBooted)
+  {
+    eos_static_warning("Shutdown:: finalizing views ... ");
+    try
+    {
+      gOFS->MgmMaster.ShutdownSlaveFollower();
+
+      if (gOFS->eosFsView)
+      {	
+        delete gOFS->eosFsView;
+      }
+      if (gOFS->eosView)
+      {
+        delete gOFS->eosView;
+      }
+      if (gOFS->eosDirectoryService)
+      {
+	gOFS->eosDirectoryService->getChangeLog()->close();
+        delete gOFS->eosDirectoryService;
+      }
+      if (gOFS->eosFileService)
+      {
+	gOFS->eosFileService->getChangeLog()->close();
+        delete gOFS->eosFileService;
+      }
+
+    }
+    catch (eos::MDException &e)
+    {
+      // we don't really care about any exception here!
+    }
+  }
+
+#ifdef HAVE_ZMQ
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop ZMQ...");
+  if (gOFS->zMQ)
+  {
+    delete gOFS->zMQ;
+    gOFS->zMQ = 0;
+  }
+#endif
+
+  gOFS->ConfEngine->SetAutoSave(false);
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: cleanup quota...");
@@ -194,5 +196,6 @@ xrdmgmofs_shutdown (int sig)
   }
 
   eos_static_warning("Shutdown complete");
+  eos_static_alert("msg=\"shutdown complete\'");
   kill(getpid(), 9);
 }

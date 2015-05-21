@@ -37,7 +37,6 @@ EOSFSTNAMESPACE_BEGIN
 class PlainLayout : public Layout
 {
 public:
-
   //--------------------------------------------------------------------------
   //! Constructor
   //!
@@ -47,7 +46,6 @@ public:
   //! @param error error information
   //! @param io io access type ( ofs/xrd )
   //! @param timeout timeout value
-  //!
   //--------------------------------------------------------------------------
   PlainLayout (XrdFstOfsFile* file,
                int lid,
@@ -56,12 +54,10 @@ public:
                eos::common::LayoutId::eIoType io,
                uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
   virtual ~PlainLayout ();
-
 
   //--------------------------------------------------------------------------
   //! Open file
@@ -72,13 +68,11 @@ public:
   //! @param opaque opaque information
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode,
                     const char* opaque = "");
-
 
   //--------------------------------------------------------------------------
   //! Read from file
@@ -86,14 +80,14 @@ public:
   //! @param offset offset
   //! @param buffer place to hold the read data
   //! @param length length
+  //! @param readahead readahead switch
   //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
-                        XrdSfsXferSize length);
-
+                        XrdSfsXferSize length,
+                        bool readahead = false);
 
   //--------------------------------------------------------------------------
   //! Write to file
@@ -103,12 +97,10 @@ public:
   //! @param length length
   //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length);
-
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -116,10 +108,8 @@ public:
   //! @param offset truncate file to this value
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Truncate (XrdSfsFileOffset offset);
-
 
   //--------------------------------------------------------------------------
   //! Allocate file space
@@ -127,10 +117,8 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Fallocate (XrdSfsFileOffset length);
-
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
@@ -139,17 +127,14 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
                            XrdSfsFileOffset toOffset);
-
 
   //--------------------------------------------------------------------------
   //! Remove file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Remove ();
 
@@ -158,10 +143,8 @@ public:
   //! Sync file to disk
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Sync ();
-
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
@@ -169,24 +152,19 @@ public:
   //! @param buf stat buffer
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf);
-
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Close ();
 
 private:
 
-  // TODO: add an async handler and if we are doing a remote access using
-  //       XrdCl then we should try to do async requests
-
+  uint64_t mFileSize; ///< file size
   FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
 
   //--------------------------------------------------------------------------
@@ -194,12 +172,10 @@ private:
   //--------------------------------------------------------------------------
   PlainLayout (const PlainLayout&) = delete;
 
-
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
   PlainLayout& operator = (const PlainLayout&) = delete;
-
 };
 
 EOSFSTNAMESPACE_END

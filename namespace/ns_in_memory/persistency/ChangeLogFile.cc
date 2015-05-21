@@ -489,10 +489,10 @@ namespace eos
   //----------------------------------------------------------------------------
   // Scan all the records in the changelog file
   //----------------------------------------------------------------------------
-  uint64_t ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner )
+  uint64_t ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner, bool autorepair )
     throw( MDException )
   {
-    return scanAllRecordsAtOffset( scanner, getFirstOffset() );
+    return scanAllRecordsAtOffset( scanner, getFirstOffset(), autorepair );
   }
 
   //----------------------------------------------------------------------------
@@ -500,7 +500,8 @@ namespace eos
   // offset
   //----------------------------------------------------------------------------
   uint64_t ChangeLogFile::scanAllRecordsAtOffset( ILogRecordScanner *scanner,
-                                                  uint64_t           startOffset )
+                                                  uint64_t           startOffset,
+						  bool               autorepair )
     throw( MDException )
   {
     if( !pIsOpen )
@@ -540,12 +541,66 @@ namespace eos
 
     while( offset < end )
     {
-      type = readRecord( offset, data );
-      bool proceed = scanner->processRecord( offset, type, data );
-      offset += data.size();
-      offset += 24;
-      if( !proceed )
-        break;
+      bool proceed = false;
+      try 
+      {
+	type = readRecord( offset, data );
+	proceed = scanner->processRecord( offset, type, data );
+	offset += data.size();
+	offset += 24;
+      }
+      catch( MDException &e )
+      {
+      }
+
+      if( !proceed ) 
+      {
+	if (autorepair) {
+	  // evt. try to skip this record
+	  off_t newOffset = ChangeLogFile::findRecordMagic( pFd, offset+4, (off_t)0 );
+	  
+	  if( newOffset == (off_t)-1 )
+          {
+	    char msg[4096];
+	    snprintf(msg,4096,"error: definite corruption in file changelog after offset %llx\n", (long long)offset);
+	    addWarningMessage(msg);
+
+	    MDException ex( EIO );
+	    ex.getMessage() << "error: Changelog file has a corruption at end of file - check synchronization or repair the file manually";
+	    throw ex;
+	  }
+
+	  if ( (newOffset-offset) < 1024) 
+	  {
+	    char msg[4096];
+	    snprintf(msg,4096,"error: discarded block from offset [ %llx <=> %llx ] [ len=%lu ] \n", (long long)offset, (long long)newOffset, (unsigned long) (newOffset-offset));
+	    addWarningMessage(msg);
+
+	    offset = newOffset;
+	    continue;
+	  } 
+	  else
+	  {
+	    char msg[4096];
+	    snprintf(msg,4096,"error: large block corruption at offset [ %llx <=> %llx ] [ len=%lu ] \n", (long long)offset, (long long)newOffset, (unsigned long) (newOffset-offset));
+	    addWarningMessage(msg);
+
+	    MDException ex( EIO );
+	    ex.getMessage() << "error: Changelog file has a >1kb corruption - too risky - repair the file manually";
+	    throw ex;
+	  }
+	}
+	else
+	{
+	  char msg[4096];
+	  snprintf(msg,4096,"error: corruption in file changelog at offset %llx\n", (long long)offset);
+	  addWarningMessage(msg);
+
+	  MDException ex( EIO );
+	  ex.getMessage() << "error: Changelog file has corruption - autorepair is disabled";
+	  throw ex;
+	}
+      }
     }
     return offset;
   }
@@ -646,9 +701,31 @@ namespace eos
       //------------------------------------------------------------------------
       if( *chkSum1 != chkSum2 )
       {
-        MDException ex( EFAULT );
-        ex.getMessage() << "Follow: Record's checksums do not match.";
-        throw ex;
+	// evt. try to skip this record
+        off_t newOffset = ChangeLogFile::findRecordMagic( pFd, offset+4, (off_t)0 );
+
+        if( newOffset == (off_t)-1 )
+        {
+	  MDException ex( EFAULT );
+	  ex.getMessage() << "Follow: Record's checksums do not match - unable to skip record";
+	  throw ex;
+	}
+
+	if ( (newOffset-offset) < 1024) 
+	{
+	  char msg[4096];
+	  snprintf(msg,4096,"error: discarded block from offset [ %llx <=> %llx ] [ len=%lu ] \n", (long long)offset, (long long)newOffset, (unsigned long) (newOffset-offset));
+	  addWarningMessage(msg);
+    
+	  offset = newOffset;
+	  continue;
+	} 
+        else 
+	{
+	  MDException ex( EFAULT );
+	  ex.getMessage() << "Follow: Record's checksums do not match - need to skip more than 1k";
+	  throw ex;
+	}
       }
 
       //------------------------------------------------------------------------
@@ -665,7 +742,7 @@ namespace eos
   // Find the record header starting at offset - the log files are aligned
   // to 4 bytes so the magic should be at [(offset mod 4) == 0]
   //----------------------------------------------------------------------------
-  static off_t findRecordMagic( int fd, off_t offset, off_t offsetLimit = 0 )
+  off_t ChangeLogFile::findRecordMagic( int fd, off_t offset, off_t offsetLimit )
   {
     uint32_t magic = 0;
     while( 1 )
@@ -768,7 +845,7 @@ namespace eos
     if( !startHint )
       startHint = offset+24;
 
-    off_t newOffset = findRecordMagic( fd, startHint, offset+70000 );
+    off_t newOffset = ChangeLogFile::findRecordMagic( fd, startHint, offset+70000 );
     if( newOffset == (off_t)-1 )
       return -1;
 
@@ -999,13 +1076,21 @@ namespace eos
       else
       {
         ++stats.notFixed;
-        newOffset = findRecordMagic( fd, offset+4 );
+        newOffset = ChangeLogFile::findRecordMagic( fd, offset+4, (off_t)0 );
 
         if( newOffset == (off_t)-1 )
         {
           stats.bytesDiscarded += (fsize-offset);
           break;
         }
+	
+	{
+	  char msg[4096];
+	  snprintf(msg,4096,"error: discarded block from offset [ %llx <=> %llx ] [ len=%lu ] \n", (long long)offset, (long long)newOffset, (unsigned long) (newOffset-offset));
+	  fprintf(stderr,msg);
+	  fflush(stderr);
+	}
+
         stats.bytesDiscarded += (newOffset-offset);
       }
 

@@ -191,8 +191,9 @@ Configure Online Compactification
 On the MGM master running in RW mode one can configure online compactificiation 
 to compact the namespace once or in defined intervals. The configuration of 
 online compacting is for the moment not persistent e.g. after a service restart 
-online compactificiation is always disabled. Currently only the file namespace 
-files are compacted online!
+online compactificiation is always disabled. For the rare event of a change-log file corruption
+it is possible to add a '-repair' to the compactification type e.g. 'all-repair', 'all-files', 'all-directories'. 
+The repair skips broken records up to 1kb, otherwise 'eos-log-repair' has to be used offline.
 
 The interface for online compactification is
 
@@ -204,7 +205,8 @@ The interface for online compactification is
    eos -b ns compact on 60 0 all : schedule online compactification for files and directories once in one minute.
    eos -b ns compact on 60 0 files : schedule online compactification for files once in one minute.
    eos -b ns compact on 60 0 directories : schedule online compactification for files once in one minute.
-
+   eos -b ns compact on 60 0 all-repair : schedule online compactification for files and directories with auto-repair once in one minute.
+   
 The RW MGM signals a RO slave when the compactification starts and when it is 
 finished and triggers a reload of the namespace on the RO MGM once the 
 compacted file is fully resynchronized.
@@ -284,3 +286,5 @@ When the namespace is not in RW mode compacting is blocked:
    # ....................................................................................
    ALL      Compactification                 status=blocked waitstart=0 interval=0 ratio=0.0:1
    # ....................................................................................
+
+In case records have been repaired with auto-repair enabled, they are reported in the master log. 
