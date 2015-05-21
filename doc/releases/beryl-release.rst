@@ -7,6 +7,27 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.118 Beryl-Aquamarine``
+
+New Features
+------------
+- add console broadcasts for important MGM messages
+
+Bug Fixes
+---------
+
+- use correct lock type (write) for merge,attr:set calls
+- resolve locking issue when new SpaceQuota objects have to be created
+- implement a fast and successfull shutdown procedure for the MGM
+- implement saveguard for the manager name configurationi in FSTs
+
+``Version V0.3.117 Beryl-Aquamarine``
+
+New Features
+------------
+- enable read-ahead in FUSE clients to boost performance (default is off - see /etc/sysconfig/eos.example)
+
+
 ``Version V0.3.116 Beryl-Aquamarine``
 
 Bug Fixes

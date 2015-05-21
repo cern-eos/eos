@@ -128,11 +128,22 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
 
    # Mount all files with 'x' bit to be able to run as an executable (default off)  
    # export EOS_FUSE_EXEC=1
+
+   # Enable FUSE read-ahead (default off)
+   # export EOS_FUSE_RDAHEAD=0
+
+   # Configure FUSE read-ahead window (default 128k)
+   # export EOS_FUSE_RDAHEAD_WINDOW=131072
+
+In most cases one should enable the read-ahead feature with a read-ahead window of 1M and if available enable the big writes feature!
+These features are off by default!
     
 Authentication
 --------------
 The shared FUSE mount currently does not support (anymore) strong authentication 
-methods like **KRB5** or **X509**. Each machine running a shared FUSE mount has to be
+methods like **KRB5** or **X509**. This is available only in the Citrine branch.
+
+Each machine running a shared FUSE mount has to be
 configured as a gateway machine in the MGM:
 
 Add a FUSE host
