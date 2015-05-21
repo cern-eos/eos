@@ -177,3 +177,13 @@ export EOS_TEST_TESTTIMESLICE=300;
 
 # Set the CASTOR service class (svcClass) for all file transfers to CASTOR
 # export EOS_ARCHIVE_SVCCLASS=default
+
+# ------------------------------------------------------------------
+# MGM TTY Console Broadcast Configuration
+# ------------------------------------------------------------------
+
+# define the log file where you want to grep
+export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
+
+# define the log file regex you want to broad cast to all consoles
+export EOS_TTY_BROACAST_EGREP="CRIT,ALERT,EMERG"
