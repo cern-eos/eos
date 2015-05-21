@@ -482,10 +482,13 @@ ProcCommand::Ns ()
          {
 	   if ( ( type != "files") &&
 		( type != "directories") &&
-		( type != "all") ) 
+		( type != "all") &&
+		( type != "files") &&
+		( type != "directories") &&
+		( type != "all") )
            {
 	     retc = EINVAL;
-	     stdErr += "error: invalid arguments specified - type must be 'files' 'directories' or 'all\n";
+	     stdErr += "error: invalid arguments specified - type must be 'files','files-repair','directories','directories-repair' or 'all','all-repair'\n";
 	   } 
 	   else 
 	   {
@@ -493,11 +496,17 @@ ProcCommand::Ns ()
 	     if (!interval.length()) interval = "0";
 	     gOFS->MgmMaster.ScheduleOnlineCompacting((time(NULL) + atoi(delay.c_str())), atoi(interval.c_str()));
 	     if ( type == "files" )
-	       gOFS->MgmMaster.SetCompactingType(true, false);
-	     if ( type == "directories" ) 
-	       gOFS->MgmMaster.SetCompactingType(false, true);
-	     if ( type == "all" ) 
-	       gOFS->MgmMaster.SetCompactingType(true, true);
+	       gOFS->MgmMaster.SetCompactingType(true, false, false);
+	     else if ( type == "directories" ) 
+	       gOFS->MgmMaster.SetCompactingType(false, true, false);
+	     else if ( type == "all" ) 
+	       gOFS->MgmMaster.SetCompactingType(true, true, false);
+	     else if ( type == "files-repair" )
+	       gOFS->MgmMaster.SetCompactingType(true, false, true);
+	     else if ( type == "directories-repair" ) 
+	       gOFS->MgmMaster.SetCompactingType(false, true, true);
+	     else if ( type == "all-repair" ) 
+	       gOFS->MgmMaster.SetCompactingType(true, true, true);
 
 	     stdOut += "success: configured online compacting to run in ";
 	     stdOut += delay.c_str();

@@ -60,6 +60,7 @@ private:
   double fDirCompactingRatio; // compacting ratio for directory changelog e.g. 4:1 => 4 times smaller after compaction
   bool fCompactFiles; // compact the files changelog file if true
   bool fCompactDirectories; // compact the directories changelog file if true
+  bool fAutoRepair; // enable auto-repair to skip over broken records during compactification
 
   int fDevNull; // /dev/null filedescriptor
   XrdSysLogger* fDevNullLogger; // /dev/null logger
@@ -245,10 +246,11 @@ public:
   //------------------------------------------------------------------------
   // Configure Online Compating Type for files and/or directories
   //------------------------------------------------------------------------
-  void  SetCompactingType(bool f, bool d)
+  void  SetCompactingType(bool f, bool d, bool r)
   {
     fCompactFiles = f;
     fCompactDirectories = d;
+    fAutoRepair = r;
   }
     
   //------------------------------------------------------------------------
@@ -379,10 +381,7 @@ public:
   //------------------------------------------------------------------------
 
   void
-  GetLog (XrdOucString &stdOut)
-  {
-    stdOut = fMasterLog;
-  }
+  GetLog (XrdOucString &stdOut);
 
   //------------------------------------------------------------------------
   // Add to Master Log
