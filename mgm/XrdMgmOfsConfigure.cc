@@ -209,6 +209,7 @@ XrdMgmOfs::InitializeFileView ()
         {
           XrdSysMutexHelper lock(InitializationMutex);
           Initialized = kBooted;
+	  eos_static_alert("msg=\"namespace booted (as master)\"");
         }
       }
     }
@@ -238,6 +239,7 @@ XrdMgmOfs::InitializeFileView ()
       {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
+	eos_static_alert("msg=\"namespace booted (as slave)\"");
       }
     }
 
@@ -1199,6 +1201,27 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
 
+  XrdOucString ttybroadcastkillline = "pkill -9 -f \"eos-tty-broadcast\"";
+  int rrc = system(ttybroadcastkillline.c_str());
+  if (WEXITSTATUS(rrc))
+  {
+    eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
+  }
+  
+  if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") && getenv("EOS_TTY_BROADCAST_EGREP"))
+  {
+    XrdOucString ttybroadcastline = "eos-tty-broadcast ";
+    ttybroadcastline += getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE");
+    ttybroadcastline += " ";
+    ttybroadcastline += getenv("EOS_TTY_BROADCAST_EGREP");
+    ttybroadcastline += " >& /dev/null &";
+    eos_info("%s\n", ttybroadcastline.c_str());
+    rrc = system(ttybroadcastline.c_str());
+    if (WEXITSTATUS(rrc))
+    {
+      eos_info("%s returned %d", ttybroadcastline.c_str(), rrc);
+    }
+  }
 
   int pos1 = MgmDefaultReceiverQueue.find("//");
   int pos2 = MgmDefaultReceiverQueue.find("//", pos1 + 2);
