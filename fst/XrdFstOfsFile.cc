@@ -626,6 +626,18 @@ XrdFstOfsFile::open (const char* path,
   if (dpos != STR_NPOS)
     RedirectManager.erase(dpos);
 
+  {
+    // evt. update the shared hash manager entry
+    XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+    XrdOucString ConfigManager = eos::fst::Config::gConfig.Manager;
+    if (ConfigManager != RedirectManager) {
+      eos_warning("msg=\"MGM master seems to have changed - adjusting global config\" old-manager=\"%s\" new-manager=\"%s\"", 
+		  ConfigManager.c_str(), RedirectManager.c_str());
+      eos::fst::Config::gConfig.Manager = RedirectManager;
+    }
+  }
+
+
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
   fileid = eos::common::FileId::Hex2Fid(hexfid);
   fsid = atoi(sfsid);
