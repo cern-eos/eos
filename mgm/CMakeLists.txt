@@ -116,9 +116,8 @@ add_library (XrdEosMgm MODULE
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
-	    # TODO: this should be removed one we properly use the namespace interface
-            # and there is no need to include explicit namespace implementatio details
-	    ${CMAKE_SOURCE_DIR}/namespace/Constants.cc
+	    # TODO: this should be removed once we properly use the namespace interface
+            # and there is no need to include explicit namespace implementation details
 	    ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/FileMD.cc
 	    ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/ContainerMD.cc
             ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFile.cc

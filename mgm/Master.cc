@@ -2362,4 +2362,71 @@ Master::RebootSlaveNamespace()
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Start slave follower thread
+//------------------------------------------------------------------------------
+void
+Master::StartSlaveFollower(std::string&& log_file)
+{
+  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+    dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+    dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+  if (eos_chlog_dirsvc && eos_chlog_filesvc)
+  {
+    // Get change log file size
+    struct stat buf;
+    int retc = stat(log_file.c_str(), &buf);
+
+    if (!retc)
+    {
+      eos_err("failed stat for file=%s - abort slave start", log_file.c_str());
+      return;
+    }
+
+    eos_chlog_filesvc->startSlave();
+    eos_chlog_dirsvc->startSlave();
+
+    // wait that the follower reaches the offset seen now
+    while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
+    {
+      XrdSysTimer sleeper;
+      sleeper.Wait(200);
+      eos_static_debug("msg=\"waiting for the namespace to reach the follow "
+		       "point\" is-offset=%llu follow-offset=%llu",
+		       eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Shutdown slave follower thread
+//------------------------------------------------------------------------------
+void
+Master::ShutdownSlaveFollower()
+{
+  if (!gOFS->MgmMaster.IsMaster())
+  {
+    // Stop the follower thread ...
+    if (gOFS->eosFileService)
+    {
+      eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
+	dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+      if (eos_chlog_filesvc)
+	eos_chlog_filesvc->stopSlave();
+    }
+
+    if (gOFS->eosDirectoryService)
+    {
+      eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
+	dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+      if (eos_chlog_dirsvc)
+	eos_chlog_dirsvc->stopSlave();
+    }
+  }
+}
+
 EOSMGMNAMESPACE_END

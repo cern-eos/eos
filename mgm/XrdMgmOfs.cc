@@ -58,10 +58,6 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsAio.hh"
 /*----------------------------------------------------------------------------*/
-// TODO: this should only use the interface
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-/*----------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <execinfo.h>
 #include <signal.h>

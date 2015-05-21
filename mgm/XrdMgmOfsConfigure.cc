@@ -37,8 +37,6 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "common/plugin_manager/PluginManager.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -218,42 +216,10 @@ XrdMgmOfs::InitializeFileView()
     if (!MgmMaster.IsMaster())
     {
       eos_static_info("msg=\"starting slave listener\"");
-      struct stat buf;
-      buf.st_size = 0;
-      ::stat(MgmNsFileChangeLogFile.c_str(), &buf);
-      // TODO: this must be changed to support also other types for
-      // meta-data services
-      eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-        dynamic_cast<eos::ChangeLogContainerMDSvc*>(eosDirectoryService);
-      eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-        dynamic_cast<eos::ChangeLogFileMDSvc*>(eosFileService);
+      MgmMaster.StartSlaveFollower(std::string(MgmNsFileChangeLogFile.c_str()));
 
-      if (!eos_chlog_dirsvc || !eos_chlog_filesvc)
-      {
-        eos_crit("failed cast to change log dir/file service");
-        XrdSysMutexHelper lock(InitializationMutex);
-        Initialized = kFailed;
-      }
-      else
-      {
-        eos_chlog_filesvc->startSlave();
-        eos_chlog_dirsvc->startSlave();
-
-        // wait that the follower reaches the offset seen now
-        while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
-        {
-          XrdSysTimer sleeper;
-          sleeper.Wait(200);
-          eos_static_debug("msg=\"waiting for the namespace to reach the follow "
-                           "point\" is-offset=%llu follow-offset=%llu",
-                           eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
-        }
-
-        {
-          XrdSysMutexHelper lock(InitializationMutex);
-          Initialized = kBooted;
-        }
-      }
+      XrdSysMutexHelper lock(InitializationMutex);
+      Initialized = kBooted;
     }
 
     time_t tstop = time(0);

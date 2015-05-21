@@ -25,6 +25,7 @@
 #define __EOSMGM_MASTER__HH__
 
 /*----------------------------------------------------------------------------*/
+#include <sys/stat.h>
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/utils/Locking.hh"
@@ -145,6 +146,18 @@ class Master : public eos::common::LogId
   //! Init method to determine the current master/slave state
   //----------------------------------------------------------------------------
   bool Init();
+
+  //----------------------------------------------------------------------------
+  //! Start slave follower thread
+  //!
+  //! @param log_file changelog file path
+  //----------------------------------------------------------------------------
+  void StartSlaveFollower(std::string&& log_file);
+
+  //----------------------------------------------------------------------------
+  //! Shutdown slave follower thread
+  //----------------------------------------------------------------------------
+  void ShutdownSlaveFollower();
 
   //----------------------------------------------------------------------------
   //! Apply Configuration settings to the master class
