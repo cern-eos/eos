@@ -211,7 +211,7 @@ static void createFiles(const std::string&                          path,
                         std::map<uid_t, eos::QuotaNode::UsageInfo>& users,
                         std::map<gid_t, eos::QuotaNode::UsageInfo>& groups)
 {
-  eos::QuotaNode* node = view->getQuotaNode(view->getContainer(path));
+  eos::IQuotaNode* node = view->getQuotaNode(view->getContainer(path));
 
   for (int i = 0; i < 1000; ++i)
   {
@@ -225,8 +225,8 @@ static void createFiles(const std::string&                          path,
     view->updateFileStore(file);
     node->addFile(file);
     uint64_t size = mapSize(file);
-    eos::QuotaNode::UsageInfo& user  = users[file->getCUid()];
-    eos::QuotaNode::UsageInfo& group = groups[file->getCGid()];
+    eos::IQuotaNode::UsageInfo& user  = users[file->getCUid()];
+    eos::IQuotaNode::UsageInfo& group = groups[file->getCGid()];
     user.space += file->getSize();
     user.physicalSpace += size;
     user.files++;
@@ -266,19 +266,19 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Test quota node melding
   //----------------------------------------------------------------------------
-  std::map<uid_t, eos::QuotaNode::UsageInfo> users;
-  std::map<gid_t, eos::QuotaNode::UsageInfo> groups;
-  std::map<uid_t, eos::QuotaNode::UsageInfo>::iterator userIt;
-  std::map<gid_t, eos::QuotaNode::UsageInfo>::iterator groupIt;
-  eos::QuotaNode* meldNode1 = new eos::QuotaNode(0);
-  eos::QuotaNode* meldNode2 = new eos::QuotaNode(0);
+  std::map<uid_t, eos::IQuotaNode::UsageInfo> users;
+  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups;
+  std::map<uid_t, eos::IQuotaNode::UsageInfo>::iterator userIt;
+  std::map<gid_t, eos::IQuotaNode::UsageInfo>::iterator groupIt;
+  eos::IQuotaNode* meldNode1 = new eos::QuotaNode(0);
+  eos::IQuotaNode* meldNode2 = new eos::QuotaNode(0);
 
   for (int i = 0; i < 10000; ++i)
   {
     uid_t uid = random();
     gid_t gid = random();
-    eos::QuotaNode::UsageInfo& user  = users[uid];
-    eos::QuotaNode::UsageInfo& group = groups[gid];
+    eos::IQuotaNode::UsageInfo& user  = users[uid];
+    eos::IQuotaNode::UsageInfo& group = groups[gid];
     uint64_t userSpace          = random() % 100000;
     uint64_t userPhysicalSpace  = random() % 100000;
     uint64_t userFiles          = random() % 1000;
@@ -351,18 +351,18 @@ void HierarchicalViewTest::quotaTest()
   eos::IContainerMD* cont3 = view->createContainer("/test/embed/embed3", true);
   eos::IContainerMD* cont4 = view->getContainer("/test/embed");
   eos::IContainerMD* cont5 = view->getContainer("/test");
-  eos::QuotaNode* qnCreated1 = view->registerQuotaNode(cont1);
-  eos::QuotaNode* qnCreated2 = view->registerQuotaNode(cont3);
-  eos::QuotaNode* qnCreated3 = view->registerQuotaNode(cont5);
+  eos::IQuotaNode* qnCreated1 = view->registerQuotaNode(cont1);
+  eos::IQuotaNode* qnCreated2 = view->registerQuotaNode(cont3);
+  eos::IQuotaNode* qnCreated3 = view->registerQuotaNode(cont5);
   CPPUNIT_ASSERT_THROW(view->registerQuotaNode(cont1), eos::MDException);
   CPPUNIT_ASSERT(qnCreated1);
   CPPUNIT_ASSERT(qnCreated2);
   CPPUNIT_ASSERT(qnCreated3);
-  eos::QuotaNode* qn1 = view->getQuotaNode(cont1);
-  eos::QuotaNode* qn2 = view->getQuotaNode(cont2);
-  eos::QuotaNode* qn3 = view->getQuotaNode(cont3);
-  eos::QuotaNode* qn4 = view->getQuotaNode(cont4);
-  eos::QuotaNode* qn5 = view->getQuotaNode(cont5);
+  eos::IQuotaNode* qn1 = view->getQuotaNode(cont1);
+  eos::IQuotaNode* qn2 = view->getQuotaNode(cont2);
+  eos::IQuotaNode* qn3 = view->getQuotaNode(cont3);
+  eos::IQuotaNode* qn4 = view->getQuotaNode(cont4);
+  eos::IQuotaNode* qn5 = view->getQuotaNode(cont5);
   CPPUNIT_ASSERT(qn1);
   CPPUNIT_ASSERT(qn2);
   CPPUNIT_ASSERT(qn3);
@@ -376,23 +376,23 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Create some files
   //----------------------------------------------------------------------------
-  std::map<uid_t, eos::QuotaNode::UsageInfo> users1;
-  std::map<gid_t, eos::QuotaNode::UsageInfo> groups1;
+  std::map<uid_t, eos::IQuotaNode::UsageInfo> users1;
+  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups1;
   std::string path1 = "/test/embed/embed1/";
   createFiles(path1, view, users1, groups1);
-  std::map<uid_t, eos::QuotaNode::UsageInfo> users2;
-  std::map<gid_t, eos::QuotaNode::UsageInfo> groups2;
+  std::map<uid_t, eos::IQuotaNode::UsageInfo> users2;
+  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups2;
   std::string path2 = "/test/embed/embed2/";
   createFiles(path2, view, users2, groups2);
-  std::map<uid_t, eos::QuotaNode::UsageInfo> users3;
-  std::map<gid_t, eos::QuotaNode::UsageInfo> groups3;
+  std::map<uid_t, eos::IQuotaNode::UsageInfo> users3;
+  std::map<gid_t, eos::IQuotaNode::UsageInfo> groups3;
   std::string path3 = "/test/embed/embed3/";
   createFiles(path3, view, users3, groups3);
   //----------------------------------------------------------------------------
   // Verify correctness
   //----------------------------------------------------------------------------
-  eos::QuotaNode* node1 = view->getQuotaNode(view->getContainer(path1));
-  eos::QuotaNode* node2 = view->getQuotaNode(view->getContainer(path2));
+  eos::IQuotaNode* node1 = view->getQuotaNode(view->getContainer(path1));
+  eos::IQuotaNode* node2 = view->getQuotaNode(view->getContainer(path2));
 
   for (int i = 1; i <= 10; ++i)
   {
@@ -451,7 +451,7 @@ void HierarchicalViewTest::quotaTest()
   // Remove the quota nodes on /test/embed/embed1 and /dest/embed/embed2
   // and check if the on /test has been updated
   //----------------------------------------------------------------------------
-  eos::QuotaNode* parentNode = 0;
+  eos::IQuotaNode* parentNode = 0;
   CPPUNIT_ASSERT_NO_THROW(parentNode = view->getQuotaNode(
                                          view->getContainer("/test")));
   CPPUNIT_ASSERT_NO_THROW(view->removeQuotaNode(view->getContainer(path1)));

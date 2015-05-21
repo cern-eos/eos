@@ -260,7 +260,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Set the QuotaStats object for the follower
       //------------------------------------------------------------------------
-      void setQuotaStats( QuotaStats *quotaStats)
+      void setQuotaStats( IQuotaStats *quotaStats)
       {
         pQuotaStats = quotaStats;
       }
@@ -327,7 +327,7 @@ namespace eos
       int32_t            pSlavePoll;
       uint64_t           pFollowStart;
       ChangeLogContainerMDSvc *pContSvc;
-      QuotaStats        *pQuotaStats;
+      IQuotaStats       *pQuotaStats;
   };
 }
 

@@ -365,8 +365,8 @@ Fsck::Check (void)
           {
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
             eos::IFileMD* fmd = 0;
-            eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-            eos::FileSystemView::FileIterator it;
+            eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+            eos::IFsView::FileIterator it;
             for (it = filelist.begin(); it != filelist.end(); ++it)
             {
               fmd = gOFS->eosFileService->getFileMD(*it);
@@ -399,10 +399,10 @@ Fsck::Check (void)
       {
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
         eos::IFileMD* fmd = 0;
-        eos::FileSystemView::FileList filelist =
+        eos::IFsView::FileList filelist =
                 gOFS->eosFsView->getNoReplicasFileList();
 
-        eos::FileSystemView::FileIterator it;
+        eos::IFsView::FileIterator it;
         for (it = filelist.begin(); it != filelist.end(); ++it)
         {
           fmd = gOFS->eosFileService->getFileMD(*it);
@@ -566,7 +566,7 @@ Fsck::Check (void)
       {
         try
         {
-          eos::FileSystemView::FileList filelist =
+          eos::IFsView::FileList filelist =
                   gOFS->eosFsView->getFileList(nfsid);
 
           if (filelist.size())

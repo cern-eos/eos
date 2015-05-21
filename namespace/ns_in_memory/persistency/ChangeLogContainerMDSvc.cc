@@ -25,6 +25,8 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
+#include "namespace/ns_in_memory/FileMD.hh"
+#include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 
@@ -248,7 +250,7 @@ namespace eos
 
                     for (auto fmd = (*dIt)->beginFile(); fmd; fmd = (*dIt)->nextFile())
                     {
-                      QuotaNode *node = getQuotaNode(*dIt);
+                      IQuotaNode *node = getQuotaNode(*dIt);
 
                       if (node)
                         node->removeFile(fmd);
@@ -299,7 +301,7 @@ namespace eos
                     // --------------------------------------------------------
                     for (auto fmd = (*dIt)->beginFile(); fmd; fmd = (*dIt)->nextFile())
                     {
-                      QuotaNode *node = getQuotaNode(*dIt);
+                      IQuotaNode *node = getQuotaNode(*dIt);
 
                       if (node)
                         node->addFile(fmd);
@@ -324,7 +326,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Get quota node id concerning given container
       //------------------------------------------------------------------------
-      QuotaNode *
+      IQuotaNode *
       getQuotaNode (const IContainerMD *container)
       throw ( MDException)
       {
@@ -350,7 +352,7 @@ namespace eos
         if ((current->getFlags() & QUOTA_NODE_FLAG) == 0)
           return 0;
 
-        QuotaNode *node = pQuotaStats->getQuotaNode(current->getId());
+        IQuotaNode *node = pQuotaStats->getQuotaNode(current->getId());
         if (node)
           return node;
 
@@ -361,7 +363,7 @@ namespace eos
       ContMap                           pUpdated;
       std::set<eos::IContainerMD::id_t>  pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
-      QuotaStats                       *pQuotaStats;
+      IQuotaStats                       *pQuotaStats;
   };
 }
 

@@ -33,8 +33,8 @@
 
 namespace eos
 {
-  class QuotaNode;
-  class QuotaStats;
+  class IQuotaNode;
+  class IQuotaStats;
 
   //----------------------------------------------------------------------------
   //! Interface for the component responsible for the namespace.
@@ -158,13 +158,13 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
-      virtual QuotaNode *getQuotaNode( const IContainerMD *container , bool search=true )
+      virtual IQuotaNode *getQuotaNode( const IContainerMD *container , bool search=true )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
       //------------------------------------------------------------------------
-      virtual QuotaNode *registerQuotaNode( IContainerMD *container )
+      virtual IQuotaNode *registerQuotaNode( IContainerMD *container )
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
@@ -176,13 +176,13 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the quota stats placeholder
       //------------------------------------------------------------------------
-      virtual QuotaStats *getQuotaStats() = 0;
+      virtual IQuotaStats *getQuotaStats() = 0;
 
       //------------------------------------------------------------------------
       //! Set the quota stats placeholder, currently associated object (if any)
       //! won't beX deleted.
       //------------------------------------------------------------------------
-      virtual void setQuotaStats( QuotaStats *quotaStats ) = 0;
+      virtual void setQuotaStats( IQuotaStats *quotaStats ) = 0;
 
       //------------------------------------------------------------------------
       //! Rename container

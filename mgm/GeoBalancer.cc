@@ -451,7 +451,7 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  const eos::FileSystemView::FileList *filelist = 0;
+  const eos::IFsView::FileList *filelist = 0;
   std::vector<eos::common::FileSystem::fsid_t> &validFs = mGeotagFs[geotag];
 
   eos::common::FileSystem::fsid_t fsid;
@@ -485,7 +485,7 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
     return -1;
 
   int attempts = 10;
-  eos::FileSystemView::FileIterator fid_it;
+  eos::IFsView::FileIterator fid_it;
 
   while (attempts-- > 0)
   {

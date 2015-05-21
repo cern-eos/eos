@@ -33,25 +33,13 @@ if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
-set(EOS_MEMORY_NS_SRCS
-  ${CMAKE_SOURCE_DIR}/namespace/MDException.hh
-  ${CMAKE_SOURCE_DIR}/namespace/Constants.cc           
-  ${CMAKE_SOURCE_DIR}/namespace/Constants.hh
-
-  ${CMAKE_SOURCE_DIR}/namespace/utils/DataHelper.cc
-  ${CMAKE_SOURCE_DIR}/namespace/utils/Descriptor.cc
-  ${CMAKE_SOURCE_DIR}/namespace/utils/ThreadUtils.cc
-  ${CMAKE_SOURCE_DIR}/namespace/utils/Buffer.hh
-
-  ${CMAKE_SOURCE_DIR}/namespace/interface/IView.hh
-  ${CMAKE_SOURCE_DIR}/namespace/interface/IFileMDSvc.hh
-  ${CMAKE_SOURCE_DIR}/namespace/interface/IContainerMDSvc.hh
-  ${CMAKE_SOURCE_DIR}/namespace/interface/IFileMD.hh
-  ${CMAKE_SOURCE_DIR}/namespace/interface/IContainerMD.hh
-
+#-----------------------------------------------------------------------------
+# EosNsInMemory library sources
+#-----------------------------------------------------------------------------
+set(EOS_NS_MEMORY_SRCS
+  NsInMemoryPlugin.cc    NsInMemoryPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
- 
 
   persistency/ChangeLogConstants.hh
   persistency/ChangeLogConstants.cc
@@ -69,37 +57,35 @@ set(EOS_MEMORY_NS_SRCS
   accounting/FileSystemView.cc  accounting/FileSystemView.hh)
 
 add_library(
-  eosMemoryNs SHARED 
-  ${EOS_MEMORY_NS_SRCS})
+  EosNsInMemory MODULE
+  ${EOS_NS_MEMORY_SRCS})
 
 add_library(
-  eosMemoryNs-Static STATIC 
-  ${EOS_MEMORY_NS_SRCS}
+  EosNsInMemory-Static STATIC 
+  ${EOS_NS_MEMORY_SRCS}
   progs/EOSLogCompact.cc
   progs/EOSLogRepair.cc)
 
 if (Linux)
-  target_link_libraries(eosMemoryNs pthread z rt XrdUtils)
-  target_link_libraries(eosMemoryNs-Static pthread z rt XrdUtils)
+  target_link_libraries(EosNsInMemory pthread z rt XrdUtils EosNsCommon)
+  target_link_libraries(EosNsInMemory-Static pthread z rt XrdUtils EosNsCommon)
+
+  set_target_properties(
+    EosNsInMemory-Static 
+    PROPERTIES COMPILE_FLAGS -fPIC)
 else (Linux)
-  target_link_libraries(eosMemoryNs pthread z XrdUtils)
-  target_link_libraries(eosMemoryNs-Static pthread z XrdUtils)
+  target_link_libraries(EosNsInMemory pthread z XrdUtils EosNsCommon)
+  target_link_libraries(EosNsInMemory-Static pthread z XrdUtils EosNsCommon)
 endif (Linux)
 
 add_executable(eos-log-compact progs/EOSLogCompact.cc)
 add_executable(eos-log-repair  progs/EOSLogRepair.cc)
 
-target_link_libraries(eos-log-compact eosMemoryNs-Static)
-target_link_libraries(eos-log-repair eosMemoryNs-Static)
-
-if (Linux)
-  set_target_properties(
-    eosMemoryNs-Static 
-    PROPERTIES COMPILE_FLAGS -fPIC)
-endif (Linux)
+target_link_libraries(eos-log-compact EosNsInMemory-Static)
+target_link_libraries(eos-log-repair EosNsInMemory-Static)
 
 install(
-  TARGETS eos-log-compact eos-log-repair
+  TARGETS eos-log-compact eos-log-repair EosNsInMemory
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

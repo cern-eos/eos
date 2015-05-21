@@ -25,6 +25,7 @@
 #define EOS_NS_FILE_MD_HH
 
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 
 #include <stdint.h>
 #include <cstring>

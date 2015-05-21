@@ -140,8 +140,8 @@ target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREA
 target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static)
 
 target_link_libraries(eos-udp-dumper)
-target_link_libraries(eosnsbench eosCommon-Static eosMemoryNs-Static)
-target_link_libraries(eoshashbench eosCommon-Static eosMemoryNs-Static)
+target_link_libraries(eosnsbench eosCommon-Static EosNsInMemory-Static)
+target_link_libraries(eoshashbench eosCommon-Static EosNsInMemory-Static)
 target_link_libraries(testhmacsha256 eosCommon ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )

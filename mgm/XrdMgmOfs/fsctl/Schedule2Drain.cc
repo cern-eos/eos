@@ -224,8 +224,8 @@
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
     // ---------------------------------------------------------------------
 
-    eos::FileSystemView::FileList source_filelist;
-    eos::FileSystemView::FileList target_filelist;
+    eos::IFsView::FileList source_filelist;
+    eos::IFsView::FileList target_filelist;
 
     try
     {
@@ -253,7 +253,7 @@
                      target_snapshot.mGroup.c_str(), gposition, source_fsid, target_fsid, nfids);
 
     // give the oldest file first
-    eos::FileSystemView::FileIterator fit = source_filelist.begin();
+    eos::IFsView::FileIterator fit = source_filelist.begin();
     while (fit != source_filelist.end())
     {
       eos_thread_debug("checking fid %llx", *fit);

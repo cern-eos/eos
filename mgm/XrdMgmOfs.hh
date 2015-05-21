@@ -123,12 +123,9 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/http/HttpServer.hh"
 #include "namespace/interface/IView.hh"
+#include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-// TODO: this should use only the interface
-#include "namespace/ns_in_memory/accounting/FileSystemView.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
@@ -933,7 +930,7 @@ public:
   eos::IContainerMDSvc *eosDirectoryService; //< changelog for directories
   eos::IFileMDSvc *eosFileService; //< changelog for files
   eos::IView *eosView; //< hierarchical view of the namespace
-  eos::FileSystemView *eosFsView; //< filesystem view of the namespace
+  eos::IFsView *eosFsView; //< filesystem view of the namespace
   XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
   XrdOucString MgmMetaLogDir; //  Directory containing the meta data (change) log files

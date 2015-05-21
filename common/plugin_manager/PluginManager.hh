@@ -31,6 +31,7 @@
 /*----------------------------------------------------------------------------*/
 #include "Plugin.hh"
 #include "common/Namespace.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -41,7 +42,7 @@ class DynamicLibrary;
 //----------------------------------------------------------------------------
 //! Class Plugin Manager
 //----------------------------------------------------------------------------
-class PluginManager
+class PluginManager: public LogId
 {
   typedef std::map<std::string, std::shared_ptr<DynamicLibrary> > DynamicLibMap;
   typedef std::vector<PF_ExitFunc> ExitFuncVec;

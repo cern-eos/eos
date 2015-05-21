@@ -22,23 +22,25 @@
 # ************************************************************************
 
 include_directories( 
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
-                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
-		     ../ ${XROOTD_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR}/private 
-		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${NCURSES_INCLUDE_DIR}
-		     ${Z_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
+  ${CMAKE_BINARY_DIR}/xrootd/src/include/
+  ${XROOTD_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR}/private
+  ${SPARSEHASH_INCLUDE_DIR}
+  ${NCURSES_INCLUDE_DIR}
+  ${Z_INCLUDE_DIR}
 )
 
 if(LEVELDB_FOUND)
 include_directories(
-		     ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
-                     ${CMAKE_BINARY_DIR}/xrootd/src/include/
-		     ../ ${XROOTD_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR}/private 
-		     ${SPARSEHASH_INCLUDE_DIR} 
-		     ${NCURSES_INCLUDE_DIR}
-		     ${Z_INCLUDE_DIR}
-                     ${LEVELDB_INCLUDE_DIR}
+  ${CMAKE_BINARY_DIR}/xrootd/src/include/xrootd
+  ${CMAKE_BINARY_DIR}/xrootd/src/include/
+  ../
+  ${XROOTD_INCLUDE_DIR} ${XROOTD_INCLUDE_DIR}/private
+  ${SPARSEHASH_INCLUDE_DIR}
+  ${NCURSES_INCLUDE_DIR}
+  ${Z_INCLUDE_DIR}
+  ${LEVELDB_INCLUDE_DIR}
 )
 endif(LEVELDB_FOUND)
 
@@ -227,6 +229,7 @@ add_library(
   EosPluginManager SHARED
   plugin_manager/Plugin.hh
   Namespace.hh
+  Logging.cc                        Logging.hh
   plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 

@@ -144,7 +144,7 @@ void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void cleanUpQuotaRec(eos::IView* view, eos::IContainerMD* cont)
 {
-  eos::QuotaNode* qn = view->getQuotaNode(cont);
+  eos::IQuotaNode* qn = view->getQuotaNode(cont);
 
   for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
     qn->removeFile(fmd);
@@ -238,7 +238,7 @@ void createSubTree(eos::IView*        view,
   }
 
   eos::IContainerMD* container = view->getContainer(prefix);
-  eos::QuotaNode*   qn         = view->getQuotaNode(container);
+  eos::IQuotaNode*   qn         = view->getQuotaNode(container);
 
   for (int i = 0; i < numFiles; ++i)
   {
@@ -262,7 +262,7 @@ void modifySubTree(eos::IView* view, const std::string& root)
     std::ostringstream o;
     o << root << "/dir" << i;
     eos::IContainerMD* cont = view->getContainer(o.str());
-    eos::QuotaNode* qn = view->getQuotaNode(cont);
+    eos::IQuotaNode* qn = view->getQuotaNode(cont);
     std::vector<eos::IFileMD*> toDel;
     std::vector<eos::IFileMD*>::iterator itD;
     eos::IFileMD* fmd = 0;
@@ -488,8 +488,8 @@ void HierarchicalSlaveTest::functionalTest()
                                         true));
   CPPUNIT_ASSERT_NO_THROW(contMaster3 = viewMaster->createContainer("/newdir3",
                                         true));
-  eos::QuotaNode* qnMaster2 = 0;
-  eos::QuotaNode* qnMaster3 = 0;
+  eos::IQuotaNode* qnMaster2 = 0;
+  eos::IQuotaNode* qnMaster3 = 0;
   CPPUNIT_ASSERT_NO_THROW(qnMaster2 = viewMaster->registerQuotaNode(contMaster2));
   CPPUNIT_ASSERT_NO_THROW(qnMaster3 = viewMaster->registerQuotaNode(contMaster3));
   CPPUNIT_ASSERT(qnMaster2);
@@ -585,8 +585,8 @@ void HierarchicalSlaveTest::functionalTest()
                viewMaster->getContainer("/"),
                viewSlave->getContainer("/"));
   compareFileSystems(fsViewMaster, fsViewSlave);
-  eos::QuotaNode* qnSlave2 = 0;
-  eos::QuotaNode* qnSlave3 = 0;
+  eos::IQuotaNode* qnSlave2 = 0;
+  eos::IQuotaNode* qnSlave3 = 0;
   eos::IContainerMD* contSlave2 = viewSlave->getContainer("/newdir2");
   eos::IContainerMD* contSlave3 = viewSlave->getContainer("/newdir3");
   CPPUNIT_ASSERT(contSlave2);
@@ -597,17 +597,17 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT(qnSlave3);
   CPPUNIT_ASSERT(qnSlave2 != qnMaster2);
   CPPUNIT_ASSERT(qnSlave3 != qnMaster3);
-  eos::QuotaNode* qnS[2];
+  eos::IQuotaNode* qnS[2];
   qnS[0] = qnSlave2;
   qnS[1] = qnSlave3;
-  eos::QuotaNode* qnM[2];
+  eos::IQuotaNode* qnM[2];
   qnM[0] = qnMaster2;
   qnM[1] = qnMaster3;
 
   for (int i = 0; i < 2; ++i)
   {
-    eos::QuotaNode* qnSlave  = qnS[i];
-    eos::QuotaNode* qnMaster = qnM[i];
+    eos::IQuotaNode* qnSlave  = qnS[i];
+    eos::IQuotaNode* qnMaster = qnM[i];
     CPPUNIT_ASSERT(qnSlave->getPhysicalSpaceByUser(0)  ==
                    qnMaster->getPhysicalSpaceByUser(0));
     CPPUNIT_ASSERT(qnSlave->getUsedSpaceByUser(0)      ==

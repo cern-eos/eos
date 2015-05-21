@@ -1501,7 +1501,7 @@ Quota::LoadNodes ()
   // iterate over the defined quota nodes and make them visible as SpaceQuota
   eos::common::RWMutexReadLock lock(gQuotaMutex);
   eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-  eos::QuotaStats::NodeMap::iterator it;
+  eos::IQuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
   {
     try
@@ -1539,7 +1539,7 @@ Quota::NodesToSpaceQuota ()
   eos::common::RWMutexReadLock locker(gQuotaMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   // inserts the current state of the quota nodes into SpaceQuota's 
-  eos::QuotaStats::NodeMap::iterator it;
+  eos::IQuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
   {
     try
@@ -1574,8 +1574,8 @@ Quota::NodeToSpaceQuota (const char* name)
   if (spacequota && spacequota->UpdateQuotaNodeAddress() && spacequota->GetQuotaNode())
   {
     // insert current state of a single quota node into a SpaceQuota
-    eos::QuotaNode::UserMap::const_iterator itu;
-    eos::QuotaNode::GroupMap::const_iterator itg;
+    eos::IQuotaNode::UserMap::const_iterator itu;
+    eos::IQuotaNode::GroupMap::const_iterator itg;
 
     spacequota->ResetQuota(SpaceQuota::kGroupBytesIs, gProjectId);
     spacequota->ResetQuota(SpaceQuota::kGroupFilesIs, gProjectId);

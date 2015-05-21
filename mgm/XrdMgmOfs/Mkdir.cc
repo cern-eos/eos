@@ -433,7 +433,7 @@ XrdMgmOfs::_mkdir (const char *path,
     newdir->setMode(dir->getMode());
 
     // store the in-memory modification time
-    eos::ContainerMD::ctime_t ctime;
+    eos::IContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);
     UpdateInmemoryDirectoryModificationTime(dir->getId(), ctime);
 

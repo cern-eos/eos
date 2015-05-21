@@ -37,6 +37,8 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "common/plugin_manager/PluginManager.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -1524,6 +1526,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Mapping::Init();
 
   // Initialize the master/slave class
+  // TODO: start the online compacting thread after we boot the namespace
+  // making sure the namespace supportes compacting
   if (!MgmMaster.Init())
     return 1;
 

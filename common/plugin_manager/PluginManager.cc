@@ -156,6 +156,7 @@ PluginManager::RegisterObject(const char* objType,
     return -1;
   }
 
+  eos_static_info("register plugin object name=%s", key.c_str());
   pm.mObjectMap[key] = *params;
   return 0;
 }
@@ -258,12 +259,19 @@ PluginManager::LoadByPath(const std::string& lib_path)
 
   // Expected entry point missing from dynamic library
   if (!initFunc)
+  {
+    eos_static_err("expected entry point PF_initPlugin missing from plugin "
+                   "library");
     return -1;
+  }
 
   int32_t res = InitializePlugin(initFunc);
 
   if (res < 0)
+  {
+    eos_static_err("failed initialization of plugin library=%s", lib_path.c_str());
     return res;
+  }
 
   return 0;
 }
@@ -272,9 +280,9 @@ PluginManager::LoadByPath(const std::string& lib_path)
 // Create plugin object for the specified layer
 //------------------------------------------------------------------------------
 void*
-PluginManager::CreateObject(const std::string& objType)
+PluginManager::CreateObject(const std::string& obj_type)
 {
-  auto iter = mObjectMap.find(objType);
+  auto iter = mObjectMap.find(obj_type);
 
   if (iter != mObjectMap.end())
   {
@@ -283,9 +291,13 @@ PluginManager::CreateObject(const std::string& objType)
 
     // Register the new plugin object
     if (object)
+    {
+      eos_static_info("created plugin object type=%s", obj_type.c_str());
       return object;
+    }
   }
 
+  eos_static_err("failed creating plugin object type=%s", obj_type.c_str());
   return NULL;
 }
 
@@ -300,7 +312,7 @@ PluginManager::LoadLibrary(const std::string& path, std::string& error)
   if (!dyn_lib)
     return NULL;
 
-  // Add library to map, so it can be unloaded
+  // Add library to map, so it can be unloaded at the end
   mDynamicLibMap[path] = std::shared_ptr<DynamicLibrary>(dyn_lib);
   return dyn_lib;
 }

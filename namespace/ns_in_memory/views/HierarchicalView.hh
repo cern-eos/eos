@@ -181,14 +181,14 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
-      virtual QuotaNode *getQuotaNode( const IContainerMD *container,
-                                       bool               search = true )
+      virtual IQuotaNode *getQuotaNode( const IContainerMD *container,
+                                        bool               search = true )
         throw( MDException );
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
       //------------------------------------------------------------------------
-      virtual QuotaNode *registerQuotaNode( IContainerMD *container )
+      virtual IQuotaNode *registerQuotaNode( IContainerMD *container )
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -200,7 +200,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get the quota stats placeholder
       //------------------------------------------------------------------------
-      virtual QuotaStats *getQuotaStats()
+      virtual IQuotaStats *getQuotaStats()
       {
         return pQuotaStats;
       }
@@ -209,7 +209,7 @@ namespace eos
       //! Set the quota stats placeholder, currently associated object (if any)
       //! won't beX deleted.
       //------------------------------------------------------------------------
-      virtual void setQuotaStats( QuotaStats *quotaStats )
+      virtual void setQuotaStats( IQuotaStats *quotaStats )
       {
         pQuotaStats = quotaStats;
       }
@@ -239,7 +239,7 @@ namespace eos
       {
         public:
           FileVisitor(IContainerMDSvc *contSvc,
-                      QuotaStats *quotaStats,
+                      IQuotaStats *quotaStats,
                       IView *view):
             pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
 
@@ -247,7 +247,7 @@ namespace eos
         
         private:
           IContainerMDSvc *pContSvc;
-          QuotaStats      *pQuotaStats;
+          IQuotaStats      *pQuotaStats;
           IView           *pView;
       };
 
@@ -256,7 +256,7 @@ namespace eos
       //------------------------------------------------------------------------
       IContainerMDSvc *pContainerSvc;
       IFileMDSvc      *pFileSvc;
-      QuotaStats      *pQuotaStats;
+      IQuotaStats      *pQuotaStats;
       IContainerMD    *pRoot;
   };
 };

@@ -132,7 +132,7 @@ class FileMDFollower: public eos::ILogRecordScanner
             if (existingFile == currentFile)
             {
               container->removeFile(currentFile->getName());
-              QuotaNode* node = getQuotaNode(container);
+              IQuotaNode* node = getQuotaNode(container);
 
               if (node)
                 node->removeFile(currentFile);
@@ -180,7 +180,7 @@ class FileMDFollower: public eos::ILogRecordScanner
             // case we attach the new file and remove the old one
             IContainerMD* container = itP->second.ptr;
             IFileMD* existingFile   = container->findFile(currentFile->getName());
-            QuotaNode* node        = getQuotaNode(container);
+            IQuotaNode* node        = getQuotaNode(container);
 
             if (existingFile)
             {
@@ -233,7 +233,7 @@ class FileMDFollower: public eos::ILogRecordScanner
                   existingFile->getId() == originalFile->getId())
               {
                 // Update quota
-                QuotaNode* node = getQuotaNode(originalContainer);
+                IQuotaNode* node = getQuotaNode(originalContainer);
 
                 if (node)
                 {
@@ -279,7 +279,7 @@ class FileMDFollower: public eos::ILogRecordScanner
               if (existingFile &&
                   existingFile->getId() == originalFile->getId())
               {
-                QuotaNode* node = getQuotaNode(originalContainer);
+                IQuotaNode* node = getQuotaNode(originalContainer);
 
                 if (node)
                   node->removeFile(existingFile);
@@ -310,7 +310,7 @@ class FileMDFollower: public eos::ILogRecordScanner
               // the container, if it does, we have a name conflict in which
               // case we attach the new file and remove the old one
               IContainerMD* newContainer = itPN->second.ptr;
-              QuotaNode* node            = getQuotaNode(newContainer);
+              IQuotaNode* node            = getQuotaNode(newContainer);
               IFileMD* existingFile = newContainer->findFile(originalFile->getName());
 
               if (existingFile)
@@ -349,7 +349,7 @@ class FileMDFollower: public eos::ILogRecordScanner
     //------------------------------------------------------------------------
     // Get quota node id concerning given container
     //------------------------------------------------------------------------
-    QuotaNode* getQuotaNode(const IContainerMD* container)
+    IQuotaNode* getQuotaNode(const IContainerMD* container)
     throw(MDException)
     {
       // Initial sanity check
@@ -370,7 +370,7 @@ class FileMDFollower: public eos::ILogRecordScanner
       if ((container->getFlags() & QUOTA_NODE_FLAG) == 0)
         return 0;
 
-      QuotaNode* node = pQuotaStats->getQuotaNode(container->getId());
+      IQuotaNode* node = pQuotaStats->getQuotaNode(container->getId());
 
       if (node)
         return node;
@@ -499,7 +499,7 @@ class FileMDFollower: public eos::ILogRecordScanner
     std::set<eos::IFileMD::id_t>  pDeleted;
     eos::ChangeLogFileMDSvc*      pFileSvc;
     eos::ChangeLogContainerMDSvc* pContSvc;
-    eos::QuotaStats*              pQuotaStats;
+    eos::IQuotaStats*              pQuotaStats;
 };
 }
 

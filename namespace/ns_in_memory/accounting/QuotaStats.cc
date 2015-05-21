@@ -21,6 +21,8 @@
 // desc:   User quota accounting
 //------------------------------------------------------------------------------
 
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 
 namespace eos
@@ -60,21 +62,19 @@ namespace eos
   //----------------------------------------------------------------------------
   // Meld in another quota node
   //----------------------------------------------------------------------------
-  void QuotaNode::meld( const QuotaNode *node )
+  void QuotaNode::meld( const IQuotaNode *node )
   {
-    UserMap::const_iterator it1 = node->pUserUsage.begin();
-    for( ; it1 != node->pUserUsage.end(); ++it1 )
+    for (auto it1 = node->userUsageBegin(); it1 != node->userUsageEnd(); ++it1)
       pUserUsage[it1->first] += it1->second;
 
-    GroupMap::const_iterator it2 = node->pGroupUsage.begin();
-    for( ; it2 != node->pGroupUsage.end(); ++it2 )
+    for (auto it2 = node->groupUsageBegin(); it2 != node->groupUsageEnd(); ++it2)
       pGroupUsage[it2->first] += it2->second;
   }
 
   //----------------------------------------------------------------------------
   // Get a quota node associated to the container id
   //----------------------------------------------------------------------------
-  QuotaNode *QuotaStats::getQuotaNode( IContainerMD::id_t nodeId )
+  IQuotaNode *QuotaStats::getQuotaNode( IContainerMD::id_t nodeId )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
     if( it == pNodeMap.end() )
@@ -95,7 +95,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Register a new quota node
   //----------------------------------------------------------------------------
-  QuotaNode *QuotaStats::registerNewNode( IContainerMD::id_t nodeId )
+  IQuotaNode *QuotaStats::registerNewNode( IContainerMD::id_t nodeId )
     throw( MDException )
   {
     NodeMap::iterator it = pNodeMap.find( nodeId );
@@ -105,7 +105,7 @@ namespace eos
       e.getMessage() << "Quota node already exist: " << nodeId;
       throw e;
     }
-    QuotaNode *node = new QuotaNode( this );
+    IQuotaNode *node = new QuotaNode( this );
     pNodeMap[nodeId] = node;
     return node;
   }

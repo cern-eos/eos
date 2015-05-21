@@ -37,8 +37,9 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "mq/XrdMqClient.hh"
 /*----------------------------------------------------------------------------*/
-// TODO: this should only use the interface class
-#include "namespace/ns_in_memory/views/HierarchicalView.hh"
+// TODO: this should use only the interface
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 
 // -----------------------------------------------------------------------------
@@ -1866,11 +1867,19 @@ Master::BootNamespace()
 {
   using eos::common::PluginManager;
   PluginManager& pm = PluginManager::GetInstance();
+  gOFS->eosDirectoryService = static_cast<IContainerMDSvc*>(pm.CreateObject("ContainerMDSvc"));
+  gOFS->eosFileService = static_cast<IFileMDSvc*>(pm.CreateObject("FileMDSvc"));
+  gOFS->eosView = static_cast<IView*>(pm.CreateObject("HierarchicalView"));
+  gOFS->eosFsView = static_cast<IFsView*>(pm.CreateObject("FileSystemView"));
 
-  gOFS->eosDirectoryService = new eos::ChangeLogContainerMDSvc;
-  gOFS->eosFileService = new eos::ChangeLogFileMDSvc;
-  gOFS->eosView = new eos::HierarchicalView;
-  gOFS->eosFsView = new eos::FileSystemView;
+  if (!gOFS->eosDirectoryService || ! gOFS->eosFileService ||
+      !gOFS->eosView || !gOFS->eosFsView)
+  {
+    MasterLog(eos_err("namespace implementation could not be loaded using "
+                      "the provided library plugin"));
+    return false;
+  }
+
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();

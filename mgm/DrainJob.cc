@@ -354,9 +354,9 @@ retry:
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
-      eos::FileSystemView::FileList filelist =
+      eos::IFsView::FileList filelist =
         gOFS->eosFsView->getFileList(mFsId);
-      eos::FileSystemView::FileIterator it;
+      eos::IFsView::FileIterator it;
 
       totalfiles = filelist.size();
       if (fs->GetConfigStatus() == eos::common::FileSystem::kDrain)
@@ -535,7 +535,7 @@ retry:
       last_filesleft = filesleft;
       try
       {
-        eos::FileSystemView::FileList filelist =
+        eos::IFsView::FileList filelist =
           gOFS->eosFsView->getFileList(mFsId);
         filesleft = filelist.size();
       }

@@ -1090,7 +1090,7 @@ XrdMgmOfsFile::open (const char *inpath,
         SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
         if (space)
         {
-          eos::QuotaNode* quotanode = 0;
+          eos::IQuotaNode* quotanode = 0;
           quotanode = space->GetQuotaNode();
           if (quotanode)
           {

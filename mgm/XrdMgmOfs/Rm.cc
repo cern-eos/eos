@@ -284,7 +284,7 @@ XrdMgmOfs::_rem (const char *path,
         // ---------------------------------------------------------------------
         if (!simulate)
         {
-          eos::QuotaNode* quotanode = 0;
+          eos::IQuotaNode* quotanode = 0;
           try
           {
             quotanode = gOFS->eosView->getQuotaNode(container);

@@ -360,7 +360,7 @@
 
         {
           SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
-          eos::QuotaNode* quotanode = 0;
+          eos::IQuotaNode* quotanode = 0;
           if (space)
           {
             quotanode = space->GetQuotaNode();

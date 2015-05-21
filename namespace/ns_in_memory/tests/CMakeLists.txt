@@ -23,7 +23,7 @@
 
 include_directories( ${CPPUNIT_INCLUDE_DIRS} )
 
-add_library (eosMemoryNsTests SHARED
+add_library (EosNsInMemoryTests SHARED
       ChangeLogContainerMDSvcTest.cc
       ChangeLogFileMDSvcTest.cc
       ChangeLogTest.cc
@@ -36,14 +36,14 @@ add_library (eosMemoryNsTests SHARED
       ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc
 )
 
-target_link_libraries( eosMemoryNsTests ${CPPUNIT_LIBRARIES} eosMemoryNs)
+target_link_libraries( EosNsInMemoryTests ${CPPUNIT_LIBRARIES} EosNsInMemory)
 
 add_executable(text-runner TextRunner.cc)
-target_link_libraries(text-runner eosMemoryNsTests dl)
+target_link_libraries(text-runner EosNsInMemoryTests dl)
 
 add_executable( ns-benchmark NSBenchmark.cc)
-target_link_libraries( ns-benchmark eosMemoryNs )
+target_link_libraries( ns-benchmark EosNsInMemory )
 
 if (Linux)
-  set_target_properties( eosMemoryNsTests PROPERTIES COMPILE_FLAGS -fPIC )
+  set_target_properties( EosNsInMemoryTests PROPERTIES COMPILE_FLAGS -fPIC )
 endif (Linux)

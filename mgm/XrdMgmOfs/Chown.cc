@@ -127,7 +127,7 @@ XrdMgmOfs::_chown (const char *path,
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
 
       SpaceQuota* space = Quota::GetResponsibleSpaceQuota(cPath.GetParentPath());
-      eos::QuotaNode* quotanode = 0;
+      eos::IQuotaNode* quotanode = 0;
       if (space)
       {
         quotanode = space->GetQuotaNode();

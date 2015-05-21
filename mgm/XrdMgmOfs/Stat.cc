@@ -283,7 +283,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_size = cmd->getNumContainers();
     buf->st_blksize = 0;
     buf->st_blocks = 0;
-    eos::ContainerMD::ctime_t atime;
+    eos::IContainerMD::ctime_t atime;
     cmd->getCTime(atime);
 
 #ifdef __APPLE__

@@ -71,12 +71,12 @@
     // ---------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-    std::pair<eos::FileSystemView::FileIterator, eos::FileSystemView::FileIterator> unlinkpair;
+    std::pair<eos::IFsView::FileIterator, eos::IFsView::FileIterator> unlinkpair;
     try
     {
       unlinkpair = eosFsView->getUnlinkedFiles(fslist[i]);
       XrdMqMessage message("deletion");
-      eos::FileSystemView::FileIterator it;
+      eos::IFsView::FileIterator it;
       int ndeleted = 0;
 
       eos::mgm::FileSystem* fs = 0;

@@ -21,15 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ../
-		     ${CMAKE_CURRENT_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} 
-                     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-                     ${SPARSEHASH_INCLUDE_DIR} 
-                     ${NCURSES_INCLUDE_DIR}
-                     ${LDAP_INCLUDE_DIR}
-                     ${Z_INCLUDE_DIR}
-		     ${ZMQ_INCLUDE_DIR}
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIR}
+  ${XROOTD_PRIVATE_INCLUDE_DIR}
+  ${SPARSEHASH_INCLUDE_DIR}
+  ${NCURSES_INCLUDE_DIR}
+  ${LDAP_INCLUDE_DIR}
+  ${Z_INCLUDE_DIR}
+  ${ZMQ_INCLUDE_DIR}
 )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
@@ -116,13 +116,22 @@ add_library (XrdEosMgm MODULE
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
-            )
+	    # TODO: this should be removed one we properly use the namespace interface
+            # and there is no need to include explicit namespace implementatio details
+	    ${CMAKE_SOURCE_DIR}/namespace/Constants.cc
+	    ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/FileMD.cc
+	    ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/ContainerMD.cc
+            ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFile.cc
+            ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogConstants.cc
+            ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc
+            ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.cc)
 
 target_link_libraries( XrdEosMgm
                        XrdCl                XrdPosix
                        XrdUtils             
                        eosCommon            eosCommonServer
-                       eosMemoryNs-Static   eosCapability-Static
+		       EosNsCommon
+                       eosCapability-Static
                        EosPluginManager     XrdMqClient-Static
                        crypto               dl
 		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 

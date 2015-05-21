@@ -41,8 +41,7 @@
 #include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
 #include "mq/XrdMqMessage.hh"
-// TODO: this should use only the interface
-#include "namespace/ns_in_memory/accounting/QuotaStats.hh"
+#include "namespace/interface/IQuota.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -66,7 +65,7 @@ private:
   time_t LastCalculationTime;
   time_t LastEnableCheck;
   bool On;
-  eos::QuotaNode* QuotaNode;
+  eos::IQuotaNode* QuotaNode;
   double LayoutSizeFactor; // this is layout dependent!
   bool DirtyTarget; // indicating to recompute the target values
   bool
@@ -301,7 +300,7 @@ public:
 
   bool UpdateQuotaNodeAddress (); // updates the valid address of a quota node from the filesystem view
 
-  eos::QuotaNode*
+  eos::IQuotaNode*
   GetQuotaNode ()
   {
     return QuotaNode;

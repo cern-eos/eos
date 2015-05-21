@@ -90,8 +90,8 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
     try
     {
       eos::IFileMD* fmd = 0;
-      eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-      eos::FileSystemView::FileIterator it;
+      eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+      eos::IFsView::FileIterator it;
       for (it = filelist.begin(); it != filelist.end(); ++it)
       {
         std::string env;
@@ -149,7 +149,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
       if (monitor)
       {
         // also add files which have still to be unlinked
-        eos::FileSystemView::FileList unlinkedfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
+        eos::IFsView::FileList unlinkedfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
         for (it = unlinkedfilelist.begin(); it != unlinkedfilelist.end(); ++it)
         {
           std::string env;
@@ -277,7 +277,7 @@ proc_fs_config (std::string &identifier, std::string &key, std::string &value, X
               // check if this file system is really empty
               try
               {
-                eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
+                eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fs->GetId());
                 if (filelist.size())
                 {
                   isempty = false;
@@ -948,7 +948,7 @@ proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdEr
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
       try
       {
-        eos::FileSystemView::FileList unlinklist = gOFS->eosFsView->getUnlinkedFileList(fsid);
+        eos::IFsView::FileList unlinklist = gOFS->eosFsView->getUnlinkedFileList(fsid);
         unlinklist.clear();
         unlinklist.resize(0);
         stdOut += "success: dropped deletions on fsid=";

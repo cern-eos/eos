@@ -21,5 +21,42 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+include_directories(
+  ${CMAKE_SOURCE_DIR})
+
+#-------------------------------------------------------------------------------
+# EosNsCommon library sources
+#-------------------------------------------------------------------------------
+set(
+  EOS_NS_COMMON_SRCS
+  MDException.hh
+  Constants.cc   Constants.hh
+
+  # Namespace interface
+  interface/IView.hh
+  interface/IFileMDSvc.hh
+  interface/IContainerMDSvc.hh
+  interface/IFileMD.hh
+  interface/IContainerMD.hh
+
+  # Namespace utils
+  utils/DataHelper.cc
+  utils/Descriptor.cc
+  utils/ThreadUtils.cc
+  utils/Buffer.hh)
+
+add_library(
+  EosNsCommon SHARED
+  ${EOS_NS_COMMON_SRCS})
+
+add_library(
+  EosNsCommon-Static STATIC
+  ${EOS_NS_COMMON_SRCS})
+
+install(
+  TARGETS EosNsCommon
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 add_subdirectory(ns_in_memory)
 #add_subdirectory(ns_on_filesystem)

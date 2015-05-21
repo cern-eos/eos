@@ -488,7 +488,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Update quota stats
     //--------------------------------------------------------------------------
-    QuotaNode *node = pView->getQuotaNode( cont );
+    IQuotaNode *node = pView->getQuotaNode( cont );
     if( node )
       node->addFile( file );
   }
@@ -561,8 +561,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get quota node id concerning given container
   //----------------------------------------------------------------------------
-  QuotaNode *HierarchicalView::getQuotaNode( const IContainerMD *container,
-                                             bool search )
+  IQuotaNode *HierarchicalView::getQuotaNode( const IContainerMD *container,
+                                              bool search )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -601,7 +601,7 @@ namespace eos
     if( (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
       return 0;
 
-    QuotaNode *node = pQuotaStats->getQuotaNode( current->getId() );
+    IQuotaNode *node = pQuotaStats->getQuotaNode( current->getId() );
     if( node )
       return node;
 
@@ -611,7 +611,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Register the container to be a quota node
   //----------------------------------------------------------------------------
-  QuotaNode *HierarchicalView::registerQuotaNode( IContainerMD *container )
+  IQuotaNode *HierarchicalView::registerQuotaNode( IContainerMD *container )
     throw( MDException )
   {
     //--------------------------------------------------------------------------
@@ -638,7 +638,7 @@ namespace eos
       throw ex;
     }
 
-    QuotaNode *node = pQuotaStats->registerNewNode( container->getId() );
+    IQuotaNode *node = pQuotaStats->registerNewNode( container->getId() );
     container->getFlags() |= QUOTA_NODE_FLAG;
     updateContainerStore( container );
 
@@ -678,8 +678,8 @@ namespace eos
     //--------------------------------------------------------------------------
     // Get the quota node and meld it with the parent node if present
     //--------------------------------------------------------------------------
-    QuotaNode *node   = getQuotaNode( container );
-    QuotaNode *parent = 0;
+    IQuotaNode *node   = getQuotaNode( container );
+    IQuotaNode *parent = 0;
     if( container != pRoot )
       parent = getQuotaNode( pContainerSvc->getContainerMD( container->getParentId() ),
                              true );
