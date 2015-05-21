@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"

@@ -150,12 +150,12 @@ xrdmgmofs_shutdown (int sig)
       }
       if (gOFS->eosDirectoryService)
       {
-	gOFS->eosDirectoryService->getChangeLog()->close();
+	gOFS->eosDirectoryService->finalize();
         delete gOFS->eosDirectoryService;
       }
       if (gOFS->eosFileService)
       {
-	gOFS->eosFileService->getChangeLog()->close();
+	gOFS->eosFileService->finalize();
         delete gOFS->eosFileService;
       }
 

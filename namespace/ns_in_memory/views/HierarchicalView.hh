@@ -256,7 +256,7 @@ namespace eos
       //------------------------------------------------------------------------
       IContainerMDSvc *pContainerSvc;
       IFileMDSvc      *pFileSvc;
-      IQuotaStats      *pQuotaStats;
+      IQuotaStats     *pQuotaStats;
       IContainerMD    *pRoot;
   };
 };

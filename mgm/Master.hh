@@ -94,19 +94,14 @@ class Master : public eos::common::LogId
   virtual ~Master();
 
   //----------------------------------------------------------------------------
-  //! Supervisor Thread Start Function
+  //! Init method to determine the current master/slave state
   //----------------------------------------------------------------------------
-  static void* StaticSupervisor(void*);
+  bool Init();
 
   //----------------------------------------------------------------------------
-  //! Online compacting thread start function
+  //! Boot Namespace according to master slave configuration
   //----------------------------------------------------------------------------
-  static void* StaticOnlineCompacting(void*);
-
-  //----------------------------------------------------------------------------
-  //! Supervisor thread function
-  //----------------------------------------------------------------------------
-  void* Supervisor();
+  bool BootNamespace();
 
   //----------------------------------------------------------------------------
   //! Show the current compacting state
@@ -131,22 +126,12 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Configure Online Compating Type for files and/or directories
   //----------------------------------------------------------------------------
-  void  SetCompactingType(bool f, bool d)
+  void  SetCompactingType(bool f, bool d, bool r)
   {
     fCompactFiles = f;
     fCompactDirectories = d;
     fAutoRepair = r;
   }
-
-  //----------------------------------------------------------------------------
-  //! Boot Namespace according to master slave configuration
-  //----------------------------------------------------------------------------
-  bool BootNamespace();
-
-  //----------------------------------------------------------------------------
-  //! Init method to determine the current master/slave state
-  //----------------------------------------------------------------------------
-  bool Init();
 
   //----------------------------------------------------------------------------
   //! Start slave follower thread
@@ -164,8 +149,8 @@ class Master : public eos::common::LogId
   //! Apply Configuration settings to the master class
   //----------------------------------------------------------------------------
   bool ApplyMasterConfig(XrdOucString& stdOut,
-                         XrdOucString& stdErr,
-                         Transition::Type transitiontype);
+			 XrdOucString& stdErr,
+			 Transition::Type transitiontype);
 
   //----------------------------------------------------------------------------
   //! Activate the current master/slave settings = configure configuration
@@ -177,7 +162,7 @@ class Master : public eos::common::LogId
   //! Set the new master host
   //----------------------------------------------------------------------------
   bool Set(XrdOucString& mastername, XrdOucString& stdout,
-           XrdOucString& stdErr);
+	   XrdOucString& stdErr);
 
   //----------------------------------------------------------------------------
   //! Show the current master/slave run configuration (used by ns stat)
@@ -304,6 +289,7 @@ class Master : public eos::common::LogId
   XrdSysError* fDevNullErr; ///< /dev/null error
   unsigned long long fFileNamespaceInode; ///< inode number of the file namespace file
   unsigned long long fDirNamespaceInode; ///< inode number of the dir  namespace file
+  bool fAutoRepair; ///< enable auto-repair to skip over broken records during compaction
 
   //----------------------------------------------------------------------------
   // Lock class wrapper used by the namespace
@@ -364,7 +350,7 @@ class Master : public eos::common::LogId
     {
       // Does not matter if UnLockRead or Write is called
       if (pLock)
-        pLock->UnLockRead();
+	pLock->UnLockRead();
     }
 
    private:
@@ -440,6 +426,21 @@ class Master : public eos::common::LogId
   //! Compacting thread function
   //----------------------------------------------------------------------------
   void* Compacting();
+
+  //----------------------------------------------------------------------------
+  //! Supervisor Thread Start Function
+  //----------------------------------------------------------------------------
+  static void* StaticSupervisor(void*);
+
+  //----------------------------------------------------------------------------
+  //! Supervisor thread function
+  //----------------------------------------------------------------------------
+  void* Supervisor();
+
+  //----------------------------------------------------------------------------
+  //! Online compacting thread start function
+  //----------------------------------------------------------------------------
+  static void* StaticOnlineCompacting(void*);
 };
 
 EOSMGMNAMESPACE_END

@@ -52,7 +52,7 @@ SpaceQuota::SpaceQuota (const char* name)
   LayoutSizeFactor = 1.0;
   On = false;
 
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   eos::IContainerMD *quotadir = 0;
   std::string path = name;
 

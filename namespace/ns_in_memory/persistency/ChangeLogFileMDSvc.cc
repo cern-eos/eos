@@ -1107,7 +1107,7 @@ void ChangeLogFileMDSvc::compact(void*& compactingData) throw(MDException)
 //------------------------------------------------------------------------------
 // Commit the compacting information.
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::compactCommit(void* compactingData)
+void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
 throw(MDException)
 {
   ::CompactingData* data = (::CompactingData*)compactingData;
@@ -1129,7 +1129,8 @@ throw(MDException)
   {
     ::UpdateHandler updateHandler(updates, data->newLog);
     data->originalLog->scanAllRecordsAtOffset(&updateHandler,
-        data->newRecord);
+                                              data->newRecord,
+                                              autorepair);
   }
   catch (MDException& e)
   {
