@@ -190,14 +190,16 @@ Messaging::Listen ()
     {
       Process(newmessage);
       delete newmessage;
+      XrdSysThread::SetCancelOn();
+      XrdSysThread::CancelPoint();
     }
     else
     {
+    XrdSysThread::SetCancelOn();
+    XrdSysThread::CancelPoint();
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }
-    XrdSysThread::SetCancelOn();
-    XrdSysThread::CancelPoint();
   }
 }
 
