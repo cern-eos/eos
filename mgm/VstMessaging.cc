@@ -97,10 +97,16 @@ void
 VstMessaging::Listen ()
 {
   static int lPublishTime = 0;
+
   {
+    XrdSysThread::SetCancelOn();
     // we give some time for startup
-    XrdSysTimer sleeper;
-    sleeper.Wait(30000);
+    for (size_t i = 0; i< 30; ++i) 
+    {
+      XrdSysTimer sleeper;
+      sleeper.Wait(1000);
+      XrdSysThread::CancelPoint();
+    }
   }
   while (1)
   {
@@ -116,8 +122,11 @@ VstMessaging::Listen ()
     }
     else
     {
+      XrdSysThread::SetCancelOn();
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
+      XrdSysThread::CancelPoint();
+      XrdSysThread::SetCancelOff();
     }
 
     {
