@@ -581,9 +581,9 @@ extern "C"
     {
       pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
       offset = file->follow( &f, offset );
+      pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       f.commit();
       fileSvc->setFollowOffset(offset);
-      pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       file->wait(pollInt);
     }
     return 0;

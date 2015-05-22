@@ -542,6 +542,7 @@ namespace eos
     while( offset < end )
     {
       bool proceed = false;
+      bool readerror = false;
       try 
       {
 	type = readRecord( offset, data );
@@ -551,9 +552,10 @@ namespace eos
       }
       catch( MDException &e )
       {
+	readerror = true;
       }
 
-      if( !proceed ) 
+      if( readerror ) 
       {
 	if (autorepair) {
 	  // evt. try to skip this record
@@ -601,6 +603,8 @@ namespace eos
 	  throw ex;
 	}
       }
+      if (!proceed)
+	break;
     }
     return offset;
   }
