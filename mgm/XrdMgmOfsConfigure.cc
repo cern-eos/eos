@@ -232,8 +232,8 @@ XrdMgmOfs::InitializeFileView ()
       while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size)
       {
         XrdSysTimer sleeper;
-        sleeper.Wait(200);
-        eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
+        sleeper.Wait(5000);
+        eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
       }
 
       {
