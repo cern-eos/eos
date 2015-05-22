@@ -281,8 +281,8 @@ XrdMgmOfs::InitializeFileView ()
   };
 
   {
-    InitializationTime = (time(0) - InitializationTime);
     XrdSysMutexHelper lock(InitializationMutex);
+    InitializationTime = (time(0) - InitializationTime);
 
     // grab process status after boot
     if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup))

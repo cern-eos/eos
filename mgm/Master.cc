@@ -2322,7 +2322,12 @@ bool
 Master::RebootSlaveNamespace ()
 {
   fRunningState = kIsTransition;
+  
   {
+    {
+      XrdSysMutexHelper lock(gOFS->InitializationMutex);
+      gOFS->Initialized = gOFS->kBooting;
+    }
     // now convert the namespace
     eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex);
 
@@ -2352,9 +2357,17 @@ Master::RebootSlaveNamespace ()
     if (!BootNamespace())
     {
       fRunningState = kIsNothing;
+      {
+	XrdSysMutexHelper lock(gOFS->InitializationMutex);
+	gOFS->Initialized = gOFS->kFailed;
+      }
       return false;
     }
 
+    {
+      XrdSysMutexHelper lock(gOFS->InitializationMutex);
+      gOFS->Initialized = gOFS->kBooted;
+    }
   }
 
   {
