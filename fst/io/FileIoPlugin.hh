@@ -29,9 +29,13 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/LocalIo.hh"
 #include "fst/io/XrdIo.hh"
-#include "fst/io/KineticIo.hh"
 #include "fst/io/RadosIo.hh"
 #include "common/LayoutId.hh"
+#ifdef KINETICIO_FOUND
+#include "fst/io/KineticIo.hh"
+#else
+#include "fst/io/KineticIoNotFound.hh"
+#endif
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

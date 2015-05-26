@@ -21,6 +21,17 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if(KINETICIO_FOUND)
+    add_definitions(-DKINETICIO_FOUND)
+    set(KINETICIO_SRC "io/KineticIo.cc")
+    set(KINETICIO_HDR "io/KineticIo.hh")
+else()
+    set(KINETICIO_INCLUDE_DIR "")
+    set(KINETICIO_LIBRARIES "")
+    set(KINETICIO_SRC "")
+    set(KINETICIO_HDR "io/KineticIoNotFound.hh")
+endif()
+
 include_directories(../
                     ./
                     ${XROOTD_INCLUDE_DIR}
@@ -28,7 +39,7 @@ include_directories(../
                     ${SPARSEHASH_INCLUDE_DIR}
                     ${NCURSES_INCLUDE_DIR}
                     ${Z_INCLUDE_DIR}
-                    ${KINETIC_INCLUDE_DIR}
+                    ${KINETICIO_INCLUDE_DIR}
                     ${JSONC_INCLUDE_DIR}
 )
 
@@ -44,21 +55,18 @@ add_library( EosFstOss MODULE
 	     ../common/LayoutId.hh  )
 
 
-target_link_libraries( EosFstOss 
+target_link_libraries( EosFstOss
 		       eosCommon
-		       XrdServer	      
+		       XrdServer
 		       ${UUID_LIBRARIES}
 )
 
 
 add_library(EosFstIo-Static STATIC
             io/FileIoPlugin.hh             io/FileIoPlugin.cc
-            io/FileIo.hh 
+            io/FileIo.hh
             io/LocalIo.cc                  io/LocalIo.hh
-            io/KineticIo.cc                io/KineticIo.hh
-            io/KineticChunk.cc             io/KineticChunk.hh
-            io/KineticClusterMap.cc          io/KineticClusterMap.hh
-            io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
+            ${KINETICIO_SRC}               ${KINETICIO_HDR}
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -89,7 +97,7 @@ target_link_libraries(  EosFstIo-Static
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}                  
 )
 
@@ -97,10 +105,7 @@ add_library( EosFstIo SHARED
                 io/FileIoPlugin.hh             io/FileIoPlugin.cc
                 io/FileIo.hh 
                 io/LocalIo.cc                  io/LocalIo.hh
-                io/KineticIo.cc                io/KineticIo.hh
-                io/KineticChunk.cc             io/KineticChunk.hh
-                io/KineticClusterMap.cc          io/KineticClusterMap.hh
-                io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
+                ${KINETICIO_SRC}               ${KINETICIO_HDR}
                 io/RadosIo.cc                  io/RadosIo.hh
                 io/XrdIo.cc                    io/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -132,7 +137,7 @@ target_link_libraries(  EosFstIo
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
 
@@ -162,10 +167,7 @@ add_library(XrdEosFst SHARED
             io/FileIoPlugin.hh
             io/FileIo.hh 
             io/LocalIo.cc                  io/LocalIo.hh
-            io/KineticIo.cc                io/KineticIo.hh
-            io/KineticChunk.cc             io/KineticChunk.hh
-            io/KineticClusterMap.cc          io/KineticClusterMap.hh
-            io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
+            ${KINETICIO_SRC}               ${KINETICIO_HDR}
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -199,7 +201,7 @@ target_link_libraries(  XrdEosFst
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
 else (CLIENT)
@@ -228,10 +230,7 @@ add_library(XrdEosFst MODULE
             io/FileIoPlugin.hh
             io/FileIo.hh 
             io/LocalIo.cc                  io/LocalIo.hh
-            io/KineticIo.cc                io/KineticIo.hh
-            io/KineticChunk.cc             io/KineticChunk.hh
-            io/KineticClusterMap.cc          io/KineticClusterMap.hh
-            io/KineticSingletonCluster.cc  io/KineticSingletonCluster.hh
+            ${KINETICIO_SRC}               ${KINETICIO_HDR}
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -265,7 +264,7 @@ target_link_libraries(  XrdEosFst
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
-                        ${RT_LIBRARIES}         ${KINETIC_LIBRARIES}
+                        ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
 endif (CLIENT)
@@ -327,7 +326,7 @@ set_target_properties( eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1 )
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${KINETIC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${KINETICIO_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
 
 if (MacOSX)
@@ -380,5 +379,3 @@ install( TARGETS EosFstOss XrdEosFst eoscp
          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
 )
 endif (MacOSX)
-
-add_subdirectory(tests)

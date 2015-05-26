@@ -101,6 +101,7 @@ find_package(ProtocolBuffers)
 find_package(leveldb)
 find_package(CPPUnit)
 find_package(microhttpd)
+find_package(kineticio)
 if(MacOSX)
 find_package(fuse REQUIRED)
 else(MacOSX)
@@ -111,18 +112,6 @@ find_package(httpd)
 find_package(apr)
 endif (CLIENT)
 endif (NOT DEFINED PACKAGEONLY)
-
-find_library(JSONC_LIBRARIES json-c)
-find_path(JSONC_INCLUDE_DIR json-c/json.h)
-
-find_library(GLOG_LIBRARIES glog)
-find_library(GFLAGS_LIBRARIES gflags)
-find_library(KINETIC_LIBRARY kinetic_client)
-find_path(KINETIC_INCLUDE_DIR kinetic/kinetic.h)
-set(KINETIC_LIBRARIES ${KINETIC_LIBRARY}
-    ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} 
-    ${PROTOBUF_LIBRARIES} ${UUID_LIBRARIES}
-    ${OPENSSL_LIBRARIES})
 
 ################################################################################
 # Check for Gcc >=4.4
