@@ -615,7 +615,7 @@ class ArchiveFile(object):
             url = client.URL(dst.encode("utf-8"))
             # Get a list which contains:
             # ['relative_path', 'd', number_containers, number_files]
-            info = get_entry_info(url, dentry[1], tags, True)
+            info = get_entry_info(url, dentry[1], tags, is_dir=True)
             self.logger.info("Info is: {0}".format(info))
 
             if int(info[2]) == 0 and int(info[3]) == 0:
