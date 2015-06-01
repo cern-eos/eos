@@ -38,6 +38,8 @@ set(
   interface/IContainerMDSvc.hh
   interface/IFileMD.hh
   interface/IContainerMD.hh
+  interface/IChLogContainerMDSvc.hh
+  interface/IChLogFileMDSvc.hh
 
   # Namespace utils
   utils/DataHelper.cc

@@ -95,33 +95,32 @@ namespace eos
       //------------------------------------------------------------------------
       //! Initialize the view
       //------------------------------------------------------------------------
-      virtual void initialize() throw( MDException );
+      virtual void initialize();
 
-      virtual void initialize1() throw( MDException );// phase 1 - load & setup container
-      virtual void initialize2() throw( MDException );// phase 2 - load files
-      virtual void initialize3() throw( MDException );// phase 3 - register files in container
+      virtual void initialize1();// phase 1 - load & setup container
+      virtual void initialize2();// phase 2 - load files
+      virtual void initialize3();// phase 3 - register files in container
 
       //------------------------------------------------------------------------
       //! Finalize the view
       //------------------------------------------------------------------------
-      virtual void finalize() throw( MDException );
+      virtual void finalize();
 
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual IFileMD *getFile( const std::string &uri ) throw( MDException );
+      virtual IFileMD *getFile( const std::string &uri );
 
       //------------------------------------------------------------------------
       //! Create a file for given uri
       //------------------------------------------------------------------------
       virtual IFileMD *createFile( const std::string &uri,
-                                  uid_t uid = 0, gid_t gid = 0 )
-        throw( MDException );
+                                  uid_t uid = 0, gid_t gid = 0 );
 
       //------------------------------------------------------------------------
       //! Update file store
       //------------------------------------------------------------------------
-      virtual void updateFileStore( IFileMD *file ) throw( MDException )
+      virtual void updateFileStore( IFileMD *file )
       {
         pFileSvc->updateStore( file );
       }
@@ -129,32 +128,28 @@ namespace eos
       //------------------------------------------------------------------------
       //! Unlink the file
       //------------------------------------------------------------------------
-      virtual void unlinkFile( const std::string &uri )
-        throw( MDException );
+      virtual void unlinkFile( const std::string &uri );
 
       //------------------------------------------------------------------------
       //! Remove the file
       //------------------------------------------------------------------------
-      virtual void removeFile( IFileMD *file ) throw( MDException );
+      virtual void removeFile( IFileMD *file );
 
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual IContainerMD *getContainer( const std::string &uri )
-        throw( MDException );
+      virtual IContainerMD *getContainer( const std::string &uri );
 
       //------------------------------------------------------------------------
       //! Create a container (directory)
       //------------------------------------------------------------------------
       virtual IContainerMD *createContainer( const std::string &uri,
-                                            bool createParents = false )
-        throw( MDException );
+                                            bool createParents = false );
 
       //------------------------------------------------------------------------
       //! Update container store
       //------------------------------------------------------------------------
       virtual void updateContainerStore( IContainerMD *container )
-        throw( MDException )
       {
         pContainerSvc->updateStore( container );
       }
@@ -163,39 +158,33 @@ namespace eos
       //! Remove a container (directory)
       //------------------------------------------------------------------------
       virtual void removeContainer( const std::string &uri,
-                                    bool recursive = false )
-        throw( MDException );
+                                    bool recursive = false );
 
       //------------------------------------------------------------------------
       //! Get uri for the container
       //------------------------------------------------------------------------
-      virtual std::string getUri( const IContainerMD *container ) const
-        throw( MDException );
+      virtual std::string getUri( const IContainerMD *container ) const;
 
       //------------------------------------------------------------------------
       //! Get uri for the file
       //------------------------------------------------------------------------
-      virtual std::string getUri( const IFileMD *file ) const
-        throw( MDException );
+      virtual std::string getUri( const IFileMD *file ) const;
 
       //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
       virtual IQuotaNode *getQuotaNode( const IContainerMD *container,
-                                        bool               search = true )
-        throw( MDException );
+                                        bool               search = true );
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
       //------------------------------------------------------------------------
-      virtual IQuotaNode *registerQuotaNode( IContainerMD *container )
-        throw( MDException );
+      virtual IQuotaNode *registerQuotaNode( IContainerMD *container );
 
       //------------------------------------------------------------------------
       //! Remove the quota node
       //------------------------------------------------------------------------
-      virtual void removeQuotaNode( IContainerMD *container )
-        throw( MDException );
+      virtual void removeQuotaNode( IContainerMD *container );
 
       //------------------------------------------------------------------------
       //! Get the quota stats placeholder
@@ -218,14 +207,12 @@ namespace eos
       //! Rename container
       //------------------------------------------------------------------------
       virtual void renameContainer( IContainerMD *container,
-                                    const std::string &newName )
-        throw( MDException );
+                                    const std::string &newName );
 
       //------------------------------------------------------------------------
       //! Rename file
       //------------------------------------------------------------------------
-      virtual void renameFile( IFileMD *file, const std::string &newName )
-        throw( MDException );
+      virtual void renameFile( IFileMD *file, const std::string &newName );
 
     private:
       IContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,

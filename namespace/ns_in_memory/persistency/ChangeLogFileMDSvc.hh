@@ -25,7 +25,9 @@
 #define EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
 
 #include "namespace/MDException.hh"
+#include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IChLogFileMDSvc.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 
@@ -33,312 +35,316 @@
 #include <google/dense_hash_map>
 #include <list>
 
-namespace eos
+EOSNSNAMESPACE_BEGIN
+
+class LockHandler;
+class ChangeLogContainerMDSvc;
+
+//------------------------------------------------------------------------------
+//! Change log based FileMD service
+//------------------------------------------------------------------------------
+class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
 {
-  class LockHandler;
-  class ChangeLogContainerMDSvc;
-
+  friend class FileMDFollower;
+ public:
   //----------------------------------------------------------------------------
-  //! Change log based FileMD service
+  //! Constructor
   //----------------------------------------------------------------------------
-  class ChangeLogFileMDSvc: public IFileMDSvc
+  ChangeLogFileMDSvc():
+      pFirstFreeId(1), pChangeLog(0), pSlaveLock(0),
+      pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
+      pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0)
   {
-    friend class FileMDFollower;
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      ChangeLogFileMDSvc():
-        pFirstFreeId( 1 ), pChangeLog( 0 ), pSlaveLock( 0 ),
-        pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0)
-      {
-        pIdMap.set_deleted_key( 0 );
-        pIdMap.set_empty_key( 0xffffffffffffffffll );
-        pIdMap.resize(1000000);
-        pChangeLog = new ChangeLogFile;
-	pthread_mutex_init(&pFollowStartMutex,0);
-      }
+    pIdMap.set_deleted_key(0);
+    pIdMap.set_empty_key(0xffffffffffffffffll);
+    pIdMap.resize(1000000);
+    pChangeLog = new ChangeLogFile;
+    pthread_mutex_init(&pFollowStartMutex, 0);
+  }
 
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~ChangeLogFileMDSvc()
-      {
-        delete pChangeLog;
-      }
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~ChangeLogFileMDSvc()
+  {
+    delete pChangeLog;
+  }
 
-      //------------------------------------------------------------------------
-      //! Initizlize the file service
-      //------------------------------------------------------------------------
-      virtual void initialize() throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Initizlize the file service
+  //----------------------------------------------------------------------------
+  virtual void initialize();
 
-      //------------------------------------------------------------------------
-      //! Make a transition from slave to master
-      //------------------------------------------------------------------------
-      virtual void slave2Master( std::map<std::string, std::string> &config )
-        throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Make a transition from slave to master
+  //----------------------------------------------------------------------------
+  virtual void slave2Master(std::map<std::string, std::string>& config);
 
-      //------------------------------------------------------------------------
-      //! Switch the namespace to read-only mode
-      //------------------------------------------------------------------------
-      virtual void makeReadOnly()
-        throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Switch the namespace to read-only mode
+  //----------------------------------------------------------------------------
+  virtual void makeReadOnly();
 
-      //------------------------------------------------------------------------
-      //! Configure the file service
-      //------------------------------------------------------------------------
-      virtual void configure( std::map<std::string, std::string> &config )
-        throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Configure the file service
+  //----------------------------------------------------------------------------
+  virtual void configure(std::map<std::string, std::string>& config);
 
-      //------------------------------------------------------------------------
-      //! Finalize the file service
-      //------------------------------------------------------------------------
-      virtual void finalize() throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Finalize the file service
+  //----------------------------------------------------------------------------
+  virtual void finalize();
 
-      //------------------------------------------------------------------------
-      //! Get the file metadata information for the given file ID
-      //------------------------------------------------------------------------
-      virtual IFileMD *getFileMD( IFileMD::id_t id ) throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Get the file metadata information for the given file ID
+  //----------------------------------------------------------------------------
+  virtual IFileMD* getFileMD(IFileMD::id_t id);
 
-      //------------------------------------------------------------------------
-      //! Create new file metadata object with an assigned id
-      //------------------------------------------------------------------------
-      virtual IFileMD *createFile() throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Create new file metadata object with an assigned id
+  //----------------------------------------------------------------------------
+  virtual IFileMD* createFile();
 
-      //------------------------------------------------------------------------
-      //! Update the file metadata in the backing store after the FileMD object
-      //! has been changed
-      //------------------------------------------------------------------------
-      virtual void updateStore( IFileMD *obj ) throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Update the file metadata in the backing store after the FileMD object
+  //! has been changed
+  //----------------------------------------------------------------------------
+  virtual void updateStore(IFileMD* obj);
 
-      //------------------------------------------------------------------------
-      //! Remove object from the store
-      //------------------------------------------------------------------------
-      virtual void removeFile( IFileMD *obj ) throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Remove object from the store
+  //----------------------------------------------------------------------------
+  virtual void removeFile(IFileMD* obj);
 
-      //------------------------------------------------------------------------
-      //! Remove object from the store
-      //------------------------------------------------------------------------
-      virtual void removeFile( IFileMD::id_t fileId ) throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Remove object from the store
+  //----------------------------------------------------------------------------
+  virtual void removeFile(IFileMD::id_t fileId);
 
-      //------------------------------------------------------------------------
-      //! Get number of files
-      //------------------------------------------------------------------------
-      virtual uint64_t getNumFiles() const
-      {
-        return pIdMap.size();
-      }
+  //----------------------------------------------------------------------------
+  //! Get number of files
+  //----------------------------------------------------------------------------
+  virtual uint64_t getNumFiles() const
+  {
+    return pIdMap.size();
+  }
 
-      //------------------------------------------------------------------------
-      //! Add file listener that will be notified about all of the changes in
-      //! the store
-      //------------------------------------------------------------------------
-      virtual void addChangeListener( IFileMDChangeListener *listener );
+  //----------------------------------------------------------------------------
+  //! Add file listener that will be notified about all of the changes in
+  //! the store
+  //----------------------------------------------------------------------------
+  virtual void addChangeListener(IFileMDChangeListener* listener);
 
-      //------------------------------------------------------------------------
-      //! Visit all the files
-      //------------------------------------------------------------------------
-      virtual void visit( IFileVisitor *visitor );
+  //----------------------------------------------------------------------------
+  //! Visit all the files
+  //----------------------------------------------------------------------------
+  virtual void visit(IFileVisitor* visitor);
 
-      //------------------------------------------------------------------------
-      //! Notify the listeners about the change
-      //------------------------------------------------------------------------
-      virtual void notifyListeners( IFileMDChangeListener::Event *event )
-      {
-        ListenerList::iterator it;
-        for( it = pListeners.begin(); it != pListeners.end(); ++it )
-          (*it)->fileMDChanged( event );
-      }
+  //----------------------------------------------------------------------------
+  //! Notify the listeners about the change
+  //----------------------------------------------------------------------------
+  virtual void notifyListeners(IFileMDChangeListener::Event* event)
+  {
+    ListenerList::iterator it;
 
-      //------------------------------------------------------------------------
-      //! Prepare for online compacting.
-      //!
-      //! No external file metadata mutation may occur while the method is
-      //! running.
-      //!
-      //! @param  newLogFileName name for the compacted log file
-      //! @return                compacting information that needs to be passed
-      //!                        to other functions
-      //! @throw  MDException    preparation stage failed, cannot proceed with
-      //!                        compacting
-      //------------------------------------------------------------------------
-      void *compactPrepare( const std::string &newLogFileName ) const
-        throw( MDException );
+    for (it = pListeners.begin(); it != pListeners.end(); ++it)
+      (*it)->fileMDChanged(event);
+  }
 
-      //------------------------------------------------------------------------
-      //! Do the compacting.
-      //!
-      //! This does not access any of the in-memory structures so any external
-      //! metadata operations (including mutations) may happen while it is
-      //! running.
-      //!
-      //! @param  compactingData state information returned by CompactPrepare
-      //! @throw  MDException    failure, cannot proceed with CompactCommit
-      //------------------------------------------------------------------------
-      static void compact( void *&compactingData ) throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Prepare for online compacting.
+  //!
+  //! No external file metadata mutation may occur while the method is
+  //! running.
+  //!
+  //! @param  newLogFileName name for the compacted log file
+  //! @return                compacting information that needs to be passed
+  //!                        to other functions
+  //----------------------------------------------------------------------------
+  void* compactPrepare(const std::string& newLogFileName) const;
 
-      //------------------------------------------------------------------------
-      //! Commit the compacting infomrmation.
-      //!
-      //! Updates the metadata structures. Needs an exclusive lock on the
-      //! namespace. After successfull completion the new compacted
-      //! log will be used for all the new data
-      //!
-      //! @param compactingData state information obtained from CompactPrepare
-      //!                       and modified by Compact
-      //! @param autorepair     indicate that broken records should be skipped 
-      //! @throw MDExcetion     failure, results of the compacting are
-      //!                       are discarded, the old log will be used for
-      //------------------------------------------------------------------------
-      void compactCommit( void *compactingData, bool autorepair=false ) throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Do the compacting.
+  //!
+  //! This does not access any of the in-memory structures so any external
+  //! metadata operations (including mutations) may happen while it is
+  //! running.
+  //!
+  //! @param  compactingData state information returned by compactPrepare
+  //----------------------------------------------------------------------------
+  void compact(void*& compactingData);
 
-      //------------------------------------------------------------------------
-      //! Register slave lock
-      //------------------------------------------------------------------------
-      void setSlaveLock( LockHandler *slaveLock )
-      {
-        pSlaveLock = slaveLock;
-      }
+  //----------------------------------------------------------------------------
+  //! Commit the compacting infomrmation.
+  //!
+  //! Updates the metadata structures. Needs an exclusive lock on the
+  //! namespace. After successfull completion the new compacted
+  //! log will be used for all the new data
+  //!
+  //! @param compactingData state information obtained from CompactPrepare
+  //!                       and modified by Compact
+  //! @param autorepair     indicate that broken records should be skipped
+  //----------------------------------------------------------------------------
+  void compactCommit(void* compactingData, bool autorepair = false);
 
-      //------------------------------------------------------------------------
-      //! Get slave lock
-      //------------------------------------------------------------------------
-      LockHandler *getSlaveLock()
-      {
-        return pSlaveLock;
-      }
+  //----------------------------------------------------------------------------
+  //! Register slave lock
+  //----------------------------------------------------------------------------
+  void setSlaveLock(LockHandler* slaveLock)
+  {
+    pSlaveLock = slaveLock;
+  }
 
-      //------------------------------------------------------------------------
-      //! Start the slave
-      //------------------------------------------------------------------------
-      void startSlave() throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Get slave lock
+  //----------------------------------------------------------------------------
+  LockHandler* getSlaveLock()
+  {
+    return pSlaveLock;
+  }
 
-      //------------------------------------------------------------------------
-      //! Stop the slave mode
-      //------------------------------------------------------------------------
-      void stopSlave() throw( MDException );
+  //----------------------------------------------------------------------------
+  //! Start the slave
+  //----------------------------------------------------------------------------
+  void startSlave();
 
-      //------------------------------------------------------------------------
-      //! Set container service
-      //------------------------------------------------------------------------
-      void setContainerService( ChangeLogContainerMDSvc *contSvc )
-      {
-        pContSvc = contSvc;
-      }
+  //----------------------------------------------------------------------------
+  //! Stop the slave mode
+  //----------------------------------------------------------------------------
+  void stopSlave();
 
-      //------------------------------------------------------------------------
-      //! Get the change log
-      //------------------------------------------------------------------------
-      ChangeLogFile *getChangeLog()
-      {
-        return pChangeLog;
-      }
+  //----------------------------------------------------------------------------
+  //! Set container service
+  //!
+  //! @param cont_svc container service
+  //----------------------------------------------------------------------------
+  void setContainerService(IChLogContainerMDSvc* cont_svc);
 
-      //------------------------------------------------------------------------
-      //! Get the following offset
-      //------------------------------------------------------------------------
-      uint64_t getFollowOffset()
-      {
-	uint64_t lFollowStart;
-	pthread_mutex_lock(&pFollowStartMutex);
-	lFollowStart = pFollowStart;
-        pthread_mutex_unlock(&pFollowStartMutex);
-	return lFollowStart;
-      }
+  //----------------------------------------------------------------------------
+  //! Get the change log
+  //----------------------------------------------------------------------------
+  ChangeLogFile* getChangeLog()
+  {
+    return pChangeLog;
+  }
 
-      //------------------------------------------------------------------------
-      //! Set the following offset
-      //------------------------------------------------------------------------
-      void setFollowOffset(uint64_t offset) 
-      {
-	pthread_mutex_lock(&pFollowStartMutex);
-        pFollowStart = offset;
-        pthread_mutex_unlock(&pFollowStartMutex);
-      }
+  //----------------------------------------------------------------------------
+  //! Get the following offset
+  //----------------------------------------------------------------------------
+  uint64_t getFollowOffset()
+  {
+    uint64_t lFollowStart;
+    pthread_mutex_lock(&pFollowStartMutex);
+    lFollowStart = pFollowStart;
+    pthread_mutex_unlock(&pFollowStartMutex);
+    return lFollowStart;
+  }
 
-      //------------------------------------------------------------------------
-      //! Get the following poll interval
-      //------------------------------------------------------------------------
-      uint64_t getFollowPollInterval() const
-      {
-        return pSlavePoll;
-      }
+  //----------------------------------------------------------------------------
+  //! Set the following offset
+  //----------------------------------------------------------------------------
+  void setFollowOffset(uint64_t offset)
+  {
+    pthread_mutex_lock(&pFollowStartMutex);
+    pFollowStart = offset;
+    pthread_mutex_unlock(&pFollowStartMutex);
+  }
 
-      //------------------------------------------------------------------------
-      //! Set the QuotaStats object for the follower
-      //------------------------------------------------------------------------
-      void setQuotaStats( IQuotaStats *quotaStats)
-      {
-        pQuotaStats = quotaStats;
-      }
+  //----------------------------------------------------------------------------
+  //! Get the following poll interval
+  //----------------------------------------------------------------------------
+  uint64_t getFollowPollInterval() const
+  {
+    return pSlavePoll;
+  }
 
-    private:
-      //------------------------------------------------------------------------
-      // Placeholder for the record info
-      //------------------------------------------------------------------------
-      struct DataInfo
-      {
-        DataInfo(): logOffset(0), ptr(0), buffer(0) {} // for some reason needed by sparse_hash_map::erase
-        DataInfo( uint64_t logOffset, IFileMD *ptr )
-        {
-          this->logOffset = logOffset;
-          this->ptr       = ptr;
-          this->buffer    = 0;
-        }
-        uint64_t logOffset;
-        IFileMD* ptr;
-        Buffer*  buffer;
-      };
+  //----------------------------------------------------------------------------
+  //! Set the QuotaStats object for the follower
+  //!
+  //! @param quota_stats object implementing the IQuotaStats interface
+  //----------------------------------------------------------------------------
+  void setQuotaStats(IQuotaStats* quota_stats);
 
-      typedef google::dense_hash_map<IFileMD::id_t, DataInfo> IdMap;
-      typedef std::list<IFileMDChangeListener*>               ListenerList;
+  //----------------------------------------------------------------------------
+  //! Get changelog warning messages
+  //!
+  //! @return vector of warning messages
+  //----------------------------------------------------------------------------
+  std::vector<std::string> getWarningMessages();
 
-      //------------------------------------------------------------------------
-      // Changelog record scanner
-      //------------------------------------------------------------------------
-      class FileMDScanner: public ILogRecordScanner
-      {
-        public:
-          FileMDScanner( IdMap &idMap, bool slaveMode ):
-            pIdMap( idMap ), pLargestId( 0 ), pSlaveMode( slaveMode )
-          {}
-          virtual bool processRecord( uint64_t offset, char type,
-                                  const Buffer &buffer );
-          uint64_t getLargestId() const
-          {
-            return pLargestId;
-          }
-        private:
-          IdMap    &pIdMap;
-          uint64_t  pLargestId;
-          bool      pSlaveMode;
-      };
+  //----------------------------------------------------------------------------
+  //! Clear changelog warning messages
+  //----------------------------------------------------------------------------
+  void clearWarningMessages();
 
-      //------------------------------------------------------------------------
-      // Attach a broken file to lost+found
-      //------------------------------------------------------------------------
-      void attachBroken( const std::string &parent, IFileMD *file );
-
-      //------------------------------------------------------------------------
-      // Data
-      //------------------------------------------------------------------------
-      IFileMD::id_t      pFirstFreeId;
-      std::string        pChangeLogPath;
-      ChangeLogFile     *pChangeLog;
-      IdMap              pIdMap;
-      ListenerList       pListeners;
-      pthread_t          pFollowerThread;
-      LockHandler       *pSlaveLock;
-      bool               pSlaveMode;
-      bool               pSlaveStarted;
-      int32_t            pSlavePoll;
-      pthread_mutex_t    pFollowStartMutex;
-      uint64_t           pFollowStart;
-      ChangeLogContainerMDSvc *pContSvc;
-      IQuotaStats       *pQuotaStats;
-      bool               pAutoRepair;
+ private:
+  //----------------------------------------------------------------------------
+  // Placeholder for the record info
+  //----------------------------------------------------------------------------
+  struct DataInfo
+  {
+    DataInfo(): logOffset(0), ptr(0),
+                buffer(0) {} // for some reason needed by sparse_hash_map::erase
+    DataInfo(uint64_t logOffset, IFileMD* ptr)
+    {
+      this->logOffset = logOffset;
+      this->ptr       = ptr;
+      this->buffer    = 0;
+    }
+    uint64_t logOffset;
+    IFileMD* ptr;
+    Buffer*  buffer;
   };
-}
+
+  typedef google::dense_hash_map<IFileMD::id_t, DataInfo> IdMap;
+  typedef std::list<IFileMDChangeListener*>               ListenerList;
+
+  //----------------------------------------------------------------------------
+  // Changelog record scanner
+  //----------------------------------------------------------------------------
+  class FileMDScanner: public ILogRecordScanner
+  {
+   public:
+    FileMDScanner(IdMap& idMap, bool slaveMode):
+        pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+    {}
+    virtual bool processRecord(uint64_t offset, char type,
+                               const Buffer& buffer);
+    uint64_t getLargestId() const
+    {
+      return pLargestId;
+    }
+   private:
+    IdMap&    pIdMap;
+    uint64_t  pLargestId;
+    bool      pSlaveMode;
+  };
+
+  //----------------------------------------------------------------------------
+  // Attach a broken file to lost+found
+  //----------------------------------------------------------------------------
+  void attachBroken(const std::string& parent, IFileMD* file);
+
+  //----------------------------------------------------------------------------
+  // Data
+  //----------------------------------------------------------------------------
+  IFileMD::id_t      pFirstFreeId;
+  std::string        pChangeLogPath;
+  ChangeLogFile*     pChangeLog;
+  IdMap              pIdMap;
+  ListenerList       pListeners;
+  pthread_t          pFollowerThread;
+  LockHandler*       pSlaveLock;
+  bool               pSlaveMode;
+  bool               pSlaveStarted;
+  int32_t            pSlavePoll;
+  pthread_mutex_t    pFollowStartMutex;
+  uint64_t           pFollowStart;
+  ChangeLogContainerMDSvc* pContSvc;
+  IQuotaStats*       pQuotaStats;
+  bool               pAutoRepair;
+};
+
+EOSNSNAMESPACE_END
 
 #endif // EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH

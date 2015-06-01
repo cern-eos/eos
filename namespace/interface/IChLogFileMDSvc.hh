@@ -1,6 +1,11 @@
+//------------------------------------------------------------------------------
+//! @file IChLogFileMDSvc.hh
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -16,120 +21,123 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   The filesystem view over the stored files
-//------------------------------------------------------------------------------
+#ifndef __EOS_NS_ICHLOGFILEMDSVC_HH__
+#define __EOS_NS_ICHLOGFILEMDSVC_HH__
 
-#ifndef EOS_NS_FILESYSTEM_VIEW_HH
-#define EOS_NS_FILESYSTEM_VIEW_HH
-
-#include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
-#include "namespace/interface/IFsView.hh"
-#include <utility>
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// File System view implementation of a in-memeory namespace
+//! Change log container metadata service interface
 //------------------------------------------------------------------------------
-class FileSystemView: public IFsView
+
+//! Forward declaration
+class LockHandler;
+class IChLogContainerMDSvc;
+
+class IChLogFileMDSvc
 {
  public:
 
   //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  FileSystemView();
-
-  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView() {}
-
-
-  //----------------------------------------------------------------------------
-  //! Notify me about the changes in the main view
-  //----------------------------------------------------------------------------
-  virtual void fileMDChanged(IFileMDChangeListener::Event* e);
+  virtual ~IChLogFileMDSvc() {}
 
   //----------------------------------------------------------------------------
-  //! Notify me about files when recovering from changelog
+  //! Start slave
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj);
+  virtual void startSlave() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get a list of files registered in given fs
+  //! Stop slave
   //----------------------------------------------------------------------------
-  std::pair<FileIterator, FileIterator> getFiles(
-      IFileMD::location_t location);
+  virtual void stopSlave() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get a list of unlinked but not deleted files
+  //! Do the compacting.
+  //!
+  //! This does not access any of the in-memory structures so any external
+  //! metadata operations (including mutations) may happen while it is
+  //! running.
+  //!
+  //! @param  compactingData state information returned by compactPrepare
   //----------------------------------------------------------------------------
-  std::pair<FileIterator, FileIterator> getUnlinkedFiles(
-      IFileMD::location_t location);
+  virtual void compact(void*& compactingData) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get a list of unlinked but not deleted files
+  //! Prepare for online compacting.
+  //!
+  //! No external file metadata mutation may occur while the method is
+  //! running.
+  //!
+  //! @param  newLogFileName name for the compacted log file
+  //! @return                compacting information that needs to be passed
+  //!                        to other functions
   //----------------------------------------------------------------------------
-  std::pair<FileIterator, FileIterator> getNoReplicaFiles();
+  virtual void* compactPrepare(const std::string& ocdir) const = 0;
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of files
-  //! BEWARE: any replica change may invalidate iterators
+  //! Commit the compacting information.
+  //!
+  //! Updates the metadata structures. Needs an exclusive lock on the
+  //! namespace. After successfull completion the new compacted
+  //! log will be used for all the new data
+  //!
+  //! @param compactingData state information obtained from CompactPrepare
+  //!                       and modified by Compact
+  //! @param autorepair     indicates to skip broken records
   //----------------------------------------------------------------------------
-  const FileList& getFileList(IFileMD::location_t location);
+  virtual void compactCommit(void* comp_data, bool autorepair = false) = 0;
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of unlinked files
-  //! BEWARE: any replica change may invalidate iterators
+  //! Make transition from slave to master
+  //!
+  //! @param conf_settings map of configuration settings
   //----------------------------------------------------------------------------
-  const FileList& getUnlinkedFileList(IFileMD::location_t location);
+  virtual void slave2Master(std::map<std::string, std::string>&
+                            conf_settings) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get number of file systems
+  //! Switch the namespace to read-only mode
   //----------------------------------------------------------------------------
-  size_t getNumFileSystems() const
-  {
-    return pFiles.size();
-  }
+  virtual void makeReadOnly() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
+  //! Register slave lock
+  //!
+  //! @param slave_lock slave lock object
   //----------------------------------------------------------------------------
-  FileList& getNoReplicasFileList()
-  {
-    return pNoReplicas;
-  }
+  virtual void setSlaveLock(LockHandler* slave_lock) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
+  //! Get changelog warning messages
+  //!
+  //! @return vector of warning messages
   //----------------------------------------------------------------------------
-  const FileList& getNoReplicasFileList() const
-  {
-    return pNoReplicas;
-  }
+  virtual std::vector<std::string> getWarningMessages() = 0;
 
   //----------------------------------------------------------------------------
-  //! Initizalie
+  //! Clear changelog warning messages
   //----------------------------------------------------------------------------
-  void initialize();
+  virtual void clearWarningMessages() = 0;
 
   //----------------------------------------------------------------------------
-  //! Finalize
+  //! Get the following offset
+  //!
+  //! @return offset value
   //----------------------------------------------------------------------------
-  void finalize();
+  virtual uint64_t getFollowOffset() = 0;
 
- private:
-  std::vector<FileList> pFiles;
-  std::vector<FileList> pUnlinkedFiles;
-  FileList              pNoReplicas;
+  //----------------------------------------------------------------------------
+  //! Set container service
+  //!
+  //! @param cont_svc container service
+  //----------------------------------------------------------------------------
+  virtual void setContainerService(IChLogContainerMDSvc* cont_svc) = 0;
 };
 
 EOSNSNAMESPACE_END
 
-#endif // EOS_NS_FILESYSTEM_VIEW_HH
+#endif // __EOS_NS_ICHLOGFILEMDSVC_HH__

@@ -85,7 +85,7 @@ namespace eos
   // Open the log file
   //----------------------------------------------------------------------------
   void ChangeLogFile::open( const std::string &name, int flags,
-                            uint16_t contentFlag ) throw( MDException )
+                            uint16_t contentFlag )
   {
     //--------------------------------------------------------------------------
     // Check if the file is open already
@@ -327,7 +327,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Sync the buffers to disk
   //----------------------------------------------------------------------------
-  void ChangeLogFile::sync() throw( MDException )
+  void ChangeLogFile::sync()
   {
     if( !pIsOpen )
       return;
@@ -345,7 +345,6 @@ namespace eos
   // Store the record in the log
   //----------------------------------------------------------------------------
   uint64_t ChangeLogFile::storeRecord( char type, Buffer &record )
-    throw( MDException )
   {
     if( !pIsOpen )
     {
@@ -413,7 +412,6 @@ namespace eos
   // Read the record at given offset
   //----------------------------------------------------------------------------
   uint8_t ChangeLogFile::readRecord( uint64_t offset, Buffer &record )
-    throw( MDException)
   {
     if( !pIsOpen )
     {
@@ -490,7 +488,6 @@ namespace eos
   // Scan all the records in the changelog file
   //----------------------------------------------------------------------------
   uint64_t ChangeLogFile::scanAllRecords( ILogRecordScanner *scanner, bool autorepair )
-    throw( MDException )
   {
     return scanAllRecordsAtOffset( scanner, getFirstOffset(), autorepair );
   }
@@ -502,7 +499,6 @@ namespace eos
   uint64_t ChangeLogFile::scanAllRecordsAtOffset( ILogRecordScanner *scanner,
                                                   uint64_t           startOffset,
 						  bool               autorepair )
-    throw( MDException )
   {
     if( !pIsOpen )
     {
@@ -610,7 +606,6 @@ namespace eos
   //----------------------------------------------------------------------------
   uint64_t ChangeLogFile::follow( ILogRecordScanner *scanner,
                                   uint64_t           startOffset )
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Check if the file is open
@@ -764,7 +759,7 @@ namespace eos
   // Wait for a modification event in a changelog file with inotify or if not
   // available wait <polltime> micro seconds
   //----------------------------------------------------------------------------
-  void ChangeLogFile::wait( uint32_t polltime ) throw( MDException )
+  void ChangeLogFile::wait( uint32_t polltime )
   {
     //--------------------------------------------------------------------------
     // We're on linux so we can try inotify if it initialized right.
@@ -1003,7 +998,7 @@ namespace eos
   void ChangeLogFile::repair( const std::string  &filename,
                               const std::string  &newFilename,
                               LogRepairStats     &stats,
-                              ILogRepairFeedback *feedback ) throw( MDException )
+                              ILogRepairFeedback *feedback )
   {
     time_t startTime = time(0);
 
@@ -1109,7 +1104,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Set the user flags
   //----------------------------------------------------------------------------
-  void ChangeLogFile::setUserFlags( uint8_t flags ) throw( MDException )
+  void ChangeLogFile::setUserFlags( uint8_t flags )
   {
     //--------------------------------------------------------------------------
     // Check if the file is open
@@ -1143,7 +1138,7 @@ namespace eos
   //------------------------------------------------------------------------
   //! Add compaction mark
   //------------------------------------------------------------------------
-  void ChangeLogFile::addCompactionMark( ) throw( MDException )
+  void ChangeLogFile::addCompactionMark()
   {
     //--------------------------------------------------------------------------
     // Check if the file is open

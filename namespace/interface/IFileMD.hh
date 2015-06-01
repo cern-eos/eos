@@ -288,12 +288,12 @@ class IFileMD
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) throw(MDException) = 0;
+  virtual void serialize(Buffer& buffer) = 0;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  virtual void deserialize(const Buffer& buffer) throw(MDException) = 0;
+  virtual void deserialize(const Buffer& buffer) = 0;
 
   //----------------------------------------------------------------------------
   //! Set the FileMDSvc object

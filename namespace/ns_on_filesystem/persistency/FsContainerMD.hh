@@ -184,14 +184,13 @@ class FsContainerMD: public IContainerMD
     //--------------------------------------------------------------------------
     //! Get the attribute
     //--------------------------------------------------------------------------
-    std::string getAttribute(const std::string& name) const
-        throw(MDException) = 0;
+    std::string getAttribute(const std::string& name) const = 0;
 
     //--------------------------------------------------------------------------
     //! Add extended attribute
     //--------------------------------------------------------------------------
     void setAttribute(const std::string& name,
-                              const std::string& value) = 0;
+                      const std::string& value) = 0;
 
     //--------------------------------------------------------------------------
     //! Remove attribute
@@ -238,12 +237,12 @@ class FsContainerMD: public IContainerMD
     //--------------------------------------------------------------------------
     //! Serialize the object to a buffer
     //--------------------------------------------------------------------------
-    void serialize(Buffer& buffer) throw(MDException) = 0;
+    void serialize(Buffer& buffer) = 0;
 
     //--------------------------------------------------------------------------
     //! Deserialize the class to a buffer
     //--------------------------------------------------------------------------
-    void deserialize(Buffer& buffer) throw(MDException) = 0;
+    void deserialize(Buffer& buffer) = 0;
 
     //--------------------------------------------------------------------------
     //! Get pointer to first subcontainer. *MUST* be used in conjunction with

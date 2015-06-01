@@ -175,7 +175,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(Buffer& buffer) throw(MDException)
+ContainerMD::serialize(Buffer& buffer)
 {
   buffer.putData(&pId,       sizeof(pId));
   buffer.putData(&pParentId, sizeof(pParentId));
@@ -207,7 +207,7 @@ ContainerMD::serialize(Buffer& buffer) throw(MDException)
 // Deserialize the class to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::deserialize(Buffer& buffer) throw(MDException)
+ContainerMD::deserialize(Buffer& buffer)
 {
   uint16_t offset = 0;
   offset = buffer.grabData(offset, &pId,       sizeof(pId));

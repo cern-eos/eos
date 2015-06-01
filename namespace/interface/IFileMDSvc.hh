@@ -31,6 +31,11 @@
 #include <string>
 
 EOSNSNAMESPACE_BEGIN
+
+//! Forward declration
+class IContainerMDSvc;
+class IQuotaStats;
+
 //----------------------------------------------------------------------------
 //! Interface for a listener that is notified about all of the
 //! actions performed in a IFileMDSvc
@@ -111,45 +116,44 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Initialize the file service
   //------------------------------------------------------------------------
-  virtual void initialize() throw(MDException) = 0;
+  virtual void initialize() = 0;
 
   //------------------------------------------------------------------------
   //! Configure the file service
   //------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config)
-      throw(MDException) = 0;
+  virtual void configure(std::map<std::string, std::string>& config) = 0;
 
   //------------------------------------------------------------------------
   //! Finalize the file service
   //------------------------------------------------------------------------
-  virtual void finalize() throw(MDException) = 0;
+  virtual void finalize() = 0;
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //------------------------------------------------------------------------
-  virtual IFileMD* getFileMD(IFileMD::id_t id) throw(MDException) = 0;
+  virtual IFileMD* getFileMD(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual IFileMD* createFile() throw(MDException) = 0;
+  virtual IFileMD* createFile() = 0;
 
   //------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the IFileMD object
   //! has been changed
   //------------------------------------------------------------------------
-  virtual void updateStore(IFileMD* obj) throw(MDException) = 0;
+  virtual void updateStore(IFileMD* obj) = 0;
 
   //------------------------------------------------------------------------
   //! Remove object from the store
   //------------------------------------------------------------------------
-  virtual void removeFile(IFileMD* obj) throw(MDException) = 0;
+  virtual void removeFile(IFileMD* obj) = 0;
 
   //------------------------------------------------------------------------
   //! Remove object from the store
   //------------------------------------------------------------------------
-  virtual void removeFile(IFileMD::id_t fileId) throw(MDException) = 0;
+  virtual void removeFile(IFileMD::id_t fileId) = 0;
 
   //------------------------------------------------------------------------
   //! Get number of files
@@ -171,6 +175,19 @@ class IFileMDSvc
   //! Notify the listeners about the change
   //------------------------------------------------------------------------
   virtual void notifyListeners(IFileMDChangeListener::Event* event) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set the QuotaStats object for the follower
+  //!
+  //! @param quota_stats object implementing the IQuotaStats interface
+  //----------------------------------------------------------------------------
+  virtual void setQuotaStats(IQuotaStats* quota_stats) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set container service
+  //----------------------------------------------------------------------------
+  //virtual void setContainerService(IContainerMDSvc* cont_svc) = 0;
+
 };
 
 EOSNSNAMESPACE_END

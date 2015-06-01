@@ -114,7 +114,7 @@ namespace eos
       ChangeLogFile():
         pFd(-1), pInotifyFd(-1), pWatchFd(-1), pIsOpen( false ), pVersion( 0 ),
         pUserFlags(0), pSeqNumber( 0 ), pContentFlag( 0 ) {
-	pthread_mutex_init(&pWarningMessagesMutex,0);
+        pthread_mutex_init(&pWarningMessagesMutex,0);
       };
 
       //------------------------------------------------------------------------
@@ -132,7 +132,7 @@ namespace eos
       //!                    content
       //------------------------------------------------------------------------
       void open( const std::string &name, int flags = Create | Append,
-                 uint16_t contentFile = 0x0000 ) throw( MDException );
+                 uint16_t contentFile = 0x0000 );
 
       //------------------------------------------------------------------------
       //! Check if the changelog file is opened already
@@ -166,7 +166,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Sync the buffers to disk
       //------------------------------------------------------------------------
-      void sync() throw( MDException );
+      void sync();
 
       //------------------------------------------------------------------------
       //! Store the record in the log
@@ -177,19 +177,19 @@ namespace eos
       //!
       //! @return the offset in the log
       //------------------------------------------------------------------------
-      uint64_t storeRecord( char type, Buffer &record ) throw( MDException );
+      uint64_t storeRecord( char type, Buffer &record );
 
       //------------------------------------------------------------------------
       //! Read the record at given offset
       //------------------------------------------------------------------------
-      uint8_t readRecord( uint64_t offset, Buffer &record ) throw( MDException);
+      uint8_t readRecord( uint64_t offset, Buffer &record );
 
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file
       //!
       //! @return offset of the record following the last scanned record
       //------------------------------------------------------------------------
-      uint64_t scanAllRecords( ILogRecordScanner *scanner, bool autorepair=false ) throw( MDException );
+      uint64_t scanAllRecords( ILogRecordScanner *scanner, bool autorepair=false );
 
       //------------------------------------------------------------------------
       //! Scan all the records in the changelog file starting from a given
@@ -199,8 +199,7 @@ namespace eos
       //------------------------------------------------------------------------
       uint64_t scanAllRecordsAtOffset( ILogRecordScanner *scanner,
                                        uint64_t           startOffset,
-				       bool               autorepair=false )
-        throw( MDException );
+                                       bool               autorepair=false );
 
       //------------------------------------------------------------------------
       //! Follow the new records in a file starting at a given offset and
@@ -210,8 +209,7 @@ namespace eos
       //! @param startOffset offset to start at
       //! @return offset after the last successfully scanned record
       //------------------------------------------------------------------------
-      uint64_t follow( ILogRecordScanner *scanner, uint64_t startOffset )
-        throw( MDException );
+      uint64_t follow( ILogRecordScanner *scanner, uint64_t startOffset );
 
       //------------------------------------------------------------------------
       //! Wait for a change in the changelog file using INOTIFY,
@@ -220,7 +218,7 @@ namespace eos
       //!
       //! @param pollTime time to sleep if the inotify mechanism fails
       //------------------------------------------------------------------------
-      void wait( uint32_t polltime ) throw ( MDException );
+      void wait( uint32_t polltime );
 
       //------------------------------------------------------------------------
       //! Repair a changelog file
@@ -234,7 +232,7 @@ namespace eos
       static void repair( const std::string  &filename,
                           const std::string  &newFilename,
                           LogRepairStats     &stats,
-                          ILogRepairFeedback *feedback ) throw( MDException );
+                          ILogRepairFeedback *feedback );
 
       //------------------------------------------------------------------------
       //! Get the offset of the next record
@@ -263,12 +261,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! Set the user flags
       //------------------------------------------------------------------------
-      void setUserFlags( uint8_t flags ) throw( MDException );
+      void setUserFlags( uint8_t flags );
 
       //------------------------------------------------------------------------
       //! Add compaction mark
       //------------------------------------------------------------------------
-      void addCompactionMark( ) throw( MDException );
+      void addCompactionMark( );
 
       //------------------------------------------------------------------------
       // Find forward the next record magic
@@ -279,22 +277,22 @@ namespace eos
       // Add Warning Message
       //------------------------------------------------------------------------
       void addWarningMessage( std::string msg )
-      { 
-	pthread_mutex_lock(&pWarningMessagesMutex);
-	pWarningMessages.push_back(msg);
-	pthread_mutex_unlock(&pWarningMessagesMutex);
+      {
+        pthread_mutex_lock(&pWarningMessagesMutex);
+        pWarningMessages.push_back(msg);
+        pthread_mutex_unlock(&pWarningMessagesMutex);
       }
 
       //------------------------------------------------------------------------
       // Get Warning Messages
       //------------------------------------------------------------------------
       std::vector<std::string> getWarningMessages()
-      { 
-	std::vector<std::string> ret;
-	pthread_mutex_lock(&pWarningMessagesMutex);
-	ret = pWarningMessages;
-	pthread_mutex_unlock(&pWarningMessagesMutex);
-	return ret;
+      {
+        std::vector<std::string> ret;
+        pthread_mutex_lock(&pWarningMessagesMutex);
+        ret = pWarningMessages;
+        pthread_mutex_unlock(&pWarningMessagesMutex);
+        return ret;
       }
 
       //------------------------------------------------------------------------
@@ -302,9 +300,9 @@ namespace eos
       //------------------------------------------------------------------------
       void clearWarningMessages()
       {
-	pthread_mutex_lock(&pWarningMessagesMutex);
-	pWarningMessages.clear();
-	pthread_mutex_unlock(&pWarningMessagesMutex);
+        pthread_mutex_lock(&pWarningMessagesMutex);
+        pWarningMessages.clear();
+        pthread_mutex_unlock(&pWarningMessagesMutex);
       }
 
     private:

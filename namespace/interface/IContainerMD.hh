@@ -200,8 +200,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Get the attribute
   //----------------------------------------------------------------------------
-  virtual std::string getAttribute(const std::string& name) const
-      throw(MDException) = 0;
+  virtual std::string getAttribute(const std::string& name) const = 0;
 
   //----------------------------------------------------------------------------
   //! Add extended attribute
@@ -254,12 +253,12 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) throw(MDException) = 0;
+  virtual void serialize(Buffer& buffer) = 0;
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  virtual void deserialize(Buffer& buffer) throw(MDException) = 0;
+  virtual void deserialize(Buffer& buffer) = 0;
 
   //----------------------------------------------------------------------------
   //! Get pointer to first subcontainer. *MUST* be used in conjunction with

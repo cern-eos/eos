@@ -328,7 +328,6 @@ namespace eos
       //------------------------------------------------------------------------
       IQuotaNode *
       getQuotaNode (const IContainerMD *container)
-      throw ( MDException)
       {
         // Initial sanity check
         if (!container)
@@ -499,7 +498,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Initizlize the container service
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::initialize() throw( MDException )
+  void ChangeLogContainerMDSvc::initialize()
   {
     // Decide on how to open the change log
     int logOpenFlags = 0;
@@ -557,7 +556,6 @@ namespace eos
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::slave2Master(
             std::map<std::string, std::string> &config)
-  throw( MDException )
   {
     // Find the new changelog path
     std::map<std::string, std::string>::iterator it;
@@ -629,7 +627,6 @@ namespace eos
   //! Switch the namespace to read-only mode
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::makeReadOnly()
-    throw( MDException )
   {
     pChangeLog->close( ) ;
 
@@ -642,7 +639,6 @@ namespace eos
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::configure(
       std::map<std::string, std::string> &config )
-    throw( MDException )
   {
     // Configure the changelog
     std::map<std::string, std::string>::iterator it;
@@ -680,7 +676,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Finalize the container service
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::finalize() throw( MDException )
+  void ChangeLogContainerMDSvc::finalize()
   {
     pChangeLog->close();
     IdMap::iterator it;
@@ -693,7 +689,7 @@ namespace eos
   // Get the container metadata information
   //----------------------------------------------------------------------------
   IContainerMD *ChangeLogContainerMDSvc::getContainerMD( IContainerMD::id_t id )
-    throw( MDException )
+
   {
     IdMap::iterator it = pIdMap.find( id );
     if( it == pIdMap.end() )
@@ -708,7 +704,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a new container metadata object
   //----------------------------------------------------------------------------
-  IContainerMD *ChangeLogContainerMDSvc::createContainer() throw( MDException )
+  IContainerMD *ChangeLogContainerMDSvc::createContainer()
   {
     IContainerMD *cont = new ContainerMD( pFirstFreeId++ );
     pIdMap.insert( std::make_pair( cont->getId(), DataInfo( 0, cont ) ) );
@@ -719,7 +715,6 @@ namespace eos
   // Update the contaienr metadata in the backing store
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::updateStore( IContainerMD *obj )
-    throw( MDException )
   {
     // Find the object in the map
     IdMap::iterator it = pIdMap.find( obj->getId() );
@@ -743,7 +738,6 @@ namespace eos
   // Remove object from the store
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::removeContainer( IContainerMD *obj )
-    throw( MDException )
   {
     removeContainer( obj->getId() );
   }
@@ -752,7 +746,6 @@ namespace eos
   // Remove object from the store
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::removeContainer( IContainerMD::id_t containerId )
-    throw( MDException )
   {
     // Find the object in the map
     IdMap::iterator it = pIdMap.find( containerId );
@@ -787,7 +780,6 @@ namespace eos
   //----------------------------------------------------------------------------
   void *
   ChangeLogContainerMDSvc::compactPrepare (const std::string &newLogFileName) const
-    throw ( MDException)
   {
     // Try to open a new log file for writing
     ::ContainerCompactingData *data = new ::ContainerCompactingData();
@@ -816,7 +808,7 @@ namespace eos
   // Do the compacting.
   //----------------------------------------------------------------------------
   void
-  ChangeLogContainerMDSvc::compact (void *&compactingData) throw ( MDException)
+  ChangeLogContainerMDSvc::compact (void *&compactingData)
   {
     // Sort the records to avoid random seeks
     ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
@@ -855,7 +847,6 @@ namespace eos
   //----------------------------------------------------------------------------
   void
   ChangeLogContainerMDSvc::compactCommit (void *compactingData, bool autorepair)
-    throw ( MDException)
   {
     ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
     if (!data)
@@ -872,8 +863,8 @@ namespace eos
     {
       ::ContainerUpdateHandler updateHandler(updates, data->newLog);
       data->originalLog->scanAllRecordsAtOffset(&updateHandler,
-						data->newRecord,
-						autorepair);
+                                                data->newRecord,
+                                                autorepair);
     }
     catch (MDException &e)
     {
@@ -935,7 +926,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Start the slave
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::startSlave() throw( MDException )
+  void ChangeLogContainerMDSvc::startSlave()
   {
     if( !pSlaveMode )
     {
@@ -957,7 +948,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Stop the slave mode
   //----------------------------------------------------------------------------
-  void ChangeLogContainerMDSvc::stopSlave() throw( MDException )
+  void ChangeLogContainerMDSvc::stopSlave()
   {
     if( !pSlaveMode )
     {
@@ -1036,9 +1027,9 @@ namespace eos
   // Create container in parent
   //------------------------------------------------------------------------
   IContainerMD *ChangeLogContainerMDSvc::createInParent(
-                const std::string &name,
-                IContainerMD      *parent )
-                throw( MDException )
+      const std::string &name,
+      IContainerMD* parent )
+
   {
       IContainerMD *container = createContainer();
       container->setName( name );
@@ -1050,7 +1041,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get the lost+found container, create if necessary
   //----------------------------------------------------------------------------
-  IContainerMD *ChangeLogContainerMDSvc::getLostFound() throw( MDException )
+  IContainerMD *ChangeLogContainerMDSvc::getLostFound()
   {
     // Get root
     IContainerMD *root = 0;
@@ -1078,7 +1069,7 @@ namespace eos
   // Get the orphans container
   //----------------------------------------------------------------------------
   IContainerMD *ChangeLogContainerMDSvc::getLostFoundContainer(
-                const std::string &name ) throw( MDException )
+                const std::string &name )
   {
     IContainerMD *lostFound = getLostFound();
 
@@ -1147,5 +1138,24 @@ namespace eos
         return false;
     }
     return true;
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Get changelog warning messages
+  //----------------------------------------------------------------------------
+  std::vector<std::string>
+  ChangeLogContainerMDSvc::getWarningMessages()
+  {
+    return pChangeLog->getWarningMessages();
+  }
+
+  //----------------------------------------------------------------------------
+  // Clear changelog warning messages
+  //----------------------------------------------------------------------------
+  void
+  ChangeLogContainerMDSvc::clearWarningMessages()
+  {
+    pChangeLog->clearWarningMessages();
   }
 }

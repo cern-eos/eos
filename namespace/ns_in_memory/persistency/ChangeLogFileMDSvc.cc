@@ -28,6 +28,7 @@
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 
 #include <algorithm>
 #include <utility>
@@ -350,7 +351,6 @@ class FileMDFollower: public eos::ILogRecordScanner
     // Get quota node id concerning given container
     //------------------------------------------------------------------------
     IQuotaNode* getQuotaNode(const IContainerMD* container)
-    throw(MDException)
     {
       // Initial sanity check
       if (!container)
@@ -499,7 +499,7 @@ class FileMDFollower: public eos::ILogRecordScanner
     std::set<eos::IFileMD::id_t>  pDeleted;
     eos::ChangeLogFileMDSvc*      pFileSvc;
     eos::ChangeLogContainerMDSvc* pContSvc;
-    eos::IQuotaStats*              pQuotaStats;
+    eos::IQuotaStats*             pQuotaStats;
 };
 }
 
@@ -640,7 +640,7 @@ namespace eos
 //------------------------------------------------------------------------
 // Initizlize the file service
 //------------------------------------------------------------------------
-void ChangeLogFileMDSvc::initialize() throw(MDException)
+void ChangeLogFileMDSvc::initialize()
 {
   if (!pContSvc)
   {
@@ -741,7 +741,6 @@ void ChangeLogFileMDSvc::initialize() throw(MDException)
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::slave2Master(
   std::map<std::string, std::string>& config)
-throw(MDException)
 {
   // Find the new changelog path
   std::map<std::string, std::string>::iterator it;
@@ -813,7 +812,6 @@ throw(MDException)
 // Switch the namespace to read-only mode
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::makeReadOnly()
-throw(MDException)
 {
   pChangeLog->close() ;
   int logOpenFlags = ChangeLogFile::ReadOnly;
@@ -825,7 +823,6 @@ throw(MDException)
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::configure(
   std::map<std::string, std::string>& config)
-throw(MDException)
 {
   // Configure the changelog
   std::map<std::string, std::string>::iterator it;
@@ -861,7 +858,7 @@ throw(MDException)
 //------------------------------------------------------------------------------
 // Finalize the file service
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::finalize() throw(MDException)
+void ChangeLogFileMDSvc::finalize()
 {
   pChangeLog->close();
   IdMap::iterator it;
@@ -876,7 +873,7 @@ void ChangeLogFileMDSvc::finalize() throw(MDException)
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
 IFileMD*
-ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id) throw(MDException)
+ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
 {
   IdMap::iterator it = pIdMap.find(id);
 
@@ -894,7 +891,7 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id) throw(MDException)
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
-IFileMD* ChangeLogFileMDSvc::createFile() throw(MDException)
+IFileMD* ChangeLogFileMDSvc::createFile()
 {
   IFileMD* file = new FileMD(pFirstFreeId++, this);
   pIdMap.insert(std::make_pair(file->getId(), DataInfo(0, file)));
@@ -906,7 +903,7 @@ IFileMD* ChangeLogFileMDSvc::createFile() throw(MDException)
 //------------------------------------------------------------------------------
 // Update the file metadata
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::updateStore(IFileMD* obj) throw(MDException)
+void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
 {
   // Find the object in the map
   IdMap::iterator it = pIdMap.find(obj->getId());
@@ -931,7 +928,7 @@ void ChangeLogFileMDSvc::updateStore(IFileMD* obj) throw(MDException)
 //------------------------------------------------------------------------------
 // Remove object from the store
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::removeFile(IFileMD* obj) throw(MDException)
+void ChangeLogFileMDSvc::removeFile(IFileMD* obj)
 {
   removeFile(obj->getId());
 }
@@ -940,7 +937,6 @@ void ChangeLogFileMDSvc::removeFile(IFileMD* obj) throw(MDException)
 // Remove object from the store
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::removeFile(FileMD::id_t fileId)
-throw(MDException)
 {
   // Find the object in the map
   IdMap::iterator it = pIdMap.find(fileId);
@@ -1032,9 +1028,7 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
 //------------------------------------------------------------------------------
 // Prepare for online compacting.
 //------------------------------------------------------------------------------
-void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName)
-const
-throw(MDException)
+void* ChangeLogFileMDSvc::compactPrepare(const std::string& newLogFileName) const
 {
   // Try to open a new log file for writing
   ::CompactingData* data = new ::CompactingData();
@@ -1065,7 +1059,7 @@ throw(MDException)
 //------------------------------------------------------------------------------
 // Do the compacting.
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::compact(void*& compactingData) throw(MDException)
+void ChangeLogFileMDSvc::compact(void*& compactingData)
 {
   // Sort the records to avoid random seeks
   ::CompactingData* data = (::CompactingData*)compactingData;
@@ -1108,7 +1102,6 @@ void ChangeLogFileMDSvc::compact(void*& compactingData) throw(MDException)
 // Commit the compacting information.
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
-throw(MDException)
 {
   ::CompactingData* data = (::CompactingData*)compactingData;
 
@@ -1197,7 +1190,7 @@ throw(MDException)
 //------------------------------------------------------------------------------
 // Start the slave
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::startSlave() throw(MDException)
+void ChangeLogFileMDSvc::startSlave()
 {
   if (!pSlaveMode)
   {
@@ -1220,7 +1213,7 @@ void ChangeLogFileMDSvc::startSlave() throw(MDException)
 //------------------------------------------------------------------------------
 // Stop the slave mode
 //------------------------------------------------------------------------------
-void ChangeLogFileMDSvc::stopSlave() throw(MDException)
+void ChangeLogFileMDSvc::stopSlave()
 {
   if (!pSlaveMode)
   {
@@ -1275,4 +1268,41 @@ void ChangeLogFileMDSvc::attachBroken(const std::string& parent,
   file->setName(s2.str());
   cont->addFile(file);
 }
+
+//------------------------------------------------------------------------------
+// Get changelog warning messages
+//------------------------------------------------------------------------------
+std::vector<std::string>
+ChangeLogFileMDSvc::getWarningMessages()
+{
+  return pChangeLog->getWarningMessages();
+}
+
+//------------------------------------------------------------------------------
+// Clear changelog warning messages
+//------------------------------------------------------------------------------
+void
+ChangeLogFileMDSvc::clearWarningMessages()
+{
+  pChangeLog->clearWarningMessages();
+}
+
+//------------------------------------------------------------------------------
+// Set container service
+//------------------------------------------------------------------------------
+void
+ChangeLogFileMDSvc::setContainerService(IChLogContainerMDSvc* cont_svc)
+{
+  pContSvc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
+}
+
+//------------------------------------------------------------------------------
+// Set the QuotaStats object for the follower
+//------------------------------------------------------------------------------
+void
+ChangeLogFileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
+{
+  pQuotaStats = quota_stats;
+}
+
 }

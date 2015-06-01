@@ -40,6 +40,7 @@
 #define protected public
 #include "namespace/ns_in_memory/FileMD.hh"
 #undef protected
+#include "namespace/interface/IQuota.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
@@ -71,22 +72,20 @@ CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogTest );
 class DummyFileMDSvc: public eos::IFileMDSvc
 {
   public:
-    virtual void initialize() throw( eos::MDException ) {}
-    virtual void configure( std::map<std::string, std::string> &config )
-      throw( eos::MDException ) {}
+    virtual void initialize() {}
+    virtual void configure( std::map<std::string, std::string> &config ) {}
     virtual void finalize() throw( eos::MDException ) {}
-    virtual eos::IFileMD *getFileMD( eos::IFileMD::id_t id )
-      throw( eos::MDException )
-    { return 0; }
-    virtual eos::IFileMD *createFile() throw( eos::MDException ) { return 0; }
-    virtual void updateStore( eos::IFileMD *obj ) throw( eos::MDException ) {}
-    virtual void removeFile( eos::IFileMD *obj ) throw( eos::MDException ) {}
-    virtual void removeFile( eos::IFileMD::id_t fileId )
-      throw( eos::MDException ) {}
+    virtual eos::IFileMD *getFileMD( eos::IFileMD::id_t id ) { return 0; }
+    virtual eos::IFileMD *createFile() { return 0; }
+    virtual void updateStore( eos::IFileMD *obj ) {}
+    virtual void removeFile( eos::IFileMD *obj ) {}
+    virtual void removeFile( eos::IFileMD::id_t fileId ) {}
     virtual uint64_t getNumFiles() const { return 0; }
     virtual void visit( eos::IFileVisitor *visitor ) {}
     virtual void addChangeListener( eos::IFileMDChangeListener *listener ) {}
     virtual void notifyListeners( eos::IFileMDChangeListener::Event *event ) {}
+    virtual void setContainerService(eos::IContainerMDSvc* contSvc) {};
+    virtual void setQuotaStats(eos::IQuotaStats* quota_stats) {};
 };
 
 //------------------------------------------------------------------------------

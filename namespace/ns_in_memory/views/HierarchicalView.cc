@@ -61,14 +61,14 @@ namespace eos
   // Initialize the view
   //----------------------------------------------------------------------------
 
-  void HierarchicalView::initialize() throw( MDException )
+  void HierarchicalView::initialize()
   {
     initialize1();
     initialize2();
     initialize3();
   }
 
-  void HierarchicalView::initialize1() throw( MDException )
+  void HierarchicalView::initialize1()
   {
     pContainerSvc->initialize();
 
@@ -88,12 +88,12 @@ namespace eos
     }
   }
 
-  void HierarchicalView::initialize2() throw( MDException )
+  void HierarchicalView::initialize2()
   {
     pFileSvc->initialize();
   }
 
-  void HierarchicalView::initialize3() throw( MDException )
+  void HierarchicalView::initialize3()
   {
     //--------------------------------------------------------------------------
     // Scan all the files to reattach them to containers - THIS SHOULD NOT
@@ -107,7 +107,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Finalize the view
   //----------------------------------------------------------------------------
-  void HierarchicalView::finalize() throw( MDException )
+  void HierarchicalView::finalize()
   {
     pContainerSvc->finalize();
     pFileSvc->finalize();
@@ -119,7 +119,7 @@ namespace eos
   // Retrieve a file for given uri
   //----------------------------------------------------------------------------
   IFileMD*
-  HierarchicalView::getFile(const std::string &uri) throw( MDException )
+  HierarchicalView::getFile(const std::string &uri)
   {
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
@@ -161,7 +161,6 @@ namespace eos
   //----------------------------------------------------------------------------
   IFileMD*
   HierarchicalView::createFile( const std::string &uri, uid_t uid, gid_t gid )
-      throw( MDException )
   {
     // Split the path and find the last container
     char uriBuffer[uri.length()+1];
@@ -219,7 +218,6 @@ namespace eos
   // Unlink the file for given uri
   //----------------------------------------------------------------------------
   void HierarchicalView::unlinkFile( const std::string &uri )
-    throw( MDException )
   {
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
@@ -254,7 +252,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Remove the file
   //----------------------------------------------------------------------------
-  void HierarchicalView::removeFile( IFileMD *file ) throw( MDException )
+  void HierarchicalView::removeFile( IFileMD *file )
   {
     //--------------------------------------------------------------------------
     // Check if the file can be removed
@@ -279,7 +277,6 @@ namespace eos
   // Get a container (directory)
   //----------------------------------------------------------------------------
   IContainerMD *HierarchicalView::getContainer( const std::string &uri )
-    throw( MDException )
   {
     if( uri == "/" )
       return pRoot;
@@ -307,7 +304,6 @@ namespace eos
   //----------------------------------------------------------------------------
   IContainerMD *HierarchicalView::createContainer(const std::string &uri,
                                                   bool createParents)
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Split the path
@@ -383,7 +379,6 @@ namespace eos
   //----------------------------------------------------------------------------
   void HierarchicalView::removeContainer( const std::string &uri,
                                           bool recursive )
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Find the container
@@ -499,7 +494,6 @@ namespace eos
   // Get uri for the container
   //----------------------------------------------------------------------------
   std::string HierarchicalView::getUri( const IContainerMD *container ) const
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Check the input
@@ -540,7 +534,6 @@ namespace eos
   // Get uri for the file
   //----------------------------------------------------------------------------
   std::string HierarchicalView::getUri( const IFileMD *file ) const
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Check the input
@@ -565,7 +558,6 @@ namespace eos
   //----------------------------------------------------------------------------
   IQuotaNode *HierarchicalView::getQuotaNode( const IContainerMD *container,
                                               bool search )
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Initial sanity check
@@ -614,7 +606,6 @@ namespace eos
   // Register the container to be a quota node
   //----------------------------------------------------------------------------
   IQuotaNode *HierarchicalView::registerQuotaNode( IContainerMD *container )
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Initial sanity check
@@ -651,7 +642,6 @@ namespace eos
   // Remove the quota node
   //----------------------------------------------------------------------------
   void HierarchicalView::removeQuotaNode( IContainerMD *container )
-    throw( MDException )
   {
     //--------------------------------------------------------------------------
     // Sanity checks
@@ -699,7 +689,6 @@ namespace eos
   //----------------------------------------------------------------------------
   void HierarchicalView::renameContainer( IContainerMD *container,
                                           const std::string &newName )
-    throw( MDException )
   {
     if( !container )
     {
@@ -754,7 +743,6 @@ namespace eos
   // Rename file
   //----------------------------------------------------------------------------
   void HierarchicalView::renameFile( IFileMD *file, const std::string &newName )
-    throw( MDException )
   {
     if( !file )
     {

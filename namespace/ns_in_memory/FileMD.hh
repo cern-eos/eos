@@ -477,12 +477,12 @@ class FileMD: public IFileMD
     //--------------------------------------------------------------------------
     //! Serialize the object to a buffer
     //--------------------------------------------------------------------------
-    void serialize(Buffer& buffer) throw(MDException);
+    void serialize(Buffer& buffer);
 
     //--------------------------------------------------------------------------
     //! Deserialize the class to a buffer
     //--------------------------------------------------------------------------
-    void deserialize(const Buffer& buffer) throw(MDException);
+    void deserialize(const Buffer& buffer);
 
     //--------------------------------------------------------------------------
     //! Set the FileMDSvc object

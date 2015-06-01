@@ -24,9 +24,11 @@
 #ifndef EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 #define EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
 
+#include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IChLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 
@@ -36,326 +38,330 @@
 #include <map>
 #include <pthread.h>
 
-namespace eos
+EOSNSNAMESPACE_BEGIN
+
+//! Forward declaration
+class LockHandler;
+
+//------------------------------------------------------------------------------
+//! ChangeLog based container metadata service
+//------------------------------------------------------------------------------
+class ChangeLogContainerMDSvc:
+    public IContainerMDSvc, public IChLogContainerMDSvc
 {
-  class LockHandler;
-
-  //----------------------------------------------------------------------------
-  //! ChangeLog based container metadata service
-  //----------------------------------------------------------------------------
-  class ChangeLogContainerMDSvc: public IContainerMDSvc
+  friend class ContainerMDFollower;
+  friend class FileMDFollower;
+ public:
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //--------------------------------------------------------------------------
+  ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
+                             pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
+                             pFollowStart(0), pQuotaStats(0), pAutoRepair(0)
   {
-    friend class ContainerMDFollower;
-    friend class FileMDFollower;
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
-        pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 )
-      {
-        pIdMap.set_deleted_key( 0 );
-        pIdMap.set_empty_key( 0xffffffffffffffffll );
-        pIdMap.resize(1000000);
-        pChangeLog = new ChangeLogFile;
-      }
+    pIdMap.set_deleted_key(0);
+    pIdMap.set_empty_key(0xffffffffffffffffll);
+    pIdMap.resize(1000000);
+    pChangeLog = new ChangeLogFile;
+  }
 
-      //------------------------------------------------------------------------
-      //! Destructor
-      //------------------------------------------------------------------------
-      virtual ~ChangeLogContainerMDSvc()
-      {
-        delete pChangeLog;
-      }
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  virtual ~ChangeLogContainerMDSvc()
+  {
+    delete pChangeLog;
+  }
 
-      //------------------------------------------------------------------------
-      //! Initizlize the container service
-      //------------------------------------------------------------------------
-      virtual void initialize() throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Initizlize the container service
+  //--------------------------------------------------------------------------
+  virtual void initialize();
 
-      //------------------------------------------------------------------------
-      //! Configure the container service
-      //------------------------------------------------------------------------
-      virtual void configure( std::map<std::string, std::string> &config )
-        throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Configure the container service
+  //--------------------------------------------------------------------------
+  virtual void configure(std::map<std::string, std::string>& config);
 
-      //------------------------------------------------------------------------
-      //! Finalize the container service
-      //------------------------------------------------------------------------
-      virtual void finalize() throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Finalize the container service
+  //--------------------------------------------------------------------------
+  virtual void finalize();
 
-      //------------------------------------------------------------------------
-      //! Get the container metadata information for the given container ID
-      //------------------------------------------------------------------------
-      virtual IContainerMD *getContainerMD( IContainerMD::id_t id )
-        throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Get the container metadata information for the given container ID
+  //--------------------------------------------------------------------------
+  virtual IContainerMD* getContainerMD(IContainerMD::id_t id);
 
-      //------------------------------------------------------------------------
-      //! Create new container metadata object with an assigned id, the user has
-      //! to fill all the remaining fields
-      //------------------------------------------------------------------------
-      virtual IContainerMD *createContainer() throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Create new container metadata object with an assigned id, the user has
+  //! to fill all the remaining fields
+  //--------------------------------------------------------------------------
+  virtual IContainerMD* createContainer();
 
-      //------------------------------------------------------------------------
-      //! Update the contaienr metadata in the backing store after the
-      //! ContainerMD object has been changed
-      //------------------------------------------------------------------------
-      virtual void updateStore( IContainerMD *obj ) throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Update the contaienr metadata in the backing store after the
+  //! ContainerMD object has been changed
+  //--------------------------------------------------------------------------
+  virtual void updateStore(IContainerMD* obj);
 
-      //------------------------------------------------------------------------
-      //! Remove object from the store
-      //------------------------------------------------------------------------
-      virtual void removeContainer( IContainerMD *obj ) throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Remove object from the store
+  //--------------------------------------------------------------------------
+  virtual void removeContainer(IContainerMD* obj);
 
-      //------------------------------------------------------------------------
-      //! Remove object from the store
-      //------------------------------------------------------------------------
-      virtual void removeContainer( IContainerMD::id_t containerId )
-        throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Remove object from the store
+  //--------------------------------------------------------------------------
+  virtual void removeContainer(IContainerMD::id_t containerId);
 
-      //------------------------------------------------------------------------
-      //! Get number of containers
-      //------------------------------------------------------------------------
-      virtual uint64_t getNumContainers() const
-      {
-        return pIdMap.size();
-      }
+  //--------------------------------------------------------------------------
+  //! Get number of containers
+  //--------------------------------------------------------------------------
+  virtual uint64_t getNumContainers() const
+  {
+    return pIdMap.size();
+  }
 
-      //------------------------------------------------------------------------
-      //! Add file listener that will be notified about all of the changes in
-      //! the store
-      //------------------------------------------------------------------------
-      virtual void addChangeListener( IContainerMDChangeListener *listener );
+  //--------------------------------------------------------------------------
+  //! Add file listener that will be notified about all of the changes in
+  //! the store
+  //--------------------------------------------------------------------------
+  virtual void addChangeListener(IContainerMDChangeListener* listener);
 
-      //------------------------------------------------------------------------
-      //! Prepare for online compacting.
-      //!
-      //! No external file metadata mutation may occur while the method is
-      //! running.
-      //!
-      //! @param  newLogFileName name for the compacted log file
-      //! @return                compacting information that needs to be passed
-      //!                        to other functions
-      //! @throw  MDException    preparation stage failed, cannot proceed with
-      //!                        compacting
-      //------------------------------------------------------------------------
-      void *compactPrepare (const std::string &newLogFileName) const
-        throw (MDException);
+  //--------------------------------------------------------------------------
+  //! Prepare for online compacting.
+  //!
+  //! No external file metadata mutation may occur while the method is
+  //! running.
+  //!
+  //! @param  newLogFileName name for the compacted log file
+  //! @return                compacting information that needs to be passed
+  //!                        to other functions
+  //--------------------------------------------------------------------------
+  void* compactPrepare(const std::string& newLogFileName) const;
 
-      //------------------------------------------------------------------------
-      //! Do the compacting.
-      //!
-      //! This does not access any of the in-memory structures so any external
-      //! metadata operations (including mutations) may happen while it is
-      //! running.
-      //!
-      //! @param  compactingData state information returned by CompactPrepare
-      //! @throw  MDException    failure, cannot proceed with CompactCommit
-      //------------------------------------------------------------------------
-      static void compact (void *&compactingData) throw ( MDException);
+  //--------------------------------------------------------------------------
+  //! Do the compacting.
+  //!
+  //! This does not access any of the in-memory structures so any external
+  //! metadata operations (including mutations) may happen while it is
+  //! running.
+  //!
+  //! @param  compactingData state information returned by compactPrepare
+  //--------------------------------------------------------------------------
+  void compact(void*& compactingData);
 
-      //------------------------------------------------------------------------
-      //! Commit the compacting infomrmation.
-      //!
-      //! Updates the metadata structures. Needs an exclusive lock on the
-      //! namespace. After successfull completion the new compacted
-      //! log will be used for all the new data
-      //!
-      //! @param compactingData state information obtained from CompactPrepare
-      //!                       and modified by Compact
-      //! @param autorepair     indicates to skip broken records
-      //! @throw MDExcetion     failure, results of the compacting are
-      //!                       are discarded, the old log will be used for
-      //------------------------------------------------------------------------
-      void compactCommit (void *compactingData, bool autorepair=false) throw ( MDException);
+  //--------------------------------------------------------------------------
+  //! Commit the compacting infomrmation.
+  //!
+  //! Updates the metadata structures. Needs an exclusive lock on the
+  //! namespace. After successfull completion the new compacted
+  //! log will be used for all the new data
+  //!
+  //! @param compactingData state information obtained from CompactPrepare
+  //!                       and modified by Compact
+  //! @param autorepair     indicates to skip broken records
+  //--------------------------------------------------------------------------
+  void compactCommit(void* compactingData, bool autorepair = false);
 
-      //------------------------------------------------------------------------
-      //! Make a transition from slave to master
-      // -----------------------------------------------------------------------
-      virtual void slave2Master( std::map<std::string, std::string> &config )
-        throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Make a transition from slave to master
+  // -----------------------------------------------------------------------
+  virtual void slave2Master(std::map<std::string, std::string>& config);
 
-      //------------------------------------------------------------------------
-      //! Switch the namespace to read-only mode
-      //------------------------------------------------------------------------
-      virtual void makeReadOnly()
-        throw( MDException );
-    
-      //------------------------------------------------------------------------
-      //! Register slave lock
-      //------------------------------------------------------------------------
-      void setSlaveLock( LockHandler *slaveLock )
-      {
-        pSlaveLock = slaveLock;
-      }
+  //--------------------------------------------------------------------------
+  //! Switch the namespace to read-only mode
+  //--------------------------------------------------------------------------
+  virtual void makeReadOnly();
 
-      //------------------------------------------------------------------------
-      //! Get slave lock
-      //------------------------------------------------------------------------
-      LockHandler *getSlaveLock()
-      {
-        return pSlaveLock;
-      }
+  //--------------------------------------------------------------------------
+  //! Register slave lock
+  //--------------------------------------------------------------------------
+  void setSlaveLock(LockHandler* slaveLock)
+  {
+    pSlaveLock = slaveLock;
+  }
 
-      //------------------------------------------------------------------------
-      //! get slave mode
-      //------------------------------------------------------------------------
-      bool getSlaveMode() 
-      {
-        return pSlaveMode;
-      }
+  //--------------------------------------------------------------------------
+  //! Get slave lock
+  //--------------------------------------------------------------------------
+  LockHandler* getSlaveLock()
+  {
+    return pSlaveLock;
+  }
 
-      //------------------------------------------------------------------------
-      //! Start the slave
-      //------------------------------------------------------------------------
-      void startSlave() throw( MDException );
+  //--------------------------------------------------------------------------
+  //! get slave mode
+  //--------------------------------------------------------------------------
+  bool getSlaveMode()
+  {
+    return pSlaveMode;
+  }
 
-      //------------------------------------------------------------------------
-      //! Stop the slave mode
-      //------------------------------------------------------------------------
-      void stopSlave() throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Start the slave
+  //--------------------------------------------------------------------------
+  void startSlave();
 
-      //------------------------------------------------------------------------
-      //! Create container in parent
-      //------------------------------------------------------------------------
-      IContainerMD *createInParent( const std::string &name,
-                                    IContainerMD       *parent )
-                    throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Stop the slave mode
+  //--------------------------------------------------------------------------
+  void stopSlave();
 
-      //------------------------------------------------------------------------
-      //! Get the lost+found container, create if necessary
-      //------------------------------------------------------------------------
-      IContainerMD *getLostFound() throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Create container in parent
+  //--------------------------------------------------------------------------
+  IContainerMD* createInParent(const std::string& name,
+                               IContainerMD*       parent);
 
-      //------------------------------------------------------------------------
-      //! Get the orphans container
-      //------------------------------------------------------------------------
-      IContainerMD *getLostFoundContainer( const std::string &name )
-                    throw( MDException );
+  //--------------------------------------------------------------------------
+  //! Get the lost+found container, create if necessary
+  //--------------------------------------------------------------------------
+  IContainerMD* getLostFound();
 
-      //------------------------------------------------------------------------
-      //! Get the change log
-      //------------------------------------------------------------------------
-      ChangeLogFile *getChangeLog()
-      {
-        return pChangeLog;
-      }
+  //--------------------------------------------------------------------------
+  //! Get the orphans container
+  //--------------------------------------------------------------------------
+  IContainerMD* getLostFoundContainer(const std::string& name);
 
-      //------------------------------------------------------------------------
-      //! Get the following offset
-      //------------------------------------------------------------------------
-      uint64_t getFollowOffset() const
-      {
-        return pFollowStart;
-      }
+  //--------------------------------------------------------------------------
+  //! Get the change log
+  //--------------------------------------------------------------------------
+  ChangeLogFile* getChangeLog()
+  {
+    return pChangeLog;
+  }
 
-      //------------------------------------------------------------------------
-      //! Set the following offset
-      //------------------------------------------------------------------------
-      void setFollowOffset(uint64_t offset) 
-      {
-        pFollowStart = offset;
-      }
+  //--------------------------------------------------------------------------
+  //! Get the following offset
+  //--------------------------------------------------------------------------
+  uint64_t getFollowOffset() const
+  {
+    return pFollowStart;
+  }
 
-      //------------------------------------------------------------------------
-      //! Get the following poll interval
-      //------------------------------------------------------------------------
-      uint64_t getFollowPollInterval() const
-      {
-        return pSlavePoll;
-      }
+  //--------------------------------------------------------------------------
+  //! Set the following offset
+  //--------------------------------------------------------------------------
+  void setFollowOffset(uint64_t offset)
+  {
+    pFollowStart = offset;
+  }
 
-      //------------------------------------------------------------------------
-      //! Set the QuotaStats object for the follower
-      //------------------------------------------------------------------------
-      void setQuotaStats( IQuotaStats *quotaStats )
-      {
-        pQuotaStats = quotaStats;
-      }
+  //--------------------------------------------------------------------------
+  //! Get the following poll interval
+  //--------------------------------------------------------------------------
+  uint64_t getFollowPollInterval() const
+  {
+    return pSlavePoll;
+  }
 
-    private:
-      //------------------------------------------------------------------------
-      // Placeholder for the record info
-      //------------------------------------------------------------------------
-      struct DataInfo
-      {
-        DataInfo(): logOffset(0), ptr(0) {} // for some reason needed by sparse_hash_map::erase
-        DataInfo( uint64_t logOffset, IContainerMD *ptr )
-        {
-          this->logOffset = logOffset;
-          this->ptr       = ptr;
-        }
-        uint64_t     logOffset;
-        IContainerMD *ptr;
-      };
+  //--------------------------------------------------------------------------
+  //! Set the QuotaStats object for the follower
+  //--------------------------------------------------------------------------
+  void setQuotaStats(IQuotaStats* quotaStats)
+  {
+    pQuotaStats = quotaStats;
+  }
 
-      typedef google::dense_hash_map<IContainerMD::id_t, DataInfo> IdMap;
-      typedef std::list<IContainerMDChangeListener*>               ListenerList;
-      typedef std::list<IContainerMD*>                             ContainerList;
+  //--------------------------------------------------------------------------
+  //! Get changelog warning messages
+  //!
+  //! @return vector of warning messages
+  //--------------------------------------------------------------------------
+  std::vector<std::string> getWarningMessages();
 
-      //------------------------------------------------------------------------
-      // Changelog record scanner
-      //------------------------------------------------------------------------
-      class ContainerMDScanner: public ILogRecordScanner
-      {
-        public:
-          ContainerMDScanner( IdMap &idMap, bool slaveMode ):
-            pIdMap( idMap ), pLargestId( 0 ), pSlaveMode( slaveMode )
-          {}
-          virtual bool processRecord( uint64_t offset, char type,
-                                      const Buffer &buffer );
-          IContainerMD::id_t getLargestId() const
-          {
-            return pLargestId;
-          }
-        private:
-          IdMap& pIdMap;
-          IContainerMD::id_t pLargestId;
-          bool pSlaveMode;
-      };
+  //--------------------------------------------------------------------------
+  //! Clear changelog warning messages
+  //--------------------------------------------------------------------------
+  void clearWarningMessages();
 
-      //------------------------------------------------------------------------
-      // Notify the listeners about the change
-      //------------------------------------------------------------------------
-      void notifyListeners( IContainerMD *obj,
-                            IContainerMDChangeListener::Action a )
-      {
-        ListenerList::iterator it;
-        for( it = pListeners.begin(); it != pListeners.end(); ++it )
-          (*it)->containerMDChanged( obj, a );
-      }
-
-      //------------------------------------------------------------------------
-      // Recreate the container structure recursively and create the list
-      // of orphans and name conflicts
-      //------------------------------------------------------------------------
-      void recreateContainer( IdMap::iterator &it,
-                              ContainerList   &orphans,
-                              ContainerList   &nameConflicts );
-
-      //------------------------------------------------------------------------
-      // Attach broken containers to lost+found
-      //------------------------------------------------------------------------
-      void attachBroken( IContainerMD *parent, ContainerList &broken );
-
-      //------------------------------------------------------------------------
-      // Data members
-      //------------------------------------------------------------------------
-      IContainerMD::id_t pFirstFreeId;
-      std::string        pChangeLogPath;
-      ChangeLogFile     *pChangeLog;
-      IdMap              pIdMap;
-      ListenerList       pListeners;
-      pthread_t          pFollowerThread;
-      LockHandler       *pSlaveLock;
-      bool               pSlaveMode;
-      bool               pSlaveStarted;
-      int32_t            pSlavePoll;
-      uint64_t           pFollowStart;
-      IQuotaStats       *pQuotaStats;
-      bool               pAutoRepair;
+ private:
+  //--------------------------------------------------------------------------
+  // Placeholder for the record info
+  //--------------------------------------------------------------------------
+  struct DataInfo
+  {
+    DataInfo(): logOffset(0),
+                ptr(0) {} // for some reason needed by sparse_hash_map::erase
+    DataInfo(uint64_t logOffset, IContainerMD* ptr)
+    {
+      this->logOffset = logOffset;
+      this->ptr       = ptr;
+    }
+    uint64_t     logOffset;
+    IContainerMD* ptr;
   };
-}
+
+  typedef google::dense_hash_map<IContainerMD::id_t, DataInfo> IdMap;
+  typedef std::list<IContainerMDChangeListener*>               ListenerList;
+  typedef std::list<IContainerMD*>                             ContainerList;
+
+  //--------------------------------------------------------------------------
+  // Changelog record scanner
+  //--------------------------------------------------------------------------
+  class ContainerMDScanner: public ILogRecordScanner
+  {
+   public:
+    ContainerMDScanner(IdMap& idMap, bool slaveMode):
+        pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+    {}
+    virtual bool processRecord(uint64_t offset, char type,
+                               const Buffer& buffer);
+    IContainerMD::id_t getLargestId() const
+    {
+      return pLargestId;
+    }
+   private:
+    IdMap& pIdMap;
+    IContainerMD::id_t pLargestId;
+    bool pSlaveMode;
+  };
+
+  //--------------------------------------------------------------------------
+  // Notify the listeners about the change
+  //--------------------------------------------------------------------------
+  void notifyListeners(IContainerMD* obj,
+                       IContainerMDChangeListener::Action a)
+  {
+    ListenerList::iterator it;
+
+    for (it = pListeners.begin(); it != pListeners.end(); ++it)
+      (*it)->containerMDChanged(obj, a);
+  }
+
+  //--------------------------------------------------------------------------
+  // Recreate the container structure recursively and create the list
+  // of orphans and name conflicts
+  //--------------------------------------------------------------------------
+  void recreateContainer(IdMap::iterator& it,
+                         ContainerList&   orphans,
+                         ContainerList&   nameConflicts);
+
+  //--------------------------------------------------------------------------
+  // Attach broken containers to lost+found
+  //--------------------------------------------------------------------------
+  void attachBroken(IContainerMD* parent, ContainerList& broken);
+
+  //--------------------------------------------------------------------------
+  // Data members
+  //--------------------------------------------------------------------------
+  IContainerMD::id_t pFirstFreeId;
+  std::string        pChangeLogPath;
+  ChangeLogFile*     pChangeLog;
+  IdMap              pIdMap;
+  ListenerList       pListeners;
+  pthread_t          pFollowerThread;
+  LockHandler*       pSlaveLock;
+  bool               pSlaveMode;
+  bool               pSlaveStarted;
+  int32_t            pSlavePoll;
+  uint64_t           pFollowStart;
+  IQuotaStats*       pQuotaStats;
+  bool               pAutoRepair;
+};
+
+EOSNSNAMESPACE_END
 
 #endif // EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH

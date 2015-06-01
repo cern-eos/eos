@@ -37,9 +37,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "mq/XrdMqClient.hh"
 /*----------------------------------------------------------------------------*/
-// TODO: this should use only the interface
-#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/interface/IChLogFileMDSvc.hh"
+#include "namespace/interface/IChLogContainerMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 
 // -----------------------------------------------------------------------------
@@ -636,11 +635,10 @@ Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
 void*
 Master::Compacting()
 {
-  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
-
-  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
   if (!eos_chlog_filesvc || !eos_chlog_dirsvc)
   {
@@ -1565,14 +1563,15 @@ Master::Slave2Master()
   try
   {
     MasterLog(eos_info("msg=\"invoking slave=>master transition\""));
-    eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+    eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
     if (eos_chlog_dirsvc)
       eos_chlog_dirsvc->slave2Master(contSettings);
 
-    eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+    eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
     if (eos_chlog_filesvc)
       eos_chlog_filesvc->slave2Master(fileSettings);
@@ -1634,10 +1633,11 @@ Master::Master2MasterRO()
   // Convert the RW namespace into a read-only namespace
   // Wait that compacting is finished and block any further compacting
   WaitCompactingFinished();
-  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-    dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-    dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+
+  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+    dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+    dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc)
   {
@@ -1946,10 +1946,10 @@ Master::BootNamespace()
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 
     // This is only done for the ChangeLog implementation
-    eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-    eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+    eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+    eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
     if (eos_chlog_filesvc && eos_chlog_dirsvc)
     {
@@ -1962,14 +1962,12 @@ Master::BootNamespace()
 	eos_chlog_dirsvc->setSlaveLock(&fNsLock);
       }
 
-      // TODO: review this, maybe it should be added to the interface
-      eos_chlog_filesvc->setQuotaStats(gOFS->eosView->getQuotaStats());
-      eos_chlog_dirsvc->setQuotaStats(gOFS->eosView->getQuotaStats());
-
-      eos_chlog_filesvc->getChangeLog()->clearWarningMessages();
-      eos_chlog_dirsvc->getChangeLog()->clearWarningMessages();
+      eos_chlog_filesvc->clearWarningMessages();
+      eos_chlog_dirsvc->clearWarningMessages();
     }
 
+    gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
+    gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     time_t tstop = time(0);
@@ -1977,8 +1975,8 @@ Master::BootNamespace()
     if (eos_chlog_filesvc && eos_chlog_dirsvc)
     {
       // add the boot errors to the master changelog
-      std::vector<std::string> file_warn = eos_chlog_filesvc->getChangeLog()->getWarningMessages();
-      std::vector<std::string> directory_warn = eos_chlog_dirsvc->getChangeLog()->getWarningMessages();
+      std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
+      std::vector<std::string> directory_warn = eos_chlog_dirsvc->getWarningMessages();
 
       for (size_t i=0; i< file_warn.size(); ++i)
 	MasterLog(eos_crit(file_warn[i].c_str()));
@@ -1986,8 +1984,8 @@ Master::BootNamespace()
       for (size_t i=0; i< directory_warn.size(); ++i)
 	MasterLog(eos_crit(directory_warn[i].c_str()));
 
-      eos_chlog_filesvc->getChangeLog()->clearWarningMessages();
-      eos_chlog_dirsvc->getChangeLog()->clearWarningMessages();
+      eos_chlog_filesvc->clearWarningMessages();
+      eos_chlog_dirsvc->clearWarningMessages();
     }
 
     MasterLog(eos_notice("eos directory view configure stopped after %d seconds", (tstop - tstart)));
@@ -1997,15 +1995,15 @@ Master::BootNamespace()
     time_t tstop = time(0);
     {
       // add the boot errors to the master changelog
-      eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-          dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-      eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-          dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+          dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+          dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_filesvc && eos_chlog_dirsvc)
       {
-        std::vector<std::string> file_warn = eos_chlog_filesvc->getChangeLog()->getWarningMessages();
-        std::vector<std::string> directory_warn = eos_chlog_dirsvc->getChangeLog()->getWarningMessages();
+        std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
+        std::vector<std::string> directory_warn = eos_chlog_dirsvc->getWarningMessages();
 
         for (size_t i=0; i< file_warn.size(); ++i)
           MasterLog(eos_crit(file_warn[i].c_str()));
@@ -2013,8 +2011,8 @@ Master::BootNamespace()
         for (size_t i=0; i< directory_warn.size(); ++i)
           MasterLog(eos_crit(directory_warn[i].c_str()));
 
-        eos_chlog_filesvc->getChangeLog()->clearWarningMessages();
-        eos_chlog_dirsvc->getChangeLog()->clearWarningMessages();
+        eos_chlog_filesvc->clearWarningMessages();
+        eos_chlog_dirsvc->clearWarningMessages();
       }
     }
 
@@ -2329,10 +2327,10 @@ Master::RedirectToRemoteMaster()
 {
   MasterLog(eos_info("msg=\"redirect to remote master\""));
   Access::gRedirectionRules[std::string("*")] = fRemoteHost.c_str();
-  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-    dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-    dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+    dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+    dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc)
   {
@@ -2438,10 +2436,10 @@ Master::RebootSlaveNamespace()
 void
 Master::StartSlaveFollower(std::string&& log_file)
 {
-  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-    dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-    dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+    dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+    dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
   if (eos_chlog_dirsvc && eos_chlog_filesvc)
   {
@@ -2481,8 +2479,8 @@ Master::ShutdownSlaveFollower()
     // Stop the follower thread ...
     if (gOFS->eosFileService)
     {
-      eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-	dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+	dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_filesvc)
 	eos_chlog_filesvc->stopSlave();
@@ -2490,8 +2488,8 @@ Master::ShutdownSlaveFollower()
 
     if (gOFS->eosDirectoryService)
     {
-      eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-	dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
+      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+	dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
 
       if (eos_chlog_dirsvc)
 	eos_chlog_dirsvc->stopSlave();
@@ -2505,15 +2503,15 @@ Master::ShutdownSlaveFollower()
 void
 Master::GetLog (XrdOucString &stdOut)
 {
-  eos::ChangeLogContainerMDSvc* eos_chlog_dirsvc =
-      dynamic_cast<eos::ChangeLogContainerMDSvc*>(gOFS->eosDirectoryService);
-  eos::ChangeLogFileMDSvc* eos_chlog_filesvc =
-      dynamic_cast<eos::ChangeLogFileMDSvc*>(gOFS->eosFileService);
+  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+  eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
   
   if (eos_chlog_filesvc && eos_chlog_dirsvc)
   {
-    std::vector<std::string> file_warn = eos_chlog_filesvc->getChangeLog()->getWarningMessages();
-    std::vector<std::string> directory_warn = eos_chlog_dirsvc->getChangeLog()->getWarningMessages();
+    std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
+    std::vector<std::string> directory_warn = eos_chlog_dirsvc->getWarningMessages();
     
     for (size_t i=0; i< file_warn.size(); ++i)
       MasterLog(eos_err(file_warn[i].c_str()));
@@ -2521,8 +2519,8 @@ Master::GetLog (XrdOucString &stdOut)
     for (size_t i=0; i< directory_warn.size(); ++i)
       MasterLog(eos_err(directory_warn[i].c_str()));
 
-    eos_chlog_filesvc->getChangeLog()->clearWarningMessages();
-    eos_chlog_dirsvc->getChangeLog()->clearWarningMessages();
+    eos_chlog_filesvc->clearWarningMessages();
+    eos_chlog_dirsvc->clearWarningMessages();
   }
   
   stdOut = fMasterLog;

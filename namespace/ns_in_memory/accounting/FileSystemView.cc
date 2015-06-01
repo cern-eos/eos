@@ -155,7 +155,6 @@ namespace eos
   //----------------------------------------------------------------------------
   std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
   FileSystemView::getFiles( IFileMD::location_t location )
-    throw( MDException )
   {
     if( pFiles.size() <= location )
     {
@@ -172,7 +171,6 @@ namespace eos
   //----------------------------------------------------------------------------
   std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
   FileSystemView::getUnlinkedFiles( IFileMD::location_t location )
-    throw( MDException )
   {
     if( pUnlinkedFiles.size() <= location )
     {
@@ -190,7 +188,6 @@ namespace eos
   //----------------------------------------------------------------------------
   std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
   FileSystemView::getNoReplicaFiles()
-    throw( MDException )
   {
     return std::make_pair( pNoReplicas.begin(), pNoReplicas.end() );
   }
@@ -199,8 +196,7 @@ namespace eos
   // Return reference to a list of files
   //----------------------------------------------------------------------------
   const FileSystemView::FileList &FileSystemView::getFileList(
-                                              IFileMD::location_t location )
-    throw( MDException )
+      IFileMD::location_t location )
   {
     if( pFiles.size() <= location )
     {
@@ -216,7 +212,6 @@ namespace eos
   //----------------------------------------------------------------------------
   const FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
                                               IFileMD::location_t location )
-    throw( MDException )
   {
     if( pUnlinkedFiles.size() <= location )
     {

@@ -261,7 +261,7 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
 //------------------------------------------------------------------------------
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
-void FileMD::serialize(Buffer& buffer) throw(MDException)
+void FileMD::serialize(Buffer& buffer)
 {
   if (!pFileMDSvc)
   {
@@ -311,7 +311,7 @@ void FileMD::serialize(Buffer& buffer) throw(MDException)
 //------------------------------------------------------------------------------
 // Deserialize the class to a buffer
 //------------------------------------------------------------------------------
-void FileMD::deserialize(const Buffer& buffer) throw(MDException)
+void FileMD::deserialize(const Buffer& buffer)
 {
   uint16_t offset = 0;
   offset = buffer.grabData(offset, &pId,          sizeof(pId));

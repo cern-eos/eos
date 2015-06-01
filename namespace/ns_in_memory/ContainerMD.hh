@@ -309,7 +309,6 @@ class ContainerMD: public IContainerMD
     // Get the attribute
     //--------------------------------------------------------------------------
     std::string getAttribute(const std::string& name) const
-    throw(MDException)
     {
       XAttrMap::const_iterator it = pXAttrs.find(name);
 
@@ -359,12 +358,12 @@ class ContainerMD: public IContainerMD
     //--------------------------------------------------------------------------
     //! Serialize the object to a buffer
     //--------------------------------------------------------------------------
-    void serialize(Buffer& buffer) throw(MDException);
+    void serialize(Buffer& buffer);
 
     //--------------------------------------------------------------------------
     //! Deserialize the class to a buffer
     //--------------------------------------------------------------------------
-    void deserialize(Buffer& buffer) throw(MDException);
+    void deserialize(Buffer& buffer);
 
     //--------------------------------------------------------------------------
     //! Get pointer to first subcontainer. Must be used in conjunction with

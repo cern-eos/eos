@@ -32,6 +32,7 @@ EOSNSNAMESPACE_BEGIN
 
 //! Forward declaration
 class IContainerMD;
+class IQuotaStats;
 
 //----------------------------------------------------------------------------
 //! Interface for the listener that is notified about all of the
@@ -65,47 +66,44 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   //! Initizlize the container service
   //------------------------------------------------------------------------
-  virtual void initialize() throw(MDException) = 0;
+  virtual void initialize() = 0;
 
   //------------------------------------------------------------------------
   //! Configure the container service
   //------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config)
-      throw(MDException) = 0;
+  virtual void configure(std::map<std::string, std::string>& config) = 0;
 
   //------------------------------------------------------------------------
   //! Finalize the container service
   //------------------------------------------------------------------------
-  virtual void finalize() throw(MDException) = 0;
+  virtual void finalize() = 0;
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //------------------------------------------------------------------------
-  virtual IContainerMD* getContainerMD(IContainerMD::id_t id)
-      throw(MDException) = 0;
+  virtual IContainerMD* getContainerMD(IContainerMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual IContainerMD* createContainer() throw(MDException) = 0;
+  virtual IContainerMD* createContainer() = 0;
 
   //------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
   //! ContainerMD object has been changed
   //------------------------------------------------------------------------
-  virtual void updateStore(IContainerMD* obj) throw(MDException) = 0;
+  virtual void updateStore(IContainerMD* obj) = 0;
 
   //------------------------------------------------------------------------
   //! Remove object from the store
   //------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD* obj) throw(MDException) = 0;
+  virtual void removeContainer(IContainerMD* obj) = 0;
 
   //------------------------------------------------------------------------
   //! Remove object from the store
   //------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD::id_t containerId)
-      throw(MDException) = 0;
+  virtual void removeContainer(IContainerMD::id_t containerId) = 0;
 
   //------------------------------------------------------------------------
   //! Get number of containers
@@ -117,6 +115,14 @@ class IContainerMDSvc
   //! the store
   //------------------------------------------------------------------------
   virtual void addChangeListener(IContainerMDChangeListener* listener) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set the QuotaStats object for the follower
+  //!
+  //! @param quota_stats object implementing the IQuotaStats interface
+  //----------------------------------------------------------------------------
+  virtual void setQuotaStats(IQuotaStats* quota_stats) = 0;
+
 };
 
 EOSNSNAMESPACE_END
