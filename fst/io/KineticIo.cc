@@ -16,7 +16,6 @@ void KineticIo::log(const KineticException& e)
 {
   eos::common::Logging::log(e.function(),e.file(),e.line(),logId,vid,cident,
           (LOG_ERR),e.what());
-  errno=e.errnum();
 }
 
 int KineticIo::Open(const std::string& path, XrdSfsFileOpenMode flags,
@@ -27,7 +26,9 @@ int KineticIo::Open(const std::string& path, XrdSfsFileOpenMode flags,
   try{
     kio.Open(path, flags, mode, opaque, timeout);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -38,7 +39,9 @@ int64_t KineticIo::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize l
           offset, buffer, length, timeout);
   try{
     return kio.Read(offset, buffer, length, timeout);
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -49,7 +52,9 @@ int64_t KineticIo::Write (XrdSfsFileOffset offset, const char* buffer,
         offset, buffer, length, timeout);
   try{
     return kio.Write(offset, buffer, length, timeout);
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -75,7 +80,9 @@ int KineticIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
   try{
     kio.Truncate(offset,timeout);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -97,7 +104,9 @@ int KineticIo::Remove (uint16_t timeout)
   try{
     kio.Remove(timeout);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -107,7 +116,9 @@ int KineticIo::Sync (uint16_t timeout)
   try{
     kio.Sync(timeout);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -117,7 +128,9 @@ int KineticIo::Close (uint16_t timeout)
   try{
     kio.Close(timeout);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -127,7 +140,9 @@ int KineticIo::Stat (struct stat* buf, uint16_t timeout)
   try{
     kio.Stat(buf, timeout);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -143,7 +158,9 @@ int KineticIo::Statfs (const char* path, struct statfs* statFs)
   try{
     kio.Statfs(path,statFs);
     return SFS_OK;
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return errno;
 }
 
@@ -152,7 +169,9 @@ void* KineticIo::ftsOpen(std::string subtree)
   eos_debug("subtree: %s", subtree.c_str());
   try{
     return kio.ftsOpen(std::move(subtree));
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return NULL;
 }
 
@@ -161,7 +180,9 @@ std::string KineticIo::ftsRead(void* fts_handle)
   eos_debug("fts_handle: %p", fts_handle);
   try{
     return kio.ftsRead(fts_handle);
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return "";
 }
 
@@ -170,7 +191,9 @@ int KineticIo::ftsClose(void* fts_handle)
   eos_debug("fts_handle: %p", fts_handle);
   try{
     return kio.ftsClose(fts_handle);
-  }catch(const KineticException& ke){log(ke);}
+  }
+  catch(const KineticException& ke){log(ke); errno=ke.errnum();}
+  catch(const std::exception& e){eos_err(e.what()); errno=ENOEXEC;}
   return SFS_ERROR;
 }
 
@@ -179,9 +202,8 @@ bool KineticIo::Attr::Set (const char* name, const char* value, size_t len)
   eos_debug("name: %s, value: %s, len %ld", name, value, len);
   try{
     return kattr->Set(name, value, len);
-  }catch(const KineticException& ke){
-    eos_err(ke.what());
   }
+  catch(const std::exception& e){eos_err(e.what());}
   return false;
 }
 
@@ -190,9 +212,8 @@ bool KineticIo::Attr::Set (std::string key, std::string value)
   eos_debug("key: %s, value: %s", key.c_str(), value.c_str());
   try{
     return kattr->Set(key, value);
-  }catch(const KineticException& ke){
-    eos_err(ke.what());
   }
+  catch(const std::exception& e){eos_err(e.what());}
   return false;
 }
 
@@ -201,9 +222,8 @@ bool KineticIo::Attr::Get (const char* name, char* value, size_t &size)
   eos_debug("name: %s, value: %s, size: %ld", name, value, size);
   try{
     return kattr->Get(name, value, size);
-  }catch(const KineticException& ke){
-    eos_err(ke.what());
   }
+  catch(const std::exception& e){eos_err(e.what());}
   return false;
 }
 
@@ -211,22 +231,20 @@ std::string KineticIo::Attr::Get (std::string name)
 {
   eos_debug("name: %s", name.c_str());
   try{
-    return kattr->Get(name); 
-  }catch(const KineticException& ke){
-    eos_err(ke.what());
+    return kattr->Get(name);
   }
+  catch(const std::exception& e){eos_err(e.what());}
   return "";
 }
 
 KineticIo::Attr* KineticIo::Attr::OpenAttr (const char* path)
 {
-  eos_static_debug("path: %s",path); 
+  eos_static_debug("path: %s",path);
   try{
     std::unique_ptr<KineticFileAttr> ka( KineticFileAttr::OpenAttr(path) );
     if(ka) return new KineticIo::Attr(std::move(ka));
-  }catch(const KineticException& ke){
-    eos_static_err(ke.what());
   }
+  catch(const std::exception& e){eos_static_err(e.what());}
   return NULL;
 }
 
