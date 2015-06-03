@@ -59,6 +59,7 @@ namespace eos
   FileMD &FileMD::operator = ( const FileMD &other )
   {
     pName        = other.pName;
+    pLinkName    = other.pLinkName;
     pId          = other.pId;
     pSize        = other.pSize;
     pContainerId = other.pContainerId;
@@ -259,9 +260,17 @@ namespace eos
     buffer.putData( &tmp,          sizeof( tmp ) );
     buffer.putData( &pContainerId, sizeof( pContainerId ) );
 
-    uint16_t len = pName.length()+1;
+    std::string nameAndLink = pName;
+
+    // symbolic links are serialized as <name>//<link>
+    if (pLinkName.length()) {
+      nameAndLink += "//";
+      nameAndLink += pLinkName;
+    }
+
+    uint16_t len = nameAndLink.length()+1;
     buffer.putData( &len,          sizeof( len ) );
-    buffer.putData( pName.c_str(), len );
+    buffer.putData( nameAndLink.c_str(), len );
 
     len = pLocation.size();
     buffer.putData( &len, sizeof( len ) );
@@ -314,6 +323,14 @@ namespace eos
     char strBuffer[len];
     offset = buffer.grabData( offset, strBuffer, len );
     pName = strBuffer;
+
+    // possibly extract symbolic link
+    size_t link_pos = pName.find("//");
+    if (link_pos != std::string::npos)
+    {
+      pLinkName = pName.substr(link_pos+2);
+      pName.erase(link_pos);
+    }
 
     offset = buffer.grabData( offset, &len, 2 );
     for( uint16_t i = 0; i < len; ++i )
