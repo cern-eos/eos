@@ -2075,7 +2075,16 @@ xrd_mkdir (const char* path,
 
     if ((items != 17) || (strcmp(tag, "mkdir:")))
     {
-      errno = ENOENT;
+      int retc = 0;
+      char tag[1024];
+      // Parse output
+      int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+      
+      if ((items != 2) || (strcmp(tag, "mkdir:")))
+	errno = EFAULT;
+      else
+	errno = retc;
+      
       delete response;
       return errno;
     }
