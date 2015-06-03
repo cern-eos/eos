@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.119 Beryl-Aquamarine``
+New Features
+------------
+- add support symbolic links for files and directories
+- add convenient short console commands for 'ln', 'info', 'mv', 'touch'
+
 ``Version V0.3.118 Beryl-Aquamarine``
 
 New Features
