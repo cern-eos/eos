@@ -140,23 +140,7 @@ XrdMgmOfs::_mkdir (const char *path,
     {
       try
       {
-	dir = eosView->getContainer(cPath.GetParentPath(),false);
-      }
-      catch (eos::MDException &e)
-      {
-        dir = 0;
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                  e.getErrno(), e.getMessage().str().c_str());
-      }
-      try
-      {
-	if (!dir)
-	  dir = eosView->getContainer(cPath.GetParentPath());
-	else 
-	{
-	  eos::common::Path pPath(eosView->getUri(dir).c_str());
-	  dir = eosView->getContainer(pPath.GetParentPath());
-	}
+	dir = eosView->getContainer(cPath.GetParentPath());
         copydir = new eos::ContainerMD(*dir);
         dir = copydir;
         eos::ContainerMD::XAttrMap::const_iterator it;
