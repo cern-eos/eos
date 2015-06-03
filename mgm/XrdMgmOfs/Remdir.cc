@@ -140,14 +140,16 @@ XrdMgmOfs::_remdir (const char *path,
 
   try
   {
-    dhpar = gOFS->eosView->getContainer(cPath.GetParentPath());
+    dh = gOFS->eosView->getContainer(path);
+    eos::common::Path pPath(gOFS->eosView->getUri(dh).c_str());
+    dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
     dhpar_id = dhpar->getId();
     eos::ContainerMD::XAttrMap::const_iterator it;
     for (it = dhpar->attributesBegin(); it != dhpar->attributesEnd(); ++it)
     {
       attrmap[it->first] = it->second;
     }
-    dh = gOFS->eosView->getContainer(path);
+
     dh_id = dh->getId();
   }
   catch (eos::MDException &e)

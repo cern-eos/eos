@@ -598,6 +598,29 @@ ProcCommand::File ()
     }
 
     // -------------------------------------------------------------------------
+    // link a file or directory from source to target path
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "symlink")
+    {
+      XrdOucString source = pOpaque->Get("mgm.file.source");
+      XrdOucString target = pOpaque->Get("mgm.file.target");
+
+      if (gOFS->symlink(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true))
+      {
+        stdErr += "error: unable to link";
+        retc = errno;
+      }
+      else
+      {
+        stdOut += "success: linked '";
+        stdOut += source.c_str();
+        stdOut += "' to '";
+        stdOut += target.c_str();
+        stdOut += "'";
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // third-party copy files/directories
     // -------------------------------------------------------------------------
     if (mSubCmd == "copy")

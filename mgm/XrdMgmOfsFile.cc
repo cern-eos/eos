@@ -432,9 +432,8 @@ XrdMgmOfsFile::open (const char *inpath,
     try
     {
       dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-
       // get the attributes out
-      gOFS->_attr_ls(cPath.GetParentPath(),
+      gOFS->_attr_ls(gOFS->eosView->getUri(dmd).c_str(),
                      error,
                      vid,
                      0,
@@ -1094,8 +1093,8 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
-
-        SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
+	std::string uri = gOFS->eosView->getUri(fmd);
+        SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
         if (space)
         {
           eos::QuotaNode* quotanode = 0;

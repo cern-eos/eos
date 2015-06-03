@@ -1611,6 +1611,148 @@ xrd_utimes (const char* path,
 }
 
 
+//----------------------------------------------------------------------------                                                                                                                
+//!                                                                                                                                                                                           
+//----------------------------------------------------------------------------                                                                                                                
+
+int 
+xrd_symlink(const char* path,
+	    const char* link,
+	    uid_t uid,
+	    gid_t gid,
+	    pid_t pid)
+{
+  eos_static_info("path=%s link=%s uid=%u pid=%u", path, link, uid, pid);
+  eos::common::Timing symlinktiming("xrd_symlink");
+  COMMONTIMING("START", &symlinktiming);
+
+  int retc = 0;
+  std::string request;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=symlink&target=";
+  XrdOucString savelink = link;
+  while (savelink.replace("&", "#AND#")){}
+  request += savelink.c_str();
+  arg.FromString(request);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  XrdCl::FileSystem fs(Url);
+
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
+                                        arg, response);
+
+  COMMONTIMING("STOP", &symlinktiming);
+  errno = 0;
+
+  if (EOS_LOGS_DEBUG)
+    symlinktiming.Print();
+
+  if (status.IsOK())
+  {
+    char tag[1024];
+    // Parse output
+    int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+
+    if (EOS_LOGS_DEBUG)
+      fprintf(stderr, "symlink-retc=%d\n", retc);
+
+    if ((items != 2) || (strcmp(tag, "symlink:")))
+      errno = EFAULT;
+    else
+      errno = retc;
+  }
+  else
+    errno = EFAULT;
+
+  delete response;
+  return errno;
+}
+
+//----------------------------------------------------------------------------                                                                                                                
+//!                                                                                                                                                                                           
+//----------------------------------------------------------------------------                                                                                                                
+
+int 
+xrd_readlink(const char* path,
+	     char* buf,
+	     size_t bufsize,
+	     uid_t uid,
+	     gid_t gid,
+	     pid_t pid)
+{
+  eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
+  eos::common::Timing readlinktiming("xrd_readlink");
+  COMMONTIMING("START", &readlinktiming);
+  int retc = 0;
+  std::string request;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=readlink";
+  arg.FromString(request);
+
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  XrdCl::FileSystem fs(Url);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
+                                        arg, response);
+  COMMONTIMING("END", &readlinktiming);
+  errno = 0;
+
+  if (EOS_LOGS_DEBUG)
+    readlinktiming.Print();
+
+  if (status.IsOK())
+  {
+    char tag[1024];
+
+    if (!response->GetBuffer())
+    {
+      delete response;
+      errno = EFAULT;
+      return errno;
+    }
+
+    // Parse output
+    int items = sscanf(response->GetBuffer(), "%s retc=%d %*s", tag, &retc);
+
+    if (EOS_LOGS_DEBUG)
+      fprintf(stderr, "readlink-retc=%d\n", retc);
+
+    if ((items != 2) || (strcmp(tag, "readlink:")))
+      errno = EFAULT;
+    else
+      errno = retc;
+
+    if (!errno) {
+      const char* rs = strchr(response->GetBuffer(),'=');
+      if (rs) 
+      {
+	const char* ss = strchr(rs,' ');
+	if (ss) 
+	{
+	  snprintf(buf,bufsize,"%s", ss+1);
+	}
+	else
+	{
+	  errno = EBADE;
+	}
+      }
+      else
+      {
+	errno = EBADE;
+      }
+    }
+  }
+  else
+    errno = EFAULT;
+
+  delete response;
+  return errno;
+}
+
 //------------------------------------------------------------------------------
 // It returns -ENOENT if the path doesn't exist, -EACCESS if the requested
 // permission isn't available, or 0 for success. Note that it can be called

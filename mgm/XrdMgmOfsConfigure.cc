@@ -1990,6 +1990,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Fuse-Checksum", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-XAttr", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Utimes", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-Symlink", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-Readlink", 0, 0, 0);
   gOFS->MgmStats.Add("GetMdLocation", 0, 0, 0);
   gOFS->MgmStats.Add("GetMd", 0, 0, 0);
   gOFS->MgmStats.Add("Http-COPY", 0, 0, 0);
@@ -2059,7 +2061,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("SendResync", 0, 0, 0);
   gOFS->MgmStats.Add("Stall", 0, 0, 0);
   gOFS->MgmStats.Add("Stat", 0, 0, 0);
-  gOFS->MgmStats.Add("Symlink", 0, 0, 0);
+  gOFS->MgmStats.Add("SymLink", 0, 0, 0);
   gOFS->MgmStats.Add("Touch", 0, 0, 0);
   gOFS->MgmStats.Add("TxState", 0, 0, 0);
   gOFS->MgmStats.Add("Truncate", 0, 0, 0);

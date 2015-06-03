@@ -150,7 +150,14 @@ XrdMgmOfs::_chmod (const char *path,
   if (cmd || fmd)
     try
     {
-      pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      std::string uri;
+      if (cmd)
+	uri = gOFS->eosView->getUri(cmd);
+      else
+	uri = gOFS->eosView->getUri(fmd);
+
+      eos::common::Path pPath(uri.c_str());
+      pcmd =gOFS->eosView->getContainer(pPath.GetParentPath());
 
       eos::ContainerMD::XAttrMap::const_iterator it;
       for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)

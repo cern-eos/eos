@@ -189,6 +189,27 @@ eosdfs_access (const char* path, int mask)
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Readlink
+//------------------------------------------------------------------------------
+
+static int 
+eosdfs_readlink(const char *path, char *buf, size_t size)
+{ 
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);  
+  int res;
+  char rootpath[4096];
+  eosatime = time(0);    
+  rootpath[0]='\0';
+  strcat (rootpath, mountprefix);
+  strcat (rootpath,path);
+  
+  res = xrd_readlink(rootpath, buf, size - 1, uid, gid, pid);
+  if (res == -1)
+    return -errno;
+  
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Read directory
@@ -363,6 +384,33 @@ eosdfs_rmdir (const char* path)
   return 0;
 }
 
+
+//------------------------------------------------------------------------------
+// Symlink
+//------------------------------------------------------------------------------
+
+static int 
+eosdfs_symlink(const char *from, const char *to)
+{
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s link=%s\n", __FUNCTION__, from, to);  
+  int res;
+  char rootpath[4096];
+  eosatime = time(0);    
+  rootpath[0]='\0';
+
+  strcat(rootpath,mountprefix);
+  strcat(rootpath,"from");
+  
+  if (from[0] == '/') {
+    return -EINVAL;
+  }
+
+  res = xrd_symlink(rootpath, to, uid, gid, pid);
+  if (res == -1)
+    return -errno;
+  
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Rename
@@ -724,9 +772,11 @@ eosdfs_removexattr (const char* path, const char* name)
 static struct fuse_operations eosdfs_oper = {
   .getattr = eosdfs_getattr,
   .access = eosdfs_access,
+  .readlink= eosdfs_readlink,
   .readdir = eosdfs_readdir,
   .create = eosdfs_create,
   .mkdir = eosdfs_mkdir,
+  .symlink= eosdfs_symlink,
   .rmdir = eosdfs_rmdir,
   .rename = eosdfs_rename,
   .chmod = eosdfs_chmod,

@@ -392,6 +392,57 @@ public:
 	       bool lock_quota = true);
 
   // ---------------------------------------------------------------------------
+  // symlink file/dir
+  // ---------------------------------------------------------------------------
+  int symlink (const char *sourceName,
+	       const char *targetName,
+	       XrdOucErrInfo &out_error,
+	       const XrdSecEntity *client = 0,
+	       const char *opaqueO = 0,
+	       const char *opaqueN = 0);
+
+  // ---------------------------------------------------------------------------
+  // symlink file/dir by vid
+  // ---------------------------------------------------------------------------
+  int symlink (const char *sourceName,
+	       const char *targetName,
+	       XrdOucErrInfo &out_error,
+	       eos::common::Mapping::VirtualIdentity &vid,
+	       const char *opaqueO = 0,
+	       const char *opaqueN = 0,
+	       bool overwrite = false);
+
+  // ---------------------------------------------------------------------------
+  // symlink file/dir by vid
+  // ---------------------------------------------------------------------------
+  int _symlink (const char *sourceName,
+		const char *targetName,
+		XrdOucErrInfo &out_error,
+		eos::common::Mapping::VirtualIdentity &vid,
+		const char *opaqueO = 0,
+		const char *opaqueN = 0);
+
+  // ---------------------------------------------------------------------------
+  // read symbolic link
+  // ---------------------------------------------------------------------------
+  int readlink (const char *name,
+		XrdOucErrInfo &out_error,
+		XrdOucString &link,
+		const XrdSecEntity *client = 0,
+		const char *info = 0
+		);
+
+  // ---------------------------------------------------------------------------
+  // read symbolic link
+  // ---------------------------------------------------------------------------
+  int _readlink (const char *name,
+		 XrdOucErrInfo &out_error,
+		 eos::common::Mapping::VirtualIdentity &vid, 
+		 XrdOucString &link
+		 );
+  
+
+  // ---------------------------------------------------------------------------
   // stat file
   // ---------------------------------------------------------------------------
   int stat (const char *Name,
@@ -399,7 +450,9 @@ public:
             XrdOucErrInfo &out_error,
             std::string* etag,
             const XrdSecEntity *client = 0,
-            const char *opaque = 0
+            const char *opaque = 0, 
+	    bool follow = true, 
+	    std::string* uri=0
             );
 
   int stat (const char *Name,
@@ -416,7 +469,9 @@ public:
              XrdOucErrInfo &out_error,
              eos::common::Mapping::VirtualIdentity &vid,
              const char *opaque = 0,
-             std::string* etag = 0);
+             std::string* etag = 0, 
+	     bool follow = true, 
+	     std::string* uri = 0);
 
 
   // ---------------------------------------------------------------------------
