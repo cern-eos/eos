@@ -59,6 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc
 
 %post
+ln -s /usr/lib64/libglobus_gridftp_server_xrootd_gcc64pthr.so /usr/lib64/libglobus_gridftp_server_xrootd_gcc64.so
 /sbin/chkconfig --add xrootd-gridftp
 echo Starting conditional XROOTD grid-ftp services
 /sbin/service xrootd-gridftp condrestart > /dev/null 2>&1 || :
@@ -68,6 +69,8 @@ if [ $1 = 0 ]; then
         /sbin/service xrootd-gridftp stop > /dev/null 2>&1 
         /sbin/chkconfig --del xrootd-gridftp
 fi
+rm -f /usr/lib64/libglobus_gridftp_server_xrootd_gcc64.so
+
 
 %changelog
 * Wed May 8 2015 <geoffray.adde@cern.ch> - dsi 0.4.0-1

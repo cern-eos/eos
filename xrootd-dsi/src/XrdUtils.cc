@@ -509,7 +509,9 @@ XrdUtils::LocateFileXrootd (std::vector<std::string> &urls, std::vector<std::str
   XRootDStatus st;
 
   LocationInfo *li;
-  st = fs->Locate (path, fileMode == XROOTD_FILEMODE_READING ? (OpenFlags::Read) : (OpenFlags::Write), li, 10);
+  // With XRootD 4 and above, ::Write sould be enough. This flag does not exist for older versions
+  // st = fs->Locate (path, fileMode == XROOTD_FILEMODE_READING ? (OpenFlags::Read) : (OpenFlags::Write), li, 10);
+  st = fs->Locate (path, fileMode == XROOTD_FILEMODE_READING ? (OpenFlags::Read) : (OpenFlags::Update), li, 10);
   if (!st.IsOK ()) return st;
 
   for (auto it = li->Begin (); it != li->End (); it++)

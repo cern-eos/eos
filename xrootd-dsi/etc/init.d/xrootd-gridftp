@@ -99,6 +99,7 @@ fi
 
 start()
 {
+    export XRD_ENABLEFORKHANDLERS=1
     if [ "$RETVAL" == 0 ]
     then
 		echo -n "Starting $prog:"
