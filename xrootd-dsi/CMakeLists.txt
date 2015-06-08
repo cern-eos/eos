@@ -60,8 +60,8 @@ endif (NOT DEFINED PACKAGEONLY)
 # Platform Specific
 set(LIB_INSTALL_DIR lib64)
 
-#set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
-set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O0 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
+set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
+#set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O0 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
 ######################################################################################################################
 # build targets
 ######################################################################################################################
