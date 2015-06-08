@@ -66,8 +66,8 @@ options=${GLOBUS_GRIDFTP_OPTIONS:-""}
 #
 
 if [ ! -d "/var/log/xrootd/gridftp" ]; then
-	mkdir -p /var/log/xrootd/gridftp
-	echo create /var/log/xrootd/gridftp
+    mkdir -p /var/log/xrootd/gridftp
+    echo create /var/log/xrootd/gridftp
 fi
 
 options2=""
@@ -86,9 +86,9 @@ if [ -z "$options" ]; then
             options="$options_backend"
             ;;
         split)
-            options="$options_frontend"
-            options2="$options_backend"
-            export XROOTD_DSI_SERVER_ROLE="frontend"
+            options2="$options_frontend"
+            options="$options_backend"
+            export XROOTD_DSI_SERVER_ROLE="backend"
             ;;
         *)
             echo 'invalid value for XROOTD_DSI_SERVER_ROLE. valid values are "standalone","frontend","backend","split"'
@@ -99,66 +99,75 @@ fi
 
 start()
 {
-    export XRD_ENABLEFORKHANDLERS=1
+	export XRD_ENABLEFORKHANDLERS=1
     if [ "$RETVAL" == 0 ]
     then
-		echo -n "Starting $prog:"
+        echo -n "Starting $prog:"
         if test "x$user" = "x" ; then
-    		daemon "$ftpd $options"
+            rm -f /dev/shm/sem.xrootd-gridft
+            daemon --check $ftpd "$ftpd $options"
             if [ $? = 0 ] && [ "x$options2" != "x" ] 
             then
-                export XROOTD_DSI_SERVER_ROLE="backend"
-    	    	daemon "$ftpd $options2"
-    		fi
+                sleep 1
+                export XROOTD_DSI_SERVER_ROLE="frontend"
+                daemon --check $ftpd "$ftpd $options2"
+            fi
         else
-          	daemon "--user $user $ftpd -Q -W $options"
+            rm -f /dev/shm/sem.xrootd-gridft
+            daemon --check $ftpd --user $user "$ftpd -Q -W $options"
             if [ $? = 0 ] && [ "x$options2" != "x" ]  
             then
-                export XROOTD_DSI_SERVER_ROLE="backend"
-    	    	daemon "--user $user $ftpd -Q -W $options2"
-    		fi
+                sleep 1
+                export XROOTD_DSI_SERVER_ROLE="frontend"
+                daemon --check $ftpd --user $user "$ftpd -Q -W $options2"
+            fi
         fi
     fi
-	RETVAL=$?
-	[ "$RETVAL" = 0 ] && touch $lockfile
-	echo
+    RETVAL=$?
+    [ "$RETVAL" = 0 ] && touch $lockfile
+    echo
 }
 
 stop()
 {
-	echo -n "Stopping $prog:"
-	killproc $ftpd -TERM
-	RETVAL=$?
-	[ "$RETVAL" = 0 ] && rm -f $lockfile
-	echo
+    echo -n "Stopping $prog:"
+    killproc $ftpd -TERM
+    RETVAL=$?
+    [ "$RETVAL" = 0 ] && rm -f $lockfile
+    echo
 }
 
 case "$1" in
-	start)
-		start
-		;;
-	stop)
-		stop
-		;;
-	restart|reload)
-		stop
-		start
-		;;
-	condrestart)
-		if [ -f $lockfile ] ; then
-			stop
-			# avoid race
-			sleep 3
-			start
-		fi
-		;;
-	status)
-		status $ftpd
-		RETVAL=$?
-		;;
-	*)
-		echo "Usage: $0 {start|stop|restart|reload|condrestart|status}"
-		RETVAL=1
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart|reload)
+        stop
+        sleep 3
+        if [ "x$2" = "xresetbackend" ] ; then
+            echo "resetting backend $2"
+            rm -f /dev/shm/sem.xrootd-gridftp /dev/shm/xrootd-gridftp-shm
+        fi
+        start
+        ;;
+    condrestart)
+        if [ -f $lockfile ] ; then
+            stop
+            # avoid race
+            sleep 3
+            start
+        fi
+        ;;
+    status)
+        status $ftpd
+        RETVAL=$?
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|reload|condrestart|status}"
+        RETVAL=1
 esac
 
 exit $RETVAL

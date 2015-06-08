@@ -25,6 +25,11 @@
 #define _LARGE_FILES
 #endif
 
+// this is for debuuging only
+// it logs some messages in /tmp/globus_alternate_log.txt
+// and in /mnt/rd/globus_alternate_log.txt
+//#define FORKDEBUGGING
+
 #include <sys/types.h>
 #include <dirent.h>
 #include <string.h>
@@ -44,6 +49,7 @@
 #include "AsyncMetaHandler.hh"
 #include "XrdFileIo.hh"
 #include "dsi_xrootd.hh"
+#include "XrdGsiBackendMapper.hh"
 
 #include <stdio.h>
 #include <sys/stat.h>
@@ -70,8 +76,7 @@ public:
     pthread_mutex_destroy (&mutex);
   }
 
-  void
-  PrintAndFlush (const char *format, ...)
+  void PrintAndFlush (const char *format, ...)
   {
     va_list argptr;
     va_start(argptr, format);
@@ -80,8 +85,7 @@ public:
     fflush (file);
   }
 
-  void
-  Print (const char *format, ...)
+  void Print (const char *format, ...)
   {
     timeval t1;
     gettimeofday (&t1, NULL);
@@ -100,51 +104,7 @@ protected:
   pthread_mutex_t mutex;
 };
 
-class GsiFtpBackend
-{
-  std::map<std::string, std::pair<int, int> > pAllBackend2PortAndTTL; // TTL>0 available still for TTL seconds, TTL<0 means unavailable still for TTL seconds, 0 means need recheck.
-  XrdSysRWLock pMapLock;
-public:
-  GsiFtpBackend ()
-  {
-  }
-  bool
-  ReadFromEnv (const std::string &env, std::string &err)
-  {
-    std::stringstream ss;
-    XrdOucString senv (env.c_str ()), token;
-    int cursor = 0;
-    while ((cursor = senv.tokenize (token, cursor, ',')) != STR_NPOS)
-    {
-      int port = 2811;
-      int c = token.find (':');
-      if (c != STR_NPOS)
-      {
-	port = strtol (token.c_str () + c, NULL, 10);
-	if (!port)
-	{
-	  ss << "invalid port number " << token.c_str () + c;
-	  err = ss.str ();
-	  return false;
-	}
-	token.resize (c);
-      }
-      // check if the hostname
-      if (!XrdSysDNS::Host2IP (token.c_str ()))
-      {
-	ss << "could not resolve hostname " << token.c_str ();
-	err = ss.str ();
-	return false;
-      }
-      pAllBackend2PortAndTTL[token.c_str ()] = std::make_pair (port, 0);
-    }
-    return true;
-  }
-
-};
-
-GsiFtpBackend gsiFtpBackend;
-
+static XrdGsiBackendMapper *gsiFtpBackend;
 /**
  * \brief Struct to handle the configuration of the DSI plugin.
  *
@@ -159,17 +119,20 @@ struct globus_l_gfs_xrootd_config
   bool EosAppTag;
   bool EosBook;
   bool EosRemote;
-  int XrdReadAheadBlockSize, XrdReadAheadNBlocks, BackendServersDiscoveryTTL;
+  bool EosNodeLs;
+  int XrdReadAheadBlockSize, XrdReadAheadNBlocks, BackendServersDiscoveryTTL, BackendDiscoveryRetryInterval, BackendDefaultPort;
+  std::string BackendDefaultPortString;
   std::string TruncationTmpFileSuffix;
   std::string XrootdVmp;
   std::string ServerRole;
-  std::string BackendServersStaticList;
+  std::string BackendServersInitList;
   std::vector<std::string> allTheServers, allTheServersNoPort;
 
   globus_l_gfs_xrootd_config ()
   {
+    gsiFtpBackend = new XrdGsiBackendMapper ();
     const char *cptr = 0;
-    EosRemote = EosBook = EosCks = EosChmod = EosAppTag = false;
+    EosRemote = EosBook = EosCks = EosChmod = EosAppTag = EosNodeLs = false;
     XrdReadAheadBlockSize = (int) ReadaheadBlock::sDefaultBlocksize;
     XrdReadAheadNBlocks = (int) XrdFileIo::sNumRdAheadBlocks;
     TruncationTmpFileSuffix = ".__GridFtpTemp__";
@@ -181,11 +144,11 @@ struct globus_l_gfs_xrootd_config
     if (cptr != 0) ServerRole = cptr;
 
     cptr = getenv ("XROOTD_DSI_GSIFTP_BACKENDSERVERS");
-    if (cptr != 0) BackendServersStaticList = cptr;
+    if (cptr != 0) BackendServersInitList = cptr;
 
     if (getenv ("XROOTD_DSI_EOS"))
     {
-      EosBook = EosCks = EosChmod = EosAppTag = EosRemote = true;
+      EosBook = EosCks = EosChmod = EosAppTag = EosRemote = EosNodeLs = true;
     }
     else
     {
@@ -194,6 +157,7 @@ struct globus_l_gfs_xrootd_config
       EosAppTag = (getenv ("XROOTD_DSI_EOS_APPTAG") != 0);
       EosBook = (getenv ("XROOTD_DSI_EOS_BOOK") != 0);
       EosRemote = (getenv ("XROOTD_DSI_EOS_REMOTE") != 0);
+      EosNodeLs = (getenv ("XROOTD_DSI_EOS_NODELS") != 0);
     }
 
     cptr = getenv ("XROOTD_DSI_READAHEADBLOCKSIZE");
@@ -203,90 +167,91 @@ struct globus_l_gfs_xrootd_config
     if (cptr != 0) XrdReadAheadNBlocks = atoi (cptr);
 
     cptr = getenv ("XROOTD_DSI_GSIFTP_BACKENDDISCOVERTTL");
-    if (cptr != 0) BackendServersDiscoveryTTL = atoi (cptr);
+    BackendServersDiscoveryTTL = 0;
+    if (cptr != 0)
+    {
+      BackendServersDiscoveryTTL = atoi (cptr);
+      XrdGsiBackendMapper::This->SetAvailGsiTtl (BackendServersDiscoveryTTL);
+    }
 
-    if (!BackendServersStaticList.empty ())
+    cptr = getenv ("XROOTD_DSI_GSIFTP_BACKENDDISCOVERRETRYINTERVAL");
+    if (cptr != 0)
+    {
+      BackendDiscoveryRetryInterval = atoi (cptr);
+      XrdGsiBackendMapper::This->SetUnavailGsiRetryInterval (BackendDiscoveryRetryInterval);
+    }
+
+    cptr = getenv ("XROOTD_DSI_GSIFTP_BACKENDDEFAULTPORT");
+    if (cptr != 0)
+    {
+      BackendDefaultPort = atoi (cptr);
+      BackendDefaultPortString = cptr;
+      XrdGsiBackendMapper::This->SetGsiBackendPort (BackendDefaultPortString);
+    }
+
+    if (!BackendServersInitList.empty () && ServerRole == "frontend")
     {
       int current, beg_tok = -1, end_tok = -1;
       std::stringstream ss;
       ss << "list of remote nodes is [";
-      const char* sbeg = BackendServersStaticList.c_str ();
-      for (current = 0; current < (int)BackendServersStaticList.size (); current++)
+      const char* sbeg = BackendServersInitList.c_str ();
+      for (current = 0; current < (int) BackendServersInitList.size (); current++)
       {
-	const char &c = BackendServersStaticList[current];
-	if (c == ' ' || c == '\t')
-	{
-	  if (beg_tok < 0)
-	    continue; // looking for the beginning of token
-	  else if (end_tok < 0) end_tok = current; // previous position was the end of token
-	  // else looking for next ,
-	}
-	else if (c == ',' || current==(int)BackendServersStaticList.size ()-1)
-	{
-	  if(beg_tok>=0 && end_tok<0)
-	  {
-	    end_tok = current;
-	    if(c!=',') end_tok++;
-	  }
-	  if (beg_tok < 0 || end_tok < 0)
-	  {
-	    globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "error parsing XROOTD_DSI_GSIFTP_BACKENDSERVERS\n");
-	    allTheServers.clear ();
-	    allTheServersNoPort.clear ();
-	    break;
-	  }
-	  std::string token (sbeg + beg_tok, end_tok - beg_tok);
-	  allTheServers.push_back (token);
-	  auto idx = token.find (':');
-	  allTheServersNoPort.push_back (token.substr (0, idx));
-	  ss << " " << allTheServers.back ();
-	  beg_tok = end_tok = -1;
-	}
-	else
-	{
-	  if (beg_tok < 0) beg_tok = current;
-	  if (end_tok >= 0)
-	  {
-	    globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "error parsing XROOTD_DSI_GSIFTP_BACKENDSERVERS\n");
-	    allTheServers.clear ();
-	    allTheServersNoPort.clear ();
-	    break;
-	  }
-	}
+        const char &c = BackendServersInitList[current];
+        if (c == ' ' || c == '\t')
+        {
+          if (beg_tok < 0)
+            continue; // looking for the beginning of token
+          else if (end_tok < 0) end_tok = current; // previous position was the end of token
+          // else looking for next ,
+        }
+        else if (c == ',' || current == (int) BackendServersInitList.size () - 1)
+        {
+          if (beg_tok >= 0 && end_tok < 0)
+          {
+            end_tok = current;
+            if (c != ',') end_tok++;
+          }
+          if (beg_tok < 0 || end_tok < 0)
+          {
+            globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "error parsing XROOTD_DSI_GSIFTP_BACKENDSERVERS\n");
+            allTheServers.clear ();
+            allTheServersNoPort.clear ();
+            break;
+          }
+          std::string token (sbeg + beg_tok, end_tok - beg_tok);
+          allTheServers.push_back (token);
+          auto idx = token.find (':');
+          allTheServersNoPort.push_back (token.substr (0, idx));
+          XrdGsiBackendMapper::This->AddToProbeList (token.substr (0, idx));
+          ss << " " << allTheServers.back ();
+          beg_tok = end_tok = -1;
+        }
+        else
+        {
+          if (beg_tok < 0) beg_tok = current;
+          if (end_tok >= 0)
+          {
+            globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "error parsing XROOTD_DSI_GSIFTP_BACKENDSERVERS\n");
+            allTheServers.clear ();
+            allTheServersNoPort.clear ();
+            break;
+          }
+        }
       }
       globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s ]\n", ss.str ().c_str ());
       XrdUtils::SortAlongFirstVect (allTheServersNoPort, allTheServers);
     }
-
-//    char *remote_list;
-//    if ((remote_list = globus_gfs_config_get_string ("remote_nodes")))
-//    {
-//      std::stringstream ss;
-//      globus_list_t * nodelist;
-//      nodelist = globus_list_from_string (remote_list, ',', " \t");
-//      globus_list_t * node = (globus_list_t *) nodelist;
-//      ss << "list of remote nodes is [";
-//      while (node)
-//      {
-//	if (node->datum)
-//	{
-//	  allTheServers.push_back ((char*) node->datum);
-//	  auto idx = allTheServers.back().find(':');
-//	  allTheServersNoPort.push_back(allTheServers.back().substr(0,idx));
-//	  ss << " " << allTheServers.back ();
-//	}
-//	node = node->next;
-//      }
-//      globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s ]\n", ss.str ().c_str ());
-//      //sort allTheServers
-//      XrdUtils::SortAlongFirstVect(allTheServersNoPort,allTheServers);
-//      if (nodelist) globus_list_free (nodelist);
-//      globus_free(remote_list);
-//    }
+  }
+  ~globus_l_gfs_xrootd_config ()
+  {
+    XrdGsiBackendMapper::sDestructLock.WriteLock ();
+    if (XrdGsiBackendMapper::This) delete XrdGsiBackendMapper::This;
+    XrdGsiBackendMapper::This = NULL;
+    XrdGsiBackendMapper::sDestructLock.UnLock ();
   }
 };
-globus_l_gfs_xrootd_config config;
-
+globus_l_gfs_xrootd_config *config = NULL;
 
 /**
  * Class for handling async responses when DSI receives data.
@@ -302,7 +267,7 @@ public:
    */
   DsiRcvResponseHandler (globus_l_gfs_xrood_handle_s *handle) :
       AsyncMetaHandler (), mNumRegRead (0), mNumCbRead (0), mNumRegWrite (0), mNumCbWrite (0), mHandle (handle), mAllBufferMet (false), mOver (
-	  false), mNumExpectedBuffers (-1), clean_tid (0)
+          false), mNumExpectedBuffers (-1), clean_tid (0)
   {
     globus_mutex_init (&mOverMutex, NULL);
     globus_cond_init (&mOverCond, NULL);
@@ -311,8 +276,7 @@ public:
   /**
    * \brief Destructor
    */
-  virtual
-  ~DsiRcvResponseHandler ()
+  virtual ~DsiRcvResponseHandler ()
   {
     globus_mutex_destroy (&mOverMutex);
     globus_cond_destroy (&mOverCond);
@@ -325,8 +289,7 @@ public:
    * @param length Length of the file chunk
    * @param buffer Buffer
    */
-  void
-  RegisterBuffer (uint64_t offset, uint64_t length, globus_byte_t* buffer)
+  void RegisterBuffer (uint64_t offset, uint64_t length, globus_byte_t* buffer)
   {
     mBufferMap[std::pair<uint64_t, uint32_t> (offset, (uint32_t) length)] = buffer;
   }
@@ -339,8 +302,7 @@ public:
    *
    * @param buffer Buffer to disable
    */
-  void
-  DisableBuffer (globus_byte_t* buffer)
+  void DisableBuffer (globus_byte_t* buffer)
   {
     mActiveBufferSet.erase (buffer);
     if (!mAllBufferMet)
@@ -350,7 +312,7 @@ public:
       // to cope with the fact that a buffer might be unregistered without having being used in any callback (typically small files)
       if ((int) mMetBufferSet.size () == mNumExpectedBuffers)
       {
-	mAllBufferMet = true;
+        mAllBufferMet = true;
       }
     }
   }
@@ -360,8 +322,7 @@ public:
    *
    * @param nBuffers
    */
-  void
-  SetExpectedBuffers (int nBuffers)
+  void SetExpectedBuffers (int nBuffers)
   {
     pthread_mutex_lock (&mHandle->mutex);
     mNumExpectedBuffers = nBuffers;
@@ -375,8 +336,7 @@ public:
    *
    * @return The count of active buffers
    */
-  size_t
-  GetActiveCount () const
+  size_t GetActiveCount () const
   {
     return mActiveBufferSet.size ();
   }
@@ -386,8 +346,7 @@ public:
    *
    * @return The number of different buffers ever called by RegisterBuffer
    */
-  size_t
-  GetBufferCount () const
+  size_t GetBufferCount () const
   {
     return mMetBufferSet.size ();
   }
@@ -397,11 +356,10 @@ public:
    *
    * @return
    */
-  bool
-  IsOver () const
+  bool IsOver () const
   {
     return (GetActiveCount () == 0) && (GetBufferCount () != 0) && ((int) GetBufferCount () == mNumExpectedBuffers)
-	&& (mNumCbRead == mNumRegRead) && (mNumExpectedResp == mNumReceivedResp);
+        && (mNumCbRead == mNumRegRead) && (mNumExpectedResp == mNumReceivedResp);
   }
 
   /**
@@ -413,8 +371,7 @@ public:
    * @param pStatus The status of the XRootD write operation.
    * @param chunk The chunk handler associated to the writes for the money transfer to be registered.
    */
-  virtual void
-  HandleResponse (XrdCl::XRootDStatus* pStatus, ChunkHandler* chunk)
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus, ChunkHandler* chunk)
   {
     mNumCbWrite++;
     const char *func = "DsiRcvResponseHandler::HandleResponse";
@@ -427,7 +384,7 @@ public:
       mActiveBufferSet.insert (mBufferMap[std::pair<uint64_t, uint32_t> (chunk->GetOffset (), chunk->GetLength ())]);
       if ((int) mMetBufferSet.size () == mNumExpectedBuffers)
       {
-	mAllBufferMet = true;
+        mAllBufferMet = true;
       }
     }
 
@@ -436,9 +393,9 @@ public:
     { // if there is a xrootd write error
       if (mHandle->cached_res == GLOBUS_SUCCESS)
       { //if it's the first error
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XRootd write issued an error response : %s \n", func, pStatus->ToStr ().c_str ());
-	mHandle->cached_res = globus_l_gfs_make_error (pStatus->ToStr ().c_str (), pStatus->errNo);
-	mHandle->done = GLOBUS_TRUE;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XRootd write issued an error response : %s \n", func, pStatus->ToStr ().c_str ());
+        mHandle->cached_res = globus_l_gfs_make_error (pStatus->ToStr ().c_str (), pStatus->errNo);
+        mHandle->done = GLOBUS_TRUE;
       }
       DisableBuffer (buffer);
     }
@@ -450,23 +407,23 @@ public:
       // if required and valid, spawn again
       if (spawn && (mHandle->done == GLOBUS_FALSE))
       {
-	mBufferMap.erase (std::pair<uint64_t, uint32_t> (chunk->GetOffset (), chunk->GetLength ()));
-	globus_result_t result = globus_gridftp_server_register_read (mHandle->op, buffer, mHandle->block_size,
-								      globus_l_gfs_file_net_read_cb, mHandle);
+        mBufferMap.erase (std::pair<uint64_t, uint32_t> (chunk->GetOffset (), chunk->GetLength ()));
+        globus_result_t result = globus_gridftp_server_register_read (mHandle->op, buffer, mHandle->block_size,
+                                                                      globus_l_gfs_file_net_read_cb, mHandle);
 
-	if (result != GLOBUS_SUCCESS)
-	{
-	  globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register Globus read has finished with a bad result \n", func);
-	  mHandle->cached_res = globus_l_gfs_make_error ("Error registering globus read", result);
-	  mHandle->done = GLOBUS_TRUE;
-	  DisableBuffer (buffer);
-	}
-	else
-	  mNumRegRead++;
+        if (result != GLOBUS_SUCCESS)
+        {
+          globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register Globus read has finished with a bad result \n", func);
+          mHandle->cached_res = globus_l_gfs_make_error ("Error registering globus read", result);
+          mHandle->done = GLOBUS_TRUE;
+          DisableBuffer (buffer);
+        }
+        else
+          mNumRegRead++;
       }
       else
       { // if not spawning, delete the buffer
-	DisableBuffer (buffer);
+        DisableBuffer (buffer);
       }
     }
     AsyncMetaHandler::HandleResponse (pStatus, chunk); // MUST be called AFTER the actual processing of the inheriting class
@@ -479,8 +436,7 @@ public:
    *
    * Note that the cleaning-up should be explicitly triggered after WaitOK
    */
-  void
-  SignalIfOver ()
+  void SignalIfOver ()
   {
     if (IsOver ())
     {
@@ -496,8 +452,7 @@ public:
    *
    * @return
    */
-  virtual bool
-  WaitOK ()
+  virtual bool WaitOK ()
   {
     // wait for the end of the copy to be signaled
     globus_mutex_lock (&mOverMutex);
@@ -528,12 +483,10 @@ public:
     delete mHandle->fileIo;
     mHandle->fileIo = NULL;
     // move the file to its final name is needed
-    if (mHandle->tmpsfix_size>0)
+    if (mHandle->tmpsfix_size > 0)
     {
-      XrdCl::XRootDStatus st =
-	  XrdUtils::RenameTmpToFinal(*mHandle->tempname,mHandle->tmpsfix_size,config.EosRemote);
-      if(!st.IsOK())
-	mHandle->cached_res = globus_l_gfs_make_error (ss.str ().c_str (), st.errNo);
+      XrdCl::XRootDStatus st = XrdUtils::RenameTmpToFinal (*mHandle->tempname, mHandle->tmpsfix_size, config->EosRemote);
+      if (!st.IsOK ()) mHandle->cached_res = globus_l_gfs_make_error (ss.str ().c_str (), st.errNo);
       delete mHandle->tempname;
       mHandle->tempname = NULL;
       mHandle->tmpsfix_size = 0;
@@ -550,8 +503,7 @@ protected:
   /**
    * \brief Reset the state of the handler, it's part of the clean-up procedure.
    */
-  void
-  Reset ()
+  void Reset ()
   {
     for (std::set<globus_byte_t*>::iterator it = mMetBufferSet.begin (); it != mMetBufferSet.end (); it++)
       globus_free(*it);
@@ -593,7 +545,7 @@ public:
    */
   DsiSendResponseHandler (globus_l_gfs_xrood_handle_s *handle, bool writeinorder = true) :
       AsyncMetaHandler (), mNumRegRead (0), mNumCbRead (0), mNumRegWrite (0), mNumCbWrite (0), mWriteInOrder (writeinorder), mHandle (
-	  handle), mAllBufferMet (false), mOver (false), mNumExpectedBuffers (-1), clean_tid (0)
+          handle), mAllBufferMet (false), mOver (false), mNumExpectedBuffers (-1), clean_tid (0)
   {
     globus_mutex_init (&mOverMutex, NULL);
     globus_cond_init (&mOverCond, NULL);
@@ -603,8 +555,7 @@ public:
   /**
    * \brief Destructor
    */
-  virtual
-  ~DsiSendResponseHandler ()
+  virtual ~DsiSendResponseHandler ()
   {
     globus_mutex_destroy (&mOverMutex);
     globus_cond_destroy (&mOverCond);
@@ -618,8 +569,7 @@ public:
    * @param length Length of the file chunk
    * @param buffer Buffer
    */
-  void
-  RegisterBuffer (uint64_t offset, uint64_t length, globus_byte_t* buffer)
+  void RegisterBuffer (uint64_t offset, uint64_t length, globus_byte_t* buffer)
   {
     mBufferMap[std::pair<uint64_t, uint32_t> (offset, length)] = buffer;
     mRevBufferMap[buffer] = std::pair<uint64_t, uint32_t> (offset, length);
@@ -633,8 +583,7 @@ public:
    *
    * @param buffer Buffer to disable
    */
-  void
-  DisableBuffer (globus_byte_t* buffer)
+  void DisableBuffer (globus_byte_t* buffer)
   {
     mActiveBufferSet.erase (buffer);
     mBufferMap.erase (mRevBufferMap[buffer]);
@@ -645,7 +594,7 @@ public:
       // to cope with the fact that a buffer might be unregistered without having being used in any callback (typically small files)
       if ((int) mMetBufferSet.size () == mNumExpectedBuffers)
       {
-	mAllBufferMet = true;
+        mAllBufferMet = true;
       }
     }
   }
@@ -656,8 +605,7 @@ public:
    *
    * @param nBuffers
    */
-  void
-  SetExpectedBuffers (int nBuffers)
+  void SetExpectedBuffers (int nBuffers)
   {
     pthread_mutex_lock (&mHandle->mutex);
     mNumExpectedBuffers = nBuffers;
@@ -671,8 +619,7 @@ public:
    *
    * @return The count of active buffers
    */
-  size_t
-  GetActiveCount () const
+  size_t GetActiveCount () const
   {
     return mActiveBufferSet.size ();
   }
@@ -682,8 +629,7 @@ public:
    *
    * @return The number of different buffers ever called by RegisterBuffer
    */
-  size_t
-  GetBufferCount () const
+  size_t GetBufferCount () const
   {
     return mMetBufferSet.size ();
   }
@@ -693,11 +639,10 @@ public:
    *
    * @return
    */
-  bool
-  IsOver () const
+  bool IsOver () const
   {
     return (GetActiveCount () == 0) && (GetBufferCount () != 0) && ((int) GetBufferCount () == mNumExpectedBuffers)
-	&& (mNumCbWrite == mNumRegWrite) && (mNumExpectedResp == mNumReceivedResp);
+        && (mNumCbWrite == mNumRegWrite) && (mNumExpectedResp == mNumReceivedResp);
   }
 
   /**
@@ -709,8 +654,7 @@ public:
    * @param pStatus The status of the XRootD write operation.
    * @param chunk The chunk handler associated to the read
    */
-  virtual void
-  HandleResponse (XrdCl::XRootDStatus* pStatus, ChunkHandler* chunk)
+  virtual void HandleResponse (XrdCl::XRootDStatus* pStatus, ChunkHandler* chunk)
   {
     HandleResponse (pStatus->IsError (), pStatus->errNo, chunk->GetOffset (), chunk->GetLength (), chunk->GetRespLength (), pStatus, chunk);
   }
@@ -725,9 +669,8 @@ public:
    * @param pStatus Status object of the read operation (can be NULL)
    * @param chunk Read handler of the read operation (can be NULL)
    */
-  void
-  HandleResponse (bool isErr, uint32_t errNo, uint64_t offset, uint32_t len, uint32_t rlen, XrdCl::XRootDStatus* pStatus = 0,
-		  ChunkHandler* chunk = 0)
+  void HandleResponse (bool isErr, uint32_t errNo, uint64_t offset, uint32_t len, uint32_t rlen, XrdCl::XRootDStatus* pStatus = 0,
+                       ChunkHandler* chunk = 0)
   {
     mNumCbRead++;
     const char *func = "DsiSendResponseHandler::HandleResponse";
@@ -741,7 +684,7 @@ public:
       mActiveBufferSet.insert (buffer);
       if ((int) mMetBufferSet.size () == mNumExpectedBuffers)
       {
-	mAllBufferMet = true;
+        mAllBufferMet = true;
       }
     }
 
@@ -750,9 +693,9 @@ public:
     { // if there is a xrootd read error which is not bad (offset,len)
       if (mHandle->cached_res == GLOBUS_SUCCESS)
       { //if it's the first one
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XRootd read issued an error response : %s \n", func, pStatus->ToStr ().c_str ());
-	mHandle->cached_res = globus_l_gfs_make_error (pStatus->ToStr ().c_str (), pStatus->errNo);
-	mHandle->done = GLOBUS_TRUE;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XRootd read issued an error response : %s \n", func, pStatus->ToStr ().c_str ());
+        mHandle->cached_res = globus_l_gfs_make_error (pStatus->ToStr ().c_str (), pStatus->errNo);
+        mHandle->done = GLOBUS_TRUE;
       }
       DisableBuffer (buffer);
     }
@@ -768,25 +711,25 @@ public:
       // !!!!! a mechanism is then implemented to overcome this limitation, it can be enabled or disbaled
       if (mWriteInOrder)
       {
-	// wait that the current offset is the next in the order or that the set of offsets to process is empty
-	while ((globus_off_t) offset != (*mRegisterReadOffsets.begin ()) || mRegisterReadOffsets.size () == 0)
-	  pthread_cond_wait (&mOrderCond, &mHandle->mutex);
-	mRegisterReadOffsets.erase ((globus_off_t) offset);
-	pthread_cond_broadcast (&mOrderCond);
+        // wait that the current offset is the next in the order or that the set of offsets to process is empty
+        while ((globus_off_t) offset != (*mRegisterReadOffsets.begin ()) || mRegisterReadOffsets.size () == 0)
+          pthread_cond_wait (&mOrderCond, &mHandle->mutex);
+        mRegisterReadOffsets.erase ((globus_off_t) offset);
+        pthread_cond_broadcast (&mOrderCond);
       }
 
       globus_result_t result = globus_gridftp_server_register_write (mHandle->op, buffer, nbread, offset, // !! this value doesn't matter
-								     -1, globus_l_gfs_net_write_cb, mHandle);
+                                                                     -1, globus_l_gfs_net_write_cb, mHandle);
 
       if (result != GLOBUS_SUCCESS)
       {
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register Globus write has finished with a bad result \n", func);
-	mHandle->cached_res = globus_l_gfs_make_error ("Error registering globus write", result);
-	mHandle->done = GLOBUS_TRUE;
-	DisableBuffer (buffer);
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register Globus write has finished with a bad result \n", func);
+        mHandle->cached_res = globus_l_gfs_make_error ("Error registering globus write", result);
+        mHandle->done = GLOBUS_TRUE;
+        DisableBuffer (buffer);
       } // spawn
       else
-	mNumRegWrite++;
+        mNumRegWrite++;
     }
     if (pStatus != 0 && chunk != 0)
       AsyncMetaHandler::HandleResponse (pStatus, chunk); // MUST be called AFTER the actual processing of the inheriting class
@@ -815,8 +758,7 @@ public:
     return NULL;
   }
 
-  void
-  HandleResponseAsync (bool isErr, uint32_t errNo, uint64_t offset, uint32_t len, uint32_t rlen)
+  void HandleResponseAsync (bool isErr, uint32_t errNo, uint64_t offset, uint32_t len, uint32_t rlen)
   {
     HandleRespStruct *hrs = new HandleRespStruct;
     //*hrs={this,isErr,errNo,offset,len,rlen};
@@ -836,8 +778,7 @@ public:
    *
    * Note that the cleaning-up should be explicitly triggered after WaitOK
    */
-  void
-  SignalIfOver ()
+  void SignalIfOver ()
   {
     if (IsOver ())
     {
@@ -853,8 +794,7 @@ public:
    *
    * @return
    */
-  virtual bool
-  WaitOK ()
+  virtual bool WaitOK ()
   {
     // wait for the end of the copy to be signaled
     globus_mutex_lock (&mOverMutex);
@@ -909,8 +849,7 @@ protected:
   /**
    * \brief Reset the state of the handler, it's part of the clean-up procedure.
    */
-  void
-  Reset ()
+  void Reset ()
   {
     for (std::set<globus_byte_t*>::iterator it = mMetBufferSet.begin (); it != mMetBufferSet.end (); it++)
       globus_free(*it);
@@ -938,8 +877,7 @@ protected:
 /**
  * \brief Compute the length of the next chunk to be read and update the xroot_handle struct.
  */
-int
-next_read_chunk (globus_l_gfs_xrood_handle_s *xrootd_handle, int64_t &nextreadl)
+int next_read_chunk (globus_l_gfs_xrood_handle_s *xrootd_handle, int64_t &nextreadl)
 {
   //const char *func="next_read_chunk";
 
@@ -959,11 +897,11 @@ next_read_chunk (globus_l_gfs_xrood_handle_s *xrootd_handle, int64_t &nextreadl)
       //xrootd_handle->blk_length -= lastreadl;
       // here we suppose that when a read succeed it always read block size or block length
       xrootd_handle->blk_offset += (
-	  (xrootd_handle->blk_length >= (globus_off_t) xrootd_handle->block_size) ?
-	      (globus_off_t) xrootd_handle->block_size : (globus_off_t) xrootd_handle->blk_length);
+          (xrootd_handle->blk_length >= (globus_off_t) xrootd_handle->block_size) ?
+              (globus_off_t) xrootd_handle->block_size : (globus_off_t) xrootd_handle->blk_length);
       xrootd_handle->blk_length -=
-	  xrootd_handle->blk_length >= (globus_off_t) xrootd_handle->block_size ?
-	      (globus_off_t) xrootd_handle->block_size : (globus_off_t) xrootd_handle->blk_length;
+          xrootd_handle->blk_length >= (globus_off_t) xrootd_handle->block_size ?
+              (globus_off_t) xrootd_handle->block_size : (globus_off_t) xrootd_handle->blk_length;
     }
     else
     {
@@ -996,8 +934,7 @@ extern "C"
   };
 
 /// utility function to make errors
-  static globus_result_t
-  globus_l_gfs_make_error (const char *msg, int errCode)
+  static globus_result_t globus_l_gfs_make_error (const char *msg, int errCode)
   {
     char *err_str;
     globus_result_t result;
@@ -1009,8 +946,7 @@ extern "C"
   }
 
   /* fill the statbuf into globus_gfs_stat_t */
-  void
-  fill_stat_array (globus_gfs_stat_t * filestat, struct stat statbuf, char *name)
+  void fill_stat_array (globus_gfs_stat_t * filestat, struct stat statbuf, char *name)
   {
     filestat->mode = statbuf.st_mode;
     ;
@@ -1028,8 +964,7 @@ extern "C"
     filestat->name = strdup (name);
   }
   /* free memory in stat_array from globus_gfs_stat_t->name */
-  void
-  free_stat_array (globus_gfs_stat_t * filestat, int count)
+  void free_stat_array (globus_gfs_stat_t * filestat, int count)
   {
     int i;
     for (i = 0; i < count; i++)
@@ -1055,8 +990,7 @@ extern "C"
    *
    */
   static
-  void
-  globus_l_gfs_xrootd_start (globus_gfs_operation_t op, globus_gfs_session_info_t *session_info)
+  void globus_l_gfs_xrootd_start (globus_gfs_operation_t op, globus_gfs_session_info_t *session_info)
   {
     globus_l_gfs_xrootd_handle_t *xrootd_handle;
     globus_gfs_finished_info_t finished_info;
@@ -1085,15 +1019,15 @@ extern "C"
     xrootd_handle->tmpsfix_size = 0;
 
     //=== additional init added for foreground / background mode ===//
-    memset(&xrootd_handle->session_info, 0, sizeof(globus_gfs_session_info_t));
-    memset(&xrootd_handle->cur_result, 0, sizeof(globus_result_t));
-    memset(&xrootd_handle->active_delay, 0, sizeof(globus_bool_t));
-    xrootd_handle->active_data_info=NULL;
-    xrootd_handle->active_transfer_info=NULL;
-    memset(&xrootd_handle->active_op, 0, sizeof(globus_gfs_operation_t));
-    xrootd_handle->active_user_arg=NULL;
-    memset(&xrootd_handle->active_callback, 0, sizeof(globus_gfs_storage_transfer_t));
-    globus_mutex_init(&xrootd_handle->gfs_mutex, GLOBUS_NULL);
+    memset (&xrootd_handle->session_info, 0, sizeof(globus_gfs_session_info_t));
+    memset (&xrootd_handle->cur_result, 0, sizeof(globus_result_t));
+    memset (&xrootd_handle->active_delay, 0, sizeof(globus_bool_t));
+    xrootd_handle->active_data_info = NULL;
+    xrootd_handle->active_transfer_info = NULL;
+    memset (&xrootd_handle->active_op, 0, sizeof(globus_gfs_operation_t));
+    xrootd_handle->active_user_arg = NULL;
+    memset (&xrootd_handle->active_callback, 0, sizeof(globus_gfs_storage_transfer_t));
+    globus_mutex_init (&xrootd_handle->gfs_mutex, GLOBUS_NULL);
 
     if (session_info->username != NULL) xrootd_handle->session_info.username = strdup (session_info->username);
     if (session_info->password != NULL) xrootd_handle->session_info.password = strdup (session_info->password);
@@ -1123,8 +1057,7 @@ extern "C"
    *  here.
    *
    */
-  static void
-  globus_l_gfs_xrootd_destroy (void *user_arg)
+  static void globus_l_gfs_xrootd_destroy (void *user_arg)
   {
     if (user_arg)
     {
@@ -1132,11 +1065,11 @@ extern "C"
       xrootd_handle = (globus_l_gfs_xrootd_handle_t *) user_arg;
       if (xrootd_handle->isInit)
       {
-	globus_mutex_destroy(&xrootd_handle->gfs_mutex);
-	delete RcvRespHandler;
-	delete SendRespHandler;
-	pthread_mutex_destroy (&xrootd_handle->mutex);
-	globus_free(xrootd_handle);
+        globus_mutex_destroy (&xrootd_handle->gfs_mutex);
+        delete RcvRespHandler;
+        delete SendRespHandler;
+        pthread_mutex_destroy (&xrootd_handle->mutex);
+        globus_free(xrootd_handle);
       }
     }
     else
@@ -1145,9 +1078,8 @@ extern "C"
     }
   }
 
-  void
-  globus_l_gfs_file_copy_stat (globus_gfs_stat_t * stat_object, XrdCl::StatInfo * stat_buf, const char * filename,
-			       const char * symlink_target)
+  void globus_l_gfs_file_copy_stat (globus_gfs_stat_t * stat_object, XrdCl::StatInfo * stat_buf, const char * filename,
+                                    const char * symlink_target)
   {
     GlobusGFSName(__FUNCTION__);
 
@@ -1178,8 +1110,7 @@ extern "C"
   }
 
   static
-  void
-  globus_l_gfs_file_destroy_stat (globus_gfs_stat_t * stat_array, int stat_count)
+  void globus_l_gfs_file_destroy_stat (globus_gfs_stat_t * stat_array, int stat_count)
   {
     int i;
     GlobusGFSName(__FUNCTION__);
@@ -1188,11 +1119,11 @@ extern "C"
     {
       if (stat_array[i].name != NULL)
       {
-	globus_free(stat_array[i].name);
+        globus_free(stat_array[i].name);
       }
       if (stat_array[i].symlink_target != NULL)
       {
-	globus_free(stat_array[i].symlink_target);
+        globus_free(stat_array[i].symlink_target);
       }
     }
     globus_free(stat_array);
@@ -1201,8 +1132,7 @@ extern "C"
   /* basepath and filename must be MAXPATHLEN long
    * the pathname may be absolute or relative, basepath will be the same */
   static
-  void
-  globus_l_gfs_file_partition_path (const char * pathname, char * basepath, char * filename)
+  void globus_l_gfs_file_partition_path (const char * pathname, char * basepath, char * filename)
   {
     char buf[MAXPATHLEN];
     char * filepart;
@@ -1227,25 +1157,25 @@ extern "C"
     {
       if (filepart == buf)
       {
-	if (!*(filepart + 1))
-	{
-	  basepath[0] = '\0';
-	  filename[0] = '/';
-	  filename[1] = '\0';
-	}
-	else
-	{
-	  *filepart++ = '\0';
-	  basepath[0] = '/';
-	  basepath[1] = '\0';
-	  strcpy (filename, filepart);
-	}
+        if (!*(filepart + 1))
+        {
+          basepath[0] = '\0';
+          filename[0] = '/';
+          filename[1] = '\0';
+        }
+        else
+        {
+          *filepart++ = '\0';
+          basepath[0] = '/';
+          basepath[1] = '\0';
+          strcpy (filename, filepart);
+        }
       }
       else
       {
-	*filepart++ = '\0';
-	strcpy (basepath, buf);
-	strcpy (filename, filepart);
+        *filepart++ = '\0';
+        strcpy (basepath, buf);
+        strcpy (filename, filepart);
       }
     }
   }
@@ -1260,8 +1190,7 @@ extern "C"
    *
    */
   static
-  void
-  globus_l_gfs_xrootd_stat (globus_gfs_operation_t op, globus_gfs_stat_info_t * stat_info, void * user_arg)
+  void globus_l_gfs_xrootd_stat (globus_gfs_operation_t op, globus_gfs_stat_info_t * stat_info, void * user_arg)
   {
     globus_result_t result;
     globus_gfs_stat_t * stat_array;
@@ -1317,8 +1246,8 @@ extern "C"
       stat_array = (globus_gfs_stat_t *) globus_malloc(sizeof(globus_gfs_stat_t));
       if (!stat_array)
       {
-	result = GlobusGFSErrorMemory("stat_array");
-	goto error_alloc1;
+        result = GlobusGFSErrorMemory("stat_array");
+        goto error_alloc1;
       }
 
       globus_l_gfs_file_copy_stat (stat_array, xrdstatinfo, filename, symlink_target);
@@ -1330,9 +1259,9 @@ extern "C"
       status = fs.DirList (myPathPart, XrdCl::DirListFlags::Stat, dirlist, (uint16_t) 0);
       if (!status.IsOK ())
       {
-	if (dirlist) delete dirlist;
-	result = GlobusGFSErrorSystemError("opendir", XrootStatUtils::mapError (status.errNo));
-	goto error_open;
+        if (dirlist) delete dirlist;
+        result = GlobusGFSErrorSystemError("opendir", XrootStatUtils::mapError (status.errNo));
+        goto error_open;
       }
 
       stat_count = dirlist->GetSize ();
@@ -1340,17 +1269,17 @@ extern "C"
       stat_array = (globus_gfs_stat_t *) globus_malloc(sizeof(globus_gfs_stat_t) * (stat_count + 1));
       if (!stat_array)
       {
-	if (dirlist) delete dirlist;
-	result = GlobusGFSErrorMemory("stat_array");
-	goto error_alloc2;
+        if (dirlist) delete dirlist;
+        result = GlobusGFSErrorMemory("stat_array");
+        goto error_alloc2;
       }
 
       int i = 0;
       for (XrdCl::DirectoryList::Iterator it = dirlist->Begin (); it != dirlist->End (); it++)
       {
-	std::string path = (*it)->GetName ();
-	globus_l_gfs_file_partition_path (path.c_str (), basepath, filename);
-	globus_l_gfs_file_copy_stat (&stat_array[i++], (*it)->GetStatInfo (), filename, NULL);
+        std::string path = (*it)->GetName ();
+        globus_l_gfs_file_partition_path (path.c_str (), basepath, filename);
+        globus_l_gfs_file_copy_stat (&stat_array[i++], (*it)->GetStatInfo (), filename, NULL);
       }
       if (dirlist) delete dirlist;
     }
@@ -1398,8 +1327,7 @@ extern "C"
    *      GLOBUS_GFS_MIN_CUSTOM_CMD = 4096
    *
    */
-  static void
-  globus_l_gfs_xrootd_command (globus_gfs_operation_t op, globus_gfs_command_info_t* cmd_info, void *user_arg)
+  static void globus_l_gfs_xrootd_command (globus_gfs_operation_t op, globus_gfs_command_info_t* cmd_info, void *user_arg)
   {
 
     GlobusGFSName(__FUNCTION__);
@@ -1434,126 +1362,126 @@ extern "C"
     switch (cmd_info->command)
     {
       case GLOBUS_GFS_CMD_MKD:
-	(status = fs.MkDir (myPathPart, XrdCl::MkDirFlags::None, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (0777))).IsError ()
-	    && (rc = GlobusGFSErrorGeneric((std::string ("mkdir() fail : ") += status.ToString ()).c_str ()));
-	break;
+        (status = fs.MkDir (myPathPart, XrdCl::MkDirFlags::None, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (0777))).IsError ()
+            && (rc = GlobusGFSErrorGeneric((std::string ("mkdir() fail : ") += status.ToString ()).c_str ()));
+        break;
       case GLOBUS_GFS_CMD_RMD:
-	(status = fs.RmDir (myPathPart)).IsError ()
-	    && (rc = GlobusGFSErrorGeneric((std::string ("rmdir() fail") += status.ToString ()).c_str ()));
-	break;
+        (status = fs.RmDir (myPathPart)).IsError ()
+            && (rc = GlobusGFSErrorGeneric((std::string ("rmdir() fail") += status.ToString ()).c_str ()));
+        break;
       case GLOBUS_GFS_CMD_DELE:
-	(fs.Rm (myPathPart)).IsError () && (rc = GlobusGFSErrorGeneric((std::string ("rm() fail") += status.ToString ()).c_str ()));
-	break;
+        (fs.Rm (myPathPart)).IsError () && (rc = GlobusGFSErrorGeneric((std::string ("rm() fail") += status.ToString ()).c_str ()));
+        break;
       case GLOBUS_GFS_CMD_SITE_RDEL:
-	/*
-	 result = globus_l_gfs_file_delete(
-	 op, PathName, GLOBUS_TRUE);
-	 */
-	rc = GLOBUS_FAILURE;
-	break;
+        /*
+         result = globus_l_gfs_file_delete(
+         op, PathName, GLOBUS_TRUE);
+         */
+        rc = GLOBUS_FAILURE;
+        break;
       case GLOBUS_GFS_CMD_RNTO:
-	char myServerPart2[MAXPATHLEN], myPathPart2[MAXPATHLEN];
-	if (!(myPath = XP.BuildURL (cmd_info->from_pathname, buff, sizeof(buff)))) myPath = cmd_info->from_pathname;
-	if (XrootPath::SplitURL (myPath, myServerPart2, myPathPart2, MAXPATHLEN))
-	{
-	  rc = GlobusGFSErrorGeneric("rename() fail : error parsing the target filename");
-	  globus_gridftp_server_finished_command (op, rc, NULL);
-	  return;
-	}
-	(status = fs.Mv (myPathPart2, myPathPart)).IsError ()
-	    && (rc = GlobusGFSErrorGeneric((std::string ("rename() fail") += status.ToString ()).c_str ()));
-	break;
+        char myServerPart2[MAXPATHLEN], myPathPart2[MAXPATHLEN];
+        if (!(myPath = XP.BuildURL (cmd_info->from_pathname, buff, sizeof(buff)))) myPath = cmd_info->from_pathname;
+        if (XrootPath::SplitURL (myPath, myServerPart2, myPathPart2, MAXPATHLEN))
+        {
+          rc = GlobusGFSErrorGeneric("rename() fail : error parsing the target filename");
+          globus_gridftp_server_finished_command (op, rc, NULL);
+          return;
+        }
+        (status = fs.Mv (myPathPart2, myPathPart)).IsError ()
+            && (rc = GlobusGFSErrorGeneric((std::string ("rename() fail") += status.ToString ()).c_str ()));
+        break;
       case GLOBUS_GFS_CMD_SITE_CHMOD:
-	if (config.EosChmod)
-	{ // Using EOS Chmod
-	  char request[16384];
-	  sprintf (request, "%s?mgm.pcmd=chmod&mode=%d", myPathPart, cmd_info->chmod_mode); // specific to eos
-	  arg.FromString (request);
-	  status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, resp);
-	  rc = GlobusGFSErrorGeneric("chmod() fail");
-	  if (status.IsOK ())
-	  {
-	    char tag[4096];
-	    int retc = 0;
-	    int items = sscanf (resp->GetBuffer (), "%s retc=%d", tag, &retc);
-	    fflush (stderr);
-	    if (retc || (items != 2) || (strcmp (tag, "chmod:")))
-	    {
-	      // error
-	    }
-	    else
-	    {
-	      rc = GLOBUS_SUCCESS;
-	    }
-	  }
-	  delete resp;
-	}
-	else
-	{ // Using XRoot Chmod
-	  (status = fs.ChMod (myPathPart, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (cmd_info->chmod_mode))).IsError () && (rc =
-	      GlobusGFSErrorGeneric((std::string ("chmod() fail") += status.ToString ()).c_str ()));
-	}
-	break;
+        if (config->EosChmod)
+        { // Using EOS Chmod
+          char request[16384];
+          sprintf (request, "%s?mgm.pcmd=chmod&mode=%d", myPathPart, cmd_info->chmod_mode); // specific to eos
+          arg.FromString (request);
+          status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, resp);
+          rc = GlobusGFSErrorGeneric("chmod() fail");
+          if (status.IsOK ())
+          {
+            char tag[4096];
+            int retc = 0;
+            int items = sscanf (resp->GetBuffer (), "%s retc=%d", tag, &retc);
+            fflush (stderr);
+            if (retc || (items != 2) || (strcmp (tag, "chmod:")))
+            {
+              // error
+            }
+            else
+            {
+              rc = GLOBUS_SUCCESS;
+            }
+          }
+          delete resp;
+        }
+        else
+        { // Using XRoot Chmod
+          (status = fs.ChMod (myPathPart, (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (cmd_info->chmod_mode))).IsError () && (rc =
+              GlobusGFSErrorGeneric((std::string ("chmod() fail") += status.ToString ()).c_str ()));
+        }
+        break;
       case GLOBUS_GFS_CMD_CKSM:
-	fflush (stderr);
-	if (config.EosCks)
-	{ // Using EOS checksum
-	  if (!strcmp (cmd_info->cksm_alg, "adler32") || !strcmp (cmd_info->cksm_alg, "ADLER32"))
-	  {
-	    char request[16384];
-	    sprintf (request, "%s?mgm.pcmd=checksum", myPathPart); // specific to eos
-	    arg.FromString (request);
-	    status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, resp);
-	    fflush (stderr);
-	    if (status.IsOK ())
-	    {
-	      if ((strstr (resp->GetBuffer (), "retc=0") && (strlen (resp->GetBuffer ()) > 10)))
-	      {
-		// the server returned a checksum via 'checksum: <checksum> retc='
-		const char* cbegin = resp->GetBuffer () + 10;
-		const char* cend = strstr (resp->GetBuffer (), "retc=");
-		if (cend > (cbegin + 8))
-		{
-		  cend = cbegin + 8;
-		}
-		if (cbegin && cend)
-		{
-		  strncpy (cmd_data, cbegin, cend - cbegin);
-		  // 0-terminate
-		  cmd_data[cend - cbegin] = 0;
-		  rc = GLOBUS_SUCCESS;
-		  globus_gridftp_server_finished_command (op, rc, cmd_data);
-		  return;
-		}
-		else
-		{
-		  rc = GlobusGFSErrorGeneric("checksum() fail : error parsing response");
-		}
-	      }
-	      else
-	      {
-		rc = GlobusGFSErrorGeneric("checksum() fail : error parsing response");
-	      }
-	    }
-	  }
-	  rc = GLOBUS_FAILURE;
-	}
-	else
-	{ // Using XRootD checksum
-	  if ((status = XrdUtils::GetRemoteCheckSum (cks, cmd_info->cksm_alg, myServerPart, myPathPart)).IsError ()
-	      || (cks.size () >= MAXPATHLEN))
-	  { //UPPER CASE CHECKSUM ?
-	    rc = GlobusGFSErrorGeneric((std::string ("checksum() fail") += status.ToString ()).c_str ());
-	    break;
-	  }
-	  strcpy (cmd_data, cks.c_str ());
-	  globus_gridftp_server_finished_command (op, GLOBUS_SUCCESS, cmd_data);
-	  return;
-	}
-	break;
+        fflush (stderr);
+        if (config->EosCks)
+        { // Using EOS checksum
+          if (!strcmp (cmd_info->cksm_alg, "adler32") || !strcmp (cmd_info->cksm_alg, "ADLER32"))
+          {
+            char request[16384];
+            sprintf (request, "%s?mgm.pcmd=checksum", myPathPart); // specific to eos
+            arg.FromString (request);
+            status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, resp);
+            fflush (stderr);
+            if (status.IsOK ())
+            {
+              if ((strstr (resp->GetBuffer (), "retc=0") && (strlen (resp->GetBuffer ()) > 10)))
+              {
+                // the server returned a checksum via 'checksum: <checksum> retc='
+                const char* cbegin = resp->GetBuffer () + 10;
+                const char* cend = strstr (resp->GetBuffer (), "retc=");
+                if (cend > (cbegin + 8))
+                {
+                  cend = cbegin + 8;
+                }
+                if (cbegin && cend)
+                {
+                  strncpy (cmd_data, cbegin, cend - cbegin);
+                  // 0-terminate
+                  cmd_data[cend - cbegin] = 0;
+                  rc = GLOBUS_SUCCESS;
+                  globus_gridftp_server_finished_command (op, rc, cmd_data);
+                  return;
+                }
+                else
+                {
+                  rc = GlobusGFSErrorGeneric("checksum() fail : error parsing response");
+                }
+              }
+              else
+              {
+                rc = GlobusGFSErrorGeneric("checksum() fail : error parsing response");
+              }
+            }
+          }
+          rc = GLOBUS_FAILURE;
+        }
+        else
+        { // Using XRootD checksum
+          if ((status = XrdUtils::GetRemoteCheckSum (cks, cmd_info->cksm_alg, myServerPart, myPathPart)).IsError ()
+              || (cks.size () >= MAXPATHLEN))
+          { //UPPER CASE CHECKSUM ?
+            rc = GlobusGFSErrorGeneric((std::string ("checksum() fail") += status.ToString ()).c_str ());
+            break;
+          }
+          strcpy (cmd_data, cks.c_str ());
+          globus_gridftp_server_finished_command (op, GLOBUS_SUCCESS, cmd_data);
+          return;
+        }
+        break;
       default:
-	rc = GlobusGFSErrorGeneric("not implemented");
-	break;
+        rc = GlobusGFSErrorGeneric("not implemented");
+        break;
     }
     globus_gridftp_server_finished_command (op, rc, NULL);
   }
@@ -1565,8 +1493,7 @@ extern "C"
    *
    */
 
-  int
-  xrootd_touch_file (const char *path, int flags, int mode, std::string *error = NULL)
+  int xrootd_touch_file (const char *path, int flags, int mode, std::string *error = NULL)
   {
     XrdCl::XRootDStatus st;
     const char *func = "xrootd_touch_file_ifneeded";
@@ -1577,41 +1504,41 @@ extern "C"
       char *myPath, buff[2048];
       if (!(myPath = XP.BuildURL (path, buff, sizeof(buff))))
       {
-	strcpy (buff, path);
-	myPath = buff;
+        strcpy (buff, path);
+        myPath = buff;
       }
 
-      if (config.EosAppTag)
+      if (config->EosAppTag)
       { // add the 'eos.gridftp' application tag
-	if (strlen (myPath))
-	{
-	  if (strchr (myPath, '?'))
-	  {
-	    strcat (myPath, "&eos.app=eos/gridftp"); // specific to EOS
-	  }
-	  else
-	  {
-	    strcat (myPath, "?eos.app=eos/gridftp"); // specific to EOS
-	  }
-	}
+        if (strlen (myPath))
+        {
+          if (strchr (myPath, '?'))
+          {
+            strcat (myPath, "&eos.app=eos/gridftp"); // specific to EOS
+          }
+          else
+          {
+            strcat (myPath, "?eos.app=eos/gridftp"); // specific to EOS
+          }
+        }
       }
 
       XrdFileIo fileIo;
       st = fileIo.Open (myPath, (XrdCl::OpenFlags::Flags) XrootStatUtils::mapFlagsPos2Xrd (flags),
-			(XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (mode));
+                        (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (mode));
 
       if (!st.IsOK ())
       {
-	*error = st.ToStr ();
-	replace (error->begin (), error->end (), '\n', ' ');
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Open error : %s\n", func, error->c_str ());
-	throw;
+        *error = st.ToStr ();
+        replace (error->begin (), error->end (), '\n', ' ');
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Open error : %s\n", func, error->c_str ());
+        throw;
       }
-      else if(fileIo.Close()!=SFS_OK)
+      else if (fileIo.Close () != SFS_OK)
       {
-	st.status = XrdCl::stError;
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Close error\n", func, error->c_str ());
-	throw;
+        st.status = XrdCl::stError;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Close error\n", func, error->c_str ());
+        throw;
       }
     }
     catch (const std::exception& ex)
@@ -1640,7 +1567,6 @@ extern "C"
     return ((!st.IsOK ()) ? GLOBUS_FAILURE : GLOBUS_SUCCESS);
   }
 
-
   /**
    *  \brief Receive a file from globus and store it into the DSI back-end.
    *
@@ -1657,8 +1583,7 @@ extern "C"
    *
    */
 
-  int
-  xrootd_open_file (char *path, int flags, int mode, globus_l_gfs_xrootd_handle_t *xrootd_handle, std::string *error = NULL)
+  int xrootd_open_file (char *path, int flags, int mode, globus_l_gfs_xrootd_handle_t *xrootd_handle, std::string *error = NULL)
   {
     XrdCl::XRootDStatus st;
     const char *func = "xrootd_open_file";
@@ -1669,8 +1594,8 @@ extern "C"
       char *myPath, buff[2048];
       if (!(myPath = XP.BuildURL (path, buff, sizeof(buff))))
       {
-	strcpy (buff, path);
-	myPath = buff;
+        strcpy (buff, path);
+        myPath = buff;
       }
 
       // if the file is opened for truncation as a backend server
@@ -1678,83 +1603,86 @@ extern "C"
       // we open it and then truncate it
       // it avoids physical relocation on EOS
       bool trunc = false;
-      if ((flags & O_TRUNC) && config.ServerRole == "backend")
+      if ((flags & O_TRUNC) && config->ServerRole == "backend")
       {
-	// check that the temp file exists which means we are in delayed passive connection
-	char myServerPart[MAXPATHLEN+1],myPathPart[MAXPATHLEN+1];
-	XrootPath::SplitURL (myPath, myServerPart, myPathPart, MAXPATHLEN);
-	xrootd_handle->tempname = new std::string;
-	//*xrootd_handle->tempname = url.GetLocation ();
-	*xrootd_handle->tempname = myServerPart;
-	xrootd_handle->tempname->append(std::string("/")+myPathPart);
-	XrdCl::URL url(*xrootd_handle->tempname);
-	*xrootd_handle->tempname = url.GetLocation();
-	xrootd_handle->tempname->append (config.TruncationTmpFileSuffix);
-	xrootd_handle->tmpsfix_size = config.TruncationTmpFileSuffix.size ();
+        // check that the temp file exists which means we are in delayed passive connection
+        char myServerPart[MAXPATHLEN + 1], myPathPart[MAXPATHLEN + 1];
+        XrootPath::SplitURL (myPath, myServerPart, myPathPart, MAXPATHLEN);
+        xrootd_handle->tempname = new std::string;
+        //*xrootd_handle->tempname = url.GetLocation ();
+        *xrootd_handle->tempname = myServerPart;
+        xrootd_handle->tempname->append (std::string ("/") + myPathPart);
+        XrdCl::URL url (*xrootd_handle->tempname);
+        *xrootd_handle->tempname = url.GetLocation ();
+        xrootd_handle->tempname->append (config->TruncationTmpFileSuffix);
+        xrootd_handle->tmpsfix_size = config->TruncationTmpFileSuffix.size ();
 
-	//url.FromString(myServerPart);
-	XrdCl::FileSystem fs(url.GetProtocol()+"://"+url.GetHostId());
-	XrdCl::StatInfo *si = NULL;
-	XrdCl::XRootDStatus st;
-	if ((st=fs.Stat (url.GetPath(), si)).IsOK ())
-	{
-	  globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: trying to open file %s OK \n", func, xrootd_handle->tempname->c_str());
+        //url.FromString(myServerPart);
+        XrdCl::FileSystem fs (url.GetProtocol () + "://" + url.GetHostId ());
+        XrdCl::StatInfo *si = NULL;
+        XrdCl::XRootDStatus st;
+        //if ((st=fs.Stat (url.GetPath(), si)).IsOK () && si!=0)
+        if ((st = fs.Stat (url.GetPath () + config->TruncationTmpFileSuffix, si)).IsOK () && si != 0)
+        {
+          globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: trying to stat file %s OK \n", func,
+                                  (url.GetPath () + config->TruncationTmpFileSuffix).c_str ());
 
-	  strncpy (buff, (*xrootd_handle->tempname + url.GetParamsAsString ()).c_str (), 2048);
-	  // in case we truncate the file with a delayed passive connection
-	  // a temp file has been created at the same time as the passive connection
-	  // we just open it and truncate it
-	  trunc = true;
-	  flags &= ~O_TRUNC;
-	  flags &= ~O_CREAT;
-	}
-	else
-	{
-	  globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: trying to open file %s ERROR %s\n", func, xrootd_handle->tempname->c_str(),st.ToStr().c_str());
-	  delete xrootd_handle->tempname;
-	  xrootd_handle->tempname = NULL;
-	  xrootd_handle->tmpsfix_size = 0;
-	}
-	if(si) delete si;
+          strncpy (buff, (*xrootd_handle->tempname + url.GetParamsAsString ()).c_str (), 2048);
+          // in case we truncate the file with a delayed passive connection
+          // a temp file has been created at the same time as the passive connection
+          // we just open it and truncate it
+          trunc = true;
+          flags &= ~O_TRUNC;
+          flags &= ~O_CREAT;
+        }
+        else
+        {
+          globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: trying to stat file %s ERROR %s\n", func, xrootd_handle->tempname->c_str (),
+                                  st.ToStr ().c_str ());
+          delete xrootd_handle->tempname;
+          xrootd_handle->tempname = NULL;
+          xrootd_handle->tmpsfix_size = 0;
+        }
+
+        if (si) delete si;
       }
 
-      if (config.EosAppTag)
+      if (config->EosAppTag)
       { // add the 'eos.gridftp' application tag
-	if (strlen (myPath))
-	{
-	  if (strchr (myPath, '?'))
-	  {
-	    strcat (myPath, "&eos.app=eos/gridftp"); // specific to EOS
-	  }
-	  else
-	  {
-	    strcat (myPath, "?eos.app=eos/gridftp"); // specific to EOS
-	  }
-	}
+        if (strlen (myPath))
+        {
+          if (strchr (myPath, '?'))
+          {
+            strcat (myPath, "&eos.app=eos/gridftp"); // specific to EOS
+          }
+          else
+          {
+            strcat (myPath, "?eos.app=eos/gridftp"); // specific to EOS
+          }
+        }
       }
 
       xrootd_handle->fileIo = new XrdFileIo;
 
       globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: open fileIo \"%s\"\n", func, myPath);
       st = xrootd_handle->fileIo->Open (myPath, (XrdCl::OpenFlags::Flags) XrootStatUtils::mapFlagsPos2Xrd (flags),
-					(XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (mode));
+                                        (XrdCl::Access::Mode) XrootStatUtils::mapModePos2Xrd (mode));
 
       if (!st.IsOK ())
       {
-	*error = st.ToStr ();
-	replace (error->begin (), error->end (), '\n', ' ');
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Open error : %s\n", func, error->c_str ());
+        *error = st.ToStr ();
+        replace (error->begin (), error->end (), '\n', ' ');
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Open error : %s\n", func, error->c_str ());
       }
       else if (trunc)
       {
-	st = xrootd_handle->fileIo->Truncate (0);
-	//xrootd_handle->tmpsfix_size = 16;
-	if (!st.IsOK ())
-	{
-	  *error = st.ToStr ();
-	  replace (error->begin (), error->end (), '\n', ' ');
-	  globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Truncate error : %s\n", func, error->c_str ());
-	}
+        st = xrootd_handle->fileIo->Truncate (0);
+        if (!st.IsOK ())
+        {
+          *error = st.ToStr ();
+          replace (error->begin (), error->end (), '\n', ' ');
+          globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XrdCl::File::Truncate error : %s\n", func, error->c_str ());
+        }
       }
     }
     catch (const std::exception& ex)
@@ -1784,9 +1712,8 @@ extern "C"
   }
 
   /* receive from client */
-  static void
-  globus_l_gfs_file_net_read_cb (globus_gfs_operation_t op, globus_result_t result, globus_byte_t *buffer, globus_size_t nbytes,
-				 globus_off_t offset, globus_bool_t eof, void *user_arg)
+  static void globus_l_gfs_file_net_read_cb (globus_gfs_operation_t op, globus_result_t result, globus_byte_t *buffer, globus_size_t nbytes,
+                                             globus_off_t offset, globus_bool_t eof, void *user_arg)
   {
     const char *func = "globus_l_gfs_file_net_read_cb";
     RcvRespHandler->mNumCbRead++;
@@ -1815,16 +1742,16 @@ extern "C"
       int64_t ret = xrootd_handle->fileIo->Write (offset, (const char*) buffer, nbytes, RcvRespHandler);
       if (ret < 0)
       {
-	xrootd_handle->cached_res = ret;
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register XRootD write has finished with a bad result \n", func);
-	GlobusGFSName(__FUNCTION__);
-	xrootd_handle->cached_res = GlobusGFSErrorGeneric("Error registering XRootD write");
-	xrootd_handle->done = GLOBUS_TRUE;
-	RcvRespHandler->DisableBuffer (buffer);
+        xrootd_handle->cached_res = ret;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register XRootD write has finished with a bad result \n", func);
+        GlobusGFSName(__FUNCTION__);
+        xrootd_handle->cached_res = GlobusGFSErrorGeneric("Error registering XRootD write");
+        xrootd_handle->done = GLOBUS_TRUE;
+        RcvRespHandler->DisableBuffer (buffer);
       }
       else
       {
-	RcvRespHandler->mNumRegWrite++;
+        RcvRespHandler->mNumRegWrite++;
       }
     }
 
@@ -1832,8 +1759,7 @@ extern "C"
     pthread_mutex_unlock (&xrootd_handle->mutex);
   }
 
-  static void
-  globus_l_gfs_xrootd_read_from_net (globus_l_gfs_xrootd_handle_t *xrootd_handle)
+  static void globus_l_gfs_xrootd_read_from_net (globus_l_gfs_xrootd_handle_t *xrootd_handle)
   {
     globus_byte_t **buffers;
     globus_result_t result;
@@ -1851,8 +1777,8 @@ extern "C"
     {
       for (int c = 0; c < xrootd_handle->optimal_count; c++)
       {
-	buffers[c] = (globus_byte_t*) globus_malloc(xrootd_handle->block_size);
-	if (!buffers[c]) goto error_alloc;
+        buffers[c] = (globus_byte_t*) globus_malloc(xrootd_handle->block_size);
+        if (!buffers[c]) goto error_alloc;
       }
     }
     pthread_mutex_unlock (&xrootd_handle->mutex);
@@ -1862,18 +1788,18 @@ extern "C"
     for (c = 0; c < xrootd_handle->optimal_count; c++)
     {
       result = globus_gridftp_server_register_read (xrootd_handle->op, buffers[c], xrootd_handle->block_size, globus_l_gfs_file_net_read_cb,
-						    xrootd_handle);
+                                                    xrootd_handle);
       if (result != GLOBUS_SUCCESS)
       {
-	pthread_mutex_lock (&xrootd_handle->mutex);
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register Globus read has finished with a bad result \n", func);
-	xrootd_handle->cached_res = GlobusGFSErrorGeneric("Error registering globus read");
-	xrootd_handle->done = GLOBUS_TRUE;
-	pthread_mutex_unlock (&xrootd_handle->mutex);
-	break; // if an error happens just let the ResponseHandlers all terminate
+        pthread_mutex_lock (&xrootd_handle->mutex);
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register Globus read has finished with a bad result \n", func);
+        xrootd_handle->cached_res = GlobusGFSErrorGeneric("Error registering globus read");
+        xrootd_handle->done = GLOBUS_TRUE;
+        pthread_mutex_unlock (&xrootd_handle->mutex);
+        break; // if an error happens just let the ResponseHandlers all terminate
       }
       else
-	RcvRespHandler->mNumRegRead++;
+        RcvRespHandler->mNumRegRead++;
     }
 
     RcvRespHandler->SetExpectedBuffers (c);
@@ -1895,16 +1821,15 @@ extern "C"
     if (buffers)
     {
       for (int c = 0; c < xrootd_handle->optimal_count; c++)
-	if (buffers[c])
-	globus_free(buffers[c]);
+        if (buffers[c])
+        globus_free(buffers[c]);
       globus_free(buffers);
     }
     pthread_mutex_unlock (&xrootd_handle->mutex);
     return;
   }
 
-  static void
-  globus_l_gfs_xrootd_recv (globus_gfs_operation_t op, globus_gfs_transfer_info_t *transfer_info, void *user_arg)
+  static void globus_l_gfs_xrootd_recv (globus_gfs_operation_t op, globus_gfs_transfer_info_t *transfer_info, void *user_arg)
   {
     globus_l_gfs_xrootd_handle_t *xrootd_handle;
     globus_result_t result;
@@ -1915,14 +1840,14 @@ extern "C"
     GlobusGFSName(__FUNCTION__);
     xrootd_handle = (globus_l_gfs_xrootd_handle_t *) user_arg;
 
-    if (config.EosBook && transfer_info->alloc_size)
+    if (config->EosBook && transfer_info->alloc_size)
     {
-      snprintf (pathname, sizeof(pathname) - 1, "%s?eos.bookingsize=%lu&eos.targetsize=%lu",transfer_info->pathname,
-		transfer_info->alloc_size,transfer_info->alloc_size); // specific to eos
+      snprintf (pathname, sizeof(pathname) - 1, "%s?eos.bookingsize=%lu&eos.targetsize=%lu", transfer_info->pathname,
+                transfer_info->alloc_size, transfer_info->alloc_size); // specific to eos
     }
     else
     {
-      snprintf (pathname, sizeof(pathname), "%s",transfer_info->pathname);
+      snprintf (pathname, sizeof(pathname), "%s", transfer_info->pathname);
     }
 
     // try to open
@@ -1972,8 +1897,7 @@ extern "C"
    *      globus_gridftp_server_finished_transfer();
    *
    ************************************************************************/
-  static void
-  globus_l_gfs_xrootd_send (globus_gfs_operation_t op, globus_gfs_transfer_info_t *transfer_info, void *user_arg)
+  static void globus_l_gfs_xrootd_send (globus_gfs_operation_t op, globus_gfs_transfer_info_t *transfer_info, void *user_arg)
   {
     globus_l_gfs_xrootd_handle_t *xrootd_handle;
     const char *func = "globus_l_gfs_xrootd_send";
@@ -2021,9 +1945,8 @@ extern "C"
   }
 
   /* receive from client */
-  void
-  globus_l_gfs_net_write_cb_lock (globus_gfs_operation_t op, globus_result_t result, globus_byte_t *buffer, globus_size_t nbwrite,
-				  void * user_arg, bool lock = true)
+  void globus_l_gfs_net_write_cb_lock (globus_gfs_operation_t op, globus_result_t result, globus_byte_t *buffer, globus_size_t nbwrite,
+                                       void * user_arg, bool lock = true)
   {
     const char *func = "globus_l_gfs_net_write_cb";
     globus_off_t read_length;
@@ -2042,8 +1965,8 @@ extern "C"
     { // if the write failed, we are done the buffer is not needed anymore
       if (xrootd_handle->cached_res != GLOBUS_SUCCESS)
       { // don't overwrite the first error
-	xrootd_handle->cached_res = result;
-	xrootd_handle->done = GLOBUS_TRUE;
+        xrootd_handle->cached_res = result;
+        xrootd_handle->done = GLOBUS_TRUE;
       }
       SendRespHandler->DisableBuffer (buffer);
       SendRespHandler->SignalIfOver ();
@@ -2053,52 +1976,52 @@ extern "C"
 
     if (nbwrite == 0) // don't update on the first call
       globus_gridftp_server_update_bytes_written (xrootd_handle->op, SendRespHandler->mRevBufferMap[buffer].first,
-						  SendRespHandler->mRevBufferMap[buffer].second);
+                                                  SendRespHandler->mRevBufferMap[buffer].second);
 
     if (xrootd_handle->done == GLOBUS_FALSE)
     { // if we are not done, look for something else to copy
       if (next_read_chunk (xrootd_handle, read_length))
       { // if return is non zero, no more source to copy from
-	xrootd_handle->cached_res = GLOBUS_SUCCESS;
-	xrootd_handle->done = GLOBUS_TRUE;
-	SendRespHandler->DisableBuffer (buffer);
-	SendRespHandler->SignalIfOver ();
-	if (lock) pthread_mutex_unlock (&xrootd_handle->mutex);
-	return;
+        xrootd_handle->cached_res = GLOBUS_SUCCESS;
+        xrootd_handle->done = GLOBUS_TRUE;
+        SendRespHandler->DisableBuffer (buffer);
+        SendRespHandler->SignalIfOver ();
+        if (lock) pthread_mutex_unlock (&xrootd_handle->mutex);
+        return;
       }
 
       if (nbwrite != 0)
       {
-	SendRespHandler->mBufferMap.erase (SendRespHandler->mRevBufferMap[buffer]);
-	SendRespHandler->mRevBufferMap.erase (buffer);
+        SendRespHandler->mBufferMap.erase (SendRespHandler->mRevBufferMap[buffer]);
+        SendRespHandler->mRevBufferMap.erase (buffer);
       }
       SendRespHandler->RegisterBuffer (xrootd_handle->blk_offset, read_length, buffer);
 
       globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: register XRootD read from globus_l_gfs_net_write_cb \n", func);
       if (SendRespHandler->mWriteInOrder) SendRespHandler->mRegisterReadOffsets.insert (xrootd_handle->blk_offset);
       nbread = xrootd_handle->fileIo->Read (xrootd_handle->blk_offset, (char*) buffer, read_length, SendRespHandler, true,
-					    &usedReadCallBack);
+                                            &usedReadCallBack);
 
       if (nbread < 0)
       {
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register XRootD read has finished with a bad result %d\n", func, nbread);
-	xrootd_handle->cached_res = globus_l_gfs_make_error ("Error registering XRootD read", nbread);
-	xrootd_handle->done = GLOBUS_TRUE;
-	SendRespHandler->DisableBuffer (buffer);
-	SendRespHandler->SignalIfOver ();
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: register XRootD read has finished with a bad result %d\n", func, nbread);
+        xrootd_handle->cached_res = globus_l_gfs_make_error ("Error registering XRootD read", nbread);
+        xrootd_handle->done = GLOBUS_TRUE;
+        SendRespHandler->DisableBuffer (buffer);
+        SendRespHandler->SignalIfOver ();
       }
       else if (nbread == 0)
       { // empty read, EOF is reached
-	xrootd_handle->done = GLOBUS_TRUE;
-	SendRespHandler->DisableBuffer (buffer);
-	SendRespHandler->SignalIfOver ();
+        xrootd_handle->done = GLOBUS_TRUE;
+        SendRespHandler->DisableBuffer (buffer);
+        SendRespHandler->SignalIfOver ();
       }
       else
       { // succeed
-	if (usedReadCallBack) SendRespHandler->mNumRegRead++;
-	if (usedReadCallBack)
-	  globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: register XRootD read from globus_l_gfs_net_write_cb ==> usedReadCallBack\n",
-				  func);
+        if (usedReadCallBack) SendRespHandler->mNumRegRead++;
+        if (usedReadCallBack)
+          globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "%s: register XRootD read from globus_l_gfs_net_write_cb ==> usedReadCallBack\n",
+                                  func);
       }
     }
     else
@@ -2116,21 +2039,19 @@ extern "C"
       // the current situation happens only if the read didn't issue any error.
       SendRespHandler->HandleResponseAsync (false, 0, loffset, read_length, nbread);
       globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP,
-			      "%s: %p register XRootD read from globus_l_gfs_net_write_cb ==> Explicit Callback %d %d\n", func, buffer,
-			      (int) read_length, (int) nbread);
+                              "%s: %p register XRootD read from globus_l_gfs_net_write_cb ==> Explicit Callback %d %d\n", func, buffer,
+                              (int) read_length, (int) nbread);
     }
     if (lock) pthread_mutex_unlock (&xrootd_handle->mutex);
   }
 
-  void
-  globus_l_gfs_net_write_cb (globus_gfs_operation_t op, globus_result_t result, globus_byte_t *buffer, globus_size_t nbwrite,
-			     void * user_arg)
+  void globus_l_gfs_net_write_cb (globus_gfs_operation_t op, globus_result_t result, globus_byte_t *buffer, globus_size_t nbwrite,
+                                  void * user_arg)
   {
     globus_l_gfs_net_write_cb_lock (op, result, buffer, nbwrite, user_arg, true);
   }
 
-  static globus_bool_t
-  globus_l_gfs_xrootd_send_next_to_client (globus_l_gfs_xrootd_handle_t *xrootd_handle)
+  static globus_bool_t globus_l_gfs_xrootd_send_next_to_client (globus_l_gfs_xrootd_handle_t *xrootd_handle)
   {
     globus_byte_t **buffers;
     globus_result_t result;
@@ -2147,8 +2068,8 @@ extern "C"
     {
       for (int c = 0; c < xrootd_handle->optimal_count; c++)
       {
-	buffers[c] = (globus_byte_t*) globus_malloc(xrootd_handle->block_size);
-	if (!buffers[c]) goto error_alloc;
+        buffers[c] = (globus_byte_t*) globus_malloc(xrootd_handle->block_size);
+        if (!buffers[c]) goto error_alloc;
       }
     }
     pthread_mutex_unlock (&xrootd_handle->mutex);
@@ -2182,8 +2103,8 @@ extern "C"
     if (buffers)
     {
       for (int c = 0; c < xrootd_handle->optimal_count; c++)
-	if (buffers[c])
-	globus_free(buffers[c]);
+        if (buffers[c])
+        globus_free(buffers[c]);
       globus_free(buffers);
     }
     pthread_mutex_unlock (&xrootd_handle->mutex);
@@ -2201,9 +2122,8 @@ extern "C"
   //                                                                    //
   // ================================================================== //
 
-  static globus_result_t
-  globus_l_gfs_remote_init_bounce_info (globus_l_gfs_remote_ipc_bounce_t ** bounce, globus_gfs_operation_t op, void * state,
-					globus_l_gfs_xrootd_handle_t * my_handle)
+  static globus_result_t globus_l_gfs_remote_init_bounce_info (globus_l_gfs_remote_ipc_bounce_t ** bounce, globus_gfs_operation_t op,
+                                                               void * state, globus_l_gfs_xrootd_handle_t * my_handle)
   {
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
     globus_result_t result = GLOBUS_SUCCESS;
@@ -2225,8 +2145,8 @@ extern "C"
     error: return result;
   }
 
-  static globus_result_t
-  globus_l_gfs_remote_node_release (globus_l_gfs_remote_node_info_t * node_info, globus_gfs_brain_reason_t release_reason)
+  static globus_result_t globus_l_gfs_remote_node_release (globus_l_gfs_remote_node_info_t * node_info,
+                                                           globus_gfs_brain_reason_t release_reason)
   {
     GlobusGFSName(__FUNCTION__);
 
@@ -2240,8 +2160,7 @@ extern "C"
     return GLOBUS_SUCCESS;
   }
 
-  static void
-  globus_l_gfs_remote_ipc_error_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t result, void * user_arg)
+  static void globus_l_gfs_remote_ipc_error_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t result, void * user_arg)
   {
 //    globus_l_gfs_xrootd_handle_t * my_handle;
 //    GlobusGFSName(__FUNCTION__);
@@ -2250,8 +2169,7 @@ extern "C"
     globus_gfs_log_result (GLOBUS_GFS_LOG_ERR, "IPC error", result);
   }
 
-  static void
-  globus_l_gfs_remote_node_error_kickout (void * user_arg)
+  static void globus_l_gfs_remote_node_error_kickout (void * user_arg)
   {
     globus_l_gfs_remote_node_info_t * node_info;
 
@@ -2262,9 +2180,8 @@ extern "C"
     node_info->callback (node_info, node_info->cached_result, node_info->user_arg);
   }
 
-  static void
-  globus_l_gfs_remote_node_request_kickout (globus_gfs_ipc_handle_t ipc_handle, globus_result_t result, globus_gfs_finished_info_t * reply,
-					    void * user_arg)
+  static void globus_l_gfs_remote_node_request_kickout (globus_gfs_ipc_handle_t ipc_handle, globus_result_t result,
+                                                        globus_gfs_finished_info_t * reply, void * user_arg)
   {
     globus_bool_t callback = GLOBUS_FALSE;
     globus_l_gfs_remote_node_info_t * node_info;
@@ -2287,15 +2204,16 @@ extern "C"
       node_info->error_count++;
       if (node_info->error_count >= IPC_RETRY)
       {
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "retry limit reached, giving up\n");
-	callback = GLOBUS_TRUE;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "retry limit reached, giving up\n");
+        XrdGsiBackendMapper::This->MarkAsDown (node_info->my_handle->session_info.host_id);
+        callback = GLOBUS_TRUE;
       }
       else
       {
-	result = globus_gfs_ipc_handle_obtain (&node_info->my_handle->session_info, &globus_gfs_ipc_default_iface,
-					       globus_l_gfs_remote_node_request_kickout, node_info, globus_l_gfs_remote_ipc_error_cb,
-					       node_info->my_handle);
-	if (result != GLOBUS_SUCCESS) callback = GLOBUS_TRUE;
+        result = globus_gfs_ipc_handle_obtain (&node_info->my_handle->session_info, &globus_gfs_ipc_default_iface,
+                                               globus_l_gfs_remote_node_request_kickout, node_info, globus_l_gfs_remote_ipc_error_cb,
+                                               node_info->my_handle);
+        if (result != GLOBUS_SUCCESS) callback = GLOBUS_TRUE;
       }
     }
 
@@ -2304,14 +2222,13 @@ extern "C"
       node_info->callback (node_info, result, node_info->user_arg);
       if (result != GLOBUS_SUCCESS)
       {
-	globus_free(node_info);
+        globus_free(node_info);
       }
     }
   }
 
-  static globus_result_t
-  globus_l_gfs_remote_node_request (globus_l_gfs_xrootd_handle_t * my_handle, char * pathname, globus_l_gfs_remote_node_cb callback,
-				    void * user_arg)
+  static globus_result_t globus_l_gfs_remote_node_request (globus_l_gfs_xrootd_handle_t * my_handle, char * pathname,
+                                                           globus_l_gfs_remote_node_cb callback, void * user_arg)
   {
     globus_l_gfs_remote_node_info_t * node_info;
     globus_result_t result;
@@ -2323,26 +2240,26 @@ extern "C"
     globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "node request for pathname: %s \n", pathname);
 
     // ==== touch the temp file to give it a physical location
-    if (pathname && my_handle->mode==XROOTD_FILEMODE_TRUNCATE)
+    if (pathname && my_handle->mode == XROOTD_FILEMODE_TRUNCATE)
     {
       // EOS SIZE BOOKING IS NOT POSSIBLE AT THIS POINT AS WE DON'T KNOW THE SIZE OF THE FILE THAT WILL BE COPIED
-      std::string spathname(pathname);
-      spathname.append(config.TruncationTmpFileSuffix);
+      std::string spathname (pathname);
+      spathname.append (config->TruncationTmpFileSuffix);
       // there is no need to give a value to my_handle->tmpsfix_size
       // as the handle is not transmitted to the chose backend node
       // try to open
       auto flags = O_WRONLY | O_CREAT | O_TRUNC;
       std::string error;
-      int rc = xrootd_touch_file (spathname.c_str(), flags, 0644, &error);
+      int rc = xrootd_touch_file (spathname.c_str (), flags, 0644, &error);
       if (rc)
       {
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "error touching temp file on passive connection: %s [%d]\n", error.c_str(),rc);
-	return GLOBUS_FAILURE;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "error touching temp file on passive connection: %s [%d]\n", error.c_str (), rc);
+        return GLOBUS_FAILURE;
       }
     }
     // =======================================================
 
-    std::vector<size_t> selectedServers;
+    std::vector<std::string> selectedServers;
     {
       // create the full path and split it
       char *myPath, buff[2048];
@@ -2351,24 +2268,37 @@ extern "C"
       *myPathPart = '\0';
       if (pathname)
       {
-	char * PathName = pathname;
-	while (PathName[0] == '/' && PathName[1] == '/')
-	  PathName++;
-	if (!(myPath = XP.BuildURL (PathName, buff, sizeof(buff)))) myPath = PathName;
-	if (XrootPath::SplitURL (myPath, myServerPart, myPathPart, MAXPATHLEN))
-	{
-	  globus_result_t rc = GlobusGFSErrorGeneric("command fail : error parsing the filename");
-	  return rc;
-	}
+        char * PathName = pathname;
+        while (PathName[0] == '/' && PathName[1] == '/')
+          PathName++;
+        if (!(myPath = XP.BuildURL (PathName, buff, sizeof(buff)))) myPath = PathName;
+        if (XrootPath::SplitURL (myPath, myServerPart, myPathPart, MAXPATHLEN))
+        {
+          globus_result_t rc = GlobusGFSErrorGeneric("command fail : error parsing the filename");
+          return rc;
+        }
       }
       std::string errString;
-      XrdUtils::GetRemoteServers (selectedServers, errString, config.allTheServersNoPort, myServerPart, myPathPart,
-				  config.TruncationTmpFileSuffix,my_handle->mode, config.EosRemote);
+      std::vector<std::string> potentialNewServers;
+      //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "calling remote server with %s %s and %d\n", myServerPart,myPathPart,my_handle->mode);
+
+      XrdUtils::GetRemoteServers (selectedServers, errString, potentialNewServers, XrdGsiBackendMapper::This, myServerPart, myPathPart,
+                                  config->TruncationTmpFileSuffix, my_handle->mode, config->EosRemote);
+      if (config->BackendServersDiscoveryTTL > 0)
+      {
+        globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "autodiscovery: checking potential backend servers\n%s\n",
+                                XrdGsiBackendMapper::This->DumpBackendMap ().c_str ());
+        for (auto it = potentialNewServers.begin (); it != potentialNewServers.end (); ++it)
+        {
+          if (XrdGsiBackendMapper::This->AddToProbeList (*it))
+            globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "autodiscovery: adding potential backend server %s to probe list\n", it->c_str ());
+        }
+      }
     }
 
     // TODO: Change this to be able to pass multiple servers to get multiple connections (How can I determine how many?)
-    globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "remote node: %s\n", config.allTheServers[selectedServers.front ()].c_str ());
-    my_handle->session_info.host_id = strdup (config.allTheServers[selectedServers.front ()].c_str ()); /* host_id */
+    globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "remote node: %s\n", selectedServers.front ().c_str ());
+    my_handle->session_info.host_id = strdup (selectedServers.front ().c_str ()); /* host_id */
 
     node_info = (globus_l_gfs_remote_node_info_t*) globus_malloc(sizeof(globus_l_gfs_remote_node_info_t));
     memset (node_info, 0, sizeof(globus_l_gfs_remote_node_info_t));
@@ -2377,8 +2307,8 @@ extern "C"
     node_info->my_handle = my_handle;
 
     result = globus_gfs_ipc_handle_obtain (&my_handle->session_info, &globus_gfs_ipc_default_iface,
-					   globus_l_gfs_remote_node_request_kickout, node_info, globus_l_gfs_remote_ipc_error_cb,
-					   my_handle);
+                                           globus_l_gfs_remote_node_request_kickout, node_info, globus_l_gfs_remote_ipc_error_cb,
+                                           my_handle);
 
     if (result != GLOBUS_SUCCESS)
     {
@@ -2389,8 +2319,7 @@ extern "C"
     return GLOBUS_SUCCESS;
   }
 
-  static void
-  globus_l_gfs_remote_data_info_free (globus_gfs_data_info_t * data_info)
+  static void globus_l_gfs_remote_data_info_free (globus_gfs_data_info_t * data_info)
   {
     int idx;
 
@@ -2403,14 +2332,13 @@ extern "C"
     if (data_info->contact_strings != NULL)
     {
       for (idx = 0; idx < data_info->cs_count; idx++)
-	globus_free((char * )data_info->contact_strings[idx]);
+        globus_free((char * )data_info->contact_strings[idx]);
       globus_free(data_info->contact_strings);
     }
   }
 
-  static void
-  globus_l_gfs_ipc_passive_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result, globus_gfs_finished_info_t * reply,
-			       void * user_arg)
+  static void globus_l_gfs_ipc_passive_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result,
+                                           globus_gfs_finished_info_t * reply, void * user_arg)
   {
     globus_gfs_finished_info_t finished_info;
     globus_bool_t finished = GLOBUS_FALSE;
@@ -2442,33 +2370,33 @@ extern "C"
 
       if (!bounce_info->nodes_pending && !bounce_info->nodes_requesting)
       {
-	finished = GLOBUS_TRUE;
-	if (bounce_info->nodes_obtained == 0) goto error;
+        finished = GLOBUS_TRUE;
+        if (bounce_info->nodes_obtained == 0) goto error;
 
-	memcpy (&finished_info, reply, sizeof(globus_gfs_finished_info_t));
+        memcpy (&finished_info, reply, sizeof(globus_gfs_finished_info_t));
 
-	finished_info.info.data.data_arg = bounce_info->node_info;
-	finished_info.info.data.cs_count = bounce_info->nodes_obtained;
-	finished_info.info.data.contact_strings = (const char **) globus_calloc(sizeof(char *), finished_info.info.data.cs_count);
+        finished_info.info.data.data_arg = bounce_info->node_info;
+        finished_info.info.data.cs_count = bounce_info->nodes_obtained;
+        finished_info.info.data.contact_strings = (const char **) globus_calloc(sizeof(char *), finished_info.info.data.cs_count);
 
-	ndx = 0;
+        ndx = 0;
 
-	if (node_info != NULL)
-	{
-	  node_info->stripe_count = 1;
+        if (node_info != NULL)
+        {
+          node_info->stripe_count = 1;
 
-	  /* XXX handle case where cs_count from a single node > 1 */
-	  finished_info.info.data.contact_strings[ndx] = node_info->cs;
-	  node_info->cs = NULL;
+          /* XXX handle case where cs_count from a single node > 1 */
+          finished_info.info.data.contact_strings[ndx] = node_info->cs;
+          node_info->cs = NULL;
 
-	  if (node_info->info && node_info->info_needs_free)
-	  {
-	    globus_free(node_info->info);
-	    node_info->info = NULL;
-	    node_info->info_needs_free = GLOBUS_FALSE;
-	  }
-	  ndx++;
-	} globus_assert(ndx == finished_info.info.data.cs_count);
+          if (node_info->info && node_info->info_needs_free)
+          {
+            globus_free(node_info->info);
+            node_info->info = NULL;
+            node_info->info_needs_free = GLOBUS_FALSE;
+          }
+          ndx++;
+        }globus_assert(ndx == finished_info.info.data.cs_count);
       }
     }
     globus_mutex_unlock (&my_handle->gfs_mutex);
@@ -2478,7 +2406,7 @@ extern "C"
       globus_gridftp_server_operation_finished (bounce_info->op, finished_info.result, &finished_info);
 
       for (ndx = 0; ndx < finished_info.info.data.cs_count; ndx++)
-	globus_free((void * ) finished_info.info.data.contact_strings[ndx]);
+        globus_free((void * ) finished_info.info.data.contact_strings[ndx]);
       globus_free(finished_info.info.data.contact_strings);
       globus_free(bounce_info);
     }
@@ -2491,9 +2419,8 @@ extern "C"
     globus_free(bounce_info);
   }
 
-  static void
-  globus_l_gfs_ipc_active_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result, globus_gfs_finished_info_t * reply,
-			      void * user_arg)
+  static void globus_l_gfs_ipc_active_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result,
+                                          globus_gfs_finished_info_t * reply, void * user_arg)
   {
     globus_bool_t finished = GLOBUS_FALSE;
     int ndx;
@@ -2518,23 +2445,23 @@ extern "C"
 
       if (!bounce_info->nodes_pending && !bounce_info->nodes_requesting)
       {
-	finished = GLOBUS_TRUE;
-	if (bounce_info->nodes_obtained == 0) goto error;
+        finished = GLOBUS_TRUE;
+        if (bounce_info->nodes_obtained == 0) goto error;
 
-	memcpy (&finished_info, reply, sizeof(globus_gfs_finished_info_t));
+        memcpy (&finished_info, reply, sizeof(globus_gfs_finished_info_t));
 
-	finished_info.info.data.data_arg = bounce_info->node_info;
+        finished_info.info.data.data_arg = bounce_info->node_info;
 
-	if (node_info->info && node_info->info_needs_free)
-	{
-	  info = (globus_gfs_data_info_t *) node_info->info;
-	  for (ndx = 0; ndx < info->cs_count; ndx++)
-	    globus_free((void * ) info->contact_strings[ndx]);
-	  globus_free(info->contact_strings);
-	  globus_free(node_info->info);
-	  node_info->info = NULL;
-	  node_info->info_needs_free = GLOBUS_FALSE;
-	}
+        if (node_info->info && node_info->info_needs_free)
+        {
+          info = (globus_gfs_data_info_t *) node_info->info;
+          for (ndx = 0; ndx < info->cs_count; ndx++)
+            globus_free((void * ) info->contact_strings[ndx]);
+          globus_free(info->contact_strings);
+          globus_free(node_info->info);
+          node_info->info = NULL;
+          node_info->info_needs_free = GLOBUS_FALSE;
+        }
       }
     }
     globus_mutex_unlock (&my_handle->gfs_mutex);
@@ -2543,15 +2470,15 @@ extern "C"
     {
       if (my_handle->active_delay)
       {
-	/* return to the original callback */
-	my_handle->active_delay = GLOBUS_FALSE;
-	globus_l_gfs_remote_data_info_free (my_handle->active_data_info);
-	my_handle->active_transfer_info->data_arg = bounce_info->node_info;
-	my_handle->active_callback (my_handle->active_op, my_handle->active_transfer_info, my_handle->active_user_arg);
+        /* return to the original callback */
+        my_handle->active_delay = GLOBUS_FALSE;
+        globus_l_gfs_remote_data_info_free (my_handle->active_data_info);
+        my_handle->active_transfer_info->data_arg = bounce_info->node_info;
+        my_handle->active_callback (my_handle->active_op, my_handle->active_transfer_info, my_handle->active_user_arg);
       }
       else
       {
-	globus_gridftp_server_operation_finished (bounce_info->op, finished_info.result, &finished_info);
+        globus_gridftp_server_operation_finished (bounce_info->op, finished_info.result, &finished_info);
       }
 
       globus_free(bounce_info);
@@ -2575,9 +2502,8 @@ extern "C"
     globus_mutex_unlock (&my_handle->gfs_mutex);
   }
 
-  static void
-  globus_l_gfs_ipc_transfer_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result, globus_gfs_finished_info_t * reply,
-				void * user_arg)
+  static void globus_l_gfs_ipc_transfer_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result,
+                                            globus_gfs_finished_info_t * reply, void * user_arg)
   {
     globus_l_gfs_xrootd_handle_t * my_handle;
     globus_l_gfs_remote_node_info_t * node_info;
@@ -2598,31 +2524,31 @@ extern "C"
 
       if (!bounce_info->nodes_pending && !bounce_info->nodes_requesting)
       {
-	if (my_handle->cur_result == GLOBUS_SUCCESS) my_handle->cur_result = bounce_info->cached_result;
+        if (my_handle->cur_result == GLOBUS_SUCCESS) my_handle->cur_result = bounce_info->cached_result;
 
-	memset (&finished_info, 0, sizeof(globus_gfs_finished_info_t));
-	finished_info.type = reply->type;
-	finished_info.id = reply->id;
-	finished_info.code = reply->code;
-	finished_info.msg = reply->msg;
-	finished_info.result = bounce_info->cached_result;
-	finish = GLOBUS_TRUE;
-	op = bounce_info->op;
+        memset (&finished_info, 0, sizeof(globus_gfs_finished_info_t));
+        finished_info.type = reply->type;
+        finished_info.id = reply->id;
+        finished_info.code = reply->code;
+        finished_info.msg = reply->msg;
+        finished_info.result = bounce_info->cached_result;
+        finish = GLOBUS_TRUE;
+        op = bounce_info->op;
 
-	if (!bounce_info->events_enabled)
-	{
-	  if (node_info->info && node_info->info_needs_free)
-	  {
-	    globus_free(node_info->info);
-	    node_info->info = NULL;
-	    node_info->info_needs_free = GLOBUS_FALSE;
-	  }
-	  if (bounce_info->eof_count != NULL)
-	  {
-	    globus_free(bounce_info->eof_count);
-	  }
-	  globus_free(bounce_info);
-	}
+        if (!bounce_info->events_enabled)
+        {
+          if (node_info->info && node_info->info_needs_free)
+          {
+            globus_free(node_info->info);
+            node_info->info = NULL;
+            node_info->info_needs_free = GLOBUS_FALSE;
+          }
+          if (bounce_info->eof_count != NULL)
+          {
+            globus_free(bounce_info->eof_count);
+          }
+          globus_free(bounce_info);
+        }
       }
     }
     globus_mutex_unlock (&my_handle->gfs_mutex);
@@ -2633,9 +2559,8 @@ extern "C"
     }
   }
 
-  static void
-  globus_l_gfs_ipc_event_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result, globus_gfs_event_info_t * reply,
-			     void * user_arg)
+  static void globus_l_gfs_ipc_event_cb (globus_gfs_ipc_handle_t ipc_handle, globus_result_t ipc_result, globus_gfs_event_info_t * reply,
+                                         void * user_arg)
   {
     globus_l_gfs_xrootd_handle_t * my_handle;
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
@@ -2657,67 +2582,67 @@ extern "C"
     {
       switch (reply->type)
       {
-	case GLOBUS_GFS_EVENT_TRANSFER_BEGIN:
-	  node_info->event_arg = reply->event_arg;
-	  node_info->event_mask = reply->event_mask;
+        case GLOBUS_GFS_EVENT_TRANSFER_BEGIN:
+          node_info->event_arg = reply->event_arg;
+          node_info->event_mask = reply->event_mask;
 
-	  bounce_info->begin_event_pending--;
-	  if (!bounce_info->begin_event_pending)
-	  {
-	    if (!bounce_info->nodes_requesting)
-	    {
-	      bounce_info->events_enabled = GLOBUS_TRUE;
-	      reply->event_arg = bounce_info;
-	      reply->event_mask = GLOBUS_GFS_EVENT_TRANSFER_ABORT | GLOBUS_GFS_EVENT_TRANSFER_COMPLETE | GLOBUS_GFS_EVENT_BYTES_RECVD
-		  | GLOBUS_GFS_EVENT_RANGES_RECVD;
+          bounce_info->begin_event_pending--;
+          if (!bounce_info->begin_event_pending)
+          {
+            if (!bounce_info->nodes_requesting)
+            {
+              bounce_info->events_enabled = GLOBUS_TRUE;
+              reply->event_arg = bounce_info;
+              reply->event_mask = GLOBUS_GFS_EVENT_TRANSFER_ABORT | GLOBUS_GFS_EVENT_TRANSFER_COMPLETE | GLOBUS_GFS_EVENT_BYTES_RECVD
+                  | GLOBUS_GFS_EVENT_RANGES_RECVD;
 
-	      globus_gridftp_server_operation_event (bounce_info->op,
-	      GLOBUS_SUCCESS,
-						     reply);
-	    }
-	  }
-	  break;
-	case GLOBUS_GFS_EVENT_TRANSFER_CONNECTED:
-	  bounce_info->event_pending--;
-	  if (!bounce_info->event_pending && !bounce_info->nodes_requesting)
-	  {
-	    finish = GLOBUS_TRUE;
-	  }
-	  break;
-	case GLOBUS_GFS_EVENT_PARTIAL_EOF_COUNT:
-	  info = (globus_gfs_transfer_info_t *) node_info->info;
-	  if (node_info->ipc_handle == ipc_handle)
-	  {
-	    globus_assert(info->node_ndx != 0 && current_node == NULL);
-	    current_node = node_info;
-	  }
-	  if (info->node_ndx == 0)
-	  {
-	    globus_assert(master_node == NULL);
-	    master_node = node_info;
-	  }
-	  for (ctr = 0; ctr < reply->node_count; ctr++)
-	  {
-	    bounce_info->eof_count[ctr] += reply->eof_count[ctr];
-	  }
-	  bounce_info->partial_eof_counts++;
-	  if (bounce_info->partial_eof_counts + 1 == bounce_info->node_count && !bounce_info->finished)
-	  {
-	    memset (&event_info, 0, sizeof(globus_gfs_event_info_t));
-	    event_info.type = GLOBUS_GFS_EVENT_FINAL_EOF_COUNT;
-	    event_info.event_arg = master_node->event_arg;
-	    event_info.eof_count = bounce_info->eof_count;
-	    event_info.node_count = bounce_info->partial_eof_counts + 1;
-	    result = globus_gfs_ipc_request_transfer_event (master_node->ipc_handle, &event_info);
-	    bounce_info->final_eof++;
-	  }
-	  break;
-	default:
-	  if (!bounce_info->event_pending || reply->type == GLOBUS_GFS_EVENT_BYTES_RECVD || reply->type == GLOBUS_GFS_EVENT_RANGES_RECVD)
-	  {
-	    finish = GLOBUS_TRUE;
-	  }
-	  break;
+              globus_gridftp_server_operation_event (bounce_info->op,
+              GLOBUS_SUCCESS,
+                                                     reply);
+            }
+          }
+          break;
+        case GLOBUS_GFS_EVENT_TRANSFER_CONNECTED:
+          bounce_info->event_pending--;
+          if (!bounce_info->event_pending && !bounce_info->nodes_requesting)
+          {
+            finish = GLOBUS_TRUE;
+          }
+          break;
+        case GLOBUS_GFS_EVENT_PARTIAL_EOF_COUNT:
+          info = (globus_gfs_transfer_info_t *) node_info->info;
+          if (node_info->ipc_handle == ipc_handle)
+          {
+            globus_assert(info->node_ndx != 0 && current_node == NULL);
+            current_node = node_info;
+          }
+          if (info->node_ndx == 0)
+          {
+            globus_assert(master_node == NULL);
+            master_node = node_info;
+          }
+          for (ctr = 0; ctr < reply->node_count; ctr++)
+          {
+            bounce_info->eof_count[ctr] += reply->eof_count[ctr];
+          }
+          bounce_info->partial_eof_counts++;
+          if (bounce_info->partial_eof_counts + 1 == bounce_info->node_count && !bounce_info->finished)
+          {
+            memset (&event_info, 0, sizeof(globus_gfs_event_info_t));
+            event_info.type = GLOBUS_GFS_EVENT_FINAL_EOF_COUNT;
+            event_info.event_arg = master_node->event_arg;
+            event_info.eof_count = bounce_info->eof_count;
+            event_info.node_count = bounce_info->partial_eof_counts + 1;
+            result = globus_gfs_ipc_request_transfer_event (master_node->ipc_handle, &event_info);
+            bounce_info->final_eof++;
+          }
+          break;
+        default:
+          if (!bounce_info->event_pending || reply->type == GLOBUS_GFS_EVENT_BYTES_RECVD || reply->type == GLOBUS_GFS_EVENT_RANGES_RECVD)
+          {
+            finish = GLOBUS_TRUE;
+          }
+          break;
       }
     }
     globus_mutex_unlock (&my_handle->gfs_mutex);
@@ -2727,17 +2652,15 @@ extern "C"
       reply->event_arg = bounce_info;
       globus_gridftp_server_operation_event (bounce_info->op,
       GLOBUS_SUCCESS,
-					     reply);
+                                             reply);
     }
   }
 
-  static void
-  globus_l_gfs_remote_passive_kickout (globus_l_gfs_remote_node_info_t * node_info, globus_result_t result, void * user_arg)
+  static void globus_l_gfs_remote_passive_kickout (globus_l_gfs_remote_node_info_t * node_info, globus_result_t result, void * user_arg)
   {
     globus_bool_t finished = GLOBUS_FALSE;
     globus_l_gfs_xrootd_handle_t * my_handle;
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
-//      int					ctx_err;
 
     GlobusGFSName(__FUNCTION__);
 
@@ -2753,10 +2676,10 @@ extern "C"
       node_info->bounce = bounce_info;
 
       result = globus_gfs_ipc_request_passive_data (node_info->ipc_handle, (globus_gfs_data_info_t *) bounce_info->state,
-						    globus_l_gfs_ipc_passive_cb, node_info);
+                                                    globus_l_gfs_ipc_passive_cb, node_info);
       if (result != GLOBUS_SUCCESS)
       {
-	goto error;
+        goto error;
       }
       bounce_info->nodes_pending++;
       bounce_info->node_info = node_info;
@@ -2778,8 +2701,7 @@ extern "C"
     }
   }
 
-  static void
-  globus_l_gfs_remote_active_kickout (globus_l_gfs_remote_node_info_t * node_info, globus_result_t result, void * user_arg)
+  static void globus_l_gfs_remote_active_kickout (globus_l_gfs_remote_node_info_t * node_info, globus_result_t result, void * user_arg)
   {
     globus_bool_t finish = GLOBUS_FALSE;
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
@@ -2834,22 +2756,21 @@ extern "C"
     {
       if (my_handle->active_delay)
       {
-	/* we have to fake a failure of a different operation */
-	my_handle->active_delay = GLOBUS_FALSE;
-	globus_l_gfs_remote_data_info_free (my_handle->active_data_info);
-	globus_gridftp_server_finished_command (my_handle->active_op, result, GLOBUS_NULL);
+        /* we have to fake a failure of a different operation */
+        my_handle->active_delay = GLOBUS_FALSE;
+        globus_l_gfs_remote_data_info_free (my_handle->active_data_info);
+        globus_gridftp_server_finished_command (my_handle->active_op, result, GLOBUS_NULL);
       }
       else
       {
-	GlobusGFSErrorOpFinished(bounce_info->op, GLOBUS_GFS_OP_ACTIVE, result);
+        GlobusGFSErrorOpFinished(bounce_info->op, GLOBUS_GFS_OP_ACTIVE, result);
       }
       globus_free(bounce_info);
     }
     globus_mutex_unlock (&my_handle->gfs_mutex);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_list (globus_gfs_operation_t op, globus_gfs_transfer_info_t * transfer_info, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_list (globus_gfs_operation_t op, globus_gfs_transfer_info_t * transfer_info, void * user_arg)
   {
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
     globus_result_t result;
@@ -2877,8 +2798,8 @@ extern "C"
 
       if (result != GLOBUS_SUCCESS)
       {
-	globus_free(bounce_info);
-	goto error;
+        globus_free(bounce_info);
+        goto error;
       }
 
       my_handle->active_callback = globus_l_gfs_xrootd_remote_list;
@@ -2910,7 +2831,7 @@ extern "C"
     node_info->bounce = bounce_info;
 
     result = globus_gfs_ipc_request_list (node_info->ipc_handle, transfer_info, globus_l_gfs_ipc_transfer_cb, globus_l_gfs_ipc_event_cb,
-					  node_info);
+                                          node_info);
 
     if (result == GLOBUS_SUCCESS) return;
 
@@ -2918,8 +2839,7 @@ extern "C"
     GlobusGFSErrorOpFinished(bounce_info->op, GLOBUS_GFS_OP_TRANSFER, result);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_send (globus_gfs_operation_t op, globus_gfs_transfer_info_t * transfer_info, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_send (globus_gfs_operation_t op, globus_gfs_transfer_info_t * transfer_info, void * user_arg)
   {
     globus_l_gfs_remote_ipc_bounce_t * bounce_info = NULL;
     globus_result_t result;
@@ -2947,8 +2867,8 @@ extern "C"
 
       if (result != GLOBUS_SUCCESS)
       {
-	globus_free(bounce_info);
-	goto error;
+        globus_free(bounce_info);
+        goto error;
       }
 
       my_handle->active_transfer_info = transfer_info;
@@ -2977,7 +2897,8 @@ extern "C"
     memcpy (new_transfer_info, transfer_info, sizeof(globus_gfs_transfer_info_t));
 
     // We rely on the xrootd server to notice that a local replica is available on the selected backend gridftp server and redirect the access to the local
-    globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "send: requesting transfer of %s to %s\n", new_transfer_info->pathname,my_handle->session_info.host_id);
+    globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "send: requesting transfer of %s to %s\n", new_transfer_info->pathname,
+                            my_handle->session_info.host_id);
 
     new_transfer_info->data_arg = node_info->data_arg;
     new_transfer_info->node_count = 1;
@@ -2988,7 +2909,7 @@ extern "C"
     node_info->bounce = bounce_info;
 
     result = globus_gfs_ipc_request_send (node_info->ipc_handle, new_transfer_info, globus_l_gfs_ipc_transfer_cb, globus_l_gfs_ipc_event_cb,
-					  node_info);
+                                          node_info);
     if (result != GLOBUS_SUCCESS) goto error;
     bounce_info->nodes_pending++;
     bounce_info->event_pending++;
@@ -3004,8 +2925,7 @@ extern "C"
     GlobusGFSErrorOpFinished(bounce_info->op, GLOBUS_GFS_OP_TRANSFER, result);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_recv (globus_gfs_operation_t op, globus_gfs_transfer_info_t * transfer_info, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_recv (globus_gfs_operation_t op, globus_gfs_transfer_info_t * transfer_info, void * user_arg)
   {
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
     globus_result_t result;
@@ -3022,10 +2942,10 @@ extern "C"
     {
       /* Request active connection from the right node first */
 
-      if(transfer_info->truncate)
-	my_handle->mode = XROOTD_FILEMODE_TRUNCATE;
+      if (transfer_info->truncate)
+        my_handle->mode = XROOTD_FILEMODE_TRUNCATE;
       else
-	my_handle->mode = XROOTD_FILEMODE_WRITING;
+        my_handle->mode = XROOTD_FILEMODE_WRITING;
 
       result = globus_l_gfs_remote_init_bounce_info (&bounce_info, op, my_handle->active_data_info, my_handle);
 
@@ -3037,8 +2957,8 @@ extern "C"
 
       if (result != GLOBUS_SUCCESS)
       {
-	globus_free(bounce_info);
-	goto error;
+        globus_free(bounce_info);
+        goto error;
       }
 
       my_handle->active_transfer_info = transfer_info;
@@ -3065,7 +2985,8 @@ extern "C"
 
     //TODO: We rely on the xrootd server to notice that a local replica is available on the remote server and redirect the access to the local
     //      If it's not enough, is there a mechanism to pass an Xrootd address to the remote GridFTP server
-    globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "recv: requesting transfer of %s to %s\n", new_transfer_info->pathname,my_handle->session_info.host_id);
+    globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "recv: requesting transfer of %s to %s\n", new_transfer_info->pathname,
+                            my_handle->session_info.host_id);
 
     new_transfer_info->data_arg = node_info->data_arg;
     new_transfer_info->node_count = 1;
@@ -3076,7 +2997,7 @@ extern "C"
     node_info->bounce = bounce_info;
 
     result = globus_gfs_ipc_request_recv (node_info->ipc_handle, new_transfer_info, globus_l_gfs_ipc_transfer_cb, globus_l_gfs_ipc_event_cb,
-					  node_info);
+                                          node_info);
     if (result != GLOBUS_SUCCESS) goto error;
     /* could maybe get away with no lock if we moved the next few lines
      above the request.  we would have to then assume that the
@@ -3091,14 +3012,12 @@ extern "C"
 
     return;
 
-    error:
-    my_handle->cur_result = result;
+    error: my_handle->cur_result = result;
     globus_mutex_unlock (&my_handle->gfs_mutex);
     GlobusGFSErrorOpFinished(bounce_info->op, GLOBUS_GFS_OP_TRANSFER, result);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_trev (globus_gfs_event_info_t * event_info, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_trev (globus_gfs_event_info_t * event_info, void * user_arg)
   {
     globus_result_t result;
     globus_l_gfs_xrootd_handle_t * my_handle;
@@ -3127,15 +3046,15 @@ extern "C"
 
       if (node_info->info && node_info->info_needs_free)
       {
-	globus_free(node_info->info);
-	node_info->info = NULL;
-	node_info->info_needs_free = GLOBUS_FALSE;
+        globus_free(node_info->info);
+        node_info->info = NULL;
+        node_info->info_needs_free = GLOBUS_FALSE;
       }
       node_info->event_arg = NULL;
       node_info->event_mask = 0;
       if (bounce_info->eof_count != NULL)
       {
-	globus_free(bounce_info->eof_count);
+        globus_free(bounce_info->eof_count);
       }
       globus_free(bounce_info);
 
@@ -3144,8 +3063,7 @@ extern "C"
     globus_mutex_unlock (&my_handle->gfs_mutex);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_active_delay (globus_gfs_operation_t op, globus_gfs_data_info_t * data_info, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_active_delay (globus_gfs_operation_t op, globus_gfs_data_info_t * data_info, void * user_arg)
   {
     globus_gfs_data_info_t * new_data_info;
     globus_l_gfs_xrootd_handle_t * my_handle;
@@ -3183,8 +3101,7 @@ extern "C"
     globus_mutex_unlock (&my_handle->gfs_mutex);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_passive (globus_gfs_operation_t op, globus_gfs_data_info_t * data_info, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_passive (globus_gfs_operation_t op, globus_gfs_data_info_t * data_info, void * user_arg)
   {
     globus_l_gfs_remote_ipc_bounce_t * bounce_info;
     globus_result_t result;
@@ -3214,19 +3131,19 @@ extern "C"
       globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "Passive mode was triggered by command %s\n", cmd);
       if (!strcmp (cmd, "STOR") || !strcmp (cmd, "ESTO"))
       {
-	my_handle->mode = XROOTD_FILEMODE_TRUNCATE;
+        my_handle->mode = XROOTD_FILEMODE_TRUNCATE;
       }
       else if (!strcmp (cmd, "APPE"))
       {
-	my_handle->mode = XROOTD_FILEMODE_WRITING;
+        my_handle->mode = XROOTD_FILEMODE_WRITING;
       }
       else if (!strcmp (cmd, "RETR") || !strcmp (cmd, "ERET"))
       {
-	my_handle->mode = XROOTD_FILEMODE_READING;
+        my_handle->mode = XROOTD_FILEMODE_READING;
       }
       else
       {
-	my_handle->mode = XROOTD_FILEMODE_NONE; /* LIST and PASV in legacy passive mode */
+        my_handle->mode = XROOTD_FILEMODE_NONE; /* LIST and PASV in legacy passive mode */
       }
     }
 
@@ -3242,8 +3159,7 @@ extern "C"
     GlobusGFSErrorOpFinished(op, GLOBUS_GFS_OP_PASSIVE, result);
   }
 
-  static void
-  globus_l_gfs_xrootd_remote_data_destroy (void * data_arg, void * user_arg)
+  static void globus_l_gfs_xrootd_remote_data_destroy (void * data_arg, void * user_arg)
   {
     globus_result_t result;
     globus_l_gfs_xrootd_handle_t * my_handle;
@@ -3260,18 +3176,18 @@ extern "C"
       result = globus_gfs_ipc_request_data_destroy (node_info->ipc_handle, node_info->data_arg);
       if (result != GLOBUS_SUCCESS)
       {
-	globus_gfs_log_result (GLOBUS_GFS_LOG_ERR, "IPC ERROR: remote_data_destroy: ipc call", result);
+        globus_gfs_log_result (GLOBUS_GFS_LOG_ERR, "IPC ERROR: remote_data_destroy: ipc call", result);
       }
       if (node_info->cs != NULL)
       {
-	globus_free(node_info->cs);
+        globus_free(node_info->cs);
       }
       node_info->data_arg = NULL;
       node_info->stripe_count = 0;
       result = globus_l_gfs_remote_node_release (node_info, GLOBUS_GFS_BRAIN_REASON_COMPLETE);
       if (result != GLOBUS_SUCCESS)
       {
-	globus_gfs_log_result (GLOBUS_GFS_LOG_ERR, "ERROR: remote_data_destroy: handle_release", result);
+        globus_gfs_log_result (GLOBUS_GFS_LOG_ERR, "ERROR: remote_data_destroy: handle_release", result);
       }
     }
     globus_mutex_unlock (&my_handle->gfs_mutex);
@@ -3312,25 +3228,21 @@ extern "C"
   ///   (in that case Xrd source servers are checked for being gridftp servers)
   ///   among the available backend servers, selected servers are chosen as follows
   ///   Generic Xrootd Behaviour.
-  ///   - if XXX option is enabled, all the servers returned by XrdFs->Locate which are
-  ///     also gridftp servers are used for RECV. For LIST and SEND, one is randomly
-  ///     selected among those.
-  ///   - if XXX option is disabled, only one randomly chosen server is used for RECV, LIST or SEND
+  ///   RECV:
+  ///   - First all the XRD severs hosting a replica are looked up (in a pure XRoot way or in an eos-specific way
+  ///     according to the configuration). Then, are kept only the ones runnning a background gridftp server.
+  ///     If at least one is found. Pick-up one randomly and forward to transfer to this one.
   ///   - if no located XRD server is a gridftp server, just use one of the
-  ///     globally known backend gridftp servers for RECV, LIST or SEND
-  ///   - if no other backend node is known, use the frontend server.
-  ///     RECV, LIST or SEND
-  ///   EOS-Specifics:
-  ///   - if the requested file has a replica layout, for RECV, use all the gridftp-enabled
-  ///     FSTs hosting a replica if some, one of the other backend FST's if some, frontend else
-  ///   - if the requested file has a replica layout, for SEND, use one of the gridftp-enabled
-  ///     FSTs hosting a replica if some, one of the other backend FST's if some, frontend else
-  ///   - if the requested file has a RAID/striped layout, for RECV, use one of the gridftp-enabled
-  ///     FSTs hosting a stripe if some, one of the other backend FST's if some, frontend else
-  ///   - if the requested file has a RAID/striped layout, for SEND, use one of the gridftp-enabled
-  ///     FSTs hosting a stripe if some, one of the other backend FST's if some, frontend else
-  ///   - if all cases, for LIST, use one of the gridftp-enabled FSTs
-  ///     the frontend else
+  ///     globally known backend gridftp servers for RECV
+  ///   SEND: it's a bit more tricky to make the operation atomic
+  ///   - A temporary file is created
+  ///   - First all the XRD severs hosting a replica of these are looked up (in a pure XRoot way or in an eos-specific way
+  ///     according to the configuration). Then, are kept only the ones runnning a background gridftp server.
+  ///     If at least one is found. Pick-up one randomly and forward to transfer to this one.
+  ///   - if no located XRD server is a gridftp server, just use one of the
+  ///     globally known backend gridftp servers for RECV
+  ///   - at the end of the transfer, if it's sucessful, delete the previous target file (if any)
+  ///     and rename the temporary file to the target file name
   static globus_gfs_storage_iface_t globus_l_gfs_xrootd_remote_dsi_iface =
   {
   GLOBUS_GFS_DSI_DESCRIPTOR_BLOCKING | GLOBUS_GFS_DSI_DESCRIPTOR_SENDER, globus_l_gfs_xrootd_start, globus_l_gfs_xrootd_destroy,
@@ -3340,56 +3252,116 @@ extern "C"
       NULL,
       NULL };
 
-  static int
-  globus_l_gfs_xrootd_activate (void)
+  struct sigaction globus_sa_sigint, globus_sa_sigterm, globus_sa_sigsegv;
+
+  static void globus_l_gfs_xrootd_sighandler (int sig)
   {
-    ReadaheadBlock::sDefaultBlocksize = config.XrdReadAheadBlockSize;
-    XrdFileIo::sNumRdAheadBlocks = config.XrdReadAheadNBlocks;
+    dbgprintf("My PID is %d , signal is sig %d\n", (int) getpid (), sig);
+
+    if (config)
+    //globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: My PID is %d\n", "globus_l_gfs_xrootd_deactivate", (int)getpid());
+    {
+      delete config;
+      config = NULL;
+    }
+
+    if (sig == 0) return;
+
+    struct sigaction *sa = NULL;
+    if (sig == SIGINT) sa = &globus_sa_sigint;
+    if (sig == SIGTERM) sa = &globus_sa_sigterm;
+    if (sig == SIGSEGV) sa = &globus_sa_sigsegv;
+
+    if (sa && sa->sa_handler)
+    {
+      dbgprintf("Calling previous signal handler for signal %d. sa is %p and previous handler is %p\n", sig, sa, sa?sa->sa_handler:NULL);
+      sa->sa_handler (sig);
+      dbgprintf("Succesfully called previous signal handler for signal %d. sa is %p and previous handler is %p\n", sig, sa,
+                sa?sa->sa_handler:NULL);
+    }
+    else
+    {
+      dbgprintf("I could not find the previous signal handler for signal %d. sa is %p and previous handler is %p\n", sig, sa,
+                sa?sa->sa_handler:NULL);
+      if (sig == SIGINT || sig == SIGTERM) exit (0);
+      if (sig == SIGSEGV) abort ();
+    }
+  }
+
+  static void globus_l_gfs_xrootd_atexit ()
+  {
+    globus_l_gfs_xrootd_sighandler (0);
+  }
+
+  static int globus_l_gfs_xrootd_activate (void)
+  {
+    // ### NOT CALLED for every process globus_gridftp_sever ### //
+    dbgprintf("My PID is %d, XrdGsiBackendMapper::This is %p and config is %p\n", (int)getpid(), XrdGsiBackendMapper::This, config);
+
+    // we register a few hooks to catch any exit of the program to leave all the shared stuff in a consistent state
+    sigaction (SIGINT, NULL, &globus_sa_sigint);
+    sigaction (SIGTERM, NULL, &globus_sa_sigterm);
+    sigaction (SIGSEGV, NULL, &globus_sa_sigsegv);
+    signal (SIGINT, globus_l_gfs_xrootd_sighandler);
+    signal (SIGTERM, globus_l_gfs_xrootd_sighandler);
+    signal (SIGSEGV, globus_l_gfs_xrootd_sighandler);
+    atexit (globus_l_gfs_xrootd_atexit);
+
+    // hadPreviousCfs is actually useless as on every fork, the plugin is reloaded
+    // this means that all the static variables are re initialized on each fork
+    bool hadPreeviousCfg = (config != 0);
+    if (!hadPreeviousCfg) config = new globus_l_gfs_xrootd_config;
+
+    // #### SETTING UP AND REPORTING THINGS INDEPENDANT OF STANDALONE/BACKEND/FRONTEND #### //
+    ReadaheadBlock::sDefaultBlocksize = config->XrdReadAheadBlockSize;
+    XrdFileIo::sNumRdAheadBlocks = config->XrdReadAheadNBlocks;
+    globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: My PID is %d\n", "globus_l_gfs_xrootd_activate", (int) getpid ());
     globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: My Environment is as follow : \n", "globus_l_gfs_xrootd_activate");
     for (char **env = environ; *env; ++env)
       globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s\n", *env);
     globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: Activating XRootD DSI plugin\n", "globus_l_gfs_xrootd_activate");
-    if (config.XrootdVmp.empty ())
+    if (config->XrootdVmp.empty ())
     {
       globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XRootD Virtual Mount Point is NOT set. DSI plugin cannot start. \n",
-			      "globus_l_gfs_xrootd_activate");
+                              "globus_l_gfs_xrootd_activate");
       return 1;
     }
-    if (config.ServerRole.empty () || (config.ServerRole!="frontend" && config.ServerRole!="backend" && config.ServerRole!="standalone"))
+    if (config->ServerRole.empty ()
+        || (config->ServerRole != "frontend" && config->ServerRole != "backend" && config->ServerRole != "standalone"))
     {
       globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: XRootD DSI GridFtp server role is NOT set. DSI plugin cannot start. \n",
-			      "globus_l_gfs_xrootd_activate");
+                              "globus_l_gfs_xrootd_activate");
       return 1;
     }
     globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: XRootD Virtual Mount Point is set to: %s\n", "globus_l_gfs_xrootd_activate",
-			    config.XrootdVmp.c_str ());
+                            config->XrootdVmp.c_str ());
     {
       const size_t errBuffLen = 2048;
       char errBuff[errBuffLen];
 
       if (!XP.getParseErrStr ().empty ())
       {
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: Error parsing Virtual Mount Point : %s. DSI plugin cannot start. \n",
-				"globus_l_gfs_xrootd_activate", XP.getParseErrStr ().c_str ());
-	return 1;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: Error parsing Virtual Mount Point : %s. DSI plugin cannot start. \n",
+                                "globus_l_gfs_xrootd_activate", XP.getParseErrStr ().c_str ());
+        return 1;
       }
 
       if (!XP.CheckVMP (errBuff, errBuffLen))
       {
-	globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: Error : %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate", errBuff);
-	return 1;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: Error : %s. DSI plugin cannot start. \n", "globus_l_gfs_xrootd_activate", errBuff);
+        return 1;
       }
     }
     globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: XRootD Read Ahead Block Size is set to: %d\n", "globus_l_gfs_xrootd_activate",
-			    config.XrdReadAheadBlockSize);
+                            config->XrdReadAheadBlockSize);
     globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: XRootD number of Read Ahead Blocks is set to: %d\n", "globus_l_gfs_xrootd_activate",
-			    config.XrdReadAheadNBlocks);
+                            config->XrdReadAheadNBlocks);
     std::stringstream ss;
-    if (config.EosAppTag) ss << " EosAppTag";
-    if (config.EosChmod) ss << " EosChmod";
-    if (config.EosCks) ss << " EosCks";
-    if (config.EosBook) ss << " EosBook";
-    if (config.EosRemote) ss << " EosRemote";
+    if (config->EosAppTag) ss << " EosAppTag";
+    if (config->EosChmod) ss << " EosChmod";
+    if (config->EosCks) ss << " EosCks";
+    if (config->EosBook) ss << " EosBook";
+    if (config->EosRemote) ss << " EosRemote";
     std::string eosspec (ss.str ());
     if (eosspec.size ())
     {
@@ -3398,124 +3370,137 @@ extern "C"
       ss << eosspec << std::endl;
       globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
     }
+    // ######################################################################################## //
 
-    if (config.ServerRole == "frontend")
+    // #### SETTING UP AND REPORTING THINGS IN FRONTEND MODE #### //
+    if (config->ServerRole == "frontend")
     {
-//      if (config.BackendServersDiscoveryTTL > 0 && config.allTheServers.size () > 0)
-//      {
-//        globus_gfs_log_message (
-//  	  GLOBUS_GFS_LOG_ERR,
-//  	  "%s: Error : enabling Frontend/Backend mode : backend autodiscovery (configured TTL is %d) cannot be used together with static backend nodes list %s. \n",
-//  	  "globus_l_gfs_xrootd_activate", config.BackendServersDiscoveryTTL, config.BackendServersStaticList.c_str ());
-//        return 1;
-//      }
-      if (config.BackendServersDiscoveryTTL == 0 && config.allTheServers.size () == 0)
+      if (config->BackendServersDiscoveryTTL == 0 && config->allTheServers.size () == 0)
       {
-	globus_gfs_log_message (
-	    GLOBUS_GFS_LOG_ERR,
-	    "%s: Error : enabling Frontend/Backend mode : backend discovery is off and backend hosts list is empty. There is no backend! Abort.\n",
-	    "globus_l_gfs_xrootd_activate", config.ServerRole.c_str ());
-	return 1;
+        globus_gfs_log_message (
+            GLOBUS_GFS_LOG_ERR,
+            "%s: Error : enabling Frontend/Backend mode : backend discovery is off and backend hosts list is empty. There is no backend! Abort.\n",
+            "globus_l_gfs_xrootd_activate", config->ServerRole.c_str ());
+        return 1;
       }
       ss.str ("");
       ss << "globus_l_gfs_xrootd_activate: XRootD DSI plugin runs in Frontend-Backend mode:" << std::endl;
-      if (config.BackendServersDiscoveryTTL > 0)
+      if (config->BackendServersDiscoveryTTL > 0)
       {
-	ss << "using backend autodiscovery TTL = " << config.BackendServersDiscoveryTTL << " sec." << std::endl;
-	globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
+        ss << "using backend autodiscovery TTL = " << config->BackendServersDiscoveryTTL << " sec." << std::endl;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
       }
-      if (config.allTheServers.size ())
+      if (config->allTheServers.size ())
       {
-	ss << "using backend servers = ";
-	for (auto it = config.allTheServers.begin (); it != config.allTheServers.end (); it++)
-	{
-	  if (it != config.allTheServers.begin ()) ss << " , ";
-	  ss << *it;
-	}
-	ss << std::endl;
-	globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
+        ss << "using backend servers = ";
+        for (auto it = config->allTheServers.begin (); it != config->allTheServers.end (); it++)
+        {
+          if (it != config->allTheServers.begin ()) ss << " , ";
+          ss << *it;
+        }
+        ss << std::endl;
+        globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
+      }
+
+      if (!hadPreeviousCfg)
+      {
+        int cpt = 0;
+        do
+        {
+          int oldstate;
+          pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, &oldstate);
+          XrdGsiBackendMapper::This->LockBackendServers ();
+          if (XrdGsiBackendMapper::This->GetActiveBackEnd ()->size ())
+          {
+            XrdGsiBackendMapper::This->UnLockBackendServers ();
+            pthread_setcancelstate (oldstate, NULL);
+            break;
+          }
+          //time_t now=time(0);
+          //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "now is %d, XrdGsiBackendMapper::This.GetBackEndServers()->size () %d\n",now,XrdGsiBackendMapper::This->GetActiveBackEnd()->size ());
+          XrdGsiBackendMapper::This->UnLockBackendServers ();
+          pthread_setcancelstate (oldstate, NULL);
+          sleep (1);
+          if (++cpt == 10)
+          {
+            globus_gfs_log_message (GLOBUS_GFS_LOG_ERR,
+                                    "%s: could not successfully probe any backend server. There is no backend! Abort.\n",
+                                    "globus_l_gfs_xrootd_activate");
+            return 1;
+          }
+        }
+        while (true);
+
+        globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: Early startup backend list is \n %s\n", "globus_l_gfs_xrootd_activate",
+                                XrdGsiBackendMapper::This->DumpActiveBackend ().c_str ());
+
+        if (config->EosNodeLs)
+        {
+          std::vector<std::string> HeadNodeServersV;
+          std::string HeadNodeServersS;
+          XP.GetServerList (&HeadNodeServersV, &HeadNodeServersS);
+          XrdGsiBackendMapper::This->AddToProbeList ("eos_node_ls" + HeadNodeServersS);
+        }
+
+        if (config->BackendServersDiscoveryTTL > 0) XrdGsiBackendMapper::This->StartUpdater ();
+      }
+
+      if ((config->EosAppTag || config->EosBook || config->EosChmod || config->EosCks || config->EosNodeLs) && !config->EosRemote
+          && config->BackendServersDiscoveryTTL > 0)
+      {
+        globus_gfs_log_message (
+            GLOBUS_GFS_LOG_WARN,
+            "%s: Warning : The server is run in frontend mode with some EOS specifics and backend discovery is enabled. Most likely, the backend storage is an EOS instance. In that case, backend discovery won't work properly unless the environment variable XROOTD_DSI_EOS_REMOTE is set.  \n",
+            "globus_l_gfs_xrootd_activate");
+      }
+
+      globus_extension_registry_add (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd", GlobusExtensionMyModule(globus_gridftp_server_xrootd),
+                                     &globus_l_gfs_xrootd_remote_dsi_iface);
+    }
+    // ######################################################################################## //
+
+    // #### SETTING UP AND REPORTING THINGS IN BACKEND/STANDALONE MODE #### //
+    else if (config->ServerRole == "backend" || config->ServerRole == "standalone")
+    {
+      if (config->BackendServersDiscoveryTTL > 0 || config->allTheServers.size () > 0)
+      {
+        globus_gfs_log_message (
+            GLOBUS_GFS_LOG_WARN,
+            "%s: Warning : enabling Frontend/Backend mode : backend autodiscovery configured TTL or static backend nodes list given in the config but ServerRole is not frontend! Those parameters will be ignored. \n",
+            "globus_l_gfs_xrootd_activate");
       }
       globus_extension_registry_add (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd", GlobusExtensionMyModule(globus_gridftp_server_xrootd),
-				     &globus_l_gfs_xrootd_remote_dsi_iface);
+                                     &globus_l_gfs_xrootd_dsi_iface);
     }
-    else if (config.ServerRole == "backend" || config.ServerRole == "standalone")
-    {
-      if (config.BackendServersDiscoveryTTL > 0 || config.allTheServers.size () > 0)
-      {
-	globus_gfs_log_message (
-	    GLOBUS_GFS_LOG_WARN,
-	    "%s: Warning : enabling Frontend/Backend mode : backend autodiscovery configured TTL or static backend nodes list given in the config but ServerRole is not frontend! Those parameters will be ignored. \n",
-	    "globus_l_gfs_xrootd_activate");
-      }
-	globus_extension_registry_add (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd", GlobusExtensionMyModule(globus_gridftp_server_xrootd),
-				       &globus_l_gfs_xrootd_dsi_iface);
-    }
+    // ######################################################################################## //
+
     else
     {
       globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "%s: Error : invalid role %s : valid roles are 'frontend', 'backend', and 'standalone'\n",
-			      "globus_l_gfs_xrootd_activate", config.ServerRole.c_str ());
+                              "globus_l_gfs_xrootd_activate", config->ServerRole.c_str ());
       return 1;
     }
     ss.str ("");
-    ss << "globus_l_gfs_xrootd_activate: XRootD DSI plugin runs in " << config.ServerRole << " mode:" << std::endl;
+    ss << "globus_l_gfs_xrootd_activate: XRootD DSI plugin runs in " << config->ServerRole << " mode:" << std::endl;
     globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
-//
-//
-//    if (config.BackendServersDiscoveryTTL > 0 || config.allTheServers.size () > 0)
-//    {
-//      if(config.ServerRole!="frontend")
-//	      globus_gfs_log_message (
-//		  GLOBUS_GFS_LOG_WARN,
-//		  "%s: Warning : enabling Frontend/Backend mode : backend autodiscovery configured TTL or static backend nodes list given in the config but ServerRole is not frontend! Those parameters will be ignored. \n",
-//		  "globus_l_gfs_xrootd_activate");
-//
-//      globus_extension_registry_add (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd", GlobusExtensionMyModule(globus_gridftp_server_xrootd),
-//				     &globus_l_gfs_xrootd_remote_dsi_iface);
-//      ss.str ("");
-//      ss << "globus_l_gfs_xrootd_activate: XRootD DSI plugin runs in Frontend-Backend mode:" << std::endl;
-//      if (config.BackendServersDiscoveryTTL > 0)
-//      {
-//	ss << "using backend autodiscovery TTL = " << config.BackendServersDiscoveryTTL << " sec." << std::endl;
-//	globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
-//      }
-//      else
-//      {
-//	ss << "using backend servers = ";
-//	for (auto it = config.allTheServers.begin (); it != config.allTheServers.end (); it++)
-//	{
-//	  if (it != config.allTheServers.begin ()) ss << " , ";
-//	  ss << *it;
-//	}
-//	ss << std::endl;
-//	globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
-//      }
-//    }
-//    else
-//    {
-//      if(config.ServerRole=="frontend")
-//      {
-//	      globus_gfs_log_message (
-//		  GLOBUS_GFS_LOG_WARN,
-//		  "%s: Error : enabling Frontend/Backend mode : cannot start in frontend mode : no backend autodiscovery configured TTL nor static backend nodes list given in the config.\n",
-//		  "globus_l_gfs_xrootd_activate");
-//	      return 1;
-//      }
-//
-//      globus_extension_registry_add (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd", GlobusExtensionMyModule(globus_gridftp_server_xrootd),
-//				     &globus_l_gfs_xrootd_dsi_iface);
-//      ss.str ("");
-//      ss << "globus_l_gfs_xrootd_activate: XRootD DSI plugin runs in standalone mode:" << std::endl;
-//      globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, ss.str ().c_str ());
-//    }
+
     return 0;
   }
 
-  static int
-  globus_l_gfs_xrootd_deactivate (void)
+  static int globus_l_gfs_xrootd_deactivate (void)
   {
+    // ### NOT CALLED ON ALL FORKS ### //
+    // never use globus_gfs_log_message, it could deadlock!!!!!
+    dbgprintf("My PID is %d\n", (int) getpid ());
+
     globus_extension_registry_remove (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd");
 
+    if (config)
+    {
+      delete config;
+      config = NULL;
+    }
+
     return 0;
   }
-
-} // end extern "C"
+}// end extern "C"

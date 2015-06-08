@@ -36,9 +36,12 @@ extern "C" {
 	XROOTD_FILEMODE_TRUNCATE
   } globus_l_gfs_xrootd_filemode_t;
 }
-#include "XrdCl/XrdClStatus.hh"
 #include <vector>
 #include <algorithm>
+#include "XrdGsiBackendMapper.hh"
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdOuc/XrdOucString.hh"
 
 class XrootPath
 {
@@ -46,6 +49,7 @@ public:
 
   void  CWD(const char *path);
   char *BuildURL(const char *path, char *buff, int blen);
+  void GetServerList(std::vector<std::string> *listascextor, std::string *listasstring);
 
   static int   SplitURL(const char *url, char *server, char *path, int blen);
   const std::string & getParseErrStr() const { return pParseErrStr; } 
@@ -100,90 +104,78 @@ int mapError(int rc);
 
 };
 
-
-namespace XrdUtils{
-
-template<class Container>
-static void splitString( Container         &result,
-    const std::string &input,
-    const std::string &delimiter )
+namespace XrdUtils
 {
-  size_t start  = 0;
-  size_t end    = 0;
-  size_t length = 0;
 
-  do
-  {
-    end = input.find( delimiter, start );
+  template<class Container>
+    static void splitString (Container &result, const std::string &input, const std::string &delimiter)
+    {
+      size_t start = 0;
+      size_t end = 0;
+      size_t length = 0;
 
-    if( end != std::string::npos )
-      length = end - start;
-    else
-      length = input.length() - start;
+      do
+      {
+        end = input.find (delimiter, start);
 
-    if( length )
-      result.push_back( input.substr( start, length ) );
+        if (end != std::string::npos)
+          length = end - start;
+        else
+          length = input.length () - start;
 
-    start = end + delimiter.size();
-  }
-  while( end != std::string::npos );
-}
+        if (length) result.push_back (input.substr (start, length));
 
-XrdCl::XRootDStatus GetRemoteCheckSum( std::string       &checkSum,
-    const std::string &checkSumType,
-    const std::string &server,
-    const std::string &path );
+        start = end + delimiter.size ();
+      }
+      while (end != std::string::npos);
+    }
 
-void HostId2Host(char * host_id, char * host);
+  XrdCl::XRootDStatus GetRemoteCheckSum (std::string &checkSum, const std::string &checkSumType, const std::string &server,
+                                         const std::string &path);
 
-XrdCl::XRootDStatus LocateFileXrootd(
-    std::vector<std::string> &urls,
-    std::vector<std::string> &servers,
-    const std::string &server,
-    const std::string &path,
-    globus_l_gfs_xrootd_filemode_t fileMode);
+  void HostId2Host (char * host_id, char * host);
 
-XrdCl::XRootDStatus IssueEosCmd(
-    XrdOucString &rstdout,
-    const XrdOucString &sserver,
-    const XrdOucString &command,
-    const XrdOucString &opaque
-    );
+  // locate a file using plain XRoot
+  XrdCl::XRootDStatus LocateFileXrootd (std::vector<std::string> &urls, std::vector<std::string> &servers, const std::string &server,
+                                        const std::string &path, globus_l_gfs_xrootd_filemode_t fileMode,
+                                        std::vector<std::string>& unFilteredServerList);
 
-XrdCl::XRootDStatus LocateFileEos(
-    std::vector<std::string>       &urls,
-    std::vector<std::string>       &servers,
-    bool                           &isReplicaLayout,
-    const std::string &sserver,
-    const std::string &spath,
-    globus_l_gfs_xrootd_filemode_t fileMode);
+  // issue an EOS command to the head node and get the output and the status
+  XrdCl::XRootDStatus IssueEosCmd (XrdOucString &rstdout, const XrdOucString &sserver, const XrdOucString &command,
+                                   const XrdOucString &opaque, bool admincmd = false);
 
-//
+  // locate a file using eos specifics (WARNING, EOS does not support plain XRoot location of a file!! This is the only supported method for EOS)
+  XrdCl::XRootDStatus LocateFileEos (std::vector<std::string> &urls, std::vector<std::string> &servers, bool &isReplicaLayout,
+                                     const std::string &sserver, const std::string &spath, globus_l_gfs_xrootd_filemode_t fileMode,
+                                     std::vector<std::string>& unFilteredServerList);
+
+  // get the list of Fst nodes (storage nodes). It requires the host of the current running gridftp server to be registered as a gateway.
+  XrdCl::XRootDStatus ListFstEos (std::vector<std::string> &urls, const std::string &sserver);
+
+  // sort a vector vec1 and apply the same sorting permutation to vec2 as well
   template<typename T>
-    bool
-    SortAlongFirstVect (std::vector<T>&vec1, std::vector<T>&vec2)
+    bool SortAlongFirstVect (std::vector<T>&vec1, std::vector<T>&vec2)
     {
       std::vector<std::pair<T, T> > vecp;
       assert(vec1.size () == vec2.size ());
       vecp.reserve (vec1.size ());
 
       for (size_t t = 0; t < vec1.size (); t++)
-	vecp.push_back (std::make_pair (vec1[t], vec2[t]));
+        vecp.push_back (std::make_pair (vec1[t], vec2[t]));
 
       std::sort (vecp.begin (), vecp.end ());
 
       for (size_t t = 0; t < vec1.size (); t++)
       {
-	vec1[t] = vecp[t].first;
-	vec2[t] = vecp[t].second;
+        vec1[t] = vecp[t].first;
+        vec2[t] = vecp[t].second;
       }
       return true;
     }
 
-// this expect sorted vectors as  inputs
+  // this expect sorted vectors as  inputs
   template<typename T>
-    bool
-    GetSortedIntersectIdx (std::vector<size_t>&indicesInV1, const std::vector<T> &v1, const std::vector<T>&v2)
+    bool GetSortedIntersectIdx (std::vector<size_t>&indicesInV1, const std::vector<T> &v1, const std::vector<T>&v2)
     {
       //std::set_intersection(v1.begin(),v1.end(),v2.begin(),v2.end(),std::back_inserter(intersectVect));
       auto __first1 = v1.begin ();
@@ -194,38 +186,49 @@ XrdCl::XRootDStatus LocateFileEos(
       auto __result = std::back_inserter (indicesInV1);
       while (__first1 != __last1 && __first2 != __last2)
       {
-	if (*__first1 < *__first2)
-	{
-	  ++__first1;
-	  ++__idx1;
-	}
-	else if (*__first2 < *__first1)
-	  ++__first2;
-	else
-	{
-	  *__result = __idx1;
-	  {
-	    ++__first1;
-	    ++__idx1;
-	  }
-	  ++__first2;
-	  ++__result;
-	}
+        if (*__first1 < *__first2)
+        {
+          ++__first1;
+          ++__idx1;
+        }
+        else if (*__first2 < *__first1)
+          ++__first2;
+        else
+        {
+          *__result = __idx1;
+          {
+            ++__first1;
+            ++__idx1;
+          }
+          ++__first2;
+          ++__result;
+        }
       }
       return true;
     }
 
-bool GetRemoteServers(
-    std::vector<size_t> &selectedServers,
-    std::string &errStr,
-    const std::vector<std::string>       allTheServers,
-    const std::string &fileServer,
-    std::string filePath,
-    const std::string &TruncationTmpFileSuffix,
-    globus_l_gfs_xrootd_filemode_t accessType,
-    bool useEosSpecifics);
+  inline bool GetAvailableGsiInList (std::vector<std::string>&availableGsiServers, const std::vector<std::string> &list,
+                                     XrdGsiBackendMapper *backend)
+  {
+    backend->LockBackendServers ();
+    auto *backendMap = backend->GetBackEndMap ();
+    for (auto it = list.begin (); it != list.end (); ++it)
+    {
+      auto k = backend->Key (it->c_str ());
+      auto itm = backendMap->lower_bound (k);
+      if (itm != backendMap->end () && itm->first.compare (0, k.size (), k) == 0 && itm->second.gsiFtpAvailable)
+        availableGsiServers.push_back (itm->first.c_str ());
+    }
+    backend->UnLockBackendServers ();
 
-XrdCl::XRootDStatus RenameTmpToFinal(const std::string &temp_url, size_t suffix_size,bool useEosSpecifics);
+    return true;
+  }
+
+  bool GetRemoteServers (std::vector<std::string> &selectedServers, std::string &errStr, std::vector<std::string> &potentialNewServers,
+                         XrdGsiBackendMapper * backend, const std::string &fileServer, std::string filePath,
+                         const std::string &TruncationTmpFileSuffix, globus_l_gfs_xrootd_filemode_t accessType, bool useEosSpecifics);
+
+  XrdCl::XRootDStatus RenameTmpToFinal (const std::string &temp_url, size_t suffix_size, bool useEosSpecifics);
 
 }
 #endif

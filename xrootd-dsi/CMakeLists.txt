@@ -49,23 +49,26 @@ if (DEFINED PACKAGEONLY AND PACKAGEONLY)
 endif (DEFINED PACKAGEONLY AND PACKAGEONLY)
 
 if (NOT DEFINED PACKAGEONLY)
+set(BOOST_INCLUDEDIR "/usr/include/boost148")
+set(Boost_NO_BOOST_CMAKE ON)
 find_package(GlobusGridFtpServer REQUIRED)
 find_package(XRootD REQUIRED)
+find_package(Boost REQUIRED)
 endif (NOT DEFINED PACKAGEONLY)
 
 ######################################################################################################################
 # Platform Specific
 set(LIB_INSTALL_DIR lib64)
 
-set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
-#set(CMAKE_CXX_FLAGS "-g -Wall -O0 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
+#set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O2 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
+set(CMAKE_CXX_FLAGS "-std=c++0x -g -Wall -O0 -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\\\" -DRELEASE=\\\"${RELEASE}\\\" -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64" )
 ######################################################################################################################
 # build targets
 ######################################################################################################################
 add_custom_command(OUTPUT src/globus_gfs_internal_hack.h
                    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/generate_globus_hack ${CMAKE_CURRENT_SOURCE_DIR}/src/globus_gfs_internal_hack.h
                    COMMENT "Generating globus internal hack header file" VERBATIM)
-include_directories( ../ ${XROOTD_INCLUDE_DIR} ${GLOBUSGRIDFTPSERVER_INCLUDE_DIR} )
+include_directories( ../ ${XROOTD_INCLUDE_DIR} ${GLOBUSGRIDFTPSERVER_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 link_directories( /usr/${LIB_INSTALL_DIR}/ ${XROOTD_LIB_DIR} )
 add_library (globus_gridftp_server_xrootd_gcc64pthr SHARED
         src/globus_gfs_internal_hack.h
@@ -75,6 +78,7 @@ add_library (globus_gridftp_server_xrootd_gcc64pthr SHARED
 	    src/ChunkHandler.cc
 	    src/SimpleHandler.cc
         src/XrdFileIo.cc
+        src/XrdGsiBackendMapper.cc
 )
 
 if (Linux)

@@ -4,7 +4,7 @@
 
 Summary: XROOTD gridftp DSI plugin
 Name: xrootd-dsi
-Version: 0.4.0
+Version: 0.5.0
 Release: 1
 License: none
 Group: Applications/File
@@ -23,6 +23,11 @@ BuildRequires: xrootd-server-devel
 BuildRequires: perl
 BuildRequires: globus-gridftp-server-progs
 BuildRequires: yum-utils
+%if 0%{?rhel} < 6
+BuildRequires: boost148-devel
+%else
+BuildRequires: boost-devel
+%endif
 
 %description
 XROOTD gridftp DSI plugin
@@ -46,7 +51,7 @@ cd build
 echo "Installed!"
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+rm -rf $RPM_BUILD_ROOT 
 
 %files
 %defattr(-,root,root,-)
@@ -71,8 +76,10 @@ if [ $1 = 0 ]; then
 fi
 rm -f /usr/lib64/libglobus_gridftp_server_xrootd_gcc64.so
 
-
 %changelog
+* Fri Jun 5 2015 <geoffray.adde@cern.ch> - dsi 0.5.0-1
+- rewrite MT locking scheme to allow IPC
+- add support for dynamic backend discovery
 * Wed May 8 2015 <geoffray.adde@cern.ch> - dsi 0.4.0-1
 - add support for frontend/backend setup
 * Wed Feb 12 2014 <geoffray.adde@cern.ch> - dsi 0.3.3-2

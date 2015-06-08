@@ -35,7 +35,7 @@ Three server setups are supported.
     It works as a gateway to the underlying XROOTD filesystem.
     All the traffic flows through the server.
     This is the LEGACY mode.
-- frontend/backend : in this setup, requests are handled by (one or sveral) "frontend" servers,
+- frontend/backend : in this setup, requests are handled by (one or several) "frontend" servers,
     Transfers are served by the "backend" servers.
     A same server can be simultaneously frontend and backend (also refered as "split").
     A backend node can serve transfer requests from several frontend nodes.
@@ -44,9 +44,41 @@ Three server setups are supported.
     when using globus-url-copy )
     which hosts a local replica of the file avoiding intra-instance traffic.
     In this mode, each frontend node nead to know which are the available backend nodes.
-    There is two ways to do this:
-    * a static list of servers in the config file
-    * dynamic autodiscovery of available gridftp backend service on accessed XRootD sevrers. 
+    There is two way to specify the backend servers (they can be used both):
+    * a static list of servers in the config file.
+      It's specified by setting the env variable XROOTD_DSI_GSIFTP_BACKENDSERVERS
+      If the autodiscovery is not enabled, this is the only servers which will be used.
+      If the autodiscovery is enabled, this is the startup list which will (probably) grow
+    * dynamic autodiscovery of available gridftp backend service on accessed XRootD sevrers.
+      This feature is enable if the env variable XROOTD_DSI_GSIFTP_BACKENDDISCOVERTTL is set and >0
+      It needs at least one machine in the previous static list to start with.
+      When enabled, all the XROOTD servers mentionned in any transfer as hosting a replica are probed
+      to see if they also host a gridftp sevrer on port XROOTD_DSI_GSIFTP_BACKENDDEFAULTPORT.
+      If they do, they are added to the backend servers list.
+      Note that this process should work with any XROOTD server. 
+      When using an EOS server on which the gridftp frontend servers are registered as gateways,
+      it is possible to speed-up the discovery process by setting XROOTD_DSI_EOS_NODELS.
+    IMPORTANT INFORMATION:
+    When running in frontend/backend mode, the backend information is stored in a shared memory map.
+    This map will disappear if the machine reboot or if a "service xroot-gridftp-server restart resetbackend"
+    is issued. Please note, the additionnal argument. In other cases, this information is not erased.
+      
+Possible setups:
+    - one (or a few) gridftp servers might run in standalone mode. 
+      Theses servers are then only gateways and the data is thransfered twice.
+      This completely isolate the gridftp entry points and narrows-down open ports and machines 
+      accessible from the outside.
+      
+    - all the XROOTD storage servers might run in split mode.
+      The transfers are then optimal and data is transfered only once (at least for replica layout).
+      This flattens out the transfer load accross all the servers (if the requested file evenely spread)
+      All the XROOTD storage servers potentially need to be exposed to the outside which might be a serious 
+      security concern.
+      
+    - one (or a few) gridftp servers might run in frontend mode while all the XROOTD storage servers run in 
+      backend mode.
+      This allows to combine optimal transfers and limited risk exposure.
+      For more information just search "globus gridftp server Split Process"
 
 the testing for standalone is based on uberftp:
 warning!! the test has been reported working with uberftp 2.6 but NOT working with uberftp 2.4
@@ -61,7 +93,7 @@ In standalone mode, this plugin has been successfully tested
 In frontend/backend mode, this plugin has been successfully tested
 - on an SLC5/SLC6 mix with eos specifics
 
-Because of CMake, it sould be possible to compile it without any significant change on any OS
+Because of CMake, it sould be possible to compile it without any significant change on a wide variety of OSes
 provided with gcc > 4.4 or an equivalent compiler.
 
 EXTERNAL DEPENDENCIES
@@ -73,7 +105,9 @@ To run this plugin, the following packages are required:
 - globus-gridftp-server-progs
 
 To Build this plugin, the following packages are required:
+- globus-gridftp-server-progs
 - globus-gridftp-server-devel
+- boost (boost148 on SLC5)
 - xrootd-cl-devel
 - gcc > 4.4
 - perl
@@ -129,8 +163,8 @@ KNOWN BUGS AND LIMITATIONS
 
 TODO
 ----
-- Dynamic autodiscovery of backend gridftp server is not implementend yet
 - Striped read from multipe servers could probably be implemented
+- Gsi Authentication Forwarding
 
 CONTACT
 -------

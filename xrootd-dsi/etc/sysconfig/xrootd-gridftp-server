@@ -4,18 +4,37 @@ GLOBUS_UDP_PORT_RANGE=20000,21000
 GLOBUS_THREAD_MODEL=pthread
 GLOBUS_GRIDFTP_DEBUGLOG_LEVEL=ALL
 DAEMON_COREFILE_LIMIT=unlimited
-# pthread should not be changed
-GLOBUS_THREAD_MODEL=pthread
+
 # the following variable specifies one or several virtual mount points
 export XROOTD_VMP="machine1:port1:/grid/ftp/mount/point1=/xrootd/corresponding/path1 machine2:port2:/grid/ftp/mount/point2=/xrootd/corresponding/path2 ..."
-# the foloowing environment variables enable some eos specifics
+
+# the following environment variables enable some eos specifics
 # the value of the variable doesn't matter, it works on a defined / not defined basis
-# XROOTD_DSI_EOS_CKS      # enable EOS checksum
-# XROOTD_DSI_EOS_CHMOD    # enable EOS chmod
-# XROOTD_DSI_EOS_APPTAG   # enable EOS apptag to specify that requests are from the DSI gridftp plugin
-# XROOTD_DSI_EOS_BOOK     # enable EOS space booking when receiving a file
-# XROOTD_DSI_EOS_REMOTE   # enable EOS implementation for choosing the backend gridftp server
-# export XROOTD_DSI_GSIFTP_BACKENDSERVERS="host1:port1,host2:port2,host3:port3" # define backend gridftp servers
-export XROOTD_DSI_SERVER_ROLE="standalone" # valid modes are standalone , split , fontend and backend
-# export XROOTD_DSI_EOS=1         # enable ALL the EOS specifics
+# export XROOTD_DSI_EOS_CKS=1      # enable EOS checksum
+# export XROOTD_DSI_EOS_CHMOD=1    # enable EOS chmod
+# export XROOTD_DSI_EOS_APPTAG=1   # enable EOS apptag to specify that requests are from the DSI gridftp plugin
+# export XROOTD_DSI_EOS_BOOK=1     # enable EOS space booking when receiving a file
+# export XROOTD_DSI_EOS_REMOTE=1   # enable EOS implementation for choosing the backend gridftp server
+# export XROOTD_DSI_EOS_NODELS=1   # enable EOS probing of file servers using "node ls", this requires machine to be set as a gateway in EOS
+export XROOTD_DSI_EOS=1 # enable ALL the EOS specifics
+
+# the foloowing environment variable controls the role of the gridftp-server daemon
+#   standalone : one daemon is running, it manages the session and serves the transfers
+#   fontend    : one daemon is running, it manages the sessions and deleguates the transfers to the backend servers
+#   backend    : one daemon is running, it serves transfers as requested by frontend server(s)
+#   split      : two daemons are running, one as frontend , the other one as backend 
+export XROOTD_DSI_SERVER_ROLE="standalone" # valid modes are standalone , split , frontend and backend
+
+# the following environment variables are used only in frontend (or split) role
+
+# define backend gridftp servers
+# when running in split mode, this should include at least the localhost (or its fullname)
+# export XROOTD_DSI_GSIFTP_BACKENDSERVERS="host1:port1,host2:port2,host3:port3" 
+
+# the following environment variables control the background autodiscovery feature 
+# this feature is enabled if XROOTD_DSI_GSIFTP_BACKENDDISCOVERTTL is set to a numeric value > 0 
+# export XROOTD_DSI_GSIFTP_BACKENDDISCOVERTTL=3600 # when a new backend server was discovered , consider it as valid for this long
+# export XROOTD_DSI_GSIFTP_BACKENDDISCOVERRETRYINTERVAL=3600 # when a new potential backend server failed to be discovered, try again after this interval 
+# export XROOTD_DSI_GSIFTP_BACKENDDEFAULTPORT=7001 # in autodiscovery , all the backend server are tested on that port
+
 

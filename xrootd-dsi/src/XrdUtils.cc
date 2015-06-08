@@ -68,18 +68,18 @@ XrootPath::XrootPath () :
     if ((colon = rindex (tp, (int) ':')) && *(colon + 1) == '/')
     {
       if (!(subs = index (colon, (int) '=')))
-	aOK = 0;
+        aOK = 0;
       else if (*(subs + 1) == '/')
       {
-	*subs = '\0';
-	subs++;
+        *subs = '\0';
+        subs++;
       }
       else if (*(subs + 1))
-	aOK = 0;
+        aOK = 0;
       else
       {
-	*subs = '\0';
-	subs = (char*) "";
+        *subs = '\0';
+        subs = (char*) "";
       }
     }
     else
@@ -89,7 +89,7 @@ XrootPath::XrootPath () :
     {
       *colon++ = '\0';
       while (*(colon + 1) == '/')
-	colon++;
+        colon++;
       xplist = new xpath (xplist, tp, colon, subs);
     }
     else
@@ -106,8 +106,7 @@ XrootPath::XrootPath () :
 /*         X r o o t P a t h    C h e ck V M P                                */
 /******************************************************************************/
 
-bool
-XrootPath::CheckVMP (char *errbuff, int errbufflen)
+bool XrootPath::CheckVMP (char *errbuff, int errbufflen)
 {
   struct xpath *xpnow = xplist;
   if (!xpnow) return false;
@@ -127,7 +126,7 @@ XrootPath::CheckVMP (char *errbuff, int errbufflen)
     {
       if (xrdstatinfo) delete xrdstatinfo;
       snprintf (errbuff, errbufflen, "cannot stat Xrootd Virtual Mount Point %s   %s, error is \"%s\"", xpnow->server, xpnow->nath,
-		status.ToString ().c_str ());
+                status.ToString ().c_str ());
       return false;
     }
     xpnow = xpnow->next;
@@ -154,8 +153,7 @@ XrootPath::~XrootPath ()
 /*                     X r o o t P a t h : : C W D                      */
 /******************************************************************************/
 
-void
-XrootPath::CWD (const char *path)
+void XrootPath::CWD (const char *path)
 {
   if (cwdPath) free (cwdPath);
   cwdPlen = strlen (path);
@@ -253,12 +251,30 @@ XrootPath::BuildURL (const char *path, char *buff, int blen)
   return buff;
 }
 
+void XrootPath::GetServerList(std::vector<std::string> *listasvector, std::string *listasstring)
+{
+  auto it = this->xplist;
+  do
+  {
+    std::string s(it->server);
+    auto pos = s.rfind(':');
+    if(pos!=std::string::npos) s.resize(pos);
+
+    if (listasvector) listasvector->push_back (s);
+    if (listasstring)
+    {
+      if(listasstring->size()) listasstring->append ("|");
+      listasstring->append (s);
+    }
+  }
+  while((it=it->next)!=NULL);
+}
+
 /******************************************************************************/
 /*                     X r o o t P a t h : : S p l i t U R L                      */
 /******************************************************************************/
 
-int
-XrootPath::SplitURL (const char *url, char *server, char *path, int blen)
+int XrootPath::SplitURL (const char *url, char *server, char *path, int blen)
 {
   int i, j;
   const char *pathptr;
@@ -295,8 +311,7 @@ XrootPath::SplitURL (const char *url, char *server, char *path, int blen)
 /*                              i n i t S t a t                               */
 /******************************************************************************/
 
-void
-XrootStatUtils::initStat (globus_gfs_stat_t *buf)
+void XrootStatUtils::initStat (globus_gfs_stat_t *buf)
 {
   static int initStat = 0;
   static dev_t st_rdev;
@@ -326,8 +341,7 @@ XrootStatUtils::initStat (globus_gfs_stat_t *buf)
 /*                              i n i t X d e v                               */
 /******************************************************************************/
 
-void
-XrootStatUtils::initXdev (dev_t &st_dev, dev_t &st_rdev)
+void XrootStatUtils::initXdev (dev_t &st_dev, dev_t &st_rdev)
 {
   struct stat buf;
 
@@ -349,8 +363,7 @@ XrootStatUtils::initXdev (dev_t &st_dev, dev_t &st_rdev)
 /*                              m a p F l a g s                               */
 /******************************************************************************/
 
-int
-XrootStatUtils::mapFlagsXrd2Pos (int flags)
+int XrootStatUtils::mapFlagsXrd2Pos (int flags)
 {
   int newflags = 0;
 
@@ -371,8 +384,7 @@ XrootStatUtils::mapFlagsXrd2Pos (int flags)
   return newflags;
 }
 
-int
-XrootStatUtils::mapFlagsPos2Xrd (int flags)
+int XrootStatUtils::mapFlagsPos2Xrd (int flags)
 {
   int XOflags;
 
@@ -391,8 +403,7 @@ XrootStatUtils::mapFlagsPos2Xrd (int flags)
 /*                               m a p M o d e                                */
 /******************************************************************************/
 
-int
-XrootStatUtils::mapModePos2Xrd (mode_t mode)
+int XrootStatUtils::mapModePos2Xrd (mode_t mode)
 {
   int XMode = 0;
 
@@ -409,8 +420,7 @@ XrootStatUtils::mapModePos2Xrd (mode_t mode)
   return XMode;
 }
 
-int
-XrootStatUtils::mapModeXrd2Pos (mode_t mode)
+int XrootStatUtils::mapModeXrd2Pos (mode_t mode)
 {
   int XMode = 0;
 
@@ -431,8 +441,7 @@ XrootStatUtils::mapModeXrd2Pos (mode_t mode)
 /*                               m a p E r r o r                              */
 /******************************************************************************/
 
-int
-XrootStatUtils::mapError (int rc)
+int XrootStatUtils::mapError (int rc)
 {
   switch (rc)
   {
@@ -466,8 +475,8 @@ XrootStatUtils::mapError (int rc)
 /******************************************************************************/
 
 using namespace XrdCl;
-XrdCl::XRootDStatus
-XrdUtils::GetRemoteCheckSum (std::string &checkSum, const std::string &checkSumType, const std::string &server, const std::string &path)
+XrdCl::XRootDStatus XrdUtils::GetRemoteCheckSum (std::string &checkSum, const std::string &checkSumType, const std::string &server,
+                                                 const std::string &path)
 {
   XrdCl::FileSystem *fs = new FileSystem (URL (server));
   Buffer arg;
@@ -496,22 +505,19 @@ XrdUtils::GetRemoteCheckSum (std::string &checkSum, const std::string &checkSumT
   return XRootDStatus ();
 }
 
-
 /******************************************************************************/
 /*                               L o c a t e                                  */
 /******************************************************************************/
 
-XrdCl::XRootDStatus
-XrdUtils::LocateFileXrootd (std::vector<std::string> &urls, std::vector<std::string> &servers, const std::string &server,
-			    const std::string &path, globus_l_gfs_xrootd_filemode_t fileMode)
+XrdCl::XRootDStatus XrdUtils::LocateFileXrootd (std::vector<std::string> &urls, std::vector<std::string> &servers,
+                                                const std::string &server, const std::string &path, globus_l_gfs_xrootd_filemode_t fileMode,
+                                                std::vector<std::string>& unFilteredServerList)
 {
   XrdCl::FileSystem *fs = new FileSystem (URL (server));
   XRootDStatus st;
 
   LocationInfo *li;
-  // With XRootD 4 and above, ::Write sould be enough. This flag does not exist for older versions
-  // st = fs->Locate (path, fileMode == XROOTD_FILEMODE_READING ? (OpenFlags::Read) : (OpenFlags::Write), li, 10);
-  st = fs->Locate (path, fileMode == XROOTD_FILEMODE_READING ? (OpenFlags::Read) : (OpenFlags::Update), li, 10);
+  st = fs->Locate (path, fileMode == XROOTD_FILEMODE_READING ? (OpenFlags::Read) : (OpenFlags::Write), li, 10);
   if (!st.IsOK ()) return st;
 
   for (auto it = li->Begin (); it != li->End (); it++)
@@ -520,26 +526,38 @@ XrdUtils::LocateFileXrootd (std::vector<std::string> &urls, std::vector<std::str
     XrdCl::URL url;
     url.FromString (it->GetAddress ());
     servers.push_back (url.GetHostName ());
+    unFilteredServerList.push_back (url.GetHostName ());
   }
 
   return XRootDStatus ();
 }
 
-XrdCl::XRootDStatus
-XrdUtils::IssueEosCmd (XrdOucString &rstdout, const XrdOucString &sserver, const XrdOucString &command, const XrdOucString &opaque)
+XrdCl::XRootDStatus XrdUtils::IssueEosCmd (XrdOucString &rstdout, const XrdOucString &sserver, const XrdOucString &command,
+                                           const XrdOucString &opaque, bool admincmd)
 {
   XrdOucString out = "";
   XrdOucString path = sserver;
-  path += "//proc/user/";
+  if(admincmd)
+    path += "//proc/admin/";
+  else
+    path += "//proc/user/";
   path += "?mgm.cmd=";
   path += command;
   if (opaque.length () && (*opaque.c_str () != '&')) path += '&';
   path += opaque;
 
+  if(admincmd)
+  {
+  XrdCl::URL url;
+  url.FromString(path.c_str());
+  url.SetUserName("root");
+  path = url.GetURL().c_str();
+  }
+
   XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
   XrdCl::File* client = new XrdCl::File ();
   XrdCl::XRootDStatus status = client->Open (path.c_str (), flags_xrdcl);
-  //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "IssueEosCmd : try to open %\n",path.c_str());
+  //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "IssueEosCmd : try to open %s\n",path.c_str());
 
   if (status.IsOK ())
   {
@@ -565,27 +583,26 @@ XrdUtils::IssueEosCmd (XrdOucString &rstdout, const XrdOucString &sserver, const
     while (rstdout.replace ("#and#", "&"))
     {
     };
-    // globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "IssueEosCmd : open was sucessful, rstdout is [[ %s ]] \n",rstdout.c_str());
+     //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "IssueEosCmd : open was sucessful, rstdout is [[ %s ]] \n",rstdout.c_str());
     return XrdCl::XRootDStatus ();
   }
   else
   {
-    // globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "IssueEosCmd : open failed ! \n",rstdout.c_str());
+     //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "IssueEosCmd : open failed ! \n",rstdout.c_str());
     return status;
   }
 }
 struct mystruct
 {
-  bool
-  operator() (char c1, char c2)
+  bool operator() (char c1, char c2)
   {
     return c1 == ' ' && c2 == c1;
   }
 };
 
-XrdCl::XRootDStatus
-XrdUtils::LocateFileEos (std::vector<std::string> &urls, std::vector<std::string> &servers, bool &isReplicaLayout,
-			 const std::string &sserver, const std::string &spath, globus_l_gfs_xrootd_filemode_t fileMode)
+XrdCl::XRootDStatus XrdUtils::LocateFileEos (std::vector<std::string> &urls, std::vector<std::string> &servers, bool &isReplicaLayout,
+                                             const std::string &sserver, const std::string &spath, globus_l_gfs_xrootd_filemode_t fileMode,
+                                             std::vector<std::string>& unFilteredServerList)
 {
   XrdOucString rstdout;
   XrdOucString opaque;
@@ -633,9 +650,9 @@ XrdUtils::LocateFileEos (std::vector<std::string> &urls, std::vector<std::string
       j = rstdout.find ("fsid=", j);
       if (j == STR_NPOS)
       {
-	// WARNING
-	status.SetErrorMessage ("could not parse expected fsid");
-	return Status (stError, errInvalidResponse);
+        // WARNING
+        status.SetErrorMessage ("could not parse expected fsid");
+        return Status (stError, errInvalidResponse);
       }
       rstdout.tokenize (token, j + 5, ' ');
       int fsid = token.atoi ();
@@ -643,9 +660,9 @@ XrdUtils::LocateFileEos (std::vector<std::string> &urls, std::vector<std::string
       j = rstdout.find ("fullpath=", j);
       if (j == STR_NPOS)
       {
-	// WARNING
-	status.SetErrorMessage ("could not parse expected fullpath");
-	return Status (stError, errInvalidResponse);
+        // WARNING
+        status.SetErrorMessage ("could not parse expected fullpath");
+        return Status (stError, errInvalidResponse);
       }
       rstdout.tokenize (token, j + 9, ' ');
       fsidFullpath.push_front (std::make_pair (fsid, token.c_str ()));
@@ -667,43 +684,49 @@ XrdUtils::LocateFileEos (std::vector<std::string> &urls, std::vector<std::string
       int pos = 0;
       std::list<XrdOucString> lines;
       while ((pos = rstdout.tokenize (line, pos, '\n')) != STR_NPOS)
-	lines.push_front (line);
+        lines.push_front (line);
 
       for (auto itl = lines.begin (); itl != lines.end (); itl++)
       {
-	XrdOucString &line = *itl;
-	mystruct myop;
-	std::unique ((char*) line.c_str (), (char*) line.c_str () + line.length () + 1, myop);
-	std::set<std::string> lineTokens;
-	pos = 0;
-	while ((pos = line.tokenize (token, pos, ' ')) != STR_NPOS)
-	  lineTokens.insert (token.c_str ());
+        XrdOucString &line = *itl;
+        mystruct myop;
+        std::unique ((char*) line.c_str (), (char*) line.c_str () + line.length () + 1, myop);
+        std::set<std::string> lineTokens;
+        pos = 0;
+        while ((pos = line.tokenize (token, pos, ' ')) != STR_NPOS)
+          lineTokens.insert (token.c_str ());
 
-	for (auto it = fsidFullpath.begin (); it != fsidFullpath.end (); it++)
-	{
-	  token.form ("%d", it->first);
-	  auto notfound = lineTokens.end ();
-	  if (lineTokens.find (token.c_str ()) != notfound && lineTokens.find (it->second.c_str ()) != notfound
-	      && lineTokens.find ("booted") != notfound && lineTokens.find ("online") != notfound
-	      && (lineTokens.find ("rw") != notfound || (fileMode == XROOTD_FILEMODE_READING && lineTokens.find ("ro") != notfound)))
-	  {
-	    XrdOucString sep = (it->second.find ('?') == STR_NPOS) ? '?' : '&';
-	    // the hostname is the token after the fsid
-	    token.form (" %d ", it->first);
-	    pos = line.find (token);
-	    XrdOucString hostname;
-	    pos += token.length ();
-	    while (line[pos] == ' ')
-	      pos++;
-	    line.tokenize (hostname, pos, ' ');
-	    urls.push_back ((XrdOucString ((sserver + spath + sep.c_str ()).c_str ()) + "eos.force.fsid=" + it->first).c_str ());
-	    servers.push_back (hostname.c_str ());
+        for (auto it = fsidFullpath.begin (); it != fsidFullpath.end (); it++)
+        {
+          token.form ("%d", it->first);
+          auto notfound = lineTokens.end ();
+          if (lineTokens.find (token.c_str ()) != notfound && lineTokens.find (it->second.c_str ()) != notfound)
+          {
+            // a we found an fst
+            XrdOucString sep = (it->second.find ('?') == STR_NPOS) ? '?' : '&';
+            // the hostname is the token after the fsid
+            token.form (" %d ", it->first);
+            pos = line.find (token);
+            XrdOucString hostname;
+            pos += token.length ();
+            while (line[pos] == ' ')
+              pos++;
+            line.tokenize (hostname, pos, ' ');
+            unFilteredServerList.push_back (hostname.c_str ());
+
+            if (lineTokens.find ("booted") != notfound && lineTokens.find ("online") != notfound
+                && (lineTokens.find ("rw") != notfound || (fileMode == XROOTD_FILEMODE_READING && lineTokens.find ("ro") != notfound)))
+            {
+              // we found an fst matching access creteria
+              urls.push_back ((XrdOucString ((sserver + spath + sep.c_str ()).c_str ()) + "eos.force.fsid=" + it->first).c_str ());
+              servers.push_back (hostname.c_str ());
 //	    globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "LocateFileEos : one replica spotted , path is [[ %s ]] and server is [[ %s ]] \n",
 //				    urls.back ().c_str (), servers.back ().c_str ());
-	    fsidFullpath.erase (it);
-	    break;
-	  }
-	}
+              fsidFullpath.erase (it);
+              break;
+            }
+          }
+        }
       }
     }
     else
@@ -721,14 +744,47 @@ XrdUtils::LocateFileEos (std::vector<std::string> &urls, std::vector<std::string
   return status;
 }
 
+XrdCl::XRootDStatus XrdUtils::ListFstEos (std::vector<std::string> &servers, const std::string &sserver)
+{
+  // root://localhost//proc/admin/?mgm.cmd=node&mgm.subcmd=ls&mgm.outformat=m
+  XrdOucString rstdout;
+  XrdOucString opaque;
+  opaque += "&mgm.subcmd=ls&mgm.outformat=m&eos.rgid=0&eos.ruid=0";
+
+  XrdCl::XRootDStatus status = IssueEosCmd (rstdout, sserver.c_str (), "node", opaque,true);
+
+  if (status.IsOK ())
+  {
+    int pos = -1;
+    while ((pos = rstdout.find ("hostport=", pos+1)) != (int)std::string::npos)
+    {
+      size_t pos2 = rstdout.find (":", pos);
+      if (pos2 == std::string::npos) pos2 = rstdout.find (" ", pos);
+
+      if (pos2 == std::string::npos)
+      {
+        globus_gfs_log_message (GLOBUS_GFS_LOG_ERR, "could not parse token %s", rstdout.c_str () + pos);
+        continue;
+      }
+      XrdOucString urlNoPort (rstdout, pos + 9, pos2 - 1);
+      //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "adding %s\n", urlNoPort.c_str ());
+      servers.push_back (urlNoPort.c_str ());
+    }
+    return XrdCl::XRootDStatus ();
+  }
+
+  return status;
+}
+
+
 /******************************************************************************/
 /*                        G e t R e m o t e S e r v e r s                     */
 /******************************************************************************/
 
-bool
-XrdUtils::GetRemoteServers (std::vector<size_t> &selectedServers, std::string &errStr, const std::vector<std::string> allTheServers,
-			    const std::string &fileServer, std::string filePath, const std::string &TruncationTmpFileSuffix,
-			    globus_l_gfs_xrootd_filemode_t fileMode, bool useEosSpecifics)
+bool XrdUtils::GetRemoteServers (std::vector<std::string> &selectedServers, std::string &errStr,
+                                 std::vector<std::string> &potentialNewServers, XrdGsiBackendMapper *backend, const std::string &fileServer,
+                                 std::string filePath, const std::string &TruncationTmpFileSuffix, globus_l_gfs_xrootd_filemode_t fileMode,
+                                 bool useEosSpecifics)
 {
   std::stringstream ss;
   std::vector<std::string> locatedUrls, locatedServers;
@@ -743,9 +799,9 @@ XrdUtils::GetRemoteServers (std::vector<size_t> &selectedServers, std::string &e
     if (fileMode == XROOTD_FILEMODE_TRUNCATE) filePath.append (TruncationTmpFileSuffix);
     XrdCl::XRootDStatus status;
     if (useEosSpecifics)
-      status = LocateFileEos (locatedUrls, locatedServers, isReplicaLayout, fileServer, filePath, fileMode);
+      status = LocateFileEos (locatedUrls, locatedServers, isReplicaLayout, fileServer, filePath, fileMode, potentialNewServers);
     else
-      status = LocateFileXrootd (locatedUrls, locatedServers, fileServer, filePath, fileMode);
+      status = LocateFileXrootd (locatedUrls, locatedServers, fileServer, filePath, fileMode, potentialNewServers);
     if (!status.IsOK ())
     {
       ss << "could not locate host for server " << fileServer << " and path " << filePath << " : " << status.GetErrorMessage ();
@@ -762,19 +818,35 @@ XrdUtils::GetRemoteServers (std::vector<size_t> &selectedServers, std::string &e
     // sort the file servers
     SortAlongFirstVect (locatedServers, locatedUrls);
 
+    ss.str ("");
+    ss << "All the unfilteredServers XROOTD servers available for the file " << fileServer << "\\\\" << filePath << " := ";
+    for (auto it = potentialNewServers.begin (); it != potentialNewServers.end (); it++)
+      ss << "|" << *it << "|  ";
+    globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "GetRemoteServers : %s \n", ss.str ().c_str ());
+    ss.str ("");
+    ss << "All the servers available for the file " << fileServer << "\\\\" << filePath << " := ";
+
     // among the xrootd file (FST's in eos case) servers keep only those which are also backend gridftp servers
-    GetSortedIntersectIdx (selectedServers, allTheServers, locatedServers);
+    GetAvailableGsiInList (selectedServers, locatedServers, backend);
 
     ss.str ("");
     ss << "XROOTD/GRIDFTP servers for the file " << fileServer << "\\\\" << filePath << " := ";
     for (auto it = selectedServers.begin (); it != selectedServers.end (); it++)
-      ss << "|" << allTheServers[*it] << "|  ";
+      ss << "|" << *it << "|  ";
     globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "GetRemoteServers : %s \n", ss.str ().c_str ());
-
   }
 
   // if there is no server hosting a replica, just pick one randomly that will do the gateway
-  if (selectedServers.empty ()) selectedServers.push_back (rand () % allTheServers.size ());
+  if (selectedServers.empty ())
+  {
+    int oldstate;
+    pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, &oldstate);
+    backend->LockBackendServers ();
+    selectedServers.push_back ((*(backend->GetActiveBackEnd ()))[rand () % (backend->GetActiveBackEnd ())->size ()].c_str ());
+    backend->UnLockBackendServers ();
+    pthread_setcancelstate (oldstate,NULL);
+
+  }
 
   // if we are not doing a stripe read, keep only one server to do the gateway
   if (!(fileMode == XROOTD_FILEMODE_READING && isReplicaLayout) && (selectedServers.size () > 1))
@@ -785,21 +857,20 @@ XrdUtils::GetRemoteServers (std::vector<size_t> &selectedServers, std::string &e
   }
 
   if (fileServer.size () && filePath.size ())
-      {
-  ss.str ("");
-  ss << "Final servers for the file " << fileServer << "\\\\" << filePath << " := ";
-      }
+  {
+    ss.str ("");
+    ss << "Final servers for the file " << fileServer << "\\\\" << filePath << " := ";
+  }
   else
     ss << "Final servers for the request := ";
   for (auto it = selectedServers.begin (); it != selectedServers.end (); it++)
-    ss << "|" << allTheServers[*it] << "|  ";
+    ss << "|" << *it << "|  ";
   globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "GetRemoteServers : %s \n", ss.str ().c_str ());
 
   return true;
 }
 
-void
-XrdUtils::HostId2Host (char * host_id, char * host)
+void XrdUtils::HostId2Host (char * host_id, char * host)
 {
   char * p;
   char * tmp = strdup (host_id);
@@ -815,8 +886,7 @@ XrdUtils::HostId2Host (char * host_id, char * host)
 /*                        R e n a m e T m p T o F i n a l                     */
 /******************************************************************************/
 
-XrdCl::XRootDStatus
-XrdUtils::RenameTmpToFinal (const std::string &temp_url, size_t suffix_size, bool useEosSpecifics)
+XrdCl::XRootDStatus XrdUtils::RenameTmpToFinal (const std::string &temp_url, size_t suffix_size, bool useEosSpecifics)
 {
   XrdCl::XRootDStatus ret;
   ret.status = XrdCl::stError;
@@ -828,7 +898,7 @@ XrdUtils::RenameTmpToFinal (const std::string &temp_url, size_t suffix_size, boo
     auto tmpname = url.GetPath ();
     auto finalname = tmpname.substr (0, tmpname.size () - suffix_size);
     globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "xrootd: moving temp file %s to final file %s on filesystem %s\n", tmpname.c_str (),
-			    finalname.c_str (), url.GetHostName ().c_str ());
+                            finalname.c_str (), url.GetHostName ().c_str ());
     XrdCl::StatInfo *si = NULL;
     XrdCl::XRootDStatus st;
     if (fs.Stat (finalname, si).IsOK ()) st = fs.Rm (finalname);
@@ -845,34 +915,34 @@ XrdUtils::RenameTmpToFinal (const std::string &temp_url, size_t suffix_size, boo
     {
       if (useEosSpecifics)
       {
-	XrdOucString surl = (url.GetProtocol () + std::string ("://") + url.GetHostId ()).c_str ();
-	surl += '/';
-	surl += "/proc/user/?mgm.cmd=file&mgm.path=";
-	surl += tmpname.c_str ();
-	surl += "&mgm.subcmd=rename&mgm.file.source=";
-	surl += tmpname.c_str ();
-	surl += "&mgm.file.target=";
-	surl += finalname.c_str ();
-	//globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "xrootd: eos command to rename is %s\n", surl.c_str ());
-	XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
-	XrdCl::File* client = new XrdCl::File ();
-	st = client->Open (surl.c_str (), flags_xrdcl);
+        XrdOucString surl = (url.GetProtocol () + std::string ("://") + url.GetHostId ()).c_str ();
+        surl += '/';
+        surl += "/proc/user/?mgm.cmd=file&mgm.path=";
+        surl += tmpname.c_str ();
+        surl += "&mgm.subcmd=rename&mgm.file.source=";
+        surl += tmpname.c_str ();
+        surl += "&mgm.file.target=";
+        surl += finalname.c_str ();
+        //globus_gfs_log_message (GLOBUS_GFS_LOG_DUMP, "xrootd: eos command to rename is %s\n", surl.c_str ());
+        XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
+        XrdCl::File* client = new XrdCl::File ();
+        st = client->Open (surl.c_str (), flags_xrdcl);
       }
       else
       {
-	XrdCl::XRootDStatus st = fs.Mv (tmpname, finalname);
+        XrdCl::XRootDStatus st = fs.Mv (tmpname, finalname);
       }
       if (!st.IsOK ())
       {
-	ret.errNo = st.errNo;
-	ss << "Error renaming temporary file" << tmpname.c_str () << " to its final name " << finalname.c_str () << " : "
-	    << st.ToStr ().c_str ();
-	XrdCl::XRootDStatus st = fs.Rm (tmpname);
-	if (!st.IsOK ()) ss << "  AND  Error removing temporary file" << tmpname.c_str () << "for cleanup : " << st.ToStr ().c_str ();
-	ret.SetErrorMessage (ss.str ().c_str ());
+        ret.errNo = st.errNo;
+        ss << "Error renaming temporary file" << tmpname.c_str () << " to its final name " << finalname.c_str () << " : "
+            << st.ToStr ().c_str ();
+        XrdCl::XRootDStatus st = fs.Rm (tmpname);
+        if (!st.IsOK ()) ss << "  AND  Error removing temporary file" << tmpname.c_str () << "for cleanup : " << st.ToStr ().c_str ();
+        ret.SetErrorMessage (ss.str ().c_str ());
       }
       else
-	ret = XrdCl::XRootDStatus ();
+        ret = XrdCl::XRootDStatus ();
     }
   }
   return ret;
