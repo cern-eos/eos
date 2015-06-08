@@ -8,7 +8,7 @@ Version: 0.5.0
 Release: 1
 License: none
 Group: Applications/File
-Source0: xrootd-dsi-0.4.0-%{release}.tar.gz
+Source0: xrootd-dsi-0.5.0-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 Requires: xrootd-client
