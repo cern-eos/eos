@@ -505,7 +505,7 @@ ProcCommand::File ()
         // default is 30 days
         expires = (time_t) (time(NULL) + (30 * 86400));
       }
-      std::string sharepath;
+     std::string sharepath;
       sharepath = gOFS->CreateSharePath(spath.c_str(), "", expires, *mError, *pVid);
 
       if (vid.uid != 0)
@@ -530,12 +530,21 @@ ProcCommand::File ()
         XrdOucString httppath = "http://";
         httppath += gOFS->HostName;
         httppath += ":8000/";
-        httppath += sharepath.c_str();
-        int pos = httppath.find("?");
-        // + from base64 is a problem
-        while (httppath.replace("+", "%2B", pos))
-        {
-        }
+
+	size_t qpos = sharepath.find("?");
+	std::string httpunenc = sharepath;
+	httpunenc.erase(qpos);
+	std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
+	
+	httppath += httpenc.c_str();
+
+	XrdOucString cgi = sharepath;
+	cgi.erase(0,qpos);
+	while (cgi.replace("+", "%2B", pos))
+	{
+	}
+
+	httppath += cgi.c_str();
 
         XrdOucString rootUrl = "root://";
         rootUrl += gOFS->ManagerId;

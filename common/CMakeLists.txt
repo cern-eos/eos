@@ -28,6 +28,7 @@ include_directories(
 		     ${SPARSEHASH_INCLUDE_DIR} 
 		     ${NCURSES_INCLUDE_DIR}
 		     ${Z_INCLUDE_DIR}
+		     ${CURL_INCLUDE_DIRS}
 )
 
 if(LEVELDB_FOUND)
@@ -39,6 +40,7 @@ include_directories(
 		     ${NCURSES_INCLUDE_DIR}
 		     ${Z_INCLUDE_DIR}
                      ${LEVELDB_INCLUDE_DIR}
+		     ${CURL_INCLUDE_DIRS}
 )
 endif(LEVELDB_FOUND)
 
@@ -116,6 +118,7 @@ target_link_libraries ( eosCommon
                         crypto 
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
+  		        ${CURL_LIBRARIES}
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
@@ -127,6 +130,7 @@ target_link_libraries ( eosCommonServer
                         crypto 
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
+         	        ${CURL_LIBRARIES}
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 else( MacOSX )
@@ -138,6 +142,7 @@ target_link_libraries ( eosCommon
                         rt
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
+                        ${CURL_LIBRARIES}
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
@@ -151,6 +156,7 @@ target_link_libraries ( eosCommonServer
                         rt
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
+                        ${CURL_LIBRARIES}
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES} )
 
@@ -162,6 +168,7 @@ target_link_libraries ( eosCommon-Static
                         crypto 
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
+                        ${CURL_LIBRARIES}
                         ${Z_LIBRARIES} 
                         ${ATTR_LIBRARIES}  )
 
