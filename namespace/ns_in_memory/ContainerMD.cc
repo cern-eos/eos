@@ -27,8 +27,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include <sys/stat.h>
 
-namespace eos
-{
+EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -394,4 +393,5 @@ ContainerMD::nextFile()
   else
     return pIterFile->second;
 }
-}
+
+EOSNSNAMESPACE_END

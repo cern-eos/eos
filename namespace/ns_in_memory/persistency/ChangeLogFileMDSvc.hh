@@ -21,8 +21,8 @@
 // desc:   Change log based FileMD service
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
-#define EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
+#ifndef __EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH__
+#define __EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH__
 
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
@@ -347,4 +347,4 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
 
 EOSNSNAMESPACE_END
 
-#endif // EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH
+#endif // __EOS_NS_CHANGE_LOG_FILE_MD_SVC_HH__

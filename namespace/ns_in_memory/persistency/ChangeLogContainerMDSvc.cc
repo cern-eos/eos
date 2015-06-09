@@ -58,7 +58,7 @@ namespace eos
         //----------------------------------------------------------------------
         if( type == UPDATE_RECORD_MAGIC )
         {
-          IContainerMD *container = new ContainerMD(IContainerMD::id_t(0));
+          ContainerMD *container = new ContainerMD(IContainerMD::id_t(0));
           container->deserialize( (Buffer&)buffer );
           ContMap::iterator it = pUpdated.find( container->getId() );
           if( it != pUpdated.end() )
@@ -728,7 +728,7 @@ namespace eos
 
     // Store the file in the changelog and notify the listener
     eos::Buffer buffer;
-    obj->serialize( buffer );
+    dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
     it->second.logOffset = pChangeLog->storeRecord( eos::UPDATE_RECORD_MAGIC,
                                                     buffer );
     notifyListeners( obj, IContainerMDChangeListener::Updated );
@@ -993,7 +993,7 @@ namespace eos
   {
     Buffer buffer;
     pChangeLog->readRecord( it->second.logOffset, buffer );
-    IContainerMD *container = new ContainerMD( IContainerMD::id_t(0) );
+    ContainerMD *container = new ContainerMD( IContainerMD::id_t(0) );
     container->deserialize( buffer );
     it->second.ptr = container;
 

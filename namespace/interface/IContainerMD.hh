@@ -251,16 +251,6 @@ class IContainerMD
   virtual void cleanUp(IContainerMDSvc* cmd_svc, IFileMDSvc* fmd_svc) = 0;
 
   //----------------------------------------------------------------------------
-  //! Serialize the object to a buffer
-  //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
-  //----------------------------------------------------------------------------
-  virtual void deserialize(Buffer& buffer) = 0;
-
-  //----------------------------------------------------------------------------
   //! Get pointer to first subcontainer. *MUST* be used in conjunction with
   //! nextContainer to iterate over the list of subcontainers.
   //!

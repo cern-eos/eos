@@ -286,16 +286,6 @@ class IFileMD
   virtual void getEnv(std::string& env, bool escapeAnd = false) = 0;
 
   //----------------------------------------------------------------------------
-  //! Serialize the object to a buffer
-  //----------------------------------------------------------------------------
-  virtual void serialize(Buffer& buffer) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
-  //----------------------------------------------------------------------------
-  virtual void deserialize(const Buffer& buffer) = 0;
-
-  //----------------------------------------------------------------------------
   //! Set the FileMDSvc object
   //----------------------------------------------------------------------------
   virtual void setFileMDSvc(IFileMDSvc* fileMDSvc) = 0;

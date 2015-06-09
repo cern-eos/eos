@@ -46,12 +46,6 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class NsInMemoryPlugin
 {
-  //! Forward declration
-  class IContainerMDSvc;
-  class IFileMDSvc;
-  class IView;
-  class IFsView;
-
  public:
   
   //----------------------------------------------------------------------------

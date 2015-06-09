@@ -21,9 +21,11 @@
 // desc:   Class representing the container metadata
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_CONTAINER_MD_HH
-#define EOS_NS_CONTAINER_MD_HH
+#ifndef __EOS_NS_CONTAINER_MD_HH__
+#define __EOS_NS_CONTAINER_MD_HH__
 
+#include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
 #include <stdint.h>
 #include <unistd.h>
 #include <cstring>
@@ -34,387 +36,385 @@
 #include <map>
 #include <sys/time.h>
 
-#include "namespace/interface/IContainerMD.hh"
-
-namespace eos
-{
+EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single container
 //------------------------------------------------------------------------------
 class ContainerMD: public IContainerMD
 {
-  public:
-    //----------------------------------------------------------------------------
-    // Type definitions
-    //--------------------------------------------------------------------------
-    typedef google::dense_hash_map<std::string, IContainerMD*> ContainerMap;
-    typedef google::dense_hash_map<std::string, IFileMD*>      FileMap;
+ public:
+  //----------------------------------------------------------------------------
+  // Type definitions
+  //----------------------------------------------------------------------------
+  typedef google::dense_hash_map<std::string, IContainerMD*> ContainerMap;
+  typedef google::dense_hash_map<std::string, IFileMD*>      FileMap;
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    ContainerMD(id_t id);
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ContainerMD(id_t id);
 
-    //--------------------------------------------------------------------------
-    //! Virtual copy constructor
-    //--------------------------------------------------------------------------
-    virtual ContainerMD* clone() const;
+  //----------------------------------------------------------------------------
+  //! Virtual copy constructor
+  //----------------------------------------------------------------------------
+  virtual ContainerMD* clone() const;
 
-    //--------------------------------------------------------------------------
-    //! Copy constructor
-    //--------------------------------------------------------------------------
-    ContainerMD(const ContainerMD& other);
+  //----------------------------------------------------------------------------
+  //! Copy constructor
+  //----------------------------------------------------------------------------
+  ContainerMD(const ContainerMD& other);
 
-    //--------------------------------------------------------------------------
-    //! Assignment operator
-    //--------------------------------------------------------------------------
-    ContainerMD& operator= (const ContainerMD& other);
+  //----------------------------------------------------------------------------
+  //! Assignment operator
+  //----------------------------------------------------------------------------
+  ContainerMD& operator= (const ContainerMD& other);
 
-    //--------------------------------------------------------------------------
-    //! Add container
-    //--------------------------------------------------------------------------
-    void addContainer(IContainerMD* container);
+  //----------------------------------------------------------------------------
+  //! Add container
+  //----------------------------------------------------------------------------
+  void addContainer(IContainerMD* container);
 
-    //--------------------------------------------------------------------------
-    //! Remove container
-    //--------------------------------------------------------------------------
-    void removeContainer(const std::string& name);
+  //----------------------------------------------------------------------------
+  //! Remove container
+  //----------------------------------------------------------------------------
+  void removeContainer(const std::string& name);
 
-    //--------------------------------------------------------------------------
-    //! Find sub container
-    //--------------------------------------------------------------------------
-    IContainerMD* findContainer(const std::string& name);
+  //----------------------------------------------------------------------------
+  //! Find sub container
+  //----------------------------------------------------------------------------
+  IContainerMD* findContainer(const std::string& name);
 
-    //--------------------------------------------------------------------------
-    //! Get number of containers
-    //--------------------------------------------------------------------------
-    size_t getNumContainers() const
-    {
-      return pSubContainers.size();
-    }
+  //----------------------------------------------------------------------------
+  //! Get number of containers
+  //----------------------------------------------------------------------------
+  size_t getNumContainers() const
+  {
+    return pSubContainers.size();
+  }
 
-    //--------------------------------------------------------------------------
-    //! Add file
-    //--------------------------------------------------------------------------
-    void addFile(IFileMD* file);
+  //----------------------------------------------------------------------------
+  //! Add file
+  //----------------------------------------------------------------------------
+  void addFile(IFileMD* file);
 
-    //--------------------------------------------------------------------------
-    //! Remove file
-    //--------------------------------------------------------------------------
-    void removeFile(const std::string& name);
+  //----------------------------------------------------------------------------
+  //! Remove file
+  //----------------------------------------------------------------------------
+  void removeFile(const std::string& name);
 
-    //--------------------------------------------------------------------------
-    //! Find file
-    //--------------------------------------------------------------------------
-    IFileMD* findFile(const std::string& name);
+  //----------------------------------------------------------------------------
+  //! Find file
+  //----------------------------------------------------------------------------
+  IFileMD* findFile(const std::string& name);
 
-    //--------------------------------------------------------------------------
-    //! Get number of files
-    //--------------------------------------------------------------------------
-    size_t getNumFiles() const
-    {
-      return pFiles.size();
-    }
+  //----------------------------------------------------------------------------
+  //! Get number of files
+  //----------------------------------------------------------------------------
+  size_t getNumFiles() const
+  {
+    return pFiles.size();
+  }
 
-    //--------------------------------------------------------------------------
-    //! Get container id
-    //--------------------------------------------------------------------------
-    id_t getId() const
-    {
-      return pId;
-    }
+  //----------------------------------------------------------------------------
+  //! Get container id
+  //----------------------------------------------------------------------------
+  id_t getId() const
+  {
+    return pId;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Get parent id
-    //--------------------------------------------------------------------------
-    id_t getParentId() const
-    {
-      return pParentId;
-    }
+  //----------------------------------------------------------------------------
+  //! Get parent id
+  //----------------------------------------------------------------------------
+  id_t getParentId() const
+  {
+    return pParentId;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Set parent id
-    //--------------------------------------------------------------------------
-    void setParentId(id_t parentId)
-    {
-      pParentId = parentId;
-    }
+  //----------------------------------------------------------------------------
+  //! Set parent id
+  //----------------------------------------------------------------------------
+  void setParentId(id_t parentId)
+  {
+    pParentId = parentId;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Get the flags
-    //--------------------------------------------------------------------------
-    uint16_t& getFlags()
-    {
-      return pFlags;
-    }
+  //----------------------------------------------------------------------------
+  //! Get the flags
+  //----------------------------------------------------------------------------
+  uint16_t& getFlags()
+  {
+    return pFlags;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Get the flags
-    //--------------------------------------------------------------------------
-    uint16_t getFlags() const
-    {
-      return pFlags;
-    }
+  //----------------------------------------------------------------------------
+  //! Get the flags
+  //----------------------------------------------------------------------------
+  uint16_t getFlags() const
+  {
+    return pFlags;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Set creation time
-    //--------------------------------------------------------------------------
-    void setCTime(ctime_t ctime)
-    {
-      pCTime.tv_sec = ctime.tv_sec;
-      pCTime.tv_nsec = ctime.tv_nsec;
-    }
+  //----------------------------------------------------------------------------
+  //! Set creation time
+  //----------------------------------------------------------------------------
+  void setCTime(ctime_t ctime)
+  {
+    pCTime.tv_sec = ctime.tv_sec;
+    pCTime.tv_nsec = ctime.tv_nsec;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Set creation time to now
-    //--------------------------------------------------------------------------
-    void setCTimeNow()
-    {
+  //----------------------------------------------------------------------------
+  //! Set creation time to now
+  //----------------------------------------------------------------------------
+  void setCTimeNow()
+  {
 #ifdef __APPLE__
-      struct timeval tv;
-      gettimeofday(&tv, 0);
-      pCTime.tv_sec = tv.tv_sec;
-      pCTime.tv_nsec = tv.tv_usec * 1000;
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    pCTime.tv_sec = tv.tv_sec;
+    pCTime.tv_nsec = tv.tv_usec * 1000;
 #else
-      clock_gettime(CLOCK_REALTIME, &pCTime);
+    clock_gettime(CLOCK_REALTIME, &pCTime);
 #endif
-    }
+  }
 
-    //--------------------------------------------------------------------------
-    //! Get creation time
-    //--------------------------------------------------------------------------
-    void getCTime(ctime_t& ctime) const
+  //----------------------------------------------------------------------------
+  //! Get creation time
+  //----------------------------------------------------------------------------
+  void getCTime(ctime_t& ctime) const
+  {
+    ctime.tv_sec = pCTime.tv_sec;
+    ctime.tv_nsec = pCTime.tv_nsec;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get name
+  //----------------------------------------------------------------------------
+  const std::string& getName() const
+  {
+    return pName;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set name
+  //----------------------------------------------------------------------------
+  void setName(const std::string& name)
+  {
+    pName = name;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get uid
+  //----------------------------------------------------------------------------
+  uid_t getCUid() const
+  {
+    return pCUid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set uid
+  //----------------------------------------------------------------------------
+  void setCUid(uid_t uid)
+  {
+    pCUid = uid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get gid
+  //----------------------------------------------------------------------------
+  gid_t getCGid() const
+  {
+    return pCGid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set gid
+  //----------------------------------------------------------------------------
+  void setCGid(gid_t gid)
+  {
+    pCGid = gid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get mode
+  //----------------------------------------------------------------------------
+  mode_t getMode() const
+  {
+    return pMode;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set mode
+  //----------------------------------------------------------------------------
+  void setMode(mode_t mode)
+  {
+    pMode = mode;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get ACL Id
+  //----------------------------------------------------------------------------
+  uint16_t getACLId() const
+  {
+    return pACLId;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set ACL Id
+  //----------------------------------------------------------------------------
+  void setACLId(uint16_t ACLId)
+  {
+    pACLId = ACLId;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add extended attribute
+  //----------------------------------------------------------------------------
+  void setAttribute(const std::string& name, const std::string& value)
+  {
+    pXAttrs[name] = value;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove attribute
+  //----------------------------------------------------------------------------
+  void removeAttribute(const std::string& name)
+  {
+    XAttrMap::iterator it = pXAttrs.find(name);
+
+    if (it != pXAttrs.end())
+      pXAttrs.erase(it);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if the attribute exist
+  //----------------------------------------------------------------------------
+  bool hasAttribute(const std::string& name) const
+  {
+    return pXAttrs.find(name) != pXAttrs.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return number of attributes
+  //----------------------------------------------------------------------------
+  size_t numAttributes() const
+  {
+    return pXAttrs.size();
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the attribute
+  //----------------------------------------------------------------------------
+  std::string getAttribute(const std::string& name) const
+  {
+    XAttrMap::const_iterator it = pXAttrs.find(name);
+
+    if (it == pXAttrs.end())
     {
-      ctime.tv_sec = pCTime.tv_sec;
-      ctime.tv_nsec = pCTime.tv_nsec;
+      MDException e(ENOENT);
+      e.getMessage() << "Attribute: " << name << " not found";
+      throw e;
     }
 
-    //--------------------------------------------------------------------------
-    //! Get name
-    //--------------------------------------------------------------------------
-    const std::string& getName() const
-    {
-      return pName;
-    }
+    return it->second;
+  }
 
-    //--------------------------------------------------------------------------
-    //! Set name
-    //--------------------------------------------------------------------------
-    void setName(const std::string& name)
-    {
-      pName = name;
-    }
+  //----------------------------------------------------------------------------
+  //! Get attribute begin iterator
+  //----------------------------------------------------------------------------
+  XAttrMap::iterator attributesBegin()
+  {
+    return pXAttrs.begin();
+  }
 
-    //--------------------------------------------------------------------------
-    //! Get uid
-    //--------------------------------------------------------------------------
-    uid_t getCUid() const
-    {
-      return pCUid;
-    }
+  //----------------------------------------------------------------------------
+  //! Get the attribute end iterator
+  //----------------------------------------------------------------------------
+  XAttrMap::iterator attributesEnd()
+  {
+    return pXAttrs.end();
+  }
 
-    //--------------------------------------------------------------------------
-    //! Set uid
-    //--------------------------------------------------------------------------
-    void setCUid(uid_t uid)
-    {
-      pCUid = uid;
-    }
+  //------------------------------------------------------------------------------
+  //! Check the access permissions
+  //!
+  //! @return true if all the requested rights are granted, false otherwise
+  //------------------------------------------------------------------------------
+  bool access(uid_t uid, gid_t gid, int flags = 0);
 
-    //--------------------------------------------------------------------------
-    //! Get gid
-    //--------------------------------------------------------------------------
-    gid_t getCGid() const
-    {
-      return pCGid;
-    }
+  //----------------------------------------------------------------------------
+  //! Clean up the entire contents for the container. Delete files and
+  //! containers recurssively
+  //!
+  //! @param cont_svc container metadata service
+  //! @param file_svc file metadata service
+  //!
+  //----------------------------------------------------------------------------
+  void cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc);
 
-    //--------------------------------------------------------------------------
-    //! Set gid
-    //--------------------------------------------------------------------------
-    void setCGid(gid_t gid)
-    {
-      pCGid = gid;
-    }
+  //----------------------------------------------------------------------------
+  //! Get pointer to first subcontainer. Must be used in conjunction with
+  //! nextContainer to iterate over the list of subcontainers.
+  //!
+  //! @return pointer to first subcontainer or 0 if no subcontainers
+  //----------------------------------------------------------------------------
+  IContainerMD* beginSubContainer();
 
-    //--------------------------------------------------------------------------
-    //! Get mode
-    //--------------------------------------------------------------------------
-    mode_t getMode() const
-    {
-      return pMode;
-    }
+  //----------------------------------------------------------------------------
+  //! Get pointer to the next subcontainer object. Must be used in conjunction
+  //! with beginContainers to iterate over the list of subcontainers.
+  //!
+  //! @return pointer to next subcontainer or 0 if no subcontainers
+  //----------------------------------------------------------------------------
+  IContainerMD* nextSubContainer();
 
-    //--------------------------------------------------------------------------
-    //! Set mode
-    //--------------------------------------------------------------------------
-    void setMode(mode_t mode)
-    {
-      pMode = mode;
-    }
+  //----------------------------------------------------------------------------
+  //! Get pointer to first file in the container. Must be used in conjunction
+  //! with nextFile to iterate over the list of files.
+  //!
+  //! @return pointer to the first file or 0 if no files
+  //----------------------------------------------------------------------------
+  IFileMD* beginFile();
 
-    //--------------------------------------------------------------------------
-    //! Get ACL Id
-    //--------------------------------------------------------------------------
-    uint16_t getACLId() const
-    {
-      return pACLId;
-    }
+  //----------------------------------------------------------------------------
+  //! Get pointer to the next file object. Must be used in conjunction
+  //! with beginFiles to iterate over the list of files.
+  //!
+  //! @return pointer to next file or 0 if no files
+  //----------------------------------------------------------------------------
+  IFileMD* nextFile();
 
-    //--------------------------------------------------------------------------
-    //! Set ACL Id
-    //--------------------------------------------------------------------------
-    void setACLId(uint16_t ACLId)
-    {
-      pACLId = ACLId;
-    }
+  //----------------------------------------------------------------------------
+  //! Serialize the object to a buffer
+  //----------------------------------------------------------------------------
+  void serialize(Buffer& buffer);
 
-    //--------------------------------------------------------------------------
-    //! Add extended attribute
-    //--------------------------------------------------------------------------
-    void setAttribute(const std::string& name, const std::string& value)
-    {
-      pXAttrs[name] = value;
-    }
+  //----------------------------------------------------------------------------
+  //! Deserialize the class to a buffer
+  //----------------------------------------------------------------------------
+  void deserialize(Buffer& buffer);
 
-    //--------------------------------------------------------------------------
-    //! Remove attribute
-    //--------------------------------------------------------------------------
-    void removeAttribute(const std::string& name)
-    {
-      XAttrMap::iterator it = pXAttrs.find(name);
-
-      if (it != pXAttrs.end())
-        pXAttrs.erase(it);
-    }
-
-    //--------------------------------------------------------------------------
-    //! Check if the attribute exist
-    //--------------------------------------------------------------------------
-    bool hasAttribute(const std::string& name) const
-    {
-      return pXAttrs.find(name) != pXAttrs.end();
-    }
-
-    //--------------------------------------------------------------------------
-    //! Return number of attributes
-    //--------------------------------------------------------------------------
-    size_t numAttributes() const
-    {
-      return pXAttrs.size();
-    }
-
-    //--------------------------------------------------------------------------
-    // Get the attribute
-    //--------------------------------------------------------------------------
-    std::string getAttribute(const std::string& name) const
-    {
-      XAttrMap::const_iterator it = pXAttrs.find(name);
-
-      if (it == pXAttrs.end())
-      {
-        MDException e(ENOENT);
-        e.getMessage() << "Attribute: " << name << " not found";
-        throw e;
-      }
-
-      return it->second;
-    }
-
-    //--------------------------------------------------------------------------
-    //! Get attribute begin iterator
-    //--------------------------------------------------------------------------
-    XAttrMap::iterator attributesBegin()
-    {
-      return pXAttrs.begin();
-    }
-
-    //--------------------------------------------------------------------------
-    //! Get the attribute end iterator
-    //--------------------------------------------------------------------------
-    XAttrMap::iterator attributesEnd()
-    {
-      return pXAttrs.end();
-    }
-
-    //----------------------------------------------------------------------------
-    //! Check the access permissions
-    //!
-    //! @return true if all the requested rights are granted, false otherwise
-    //----------------------------------------------------------------------------
-    bool access(uid_t uid, gid_t gid, int flags = 0);
-
-    //--------------------------------------------------------------------------
-    //! Clean up the entire contents for the container. Delete files and
-    //! containers recurssively
-    //!
-    //! @param cont_svc container metadata service
-    //! @param file_svc file metadata service
-    //!
-    //--------------------------------------------------------------------------
-    void cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc);
-
-    //--------------------------------------------------------------------------
-    //! Serialize the object to a buffer
-    //--------------------------------------------------------------------------
-    void serialize(Buffer& buffer);
-
-    //--------------------------------------------------------------------------
-    //! Deserialize the class to a buffer
-    //--------------------------------------------------------------------------
-    void deserialize(Buffer& buffer);
-
-    //--------------------------------------------------------------------------
-    //! Get pointer to first subcontainer. Must be used in conjunction with
-    //! nextContainer to iterate over the list of subcontainers.
-    //!
-    //! @return pointer to first subcontainer or 0 if no subcontainers
-    //--------------------------------------------------------------------------
-    IContainerMD* beginSubContainer();
-
-    //--------------------------------------------------------------------------
-    //! Get pointer to the next subcontainer object. Must be used in conjunction
-    //! with beginContainers to iterate over the list of subcontainers.
-    //!
-    //! @return pointer to next subcontainer or 0 if no subcontainers
-    //--------------------------------------------------------------------------
-    IContainerMD* nextSubContainer();
-
-    //--------------------------------------------------------------------------
-    //! Get pointer to first file in the container. Must be used in conjunction
-    //! with nextFile to iterate over the list of files.
-    //!
-    //! @return pointer to the first file or 0 if no files
-    //--------------------------------------------------------------------------
-    IFileMD* beginFile();
-
-    //--------------------------------------------------------------------------
-    //! Get pointer to the next file object. Must be used in conjunction
-    //! with beginFiles to iterate over the list of files.
-    //!
-    //! @return pointer to next file or 0 if no files
-    //--------------------------------------------------------------------------
-    IFileMD* nextFile();
-
-  protected:
-    id_t         pId;
-    id_t         pParentId;
-    uint16_t     pFlags;
-    ctime_t      pCTime;
-    std::string  pName;
-    uid_t        pCUid;
-    gid_t        pCGid;
-    mode_t       pMode;
-    uint16_t     pACLId;
-    XAttrMap     pXAttrs;
-    ContainerMap pSubContainers;
-    FileMap      pFiles;
+ protected:
+  id_t         pId;
+  id_t         pParentId;
+  uint16_t     pFlags;
+  ctime_t      pCTime;
+  std::string  pName;
+  uid_t        pCUid;
+  gid_t        pCGid;
+  mode_t       pMode;
+  uint16_t     pACLId;
+  XAttrMap     pXAttrs;
+  ContainerMap pSubContainers;
+  FileMap      pFiles;
 
  private:
   ContainerMap::iterator pIterContainer; ///< subcontainers iterator
   FileMap::iterator pIterFile;           ///< files iterator
 };
-}
 
-#endif // EOS_NS_CONTAINER_MD_HH
+EOSNSNAMESPACE_END
+
+#endif // __EOS_NS_CONTAINER_MD_HH__

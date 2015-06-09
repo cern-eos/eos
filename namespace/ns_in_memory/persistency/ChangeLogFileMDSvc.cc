@@ -56,7 +56,7 @@ class FileMDFollower: public eos::ILogRecordScanner
       // Update
       if (type == UPDATE_RECORD_MAGIC)
       {
-        IFileMD* file = new FileMD(0, pFileSvc);
+        FileMD* file = new FileMD(0, pFileSvc);
         file->deserialize((Buffer&)buffer);
         FileMap::iterator it = pUpdated.find(file->getId());
 
@@ -687,7 +687,7 @@ void ChangeLogFileMDSvc::initialize()
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
     {
       // Unpack the serialized buffers
-      IFileMD* file = new FileMD(0, this);
+      FileMD* file = new FileMD(0, this);
       file->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
@@ -918,7 +918,7 @@ void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
 
   // Store the file in the changelog and notify the listener
   eos::Buffer buffer;
-  obj->serialize(buffer);
+  dynamic_cast<FileMD*>(obj)->serialize(buffer);
   it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
                          buffer);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);

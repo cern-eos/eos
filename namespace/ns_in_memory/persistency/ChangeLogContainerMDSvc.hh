@@ -21,8 +21,8 @@
 // desc:   Change log based ContainerMD service
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
-#define EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
+#ifndef __EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH__
+#define __EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH__
 
 #include "namespace/Namespace.hh"
 #include "namespace/MDException.hh"
@@ -364,4 +364,4 @@ class ChangeLogContainerMDSvc:
 
 EOSNSNAMESPACE_END
 
-#endif // EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH
+#endif // __EOS_NS_CHANGE_LOG_CONTAINER_MD_SVC_HH__
