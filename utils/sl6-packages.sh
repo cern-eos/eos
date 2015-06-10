@@ -13,5 +13,5 @@ yum install -y openldap openldap-devel
 yum install -y libmicrohttp libmicrohttpd-devel
 yum install -y zlib zlib-devel zlib-static
 yum install -y xfsprogs xfsprogs-devel
-
+yum install -y e2fsprogs-devel
 
