@@ -583,7 +583,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           {
             checksum_val.erase(0, 1);
           }
-          checksum = std::make_pair <std::string, std::string> (
+          checksum = std::make_pair (
                   checksum_name,
                   checksum_val);
 
