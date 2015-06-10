@@ -29,13 +29,12 @@ BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
-BuildRequires: zeromq zeromq-devel
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
-%if %{?fedora}%{!?fedora:0} >= 18
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || %{?el7} == 1
+%if %{?fedora}%{!?fedora:0} >= 18 || %{?el7} == 1
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel,zeromq3,zeromq3-devel
 %else
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash,zeromq,zeromq-devel
 %endif
 %else
 BuildRequires: gcc44, gcc44-c++, sparsehash
