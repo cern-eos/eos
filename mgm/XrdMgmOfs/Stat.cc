@@ -35,7 +35,7 @@ XrdMgmOfs::stat (const char *inpath,
                  XrdOucErrInfo &error,
                  const XrdSecEntity *client,
                  const char *ininfo
-		 )
+                 )
 {
 
   return stat(inpath, buf, error, 0, client, ininfo, false);
@@ -49,8 +49,8 @@ XrdMgmOfs::stat (const char *inpath,
                  std::string *etag,
                  const XrdSecEntity *client,
                  const char *ininfo,
-		 bool follow, 
-		 std::string *uri)
+                 bool follow,
+                 std::string *uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -100,7 +100,7 @@ XrdMgmOfs::stat (const char *inpath,
   // never redirect stat's for the master mode
   // ---------------------------------------------------------------------------
 
-  if (cPath.GetFullPath() != gOFS->MgmProcMasterPath) 
+  if (cPath.GetFullPath() != gOFS->MgmProcMasterPath)
   {
     MAYREDIRECT;
   }
@@ -122,9 +122,9 @@ XrdMgmOfs::_stat (const char *path,
                   XrdOucErrInfo &error,
                   eos::common::Mapping::VirtualIdentity &vid,
                   const char *ininfo,
-                  std::string* etag, 
-		  bool follow, 
-		  std::string* uri)
+                  std::string* etag,
+                  bool follow,
+                  std::string* uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -181,7 +181,7 @@ XrdMgmOfs::_stat (const char *path,
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
-    if (errno == ELOOP) 
+    if (errno == ELOOP)
     {
       return Emsg(epname, error, errno, "stat", cPath.GetPath());
     }
@@ -207,13 +207,13 @@ XrdMgmOfs::_stat (const char *path,
     {
       buf->st_mode |= (S_IRWXU | S_IRWXG | S_IRWXO);
       buf->st_nlink = 1;
-    } 
+    }
     else
     {
       if (!flags)
-	buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+        buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
       else
-	buf->st_mode |= flags;
+        buf->st_mode |= flags;
       buf->st_nlink = fmd->getNumLocation();
     }
 
