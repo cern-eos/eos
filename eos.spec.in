@@ -50,7 +50,11 @@ Summary: The EOS server installation
 Group: Applications/File
 Requires: xrootd >= 3.3.4
 Requires: xrootd-client
+%if %{?fedora}%{!?fedora:0} >= 18 || %{?el7} == 1
+Requires: zeromq3
+%else
 Requires: zeromq
+%endif
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl

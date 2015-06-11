@@ -105,7 +105,6 @@
 #include "common/GlobalConfig.hh"
 #include "common/CommentLog.hh"
 #include "common/LinuxStat.hh"
-#include "common/ShellCmd.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
 #include "mgm/ConfigEngine.hh"
