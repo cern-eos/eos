@@ -538,9 +538,9 @@ ProcCommand::File ()
 	
 	httppath += httpenc.c_str();
 
-	XrdOucString cgi = sharepath;
+	XrdOucString cgi = sharepath.c_str();
 	cgi.erase(0,qpos);
-	while (cgi.replace("+", "%2B", pos))
+	while (cgi.replace("+", "%2B", qpos))
 	{
 	}
 
