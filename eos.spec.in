@@ -27,6 +27,7 @@ BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprog
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
+BuildRequires: libcurl-devel libcurl
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 
@@ -60,6 +61,7 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
+Requires: libcurl
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
