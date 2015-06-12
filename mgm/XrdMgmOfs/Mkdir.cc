@@ -375,10 +375,6 @@ XrdMgmOfs::_mkdir (const char *path,
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
           newdir->setMode(dir->getMode());
-          if (outino)
-          {
-            *outino = newdir->getId();
-          }
           if (dir->getMode() & S_ISGID)
           {
             // inherit the attributes
@@ -450,6 +446,10 @@ XrdMgmOfs::_mkdir (const char *path,
       {
         newdir->setAttribute(it->first, it->second);
       }
+    }
+    if (outino)
+    {
+      *outino = newdir->getId();
     }
     // commit on disk
     eosView->updateContainerStore(newdir);
