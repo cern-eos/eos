@@ -30,8 +30,8 @@ BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || %{?el7} == 1
-%if %{?fedora}%{!?fedora:0} >= 18 || %{?el7} == 1
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
+%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel,zeromq3,zeromq3-devel
 %else
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash,zeromq,zeromq-devel
