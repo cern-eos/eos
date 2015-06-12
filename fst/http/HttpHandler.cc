@@ -184,7 +184,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       // clean-up left-over objects on error or end-of-put
       if (mFile)
       {
-
         delete mFile;
         mFile = 0;
       }
@@ -461,6 +460,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrCode = response->BAD_REQUEST;
         mErrText = "Missing total length in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        delete mFile;
+        mFile = 0;
         return response;
       }
 
@@ -476,6 +477,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrCode = response->BAD_REQUEST;
         mErrText = "Illegal chunks specified in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        delete mFile;
+        mFile = 0;
         return response;
       }
 
@@ -528,6 +531,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrCode = response->SERVICE_UNAVAILABLE;
         mErrText = "Write error occured";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        delete mFile;
+        mFile = 0;
         return response;
       }
       else
@@ -622,6 +627,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
       {
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(eos::common::HttpResponse::PRECONDITION_FAILED);
+        delete mFile;
+        mFile = 0;
         return response;
       }
 
@@ -632,7 +639,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrText = "File close failed";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
 
-        mCloseCode = 0; // we don't want to create a second response down
+        delete mFile;
+        mFile = 0;
         return response;
       }
       else
