@@ -403,6 +403,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
       // in this case we leave, the requested one was tried and we finish here
       break;
     }
+    git++;
+    if (git ==  FsView::gFsView.mSpaceGroupView[spacename].end())
+      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
   }
 
   if (nassigned == nfilesystems)
