@@ -28,7 +28,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Statfs.hh"
-
+#include "common/ShellCmd.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
@@ -217,16 +217,18 @@ Master::Init ()
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
 
   // get sync up if it is not up
-  int rc = system("service eos status sync || service eos start sync");
-  if (WEXITSTATUS(rc))
+  eos::common::ShellCmd scmd1("service eos status sync || service eos start sync");
+  eos::common::cmd_status rc = scmd1.wait(30);
+  if (rc.exit_code)
   {
     eos_crit("failed to start sync service");
     return false;
   }
 
   // get eossync up if it is not up
-  rc = system("service eossync status || service eossync start ");
-  if (WEXITSTATUS(rc))
+  eos::common::ShellCmd scmd2("service eossync status || service eossync start ");
+  rc = scmd2.wait(30);
+  if (rc.exit_code)
   {
     eos_crit("failed to start eossync service");
     return false;
@@ -1390,26 +1392,29 @@ Master::Slave2Master ()
   // -----------------------------------------------------------
   // take the sync service down
   // -----------------------------------------------------------
-  int rc = system("service eos status sync && service eos stop sync");
+  eos::common::ShellCmd scmd1("service eos status sync && service eos stop sync");
+  eos::common::cmd_status rc = scmd1.wait(30);
 
-  if (WEXITSTATUS(rc))
+  if (rc.exit_code)
   {
-    if ( (rc == -1 ) )
+    if ( (rc.exit_code == -1 ) )
     {
       MasterLog(eos_warning("system command failed due to memory pressure - cannot check the sync service"));
     }     
-    if (WEXITSTATUS(rc) == 2)
+    if (rc.exit_code == 2)
     {
       MasterLog(eos_warning("sync service was already stopped"));
     }
-    if (WEXITSTATUS(rc) == 1)
+    if (rc.exit_code == 1)
     {
       MasterLog(eos_warning("sync service was dead"));
     }
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = kIsNothing;
-    rc = system("service eos start sync");
-    if (WEXITSTATUS(rc))
+
+    eos::common::ShellCmd scmd2("service eos start sync");
+    rc = scmd2.wait(30);
+    if (rc.exit_code)
     {
       MasterLog(eos_warning("failed to start sync service"));
     }
@@ -1581,7 +1586,8 @@ Master::Slave2Master ()
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = kIsNothing;
 
-    rc = system("service eos start sync");
+    eos::common::ShellCmd scmd3("service eos start sync");
+    rc = scmd3.wait(30);
     if (WEXITSTATUS(rc))
     {
       MasterLog(eos_warning("slave=>master transition - sync didnt' start"));
@@ -1590,7 +1596,8 @@ Master::Slave2Master ()
   };
   fRunningState = kIsRunningMaster;
 
-  rc = system("service eos start sync");
+  eos::common::ShellCmd scmd3("service eos start sync");
+  rc = scmd3.wait(30);
   if (WEXITSTATUS(rc))
   {
     MasterLog(eos_warning("failed to start sync service"));
