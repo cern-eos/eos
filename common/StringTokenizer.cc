@@ -149,7 +149,7 @@ StringTokenizer::GetLine ()
         }
       }
 
-      if (line[i] == '\n')
+      if ((!inquote) && (line[i] == '\n'))
       {
         line[i] = 0;
       }
