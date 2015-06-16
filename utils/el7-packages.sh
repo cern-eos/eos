@@ -14,5 +14,6 @@ yum install -y libmicrohttp libmicrohttpd-devel
 yum install -y zlib zlib-devel zlib-static
 yum install -y xfsprogs xfsprogs-devel
 yum install -y e2fsprogs-devel
+yum install -y perl-Time-HiRes
 ( cd /tmp/; git clone  https://github.com/zeromq/cppzmq; cp cppzmq/zmq.hpp /usr/include/ )
 
