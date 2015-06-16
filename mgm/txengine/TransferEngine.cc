@@ -118,7 +118,7 @@ TransferEngine::ApplyTransferEngineConfig() {
 
 /*----------------------------------------------------------------------------*/
 int 
-TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime, XrdOucString credentials, bool sync)
+TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime, XrdOucString credentials, bool sync, bool noauth)
 {
   if ( ((!src.beginswith("root://")) &&
 	(!src.beginswith("as3://")) &&
@@ -162,7 +162,7 @@ TransferEngine::Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate,
   }
   
   XrdOucString submissionhost=vid.tident.c_str();
-  return xDB->Submit(src,dst,rate,streams,group,stdOut,stdErr,vid.uid,vid.gid,time(NULL)+exptime, credentials, submissionhost, sync);
+  return xDB->Submit(src,dst,rate,streams,group,stdOut,stdErr,vid.uid,vid.gid,time(NULL)+exptime, credentials, submissionhost, sync, noauth);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -484,6 +484,7 @@ TransferEngine::Scheduler()
 	      transferjob  +="&tx.exp="; transferjob += transfer["expires"].c_str();
 	      transferjob  +="&tx.uid="; transferjob += transfer["uid"].c_str();
 	      transferjob  +="&tx.gid="; transferjob += transfer["gid"].c_str();
+	      transferjob  +="&tx.noauth="; transferjob += transfer["noauth"].c_str();
 	      fprintf(stderr,"%s\n", transferjob.c_str());
 	      // now encrypt the security credential 
 	      XrdOucString credential = transfer["credential"].c_str();
