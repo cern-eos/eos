@@ -7,6 +7,22 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.121 Beryl-Aquamarine``
+New Features
+------------
+- support ALICE tokens in gateway transfers
+- allow to disable enforced authentication for submitted transfers
+
+Bug Fixes
+---------
+- replacing system(fork) commands with ShellCmd class fixing virtual memory and fd cloning
+
+``Version V0.3.120 Beryl-Aquamarine``
+Bug Fixes
+---------
+- symlink fixes
+- fix round-robin behaviour of scheduler for single and multi-repliace placements
+
 ``Version V0.3.119 Beryl-Aquamarine``
 New Features
 ------------
