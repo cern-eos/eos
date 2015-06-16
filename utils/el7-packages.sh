@@ -1,5 +1,5 @@
 yum install -y cmake
-yum install -y xrootd-server-devel xrootd-private-devel
+yum install --disablerepo=epel -y xrootd-server-devel xrootd-private-devel xrootd-client
 yum install -y sparsehash-devel
 yum install -y ncurses ncurses-devel ncurses-static openssl openssl-devel openssl-static
 yum install -y readline readline-devel

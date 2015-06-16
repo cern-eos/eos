@@ -1,9 +1,10 @@
 yum install -y cmake
-yum install -y xrootd-server-devel xrootd-private-devel
+yum --disablerepo=epel install -y xrootd-server-devel xrootd-private-devel xrootd-client
 yum install -y sparsehash-devel
 yum install -y ncurses ncurses-devel ncurses-static openssl openssl-devel openssl-static
 yum install -y readline readline-devel
 yum install -y libuuid libuuid-devel
+yum install -y libcurl libcurl-devel
 yum install -y zeromq zeromq-devel
 yum install -y protobuf protobuf-devel leveldb leveldb-devel
 yum install -y cppunit cppunit-devel
