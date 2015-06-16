@@ -69,6 +69,12 @@ public:
   cmd_status wait () const;
 
   //----------------------------------------------------------------------------
+  // waits until the 'command' process terminates or the timeout has passed
+  //----------------------------------------------------------------------------
+  cmd_status wait (size_t timeout) const;
+
+
+  //----------------------------------------------------------------------------
   // kills the 'command' process
   //----------------------------------------------------------------------------
   void kill (int sig = SIGKILL) const;

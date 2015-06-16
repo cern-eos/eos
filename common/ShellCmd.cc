@@ -33,6 +33,9 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+/*----------------------------------------------------------------------------*/
+#include "XrdSys/XrdSysTimer.hh"
+/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -155,6 +158,26 @@ ShellCmd::run_monitor (void * ptr)
 cmd_status
 ShellCmd::wait () const
 {
+  pthread_join(monitor_thread, 0);
+  return cmd_stat;
+}
+
+/*----------------------------------------------------------------------------*/
+cmd_status
+ShellCmd::wait (size_t timeout) const
+{
+  for (size_t i=0; i< timeout; ++i) 
+  {
+    if (!is_active())
+      break;
+    XrdSysTimer sleeper;
+    sleeper.Snooze(1);
+  }
+
+  // stop it if the timeout is exceeded
+  if (is_active())
+    kill();
+
   pthread_join(monitor_thread, 0);
   return cmd_stat;
 }
