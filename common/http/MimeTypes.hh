@@ -63,7 +63,7 @@ public:
   {
     std::string suffix = path;
     if (path.rfind(".") != std::string::npos)
-      suffix.erase(path.rfind("."));
+      suffix.erase(0,path.rfind("."));
     std::string lower_case_suffix = LC_STRING(suffix);
     return MimeType(lower_case_suffix.c_str());
   }
