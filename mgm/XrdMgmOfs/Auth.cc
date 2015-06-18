@@ -215,7 +215,7 @@ XrdMgmOfs::AuthWorkerThread()
       client = utils::GetXrdSecEntity(req_proto.mkdir().client());
       ret = gOFS->mkdir(req_proto.mkdir().path().c_str(),
                         (XrdSfsMode)req_proto.mkdir().mode(),
-                        *error.get(), client, req_proto.mkdir().opaque().c_str());
+                        *error.get(), client, req_proto.mkdir().opaque().c_str(),0);
       eos_debug("mkdir error msg: %s", error->getErrText());
     }
     else if (req_proto.type() == RequestProto_OperationType_REMDIR)

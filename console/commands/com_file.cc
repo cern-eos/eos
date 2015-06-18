@@ -160,7 +160,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") )
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") && (cmd != "symlink") )
   {
     goto com_file_usage;
   }
@@ -181,6 +181,21 @@ com_file (char* arg1)
     in += "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=rename";
+    in += "&mgm.file.source=";
+    in += path.c_str();
+    in += "&mgm.file.target=";
+    in += fsid1.c_str();
+  }
+
+  if (cmd == "symlink")
+  {
+    if (!path.length() || !fsid1.length())
+      goto com_file_usage;
+
+    fsid1 = abspath(fsid1.c_str());
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.subcmd=symlink";
     in += "&mgm.file.source=";
     in += path.c_str();
     in += "&mgm.file.target=";
@@ -840,10 +855,12 @@ com_file_usage:
   fprintf(stdout, "file purge <path> [purge-version] :\n");
   fprintf(stdout, "                                                  keep maximumg <purge-version> versions of a file. If not specified apply the attribute definition from sys.versioning.\n");
   fprintf(stdout, "file rename <old> <new> :\n");
-  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!).\n ");
+  fprintf(stdout, "                                                  rename from <old> to <new> name (works for files and directories!).\n");
   fprintf(stdout, "file replicate <path> <fsid1> <fsid2> :\n");
   fprintf(stdout, "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
 
+  fprintf(stdout, "file symlink <name> <link-name> :\n");
+  fprintf(stdout, "                                                  create a symlink with <name> pointing to <link-name>\n");
   fprintf(stdout, "file touch <path> :\n");
   fprintf(stdout, "                                                   create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
 

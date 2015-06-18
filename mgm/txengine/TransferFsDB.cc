@@ -83,7 +83,7 @@ TransferFsDB::Init (const char* dbpath)
       eos_warning("failed to set private permissions on %s", dpath.c_str());
     }
 
-    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), progress double, exechost varchar(64), submissionhost varchar(64), log clob, uid smallint, gid smallint, expires int, credential clob, sync smallint, id integer PRIMARY KEY AUTOINCREMENT )";
+    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), progress double, exechost varchar(64), submissionhost varchar(64), log clob, uid smallint, gid smallint, expires int, credential clob, sync smallint, noauth smallint, id integer PRIMARY KEY AUTOINCREMENT )";
 
     //    XrdOucString createtable = "CREATE TABLE if not exists transfers (src varchar(256), dst varchar(256), rate smallint, streams smallint, groupname varchar(128), status varchar(32), submissionhost varchar(64), log clob, uid smallint, gid smallint, id integer PRIMARY KEY AUTOINCREMENT )";
 
@@ -602,7 +602,7 @@ TransferFsDB::GetTransfer (long long id, bool nolock)
 
 /*----------------------------------------------------------------------------*/
 int
-TransferFsDB::Submit (XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString &credential, XrdOucString& submissionhost, bool sync)
+TransferFsDB::Submit (XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString &credential, XrdOucString& submissionhost, bool sync, bool noauth)
 {
   XrdSysMutexHelper lock(Lock);
   Qr.clear();
@@ -613,7 +613,7 @@ TransferFsDB::Submit (XrdOucString& src, XrdOucString& dst, XrdOucString& rate, 
   XrdOucString sgid = "";
   sgid += (int) gid;
 
-  insert = "insert into transfers(src,dst,rate,streams,groupname,status,progress, submissionhost,log,uid,gid,expires,sync, credential,id) values(";
+  insert = "insert into transfers(src,dst,rate,streams,groupname,status,progress, submissionhost,log,uid,gid,expires,sync,noauth,credential,id) values(";
   insert += "'";
   insert += src;
   insert += "',";
@@ -657,6 +657,15 @@ TransferFsDB::Submit (XrdOucString& src, XrdOucString& dst, XrdOucString& rate, 
     insert += "'1',";
   }
   else
+  {
+    insert += "'0',";
+  }
+
+  if (noauth)
+  {
+    insert += "'1',";
+  }
+  else 
   {
     insert += "'0',";
   }

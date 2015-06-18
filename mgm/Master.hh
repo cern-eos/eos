@@ -56,7 +56,11 @@ private:
   pthread_t fThread; // thread id of the heart beat thread
   bool fCheckRemote; // indicate if we check the remote host status
   pthread_t fCompactingThread; // thread id of an oncline compacting thread
-  double fCompactingRatio; // compacting ratio e.g. 4:1 => 4 times smaller after compaction
+  double fCompactingRatio; // compacting ratio for file changelog e.g. 4:1 => 4 times smaller after compaction
+  double fDirCompactingRatio; // compacting ratio for directory changelog e.g. 4:1 => 4 times smaller after compaction
+  bool fCompactFiles; // compact the files changelog file if true
+  bool fCompactDirectories; // compact the directories changelog file if true
+  bool fAutoRepair; // enable auto-repair to skip over broken records during compactification
 
   int fDevNull; // /dev/null filedescriptor
   XrdSysLogger* fDevNullLogger; // /dev/null logger
@@ -240,6 +244,16 @@ public:
   bool ScheduleOnlineCompacting (time_t starttime, time_t repetitioninterval);
 
   //------------------------------------------------------------------------
+  // Configure Online Compating Type for files and/or directories
+  //------------------------------------------------------------------------
+  void  SetCompactingType(bool f, bool d, bool r)
+  {
+    fCompactFiles = f;
+    fCompactDirectories = d;
+    fAutoRepair = r;
+  }
+    
+  //------------------------------------------------------------------------
   // Create a status file = touch
   //------------------------------------------------------------------------
   bool CreateStatusFile (const char* path);
@@ -367,10 +381,7 @@ public:
   //------------------------------------------------------------------------
 
   void
-  GetLog (XrdOucString &stdOut)
-  {
-    stdOut = fMasterLog;
-  }
+  GetLog (XrdOucString &stdOut);
 
   //------------------------------------------------------------------------
   // Add to Master Log

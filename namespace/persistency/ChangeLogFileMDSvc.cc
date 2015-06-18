@@ -587,9 +587,9 @@ extern "C"
     {
       pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
       offset = file->follow( &f, offset );
+      pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       f.commit();
       fileSvc->setFollowOffset(offset);
-      pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       file->wait(pollInt);
     }
     return 0;
@@ -740,7 +740,7 @@ namespace eos
     if( !pSlaveMode || logIsCompacted )
     {
       FileMDScanner scanner( pIdMap, pSlaveMode );
-      pFollowStart = pChangeLog->scanAllRecords( &scanner );
+      pFollowStart = pChangeLog->scanAllRecords( &scanner , pAutoRepair );
       pFirstFreeId = scanner.getLargestId()+1;
 
       //------------------------------------------------------------------------
@@ -932,6 +932,12 @@ namespace eos
         if( pollInterval == 0 ) pollInterval = 1000;
       }
     }
+
+    pAutoRepair = false;
+
+    it = config.find( "auto_repair" );
+    if (it != config.end() && it->second == "true" )
+      pAutoRepair = true;
   }
 
   //------------------------------------------------------------------------
@@ -1184,9 +1190,9 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
-  // Commit the compacting infomrmation.
+  // Commit the compacting information.
   //----------------------------------------------------------------------------
-  void ChangeLogFileMDSvc::compactCommit( void *compactingData )
+  void ChangeLogFileMDSvc::compactCommit( void *compactingData, bool autorepair )
     throw( MDException )
   {
     ::CompactingData *data = (::CompactingData*)compactingData;
@@ -1206,7 +1212,8 @@ namespace eos
     {
       ::UpdateHandler updateHandler( updates, data->newLog );
       data->originalLog->scanAllRecordsAtOffset( &updateHandler,
-                                                  data->newRecord );
+						 data->newRecord,
+						 autorepair );
     }
     catch( MDException &e )
     {
@@ -1268,7 +1275,9 @@ namespace eos
     // Replace the logs
     //--------------------------------------------------------------------------
     pChangeLog = data->newLog;
+    pChangeLog->addCompactionMark();
     pChangeLogPath = data->logFileName;
+
     data->newLog = 0;
     data->originalLog->close();
     delete data;

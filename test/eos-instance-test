@@ -759,6 +759,22 @@ runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k\?eos.ruid=99\&eos.rgid=99"
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
+
+categorie="symlink"
+runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/
+runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
+runtest "### Symlink(d)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
+runtest "### Symlink(f)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
+runtest "### Symlink(E)" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami /eos/$EOS_TEST_INSTANCE/proc/whoami
+runtest "### Symlink(E)" unix 1 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
+runtest "### Symlink   " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir/touch
+runtest "### Symlink   " unix 0 "" eos stat /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami
+runtest "### Symlink   " unix 0 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/whoami
+runtest "### Symlink(L)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop /eos/$EOS_TEST_INSTANCE/bwd-loop
+runtest "### Symlink(L)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop /eos/$EOS_TEST_INSTANCE/fwd-loop
+runtest "### Symlink(L)" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop
+runtest "### Symlink(L)" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop
+
 # --------------------------
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
@@ -833,6 +849,16 @@ runtest "### mv sp     " unix 0 "" shell mv "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### stat sp   " unix 1 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 1" 
 runtest "### stat sp   " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 2" 
 runtest "### rm sp     " unix 0 "" shell rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/file\ 2" 
+runtest "### FUSE mkdr " unix 0 "" eos mkdir -p "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/"
+runtest "### FUSE mkdr " unix 0 "" mkdir -p "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1/"
+runtest "### FUSE lnk  " unix 0 "" shell ln -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1"
+runtest "### FUSE lnk  " unix 0 "" shell ln -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1"
+runtest "### FUSE lnk  " unix 1 "" shell ln -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1"
+runtest "### FUSE mkdr " unix 0 "" shell mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1/dir2"
+runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1/dir2"
+runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1/dir2"
+exit
 fi
 
 ################################################################################

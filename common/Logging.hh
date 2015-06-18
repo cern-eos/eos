@@ -211,6 +211,9 @@ public:
     sprintf(cident, "<service>");
     vid.uid = getuid();
     vid.gid = getgid();
+    vid.name = "";
+    vid.tident = "";
+    vid.prot = "";
   }
 
   // ---------------------------------------------------------------------------

@@ -86,13 +86,15 @@ public:
   //! @param offset offset
   //! @param buffer place to hold the read data
   //! @param length length
+  //! @param readahead readahead switch
   //!
   //! @return number of bytes read or -1 if error
   //!
   //----------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
-                        XrdSfsXferSize length);
+                        XrdSfsXferSize length,
+                        bool readahead = false);
 
   
   //----------------------------------------------------------------------------
@@ -198,9 +200,7 @@ public:
   
 private:
 
-  // TODO: add an async handler and if we are doing a remote access using
-  //       XrdCl then we should try to do async requests
-
+  uint64_t mFileSize; ///< file size
   FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
 
   //----------------------------------------------------------------------------

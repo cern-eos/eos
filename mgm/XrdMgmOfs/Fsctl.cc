@@ -75,8 +75,7 @@ XrdMgmOfs::fsctl (const int cmd,
     char* buff = error.getMsgBuff(blen);
     XrdOucString space = "default";
 
-    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-
+    eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
 
@@ -89,7 +88,6 @@ XrdMgmOfs::fsctl (const int cmd,
       if ((path == "/") || (path == ""))
       {
         space = "default";
-        eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
         freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
         maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
       }
@@ -379,6 +377,22 @@ XrdMgmOfs::FSctl (const int cmd,
     if (execmd == "xattr")
     {
 #include "fsctl/Xattr.cc"
+    }
+
+    // -------------------------------------------------------------------------
+    // create a symbolic link
+    // -------------------------------------------------------------------------
+    if (execmd == "symlink")
+    {
+#include "fsctl/Symlink.cc"
+    }
+
+    // -------------------------------------------------------------------------
+    // resolve a symbolic link
+    // -------------------------------------------------------------------------
+    if (execmd == "readlink")
+    {
+#include "fsctl/Readlink.cc"
     }
 
     // -------------------------------------------------------------------------

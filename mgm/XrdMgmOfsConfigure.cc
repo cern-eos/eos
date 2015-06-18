@@ -209,6 +209,7 @@ XrdMgmOfs::InitializeFileView ()
       {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
+        eos_static_alert("msg=\"namespace booted (as master)\"");
       }
     }
     }
@@ -231,13 +232,14 @@ XrdMgmOfs::InitializeFileView ()
       while (gOFS->eosFileService->getFollowOffset() < (uint64_t) buf.st_size)
       {
         XrdSysTimer sleeper;
-        sleeper.Wait(200);
-        eos_static_debug("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
-    }
+        sleeper.Wait(5000);
+        eos_static_info("msg=\"waiting for the namespace to reach the follow point\" is-offset=%llu follow-offset=%llu", gOFS->eosFileService->getFollowOffset(), (uint64_t) buf.st_size);
+      }
 
     {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
+        eos_static_alert("msg=\"namespace booted (as slave)\"");
       }
     }
 
@@ -279,8 +281,8 @@ XrdMgmOfs::InitializeFileView ()
   };
 
   {
-    InitializationTime = (time(0) - InitializationTime);
     XrdSysMutexHelper lock(InitializationMutex);
+    InitializationTime = (time(0) - InitializationTime);
 
     // grab process status after boot
     if (!eos::common::LinuxStat::GetStat(gOFS->LinuxStatsStartup))
@@ -1230,6 +1232,27 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
 
+  XrdOucString ttybroadcastkillline = "pkill -9 -f \"eos-tty-broadcast\"";
+  int rrc = system(ttybroadcastkillline.c_str());
+  if (WEXITSTATUS(rrc))
+  {
+    eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
+  }
+  
+  if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") && getenv("EOS_TTY_BROADCAST_EGREP"))
+  {
+    XrdOucString ttybroadcastline = "eos-tty-broadcast ";
+    ttybroadcastline += getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE");
+    ttybroadcastline += " ";
+    ttybroadcastline += getenv("EOS_TTY_BROADCAST_EGREP");
+    ttybroadcastline += " >& /dev/null &";
+    eos_info("%s\n", ttybroadcastline.c_str());
+    rrc = system(ttybroadcastline.c_str());
+    if (WEXITSTATUS(rrc))
+    {
+      eos_info("%s returned %d", ttybroadcastline.c_str(), rrc);
+    }
+  }
 
   int pos1 = MgmDefaultReceiverQueue.find("//");
   int pos2 = MgmDefaultReceiverQueue.find("//", pos1 + 2);
@@ -1989,6 +2012,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("Fuse-Checksum", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-XAttr", 0, 0, 0);
   gOFS->MgmStats.Add("Fuse-Utimes", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-Symlink", 0, 0, 0);
+  gOFS->MgmStats.Add("Fuse-Readlink", 0, 0, 0);
   gOFS->MgmStats.Add("GetMdLocation", 0, 0, 0);
   gOFS->MgmStats.Add("GetMd", 0, 0, 0);
   gOFS->MgmStats.Add("Http-COPY", 0, 0, 0);
@@ -2058,7 +2083,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("SendResync", 0, 0, 0);
   gOFS->MgmStats.Add("Stall", 0, 0, 0);
   gOFS->MgmStats.Add("Stat", 0, 0, 0);
-  gOFS->MgmStats.Add("Symlink", 0, 0, 0);
+  gOFS->MgmStats.Add("SymLink", 0, 0, 0);
   gOFS->MgmStats.Add("Touch", 0, 0, 0);
   gOFS->MgmStats.Add("TxState", 0, 0, 0);
   gOFS->MgmStats.Add("Truncate", 0, 0, 0);

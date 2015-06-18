@@ -1043,7 +1043,15 @@ RWMutex::LockReadCancel ()
 #ifndef __APPLE__
   while (1)
   {
-    int rc = pthread_rwlock_timedrdlock(&rwlock, &rlocktime);
+    struct timespec readtimeout = {0};
+
+    clock_gettime(CLOCK_REALTIME, &readtimeout);
+
+    // Add time for timeout value
+    readtimeout.tv_sec  += rlocktime.tv_sec;
+    readtimeout.tv_nsec += rlocktime.tv_nsec;
+
+    int rc = pthread_rwlock_timedrdlock(&rwlock, &readtimeout);
     if (rc)
     {
       if (rc == ETIMEDOUT)
@@ -1119,7 +1127,15 @@ RWMutex::LockWrite ()
     // this has the side effect, that it allows dead locked readers to jump ahead the lock queue
     while (1)
     {
-      int rc = pthread_rwlock_timedwrlock(&rwlock, &wlocktime);
+      struct timespec writetimeout = {0};
+      
+      clock_gettime(CLOCK_REALTIME, &writetimeout);
+      
+      // Add time for timeout value
+      writetimeout.tv_sec  += wlocktime.tv_sec;
+      writetimeout.tv_nsec += wlocktime.tv_nsec;
+
+      int rc = pthread_rwlock_timedwrlock(&rwlock, &writetimeout);
       if (rc)
       {
         if (rc != ETIMEDOUT)

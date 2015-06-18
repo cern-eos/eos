@@ -73,6 +73,8 @@ XrdMgmOfs::_verifystripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
+
     eos::ContainerMD::XAttrMap::const_iterator it;
     for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
     {
@@ -225,6 +227,7 @@ XrdMgmOfs::_dropstripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
   }
   catch (eos::MDException &e)
   {
@@ -398,6 +401,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
   }
   catch (eos::MDException &e)
   {

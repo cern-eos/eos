@@ -86,15 +86,15 @@ public:
         if ((pos = unchunkedPath.rfind("-", pos - 1)) != STR_NPOS)
         {
           lOCuploadId = unchunkedPath.c_str() + pos + 1;
-	  unchunkedPath.erase(pos);
-	  if ((pos = unchunkedPath.rfind("-", pos -1)) != STR_NPOS)
-	  {
-	    if (unchunkedPath.endswith("-chunking")) 
-	    {
-	      // remove -chunking at the end
-	      unchunkedPath.erase(pos);
-	    }
-	  }
+          unchunkedPath.erase(pos);
+          if ((pos = unchunkedPath.rfind("-", pos - 1)) != STR_NPOS)
+          {
+            if (unchunkedPath.endswith("-chunking"))
+            {
+              // remove -chunking at the end
+              unchunkedPath.erase(pos);
+            }
+          }
         }
       }
 
@@ -170,6 +170,54 @@ public:
       return (int) strtol(request->GetHeaders()["oc-chunk-n"].c_str(), 0, 10);
   }
 
+  // ---------------------------------------------------------------------------
+
+  typedef std::pair<std::string, std::string> checksum_t;
+
+  static checksum_t GetChecksum (HttpRequest* request)
+  {
+    if (!request->GetHeaders().count("oc-checksum"))
+      return std::make_pair<std::string, std::string>("", "");
+
+    std::string checksum_data = request->GetHeaders()["oc-checksum"];
+    std::string checksum_type = checksum_data;
+    std::string checksum_value = checksum_data;
+    size_t epos = checksum_data.find(":");
+    if (epos != std::string::npos) {
+      checksum_value.erase(0, checksum_data.find(":") + 1);
+      checksum_type.erase(checksum_data.find(":"));
+    }
+
+    checksum_type = LC_STRING(checksum_type);
+
+    // map checksum types to EOS checksum names
+    if (checksum_type == "adler32")
+      checksum_type = "adler";
+
+    return std::make_pair (checksum_type, checksum_value);
+  }
+
+  // ---------------------------------------------------------------------------
+
+  static std::string GetChecksumString (std::string type, std::string value)
+  {
+    std::string checksum;
+    if (type == "adler")
+      checksum += "Adler32";
+    else if (type == "md5")
+      checksum += "MD5";
+    else if (type == "sha1")
+      checksum += "SHA1";
+    else if (type == "crc32c")
+      checksum += "CRC32C";
+    else if (type == "crc32")
+      checksum += "CRC32";
+    else
+      checksum += "unknown";
+    checksum += ":";
+    checksum += value;
+    return checksum;
+  }
 
   // ---------------------------------------------------------------------------
 
@@ -196,6 +244,7 @@ public:
   {
     if (path.find("/remote.php/webdav/") != STR_NPOS)
     {
+
       path.replace("remote.php/webdav/", "");
     }
   }
@@ -345,45 +394,57 @@ public:
 
   static const char* OwnCloudNsUrl ()
   {
+
     return "http://owncloud.org/ns";
   }
 
   // ---------------------------------------------------------------------------
 
-  static const char* OwnCloudRemapping(XrdOucString& path, HttpRequest* request) 
+  static const char* OwnCloudRemapping (XrdOucString& path, HttpRequest* request)
   {
-    XrdOucString client_path="";
-    XrdOucString server_path="";
-    if (request->GetHeaders().count("cbox-client-mapping")) {
+    XrdOucString client_path = "";
+    XrdOucString server_path = "";
+    if (request->GetHeaders().count("cbox-client-mapping"))
+    {
       client_path = request->GetHeaders()["cbox-client-mapping"].c_str();
     }
-    
-    if (request->GetHeaders().count("cbox-server-mapping")) {
+
+    if (request->GetHeaders().count("cbox-server-mapping"))
+    {
       server_path = request->GetHeaders()["cbox-server-mapping"].c_str();
     }
 
-    while(path.replace("//","/")){}
-    
-    if (!path.beginswith("/")) 
-      path.insert("/",0);
-    
+    while (path.replace("//", "/"))
+    {
+    }
+
+    if (!path.beginswith("/"))
+      path.insert("/", 0);
+
     // shortcut if there is nothing to replace
-    if (!client_path.length()) 
+    if (!client_path.length())
       return path.c_str();
-    
-    while(client_path.replace("//","/")){}
-    while(server_path.replace("//","/")){}
+
+    while (client_path.replace("//", "/"))
+    {
+    }
+    while (server_path.replace("//", "/"))
+    {
+    }
     if (!client_path.beginswith("/"))
-      client_path.insert("/",0);
+      client_path.insert("/", 0);
+
     if (!server_path.beginswith("/"))
-      server_path.insert("/",0);
-    
-    path.replace(client_path,server_path);
+      server_path.insert("/", 0);
+
+    path.replace(client_path, server_path);
     return path.c_str();
   }
 
   // ---------------------------------------------------------------------------
-  static const char* GetAllowSyncName() {
+
+  static const char* GetAllowSyncName ()
+  {
     return "sys.allow.oc.sync";
   }
 

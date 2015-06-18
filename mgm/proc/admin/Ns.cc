@@ -462,6 +462,7 @@ ProcCommand::Ns ()
      XrdOucString action = pOpaque->Get("mgm.ns.compact");
      XrdOucString delay = pOpaque->Get("mgm.ns.compact.delay");
      XrdOucString interval = pOpaque->Get("mgm.ns.compact.interval");
+     XrdOucString type = pOpaque->Get("mgm.ns.compact.type");
 
      if ((!action.length()))
      {
@@ -479,22 +480,48 @@ ProcCommand::Ns ()
        {
          if (action == "on")
          {
-           if (!delay.length()) delay = "0";
-           if (!interval.length()) interval = "0";
-           gOFS->MgmMaster.ScheduleOnlineCompacting((time(NULL) + atoi(delay.c_str())), atoi(interval.c_str()));
-           stdOut += "success: configured online compacting to run in ";
-           stdOut += delay.c_str();
-           stdOut += " seconds from now ( might be delayed upto 60 seconds )";
-           if (interval != "0")
+	   if ( ( type != "files") &&
+		( type != "directories") &&
+		( type != "all") &&
+		( type != "files") &&
+		( type != "directories") &&
+		( type != "all") )
            {
-             stdOut += " (re-compact every ";
-             stdOut += interval;
-             stdOut += " seconds)\n";
-           }
-           else
-           {
-             stdOut += "\n";
-           }
+	     retc = EINVAL;
+	     stdErr += "error: invalid arguments specified - type must be 'files','files-repair','directories','directories-repair' or 'all','all-repair'\n";
+	   } 
+	   else 
+	   {
+	     if (!delay.length()) delay = "0";
+	     if (!interval.length()) interval = "0";
+	     gOFS->MgmMaster.ScheduleOnlineCompacting((time(NULL) + atoi(delay.c_str())), atoi(interval.c_str()));
+	     if ( type == "files" )
+	       gOFS->MgmMaster.SetCompactingType(true, false, false);
+	     else if ( type == "directories" ) 
+	       gOFS->MgmMaster.SetCompactingType(false, true, false);
+	     else if ( type == "all" ) 
+	       gOFS->MgmMaster.SetCompactingType(true, true, false);
+	     else if ( type == "files-repair" )
+	       gOFS->MgmMaster.SetCompactingType(true, false, true);
+	     else if ( type == "directories-repair" ) 
+	       gOFS->MgmMaster.SetCompactingType(false, true, true);
+	     else if ( type == "all-repair" ) 
+	       gOFS->MgmMaster.SetCompactingType(true, true, true);
+
+	     stdOut += "success: configured online compacting to run in ";
+	     stdOut += delay.c_str();
+	     stdOut += " seconds from now ( might be delayed upto 60 seconds )";
+	     if (interval != "0")
+	     {
+	       stdOut += " (re-compact every ";
+	       stdOut += interval;
+	       stdOut += " seconds)\n";
+	     }
+	     else
+	     {
+	       stdOut += "\n";
+	     }
+	   }
          }
          if (action == "off")
          {

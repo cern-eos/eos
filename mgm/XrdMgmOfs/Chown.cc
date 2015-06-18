@@ -78,7 +78,8 @@ XrdMgmOfs::_chown (const char *path,
 
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
-    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+    eos::common::Path pPath(gOFS->eosView->getUri(cmd).c_str());
+    pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
 
     eos::ContainerMD::XAttrMap::const_iterator it;
     for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
@@ -125,10 +126,12 @@ XrdMgmOfs::_chown (const char *path,
     try
     {
       // try as a file
+      std::string uri;
       eos::common::Path cPath(path);
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      uri = gOFS->eosView->getUri(cmd);
 
-      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(cPath.GetParentPath());
+      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
       eos::QuotaNode* quotanode = 0;
       if (space)
       {

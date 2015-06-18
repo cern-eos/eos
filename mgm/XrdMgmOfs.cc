@@ -108,7 +108,7 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 
   XrdOucString vs = "MgmOfs (meta data redirector) ";
   vs += VERSION;
-  gMgmOfsEroute.Say("++++++ (c) 2012 CERN/IT-DSS ", vs.c_str());
+  gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
 
   // Initialize the subsystems
   if (!myFS.Init(gMgmOfsEroute)) return 0;
@@ -195,6 +195,7 @@ XrdMgmOfs::newFile (char *user, int MonID)
 #include "XrdMgmOfs/Find.cc"
 #include "XrdMgmOfs/FsConfigListener.cc"
 #include "XrdMgmOfs/Fsctl.cc"
+#include "XrdMgmOfs/Link.cc"
 #include "XrdMgmOfs/Merge.cc"
 #include "XrdMgmOfs/Mkdir.cc"
 #include "XrdMgmOfs/PathMap.cc"

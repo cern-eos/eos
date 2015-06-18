@@ -155,7 +155,7 @@ XrdMgmOfs::_rem (const char *path,
 
   try
   {
-    fmd = gOFS->eosView->getFile(path);
+    fmd = gOFS->eosView->getFile(path,false);
   }
   catch (eos::MDException &e)
   {
@@ -380,6 +380,8 @@ XrdMgmOfs::_rem (const char *path,
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {
+	  if (lock_quota) 
+	    Quota::gQuotaMutex.LockRead();
           return rc;
         }
       }

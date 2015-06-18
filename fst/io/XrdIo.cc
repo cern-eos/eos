@@ -149,6 +149,7 @@ XrdIo::Open (const std::string& path,
   {
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
   else
@@ -185,6 +186,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -249,6 +251,7 @@ XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
     // dropped once XrdCl will call the handler for a request as it knows it
     // has already failed 
     mMetaHandler->HandleResponse(&status, vhandler);
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
   
@@ -270,6 +273,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
 
+  bool done_read = false;
   int64_t nread = 0;
   char* pBuff = buffer;
   XrdCl::XRootDStatus status;
@@ -304,12 +308,12 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       mMetaHandler->HandleResponse(&status, handler);
     }
     
-    nread += length;    
+    nread = length;
   }
   else
   {
-    eos_debug("debug=readahead enabled, request offset=%lli, length=%i", offset, length);
-    uint64_t read_length;
+    eos_debug("readahead enabled, request offset=%lli, length=%i", offset, length);
+    uint64_t read_length = 0;
     uint32_t aligned_length;
     uint32_t shift;
     std::map<uint64_t, ReadaheadBlock*>::iterator iter;
@@ -332,34 +336,43 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         {
           if (iter != mMapBlocks.begin())
           {
-            eos_debug("debug=recycle the oldest block");
+            eos_debug("recycle the oldest block");
             mQueueBlocks.push(mMapBlocks.begin()->second);
             mMapBlocks.erase(mMapBlocks.begin());
           }
 
-          eos_debug("debug=prefetch new block(2)");
+          eos_debug("prefetch new block(2)");
           if (!PrefetchBlock(offset + mBlocksize, false, timeout))
           {
-            eos_warning("warning=failed to send prefetch request(2)");
+            eos_warning("failed to send prefetch request(2)");
             break;
           }
         }
         
         if (sh->WaitOK())
         {
-          eos_debug("debug=block in cache: blk_off: %lld, req_off: %lld", iter->first, offset);
+          eos_debug("block in cache, blk_off=%lld, req_off= %lld", iter->first, offset);
           
           if (sh->GetRespLength() == 0)
           {
             // The request got a response but it read 0 bytes
-            eos_warning("warning=response contains 0 bytes.");
+            eos_warning("response contains 0 bytes");
             break;           
           }
 
           aligned_length = sh->GetRespLength() - shift;
           read_length = ((uint32_t)length < aligned_length) ? length : aligned_length;
-          pBuff = static_cast<char*> (memcpy(pBuff,
-                                             iter->second->buffer + shift,
+
+          // If prefetch block smaller than mBlocksize and current offset at end
+          // of the prefetch block then we reached the end of file
+          if ((sh->GetRespLength() != mBlocksize) &&
+              ((uint64_t)offset >= iter->first + sh->GetRespLength()))
+          {
+            done_read = true;
+            break;
+          }
+
+          pBuff = static_cast<char*> (memcpy(pBuff, iter->second->buffer + shift,
                                              read_length));
 
           pBuff += read_length;
@@ -400,7 +413,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
         if (!mQueueBlocks.empty())
         {
-          eos_debug("debug=prefetch new block(1)");
+          eos_debug("prefetch new block(1)");
           
           if (!PrefetchBlock(offset, false, timeout))
           {
@@ -412,20 +425,18 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       }
     }
 
-    mPrefetchMutex.UnLock(); // -->
+    mPrefetchMutex.UnLock(); // <--
 
     // If readahead not useful, use the classic way to read
-    if (length)
+    if (length && !done_read)
     {
-      eos_debug("debug=readahead useless, use the classic way for reading");
-      handler = mMetaHandler->Register(offset, length, buffer, false);
+      eos_debug("readahead useless, use the classic way for reading");
+      handler = mMetaHandler->Register(offset, length, NULL, false);
 
       // If previous read requests failed then we won't get a new handler
       // and we return directly an error
       if (!handler)
-      {
         return SFS_ERROR;    
-      }
       
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (length),
@@ -440,7 +451,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         mMetaHandler->HandleResponse(&status, handler);
       }
 
-      nread += length;
+      nread = length;
     }
   }
 
@@ -507,6 +518,7 @@ XrdIo::Write (XrdSfsFileOffset offset,
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -555,6 +567,7 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -573,6 +586,7 @@ XrdIo::Sync (uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -599,7 +613,10 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
     rc = SFS_OK;
   }
   else
+  {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
+  }
   
   if (stat)
     delete stat;
@@ -637,6 +654,7 @@ XrdIo::Close (uint16_t timeout)
   if (!status.IsOK() || !async_ok)
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -660,6 +678,7 @@ XrdIo::Remove (uint16_t timeout)
   if (!status.IsOK())
   {
     eos_err("failed to mark the file for deletion:%s", mPath.c_str());
+    mLastErrMsg = "failed to truncate file with deletion offset";
     return SFS_ERROR;
   }
 
@@ -677,7 +696,7 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
   XrdCl::XRootDStatus status;
   ReadaheadBlock* block = NULL;
   
-  eos_debug("debug=try to prefetch with offset: %lli, length: %4u",
+  eos_debug("try to prefetch with offset: %lli, length: %4u",
             offset, mBlocksize);
 
   if (!mQueueBlocks.empty())

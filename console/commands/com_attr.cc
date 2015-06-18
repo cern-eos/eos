@@ -57,7 +57,7 @@ com_attr (char* arg1)
   }
 
   if ((!subcommand.length()) || (!arg.length()) ||
-      ((subcommand != "ls") && (subcommand != "set") && (subcommand != "get") && (subcommand != "rm")))
+      ((subcommand != "ls") && (subcommand != "set") && (subcommand != "get") && (subcommand != "rm") && (subcommand != "link") && (subcommand != "unlink") && (subcommand != "fold")))
     goto com_attr_usage;
 
   if (subcommand == "ls")
@@ -73,7 +73,7 @@ com_attr (char* arg1)
     in += path;
   }
 
-  if (subcommand == "set")
+  if ( (subcommand == "set") || (subcommand == "link") )
   {
     XrdOucString key = arg;
     XrdOucString value = "";
@@ -87,6 +87,12 @@ com_attr (char* arg1)
     else
     {
       value = "";
+    }
+
+    if (subcommand == "link") 
+    {
+      key = "sys.attr.link";
+      value = arg;
     }
 
     if (!value.length())
@@ -265,10 +271,29 @@ com_attr (char* arg1)
     in += path;
   }
 
-  if (subcommand == "rm")
+  if (subcommand == "fold")
+  {
+    XrdOucString path = arg;
+    if (!path.length())
+      goto com_attr_usage;
+    path = abspath(path.c_str());
+    in += "&mgm.subcmd=fold";
+    in += "&mgm.path=";
+    in += path;
+  }
+
+  if ( (subcommand == "rm") || (subcommand == "unlink") )
   {
     XrdOucString key = arg;
     XrdOucString path = subtokenizer.GetToken();
+
+    if (subcommand == "unlink") 
+    {
+      key = "sys.attr.link";
+      path = arg;
+    }
+
+
     if (!key.length() || !path.length())
       goto com_attr_usage;
     path = abspath(path.c_str());
@@ -307,6 +332,16 @@ com_attr_usage:
   fprintf(stdout, "attr [-r] rm  <key> <path> :\n");
   fprintf(stdout, "                                                : delete attributes of path (-r recursive)\n\n");
   fprintf(stdout, " -r : delete recursive on all directory children\n");
+  fprintf(stdout, "attr [-r] link <origin> <path> :\n");
+  fprintf(stdout, "                                                : link attributes of <origin> under the attributes of <path> (-r recursive)\n\n");
+  fprintf(stdout, " -r : apply recursive on all directory children\n");
+  fprintf(stdout, "attr [-r] unlink <path> :\n");
+  fprintf(stdout, "                                                : remove attribute link of <path> (-r recursive)\n\n");
+  fprintf(stdout, " -r : apply recursive on all directory children\n");
+  fprintf(stdout, "attr [-r] fold <path> :\n");
+  fprintf(stdout, "                                                : fold attributes of <path> if an attribute link is defined (-r recursive)\n\n");
+  fprintf(stdout, "                                                  all attributes which are identical to the origin-link attributes are removed locally\n");
+  fprintf(stdout, " -r : apply recursive on all directory children\n");
 
   fprintf(stdout, "If <key> starts with 'sys.' you have to be member of the sudoer group to see this attributes or modify.\n\n");
 
@@ -379,6 +414,7 @@ com_attr_usage:
   fprintf(stdout, "         sys.owner.auth=<owner-auth-list>      : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list");
   fprintf(stdout, "         sys.owner.auth=*                      : every person with write permission will be mapped to the owner uid/gid pair of the parent directory and quota will be accounted on the owner uid/gid pair\n");
   fprintf(stdout, "               => <owner-auth-list> = <auth1>:<name1>,<auth2>:<name2  e.g. krb5:nobody,gsi:DN=...\n");
+  fprintf(stdout, "         sys.attr.link=<directory>             : symbolic links for attributes - all attributes of <directory> are visible in this directory and overwritten/extended by the local attributes\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "User Variables:\n");
   fprintf(stdout, "         user.forced.space=<space>              : s.a.\n");
@@ -460,5 +496,9 @@ com_attr_usage:
   fprintf(stdout, ".... Atomic Uploads ...\n");
   fprintf(stdout, ".......................\n");
   fprintf(stdout, "     |eos> attr set sys.forced.atomic=1 /eos/dev/instance/atomic/\n");
+  fprintf(stdout, ".......................\n");
+  fprintf(stdout, ".... Attribute Link ...\n");
+  fprintf(stdout, ".......................\n");
+  fprintf(stdout, "     |eos> attr set sys.attr.link=/eos/dev/origin-attr/ /eos/dev/instance/attr-linked/\n");
   return (0);
 }

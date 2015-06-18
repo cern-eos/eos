@@ -115,13 +115,15 @@ public:
   //! @param offset offset
   //! @param buffer place to hold the read data
   //! @param length length
+  //! @param readahead readahead switch
   //!
   //! @return number of bytes read or -1 if error
   //!
-  //----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
-                        XrdSfsXferSize length);
+                        XrdSfsXferSize length,
+                        bool readahead = false);
 
 
   //----------------------------------------------------------------------------
@@ -225,6 +227,15 @@ public:
   //----------------------------------------------------------------------------
   virtual int Stat (struct stat* buf);
 
+  //--------------------------------------------------------------------------
+  //! Get last error message
+  //--------------------------------------------------------------------------
+  const std::string&
+  GetLastErrMsg ()
+  {
+    return mLastErrMsg;
+  }
+  
 protected:
 
   bool mIsRw; ///< mark for writing
@@ -265,6 +276,7 @@ protected:
   std::map<unsigned int, unsigned int> mapPL; ///< map of stripes to url
   std::map<uint64_t, uint32_t> mMapPieces; ///< map of pieces written for which
                                   ///< parity computation has not been done yet
+  std::string mLastErrMsg; ///< last error messages ssen
 
   //----------------------------------------------------------------------------
   //! Test and recover any corrupted headers in the stripe files

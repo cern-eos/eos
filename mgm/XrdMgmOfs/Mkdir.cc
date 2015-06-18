@@ -33,7 +33,8 @@ XrdMgmOfs::mkdir (const char *inpath,
                   XrdSfsMode Mode,
                   XrdOucErrInfo &error,
                   const XrdSecEntity *client,
-                  const char *ininfo)
+                  const char *ininfo,
+                  ino_t* outino)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
@@ -43,6 +44,7 @@ XrdMgmOfs::mkdir (const char *inpath,
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
+ * @param outino return inode number
  * @return SFS_OK if success otherwise SFS_ERROR
  *
  * If mode contains SFS_O_MKPTH the full path is (possibly) created.
@@ -74,7 +76,7 @@ XrdMgmOfs::mkdir (const char *inpath,
   MAYSTALL;
   MAYREDIRECT;
 
-  return _mkdir(path, Mode, error, vid, info);
+  return _mkdir(path, Mode, error, vid, info, outino);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -83,7 +85,8 @@ XrdMgmOfs::_mkdir (const char *path,
                    XrdSfsMode Mode,
                    XrdOucErrInfo &error,
                    eos::common::Mapping::VirtualIdentity &vid,
-                   const char *ininfo)
+                   const char *ininfo,
+                   ino_t* outino)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief create a directory with the given mode
@@ -93,6 +96,7 @@ XrdMgmOfs::_mkdir (const char *path,
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
+ * @param outino return inode number
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * If mode contains SFS_O_MKPTH the full path is (possibly) created.
@@ -185,32 +189,32 @@ XrdMgmOfs::_mkdir (const char *path,
       // Check for sys.owner.auth entries, which let people operate as the owner of the directory
       if (attrmap.count("sys.owner.auth"))
       {
-	if (attrmap["sys.owner.auth"] == "*") 
-	{
-	  sticky_owner = true;
-	}
-	else
-	{
-	  attrmap["sys.owner.auth"] += ",";
-	  std::string ownerkey = vid.prot.c_str();
-	  ownerkey += ":";
-	  if (vid.prot == "gsi")
-	  {
-	    ownerkey += vid.dn.c_str();
-	  }
-	  else
-	  {
-	    ownerkey += vid.uid_string.c_str();
-	  }
-	  if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
-	  {
-	    eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-		     path, vid.uid, vid.gid, d_uid, d_gid);
-	    // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
-	    vid.uid = d_uid;
-	    vid.gid = d_gid;
-	  }
-	}
+        if (attrmap["sys.owner.auth"] == "*")
+        {
+          sticky_owner = true;
+        }
+        else
+        {
+          attrmap["sys.owner.auth"] += ",";
+          std::string ownerkey = vid.prot.c_str();
+          ownerkey += ":";
+          if (vid.prot == "gsi")
+          {
+            ownerkey += vid.dn.c_str();
+          }
+          else
+          {
+            ownerkey += vid.uid_string.c_str();
+          }
+          if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
+          {
+            eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                     path, vid.uid, vid.gid, d_uid, d_gid);
+            // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+            vid.uid = d_uid;
+            vid.gid = d_gid;
+          }
+        }
       }
       bool stdpermcheck = false;
 
@@ -236,13 +240,13 @@ XrdMgmOfs::_mkdir (const char *path,
         errno = EPERM;
         return Emsg(epname, error, EPERM, "create parent directory", cPath.GetParentPath());
       }
-      if (sticky_owner) 
+      if (sticky_owner)
       {
-	eos_info("msg=\"client actingd as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
-		 path, vid.uid, vid.gid, d_uid, d_gid);
-	// yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
-	vid.uid = d_uid;
-	vid.gid = d_gid;
+        eos_info("msg=\"client actingd as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                 path, vid.uid, vid.gid, d_uid, d_gid);
+        // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+        vid.uid = d_uid;
+        vid.gid = d_gid;
       }
     }
   }
@@ -371,7 +375,6 @@ XrdMgmOfs::_mkdir (const char *path,
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
           newdir->setMode(dir->getMode());
-
           if (dir->getMode() & S_ISGID)
           {
             // inherit the attributes
@@ -443,6 +446,10 @@ XrdMgmOfs::_mkdir (const char *path,
       {
         newdir->setAttribute(it->first, it->second);
       }
+    }
+    if (outino)
+    {
+      *outino = newdir->getId();
     }
     // commit on disk
     eosView->updateContainerStore(newdir);

@@ -85,6 +85,8 @@ start() {
     export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
     export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
     export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
+    export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
+    export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
 
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
 	  FUSE_OPT="big_writes,"${FUSE_OPT-""}
@@ -125,21 +127,23 @@ start() {
 	    echo "EOS_FUSE_CACHE_SIZE       : ${EOS_FUSE_CACHE_SIZE}"
 	    echo "EOS_FUSE_CACHE_WRITE      : ${EOS_FUSE_CACHE_WRITE}"
 	    echo "EOS_FUSE_BIGWRITES        : ${EOS_FUSE_BIGWRITES}"
-            echo "EOS_FUSE_EXEC             : ${EOS_FUSE_EXEC}"
-            echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
-            echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
-            echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
-            echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
-            echo "EOS_FUSE_USER_KRB5FIRST   : ${EOS_FUSE_USER_KRB5FIRST}"
-            echo "EOS_FUSE_PIDMAP           : ${EOS_FUSE_PIDMAP}"
-            echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
+	    echo "EOS_FUSE_EXEC             : ${EOS_FUSE_EXEC}"
+	    echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
+	    echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
+	    echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
+	    echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
+	    echo "EOS_FUSE_USER_KRB5FIRST   : ${EOS_FUSE_USER_KRB5FIRST}"
+	    echo "EOS_FUSE_PIDMAP           : ${EOS_FUSE_PIDMAP}"
+	    echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
+	    echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
+	    echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
 	else 
-            echo eosd already running. Pid is $eosdpid 
-            echo Stop it first with 'service eosd stop'
-            echo and try again or use directly 'service eosd restart'.
-            RETVAL=1
+	    echo eosd already running. Pid is $eosdpid 
+	    echo Stop it first with 'service eosd stop'
+	    echo and try again or use directly 'service eosd restart'.
+	    RETVAL=1
 	    echo_warning
-        fi
+	fi
     done
 }
 

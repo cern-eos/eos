@@ -366,236 +366,243 @@ XrdMgmOfs::_rename (const char *old_name,
     if (lock_quota)
       Quota::gQuotaMutex.LockRead();
 
-    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    try
     {
-      dir = eosView->getContainer(oPath.GetParentPath());
-      newdir = eosView->getContainer(nPath.GetParentPath());
-      if (renameFile)
+      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+      try
       {
-        if (oP == nP)
-        {
-          file = dir->findFile(oPath.GetName());
-          if (file)
-          {
-            eosView->renameFile(file, nPath.GetName());
-            UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-          }
-        }
-        else
-        {
-          file = dir->findFile(oPath.GetName());
-          if (file)
-          {
-            // move to a new directory
-            dir->removeFile(oPath.GetName());
-            UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-            UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
-            file->setName(nPath.GetName());
-            file->setContainerId(newdir->getId());
-            if (updateCTime)
-            {
-              file->setCTimeNow();
-            }
-            newdir->addFile(file);
-            eosView->updateFileStore(file);
-            // adjust the quota
-            SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
-            SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
-            eos::QuotaNode* oldquotanode = 0;
-            eos::QuotaNode* newquotanode = 0;
-            if (oldspace)
-            {
-              oldquotanode = oldspace->GetQuotaNode();
-              // remove quota
-              if (oldquotanode)
-              {
-                oldquotanode->removeFile(file);
+	dir = eosView->getContainer(oPath.GetParentPath());
+	newdir = eosView->getContainer(nPath.GetParentPath());
+	// translate both parths to paths without symlinks
+	std::string duri = eosView->getUri(dir);
+	std::string newduri = eosView->getUri(newdir);
+	// get symlink-free dir's
+	dir = eosView->getContainer(duri);
+	newdir = eosView->getContainer(newduri);
+	if (renameFile)
+	{
+	  if (oP == nP)
+	  {
+	    file = dir->findFile(oPath.GetName());
+	    if (file)
+	    {
+	      eosView->renameFile(file, nPath.GetName());
+	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	    }
+	  }
+	  else
+	  {
+	    file = dir->findFile(oPath.GetName());
+	    if (file)
+	    {
+	      // move to a new directory
+	      dir->removeFile(oPath.GetName());
+	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	      UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+	      file->setName(nPath.GetName());
+	      file->setContainerId(newdir->getId());
+	      if (updateCTime)
+	      {
+		file->setCTimeNow();
+	      }
+	      newdir->addFile(file);
+	      eosView->updateFileStore(file);
+	      // adjust the quota
+	      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
+	      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
+	      eos::QuotaNode* oldquotanode = 0;
+	      eos::QuotaNode* newquotanode = 0;
+	      if (oldspace)
+	      {
+		oldquotanode = oldspace->GetQuotaNode();
+		// remove quota
+		if (oldquotanode)
+		{
+		  oldquotanode->removeFile(file);
+		}
+	      }
+	      if (newspace)
+	      {
+		newquotanode = newspace->GetQuotaNode();
+		// add quota
+		if (newquotanode)
+		{
+		  newquotanode->addFile(file);
+		}
+	      }
+	    }
+	  }
+	}
+	if (renameDir)
+	{
+	  rdir = dir->findContainer(oPath.GetName());
+	  if (rdir)
+	  {
+	    // remove all the quota from the source node and add to the target node
+	    
+	    std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
+	    std::set<std::string>::const_iterator fileit;
+	    // loop over all the files and subtract them from their quota node
+	    if (findOk)
+	    {
+	      if (checkQuota)
+	      {
+		std::map<uid_t, unsigned long long> user_deletion_size;
+		std::map<gid_t, unsigned long long> group_deletion_size;
+		// -----------------------------------------------------------------
+		// compute the total quota we need to rename by uid/gid
+		// -----------------------------------------------------------------s
+		for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
+		{
+		  for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
+		  {
+		    std::string fspath = rfoundit->first;
+		    fspath += *fileit;
+		    eos::FileMD* fmd = 0;
+		    // stat this file and add to the deletion maps
+		    
+		    try
+		    {
+		      fmd = gOFS->eosView->getFile(fspath.c_str());
+		    }
+		    catch (eos::MDException &e)
+		    {
+		      errno = e.getErrno();
+		      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+				e.getErrno(), e.getMessage().str().c_str());
+		    }
+		    
+		    if (!fmd)
+		    {
+		      if (lock_quota)
+			Quota::gQuotaMutex.UnLockRead();
+		      return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
+		    }
+		    user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
+		    group_deletion_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+		  }
               }
-            }
-            if (newspace)
-            {
-              newquotanode = newspace->GetQuotaNode();
-              // add quota
-              if (newquotanode)
-              {
-                newquotanode->addFile(file);
-              }
-            }
-          }
-        }
+		// -----------------------------------------------------------------
+		// verify for each uid/gid that there is enough quota to rename
+		// -----------------------------------------------------------------
+		bool userok = true;
+		bool groupok = true;
+
+		// either all have user quota then userok is true
+		for (auto it = user_deletion_size.begin(); it != user_deletion_size.end(); it++)
+		{
+		  SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(nP.c_str());
+		  
+		  if (namespacequota)
+		  {
+		    // there is quota defined on that recycle path
+		    if (!namespacequota->CheckWriteQuota(it->first,
+							 Quota::gProjectId,
+							 it->second,
+							 1))
+		    {
+		      userok = false;
+		    }
+		  }
+		}
+		
+		// or all have group quota then groupok is true
+		for (auto it = group_deletion_size.begin(); it != group_deletion_size.end(); it++)
+		{
+		  SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(nP.c_str());
+		  
+		  if (namespacequota)
+		    {
+		      // there is quota defined on that recycle path
+		      if (!namespacequota->CheckWriteQuota(Quota::gProjectId,
+							   it->first,
+							   it->second,
+							   1))
+		      {
+			groupok = false;
+		      }
+		    }
+		}
+		
+		if ((!userok) && (!groupok))
+		{
+		  // deletion has to fail there is not enough quota on the target
+		  if (lock_quota)
+		    Quota::gQuotaMutex.UnLockRead();
+		  return Emsg(epname, error, ENOSPC, "rename - cannot get all the needed quota for the target directory");
+		}
+	      } // if (checkQuota)
+	      
+	      for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
+		{
+		  for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
+		  {
+		    std::string fspath = rfoundit->first;
+		    fspath += *fileit;
+		    file = gOFS->eosView->getFile(fspath.c_str());
+		    if (file)
+		    {
+		      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(fspath.c_str()); // quota node from file path
+		      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str()); // quota node of target directory
+		      eos::QuotaNode* oldquotanode = 0;
+		      eos::QuotaNode* newquotanode = 0;
+		      if (oldspace)
+		      {
+			oldquotanode = oldspace->GetQuotaNode();
+			// remove quota
+			if (oldquotanode)
+			{
+			  oldquotanode->removeFile(file);
+			}
+		      }
+		      if (newspace)
+		      {
+			newquotanode = newspace->GetQuotaNode();
+			// add quota
+			if (newquotanode)
+			{
+			  newquotanode->addFile(file);
+			}
+		      }
+		    }
+		  }
+		}
+	    }
+	    if (nP == oP)
+	    {
+	      // -------------------------------------------------------------------
+	      // rename within a container
+	      // -------------------------------------------------------------------
+	      eosView->renameContainer(rdir, nPath.GetName());
+	      UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
+	    }
+	    else
+	    {
+	      // -------------------------------------------------------------------
+	      // move from one container to another one
+	      // -------------------------------------------------------------------
+	      dir->removeContainer(oPath.GetName());
+	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	      rdir->setName(nPath.GetName());
+	      if (updateCTime)
+	      {
+		rdir->setCTimeNow();
+	      }
+	      newdir->addContainer(rdir);
+	      UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+	      eosView->updateContainerStore(rdir);
+	    }
+	  }
+	  file = 0;
+	}
       }
-      if (renameDir)
+      catch (eos::MDException &e)
       {
-        rdir = dir->findContainer(oPath.GetName());
-        if (rdir)
-        {
-          // remove all the quota from the source node and add to the target node
-
-          std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
-          std::set<std::string>::const_iterator fileit;
-          // loop over all the files and subtract them from their quota node
-          if (findOk)
-          {
-            if (checkQuota)
-            {
-              std::map<uid_t, unsigned long long> user_deletion_size;
-              std::map<gid_t, unsigned long long> group_deletion_size;
-              // -----------------------------------------------------------------
-              // compute the total quota we need to rename by uid/gid
-              // -----------------------------------------------------------------s
-              for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-              {
-                for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
-                {
-                  std::string fspath = rfoundit->first;
-                  fspath += *fileit;
-                  eos::FileMD* fmd = 0;
-                  // stat this file and add to the deletion maps
-
-                  try
-                  {
-                    fmd = gOFS->eosView->getFile(fspath.c_str());
-                  }
-                  catch (eos::MDException &e)
-                  {
-                    errno = e.getErrno();
-                    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                              e.getErrno(), e.getMessage().str().c_str());
-                  }
-
-                  if (!fmd)
-                  {
-		    if (lock_quota)
-		      Quota::gQuotaMutex.UnLockRead();
-                    return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
-                  }
-                  user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
-                  group_deletion_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
-                }
-              }
-              // -----------------------------------------------------------------
-              // verify for each uid/gid that there is enough quota to rename
-              // -----------------------------------------------------------------
-              bool userok = true;
-              bool groupok = true;
-
-              // either all have user quota then userok is true
-              for (auto it = user_deletion_size.begin(); it != user_deletion_size.end(); it++)
-              {
-                SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(nP.c_str());
-
-                if (namespacequota)
-                {
-                  // there is quota defined on that recycle path
-                  if (!namespacequota->CheckWriteQuota(it->first,
-                                                       Quota::gProjectId,
-                                                       it->second,
-                                                       1))
-                  {
-                    userok = false;
-                  }
-                }
-              }
-
-              // or all have group quota then groupok is true
-              for (auto it = group_deletion_size.begin(); it != group_deletion_size.end(); it++)
-              {
-                SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(nP.c_str());
-
-                if (namespacequota)
-                {
-                  // there is quota defined on that recycle path
-                  if (!namespacequota->CheckWriteQuota(Quota::gProjectId,
-                                                       it->first,
-                                                       it->second,
-                                                       1))
-                  {
-                    groupok = false;
-                  }
-                }
-              }
-
-              if ((!userok) && (!groupok))
-              {
-                // deletion has to fail there is not enough quota on the target
-		if (lock_quota)
-		  Quota::gQuotaMutex.UnLockRead();
-                return Emsg(epname, error, ENOSPC, "rename - cannot get all the needed quota for the target directory");
-
-              }
-            } // if (checkQuota)
-
-            for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-            {
-              for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
-              {
-                std::string fspath = rfoundit->first;
-                fspath += *fileit;
-                file = gOFS->eosView->getFile(fspath.c_str());
-                if (file)
-                {
-                  SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(fspath.c_str()); // quota node from file path
-                  SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str()); // quota node of target directory
-                  eos::QuotaNode* oldquotanode = 0;
-                  eos::QuotaNode* newquotanode = 0;
-                  if (oldspace)
-                  {
-                    oldquotanode = oldspace->GetQuotaNode();
-                    // remove quota
-                    if (oldquotanode)
-                    {
-                      oldquotanode->removeFile(file);
-                    }
-                  }
-                  if (newspace)
-                  {
-                    newquotanode = newspace->GetQuotaNode();
-                    // add quota
-                    if (newquotanode)
-                    {
-                      newquotanode->addFile(file);
-                    }
-                  }
-                }
-              }
-            }
-          }
-          if (nP == oP)
-          {
-            // -------------------------------------------------------------------
-            // rename within a container
-            // -------------------------------------------------------------------
-            eosView->renameContainer(rdir, nPath.GetName());
-            UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
-          }
-          else
-          {
-            // -------------------------------------------------------------------
-            // move from one container to another one
-            // -------------------------------------------------------------------
-            dir->removeContainer(oPath.GetName());
-            UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-            rdir->setName(nPath.GetName());
-            if (updateCTime)
-            {
-              rdir->setCTimeNow();
-            }
-            newdir->addContainer(rdir);
-            UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
-            eosView->updateContainerStore(rdir);
-          }
-        }
-        file = 0;
+	dir = 0;
+	file = 0;
+	errno = e.getErrno();
+	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		  e.getErrno(), e.getMessage().str().c_str());
       }
-    }
-    catch (eos::MDException &e)
-    {
-      dir = 0;
-      file = 0;
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
     }
 
     if (lock_quota)

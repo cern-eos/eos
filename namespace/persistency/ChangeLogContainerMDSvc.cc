@@ -399,6 +399,117 @@ extern "C"
   }
 }
 
+//------------------------------------------------------------------------------
+// Helper structures for online compacting
+//------------------------------------------------------------------------------
+namespace
+{
+  //----------------------------------------------------------------------------
+  // Store info about old and new offset for a given file id
+  //----------------------------------------------------------------------------
+
+  struct ContainerRecordData
+  {
+
+    ContainerRecordData() : offset(0), newOffset(0), containerId(0) { }
+
+    ContainerRecordData(uint64_t o, eos::ContainerMD::id_t i, uint64_t no = 0) :
+      offset(o), newOffset(no), containerId(i) { }
+    uint64_t offset;
+    uint64_t newOffset;
+    eos::ContainerMD::id_t containerId;
+  };
+
+  //----------------------------------------------------------------------------
+  // Carry the data between compacting stages
+  //----------------------------------------------------------------------------
+
+  struct ContainerCompactingData
+  {
+
+    ContainerCompactingData() :
+      newLog(new eos::ChangeLogFile()),
+      originalLog(0),
+      newRecord(0) { }
+
+    ~ContainerCompactingData()
+    {
+      delete newLog;
+    }
+    std::string logFileName;
+    eos::ChangeLogFile *newLog;
+    eos::ChangeLogFile *originalLog;
+    std::vector<ContainerRecordData> records;
+    uint64_t newRecord;
+  };
+
+  //----------------------------------------------------------------------------
+  // Compare record data objects in order to sort them
+  //----------------------------------------------------------------------------
+
+  struct ContainerOffsetComparator
+  {
+
+    bool operator () (const ContainerRecordData &a, const ContainerRecordData &b)
+    {
+      return a.offset < b.offset;
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  // Process the records being scanned and copy them to the new log
+  //----------------------------------------------------------------------------
+
+  class ContainerUpdateHandler : public eos::ILogRecordScanner
+  {
+  public:
+
+    //------------------------------------------------------------------------
+    // Constructor
+    //------------------------------------------------------------------------
+
+    ContainerUpdateHandler (std::map<eos::ContainerMD::id_t, ContainerRecordData> &updates,
+                            eos::ChangeLogFile *newLog) :
+      pUpdates (updates), pNewLog (newLog) { }
+
+    //------------------------------------------------------------------------
+    // Process the records
+    //------------------------------------------------------------------------
+
+    virtual bool
+    processRecord (uint64_t offset,
+                   char type,
+                   const eos::Buffer &buffer)
+    {
+      //----------------------------------------------------------------------
+      // Write to the new change log - we need to cast - nasty, but safe in
+      // this case
+      //----------------------------------------------------------------------
+      uint64_t newOffset = pNewLog->storeRecord(type, (eos::Buffer&)buffer);
+
+      //----------------------------------------------------------------------
+      // Put the right stuff in the updates map
+      //----------------------------------------------------------------------
+      eos::ContainerMD::id_t id;
+      buffer.grabData(0, &id, sizeof ( eos::FileMD::id_t));
+      if (type == eos::UPDATE_RECORD_MAGIC)
+        pUpdates[id] = ContainerRecordData(offset, id, newOffset);
+      else if (type == eos::DELETE_RECORD_MAGIC)
+        pUpdates.erase(id);
+
+      return true;
+    }
+
+    //------------------------------------------------------------------------
+    // Private
+    //------------------------------------------------------------------------
+  private:
+    std::map<eos::ContainerMD::id_t, ContainerRecordData> &pUpdates;
+    eos::ChangeLogFile *pNewLog;
+    uint64_t pCounter;
+  };
+}
+
 namespace eos
 {
   //----------------------------------------------------------------------------
@@ -437,9 +548,8 @@ namespace eos
     if( !pSlaveMode || logIsCompacted )
     {
       ContainerMDScanner scanner( pIdMap, pSlaveMode );
-      pFollowStart = pChangeLog->scanAllRecords( &scanner );
+      pFollowStart = pChangeLog->scanAllRecords( &scanner , pAutoRepair );
       pFirstFreeId = scanner.getLargestId()+1;
-
       //------------------------------------------------------------------------
       // Recreate the container structure
       //------------------------------------------------------------------------
@@ -452,7 +562,6 @@ namespace eos
           continue;
         recreateContainer( it, orphans, nameConflicts );
       }
-
       //------------------------------------------------------------------------
       // Deal with broken containers if we're not in the slave mode
       //------------------------------------------------------------------------
@@ -598,6 +707,11 @@ namespace eos
         if( pollInterval == 0 ) pollInterval = 1000;
       }
     }
+
+    pAutoRepair = false;
+    it = config.find( "auto_repair" );
+    if (it != config.end() && it->second == "true" )
+      pAutoRepair = true;
   }
 
   //----------------------------------------------------------------------------
@@ -711,6 +825,179 @@ namespace eos
                                      IContainerMDChangeListener *listener )
   {
     pListeners.push_back( listener );
+  }
+
+  //----------------------------------------------------------------------------
+  // Prepare for online compacting.
+  //----------------------------------------------------------------------------
+
+  void *
+  ChangeLogContainerMDSvc::compactPrepare (const std::string &newLogFileName) const
+    throw ( MDException)
+  {
+    //--------------------------------------------------------------------------
+    // Try to open a new log file for writing
+    //--------------------------------------------------------------------------
+    ::ContainerCompactingData *data = new ::ContainerCompactingData();
+    try
+    {
+      data->newLog->open(newLogFileName, ChangeLogFile::Create,
+      		   CONTAINER_LOG_MAGIC);
+      data->logFileName = newLogFileName;
+      data->originalLog = pChangeLog;
+      data->newRecord = pChangeLog->getNextOffset();
+    }
+    catch (MDException &e)
+    {
+      delete data;
+      throw;
+    }
+
+    //--------------------------------------------------------------------------
+    // Get the list of records
+    //--------------------------------------------------------------------------
+    IdMap::const_iterator it;
+    for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
+      data->records.push_back(::ContainerRecordData(it->second.logOffset, it->first));
+    return data;
+  }
+
+  //----------------------------------------------------------------------------
+  // Do the compacting.
+  //----------------------------------------------------------------------------
+
+  void
+  ChangeLogContainerMDSvc::compact (void *&compactingData) throw ( MDException)
+  {
+    //--------------------------------------------------------------------------
+    // Sort the records to avoid random seeks
+    //--------------------------------------------------------------------------
+    ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
+    if (!data)
+      {
+	MDException e(EINVAL);
+	e.getMessage() << "Compacting data incorrect";
+	throw e;
+      }
+    std::sort(data->records.begin(), data->records.end(),
+              ::ContainerOffsetComparator());
+
+    //--------------------------------------------------------------------------
+    // Copy the records to the new container
+    //--------------------------------------------------------------------------
+    try
+    {
+      std::vector<ContainerRecordData>::iterator it;
+      for (it = data->records.begin(); it != data->records.end(); ++it)
+      {
+        Buffer buff;
+        uint8_t type;
+        type = data->originalLog->readRecord(it->offset, buff);
+        it->newOffset = data->newLog->storeRecord(type, buff);
+      }
+    }
+    catch (MDException &e)
+    {
+      data->newLog->close();
+      delete data;
+      compactingData = 0;
+      throw;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Commit the compacting information.
+  //----------------------------------------------------------------------------
+
+  void
+  ChangeLogContainerMDSvc::compactCommit (void *compactingData, bool autorepair)
+    throw ( MDException)
+  {
+    ::ContainerCompactingData *data = (::ContainerCompactingData*)compactingData;
+    if (!data)
+    {
+      MDException e(EINVAL);
+      e.getMessage() << "Compacting data incorrect";
+      throw e;
+    }
+
+    //--------------------------------------------------------------------------
+    // Copy the part of the old log that has been appended after we
+    // prepared
+    //--------------------------------------------------------------------------
+    std::map<eos::ContainerMD::id_t, ContainerRecordData> updates;
+    try
+    {
+      ::ContainerUpdateHandler updateHandler(updates, data->newLog);
+      data->originalLog->scanAllRecordsAtOffset(&updateHandler,
+						data->newRecord,
+						autorepair);
+    }
+    catch (MDException &e)
+    {
+      data->newLog->close();
+      delete data;
+      throw;
+    }
+
+    //--------------------------------------------------------------------------
+    // Looks like we're all good and we won't be throwing any exceptions any
+    // more so we may get to updating the in-memory structures.
+    //
+    // We start with the originally copied records
+    //--------------------------------------------------------------------------
+    uint64_t containerCounter = 0;
+    IdMap::iterator it;
+    std::vector<ContainerRecordData>::iterator itO;
+    for (itO = data->records.begin(); itO != data->records.end(); ++itO)
+    {
+      //------------------------------------------------------------------------
+      // Check if we still have the container, if not, it must have been deleted
+      // so we don't care
+      //------------------------------------------------------------------------
+      it = pIdMap.find(itO->containerId);
+      if (it == pIdMap.end())
+        continue;
+
+      //------------------------------------------------------------------------
+      // If the original offset does not match it means that we must have
+      // be updated later, if not we've messed up so we die in order not
+      // to lose data
+      //------------------------------------------------------------------------
+      assert(it->second.logOffset >= itO->offset);
+      if (it->second.logOffset == itO->offset)
+      {
+        it->second.logOffset = itO->newOffset;
+        ++containerCounter;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Now we handle updates, if we don't have the container, we're messed up,
+    // if the original offsets don't match we're messed up too
+    //--------------------------------------------------------------------------
+    std::map<ContainerMD::id_t, ContainerRecordData>::iterator itU;
+    for (itU = updates.begin(); itU != updates.end(); ++itU)
+    {
+      it = pIdMap.find(itU->second.containerId);
+      assert(it != pIdMap.end());
+      assert(it->second.logOffset == itU->second.offset);
+
+      it->second.logOffset = itU->second.newOffset;
+      ++containerCounter;
+    }
+
+    assert(containerCounter == pIdMap.size());
+
+    //--------------------------------------------------------------------------
+    // Replace the logs
+    //--------------------------------------------------------------------------
+    pChangeLog = data->newLog;
+    pChangeLog->addCompactionMark();
+    pChangeLogPath = data->logFileName;
+    data->newLog = 0;
+    data->originalLog->close();
+    delete data;
   }
 
   //----------------------------------------------------------------------------

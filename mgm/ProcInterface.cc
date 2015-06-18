@@ -118,6 +118,8 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
         (subcmd == "drop") ||
         (subcmd == "layout") ||
         (subcmd == "verify") ||
+	(subcmd == "version") ||
+	(subcmd == "versions") || 
         (subcmd == "rename"))) ||
       ((cmd == "attr") &&
        ((subcmd == "set") ||
@@ -640,9 +642,14 @@ ProcCommand::open (const char* inpath,
     {
       Map();
     }
+    else if (mCmd == "member")
+    {
+      Member();
+    }
     else if (mCmd == "attr")
     {
       Attr();
+      mDoSort = false;
     }
     else if (mCmd == "chmod")
     {

@@ -130,7 +130,7 @@ XrdMgmOfs::_find (const char *path,
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       try
       {
-        cmd = gOFS->eosView->getContainer(Path.c_str());
+        cmd = gOFS->eosView->getContainer(Path.c_str(), false);
         permok = cmd->access(vid.uid, vid.gid, R_OK | X_OK);
       }
       catch (eos::MDException &e)
@@ -225,6 +225,10 @@ XrdMgmOfs::_find (const char *path,
           eos::ContainerMD::FileMap::iterator fit;
           for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
           {
+	    std::string link;
+	    // skip symbolic links
+	    if (fit->second->isLink())
+	      link=fit->second->getLink();
             if (limitresult)
             {
               // apply the user limits for non root/admin/sudoers
@@ -237,7 +241,17 @@ XrdMgmOfs::_find (const char *path,
                 break;
               }
             }
-            found[Path].insert(fit->second->getName());
+	    if (link.length()) 
+	    {
+	      std::string ip = fit->second->getName();
+	      ip += " -> ";
+	      ip += link;
+            found[Path].insert(ip);
+	    } 
+	    else 
+	    {
+              found[Path].insert(fit->second->getName());
+	    }
             filesfound++;
           }
         }

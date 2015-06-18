@@ -631,6 +631,18 @@ XrdFstOfsFile::open (const char* path,
   if (dpos != STR_NPOS)
     RedirectManager.erase(dpos);
 
+  {
+    // evt. update the shared hash manager entry
+    XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+    XrdOucString ConfigManager = eos::fst::Config::gConfig.Manager;
+    if (ConfigManager != RedirectManager) {
+      eos_warning("msg=\"MGM master seems to have changed - adjusting global config\" old-manager=\"%s\" new-manager=\"%s\"", 
+		  ConfigManager.c_str(), RedirectManager.c_str());
+      eos::fst::Config::gConfig.Manager = RedirectManager;
+    }
+  }
+
+
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
   fileid = eos::common::FileId::Hex2Fid(hexfid);
   fsid = atoi(sfsid);
@@ -1459,7 +1471,8 @@ XrdFstOfsFile::verifychecksum ()
 
         if (opaqueChecksum != hexChecksum)
         {
-          eos_err("requested checksum %s does not match checksum %s of uploaded file");
+          eos_err("requested checksum %s does not match checksum %s of uploaded"
+                  " file", opaqueChecksum.c_str(), hexChecksum.c_str());
           delete checkSum;
           checkSum = 0;
           return true;
@@ -1761,7 +1774,7 @@ XrdFstOfsFile::close ()
 
         if ((rc = layOut->Stat(&statinfo)))
         {
-          rc = gOFS.Emsg(epname, error, EIO, "close - cannot stat closed layout"
+          rc = gOFS.Emsg(epname, this->error, EIO, "close - cannot stat closed layout"
                          " to determine file size", Path.c_str());
         }
 
@@ -1803,7 +1816,7 @@ XrdFstOfsFile::close ()
 
             // Commit local
             if (!gFmdDbMapHandler.Commit(fMd))
-              rc = gOFS.Emsg(epname, error, EIO, "close - unable to commit meta data",
+              rc = gOFS.Emsg(epname, this->error, EIO, "close - unable to commit meta data",
                              Path.c_str());
 
             // Commit to central mgm cache
@@ -2106,7 +2119,7 @@ XrdFstOfsFile::close ()
       if (minimumsizeerror)
       {
         // Minimum size criteria not fullfilled
-        gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+        gOFS.Emsg(epname, this->error, EIO, "store file - file has been cleaned "
                   "because it is smaller than the required minimum file size"
                   " in that directory", Path.c_str());
         eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
@@ -2118,7 +2131,7 @@ XrdFstOfsFile::close ()
         if (checksumerror)
         {
           // Checksum error
-          gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+          gOFS.Emsg(epname, this->error, EIO, "store file - file has been cleaned "
                     "because of a checksum error ", Path.c_str());
           eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
                       "\"checksum error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
@@ -2128,7 +2141,7 @@ XrdFstOfsFile::close ()
           if (writeErrorFlag == kOfsSimulatedIoError)
           {
             // Simulated write error
-            gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+            gOFS.Emsg(epname, this->error, EIO, "store file - file has been cleaned "
                       "because of a simulated IO error ", Path.c_str());
             eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
                         "\"simulated IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
@@ -2138,7 +2151,7 @@ XrdFstOfsFile::close ()
             if (writeErrorFlag == kOfsMaxSizeError)
             {
               // Maximum size criteria not fullfilled
-              gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
+              gOFS.Emsg(epname, this->error, EIO, "store file - file has been cleaned "
                         "because you exceeded the maximum file size settings for "
                         "this namespace branch", Path.c_str());
               eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
@@ -2150,7 +2163,7 @@ XrdFstOfsFile::close ()
               if (writeErrorFlag == kOfsDiskFullError)
               {
                 // Disk full detected during write
-                gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned"
+                gOFS.Emsg(epname, this->error, EIO, "store file - file has been cleaned"
                           " because the target disk filesystem got full and you "
                           "didn't use reservation", Path.c_str());
                 eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
@@ -2161,7 +2174,7 @@ XrdFstOfsFile::close ()
                 if (writeErrorFlag == kOfsIoError)
                 {
                   // Generic IO error on the underlying device
-                  gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned because"
+                  gOFS.Emsg(epname, this->error, EIO, "store file - file has been cleaned because"
                             " of an IO error during a write operation", Path.c_str());
                   eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
                            "\"write IO error\"", capOpaque->Get("mgm.path"), fstPath.c_str());
@@ -2171,7 +2184,7 @@ XrdFstOfsFile::close ()
                   // Target size is different from the uploaded file size
                   if (targetsizeerror)
                   {
-                    gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                    gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
                               "cleaned because the stored file does not match "
                               "the provided targetsize", Path.c_str());
                     eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
@@ -2180,7 +2193,7 @@ XrdFstOfsFile::close ()
                   else
                   {
                     // Client has disconnected and file is cleaned-up
-                    gOFS.Emsg(epname, error, EIO, "store file - file has been "
+                    gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
                               "cleaned because of a client disconnect", Path.c_str());
                     eos_crit("info=\"deleting on close\" fn=%s fstpath=%s "
                              "reason=\"client disconnect\"", capOpaque->Get("mgm.path"),
@@ -2199,7 +2212,7 @@ XrdFstOfsFile::close ()
       {
         // Checksum error detected
         rc = SFS_ERROR;
-        gOFS.Emsg(epname, error, EIO, "verify checksum - checksum error for file fn=",
+        gOFS.Emsg(epname, this->error, EIO, "verify checksum - checksum error for file fn=",
                   capOpaque->Get("mgm.path"));
         int envlen = 0;
         eos_crit("file-xs error file=%s", capOpaque->Env(envlen));

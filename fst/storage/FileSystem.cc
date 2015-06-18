@@ -262,7 +262,8 @@ FileSystem::SyncTransactions (const char* manager)
       if (!stat(fulltransactionpath.c_str(), &buf))
       {
         XrdOucString hexfid = name->d_name;
-        const char* localprefix = GetPath().c_str();
+	std::string path = GetPath();
+        const char* localprefix = path.c_str();
         XrdOucString fstPath;
         eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                                 localprefix, fstPath);

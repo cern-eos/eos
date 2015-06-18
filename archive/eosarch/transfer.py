@@ -547,8 +547,11 @@ class Transfer(object):
                                "&eos.mtime=", dfile['mtime'],
                                "&eos.bookingsize=", dfile['size'],
                                "&eos.targetsize=", dfile['size'],
-                               "&eos.checksum=", dfile['xs'],
                                "&eos.ruid=0&eos.rgid=0"])
+
+                # If checksum 0 don't enforce it
+                if dfile['xs'] != "0":
+                    dst = ''.join([dst, "&eos.checksum=", dfile['xs']]);
 
                 # For backup we try to read as root from the source
                 if self.oper == self.config.BACKUP_OP:
@@ -556,18 +559,18 @@ class Transfer(object):
                         src = ''.join([src, "&eos.ruid=0&eos.rgid=0"])
                     else:
                         src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
+
+                    # If time window specified then select only the matching entries
+                    if (self.archive.header['twindow_type'] and
+                        self.archive.header['twindow_val']):
+                        twindow_sec = int(self.archive.header['twindow_val'])
+                        tentry_sec = int(float(dfile[self.archive.header['twindow_type']]))
+
+                        if tentry_sec < twindow_sec:
+                            continue
             else:
                 # For PUT read the files from EOS as root
                 src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
-
-            # If backup operation and time window specified then select ony the matching entries
-            if self.oper == self.config.BACKUP_OP:
-                if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
-                    twindow_sec = int(self.archive.header['twindow_val'])
-                    tentry_sec = int(float(dfile[self.archive.header['twindow_type']]))
-
-                    if tentry_sec < twindow_sec:
-                        continue
 
             self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
@@ -865,13 +868,14 @@ class Transfer(object):
         self.copy_files(None, True)
         self.update_file_access()
 
+        self.set_status("verifying")
+        check_ok, lst_failed = self.archive.verify(True)
+        self.backup_write_status(lst_failed, check_ok)
+
         # Delete empty dirs if this was a backup with a time window
         if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
             self.archive.del_empty_dirs()
 
-        self.set_status("verifying")
-        check_ok, lst_failed = self.archive.verify(True)
-        self.backup_write_status(lst_failed, check_ok)
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.backup_tx_clean()

@@ -21,12 +21,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(
+include_directories( 
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
+  ${CURL_INCLUDE_DIRS}
   ${LEVELDB_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS})
@@ -54,6 +55,8 @@ set(
   Attr.cc
   Report.cc
   ZMQ.cc
+  ShellExecutor.cc
+  ShellCmd.cc
   StringTokenizer.cc
   StringConversion.cc
   CommentLog.cc
@@ -70,6 +73,7 @@ if(MacOSX)
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
+    ${CURL_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
@@ -84,6 +88,7 @@ else()
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
+    ${CURL_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -112,12 +117,12 @@ else()
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
+    ${LEVELDB_LIBRARIES}
+    ${CURL_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
-
-  target_link_libraries(eosCommonServer ${LEVELDB_LIBRARIES})
 
   if(MICROHTTPD_FOUND)
     target_link_libraries(eosCommonServer ${MICROHTTPD_LIBRARIES})
@@ -145,6 +150,7 @@ else()
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
+    ${CURL_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})

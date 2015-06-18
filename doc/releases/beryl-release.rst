@@ -3,8 +3,167 @@
 .. index::
    single: Beryl(-Aquamarine)-Release
 
+
 Beryl Release Notes
 ===================
+
+``Version V0.3.121 Beryl-Aquamarine``
+New Features
+------------
+- support ALICE tokens in gateway transfers
+- allow to disable enforced authentication for submitted transfers
+
+Bug Fixes
+---------
+- replacing system(fork) commands with ShellCmd class fixing virtual memory and fd cloning
+
+``Version V0.3.120 Beryl-Aquamarine``
+Bug Fixes
+---------
+- symlink fixes
+- fix round-robin behaviour of scheduler for single and multi-repliace placements
+
+``Version V0.3.119 Beryl-Aquamarine``
+New Features
+------------
+- add support symbolic links for files and directories
+- add convenient short console commands for 'ln', 'info', 'mv', 'touch'
+
+``Version V0.3.118 Beryl-Aquamarine``
+
+New Features
+------------
+- add console broadcasts for important MGM messages
+
+Bug Fixes
+---------
+
+- use correct lock type (write) for merge,attr:set calls
+- resolve locking issue when new SpaceQuota objects have to be created
+- implement a fast and successfull shutdown procedure for the MGM
+- implement saveguard for the manager name configurationi in FSTs
+
+``Version V0.3.117 Beryl-Aquamarine``
+
+New Features
+------------
+- enable read-ahead in FUSE clients to boost performance (default is off - see /etc/sysconfig/eos.example)
+
+
+``Version V0.3.116 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix asynchronous egroup refresh query 
+
+``Version V0.3.115 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- reduce verbosity of eosfsd logging
+- support OC special header removing the location header from a WebDAV MOVE response
+
+Bug Fixes
+---------
+- fix temporary ro master situation when slave reloads namespace when indicated from compacted master (due to stat redirection)
+
+``Version V0.3.114 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix temporary ro master situation when slave reloads namespace when indicated from compacted master (due to stat redirection)
+
+``Version V0.3.112 Beryl-Aquamarine``
+
+New Features
+------------
+
+- add support for nested EGROUPS
+- add 'member' CLI to check egroup membership
+
+Bug Fixes
+---------
+- fix logical quota summary accounting bug
+- fix not working 'file version' command for directories with 'sys.versioning=1' configured
+- fix order violation bug in 'Drop' implementation which might lead to SEGV 
+
+``Version V0.3.111 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- redirect "file versions' to the master
+
+``Version V0.3.110 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix copy constructor of ContainerMD impacting slave following (hiding directory contents on slave)
+- fix temp std::string assignment bugs reported by valgrind
+
+``Version V0.3.109 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix timed read/write locks to use absolute times
+
+``Version V0.3.108 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- update Drain/Balancer configuration atleast every minute to allow following master/slave failover and slot reconfiguration
+
+New Features
+------------
+- support for OC-Checksum field in GET/PUT requests
+
+``Version V0.3.107 Beryl-Aquamarine``
+
+New Features
+------------
+- support for secondary group evaluation in ACLs (enable secondary groups via /etc/sysonfig/eos:export EOS_SECONDARY_GROUPS=1
+
+``Version V0.3.106 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- update MIME types to reflect most recent mappings for office types
+
+``Version V0.3.104 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix custom namespace parsing for PROPPATCH requests
+- allow 'eos cp' to copy files/dirs with $
+- fix missing unlock of quota mutex in error return path
+- fix mutex inversion in STATLS function
+
+``Version V0.3.102 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix 'attr' get' function if no attribute links are used
+- use '_attr_ls' consistently instead of directy namespace map (to enable links everywhere)
+- fix PROPPATCH response to be 'multi-status' 207
+
+``Version V0.3.101 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- avoid negative sleep times in scrub loops induced by very slow disks
+- apply ANDROID patch for chunked uploads only if 'cbox-chunked-android-issue-900' special header has been added by NGINX proxy
+- make MIME type detection case-insensitive
+
+``Version V0.3.100 Beryl-Aquamarine``
+
+New Features
+------------
+- add online compaction for directories selectable via 'ns compact' (see help)
+- support for symbolic attributes 'attr link', 'attr unlink', 'attr fold' to reduce directory memory footprint
+
+Bug Fixes
+---------
+- fix bug leading to wrong dual master detection after online compaction was running on the master
+
 ``Version V0.3.99 Beryl-Aquamarine``
 
 New Features

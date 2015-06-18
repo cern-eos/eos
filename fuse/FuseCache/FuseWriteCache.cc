@@ -340,5 +340,4 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
   }
 
   fabst->WaitFinishWrites();
-  eos_debug("writes completed fabst=%p", fabst);
 }

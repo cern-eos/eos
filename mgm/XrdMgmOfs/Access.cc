@@ -145,9 +145,22 @@ XrdMgmOfs::_access (const char *path,
     eos::ContainerMD::XAttrMap attrmap;
     if (fh || (!dh))
     {
+      std::string uri;
       // if this is a file or a not existing directory we check the access on the parent directory
-      eos_debug("path=%s", cPath.GetParentPath());
-      dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+      if (fh)
+      {
+	uri = gOFS->eosView->getUri(fh);
+      }
+      else
+      {
+	uri = cPath.GetPath();
+      }
+
+      eos::common::Path pPath(uri.c_str());
+
+      eos_debug("path=%s", pPath.GetParentPath());
+      
+      dh = gOFS->eosView->getContainer(pPath.GetParentPath());
     }
 
     permok = dh->access(vid.uid, vid.gid, mode);

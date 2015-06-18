@@ -26,4 +26,5 @@ Configuration
    configuration/quota
    configuration/recyclebin
    configuration/transfer
+   configuration/tty
 

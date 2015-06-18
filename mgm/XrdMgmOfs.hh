@@ -298,8 +298,18 @@ public:
   int mkdir (const char *dirName,
              XrdSfsMode Mode,
              XrdOucErrInfo &out_error,
-             const XrdSecEntity *client = 0,
-             const char *opaque = 0);
+             const XrdSecClientName *client = 0,
+             const char *opaque = 0)
+  {
+    return mkdir(dirName, Mode, out_error, client, 0, 0);
+  }
+
+  int mkdir (const char *dirName,
+             XrdSfsMode Mode,
+             XrdOucErrInfo &out_error,
+             const XrdSecClientName *client = 0,
+             const char *opaque = 0,
+             ino_t* outino = 0);
 
   // ---------------------------------------------------------------------------
   // create directory by vid
@@ -308,7 +318,8 @@ public:
               XrdSfsMode Mode,
               XrdOucErrInfo &out_error,
               eos::common::Mapping::VirtualIdentity &vid,
-              const char *opaque = 0);
+              const char *opaque = 0,
+              ino_t* outino = 0);
 
   //----------------------------------------------------------------------------
   //! Prepare a file (EOS does nothing, only stall/redirect if configured)
@@ -335,8 +346,8 @@ public:
             eos::common::Mapping::VirtualIdentity &vid,
             const char *opaque = 0,
             bool simulate = false,
-            bool keepversion = false, 
-	    bool lock_quota = true);
+            bool keepversion = false,
+            bool lock_quota = true);
 
   // ---------------------------------------------------------------------------
   // find files internal function
@@ -351,7 +362,7 @@ public:
              bool nofiles = false,
              time_t millisleep = 0,
              bool nscounter = true,
-	     int maxdepth = 0
+             int maxdepth = 0
              );
 
   // ---------------------------------------------------------------------------
@@ -369,8 +380,8 @@ public:
                XrdOucErrInfo &out_error,
                eos::common::Mapping::VirtualIdentity &vid,
                const char *opaque = 0,
-               bool simulate = false, 
-	       bool lock_quota = true);
+               bool simulate = false,
+               bool lock_quota = true);
 
   // ---------------------------------------------------------------------------
   // rename file
@@ -405,7 +416,58 @@ public:
                bool updateCTime = false,
                bool checkQuota = false,
                bool overwrite = false,
-	       bool lock_quota = true);
+               bool lock_quota = true);
+
+  // ---------------------------------------------------------------------------
+  // symlink file/dir
+  // ---------------------------------------------------------------------------
+  int symlink (const char *sourceName,
+               const char *targetName,
+               XrdOucErrInfo &out_error,
+               const XrdSecEntity *client = 0,
+               const char *opaqueO = 0,
+               const char *opaqueN = 0);
+
+  // ---------------------------------------------------------------------------
+  // symlink file/dir by vid
+  // ---------------------------------------------------------------------------
+  int symlink (const char *sourceName,
+               const char *targetName,
+               XrdOucErrInfo &out_error,
+               eos::common::Mapping::VirtualIdentity &vid,
+               const char *opaqueO = 0,
+               const char *opaqueN = 0,
+               bool overwrite = false);
+
+  // ---------------------------------------------------------------------------
+  // symlink file/dir by vid
+  // ---------------------------------------------------------------------------
+  int _symlink (const char *sourceName,
+                const char *targetName,
+                XrdOucErrInfo &out_error,
+                eos::common::Mapping::VirtualIdentity &vid,
+                const char *opaqueO = 0,
+                const char *opaqueN = 0);
+
+  // ---------------------------------------------------------------------------
+  // read symbolic link
+  // ---------------------------------------------------------------------------
+  int readlink (const char *name,
+                XrdOucErrInfo &out_error,
+                XrdOucString &link,
+                const XrdSecEntity *client = 0,
+                const char *info = 0
+                );
+
+  // ---------------------------------------------------------------------------
+  // read symbolic link
+  // ---------------------------------------------------------------------------
+  int _readlink (const char *name,
+                 XrdOucErrInfo &out_error,
+                 eos::common::Mapping::VirtualIdentity &vid,
+                 XrdOucString &link
+                 );
+
 
   // ---------------------------------------------------------------------------
   // stat file
@@ -415,7 +477,9 @@ public:
             XrdOucErrInfo &out_error,
             std::string* etag,
             const XrdSecEntity *client = 0,
-            const char *opaque = 0
+            const char *opaque = 0,
+            bool follow = true,
+            std::string* uri = 0
             );
 
   int stat (const char *Name,
@@ -432,7 +496,9 @@ public:
              XrdOucErrInfo &out_error,
              eos::common::Mapping::VirtualIdentity &vid,
              const char *opaque = 0,
-             std::string* etag = 0);
+             std::string* etag = 0,
+             bool follow = true,
+             std::string* uri = 0);
 
 
   // ---------------------------------------------------------------------------
@@ -541,7 +607,8 @@ public:
                 eos::common::Mapping::VirtualIdentity &vid,
                 const char *opaque,
                 eos::ContainerMD::XAttrMap &map,
-		bool lock=true);
+                bool lock = true,
+                bool links = false);
 
   // ---------------------------------------------------------------------------
   // set extended attribute by vid

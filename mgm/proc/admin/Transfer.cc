@@ -46,7 +46,7 @@ ProcCommand::Transfer ()
  XrdOucString group = pOpaque->Get("mgm.txgroup") ? pOpaque->Get("mgm.txgroup") : "";
  XrdOucString id = pOpaque->Get("mgm.txid") ? pOpaque->Get("mgm.txid") : "";
  XrdOucString option = pOpaque->Get("mgm.txoption") ? pOpaque->Get("mgm.txoption") : "";
-
+ XrdOucString noauth = pOpaque->Get("mgm.txnoauth") ? pOpaque->Get("mgm.txnoauth") : "";
  if ((mSubCmd != "submit") && (mSubCmd != "ls") && (mSubCmd != "cancel") && (mSubCmd != "enable") && (mSubCmd != "disable") && (mSubCmd != "reset") && (mSubCmd != "clear") && (mSubCmd != "resubmit") && (mSubCmd != "kill") && (mSubCmd != "log") && (mSubCmd != "purge"))
  {
    retc = EINVAL;
@@ -304,7 +304,8 @@ ProcCommand::Transfer ()
      mDoSort = false;
      return SFS_OK;
    }
-   retc = gTransferEngine.Submit(src, dst, rate, streams, group, stdOut, stdErr, *pVid, 86400, Credential, (option.find("s") != STR_NPOS) ? true : false);
+   fprintf(stderr,"submitting src=%s\n", src.c_str());
+   retc = gTransferEngine.Submit(src, dst, rate, streams, group, stdOut, stdErr, *pVid, 86400, Credential, (option.find("s") != STR_NPOS) ? true : false, (noauth=="1"));
  }
 
  if ((mSubCmd == "enable"))

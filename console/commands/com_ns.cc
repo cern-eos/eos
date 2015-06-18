@@ -40,6 +40,7 @@ com_ns (char* arg1)
   XrdOucString state;
   XrdOucString delay;
   XrdOucString interval;
+  XrdOucString compacttype;
 
   if (wants_help(arg1))
     goto com_ns_usage;
@@ -65,6 +66,7 @@ com_ns (char* arg1)
     in += state;
     delay = subtokenizer.GetToken();
     interval = subtokenizer.GetToken();
+    compacttype = subtokenizer.GetToken();
     if (delay.length())
     {
       int idelay = atoi(delay.c_str());
@@ -87,6 +89,20 @@ com_ns (char* arg1)
       }
       in += "&mgm.ns.compact.interval=";
       in += interval;
+      if (compacttype.length()) 
+      {
+	if ( (compacttype != "files") &&
+	     (compacttype != "directories") && 
+	     (compacttype != "all") )
+	  goto com_ns_usage;
+
+	in += "&mgm.ns.compact.type=";
+	in += compacttype.c_str();
+      } 
+      else
+      {
+	in += "&mgm.ns.compact.type=files";
+      }
     }
   }
 
@@ -204,8 +220,10 @@ com_ns_usage:
   fprintf(stdout, "                --smplrate10                                         -  set the timing sample rate at 10%%  (medium slow-down)\n");
   fprintf(stdout, "                --smplrate100                                        -  set the timing sample rate at 100%% (severe slow-down)\n");
 #endif
-  fprintf(stdout, "       ns compact on <delay> [<interval>]                            -  enable online compactification after <delay> seconds\n");
+  fprintf(stdout, "       ns compact on <delay> [<interval>] [<type>]                   -  enable online compactification after <delay> seconds\n");
   fprintf(stdout, "                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
+  fprintf(stdout, "                                                                     -  <type> can be 'files' 'directories' or 'all'. By default only the file changelog is compacted!\n");
+  fprintf(stdout, "                                                                     -  the repair flag can be indicated by adding '-repair': 'files-repair', 'directories-repair', 'all-repair'\n");
   fprintf(stdout, "       ns compact off                                                -  disable online compactification\n");
   fprintf(stdout, "       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
   fprintf(stdout, "       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");

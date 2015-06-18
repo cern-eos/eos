@@ -229,7 +229,8 @@ XrdMgmOfs::_attr_ls (const char *path,
                      eos::common::Mapping::VirtualIdentity &vid,
                      const char *info,
                      eos::ContainerMD::XAttrMap & map,
-		     bool lock)
+                     bool lock,
+                     bool links)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
@@ -264,7 +265,6 @@ XrdMgmOfs::_attr_ls (const char *path,
     eos::ContainerMD::XAttrMap::const_iterator it;
     for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
     {
-      XrdOucString key = it->first.c_str();
       map[it->first] = it->second;
     }
   }
@@ -278,6 +278,30 @@ XrdMgmOfs::_attr_ls (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | R_OK)))
     if (!errno)errno = EPERM;
 
+  // check for attribute references
+  if (map.count("sys.attr.link"))
+  {
+    try
+    {
+      dh = gOFS->eosView->getContainer(map["sys.attr.link"]);
+      eos::ContainerMD::XAttrMap::const_iterator it;
+      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
+      {
+        XrdOucString key = it->first.c_str();
+        if (links)
+          key.replace("sys.", "sys.link.");
+
+        if (!map.count(it->first))
+          map[key.c_str()] = it->second;
+      }
+    }
+    catch (eos::MDException &e)
+    {
+      dh = 0;
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
 
   if (lock)
     gOFS->eosViewRWMutex.UnLockRead();
@@ -423,18 +447,17 @@ XrdMgmOfs::_attr_get (const char *path,
     return Emsg(epname, error, EINVAL, "get attribute", path);
 
   value = "";
+  XrdOucString link;
 
   // ---------------------------------------------------------------------------
   if (!islocked) gOFS->eosViewRWMutex.LockRead();
   try
   {
     dh = gOFS->eosView->getContainer(path);
-    XrdOucString Key = key;
     value = (dh->getAttribute(key)).c_str();
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -443,10 +466,30 @@ XrdMgmOfs::_attr_get (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | R_OK)))
     if (!errno) errno = EPERM;
 
+  if (dh && errno && (errno != EPERM))
+  {
+    // try linked attributes
+    try
+    {
+      std::string lkey = "sys.attr.link";
+      link = (dh->getAttribute(lkey)).c_str();
+      dh = gOFS->eosView->getContainer(link.c_str());
+      value = (dh->getAttribute(key)).c_str();
+      errno = 0;
+    }
+    catch (eos::MDException &e)
+    {
+      dh = 0;
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
   if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
 
   EXEC_TIMING_END("AttrGet");
-  
+
   if (errno)
     return Emsg(epname, error, errno, "get attributes", path);
   ;
@@ -490,7 +533,7 @@ XrdMgmOfs::_attr_rem (const char *path,
     return Emsg(epname, error, EINVAL, "delete attribute", path);
 
   // ---------------------------------------------------------------------------
-  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
     dh = gOFS->eosView->getContainer(path);

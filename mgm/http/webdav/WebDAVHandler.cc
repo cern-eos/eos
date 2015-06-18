@@ -138,9 +138,9 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
     XrdSfsMode    mode = 0;
     int           rc   = 0;
     XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-
+    ino_t new_inode;
     rc = gOFS->mkdir(request->GetUrl().c_str(), mode, error,
-                     &client, (const char*) 0);
+                     &client, (const char*) 0, &new_inode);
     if (rc != SFS_OK)
     {
       if (rc == SFS_ERROR)
@@ -200,6 +200,9 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
     {
       // everything went well
       response = new eos::common::PlainHttpResponse();
+      char sinode[16];
+      snprintf(sinode, sizeof (sinode), "%llu", (unsigned long long) new_inode);
+      response->AddHeader("OC-FileId", sinode);
       response->SetResponseCode(response->CREATED);
     }
   }
@@ -369,7 +372,10 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
       // everything went well
       response = new eos::common::PlainHttpResponse();
       response->SetResponseCode(response->CREATED);
-      response->AddHeader("Location",request->GetHeaders()["destination"].c_str());
+      if (!request->GetHeaders().count("cbox-skip-location-on-move"))
+      {
+        response->AddHeader("Location", request->GetHeaders()["destination"].c_str());
+      }
     }
   }
 

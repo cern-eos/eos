@@ -59,11 +59,11 @@ XrdMgmOfsDirectory::open (const char *inpath,
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a directory object with bouncing/mapping & namespace mapping
- * 
+ *
  * @param inpath directory path to open
  * @param client XRootD authentication object
  * @param ininfo CGI
- * 
+ *
  * @return SFS_OK otherwise SFS_ERROR
  */
 /*----------------------------------------------------------------------------*/
@@ -100,13 +100,13 @@ XrdMgmOfsDirectory::open (const char *inpath,
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a directory object with bouncing & namespace mapping
- * 
+ *
  * @param dir_path directory path to open
  * @param vid EOS virtual identity
  * @param info CGI
- * 
+ *
  * @return SFS_OK otherwise SFS_ERROR
- * 
+ *
  * We create during the open the full directory listing which then is retrieved
  * via nextEntry() and cleaned up with close().
  */
@@ -130,18 +130,18 @@ XrdMgmOfsDirectory::open (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsDirectory::_open (const char *dir_path,
-                          eos::common::Mapping::VirtualIdentity &vid,
-                          const char *info)
+                           eos::common::Mapping::VirtualIdentity &vid,
+                           const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a directory object (without bouncing/mapping)
- * 
+ *
  * @param dir_path directory path to open
  * @param vid EOS virtual identity
  * @param info CGI
- * 
+ *
  * @return SFS_OK otherwise SFS_ERROR
- * 
+ *
  * We create during the open the full directory listing which then is retrieved
  * via nextEntry() and cleaned up with close().
  */
@@ -176,16 +176,19 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
     if (!permok)
     {
       // get attributes
-      eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+      gOFS->_attr_ls(cPath.GetPath(),
+                     error,
+                     vid,
+                     0,
+                     attrmap,
+                     false,
+                     true);
+
       // ACL and permission check
       Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), 
+              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
               vid,
-	      attrmap.count("sys.eval.useracl"));
+              attrmap.count("sys.eval.useracl"));
 
       eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -206,16 +209,16 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
       // add all the files
       for (dh_files = dh->filesBegin(); dh_files != dh->filesEnd(); dh_files++)
       {
-        // 
+        //
         dh_list.insert(dh_files->first);
       }
 
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
 
-      for (dh_dirs = dh->containersBegin(); 
-           dh_dirs != dh->containersEnd(); 
-           dh_dirs++)
+      for (dh_dirs = dh->containersBegin();
+              dh_dirs != dh->containersEnd();
+              dh_dirs++)
       {
         dh_list.insert(dh_dirs->first);
       }
@@ -240,9 +243,9 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
   if (dh)
   {
     eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-              vid.uid, vid.gid, (dh->access(vid.uid, 
-                                            vid.gid, 
-                                            R_OK | X_OK)), 
+              vid.uid, vid.gid, (dh->access(vid.uid,
+                                            vid.gid,
+                                            R_OK | X_OK)),
               dh->getMode());
   }
 
@@ -275,9 +278,9 @@ XrdMgmOfsDirectory::nextEntry ()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief read the next directory entry
- * 
+ *
  * @return name of the next directory entry
- * 
+ *
  * Upon success, returns the contents of the next directory entry as
  * a null terminated string. Returns a null pointer upon EOF or an
  * error. To differentiate the two cases, getErrorInfo will return
@@ -296,14 +299,13 @@ XrdMgmOfsDirectory::nextEntry ()
   return tmp_it->c_str();
 }
 
-
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfsDirectory::close ()
 /*----------------------------------------------------------------------------*/
 /*
  * @brief close a directory object
- * 
+ *
  * @return SFS_OK
  */
 /*----------------------------------------------------------------------------*/

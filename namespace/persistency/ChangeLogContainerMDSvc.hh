@@ -53,7 +53,7 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pQuotaStats( 0 )
+        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
@@ -141,6 +141,48 @@ namespace eos
       virtual void addChangeListener( IContainerMDChangeListener *listener );
 
       //------------------------------------------------------------------------
+      //! Prepare for online compacting.
+      //!
+      //! No external file metadata mutation may occur while the method is
+      //! running.
+      //!
+      //! @param  newLogFileName name for the compacted log file
+      //! @return                compacting information that needs to be passed
+      //!                        to other functions
+      //! @throw  MDException    preparation stage failed, cannot proceed with
+      //!                        compacting
+      //------------------------------------------------------------------------
+      void *compactPrepare (const std::string &newLogFileName) const
+        throw ( MDException);
+
+      //------------------------------------------------------------------------
+      //! Do the compacting.
+      //!
+      //! This does not access any of the in-memory structures so any external
+      //! metadata operations (including mutations) may happen while it is
+      //! running.
+      //!
+      //! @param  compactingData state information returned by CompactPrepare
+      //! @throw  MDException    failure, cannot proceed with CompactCommit
+      //------------------------------------------------------------------------
+      static void compact (void *&compactingData) throw ( MDException);
+
+      //------------------------------------------------------------------------
+      //! Commit the compacting infomrmation.
+      //!
+      //! Updates the metadata structures. Needs an exclusive lock on the
+      //! namespace. After successfull completion the new compacted
+      //! log will be used for all the new data
+      //!
+      //! @param compactingData state information obtained from CompactPrepare
+      //!                       and modified by Compact
+      //! @param autorepair     indicates to skip broken records
+      //! @throw MDExcetion     failure, results of the compacting are
+      //!                       are discarded, the old log will be used for
+      //------------------------------------------------------------------------
+      void compactCommit (void *compactingData, bool autorepair=false) throw ( MDException);
+
+      //------------------------------------------------------------------------
       //! Register slave lock
       //------------------------------------------------------------------------
       void setSlaveLock( LockHandler *slaveLock )
@@ -154,6 +196,14 @@ namespace eos
       LockHandler *getSlaveLock()
       {
         return pSlaveLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! get slave mode
+      //------------------------------------------------------------------------
+      bool getSlaveMode() 
+      {
+        return pSlaveMode;
       }
 
       //------------------------------------------------------------------------
@@ -304,6 +354,7 @@ namespace eos
       int32_t            pSlavePoll;
       uint64_t           pFollowStart;
       QuotaStats        *pQuotaStats;
+      bool               pAutoRepair;
   };
 }
 

@@ -145,12 +145,16 @@ Scheduler::FilePlacement (const char* path, //< path to place
     if (schedulingGroup.count(indextag))
     {
       git = FsView::gFsView.mSpaceGroupView[spacename].find(schedulingGroup[indextag]);
+      schedulingGroup[indextag] = *git;
     }
     else
     {
       git = FsView::gFsView.mSpaceGroupView[spacename].begin();
       schedulingGroup[indextag] = *git;
     }
+    git++;
+    if (git ==  FsView::gFsView.mSpaceGroupView[spacename].end())
+      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
     schedulingMutex.UnLock();
   }
 

@@ -114,6 +114,7 @@ ConverterJob::DoIt ()
       mSourcePath = gOFS->eosView->getUri(fmd);
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd));
       // load the extended attributes
       eos::ContainerMD::XAttrMap::const_iterator it;
       for (it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it)

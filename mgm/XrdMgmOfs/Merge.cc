@@ -50,7 +50,6 @@ XrdMgmOfs::merge (
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
 
-  eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
   eos::FileMD* src_fmd = 0;
   eos::FileMD* dst_fmd = 0;
 
@@ -61,32 +60,36 @@ XrdMgmOfs::merge (
 
   std::string src_path = src;
   std::string dst_path = dst;
-  try
-  {
-    src_fmd = gOFS->eosView->getFile(src_path);
-    dst_fmd = gOFS->eosView->getFile(dst_path);
 
-    // -------------------------------------------------------------------------
-    // inherit some core meta data, the checksum must be right by construction,
-    // so we don't copy it
-    // -------------------------------------------------------------------------
-
-    // inherit the previous ownership
-    src_fmd->setCUid(dst_fmd->getCUid());
-    src_fmd->setCGid(dst_fmd->getCGid());
-    // inherit the creation time
-    eos::FileMD::ctime_t ctime;
-    dst_fmd->getCTime(ctime);
-    src_fmd->setCTime(ctime);
-    // change the owner of the source file
-    eosView->updateFileStore(src_fmd);
-  }
-  catch (eos::MDException &e)
   {
-    errno = e.getErrno();
-    eos_debug("caught exception %d %s\n",
-              e.getErrno(),
-              e.getMessage().str().c_str());
+    eos::common::RWMutexWriteLock(gOFS->eosViewRWMutex);
+    try
+    {
+      src_fmd = gOFS->eosView->getFile(src_path);
+      dst_fmd = gOFS->eosView->getFile(dst_path);
+      
+      // -------------------------------------------------------------------------
+      // inherit some core meta data, the checksum must be right by construction,
+      // so we don't copy it
+      // -------------------------------------------------------------------------
+      
+      // inherit the previous ownership
+      src_fmd->setCUid(dst_fmd->getCUid());
+      src_fmd->setCGid(dst_fmd->getCGid());
+      // inherit the creation time
+      eos::FileMD::ctime_t ctime;
+      dst_fmd->getCTime(ctime);
+      src_fmd->setCTime(ctime);
+      // change the owner of the source file
+      eosView->updateFileStore(src_fmd);
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+      eos_debug("caught exception %d %s\n",
+		e.getErrno(),
+		e.getMessage().str().c_str());
+    }
   }
 
   int rc = SFS_OK;

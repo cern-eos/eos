@@ -968,7 +968,7 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
               stdOut += "\n";
               XrdMqMessage repmessage("fsck reply message");
               repmessage.SetBody(stdOut.c_str());
-	      repmessage.MarkAsMonitor();
+              repmessage.MarkAsMonitor();
 
               if (!XrdMqMessaging::gMessageClient.ReplyMessage(repmessage, *message))
                 eos_err("unable to send fsck reply message to %s", message->kMessageHeader.kSenderId.c_str());
@@ -1439,9 +1439,27 @@ XrdFstOfs::chksum (XrdSfsFileSystem::csFunc Func,
                    XrdOucErrInfo &error,
                    const XrdSecEntity *client,
                    const char *ininfo)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief retrieve a checksum
+ * 
+ * @param func function to be performed 'csCalc','csGet' or 'csSize'
+ * @param csName name of the checksum
+ * @param error error object
+ * @param client XRootD authentication object
+ * @param ininfo CGI
+ * @return SFS_OK on success otherwise SFS_ERROR
+ * 
+ * We publish checksums on the MGM
+ */
+/*----------------------------------------------------------------------------*/
 {
   int ecode = 1094;
-  XrdOucString RedirectManager = eos::fst::Config::gConfig.Manager;
+  XrdOucString RedirectManager;
+  {
+    XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+    RedirectManager = eos::fst::Config::gConfig.Manager;
+  }
   int pos = RedirectManager.find(":");
   if (pos!=STR_NPOS)
     RedirectManager.erase(pos);

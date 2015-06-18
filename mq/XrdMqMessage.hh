@@ -112,14 +112,21 @@ protected:
 
 public:
 
-  static const char*   Seal(XrdOucString &s, const char* seal="#and#") {  while (s.replace("&",seal)) {}; return s.c_str();}
-  static const char* UnSeal(XrdOucString &s, const char* seal="#and#") {  while (s.replace(seal,"&")) {}; return s.c_str();}
+  static const char* Seal(XrdOucString &s, const char* seal="#and#")
+  {
+    while (s.replace("&",seal)) {};
+    return s.c_str();
+  }
+
+  static const char* UnSeal(XrdOucString &s, const char* seal="#and#")
+  {
+    while (s.replace(seal,"&")) {};
+    return s.c_str();
+  }
+
   static void Sort(XrdOucString &s, bool dosort=true);
-
-
   static bool Base64Encode(char* in, unsigned int inlen, XrdOucString &fout);
   static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
-
   static bool CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, char* key); // key length is SHA_DIGEST_LENGTH
   static bool CipherDecrypt(char* in, unsigned int inlen, XrdOucString &out, char* key);    // key length is SHA_DIGEST_LENGHT
 

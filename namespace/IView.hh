@@ -89,7 +89,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *getFile( const std::string &uri ) throw( MDException ) = 0;
+      virtual FileMD *getFile( const std::string &uri, bool follow = true, size_t* link_depths = 0 ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Update file store
@@ -104,10 +104,24 @@ namespace eos
         throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
+      //! Create a link for given uri
+      //------------------------------------------------------------------------
+      virtual void createLink( const std::string &uri,
+			       const std::string &linkuri,
+			       uid_t uid = 0, gid_t gid = 0 )
+        throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
       //! Remove the file - the pointer is not valid any more once the call
       //! returns
       //------------------------------------------------------------------------
       virtual void removeFile( FileMD *file ) throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Remove a link
+      //! returns
+      //------------------------------------------------------------------------
+      virtual void removeLink( const std::string &uri ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
       //! Remove the file from the hierarchy so that it won't be accessible
@@ -120,7 +134,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual ContainerMD *getContainer( const std::string &uri )
+      virtual ContainerMD *getContainer( const std::string &uri, bool follow = true, size_t* link_depths = 0)
         throw( MDException )= 0;
 
       //------------------------------------------------------------------------

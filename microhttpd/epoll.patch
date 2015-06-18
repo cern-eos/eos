@@ -1,5 +1,18 @@
---- a/src/microhttpd/daemon.c	2014-06-30 10:39:38.000000000 +0200
-+++ b/src/microhttpd/daemon.c	2014-06-30 10:39:38.000000000 +0200
+--- a/src/microhttpd/daemon.c   2014-06-30 10:39:38.000000000 +0200
++++ b/src/microhttpd/daemon.c   2014-06-30 10:39:38.000000000 +0200
+@@ -1802,10 +1802,10 @@ MHD_accept_connection (struct MHD_Daemon
+ #if HAVE_MESSAGES
+       const int err = MHD_socket_errno_;
+       /* This could be a common occurance with multiple worker threads */
+-      if ((EAGAIN != err) && (EWOULDBLOCK != err))
++      /*      if ((EAGAIN != err) && (EWOULDBLOCK != err))
+         MHD_DLOG (daemon,
+ 		  "Error accepting connection: %s\n",
+-		  MHD_socket_last_strerr_ ());
++		  MHD_socket_last_strerr_ ());*/
+ #endif
+       if (MHD_INVALID_SOCKET != s)
+         {
 @@ -3231,7 +3231,12 @@ setup_epoll_to_listen (struct MHD_Daemon
  {
    struct epoll_event event;

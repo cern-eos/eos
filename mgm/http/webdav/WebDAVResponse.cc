@@ -87,7 +87,7 @@ WebDAVResponse::ParseNamespaces ()
         // split off the xmlns:<ns> (if any)
         int colon = 0;
         if ((colon = attributeName.find(':')) != STR_NPOS)
-          ns = std::string(std::string(attributeName.c_str()) + ":", colon + 1);
+          ns = std::string(std::string(attributeName.c_str()), colon + 1);
 
         eos_static_debug("namespace=\"%s\"", ns != "" ? ns.c_str() : "default");
 
@@ -115,7 +115,12 @@ WebDAVResponse::GetNode (rapidxml::xml_node<> *node, const char *name)
   {
     for (auto it = mDAVNamespaces.begin(); it != mDAVNamespaces.end(); ++it)
     {
-      std::string full(it->first + name);
+      std::string full(it->first);
+      if (full.length()) {
+	// empty namespaces do not requre a ':'
+	full += ":";
+      }
+      full += name;
       eos_static_debug("namespace=\"%s\" child=\"%s\"", full.c_str(), child->name());
       if (std::string(child->name()) == full)
         return child;

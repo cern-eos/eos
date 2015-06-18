@@ -179,25 +179,29 @@ Messaging::Update (XrdAdvisoryMqMessage* advmsg)
 void
 Messaging::Listen ()
 {
+
   while (1)
   {
-    XrdSysThread::SetCancelOff();
+    XrdSysThread::SetCancelOn();
     //eos_static_debug("RecvMessage");
     XrdMqMessage* newmessage = XrdMqMessaging::gMessageClient.RecvMessage();
+    XrdSysThread::CancelPoint();
     //    if (newmessage) newmessage->Print();  
-
+    XrdSysThread::SetCancelOff();
     if (newmessage)
     {
       Process(newmessage);
       delete newmessage;
+      XrdSysThread::SetCancelOn();
+      XrdSysThread::CancelPoint();
     }
     else
     {
+    XrdSysThread::SetCancelOn();
+    XrdSysThread::CancelPoint();
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }
-    XrdSysThread::SetCancelOn();
-    XrdSysThread::CancelPoint();
   }
 }
 

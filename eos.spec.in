@@ -27,18 +27,21 @@ BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
+BuildRequires: libcurl-devel libcurl
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 BuildRequires: protobuf >= 2.3.0
 BuildRequires: protobuf-devel >= 2.3.0
 BuildRequires: krb5-devel >= 1.6.1
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
-BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static, sparsehash-devel
-BuildRequires: zeromq3 zeromq3-devel
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
+%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel,zeromq3,zeromq3-devel
+%else
+BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash,zeromq,zeromq-devel
+%endif
 %else
 BuildRequires: gcc44, gcc44-c++, sparsehash
-BuildRequires: zeromq zeromq-devel
 %endif
 
 %description
@@ -51,17 +54,18 @@ Summary: The EOS server installation
 Group: Applications/File
 Requires: xrootd
 Requires: xrootd-client
-Requires: eos-client
-Requires: libmicrohttpd
-Requires: acl
-Requires: gdb
-Requires: leveldb
-
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0}
+%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
 Requires: zeromq3
 %else
 Requires: zeromq
 %endif
+Requires: eos-client
+Requires: libmicrohttpd
+Requires: acl
+Requires: gdb
+Requires: zeromq
+%endif
+Requires: libcurl
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
@@ -98,6 +102,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eoshapl
 /usr/sbin/eosfilesync
 /usr/sbin/eosdirsync
+/usr/sbin/eos-tty-broadcast
 /usr/lib64/libeosCommonServer.so.%{version}
 /usr/lib64/libeosCommonServer.so.0
 /usr/lib64/libeosCommonServer.so

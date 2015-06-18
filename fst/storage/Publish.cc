@@ -25,7 +25,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "common/LinuxStat.hh"
-#include "common/CloExec.hh"
+#include "common/ShellCmd.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -44,8 +44,9 @@ Storage::Publish ()
   char* tmpname = tmpnam(NULL);
   XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
   getnetspeed += tmpname;
-  int rc = system(getnetspeed.c_str());
-  if (WEXITSTATUS(rc)) 
+  eos::common::ShellCmd scmd1(getnetspeed.c_str());
+  eos::common::cmd_status rc = scmd1.wait(5);
+  if (rc.exit_code) 
   {
     eos_static_err("ip route list call failed to get netspeed");
   }
@@ -91,17 +92,20 @@ Storage::Publish ()
       // ---------------------------------------------------------------------
       XrdOucString uptime = "uptime | tr -d \"\n\" > ";
       uptime += tmpname;
-      //      eos::common::CloExec::All();
-      int rc = system(uptime.c_str());
-      if (WEXITSTATUS(rc))
+
+      eos::common::ShellCmd scmd2(uptime.c_str());
+      rc = scmd2.wait(5);
+      if (rc.exit_code)
       {
         eos_static_err("retrieve uptime call failed");
       }
       eos::common::StringConversion::LoadFileIntoString(tmpname, publish_uptime);
       XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" >";
       sockets += tmpname;
-      rc = system(sockets.c_str());
-      if (WEXITSTATUS(rc))
+
+      eos::common::ShellCmd scmd3(sockets.c_str());
+      rc = scmd3.wait(5);
+      if (rc.exit_code)
       {
         eos_static_err("retrieve #socket call failed");
       }

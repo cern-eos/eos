@@ -156,20 +156,25 @@ public:
     uuid_t uuid;
     uuid_generate_time(uuid);
     uuid_unparse(uuid, suuid);
-    atomicPath = GetParentPath();
-    if (!versioning)
-      atomicPath += EOS_COMMON_PATH_ATOMIC_FILE_PREFIX;
-    else
-      atomicPath += EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX;
-    atomicPath += GetName();
-    atomicPath += ".";
-
-    // for chunk paths we have to use the same UUID for all chunks
-    if (!externuuid.length())
-      atomicPath += suuid;
-    else
-      atomicPath += externuuid;
-
+    // skip modification of already atomic paths
+    if (!lastPath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) 
+    {  
+      atomicPath = GetParentPath();
+      if (!versioning)
+	atomicPath += EOS_COMMON_PATH_ATOMIC_FILE_PREFIX;
+      else
+	atomicPath += EOS_COMMON_PATH_ATOMIC_FILE_VERSION_PREFIX;
+      atomicPath += GetName();
+      atomicPath += ".";
+      
+      // for chunk paths we have to use the same UUID for all chunks
+      if (!externuuid.length())
+	atomicPath += suuid;
+      else
+	atomicPath += externuuid;
+    } else {
+      atomicPath = GetPath();
+    }
     return atomicPath.c_str();
   }
 
