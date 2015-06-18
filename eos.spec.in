@@ -27,7 +27,11 @@ BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
 BuildRequires: libcurl-devel libcurl
+%else
+BuildRequires: curl-devel curl
+%endif
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 BuildRequires: protobuf >= 2.3.0
@@ -41,7 +45,7 @@ BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehas
 BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash,zeromq,zeromq-devel
 %endif
 %else
-BuildRequires: gcc44, gcc44-c++, sparsehash
+BuildRequires: gcc44,gcc44-c++,sparsehash,uuid,uuid-devel,openssl,openssl-devel,ncurses,ncurses-devel,zlib,zlib-devel,zeromq,zeromq-devel
 %endif
 
 %description
