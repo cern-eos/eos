@@ -27,7 +27,11 @@ BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprog
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
 BuildRequires: libcurl-devel libcurl
+%else
+BuildRequires: curl-devel curl
+%endif
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
 
