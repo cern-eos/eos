@@ -137,15 +137,16 @@ protected:
 /*----------------------------------------------------------------------------*/
 inline void _testLvDbError_(const leveldb::Status &s, void* _this, const char* __file, int __line)
 {
-  if(LvDbInterfaceBase::pAbortOnLvDbError && !s.ok() )
+  if(!s.ok())
   {
-    //fprintf(stderr," LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
-    eos_static_emerg(" LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
-    //exit(1);
-    abort();
+    if(LvDbInterfaceBase::pAbortOnLvDbError)
+    {
+      eos_static_emerg(" LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
+      abort();
+    }
+    else
+      eos_static_err(" LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
   }
-  else
-    eos_static_err(" LevelDb Error in %s at line %d involving object %p : %s\n",__file,__line,_this,s.ToString().c_str());
 }
 #define TestLvDbError(s,_this) _testLvDbError_(s,_this,__FILE__,__LINE__);
 /*----------------------------------------------------------------------------*/
