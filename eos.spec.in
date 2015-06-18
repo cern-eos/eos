@@ -64,7 +64,6 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
-%endif
 Requires: libcurl
 
 %description -n eos-server
