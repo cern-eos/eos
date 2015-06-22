@@ -204,7 +204,7 @@ public:
   std::map<eos::common::FileSystem::fsid_t, bool> fileSystemFullWarnMap; // map indicating if a filesystem has less than (headroom) space free (disables drain + balancing)
 
   //  static int HasStatfsChanged(const char* key, FileSystem* filesystem, void* arg);
-  int ScrubFs (const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id);
+  int ScrubFs (const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id, bool direct_io);
 
   Storage (const char* metadirectory);
 
