@@ -110,7 +110,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual FileMD *getFile( const std::string &uri ) throw( MDException );
+      virtual FileMD *getFile( const std::string &uri, bool follow=true, size_t* link_depths=0 ) throw( MDException );
 
       //------------------------------------------------------------------------
       //! Create a file for given uri
@@ -120,12 +120,26 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Create a link for given uri
+      //------------------------------------------------------------------------
+      virtual void createLink( const std::string &uri,
+			       const std::string &linkuri,
+			       uid_t uid = 0, gid_t gid = 0 )
+        throw( MDException );
+
+      //------------------------------------------------------------------------
       //! Update file store
       //------------------------------------------------------------------------
       virtual void updateFileStore( FileMD *file ) throw( MDException )
       {
         pFileSvc->updateStore( file );
       }
+
+      //------------------------------------------------------------------------
+      //! Remove a link
+      //------------------------------------------------------------------------
+      virtual void removeLink( const std::string &uri )
+        throw( MDException );
 
       //------------------------------------------------------------------------
       //! Unlink the file
@@ -141,7 +155,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual ContainerMD *getContainer( const std::string &uri )
+      virtual ContainerMD *getContainer( const std::string &uri , bool follow = true, size_t* link_depth=0)
         throw( MDException );
 
       //------------------------------------------------------------------------
@@ -230,7 +244,8 @@ namespace eos
 
     private:
       ContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
-                                      size_t &index );
+                                      size_t &index,
+				      size_t* link_depths = 0);
       void cleanUpContainer( ContainerMD *cont );
 
       //------------------------------------------------------------------------

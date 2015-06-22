@@ -69,6 +69,7 @@ public:
   mFilePath (""),
   mLastUrl (""),
   mType ("FileIo")
+  mLastErrMsg("")
   {
     //empty
   }
@@ -391,6 +392,21 @@ protected:
   std::string mFilePath; ///< path to current physical file
   std::string mLastUrl; ///< last used url if remote file
   std::string mType; ///< type
+
+  //--------------------------------------------------------------------------
+  //! Get last error message
+  //--------------------------------------------------------------------------
+  const std::string&
+  GetLastErrMsg ()
+  {
+    return mLastErrMsg;
+  }
+
+protected:
+
+  std::string mFilePath; ///< path to current physical file
+  std::string mLastUrl;  ///< last used url if remote file
+  std::string mLastErrMsg; ///< last error stored
 };
 
 EOSFSTNAMESPACE_END

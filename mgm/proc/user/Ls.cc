@@ -73,14 +73,18 @@ ProcCommand::Ls ()
     }
 
     XrdOucString ls_file;
+    std::string uri;
 
-    if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0))
+    if (gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0, true, &uri))
     {
       stdErr = mError->getErrText();
       retc = errno;
     }
     else
     {
+      // put the resolved uri path
+      spath = uri.c_str();
+
       // if this is a directory open it and list
       if (S_ISDIR(buf.st_mode) && ((option.find("d")) == STR_NPOS))
       {
@@ -180,7 +184,7 @@ ProcCommand::Ls ()
             {
             }
             struct stat buf;
-            if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0))
+            if (gOFS->_stat(statpath.c_str(), &buf, *mError, *pVid, (const char*) 0, 0, false))
             {
               stdErr += "error: unable to stat path ";
               stdErr += statpath;
@@ -254,11 +258,25 @@ ProcCommand::Ls ()
                 stdOut += lsline;
               }
 
-              sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s\n", modestr, (int) buf.st_nlink,
+              sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr, (int) buf.st_nlink,
                       suid.c_str(), sgid.c_str(), eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size), t_creat, val, dirmarker.c_str());
               if ((option.find("l")) != STR_NPOS)
+	      {
                 stdOut += lsline;
-
+		if (S_ISLNK(buf.st_mode)) 
+		{
+		  stdOut += " -> ";
+		  XrdOucString link;
+		  if (!gOFS->_readlink(statpath.c_str(), *mError, *pVid, link)) {
+		    stdOut += link.c_str();
+		  } 
+		  else 
+		  {
+		    stdOut += "( error )\n";
+		  }
+		}
+		stdOut += "\n";
+	      }
               else
               {
                 stdOut += val;

@@ -287,9 +287,8 @@ ReplicaParLayout::~ReplicaParLayout ()
 //------------------------------------------------------------------------------
 
 int64_t
-ReplicaParLayout::Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length)
+ReplicaParLayout::Read (XrdSfsFileOffset offset, char* buffer,
+                        XrdSfsXferSize length, bool readahead)
 {
   int64_t rc = 0;
 

@@ -1469,7 +1469,11 @@ XrdFstOfs::chksum (XrdSfsFileSystem::csFunc Func,
 /*----------------------------------------------------------------------------*/
 {
   int ecode = 1094;
-  XrdOucString RedirectManager = eos::fst::Config::gConfig.Manager;
+  XrdOucString RedirectManager;
+  {
+    XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+    RedirectManager = eos::fst::Config::gConfig.Manager;
+  }
   int pos = RedirectManager.find(":");
   if (pos!=STR_NPOS)
     RedirectManager.erase(pos);

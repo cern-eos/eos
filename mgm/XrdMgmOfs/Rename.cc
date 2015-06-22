@@ -372,6 +372,12 @@ XrdMgmOfs::_rename (const char *old_name,
       {
 	dir = eosView->getContainer(oPath.GetParentPath());
 	newdir = eosView->getContainer(nPath.GetParentPath());
+	// translate both parths to paths without symlinks
+	std::string duri = eosView->getUri(dir);
+	std::string newduri = eosView->getUri(newdir);
+	// get symlink-free dir's
+	dir = eosView->getContainer(duri);
+	newdir = eosView->getContainer(newduri);
 	if (renameFile)
 	{
 	  if (oP == nP)

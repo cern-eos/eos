@@ -80,6 +80,8 @@ start() {
 	export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
         export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
         export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
+        export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
+        export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
 
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
 	  FUSE_OPT="big_writes,"${FUSE_OPT-""}
@@ -120,6 +122,8 @@ start() {
             echo "EOS_FUSE_EXEC             : ${EOS_FUSE_EXEC}"
             echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
             echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}" 
+            echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
+            echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
 	else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'

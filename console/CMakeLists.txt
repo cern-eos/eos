@@ -59,13 +59,17 @@ add_executable( eos
 		commands/com_fsck.cc
 		commands/com_fuse.cc
 		commands/com_group.cc
+		commands/com_info.cc
 		commands/com_io.cc
 		commands/com_json.cc
 		commands/com_license.cc 
+		commands/com_ln.cc 
 		commands/com_ls.cc 
 		commands/com_map.cc 
+		commands/com_member.cc 
 		commands/com_mkdir.cc 
 		commands/com_motd.cc 
+		commands/com_mv.cc 
 		commands/com_node.cc
 		commands/com_ns.cc    
 		commands/com_print.cc 
@@ -83,6 +87,7 @@ add_executable( eos
 		commands/com_stat.cc
 		commands/com_test.cc 
 		commands/com_timing.cc
+		commands/com_touch.cc 
 		commands/com_transfer.cc 
 		commands/com_version.cc 
 		commands/com_vid.cc 

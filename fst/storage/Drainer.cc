@@ -341,6 +341,7 @@ Storage::Drainer ()
   unsigned long long totalexecuted = 0;
   unsigned int cycler = 0;
   bool noDrainer = false;
+  time_t last_config_update = 0;
 
   XrdSysTimer sleeper;
 
@@ -352,6 +353,8 @@ Storage::Drainer ()
 
   while (1)
   {
+    time_t now = time(NULL);
+
     // -------------------------------------------------------------------------
     // -- 1 --
     // a drain round
@@ -371,8 +374,19 @@ Storage::Drainer ()
     while (!nparalleltx) 
     {      
       GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      last_config_update = time(NULL);
       XrdSysTimer sleeper;
       sleeper.Snooze(10);
+    }
+
+    // -------------------------------------------------------------------------
+    // -- U --
+    // update the config atlast every minute
+    // -------------------------------------------------------------------------
+    if (!last_config_update || ( ((long long)now-(long long)last_config_update) > 60) )
+    {
+      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      last_config_update = now;
     }
 
     // -------------------------------------------------------------------------

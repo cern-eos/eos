@@ -93,6 +93,8 @@ XrdSysMutex environmentmutex;
 XrdSysMutex connectionIdMutex;
 int connectionId = 0;
 
+bool do_rdahead = false; ///< true if readahead is to be enabled, otherwise false
+std::string rdahead_window = "131072"; ///< size of the readahead window
 int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
 int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
 bool fuse_exec = false; ///< indicates if files should be make exectuble
@@ -662,7 +664,7 @@ xrd_generate_fd ()
   }
   else
   {
-    eos_static_err("error=no more file descirptors available.");
+    eos_static_err("no more file descirptors available.");
     retc = -1;
   }
 
@@ -717,7 +719,7 @@ xrd_add_fd2file (eos::fst::Layout* raw_file,
     }
     else
     {
-      eos_static_err("error=error while getting file descriptor");
+      eos_static_err("error while getting file descriptor");
       delete raw_file;
     }
   }
@@ -1333,7 +1335,7 @@ xrd_stat (const char* path,
   }
   else
   {
-    eos_static_err("error=status is NOT ok");
+    eos_static_err("status is NOT ok");
     errno = EFAULT;
   }
 
@@ -1609,6 +1611,148 @@ xrd_utimes (const char* path,
 }
 
 
+//----------------------------------------------------------------------------                                                                                                                
+//!                                                                                                                                                                                           
+//----------------------------------------------------------------------------                                                                                                                
+
+int 
+xrd_symlink(const char* path,
+	    const char* link,
+	    uid_t uid,
+	    gid_t gid,
+	    pid_t pid)
+{
+  eos_static_info("path=%s link=%s uid=%u pid=%u", path, link, uid, pid);
+  eos::common::Timing symlinktiming("xrd_symlink");
+  COMMONTIMING("START", &symlinktiming);
+
+  int retc = 0;
+  std::string request;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=symlink&target=";
+  XrdOucString savelink = link;
+  while (savelink.replace("&", "#AND#")){}
+  request += savelink.c_str();
+  arg.FromString(request);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  XrdCl::FileSystem fs(Url);
+
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
+                                        arg, response);
+
+  COMMONTIMING("STOP", &symlinktiming);
+  errno = 0;
+
+  if (EOS_LOGS_DEBUG)
+    symlinktiming.Print();
+
+  if (status.IsOK())
+  {
+    char tag[1024];
+    // Parse output
+    int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+
+    if (EOS_LOGS_DEBUG)
+      fprintf(stderr, "symlink-retc=%d\n", retc);
+
+    if ((items != 2) || (strcmp(tag, "symlink:")))
+      errno = EFAULT;
+    else
+      errno = retc;
+  }
+  else
+    errno = EFAULT;
+
+  delete response;
+  return errno;
+}
+
+//----------------------------------------------------------------------------                                                                                                                
+//!                                                                                                                                                                                           
+//----------------------------------------------------------------------------                                                                                                                
+
+int 
+xrd_readlink(const char* path,
+	     char* buf,
+	     size_t bufsize,
+	     uid_t uid,
+	     gid_t gid,
+	     pid_t pid)
+{
+  eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
+  eos::common::Timing readlinktiming("xrd_readlink");
+  COMMONTIMING("START", &readlinktiming);
+  int retc = 0;
+  std::string request;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  request = path;
+  request += "?";
+  request += "mgm.pcmd=readlink";
+  arg.FromString(request);
+
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
+  XrdCl::FileSystem fs(Url);
+  XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
+                                        arg, response);
+  COMMONTIMING("END", &readlinktiming);
+  errno = 0;
+
+  if (EOS_LOGS_DEBUG)
+    readlinktiming.Print();
+
+  if (status.IsOK())
+  {
+    char tag[1024];
+
+    if (!response->GetBuffer())
+    {
+      delete response;
+      errno = EFAULT;
+      return errno;
+    }
+
+    // Parse output
+    int items = sscanf(response->GetBuffer(), "%s retc=%d %*s", tag, &retc);
+
+    if (EOS_LOGS_DEBUG)
+      fprintf(stderr, "readlink-retc=%d\n", retc);
+
+    if ((items != 2) || (strcmp(tag, "readlink:")))
+      errno = EFAULT;
+    else
+      errno = retc;
+
+    if (!errno) {
+      const char* rs = strchr(response->GetBuffer(),'=');
+      if (rs) 
+      {
+	const char* ss = strchr(rs,' ');
+	if (ss) 
+	{
+	  snprintf(buf,bufsize,"%s", ss+1);
+	}
+	else
+	{
+	  errno = EBADE;
+	}
+      }
+      else
+      {
+	errno = EBADE;
+      }
+    }
+  }
+  else
+    errno = EFAULT;
+
+  delete response;
+  return errno;
+}
+
 //------------------------------------------------------------------------------
 // It returns -ENOENT if the path doesn't exist, -EACCESS if the requested
 // permission isn't available, or 0 for success. Note that it can be called
@@ -1711,7 +1855,7 @@ xrd_inodirlist (unsigned long long dirinode,
 
   if (!status.IsOK())
   {
-    eos_static_err("error=got an error to request.");
+    eos_static_err("got an error to request.");
     delete file;
     errno = ENOENT;
     return errno;
@@ -1761,7 +1905,7 @@ xrd_inodirlist (unsigned long long dirinode,
 
     if ((items != 2) || (strcmp(tag, "inodirlist:")))
     {
-      eos_static_err("error=got an error(1).");
+      eos_static_err("got an error(1).");
       free(value);
       xrd_unlock_w_dirview(); // <=
       xrd_dirview_delete((unsigned long long) dirinode);
@@ -1779,7 +1923,7 @@ xrd_inodirlist (unsigned long long dirinode,
 
       if (items != 2)
       {
-        eos_static_err("error=got an error(2).");
+        eos_static_err("got an error(2).");
         free(value);
         xrd_unlock_w_dirview(); // <=
         xrd_dirview_delete((unsigned long long) dirinode);
@@ -1931,7 +2075,16 @@ xrd_mkdir (const char* path,
 
     if ((items != 17) || (strcmp(tag, "mkdir:")))
     {
-      errno = ENOENT;
+      int retc = 0;
+      char tag[1024];
+      // Parse output
+      int items = sscanf(response->GetBuffer(), "%s retc=%d", tag, &retc);
+      
+      if ((items != 2) || (strcmp(tag, "mkdir:")))
+	errno = EFAULT;
+      else
+	errno = retc;
+      
       delete response;
       return errno;
     }
@@ -1977,7 +2130,7 @@ xrd_mkdir (const char* path,
   }
   else
   {
-    eos_static_err("error=status is NOT ok");
+    eos_static_err("status is NOT ok");
     errno = EFAULT;
   }
 
@@ -2142,7 +2295,7 @@ xrd_open (const char* path,
 
       if (retc)
       {
-        eos_static_err("error=open failed for %s", spath.c_str());
+        eos_static_err("open failed for %s", spath.c_str());
         return xrd_error_retc_map(errno);
       }
       else
@@ -2160,12 +2313,11 @@ xrd_open (const char* path,
                                                          eos::common::LayoutId::kXrdCl);
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
-
       retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
-        eos_static_err("error=open failed for %s", spath.c_str());
+        eos_static_err("open failed for %s", spath.c_str());
         return xrd_error_retc_map(errno);
       }
       else
@@ -2188,7 +2340,7 @@ xrd_open (const char* path,
 
       if (retc)
       {
-        eos_static_err("error=open failed for %s", spath.c_str());
+        eos_static_err("open failed for %s", spath.c_str());
         return xrd_error_retc_map(errno);
       }
       else
@@ -2283,7 +2435,7 @@ xrd_open (const char* path,
                                opaqueInfo);
           if (retc)
           {
-            eos_static_err("error=failed open for pio red, path=%s", spath.c_str());
+            eos_static_err("failed open for pio red, path=%s", spath.c_str());
             delete file;
             return xrd_error_retc_map(errno);
           }
@@ -2310,20 +2462,28 @@ xrd_open (const char* path,
         }
       }
       else
-        eos_static_debug("error=opaque info not what we expected");
+        eos_static_debug("opaque info not what we expected");
     }
     else
-      eos_static_err("error=failed get request for pio read");
+      eos_static_err("failed get request for pio read");
   }
 
-  eos_static_debug("the spath is:%s", spath.c_str());
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl);
-  retc = file->Open(spath.c_str(), flags_sfs, mode, "eos.app=fuse&eos.bookingsize=0");
+  XrdOucString open_cgi = "eos.app=fuse&eos.bookingsize=0";
+
+  if (do_rdahead)
+  {
+    open_cgi += "&fst.readahead=true&fst.blocksize=";
+    open_cgi += rdahead_window.c_str();
+  }
+
+  eos_static_debug("open_path=%s, open_cgi=%s", spath.c_str(), open_cgi.c_str());
+  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str());
 
   if (retc)
   {
-    eos_static_err("error=open failed for %s.", spath.c_str());
+    eos_static_err("open failed for %s.", spath.c_str());
     delete file;
     return xrd_error_retc_map(errno);
   }
@@ -2474,13 +2634,13 @@ xrd_pread (int fildes,
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
     eos::fst::Layout* file = fabst->GetRawFile();
-    ret = file->Read(offset, static_cast<char*> (buf), nbyte);
+    ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
     fabst->mMutexRW.UnLock();
   }
   else
   {
     eos::fst::Layout* file = fabst->GetRawFile();
-    ret = file->Read(offset, static_cast<char*> (buf), nbyte);
+    ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
   }
 
   // Release file reference
@@ -2489,7 +2649,7 @@ xrd_pread (int fildes,
 
   if (ret == -1)
   {
-    eos_static_err("error=failed to do read");
+    eos_static_err("failed to do read");
     errno = EIO;
   }
 
@@ -2926,11 +3086,11 @@ xrd_init ()
   {
     fuse_shared = false; //eosfsd
     char logfile[1024];
-    if (getenv("EOS_FUSE_LOGFILE")) 
+    if (getenv("EOS_FUSE_LOGFILE"))
     {
       snprintf(logfile, sizeof ( logfile) - 1, "%s", getenv("EOS_FUSE_LOGFILE"));
     }
-    else 
+    else
     {
       snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
     }
@@ -2992,6 +3152,26 @@ xrd_init ()
   // Extract MGM endpoint and check availability
   if (xrd_check_mgm() == 0)
     exit(-1);
+
+  // Get read-ahead configuration
+  if (getenv("EOS_FUSE_RDAHEAD") && (!strcmp(getenv("EOS_FUSE_RDAHEAD"), "1")))
+  {
+    do_rdahead = true;
+
+    if (getenv("EOS_FUSE_RDAHEAD_WINDOW"))
+    {
+      rdahead_window = getenv("EOS_FUSE_RDAHEAD_WINDOW");
+
+      try
+      {
+        (void) std::stol(rdahead_window);
+      }
+      catch (const std::exception& e)
+      {
+        rdahead_window = "131072"; // default 128
+      }
+    }
+  }
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
   {

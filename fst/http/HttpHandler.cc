@@ -66,17 +66,13 @@ void
 HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 {
   eos_static_debug("Handling HTTP request");
-  bool isOcChunkUpload = false;
 
   if (!mFile)
-  {
     Initialize(request);
-  }
 
   if (!mFile)
   {
     mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
-
 
     // default modes are for GET=read
     XrdSfsFileOpenMode open_mode = 0;
@@ -93,10 +89,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       if (!request->GetHeaders().count("oc-chunked"))
       {
         open_mode |= SFS_O_TRUNC;
-      }
-      else
-      {
-        isOcChunkUpload = true;
       }
 
       open_mode |= SFS_O_RDWR;
@@ -175,7 +167,7 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
   {
 
     if (((mUploadLeftSize > (1 * 1024 * 1024)) &&
-         ((*request->GetBodySize()) < (1 * 1024 * 1024))))
+        ((*request->GetBodySize()) < (1 * 1024 * 1024))))
     {
       // we want more bytes, we don't process this
       eos_static_debug("msg=\"wait for more bytes\" leftsize=%llu uploadsize=%llu",
@@ -192,7 +184,6 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
       // clean-up left-over objects on error or end-of-put
       if (mFile)
       {
-
         delete mFile;
         mFile = 0;
       }
@@ -323,6 +314,20 @@ HttpHandler::Get (eos::common::HttpRequest *request)
         response->mResponseLength = mRequestSize;
         response->AddHeader("Content-Type", gMime.Match(request->GetUrl()));
         response->AddHeader("Content-Length", clength);
+
+        // retrieve a checksum when file is still open
+        if (mFile && mFile->GetChecksum())
+        {
+          std::string checksum_name = mFile->GetChecksum()->GetName();
+          std::string checksum_val = mFile->GetFmdChecksum();
+          while (checksum_val[0] == '0')
+          {
+            checksum_val.erase(0, 1);
+          }
+          response->AddHeader("OC-Checksum",
+                              eos::common::OwnCloud::GetChecksumString(checksum_name,
+                                                                       checksum_val));
+        }
       }
 
       std::string query = request->GetQuery();
@@ -382,7 +387,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
                   request->GetBodySize());
 
   eos::common::HttpResponse *response = 0;
-
+  bool checksumError = false;
+  bool checksumMatch = false;
   if (mErrCode)
   {
     eos_static_err("msg=\"return stored error\" errc=%d errmsg=\"%s\"", mErrCode, mErrText.c_str());
@@ -454,6 +460,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrCode = response->BAD_REQUEST;
         mErrText = "Missing total length in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        delete mFile;
+        mFile = 0;
         return response;
       }
 
@@ -469,6 +477,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrCode = response->BAD_REQUEST;
         mErrText = "Illegal chunks specified in OC request";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        delete mFile;
+        mFile = 0;
         return response;
       }
 
@@ -494,7 +504,7 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         if (eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request)))
         {
           mCurrentCallbackOffset =
-            eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
+                  eos::common::StringConversion::GetSizeFromString(eos::common::OwnCloud::getContentSize(request));
           mCurrentCallbackOffset -= contentlength;
         }
         else
@@ -521,6 +531,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrCode = response->SERVICE_UNAVAILABLE;
         mErrText = "Write error occured";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+        delete mFile;
+        mFile = 0;
         return response;
       }
       else
@@ -561,6 +573,65 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mFile->disableChecksum();
       }
 
+      // retrieve a checksum when file is still open
+      eos::common::OwnCloud::checksum_t checksum;
+      if (mFile->GetChecksum())
+      {
+
+        if (header.count("x-oc-mtime") && (mLastChunk || (!request->GetHeaders().count("oc-chunked"))))
+        {
+          // call the checksum verification explicite now because 
+          mFile->verifychecksum();
+          std::string checksum_name = mFile->GetChecksum()->GetName();
+          std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
+          while (checksum_val[0] == '0')
+          {
+            checksum_val.erase(0, 1);
+          }
+          checksum = std::make_pair (
+                  checksum_name,
+                  checksum_val);
+
+          // inspect if there is checksum provided
+          eos::common::OwnCloud::checksum_t client_checksum = eos::common::OwnCloud::GetChecksum(request);
+
+          eos_static_debug("client-checksum-type=%s client-checksum-value=%s "
+                           "server-checksum-type=%s server-checksum-value=%s",
+                           client_checksum.first.c_str(),
+                           client_checksum.second.c_str(),
+                           checksum.first.c_str(),
+                           checksum.second.c_str());
+          if (client_checksum.first != "")
+          {
+            if (client_checksum.first == checksum.first)
+            {
+              // compare only if the algorithm is the same
+              if (client_checksum.second != checksum.second)
+              {
+                eos_static_err("msg=\"invalid checksum\" client-checksum-type=%s client-checksum-value=%s "
+                               "server-checksum-type=%s server-checksum-value=%s",
+                               client_checksum.first.c_str(),
+                               client_checksum.second.c_str(),
+                               checksum.first.c_str(),
+                               checksum.second.c_str());
+                checksumError = true;
+              }
+	      checksumMatch = true;
+            }
+          }
+        }
+
+      }
+
+      if (checksumError)
+      {
+        response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(eos::common::HttpResponse::PRECONDITION_FAILED);
+        delete mFile;
+        mFile = 0;
+        return response;
+      }
+
       mCloseCode = mFile->close();
       if (mCloseCode)
       {
@@ -568,7 +639,8 @@ HttpHandler::Put (eos::common::HttpRequest *request)
         mErrText = "File close failed";
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
 
-        mCloseCode = 0; // we don't want to create a second response down
+        delete mFile;
+        mFile = 0;
         return response;
       }
       else
@@ -584,6 +656,10 @@ HttpHandler::Put (eos::common::HttpRequest *request)
           std::string ocid;
           eos::common::StringConversion::GetSizeString(ocid, mFileId << 28);
           response->AddHeader("OC-FileId", ocid);
+          if (checksumMatch && request->GetHeaders().count("oc-checksum"))
+          {
+            response->AddHeader("OC-Checksum", request->GetHeaders()["oc-checksum"]);
+          }
         }
         response->SetResponseCode(eos::common::HttpResponse::CREATED);
         return response;

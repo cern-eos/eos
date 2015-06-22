@@ -68,6 +68,7 @@ make -j 4 install
 - google sparse hash
 - readline (devel)
 - ncurses (devel + static)
+- curl (devel)
 - openssl (devel + static)
 - libattr (devel)
 - fuse (devel)

@@ -32,8 +32,8 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-// Constants
-const std::string Mapping::PROXY_GEOTAG = "proxy";
+        // Constants
+        const std::string Mapping::PROXY_GEOTAG = "proxy";
 
 /*----------------------------------------------------------------------------*/
 // global mapping objects
@@ -752,6 +752,13 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     vid.uid = sel_uid;
     vid.gid = sel_gid;
+    if (ruid.length() || rgid.length()) 
+    {
+      if (!eos::common::Mapping::HasGid(sel_gid, vid))
+	vid.gid_list.push_back(sel_gid);
+      if (!eos::common::Mapping::HasUid(sel_uid, vid))
+	vid.uid_list.push_back(sel_uid);
+    }
   }
 
   if (client->host)
@@ -786,18 +793,18 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     if (ipstring.length())
     {
       GeoLocationMap_t::const_iterator it;
-      GeoLocationMap_t::const_iterator longuestmatch=gGeoMap.end();
+      GeoLocationMap_t::const_iterator longuestmatch = gGeoMap.end();
       // we use the geo location with the longest name match
       for (it = gGeoMap.begin(); it != gGeoMap.end(); it++)
       {
-          	// if we have a previously matched geoloc and if it's longer that the current one, try the next one
-          	if(longuestmatch != gGeoMap.end() && it->first.length() <= longuestmatch->first.length())
-          		continue;
-          	if(ipstring.compare(0,it->first.length(),it->first)==0) 
-            {
-              vid.geolocation = it->second;
-              longuestmatch = it;
-            }
+        // if we have a previously matched geoloc and if it's longer that the current one, try the next one
+        if (longuestmatch != gGeoMap.end() && it->first.length() <= longuestmatch->first.length())
+          continue;
+        if (ipstring.compare(0, it->first.length(), it->first) == 0)
+        {
+          vid.geolocation = it->second;
+          longuestmatch = it;
+        }
       }
     }
   }
@@ -1105,10 +1112,11 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 
         id = new id_pair(strtol(suid.c_str(), 0, 16), strtol(sgid.c_str(), 0, 16));
         eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
-        if (!id->uid || !id->gid) {
-	  gPhysicalIdMutex.UnLock();
+        if (!id->uid || !id->gid)
+        {
+          gPhysicalIdMutex.UnLock();
           return;
-	}
+        }
 
         vid.uid = id->uid;
         vid.gid = id->gid;
@@ -1132,10 +1140,10 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       struct passwd *pwbufp = 0;
 
       {
-	if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
-	{
-	  return;
-	}
+        if (getpwnam_r(name, &passwdinfo, buffer, 16384, &pwbufp) || (!pwbufp))
+        {
+          return;
+        }
       }
       gPhysicalIdMutex.Lock();
       id = new id_pair(passwdinfo.pw_uid, passwdinfo.pw_gid);
@@ -1159,38 +1167,40 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
     return;
   }
 
+  std::string secondary_groups = getenv("EOS_SECONDARY_GROUPS") ? getenv("EOS_SECONDARY_GROUPS") : "";
+  if (secondary_groups.length() && (secondary_groups == "1"))
+  {
+    struct group* gr;
 
-  // ----------------------------------------------------------------------------------------
-  // TODO: Because of problems with the LDAP database we have commented the secondary group support
-  // ----------------------------------------------------------------------------------------
-  /* remove secondary searches in the database -> LDAP assertion
-  struct group* gr;
+    eos_static_debug("group lookup");
+    gid_t gid = id->gid;
 
-  eos_static_debug("group lookup");
-  gid_t gid = id->gid;
+    setgrent();
 
-  setgrent();
+    while ((gr = getgrent()))
+    {
+      int cnt;
+      cnt = 0;
+      if (gr->gr_gid == gid)
+      {
+        if (!vid.gid_list.size())
+        {
+          vid.gid_list.push_back(gid);
+          vid.gid = gid;
+        }
+      }
 
-  while( (gr = getgrent() ) ) {
-  int cnt;
-  cnt=0;
-  if (gr->gr_gid == gid) {
-  if (!vid.gid_list.size()) {
-  vid.gid_list.push_back(gid);
-  vid.gid = gid;
+      while (gr->gr_mem[cnt])
+      {
+        if (!strcmp(gr->gr_mem[cnt], name))
+        {
+          vid.gid_list.push_back(gr->gr_gid);
+        }
+        cnt++;
+      }
+    }
+    endgrent();
   }
-  }
-
-  while (gr->gr_mem[cnt]) {
-  if (!strcmp(gr->gr_mem[cnt],name)) {
-  vid.gid_list.push_back(gr->gr_gid);
-  }
-  cnt++;
-  }
-  }
-  endgrent();
-
-   */
 
   // add to the cache
   gid_vector* vec = new uid_vector;
@@ -1235,15 +1245,15 @@ Mapping::UidToUserName (uid_t uid, int &errc)
     {
       if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
       {
-	char suid[1024];
-	snprintf(suid, sizeof (suid) - 1, "%u", uid);
-	uid_string = suid;
-	errc = EINVAL;
+        char suid[1024];
+        snprintf(suid, sizeof (suid) - 1, "%u", uid);
+        uid_string = suid;
+        errc = EINVAL;
       }
       else
       {
-	uid_string = pwbuf.pw_name;
-	errc = 0;
+        uid_string = pwbuf.pw_name;
+        errc = 0;
       }
     }
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);

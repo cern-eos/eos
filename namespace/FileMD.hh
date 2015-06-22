@@ -240,6 +240,29 @@ namespace eos
       }
 
       //------------------------------------------------------------------------
+      //! Get symbolic link                                                                                                                                                                          //------------------------------------------------------------------------
+      std::string getLink() const
+      { 
+        return pLinkName;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set parent id
+      //------------------------------------------------------------------------
+      void setLink( std::string linkname )
+      {
+        pLinkName = linkname;
+      }  
+
+      //------------------------------------------------------------------------
+      //! Is symbolic link
+      //------------------------------------------------------------------------
+      bool isLink()
+      {
+	return pLinkName.length()?true:false;
+      }
+
+      //------------------------------------------------------------------------
       //! Start iterator for locations
       //------------------------------------------------------------------------
       LocationVector::const_iterator locationsBegin() const
@@ -506,6 +529,7 @@ namespace eos
       uint16_t           pFlags;
       IFileMDSvc        *pFileMDSvc;
       std::string        pName;
+      std::string        pLinkName;
       LocationVector     pLocation;
       LocationVector     pUnlinkedLocation;
       Buffer             pChecksum;

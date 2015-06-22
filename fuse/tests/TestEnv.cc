@@ -123,7 +123,8 @@ TestEnv::TestEnv()
 
   if (!f.is_open())
   {
-    std::cerr << "Error opening environ file of fuse proceess" << std::endl;
+    std::cerr << "Error opening environ file of fuse proceess"
+              << " - try running with root privileges" << std::endl;
     exit(1);
   }
 

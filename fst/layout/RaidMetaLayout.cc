@@ -693,9 +693,8 @@ RaidMetaLayout::ValidateHeader ()
 //------------------------------------------------------------------------------
 
 int64_t
-RaidMetaLayout::Read (XrdSfsFileOffset offset,
-                      char* buffer,
-                      XrdSfsXferSize length)
+RaidMetaLayout::Read (XrdSfsFileOffset offset, char* buffer,
+                      XrdSfsXferSize length, bool readahead)
 {
   eos_debug("offset=%llu, length=%i", offset, length);
   XrdSysMutexHelper scope_lock(mExclAccess);

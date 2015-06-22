@@ -155,7 +155,7 @@ XrdMgmOfs::_rem (const char *path,
 
   try
   {
-    fmd = gOFS->eosView->getFile(path);
+    fmd = gOFS->eosView->getFile(path,false);
   }
   catch (eos::MDException &e)
   {

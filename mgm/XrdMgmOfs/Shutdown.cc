@@ -49,6 +49,7 @@ xrdmgmofs_shutdown (int sig)
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
 
+  eos_static_alert("msg=\"shutdown sequence started\'");
   // avoid shutdown recursions
   if (gOFS->Shutdown)
     return;
@@ -59,6 +60,61 @@ xrdmgmofs_shutdown (int sig)
   // handler to shutdown the daemon for valgrinding and clean server stop
   // (e.g. let's time to finish write operations)
   // ---------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop vst ... ");
+  if (gOFS->MgmOfsVstMessaging)
+  {
+    gOFS->MgmOfsVstMessaging->StopListener();
+  }
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop deletion thread ... ");
+  if (gOFS->deletion_tid)
+  {
+    XrdSysThread::Cancel(gOFS->deletion_tid);
+    XrdSysThread::Join(gOFS->deletion_tid, 0);
+  }
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop statistics thread ... ");
+  if (gOFS->stats_tid)
+  {
+    XrdSysThread::Cancel(gOFS->stats_tid);
+    XrdSysThread::Join(gOFS->stats_tid, 0);
+  }
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop fs listener thread ... ");
+  if (gOFS->fsconfiglistener_tid)
+  {
+    XrdSysThread::Cancel(gOFS->fsconfiglistener_tid);
+    XrdSysThread::Join(gOFS->fsconfiglistener_tid, 0);
+  }
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop egroup fetching ... ");
+  gOFS->EgroupRefresh.Stop();
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop LRU thread ... ");
+  gOFS->LRUd.Stop();
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: stop messaging ... ");
+  if (gOFS->MgmOfsMessaging)
+  {
+    gOFS->MgmOfsMessaging->StopListener();
+  }
+
+
+  // ---------------------------------------------------------------------------
+  eos_static_warning("Shutdown:: remove messaging ... ");
+  if (gOFS->MgmOfsMessaging)
+  {
+    delete gOFS->MgmOfsMessaging;
+  }
+
   eos_static_warning("Shutdown:: grab write mutex");
   gOFS->eosViewRWMutex.TimeoutLockWrite();
 
@@ -97,23 +153,21 @@ xrdmgmofs_shutdown (int sig)
       }
 
       if (gOFS->eosFsView)
-      {
-        gOFS->eosFsView->finalize();
+      {	
         delete gOFS->eosFsView;
       }
       if (gOFS->eosView)
       {
-        gOFS->eosView->finalize();
         delete gOFS->eosView;
       }
       if (gOFS->eosDirectoryService)
       {
-        gOFS->eosDirectoryService->finalize();
+	gOFS->eosDirectoryService->getChangeLog()->close();
         delete gOFS->eosDirectoryService;
       }
       if (gOFS->eosFileService)
       {
-        gOFS->eosFileService->finalize();
+	gOFS->eosFileService->getChangeLog()->close();
         delete gOFS->eosFileService;
       }
 
@@ -137,58 +191,6 @@ xrdmgmofs_shutdown (int sig)
   gOFS->ConfEngine->SetAutoSave(false);
 
   // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop egroup fetching ... ");
-  gOFS->EgroupRefresh.Stop();
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop LRU thread ... ");
-  gOFS->LRUd.Stop();
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop messaging ... ");
-  if (gOFS->MgmOfsMessaging)
-  {
-    gOFS->MgmOfsMessaging->StopListener();
-  }
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop vst ... ");
-  if (gOFS->MgmOfsVstMessaging)
-  {
-    gOFS->MgmOfsVstMessaging->StopListener();
-  }
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop deletion thread ... ");
-  if (gOFS->deletion_tid)
-  {
-    XrdSysThread::Cancel(gOFS->deletion_tid);
-    XrdSysThread::Join(gOFS->deletion_tid, 0);
-  }
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop statistics thread ... ");
-  if (gOFS->stats_tid)
-  {
-    XrdSysThread::Cancel(gOFS->stats_tid);
-    XrdSysThread::Join(gOFS->stats_tid, 0);
-  }
-
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: stop fs listener thread ... ");
-  if (gOFS->fsconfiglistener_tid)
-  {
-    XrdSysThread::Cancel(gOFS->fsconfiglistener_tid);
-    XrdSysThread::Join(gOFS->fsconfiglistener_tid, 0);
-  }
-  // ---------------------------------------------------------------------------
-  eos_static_warning("Shutdown:: remove messaging ... ");
-  if (gOFS->MgmOfsMessaging)
-  {
-    delete gOFS->MgmOfsMessaging;
-  }
-
-  // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: cleanup quota...");
   std::map<std::string, SpaceQuota*>::const_iterator it;
   for (it = Quota::gQuota.begin(); it != Quota::gQuota.end(); it++)
@@ -206,5 +208,6 @@ xrdmgmofs_shutdown (int sig)
   }
 
   eos_static_warning("Shutdown complete");
+  eos_static_alert("msg=\"shutdown complete\'");
   kill(getpid(), 9);
 }

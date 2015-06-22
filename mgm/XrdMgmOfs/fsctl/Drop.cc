@@ -144,13 +144,14 @@
         // Finally delete the record if all replicas are dropped
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
         {
-          gOFS->eosView->removeFile(fmd);
           if (quotanode)
           {
             // If we were still attached to a container, we can now detach
             // and count the file as removed
             quotanode->removeFile(fmd);
           }
+
+          gOFS->eosView->removeFile(fmd);
         }
       }
       catch (...)

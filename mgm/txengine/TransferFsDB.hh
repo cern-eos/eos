@@ -55,7 +55,7 @@ public:
   
   virtual int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid);
 
-  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost, bool sync);
+  virtual int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, uid_t uid, gid_t gid, time_t exptime, XrdOucString& credentials, XrdOucString& submissionhost, bool sync, bool noauth);
   virtual int Cancel(long long id, XrdOucString& stdOut, XrdOucString& stdErr, bool nolock=false);
   virtual int Archive(long long id, XrdOucString& stdOUt, XrdOucString& sttdErr, bool nolock=false);
   virtual int Clear(XrdOucString& stdOut, XrdOucString& stdErr);

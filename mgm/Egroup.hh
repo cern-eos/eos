@@ -130,6 +130,15 @@ public:
   // ---------------------------------------------------------------------------
   static bool Member (std::string &username, std::string &egroupname);
 
+  // ---------------------------------------------------------------------------
+  // static function to display info for username in egroupname
+  // ---------------------------------------------------------------------------
+  static std::string DumpMember (std::string &username, std::string &egroupname);
+
+  // ---------------------------------------------------------------------------
+  // static function to display all stored information
+  // ---------------------------------------------------------------------------
+  static std::string DumpMembers ();
 
   // ---------------------------------------------------------------------------
   // static function to schedule an asynchronous refresh for egroup/username

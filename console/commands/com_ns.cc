@@ -223,6 +223,7 @@ com_ns_usage:
   fprintf(stdout, "       ns compact on <delay> [<interval>] [<type>]                   -  enable online compactification after <delay> seconds\n");
   fprintf(stdout, "                                                                     -  if <interval> is >0 the compactifcation is repeated automatically after <interval> seconds!\n");
   fprintf(stdout, "                                                                     -  <type> can be 'files' 'directories' or 'all'. By default only the file changelog is compacted!\n");
+  fprintf(stdout, "                                                                     -  the repair flag can be indicated by adding '-repair': 'files-repair', 'directories-repair', 'all-repair'\n");
   fprintf(stdout, "       ns compact off                                                -  disable online compactification\n");
   fprintf(stdout, "       ns master <master-hostname>|[--log]|--log-clear            :  master/slave operation\n");
   fprintf(stdout, "       ns master <master-hostname>                                   -  set the host name of the MGM RW master daemon\n");

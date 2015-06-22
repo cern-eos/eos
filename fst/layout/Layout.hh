@@ -48,15 +48,12 @@ class XrdFstOfsFile;
 
 class Layout : public eos::common::LogId {
 public:
-
   //--------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file file handler
-  //!
   //--------------------------------------------------------------------------
   Layout (XrdFstOfsFile* file);
-
 
   //--------------------------------------------------------------------------
   //! Constructor
@@ -67,7 +64,7 @@ public:
   //! @param outError error information
   //! @param io access type informatio ( ofs/xrd )
   //! @param timeout timeout value
-  //!
+  //! @param timeout timeout value 
   //--------------------------------------------------------------------------
   Layout (XrdFstOfsFile* file,
           int lid,
@@ -76,39 +73,32 @@ public:
           eos::common::LayoutId::eIoType io,
           uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
   virtual ~Layout ();
 
-
   //--------------------------------------------------------------------------
   //! Get the name of the layout
   //--------------------------------------------------------------------------
-
   const char*
   GetName ()
   {
     return mName.c_str();
   }
 
-
   //--------------------------------------------------------------------------
   //! Get path to the local replica
   //--------------------------------------------------------------------------
-
   const char*
   GetLocalReplicaPath ()
   {
     return mLocalPath.c_str();
   }
 
-
   //--------------------------------------------------------------------------
   //! Get layout id
   //--------------------------------------------------------------------------
-
   inline unsigned int
   GetLayoutId ()
   {
@@ -128,13 +118,11 @@ public:
   //--------------------------------------------------------------------------
   //! Test if we are at the entry server
   //--------------------------------------------------------------------------
-
   virtual bool
   IsEntryServer ()
   {
     return mIsEntryServer;
   }
-
 
   //--------------------------------------------------------------------------
   //! Open a file of the current layout type
@@ -145,13 +133,11 @@ public:
   //! @param opaque opaque information
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
                     mode_t mode,
                     const char* opaque) = 0;
-
 
   //--------------------------------------------------------------------------
   //! Read from file
@@ -159,14 +145,14 @@ public:
   //! @param offset offset
   //! @param buffer place to hold the read data
   //! @param length length
+  //! @param readahead readahead switch
   //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
   virtual int64_t Read (XrdSfsFileOffset offset,
                         char* buffer,
-                        XrdSfsXferSize length) = 0;
-
+                        XrdSfsXferSize length,
+                        bool readahead = false) = 0;
 
   //--------------------------------------------------------------------------
   //! Write to file
@@ -176,12 +162,10 @@ public:
   //! @param length length
   //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
   virtual int64_t Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length) = 0;
-
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -189,10 +173,8 @@ public:
   //! @param offset truncate file to this value
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Truncate (XrdSfsFileOffset offset) = 0;
-
 
   //--------------------------------------------------------------------------
   //! Allocate file space
@@ -200,15 +182,12 @@ public:
   //! @param length space to be allocated
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
   virtual int
   Fallocate (XrdSfsFileOffset lenght)
   {
     return 0;
   }
-
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
@@ -217,9 +196,7 @@ public:
   //! @param toOffset offset end
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
   virtual int
   Fdeallocate (XrdSfsFileOffset fromOffset,
                XrdSfsFileOffset toOffset)
@@ -227,38 +204,30 @@ public:
     return 0;
   }
 
-
   //--------------------------------------------------------------------------
   //! Remove file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
   virtual int
   Remove ()
   {
     return 0;
   }
 
-
   //--------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Sync () = 0;
-
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Close () = 0;
-
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
@@ -266,7 +235,6 @@ public:
   //! @param buf stat buffer
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf) = 0;
 
@@ -298,7 +266,6 @@ protected:
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
   FileIo* mFileIO; //< IO object as entry server
-
 };
 
 EOSFSTNAMESPACE_END

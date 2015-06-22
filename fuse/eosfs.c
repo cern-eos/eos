@@ -88,7 +88,7 @@ pid_t pid;
 static int
 eosdfs_getattr (const char* path, struct stat* stbuf)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   int res;
   char rootpath[4096];
 
@@ -106,7 +106,7 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
     {
       stbuf->st_mode &= 0772777; // remove sticky bit and suid bit
       stbuf->st_blksize = 32768; // unfortunately, it is ignored, see include/fuse.h
-      fprintf (stderr, "[%s] Return 0 for file. \n", __FUNCTION__);
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Return 0 for file. \n", __FUNCTION__);
       return 0;
     }
     else if (S_ISDIR (stbuf->st_mode))
@@ -116,7 +116,7 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
       if (!strcmp (path, "/"))
         stbuf->st_atime = eosatime;
 
-      fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
       return 0;
     }
     else if (S_ISLNK (stbuf->st_mode))
@@ -137,7 +137,7 @@ eosdfs_fgetattr (const char* path,
                  struct stat* stbuf,
                  struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
 
   if (strcmp (path, "/"))
@@ -155,7 +155,7 @@ eosdfs_fgetattr (const char* path,
     {
       stbuf->st_mode &= 0772777; // remove sticky bit and suid bit
       stbuf->st_blksize = 32768; // unfortunately, it is ignored, see include/fuse.h
-      fprintf (stderr, "[%s] Return 0 for file. \n", __FUNCTION__);
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Return 0 for file. \n", __FUNCTION__);
       return 0;
     }
     else if (S_ISDIR (stbuf->st_mode))
@@ -165,7 +165,7 @@ eosdfs_fgetattr (const char* path,
       if (!strcmp (path, "/"))
         stbuf->st_atime = eosatime;
 
-      fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
       return 0;
     }
     else if (S_ISLNK (stbuf->st_mode))
@@ -184,11 +184,32 @@ eosdfs_fgetattr (const char* path,
 static int
 eosdfs_access (const char* path, int mask)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   // we don't call access, we have access control in every other call!
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Readlink
+//------------------------------------------------------------------------------
+
+static int 
+eosdfs_readlink(const char *path, char *buf, size_t size)
+{ 
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);  
+  int res;
+  char rootpath[4096];
+  eosatime = time(0);    
+  rootpath[0]='\0';
+  strcat (rootpath, mountprefix);
+  strcat (rootpath,path);
+  
+  res = xrd_readlink(rootpath, buf, size - 1, uid, gid, pid);
+  if (res == -1)
+    return -errno;
+  
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Read directory
@@ -200,7 +221,7 @@ eosdfs_readdir (const char* path,
                 off_t offset,
                 struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   size_t size = -1;
   struct dirent* de;
   eosatime = time (0);
@@ -218,14 +239,14 @@ eosdfs_readdir (const char* path,
   }
 
   de = xrd_readdir (rootpath, &size, uid, gid, pid);
-  fprintf (stderr, "[%s] The size is: %li\n", __FUNCTION__, size);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] The size is: %li\n", __FUNCTION__, size);
 
   if (size)
   {
     size_t i = 0;
     while (i < size)
     {
-      fprintf (stderr, "[%s] Name:%s\n", __FUNCTION__, de[i].d_name);
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Name:%s\n", __FUNCTION__, de[i].d_name);
 
       if (filler (buf, de[i].d_name, NULL, 0))
         break;
@@ -236,7 +257,7 @@ eosdfs_readdir (const char* path,
 
   // Free memory allocated in xrd_readdir
   free (de);
-  fprintf (stderr, "[%s] Finish\n", __FUNCTION__);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Finish\n", __FUNCTION__);
   return 0;
 }
 
@@ -248,7 +269,7 @@ eosdfs_readdir (const char* path,
 static int
 eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, mode=%x\n", __FUNCTION__, path, mode);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, mode=%x\n", __FUNCTION__, path, mode);
   eosatime = time (0);
   char rootpath[4096];
   unsigned long return_inode;
@@ -258,7 +279,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     rootpath[0] = '\0';
     strcat (rootpath, mountprefix);
     strcat (rootpath, path);
-    fprintf (stderr, "[%s] rootpath=%s\n", __FUNCTION__, rootpath);
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] rootpath=%s\n", __FUNCTION__, rootpath);
     int res = xrd_open(path,
                        O_CREAT | O_EXCL | O_RDWR,
                        mode,
@@ -269,7 +290,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
 
     // Update the entry parameters
     xrd_store_p2i ((unsigned long long) return_inode, rootpath);
-    fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) return_inode);
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) return_inode);
 
     // This memory has to be freed once we're done with the file, usually in
     // the close/release method
@@ -290,7 +311,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
 static int
 eosdfs_mkdir (const char* path, mode_t mode)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -312,7 +333,7 @@ eosdfs_mkdir (const char* path, mode_t mode)
 static int
 eosdfs_unlink (const char* path)
 {
-  fprintf (stderr, "[%s] path=%s, pid=%u\n", __FUNCTION__, path, getpid());
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, pid=%u\n", __FUNCTION__, path, getpid());
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -341,7 +362,7 @@ eosdfs_unlink (const char* path)
 static int
 eosdfs_rmdir (const char* path)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -365,12 +386,39 @@ eosdfs_rmdir (const char* path)
 
 
 //------------------------------------------------------------------------------
+// Symlink
+//------------------------------------------------------------------------------
+
+static int 
+eosdfs_symlink(const char *from, const char *to)
+{
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s link=%s\n", __FUNCTION__, from, to);  
+  int res;
+  char rootpath[4096];
+  eosatime = time(0);    
+  rootpath[0]='\0';
+
+  strcat(rootpath,mountprefix);
+  strcat(rootpath,"from");
+  
+  if (from[0] == '/') {
+    return -EINVAL;
+  }
+
+  res = xrd_symlink(rootpath, to, uid, gid, pid);
+  if (res == -1)
+    return -errno;
+  
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Rename
 //------------------------------------------------------------------------------
 static int
 eosdfs_rename (const char* from, const char* to)
 {
-  fprintf (stderr, "[%s] from=%s, to=%s\n", __FUNCTION__, from, to);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] from=%s, to=%s\n", __FUNCTION__, from, to);
   char from_path[4096] = "", to_path[4096] = "";
   eosatime = time (0);
   strcat (from_path, mountprefix);
@@ -390,7 +438,7 @@ eosdfs_rename (const char* from, const char* to)
 static int
 eosdfs_chmod (const char* path, mode_t mode)
 {
-  fprintf (stderr, "[%s] path=%s mode=%x\n", __FUNCTION__, path, mode);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s mode=%x\n", __FUNCTION__, path, mode);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -408,7 +456,7 @@ eosdfs_chmod (const char* path, mode_t mode)
 static int
 eosdfs_chown (const char* path, uid_t uid, gid_t gid)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
 
   // We forbid chown via the mounted filesystem */
   eosatime = time (0);
@@ -424,7 +472,7 @@ eosdfs_chown (const char* path, uid_t uid, gid_t gid)
 static int
 eosdfs_truncate (const char* path, off_t size)
 {
-  fprintf(stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf(stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
   char rootpath[4096];
   unsigned long rinode = 0;
   eosatime = time (0);
@@ -453,7 +501,7 @@ eosdfs_truncate (const char* path, off_t size)
 static int
 eosdfs_utimens (const char* path, const struct timespec ts[2])
 {
-  fprintf(stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf(stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
@@ -479,7 +527,7 @@ eosdfs_utimens (const char* path, const struct timespec ts[2])
 static int
 eosdfs_open (const char* path, struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   char rootpath[4096];
   unsigned long rinode = 0;
   rootpath[0] = '\0';
@@ -501,7 +549,7 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   info->uid = uid;
   info->ino = rinode;
   fi->fh = (uint64_t) info;
-  fprintf (stderr, "[%s] path=%s, fd=%i, inode=%lu\n", __FUNCTION__, path, res,
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, fd=%i, inode=%lu\n", __FUNCTION__, path, res,
            (unsigned long) rinode);
   return 0;
 }
@@ -517,7 +565,7 @@ eosdfs_read (const char* path,
              off_t offset,
              struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, offset=%llii, length=%li\n",
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, offset=%llii, length=%li\n",
            __FUNCTION__, path, offset, size);
   eosatime = time (0);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -545,7 +593,7 @@ eosdfs_write (const char* path,
               off_t offset,
               struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, offset=%lli, lenght=%li\n",
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, offset=%lli, lenght=%li\n",
            __FUNCTION__, path, offset, size);
 
   // File already existed. FUSE uses eosdfs_open() and eosdfs_truncate()
@@ -567,7 +615,7 @@ eosdfs_write (const char* path,
 static int
 eosdfs_statfs (const char* path, struct statvfs* stbuf)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
   eosatime = time (0);
   char rootpath[4096];
   eosatime = time (0);
@@ -590,7 +638,7 @@ eosdfs_statfs (const char* path, struct statvfs* stbuf)
 static int
 eosdfs_release (const char* path, struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   struct stat xrdfile, cnsfile;
   char rootpath[4096];
   eosatime = time (0);
@@ -613,7 +661,7 @@ eosdfs_fsync (const char* path,
               int isdatasync,
               struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
 
   // This method is optional and can safely be left unimplemented
   eosatime = time (0);
@@ -632,7 +680,7 @@ eosdfs_ftruncate(const char* path,
                  off_t size,
                  struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
   int res = xrd_truncate (info->fd, size);
 
@@ -655,7 +703,7 @@ static int
 eosdfs_setxattr (const char* path, const char* name, const char* value,
                  size_t size, int flags)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
   /*
     int res = lsetxattr(path, name, value, size, flags);
     if (res == -1)
@@ -673,7 +721,7 @@ static int
 eosdfs_getxattr (const char* path, const char* name, char* value,
                  size_t size)
 {
-  fprintf (stderr, "[%s] path=%s, name=%s\n", __FUNCTION__, path, name);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, name=%s\n", __FUNCTION__, path, name);
   /*
     int res = lgetxattr(path, name, value, size);
     if (res == -1)
@@ -691,7 +739,7 @@ eosdfs_getxattr (const char* path, const char* name, char* value,
 static int
 eosdfs_listxattr (const char* path, char* list, size_t size)
 {
-  fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path = %s.\n", __FUNCTION__, path);
   /*
     int res = llistxattr(path, list, size);
     if (res == -1)
@@ -709,7 +757,7 @@ eosdfs_listxattr (const char* path, char* list, size_t size)
 static int
 eosdfs_removexattr (const char* path, const char* name)
 {
-  fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s\n", __FUNCTION__, path);
   /*
     int res = lremovexattr(path, name);
     if (res == -1)
@@ -724,9 +772,11 @@ eosdfs_removexattr (const char* path, const char* name)
 static struct fuse_operations eosdfs_oper = {
   .getattr = eosdfs_getattr,
   .access = eosdfs_access,
+  .readlink= eosdfs_readlink,
   .readdir = eosdfs_readdir,
   .create = eosdfs_create,
   .mkdir = eosdfs_mkdir,
+  .symlink= eosdfs_symlink,
   .rmdir = eosdfs_rmdir,
   .rename = eosdfs_rename,
   .chmod = eosdfs_chmod,
@@ -758,7 +808,7 @@ static struct fuse_operations eosdfs_oper = {
 void
 usage ()
 {
-  fprintf (stderr, "usage: eosfs <mountpoint> [-o<fuseoptionlist] [<mgm-url>]\n");
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "usage: eosfs <mountpoint> [-o<fuseoptionlist] [<mgm-url>]\n");
   exit (-1);
 }
 
@@ -790,7 +840,7 @@ main (int argc, char* argv[])
 #ifndef __APPLE__
   if (access("/bin/fusermount",X_OK))
     {
-      fprintf (stderr,"error: /bin/fusermount is not executable for you!\n");
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr,"error: /bin/fusermount is not executable for you!\n");
       exit (-2);
     }
 #endif
@@ -834,7 +884,7 @@ main (int argc, char* argv[])
     }
     else
     {
-      fprintf (stderr, "error: no host defined via env:EOS_FUSE_MGM_URL "
+      if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "error: no host defined via env:EOS_FUSE_MGM_URL "
                "and no url given as mount option");
       usage ();
       exit (-1);
@@ -843,8 +893,8 @@ main (int argc, char* argv[])
 
   if (getenv ("EOS_SOCKS4_HOST") && getenv ("EOS_SOCKS4_PORT"))
   {
-    fprintf (stdout, "EOS_SOCKS4_HOST=%s\n", getenv ("EOS_SOCKS4_HOST"));
-    fprintf (stdout, "EOS_SOCKS4_PORT=%s\n", getenv ("EOS_SOCKS4_PORT"));
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stdout, "EOS_SOCKS4_HOST=%s\n", getenv ("EOS_SOCKS4_HOST"));
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stdout, "EOS_SOCKS4_PORT=%s\n", getenv ("EOS_SOCKS4_PORT"));
   }
 
   //............................................................................
@@ -853,13 +903,13 @@ main (int argc, char* argv[])
   char* pmounthostport = 0;
   char* smountprefix = 0;
 
-  setenv("EOS_RDRURL", rdrurl,1);
+  (void) setenv("EOS_RDRURL", rdrurl, 1);
 
   pmounthostport = strstr (rdrurl, "root://");
 
   if (!pmounthostport)
   {
-    fprintf (stderr, "error: EOS_RDRURL or url option is not valid\n");
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "error: EOS_RDRURL or url option is not valid\n");
     exit (-1);
   }
 
@@ -868,7 +918,7 @@ main (int argc, char* argv[])
 
   if (!(smountprefix = strstr (mounthostport, "//")))
   {
-    fprintf (stderr, "error: EOS_RDRURL or url option is not valid\n");
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "error: EOS_RDRURL or url option is not valid\n");
     exit (-1);
   }
   else
@@ -892,7 +942,7 @@ main (int argc, char* argv[])
 
   if (m_pid < 0)
   {
-    fprintf (stderr, "ERROR: Failed to fork daemon process\n");
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "ERROR: Failed to fork daemon process\n");
     exit (-1);
   }
 
@@ -910,7 +960,7 @@ main (int argc, char* argv[])
 
   if ((sid = setsid ()) < 0)
   {
-    fprintf (stderr, "ERROR: failed to create new session (setsid())\n");
+    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "ERROR: failed to create new session (setsid())\n");
     exit (-1);
   }
 
@@ -931,9 +981,9 @@ main (int argc, char* argv[])
   xrd_init ();
   umask (0);
 
-  //  fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
+  //  if ( getenv("EOS_FUSE_DEBUG") ) fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
   //  for ( i = 0; i < margc; i++ ) {
-  //    fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
+  //    if ( getenv("EOS_FUSE_DEBUG") ) fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
   //  }
 
   uid = getuid();

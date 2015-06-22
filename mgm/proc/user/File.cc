@@ -505,7 +505,7 @@ ProcCommand::File ()
         // default is 30 days
         expires = (time_t) (time(NULL) + (30 * 86400));
       }
-      std::string sharepath;
+     std::string sharepath;
       sharepath = gOFS->CreateSharePath(spath.c_str(), "", expires, *mError, *pVid);
 
       if (vid.uid != 0)
@@ -530,12 +530,21 @@ ProcCommand::File ()
         XrdOucString httppath = "http://";
         httppath += gOFS->HostName;
         httppath += ":8000/";
-        httppath += sharepath.c_str();
-        int pos = httppath.find("?");
-        // + from base64 is a problem
-        while (httppath.replace("+", "%2B", pos))
-        {
-        }
+
+	size_t qpos = sharepath.find("?");
+	std::string httpunenc = sharepath;
+	httpunenc.erase(qpos);
+	std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
+	
+	httppath += httpenc.c_str();
+
+	XrdOucString cgi = sharepath.c_str();
+	cgi.erase(0,qpos);
+	while (cgi.replace("+", "%2B", qpos))
+	{
+	}
+
+	httppath += cgi.c_str();
 
         XrdOucString rootUrl = "root://";
         rootUrl += gOFS->ManagerId;
@@ -590,6 +599,29 @@ ProcCommand::File ()
       else
       {
         stdOut += "success: renamed '";
+        stdOut += source.c_str();
+        stdOut += "' to '";
+        stdOut += target.c_str();
+        stdOut += "'";
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // link a file or directory from source to target path
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "symlink")
+    {
+      XrdOucString source = pOpaque->Get("mgm.file.source");
+      XrdOucString target = pOpaque->Get("mgm.file.target");
+
+      if (gOFS->symlink(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true))
+      {
+        stdErr += "error: unable to link";
+        retc = errno;
+      }
+      else
+      {
+        stdOut += "success: linked '";
         stdOut += source.c_str();
         stdOut += "' to '";
         stdOut += target.c_str();

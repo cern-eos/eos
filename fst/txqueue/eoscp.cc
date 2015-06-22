@@ -1669,7 +1669,7 @@ main (int argc, char* argv[])
       {
         std::string errmsg;
         errmsg = status.GetErrorMessage();
-        fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
+        fprintf(stderr, "error: %s\n", status.ToStr().c_str());
         exit(-status.errNo);
       }
 
@@ -1688,7 +1688,7 @@ main (int argc, char* argv[])
     {
       std::string errmsg;
       errmsg = status.GetErrorMessage();
-      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
+      fprintf(stderr, "error: %s\n", status.ToStr().c_str());
       exit(-status.errNo);
     }
 
@@ -1882,7 +1882,7 @@ main (int argc, char* argv[])
       {
         std::string errmsg;
         errmsg = status.GetErrorMessage();
-        fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
+        fprintf(stderr, "error: %s\n", status.ToStr().c_str());
         exit(-status.errNo);
       }
 
@@ -2280,7 +2280,12 @@ main (int argc, char* argv[])
     case RAID_ACCESS:
       if (i == 0)
       {
+	errno = 0;
         redundancyObj->Close();
+	if (errno) 
+	{
+	  fprintf(stderr,"error: %s\n", redundancyObj->GetLastErrMsg().c_str());
+	}
         i = ndst;
         delete redundancyObj;
       }
@@ -2288,6 +2293,10 @@ main (int argc, char* argv[])
 
     case XRD_ACCESS:
       status = dst_handler[i].second->Close();
+      if (!status.IsOK()) {
+	fprintf(stderr,"error: %s\n",status.ToStr().c_str());
+	exit(-EIO);
+      }
       delete dst_handler[i].second;
       break;
 
