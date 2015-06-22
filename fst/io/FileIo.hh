@@ -68,7 +68,7 @@ public:
   eos::common::LogId (),
   mFilePath (""),
   mLastUrl (""),
-  mType ("FileIo")
+  mType ("FileIo"),
   mLastErrMsg("")
   {
     //empty
@@ -392,6 +392,7 @@ protected:
   std::string mFilePath; ///< path to current physical file
   std::string mLastUrl; ///< last used url if remote file
   std::string mType; ///< type
+  std::string mLastErrMsg; ///< last error message seen
 
   //--------------------------------------------------------------------------
   //! Get last error message
@@ -401,12 +402,6 @@ protected:
   {
     return mLastErrMsg;
   }
-
-protected:
-
-  std::string mFilePath; ///< path to current physical file
-  std::string mLastUrl;  ///< last used url if remote file
-  std::string mLastErrMsg; ///< last error stored
 };
 
 EOSFSTNAMESPACE_END

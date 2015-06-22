@@ -630,9 +630,10 @@ XrdFstOfsFile::open (const char* path,
     // evt. update the shared hash manager entry
     XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
     XrdOucString ConfigManager = eos::fst::Config::gConfig.Manager;
-    if (ConfigManager != RedirectManager) {
-      eos_warning("msg=\"MGM master seems to have changed - adjusting global config\" old-manager=\"%s\" new-manager=\"%s\"", 
-		  ConfigManager.c_str(), RedirectManager.c_str());
+    if (ConfigManager != RedirectManager)
+    {
+      eos_warning("msg=\"MGM master seems to have changed - adjusting global config\" old-manager=\"%s\" new-manager=\"%s\"",
+                  ConfigManager.c_str(), RedirectManager.c_str());
       eos::fst::Config::gConfig.Manager = RedirectManager;
     }
   }
@@ -741,6 +742,7 @@ XrdFstOfsFile::open (const char* path,
     // force the create flag
     open_mode |= SFS_O_CREAT;
     create_mode |= SFS_O_MKPTH;
+    eos_warning("adding creation flag because of %d %d", retc, errno);
   }
   else
   {
@@ -1384,10 +1386,10 @@ XrdFstOfsFile::closeofs ()
 //
 //------------------------------------------------------------------------------
 
-int 
-XrdFstOfsFile::LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
+int
+XrdFstOfsFile::LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
 {
-  return ((Layout*)cbd->caller)->Read(cbd->offset,cbd->buffer,cbd->size);
+  return ((Layout*) cbd->caller)->Read(cbd->offset, cbd->buffer, cbd->size);
 }
 
 
@@ -1454,15 +1456,15 @@ XrdFstOfsFile::verifychecksum ()
 
       if (!fctl(SFS_FCTL_GETFD, 0, error))
       {
-	// not needed anymore
-	// int fd = error.getErrInfo();
+        // not needed anymore
+        // int fd = error.getErrInfo();
 
         //......................................................................
         // rescan the file
         //......................................................................
-	eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
-	cbd.caller = (void*) layOut;
-	eos::fst::CheckSum::ReadCallBack cb(LayoutReadCB, cbd);
+        eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
+        cbd.caller = (void*) layOut;
+        eos::fst::CheckSum::ReadCallBack cb(LayoutReadCB, cbd);
 
         if (checkSum->ScanFile(cb, scansize, scantime))
         {
