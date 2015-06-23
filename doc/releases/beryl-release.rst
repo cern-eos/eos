@@ -12,6 +12,7 @@ New Features
 ------------
 - support ALICE tokens in gateway transfers
 - allow to disable enforced authentication for submitted transfers
+- disable direct_io flag on ZFS mounts to avoid disabling filesystems due to scrubbing errors
 
 Bug Fixes
 ---------
