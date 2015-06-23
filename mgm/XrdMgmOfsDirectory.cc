@@ -175,10 +175,11 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
 
     if (!permok)
     {
+      eos::common::Mapping::VirtualIdentity rootvid;
       // get attributes
       gOFS->_attr_ls(cPath.GetPath(),
                      error,
-                     vid,
+                     rootvid,
                      0,
                      attrmap,
                      false,
