@@ -23,6 +23,7 @@
 """Module responsible for executing the archive transfer.
 """
 from __future__ import unicode_literals
+from __future__ import division
 import os
 import time
 import logging
@@ -30,9 +31,10 @@ import threading
 import zmq
 import ast
 from os.path import join
+from time import sleep
 from hashlib import sha256
 from XRootD import client
-from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags
+from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags, StatInfoFlags
 from eosarch.archivefile import ArchiveFile
 from eosarch.utils import exec_cmd
 from eosarch.asynchandler import MetaHandler
@@ -373,8 +375,18 @@ class Transfer(object):
 
         # For GET set file ownership and permissions
         self.update_file_access()
+
+        # Verify the transferred entries
         self.set_status("verifying")
         check_ok, __ = self.archive.verify(False)
+
+        # For PUT operations what that all the files are on tape
+        # TODO: enable this when we run with XRootD 4.* and have the
+        # BACKUP_EXISTS flag
+        # if self.archive.d2t:
+        #    self.set_status("wait_on_tape")
+        #    self.wait_on_tape()
+
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.archive_tx_clean(check_ok)
@@ -810,6 +822,48 @@ class Transfer(object):
             err_msg = "Failed prepare2get"
             self.logger.error(err_msg)
             raise IOError(err_msg)
+
+    def wait_on_tape(self):
+        """ Check and wait that all the files are on tape, which in our case
+        means checking the "m" bit. If file is not on tape then suspend the
+        current thread for a period between 1 and 10 minutes depending on the
+        index of the failed file.
+        """
+        min_timeout, max_timeout = 5, 1
+
+        while True:
+            indx = 0 # index of the first file not on tape
+            all_on_tape = True
+
+            for fentry in self.archive.files():
+                indx += 1
+                __, dst = self.archive.get_endpoints(fentry[1])
+                url = client.URL(dst.encode("utf-8"))
+                st_stat, resp_stat = self.archive.fs_dst.stat(url.path.encode("utf-8"))
+
+                if not st_stat.ok:
+                    err_msg = "Error stat entry={0}".format(dst)
+                    self.logger.err(err_msg)
+                    raise IOError()
+
+                # Check file is on tape
+                if not resp_stat.flags & StatInfoFlags.BACKUP_EXISTS:
+                    self.logger.debug("File {0} is not yet on tape".format(dst))
+                    all_on_tape = False
+                    break
+
+            if all_on_tape:
+                break
+            else:
+                # Set timeout value
+                ratio = indx / int(self.archive.header['num_files'])
+                timeout = int(max_timeout * ratio)
+                
+                if timeout < min_timeout:
+                    timeout = min_timeout
+
+                self.logger.info("Goint to sleep for {0} seconds".format(timeout))
+                sleep(timeout)
 
     def backup_prepare(self):
         """ Prepare requested backup operation.
