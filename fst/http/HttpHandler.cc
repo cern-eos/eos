@@ -619,6 +619,16 @@ HttpHandler::Put (eos::common::HttpRequest *request)
 	      checksumMatch = true;
             }
           }
+	  else
+	  {
+	    eos_static_warning("msg=\"client required different checksum\" "
+			       "client-checksum-type=%s client-checksum-value=%s "
+                               "server-checksum-type=%s server-checksum-value=%s",
+                               client_checksum.first.c_str(),
+                               client_checksum.second.c_str(),
+                               checksum.first.c_str(),
+                               checksum.second.c_str());
+	  }
         }
 
       }
