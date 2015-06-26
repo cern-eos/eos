@@ -24,7 +24,9 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Acl.hh"
 #include "mgm/Egroup.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "common/StringConversion.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include <regex.h>
 #include <string>
@@ -51,6 +53,37 @@ Acl::Acl (std::string sysacl,
           bool allowUserAcl)
 {
   Set(sysacl, useracl, vid, allowUserAcl);
+}
+
+//------------------------------------------------------------------------------
+//!
+//! Constructor
+//!
+//! @param parent path where to read the acl attributes from
+//! @param error return error object
+//! @param vid virtual id to match ACL
+//! @param attr map returns all the attributes from path
+//! @param lockNs should we lock the namespace when retrieveng the attribute map
+//!
+//------------------------------------------------------------------------------
+
+Acl::Acl (const char* path,
+
+     XrdOucErrInfo &error,
+     eos::common::Mapping::VirtualIdentity &vid,
+     eos::ContainerMD::XAttrMap &attrmap,
+     bool lockNs)
+{
+  // get attributes                                                                                                                                                                             
+  gOFS->_attr_ls(path,
+		 error,
+		 vid,
+		 0,
+		 attrmap,
+		 lockNs);
+  // define the acl rules from the attributes
+  Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
+      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
 }
 
 
@@ -126,7 +159,7 @@ Acl::Set (std::string sysacl,
   {
     gid_t chk_gid = vid.gid_list[n_gid];
     // only check non system groups
-    if (chk_gid < 100)
+    if (chk_gid < 3)
       continue;
     std::string userid = eos::common::StringConversion::GetSizeString(sizestring1, (unsigned long long) vid.uid);
     std::string groupid = eos::common::StringConversion::GetSizeString(sizestring2, (unsigned long long) chk_gid);
@@ -156,6 +189,7 @@ Acl::Set (std::string sysacl,
     grouptagfn += ":";
     std::string ztag = "z:";
 
+    eos_static_debug("%s %s %s %s", usertag.c_str(), grouptag.c_str(), usertagfn.c_str(), grouptagfn.c_str());
     // ---------------------------------------------------------------------------
     // Rule interpretation logic
     // ---------------------------------------------------------------------------
