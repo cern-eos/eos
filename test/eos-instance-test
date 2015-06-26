@@ -760,7 +760,9 @@ runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 
+# --------------------------------------------------------------------------------------------------------------
 categorie="symlink"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/
 runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
 runtest "### Symlink(d)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref

@@ -82,6 +82,10 @@ ConverterJob::DoIt ()
  */
 /*----------------------------------------------------------------------------*/
 {
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo error;
+
   eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
@@ -117,10 +121,16 @@ ConverterJob::DoIt ()
       cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd));
       // load the extended attributes
       eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+
+      XrdOucErrInfo error;
+      // load the attributes
+      gOFS->_attr_ls(gOFS->eosView->getUri(cmd).c_str(),
+		     error,
+		     rootvid,
+		     0,
+		     attrmap,
+		     false,
+		     true);
 
       // get the checksum string if defined
       for (unsigned int i = 0;
@@ -306,9 +316,6 @@ ConverterJob::DoIt ()
     }
   }
 
-  eos::common::Mapping::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
-  XrdOucErrInfo error;
 
   if (success)
   {

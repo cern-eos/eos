@@ -69,7 +69,7 @@ XrdMgmOfs::mkdir (const char *inpath,
 
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
-  eos_info("path=%s", path);
+  eos_info("path=%s ininfo=%s info=%s", path, ininfo, info);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -147,11 +147,6 @@ XrdMgmOfs::_mkdir (const char *path,
         dir = eosView->getContainer(cPath.GetParentPath());
         copydir = new eos::ContainerMD(*dir);
         dir = copydir;
-        eos::ContainerMD::XAttrMap::const_iterator it;
-        for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
-        {
-          attrmap[it->first] = it->second;
-        }
       }
       catch (eos::MDException &e)
       {
@@ -169,9 +164,11 @@ XrdMgmOfs::_mkdir (const char *path,
       gid_t d_gid = dir->getCGid();
 
       // ACL and permission check
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-              attrmap.count("sys.eval.useracl"));
+      Acl acl(cPath.GetParentPath(),
+              error,
+              vid,
+              attrmap,
+              false);
 
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -290,10 +287,12 @@ XrdMgmOfs::_mkdir (const char *path,
     if (recurse)
     {
       int i, j;
+      std::string existingdir;
+
       // go the paths up until one exists!
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--)
       {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         attrmap.clear();
         eos_debug("testing path %s", cPath.GetSubPath(i));
         try
@@ -301,11 +300,8 @@ XrdMgmOfs::_mkdir (const char *path,
           if (copydir) delete copydir;
           dir = eosView->getContainer(cPath.GetSubPath(i));
           copydir = new eos::ContainerMD(*dir);
-          eos::ContainerMD::XAttrMap::const_iterator it;
-          for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
-          {
-            attrmap[it->first] = it->second;
-          }
+
+	  existingdir = cPath.GetSubPath(i);
         }
         catch (eos::MDException &e)
         {
@@ -324,10 +320,13 @@ XrdMgmOfs::_mkdir (const char *path,
         return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
       }
 
+
       // ACL and permission check
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-              attrmap.count("sys.eval.useracl"));
+      Acl acl(existingdir.c_str(),
+	      error,
+	      vid,
+	      attrmap,
+	      true);
 
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),

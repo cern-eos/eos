@@ -67,19 +67,15 @@ XrdMgmOfs::_verifystripe (const char *path,
 
   eos_debug("verify");
   eos::common::Path cPath(path);
-
+  std::string attr_path;
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
+    attr_path = gOFS->eosView->getUri(dh);
     dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
 
-    eos::ContainerMD::XAttrMap::const_iterator it;
-    for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-    {
-      attrmap[it->first] = it->second;
-    }
   }
   catch (eos::MDException &e)
   {
@@ -97,6 +93,15 @@ XrdMgmOfs::_verifystripe (const char *path,
   {
     return Emsg(epname, error, errno, "verify stripe", path);
   }
+
+  // get attributes                                                                                                                                                                             
+  gOFS->_attr_ls(attr_path.c_str(),
+		 error,
+		 vid,
+		 0,
+		 attrmap,
+		 false);
+
 
   // get the file
   try

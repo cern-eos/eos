@@ -102,7 +102,7 @@ XrdMgmOfs::_access (const char *path,
 {
   static const char *epname = "_access";
 
-  eos_info("path=%s mode=%x uid=%u gid=%u", path, mode, vid.uid, vid.gid);
+  eos_debug("path=%s mode=%x uid=%u gid=%u", path, mode, vid.uid, vid.gid);
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
 
   eos::common::Path cPath(path);
@@ -113,6 +113,7 @@ XrdMgmOfs::_access (const char *path,
   uint16_t flags = 0;
   uid_t fuid = 99;
   gid_t fgid = 99;
+  std::string attr_path = cPath.GetPath();
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
@@ -143,6 +144,7 @@ XrdMgmOfs::_access (const char *path,
   try
   {
     eos::ContainerMD::XAttrMap attrmap;
+
     if (fh || (!dh))
     {
       std::string uri;
@@ -158,30 +160,24 @@ XrdMgmOfs::_access (const char *path,
 
       eos::common::Path pPath(uri.c_str());
 
-      eos_debug("path=%s", pPath.GetParentPath());
-      
       dh = gOFS->eosView->getContainer(pPath.GetParentPath());
+      attr_path = pPath.GetParentPath();
     }
 
     permok = dh->access(vid.uid, vid.gid, mode);
 
+    // ACL and permission check                                                                                                                                                                   
+    Acl acl(attr_path.c_str(),
+	    error,
+	    vid,
+	    attrmap,
+	    false);
 
-    // always check for an immutable attribute
-    // get attributes
-    eos::ContainerMD::XAttrMap::const_iterator it;
-    for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-    {
-      attrmap[it->first] = it->second;
-    }
-    // ACL and permission check
-    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-            attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-            attrmap.count("sys.eval.useracl"));
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
 
-    if (vid.uid && !acl.IsMutable() && (mode & R_OK & X_OK))
+    if (vid.uid && !acl.IsMutable() && (mode & W_OK))
     {
       eos_debug("msg=\"access\" errno=EPERM reason=\"immutable\"");
       errno = EPERM;
