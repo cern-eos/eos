@@ -176,20 +176,14 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
     if (!permok)
     {
       eos::common::Mapping::VirtualIdentity rootvid;
-      // get attributes
-      gOFS->_attr_ls(cPath.GetPath(),
-                     error,
-                     rootvid,
-                     0,
-                     attrmap,
-                     false,
-                     true);
+      eos::common::Mapping::Root(rootvid);
 
       // ACL and permission check
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
-              vid,
-              attrmap.count("sys.eval.useracl"));
+      Acl acl(cPath.GetPath(),
+	      error, 
+	      vid,
+	      attrmap,
+	      false);
 
       eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),

@@ -101,6 +101,14 @@ ProcCommand::Attr ()
 
             if ( (mSubCmd == "ls") )
             {
+	      if (gOFS->_access(foundit->first.c_str(),R_OK|X_OK, *mError, *pVid,0))
+	      {
+                stdErr += "error: unable to browse directory ";
+                stdErr += foundit->first.c_str();
+                retc = errno;
+		return SFS_OK;
+	      }
+
               XrdOucString partialStdOut = "";
               if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, true))
               {
@@ -176,6 +184,14 @@ ProcCommand::Attr ()
 
             if (mSubCmd == "get")
             {
+	      if (gOFS->_access(foundit->first.c_str(),R_OK, *mError, *pVid,0))
+	      {
+                stdErr += "error: unable to browse directory ";
+                stdErr += foundit->first.c_str();
+                retc = errno;
+		return SFS_OK;
+	      }
+
               if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val))
               {
                 stdErr += "error: unable to get attribute ";

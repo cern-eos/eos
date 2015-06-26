@@ -88,7 +88,6 @@ ProcCommand::Quota ()
   {
     // figure out if the authenticated user is a quota admin
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::ContainerMD* dh;
     eos::ContainerMD::XAttrMap attrmap;
     if (!space.beginswith("/"))
     {
@@ -96,24 +95,12 @@ ProcCommand::Quota ()
       space = gOFS->MgmProcPath;
     }
 
-    try
-    {
-      dh = gOFS->eosView->getContainer(space.c_str());
-      // get attributes
-      eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
-      // ACL and permission check
-    }
-    catch (eos::MDException &e)
-    {
-      ;
-    }
-
-    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-	    attrmap.count("sys.eval.useracl"));
+    // ACL and permission check
+    Acl acl(space.c_str(),
+	    *mError,
+	    *pVid,
+	    attrmap,
+	    false);
     canQuota = acl.CanSetQuota();
   }
 

@@ -438,8 +438,7 @@ XrdMgmOfsFile::open (const char *inpath,
                      vid,
                      0,
                      attrmap,
-                     false,
-                     true);
+                     false);
 
       if (dmd)
       {
@@ -507,8 +506,7 @@ XrdMgmOfsFile::open (const char *inpath,
                          vid,
                          0,
                          attrmap,
-                         false,
-                         true);
+                         false);
 
         }
         catch (eos::MDException &e)

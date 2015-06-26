@@ -173,10 +173,14 @@ XrdMgmOfs::_exists (const char *path,
     {
       dir = eosView->getContainer(cPath.GetParentPath(),false);
       eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+
+      // get attributes
+      gOFS->_attr_ls(cPath.GetParentPath(),
+		     error,
+		     vid,
+		     0,
+		     attrmap,
+		     false);
     }
     catch (eos::MDException &e)
     {

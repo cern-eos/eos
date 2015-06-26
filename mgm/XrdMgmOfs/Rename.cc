@@ -114,7 +114,7 @@ XrdMgmOfs::rename (const char *old_name,
   MAYSTALL;
   MAYREDIRECT;
 
-  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true);
+  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -236,7 +236,7 @@ XrdMgmOfs::_rename (const char *old_name,
   static const char *epname = "_rename";
   errno = 0;
 
-  eos_info("source=%s target=%s", old_name, new_name);
+  eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
 
   EXEC_TIMING_BEGIN("Rename");
 
