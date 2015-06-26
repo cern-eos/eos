@@ -80,8 +80,8 @@ class ArchiveFile(object):
         # which are to be reused throughout the transfer.
         self.fs_src = client.FileSystem(self.header['src'].encode("utf-8"))
         self.fs_dst = client.FileSystem(self.header['dst'].encode("utf-8"))
-        self.logger.debug("fseek_dir={0}, fseek_file={1}".format(
-                self.fseek_dir, self.fseek_file))
+        self.logger.debug("fseek_dir={0}, fseek_file={1}".format(self.fseek_dir,
+                                                                 self.fseek_file))
 
     def __del__(self):
         """Destructor needs to close the file.
@@ -282,7 +282,7 @@ class ArchiveFile(object):
                 # Remove the 'z:i' rule from the acl list
                 stdout = stdout.replace('"', '')
                 acl_val = stdout[stdout.find('=') + 1:]
-                rules  = acl_val.split(',')
+                rules = acl_val.split(',')
                 new_rules = []
 
                 for rule in rules:
@@ -361,8 +361,8 @@ class ArchiveFile(object):
                         st, __ = fs.mkdir(dpath.encode("utf-8"))
 
                         if not st.ok:
-                            err_msg = "Dir={0} failed mkdir errmsg={1}".format(
-                                dpath, st.message.decode("utf-8"))
+                            err_msg = ("Dir={0} failed mkdir errmsg={1}"
+                                       "").format(dpath, st.message.decode("utf-8"))
                             self.logger.error(err_msg)
                             raise IOError(err_msg)
 
@@ -383,7 +383,7 @@ class ArchiveFile(object):
                         tag, num = entry.split('=')
 
                         if ((tag == 'nfiles' and num not in ['1', '2']) or
-                            (tag == 'ndirectories' and num != '1')):
+                                (tag == 'ndirectories' and num != '1')):
                             err_msg = ("Root GET dir={0} should contain at least "
                                        "one file and at most two - clean up and "
                                        "try again").format(root_str)
@@ -395,49 +395,53 @@ class ArchiveFile(object):
                     self.logger.error(err_msg)
                     raise IOError(err_msg)
 
-    def verify(self, best_effort):
+    def verify(self, best_effort, tx_check_only=False):
         """ Check the integrity of the archive either on disk or on tape.
 
         Args:
             best_effort (boolean): If True then try to verify all entries even if
                 we get an error during the check. This is used for the backup while
                 for the archive, we return as soon as we find the first error.
+            tx_check_only (boolean): If True then only check the existence of the
+                entry, the size and checksum value. This is done only for archive
+                GET operations.
 
         Returns:
-            (status, entry) - Status is True if archive is valid, otherwise
-            false. In case the archive has error return also the first corrupted
+            (status, lst_failed) - Status is True if archive is valid, otherwise
+            false. In case the archive has errors return also the first corrupted
             entry from the archive file, otherwise return an empty list.
             For BACKUP operations return the status and the list of entries for
             which the verfication failed in order to provide a summary to the user.
         """
-        self.logger.info("Do archive verify")
+        self.logger.info("Do archive verification")
         status = True
         lst_failed = []
 
         for entry in self.entries():
             try:
-                self._verify_entry(list(entry))
+                self._verify_entry(entry, tx_check_only)
             except CheckEntryException as __:
+                lst_failed.append(entry)
+                status = False
+
                 if best_effort:
-                    # Backup
-                    status = False
-                    lst_failed.append(entry[1])
                     continue
                 else:
-                    # Archive
-                    return (False, entry)
+                    break
 
         return (status, lst_failed)
 
-    def _verify_entry(self, entry):
+    def _verify_entry(self, entry, tx_check_only):
         """ Check that the entry (file/dir) has the proper meta data.
 
         Args:
             entry (list): Entry from the arhive file containing all info about
-            this particular file/directory.
+               this particular file/directory.
+            tx_check_only (boolean): If True then for files only check their
+                existence, size and checksum values.
 
         Raises:
-            CheckEntryException if entry verification fails.
+            CheckEntryException: if entry verification fails.
         """
         self.logger.debug("Verify entry={0}".format(entry))
         is_dir, path = (entry[0] == 'd'), entry[1]
@@ -483,7 +487,7 @@ class ArchiveFile(object):
                     resp = xs_resp.split('\x00')[0].split()
 
                     # If checksum value is not 8 char long then we need padding
-                    if len(resp[1]) != 8 :
+                    if len(resp[1]) != 8:
                         resp[1] = "{0:0>8}".format(resp[1])
 
                     if resp[0] == "adler32" and resp[1] != xs:
@@ -522,7 +526,7 @@ class ArchiveFile(object):
             except KeyError as __:
                 excl_xattr = list()
 
-            if is_dir and excl_xattr :
+            if is_dir and excl_xattr:
                 # For directories and configuration containing excluded xattrs
                 # we refine the checks
                 ref_dict = dict(zip(tags, entry[2:]))
@@ -540,16 +544,31 @@ class ArchiveFile(object):
                             if kxattr not in excl_xattr:
                                 if vxattr != new_dict[key][kxattr]:
                                     err_msg = ("Verify failed for entry={0} expect={1} got={2}"
-                                               " at xattr key={3}").format(dst, entry, meta_info,
-                                                                            kxattr)
+                                               " at xattr key={3}").format(dst, entry,
+                                                                           meta_info,
+                                                                           kxattr)
                                     self.logger.error(err_msg)
                                     raise CheckEntryException("failed metainfo match")
             else:
-                if not (meta_info == entry):
-                    err_msg = ("Verify failed for entry={0} expect={1} got={2}"
-                               "").format(dst, entry, meta_info)
-                    self.logger.error(err_msg)
-                    raise CheckEntryException("failed metainfo match")
+                # For files with tx_check_only verification, we refine the checks
+                if tx_check_only and not is_dir:
+                    idx_size = self.header["file_meta"].index("size") + 2
+                    idx_xstype = self.header["file_meta"].index("xstype") + 2
+                    idx_xsval = self.header["file_meta"].index("xs") + 2
+
+                    if (meta_info[idx_size] != entry[idx_size] or
+                            meta_info[idx_xstype] != entry[idx_xstype] or
+                            meta_info[idx_xsval] != entry[idx_xsval]):
+                        err_msg = ("Partial verify failed for entry={0} expect={1} got={2}"
+                                   "").format(dst, entry, meta_info)
+                        self.logger.error(err_msg)
+                        raise CheckEntryException("failed metainfo partial match")
+                else:
+                    if not meta_info == entry:
+                        err_msg = ("Verify failed for entry={0} expect={1} got={2}"
+                                   "").format(dst, entry, meta_info)
+                        self.logger.error(err_msg)
+                        raise CheckEntryException("failed metainfo match")
 
         self.logger.info("Entry={0}, status={1}".format(dst, True))
 
@@ -574,8 +593,8 @@ class ArchiveFile(object):
             st, __ = fs.mkdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
 
             if not st.ok:
-                err_msg = "Dir={0} failed mkdir errmsg={1}, errno={2}, code={3}".format(
-                    surl, st.message.decode("utf-8"), st.errno, st.code)
+                err_msg = ("Dir={0} failed mkdir errmsg={1}, errno={2}, code={3}"
+                           "").format(surl, st.message.decode("utf-8"), st.errno, st.code)
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
 

@@ -286,16 +286,16 @@ public:
   int mkdir (const char *dirName,
              XrdSfsMode Mode,
              XrdOucErrInfo &out_error,
-             const XrdSecClientName *client = 0,
+             const XrdSecEntity *client = 0,
              const char *opaque = 0)
   {
-    return mkdir(dirName, Mode, out_error, client, 0, 0);
+    return mkdir(dirName, Mode, out_error, client, opaque, 0);
   }
 
   int mkdir (const char *dirName,
              XrdSfsMode Mode,
              XrdOucErrInfo &out_error,
-             const XrdSecClientName *client = 0,
+             const XrdSecEntity *client = 0,
              const char *opaque = 0,
              ino_t* outino = 0);
 
