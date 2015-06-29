@@ -277,7 +277,7 @@ tgrep() {
 }
 
 stress() {
-    echo xrdstress $* >& $EOSLASTLOG; eval xrdstress $* >> $EOSCERTLOG 2>&1
+    echo xrdstress $* >& $EOSLASTLOG; eval XRD_RUNFORKHANDLER=1 xrdstress $* >> $EOSCERTLOG 2>&1
 }
 
 append() {
