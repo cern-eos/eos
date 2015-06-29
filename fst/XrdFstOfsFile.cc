@@ -1654,7 +1654,7 @@ XrdFstOfsFile::close ()
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
 
-    if ((viaDelete || writeDelete || remoteDelete) && isCreation)
+    if ((viaDelete || writeDelete || remoteDelete) && (isCreation || IsChunkedUpload())
     {
       // It is closed by the constructor e.g. no proper close
       // or the specified checksum does not match the computed one
