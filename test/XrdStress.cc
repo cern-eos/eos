@@ -38,12 +38,9 @@
 #include <math.h>
 /*-----------------------------------------------------------------------------*/
 #include "XrdStress.hh"
-#include <XrdPosix/XrdPosixXrootd.hh>
-#include <XrdClient/XrdClient.hh>
-#include <XrdClient/XrdClientEnv.hh>
+#include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 /*-----------------------------------------------------------------------------*/
-
-XrdPosixXrootd posixXrootd;  ///< xrootd posix instance
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -57,25 +54,18 @@ XrdStress::XrdStress( unsigned int nChilds,
                       bool         verb,
                       bool         useProcess,
                       bool         concurrent):
-  verbose( verb ),
-  processMode( useProcess ),
-  concurrentMode(concurrent ),
-  sizeFile( sFile ),
-  sizeBlock( sBlock ),
-  numChilds( nChilds ),
-  numFiles( nFiles ),
-  pathTest( pTest ),
-  opType( op )
+    verbose( verb ),
+    processMode( useProcess ),
+    concurrentMode(concurrent ),
+    sizeFile( sFile ),
+    sizeBlock( sBlock ),
+    numChilds( nChilds ),
+    numFiles( nFiles ),
+    pathTest( pTest ),
+    opType( op )
 {
   if ( processMode ) {
     childType = "process";
-    //..........................................................................
-    // When running in process mode, we have to set XRD_ENABLEFORKHANDLERS=1
-    //..........................................................................
-    if ( setenv( "XRD_ENABLEFORKHANDLERS", "1", 1 ) ) {
-      fprintf( stderr, "Error while trying to set XRD_ENABLEFORKHANDLERS. \n" );
-      exit( 1 );
-    }
   } else {
     childType = "thread";
 
@@ -85,9 +75,7 @@ XrdStress::XrdStress( unsigned int nChilds,
     }
   }
 
-  //............................................................................
   // Generate the name of the files only in WR or RDWR mode
-  //............................................................................
   if ( opType == "wr" || opType == "rdwr" ) {
     std::string gen_filename;
     uuid_t genUuid;
@@ -95,9 +83,7 @@ XrdStress::XrdStress( unsigned int nChilds,
     vectFilename.reserve( numChilds * numFiles );
 
     if ( concurrentMode ) {
-      //........................................................................
       // Generate file names for first job
-      //........................................................................
       for ( unsigned int idf = 0; idf < numFiles ; idf++ ) {
         uuid_generate_time( genUuid );
         uuid_unparse( genUuid, charUuid );
@@ -106,9 +92,7 @@ XrdStress::XrdStress( unsigned int nChilds,
         vectFilename.push_back( gen_filename );
       }
 
-      //........................................................................
       // For the rest of the jobs copy the file names form the first one
-      //........................................................................
       for ( unsigned int idj = 1; idj < numChilds; idj++ ) {
         for ( unsigned int idf = 0; idf < numFiles ; idf++ ) {
           vectFilename.push_back( vectFilename[idf] );
@@ -116,9 +100,7 @@ XrdStress::XrdStress( unsigned int nChilds,
       }
     }
     else {
-      //........................................................................
       // In non-concurrent mode all jobs operate on different files
-      //........................................................................
       for ( unsigned int indx = 0; indx < ( numChilds * numFiles ); indx++ ) {
         uuid_generate_time( genUuid );
         uuid_unparse( genUuid, charUuid );
@@ -128,9 +110,7 @@ XrdStress::XrdStress( unsigned int nChilds,
       }
     }
   } else if ( opType == "rd" ) {
-    //..........................................................................
     // If no files in vect. then read the files from the directory
-    //..........................................................................
     unsigned int num_entries = GetListFilenames();
     
     if ( num_entries == 0 ) {
@@ -140,17 +120,13 @@ XrdStress::XrdStress( unsigned int nChilds,
 
     if ( concurrentMode ) {
       if ( num_entries > numFiles ) {
-        //......................................................................
         // Jobs will run (concurrently) only on the first numFiles
-        //......................................................................
         while ( vectFilename.size() > numFiles ) {
           vectFilename.pop_back();
         }
       }
 
-      //........................................................................
       // Duplicate the file names form the first job to all the others
-      //........................................................................
       for ( unsigned int idj = 1; idj < numChilds; idj++ ) {
         for ( unsigned int idf = 0; idf < numFiles ; idf++ ) {
           vectFilename.push_back( vectFilename[idf] );
@@ -158,27 +134,21 @@ XrdStress::XrdStress( unsigned int nChilds,
       }      
     }
     else {
-      //..........................................................................
       // If not in concurrent mode and not enough files in dir. set the new no.
       // of files so that each job receives the same number of different files
       // Each file is processed only once, by only one job.
-      //..........................................................................
       if ( ( ( num_entries / numChilds ) != numFiles ) ) {
         numFiles = ceil( num_entries / numChilds );
       }
     }
   }
 
-  //............................................................................
   // Reserve space in vectors for statistics
-  //............................................................................
   avgRdRate.reserve( numChilds );
   avgWrRate.reserve( numChilds );
   avgOpen.reserve( numChilds );
 
-  //............................................................................
   // Set the type of the function call
-  //............................................................................
   if ( opType == "rd" ) {
     callback = XrdStress::RdProc;
   } else if ( opType == "wr" ) {
@@ -187,7 +157,6 @@ XrdStress::XrdStress( unsigned int nChilds,
     callback = XrdStress::RdWrProc;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -199,17 +168,7 @@ XrdStress::~XrdStress()
   avgWrRate.clear();
   avgOpen.clear();
   vectFilename.clear();
-
-  if ( processMode ) {
-    //..........................................................................
-    // When running in process mode, we have to unset XRD_ENABLEFORKHANDLERS=1
-    //..........................................................................
-    if ( unsetenv( "XRD_ENABLEFORKHANDLERS" ) ) {
-      fprintf( stderr, "Error while trying to unset XRD_ENABLEFORKHANDLERS. \n" );
-    }
-  }
 }
-
 
 //------------------------------------------------------------------------------
 // Generic function to run tests in thread/process mode
@@ -225,7 +184,6 @@ XrdStress::RunTest()
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Run tests using threads
 //------------------------------------------------------------------------------
@@ -240,16 +198,13 @@ XrdStress::RunTestThreads()
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Run tests using processes
 //------------------------------------------------------------------------------
 void
 XrdStress::RunTestProcesses()
 {
-  //............................................................................
   // Use pipes to send back information to parent
-  //............................................................................
   int** pipefd = ( int** ) calloc( numChilds, sizeof( int* ) );
 
   for ( unsigned int i = 0; i < numChilds; i++ ) {
@@ -281,9 +236,7 @@ XrdStress::RunTestProcesses()
       info->avgWrVal = 0;
       info->avgOpenVal = 0;
 
-      //........................................................................
       // Call function
-      //........................................................................
       ( *callback )( info );
 
       if ( opType == "rd" ) {
@@ -301,9 +254,7 @@ XrdStress::RunTestProcesses()
     }
   }
 
-  //............................................................................
   // Parent process
-  //............................................................................
   for ( unsigned int i = 0; i < numChilds; i++ ) {
     char readbuffer[30];
     close( pipefd[i][1] );   //close writing end
@@ -329,9 +280,7 @@ XrdStress::RunTestProcesses()
     close( pipefd[i][0] );       //close reading end
   }
 
-  //............................................................................
   // Free memory
-  //............................................................................
   for ( unsigned int i = 0; i < numChilds; i++ ) {
     free( pipefd[i] );
   }
@@ -340,7 +289,6 @@ XrdStress::RunTestProcesses()
   free( cpid );
   ComputeStatistics();
 }
-
 
 //------------------------------------------------------------------------------
 // Wait for all threads to finish
@@ -357,7 +305,6 @@ XrdStress::WaitThreads()
   ComputeStatistics();
 }
 
-
 //------------------------------------------------------------------------------
 // Start thread executing a particular function
 //------------------------------------------------------------------------------
@@ -366,7 +313,6 @@ XrdStress::ThreadStart( pthread_t& thread, TypeFunc func, void* arg )
 {
   return pthread_create( &thread, NULL, func, arg );
 }
-
 
 //------------------------------------------------------------------------------
 // Compute statistics
@@ -401,7 +347,6 @@ XrdStress::ComputeStatistics()
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Compute standard deviation and mean for the input provided
 //------------------------------------------------------------------------------
@@ -411,21 +356,18 @@ XrdStress::GetStdDev( std::vector<double>& avg, double& mean )
   double std = 0;
   mean = 0;
 
-  for ( unsigned int i = 0; i < numChilds; i++ ) {
+  for ( unsigned int i = 0; i < numChilds; i++ )
     mean += avg[i];
-  }
 
   mean = mean / numChilds;
 
-  for ( unsigned int i = 0; i < numChilds; i++ ) {
+  for ( unsigned int i = 0; i < numChilds; i++ )
     std += pow( ( avg[i] - mean ), 2 );
-  }
 
   std /= numChilds;
   std = sqrt( std );
   return std;
 }
-
 
 //------------------------------------------------------------------------------
 // Read the names of the files in the directory
@@ -458,7 +400,6 @@ XrdStress::GetListFilenames()
   return no;
 }
 
-
 //------------------------------------------------------------------------------
 // Read procedure
 //------------------------------------------------------------------------------
@@ -476,9 +417,7 @@ XrdStress::RdProc( void* arg )
   XrdStress* pxt = pti->pXrdStress;
   char* buffer = new char[pxt->sizeBlock];
 
-  //............................................................................
   // Initialize time structures
-  //............................................................................
   int deltaTime = DELTATIME;
   double duration = 0;
   struct timeval start, end;
@@ -488,9 +427,7 @@ XrdStress::RdProc( void* arg )
   unsigned int startIndx = pti->idChild * pxt->numFiles;
   unsigned int endIndx = ( pti->idChild + 1 ) * pxt->numFiles;
 
-  //............................................................................
   // Loop over all files corresponding to the current thread
-  //............................................................................
   for ( unsigned int indx = startIndx; indx < endIndx ; indx++ ) {
     std::string urlFile = pxt->vectFilename[indx];
     struct stat buf;
@@ -507,9 +444,7 @@ XrdStress::RdProc( void* arg )
       exit( 1 );
     }
 
-    //..........................................................................
     // Read from file
-    //..........................................................................
     off_t offset = 0;
     unsigned long long noBlocks = sizeReadFile / pxt->sizeBlock;
     size_t lastRead = sizeReadFile % pxt->sizeBlock;
@@ -561,9 +496,7 @@ XrdStress::RdProc( void* arg )
 
   delete[] buffer;
 
-  //............................................................................
   // Get overall values
-  //............................................................................
   gettimeofday( &end, NULL );
   duration = ( end.tv_sec - start.tv_sec ) + ( ( end.tv_usec - start.tv_usec ) / 1e6 );
   rate = ( ( double )total_offset / ( 1024 * 1024 ) ) / duration;
@@ -587,7 +520,6 @@ XrdStress::RdProc( void* arg )
   return arg;
 }
 
-
 //------------------------------------------------------------------------------
 // Write procedure
 //------------------------------------------------------------------------------
@@ -603,17 +535,13 @@ XrdStress::WrProc( void* arg )
   ChildInfo* pti = static_cast<ChildInfo*>( arg );
   XrdStress* pxt = pti->pXrdStress;
 
-  //............................................................................
   // Fill buffer with random characters
-  //............................................................................
   char* buffer = new char[pxt->sizeBlock];
   std::ifstream urandom( "/dev/urandom", std::ios::in | std::ios::binary );
   urandom.read( buffer, pxt->sizeBlock );
   urandom.close();
 
-  //............................................................................
   // Initialize time structures
-  //............................................................................
   float duration = 0;
   int deltaTime = DELTATIME;
   struct timeval start, end;
@@ -625,9 +553,7 @@ XrdStress::WrProc( void* arg )
   unsigned int startIndx = pti->idChild * pxt->numFiles;
   unsigned int endIndx = ( pti->idChild + 1 ) * pxt->numFiles;
 
-  //............................................................................
   // Loop over all files corresponding to the current job
-  //............................................................................
   for ( unsigned int indx = startIndx; indx < endIndx ; indx++ ) {
     std::string urlFile = pxt->vectFilename[indx];
     count_open++;
@@ -642,9 +568,7 @@ XrdStress::WrProc( void* arg )
       exit( 1 );
     }
 
-    //..........................................................................
     // Write to file
-    //..........................................................................
     size_t offset = 0;
     unsigned long long noBlocks = pxt->sizeFile / pxt->sizeBlock;
     size_t lastWrite = pxt->sizeFile % pxt->sizeBlock;
@@ -696,9 +620,7 @@ XrdStress::WrProc( void* arg )
 
   delete[] buffer;
 
-  //............................................................................
   // Get overall values
-  //............................................................................
   gettimeofday( &end, NULL );
   duration = ( end.tv_sec - start.tv_sec ) + ( ( end.tv_usec - start.tv_usec ) / 1e6 );
   open_per_sec = static_cast<double>( count_open / duration );
@@ -716,7 +638,6 @@ XrdStress::WrProc( void* arg )
   return arg;
 }
 
-
 //------------------------------------------------------------------------------
 // Read and write procedure
 //------------------------------------------------------------------------------
@@ -727,7 +648,6 @@ XrdStress::RdWrProc( void* arg )
   RdProc( arg );
   return arg;
 }
-
 
 //------------------------------------------------------------------------------
 // Main function
@@ -752,8 +672,8 @@ int main( int argc, char* argv[] )
                                \n\t\t -f <num_files>\
                                \n\t\t [-b <size_block: 1KB, 1MB>]\
                                \n\t\t [-s <size_file: 1KB, 1MB>]\
-                               \n\t\t [-c run in concurrent mode \
-                               \n\t\t [-n <testName>]   \
+                               \n\t\t [-c run in concurrent mode]\
+                               \n\t\t [-n <testName>]\
                                \n\t\t [-v verbose]\
                                \n\t\t [-p use processes]\
                                \n\t\t [-h display help] \n";
@@ -762,117 +682,112 @@ int main( int argc, char* argv[] )
 
   while ( ( c = getopt( argc, argv, "d:o:j:f:s:b:n:vphc" ) ) != -1 ) {
     switch ( c ) {
-    case 'h': { // display help information
-      std::cout << usage << std::endl;
-      exit( 1 );
-    }
-
-    case 'c': { // run in concurrent mode i.e. all jobs access the same files
-      concurrent_mode = true;
-      break;
-    }
-      
-    case 'j': { //no. of jobs
-      num_jobs = static_cast<unsigned int>( atoi( optarg ) );
-      break;
-    }
-
-    case 'd': { //directory path
-      path = optarg;
-      //........................................................................
-      // Check path to see if it extsts
-      //........................................................................
-      struct stat buff;
-      int ret = XrdPosixXrootd::Stat( path.c_str(), &buff );
-
-      if ( ret != 0 ) {
-        std::cout << "The path requested does not exists. Xrootd::stat failed." << std::endl
-                  << usage << std::endl;
+      case 'h': { // display help information
+        std::cout << usage << std::endl;
         exit( 1 );
       }
+      case 'c': { // run in concurrent mode i.e. all jobs access the same files
+        concurrent_mode = true;
+        break;
+      }
+      case 'j': { //no. of jobs
+        num_jobs = static_cast<unsigned int>( atoi( optarg ) );
+        break;
+      }
+      case 'd': { //directory path
+        path = optarg;
+        // Check path to see if it extsts
+        XrdCl::URL url(path);
 
-      break;
-    }
+        if (!url.IsValid())
+        {
+          std::cerr << "URL: " << path << " is not valid" << std::endl;
+          exit( 1 );
+        }
 
-    case 'o': { //operation type
-      op_type = optarg;
+        XrdCl::FileSystem fs(url);
+        XrdCl::StatInfo *buff = 0;
+        XrdCl::Status st = fs.Stat( url.GetPath(), buff );
 
-      if ( setOp.find( op_type ) == setOp.end() ) {
-        std::cout << "Type of operation unknown. " << std::endl
-                  << usage << std::endl;
+        if ( !st.IsOK() ) {
+          std::cout << "The path requested does not exists. Xrootd::stat failed." << std::endl
+                    << usage << std::endl;
+          exit( 1 );
+        }
+
+        delete buff;
+        break;
+      }
+      case 'o': { //operation type
+        op_type = optarg;
+
+        if ( setOp.find( op_type ) == setOp.end() ) {
+          std::cout << "Type of operation unknown. " << std::endl
+                    << usage << std::endl;
+          exit( 1 );
+        }
+
+        break;
+      }
+      case 'n': { //test name
+        testName = optarg;
+        break;
+      }
+      case 's': { //size file
+        sTmp = optarg;
+        std::string sNo = sTmp.substr( 0, sTmp.size() - 2 );
+        std::string sBytes = sTmp.substr( sTmp.size() - 2 );
+
+        if ( sBytes == "KB" ) {
+          size_file = atoi( sNo.c_str() ) * 1024;
+        } else if ( sBytes == "MB" ) {
+          size_file = atoi( sNo.c_str() ) * 1024 * 1024;
+        }
+
+        break;
+      }
+      case 'b': { //size block
+        sTmp = optarg;
+        std::string sNo = sTmp.substr( 0, sTmp.size() - 2 );
+        std::string sBytes = sTmp.substr( sTmp.size() - 2 );
+
+        if ( sBytes == "KB" ) {
+          size_block = atoi( sNo.c_str() ) * 1024;
+        } else if ( sBytes == "MB" ) {
+          size_block = atoi( sNo.c_str() ) * 1024 * 1024;
+        }
+
+        break;
+      }
+      case 'f': { //number of files
+        num_files = atoi( optarg );
+        break;
+      }
+      case 'v': { //verbose mode
+        verbose = true;
+        break;
+      }
+      case 'p': { //run with processes or threads
+        process_mode = true;
+        std::cout << "Don't forget to set XRD_RUNFORKHANDLER=1 in procees mode"
+                  << std::endl;
+        break;
+      }
+      case ':': {
+        std::cout << usage << std::endl;
         exit( 1 );
+        break;
       }
-
-      break;
-    }
-
-    case 'n': { //test name
-      testName = optarg;
-      break;
-    }
-
-    case 's': { //size file
-      sTmp = optarg;
-      std::string sNo = sTmp.substr( 0, sTmp.size() - 2 );
-      std::string sBytes = sTmp.substr( sTmp.size() - 2 );
-
-      if ( sBytes == "KB" ) {
-        size_file = atoi( sNo.c_str() ) * 1024;
-      } else if ( sBytes == "MB" ) {
-        size_file = atoi( sNo.c_str() ) * 1024 * 1024;
-      }
-
-      break;
-    }
-
-    case 'b': { //size block
-      sTmp = optarg;
-      std::string sNo = sTmp.substr( 0, sTmp.size() - 2 );
-      std::string sBytes = sTmp.substr( sTmp.size() - 2 );
-
-      if ( sBytes == "KB" ) {
-        size_block = atoi( sNo.c_str() ) * 1024;
-      } else if ( sBytes == "MB" ) {
-        size_block = atoi( sNo.c_str() ) * 1024 * 1024;
-      }
-
-      break;
-    }
-
-    case 'f': { //number of files
-      num_files = atoi( optarg );
-      break;
-    }
-
-    case 'v': { //verbose mode
-      verbose = true;
-      break;
-    }
-
-    case 'p': { //run with processes or threads
-      process_mode = true;
-      break;
-    }
-
-    case ':': {
-      std::cout << usage << std::endl;
-      exit( 1 );
-      break;
-    }
     }
   }
   
-  //............................................................................
   // If one of the critical params. is missing exit
-  //............................................................................
   if ( ( path == "" ) || ( op_type == "" ) || ( num_jobs == 0 ) || ( num_files == 0 ) ) {
     std::cout << usage << std::endl;
     exit( 1 );
   }
 
-  //............................................................................
   // Generate uuid for test name if none provided
-  //............................................................................
   if ( testName == "" ) {
     uuid_t genUuid;
     char charUuid[40];
@@ -881,13 +796,12 @@ int main( int argc, char* argv[] )
     testName = charUuid;
   }
 
-  //............................................................................
   // Construct full path
-  //............................................................................
   if ( path.rfind( "/" ) != path.size() ) {
     path += "/";
   }
 
+  XrdPosixXrootd posixXrootd;  ///< xrootd posix instance
   path += testName;
   path += "/";
   std::cout << "Directory path = " << path << " using block size for operations of: "
