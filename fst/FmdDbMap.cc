@@ -397,7 +397,7 @@ FmdDbMapHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::File
   if (dbmap.count(fsid) && entryexist)
   {
     // delete in the in-memory hash
-    if( ! dbmap[fsid]->remove(eos::common::Slice((const char*)&fid,sizeof(fid))) )
+    if( dbmap[fsid]->remove(eos::common::Slice((const char*)&fid,sizeof(fid))) )
     {
       eos_err("unable to delete fid=%08llx from fst table\n", fid);
       rc = false;
