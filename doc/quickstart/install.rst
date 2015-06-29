@@ -37,7 +37,7 @@ For HTTP server
 
 For GridFTP server
 
-   yum install eos-dsi
+   yum install xrootd-dsi
 
 For EOS test on MGM (namespace node)
 
