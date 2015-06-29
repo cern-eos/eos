@@ -114,7 +114,7 @@ XrdMgmOfs::rename (const char *old_name,
   MAYSTALL;
   MAYREDIRECT;
 
-  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false);
+  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true);
 }
 
 /*----------------------------------------------------------------------------*/
