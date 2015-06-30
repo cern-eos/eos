@@ -620,7 +620,7 @@ runtest "### Access    " unix 1 "" eos "access ls | grep nobody"
 ################################################################################################################
 runtest "### Access    " unix 0 "" eos "access set stall 1 r"
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd"
-runtest "### Download  " unix 1 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99" "-DITransactionTimeout 1"
+runtest "### Download  " unix 1 "" eosssh-timeout -t 3 download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd" "-OSeos.ruid=99"
 runtest "### Access    " unix 0 "" eos "access ls | grep \"r:\* => 1\""
 runtest "### Access    " unix 0 "" eos "access rm stall r"
 runtest "### Access    " unix 1 "" eos "access ls | grep \"r:\* => 1\""
@@ -672,7 +672,8 @@ fi
 if [ $recycletime -eq 0 ]; then
 runtest "### Recycle   " unix 0 "" eos recycle config --lifetime 86400
 fi
- 
+
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest" 
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle"
 runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
