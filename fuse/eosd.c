@@ -480,7 +480,7 @@ eosfs_ll_readdir (fuse_req_t req,
              (long long) ino, dirfullpath, (long long) size, (long long) off);
   }
 
-  if ((req->ctx.uid) && ((!getenv ("EOS_FUSE_NOACCESS")) ||
+  if (((!getenv ("EOS_FUSE_NOACCESS")) ||
                          (!strcmp (getenv ("EOS_FUSE_NOACCESS"), "1"))))
   {
     // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
