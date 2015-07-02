@@ -201,6 +201,7 @@ public:
     std::stringstream ss;
     ss << "/proc/" << pPid;
     pProcPrefix = ss.str ();
+    pMutex.SetBlocking(true);
   }
 
   ~ProcCacheEntry ()
@@ -319,6 +320,7 @@ class ProcCache
 public:
   ProcCache ()
   {
+    pMutex.SetBlocking(true);
   }
   ~ProcCache ()
   {
