@@ -302,22 +302,21 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset, char* buffer,
      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
      eos::common::StringConversion::MaskTag(maskUrl, "authz");
-     eos_warning("Failed to read replica- %llu %llu %s",
+     eos_warning("Failed to read from replica off=%lld, lenght=%i, mask_url=%s",
                  offset, length, maskUrl.c_str());
      continue;
    }
    else
    {
-     //......................................................................
      // Read was scucessful no need to read from another replica
-     //......................................................................
      break;
    }
  }
 
  if (rc == SFS_ERROR)
  {
-   eos_err("Failed to read from any replica - %llu %llu", offset, length);
+   eos_err("Failed to read from any replica offset=%lld, lenght=%i",
+           offset, length);
    return gOFS.Emsg("ReplicaParRead", *mError, EREMOTEIO,
                     "read replica - read failed");
  }

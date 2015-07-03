@@ -166,6 +166,7 @@ private:
 
   uint64_t mFileSize; ///< file size
   FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
+  bool mDisableRdAhead; ///< if any write operations is done, disable rdahead
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor

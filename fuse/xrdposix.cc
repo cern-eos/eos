@@ -2590,11 +2590,18 @@ xrd_truncate (int fildes, off_t offset)
     return ret;
   }
 
-  if (XFC && fuse_cache_write)
-    XFC->ForceAllWrites(fabst);
-
   eos::fst::Layout* file = fabst->GetRawFile();
-  ret = file->Truncate(offset);
+
+  if (XFC && fuse_cache_write)
+  {
+    fabst->mMutexRW.WriteLock();
+    XFC->ForceAllWrites(fabst);
+    ret = file->Truncate(offset);
+    fabst->mMutexRW.UnLock();
+  }
+  else
+    ret = file->Truncate(offset);
+
   fabst->DecNumRef();
 
   if (ret == -1)
@@ -2620,7 +2627,7 @@ xrd_pread (int fildes,
   eos_static_debug("fd=%d nbytes=%lu offset=%llu",
                    fildes, (unsigned long) nbyte,
                    (unsigned long long) offset);
-  int64_t ret = -1;
+  ssize_t ret = -1;
   FileAbstraction* fabst = xrd_get_file(fildes);
 
   if (!fabst)
@@ -2649,8 +2656,12 @@ xrd_pread (int fildes,
 
   if (ret == -1)
   {
-    eos_static_err("failed to do read");
+    eos_static_err("failed read off=%ld, len=%u", offset, nbyte);
     errno = EIO;
+  }
+  else if ((size_t)ret != nbyte)
+  {
+    eos_static_warning("read size=%u, returned=%u", nbyte, ret);
   }
 
   if (EOS_LOGS_DEBUG)
