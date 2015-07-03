@@ -2793,6 +2793,9 @@ xrd_rename (const char* oldpath,
   sNewPath.replace(" ","#space#");
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
+
+  // Add the overwrite flag to the old path
+  sOldPath += "?mgm.rename.overwrite=1";
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
 
   if (xrd_error_retc_map(status.errNo))
