@@ -40,7 +40,8 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           eos::common::LayoutId::eIoType io,
                           uint16_t timeout) :
     Layout (file, lid, client, outError, io, timeout),
-    mFileSize(0)
+    mFileSize(0),
+    mDisableRdAhead(false)
 {
   // For the plain layout we use only the LocalFileIo type
   mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
@@ -89,7 +90,7 @@ int64_t
 PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
                    XrdSfsXferSize length, bool readahead)
 {
-  if (readahead)
+  if (readahead && !mDisableRdAhead)
   {
     if (mIoType == eos::common::LayoutId::eIoType::kXrdCl)
     {
@@ -124,6 +125,8 @@ int64_t
 PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer,
                     XrdSfsXferSize length)
 {
+  mDisableRdAhead = true;
+
   if ((uint64_t)(offset + length) > mFileSize)
     mFileSize = offset + length;
 

@@ -74,6 +74,7 @@ XrdMgmOfs::rename (const char *old_name,
   XrdOucString oldn, newn;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
+  bool overwrite = false;
 
   oldn = old_name;
   newn = new_name;
@@ -95,7 +96,7 @@ XrdMgmOfs::rename (const char *old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    if (info)info = 0;
+    if (info) info = 0;
   }
 
   {
@@ -105,8 +106,7 @@ XrdMgmOfs::rename (const char *old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-
-    if (info)info = 0;
+    if (info) info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;
