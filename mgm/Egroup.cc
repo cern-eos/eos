@@ -447,7 +447,6 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
     Mutex.Lock();
 
     Map[egroupname][username] = isMember;
-
     LifeTime[egroupname][username] = now + EOSEGROUPCACHETIME;
 
     Mutex.UnLock();
@@ -455,8 +454,12 @@ Egroup::DoRefresh (std::string& egroupname, std::string& username)
   else
   {
     Mutex.Lock();
-    isMember = Map[egroupname][username];
+    if (Map.count(egroupname) && Map[egroupname].count(username))
+      isMember = Map[egroupname][username];
+    else 
+      isMember = false;
     Mutex.UnLock();
+
     if (isMember)
     {
       eos_static_warning("member=true user=\"%s\" e-group=\"%s\" "
