@@ -74,7 +74,6 @@ XrdMgmOfs::rename (const char *old_name,
   XrdOucString oldn, newn;
   XrdOucEnv renameo_Env(infoO);
   XrdOucEnv renamen_Env(infoN);
-  bool overwrite = false;
 
   oldn = old_name;
   newn = new_name;
