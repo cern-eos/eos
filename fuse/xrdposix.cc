@@ -2249,6 +2249,10 @@ xrd_open (const char* path,
                   path, oflags, mode, uid, pid);
   XrdOucString spath = xrd_user_url(uid, gid, pid);
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
+
+  eos::common::Timing opentiming("xrd_open");
+  COMMONTIMING("START", &opentiming);
+
   spath += path;
   errno = 0;
   int t0;
@@ -2504,6 +2508,12 @@ xrd_open (const char* path,
     }
 
     retc = xrd_add_fd2file(file, *return_inode, uid, path);
+
+    COMMONTIMING("end", &opentiming);
+    
+    if (EOS_LOGS_DEBUG)
+    opentiming.Print();
+
     return retc;
   }
 }

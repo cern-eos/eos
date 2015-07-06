@@ -54,7 +54,7 @@
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
 
-int isdebug = 0; ///< set debug on/off
+int isdebug = 1; ///< set debug on/off
 
 char mounthostport[1024]; ///< mount hostport of the form: hostname:port
 char mountprefix[1024]; ///< mount prefix of the form: dir1/dir2/dir3
