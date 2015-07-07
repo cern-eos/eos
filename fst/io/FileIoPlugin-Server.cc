@@ -25,6 +25,9 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
+#ifdef KINETICIO_FOUND
+#include "fst/io/KineticIo.hh"
+#endif
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -50,7 +53,10 @@ FileIoPlugin::GetIoObject (int ioType,
   else
     if (ioType == LayoutId::kKinetic)
   {
-    return static_cast<FileIo*> (new KineticIo());
+    #ifdef KINETICIO_FOUND
+      return static_cast<FileIo*> (new KineticIo());
+    #endif
+    return NULL; 
   }
   else
     if (ioType == LayoutId::kRados)

@@ -8,9 +8,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
-#include <kio/KineticFileIo.hh>
-#include <kio/KineticFileAttr.hh>
-#include <kio/KineticException.hh>
+#include <kio/FileIoInterface.hh>
+#include <kio/FileAttrInterface.hh>
+#include <memory>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -22,7 +22,7 @@ public:
   {
   private:
     //! The actual implementation class.
-    std::unique_ptr<KineticFileAttr> kattr;
+    std::unique_ptr<kio::FileAttrInterface> kattr;
   public:
     // ------------------------------------------------------------------------
     //! Set a binary attribute (name has to start with 'user.' !!!)
@@ -57,7 +57,7 @@ public:
     // ------------------------------------------------------------------------
     // Constructor
     // ------------------------------------------------------------------------
-    explicit Attr (std::unique_ptr<KineticFileAttr> a);
+    explicit Attr (std::unique_ptr<kio::FileAttrInterface> a);
 
     // ------------------------------------------------------------------------
     // Destructor
@@ -237,11 +237,8 @@ public:
   ~KineticIo ();
 
 private:
-  //! Generate a log message from the supplied exception
-  void log(const KineticException& e);
-
   //! the actual implementation class
-  KineticFileIo kio;
+  std::unique_ptr<kio::FileIoInterface> kio;
 
   //! No copy constructor
   KineticIo (const KineticIo&) = delete;

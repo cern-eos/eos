@@ -29,7 +29,7 @@ else()
     set(KINETICIO_INCLUDE_DIR "")
     set(KINETICIO_LIBRARIES "")
     set(KINETICIO_SRC "")
-    set(KINETICIO_HDR "io/KineticIoNotFound.hh")
+    set(KINETICIO_HDR "")
 endif()
 
 include_directories(../

@@ -9,7 +9,7 @@ if(KINETICIO_INCLUDE_DIRS AND KINETICIO_LIBRARIES)
 set(KINETICIO_FIND_QUIETLY TRUE)
 endif(KINETICIO_INCLUDE_DIRS AND KINETICIO_LIBRARIES)
 
-find_path(KINETICIO_INCLUDE_DIR KineticFileIo.hh
+find_path(KINETICIO_INCLUDE_DIR KineticIoFactory.hh
                     HINTS
                     /usr/include/kio/
                     /usr/local/include/kio/
