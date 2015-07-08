@@ -188,7 +188,6 @@ com_file (char* arg1)
     if (!path.length() || !fsid1.length())
       goto com_file_usage;
 
-    fsid1 = abspath(fsid1.c_str());
     in += "&mgm.path=";
     in += path;
     in += "&mgm.subcmd=symlink";
