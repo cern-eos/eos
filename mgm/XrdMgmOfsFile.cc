@@ -445,11 +445,11 @@ XrdMgmOfsFile::open (const char *inpath,
         if (ocUploadUuid.length())
         {
           eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-          fmd = dmd->findFile(aPath.GetName());
+          fmd = gOFS->eosView->getFile(aPath.GetPath());
         }
         else
         {
-          fmd = dmd->findFile(cPath.GetName());
+          fmd = gOFS->eosView->getFile(cPath.GetPath());
         }
 
         if (!fmd)
@@ -1091,7 +1091,7 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
-	std::string uri = gOFS->eosView->getUri(fmd);
+        std::string uri = gOFS->eosView->getUri(fmd);
         SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
         if (space)
         {
