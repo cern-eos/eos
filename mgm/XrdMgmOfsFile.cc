@@ -442,15 +442,22 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (dmd)
       {
-        if (ocUploadUuid.length())
-        {
-          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-          fmd = gOFS->eosView->getFile(aPath.GetPath());
-        }
-        else
-        {
-          fmd = gOFS->eosView->getFile(cPath.GetPath());
-        }
+	try
+	{
+	  if (ocUploadUuid.length())
+	  {
+	    eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
+	    fmd = gOFS->eosView->getFile(aPath.GetPath());
+	  }
+	  else
+	  {
+	    fmd = gOFS->eosView->getFile(cPath.GetPath());
+	  }
+	}
+	catch (eos::MDException &e)
+	{
+	  fmd = 0;
+	}
 
         if (!fmd)
         {
