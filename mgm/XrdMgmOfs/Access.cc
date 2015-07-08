@@ -151,11 +151,11 @@ XrdMgmOfs::_access (const char *path,
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh)
       {
-	uri = gOFS->eosView->getUri(fh);
+        uri = gOFS->eosView->getUri(fh);
       }
       else
       {
-	uri = cPath.GetPath();
+        uri = cPath.GetPath();
       }
 
       eos::common::Path pPath(uri.c_str());
@@ -166,12 +166,12 @@ XrdMgmOfs::_access (const char *path,
 
     permok = dh->access(vid.uid, vid.gid, mode);
 
-    // ACL and permission check                                                                                                                                                                   
+    // ACL and permission check
     Acl acl(attr_path.c_str(),
-	    error,
-	    vid,
-	    attrmap,
-	    false);
+            error,
+            vid,
+            attrmap,
+            false);
 
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
