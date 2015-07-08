@@ -168,7 +168,13 @@ namespace eos
 	  e.getMessage() << "Too many symbolic links were encountered in translating the pathname";
 	  throw e;
 	}
-	return getFile(file->getLink(), true, link_depths);
+	std::string link = file->getLink();
+	if (link[0] != '/')
+	{
+	  link.insert(0, getUri(cont));
+	  absPath(link);
+	}
+	return getFile(link, true, link_depths);
       }
     }
     return file;
@@ -541,7 +547,13 @@ namespace eos
 	      }
 	    }
 
-	    found = getContainer( flink->getLink() , false, link_depths);
+	    std::string link = flink->getLink();
+	    if (link[0] != '/')
+	    {
+	      link.insert(0,getUri(current));
+	      absPath(link);
+	    }
+	    found = getContainer( link , false, link_depths);
 	    if ( !found ) 
 	    {
 	      index = position;
@@ -906,4 +918,38 @@ namespace eos
     parent->addFile( file );
     updateFileStore( file );
   }
+
+  //----------------------------------------------------------------------------
+  // abspath sanitizing all '..' and '.' in a path
+  //----------------------------------------------------------------------------
+  void HierarchicalView::absPath(std::string &mypath)
+  {
+    std::string path = mypath;
+    std::string abspath;
+    size_t rpos=4096;
+
+    while ( (rpos = path.rfind("/", rpos)) != std::string::npos) {
+      rpos--;
+      std::string tp = path.substr(rpos+1);
+      path.erase(rpos+1);
+      if (tp == "/")
+	continue;
+      if (tp == "/.")
+	continue;
+      if (tp == "/..") {
+	rpos = path.rfind("/", rpos);
+	path.erase(rpos);
+	rpos--;
+	continue;
+      }
+      abspath.insert(0,tp);
+
+      if (rpos <=0)
+	break;
+    }
+    mypath = abspath;
+    fprintf(stderr,"abspath: %s => %s\n", path.c_str(), mypath.c_str());
+  }
 };
+
+
