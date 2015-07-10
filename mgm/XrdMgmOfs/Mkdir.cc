@@ -422,6 +422,12 @@ XrdMgmOfs::_mkdir (const char *path,
               newdir->setAttribute(it->first, it->second);
             }
           }
+
+	  // store the in-memory modification time into the parent
+	  eos::ContainerMD::ctime_t ctime;
+	  newdir->getCTime(ctime);
+	  UpdateInmemoryDirectoryModificationTime(dir->getId(), ctime);
+
           // commit
           eosView->updateContainerStore(newdir);
         }
