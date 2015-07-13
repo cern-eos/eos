@@ -933,7 +933,7 @@ xrd_rmxattr (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=xattr&";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=rm&";
   request += "mgm.xattrname=";
   request += xattr_name;
@@ -994,7 +994,7 @@ xrd_setxattr (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=xattr&";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=set&";
   request += "mgm.xattrname=";
   request += xattr_name;
@@ -1057,7 +1057,7 @@ xrd_getxattr (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=xattr&";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=get&";
   request += "mgm.xattrname=";
   request += xattr_name;
@@ -1132,7 +1132,7 @@ xrd_listxattr (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=xattr&";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=ls";
   arg.FromString(request);
 
@@ -1251,7 +1251,7 @@ xrd_stat (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=stat";
+  request += "mgm.pcmd=stat&eos.app=fuse";
   arg.FromString(request);
 
   XrdCl::URL Url(xrd_user_url(uid, gid, 0));
@@ -1266,6 +1266,7 @@ xrd_stat (const char* path,
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
+    tag[0]=0;
     // Parse output
     int items = sscanf(response->GetBuffer(),
                        "%s %llu %llu %llu %llu %llu %llu %llu %llu "
@@ -1289,8 +1290,14 @@ xrd_stat (const char* path,
 
     if ((items != 17) || (strcmp(tag, "stat:")))
     {
-      errno = ENOENT;
+      int retc=0;
+      items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
+      if ( (!strcmp(tag, "stat:")) && (items == 2) )
+	errno = retc;
+      else
+	errno = EFAULT;
       delete response;
+      eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
       return errno;
     }
     else
@@ -1393,7 +1400,7 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=statvfs&";
+  request += "mgm.pcmd=statvfs&eos.app=fuse&";
   request += "path=";
   request += path;
   arg.FromString(request);
@@ -1477,7 +1484,7 @@ xrd_chmod (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=chmod&mode=";
+  request += "mgm.pcmd=chmod&eos.app=fuse&mode=";
   request += smode.c_str();
   arg.FromString(request);
 
@@ -1566,7 +1573,7 @@ xrd_utimes (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=utimes&tv1_sec=";
+  request += "mgm.pcmd=utimes&eos.app=fuse&tv1_sec=";
   char lltime[1024];
   sprintf(lltime, "%llu", (unsigned long long) tvp[0].tv_sec);
   request += lltime;
@@ -1632,7 +1639,7 @@ xrd_symlink(const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=symlink&target=";
+  request += "mgm.pcmd=symlink&eos.app=fuse&target=";
   XrdOucString savelink = link;
   while (savelink.replace("&", "#AND#")){}
   request += savelink.c_str();
@@ -1691,7 +1698,7 @@ xrd_readlink(const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=readlink";
+  request += "mgm.pcmd=readlink&eos.app=fuse";
   arg.FromString(request);
 
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
@@ -1778,7 +1785,7 @@ xrd_access (const char* path,
   snprintf(smode, sizeof (smode) - 1, "%d", mode);
   request = path;
   request += "?";
-  request += "mgm.pcmd=access&mode=";
+  request += "mgm.pcmd=access&eos.app=fuse&mode=";
   request += smode;
   arg.FromString(request);
   XrdCl::URL Url(xrd_user_url(uid, gid, pid));
@@ -2035,7 +2042,7 @@ xrd_mkdir (const char* path,
   request = path;
   request += "?";
   request += "mgm.pcmd=mkdir";
-  request += "&mode=";
+  request += "&eos.app=fuse&mode=";
   request += (int) mode;
   arg.FromString(request);
 
@@ -2369,7 +2376,7 @@ xrd_open (const char* path,
       file_path.erase(0, spos + 1);
 
     std::string request = file_path;
-    request += "?mgm.pcmd=open";
+    request += "?eos.app=fuse&mgm.pcmd=open";
     arg.FromString(request);
 
     XrdCl::URL Url(xrd_user_url(uid, gid, pid));
@@ -2750,6 +2757,7 @@ xrd_fsync (int fildes)
 
   if (XFC && fuse_cache_write)
     XFC->ForceAllWrites(fabst);
+
 
   eos::fst::Layout* file = fabst->GetRawFile();
   ret = file->Sync();
