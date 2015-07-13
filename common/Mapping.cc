@@ -691,6 +691,8 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   // ---------------------------------------------------------------------------
   XrdOucString ruid = Env.Get("eos.ruid");
   XrdOucString rgid = Env.Get("eos.rgid");
+  XrdOucString rapp = Env.Get("eos.app");
+
   uid_t sel_uid = vid.uid;
   uid_t sel_gid = vid.gid;
 
@@ -773,6 +775,11 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid_string = GidToGroupName(vid.gid, errc);
   }
 
+  if (rapp.length()) 
+  {
+    vid.app = rapp.c_str();
+  }
+
   time_t now = time(NULL);
 
   // ---------------------------------------------------------------------------
@@ -824,7 +831,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   if (ActiveTidents.size() < 60000)
   {
     char actident[1024];
-    snprintf(actident, sizeof (actident) - 1, "%d^%s^%s^%s", vid.uid, mytident.c_str(), vid.prot.c_str(), vid.host.c_str());
+    snprintf(actident, sizeof (actident) - 1, "%d^%s^%s^%s^%s", vid.uid, mytident.c_str(), vid.prot.c_str(), vid.host.c_str(), vid.app.c_str());
     std::string intident = actident;
     ActiveTidents[intident] = now;
   }
@@ -1258,7 +1265,7 @@ Mapping::UidToUserName (uid_t uid, int &errc)
     }
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
     gPhysicalUserNameCache[uid] = uid_string;
-
+    gPhysicalUserIdCache[uid_string] = uid;
     return uid_string;
   }
 }
@@ -1309,6 +1316,7 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
     }
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
     gPhysicalGroupNameCache[gid] = gid_string;
+    gPhysicalGroupIdCache[gid_string] = gid;
     return gid_string;
   }
 }
@@ -1375,7 +1383,7 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 
   XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
   gPhysicalUserIdCache[username] = uid;
-
+  gPhysicalUserNameCache[uid] = username;
   return uid;
 }
 
@@ -1429,6 +1437,7 @@ Mapping::GroupNameToGid (std::string &groupname, int &errc)
 
   XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
   gPhysicalGroupIdCache[groupname] = gid;
+  gPhysicalGroupNameCache[gid] = groupname;
   return gid;
 }
 

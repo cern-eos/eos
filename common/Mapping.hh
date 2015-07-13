@@ -135,6 +135,7 @@ public:
     std::string role;
     std::string dn;
     std::string geolocation;
+    std::string app;
     bool sudoer;
   };
 
@@ -244,6 +245,7 @@ public:
     vidout.role = vidin.role;
     vidout.dn = vidin.dn;
     vidout.geolocation = vidin.geolocation;
+    vidout.app = vidin.app;
   }
 
   // ---------------------------------------------------------------------------
