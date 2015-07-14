@@ -53,6 +53,7 @@
 #include <pwd.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 #include "FuseCache/FuseWriteCache.hh"
 #include "FuseCache/FileAbstraction.hh"
@@ -71,6 +72,8 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/RWMutex.hh"
+#include "common/SymKeys.hh"
+#include "common/Macros.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
@@ -2839,20 +2842,48 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
     uid = gid = 2;
   }
 
-  char usergroup[16];
-  // we user <hex-uid><hex-gid> as connection identifier
-  snprintf(usergroup,sizeof(usergroup)-1,"%04x%04x", uid,gid);
-  sid += usergroup;
+  unsigned long long bituser=0;
 
+  // emergency mapping of too high user ids to nob
+  if ( uid > 0xfffff) 
+  {
+    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to nobody\" uid=%u", uid);
+    uid = 99;
+  }
+  if ( gid > 0xffff)
+  {
+    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to nobody\" gid=%u", gid);
+    gid = 99;
+  }
+
+  bituser = (uid & 0xfffff);
+  bituser <<= 16;
+  bituser |= (gid & 0xffff);
+  bituser <<= 6;
   {
     XrdSysMutexHelper cLock(connectionIdMutex);
     if (connectionId)
-    {
-      sid = ".";
-      sid += connectionId;
-    }
+      bituser |= (connectionId & 0x3f);
   }
 
+  bituser = h_tonll(bituser);
+
+  XrdOucString sb64;
+  // WARNING: we support only one endianess flavour by doing this
+  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
+  size_t len = sb64.length();
+  // remove the non-informative '=' in the end
+  if (len >2) 
+  {
+    sb64.erase(len-1);
+    len--;
+  }
+  // reduce to 7 b64 letters
+  if (len > 7)
+    sb64.erase(0,len-7);
+  sid = "*";
+  sid += sb64;
+  eos_static_debug("user-ident=%s", sid.c_str());
   return STRINGSTORE(sid.c_str());
 }
 

@@ -24,8 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Mapping.hh"
+#include "common/Macros.hh"
 #include "common/Logging.hh"
 #include "common/SecEntity.hh"
+#include "common/SymKeys.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysDNS.hh"
 /*----------------------------------------------------------------------------*/
@@ -1105,12 +1107,15 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       // -------------------------------------------------------------------------
       // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
       // -------------------------------------------------------------------------
-      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
+      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);     
       char rhexid[16];
+      bool known_tident = false;
+
       snprintf(rhexid, sizeof (rhexid) - 1, "%08llx", hexid);
       eos_static_debug("hexname=%s hexid=%llu name=%s", rhexid, hexid, name);
       if (sname == rhexid)
       {
+	known_tident = true;
         // that is a hex id
         XrdOucString suid = sname;
         suid.erase(4);
@@ -1119,6 +1124,45 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
 
         id = new id_pair(strtol(suid.c_str(), 0, 16), strtol(sgid.c_str(), 0, 16));
         eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
+      }
+
+      if (sname.beginswith("*")) 
+      {
+	known_tident = true;
+	// that is a new base-64 encoded id following the format '*1234567' where 1234567 is the base64 encoded 42-bit value of 20-bit uid | 16-bit gid | 6-bit session id
+	XrdOucString b64name = sname;
+	b64name.erase(0,1);
+	b64name += "=";
+	unsigned long long bituser=0;
+	char* out=0;
+	unsigned int outlen;
+	if (eos::common::SymKey::Base64Decode (b64name, out, outlen))
+	{
+	  if (outlen <= 8) {
+	    memcpy( (((char*)&bituser))+8-outlen,out,outlen);
+	    eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx", bituser, n_tohll(bituser));
+	  }
+	  else
+	  {
+	    eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d",outlen);
+	    return ;
+	  }
+
+	  bituser = n_tohll(bituser);
+	  if (out)
+	    free(out);
+	  id  = new id_pair( (bituser >> 22 ) & 0xfffff, (bituser>>6) & 0xffff);
+	  eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid, id->gid);
+	}
+	else 
+        {
+	  eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s", sname.c_str());
+	  return;
+	}
+      }
+
+      if (known_tident) 
+      {
         if (!id->uid || !id->gid)
         {
           gPhysicalIdMutex.UnLock();
@@ -1157,7 +1201,10 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       gPhysicalUidCache.Add(name, id, 3600);
       eos_static_debug("adding to cache uid=%u gid=%u", id->uid, id->gid);
     }
-  };
+
+    if (!id)
+      return;
+  }
 
   vid.uid = id->uid;
   vid.gid = id->gid;
