@@ -37,6 +37,7 @@
 #include "common/Logging.hh"
 
 /*----------------------------------------------------------------------------*/
+class ProcCache;
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -55,7 +56,7 @@ public:
   ~ProcReaderCmdLine ()
   {
   }
-  bool ReadContent (std::vector<std::string> &cmdLine);
+  int ReadContent (std::vector<std::string> &cmdLine);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -75,27 +76,30 @@ public:
   ~ProcReaderFsUid ()
   {
   }
-  bool ReadContent (uid_t &fsUid, gid_t &fsGid);
+  int Read();
+  int ReadContent (uid_t &fsUid, gid_t &fsGid);
 };
 
 /*----------------------------------------------------------------------------*/
 /**
- * @brief Class to read the startup environment of a pid through proc files
+ * @brief Class to read /proc/<pid>/stat file starting time , ppid and sid
  *
  */
 /*----------------------------------------------------------------------------*/
-class ProcReaderEnv
+class ProcReaderPsStat
 {
   std::string pFileName;
+  time_t pStartTime;
+  pid_t pPpid, pSid;
 public:
-  ProcReaderEnv (const std::string &filename) :
-      pFileName (filename)
+  ProcReaderPsStat (const std::string &filename) :
+      pFileName (filename), pStartTime(), pPpid(), pSid()
   {
   }
-  ~ProcReaderEnv ()
+  ~ProcReaderPsStat ()
   {
   }
-  bool ReadContent (std::map<std::string, std::string> &dict);
+  int ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid);
 };
 
 /*----------------------------------------------------------------------------*/
@@ -107,12 +111,21 @@ public:
 class ProcReaderKrb5UserName
 {
   std::string pKrb5CcFile;
+
+  static eos::common::RWMutex sMutex;
+  static bool sMutexOk;
   static krb5_context sKcontext;
   static bool sKcontextOk;
+
 public:
   ProcReaderKrb5UserName (const std::string &krb5ccfile) :
-      pKrb5CcFile (krb5ccfile)
+      pKrb5CcFile (krb5ccfile) //, pKcontext(), pKcontextOk(true)
   {
+    eos::common::RWMutexWriteLock lock(sMutex);
+    if(!sMutexOk) {
+      ProcReaderKrb5UserName::sMutex.SetBlocking(true);
+      sMutexOk = true;
+    }
   }
   ~ProcReaderKrb5UserName ()
   {
@@ -159,44 +172,28 @@ class ProcCacheEntry
 
   // internal values
   pid_t pPid;
+  pid_t pPPid;
+  pid_t pSid;
   uid_t pFsUid;
   gid_t pFsGid;
-  time_t pStartTime;
-  time_t pKrb5CcModTime;
-  time_t pGsiProxyModTime;
+  unsigned long long pStartTime;
   std::string pProcPrefix;
-  std::map<std::string, std::string> pEnv;
   std::string pCmdLineStr;
   std::vector<std::string> pCmdLineVect;
-  std::string pKrb5UserName;
-  std::string pGsiIdentity;
   std::string pAuthMethod;
   mutable int pError;
   mutable std::string pErrMessage;
 
-  //! return >0 if success 0 if failure
-  time_t
-  ReadStartingTime () const;
   //! return true fs success, false if failure
-  bool
-  ReadContentFromFiles ();
+  int
+  ReadContentFromFiles (ProcCache *procCache);
   //! return true if the information is up-to-date after the call, false else
   int
-  UpdateIfPsChanged ();
-  //! return true if the kerberos information is up-to-date after the call, false else
-  int
-  UpdateIfKrb5Changed ();
-  int ResolveKrb5CcFile();
-
-  //! return true if the GSI information is up-to-date after the call, false else
-  int
-  UpdateIfGsiChanged ();
-  int ResolveGsiProxyFile();
+  UpdateIfPsChanged (ProcCache *procCache);
 
 public:
-
   ProcCacheEntry (unsigned int pid) :
-      pPid (pid), pFsUid(-1), pFsGid(-1), pStartTime (0), pKrb5CcModTime (0), pGsiProxyModTime(0), pError (0)
+      pPid (pid), pPPid(), pSid(), pFsUid(-1), pFsGid(-1), pStartTime (0), pError (0)
   {
     std::stringstream ss;
     ss << "/proc/" << pPid;
@@ -206,41 +203,6 @@ public:
 
   ~ProcCacheEntry ()
   {
-  }
-
-  // return NULL if the env variable is not defined, a ptr to the value string if it is defined
-  bool GetEnv (std::map<std::string, std::string> &dict) const
-  {
-    eos::common::RWMutexReadLock lock (pMutex);
-    dict = pEnv;
-    return true;
-  }
-
-  // return NULL if the env variable is not defined, a ptr to the value string if it is defined
-  bool GetEnv (const std::string &varName, std::string &value) const
-  {
-    eos::common::RWMutexReadLock lock (pMutex);
-    if (!pEnv.count (varName)) return false;
-    value = pEnv.at (varName);
-    return true;
-  }
-
-  //
-  bool GetKrb5UserName (std::string &value) const
-  {
-    eos::common::RWMutexReadLock lock (pMutex);
-    if (pKrb5UserName.empty ()) return false;
-    value = pKrb5UserName;
-    return true;
-  }
-
-  //
-  bool GetGsiIdentity (std::string &value) const
-  {
-    eos::common::RWMutexReadLock lock (pMutex);
-    if (pGsiIdentity.empty ()) return false;
-    value = pGsiIdentity;
-    return true;
   }
 
   //
@@ -259,12 +221,25 @@ public:
     return true;
   }
 
-  // return NULL if the env variable is not defined, a ptr to the value string if it is defined
   bool GetFsUidGid (uid_t &uid, gid_t &gid) const
   {
     eos::common::RWMutexReadLock lock (pMutex);
     uid = pFsUid;
     gid = pFsGid;
+    return true;
+  }
+
+  bool GetSid (pid_t &sid) const
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    sid = pSid;
+    return true;
+  }
+
+  bool GetStartupTime (time_t &sut) const
+  {
+    eos::common::RWMutexReadLock lock (pMutex);
+    sut = pStartTime/sysconf(_SC_CLK_TCK);
     return true;
   }
 
@@ -339,7 +314,7 @@ public:
 
   //! returns true if the cache has an up-to-date entry after the call
   int
-  InsertEntry (int pid, bool useKrb5, bool useGsi, bool tryKrb5First = false)
+  InsertEntry (int pid)
   {
     int errCode;
 
@@ -350,7 +325,7 @@ public:
       pCatalog[pid] = new ProcCacheEntry (pid);
     }
     auto entry = GetEntry (pid);
-    if ((errCode = entry->UpdateIfPsChanged ()))
+    if ((errCode = entry->UpdateIfPsChanged (this)))
     {
       //eos_static_debug("something wrong happened in reading proc stuff %d : %s",pid,pCatalog[pid]->pErrMessage.c_str());
       eos::common::RWMutexWriteLock lock (pMutex);
@@ -359,57 +334,6 @@ public:
       return errCode;
     }
 
-    // if we don't use any strong authentication, we're done
-    if (!useKrb5 && !useGsi) return 0;
-
-    // resolve the strong authentication file to use
-    // this is done only once when inserting the process in the cache (not when refreshing)
-    // since it all depends on environment variables and the environment read from proc is static
-    if (entry->pAuthMethod.empty ())
-    {
-      // we use at least one strong authentication method
-      std::string userAuth (entry->pEnv.count ("EOS_FUSE_AUTH") ? entry->pEnv["EOS_FUSE_AUTH"] : "");
-      bool userWantsKrb5 = (!userAuth.empty ()) && !userAuth.compare (0, 5, "krb5:");
-      bool userWantsGsi = (!userAuth.empty ()) && !userAuth.compare (0, 4, "gsi:");
-      auto tryFirst = useGsi ? &ProcCacheEntry::ResolveGsiProxyFile : NULL;
-      auto trySecond = useKrb5 ? &ProcCacheEntry::ResolveKrb5CcFile : NULL;
-      int retc=0;
-      if ( (tryKrb5First && !userWantsGsi) || userWantsKrb5) std::swap (tryFirst, trySecond);
-
-      if (tryFirst && (retc=(entry->*tryFirst)())==1)
-      {
-	// sucessfully parsed on first try
-	return 0;
-      }
-      if (trySecond && (retc==0) && (retc=(entry->*trySecond)())==1)
-      {
-	// try second method only if first one failed on seomthing else that EOS_FUSE_AUTH
-	// sucessfully parsed on second try
-	return 0;
-      }
-      else // using strong authentication and failed
-      {
-	entry->pAuthMethod = "none";
-	eos_static_debug("strong authentication enabled but could not resolve any identity");
-	// no identity could be parsed;
-	return EACCES;
-      }
-    }
-    else
-    {
-      if (entry->pAuthMethod.compare (0, 5, "krb5:") == 0)
-      {
-	entry->UpdateIfKrb5Changed ();
-      }
-      else if (entry->pAuthMethod.compare (0, 4, "gsi:") == 0)
-      {
-	entry->UpdateIfGsiChanged ();
-      }
-      else
-      {
-	return EACCES;
-      }
-    }
     return 0;
   }
 

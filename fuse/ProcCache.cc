@@ -20,7 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
+#include <signal.h>
 #include "ProcCache.hh"
 #include "common/Logging.hh"
 #include <openssl/x509v3.h>
@@ -31,70 +31,192 @@
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <ctime>
+#include <XrdSys/XrdSysAtomics.hh>
 
-bool ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
+int ProcReaderCmdLine::ReadContent (std::vector<std::string> &cmdLine)
 {
-  std::ifstream file (pFileName.c_str ());
-  std::string token;
-  while (true)
+  int ret = 1;
+  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
+
+  if (fd >= 0)
   {
-    token.clear ();
-    std::getline (file, token, (char) 0);
-    if(file.eof ())
-      break;
-    // insert the environment variable in the map
-    cmdLine.push_back (token);
+    const int bufsize = 1677216;
+    char *buffer = new char[bufsize];
+    int r = read (fd, buffer, bufsize);
+    int beg=0,end=0;
+    if (r >= 0 && r < bufsize)
+    {
+      while(true)
+      {
+        while(end<r && buffer[end]!=0)
+          end++;
+        if(end>beg)
+          cmdLine.push_back (std::string(buffer+beg,end-beg));
+        if(end>=r)
+          break;
+        end++;
+        beg=end;
+      }
+      ret = 0;
+    }
+    else
+    {
+      // read error or the buffer is too small
+      ret = 2;
+    }
+    close (fd);
+    delete[] buffer;
   }
-  return true;
+
+  return ret;
 }
 
-bool ProcReaderFsUid::ReadContent (uid_t &fsUid, gid_t &fsGid)
+int ProcReaderFsUid::ReadContent (uid_t &fsUid, gid_t &fsGid)
 {
-  std::ifstream file (pFileName.c_str ());
-  std::string line, token;
-  bool retval = false;
+  int retval = 1;
+  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
 
-  while (!file.eof ())
+  if (fd >= 0)
   {
-    line.clear ();
-    std::getline (file, line);
-    istringstream iss (line);
-    iss >> token;
-    if (token == "Uid:")
-    {
-      for (int i = 0; i < 3; i++) /// fsUid is the 5th token
-        iss >> token;
+    FILE *file = fdopen(fd,"r");
+    std::string token, line;
+    const int bufsize = 16384;
+    char *buffer = new char[bufsize];
 
-      iss >> fsUid;
-      if (iss.fail ()) return false;
-    }
-    if (token == "Gid:")
+    while (fgets (buffer, bufsize, file))
     {
-      for (int i = 0; i < 3; i++) /// fsGid is the 5th token
-        iss >> token;
+      line = buffer;
+      istringstream iss (line);
+      iss >> token;
+      if (token == "Uid:")
+      {
+        for (int i = 0; i < 3; i++) /// fsUid is the 5th token
+          iss >> token;
 
-      iss >> fsGid;
-      if (iss.fail ()) return false;
-      retval = true;
-      break;
+        iss >> fsUid;
+        if (iss.fail ())
+        {
+          retval = 2;
+          break;
+        }
+      }
+      if (token == "Gid:")
+      {
+        for (int i = 0; i < 3; i++) /// fsGid is the 5th token
+          iss >> token;
+
+        iss >> fsGid;
+        if (iss.fail ())
+        {
+          retval = 2;
+          break;
+        }
+        retval = 0;
+        break;
+      }
     }
+    if(file) fclose(file);
+    delete[] buffer;
   }
+
+  return retval;
+}
+int ProcReaderPsStat::ReadContent (long long unsigned &startTime, pid_t &ppid, pid_t &sid)
+{
+  int retval = 1;
+  int fd = open (pFileName.c_str (), O_RDONLY & O_NONBLOCK);
+
+  if (fd >= 0)
+  {
+    FILE *file = fdopen (fd, "r");
+    std::string token, line;
+    const int bufsize = 16384;
+    char buffer[bufsize];
+    int size = 0;
+
+    // read the one line of the file
+    if (!(fgets ((char*)buffer, bufsize, file))) return 2;
+    size=strlen(buffer);
+
+    int tokcount = 0, tokStart = 0;
+    bool inParenth = false;
+    // read char by char
+    retval = 2;
+    for (int i = 0; i < size - 1; i++)
+    {
+      if (buffer[i] == '(')
+      {
+        inParenth = true;
+        continue;
+      }
+
+      if (buffer[i] == ')')
+      {
+        inParenth = false;
+        continue;
+      }
+
+      if (!inParenth && buffer[i] == ' ')
+      {
+        // process token
+        {
+          buffer[i] = 0;
+          bool over = false;
+          switch (tokcount)
+          {
+            case 3:
+              if (!sscanf (buffer + tokStart, "%u", &ppid))
+                // error parsing parent process id
+                over = true;
+              break;
+            case 5:
+              if (!sscanf (buffer + tokStart, "%u", &sid))
+                // error parsing session id
+                over = true;
+              break;
+            case 21:
+              over = true;
+              if (sscanf (buffer + tokStart, "%llu", &startTime))
+                // we parsed everything
+                retval = 0;
+              break;
+            default:
+              break;
+          }
+          if (over) break;
+        }
+        tokStart = i + 1;
+        tokcount++;
+        continue;
+      }
+    }
+    // read char by char
+    if (file) fclose (file);
+  }
+
   return retval;
 }
 
 krb5_context ProcReaderKrb5UserName::sKcontext;
-bool ProcReaderKrb5UserName::sKcontextOk = (!krb5_init_context (&ProcReaderKrb5UserName::sKcontext)) || (!eos_static_crit("error initializing Krb5"));
+bool ProcReaderKrb5UserName::sKcontextOk = (!krb5_init_context (&ProcReaderKrb5UserName::sKcontext)) || (!eos_static_crit("error initializing Krb5"));;
+eos::common::RWMutex ProcReaderKrb5UserName::sMutex;
+bool ProcReaderKrb5UserName::sMutexOk = false;
 
 void ProcReaderKrb5UserName::StaticDestroy()
 {
-  if(sKcontextOk) krb5_free_context(sKcontext);
+  //if(sKcontextOk) krb5_free_context(sKcontext);
 }
 
 bool ProcReaderKrb5UserName::ReadUserName (string &userName)
 {
+  eos::common::RWMutexWriteLock lock(sMutex);
+
   if(!sKcontextOk) return false;
+
+  eos_static_debug("starting Krb5 reading");
 
   bool result = false;
   krb5_principal princ=NULL;
@@ -141,6 +263,7 @@ bool ProcReaderKrb5UserName::ReadUserName (string &userName)
   result = true;
 
 cleanup:
+  eos_static_debug("finishing Krb5 reading");
   if(cache) krb5_cc_close(sKcontext, cache);
   if(princ) krb5_free_principal(sKcontext,princ);
   if(ptrusername) krb5_free_unparsed_name(sKcontext,ptrusername);
@@ -221,115 +344,66 @@ time_t ProcReaderGsiIdentity::GetModifTime ()
   return mktime (clock);
 }
 
-bool ProcReaderEnv::ReadContent (std::map<std::string, std::string> &dict)
-{
-  std::ifstream file (pFileName.c_str ());
-  std::string token;
-
-  while (!file.eof ())
-  {
-    token.clear ();
-    std::getline (file, token, (char) 0);
-    if (token.empty ()) break;
-    size_t eqidx = token.find ('=');
-    if (eqidx == std::string::npos)
-    {
-      return false;
-    }
-    // insert the environment variable in the map
-    //std::cout << token.substr(0,eqidx) << " = " << token.substr(eqidx+1,std::string::npos) << std::endl;
-    dict[token.substr (0, eqidx)] = token.substr (eqidx + 1, std::string::npos);
-  }
-  return true;
-}
-
-time_t ProcCacheEntry::ReadStartingTime () const
-{
-  std::ifstream statFile ((pProcPrefix + "/stat").c_str ());
-  if (!statFile.is_open ())
-  {
-    eos::common::RWMutexWriteLock lock (pMutex);
-    pError = ESRCH;
-    pErrMessage = "could not open proc file " + pProcPrefix + "/stat";
-    return 0;
-  }
-  std::string line;
-  std::getline (statFile, line);
-  // the startup time is at the 22th position
-  int cursor = 0, count = 0;
-  while (count < 21 && cursor < (int) line.length ())
-  {
-    if (line[cursor] == ' ') count++;
-    cursor++;
-  }
-  if (count != 21 || cursor >= (int) line.length ())
-  {
-    eos::common::RWMutexWriteLock lock (pMutex);
-    pError = ESRCH;
-    pErrMessage = " error parsing " + pProcPrefix + "/stat";
-    return 0;
-  }
-  for (count = cursor + 1; count < (int) line.length (); count++)
-  {
-    if (line[count] == ' ')
-    {
-      // SUCCESS
-      line[count] = 0;
-      int stime = strtol (&line[cursor], NULL, 10);
-      return (time_t)stime;
-    }
-  }
-  eos::common::RWMutexWriteLock lock (pMutex);
-  pError = ESRCH;
-  pErrMessage = " error parsing " + pProcPrefix + "/stat";
-  return 0;
-}
-
-bool ProcCacheEntry::ReadContentFromFiles ()
+int ProcCacheEntry::ReadContentFromFiles (ProcCache *procCache)
 {
   eos::common::RWMutexWriteLock lock (pMutex);
-  ProcReaderEnv pciEnv (pProcPrefix + "/environ");
-  ProcReaderCmdLine pciCmd (pProcPrefix + "/cmdline");
-  ProcReaderFsUid pciFsUid (pProcPrefix + "/status");
-  pEnv.clear ();
-  if (!pciEnv.ReadContent (pEnv))
-  {
-    pError = ESRCH;
-    pErrMessage = "error reading content of proc file " + pProcPrefix + "/environ";
-    return false;
-  }
+  ProcReaderCmdLine pciCmd (pProcPrefix + "/cmdline"); // this one does NOT gets locked by the kernel when exeve is called
+  ProcReaderFsUid pciFsUid (pProcPrefix + "/status");  // this one does NOT get locked by the kernel when exeve is called
+  int retc,finalret=0;
+
   pCmdLineVect.clear ();
-  if (!pciCmd.ReadContent (pCmdLineVect))
+  retc = pciCmd.ReadContent (pCmdLineVect);
+  if ( retc>1 )
   {
     pError = ESRCH;
     pErrMessage = "error reading content of proc file " + pProcPrefix + "/cmdline";
-    return false;
+    return 2;
   }
+  else if(retc==1)
+  {
+    finalret = 1;
+    eos_static_notice("could not read command line for process %d because the proc file is locked, the cache is not updated",(int)this->pPid);
+  }
+
   pCmdLineStr.clear ();
   for (auto it = pCmdLineVect.begin (); it != pCmdLineVect.end (); it++)
   {
     if (it != pCmdLineVect.begin ()) pCmdLineStr.append (" ");
     pCmdLineStr.append (*it);
   }
-  if (!pciFsUid.ReadContent (pFsUid, pFsGid))
+
+  retc = pciFsUid.ReadContent (pFsUid, pFsGid);
+  if ( retc>1 )
   {
     pError = ESRCH;
     pErrMessage = "error reading content of proc file " + pProcPrefix + "/status";
-    return false;
+    return 2;
   }
-  return true;
+  else if(retc==1)
+  {
+    finalret = 1;
+    eos_static_notice("could not read fsuid and fsgid for process %d because the proc file is locked, the cache is not updated",(int)this->pPid);
+  }
+
+  return finalret;
 }
 
-int ProcCacheEntry::UpdateIfPsChanged ()
+int ProcCacheEntry::UpdateIfPsChanged (ProcCache *procCache)
 {
-  time_t procStartTime = 0;
-  procStartTime = ReadStartingTime ();
-
+  ProcReaderPsStat pciPsStat (pProcPrefix + "/stat");
+  unsigned long long procStartTime = 0;
+  pciPsStat.ReadContent(procStartTime,pPPid,pSid);
   if (procStartTime > pStartTime)
   {
-    if (ReadContentFromFiles ())
+    int retc = ReadContentFromFiles (procCache);
+    if (retc == 0)
     {
       pStartTime = procStartTime;
+      return 0;
+    }
+    else if (retc ==1)
+    {
+      pStartTime = 0; // to retry to get the environment on the next call
       return 0;
     }
 
@@ -345,168 +419,4 @@ int ProcCacheEntry::UpdateIfPsChanged ()
 
     return 0; // just does not need an update
   }
-}
-
-int ProcCacheEntry::ResolveKrb5CcFile()
-{
-  std::string proxyfile;
-  if (pEnv.count ("EOS_FUSE_AUTH") && pEnv["EOS_FUSE_AUTH"].substr (0, 5) == "krb5:")
-  {
-    proxyfile=pEnv["EOS_FUSE_AUTH"].substr (5, std::string::npos);
-    pKrb5CcModTime = 0;
-    pAuthMethod = "krb5:"+proxyfile;
-    if(UpdateIfKrb5Changed()==0)
-    {
-      eos_static_debug("using EOS_FUSE_AUTH krb5 cc file %s",proxyfile.c_str());
-      return 1; // resolve ok
-    }
-    pKrb5CcModTime = 0;
-    pAuthMethod.clear();
-    return -1; // resolve ok but bad credential for user defined, stop it!
-  }
-  if (pEnv.count ("KRB5CCNAME"))
-  {
-    proxyfile = pEnv["KRB5CCNAME"];
-    pKrb5CcModTime = 0;
-    pAuthMethod = "krb5:"+proxyfile;
-    if (UpdateIfKrb5Changed()==0)
-    {
-      eos_static_debug("using KRB5CCNAME krb5 cc file %s",proxyfile.c_str());
-      return 1; // resolve ok
-    }
-    pKrb5CcModTime = 0;
-    pAuthMethod.clear();
-    return 0; // resolve ok but bad credential, try next authentication
-  }
-  // try default location
-  {
-    char buffer[64];
-    snprintf(buffer,64,"FILE:/tmp/krb5cc_%d",(int)pFsUid);
-    proxyfile = buffer;
-    pKrb5CcModTime= 0;
-    pAuthMethod = "krb5:"+proxyfile;
-    if (UpdateIfKrb5Changed() == 0)
-    {
-      eos_static_debug("using default krb5 cc file %s", proxyfile.c_str ());
-      return 1; // resolve ok
-    }
-    pKrb5CcModTime = 0;
-    pAuthMethod.clear();
-    eos_static_debug("could not get krb5 CC file location : assume that user does NOT want to use krb5");
-    return 0; // not resolved, try next authentication
-  }
-}
-
-int ProcCacheEntry::UpdateIfKrb5Changed ()
-{
-  if(pAuthMethod.compare(0,5,"krb5:"))
-  {
-    eos_static_err("should have krb5: prefix");
-    return EINVAL;
-  }
-
-  ProcReaderKrb5UserName pkrb (pAuthMethod.c_str()+5);
-
-  time_t krb5ModTime = pkrb.GetModifTime ();
-
-  if (!krb5ModTime)
-  {
-    eos_static_debug("could not stat krb5 credential cache file %s", pAuthMethod.c_str()+5);
-    return EACCES;
-  }
-
-  if (krb5ModTime > pKrb5CcModTime)
-  {
-    if (pkrb.ReadUserName (pKrb5UserName))
-    {
-      pKrb5CcModTime = krb5ModTime;
-      return 0;
-    }
-
-    return EACCES;
-  }
-
-  return 0;
-}
-
-int ProcCacheEntry::ResolveGsiProxyFile()
-{
-  std::string proxyfile;
-  if (pEnv.count ("EOS_FUSE_AUTH") && pEnv["EOS_FUSE_AUTH"].substr (0, 4) == "gsi:")
-  {
-    proxyfile=pEnv["EOS_FUSE_AUTH"].substr (4, std::string::npos);
-    pGsiProxyModTime = 0;
-    pAuthMethod = "gsi:"+proxyfile;
-    if(UpdateIfGsiChanged()==0)
-    {
-      eos_static_debug("using EOS_FUSE_AUTH gsi proxy file %s",proxyfile.c_str());
-      return 1; // resolve ok
-    }
-    pGsiProxyModTime = 0;
-    pAuthMethod.clear();
-    return -1; // resolve ok but bad credential for user defined, stop it!
-  }
-  if (pEnv.count ("X509_USER_PROXY"))
-  {
-    proxyfile = pEnv["X509_USER_PROXY"];
-    pGsiProxyModTime = 0;
-    pAuthMethod = "gsi:"+proxyfile;
-    if (UpdateIfGsiChanged () == 0)
-    {
-      eos_static_debug("using X509_USER_PROXY gsi file %s", proxyfile.c_str ());
-      return 1; // resolve ok
-    }
-    pGsiProxyModTime = 0;
-    pAuthMethod.clear();
-    return 0; // resolve ok but bad credential, try next authentication
-  }
-  // try default location
-  {
-    char buffer[64];
-    snprintf(buffer,64,"/tmp/x509up_u%d",(int)pFsUid);
-    proxyfile = buffer;
-    pGsiProxyModTime = 0;
-    pAuthMethod = "gsi:"+proxyfile;
-    if (UpdateIfGsiChanged () == 0)
-    {
-      eos_static_debug("using default gsi proxy file %s", proxyfile.c_str ());
-      return 1; // resolve ok
-    }
-    pGsiProxyModTime = 0;
-    pAuthMethod.clear();
-    eos_static_debug("could not get GSI proxy file location : assume that user does NOT want to use gsi");
-    return 0; // not resolved, try next authentication
-  }
-}
-
-int ProcCacheEntry::UpdateIfGsiChanged()
-{
-  if(pAuthMethod.compare(0,4,"gsi:"))
-  {
-    eos_static_err("should have gsi: prefix");
-    return EINVAL;
-  }
-
-  ProcReaderGsiIdentity pgsi(pAuthMethod.c_str()+4);
-
-  time_t gsiModTime = pgsi.GetModifTime ();
-
-  if (!gsiModTime)
-  {
-    eos_static_debug("could not stat GSI proxy file %s", pAuthMethod.c_str()+4);
-    return EACCES;
-  }
-
-  if (gsiModTime > pGsiProxyModTime)
-  {
-    if (pgsi.ReadIdentity(pGsiIdentity))
-    {
-      pGsiProxyModTime = gsiModTime;
-      return 0;
-    }
-
-    return EACCES;
-  }
-
-  return 0;
 }

@@ -34,62 +34,14 @@ int proccache_HasEntry (int pid)
   return gProcCache.HasEntry(pid);
 }
 
-int proccache_InsertEntry (int pid, int useKrb5, int useGsi, int tryKrb5First)
+int proccache_InsertEntry (int pid)
 {
-  return gProcCache.InsertEntry(pid,useKrb5!=0,useGsi!=0,tryKrb5First!=0);
+  return gProcCache.InsertEntry(pid);
 }
 
 int proccache_RemoveEntry (int pid)
 {
   return !gProcCache.RemoveEntry(pid);
-}
-
-int proccache_GetEnv (int pid , const char* varName, char *buffer, size_t bufsize)
-{
-  if(!gProcCache.HasEntry(pid))
-    return 1;
-
-  std::string value;
-  if(!gProcCache.GetEntry(pid)->GetEnv(varName,value))
-    return 2;
-
-  if(value.length()+1>bufsize)
-    return 3;
-
-  strcpy(buffer,value.c_str());
-  return 0;
-}
-
-int proccache_GetKrb5UserName (int pid , char *buffer, size_t bufsize)
-{
-  if(!gProcCache.HasEntry(pid))
-    return 1;
-
-  std::string usrname;
-  if(!gProcCache.GetEntry(pid)->GetKrb5UserName(usrname))
-    return 2;
-
-  if(usrname.length()+1>bufsize)
-    return 3;
-
-  strcpy(buffer,usrname.c_str());
-  return 0;
-}
-
-int proccache_GetGsiIdentity (int pid , char *buffer, size_t bufsize)
-{
-  if(!gProcCache.HasEntry(pid))
-    return 1;
-
-  std::string identity;
-  if(!gProcCache.GetEntry(pid)->GetGsiIdentity(identity))
-    return 2;
-
-  if(identity.length()+1>bufsize)
-    return 3;
-
-  strcpy(buffer,identity.c_str());
-  return 0;
 }
 
 int proccache_GetAuthMethod (int pid , char *buffer, size_t bufsize)
@@ -122,6 +74,20 @@ int proccache_GetFsUidGid (int pid , uid_t *uid, gid_t *gid)
   if(!gProcCache.HasEntry(pid))
     return 1;
   return gProcCache.GetEntry(pid)->GetFsUidGid(*uid,*gid)?0:2;
+}
+
+int proccache_GetSid (int pid, pid_t *sid)
+{
+  if(!gProcCache.HasEntry(pid))
+    return 1;
+  return gProcCache.GetEntry(pid)->GetSid(*sid)?0:2;
+}
+
+int proccache_GetStartupTime (int pid, time_t *sut)
+{
+  if(!gProcCache.HasEntry(pid))
+    return 1;
+  return gProcCache.GetEntry(pid)->GetStartupTime(*sut)?0:2;
 }
 
 int proccache_GetArgsStr (int pid, char*buffer, size_t bufsize)

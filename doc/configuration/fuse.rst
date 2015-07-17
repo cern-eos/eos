@@ -197,38 +197,53 @@ Strong authentication mode
 Enabling and configuring strong authentication is done using config keys 
 EOS_FUSE_USER_KRB5CC, EOS_FUSE_USER_USERPROXY and EOS_FUSE_USER_KRB5FIRST (see above).
 
-The fuse mount will retrieve the kerberos cache credential from the 
-variable KRB5CCNAME in the environment of the process doing the call.
-This variable should read as 'FILE:<some path to a krb5 cc file>'.
-If it can't retrieve it, it will try the default location /tmp/krb5cc_<uid>.
+Each linux session can be bound to one credential file.
+A same user can access the fuse mount using multiple identities using multiple instance.
+To bind the current linux session to a credential file, the user has to use the script **eosfusebind**
 
-The fuse mount will retrieve the x509 user proxy from the 
-variable X509_USER_PROXY in the environment of the process doing the call.
-This variable should read as '<some path to a krb5 cc file>'.
-If it can't retrieve it, it will try the default location /tmp/x509up_u<uid>.
+The following command line 
 
-There is also a way to force the fuse mount to use a specific user provided credential.
-The environment variable EOS_FUSE_AUTH can be
-- 'krb5:<format of KRB5CCNAME>'
-- 'gsi:<format of KRB5CCNAME>'
+.. code-block:: bash
 
-The choosing process between the possibles credentials is as follows:
+   eosfusebind krb5 [credfile]
 
-- if EOS_FUSE_AUTH is defined and credentials it points to are valid, done. If it does not work bounce an error and don't try the rest
+tries to find a krb5 credential cache file in the following order, stopping at the first match
+- optional credfile argument if specified  
+- environment variable KRB5CCNAME
+- default location /tmp/krb5cc_<uid>
+ 
+The following command line 
 
-- try to use the first system wide authentication
+.. code-block:: bash
 
-  o if the corresponding env var is defined (X509_USER_PROXY or KRB5CCNAME), and the credentials valid, done
+   eosfusebind x509 [credfile]
 
-  o if the default credential file gives valid credentials done
+tries to find a x509 user proxy file in the following order, stopping at the first match
+- optional credfile argument if specified  
+- environment variable X509_USER_PROXY
+- default location /tmp/x509up_u<uid>
+ 
+Warning, **eosfusebind** does not check that the credential file is valid. 
+It only checks it exists and has 600 permissions.
+The actual authentication is carried out by the fuse mount.
+Every time a new binding is made, all bindings from any terminated sessions (for the current user) are cleaned-up.
+Binding an already bound session replaces the previous binding.
 
-- try to use the second system wide authentication (if some)
+It is possible to show the bindings for the current session or the current user with the following commands
 
-  o if the corresponding env var is defined (X509_USER_PROXY or KRB5CCNAME), and the credentials valid, done
+.. code-block:: bash
 
-  o if the default credential file gives valid credentials done
+   eosfusebind --show-session
+   eosfusebind --show-user
 
-- bounce an access error if none of the previous gave any credentials.
+It is possible to unbind a given session or all the session of the current user using the following command
+
+.. code-block:: bash
+
+   eosfusebind --unbind-session
+   eosfusebind --unbind-user
+
+If the process tries to access the fuse mount and if its session is not bound to a valid credential file, access will be refused.
 
 Protection against recursive top level deletion
 -----------------------------------------------

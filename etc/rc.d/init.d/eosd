@@ -99,8 +99,7 @@ start() {
 	    mkdir -p /var/run/eosd/
 	    cd /var/run/eosd/
 	    mkdir -p /var/run/eosd/credentials
-	    rm -f /var/run/eosd/credentials/*
-	    chmod 600 /var/run/eosd/credentials
+	    chmod 607 /var/run/eosd/credentials
 	    mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
 	    chmod -R 733 ${EOS_FUSE_MOUNTDIR-/eos/}
 	    unset KRB5CCNAME

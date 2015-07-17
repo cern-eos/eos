@@ -3058,9 +3058,28 @@ const char map_user::base64digits[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 //------------------------------------------------------------------------------
 class AuthIdManager
 {
+public:
+  enum CredType {krb5,x509};
+  struct CredInfo
+  {
+    CredType type;     // krb5 or x509
+    std::string lname; // link to credential file
+    std::string fname; // credential file
+    time_t fmtime;     // credential file mtime
+    time_t fctime;     // credential file ctime
+    time_t lmtime;     // link to credential file mtime
+    time_t lctime;     // link to credential file mtime
+    std::string identity; // identity in the credential file
+    std::string cachedStrongLogin;
+  };
+
+protected:
   friend void xrd_init (); // to allow the sizing of pid2StrongLogin
   // mutex protecting the maps
   RWMutex pMutex;
+  // maps (userid,sessionid) -> ( credinfo )
+  // several threads (each from different process) might concurrently access this
+  std::map< std::pair<uid_t,pid_t> , CredInfo > uidsid2credinfo;
   // maps userid -> ( identity -> authid ) , identity being krb5:<some_identity> or gsi:<some_identity>
   // several threads (each from different process) might concurrently access this
   std::map<uid_t, std::map<std::string, uint32_t> > uid2IdenAuthid;
@@ -3086,12 +3105,12 @@ class AuthIdManager
       if (filename.empty ()) return "";
       if (linkname != filename)
       {
-	unlink (linkname.c_str ()); // remove the previous link first if any
-	if (symlink (filename.c_str (), linkname.c_str ()))
-	{
-	  eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
-	  return "";
-	}
+        unlink (linkname.c_str ()); // remove the previous link first if any
+        if (symlink (filename.c_str (), linkname.c_str ()))
+        {
+          eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
+          return "";
+        }
       }
       return authMethod.substr (0, colidx + 1) + linkname;
     }
@@ -3102,132 +3121,248 @@ class AuthIdManager
       std::string newlinkname = ss.str ();
       if (linkname != newlinkname)
       {
-	unlink (newlinkname.c_str ()); // remove the previous link first if any
-	if (symlink (linkname.c_str (), newlinkname.c_str ()))
-	{
-	  eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
-	  return "";
-	}
+        unlink (newlinkname.c_str ()); // remove the previous link first if any
+        if (symlink (linkname.c_str (), newlinkname.c_str ()))
+        {
+          eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
+          return "";
+        }
       }
       return newlinkname;
     }
   }
 
-  void
-  symlinkPid (pid_t pid, const std::string &xrdLoginLink)
+  bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
   {
-    std::stringstream ss;
-    ss << "/var/run/eosd/credentials/pid" << pid;
-    std::string linkname = ss.str ();
+    if (!(use_user_gsiproxy || use_user_krb5cc)) return false;
 
-    if (linkname != xrdLoginLink)
+    bool ret = false;
+    char buffer[1024];
+    char buffer2[1024];
+    const char* format = "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s";
+    const char* suffixes[3] =
+    { "krb5", "x509", "krb5" };
+    int sidx = 1, sn = 2;
+    if (!use_user_krb5cc && use_user_gsiproxy)
+      (sidx = 1) && (sn = 1);
+    else if (use_user_krb5cc && !use_user_gsiproxy)
+      (sidx = 0) && (sn = 1);
+    else if (tryKrb5First)
+      (sidx = 0) && (sn = 2);
+    else
+      (sidx = 1) && (sn = 2);
+
+    // try all the credential types according to settings and stop as soon as a credetnial is found
+    for (int i = sidx; i < sidx + sn; i++)
     {
-      unlink (linkname.c_str ()); // remove the previous link first if any
-      if (symlink (xrdLoginLink.c_str (), linkname.c_str ()))
+      snprintf (buffer, 1024, format, (int) uid, (int) sid, (int) sst, suffixes[i]);
+      //eos_static_debug("trying to stat %s", buffer);
+      if (!lstat (buffer, &linkstat))
       {
-	eos_static_err("could not create pid symlink from %s to %s", xrdLoginLink.c_str (), linkname.c_str ());
+        ret = true;
+        credinfo.lname = buffer;
+        credinfo.lmtime = linkstat.st_mtim.tv_sec;
+        credinfo.lctime = linkstat.st_ctim.tv_sec;
+        credinfo.type = i % 2 ? x509 : krb5;
+        eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
+        if (!stat (buffer, &filestat))
+        {
+          size_t bsize = readlink (buffer, buffer2, 1024);
+          if (bsize > 0)
+          {
+            buffer2[bsize] = 0;
+            credinfo.fname = buffer2;
+            credinfo.fmtime = filestat.st_mtim.tv_sec;
+            credinfo.fctime = filestat.st_ctim.tv_sec;
+            eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+          }
+        }
+        else
+        {
+          eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+        }
+        // we found some credential, we stop searching here
+        break;
       }
     }
+
+    if (!ret)
+    eos_static_debug("could not find any credential for uid %d and sid %d", (int )uid, (int )sid);
+
+    return ret;
   }
 
-public:
-  void symunlinkPid (pid_t pid)
+  bool readCred(CredInfo &credinfo)
   {
-    std::stringstream ss;
-    ss << "/var/run/eosd/credentials/pid" << pid;
-    std::string linkname = ss.str();
-
-    unlink (linkname.c_str ()); // remove the previous link first if any
+    bool ret = false;
+    eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":"x509",credinfo.fname.c_str());
+    if(credinfo.type==krb5)
+    {
+      ProcReaderKrb5UserName reader(credinfo.fname);
+      if(!reader.ReadUserName(credinfo.identity))
+        eos_static_debug("could not read principal in krb5 cc file %s",credinfo.fname.c_str());
+      else
+        ret = true;
+    }
+    if(credinfo.type==x509)
+    {
+      ProcReaderGsiIdentity reader(credinfo.fname);
+      if(!reader.ReadIdentity(credinfo.identity))
+        eos_static_debug("could not read identity in x509 proxy file %s",credinfo.fname.c_str());
+      else
+        ret = true;
+    }
+    return ret;
   }
+
+  bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid)
+  {
+    const unsigned int reqMode = 0600;
+    //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
+    if(
+    // check owner ship
+    linkstat.st_uid == uid
+        && filestat.st_uid == uid
+    // check permissions
+        && (filestat.st_mode & 0777) == reqMode
+        )
+      return true;
+    else
+      return false;
+  }
+public:
 
   int
   updateProcCache (uid_t uid, pid_t pid)
   {
     // when entering this function proccachemutexes[pid] must be write locked
     int errCode;
-    if ((errCode = proccache_InsertEntry (pid, use_user_krb5cc ? 1 : 0, use_user_gsiproxy ? 1 : 0, tryKrb5First ? 1 : 0)))
+    char buffer[1024];
+    std::string oldauth,newauth;
+    if(!proccache_GetAuthMethod(pid,buffer,1024))
+      oldauth=buffer;
+
+    if ((errCode = proccache_InsertEntry (pid)))
     {
       eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
       return errCode;
     }
-    if (use_user_krb5cc || use_user_gsiproxy)
-    {
-      char buffer[1024];
-      proccache_GetAuthMethod (pid, buffer, 1024);
-      // at this point, authmethod cannot be empty because the update would have returned an error
-      std::string sAuthMeth (buffer);
-      std::string s;
-      if (sAuthMeth.compare(0,5,"krb5:")==0)
-      {
-	s = "krb5";
-	proccache_GetKrb5UserName (pid, buffer, 1024);
-      }
-      else if (sAuthMeth.compare(0,4,"gsi:")==0)
-      {
-	s = "gsi";
-	proccache_GetGsiIdentity (pid, buffer, 1024);
-      }
-      else
-      {
-	eos_static_err("authentication method value [%s] not expected should be [krb5] or [gsi].", sAuthMeth.c_str ());
-	return EACCES;
-      }
-      std::string newauthmeth = symlinkCredentials(sAuthMeth, uid,buffer);
-      if(newauthmeth.empty())
-      {
-	eos_static_err("error symlinking credential file ");
-	return EACCES;
-      }
-      proccache_SetAuthMethod(pid,newauthmeth.c_str());
-      std::string sId (s + ":" + buffer);
-      uint32_t authid;
-      // update uid2IdenAuthid
-      {
-	eos::common::RWMutexWriteLock lock (pMutex);
-	// this will create the entry in uid2IdenAuthid if it does not exist already
-	auto &uidEntry = uid2IdenAuthid[uid];
-	if (uidEntry.count (sId))
-	  authid = uidEntry[sId]; // if this identity already has an authid , use it
-	else
-	{
-	  uint32_t newauthid = uidEntry.size ();
-	  if(newauthid==std::numeric_limits<uint32_t>::max())
-	  {
-	    eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
-		,(int)uid,sId.c_str());
-	    return EACCES;
-	  }
-	  authid = (uidEntry[sId] = newauthid); // create a new authid if this id is not registered yet
-	}
-      }
-      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-      map_user xrdlogin (uid, authid);
-      auto xrdlogins = (pid2StrongLogin[pid] = std::string (xrdlogin.base64 ()));
-      std::string newlinkname=symlinkCredentials(sAuthMeth, uid,buffer,xrdlogins);
-      if(newlinkname.empty())
-      {
-	eos_static_err("error creating symlink for cred symlink %s and xrdlogin %s",newauthmeth.c_str(),xrdlogins.c_str());
-      }
-      else
-        if(link_pidmap) symlinkPid(pid,newlinkname);
 
-      eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
-		       pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
-    }
-    if (LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)
+    // get the startuptime of the process
+    time_t processSut;
+    proccache_GetStartupTime(pid,&processSut);
+    // get the session id
+    pid_t sid;
+    proccache_GetSid(pid,&sid);
+    if ((errCode = proccache_InsertEntry (sid)))
     {
-      uid_t _uid;
-      gid_t _gid;
-      char cmd[512], klogin[512], gsiid[512], authmet[1024];
-      cmd[0] = klogin[0] = gsiid[0] = authmet[0] = 0;
-      proccache_GetArgsStr (pid, cmd, 512);
-      proccache_GetKrb5UserName (pid, klogin, 512);
-      proccache_GetGsiIdentity (pid, gsiid, 512);
-      proccache_GetAuthMethod (pid, authmet, 1024);
-      proccache_GetFsUidGid (pid, &_uid, &_gid);
-      eos_static_debug("proccache update for pid %d   =>   || cmd=\"%s\" | fsuid=%d | fsgid=%d | klogin=%s | gsiid=%s | auth=%s||",
-		       (int )pid, cmd, (int )_uid, (int )_gid, klogin, gsiid, authmet);
+      eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
+      return errCode;
     }
+
+    // get the startuptime of the leader of the session
+    time_t sessionSut;
+    proccache_GetStartupTime(sid,&sessionSut);
+
+    // find the credentials
+    CredInfo credinfo;
+    struct stat filestat,linkstat;
+    if(!findCred(credinfo,linkstat,filestat,uid,sid,sessionSut))
+    {
+      eos_static_notice("could not find any credential");
+      return EACCES;
+    }
+
+    // check if the credentials in the credential cache cache are up to date
+    // TODO: should we implement a TTL , my guess is NO
+    bool sessionInCache = false;
+    pMutex.LockRead();
+    auto cacheEntry = uidsid2credinfo.find(std::make_pair(uid,sid));
+    sessionInCache = (cacheEntry!=uidsid2credinfo.end());
+    if(sessionInCache)
+    {
+      sessionInCache = false;
+      const CredInfo &ci = cacheEntry->second;
+      // we also check ctime to be sure that permission/ownership has not changed
+      if(ci.lmtime == credinfo.lmtime
+          && ci.lctime == credinfo.lctime
+          && ci.fmtime == credinfo.fmtime
+          && ci.fctime == credinfo.fctime
+          && ci.fname == credinfo.fname)
+        sessionInCache = true;
+    }
+    pMutex.UnLockRead();
+
+    if(sessionInCache)
+    {
+      // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
+      //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
+      // no lock needed as only one thread per process can access this
+      eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",(int)uid,(int)sid,(int)pid,cacheEntry->second.cachedStrongLogin.c_str());
+      pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
+      proccache_GetAuthMethod(sid,buffer,1024);
+      proccache_SetAuthMethod(pid,buffer);
+      return 0;
+    }
+
+    // refresh the credentials in the cache
+    // check the credential security
+    if(!checkCredSecurity(linkstat,filestat,uid))
+    {
+      eos_static_alert("credentials are not safe");
+      return EACCES;
+    }
+    // check the credential security
+    if(!readCred(credinfo))
+      return EACCES;
+    // update authmethods for session leader and current pid
+    uint32_t authid;
+    std::string sId = credinfo.type==krb5?"krb5:":"x509:";
+    sId.append(credinfo.lname);
+    std::string newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
+    if(newauthmeth.empty())
+    {
+      eos_static_err("error symlinking credential file ");
+      return EACCES;
+    }
+    proccache_SetAuthMethod(pid,newauthmeth.c_str());
+    proccache_SetAuthMethod(sid,newauthmeth.c_str());
+    //proccache_SetAuthMethod(sid,sId.c_str());
+    //proccache_SetAuthMethod(pid,sId.c_str());
+    // update uid2IdenAuthid
+    {
+      eos::common::RWMutexWriteLock lock (pMutex);
+      // this will create the entry in uid2IdenAuthid if it does not exist already
+      auto &uidEntry = uid2IdenAuthid[uid];
+      sId = credinfo.type==krb5?"krb5:":"x509:";
+      sId.append(credinfo.identity);
+      if (uidEntry.count (sId))
+        authid = uidEntry[sId]; // if this identity already has an authid , use it
+      else
+      {
+        uint32_t newauthid = uidEntry.size ();
+        if(newauthid==std::numeric_limits<uint32_t>::max())
+        {
+          eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
+              ,(int)uid,sId.c_str());
+          return EACCES;
+        }
+        authid = (uidEntry[sId] = newauthid); // create a new authid if this id is not registered yet
+      }
+    }
+    // update pid2StrongLogin (no lock needed as only one thread per process can access this)
+    map_user xrdlogin (uid, authid);
+    pid2StrongLogin[pid] = std::string (xrdlogin.base64 ());
+    // update uidsid2credinfo
+    credinfo.cachedStrongLogin = pid2StrongLogin[pid];
+    eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",(int)uid,(int)sid,(int)pid,credinfo.cachedStrongLogin.c_str());
+    pMutex.LockWrite();
+    uidsid2credinfo[std::make_pair(uid,sid)] = credinfo;
+    pMutex.UnLockWrite();
+
+    eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
+                     pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
+
     return errCode;
   }
 
@@ -3258,22 +3393,14 @@ const char* xrd_strongauth_cgi (pid_t pid)
     std::string authmet(buffer);
     if (authmet.compare (0, 5, "krb5:") == 0)
     {
-      if(strlen(buffer)>5+5 && !strncmp("FILE:",buffer+5,5))
-      {
-        str += "xrd.k5ccname=";
-        str += (authmet.c_str()+5+5);
-        str += "&xrd.wantprot=krb5";
-      }
-      else
-      {
-        eos_static_err("cannot handle KRB5CCNAME=%s",buffer);
-	goto bye;
-      }
+      str += "xrd.k5ccname=";
+      str += (authmet.c_str()+5);
+      str += "&xrd.wantprot=krb5";
     }
-    else if (authmet.compare (0, 4, "gsi:") == 0)
+    else if (authmet.compare (0, 5, "x509:") == 0)
     {
       str += "xrd.gsiusrpxy=";
-      str += authmet.c_str()+4;
+      str += authmet.c_str()+5;
       str += "&xrd.wantprot=gsi";
     }
     else

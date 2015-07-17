@@ -56,26 +56,6 @@ add_executable(
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
 
-add_executable(
-  proccachetest
-  ProcCache.cc ProcCache.hh ProcCacheTest.cc )
-target_link_libraries(
-  proccachetest
-  eosCommon
-  ${Z_LIBRARY}
-  ${ZMQ_LIBRARIES}
-  ${UUID_LIBRARIES}
-  ${NCURSES_LIBRARY}
-  ${GLIBC_DL_LIBRARY}
-  ${XROOTD_CL_LIBRARY}
-  ${XROOTD_UTILS_LIBRARY}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT}
-  ${KRB5_LIBRARIES}
-  ${OPENSSL_CRYPTO_LIBRARY}
-  )
-
-  
 if(MacOSX)
   target_link_libraries(
     eosfsd
@@ -137,3 +117,11 @@ install(
 install(
   TARGETS eosfsd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
+install(
+  FILES eosfusebind
+  DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+                    GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
+
+

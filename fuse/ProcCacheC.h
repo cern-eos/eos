@@ -37,29 +37,11 @@ extern "C"
 
 //! returns 0 if the cache has an up-to-date entry after the call.
 //! returns 1 if the proccache does not have an entry for the given pid
-  int proccache_InsertEntry (int pid, int useKrb5, int useGsi, int tryKrb5First);
+  int proccache_InsertEntry (int pid);
 
 //! returns 0 if the entry is removed after the call
 //! returns 1 if the proccache does not have an entry for the given pid
   int proccache_RemoveEntry (int pid);
-
-//! returns 0 if the env variable if the value of the env variable was written in the buffer
-//! returns 1 if the proccache does not have an entry for the given pid
-//! returns 2 if the env variable does not exist for the given pid
-//! returns 3 if the buffer is too short to write the value of the env variable
-  int proccache_GetEnv (int pid, const char* varName, char *buffer, size_t bufsize);
-
-//! returns 0 if the kerberos user name if the value of the env variable was written in the buffer
-//! returns 1 if the proccache does not have an entry for the given pid
-//! returns 2 if the kerberos user name could not be retrieved
-//! returns 3 if the buffer is too short to write the value of kerberos user name
-  int proccache_GetKrb5UserName (int pid, char *buffer, size_t bufsize);
-
-//! returns 0 if the gsi identity name if the value of the env variable was written in the buffer
-//! returns 1 if the proccache does not have an entry for the given pid
-//! returns 2 if the gsi identity name could not be retrieved
-//! returns 3 if the buffer is too short to write the value of kerberos user name
-  int proccache_GetGsiIdentity (int pid, char *buffer, size_t bufsize);
 
 //! returns 0 if the authentication method was written in the buffer
 //! returns 1 if the proccache does not have an entry for the given pid
@@ -76,7 +58,15 @@ extern "C"
 //! returns 1 if the proccache does not have an entry for the given pid
   int proccache_GetFsUidGid (int pid, uid_t *uid, gid_t *gid);
 
-//! returns 0 if the kerberos user name if the value of the env variable was written in the buffer
+//! returns 0 if the sid was written to the pointee passed in argument
+//! returns 1 if the proccache does not have an entry for the given pid
+  int proccache_GetSid (int pid, pid_t *sid);
+
+//! returns 0 if the the startup time was written to the pointee passed in argument
+//! returns 1 if the proccache does not have an entry for the given pid
+  int proccache_GetStartupTime (int pid, time_t *sut);
+
+    //! returns 0 if the kerberos user name if the value of the env variable was written in the buffer
 //! returns 1 if the proccache does not have an entry for the given pid
 //! returns 2 if the process commad line could not be read
 //! returns 3 if the buffer is too short to write the value of the process command line
