@@ -37,7 +37,7 @@ function ExitUsage
   local nl=${#exename}
   local f="%${nl}.${nl}s"
   printf "$f %s\\n" $exename "[krb5|x509] [credfile]"
-  printf "$f %s\\n" "" "bind the current session with given credentials"
+  printf "$f %s\\n" "" "bind the current session to given credentials"
   printf "$f %s\\n" $exename "-u|--unlink-session"
   printf "$f %s\\n" "" "unbind current session from any previsouly bound credentials"
   printf "$f %s\\n" $exename "-U|--unlink-user"
@@ -58,8 +58,8 @@ function ParseArgs
   AUTHTYPE="krb5"
   CREDFILE=""
   if [[ $# = 1   &&  (  $1 = "-h" || $1 = "--help" ) ]]; then ExitUsage; fi
-  if [[ $# = 1   &&  (  $1 = "-u" || $1 = "--unlink-session" ) ]]; then REQULNKSES=1; REQULNK=1; return; fi
-  if [[ $# = 1   &&  (  $1 = "-U" || $1 = "--unlink-user" ) ]]; then REQULNKUSR=1; REQULNK=1; return; fi
+  if [[ $# = 1   &&  (  $1 = "-u" || $1 = "--unbind-session" ) ]]; then REQULNKSES=1; REQULNK=1; return; fi
+  if [[ $# = 1   &&  (  $1 = "-U" || $1 = "--unbind-user" ) ]]; then REQULNKUSR=1; REQULNK=1; return; fi
   if [[ $# = 1   &&  (  $1 = "-s" || $1 = "--show-session" ) ]]; then REQLSSES=1; REQLS=1; return; fi
   if [[ $# = 1   &&  (  $1 = "-S" || $1 = "--show-user" ) ]]; then REQLSUSR=1; REQLS=1; return; fi
   if [[ $# > 1 ]]; then CREDFILE=$2; fi
@@ -196,23 +196,23 @@ function LinkSession
 {
   GetSymlinkBaseNameSession
   SymlinkName="${SymlinkBaseNameSession}.${AUTHTYPE}"
-  echo "ln -sf $CREDFILE $SymlinkName"
+  #echo "ln -sf $CREDFILE $SymlinkName"
   ln -sf $CREDFILE $SymlinkName
 }
 
 function UnlinkUser
 {
   GetSymlinkBaseNameUser
-  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unlinking user"; exit 1; fi
-  echo rm -f ${SymlinkBaseNameUser}*
+  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unbinding user"; exit 1; fi
+  #echo rm -f ${SymlinkBaseNameUser}*
   rm -f ${SymlinkBaseNameUser}*
 }
 
 function UnlinkSession
 {
   GetSymlinkBaseNameSession
-  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then "error unlinking session"; exit 1; fi
-  echo rm -f ${SymlinkBaseNameSession}*
+  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then "error unbinding session"; exit 1; fi
+  #echo rm -f ${SymlinkBaseNameSession}*
   rm -f ${SymlinkBaseNameSession}*
 }
 
@@ -222,7 +222,7 @@ function UnlinkUnactiveSessions
   GetActiveLinkedSessions
   FILELIST=$(shopt -s nullglob; echo ${UnactiveLinkedSessions})
   if [[ "X$FILELIST" = "X" ]]; then return ; fi
-  echo rm -f $FILELIST
+  #echo rm -f $FILELIST
   rm -f $FILELIST
 }
 

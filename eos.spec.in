@@ -223,6 +223,7 @@ The EOS fuse client.
 %files -n eos-fuse
 /usr/bin/eosfsd
 /usr/sbin/eosd
+/usr/bin/eosfusebind
 %if 0%{?rhel} >= 7 || %{?fedora:1}%{!?fedora:0}
 /etc/fuse.conf.eos
 %else
