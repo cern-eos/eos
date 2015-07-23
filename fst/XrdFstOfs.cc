@@ -282,8 +282,15 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   int NoGo = 0;
   int rc = XrdOfs::Configure(Eroute);
   // enforcing 'sss' authentication for all communications
-  setenv("XrdSecPROTOCOL", "sss", 1);
-  Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
+  if (!getenv("EOS_FST_NO_SSS_ENFORCMENT")) 
+  {
+    setenv("XrdSecPROTOCOL", "sss", 1);
+    Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
+  }
+  else
+  {
+    Eroute.Say("=====> fstofs does not enforce SSS authentication for XROOT clients - make sure MGM enforces sss for this FST!");
+  }
 
   if (rc)
     return rc;

@@ -77,6 +77,13 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export EOS_SECONDARY_GROUPS=0
 
 # ------------------------------------------------------------------
+# FST Configuration
+# ------------------------------------------------------------------
+
+# Disable 'sss' enforcement to allow generic TPC
+#export EOS_FST_NO_SSS_ENFORCMENT=1
+
+# ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
 
