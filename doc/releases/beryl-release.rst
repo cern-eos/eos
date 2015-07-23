@@ -7,6 +7,26 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.125 Beryl-Aquamarine``
+New Features
+------------
+- allow to disable 'sss' enforcement on FSTs (see /etc/sysconfig/eos.example) - each FST need a prot bind entry on the MGM config file when enabled
+- show the current debug setting in 'node status <node>' as debug.state variable
+- add support for multi-session FUSE connections with uid<1024*1024 and gid<65536 sid<256
+- introduce vid.app, avoid stalling of 'fuse' clients and report application names in 'who -a'
+- implement 'sys.http.index' attribute to allow for static index pages/redirection and support URLs a symbolic link targets
+
+Bug Fixes
+---------
+- fix 'eos <cmd>' bug where <cmd> is not executed if it has 3 letters and is a local file or directory (due to XrdOucString::endswith bug)
+- update modification for intermediate directories created by MKPATH option of 'xrdcp'
+- fix 'vid rm <key>'
+- revert 'rename' function to apply by default overwrite behaviour 
+- allow arbitrary symbolic link targets (relative targets etc.)
+- disable readahead for files that have rd/wr operations
+- allow clean-up via the destructor for chunked upload files
+- fix directory listing ACL bug
+
 ``Version V0.3.121 Beryl-Aquamarine``
 New Features
 ------------
