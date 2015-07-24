@@ -282,7 +282,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   int NoGo = 0;
   int rc = XrdOfs::Configure(Eroute);
   // enforcing 'sss' authentication for all communications
-  if (!getenv("EOS_FST_NO_SSS_ENFORCMENT")) 
+  if (!getenv("EOS_FST_NO_SSS_ENFORCEMENT")) 
   {
     setenv("XrdSecPROTOCOL", "sss", 1);
     Eroute.Say("=====> fstofs enforces SSS authentication for XROOT clients");
