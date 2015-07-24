@@ -15,6 +15,7 @@ New Features
 - add support for multi-session FUSE connections with uid<1024*1024 and gid<65536 sid<256
 - introduce vid.app, avoid stalling of 'fuse' clients and report application names in 'who -a'
 - implement 'sys.http.index' attribute to allow for static index pages/redirection and support URLs a symbolic link targets
+- follow the 'tried=<>' advice given by the XRootD client not to redirect again to a broken target
 
 Bug Fixes
 ---------
