@@ -1328,9 +1328,11 @@ ProcCommand::File ()
                   selectedfs.push_back(*lociter);
                 }
 
+		std::string tried_cgi;
                 if (!(errno = quotaspace->FileAccess(*pVid,
                                                      (unsigned long) 0,
                                                      space.c_str(),
+						     tried_cgi,
                                                      (unsigned long) fmd->getLayoutId(),
                                                      selectedfs,
                                                      fsIndex,

@@ -159,6 +159,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
   // of RAIN files
 
+  // tried hosts CGI
+  std::string tried_cgi;
+
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
   // Set the actual open mode and find mode
@@ -245,6 +248,16 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
+  {
+    // populate tried hosts from the CGI
+    const char* val = 0;
+    if ((val = openOpaque->Get("tried")))
+    {
+      tried_cgi = val;
+      tried_cgi +=",";
+    }
+
+  }
   // ---------------------------------------------------------------------------
   // PIO MODE CONFIGURATION
   // ---------------------------------------------------------------------------
@@ -1271,7 +1284,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), layoutId,
+    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
                                   selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
 

@@ -439,6 +439,7 @@ Scheduler::FileAccess (
                        eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                        unsigned long forcedfsid, //< forced file system for access
                        const char* forcedspace, //< forced space for access
+		       std::string tried_cgi, //< cgi referencing already tried hosts 
                        unsigned long lid, //< layout of the file
                        std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
                        unsigned long &fsindex, //< return index pointing to layout entry filesystem
@@ -619,7 +620,8 @@ Scheduler::FileAccess (
         if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
             (snapshot.mConfigStatus >= min_fsstatus) &&
             (snapshot.mErrCode == 0) && // this we probably don't need 
-            (snapshot.mActiveStatus))
+            (snapshot.mActiveStatus) &&
+	    ( (!tried_cgi.length()) || ( tried_cgi.find(snapshot.mHost+",") == std::string::npos) )) // filesystem host is not in the tried list
         {
           availablefs.insert(snapshot.mId);
 
