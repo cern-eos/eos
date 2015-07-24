@@ -27,6 +27,7 @@ Bug Fixes
 - disable readahead for files that have rd/wr operations
 - allow clean-up via the destructor for chunked upload files
 - fix directory listing ACL bug
+- avoid timing related dead-lock in asynchronous backend flush
 
 ``Version V0.3.121 Beryl-Aquamarine``
 New Features

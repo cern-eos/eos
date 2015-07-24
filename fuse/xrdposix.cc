@@ -1226,8 +1226,12 @@ xrd_stat (const char* path,
       if (iter_file != fd2fabst.end())
       {
         // Force flush so that we get the real current size through the file obj.
-        if (XFC && fuse_cache_write)
+        if (XFC && fuse_cache_write) 
+	{
+	  iter_file->second->mMutexRW.WriteLock();
           XFC->ForceAllWrites(iter_file->second);
+	  iter_file->second->mMutexRW.UnLock();
+	}
 
         struct stat tmp;
         eos::fst::Layout* file = iter_file->second->GetRawFile();
@@ -2547,7 +2551,11 @@ xrd_close (int fildes, unsigned long inode, uid_t uid)
   }
 
   if (XFC)
+  {
+    fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
+    fabst->mMutexRW.UnLock();
+  }
 
   // Close file and remove it from all mappings
   ret = xrd_remove_fd2file(fildes, inode, uid);
@@ -2577,7 +2585,9 @@ xrd_flush (int fd)
 
   if (XFC && fuse_cache_write)
   {
+    fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
+    fabst->mMutexRW.UnLock();
     eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
     error_type error;
 
@@ -2759,8 +2769,11 @@ xrd_fsync (int fildes)
   }
 
   if (XFC && fuse_cache_write)
+  {
+    fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
-
+    fabst->mMutexRW.UnLock();
+  }
 
   eos::fst::Layout* file = fabst->GetRawFile();
   ret = file->Sync();
