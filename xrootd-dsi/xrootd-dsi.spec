@@ -14,10 +14,10 @@ BuildRoot: %{_tmppath}/%{name}-root
 %global gftp_version %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\\n' | grep "globus-gridftp-server-[0-9]")
 %global gftpc_version %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\\n' | grep "globus-gridftp-server-control-[0-9]")
 %if "%{gftp_version}"==""
-%global gftp_version "globus-gridftp-server"
+%global gftp_version globus-gridftp-server
 %endif
 %if "%{gftpc_version}"==""
-%global gftpc_version "globus-gridftp-server-control"
+%global gftpc_version globus-gridftp-server-control
 %endif
 Requires: %{gftp_version}
 Requires: %{gftpc_version}
