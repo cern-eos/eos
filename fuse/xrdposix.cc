@@ -2488,7 +2488,12 @@ xrd_open (const char* path,
 
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl);
-  XrdOucString open_cgi = "eos.app=fuse&eos.bookingsize=0";
+  XrdOucString open_cgi = "eos.app=fuse";
+
+  if (oflags & (O_RDWR | O_WRONLY))
+  {
+      open_cgi += "&eos.bookingsize=0";
+  }
 
   if (do_rdahead)
   {
