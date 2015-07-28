@@ -1067,7 +1067,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
-  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
+  if (isCreation || ((open_mode == SFS_O_TRUNC)))
   {
     eos_info("blocksize=%llu lid=%x",
              eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
@@ -1101,6 +1101,11 @@ XrdMgmOfsFile::open (const char *inpath,
         mtime.tv_nsec = ext_mtime_nsec;
         fmd->setMTime(mtime);
       }
+      else
+      {
+	fmd->setMTimeNow();
+      }
+
       if (ext_ctime_sec)
       {
         eos::FileMD::ctime_t ctime;
@@ -1111,16 +1116,19 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
-        std::string uri = gOFS->eosView->getUri(fmd);
-        SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
-        if (space)
-        {
-          eos::QuotaNode* quotanode = 0;
-          quotanode = space->GetQuotaNode();
-          if (quotanode)
-          {
-            quotanode->addFile(fmd);
-          }
+	if (isCreation || (!fmd->getNumLocation())) 
+	{
+	  std::string uri = gOFS->eosView->getUri(fmd);
+	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
+	  if (space)
+	  {
+	    eos::QuotaNode* quotanode = 0;
+	    quotanode = space->GetQuotaNode();
+	    if (quotanode)
+	    {
+	      quotanode->addFile(fmd);
+	    }
+	  }
         }
       }
       catch (eos::MDException &e)
@@ -1133,6 +1141,7 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
       // -----------------------------------------------------------------------
+      gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
     }
   }
 

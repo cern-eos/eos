@@ -1867,11 +1867,17 @@ XrdFstOfsFile::close ()
               capOpaqueFile += checkSum->GetHexChecksum();
             }
 
-            capOpaqueFile += "&mgm.mtime=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
-            capOpaqueFile += "&mgm.mtime_ns=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
-            capOpaqueFile += "&mgm.add.fsid=";
+	    capOpaqueFile += "&mgm.mtime=";
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
+	    capOpaqueFile += "&mgm.mtime_ns=";
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
+
+	    if (haswrite) 
+	    {
+	      capOpaqueFile += "&mgm.modified=1";
+	    }
+
+	    capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) fMd->fMd.fsid;
 
             // If <drainfsid> is set, we can issue a drop replica
