@@ -381,9 +381,8 @@ ScanDir::CheckFile (const char* filepath)
 
 /*----------------------------------------------------------------------------*/
 eos::fst::CheckSum*
-ScanDir::GetBlockXS (const char* filepath)
+ScanDir::GetBlockXS (const char* filepath, unsigned long long maxfilesize)
 {
-  long long int maxfilesize = 0;
   unsigned long layoutid = 0;
   std::string checksumType, checksumSize, logicalFileName;
   XrdOucString fileXSPath = filepath;
@@ -426,11 +425,6 @@ ScanDir::GetBlockXS (const char* filepath)
           {
             fprintf(stderr, "error: cannot open file %s\n", fileXSPath.c_str());
           }
-          maxfilesize = 0;
-        }
-        else
-        {
-          maxfilesize = info.st_size;
         }
 
         if (checksum->OpenMap(fileXSPath.c_str(), maxfilesize, blockSize, false))
@@ -643,7 +637,14 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
     return false;
   }
 
-  blockXS = GetBlockXS(fileXSPath.c_str());
+  struct stat current_stat;
+  if (fstat(fd, &current_stat)) 
+  {
+    delete normalXS;
+    return false;
+  }
+
+  blockXS = GetBlockXS(fileXSPath.c_str(), current_stat.st_size);
 
   if ((!normalXS) && (!blockXS))
   {
