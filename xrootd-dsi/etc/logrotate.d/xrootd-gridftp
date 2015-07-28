@@ -1,7 +1,0 @@
-/var/log/xrootd/gridftp/*.log {
-    compress
-    daily
-    copytruncate
-    missingok
-    rotate 120
-}

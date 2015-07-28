@@ -252,6 +252,20 @@ struct globus_l_gfs_xrootd_config
   }
 };
 globus_l_gfs_xrootd_config *config = NULL;
+// this mutex protects the config
+// the problem being that the config can be destroyed
+// by the signal handler while it's still being used
+// all the actual uses of the config take a read lock
+// the destruction takes a write lock to block all the threads
+XrdSysRWLock configMutex;
+// TODO:
+// the same problem should not affect XrdGsiBackendMapper::This
+// as a cancelation usually happens during the actual transfer,
+// at this point, XrdGsiBackendMapper::This is not accessed anymore
+// if such a problem should be detected in the future
+// putting a RWMutex to protect it would surely solve the problem
+// although that would require redesigning the mutexing of the destructor
+
 
 /**
  * Class for handling async responses when DSI receives data.
@@ -485,6 +499,7 @@ public:
     // move the file to its final name is needed
     if (mHandle->tmpsfix_size > 0)
     {
+      XrdSysRWLockHelper lock(configMutex);
       XrdCl::XRootDStatus st = XrdUtils::RenameTmpToFinal (*mHandle->tempname, mHandle->tmpsfix_size, config->EosRemote);
       if (!st.IsOK ()) mHandle->cached_res = globus_l_gfs_make_error (ss.str ().c_str (), st.errNo);
       delete mHandle->tempname;
@@ -1358,6 +1373,7 @@ extern "C"
     arg.FromString (myPathPart);
     server.FromString (myServerPart);
     XrdCl::FileSystem fs (server);
+    XrdSysRWLockHelper lock(configMutex);
 
     switch (cmd_info->command)
     {
@@ -1501,6 +1517,8 @@ extern "C"
     bool caught = false;
     try
     {
+      XrdSysRWLockHelper lock(configMutex);
+
       char *myPath, buff[2048];
       if (!(myPath = XP.BuildURL (path, buff, sizeof(buff))))
       {
@@ -1591,6 +1609,8 @@ extern "C"
     bool caught = false;
     try
     {
+      XrdSysRWLockHelper lock(configMutex);
+
       char *myPath, buff[2048];
       if (!(myPath = XP.BuildURL (path, buff, sizeof(buff))))
       {
@@ -1840,6 +1860,8 @@ extern "C"
     GlobusGFSName(__FUNCTION__);
     xrootd_handle = (globus_l_gfs_xrootd_handle_t *) user_arg;
 
+    {
+      XrdSysRWLockHelper lock(configMutex);
     if (config->EosBook && transfer_info->alloc_size)
     {
       snprintf (pathname, sizeof(pathname) - 1, "%s?eos.bookingsize=%lu&eos.targetsize=%lu", transfer_info->pathname,
@@ -1848,6 +1870,7 @@ extern "C"
     else
     {
       snprintf (pathname, sizeof(pathname), "%s", transfer_info->pathname);
+    }
     }
 
     // try to open
@@ -2234,6 +2257,8 @@ extern "C"
     globus_result_t result;
 
     GlobusGFSName(__FUNCTION__);
+
+    XrdSysRWLockHelper lock(configMutex);
 
     if (!callback) return GLOBUS_FAILURE;
 
@@ -3252,11 +3277,14 @@ extern "C"
       NULL,
       NULL };
 
-  struct sigaction globus_sa_sigint, globus_sa_sigterm, globus_sa_sigsegv;
+  struct sigaction globus_sa_sigint, globus_sa_sigterm, globus_sa_sigsegv, globus_sa_sigabrt;
 
   static void globus_l_gfs_xrootd_sighandler (int sig)
   {
     dbgprintf("My PID is %d , signal is sig %d\n", (int) getpid (), sig);
+
+    // to forbid any access to the config once it's destroyed
+    configMutex.WriteLock();
 
     if (config)
     //globus_gfs_log_message (GLOBUS_GFS_LOG_INFO, "%s: My PID is %d\n", "globus_l_gfs_xrootd_deactivate", (int)getpid());
@@ -3271,6 +3299,7 @@ extern "C"
     if (sig == SIGINT) sa = &globus_sa_sigint;
     if (sig == SIGTERM) sa = &globus_sa_sigterm;
     if (sig == SIGSEGV) sa = &globus_sa_sigsegv;
+    if (sig == SIGABRT) sa = &globus_sa_sigabrt;
 
     if (sa && sa->sa_handler)
     {
@@ -3295,6 +3324,8 @@ extern "C"
 
   static int globus_l_gfs_xrootd_activate (void)
   {
+    XrdSysRWLockHelper lock(configMutex);
+
     // ### NOT CALLED for every process globus_gridftp_sever ### //
     dbgprintf("My PID is %d, XrdGsiBackendMapper::This is %p and config is %p\n", (int)getpid(), XrdGsiBackendMapper::This, config);
 
@@ -3302,9 +3333,11 @@ extern "C"
     sigaction (SIGINT, NULL, &globus_sa_sigint);
     sigaction (SIGTERM, NULL, &globus_sa_sigterm);
     sigaction (SIGSEGV, NULL, &globus_sa_sigsegv);
+    sigaction (SIGABRT, NULL, &globus_sa_sigabrt);
     signal (SIGINT, globus_l_gfs_xrootd_sighandler);
     signal (SIGTERM, globus_l_gfs_xrootd_sighandler);
     signal (SIGSEGV, globus_l_gfs_xrootd_sighandler);
+    signal (SIGABRT, globus_l_gfs_xrootd_sighandler);
     atexit (globus_l_gfs_xrootd_atexit);
 
     // hadPreviousCfs is actually useless as on every fork, the plugin is reloaded
@@ -3494,6 +3527,9 @@ extern "C"
     dbgprintf("My PID is %d\n", (int) getpid ());
 
     globus_extension_registry_remove (GLOBUS_GFS_DSI_REGISTRY, (void*) "xrootd");
+
+    configMutex.WriteLock();
+    XrdSysRWLockHelper lock;
 
     if (config)
     {

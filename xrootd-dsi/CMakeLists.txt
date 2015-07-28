@@ -26,7 +26,7 @@
 ######################################################################################################################
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "5" )
-set(VERSION_PATCH "0" )
+set(VERSION_PATCH "1" )
 set(RELEASE "1" )
 
 ######################################################################################################################
@@ -97,8 +97,6 @@ install ( TARGETS globus_gridftp_server_xrootd_gcc64pthr
 )
 INSTALL ( FILES ${PROJECT_SOURCE_DIR}/etc/sysconfig/xrootd-gridftp-server DESTINATION ${SYSCONFDIR}/sysconfig  PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 INSTALL ( FILES ${PROJECT_SOURCE_DIR}/etc/init.d/xrootd-gridftp  DESTINATION ${SYSCONFDIR}/init.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-INSTALL ( FILES ${PROJECT_SOURCE_DIR}/etc/logrotate.d/xrootd-gridftp  DESTINATION ${SYSCONFDIR}/logrotate.d PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-
 
 ######################################################################################################################
 # install targets

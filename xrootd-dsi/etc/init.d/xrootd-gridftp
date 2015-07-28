@@ -99,6 +99,7 @@ fi
 
 start()
 {
+	export XRD_RUNFORKHANDLERS=1
 	export XRD_ENABLEFORKHANDLERS=1
     if [ "$RETVAL" == 0 ]
     then

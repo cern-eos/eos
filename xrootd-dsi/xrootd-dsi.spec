@@ -4,13 +4,15 @@
 
 Summary: XROOTD gridftp DSI plugin
 Name: xrootd-dsi
-Version: 0.5.0
+Version: 0.5.1
 Release: 1
 License: none
 Group: Applications/File
-Source0: xrootd-dsi-0.5.0-%{release}.tar.gz
+Source0: xrootd-dsi-0.5.1-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
+Requires: %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\n' | grep "globus-gridftp-server-[0-9]")
+Requires: %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\n' | grep "globus-gridftp-server-control-[0-9]")
 Requires: xrootd-client
 Requires: globus-gridftp-server-progs
 
@@ -44,6 +46,9 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 mkdir -p build
 cd build
 cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_MODULE_PATH=cmake
+# we force the deletion of the globus hack header to avoid any problems with left overs and multiple builds
+# this forces the rebuild of the header with currently installed versions of globus packages
+rm -f ../src/globus_gfs_internal_hack.h
 
 %install
 cd build
@@ -57,7 +62,6 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_libdir}/*.so*
 %_sysconfdir/init.d/xrootd-gridftp
-%_sysconfdir/logrotate.d/xrootd-gridftp
 %config %_sysconfdir/sysconfig/xrootd-gridftp-server
 
 
@@ -77,6 +81,12 @@ fi
 rm -f /usr/lib64/libglobus_gridftp_server_xrootd_gcc64.so
 
 %changelog
+* Fri Jul 28 2015 <geoffray.adde@cern.ch> - dsi 0.5.1-1
+- add a mutex to protect the config object from deletion while still being used while transfer is being canceled 
+- remove logrotate file because the entry is redundant with xrootd
+- add hard dependency on the versions of globus-gridftp-server and globus-gridftp-server-control
+- set XRD_RUNFORKHANDLERS in the init script because XRD_ENABLEFORKHANDLERS is not supported by latest versions of XRootD
+  with which the rpm was built
 * Fri Jun 5 2015 <geoffray.adde@cern.ch> - dsi 0.5.0-1
 - rewrite MT locking scheme to allow IPC
 - add support for dynamic backend discovery

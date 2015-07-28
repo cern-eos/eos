@@ -61,26 +61,32 @@ extern "C"
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+//#define FORKDEBUGGING
+
 #ifdef FORKDEBUGGING
 
 #define dbgprintf(...) \
   do { \
+    char buffer[1024]; \
     timespec ts; \
     clock_gettime(CLOCK_MONOTONIC, &ts); \
-    FILE *f=fopen("/tmp/globus_alternate_log.txt","a"); \
-    fprintf(f,"%d,%d | %d | %s :  ", (int)ts.tv_sec,(int)ts.tv_nsec,(int)getpid(),__PRETTY_FUNCTION__ ); \
-    fprintf(f,__VA_ARGS__); \
-    fclose(f); } \
+    int fd=open("/tmp/globus_alternate_log.txt",O_WRONLY | O_APPEND | O_CREAT,0777); \
+    int buflen = 1024 - snprintf(buffer,1024,"%d,%d | %d | %s :  ", (int)ts.tv_sec,(int)ts.tv_nsec,(int)getpid(),__PRETTY_FUNCTION__ ); \
+    buflen-=snprintf(buffer+1024-buflen,buflen,__VA_ARGS__); \
+    write(fd,buffer,1024-buflen); \
+    close(fd); } \
   while(0)
 
 #define dbgprintf2(...) \
   do { \
+    char buffer[1024]; \
     timespec ts; \
     clock_gettime(CLOCK_MONOTONIC, &ts); \
-    FILE *f=fopen("/mnt/rd/globus_alternate_log.txt","a"); \
-    fprintf(f,"%d,%d | %d | %s at line %d :  ", (int)ts.tv_sec,(int)ts.tv_nsec,(int)getpid(),__PRETTY_FUNCTION__ , __LINE__ ); \
-    fprintf(f,__VA_ARGS__); \
-    fclose(f); } \
+    int fd=open("/tmp/globus_alternate_log.txt",O_WRONLY | O_APPEND | O_CREAT,0777); \
+    int buflen = 1024 - snprintf(buffer,1024,"%d,%d | %d | %s at line %d :  ", (int)ts.tv_sec,(int)ts.tv_nsec,(int)getpid(),__PRETTY_FUNCTION__ , __LINE__ ); \
+    buflen-=snprintf(buffer+1024-buflen,buflen,__VA_ARGS__); \
+    write(fd,buffer,1024-buflen); \
+    close(fd); } \
   while(0)
 
 #define mysem_wait( sem ) \
