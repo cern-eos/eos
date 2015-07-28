@@ -11,8 +11,17 @@ Group: Applications/File
 Source0: xrootd-dsi-0.5.1-%{release}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-Requires: %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\n' | grep "globus-gridftp-server-[0-9]")
-Requires: %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\n' | grep "globus-gridftp-server-control-[0-9]")
+%global gftp_version %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\\n' | grep "globus-gridftp-server-[0-9]")
+%global gftpc_version %(rpm -qa --queryformat '%%{name}-%%{version}-%%{release}\\n' | grep "globus-gridftp-server-control-[0-9]")
+%if "%{gftp_version}"==""
+%global gftp_version "globus-gridftp-server"
+%endif
+%if "%{gftpc_version}"==""
+%global gftpc_version "globus-gridftp-server-control"
+%endif
+Requires: %{gftp_version}
+Requires: %{gftpc_version}
+
 Requires: xrootd-client
 Requires: globus-gridftp-server-progs
 
