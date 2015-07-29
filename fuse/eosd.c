@@ -125,7 +125,7 @@ eosfs_ll_getattr (fuse_req_t req,
     fuse_reply_attr (req, &stbuf, attrcachetime);
   }
   else
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, retc);
 }
 
 
@@ -945,7 +945,119 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     fuse_reply_err (req, errno);
 }
 
+//------------------------------------------------------------------------------
+// Read a symbolic link
+//------------------------------------------------------------------------------
+static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
+{
+  struct stat stbuf;
 
+
+  char fullpath[16384];
+  const char* name = NULL;
+
+  xrd_lock_r_p2i (); // =>
+  name = xrd_path ((unsigned long long) ino);
+
+  if (!name)
+  {
+    fuse_reply_err (req, ENXIO);
+    xrd_unlock_r_p2i (); // <=
+    return;
+  }
+
+  FULLPATH (fullpath, mountprefix, name);
+  xrd_unlock_r_p2i (); // <=
+
+  char linkbuffer[8912];
+  
+  int retc = xrd_readlink(fullpath, linkbuffer, sizeof(linkbuffer),
+			  req->ctx.uid,
+			  req->ctx.gid, 
+			  req->ctx.pid);
+  
+  if (!retc) {
+    fuse_reply_readlink(req,linkbuffer);
+    return;
+  } else {
+    fuse_reply_err(req, errno);
+    return;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Create a symbolic link
+//------------------------------------------------------------------------------
+
+static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent, 
+			     const char *name)
+{
+  const char* parentpath = NULL;
+  char partialpath[16384];
+  char fullpath[16384];
+  char ifullpath[16384];
+    
+  xrd_lock_r_p2i (); // =>
+  parentpath = xrd_path ((unsigned long long) parent);
+  
+  if (!parentpath)
+  {
+    fuse_reply_err (req, ENXIO);
+    xrd_unlock_r_p2i (); // <=
+    return;
+  }
+
+  sprintf (partialpath, "/%s%s/%s", mountprefix, parentpath, name);
+
+  FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
+
+  if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
+  {
+    sprintf (ifullpath, "/%s", name);
+  }
+  else
+  {
+    sprintf (ifullpath, "%s/%s", parentpath, name);
+  }
+  
+  xrd_unlock_r_p2i (); // <=
+
+  
+  if (isdebug) fprintf(stderr,"[%s]: path=%s link=%s\n", __FUNCTION__,fullpath, link);
+
+  int retc = xrd_symlink(fullpath,
+			 link,
+			 req->ctx.uid,
+			 req->ctx.gid, 
+			 req->ctx.pid);
+			 
+  if (!retc) 
+  {
+    struct fuse_entry_param e;
+    memset(&e, 0, sizeof(e));
+    e.attr_timeout = attrcachetime;
+    e.entry_timeout = entrycachetime;
+    int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
+    if (!retc) 
+    {
+      if (isdebug) fprintf(stderr,"[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long)e.attr.st_ino,ifullpath);
+      e.ino = e.attr.st_ino;
+      xrd_store_p2i((unsigned long long)e.attr.st_ino,ifullpath);
+      fuse_reply_entry(req, &e);
+      return;
+    } 
+    else 
+    {
+      fuse_reply_err(req, errno);
+      return;
+    }
+  } 
+  else 
+  {
+    fuse_reply_err(req, errno);
+    return;
+  }
+}
 //------------------------------------------------------------------------------
 // Open a file
 //------------------------------------------------------------------------------
@@ -1029,9 +1141,12 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
-           __FUNCTION__, ino, size, off);
-
+  if (isdebug)
+  {
+    fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
+	     __FUNCTION__, ino, size, off);
+    
+  }
   if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;
@@ -1537,6 +1652,8 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
   .lookup = eosfs_ll_lookup,
   .setattr = eosfs_ll_setattr,
   .access = eosfs_ll_access,
+  .readlink= eosfs_ll_readlink,
+  .symlink= eosfs_ll_symlink,
   .readdir = eosfs_ll_readdir,
   .mkdir = eosfs_ll_mkdir,
   .unlink = eosfs_ll_unlink,

@@ -497,6 +497,31 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   void deserialize(const Buffer& buffer);
 
+  //----------------------------------------------------------------------------
+  //! Get symbolic link 
+  //----------------------------------------------------------------------------
+  std::string getLink() const
+  {
+    return pLinkName;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set symbolic link 
+  //----------------------------------------------------------------------------
+  void setLink(std::string link_name)
+  {
+    pLinkName = link_name;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if symbolic link
+  //----------------------------------------------------------------------------
+  bool isLink() const
+  {
+    return pLinkName.length() ? true:false;
+  }
+
+
  protected:
   //----------------------------------------------------------------------------
   // Data members
@@ -511,6 +536,7 @@ class FileMD: public IFileMD
   layoutId_t          pLayoutId;
   uint16_t            pFlags;
   std::string         pName;
+  std::string         pLinkName;
   LocationVector      pLocation;
   LocationVector      pUnlinkedLocation;
   Buffer              pChecksum;

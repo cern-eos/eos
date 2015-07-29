@@ -95,7 +95,7 @@ XrdMgmOfs::rename (const char *old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    if (info)info = 0;
+    if (info) info = 0;
   }
 
   {
@@ -105,8 +105,7 @@ XrdMgmOfs::rename (const char *old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-
-    if (info)info = 0;
+    if (info) info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;
@@ -236,7 +235,7 @@ XrdMgmOfs::_rename (const char *old_name,
   static const char *epname = "_rename";
   errno = 0;
 
-  eos_info("source=%s target=%s", old_name, new_name);
+  eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
 
   EXEC_TIMING_BEGIN("Rename");
 
@@ -372,6 +371,12 @@ XrdMgmOfs::_rename (const char *old_name,
       {
 	dir = eosView->getContainer(oPath.GetParentPath());
 	newdir = eosView->getContainer(nPath.GetParentPath());
+	// translate both parths to paths without symlinks
+	std::string duri = eosView->getUri(dir);
+	std::string newduri = eosView->getUri(newdir);
+	// get symlink-free dir's
+	dir = eosView->getContainer(duri);
+	newdir = eosView->getContainer(newduri);
 	if (renameFile)
 	{
 	  if (oP == nP)

@@ -76,16 +76,11 @@ XrdMgmOfs::_chown (const char *path,
 
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
-    pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-
+    eos::common::Path pPath(gOFS->eosView->getUri(cmd).c_str());
+    pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
     eos::IContainerMD::XAttrMap::const_iterator it;
-    for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
-    {
-      attrmap[it->first] = it->second;
-    }
-
-    // acl of the parent!
-    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
+    // ACL and permission check
+    Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
 
     cmd = gOFS->eosView->getContainer(path);
     if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
@@ -123,11 +118,14 @@ XrdMgmOfs::_chown (const char *path,
     try
     {
       // try as a file
+      std::string uri;
       eos::common::Path cPath(path);
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      uri = gOFS->eosView->getUri(cmd);
 
-      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(cPath.GetParentPath());
+      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
       eos::IQuotaNode* quotanode = 0;
+      
       if (space)
       {
         quotanode = space->GetQuotaNode();

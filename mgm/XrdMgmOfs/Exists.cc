@@ -118,7 +118,7 @@ XrdMgmOfs::_exists (const char *path,
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
-      cmd = gOFS->eosView->getContainer(path);
+      cmd = gOFS->eosView->getContainer(path, false);
     }
     catch (eos::MDException &e)
     {
@@ -137,7 +137,7 @@ XrdMgmOfs::_exists (const char *path,
     eos::IFileMD* fmd = 0;
     try
     {
-      fmd = gOFS->eosView->getFile(path);
+      fmd = gOFS->eosView->getFile(path, false);
     }
     catch (eos::MDException &e)
     {
@@ -171,12 +171,11 @@ XrdMgmOfs::_exists (const char *path,
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
-      dir = eosView->getContainer(cPath.GetParentPath());
+      dir = eosView->getContainer(cPath.GetParentPath(),false);
       eos::IContainerMD::XAttrMap::const_iterator it;
-      for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+
+      // get attributes
+      gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
     }
     catch (eos::MDException &e)
     {
@@ -259,7 +258,7 @@ XrdMgmOfs::_exists (const char *path,
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
-      cmd = gOFS->eosView->getContainer(path);
+      cmd = gOFS->eosView->getContainer(path, false);
     }
     catch (eos::MDException &e)
     {
@@ -278,7 +277,7 @@ XrdMgmOfs::_exists (const char *path,
     eos::IFileMD* fmd = 0;
     try
     {
-      fmd = gOFS->eosView->getFile(path);
+      fmd = gOFS->eosView->getFile(path, false);
     }
     catch (eos::MDException &e)
     {

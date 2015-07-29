@@ -194,7 +194,7 @@ public:
     if (checksum_type == "adler32")
       checksum_type = "adler";
 
-    return std::make_pair<std::string, std::string> (checksum_type, checksum_value);
+    return std::make_pair (checksum_type, checksum_value);
   }
 
   // ---------------------------------------------------------------------------

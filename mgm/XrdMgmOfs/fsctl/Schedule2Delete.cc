@@ -70,13 +70,28 @@
     // loop over all file systems
     // ---------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-    std::pair<eos::IFsView::FileIterator, eos::IFsView::FileIterator> unlinkpair;
-    try
+    eos::IFsView::FileIterator it;
+    std::vector<eos::common::FileId::fileid_t> lIdVector;
+
     {
-      unlinkpair = eosFsView->getUnlinkedFiles(fslist[i]);
+      // reduce lock contention
+      eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+      std::pair<eos::IFsView::FileIterator, eos::IFsView::FileIterator> unlinkpair;
+      try
+      {
+	unlinkpair = eosFsView->getUnlinkedFiles(fslist[i]);
+	for (it = unlinkpair.first; it != unlinkpair.second; ++it) 
+	  lIdVector.push_back(*it);
+      }
+      catch (...)
+      {
+	eos_static_debug("nothing to delete in fs %lu", (unsigned long) fslist[i]);
+	continue;
+      }
+    }
+    
+    {
       XrdMqMessage message("deletion");
-      eos::IFsView::FileIterator it;
       int ndeleted = 0;
 
       eos::mgm::FileSystem* fs = 0;
@@ -84,10 +99,10 @@
       XrdOucString msgbody = "mgm.cmd=drop";
       XrdOucString capability = "";
       XrdOucString idlist = "";
-      for (it = unlinkpair.first; it != unlinkpair.second; ++it)
+      for (size_t n=0; n < lIdVector.size(); n++)
       {
         eos_static_info("msg=\"add to deletion message\" fxid=%08llx fsid=%lu",
-                        *it, (unsigned long) fslist[i]);
+                        lIdVector[n], (unsigned long) fslist[i]);
 
         // loop over all files and emit a deletion message
         if (!fs)
@@ -141,7 +156,7 @@
 
         XrdOucString sfid = "";
         XrdOucString hexfid = "";
-        eos::common::FileId::Fid2Hex(*it, hexfid);
+        eos::common::FileId::Fid2Hex(lIdVector[n], hexfid);
         idlist += hexfid;
         idlist += ",";
 
@@ -206,10 +221,6 @@
         if (capabilityenv)
           delete capabilityenv;
       }
-    }
-    catch (...)
-    {
-      eos_static_debug("nothing to delete in fs %lu", (unsigned long) fslist[i]);
     }
   }
   // -----------------------------------------------------------------------

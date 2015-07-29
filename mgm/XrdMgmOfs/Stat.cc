@@ -28,15 +28,17 @@
 // -----------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
+
 int
 XrdMgmOfs::stat (const char *inpath,
                  struct stat *buf,
                  XrdOucErrInfo &error,
                  const XrdSecEntity *client,
-                 const char *ininfo)
+                 const char *ininfo
+                 )
 {
 
-  return stat(inpath, buf, error, 0, client, ininfo);
+  return stat(inpath, buf, error, 0, client, ininfo, false);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -46,7 +48,9 @@ XrdMgmOfs::stat (const char *inpath,
                  XrdOucErrInfo &error,
                  std::string *etag,
                  const XrdSecEntity *client,
-                 const char *ininfo)
+                 const char *ininfo,
+                 bool follow,
+                 std::string *uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -57,6 +61,7 @@ XrdMgmOfs::stat (const char *inpath,
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param etag string to return the ETag for that object
+ * @param follow to indicate to follow symbolic links on leave nodes
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * See the internal implemtation _stat for details.
@@ -95,13 +100,13 @@ XrdMgmOfs::stat (const char *inpath,
   // never redirect stat's for the master mode
   // ---------------------------------------------------------------------------
 
-  if (cPath.GetFullPath() != gOFS->MgmProcMasterPath) 
+  if (cPath.GetFullPath() != gOFS->MgmProcMasterPath)
   {
     MAYREDIRECT;
   }
 
   errno = 0;
-  int rc = _stat(path, buf, error, vid, info, etag);
+  int rc = _stat(path, buf, error, vid, info, etag, follow, uri);
   if (rc && (errno == ENOENT))
   {
     MAYREDIRECT_ENOENT;
@@ -117,7 +122,9 @@ XrdMgmOfs::_stat (const char *path,
                   XrdOucErrInfo &error,
                   eos::common::Mapping::VirtualIdentity &vid,
                   const char *ininfo,
-                  std::string* etag)
+                  std::string* etag,
+                  bool follow,
+                  std::string* uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -127,6 +134,7 @@ XrdMgmOfs::_stat (const char *path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
+ * @param follow to indicate to follow symbolic links on leave nodes
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * We don't apply any access control on stat calls for performance reasons.
@@ -164,13 +172,19 @@ XrdMgmOfs::_stat (const char *path,
 
   try
   {
-    fmd = gOFS->eosView->getFile(cPath.GetPath());
+    fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+    if (uri)
+      *uri = gOFS->eosView->getUri(fmd);
   }
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
+    if (errno == ELOOP)
+    {
+      return Emsg(epname, error, errno, "stat", cPath.GetPath());
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -179,13 +193,33 @@ XrdMgmOfs::_stat (const char *path,
     memset(buf, 0, sizeof (struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
-    buf->st_mode = S_IFREG;
-    uint16_t flags = fmd->getFlags();
-    if (!flags)
-      buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+
+    // TODO: this is useless as we don't release the lock eosViewRWMutex
+    eos::IFileMD* fmdCopy = fmd->clone();
+
+    if (fmdCopy->isLink())
+      buf->st_mode = S_IFLNK;
     else
-      buf->st_mode |= flags;
-    buf->st_nlink = fmd->getNumLocation();
+      buf->st_mode = S_IFREG;
+
+    uint16_t flags = fmd->getFlags();
+
+    if (fmdCopy->isLink())
+    {
+      buf->st_mode |= (S_IRWXU | S_IRWXG | S_IRWXO);
+      buf->st_nlink = 1;
+    }
+    else
+    {
+      if (!flags)
+        buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+      else
+        buf->st_mode |= flags;
+
+      buf->st_nlink = fmd->getNumLocation();
+    }
+
+
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
@@ -265,8 +299,9 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   try
   {
-    cmd = gOFS->eosView->getContainer(cPath.GetPath());
-
+    cmd = gOFS->eosView->getContainer(cPath.GetPath(), follow);
+    if (uri)
+      *uri = gOFS->eosView->getUri(cmd);
     memset(buf, 0, sizeof (struct stat));
 
     buf->st_dev = 0xcaff;
@@ -334,7 +369,6 @@ XrdMgmOfs::_stat (const char *path,
   }
   catch (eos::MDException &e)
   {
-
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     return Emsg(epname, error, errno, "stat", cPath.GetPath());

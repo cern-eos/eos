@@ -352,6 +352,8 @@ Vid::Rm (XrdOucEnv &env,
 
   if (skey.beginswith("tident"))
   {
+    XrdOucString saveskey = skey;
+
     skey.replace("tident:\"","");
     if(skey.find("*",skey.find("@"))!=STR_NPOS)
     {
@@ -374,6 +376,7 @@ Vid::Rm (XrdOucEnv &env,
         }
       }
     }
+    skey = saveskey;
   }
 
   if (skey.endswith(":root"))

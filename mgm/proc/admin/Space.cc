@@ -313,11 +313,13 @@ ProcCommand::Space ()
                 (key == "geobalancer") ||
                 (key == "geobalancer.ntx") ||
                 (key == "geobalancer.threshold") ||
+		(key == "geo.access.policy.exact") ||
                 (key == "balancer.threshold"))
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
-                  (key == "groupbalancer") || (key == "geobalancer"))
+                  (key == "groupbalancer") || (key == "geobalancer") ||
+		  (key == "geo.access.policy.exact"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -367,6 +369,13 @@ ProcCommand::Space ()
                         stdOut += "success: geobalancer is enabled!";
                       else
                         stdOut += "success: geobalancer is disabled!";
+                    }
+                    if (key == "geo.access.policy.exact")
+                    {
+                      if (value == "on")
+                        stdOut += "success: geo access policy prefers the exact geo matching replica!";
+                      else
+                        stdOut += "success: geo access policy prefers with a weight the geo matching replica!";
                     }
                   }
                 }

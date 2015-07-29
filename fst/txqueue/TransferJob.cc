@@ -25,9 +25,9 @@
 
 /* ------------------------------------------------------------------------- */
 #include "common/Logging.hh"
-#include "common/CloExec.hh"
 #include "common/SymKeys.hh"
 #include "common/StringConversion.hh"
+#include "common/ShellCmd.hh"
 #include "fst/txqueue/TransferJob.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
@@ -338,9 +338,19 @@ TransferJob::DoIt ()
 
   bool iskrb5 = false;
   bool isgsi = false;
+  bool noauth = false;
 
   if ((mJob) && (mJob->GetEnv()))
   {
+    // retrieve the auth method
+    if (mJob->GetEnv()->Get("tx.noauth")) 
+    {
+      XrdOucString tauth = mJob->GetEnv()->Get("tx.noauth");
+      if (tauth=="1")
+	noauth = true;
+      else
+	noauth = false;
+    }
     // retrieve bandwidth from the opaque tx.bandwidth tag if defined
     if ((mJob->GetEnv()->Get("tx.bandwidth")))
     {
@@ -756,7 +766,7 @@ TransferJob::DoIt ()
   // -----------------------------------------------------------------------
   // setup the command to run for the transfer/stagein and evt. the stageout
   // -----------------------------------------------------------------------
-  if (iskrb5)
+  if (iskrb5 && !noauth)
   {
     command << "unset XrdSecPROTOCOL; KRB5CCNAME=";
     command << fileCredential;
@@ -767,7 +777,7 @@ TransferJob::DoIt ()
   }
   else
   {
-    if (isgsi)
+    if (isgsi && !noauth)
     {
       command << "unset XrdSecPROTOCOL; X509_USER_PROXY=";
       command << fileCredential;
@@ -778,7 +788,11 @@ TransferJob::DoIt ()
     }
     else
     {
-      command << "export XrdSecPROTOCOL=sss; ";
+      fprintf(stderr,"################ setting no auth option to %d\n", noauth);
+      if (!noauth)
+	command << "export XrdSecPROTOCOL=sss; ";
+      else
+	command << "unset XrdSecPROTOCOL; ";
     }
   }
 
@@ -828,8 +842,6 @@ TransferJob::DoIt ()
     XrdSysThread::Run(&mProgressThread, TransferJob::StaticProgress, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Progress Report Thread");
   }
 
-  // avoid cloning of FDs on fork
-  eos::common::CloExec::All();
   std::string cattolog;
   int rc = 0;
 
@@ -892,11 +904,13 @@ TransferJob::DoIt ()
   }
   else
   {
-    rc = system(command.str().c_str());
+    eos::common::ShellCmd scmd(command.str().c_str());
+    eos::common::cmd_status rcst = scmd.wait(24*3600);
+    rc = rcst.exit_code;
   }
 
   // now set the transfer state and send the log output
-  if (WEXITSTATUS(rc))
+  if (rc)
   {
     eos_static_err("transfer returned %d", command.str().c_str(), rc);
     if (mId)
@@ -967,9 +981,11 @@ TransferJob::DoIt ()
       }
       else
       {
-        rc = system(commando.str().c_str());
+	eos::common::ShellCmd scmd(commando.str().c_str());
+	eos::common::cmd_status rcst = scmd.wait(24*3600);
+	rc = rcst.exit_code;
       }
-      if (WEXITSTATUS(rc))
+      if (rc)
       {
         eos_static_err("transfer returned %d", commando.str().c_str(), rc);
         // send failed status
@@ -1005,8 +1021,12 @@ TransferJob::DoIt ()
   cattolog = "touch /var/log/eos/fst/eoscp.log; cat ";
   cattolog += fileOutput.c_str();
   cattolog += " >> /var/log/eos/fst/eoscp.log 2>/dev/null";
-  rc = system(cattolog.c_str());
-  if (WEXITSTATUS(rc))
+  {
+    eos::common::ShellCmd scmd(cattolog.c_str());
+    eos::common::cmd_status rcst = scmd.wait(60);
+    rc = rcst.exit_code;
+  }
+  if (rc)
   {
     fprintf(stderr, "error: failed to append to eoscp log file (%s)\n", cattolog.c_str());
   }
@@ -1016,8 +1036,10 @@ TransferJob::DoIt ()
     std::string cattolog = "touch /var/log/eos/fst/eoscp.log; echo ______________________ STAGEOUT _____________________ >> /var/log/eos/fst/eoscp.log 2>/dev/null; cat ";
     cattolog += fileStageOutput.c_str();
     cattolog += " | grep -v \"bytes remaining\" >> /var/log/eos/fst/eoscp.log 2>/dev/null;";
-    rc = system(cattolog.c_str());
-    if (WEXITSTATUS(rc))
+    eos::common::ShellCmd scmd(cattolog.c_str());
+    eos::common::cmd_status rcst = scmd.wait(60);
+    rc = rcst.exit_code;
+    if (rc)
     {
       fprintf(stderr, "error: failed to append to eoscp log file (%s)\n", cattolog.c_str());
     }

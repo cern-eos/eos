@@ -147,17 +147,17 @@ XrdMgmOfs::_chmod (const char *path,
   if (cmd || fmd)
     try
     {
-      pcmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+      std::string uri;
+      if (cmd)
+	uri = gOFS->eosView->getUri(cmd);
+      else
+	uri = gOFS->eosView->getUri(fmd);
 
-      eos::IContainerMD::XAttrMap::const_iterator it;
-      for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
-      // acl of the parent!
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
+      eos::common::Path pPath(uri.c_str());
+      pcmd =gOFS->eosView->getContainer(pPath.GetParentPath());
 
+      // ACL and permission check
+      Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
 
       if (vid.uid && !acl.IsMutable())
       {
@@ -166,8 +166,9 @@ XrdMgmOfs::_chmod (const char *path,
       }
       else
       {
-        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
-            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+        // If owner without revoked chmod permissions
+        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || 
+            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || 
             (!vid.uid) || // the root user
             (vid.uid == 3) || // the admin user
             (vid.gid == 4) || // the admin group

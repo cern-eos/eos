@@ -79,6 +79,7 @@ FileMD::operator = (const FileMD& other)
   pCGid        = other.pCGid;
   pLayoutId    = other.pLayoutId;
   pFlags       = other.pFlags;
+  pLinkName    = other.pLinkName;
   pLocation    = other.pLocation;
   pUnlinkedLocation = other.pUnlinkedLocation;
   pCTime       = other.pCTime;
@@ -278,9 +279,19 @@ void FileMD::serialize(Buffer& buffer)
   tmp |= (pSize & 0x0000ffffffffffff);
   buffer.putData(&tmp,          sizeof(tmp));
   buffer.putData(&pContainerId, sizeof(pContainerId));
-  uint16_t len = pName.length() + 1;
+
+  // Symbolic links are serialized as <name>//<link>
+  std::string nameAndLink = pName;
+
+  if (pLinkName.length())
+  {
+    nameAndLink += "//";
+    nameAndLink += pLinkName;
+  }
+  
+  uint16_t len = pName.length() + 1;    
   buffer.putData(&len,          sizeof(len));
-  buffer.putData(pName.c_str(), len);
+  buffer.putData(nameAndLink.c_str(), len);
   len = pLocation.size();
   buffer.putData(&len, sizeof(len));
   LocationVector::iterator it;
@@ -328,6 +339,16 @@ void FileMD::deserialize(const Buffer& buffer)
   char strBuffer[len];
   offset = buffer.grabData(offset, strBuffer, len);
   pName = strBuffer;
+
+  // Possibly extract symbolic link
+  size_t link_pos = pName.find("//");
+
+  if (link_pos != std::string::npos)
+  {
+    pLinkName = pName.substr(link_pos+2);
+    pName.erase(link_pos);
+  }
+    
   offset = buffer.grabData(offset, &len, 2);
 
   for (uint16_t i = 0; i < len; ++i)

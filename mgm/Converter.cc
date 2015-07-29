@@ -83,6 +83,10 @@ ConverterJob::DoIt ()
  */
 /*----------------------------------------------------------------------------*/
 {
+  eos::common::Mapping::VirtualIdentity rootvid;
+  eos::common::Mapping::Root(rootvid);
+  XrdOucErrInfo error;
+
   eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
@@ -115,12 +119,12 @@ ConverterJob::DoIt ()
       mSourcePath = gOFS->eosView->getUri(fmd);
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-      // load the extended attributes
-      eos::IContainerMD::XAttrMap::const_iterator it;
-      for (it = cmd->attributesBegin(); it != cmd->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+      cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd));
+
+      XrdOucErrInfo error;
+      // load the attributes
+      gOFS->_attr_ls(gOFS->eosView->getUri(cmd).c_str(), error, rootvid, 0,
+		     attrmap, false, true);
 
       // get the checksum string if defined
       for (unsigned int i = 0;
@@ -142,8 +146,8 @@ ConverterJob::DoIt ()
       if (attrmap.count(mConversionLayout.c_str()))
       {
         // conversion layout can either point to a conversion attribute definition in the parent directory
-        val =
-          eos::common::LayoutId::GetEnvFromConversionIdString(lEnv, attrmap[mConversionLayout.c_str()].c_str());
+        val = eos::common::LayoutId::GetEnvFromConversionIdString(
+            lEnv, attrmap[mConversionLayout.c_str()].c_str());
       }
       else
       {
@@ -312,9 +316,6 @@ ConverterJob::DoIt ()
     }
   }
 
-  eos::common::Mapping::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
-  XrdOucErrInfo error;
 
   if (success)
   {

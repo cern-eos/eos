@@ -121,12 +121,16 @@ Scheduler::FilePlacement (const char* path, //< path to place
     if (schedulingGroup.count(indextag))
     {
       git = FsView::gFsView.mSpaceGroupView[spacename].find(schedulingGroup[indextag]);
+      schedulingGroup[indextag] = *git;
     }
     else
     {
       git = FsView::gFsView.mSpaceGroupView[spacename].begin();
       schedulingGroup[indextag] = *git;
     }
+    git++;
+    if (git ==  FsView::gFsView.mSpaceGroupView[spacename].end())
+      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
     schedulingMutex.UnLock();
   }
 
@@ -155,6 +159,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
       //
       fsid = schedulingFileSystem[sfsindextag];
       fsit = (*git)->find(fsid);
+      fsit++;
+      fsid = *fsit;
+
       if (fsit == (*git)->end())
       {
         // this filesystem is not anymore there, we start with the first one
@@ -231,21 +238,25 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
         if (!fsidavoidlist.count(fsid))
         {
-          availablefs[fsid] = weight;
+	  if (!availablefs.count(fsid)) 
+	  {
+	    availablevector.push_back(fsid);
+	    
+	    availablefs[fsid] = weight;
 
-          if (hasgeolocation)
-          {
-            // only track the geo location if the client has one, otherwise we don't care about the target locations
-            availablefsgeolocation[fsid] = snapshot.mGeoTag;
-          }
-
-          availablevector.push_back(fsid);
+	    if (hasgeolocation)
+	    {
+	      // only track the geo location if the client has one, otherwise we don't care about the target locations
+	      availablefsgeolocation[fsid] = snapshot.mGeoTag;
+	    }
+	  }
         }
       }
       else
       {
         //      eos_static_err("%d %d %d\n", (snapshot.mStatus), (snapshot.mConfigStatus), (snapshot.mErrCode      == 0 ));
       }
+
       fsit++;
 
       // create cycling
@@ -253,16 +264,6 @@ Scheduler::FilePlacement (const char* path, //< path to place
       {
         fsit = (*git)->begin();
       }
-
-      if (fsindex == 0)
-      {
-        // we move the iterator only by one position
-        schedulingMutex.Lock();
-        schedulingFileSystem[sfsindextag] = *fsit;
-        eos_static_debug("Exit %s points to %d", sfsindextag.c_str(), *fsit);
-        schedulingMutex.UnLock();
-      }
-
 
       fsid = *fsit;
 
@@ -281,6 +282,18 @@ Scheduler::FilePlacement (const char* path, //< path to place
           break;
         }
       }
+    }
+
+    {
+      if ( availablevector.size() )
+      {
+        // we move the iterator to the next one
+        schedulingMutex.Lock();
+        schedulingFileSystem[sfsindextag] = *availablevector.begin();
+        eos_static_debug("Exit %s points to %d", sfsindextag.c_str(), *fsit);
+        schedulingMutex.UnLock();
+      }
+      std::list<eos::common::FileSystem::fsid_t>::iterator ait;
     }
 
     // -------------------------------------------------------------------------------
@@ -302,34 +315,24 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
         if (nassigned == 0)
         {
-          if (availablefs[*ait] < randomacceptor)
+	  // push it on the selection list
+	  selected_filesystems.push_back(*ait);
+	  if (hasgeolocation)
           {
-            ait++;
-            if (ait == availablevector.end())
-              ait = availablevector.begin();
-            continue;
-          }
-          else
-          {
-            // push it on the selection list
-            selected_filesystems.push_back(*ait);
-            if (hasgeolocation)
-            {
-              selected_geo_location = availablefsgeolocation[*ait];
-            }
-
-            eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
-
-            // remove it from the selection map
-            availablefs.erase(*ait);
-            ait = availablevector.erase(ait);
-            if (ait == availablevector.end())
-              ait = availablevector.begin();
-
-            // rotate scheduling view ptr
-            nassigned++;
-          }
-        }
+	    selected_geo_location = availablefsgeolocation[*ait];
+	  }
+	  
+	  eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
+	  
+	  // remove it from the selection map
+	  availablefs.erase(*ait);
+	  ait = availablevector.erase(ait);
+	  if (ait == availablevector.end())
+	    ait = availablevector.begin();
+	  
+	  // rotate scheduling view ptr
+	  nassigned++;
+	}
         else
         {
           // we select a random one
@@ -381,12 +384,6 @@ Scheduler::FilePlacement (const char* path, //< path to place
       } // leave the <loop> where filesystems get selected by weight
     }
 
-    git++;
-    if (git == FsView::gFsView.mSpaceGroupView[spacename].end())
-    {
-      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
-    }
-
     // remember the last group for that indextag
     schedulingMutex.Lock();
     schedulingGroup[indextag] = *git;
@@ -406,6 +403,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
       // in this case we leave, the requested one was tried and we finish here
       break;
     }
+    git++;
+    if (git ==  FsView::gFsView.mSpaceGroupView[spacename].end())
+      git = FsView::gFsView.mSpaceGroupView[spacename].begin();
   }
 
   if (nassigned == nfilesystems)
@@ -439,6 +439,7 @@ Scheduler::FileAccess (
                        eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                        unsigned long forcedfsid, //< forced file system for access
                        const char* forcedspace, //< forced space for access
+		       std::string tried_cgi, //< cgi referencing already tried hosts 
                        unsigned long lid, //< layout of the file
                        std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
                        unsigned long &fsindex, //< return index pointing to layout entry filesystem
@@ -550,10 +551,12 @@ Scheduler::FileAccess (
     double renorm = 0; // this is the sum of all weights, we renormalize each weight in the selection with this sum
 
     bool hasgeolocation = false;
+    bool exact_match = false;
 
     if (vid.geolocation.length())
     {
       hasgeolocation = true;
+      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.exact") == "on");
     }
 
     // -----------------------------------------------------------------------
@@ -619,7 +622,8 @@ Scheduler::FileAccess (
         if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
             (snapshot.mConfigStatus >= min_fsstatus) &&
             (snapshot.mErrCode == 0) && // this we probably don't need 
-            (snapshot.mActiveStatus))
+            (snapshot.mActiveStatus) &&
+	    ( (!tried_cgi.length()) || ( tried_cgi.find(snapshot.mHost+",") == std::string::npos) )) // filesystem host is not in the tried list
         {
           availablefs.insert(snapshot.mId);
 
@@ -651,6 +655,16 @@ Scheduler::FileAccess (
               // we reduce the probability to 1/10th
               weight *= 0.1;
             }
+	    else
+	    {
+	      if (exact_match)
+	      {
+		// make sure we have the matching geo location before the not matching one
+		if (weight < 0.2)
+		  weight = 0.2;
+	      }
+		
+	    }
           }
 
           availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
@@ -770,13 +784,15 @@ Scheduler::FileAccess (
     // -----------------------------------------------------------------------
     // now start with the one with the highest weight, but still use probabilty to select it
     // -----------------------------------------------------------------------
+
+
     std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
     for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++)
     {
       float randomacceptor = (0.999999 * random() / RAND_MAX);
-      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second);
+      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u exact-match=%d", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second, exact_match);
 
-      if ((wit->first / renorm) > randomacceptor)
+      if (exact_match || ((wit->first / renorm) > randomacceptor))
       {
         // take this
         for (size_t i = 0; i < locationsfs.size(); i++)

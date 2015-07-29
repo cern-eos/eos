@@ -1,4 +1,4 @@
-// --------A--------------------------------------------------------------
+// ----------------------------------------------------------------------
 // File: StringConversion.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
@@ -24,7 +24,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/StringConversion.hh"
-
+#include "curl/curl.h"
 /*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -1085,6 +1085,49 @@ StringConversion::GetPrettySize (float size)
   return ret_str;
 }
 
+
+// ---------------------------------------------------------------------------
+// Escape string using CURL
+// ---------------------------------------------------------------------------  
+std::string 
+StringConversion::curl_escaped(const std::string &str)
+{
+  std::string ret_str="<no-encoding>";
+  // encode the key
+  CURL *curl = curl_easy_init();
+  if(curl) {
+    char *output = curl_easy_escape(curl, str.c_str(), str.length());
+    if(output) {
+      ret_str = output;
+      curl_free(output);
+      // dont't escape '/'
+      XrdOucString no_slash = ret_str.c_str();
+      while (no_slash.replace("%2F","/")){}
+      ret_str = no_slash.c_str();
+    }
+  }
+  return ret_str;
+}
+
+// ---------------------------------------------------------------------------
+// Unscape string using CURL
+// ---------------------------------------------------------------------------  
+
+std::string 
+StringConversion::curl_unescaped(const std::string &str)
+{
+  std::string ret_str="<no-encoding>";
+  // encode the key
+  CURL *curl = curl_easy_init();
+  if(curl) {
+    char *output = curl_easy_unescape(curl, str.c_str(), str.length(), 0);
+    if(output) {
+      ret_str = output;
+      curl_free(output);
+    }
+  }
+  return ret_str;
+}
 
 // ---------------------------------------------------------------------------
 //! Constructor

@@ -141,11 +141,11 @@ ProcCommand::Who ()
       time_t now = time(NULL);
       if (!monitoring)
       {
-        snprintf(formatline, sizeof (formatline) - 1, "client : %-10s               := %-30s (%5s) [ %-32s ] %lds idle time \n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), tokens[3].c_str(), now - it->second);
+        snprintf(formatline, sizeof (formatline) - 1, "client : %-10s               := %-40s (%5s) [ %-40s ] { %-8s } %lds idle time \n", username.c_str(), tokens[1].c_str(), tokens[2].c_str(), tokens[3].c_str(), ((tokens.size()>4) && tokens[4].length())?tokens[4].c_str():"XRoot", now - it->second);
       }
       else
       {
-        snprintf(formatline, sizeof (formatline) - 1, "client=%s uid=%s auth=%s idle=%ld gateway=\"%s\"\n", tokens[1].c_str(), username.c_str(), tokens[2].c_str(), now - it->second, tokens[3].c_str());
+        snprintf(formatline, sizeof (formatline) - 1, "client=%s uid=%s auth=%s idle=%ld gateway=\"%s\" app=%s\n", tokens[1].c_str(), username.c_str(), tokens[2].c_str(), now - it->second, tokens[3].c_str(),(tokens.size()>4)?tokens[4].c_str():"XRoot");
       }
       if (showsummary && (!monitoring))
       {

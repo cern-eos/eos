@@ -138,16 +138,15 @@ XrdMgmOfs::_remdir (const char *path,
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
+  std::string aclpath;
   try
   {
-    dhpar = gOFS->eosView->getContainer(cPath.GetParentPath());
-    dhpar_id = dhpar->getId();
-    eos::IContainerMD::XAttrMap::const_iterator it;
-    for (it = dhpar->attributesBegin(); it != dhpar->attributesEnd(); ++it)
-    {
-      attrmap[it->first] = it->second;
-    }
     dh = gOFS->eosView->getContainer(path);
+    eos::common::Path pPath(gOFS->eosView->getUri(dh).c_str());
+    dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
+    aclpath = pPath.GetParentPath();
+    dhpar_id = dhpar->getId();
+
     dh_id = dh->getId();
   }
   catch (eos::MDException &e)
@@ -165,9 +164,9 @@ XrdMgmOfs::_remdir (const char *path,
     errno = ENOENT;
     return Emsg(epname, error, errno, "rmdir", path);
   }
-
-  Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-          attrmap.count("sys.eval.useracl"));
+   
+  // ACL and permission check
+  Acl acl(aclpath.c_str(), error, vid, attrmap, false);
 
   if (vid.uid && !acl.IsMutable())
   {

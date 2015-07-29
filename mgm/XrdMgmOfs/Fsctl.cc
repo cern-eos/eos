@@ -204,10 +204,11 @@ XrdMgmOfs::FSctl (const int cmd,
   ThreadLogId.SetSingleShotLogId(tident);
 
   NAMESPACEMAP;
-  if (info) info = 0; // for compiler happyness;
 
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
+
+  if (info) info = 0; // for compiler happyness;
 
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
@@ -377,6 +378,22 @@ XrdMgmOfs::FSctl (const int cmd,
     if (execmd == "xattr")
     {
 #include "fsctl/Xattr.cc"
+    }
+
+    // -------------------------------------------------------------------------
+    // create a symbolic link
+    // -------------------------------------------------------------------------
+    if (execmd == "symlink")
+    {
+#include "fsctl/Symlink.cc"
+    }
+
+    // -------------------------------------------------------------------------
+    // resolve a symbolic link
+    // -------------------------------------------------------------------------
+    if (execmd == "readlink")
+    {
+#include "fsctl/Readlink.cc"
     }
 
     // -------------------------------------------------------------------------

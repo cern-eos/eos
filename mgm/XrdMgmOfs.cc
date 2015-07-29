@@ -219,6 +219,7 @@ XrdMgmOfs::newFile (char *user, int MonID)
 #include "XrdMgmOfs/Find.cc"
 #include "XrdMgmOfs/FsConfigListener.cc"
 #include "XrdMgmOfs/Fsctl.cc"
+#include "XrdMgmOfs/Link.cc"
 #include "XrdMgmOfs/Merge.cc"
 #include "XrdMgmOfs/Mkdir.cc"
 #include "XrdMgmOfs/PathMap.cc"

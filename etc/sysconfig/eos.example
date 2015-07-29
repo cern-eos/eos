@@ -77,6 +77,13 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export EOS_SECONDARY_GROUPS=0
 
 # ------------------------------------------------------------------
+# FST Configuration
+# ------------------------------------------------------------------
+
+# Disable 'sss' enforcement to allow generic TPC
+#export EOS_FST_NO_SSS_ENFORCEMENT=1
+
+# ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
 
@@ -104,6 +111,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 
 # Configure FUSE read-ahead window (default 128k)
 #export EOS_FUSE_RDAHEAD_WINDOW=131072
+
+# Configure a log-file prefix - useful for several FUSE instances
+#export EOS_FUSE_LOG_PREFIX=dev
+# => will create /var/log/eos/fuse.dev.log
+
+# Configure multiple FUSE mounts a,b configured in /etc/sysconfig/eos.a /etc/sysconfig/eos.b
+#export EOS_FUSE_MOUNTS="a b"
 
 # ------------------------------------------------------------------
 # HTTPD Configuration

@@ -116,12 +116,18 @@ com_stat (char* arg1)
     if (S_ISDIR(buf.st_mode))
     {
       fprintf(stdout, " directory\n");
-    }
+    } 
+    else 
     if (S_ISREG(buf.st_mode))
     {
       fprintf(stdout, "  Size: %llu            %s", (unsigned long long) buf.st_size, eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) buf.st_size, "B"));
       fprintf(stdout, " regular file\n");
     }
+    else
+    {
+	fprintf(stdout, " symbolic link\n");
+    }
+  
     global_retc = 0;
   }
   else

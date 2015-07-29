@@ -109,7 +109,8 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual IFileMD *getFile( const std::string &uri );
+      virtual IFileMD *getFile( const std::string &uri, bool follow = true,
+                                size_t* link_depths=0 );
 
       //------------------------------------------------------------------------
       //! Create a file for given uri
@@ -118,12 +119,24 @@ namespace eos
                                   uid_t uid = 0, gid_t gid = 0 );
 
       //------------------------------------------------------------------------
+      //! Create a link for given uri
+      //------------------------------------------------------------------------
+      virtual void createLink( const std::string &uri,
+			       const std::string &linkuri,
+			       uid_t uid = 0, gid_t gid = 0 );
+
+      //------------------------------------------------------------------------
       //! Update file store
       //------------------------------------------------------------------------
       virtual void updateFileStore( IFileMD *file )
       {
         pFileSvc->updateStore( file );
       }
+
+      //------------------------------------------------------------------------
+      //! Remove a link
+      //------------------------------------------------------------------------
+      virtual void removeLink( const std::string &uri );
 
       //------------------------------------------------------------------------
       //! Unlink the file
@@ -138,7 +151,9 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual IContainerMD *getContainer( const std::string &uri );
+      virtual IContainerMD *getContainer( const std::string &uri ,
+                                          bool follow = true,
+                                          size_t* link_depth = 0);
 
       //------------------------------------------------------------------------
       //! Create a container (directory)
@@ -214,9 +229,15 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void renameFile( IFileMD *file, const std::string &newName );
 
+      //------------------------------------------------------------------------
+      //! Absolute Path sanitizing all '/../' and '/./' entries 
+      //------------------------------------------------------------------------
+      virtual void absPath(std::string &path);
+
+
     private:
       IContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
-                                      size_t &index );
+                                       size_t &index, size_t* link_depths = 0 );
       void cleanUpContainer( IContainerMD *cont );
 
       //------------------------------------------------------------------------

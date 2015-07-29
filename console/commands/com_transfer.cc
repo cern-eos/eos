@@ -54,6 +54,7 @@ com_transfer (char* argin)
   XrdOucString arg1 = "";
   XrdOucString arg2 = "";
   bool sync = false;
+  bool noauth = false;
 
   if (wants_help(argin))
     goto com_transfer_usage;
@@ -78,6 +79,11 @@ com_transfer (char* argin)
       if (option == "--sync")
       {
         sync = true;
+      }
+      else
+      if (option == "--noauth")
+      {
+	noauth = true;
       }
       else
       {
@@ -203,6 +209,8 @@ com_transfer (char* argin)
     in += streams;
     in += "&mgm.txgroup=";
     in += group;
+    in += "&mgm.txnoauth=";
+    in += noauth;
 
     if (!sync)
     {
@@ -419,12 +427,13 @@ com_transfer (char* argin)
   fprintf(stdout, "Usage: transfer submit|cancel|ls|enable|disable|reset|clear|resubmit|log ..");
   fprintf(stdout, "'[eos] transfer ..' provides the transfer interface of EOS.\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] [--sync] <URL1> <URL2> :\n");
+  fprintf(stdout, "transfer submit [--rate=<rate>] [--streams=<#>] [--group=<groupname>] [--sync] [--noauth] <URL1> <URL2> :\n");
   fprintf(stdout, "                                                  transfer a file from URL1 to URL2\n");
   fprintf(stdout, "                                                             <URL> can be root://<host>/<path> or a local path /eos/...\n");
   fprintf(stdout, "       --rate          : limit the transfer rate to <rate>\n");
   fprintf(stdout, "       --streams       : use <#> parallel streams\n\n");
   fprintf(stdout, "       --group         : set the group name for this transfer\n");
+  fprintf(stdout, "       --noauth        : disable authentication protocol enforcement for the copy job\n");
   fprintf(stdout, "transfer cancel <id>|--group=<groupname>\n");
   fprintf(stdout, "                                                  cancel transfer with ID <id> or by group <groupname>\n");
   fprintf(stdout, "       <id>=*          : cancel all transfers (only root can do that)\n\n");

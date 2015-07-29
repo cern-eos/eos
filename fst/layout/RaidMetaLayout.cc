@@ -216,6 +216,7 @@ RaidMetaLayout::Open (const std::string& path,
    {
      eos_err("error=failed to open local ", path.c_str());
      errno = EIO;
+     mLastErrMsg = file->GetLastErrMsg();
      delete file;
      file = 0;
      return SFS_ERROR;
@@ -357,6 +358,7 @@ RaidMetaLayout::Open (const std::string& path,
        if (ret == SFS_ERROR)
        {
          eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
+	 mLastErrMsg = file->GetLastErrMsg();
          delete file;
          file = NULL;
        }
@@ -522,12 +524,14 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
        if (ret == SFS_ERROR)
        {
          eos_err("error=failed to create remote stripes %s", stripe_urls[i].c_str());
+	 mLastErrMsg = file->GetLastErrMsg();
          delete file;
          file = NULL;
        }
      }
      else
      {
+       mLastErrMsg = file->GetLastErrMsg();
        delete file;
        file = NULL;
      }
@@ -1679,6 +1683,7 @@ RaidMetaLayout::Close ()
          if (mStripeFiles[i]->Close(mTimeout))
          {
            eos_err("error=failed to close remote file %i", i);
+	   mLastErrMsg = mStripeFiles[i]->GetLastErrMsg();
            rc = SFS_ERROR;
          }
        }
@@ -1697,6 +1702,7 @@ RaidMetaLayout::Close ()
      if (mStripeFiles[0]->Close(mTimeout))
      {
        eos_err("error=failed to close local file");
+       mLastErrMsg = mStripeFiles[0]->GetLastErrMsg();
        rc = SFS_ERROR;
      }
    }

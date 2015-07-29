@@ -32,6 +32,7 @@
 #include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -40,9 +41,9 @@ EOSMGMNAMESPACE_BEGIN
 bool
 WebDAVHandler::Matches (const std::string &meth, HeaderMap &headers)
 {
-  int method =  ParseMethodString(meth);
+  int method = ParseMethodString(meth);
   if (method == PROPFIND || method == PROPPATCH || method == MKCOL ||
-      method == COPY     || method == MOVE      || method == LOCK  ||
+      method == COPY || method == MOVE || method == LOCK ||
       method == UNLOCK)
   {
     eos_static_debug("msg=\"matched webdav protocol for request\"");
@@ -63,39 +64,39 @@ WebDAVHandler::HandleRequest (eos::common::HttpRequest *request)
   int meth = ParseMethodString(request->GetMethod());
   switch (meth)
   {
-  case PROPFIND:
-    gOFS->MgmStats.Add("Http-PROPFIND", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = new PropFindResponse(request, mVirtualIdentity);
-    break;
-  case PROPPATCH:
-    gOFS->MgmStats.Add("Http-PROPPATCH", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = new PropPatchResponse(request, mVirtualIdentity);
-    break;
-  case MKCOL:
-    gOFS->MgmStats.Add("Http-MKCOL", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = MkCol(request);
-    break;
-  case COPY:
-    gOFS->MgmStats.Add("Http-COPY", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = Copy(request);
-    break;
-  case MOVE:
-    gOFS->MgmStats.Add("Http-MOVE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = Move(request);
-    break;
-  case LOCK:
-    gOFS->MgmStats.Add("Http-LOCK", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = new LockResponse(request, mVirtualIdentity);
-    break;
-  case UNLOCK:
-    gOFS->MgmStats.Add("Http-UNLOCK", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::NO_CONTENT);
-    break;
-  default:
-    response = new eos::common::PlainHttpResponse();
-    response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
-    break;
+    case PROPFIND:
+      gOFS->MgmStats.Add("Http-PROPFIND", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = new PropFindResponse(request, mVirtualIdentity);
+      break;
+    case PROPPATCH:
+      gOFS->MgmStats.Add("Http-PROPPATCH", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = new PropPatchResponse(request, mVirtualIdentity);
+      break;
+    case MKCOL:
+      gOFS->MgmStats.Add("Http-MKCOL", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = MkCol(request);
+      break;
+    case COPY:
+      gOFS->MgmStats.Add("Http-COPY", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Copy(request);
+      break;
+    case MOVE:
+      gOFS->MgmStats.Add("Http-MOVE", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = Move(request);
+      break;
+    case LOCK:
+      gOFS->MgmStats.Add("Http-LOCK", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = new LockResponse(request, mVirtualIdentity);
+      break;
+    case UNLOCK:
+      gOFS->MgmStats.Add("Http-UNLOCK", mVirtualIdentity->uid, mVirtualIdentity->gid, 1);
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(eos::common::HttpResponse::NO_CONTENT);
+      break;
+    default:
+      response = new eos::common::PlainHttpResponse();
+      response->SetResponseCode(eos::common::HttpResponse::BAD_REQUEST);
+      break;
   }
 
   mHttpResponse = response->BuildResponse(request);
@@ -108,15 +109,15 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
   eos::common::HttpResponse *response = 0;
 
   XrdSecEntity client;
-  
+
   std::string url = request->GetUrl();
-  eos_static_info("method=MKCOL path=%s", 
-                          url.c_str());
-  
-  client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
-  client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
-  client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
-  snprintf(client.prot,sizeof(client.prot)-1,mVirtualIdentity->prot.c_str()); 
+  eos_static_info("method=MKCOL path=%s",
+                  url.c_str());
+
+  client.name = const_cast<char*> (mVirtualIdentity->name.c_str());
+  client.host = const_cast<char*> (mVirtualIdentity->host.c_str());
+  client.tident = const_cast<char*> (mVirtualIdentity->tident.c_str());
+  snprintf(client.prot, sizeof (client.prot) - 1, mVirtualIdentity->prot.c_str());
 
   if (!request->GetUrl().size())
   {
@@ -132,12 +133,12 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
 
   else
   {
-    XrdSfsMode    mode = 0;
-    int           rc   = 0;
+    XrdSfsMode mode = 0;
+    int rc = 0;
     XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-
+    ino_t new_inode;
     rc = gOFS->mkdir(request->GetUrl().c_str(), mode, error,
-                     &client, (const char*) 0);
+                     &client, (const char*) 0, &new_inode);
     if (rc != SFS_OK)
     {
       if (rc == SFS_ERROR)
@@ -197,6 +198,9 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
     {
       // everything went well
       response = new eos::common::PlainHttpResponse();
+      char sinode[16];
+      snprintf(sinode, sizeof (sinode), "%llu", (unsigned long long) new_inode);
+      response->AddHeader("OC-FileId", sinode);
       response->SetResponseCode(response->CREATED);
     }
   }
@@ -205,20 +209,21 @@ WebDAVHandler::MkCol (eos::common::HttpRequest *request)
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::HttpResponse*
-WebDAVHandler::Move (eos::common::HttpRequest *request)
-{ 
+eos::common::HttpResponse *
+WebDAVHandler::Move (eos::common::HttpRequest * request)
+{
   eos::common::HttpResponse *response = 0;
   XrdOucString prot, port;
   std::string destination = eos::common::StringConversion::ParseUrl
-      (request->GetHeaders()["destination"].c_str(), prot, port);
+          (request->GetHeaders()["destination"].c_str(), prot, port);
 
   char encode_destination[1024];
-  snprintf(encode_destination,sizeof(encode_destination),"%s",destination.c_str());
+  snprintf(encode_destination, sizeof (encode_destination), "%s", destination.c_str());
   char decode_destination[1024];
   decode_destination[0] = 0;
 
-  if (destination.length() < sizeof(decode_destination)) {
+  if (destination.length() < sizeof (decode_destination))
+  {
 
     ::dav_uri_decode(encode_destination, decode_destination);
     destination = decode_destination;
@@ -235,10 +240,10 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
                   request->GetUrl().c_str(), destination.c_str());
 
   XrdSecEntity client;
-  client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
-  client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
-  client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
-  snprintf(client.prot,sizeof(client.prot)-1,mVirtualIdentity->prot.c_str()); 
+  client.name = const_cast<char*> (mVirtualIdentity->name.c_str());
+  client.host = const_cast<char*> (mVirtualIdentity->host.c_str());
+  client.tident = const_cast<char*> (mVirtualIdentity->tident.c_str());
+  snprintf(client.prot, sizeof (client.prot) - 1, mVirtualIdentity->prot.c_str());
 
   if (!request->GetUrl().size())
   {
@@ -257,12 +262,12 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
   }
   else
   {
-    int           rc = 0;
+    int rc = 0;
     XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
     rc = gOFS->rename(request->GetUrl().c_str(),
                       destination.c_str(),
-                      error, &client, 0, 0);
+                      error, *mVirtualIdentity, 0, 0, false);
     if (rc != SFS_OK)
     {
       if (rc == SFS_ERROR)
@@ -270,15 +275,15 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
         if (error.getErrInfo() == EEXIST)
         {
           // resource exists
-	  // webdav specifies to overwrite by default if the special header is not set to F
-          if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
+          // webdav specifies to overwrite by default if the special header is not set to F
+          if ((!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T"))
           {
             // force the rename
             struct stat buf;
             gOFS->_stat(request->GetUrl().c_str(), &buf, error,
                         *mVirtualIdentity, "");
 
-            ProcCommand  cmd;
+            ProcCommand cmd;
             XrdOucString info = "mgm.cmd=rm&mgm.path=";
             info += destination.c_str();
             if (S_ISDIR(buf.st_mode)) info += "&mgm.option=r";
@@ -298,7 +303,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
               // try the rename again
               rc = gOFS->rename(request->GetUrl().c_str(),
                                 destination.c_str(),
-                                error, &client, 0, 0);
+                                error, *mVirtualIdentity, 0, 0, false);
 
               if (rc != SFS_OK)
               {
@@ -368,7 +373,7 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
       response->SetResponseCode(response->CREATED);
       if (!request->GetHeaders().count("cbox-skip-location-on-move"))
       {
-	response->AddHeader("Location",request->GetHeaders()["destination"].c_str());
+        response->AddHeader("Location", request->GetHeaders()["destination"].c_str());
       }
     }
   }
@@ -377,23 +382,23 @@ WebDAVHandler::Move (eos::common::HttpRequest *request)
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::HttpResponse*
-WebDAVHandler::Copy (eos::common::HttpRequest *request)
+eos::common::HttpResponse *
+WebDAVHandler::Copy (eos::common::HttpRequest * request)
 {
   eos::common::HttpResponse *response = 0;
 
   XrdOucString prot, port;
   std::string destination = eos::common::StringConversion::ParseUrl
-      (request->GetHeaders()["destination"].c_str(), prot, port);
+          (request->GetHeaders()["destination"].c_str(), prot, port);
 
   eos_static_info("method=COPY src=\"%s\", dest=\"%s\"",
                   request->GetUrl().c_str(), destination.c_str());
 
   XrdSecEntity client;
-  client.name   = const_cast<char*>(mVirtualIdentity->name.c_str());
-  client.host   = const_cast<char*>(mVirtualIdentity->host.c_str());
-  client.tident = const_cast<char*>(mVirtualIdentity->tident.c_str());
-  snprintf(client.prot,sizeof(client.prot)-1,mVirtualIdentity->prot.c_str()); 
+  client.name = const_cast<char*> (mVirtualIdentity->name.c_str());
+  client.host = const_cast<char*> (mVirtualIdentity->host.c_str());
+  client.tident = const_cast<char*> (mVirtualIdentity->tident.c_str());
+  snprintf(client.prot, sizeof (client.prot) - 1, mVirtualIdentity->prot.c_str());
 
   if (!request->GetUrl().size())
   {
@@ -412,19 +417,19 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
   }
   else
   {
-    int           rc = 0;
+    int rc = 0;
     XrdOucErrInfo error;
 
-    ProcCommand  cmd;
-    XrdOucString info  = "mgm.cmd=file&mgm.subcmd=copy";
-                 info += "&mgm.path=";
-                 info += request->GetUrl().c_str();
-                 info += "&mgm.file.target=";
-                 info += destination.c_str();
-                 info += "&eos.ruid=";
-                 info += mVirtualIdentity->uid_string.c_str();
-                 info += "&eos.rgid=";
-                 info +=mVirtualIdentity->gid_string.c_str();
+    ProcCommand cmd;
+    XrdOucString info = "mgm.cmd=file&mgm.subcmd=copy";
+    info += "&mgm.path=";
+    info += request->GetUrl().c_str();
+    info += "&mgm.file.target=";
+    info += destination.c_str();
+    info += "&eos.ruid=";
+    info += mVirtualIdentity->uid_string.c_str();
+    info += "&eos.rgid=";
+    info += mVirtualIdentity->gid_string.c_str();
 
     eos_static_debug("cmd=%s", info.c_str());
     cmd.open("/proc/user", info.c_str(), *mVirtualIdentity, &error);
@@ -437,7 +442,7 @@ WebDAVHandler::Copy (eos::common::HttpRequest *request)
       if (rc == EEXIST)
       {
         // resource exists
-	if ( (!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T") )
+        if ((!request->GetHeaders().count("overwrite")) || (request->GetHeaders()["overwrite"] == "T"))
         {
           // force overwrite
           info += "&mgm.file.option=f";

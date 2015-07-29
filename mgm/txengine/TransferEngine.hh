@@ -78,7 +78,7 @@ public:
 
   int ApplyTransferEngineConfig();
 
-  int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime=86400, XrdOucString credentials="", bool sync=false);
+  int Submit(XrdOucString& src, XrdOucString& dst, XrdOucString& rate, XrdOucString& streams, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid, time_t exptime=86400, XrdOucString credentials="", bool sync=false, bool noauth=false);
   int Ls(XrdOucString& id, XrdOucString& option, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid);
   int Cancel(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr, eos::common::Mapping::VirtualIdentity& vid );
   int Kill(XrdOucString& id, XrdOucString& group, XrdOucString& stdOut, XrdOucString& stdErr , eos::common::Mapping::VirtualIdentity& vid);

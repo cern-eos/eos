@@ -37,6 +37,8 @@
 #include "mgm/Access.hh"
 #include "mgm/Recycle.hh"
 #include "common/plugin_manager/PluginManager.hh"
+#include "namespace/interface/IChLogFileMDSvc.hh"
+#include "namespace/interface/IChLogContainerMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -217,10 +219,36 @@ XrdMgmOfs::InitializeFileView()
     if (!MgmMaster.IsMaster())
     {
       eos_static_info("msg=\"starting slave listener\"");
-      MgmMaster.StartSlaveFollower(std::string(MgmNsFileChangeLogFile.c_str()));
-      XrdSysMutexHelper lock(InitializationMutex);
-      Initialized = kBooted;
-      eos_static_alert("msg=\"namespace booted (as slave)\"");
+      struct stat buf;
+      buf.st_size = 0;
+      ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
+
+      eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+          dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+      eos::IChLogFileMDSvc* eos_chlog_filesvc =
+          dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+
+      if (eos_chlog_dirsvc && eos_chlog_filesvc)
+      {
+        eos_chlog_filesvc->startSlave();
+        eos_chlog_dirsvc->startSlave();
+
+        // Wait that the follower reaches the offset seen now
+        while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
+        {
+          XrdSysTimer sleeper;
+          sleeper.Wait(5000);
+          eos_static_info("msg=\"waiting for the namespace to reach the follow "
+                          "point\" is-offset=%llu follow-offset=%llu",  \
+                          eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
+        }
+      }
+      
+      {
+        XrdSysMutexHelper lock(InitializationMutex);
+        Initialized = kBooted;
+	eos_static_alert("msg=\"namespace booted (as slave)\"");
+      }
     }
 
     time_t tstop = time(0);
@@ -265,8 +293,8 @@ XrdMgmOfs::InitializeFileView()
   }
 
   {
-    InitializationTime = (time(0) - InitializationTime);
     XrdSysMutexHelper lock(InitializationMutex);
+    InitializationTime = (time(0) - InitializationTime);
 
     // Grab process status after boot
     if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup))
@@ -1904,6 +1932,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Initialize statistics
   InitStats();
+
   // Set IO accounting file
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";

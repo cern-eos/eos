@@ -151,6 +151,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
   // of RAIN files
 
+  // tried hosts CGI
+  std::string tried_cgi;
+
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
   // Set the actual open mode and find mode
@@ -237,6 +240,16 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
+  {
+    // populate tried hosts from the CGI
+    const char* val = 0;
+    if ((val = openOpaque->Get("tried")))
+    {
+      tried_cgi = val;
+      tried_cgi +=",";
+    }
+
+  }
   // ---------------------------------------------------------------------------
   // PIO MODE CONFIGURATION
   // ---------------------------------------------------------------------------
@@ -424,27 +437,32 @@ XrdMgmOfsFile::open (const char *inpath,
     try
     {
       dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-
       // get the attributes out
-      gOFS->_attr_ls(cPath.GetParentPath(),
+      gOFS->_attr_ls(gOFS->eosView->getUri(dmd).c_str(),
                      error,
                      vid,
                      0,
                      attrmap,
-                     false,
-                     true);
+                     false);
 
       if (dmd)
       {
-        if (ocUploadUuid.length())
-        {
-          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-          fmd = dmd->findFile(aPath.GetName());
-        }
-        else
-        {
-          fmd = dmd->findFile(cPath.GetName());
-        }
+	try
+	{
+	  if (ocUploadUuid.length())
+	  {
+	    eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
+	    fmd = gOFS->eosView->getFile(aPath.GetPath());
+	  }
+	  else
+	  {
+	    fmd = gOFS->eosView->getFile(cPath.GetPath());
+	  }
+	}
+	catch (eos::MDException &e)
+	{
+	  fmd = 0;
+	}
 
         if (!fmd)
         {
@@ -500,8 +518,7 @@ XrdMgmOfsFile::open (const char *inpath,
                          vid,
                          0,
                          attrmap,
-                         false,
-                         true);
+                         false);
 
         }
         catch (eos::MDException &e)
@@ -1042,7 +1059,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
-  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
+  if (isCreation || ((open_mode == SFS_O_TRUNC)))
   {
     eos_info("blocksize=%llu lid=%x",
              eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
@@ -1076,6 +1093,11 @@ XrdMgmOfsFile::open (const char *inpath,
         mtime.tv_nsec = ext_mtime_nsec;
         fmd->setMTime(mtime);
       }
+      else
+      {
+	fmd->setMTimeNow();
+      }
+
       if (ext_ctime_sec)
       {
         eos::IFileMD::ctime_t ctime;
@@ -1086,16 +1108,21 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
+	if (isCreation || (!fmd->getNumLocation())) 
+	{
+	  std::string uri = gOFS->eosView->getUri(fmd);
+	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
 
-        SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
-        if (space)
-        {
-          eos::IQuotaNode* quotanode = 0;
-          quotanode = space->GetQuotaNode();
-          if (quotanode)
-          {
-            quotanode->addFile(fmd);
-          }
+	  if (space)
+	  {
+	    eos::IQuotaNode* quotanode = 0;
+
+	    quotanode = space->GetQuotaNode();
+	    if (quotanode)
+	    {
+	      quotanode->addFile(fmd);
+	    }
+	  }
         }
       }
       catch (eos::MDException &e)
@@ -1108,6 +1135,7 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
       // -----------------------------------------------------------------------
+      gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
     }
   }
 
@@ -1259,7 +1287,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), layoutId,
+    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
                                   selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
 

@@ -133,7 +133,7 @@ class ArchReconstruct(object):
         dict_attr = ast.literal_eval(replica_attr)
         dict_dinfo = dict(zip(["uid", "gid", "mode", "attr"],
                               [self.uid, self.gid, dir_mode, dict_attr]))
-        set_dir_info((str(self.dst_url), dict_dinfo))
+        set_dir_info(str(self.dst_url), dict_dinfo, list())
         root_path = self.src_url.path
         lst_dirs = [root_path]
 
@@ -142,7 +142,7 @@ class ArchReconstruct(object):
             st, listing = fs.dirlist(path, DirListFlags.STAT)
 
             if not st.ok:
-                msg = "Failed list dir= {0}".format(self.src_url.path)
+                msg = "Failed to list dir={0}".format(self.src_url.path)
                 raise TapeAccessException(msg)
 
             for elem in listing:

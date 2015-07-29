@@ -153,6 +153,7 @@ XrdIo::Open (const std::string& path,
   {
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
   else
@@ -194,6 +195,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -223,6 +225,7 @@ XrdIo::Write (XrdSfsFileOffset offset,
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -523,6 +526,7 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -541,6 +545,7 @@ XrdIo::Sync (uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -562,6 +567,7 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
   }
   else
   {
@@ -611,6 +617,7 @@ XrdIo::Close (uint16_t timeout)
   if (!status.IsOK())
   {
     errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
   }
 
@@ -638,6 +645,7 @@ XrdIo::Remove (uint16_t timeout)
   if (!status.IsOK())
   {
     eos_err("error=failed to truncate file with deletion offset - %s", mPath.c_str());
+    mLastErrMsg = "failed to truncate file with deletion offset";
     return SFS_ERROR;
   }
 

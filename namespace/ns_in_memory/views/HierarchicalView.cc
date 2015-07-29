@@ -118,12 +118,13 @@ namespace eos
   //----------------------------------------------------------------------------
   // Retrieve a file for given uri
   //----------------------------------------------------------------------------
-  IFileMD*
-  HierarchicalView::getFile(const std::string &uri)
+  IFileMD *HierarchicalView::getFile( const std::string &uri, bool follow,
+                                      size_t* link_depths )
   {
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
     std::vector<char*> elements;
+    size_t lLinkDepths = 0;
 
     if (uri == "/")
     {
@@ -135,7 +136,7 @@ namespace eos
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;    
     IContainerMD *cont = findLastContainer(elements, elements.size()-1,
-                                           position);
+                                           position, link_depths);
 
     if( position != elements.size()-1 )
     {
@@ -151,6 +152,30 @@ namespace eos
       MDException e( ENOENT );
       e.getMessage() << "File does not exist";
       throw e;
+    }
+    else
+    {
+      if (file->isLink() && follow) 
+      {
+	if (!link_depths)
+	  link_depths = &lLinkDepths;
+	
+	(*link_depths)++;
+	
+	if ( (*link_depths) > 255) 
+	{
+	  MDException e( ELOOP );
+	  e.getMessage() << "Too many symbolic links were encountered in translating the pathname";
+	  throw e;
+	}
+	std::string link = file->getLink();
+	if (link[0] != '/')
+	{
+	  link.insert(0, getUri(cont));
+	  absPath(link);
+	}
+	return getFile(link, true, link_depths);
+      }
     }
     
     return file;
@@ -214,8 +239,31 @@ namespace eos
     return file;
   }
 
+  //------------------------------------------------------------------------                                                                                                                
+  //! Create a link for given uri                                                                                                                                                           
+  //------------------------------------------------------------------------                                                                                                                
+  void HierarchicalView::createLink( const std::string &uri,
+				     const std::string &linkuri,
+				     uid_t uid, gid_t gid )
+  {
+    IFileMD *file = createFile(uri, uid, gid);
+
+    if (file) {
+      file->setLink(linkuri);
+      pFileSvc->updateStore( file );
+    }
+  }
+
   //----------------------------------------------------------------------------
-  // Unlink the file for given uri
+  // Remove link
+  //----------------------------------------------------------------------------
+  void HierarchicalView::removeLink( const std::string &uri )
+  {
+    return unlinkFile ( uri );
+  }
+
+  //----------------------------------------------------------------------------
+  // Unlink the file for given uri 
   //----------------------------------------------------------------------------
   void HierarchicalView::unlinkFile( const std::string &uri )
   {
@@ -276,20 +324,43 @@ namespace eos
   //----------------------------------------------------------------------------
   // Get a container (directory)
   //----------------------------------------------------------------------------
-  IContainerMD *HierarchicalView::getContainer( const std::string &uri )
+  IContainerMD *HierarchicalView::getContainer( const std::string &uri,
+                                                bool follow, size_t* link_depths)
   {
     if( uri == "/" )
       return pRoot;
+
+    size_t lLinkDepth = 0;
+
+    if (!link_depths)
+    {
+      // use local variable in case
+      link_depths = &lLinkDepth;
+      (*link_depths)++;
+    }
 
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
+    size_t position = 0;
+    IContainerMD *cont = 0;
 
-    size_t position;
-    IContainerMD *cont = findLastContainer( elements, elements.size(), position );
-
-    if( position != elements.size() )
+    if (follow)  
+    {
+      // follow all symlinks for all containers
+      cont = findLastContainer( elements, elements.size(), position, link_depths );
+    }
+    else
+    {
+      // follow all symlinks but not the final container
+      cont = findLastContainer( elements, elements.size()-1, position, link_depths );
+      cont = cont->findContainer(elements[elements.size()-1]);
+      if (cont)
+	++position;
+    }
+    
+    if( position != (elements.size()) )
     {
       MDException e( ENOENT );
       e.getMessage() << uri << ": No such file or directory";
@@ -436,7 +507,8 @@ namespace eos
   // Find the last existing container in the path
   //----------------------------------------------------------------------------
   IContainerMD *HierarchicalView::findLastContainer( std::vector<char*> &elements,
-                                                    size_t end, size_t &index )
+                                                     size_t end, size_t &index,
+                                                     size_t* link_depths)
   {
     IContainerMD *current  = pRoot;
     IContainerMD *found    = 0;
@@ -447,8 +519,43 @@ namespace eos
       found = current->findContainer( elements[position] );
       if( !found )
       {
-        index = position;
-        return current;
+	// check if link 
+	IFileMD* flink = current->findFile ( elements[position] );
+	if ( flink ) {
+	  if ( flink->isLink() ) 
+	  {
+	    if (link_depths) 
+	    {
+	      (*link_depths)++;
+
+	      if ( (*link_depths) > 255) 
+	      {
+		MDException e( ELOOP );
+		e.getMessage() << "Too many symbolic links were encountered in translating the pathname";
+		throw e;
+	      }
+	    }
+
+	    std::string link = flink->getLink();
+	    if (link[0] != '/')
+	    {
+	      link.insert(0,getUri(current));
+	      absPath(link);
+	    }
+	    found = getContainer( link , false, link_depths);
+	    if ( !found ) 
+	    {
+	      index = position;
+	      return current;
+	    }
+	  }
+	}	  
+
+	if (!found) 
+	{
+	  index = position;
+	  return current;
+	}
       }
       current = found;
       ++position;
@@ -785,4 +892,38 @@ namespace eos
     parent->addFile( file );
     updateFileStore( file );
   }
+
+  //----------------------------------------------------------------------------
+  // abspath sanitizing all '..' and '.' in a path
+  //----------------------------------------------------------------------------
+  void HierarchicalView::absPath(std::string &mypath)
+  {
+    std::string path = mypath;
+    std::string abspath;
+    size_t rpos=4096;
+
+    while ( (rpos = path.rfind("/", rpos)) != std::string::npos) {
+      rpos--;
+      std::string tp = path.substr(rpos+1);
+      path.erase(rpos+1);
+      if (tp == "/")
+	continue;
+      if (tp == "/.")
+	continue;
+      if (tp == "/..") {
+	rpos = path.rfind("/", rpos);
+	path.erase(rpos);
+	rpos--;
+	continue;
+      }
+      abspath.insert(0,tp);
+
+      if (rpos <=0)
+	break;
+    }
+    mypath = abspath;
+    fprintf(stderr,"abspath: %s => %s\n", path.c_str(), mypath.c_str());
+  }
 };
+
+

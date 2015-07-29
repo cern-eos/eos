@@ -134,7 +134,7 @@ ProcCommand::Fuse ()
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
-          fmd = gOFS->eosView->getFile(cPath.GetPath());
+          fmd = gOFS->eosView->getFile(cPath.GetPath(), false);
           inode = fmd->getId() << 28;
         }
         catch (eos::MDException &e)
@@ -153,7 +153,7 @@ ProcCommand::Fuse ()
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
-          dir = gOFS->eosView->getContainer(cPath.GetPath());
+          dir = gOFS->eosView->getContainer(cPath.GetPath(), false);
           inode = dir->getId();
         }
         catch (eos::MDException &e)

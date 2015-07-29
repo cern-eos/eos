@@ -149,28 +149,20 @@ ProcCommand::Rm ()
       }
       else
       {
-        eos::IContainerMD::XAttrMap attrmap;
-
-        // check if this path exists at all
-        struct stat buf;
-        if (!gOFS->_stat(spath.c_str(), &buf, *mError, *pVid, ""))
-        {
-          // check if this path has a recycle attribute
-          if (gOFS->_attr_ls(spath.c_str(), *mError, *pVid, "", attrmap))
-          {
-            stdErr += "error: unable to get attributes on search path\n";
-            retc = errno;
-          }
-        }
+	XrdOucString recyclingAttribute;
+	
+	// check if this path has a recycle attribute
+	gOFS->_attr_get(spath.c_str(), *mError, *pVid, "",
+                        Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
 
         //.......................................................................
         // see if we have a recycle policy set and if avoid to recycle inside
         // the recycle bin
         //.......................................................................
-        if (attrmap.count(Recycle::gRecyclingAttribute) &&
-            (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) &&
-            (spath.find("/.sys.v#.") == STR_NPOS))
-        {
+	if (recyclingAttribute.length() &&
+	    (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) &&
+	    (spath.find("/.sys.v#.") == STR_NPOS))
+	{
           //.....................................................................
           // two step deletion via recycle bin
           //.....................................................................
@@ -183,7 +175,13 @@ ProcCommand::Rm ()
             for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
             {
               std::string fspath = rfoundit->first;
-              fspath += *fileit;
+	      size_t l_pos;
+
+	      std::string entry = *fileit;
+	      if ( (l_pos = entry.find(" ->")) != std::string::npos)
+		entry.erase(l_pos);
+
+              fspath += entry;
               if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, true))
               {
                 stdErr += "error: unable to remove file - bulk deletion aborted\n";
@@ -218,7 +216,7 @@ ProcCommand::Rm ()
           }
           spath += "/";
 
-          eos::mgm::Recycle lRecycle(spath.c_str(), attrmap[Recycle::gRecyclingAttribute].c_str(), pVid, buf.st_uid, buf.st_gid, (unsigned long long) buf.st_ino);
+          eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(), pVid, buf.st_uid, buf.st_gid, (unsigned long long) buf.st_ino);
           int rc = 0;
           if ((rc = lRecycle.ToGarbage("rm-r", *mError)))
           {
@@ -251,7 +249,13 @@ ProcCommand::Rm ()
             for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
             {
               std::string fspath = rfoundit->first;
-              fspath += *fileit;
+	      size_t l_pos;
+
+	      std::string entry = *fileit;
+	      if ( (l_pos = entry.find(" ->")) != std::string::npos)
+		entry.erase(l_pos);
+
+              fspath += entry;
               if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0))
               {
                 stdErr += "error: unable to remove file\n";

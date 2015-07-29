@@ -52,6 +52,7 @@ prog="eosd"
 
 start() {
     for i in ${EOS_FUSE_MOUNTS}; do
+        (
         if [ "$i" = "main" ]; then
             [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
         else 
@@ -82,12 +83,12 @@ start() {
         export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
-
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
 	  FUSE_OPT="big_writes,"${FUSE_OPT-""}
 	else
 	  test -n "${FUSE_OPT}" && FUSE_OPT=${FUSE_OPT}","
         fi
+	export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
 
         if [ "x$eosdpid" = "x" ]; then
             echo -n "Starting $prog: "
@@ -124,6 +125,7 @@ start() {
             echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}" 
             echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
             echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
+	    echo "EOS_FUSE_LOG_PREFIX       : ${EOS_FUSE_LOG_PREFIX}"
 	else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'
@@ -131,6 +133,7 @@ start() {
             RETVAL=1
 	    echo_warning
         fi
+        )
     done
 }
 

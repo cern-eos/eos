@@ -63,14 +63,17 @@ extern int com_fsck (char*);
 extern int com_fuse (char*);
 extern int com_group (char*);
 extern int com_help (char *);
+extern int com_info (char *);
 extern int com_io (char *);
 extern int com_json (char *);
 extern int com_license (char*);
+extern int com_ln (char*);
 extern int com_ls (char*);
 extern int com_map (char*);
 extern int com_member (char*);
 extern int com_mkdir (char*);
 extern int com_motd (char*);
+extern int com_mv (char*);
 extern int com_node (char*);
 extern int com_ns (char*);
 extern int com_pwd (char*);
@@ -88,6 +91,7 @@ extern int com_stat (char*);
 extern int com_test (char*);
 extern int com_timing (char*);
 extern int com_transfer (char*);
+extern int com_touch (char*);
 extern int com_version (char*);
 extern int com_vid (char*);
 extern int com_vst (char*);
@@ -216,14 +220,17 @@ COMMAND commands[] = {
   { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
   { (char*) "group", com_group, (char*) "Group configuration"},
   { (char*) "help", com_help, (char*) "Display this text"},
+  { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
   { (char*) "io", com_io, (char*) "IO Interface"},
   { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
   { (char*) "license", com_license, (char*) "Display Software License"},
   { (char*) "ls", com_ls, (char*) "List a directory"},
+  { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
   { (char*) "map", com_map, (char*) "Path mapping interface"},
   { (char*) "member", com_member, (char*) "Check Egroup membership"},
   { (char*) "mkdir", com_mkdir, (char*) "Create a directory"},
   { (char*) "motd", com_motd, (char*) "Message of the day"},
+  { (char*) "mv", com_mv, (char*) "Rename file or directory"},
   { (char*) "node", com_node, (char*) "Node configuration"},
   { (char*) "ns", com_ns, (char*) "Namespace Interface"},
   { (char*) "pwd", com_pwd, (char*) "Print working directory"},
@@ -240,6 +247,7 @@ COMMAND commands[] = {
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
   { (char*) "test", com_test, (char*) "Run performance test"},
   { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
+  { (char*) "touch", com_touch, (char*) "Touch a file"},
   { (char*) "transfer", com_transfer, (char*) "Transfer Interface"},
   { (char*) "version", com_version, (char*) "Verbose client/server version"},
   { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
@@ -1185,8 +1193,8 @@ main (int argc, char* argv[])
 
     if (in1.length())
     {
-      // check if this is a file
-      if ((in1.endswith("eosh")) && (!access(in1.c_str(), R_OK)))
+      // check if this is a file (workaournd for XrdOucString bug
+      if ((in1.length()>5) && (in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK)))
       {
         // this is a script file
         char str[16384];

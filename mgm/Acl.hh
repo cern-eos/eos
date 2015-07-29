@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
+#include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -103,6 +104,16 @@ public:
        eos::common::Mapping::VirtualIdentity &vid,
        bool allowUserAcl = false);
 
+
+  /*---------------------------------------------------------------------------*/
+  //! Constructor by path
+  /*---------------------------------------------------------------------------*/
+  Acl (const char* path,
+       XrdOucErrInfo &error,
+       eos::common::Mapping::VirtualIdentity &vid,
+       eos::IContainerMD::XAttrMap &attrmap,
+       bool lockNs);
+  
   /*--------------------------------------------------------------------------*/
   //! Destructor
   /*--------------------------------------------------------------------------*/
