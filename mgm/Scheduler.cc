@@ -73,6 +73,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
   gid_t gid = vid.gid;
 
   bool hasgeolocation = false;
+  bool exact_match = false;
 
   if (vid.geolocation.length())
   {
@@ -80,6 +81,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     {
       // we only do geolocations for replica layouts
       hasgeolocation = true;
+      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.write.exact") == "on");
     }
   }
 
@@ -353,8 +355,12 @@ Scheduler::FilePlacement (const char* path, //< path to place
           // only when we need one more geo location, we lower the selection probability
           if ((hasgeolocation) && (n_geolocations != 1) && (selected_geo_location == availablefsgeolocation[*ait]))
           {
-            // we reduce the probability to select a filesystem in an already existing location to 1/20th
-            fsweight *= 0.05;
+	    if (exact_match)
+	      // we dont' schedule not according to geolocation policy
+	      fsweight = 0.0;
+	    else
+	      // we reduce the probability to select a filesystem in an already existing location to 1/20th
+	      fsweight *= 0.05;
           }
 
           if (fsweight > randomacceptor)
@@ -556,7 +562,7 @@ Scheduler::FileAccess (
     if (vid.geolocation.length())
     {
       hasgeolocation = true;
-      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.exact") == "on");
+      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.read.exact") == "on");
     }
 
     // -----------------------------------------------------------------------
