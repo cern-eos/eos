@@ -551,10 +551,12 @@ Scheduler::FileAccess (
     double renorm = 0; // this is the sum of all weights, we renormalize each weight in the selection with this sum
 
     bool hasgeolocation = false;
+    bool exact_match = false;
 
     if (vid.geolocation.length())
     {
       hasgeolocation = true;
+      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.exact") == "on");
     }
 
     // -----------------------------------------------------------------------
@@ -653,6 +655,16 @@ Scheduler::FileAccess (
               // we reduce the probability to 1/10th
               weight *= 0.1;
             }
+	    else
+	    {
+	      if (exact_match)
+	      {
+		// make sure we have the matching geo location before the not matching one
+		if (weight < 0.2)
+		  weight = 0.2;
+	      }
+		
+	    }
           }
 
           availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
@@ -772,13 +784,15 @@ Scheduler::FileAccess (
     // -----------------------------------------------------------------------
     // now start with the one with the highest weight, but still use probabilty to select it
     // -----------------------------------------------------------------------
+
+
     std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
     for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++)
     {
       float randomacceptor = (0.999999 * random() / RAND_MAX);
-      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second);
+      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u exact-match=%d", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second, exact_match);
 
-      if ((wit->first / renorm) > randomacceptor)
+      if (exact_match || ((wit->first / renorm) > randomacceptor))
       {
         // take this
         for (size_t i = 0; i < locationsfs.size(); i++)
