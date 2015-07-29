@@ -134,9 +134,18 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
 
    # Configure FUSE read-ahead window (default 128k)
    # export EOS_FUSE_RDAHEAD_WINDOW=131072
+ 
+   # Configure a log-file prefix - useful for several FUSE instances
+   # export EOS_FUSE_LOG_PREFIX=dev
+   # => will create /var/log/eos/fuse.dev.log
+
+   # Configure multiple FUSE mounts a,b configured in /etc/sysconfig/eos.a /etc/sysconfig/eos.b
+   #export EOS_FUSE_MOUNTS="a b"
+
 
 In most cases one should enable the read-ahead feature with a read-ahead window of 1M and if available enable the big writes feature!
-These features are off by default!
+These features are off by default! If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files 
+with their name as suffix e.g. mount **dev** will be defined in ``/etc/sysconfig/eos.dev``. In case of a list of mounts the log file names have the name automatically inserted like ``fuse.dev.log``.
     
 Authentication
 --------------
