@@ -3185,7 +3185,18 @@ xrd_init ()
     fuse_shared = true; //eosfsd
 
     // Running as root ... we log into /var/log/eos/fuse
-    eos::common::Path cPath("/var/log/eos/fuse/fuse.log");
+    std::string log_path="/var/log/eos/fuse/fuse.";
+    if (getenv("EOS_FUSE_LOG_PREFIX")) 
+    {
+      log_path += getenv("EOS_FUSE_LOG_PREFIX");
+      log_path += ".log";
+    } 
+    else
+    {
+      log_path += "log";
+    }
+    
+    eos::common::Path cPath(log_path.c_str());
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
 
     if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr)))
