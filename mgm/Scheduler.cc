@@ -74,6 +74,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
   bool hasgeolocation = false;
   bool exact_match = false;
+  int geo_entry_fsid = 0;
 
   if (vid.geolocation.length())
   {
@@ -303,6 +304,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     // -------------------------------------------------------------------------------
     std::string selected_geo_location;
     int n_geolocations = 0;
+
     // check if there are atlast <nfilesystems> in the available map
     if (availablefs.size() >= nfilesystems)
     {
@@ -322,6 +324,11 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	  if (hasgeolocation)
           {
 	    selected_geo_location = availablefsgeolocation[*ait];
+  	    if ((!geo_entry_fsid) && (vid.geolocation == availablefsgeolocation[*ait]))
+	    {
+	      // if this is the first matching
+	      geo_entry_fsid = *ait;
+	    }
 	  }
 	  
 	  eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
@@ -362,9 +369,15 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	      // we reduce the probability to select a filesystem in an already existing location to 1/20th
 	      fsweight *= 0.05;
           }
-
+	  
           if (fsweight > randomacceptor)
-          {
+          {	    
+	    if (hasgeolocation && (!geo_entry_fsid) && (vid.geolocation == availablefsgeolocation[*ait]))
+	    {
+	      // if this is the first matching
+	      geo_entry_fsid = *ait;
+	    }
+	    
             // push it on the selection list
             selected_filesystems.push_back(*ait);
             if (hasgeolocation)
@@ -426,9 +439,14 @@ Scheduler::FilePlacement (const char* path, //< path to place
     selected_filesystems.clear();
 
     int rrsize = randomselectedfs.size();
+    if (geo_entry_fsid)
+      selected_filesystems.push_back(geo_entry_fsid);
+
     for (int i = 0; i < rrsize; i++)
     {
-      selected_filesystems.push_back(randomselectedfs[(randomindex + i) % rrsize]);
+      int r_fsid = randomselectedfs[(randomindex + i) % rrsize];
+      if (r_fsid != geo_entry_fsid)
+	selected_filesystems.push_back(r_fsid);
     }
     return 0;
   }
