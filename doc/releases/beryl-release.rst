@@ -6,7 +6,9 @@
 
 Beryl Release Notes
 ===================
+
 ``Version V0.3.126 Beryl-Aquamarine``
+
 New Features
 ------------
 - major improvements in automatic error recovery for read and writes
@@ -16,6 +18,7 @@ New Features
 - distinguish scheduling policies for read and write via `geo.access.policy.read.exact` `geo.access.policy.write.exact` - if `on` for **write** then only groups matching the geo policy and two-site placement policy will be selected for placement and data will flow through the close fst - if `on` for **read** the replica in the same geo location will always be chosen
 
 ``Version V0.3.125 Beryl-Aquamarine``
+
 New Features
 ------------
 - allow to disable 'sss' enforcement on FSTs (see /etc/sysconfig/eos.example) - each FST need a prot bind entry on the MGM config file when enabled
@@ -38,6 +41,7 @@ Bug Fixes
 - avoid timing related dead-lock in asynchronous backend flush
 
 ``Version V0.3.121 Beryl-Aquamarine``
+
 New Features
 ------------
 - support ALICE tokens in gateway transfers
