@@ -36,7 +36,7 @@ include_directories(
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
 #-------------------------------------------------------------------------------
-add_library (
+add_library(
   XrdEosMgm MODULE
   Access.cc
   ConfigEngine.cc
@@ -119,15 +119,7 @@ add_library (
   GeoBalancer.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc
-  # TODO: this should be removed once we properly use the namespace interface
-  # and there is no need to include explicit namespace implementation details
-  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/FileMD.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/ContainerMD.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFile.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogConstants.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc
-  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.cc)
+  geotree/SchedulingTreeCommon.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
