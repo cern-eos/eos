@@ -218,7 +218,7 @@ LRU::LRUr ()
           // get the attributes
           // ---------------------------------------------------------------------
           eos_static_info("lru-dir=\"%s\"", it->first.c_str());
-          eos::ContainerMD::XAttrMap map;
+          eos::IContainerMD::XAttrMap map;
           if (!gOFS->_attr_ls(it->first.c_str(),
                               mError,
                               mRootVid,
@@ -406,44 +406,37 @@ LRU::AgeExpire (const char* dir,
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
-    eos::ContainerMD* cmd = 0;
+    eos::IContainerMD* cmd = 0;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      eos::ContainerMD::FileMap::iterator fit;
-      for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+
+      for (auto fmd = cmd->beginFile(); fmd; fmd = cmd->nextFile())
       {
         std::string fullpath = dir;
-        fullpath += fit->first;
+        fullpath += fmd->getName();
         eos_static_debug("%s", fullpath.c_str());
-        // ---------------------------------------------------------------------
-        // loop over the match map
-        // ---------------------------------------------------------------------
+
+        // Loop over the match map
         for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++)
         {
 
-          XrdOucString fname = fit->second->getName().c_str();
+          XrdOucString fname = fmd->getName().c_str();
           eos_static_debug("%s %d", mit->first.c_str(), fname.matches(mit->first.c_str()));
           if (fname.matches(mit->first.c_str()))
           {
-            // -----------------------------------------------------------------
-            // full match check the age policy
-            // ----------------------------------------------------------------
-            eos::FileMD::ctime_t ctime;
-            fit->second->getCTime(ctime);
+            // Full match check the age policy
+            eos::IFileMD::ctime_t ctime;
+            fmd->getCTime(ctime);
             time_t age = mit->second;
             if ((ctime.tv_sec + age) < now)
             {
-              // ---------------------------------------------------------------
-              // this entry can be deleted
-              // ---------------------------------------------------------------
-              eos_static_notice("msg=\"delete expired file\" path=\"%s\" ctime=%u policy-age=%u age=%u",
-                                fullpath.c_str(),
-                                ctime.tv_sec,
-                                age,
-                                now - ctime.tv_sec
-                                );
+              // This entry can be deleted
+              eos_static_notice("msg=\"delete expired file\" path=\"%s\" "
+                                "ctime=%u policy-age=%u age=%u",
+                                fullpath.c_str(), ctime.tv_sec, age,
+                                now - ctime.tv_sec);
 
               lDeleteList.push_back(fullpath);
               break;
@@ -687,7 +680,7 @@ LRU::CacheExpire (const char* dir,
 /*----------------------------------------------------------------------------*/
 void
 LRU::ConvertMatch (const char* dir,
-                   eos::ContainerMD::XAttrMap & map)
+                   eos::IContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief convert all files matching
@@ -747,32 +740,31 @@ LRU::ConvertMatch (const char* dir,
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
-    eos::ContainerMD* cmd = 0;
+    eos::IContainerMD* cmd = 0;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      eos::ContainerMD::FileMap::iterator fit;
-      for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+
+      for (auto fmd = cmd->beginFile(); fmd; fmd = cmd->nextFile())
       {
         std::string fullpath = dir;
-        fullpath += fit->first;
+        fullpath += fmd->getName();
         eos_static_debug("%s", fullpath.c_str());
-        // ---------------------------------------------------------------------
-        // loop over the match map
-        // ---------------------------------------------------------------------
+
+        // Loop over the match map
         for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++)
         {
 
-          XrdOucString fname = fit->second->getName().c_str();
+          XrdOucString fname = fmd->getName().c_str();
           eos_static_debug("%s %d", mit->first.c_str(), fname.matches(mit->first.c_str()));
           if (fname.matches(mit->first.c_str()))
           {
             // -----------------------------------------------------------------
             // full match check the age policy
             // ----------------------------------------------------------------
-            eos::FileMD::ctime_t ctime;
-            fit->second->getCTime(ctime);
+            eos::IFileMD::ctime_t ctime;
+            fmd->getCTime(ctime);
             time_t age = mit->second;
             if ((ctime.tv_sec + age) < now)
             {
@@ -786,11 +778,12 @@ LRU::ConvertMatch (const char* dir,
               std::string plctplcy;
               if(((int)conversion.find("|"))!=STR_NPOS)
                 eos::common::StringConversion::SplitKeyValue(conversion, conversion,plctplcy, "|");
-              unsigned long long lid = strtoll(conversion.c_str(), 0, 16);
-              if (fit->second->getLayoutId() == lid)
+              unsigned long long lid = strtoll(map[conv_attr].c_str(), 0, 16);
+
+              if (fmd->getLayoutId() == lid)
               {
                 eos_static_debug("msg=\"skipping conversion - file has already"
-                                 "the desired target layout and no placement policy\" fid=%llu", fit->second->getId());
+                                 "the desired target layout\" fid=%llu", fmd->getId());
                 continue;
               }
 
@@ -804,12 +797,11 @@ LRU::ConvertMatch (const char* dir,
                                 ctime.tv_sec,
                                 age,
                                 now - ctime.tv_sec,
-                                (unsigned long long) fit->second->getId(),
+                                (unsigned long long) fmd->getId(),
                                 map[conv_attr].c_str()
                                 );
 
-              lConversionList.push_back(std::make_pair(fit->second->getId(),
-                                                       map[conv_attr]));
+              lConversionList.push_back(std::make_pair(fmd->getId(), map[conv_attr]));
               break;
             }
           }

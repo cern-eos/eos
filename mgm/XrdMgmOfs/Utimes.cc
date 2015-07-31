@@ -102,7 +102,7 @@ XrdMgmOfs::_utimes (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   bool done = false;
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
 
   EXEC_TIMING_BEGIN("Utimes");
 
@@ -126,7 +126,7 @@ XrdMgmOfs::_utimes (const char *path,
 
   if (!cmd)
   {
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     // try as a file
     try
     {

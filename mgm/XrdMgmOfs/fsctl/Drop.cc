@@ -46,9 +46,9 @@
 
     // ---------------------------------------------------------------------
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
-    eos::ContainerMD* container = 0;
-    eos::QuotaNode* quotanode = 0;
+    eos::IFileMD* fmd = 0;
+    eos::IContainerMD* container = 0;
+    eos::IQuotaNode* quotanode = 0;
 
     try
     {
@@ -77,10 +77,9 @@
       try
       {
         quotanode = gOFS->eosView->getQuotaNode(container);
+
         if (quotanode)
-        {
           quotanode->removeFile(fmd);
-        }
       }
       catch (eos::MDException &e)
       {
@@ -101,9 +100,7 @@
         if (drop_all)
         {
           for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
-          {
             drop_fsid.push_back(fmd->getLocation(i));
-          }
         }
         else
         {
@@ -136,9 +133,7 @@
           }
 
           if (quotanode)
-          {
             quotanode->addFile(fmd);
-          }
         }
 
         // Finally delete the record if all replicas are dropped

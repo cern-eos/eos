@@ -51,8 +51,8 @@ XrdMgmOfs::_verifystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "verifystripe";
-  eos::ContainerMD *dh = 0;
-  eos::FileMD *fmd = 0;
+  eos::IContainerMD *dh = 0;
+  eos::IFileMD *fmd = 0;
 
   EXEC_TIMING_BEGIN("VerifyStripe");
 
@@ -61,7 +61,7 @@ XrdMgmOfs::_verifystripe (const char *path,
   unsigned long long cid = 0;
   int lid = 0;
 
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
 
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
 
@@ -75,7 +75,6 @@ XrdMgmOfs::_verifystripe (const char *path,
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
     attr_path = gOFS->eosView->getUri(dh);
     dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
-
   }
   catch (eos::MDException &e)
   {
@@ -217,8 +216,8 @@ XrdMgmOfs::_dropstripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "dropstripe";
-  eos::ContainerMD *dh = 0;
-  eos::FileMD *fmd = 0;
+  eos::IContainerMD *dh = 0;
+  eos::IFileMD *fmd = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("DropStripe");
@@ -392,7 +391,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "replicatestripe";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("ReplicateStripe");
@@ -419,7 +418,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
     if (!errno) errno = EPERM;
 
-  eos::FileMD * fmd = 0;
+  eos::IFileMD * fmd = 0;
 
   // get the file
   try
@@ -452,24 +451,21 @@ XrdMgmOfs::_replicatestripe (const char *path,
     return Emsg(epname, error, errno, "replicate stripe", path);
   }
 
-  // make a copy of the file meta data to release the lock
-  eos::FileMD fmdCopy(*fmd);
-  fmd = &fmdCopy;
-
-  // ------------------------------------------
-
+  // Make a copy of the file meta data to release the lock
+  std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
+  fmd = (eos::IFileMD*)(0);
+  // ---------------------------------------------------------------------------
   gOFS->eosViewRWMutex.UnLockRead();
-  int retc = _replicatestripe(fmd, path, error, vid, sourcefsid, targetfsid, dropsource, expressflag);
 
+  int retc = _replicatestripe(fmd_cpy.get(), path, error, vid, sourcefsid,
+                              targetfsid, dropsource, expressflag);
   EXEC_TIMING_END("ReplicateStripe");
-
   return retc;
-
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_replicatestripe (eos::FileMD *fmd,
+XrdMgmOfs::_replicatestripe (eos::IFileMD *fmd,
                              const char* path,
                              XrdOucErrInfo &error,
                              eos::common::Mapping::VirtualIdentity &vid,

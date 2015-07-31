@@ -36,11 +36,11 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Policy::GetLayoutAndSpace (const char* path, 
-                           eos::ContainerMD::XAttrMap &attrmap, 
-                           const eos::common::Mapping::VirtualIdentity &vid, 
-                           unsigned long &layoutId, XrdOucString &space, 
-                           XrdOucEnv &env, 
+Policy::GetLayoutAndSpace (const char* path,
+                           eos::IContainerMD::XAttrMap &attrmap,
+                           const eos::common::Mapping::VirtualIdentity &vid,
+                           unsigned long &layoutId, XrdOucString &space,
+                           XrdOucEnv &env,
                            unsigned long &forcedfsid,
                            long &forcedgroup)
 
@@ -101,7 +101,7 @@ Policy::GetLayoutAndSpace (const char* path,
       forcedgroup = strtol(attrmap["sys.forced.group"].c_str(),0,10);
       eos_static_debug("sys.forced.group in %s", path);
     }
-    
+
     if (attrmap.count("sys.forced.layout"))
     {
       XrdOucString layoutstring = "eos.layout.type=";
@@ -240,11 +240,11 @@ Policy::GetLayoutAndSpace (const char* path,
 /*----------------------------------------------------------------------------*/
 void
 Policy::GetPlctPolicy (const char* path,
-                           eos::ContainerMD::XAttrMap &attrmap, 
-                           const eos::common::Mapping::VirtualIdentity &vid, 
-                           XrdOucEnv &env,
-                           eos::mgm::Scheduler::tPlctPolicy &plctpol,
-                           std::string &targetgeotag)
+                       eos::IContainerMD::XAttrMap &attrmap,
+                       const eos::common::Mapping::VirtualIdentity &vid,
+                       XrdOucEnv &env,
+                       eos::mgm::Scheduler::tPlctPolicy &plctpol,
+                       std::string &targetgeotag)
 {
   // default to save
 	plctpol = eos::mgm::Scheduler::kScattered;

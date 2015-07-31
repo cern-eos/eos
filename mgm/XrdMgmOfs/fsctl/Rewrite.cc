@@ -69,7 +69,7 @@
   if (!errno && fid)
   {
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosFileService->getFileMD(fid);

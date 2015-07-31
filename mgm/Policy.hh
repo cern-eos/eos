@@ -28,7 +28,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/Scheduler.hh"
 #include "common/Mapping.hh"
-#include "namespace/ContainerMD.hh"
+#include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -47,21 +47,21 @@ public:
 
   ~Policy () { };
 
-  static void GetLayoutAndSpace (const char* path, 
-                                 eos::ContainerMD::XAttrMap &map, 
-                                 const eos::common::Mapping::VirtualIdentity &vid, 
-                                 unsigned long &layoutId, 
-                                 XrdOucString &space, 
-                                 XrdOucEnv &env, 
+  static void GetLayoutAndSpace (const char* path,
+                                 eos::IContainerMD::XAttrMap &map,
+                                 const eos::common::Mapping::VirtualIdentity &vid,
+                                 unsigned long &layoutId,
+                                 XrdOucString &space,
+                                 XrdOucEnv &env,
                                  unsigned long &forcedfsid,
                                  long &forcedgroup);
 
   static void GetPlctPolicy (const char* path,
-                                 eos::ContainerMD::XAttrMap &map,
-                                 const eos::common::Mapping::VirtualIdentity &vid,
-                                 XrdOucEnv &env,
-                                 eos::mgm::Scheduler::tPlctPolicy &plctpo,
-                                 std::string &targetgeotag);
+                             eos::IContainerMD::XAttrMap &map,
+                             const eos::common::Mapping::VirtualIdentity &vid,
+                             XrdOucEnv &env,
+                             eos::mgm::Scheduler::tPlctPolicy &plctpo,
+                             std::string &targetgeotag);
 
   static bool Set (const char* value);
   static bool Set (XrdOucEnv &env, int &retc, XrdOucString &stdOut, XrdOucString &stdErr);

@@ -75,7 +75,7 @@
     auto it = sZeroMove.begin();
     while (it != sZeroMove.end())
     {
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
       try
       {
         fmd = gOFS->eosFileService->getFileMD(it->first);
@@ -224,8 +224,8 @@
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
     // ---------------------------------------------------------------------
 
-    eos::FileSystemView::FileList source_filelist;
-    eos::FileSystemView::FileList target_filelist;
+    eos::IFsView::FileList source_filelist;
+    eos::IFsView::FileList target_filelist;
 
     try
     {
@@ -253,12 +253,12 @@
                      target_snapshot.mGroup.c_str(), gposition, source_fsid, target_fsid, nfids);
 
     // give the oldest file first
-    eos::FileSystemView::FileIterator fit = source_filelist.begin();
+    eos::IFsView::FileIterator fit = source_filelist.begin();
     while (fit != source_filelist.end())
     {
       eos_thread_debug("checking fid %llx", *fit);
       // check that the target does not have this file
-      eos::FileMD::id_t fid = *fit;
+      eos::IFileMD::id_t fid = *fit;
       if (target_filelist.count(fid))
       {
         // iterate to the next file, we have this file already
@@ -298,7 +298,7 @@
         }
         else
         {
-          eos::FileMD* fmd = 0;
+          eos::IFileMD* fmd = 0;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;
@@ -320,8 +320,9 @@
             uid = fmd->getCUid();
             gid = fmd->getCGid();
 	    
-            eos::FileMD::LocationVector::const_iterator lociter;
-            for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+            eos::IFileMD::LocationVector::const_iterator lociter;
+            eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+            for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
             {
               // ignore filesystem id 0
               if ((*lociter))
@@ -411,9 +412,11 @@
                   (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)))
               {
                 // exclude another scheduling for RAIN files - there is no alternitive location here
+		std::string tried_cgi;
                 if ((!space) || (retc = space->FileAccess(h_vid,
                                                           (long unsigned int) 0,
                                                           (const char*) 0,
+							  tried_cgi,
                                                           lid,
                                                           locationfs,
                                                           fsindex,

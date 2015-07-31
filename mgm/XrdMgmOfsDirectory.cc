@@ -29,7 +29,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Acl.hh"
 /*----------------------------------------------------------------------------*/
-
+#include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------*/
@@ -50,6 +50,20 @@
 /* MGM Directory Interface                                                    */
 /******************************************************************************/
 /******************************************************************************/
+
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+XrdMgmOfsDirectory::XrdMgmOfsDirectory (char *user, int MonID):
+    XrdSfsDirectory (user, MonID)
+{
+  dirName = "";
+  dh = 0;
+  d_pnt = &dirent_full.d_entry;
+  eos::common::Mapping::Nobody (vid);
+  eos::common::LogId ();
+}
 
 /*----------------------------------------------------------------------------*/
 int
@@ -166,10 +180,7 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   try
   {
-    eos::ContainerMD::XAttrMap attrmap;
-    eos::ContainerMD::FileMap::iterator dh_files;
-    eos::ContainerMD::ContainerMap::iterator dh_dirs;
-
+    eos::IContainerMD::XAttrMap attrmap;
     dh = gOFS->eosView->getContainer(cPath.GetPath());
     permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);
 
@@ -201,29 +212,21 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
 
     if (permok)
     {
-      // add all the files
-      for (dh_files = dh->filesBegin(); dh_files != dh->filesEnd(); dh_files++)
-      {
-        //
-        dh_list.insert(dh_files->first);
-      }
-
+      // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
 
-      for (dh_dirs = dh->containersBegin();
-              dh_dirs != dh->containersEnd();
-              dh_dirs++)
-      {
-        dh_list.insert(dh_dirs->first);
-      }
+      for (auto fmd = dh->beginFile(); fmd; fmd = dh->nextFile())
+        dh_list.insert(fmd->getName());
+
+      for (auto dmd = dh->beginSubContainer(); dmd; dmd = dh->nextSubContainer())
+        dh_list.insert(dmd->getName());
 
       dh_list.insert(".");
-      // the root dir has no .. entry
+
+      // The root dir has no .. entry
       if (strcmp(dir_path, "/"))
-      {
         dh_list.insert("..");
-      }
     }
   }
   catch (eos::MDException &e)
@@ -238,9 +241,7 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
   if (dh)
   {
     eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-              vid.uid, vid.gid, (dh->access(vid.uid,
-                                            vid.gid,
-                                            R_OK | X_OK)),
+              vid.uid, vid.gid, (dh->access(vid.uid, vid.gid, R_OK | X_OK)),
               dh->getMode());
   }
 

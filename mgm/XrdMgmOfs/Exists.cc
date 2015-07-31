@@ -111,7 +111,7 @@ XrdMgmOfs::_exists (const char *path,
 
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
 
   {
     // -------------------------------------------------------------------------
@@ -134,7 +134,7 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosView->getFile(path, false);
@@ -164,23 +164,18 @@ XrdMgmOfs::_exists (const char *path,
   {
     // get the parent directory
     eos::common::Path cPath(path);
-    eos::ContainerMD* dir = 0;
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD* dir = 0;
+    eos::IContainerMD::XAttrMap attrmap;
 
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       dir = eosView->getContainer(cPath.GetParentPath(),false);
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
 
       // get attributes
-      gOFS->_attr_ls(cPath.GetParentPath(),
-		     error,
-		     vid,
-		     0,
-		     attrmap,
-		     false);
+      gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap, false);
     }
     catch (eos::MDException &e)
     {
@@ -255,7 +250,7 @@ XrdMgmOfs::_exists (const char *path,
 
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
 
   // try if that is directory
   {
@@ -279,7 +274,7 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosView->getFile(path, false);

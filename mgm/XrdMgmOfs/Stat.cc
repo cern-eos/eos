@@ -61,7 +61,7 @@ XrdMgmOfs::stat (const char *inpath,
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param etag string to return the ETag for that object
- * @param follow to indicate to foolow symbolic links on leave nodes
+ * @param follow to indicate to follow symbolic links on leave nodes
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * See the internal implemtation _stat for details.
@@ -134,7 +134,7 @@ XrdMgmOfs::_stat (const char *path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
- * @param follow to indicate to foolow symbolic links on leave nodes
+ * @param follow to indicate to follow symbolic links on leave nodes
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * We don't apply any access control on stat calls for performance reasons.
@@ -152,7 +152,7 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   // try if that is a file
   errno = 0;
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::Path cPath(path);
 
   // ---------------------------------------------------------------------------
@@ -190,20 +190,21 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   if (fmd)
   {
-    eos::FileMD fmdCopy(*fmd);
-    fmd = &fmdCopy;
     memset(buf, 0, sizeof (struct stat));
-
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
-    if (fmdCopy.isLink())
+
+    // TODO: this is useless as we don't release the lock eosViewRWMutex
+    eos::IFileMD* fmdCopy = fmd->clone();
+
+    if (fmdCopy->isLink())
       buf->st_mode = S_IFLNK;
     else
       buf->st_mode = S_IFREG;
 
     uint16_t flags = fmd->getFlags();
 
-    if (fmdCopy.isLink())
+    if (fmdCopy->isLink())
     {
       buf->st_mode |= (S_IRWXU | S_IRWXG | S_IRWXO);
       buf->st_nlink = 1;
@@ -214,6 +215,7 @@ XrdMgmOfs::_stat (const char *path,
         buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
       else
         buf->st_mode |= flags;
+
       buf->st_nlink = fmd->getNumLocation();
     }
 
@@ -224,7 +226,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_size = fmd->getSize();
     buf->st_blksize = 512;
     buf->st_blocks = Quota::MapSizeCB(fmd) / 512; // including layout factor
-    eos::FileMD::ctime_t atime;
+    eos::IFileMD::ctime_t atime;
 
     // adding also nanosecond to stat struct
     fmd->getCTime(atime);
@@ -291,7 +293,7 @@ XrdMgmOfs::_stat (const char *path,
   }
 
   // try if that is directory
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
   errno = 0;
 
   // ---------------------------------------------------------------------------
@@ -316,7 +318,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_size = cmd->getNumContainers();
     buf->st_blksize = 0;
     buf->st_blocks = 0;
-    eos::ContainerMD::ctime_t atime;
+    eos::IContainerMD::ctime_t atime;
     cmd->getCTime(atime);
 
 #ifdef __APPLE__

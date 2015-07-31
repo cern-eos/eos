@@ -141,7 +141,7 @@ Recycle::Recycler ()
     //...........................................................................
     // read our current policy setting
     //...........................................................................
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD::XAttrMap attrmap;
 
     //...........................................................................
     // check if this path has a recycle attribute
@@ -774,7 +774,7 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
       char sline[1024];
       XrdOucString sizestring1;
       XrdOucString sizestring2;
-      eos::ContainerMD::XAttrMap attrmap;
+      eos::IContainerMD::XAttrMap attrmap;
       XrdOucErrInfo error;
       //...........................................................................
       // check if this path has a recycle attribute
@@ -833,8 +833,8 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   //...........................................................................
   // convert the hex inode number into decimal and retrieve path name
   //...........................................................................
-  eos::FileMD* fmd = 0;
-  eos::ContainerMD* cmd = 0;
+  eos::IFileMD* fmd = 0;
+  eos::IContainerMD* cmd = 0;
   std::string recyclepath;
   XrdOucString repath;
 

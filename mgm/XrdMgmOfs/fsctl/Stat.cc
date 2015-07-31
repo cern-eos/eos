@@ -40,7 +40,7 @@
                    &buf,
                    error,
                    client,
-                   0);
+                   info);
 
   if (retc == SFS_OK)
   {

@@ -18,9 +18,10 @@
 
 //------------------------------------------------------------------------------
 #include <iostream>
-#include "namespace/views/HierarchicalView.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/persistency/ChangeLogFileMDSvc.hh"
+// TODO: use only interfaces here
+#include "namespace/ns_in_memory/views/HierarchicalView.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "common/Timing.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
@@ -41,7 +42,7 @@ eos::common::RWMutex nslock;
 //------------------------------------------------------------------------------
 // File size mapping function
 //------------------------------------------------------------------------------
-static uint64_t mapSize( const eos::FileMD *file )
+static uint64_t mapSize( const eos::IFileMD *file )
 {
   return 0;
 }
@@ -179,10 +180,12 @@ static void* RunReader(void* tconf)
       for (size_t k = 0; k< n_k; k++) {
 	for (size_t n = 0; n< n_files; n++) {
 	  char s_file_path[1024];
-	  snprintf(s_file_path,sizeof(s_file_path)-1,"/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/file____________________%08u",(unsigned int)i,(unsigned int)j,(unsigned int)k, (unsigned int)n);
+	  snprintf(s_file_path,sizeof(s_file_path)-1,"/eos/nsbench/level_0_%08u/"
+                   "level_1_%08u/level_2_%08u/file____________________%08u",\
+                   (unsigned int)i,(unsigned int)j,(unsigned int)k, (unsigned int)n);
 	  std::string file_path = s_file_path;
 	  if (dolock) nslock.LockRead();
-	  eos::FileMD* fmd = view->getFile(file_path);
+	  eos::IFileMD* fmd = view->getFile(file_path);
 	  if (fmd) {
 	    unsigned long long size = (unsigned long long) fmd->getSize();
 	    if (size == 0 ) {
@@ -254,7 +257,7 @@ int main( int argc, char **argv )
 	  char s_container_path[1024];
 	  snprintf(s_container_path,sizeof(s_container_path)-1,"/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/",(unsigned int)i,(unsigned int)j,(unsigned int)k);
 	  std::string container_path = s_container_path;
-	  eos::ContainerMD* cont = view->createContainer( container_path, true );
+	  eos::IContainerMD* cont = view->createContainer( container_path, true );
 	  cont->setAttribute("sys.forced.blocksize","4k");
 	  cont->setAttribute("sys.forced.checksum","adler");
 	  cont->setAttribute("sys.forced.layout","replica");
@@ -341,9 +344,11 @@ int main( int argc, char **argv )
 	for (size_t k = 0; k< n_k; k++) {
 	  for (size_t n = 0; n< n_files; n++) {
 	    char s_file_path[1024];
-	    snprintf(s_file_path,sizeof(s_file_path)-1,"/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/file____________________%08u",(unsigned int)i,(unsigned int)j,(unsigned int)k, (unsigned int)n);
+	    snprintf(s_file_path,sizeof(s_file_path)-1,"/eos/nsbench/level_0_%08u/"
+                     "level_1_%08u/level_2_%08u/file____________________%08u",
+                     (unsigned int)i,(unsigned int)j,(unsigned int)k, (unsigned int)n);
 	    std::string file_path = s_file_path;
-	    eos::FileMD* fmd = view->createFile(file_path, 0,0);
+	    eos::IFileMD* fmd = view->createFile(file_path, 0,0);
 	    // add two locations
 	    fmd->addLocation(k);
 	    fmd->addLocation(k+1);

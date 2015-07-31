@@ -138,19 +138,7 @@ xrdmgmofs_shutdown (int sig)
     eos_static_warning("Shutdown:: finalizing views ... ");
     try
     {
-
-      if (!gOFS->MgmMaster.IsMaster())
-      {
-        // stop the follower thread ...
-        if (gOFS->eosFileService)
-        {
-          gOFS->eosFileService->stopSlave();
-        }
-        if (gOFS->eosDirectoryService)
-        {
-          gOFS->eosDirectoryService->stopSlave();
-        }
-      }
+      gOFS->MgmMaster.ShutdownSlaveFollower();
 
       if (gOFS->eosFsView)
       {	
@@ -162,12 +150,12 @@ xrdmgmofs_shutdown (int sig)
       }
       if (gOFS->eosDirectoryService)
       {
-	gOFS->eosDirectoryService->getChangeLog()->close();
+	gOFS->eosDirectoryService->finalize();
         delete gOFS->eosDirectoryService;
       }
       if (gOFS->eosFileService)
       {
-	gOFS->eosFileService->getChangeLog()->close();
+	gOFS->eosFileService->finalize();
         delete gOFS->eosFileService;
       }
 

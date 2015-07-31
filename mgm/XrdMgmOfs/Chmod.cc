@@ -108,17 +108,14 @@ XrdMgmOfs::_chmod (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD* cmd = 0;
-  eos::ContainerMD* pcmd = 0;
-  eos::FileMD* fmd = 0;
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD* cmd = 0;
+  eos::IContainerMD* pcmd = 0;
+  eos::IFileMD* fmd = 0;
+  eos::IContainerMD::XAttrMap attrmap;
 
   errno = 0;
-
   gOFS->MgmStats.Add("Chmod", vid.uid, vid.gid, 1);
-
   eos_info("path=%s mode=%o", path, Mode);
-
   eos::common::Path cPath(path);
 
   try
@@ -159,14 +156,8 @@ XrdMgmOfs::_chmod (const char *path,
       eos::common::Path pPath(uri.c_str());
       pcmd =gOFS->eosView->getContainer(pPath.GetParentPath());
 
-      eos::ContainerMD::XAttrMap::const_iterator it;
-
-      // ACL and permission check                                                                                                                                                                   
-      Acl acl(pPath.GetParentPath(),
-              error,
-              vid,
-              attrmap,
-              false);
+      // ACL and permission check
+      Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
 
       if (vid.uid && !acl.IsMutable())
       {
@@ -175,8 +166,9 @@ XrdMgmOfs::_chmod (const char *path,
       }
       else
       {
-        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
-            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || // the owner without revoked chmod permissions
+        // If owner without revoked chmod permissions
+        if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || 
+            ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) || 
             (!vid.uid) || // the root user
             (vid.uid == 3) || // the admin user
             (vid.gid == 4) || // the admin group

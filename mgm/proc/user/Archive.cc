@@ -550,8 +550,8 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
   proc_dir.close();
   std::istringstream iss;
-  eos::ContainerMD* cmd = 0;
-  eos::ContainerMD::id_t id;
+  eos::IContainerMD* cmd = 0;
+  eos::IContainerMD::id_t id;
   std::vector<ArchDirStatus> dirs;
 
   {
@@ -687,24 +687,12 @@ bool
 ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
 {
   bool is_allowed = false;
-  eos::ContainerMD::XAttrMap attrmap;
-
-
-  // load evt. the attributes
-  gOFS->_attr_ls(arch_dir.c_str(),
-		 *mError,
-		 *pVid,
-		 0,
-		 attrmap,
-		 false);
+  eos::IContainerMD::XAttrMap attrmap;
+  // Load evt. the attributes
+  gOFS->_attr_ls(arch_dir.c_str(), *mError, *pVid, 0, attrmap, false);
   
-
-  // ACL and permission check                                                                                                                                                                      
-  Acl acl(arch_dir.c_str(),
-          *mError,
-          *pVid,
-          attrmap,
-          true);
+  // ACL and permission check
+  Acl acl(arch_dir.c_str(), *mError, *pVid, attrmap, true);
 
   eos_info("acl=%d a=%d egroup=%d mutable=%d", acl.HasAcl(), acl.CanArchive(),
              acl.HasEgroup(), acl.IsMutable());

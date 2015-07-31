@@ -152,7 +152,8 @@ ProcCommand::Rm ()
 	XrdOucString recyclingAttribute;
 	
 	// check if this path has a recycle attribute
-	gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	gOFS->_attr_get(spath.c_str(), *mError, *pVid, "",
+                        Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
 
         //.......................................................................
         // see if we have a recycle policy set and if avoid to recycle inside

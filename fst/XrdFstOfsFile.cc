@@ -162,6 +162,44 @@ XrdFstOfsFile::openofs (const char* path,
   return XrdOfsFile::open(path, open_mode, create_mode, client, opaque);
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+int
+XrdFstOfsFile::dropall(eos::common::FileId::fileid_t fileid, std::string path, std::string manager)
+{
+  // If we committed the replica and an error happened remote, we have
+  // to unlink it again
+  XrdOucString hexstring = "";
+  eos::common::FileId::Fid2Hex(fileid, hexstring);
+  XrdOucErrInfo error;
+  XrdOucString capOpaqueString = "/?mgm.pcmd=drop";
+  XrdOucString OpaqueString = "";
+  OpaqueString += "&mgm.fid=";
+  OpaqueString += hexstring;
+  OpaqueString += "&mgm.fsid=anyway";
+  OpaqueString += "&mgm.dropall=1";
+  
+  XrdOucEnv Opaque(OpaqueString.c_str());
+  capOpaqueString += OpaqueString;
+  // Delete the replica in the MGM
+  int rcode = gOFS.CallManager(&error, 
+			       path.c_str(),
+			       manager.c_str(), 
+			       capOpaqueString);
+  
+  if (rcode && (rcode != -EIDRM))
+  {
+    eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
+		hexstring.c_str(), fileid, manager.c_str());
+  }
+
+  eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid= drop-allrc=%d",
+	   manager.c_str(), (unsigned long long) fileid,
+	   rcode);
+  return rcode;
+}
 
 //------------------------------------------------------------------------------
 //
@@ -185,6 +223,8 @@ XrdFstOfsFile::open (const char* path,
   XrdOucString stringOpaque = opaque;
   XrdOucString opaqueCheckSum = "";
   std::string sec_protocol = client->prot;
+
+  bool hasCreationMode = (open_mode & SFS_O_CREAT);
 
   while (stringOpaque.replace("?", "&"))
   {
@@ -642,6 +682,9 @@ XrdFstOfsFile::open (const char* path,
     }
   }
 
+  std::string RedirectTried = RedirectManager.c_str();
+  RedirectTried += "?tried=+";
+  RedirectTried += gOFS.mHostName;
 
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
   fileid = eos::common::FileId::Hex2Fid(hexfid);
@@ -889,13 +932,19 @@ XrdFstOfsFile::open (const char* path,
 
   if (!fMd)
   {
-    if (layOut->IsEntryServer() && (!isReplication))
+    if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
     {
       eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
       int ecode = 1094;
       eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
                   RedirectManager.c_str(), ecode);
-      return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+
+      if (hasCreationMode)
+      {
+        // clean-up before re-bouncing
+        dropall(fileid, path, RedirectManager.c_str());
+      }
+      return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
     }
     else
     {
@@ -950,7 +999,14 @@ XrdFstOfsFile::open (const char* path,
         int ecode = 1094;
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
-        return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+
+	if (hasCreationMode)
+	{
+	  // clean-up before re-bouncing
+	  dropall(fileid, path, RedirectManager.c_str());
+	}
+
+        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }
 
       writeErrorFlag = kOfsDiskFullError;
@@ -971,7 +1027,14 @@ XrdFstOfsFile::open (const char* path,
         int ecode = 1094;
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
-        return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+
+	if (hasCreationMode)
+	{
+	  // clean-up before re-bouncing
+	  dropall(fileid, path, RedirectManager.c_str());
+	}
+
+        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }
       else
       {
@@ -1104,18 +1167,8 @@ XrdFstOfsFile::open (const char* path,
       //........................................................................
       // There was a checksum error during the last scan
       //........................................................................
-      if (layOut->IsEntryServer() && (!isReplication))
-      {
-        int ecode = 1094;
-        eos_warning("rebouncing client since our replica has a wrong checksum back to MGM %s:%d",
-                    RedirectManager.c_str(), ecode);
-        return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
-      }
-      else
-      {
-        eos_err("open of %s failed - replica has a checksum mismatch", Path.c_str());
-        return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch", Path.c_str());
-      }
+      eos_err("open of %s failed - replica has a checksum mismatch", Path.c_str());
+      return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch", Path.c_str());
     }
   }
 
@@ -1151,7 +1204,14 @@ XrdFstOfsFile::open (const char* path,
       int ecode = 1094;
       rc = SFS_REDIRECT;
       eos_warning("rebouncing client after open error back to MGM %s:%d", RedirectManager.c_str(), ecode);
-      return gOFS.Redirect(error, RedirectManager.c_str(), ecode);
+
+      if (hasCreationMode)
+      {
+	// clean-up before re-bouncing
+	dropall(fileid, path, RedirectManager.c_str());
+      }
+
+      return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
     }
     else
     {
@@ -1624,7 +1684,7 @@ XrdFstOfsFile::close ()
     XrdOucEnv Opaque(OpaqueString.c_str());
     capOpaqueString += OpaqueString;
 
-    if ((viaDelete || writeDelete || remoteDelete) && isCreation)
+    if ((viaDelete || writeDelete || remoteDelete) && (isCreation || IsChunkedUpload()))
     {
       // It is closed by the constructor e.g. no proper close
       // or the specified checksum does not match the computed one
@@ -1837,11 +1897,17 @@ XrdFstOfsFile::close ()
               capOpaqueFile += checkSum->GetHexChecksum();
             }
 
-            capOpaqueFile += "&mgm.mtime=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime());
-            capOpaqueFile += "&mgm.mtime_ns=";
-            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (unsigned long long) fMd->fMd.mtime_ns());
-            capOpaqueFile += "&mgm.add.fsid=";
+	    capOpaqueFile += "&mgm.mtime=";
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime());
+	    capOpaqueFile += "&mgm.mtime_ns=";
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns());
+
+	    if (haswrite) 
+	    {
+	      capOpaqueFile += "&mgm.modified=1";
+	    }
+
+	    capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) fMd->fMd.fsid();
 
             // If <drainfsid> is set, we can issue a drop replica
@@ -2065,7 +2131,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-    if ( (!isOCchunk) && deleteOnClose && isCreation)
+    if ( deleteOnClose && (isCreation || IsChunkedUpload()) )
     {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());

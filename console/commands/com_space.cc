@@ -327,6 +327,7 @@ com_space_usage:
   fprintf(stdout, "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout, "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)");
   fprintf(stdout, "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
+  fprintf(stdout, "       space config <space-name> space.geo.access.policy.exact=on|off: if 'on' use exact matching geo replica (if available), 'off' uses weighting \n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");

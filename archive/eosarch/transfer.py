@@ -944,7 +944,7 @@ class Transfer(object):
             else:
                 # Set timeout value
                 ratio = indx / int(self.archive.header['num_files'])
-                timeout = int(max_timeout * ratio)
+                timeout = int(max_timeout * (1 - ratio))
 
                 if timeout < min_timeout:
                     timeout = min_timeout

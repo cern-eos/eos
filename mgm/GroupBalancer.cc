@@ -314,7 +314,7 @@ GroupBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid
 /*----------------------------------------------------------------------------*/
 {
   char fileName[1024];
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
 
@@ -445,7 +445,7 @@ GroupBalancer::chooseFidFromGroup (FsGroup *group)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  const eos::FileSystemView::FileList *filelist = 0;
+  const eos::IFsView::FileList *filelist = 0;
   std::vector<int> validFsIndexes(group->size());
   for (size_t i = 0; i < group->size(); i++)
     validFsIndexes[i] = (int) i;
@@ -482,7 +482,7 @@ GroupBalancer::chooseFidFromGroup (FsGroup *group)
     return -1;
 
   int attempts = 10;
-  eos::FileSystemView::FileIterator fid_it;
+  eos::IFsView::FileIterator fid_it;
 
   while (attempts-- > 0)
   {

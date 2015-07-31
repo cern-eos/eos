@@ -68,22 +68,17 @@ Acl::Acl (std::string sysacl,
 //------------------------------------------------------------------------------
 
 Acl::Acl (const char* path,
-
-     XrdOucErrInfo &error,
-     eos::common::Mapping::VirtualIdentity &vid,
-     eos::ContainerMD::XAttrMap &attrmap,
-     bool lockNs)
+          XrdOucErrInfo &error,
+          eos::common::Mapping::VirtualIdentity &vid,
+          eos::IContainerMD::XAttrMap &attrmap,
+          bool lockNs)
 {
-  // get attributes                                                                                                                                                                             
-  gOFS->_attr_ls(path,
-		 error,
-		 vid,
-		 0,
-		 attrmap,
-		 lockNs);
+  // get attributes
+  gOFS->_attr_ls(path, error, vid, 0, attrmap, lockNs);
   // define the acl rules from the attributes
   Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
+      attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""),
+      vid, attrmap.count("sys.eval.useracl"));
 }
 
 

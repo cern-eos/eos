@@ -373,22 +373,24 @@ ProcCommand::Fs ()
            eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
            try
            {
-             eos::FileSystemView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-             eos::FileSystemView::FileList unlinkfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
+             eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+             eos::IFsView::FileList unlinkfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
              nfids_todelete = unlinkfilelist.size();
 
              nfids = (unsigned long long) filelist.size();
-             eos::FileSystemView::FileIterator it;
+             eos::IFsView::FileIterator it;
              for (it = filelist.begin(); it != filelist.end(); ++it)
              {
-               eos::FileMD* fmd = 0;
-               fmd = gOFS->eosFileService->getFileMD(*it);
+               eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(*it);
+
                if (fmd)
                {
-                 eos::FileMD::LocationVector::const_iterator lociter;
-                 size_t nloc = fmd->getNumLocation();
                  size_t nloc_ok = 0;
-                 for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+                 size_t nloc = fmd->getNumLocation();
+                 eos::IFileMD::LocationVector::const_iterator lociter;
+                 eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+                 
+                 for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                  {
                    if (*lociter)
                    {

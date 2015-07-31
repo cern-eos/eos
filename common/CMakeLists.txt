@@ -195,3 +195,27 @@ if (Linux)
     ${CMAKE_THREAD_LIBS_INIT})
 endif()
 endif()
+
+#-------------------------------------------------------------------------------
+# Plugin Manager library
+#-------------------------------------------------------------------------------
+add_library(
+  EosPluginManager SHARED
+  plugin_manager/Plugin.hh
+  Namespace.hh
+  Logging.cc                        Logging.hh
+  plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
+  plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
+
+set_target_properties(
+  EosPluginManager
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES ""
+  MACOSX_RPATH TRUE)
+
+install(
+  TARGETS EosPluginManager
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

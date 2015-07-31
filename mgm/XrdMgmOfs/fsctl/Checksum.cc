@@ -36,7 +36,7 @@
 
   // get the checksum 
   XrdOucString checksum = "";
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   int retc = 0;
 
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);

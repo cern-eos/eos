@@ -75,6 +75,8 @@
 #include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/RWMutex.hh"
+#include "common/SymKeys.hh"
+#include "common/Macros.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
@@ -991,7 +993,7 @@ xrd_rmxattr (const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=xattr&";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=rm&";
   request += "mgm.xattrname=";
   request += xattr_name;
@@ -1058,8 +1060,8 @@ xrd_setxattr (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=xattr&";
+  request += "?";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=set&";
   request += "mgm.xattrname=";
   request += xattr_name;
@@ -1128,8 +1130,8 @@ xrd_getxattr (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=xattr&";
+  request += "?";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=get&";
   request += "mgm.xattrname=";
   request += xattr_name;
@@ -1210,8 +1212,8 @@ xrd_listxattr (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=xattr&";
+  request += "?";
+  request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=ls";
   arg.FromString(request);
 
@@ -1310,8 +1312,12 @@ xrd_stat (const char* path,
       if (iter_file != fd2fabst.end())
       {
         // Force flush so that we get the real current size through the file obj.
-        if (XFC && fuse_cache_write)
+        if (XFC && fuse_cache_write) 
+	{
+	  iter_file->second->mMutexRW.WriteLock();
           XFC->ForceAllWrites(iter_file->second);
+	  iter_file->second->mMutexRW.UnLock();
+	}
 
         struct stat tmp;
         eos::fst::Layout* file = iter_file->second->GetRawFile();
@@ -1337,8 +1343,8 @@ xrd_stat (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=stat";
+  request += "?";
+  request += "mgm.pcmd=stat&eos.app=fuse";
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
@@ -1357,6 +1363,7 @@ xrd_stat (const char* path,
     unsigned long long sval[10];
     unsigned long long ival[6];
     char tag[1024];
+    tag[0]=0;
     // Parse output
     int items = sscanf(response->GetBuffer(),
                        "%s %llu %llu %llu %llu %llu %llu %llu %llu "
@@ -1380,8 +1387,14 @@ xrd_stat (const char* path,
 
     if ((items != 17) || (strcmp(tag, "stat:")))
     {
-      errno = ENOENT;
+      int retc=0;
+      items = sscanf(response->GetBuffer(), "%s retc=%i", tag, &retc);
+      if ( (!strcmp(tag, "stat:")) && (items == 2) )
+	errno = retc;
+      else
+	errno = EFAULT;
       delete response;
+      eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
       return errno;
     }
     else
@@ -1486,8 +1499,8 @@ xrd_statfs (const char* path, struct statvfs* stbuf,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=statvfs&";
+  request += "?";
+  request += "mgm.pcmd=statvfs&eos.app=fuse&";
   request += "path=";
   request += path;
   arg.FromString(request);
@@ -1575,8 +1588,8 @@ xrd_chmod (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=chmod&mode=";
+  request += "?";
+  request += "mgm.pcmd=chmod&eos.app=fuse&mode=";
   request += smode.c_str();
   arg.FromString(request);
 
@@ -1670,8 +1683,8 @@ xrd_utimes (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
-  request += "mgm.pcmd=utimes&tv1_sec=";
+  request += "?";
+  request += "mgm.pcmd=utimes&eos.app=fuse&tv1_sec=";
   char lltime[1024];
   sprintf(lltime, "%llu", (unsigned long long) tvp[0].tv_sec);
   request += lltime;
@@ -1743,7 +1756,7 @@ xrd_symlink(const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=symlink&target=";
+  request += "mgm.pcmd=symlink&eos.app=fuse&target=";
   XrdOucString savelink = link;
   while (savelink.replace("&", "#AND#")){}
   request += savelink.c_str();
@@ -1808,7 +1821,7 @@ xrd_readlink(const char* path,
   XrdCl::Buffer* response = 0;
   request = path;
   request += "?";
-  request += "mgm.pcmd=readlink";
+  request += "mgm.pcmd=readlink&eos.app=fuse";
   arg.FromString(request);
 
   std::string surl=xrd_user_url(uid, gid, pid);
@@ -1900,8 +1913,8 @@ xrd_access (const char* path,
   char smode[16];
   snprintf(smode, sizeof (smode) - 1, "%d", mode);
   request = path;
-  request += '?';
-  request += "mgm.pcmd=access&mode=";
+  request += "?";
+  request += "mgm.pcmd=access&eos.app=fuse&mode=";
   request += smode;
   arg.FromString(request);
 
@@ -2173,7 +2186,7 @@ xrd_mkdir (const char* path,
   request = path;
   request += '?';
   request += "mgm.pcmd=mkdir";
-  request += "&mode=";
+  request += "&eos.app=fuse&mode=";
   request += (int) mode;
   arg.FromString(request);
 
@@ -2394,6 +2407,10 @@ xrd_open (const char* path,
                   path, oflags, mode, uid, pid);
   XrdOucString spath = xrd_user_url(uid, gid, pid);
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
+
+  eos::common::Timing opentiming("xrd_open");
+  COMMONTIMING("START", &opentiming);
+
   spath += path;
   errno = 0;
   int t0;
@@ -2523,9 +2540,7 @@ xrd_open (const char* path,
       file_path.erase(0, spos + 1);
 
     std::string request = file_path;
-    //request += "?mgm.pcmd=open";
-    request += '?';
-    request += "mgm.pcmd=open";
+    request += "?eos.app=fuse&mgm.pcmd=open";
     arg.FromString(request);
 
     std::string surl=xrd_user_url(uid, gid, pid);
@@ -2634,7 +2649,12 @@ xrd_open (const char* path,
   eos_static_debug("the spath is:%s", spath.c_str());
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
                                                      eos::common::LayoutId::kXrdCl);
-  XrdOucString open_cgi = "eos.app=fuse&eos.bookingsize=0";
+  XrdOucString open_cgi = "eos.app=fuse";
+
+  if (oflags & (O_RDWR | O_WRONLY))
+  {
+      open_cgi += "&eos.bookingsize=0";
+  }
 
   if (do_rdahead)
   {
@@ -2668,6 +2688,12 @@ xrd_open (const char* path,
     }
 
     retc = xrd_add_fd2file(file, *return_inode, uid, path);
+
+    COMMONTIMING("end", &opentiming);
+    
+    if (EOS_LOGS_DEBUG)
+    opentiming.Print();
+
     return retc;
   }
 }
@@ -2691,7 +2717,11 @@ xrd_close (int fildes, unsigned long inode, uid_t uid)
   }
 
   if (XFC)
+  {
+    fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
+    fabst->mMutexRW.UnLock();
+  }
 
   // Close file and remove it from all mappings
   ret = xrd_remove_fd2file(fildes, inode, uid);
@@ -2721,7 +2751,9 @@ xrd_flush (int fd)
 
   if (XFC && fuse_cache_write)
   {
+    fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
+    fabst->mMutexRW.UnLock();
     eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
     error_type error;
 
@@ -2754,11 +2786,18 @@ xrd_truncate (int fildes, off_t offset)
     return ret;
   }
 
-  if (XFC && fuse_cache_write)
-    XFC->ForceAllWrites(fabst);
-
   eos::fst::Layout* file = fabst->GetRawFile();
-  ret = file->Truncate(offset);
+
+  if (XFC && fuse_cache_write)
+  {
+    fabst->mMutexRW.WriteLock();
+    XFC->ForceAllWrites(fabst);
+    ret = file->Truncate(offset);
+    fabst->mMutexRW.UnLock();
+  }
+  else
+    ret = file->Truncate(offset);
+
   fabst->DecNumRef();
 
   if (ret == -1)
@@ -2784,7 +2823,7 @@ xrd_pread (int fildes,
   eos_static_debug("fd=%d nbytes=%lu offset=%llu",
                    fildes, (unsigned long) nbyte,
                    (unsigned long long) offset);
-  int64_t ret = -1;
+  ssize_t ret = -1;
   FileAbstraction* fabst = xrd_get_file(fildes);
 
   if (!fabst)
@@ -2813,8 +2852,12 @@ xrd_pread (int fildes,
 
   if (ret == -1)
   {
-    eos_static_err("failed to do read");
+    eos_static_err("failed read off=%ld, len=%u", offset, nbyte);
     errno = EIO;
+  }
+  else if ((size_t)ret != nbyte)
+  {
+    eos_static_warning("read size=%u, returned=%u", nbyte, ret);
   }
 
   if (EOS_LOGS_DEBUG)
@@ -2892,7 +2935,11 @@ xrd_fsync (int fildes)
   }
 
   if (XFC && fuse_cache_write)
+  {
+    fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
+    fabst->mMutexRW.UnLock();
+  }
 
   eos::fst::Layout* file = fabst->GetRawFile();
   ret = file->Sync();
@@ -2952,6 +2999,7 @@ xrd_rename (const char* oldpath,
   surl += xrd_strongauth_cgi(pid);
   XrdCl::URL Url(surl);
   XrdCl::FileSystem fs(Url);
+
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
 
   if (xrd_error_retc_map(status.errNo))
@@ -2978,20 +3026,48 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
     uid = gid = 2;
   }
 
-  char usergroup[16];
-  // we user <hex-uid><hex-gid> as connection identifier
-  snprintf(usergroup,sizeof(usergroup)-1,"%04x%04x", uid,gid);
-  sid += usergroup;
+  unsigned long long bituser=0;
 
+  // emergency mapping of too high user ids to nob
+  if ( uid > 0xfffff) 
+  {
+    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to nobody\" uid=%u", uid);
+    uid = 99;
+  }
+  if ( gid > 0xffff)
+  {
+    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to nobody\" gid=%u", gid);
+    gid = 99;
+  }
+
+  bituser = (uid & 0xfffff);
+  bituser <<= 16;
+  bituser |= (gid & 0xffff);
+  bituser <<= 6;
   {
     XrdSysMutexHelper cLock(connectionIdMutex);
     if (connectionId)
-    {
-      sid = ".";
-      sid += connectionId;
-    }
+      bituser |= (connectionId & 0x3f);
   }
 
+  bituser = h_tonll(bituser);
+
+  XrdOucString sb64;
+  // WARNING: we support only one endianess flavour by doing this
+  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
+  size_t len = sb64.length();
+  // remove the non-informative '=' in the end
+  if (len >2) 
+  {
+    sb64.erase(len-1);
+    len--;
+  }
+  // reduce to 7 b64 letters
+  if (len > 7)
+    sb64.erase(0,len-7);
+  sid = "*";
+  sid += sb64;
+  eos_static_debug("user-ident=%s", sid.c_str());
   return STRINGSTORE(sid.c_str());
 }
 
@@ -3775,7 +3851,18 @@ xrd_init ()
     fuse_shared = true; //eosfsd
 
     // Running as root ... we log into /var/log/eos/fuse
-    eos::common::Path cPath("/var/log/eos/fuse/fuse.log");
+    std::string log_path="/var/log/eos/fuse/fuse.";
+    if (getenv("EOS_FUSE_LOG_PREFIX")) 
+    {
+      log_path += getenv("EOS_FUSE_LOG_PREFIX");
+      log_path += ".log";
+    } 
+    else
+    {
+      log_path += "log";
+    }
+    
+    eos::common::Path cPath(log_path.c_str());
     cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IROTH);
 
     if (!(fstderr = freopen(cPath.GetPath(), "a+", stderr)))

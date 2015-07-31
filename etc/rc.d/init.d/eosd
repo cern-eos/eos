@@ -52,6 +52,7 @@ prog="eosd"
 
 start() {
     for i in ${EOS_FUSE_MOUNTS}; do
+        (
         if [ "$i" = "main" ]; then
             [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
         else 
@@ -78,15 +79,16 @@ start() {
 	export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
 	export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}	
 	export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
-    export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
-    export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
-    export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
-    export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
-    export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
-    export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
-    export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
-    export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
-    export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
+	export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
+	export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
+	export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
+	export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
+	export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
+	export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
+	export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
+	export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
+	export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
+	export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
 
 	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
 	  FUSE_OPT="big_writes,"${FUSE_OPT-""}
@@ -109,8 +111,7 @@ start() {
 	    ulimit -n 65000
 	    test -c /dev/fuse || modprobe fuse
             ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
-            
-            
+                    
             SRETVAL=$?
 	    [ $SRETVAL -eq 0 ] && touch /var/lock/subsys/eosd
             [ $SRETVAL -eq 0 ] && echo_success;
@@ -136,13 +137,15 @@ start() {
 	    echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
 	    echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
 	    echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
+	    echo "EOS_FUSE_LOG_PREFIX       : ${EOS_FUSE_LOG_PREFIX}"
 	else 
 	    echo eosd already running. Pid is $eosdpid 
 	    echo Stop it first with 'service eosd stop'
 	    echo and try again or use directly 'service eosd restart'.
 	    RETVAL=1
 	    echo_warning
-	fi
+        fi
+        )
     done
 }
 

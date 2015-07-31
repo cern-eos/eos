@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Iostat.hh
+// File: Master.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -25,6 +25,7 @@
 #define __EOSMGM_MASTER__HH__
 
 /*----------------------------------------------------------------------------*/
+#include <sys/stat.h>
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/utils/Locking.hh"
@@ -32,55 +33,274 @@
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------------*/
-
 EOSMGMNAMESPACE_BEGIN
-
 
 class Master : public eos::common::LogId
 {
-  // -------------------------------------------------------------
-  // ! steers the master/slave behaviour
-  // -------------------------------------------------------------
-private:
-  XrdOucString fThisHost; // our hostname
-  XrdOucString fMasterHost; // the currently configured master host
-  XrdOucString fRemoteHost; // hostname(+port) of the remote mgm master/slave
-  XrdOucString fRemoteMq; // hostname(+port) of the remote mq  master/slave
-  XrdOucString fThisMq; // hostname(+port) of the local  mq  master/slave
-  XrdOucString fMasterLog; // log output of master/slave interactions
-  bool fActivated; // flag indicating if the activation worked
-  bool fRemoteMasterOk; // indicates if the remote master is up
-  bool fRemoteMasterRW; // indicates if the remote master is in RW = master mode or not
-  bool fRemoteMqOk; // indicates if the remote mq is up
-  pthread_t fThread; // thread id of the heart beat thread
-  bool fCheckRemote; // indicate if we check the remote host status
-  pthread_t fCompactingThread; // thread id of an oncline compacting thread
-  double fCompactingRatio; // compacting ratio for file changelog e.g. 4:1 => 4 times smaller after compaction
-  double fDirCompactingRatio; // compacting ratio for directory changelog e.g. 4:1 => 4 times smaller after compaction
-  bool fCompactFiles; // compact the files changelog file if true
-  bool fCompactDirectories; // compact the directories changelog file if true
-  bool fAutoRepair; // enable auto-repair to skip over broken records during compactification
+ public:
 
-  int fDevNull; // /dev/null filedescriptor
-  XrdSysLogger* fDevNullLogger; // /dev/null logger
-  XrdSysError* fDevNullErr; // /dev/null error
+  //----------------------------------------------------------------------------
+  //! Transition types
+  //----------------------------------------------------------------------------
+  struct Transition
+  {
+    enum Type
+    {
+      kMasterToMaster               = 0,
+      kSlaveToMaster                = 1,
+      kMasterToMasterRO             = 2,
+      kMasterROToSlave              = 3,
+      kSecondarySlaveMasterFailover = 4
+    };
+  };
 
-  unsigned long long fFileNamespaceInode; // inode number of the file namespace file
-  unsigned long long fDirNamespaceInode; // inode number of the dir  namespace file
+  //----------------------------------------------------------------------------
+  //! Running states
+  //----------------------------------------------------------------------------
+  struct Run
+  {
+    enum State
+    {
+      kIsNothing        = 0,
+      kIsRunningMaster  = 1,
+      kIsRunningSlave   = 2,
+      kIsReadOnlyMaster = 3,
+      kIsSecondarySlave = 4,
+      kIsTransition     = 5
+    };
+  };
 
-  // --------------------------------------------
-  // lock class wrapper used by the namespace
-  // --------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Compact states
+  //----------------------------------------------------------------------------
+  struct Compact
+  {
+    enum State
+    {
+      kIsNotCompacting     = 0,
+      kIsCompacting        = 1,
+      kIsCompactingBlocked = 2
+    };
+  };
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  Master();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~Master();
+
+  //----------------------------------------------------------------------------
+  //! Init method to determine the current master/slave state
+  //----------------------------------------------------------------------------
+  bool Init();
+
+  //----------------------------------------------------------------------------
+  //! Boot Namespace according to master slave configuration
+  //----------------------------------------------------------------------------
+  bool BootNamespace();
+
+  //----------------------------------------------------------------------------
+  //! Show the current compacting state
+  //----------------------------------------------------------------------------
+  void PrintOutCompacting(XrdOucString& out);
+
+  //----------------------------------------------------------------------------
+  //! Enable remote check
+  //----------------------------------------------------------------------------
+  bool EnableRemoteCheck();
+
+  //----------------------------------------------------------------------------
+  //! Disable remote check
+  //----------------------------------------------------------------------------
+  bool DisableRemoteCheck();
+
+  //----------------------------------------------------------------------------
+  //! Schedule onlinec ompacting
+  //----------------------------------------------------------------------------
+  bool ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval);
+
+  //----------------------------------------------------------------------------
+  //! Configure Online Compating Type for files and/or directories
+  //----------------------------------------------------------------------------
+  void  SetCompactingType(bool f, bool d, bool r)
+  {
+    fCompactFiles = f;
+    fCompactDirectories = d;
+    fAutoRepair = r;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Start slave follower thread
+  //!
+  //! @param log_file changelog file path
+  //----------------------------------------------------------------------------
+  void StartSlaveFollower(std::string&& log_file);
+
+  //----------------------------------------------------------------------------
+  //! Shutdown slave follower thread
+  //----------------------------------------------------------------------------
+  void ShutdownSlaveFollower();
+
+  //----------------------------------------------------------------------------
+  //! Apply Configuration settings to the master class
+  //----------------------------------------------------------------------------
+  bool ApplyMasterConfig(XrdOucString& stdOut,
+			 XrdOucString& stdErr,
+			 Transition::Type transitiontype);
+
+  //----------------------------------------------------------------------------
+  //! Activate the current master/slave settings = configure configuration
+  //! directory and (re-)load the appropriate configuratio
+  //----------------------------------------------------------------------------
+  bool Activate(XrdOucString& stdOut, XrdOucString& stdErr, int transitiontype);
+
+  //----------------------------------------------------------------------------
+  //! Set the new master host
+  //----------------------------------------------------------------------------
+  bool Set(XrdOucString& mastername, XrdOucString& stdout,
+	   XrdOucString& stdErr);
+
+  //----------------------------------------------------------------------------
+  //! Show the current master/slave run configuration (used by ns stat)
+  //----------------------------------------------------------------------------
+  void PrintOut(XrdOucString& out);
+
+  //----------------------------------------------------------------------------
+  //! Return master host
+  //----------------------------------------------------------------------------
+  const char*
+  GetMasterHost()
+  {
+    return (fMasterHost.c_str()) ? fMasterHost.c_str() : "<none>";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if we are the master host
+  //----------------------------------------------------------------------------
+  bool
+  IsMaster()
+  {
+    return (fThisHost == fMasterHost);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return's a delay time for balancing & draining since after a transition
+  //! we don't know the maps of already scheduled ID's and we have to make
+  //! sure not to reissue a transfer too early!
+  //----------------------------------------------------------------------------
+  size_t GetServiceDelay()
+  {
+    time_t now = time(NULL);
+    XrdSysMutexHelper lock(&f2MasterTransitionTimeMutex);
+    time_t delay = 0;
+
+    if (now > (f2MasterTransitionTime + 3600))
+      delay = 0;
+    else
+      delay = 3600 - (now - f2MasterTransitionTime);
+
+    return delay;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Reset master log
+  //----------------------------------------------------------------------------
+  void
+  ResetLog()
+  {
+    fMasterLog = "";
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get master Log
+  //----------------------------------------------------------------------------
+  void
+  GetLog (XrdOucString &stdOut);
+
+  //----------------------------------------------------------------------------
+  //! Add to master Log
+  //----------------------------------------------------------------------------
+  void
+  MasterLog(const char* log)
+  {
+    if (log && strlen(log))
+    {
+      fMasterLog += log;
+      fMasterLog += "\n";
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Wait that local/remote namespace files are synced (called by slave)
+  //----------------------------------------------------------------------------
+  bool WaitNamespaceFilesInSync(unsigned int timeout = 600);
+
+  //----------------------------------------------------------------------------
+  //! Store the file inodes of the namespace file to see when a file has
+  //! resynced after compactification
+  //----------------------------------------------------------------------------
+  void TagNamespaceInodes();
+
+  //----------------------------------------------------------------------------
+  //! Set a redirect to the remote master for everything
+  //----------------------------------------------------------------------------
+  void RedirectToRemoteMaster();
+
+  //----------------------------------------------------------------------------
+  //! Reboot a slave namespace
+  //----------------------------------------------------------------------------
+  bool RebootSlaveNamespace();
+
+ private:
+
+  int fDevNull; ///< /dev/null filedescriptor
+  Run::State fRunningState; ///< running state
+  Compact::State fCompactingState; ///< compact state
+  time_t fCompactingInterval; ///< compacting duration
+  time_t fCompactingStart; ///< compacting start timestamp
+  time_t f2MasterTransitionTime; ///< transition duration
+  XrdSysMutex fCompactingMutex; ///< compacting mutex
+  XrdSysMutex f2MasterTransitionTimeMutex; ///< transition time mutex
+  XrdOucString fThisHost; ///< our hostname
+  XrdOucString fMasterHost; ///< currently configured master host
+  XrdOucString fRemoteHost; ///< hostname(+port) of the remote mgm master/slave
+  XrdOucString fRemoteMq; ///< hostname(+port) of the remote mq  master/slave
+  XrdOucString fThisMq; ///< hostname(+port) of the local  mq  master/slave
+  XrdOucString fMasterLog; ///< log output of master/slave interactions
+  //! flag indicating if the remote master is in RW = master mode or not
+  bool fRemoteMasterRW;
+  bool fRemoteMqOk; ///< flag indicates if the remote mq is up
+  bool fCheckRemote; ///< indicate if we check the remote host status
+  bool fActivated; ///< flag indicating if the activation worked
+  bool fRemoteMasterOk; ///< flag indicating if the remote master is up
+  bool fCompactFiles; ///< compact the files changelog file if true
+  bool fCompactDirectories; ///< compact the directories changelog file if true
+  pthread_t fThread; ///< heartbeat thread id
+  pthread_t fCompactingThread; ///< online compacting thread id
+  //! compacting ratio for file changelog e.g. 4:1 => 4 times smaller after compaction
+  double fCompactingRatio;
+  //! compacting ratio for directory changelog e.g. 4:1 => 4 times smaller after compaction
+  double fDirCompactingRatio;
+  XrdSysLogger* fDevNullLogger; ///< /dev/null logger
+  XrdSysError* fDevNullErr; ///< /dev/null error
+  unsigned long long fFileNamespaceInode; ///< inode number of the file namespace file
+  unsigned long long fDirNamespaceInode; ///< inode number of the dir  namespace file
+  bool fAutoRepair; ///< enable auto-repair to skip over broken records during compaction
+
+  //----------------------------------------------------------------------------
+  // Lock class wrapper used by the namespace
+  //----------------------------------------------------------------------------
   class RWLock : public eos::LockHandler
   {
-  public:
+   public:
     //--------------------------------------------------------------------------
     // Constructor
     //--------------------------------------------------------------------------
-
-    RWLock ()
+    RWLock()
     {
       pLock = 0;
     }
@@ -88,9 +308,8 @@ private:
     //--------------------------------------------------------------------------
     // Initializer
     //--------------------------------------------------------------------------
-
     void
-    Init (eos::common::RWMutex* mutex)
+    Init(eos::common::RWMutex* mutex)
     {
       pLock = mutex;
     }
@@ -98,9 +317,8 @@ private:
     //------------------------------------------------------------------------
     // Destructor
     //------------------------------------------------------------------------
-
     virtual
-    ~RWLock ()
+    ~RWLock()
     {
       pLock = 0;
     }
@@ -110,325 +328,121 @@ private:
     //------------------------------------------------------------------------
 
     virtual void
-    readLock ()
+    readLock()
     {
-      if (pLock)pLock->LockRead ();
+      if (pLock)pLock->LockRead();
     }
 
     //------------------------------------------------------------------------
     // Take a write lock
     //------------------------------------------------------------------------
-
     virtual void
-    writeLock ()
+    writeLock()
     {
-      if (pLock)pLock->LockWrite ();
+      if (pLock)pLock->LockWrite();
     }
 
     //------------------------------------------------------------------------
     // Unlock
     //------------------------------------------------------------------------
-
     virtual void
-    unLock ()
+    unLock()
     {
-      if (pLock)pLock->UnLockRead (); // it does not matter if UnLockRead or Write is called
+      // Does not matter if UnLockRead or Write is called
+      if (pLock)
+	pLock->UnLockRead();
     }
-  private:
+
+   private:
     eos::common::RWMutex* pLock;
   };
 
   RWLock fNsLock;
 
-public:
+  //----------------------------------------------------------------------------
+  //! Signal the remote master to reload its namespace (issued by master)
+  //----------------------------------------------------------------------------
+  void SignalRemoteReload();
 
-  // transition types
+  //----------------------------------------------------------------------------
+  //! Signal the remote master to bounce all requests to us (issued by master)
+  //----------------------------------------------------------------------------
+  void SignalRemoteBounceToMaster();
 
-  enum
-  {
-    kMasterToMaster = 0, kSlaveToMaster = 1, kMasterToMasterRO = 2, kMasterROToSlave = 3, kSecondarySlaveMasterFailover = 4
-  };
-  // running states
+  //----------------------------------------------------------------------------
+  //! Check if a remote service is reachable on a given port with timeout
+  //----------------------------------------------------------------------------
+  bool HostCheck(const char* hostname, int port = 1094, int timeout = 5);
 
-  enum
-  {
-    kIsNothing = 0, kIsRunningMaster = 1, kIsRunningSlave = 2, kIsReadOnlyMaster = 3, kIsSecondarySlave = 4, kIsTransition = 5
-  };
-  // compacting states
+  //----------------------------------------------------------------------------
+  //! Do a slave=>master transition
+  //----------------------------------------------------------------------------
+  bool Slave2Master();
 
-  enum
-  {
-    kIsNotCompacting = 0, kIsCompacting = 1, kIsCompactingBlocked = 2
-  };
+  //----------------------------------------------------------------------------
+  //! Do a master=>master(ro) transition
+  //----------------------------------------------------------------------------
+  bool Master2MasterRO();
 
-  int fRunningState;
-  int fCompactingState;
-  time_t fCompactingInterval;
-  time_t fCompactingStart;
-  XrdSysMutex fCompactingMutex;
-  
-  time_t f2MasterTransitionTime;
-  XrdSysMutex f2MasterTransitionTimeMutex;
+  //----------------------------------------------------------------------------
+  //! Do a master(ro)=>slave transition = reloac the namspace on a slave from
+  //! the follower file
+  //----------------------------------------------------------------------------
+  bool MasterRO2Slave();
 
-  //------------------------------------------------------------------------
-  // Constructor
-  //------------------------------------------------------------------------
-  Master ();
+  //----------------------------------------------------------------------------
+  //! Create a status file = touch
+  //----------------------------------------------------------------------------
+  bool CreateStatusFile(const char* path);
 
-  //------------------------------------------------------------------------
-  // Destructor
-  //------------------------------------------------------------------------
-  ~Master ();
+  //----------------------------------------------------------------------------
+  //! Remote a status file = rm
+  //----------------------------------------------------------------------------
+  bool RemoveStatusFile(const char* path);
 
-  //------------------------------------------------------------------------
-  // Supervisor Thread Start Function
-  //------------------------------------------------------------------------
-  static void* StaticSupervisor (void*);
+  //----------------------------------------------------------------------------
+  //! Check if we are currently running compacting
+  //----------------------------------------------------------------------------
+  bool IsCompacting();
 
-  //------------------------------------------------------------------------
-  // Online Compacting Thread Start Function
-  //------------------------------------------------------------------------
-  static void* StaticOnlineCompacting (void*);
+  //----------------------------------------------------------------------------
+  //! Check if we are currently blocking the compacting
+  //----------------------------------------------------------------------------
+  bool IsCompactingBlocked();
 
-  //------------------------------------------------------------------------
-  // Supervisor Thread Function
-  //------------------------------------------------------------------------
-  void* Supervisor ();
+  //----------------------------------------------------------------------------
+  //! Un/Block compacting
+  //----------------------------------------------------------------------------
+  void BlockCompacting();
+  void UnBlockCompacting();
 
-  //------------------------------------------------------------------------
-  // Compacting Thread Function
-  //------------------------------------------------------------------------
-  void* Compacting ();
 
-  //------------------------------------------------------------------------
-  // Wait for a compacting round to finish
-  //------------------------------------------------------------------------
-  void WaitCompactingFinished ();
+  //----------------------------------------------------------------------------
+  //! Wait for a compacting round to finish
+  //----------------------------------------------------------------------------
+  void WaitCompactingFinished();
 
-  //------------------------------------------------------------------------
-  // Un/Block compacting
-  //------------------------------------------------------------------------
-  void BlockCompacting ();
-  void UnBlockCompacting ();
+  //----------------------------------------------------------------------------
+  //! Compacting thread function
+  //----------------------------------------------------------------------------
+  void* Compacting();
 
-  //------------------------------------------------------------------------
-  // Show the current compacting state
-  //------------------------------------------------------------------------
-  void PrintOutCompacting (XrdOucString &out);
+  //----------------------------------------------------------------------------
+  //! Supervisor Thread Start Function
+  //----------------------------------------------------------------------------
+  static void* StaticSupervisor(void*);
 
-  //------------------------------------------------------------------------
-  // Check if we are currently running compacting
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Supervisor thread function
+  //----------------------------------------------------------------------------
+  void* Supervisor();
 
-  bool IsCompacting ();
-
-  //------------------------------------------------------------------------
-  // Check if we are currently blocking the compacting
-  //------------------------------------------------------------------------
-
-  bool IsCompactingBlocked ();
-
-  //------------------------------------------------------------------------
-  // Enable Remote Check
-  //------------------------------------------------------------------------
-  bool EnableRemoteCheck ();
-
-  //------------------------------------------------------------------------
-  // Disable Remote Check
-  //------------------------------------------------------------------------
-  bool DisableRemoteCheck ();
-
-  //------------------------------------------------------------------------
-  // ScheduleOnlineCompacting
-  //------------------------------------------------------------------------
-  bool ScheduleOnlineCompacting (time_t starttime, time_t repetitioninterval);
-
-  //------------------------------------------------------------------------
-  // Configure Online Compating Type for files and/or directories
-  //------------------------------------------------------------------------
-  void  SetCompactingType(bool f, bool d, bool r)
-  {
-    fCompactFiles = f;
-    fCompactDirectories = d;
-    fAutoRepair = r;
-  }
-    
-  //------------------------------------------------------------------------
-  // Create a status file = touch
-  //------------------------------------------------------------------------
-  bool CreateStatusFile (const char* path);
-
-  //------------------------------------------------------------------------
-  // Remote a status file = rm
-  //------------------------------------------------------------------------
-  bool RemoveStatusFile (const char* path);
-
-  //------------------------------------------------------------------------
-  // Boot Namespace according to master slave configuration
-  //------------------------------------------------------------------------
-  bool BootNamespace ();
-
-  //------------------------------------------------------------------------
-  // Init Method to determine the current master/slave state
-  //------------------------------------------------------------------------
-  bool Init ();
-
-  //------------------------------------------------------------------------
-  // Apply Configuration settings to the master class
-  //------------------------------------------------------------------------
-  bool ApplyMasterConfig (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype);
-
-  //------------------------------------------------------------------------
-  // Activate the current master/slave settings = configure configuration directory and (re-)load the appropriate configuratio
-  //------------------------------------------------------------------------
-  int Activate (XrdOucString &stdOut, XrdOucString &stdErr, int transitiontype);
-
-  //------------------------------------------------------------------------
-  // Set the master host 
-  //------------------------------------------------------------------------
-  bool Set (XrdOucString &mastername, XrdOucString &stdout, XrdOucString &stdErr); // set's the new master hostname
-
-  //------------------------------------------------------------------------
-  // Do a slave=>master transition
-  //------------------------------------------------------------------------
-  bool Slave2Master ();
-
-  //------------------------------------------------------------------------
-  // Do a master=>master(ro) transition
-  //------------------------------------------------------------------------
-  bool Master2MasterRO ();
-
-  //------------------------------------------------------------------------
-  // Do a master(ro)=>slave transition = reloac the namspace on a slave from the follower file
-  //------------------------------------------------------------------------
-  bool MasterRO2Slave ();
-
-  //------------------------------------------------------------------------
-  // Show the current master/slave run configuration (used by ns stat)
-  //------------------------------------------------------------------------
-  void PrintOut (XrdOucString &out);
-
-  //------------------------------------------------------------------------
-  // Return master host
-  //------------------------------------------------------------------------
-
-  const char*
-  GetMasterHost ()
-  {
-    return (fMasterHost.c_str ()) ? fMasterHost.c_str () : "<none>";
-  }
-
-  //------------------------------------------------------------------------
-  // Check if we are the master host
-  //------------------------------------------------------------------------
-
-  bool
-  IsMaster ()
-  {
-    return (fThisHost == fMasterHost);
-  }
-
-  //------------------------------------------------------------------------
-  // Return's a delay time for balancing & draining since after a transition
-  // we don't know the maps of already scheduled ID's and we have to make
-  // sure not to reissue a transfer too early!
-  //------------------------------------------------------------------------
-  
-  size_t GetServiceDelay () 
-  {
-    time_t now = time(NULL);
-    XrdSysMutexHelper lock(&f2MasterTransitionTimeMutex);
-    time_t delay=0;
-
-    if (now > (f2MasterTransitionTime+3600) )
-    {
-      delay = 0;
-    }
-    else
-    {
-      delay = 3600 - (now-f2MasterTransitionTime);
-    }
-    return delay;
-  }
-  
-  //------------------------------------------------------------------------
-  // Check if the remote is the master host
-  //------------------------------------------------------------------------
-
-  bool
-  IsRemoteMaster ()
-  {
-    return fRemoteMasterRW;
-  }
-
-  //------------------------------------------------------------------------
-  // Check if a remote service is reachable on a given port with timeout
-  //------------------------------------------------------------------------
-  bool HostCheck (const char* hostname, int port = 1094, int timeout = 5);
-
-  //------------------------------------------------------------------------
-  // Reset Master log
-  //------------------------------------------------------------------------
-
-  void
-  ResetLog ()
-  {
-    fMasterLog = "";
-  }
-
-  //------------------------------------------------------------------------
-  // Get Master Log
-  //------------------------------------------------------------------------
-
-  void
-  GetLog (XrdOucString &stdOut);
-
-  //------------------------------------------------------------------------
-  // Add to Master Log
-  //------------------------------------------------------------------------
-
-  void
-  MasterLog (const char* log)
-  {
-    if (log && strlen(log))
-    {
-      fMasterLog += log;
-      fMasterLog += "\n";
-    }
-  }
-
-  //------------------------------------------------------------------------
-  // Signal the remote master to bounce all requests to us (issued by master)
-  //------------------------------------------------------------------------
-  void SignalRemoteBounceToMaster ();
-
-  //------------------------------------------------------------------------
-  // Signal the remote master to reload its namespace (issued by master)
-  //------------------------------------------------------------------------
-  void SignalRemoteReload ();
-
-  //------------------------------------------------------------------------
-  // Wait that local/remote namespace files are synced (called by slave)
-  //------------------------------------------------------------------------
-  bool WaitNamespaceFilesInSync (unsigned int timeout = 600);
-
-  //------------------------------------------------------------------------
-  // Store the file inodes of the namespace file to see when a file has 
-  // resynced after compactification
-  // -----------------------------------------------------------------------
-  void TagNamespaceInodes ();
-
-  // -----------------------------------------------------------------------
-  // Set a redirect to the remote master for everything
-  // -----------------------------------------------------------------------
-  void RedirectToRemoteMaster ();
-
-  // -----------------------------------------------------------------------
-  // Reboot a slave namespace
-  // -----------------------------------------------------------------------
-  bool RebootSlaveNamespace ();
+  //----------------------------------------------------------------------------
+  //! Online compacting thread start function
+  //----------------------------------------------------------------------------
+  static void* StaticOnlineCompacting(void*);
 };
 
 EOSMGMNAMESPACE_END
 
-#endif
+#endif // __EOSMGM_MASTER__HH__

@@ -107,8 +107,8 @@ XrdMgmOfs::_access (const char *path,
 
   eos::common::Path cPath(path);
 
-  eos::ContainerMD* dh = 0;
-  eos::FileMD* fh = 0;
+  eos::IContainerMD* dh = 0;
+  eos::IFileMD* fh = 0;
   bool permok = false;
   uint16_t flags = 0;
   uid_t fuid = 99;
@@ -143,19 +143,19 @@ XrdMgmOfs::_access (const char *path,
   errno = 0;
   try
   {
-    eos::ContainerMD::XAttrMap attrmap;
-
+    eos::IContainerMD::XAttrMap attrmap;
+    
     if (fh || (!dh))
     {
       std::string uri;
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh)
       {
-	uri = gOFS->eosView->getUri(fh);
+        uri = gOFS->eosView->getUri(fh);
       }
       else
       {
-	uri = cPath.GetPath();
+        uri = cPath.GetPath();
       }
 
       eos::common::Path pPath(uri.c_str());
@@ -166,12 +166,8 @@ XrdMgmOfs::_access (const char *path,
 
     permok = dh->access(vid.uid, vid.gid, mode);
 
-    // ACL and permission check                                                                                                                                                                   
-    Acl acl(attr_path.c_str(),
-	    error,
-	    vid,
-	    attrmap,
-	    false);
+    // ACL and permission check
+    Acl acl(attr_path.c_str(), error, vid, attrmap, false);
 
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),

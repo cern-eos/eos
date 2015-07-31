@@ -1,0 +1,39 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Thu Apr 30 16:18:48 2015
+;; Desktop file format version 206
+;; Emacs version 23.1.1
+
+;; Global section:
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring '("calcSize" "::calcSize" "auto " "nextFile" "(0)" "fmd" "The root" "beginFile" "clone" "fmd" "unique" "fmd" "clone" "lociter" "fmd" "fmdcpy"))
+(setq regexp-search-ring nil)
+(setq register-alist nil)
+
+;; Buffer section -- buffers listed in same order as in buffer list:
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/mgm/XrdMgmOfs/Stripes.cc"
+  "Stripes.cc"
+  'c++-mode
+  '(abbrev-mode linum-mode)
+  14837
+  '(14452 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/test/EosNamespaceBenchmark.cc"
+  "EosNamespaceBenchmark.cc"
+  'c++-mode
+  '(abbrev-mode linum-mode)
+  14407
+  '(8468 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+

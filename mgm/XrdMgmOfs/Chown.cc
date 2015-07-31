@@ -62,33 +62,25 @@ XrdMgmOfs::_chown (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD* cmd = 0;
-  eos::FileMD* fmd = 0;
+  eos::IContainerMD* cmd = 0;
+  eos::IFileMD* fmd = 0;
   errno = 0;
-
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
-
   eos_info("path=%s uid=%u gid=%u", path, uid, gid);
 
   // try as a directory
   try
   {
-    eos::ContainerMD* pcmd = 0;
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD* pcmd = 0;
+    eos::IContainerMD::XAttrMap attrmap;
 
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
     eos::common::Path pPath(gOFS->eosView->getUri(cmd).c_str());
     pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
-
-    eos::ContainerMD::XAttrMap::const_iterator it;
-
-    // ACL and permission check                                                                                                                                                                   
-    Acl acl(pPath.GetParentPath(),
-	    error,
-	    vid,
-	    attrmap,
-	    false);
+    eos::IContainerMD::XAttrMap::const_iterator it;
+    // ACL and permission check
+    Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
 
     cmd = gOFS->eosView->getContainer(path);
     if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
@@ -132,7 +124,8 @@ XrdMgmOfs::_chown (const char *path,
       uri = gOFS->eosView->getUri(cmd);
 
       SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
-      eos::QuotaNode* quotanode = 0;
+      eos::IQuotaNode* quotanode = 0;
+      
       if (space)
       {
         quotanode = space->GetQuotaNode();

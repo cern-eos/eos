@@ -261,7 +261,7 @@ GeoBalancer::populateGeotagsInfo ()
 
 /*----------------------------------------------------------------------------*/
 bool
-GeoBalancer::fileIsInDifferentLocations(const eos::FileMD *fmd)
+GeoBalancer::fileIsInDifferentLocations(const eos::IFileMD *fmd)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Checks if a file is spread in more than one location
@@ -270,9 +270,11 @@ GeoBalancer::fileIsInDifferentLocations(const eos::FileMD *fmd)
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::FileMD::LocationVector::const_iterator lociter;
   const std::string *geotag = 0;
-  for (lociter = fmd->locationsBegin(); lociter != fmd->locationsEnd(); ++lociter)
+  eos::IFileMD::LocationVector::const_iterator lociter;
+  eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+
+  for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
   {
     // ignore filesystem id 0
     if (!(*lociter))
@@ -305,7 +307,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
 /*----------------------------------------------------------------------------*/
 {
   char fileName[1024];
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
 
@@ -450,7 +452,7 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  const eos::FileSystemView::FileList *filelist = 0;
+  const eos::IFsView::FileList *filelist = 0;
   std::vector<eos::common::FileSystem::fsid_t> &validFs = mGeotagFs[geotag];
 
   eos::common::FileSystem::fsid_t fsid;
@@ -484,7 +486,7 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
     return -1;
 
   int attempts = 10;
-  eos::FileSystemView::FileIterator fid_it;
+  eos::IFsView::FileIterator fid_it;
 
   while (attempts-- > 0)
   {

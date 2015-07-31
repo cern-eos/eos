@@ -118,7 +118,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
   // ---------------------------------------------------------------------------
   errno = 0;
-  eos::FileMD* fmd = 0;
+  eos::IFileMD* fmd = 0;
   eos::common::Path cPath(path);
 
   // ---------------------------------------------------------------------------

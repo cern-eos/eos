@@ -36,7 +36,6 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
-#include "namespace/ContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -46,6 +45,12 @@
 #include <string>
 #include <set>
 /*----------------------------------------------------------------------------*/
+
+//! Forward declaration
+namespace eos
+{
+class IContainerMD;
+};
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing directories and operations
@@ -118,21 +123,13 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-
-  XrdMgmOfsDirectory (char *user = 0, int MonID = 0) : XrdSfsDirectory (user, MonID)
-  {
-    dirName = "";
-    dh = 0;
-    d_pnt = &dirent_full.d_entry;
-    eos::common::Mapping::Nobody (vid);
-    eos::common::LogId ();
-  }
+  XrdMgmOfsDirectory (char *user = 0, int MonID = 0);
 
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
+  ~XrdMgmOfsDirectory () {};
 
-  ~XrdMgmOfsDirectory () { }
 private:
 
   struct
@@ -145,7 +142,7 @@ private:
   std::string dirName;
   eos::common::Mapping::VirtualIdentity vid;
 
-  eos::ContainerMD* dh;
+  eos::IContainerMD* dh;
   std::set<std::string> dh_list;
   std::set<std::string>::const_iterator dh_it;
 };

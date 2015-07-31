@@ -163,8 +163,8 @@
 
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-    eos::FileSystemView::FileList source_filelist;
-    eos::FileSystemView::FileList target_filelist;
+    eos::IFsView::FileList source_filelist;
+    eos::IFsView::FileList target_filelist;
 
     try
     {
@@ -191,12 +191,12 @@
     eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u n_source_fids=%llu",
                      target_snapshot.mGroup.c_str(), gposition, source_fsid, target_fsid, nfids);
     unsigned long long rpos = (unsigned long long) ((0.999999 * random() * nfids) / RAND_MAX);
-    eos::FileSystemView::FileIterator fit = source_filelist.begin();
+    eos::IFsView::FileIterator fit = source_filelist.begin();
     std::advance(fit, rpos);
     while (fit != source_filelist.end())
     {
       // check that the target does not have this file
-      eos::FileMD::id_t fid = *fit;
+      eos::IFileMD::id_t fid = *fit;
       if (target_filelist.count(fid))
       {
         // iterate to the next file, we have this file already
@@ -234,7 +234,7 @@
         }
         else
         {
-          eos::FileMD* fmd = 0;
+          eos::IFileMD* fmd = 0;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;

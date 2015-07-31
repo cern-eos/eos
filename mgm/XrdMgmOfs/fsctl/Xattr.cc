@@ -53,7 +53,7 @@
       XrdOucString subcmd = sub_cmd;
       if (subcmd == "ls")
       { //listxattr
-        eos::ContainerMD::XAttrMap map;
+        eos::IContainerMD::XAttrMap map;
         int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
 
         XrdOucString response = "lsxattr: retc=";
@@ -138,7 +138,7 @@
   { //extended attributes for files
 
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::FileMD* fmd = 0;
+    eos::IFileMD* fmd = 0;
     try
     {
       fmd = gOFS->eosView->getFile(spath.c_str());

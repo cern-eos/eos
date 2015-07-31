@@ -233,6 +233,7 @@ Scheduler::FileAccess (
                        eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                        unsigned long forcedfsid, //< forced file system for access
                        const char* forcedspace, //< forced space for access
+		       std::string tried_cgi, //< cgi referencing already tried hosts 
                        unsigned long lid, //< layout of the file
                        std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
                        unsigned long &fsindex, //< return index pointing to layout entry filesystem
@@ -243,16 +244,16 @@ Scheduler::FileAccess (
                        std::string overridegeoloc, //< override geolocation defined in virtual id
                        bool noIO)
 {
-  //! -------------------------------------------------------------
-  //! the read(/write) access routine
-  //! -------------------------------------------------------------
-  size_t nReqStripes = isRW?eos::common::LayoutId::GetOnlineStripeNumber(lid):eos::common::LayoutId::GetMinOnlineReplica(lid);
-	eos_static_debug("requesting file access from geolocation %s",vid.geolocation.c_str());
-
+  // Read(/write) access routine
+  size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid):
+      eos::common::LayoutId::GetMinOnlineReplica(lid);
+  eos_static_debug("requesting file access from geolocation %s",vid.geolocation.c_str());
+  
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,
 						       isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
-							   overridegeoloc.empty()?vid.geolocation:overridegeoloc,forcedfsid,&unavailfs,noIO);
-      }
-
+                                                       overridegeoloc.empty() ?
+                                                       vid.geolocation :
+                                                       overridegeoloc,forcedfsid,&unavailfs,noIO);
+}
 
 EOSMGMNAMESPACE_END

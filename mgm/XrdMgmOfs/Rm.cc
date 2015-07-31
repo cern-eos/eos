@@ -142,10 +142,9 @@ XrdMgmOfs::_rem (const char *path,
   gOFS->eosViewRWMutex.LockWrite();
 
   // free the booked quota
-  eos::FileMD* fmd = 0;
-  eos::ContainerMD* container = 0;
-
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IFileMD* fmd = 0;
+  eos::IContainerMD* container = 0;
+  eos::IContainerMD::XAttrMap attrmap;
 
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
@@ -175,19 +174,14 @@ XrdMgmOfs::_rem (const char *path,
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       aclpath = gOFS->eosView->getUri(container);
       eos_info("got container=%lld", (unsigned long long) container);
-
     }
     catch (eos::MDException &e)
     {
       container = 0;
     }
 
-    // ACL and permission check                                                                                                                                                                       
-    Acl acl(aclpath.c_str(),
-	    error,
-	    vid,
-	    attrmap,
-	    false);
+    // ACL and permission check
+    Acl acl(aclpath.c_str(), error, vid, attrmap, false);
 
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
     if (vid.uid && !acl.IsMutable())
@@ -282,7 +276,7 @@ XrdMgmOfs::_rem (const char *path,
         // ---------------------------------------------------------------------
         if (!simulate)
         {
-          eos::QuotaNode* quotanode = 0;
+          eos::IQuotaNode* quotanode = 0;
           try
           {
             quotanode = gOFS->eosView->getQuotaNode(container);
@@ -332,24 +326,21 @@ XrdMgmOfs::_rem (const char *path,
 
   if (doRecycle && (!simulate))
   {
-    // -------------------------------------------------------------------------
-    // two-step deletion re-cycle logic
-    // -------------------------------------------------------------------------
-
-    // copy the meta data to be able to unlock
-    eos::FileMD fmdCopy(*fmd);
-    fmd = &fmdCopy;
+    // Two-step deletion re-cycle logic
+    std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
+    fmd = (eos::IFileMD*)(0);
     gOFS->eosViewRWMutex.UnLockWrite();
+    // -------------------------------------------------------------------------
 
     SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(attrmap[Recycle::gRecyclingAttribute].c_str());
     eos_info("%llu %s", namespacequota, attrmap[Recycle::gRecyclingAttribute].c_str());
     if (namespacequota)
     {
       // there is quota defined on that recycle path
-      if (!namespacequota->CheckWriteQuota(fmd->getCUid(),
-                                           fmd->getCGid(),
-                                           fmd->getSize(),
-                                           fmd->getNumLocation()))
+      if (!namespacequota->CheckWriteQuota(fmd_cpy->getCUid(),
+                                           fmd_cpy->getCGid(),
+                                           fmd_cpy->getSize(),
+                                           fmd_cpy->getNumLocation()))
       {
         // ---------------------------------------------------------------------
         // this is the very critical case where we have to reject to delete
@@ -373,8 +364,8 @@ XrdMgmOfs::_rem (const char *path,
         int rc = 0;
 
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
-                         &vid, fmd->getCUid(), fmd->getCGid(), fmd->getId());
-
+                         &vid, fmd_cpy->getCUid(), fmd_cpy->getCGid(),
+                         fmd_cpy->getId());
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {

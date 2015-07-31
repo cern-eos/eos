@@ -109,14 +109,14 @@ XrdMgmOfs::_remdir (const char *path,
 
   gOFS->MgmStats.Add("RmDir", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* dhpar = 0;
-  eos::ContainerMD* dh = 0;
+  eos::IContainerMD* dhpar = 0;
+  eos::IContainerMD* dh = 0;
 
-  eos::ContainerMD::id_t dh_id = 0;
-  eos::ContainerMD::id_t dhpar_id = 0;
+  eos::IContainerMD::id_t dh_id = 0;
+  eos::IContainerMD::id_t dhpar_id = 0;
 
   eos::common::Path cPath(path);
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
 
   // ---------------------------------------------------------------------------
   // make sure this is not a quota node
@@ -165,12 +165,8 @@ XrdMgmOfs::_remdir (const char *path,
     return Emsg(epname, error, errno, "rmdir", path);
   }
    
-  // ACL and permission check                                                                                                                                                                   
-  Acl acl(aclpath.c_str(),
-	  error,
-	  vid,
-	  attrmap,
-	  false);
+  // ACL and permission check
+  Acl acl(aclpath.c_str(), error, vid, attrmap, false);
 
   if (vid.uid && !acl.IsMutable())
   {

@@ -25,7 +25,6 @@
 #include "mgm/Quota.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "namespace/accounting/QuotaStats.hh"
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 /*----------------------------------------------------------------------------*/
@@ -54,8 +53,7 @@ SpaceQuota::SpaceQuota (const char* name)
   On = false;
 
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD *quotadir = 0;
-
+  eos::IContainerMD *quotadir = 0;
   std::string path = name;
 
   if (path[0] == '/')
@@ -129,7 +127,7 @@ bool
 SpaceQuota::UpdateQuotaNodeAddress ()
 {
   // this routine has to be called with eosViewMutexRW locked
-  eos::ContainerMD *quotadir = 0;
+  eos::IContainerMD *quotadir = 0;
 
   try
   {
@@ -158,7 +156,7 @@ SpaceQuota::RemoveQuotaNode (XrdOucString &msg, int &retc)
 
 {
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  eos::ContainerMD *quotadir = 0;
+  eos::IContainerMD *quotadir = 0;
   try
   {
     quotadir = gOFS->eosView->getContainer(SpaceName.c_str());
@@ -190,7 +188,7 @@ SpaceQuota::UpdateLogicalSizeFactor ()
   eos::common::Mapping::VirtualIdentity vid;
   eos::common::Mapping::Root(vid);
   vid.sudoer = 1;
-  eos::ContainerMD::XAttrMap map;
+  eos::IContainerMD::XAttrMap map;
 
   int retc = gOFS->_attr_ls(SpaceName.c_str(),
                             error,
@@ -1481,7 +1479,7 @@ Quota::RmSpaceQuota (XrdOucString space, XrdOucString &msg, int &retc)
 /*----------------------------------------------------------------------------*/
 
 uint64_t
-Quota::MapSizeCB (const eos::FileMD * file)
+Quota::MapSizeCB (const eos::IFileMD * file)
 {
   //------------------------------------------------------------------------
   //! Callback function for the namespace to calculate how much space a file occupies
@@ -1490,7 +1488,7 @@ Quota::MapSizeCB (const eos::FileMD * file)
   if (!file)
     return 0;
   
-  eos::FileMD::layoutId_t lid = file->getLayoutId();
+  eos::IFileMD::layoutId_t lid = file->getLayoutId();
   
   return (unsigned long long) 
     file->getSize()*eos::common::LayoutId::GetSizeFactor(lid);
@@ -1502,25 +1500,25 @@ Quota::LoadNodes ()
 {
   // iterate over the defined quota nodes and make them visible as SpaceQuota
   eos::common::RWMutexReadLock lock(gQuotaMutex);
-  eos::QuotaStats::NodeMap::iterator it;
+  eos::IQuotaStats::NodeMap::iterator it;
   std::vector<std::string> createQuota;
 
   // load all known nodes
   {
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     
-    for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
+    for (it = gOFS->eosView->getQuotaStats()->nodesBegin();
+         it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
     {
       try
       {
-	eos::ContainerMD::id_t id = it->first;
-	eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+	eos::IContainerMD::id_t id = it->first;
+	eos::IContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
 	std::string quotapath = gOFS->eosView->getUri(container);
 	SpaceQuota* spacequota = Quota::GetSpaceQuota(quotapath.c_str(), true);
+
 	if (!spacequota)
-	{
 	  createQuota.push_back(quotapath);
-	}
       }
       catch (eos::MDException &e)
       {
@@ -1536,14 +1534,11 @@ Quota::LoadNodes ()
   {
     SpaceQuota* spacequota = Quota::GetSpaceQuota(createQuota[i].c_str(), false);
     spacequota = Quota::GetSpaceQuota(createQuota[i].c_str(), false);
+
     if (spacequota)
-    {
       eos_static_notice("Created space for quota node: %s", createQuota[i].c_str());
-    }
     else
-    {
       eos_static_err("Failed to create space for quota node: %s\n", createQuota[i].c_str());
-    }
   }
 }
 
@@ -1554,13 +1549,13 @@ Quota::NodesToSpaceQuota ()
   eos::common::RWMutexReadLock locker(gQuotaMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
   // inserts the current state of the quota nodes into SpaceQuota's 
-  eos::QuotaStats::NodeMap::iterator it;
+  eos::IQuotaStats::NodeMap::iterator it;
   for (it = gOFS->eosView->getQuotaStats()->nodesBegin(); it != gOFS->eosView->getQuotaStats()->nodesEnd(); it++)
   {
     try
     {
-      eos::ContainerMD::id_t id = it->first;
-      eos::ContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
+      eos::IContainerMD::id_t id = it->first;
+      eos::IContainerMD* container = gOFS->eosDirectoryService->getContainerMD(id);
       std::string quotapath = gOFS->eosView->getUri(container);
       NodeToSpaceQuota(quotapath.c_str());
     }
@@ -1589,8 +1584,8 @@ Quota::NodeToSpaceQuota (const char* name)
   if (spacequota && spacequota->UpdateQuotaNodeAddress() && spacequota->GetQuotaNode())
   {
     // insert current state of a single quota node into a SpaceQuota
-    eos::QuotaNode::UserMap::const_iterator itu;
-    eos::QuotaNode::GroupMap::const_iterator itg;
+    eos::IQuotaNode::UserMap::const_iterator itu;
+    eos::IQuotaNode::GroupMap::const_iterator itg;
 
     spacequota->ResetQuota(SpaceQuota::kGroupBytesIs, gProjectId);
     spacequota->ResetQuota(SpaceQuota::kGroupFilesIs, gProjectId);

@@ -120,13 +120,10 @@
 #include "mgm/VstMessaging.hh"
 #include "mgm/ProcInterface.hh"
 #include "mgm/http/HttpServer.hh"
-#include "namespace/IView.hh"
-#include "namespace/IFileMDSvc.hh"
-#include "namespace/IContainerMDSvc.hh"
-#include "namespace/views/HierarchicalView.hh"
-#include "namespace/accounting/FileSystemView.hh"
-#include "namespace/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFsView.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
@@ -568,7 +565,7 @@ public:
                XrdOucErrInfo &out_error,
                const XrdSecEntity *client,
                const char *opaque,
-               eos::ContainerMD::XAttrMap &map);
+               eos::IContainerMD::XAttrMap &map);
 
   // ---------------------------------------------------------------------------
   // set extended attribute of a directory
@@ -606,9 +603,9 @@ public:
                 XrdOucErrInfo &out_error,
                 eos::common::Mapping::VirtualIdentity &vid,
                 const char *opaque,
-                eos::ContainerMD::XAttrMap &map,
-                bool lock = true,
-                bool links = false);
+                eos::IContainerMD::XAttrMap &map,
+		bool lock=true,
+		bool links=false);
 
   // ---------------------------------------------------------------------------
   // set extended attribute by vid
@@ -701,7 +698,7 @@ public:
   // ---------------------------------------------------------------------------
   // replicate stripe providing file meta data by vid
   // ---------------------------------------------------------------------------
-  int _replicatestripe (eos::FileMD* fmd,
+  int _replicatestripe (eos::IFileMD* fmd,
                         const char* path,
                         XrdOucErrInfo &error,
                         eos::common::Mapping::VirtualIdentity &vid,
@@ -915,7 +912,7 @@ public:
   //! caching and see when there was a modification we keep an inmemory table
   //! with this modification times.
   //----------------------------------------------------------------------------
-  void UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id);
+  void UpdateNowInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Update the modification time for a directory to the given time
@@ -930,9 +927,9 @@ public:
   //! sync clients to discover changes in a subtree if sys.mtime.propagation was
   //! set as a directory attribute.
   //----------------------------------------------------------------------------
-  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
-                                                eos::ContainerMD::ctime_t &ctime);
-
+  void UpdateInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id,
+                                                eos::IContainerMD::ctime_t &ctime);
+  
   // ---------------------------------------------------------------------------
   // Retrieve a mapping for a given path
   // ---------------------------------------------------------------------------
@@ -1098,10 +1095,10 @@ public:
   // ---------------------------------------------------------------------------
   // namespace variables
   // ---------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc *eosDirectoryService; //< changelog for directories
-  eos::ChangeLogFileMDSvc *eosFileService; //< changelog for files
+  eos::IContainerMDSvc *eosDirectoryService; //< changelog for directories
+  eos::IFileMDSvc *eosFileService; //< changelog for files
   eos::IView *eosView; //< hierarchical view of the namespace
-  eos::FileSystemView *eosFsView; //< filesystem view of the namespace
+  eos::IFsView *eosFsView; //< filesystem view of the namespace
   XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
   XrdOucString MgmMetaLogDir; //  Directory containing the meta data (change) log files
@@ -1184,16 +1181,20 @@ private:
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
 
 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with
   //!
   //! @param reqProto request ProtocolBuffer from an authentication plugin
   //!
   //! @return true if request is valid, otherwise false
-  //! 
-  //------------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   bool ValidAuthRequest(eos::auth::RequestProto* reqProto);
+
   
+  //----------------------------------------------------------------------------
+  //! Initialize MGM statistics to 0
+  //----------------------------------------------------------------------------
+  void InitStats();
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

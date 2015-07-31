@@ -33,7 +33,7 @@ XrdMgmOfs::attr_ls (const char *inpath,
                     XrdOucErrInfo &error,
                     const XrdSecEntity *client,
                     const char *ininfo,
-                    eos::ContainerMD::XAttrMap & map)
+                    eos::IContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given directory
@@ -228,7 +228,7 @@ XrdMgmOfs::_attr_ls (const char *path,
                      XrdOucErrInfo &error,
                      eos::common::Mapping::VirtualIdentity &vid,
                      const char *info,
-                     eos::ContainerMD::XAttrMap & map,
+                     eos::IContainerMD::XAttrMap & map,
                      bool lock,
                      bool links)
 /*----------------------------------------------------------------------------*/
@@ -248,7 +248,7 @@ XrdMgmOfs::_attr_ls (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_ls";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrLs");
@@ -262,7 +262,7 @@ XrdMgmOfs::_attr_ls (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(path);
-    eos::ContainerMD::XAttrMap::const_iterator it;
+    eos::IContainerMD::XAttrMap::const_iterator it;
     for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
     {
       map[it->first] = it->second;
@@ -281,7 +281,7 @@ XrdMgmOfs::_attr_ls (const char *path,
     try
     {
       dh = gOFS->eosView->getContainer(map["sys.attr.link"]);
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
       {
         XrdOucString key = it->first.c_str();
@@ -338,7 +338,7 @@ XrdMgmOfs::_attr_set (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_set";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrSet");
@@ -433,7 +433,7 @@ XrdMgmOfs::_attr_get (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_get";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrGet");
@@ -516,7 +516,7 @@ XrdMgmOfs::_attr_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_rm";
-  eos::ContainerMD *dh = 0;
+  eos::IContainerMD *dh = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrRm");
@@ -587,7 +587,7 @@ XrdMgmOfs::_attr_clear (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  eos::ContainerMD::XAttrMap map;
+  eos::IContainerMD::XAttrMap map;
 
   if (_attr_ls(path, error, vid, info, map))
   {

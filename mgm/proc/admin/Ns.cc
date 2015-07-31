@@ -181,7 +181,8 @@ ProcCommand::Ns ()
    XrdOucString sizestring;
 
    // statistic for the changelog files
-   if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) && (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd)))
+   if ((!::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &statf)) &&
+       (!::stat(gOFS->MgmNsDirChangeLogFile.c_str(), &statd)))
    {
      eos::common::StringConversion::GetReadableSizeString(clfsize, (unsigned long long) statf.st_size, "B");
      eos::common::StringConversion::GetReadableSizeString(cldsize, (unsigned long long) statd.st_size, "B");

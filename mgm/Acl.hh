@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
-#include "namespace/ContainerMD.hh"
+#include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -111,7 +111,7 @@ public:
   Acl (const char* path,
        XrdOucErrInfo &error,
        eos::common::Mapping::VirtualIdentity &vid,
-       eos::ContainerMD::XAttrMap &attrmap,
+       eos::IContainerMD::XAttrMap &attrmap,
        bool lockNs);
   
   /*--------------------------------------------------------------------------*/

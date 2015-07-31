@@ -141,29 +141,6 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   }
 
   std::string etag = "undef";
-  // ------------------------------------------------------------------------------
-  // owncloud protocol emulator
-  // ------------------------------------------------------------------------------
-
-  // ------------------------------------------------------------------------------
-  // commment status.php functionality
-  //if (eos::common::OwnCloud::WantsStatus(spath))
-  //{
-  //XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-  //XrdOucString val;
-  //if (gOFS->attr_get(spath.c_str(), error, &client, "", eos::common::OwnCloud::GetAllowSyncName() , val))
-  //{
-  //response = HttpServer::HttpError("No sync allowed in this tree",
-  //response->METHOD_NOT_ALLOWED);
-  //return response;
-  //}
-  //else
-  //{
-  //std::string data = "{\"installed\":\"true\",\"version\":\"5.0.28\",\"versionstring\":\"5.0.14a\",\"edition\":\"Enterprise\"}";
-  //response = HttpServer::HttpData(data.c_str(), data.length());
-  //return response;
-  //}
-  //}
 
   eos::common::OwnCloud::OwnCloudRemapping(spath, request);
   eos::common::OwnCloud::ReplaceRemotePhp(spath);
@@ -171,6 +148,47 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
   if (!spath.beginswith("/proc/"))
   {
     XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+    {
+      // check if this is a symlink
+      XrdOucString link;
+
+      if ((!gOFS->_readlink(url.c_str(),
+                            error,
+                            *mVirtualIdentity,
+                            link)) && (link != ""))
+      {
+        if (gOFS->access(url.c_str(),
+                         R_OK,
+                         error,
+                         &client,
+                         ""))
+        {
+          // no permission
+          eos_static_info("method=GET error=EPERM path=%s",
+                          url.c_str());
+          response = HttpServer::HttpError("No such file or directory",
+                                           response->FORBIDDEN);
+          return response;
+        }
+        // create an external redirect
+        response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(eos::common::HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
+        response->AddHeader("Location", link.c_str());
+        response->AddHeader("X-Accel-Redirect", link.c_str());
+        response->AddHeader("X-Sendfile", link.c_str());
+        return response;
+      }
+    }
+
+    if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
+    {
+      eos_static_info("method=GET error=ENOENT path=%s",
+                      url.c_str());
+      response = HttpServer::HttpError("No such file or directory",
+                                       response->NOT_FOUND);
+      return response;
+    }
 
     if (gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
     {
@@ -202,21 +220,21 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
     }
 
     // find out if it is a file or directory
-    if (S_ISDIR(buf.st_mode)) 
+    if (S_ISDIR(buf.st_mode))
     {
       isfile = false;
-      if (isHEAD) 
+      if (isHEAD)
       {
-	// HEAD requests for dirs just act like 'exists'
-	eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
-			buf.st_size,
-			url.c_str());
-	
-	response = new eos::common::PlainHttpResponse();
-	response->SetBody("");
-	response->AddHeader("ETag", etag);
-	response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-	return response;
+        // HEAD requests for dirs just act like 'exists'
+        eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=dir",
+                        buf.st_size,
+                        url.c_str());
+
+        response = new eos::common::PlainHttpResponse();
+        response->SetBody("");
+        response->AddHeader("ETag", etag);
+        response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+        return response;
       }
     }
     else
@@ -224,122 +242,64 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       isfile = true;
       if (isHEAD)
       {
-	std::string basename = url.substr(url.rfind("/") + 1);
-	eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
-			buf.st_size,
-			url.c_str());
-	// HEAD requests on files can return from the MGM without redirection
-	response = HttpServer::HttpHead(buf.st_size, basename);
-	response->AddHeader("ETag", etag);
-	response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-	return response;
-      }
-    }
-  }
-
-  if (isfile)
-  {
-    eos_static_info("method=GET file=%s tident=%s query=%s",
-                    url.c_str(), client.tident, query.c_str());
-    XrdSfsFile* file = gOFS->newFile((char*) mVirtualIdentity->tident.c_str());
-    if (file)
-    {
-      XrdSfsFileOpenMode open_mode = 0;
-      mode_t create_mode = 0;
-
-      int rc = file->open(url.c_str(), open_mode, create_mode, &client,
-                          query.c_str());
-      if ((rc != SFS_REDIRECT) && open_mode)
-      {
-        // retry as a file creation
-        open_mode |= SFS_O_CREAT;
-        rc = file->open(url.c_str(), open_mode, create_mode, &client,
-                        query.c_str());
-      }
-
-      if (rc != SFS_OK)
-      {
-        if (rc == SFS_REDIRECT)
-        {
-          // the embedded server on FSTs is hardcoded to run on port 8001
-          response = HttpServer::HttpRedirect(request->GetUrl(),
-                                              file->error.getErrText(),
-                                              8001, false);
-        }
-        else
-          if (rc == SFS_ERROR)
-        {
-          if (file->error.getErrInfo() == ENODEV)
-          {
-            response = new eos::common::PlainHttpResponse();
-          }
-          else
-          {
-            response = HttpServer::HttpError(file->error.getErrText(),
-                                             file->error.getErrInfo());
-          }
-        }
-        else
-          if (rc == SFS_DATA)
-        {
-          response = HttpServer::HttpData(file->error.getErrText(),
-                                          file->error.getErrInfo());
-        }
-        else
-          if (rc == SFS_STALL)
-        {
-          response = HttpServer::HttpStall(file->error.getErrText(),
-                                           file->error.getErrInfo());
-        }
-        else
-        {
-          response = HttpServer::HttpError("Unexpected result from file open",
-                                           EOPNOTSUPP);
-        }
+        std::string basename = url.substr(url.rfind("/") + 1);
+        eos_static_info("cmd=GET(HEAD) size=%llu path=%s type=file",
+                        buf.st_size,
+                        url.c_str());
+        // HEAD requests on files can return from the MGM without redirection
+        response = HttpServer::HttpHead(buf.st_size, basename);
         response->AddHeader("ETag", etag);
+        response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+        return response;
       }
-      else
-      {
-        char buffer[65536];
-        offset_t offset = 0;
-        std::string result;
-        do
-        {
-          size_t nread = file->read(offset, buffer, sizeof (buffer));
-
-          if (nread > 0)
-          {
-            result.append(buffer, nread);
-          }
-          if (nread != sizeof (buffer))
-          {
-            break;
-          }
-          offset += nread;
-        }
-        while (1);
-        file->close();
-
-        response = new eos::common::PlainHttpResponse();
-
-        XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
-
-        if (!gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
-        {
-          response->AddHeader("ETag", etag);
-          response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
-        }
-        response->SetBody(result);
-      }
-      // clean up the object
-      delete file;
     }
   }
-  else
+
+  if (!isfile)
   {
     eos_static_info("method=GET dir=%s",
                     url.c_str());
     errno = 0;
+
+
+    {
+      // -----------------------------------------------------------------------
+      // check if there is an index attribute
+      // -----------------------------------------------------------------------
+      XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+      XrdOucString index;
+
+      if (!gOFS->_attr_get(url.c_str(),
+                           error,
+                           *mVirtualIdentity,
+                           "",
+                           "sys.http.index",
+                           index))
+      {
+        if (gOFS->access(url.c_str(),
+                         R_OK,
+                         error,
+                         &client,
+                         ""))
+        {
+          // no permission
+          eos_static_info("method=GET error=EPERM path=%s",
+                          url.c_str());
+          response = HttpServer::HttpError("No such file or directory",
+                                           response->FORBIDDEN);
+          return response;
+        }
+
+        // create an external redirect
+        response = new eos::common::PlainHttpResponse();
+        response->SetResponseCode(eos::common::HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
+        response->AddHeader("Location", index.c_str());
+        response->AddHeader("X-Accel-Redirect", index.c_str());
+        response->AddHeader("X-Sendfile", index.c_str());
+        return response;
+      }
+    }
     XrdMgmOfsDirectory directory;
     int listrc = directory.open(request->GetUrl().c_str(), *mVirtualIdentity,
                                 (const char*) 0);
@@ -393,7 +353,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
 
         if ((spath == "/") &&
             ((entryname == ".") ||
-             (entryname == "..")))
+            (entryname == "..")))
           continue;
 
         result += "       <tr>\n";
@@ -620,6 +580,106 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
       response = HttpServer::HttpError("Unable to open directory",
                                        errno);
     }
+    return response;
+  }
+  else
+  {
+    eos_static_info("method=GET file=%s tident=%s query=%s",
+                    url.c_str(), client.tident, query.c_str());
+    XrdSfsFile* file = gOFS->newFile((char*) mVirtualIdentity->tident.c_str());
+    if (file)
+    {
+      XrdSfsFileOpenMode open_mode = 0;
+      mode_t create_mode = 0;
+
+      int rc = file->open(url.c_str(), open_mode, create_mode, &client,
+                          query.c_str());
+      if ((rc != SFS_REDIRECT) && open_mode)
+      {
+        // retry as a file creation
+        open_mode |= SFS_O_CREAT;
+        rc = file->open(url.c_str(), open_mode, create_mode, &client,
+                        query.c_str());
+      }
+
+      if (rc != SFS_OK)
+      {
+        if (rc == SFS_REDIRECT)
+        {
+          // the embedded server on FSTs is hardcoded to run on port 8001
+          response = HttpServer::HttpRedirect(request->GetUrl(),
+                                              file->error.getErrText(),
+                                              8001, false);
+        }
+        else
+          if (rc == SFS_ERROR)
+        {
+          if (file->error.getErrInfo() == ENODEV)
+          {
+            response = new eos::common::PlainHttpResponse();
+          }
+          else
+          {
+            response = HttpServer::HttpError(file->error.getErrText(),
+                                             file->error.getErrInfo());
+          }
+        }
+        else
+          if (rc == SFS_DATA)
+        {
+          response = HttpServer::HttpData(file->error.getErrText(),
+                                          file->error.getErrInfo());
+        }
+        else
+          if (rc == SFS_STALL)
+        {
+          response = HttpServer::HttpStall(file->error.getErrText(),
+                                           file->error.getErrInfo());
+        }
+        else
+        {
+          response = HttpServer::HttpError("Unexpected result from file open",
+                                           EOPNOTSUPP);
+        }
+        response->AddHeader("ETag", etag);
+      }
+      else
+      {
+        char buffer[65536];
+        offset_t offset = 0;
+        std::string result;
+        do
+        {
+          size_t nread = file->read(offset, buffer, sizeof (buffer));
+
+          if (nread > 0)
+          {
+            result.append(buffer, nread);
+          }
+          if (nread != sizeof (buffer))
+          {
+            break;
+          }
+          offset += nread;
+        }
+        while (1);
+        file->close();
+
+        response = new eos::common::PlainHttpResponse();
+
+        XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+        if (!gOFS->stat(url.c_str(), &buf, error, &etag, &client, ""))
+        {
+
+          response->AddHeader("ETag", etag);
+          response->AddHeader("Last-Modified", eos::common::Timing::utctime(buf.st_mtime));
+        }
+        response->SetBody(result);
+      }
+      // clean up the object
+      delete file;
+    }
   }
 
   return response;
@@ -629,6 +689,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
 eos::common::HttpResponse *
 HttpHandler::Head (eos::common::HttpRequest * request)
 {
+
   eos::common::HttpResponse *response = Get(request, true);
   response->mUseFileReaderCallback = false;
   response->SetBody("");
@@ -639,6 +700,7 @@ HttpHandler::Head (eos::common::HttpRequest * request)
 eos::common::HttpResponse *
 HttpHandler::Post (eos::common::HttpRequest * request)
 {
+
   using namespace eos::common;
   std::string url = request->GetUrl();
   eos_static_info("method=POST error=NOTIMPLEMENTED path=%s",
@@ -739,16 +801,20 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         query += "eos.bookingsize=";
         //or OC chunked uploads we book the full size
         const char* oclength = eos::common::OwnCloud::getContentSize(request);
-        if (oclength) {
+        if (oclength)
+        {
           query += oclength;
-	}else {
+        }
+        else
+        {
           query += request->GetHeaders()["content-length"];
-	}
-	
-	if (!isOcChunked) {
-	  query += "&eos.targetsize=";
-	  query += request->GetHeaders()["content-length"]; 
-	}
+        }
+
+        if (!isOcChunked)
+        {
+          query += "&eos.targetsize=";
+          query += request->GetHeaders()["content-length"];
+        }
       }
       else
       {
@@ -821,16 +887,16 @@ HttpHandler::Put (eos::common::HttpRequest * request)
         }
         else if (rc == SFS_ERROR)
         {
-	  if (file->error.getErrInfo() == ENOENT)
-	    response = HttpServer::HttpError(file->error.getErrText(), 409);
-	  else
-	    response = HttpServer::HttpError(file->error.getErrText(),
-                                           file->error.getErrInfo());
+          if (file->error.getErrInfo() == ENOENT)
+            response = HttpServer::HttpError(file->error.getErrText(), 409);
+          else
+            response = HttpServer::HttpError(file->error.getErrText(),
+                                             file->error.getErrInfo());
         }
         else if (rc == SFS_DATA)
         {
-	  response = HttpServer::HttpData(file->error.getErrText(),
-					  file->error.getErrInfo());
+          response = HttpServer::HttpData(file->error.getErrText(),
+                                          file->error.getErrInfo());
         }
         else if (rc == SFS_STALL)
         {

@@ -21,6 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+//------------------------------------------------------------------------------
+//! @file GeoBalancer.hh
+//! @brief Balancing among geo locations
+//------------------------------------------------------------------------------
+
 #ifndef __EOSMGM_GEOBALANCER__
 #define __EOSMGM_GEOBALANCER__
 
@@ -29,7 +34,6 @@
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
-#include "namespace/FileMD.hh"
 /* -------------------------------------------------------------------------- */
 #include "XrdSys/XrdSysPthread.hh"
 /* -------------------------------------------------------------------------- */
@@ -38,25 +42,19 @@
 #include <deque>
 #include <cstring>
 #include <ctime>
-/* -------------------------------------------------------------------------- */
-/**
- * @file GeoBalancer.hh
- *
- * @brief Balancing among geo locations
- *
- */
 
-/*----------------------------------------------------------------------------*/
+//! Forward declaration
+namespace eos
+{
+  class IFileMD;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Class representing a geotag's size
- *
- * It holds the capacity and the current used space of a geotag.
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! @brief Class representing a geotag's size
+//! It holds the capacity and the current used space of a geotag.
+//------------------------------------------------------------------------------
 class GeotagSize {
 public:
   GeotagSize (uint64_t usedBytes, uint64_t capacity);
@@ -151,7 +149,7 @@ private:
 
   void updateTransferList (void);
 
-  bool fileIsInDifferentLocations (const eos::FileMD *fmd);
+  bool fileIsInDifferentLocations (const eos::IFileMD *fmd);
 
 public:
 

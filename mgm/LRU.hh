@@ -27,14 +27,13 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
-#include "namespace/ContainerMD.hh"
+#include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
-
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -120,7 +119,7 @@ public:
   
   /* convert by match
    */
-  void ConvertMatch(const char* dir,  eos::ContainerMD::XAttrMap &map);
+  void ConvertMatch(const char* dir,  eos::IContainerMD::XAttrMap &map);
   
   static const char* gLRUPolicyPrefix;
   

@@ -38,8 +38,8 @@ XrdMgmOfs::_find (const char *path,
                   const char* val,
                   bool nofiles,
                   time_t millisleep,
-                  bool nscounter, 
-		  int maxdepth
+                  bool nscounter,
+                  int maxdepth
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -72,7 +72,7 @@ XrdMgmOfs::_find (const char *path,
   std::vector< std::vector<std::string> > found_dirs;
 
   // try if that is directory
-  eos::ContainerMD* cmd = 0;
+  eos::IContainerMD* cmd = 0;
   std::string Path = path;
   XrdOucString sPath = path;
   errno = 0;
@@ -151,12 +151,11 @@ XrdMgmOfs::_find (const char *path,
           continue;
         }
 
-        // add all children into the 2D vectors
-        eos::ContainerMD::ContainerMap::iterator dit;
-        for (dit = cmd->containersBegin(); dit != cmd->containersEnd(); ++dit)
+        // Add all children into the 2D vectors
+        for (auto dmd = cmd->beginSubContainer(); dmd; dmd = cmd->nextSubContainer())
         {
           std::string fpath = Path.c_str();
-          fpath += dit->second->getName();
+          fpath += dmd->getName();
           fpath += "/";
           // check if we select by tag
           if (key)
@@ -165,7 +164,7 @@ XrdMgmOfs::_find (const char *path,
             if (wkey.find("*") != STR_NPOS)
             {
               // this is a search for 'beginswith' match
-              eos::ContainerMD::XAttrMap attrmap;
+              eos::IContainerMD::XAttrMap attrmap;
               if (!gOFS->_attr_ls(fpath.c_str(),
                                   out_error,
                                   vid,
@@ -223,13 +222,12 @@ XrdMgmOfs::_find (const char *path,
 
         if (!nofiles)
         {
-          eos::ContainerMD::FileMap::iterator fit;
-          for (fit = cmd->filesBegin(); fit != cmd->filesEnd(); ++fit)
+          for (auto fit = cmd->beginFile(); fit; fit = cmd->nextFile())
           {
 	    std::string link;
 	    // skip symbolic links
-	    if (fit->second->isLink())
-	      link=fit->second->getLink();
+	    if (fit->isLink())
+	      link = fit->getLink();
             if (limitresult)
             {
               // apply the user limits for non root/admin/sudoers
@@ -242,17 +240,19 @@ XrdMgmOfs::_find (const char *path,
                 break;
               }
             }
+
 	    if (link.length()) 
 	    {
-	      std::string ip = fit->second->getName();
+	      std::string ip = fit->getName();
 	      ip += " -> ";
 	      ip += link;
-            found[Path].insert(ip);
+              found[Path].insert(ip);
 	    } 
 	    else 
 	    {
-              found[Path].insert(fit->second->getName());
+              found[Path].insert(fit->getName());
 	    }
+
             filesfound++;
           }
         }

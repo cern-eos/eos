@@ -90,12 +90,12 @@ ConverterJob::DoIt ()
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
 
-  eos::FileMD* fmd = 0;
-  eos::ContainerMD* cmd = 0;
+  eos::IFileMD* fmd = 0;
+  eos::IContainerMD* cmd = 0;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   unsigned long long size = 0;
-  eos::ContainerMD::XAttrMap attrmap;
+  eos::IContainerMD::XAttrMap attrmap;
 
   XrdOucString sourceChecksum;
   XrdOucString sourceAfterChecksum;
@@ -119,18 +119,11 @@ ConverterJob::DoIt ()
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd));
-      // load the extended attributes
-      eos::ContainerMD::XAttrMap::const_iterator it;
 
       XrdOucErrInfo error;
       // load the attributes
-      gOFS->_attr_ls(gOFS->eosView->getUri(cmd).c_str(),
-		     error,
-		     rootvid,
-		     0,
-		     attrmap,
-		     false,
-		     true);
+      gOFS->_attr_ls(gOFS->eosView->getUri(cmd).c_str(), error, rootvid, 0,
+		     attrmap, false, true);
 
       // get the checksum string if defined
       for (unsigned int i = 0;
@@ -152,8 +145,8 @@ ConverterJob::DoIt ()
       if (attrmap.count(mConversionLayout.c_str()))
       {
         // conversion layout can either point to a conversion attribute definition in the parent directory
-        val =
-          eos::common::LayoutId::GetEnvFromConversionIdString(lEnv, attrmap[mConversionLayout.c_str()].c_str());
+        val = eos::common::LayoutId::GetEnvFromConversionIdString(
+            lEnv, attrmap[mConversionLayout.c_str()].c_str());
       }
       else
       {

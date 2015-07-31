@@ -1195,8 +1195,8 @@ main (int argc, char* argv[])
 
     if (in1.length())
     {
-      // check if this is a file
-      if ((in1.endswith("eosh")) && (!access(in1.c_str(), R_OK)))
+      // check if this is a file (workaournd for XrdOucString bug
+      if ((in1.length()>5) && (in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK)))
       {
         // this is a script file
         char str[16384];

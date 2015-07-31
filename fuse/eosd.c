@@ -141,7 +141,7 @@ eosfs_ll_getattr (fuse_req_t req,
   }
   else
     fuse_reply_err (req, retc);
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -1198,9 +1198,12 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
-           __FUNCTION__, ino, size, (long long int)off);
-
+  if (isdebug)
+  {
+    fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
+	     __FUNCTION__, ino, size, off);  
+  }
+  
   if (fi && fi->fh)
   {
     //UPDATEPROCCACHE;

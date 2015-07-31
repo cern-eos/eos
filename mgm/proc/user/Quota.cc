@@ -88,7 +88,8 @@ ProcCommand::Quota ()
   {
     // figure out if the authenticated user is a quota admin
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::ContainerMD::XAttrMap attrmap;
+    eos::IContainerMD* dh;
+    eos::IContainerMD::XAttrMap attrmap;
     if (!space.beginswith("/"))
     {
       // take the proc directory
@@ -96,11 +97,7 @@ ProcCommand::Quota ()
     }
 
     // ACL and permission check
-    Acl acl(space.c_str(),
-	    *mError,
-	    *pVid,
-	    attrmap,
-	    false);
+    Acl acl(space.c_str(), *mError, *pVid, attrmap, false);
     canQuota = acl.CanSetQuota();
   }
 

@@ -30,9 +30,6 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -67,7 +64,7 @@ S3Store::Refresh ()
     XrdOucErrInfo error;
     eos::common::Mapping::VirtualIdentity vid;
     eos::common::Mapping::Root(vid);
-    eos::ContainerMD::XAttrMap map;
+    eos::IContainerMD::XAttrMap map;
 
     struct stat buf;
     if (gOFS->_stat(mS3DefContainer.c_str(), &buf, error, vid, (const char*) 0)
@@ -179,7 +176,7 @@ S3Store::ListBuckets (const std::string &id)
       XrdOucErrInfo error;
       eos::common::Mapping::VirtualIdentity vid;
       eos::common::Mapping::Root(vid);
-      eos::ContainerMD::XAttrMap map;
+      eos::IContainerMD::XAttrMap map;
 
       struct stat buf;
       if (gOFS->_stat(bucketpath.c_str(), &buf, error, vid, (const char*) 0)
@@ -383,13 +380,13 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 
       // get the file md object
       gOFS->eosViewRWMutex.LockRead();
-      eos::FileMD* fmd = 0;
+      eos::IFileMD* fmd = 0;
+
       try
       {
-
         fmd = gOFS->eosView->getFile(fullname.c_str());
-        eos::FileMD fmdCopy(*fmd);
-        fmd = &fmdCopy;
+        std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
+
         gOFS->eosViewRWMutex.UnLockRead();
         //-------------------------------------------
 
@@ -399,34 +396,34 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
         result += "</Key>";
         result += "<LastModified>";
 
-        eos::FileMD::ctime_t mtime;
-        fmd->getMTime(mtime);
+        eos::IFileMD::ctime_t mtime;
+        fmd_cpy->getMTime(mtime);
 
         result += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
         result += "</LastModified>";
         result += "<ETag>";
-        for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
+        for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd_cpy->getLayoutId()); i++)
         {
           char hb[3];
-          sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
+          sprintf(hb, "%02x", (unsigned char) (fmd_cpy->getChecksum().getDataPtr()[i]));
           result += hb;
         }
         result += "</ETag>";
         result += "<Size>";
         std::string sconv;
         result += StringConversion::GetSizeString(sconv, (unsigned long long)
-                                                  fmd->getSize());
+                                                  fmd_cpy->getSize());
         result += "</Size>";
         result += "<StorageClass>STANDARD</StorageClass>";
         result += "<Owner>";
         result += "<ID>";
         int errc = 0;
-        result += Mapping::UidToUserName(fmd->getCUid(), errc);
+        result += Mapping::UidToUserName(fmd_cpy->getCUid(), errc);
         result += "</ID>";
         result += "<DisplayName>";
-        result += Mapping::UidToUserName(fmd->getCUid(), errc);
+        result += Mapping::UidToUserName(fmd_cpy->getCUid(), errc);
         result += ":";
-        result += Mapping::GidToGroupName(fmd->getCGid(), errc);
+        result += Mapping::GidToGroupName(fmd_cpy->getCGid(), errc);
         result += "</DisplayName>";
         result += "</Owner>";
         result += "</Contents>";

@@ -23,6 +23,8 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
+  ${XROOTD_INCLUDE_DIR}
+  ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${Z_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${LDAP_INCLUDE_DIRS}
@@ -31,15 +33,13 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/auth_plugin/)
 
-
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
 #-------------------------------------------------------------------------------
-add_library(
+add_library (
   XrdEosMgm MODULE
   Access.cc
   ConfigEngine.cc
-  GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc
   Policy.cc
@@ -52,7 +52,6 @@ add_library(
   proc/admin/Fs.cc
   proc/admin/Fsck.cc
   proc/admin/Group.cc
-  proc/admin/GeoSched.cc
   proc/admin/Io.cc
   proc/admin/Node.cc
   proc/admin/Ns.cc
@@ -113,14 +112,22 @@ add_library(
   http/webdav/WebDAVHandler.cc
   http/webdav/WebDAVResponse.cc
   http/webdav/PropFindResponse.cc
-  http/webdav/LockResponse.cc
   http/webdav/PropPatchResponse.cc
+  http/webdav/LockResponse.cc
   Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc)
+  geotree/SchedulingTreeCommon.cc
+  # TODO: this should be removed once we properly use the namespace interface
+  # and there is no need to include explicit namespace implementation details
+  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/FileMD.cc
+  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/ContainerMD.cc
+  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFile.cc
+  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogConstants.cc
+  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc
+  ${CMAKE_SOURCE_DIR}/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
@@ -132,7 +139,8 @@ target_link_libraries(
   XrdEosMgm
   eosCommon
   eosCommonServer
-  eosNamespace-Static
+  EosNsCommon
+  EosPluginManager
   eosCapability-Static
   XrdMqClient-Static
   EosAuthProto

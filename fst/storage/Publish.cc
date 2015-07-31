@@ -354,6 +354,7 @@ Storage::Publish ()
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
 	    hash->Set("stat.geotag", lNodeGeoTag.c_str());
+	    hash->Set("debug.state", LC_STRING(eos::common::Logging::GetPriorityString(eos::common::Logging::gPriorityLevel)));
           }
           gOFS.ObjectManager.HashMutex.UnLockRead();
         }

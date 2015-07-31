@@ -95,7 +95,7 @@ XrdMgmOfs::rename (const char *old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     oldn = path;
-    if (info)info = 0;
+    if (info) info = 0;
   }
 
   {
@@ -105,8 +105,7 @@ XrdMgmOfs::rename (const char *old_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     newn = path;
-
-    if (info)info = 0;
+    if (info) info = 0;
   }
 
   BOUNCE_NOT_ALLOWED;
@@ -114,7 +113,7 @@ XrdMgmOfs::rename (const char *old_name,
   MAYSTALL;
   MAYREDIRECT;
 
-  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, false);
+  return rename(oldn.c_str(), newn.c_str(), error, vid, infoO, infoN, true);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -259,10 +258,10 @@ XrdMgmOfs::_rename (const char *old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
-  eos::ContainerMD* dir = 0;
-  eos::ContainerMD* newdir = 0;
-  eos::ContainerMD* rdir = 0;
-  eos::FileMD* file = 0;
+  eos::IContainerMD* dir = 0;
+  eos::IContainerMD* newdir = 0;
+  eos::IContainerMD* rdir = 0;
+  eos::IFileMD* file = 0;
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;
@@ -409,8 +408,8 @@ XrdMgmOfs::_rename (const char *old_name,
 	      // adjust the quota
 	      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
 	      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
-	      eos::QuotaNode* oldquotanode = 0;
-	      eos::QuotaNode* newquotanode = 0;
+	      eos::IQuotaNode* oldquotanode = 0;
+	      eos::IQuotaNode* newquotanode = 0;
 	      if (oldspace)
 	      {
 		oldquotanode = oldspace->GetQuotaNode();
@@ -457,7 +456,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		  {
 		    std::string fspath = rfoundit->first;
 		    fspath += *fileit;
-		    eos::FileMD* fmd = 0;
+		    eos::IFileMD* fmd = 0;
 		    // stat this file and add to the deletion maps
 		    
 		    try
@@ -543,8 +542,8 @@ XrdMgmOfs::_rename (const char *old_name,
 		    {
 		      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(fspath.c_str()); // quota node from file path
 		      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str()); // quota node of target directory
-		      eos::QuotaNode* oldquotanode = 0;
-		      eos::QuotaNode* newquotanode = 0;
+		      eos::IQuotaNode* oldquotanode = 0;
+		      eos::IQuotaNode* newquotanode = 0;
 		      if (oldspace)
 		      {
 			oldquotanode = oldspace->GetQuotaNode();
