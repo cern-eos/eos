@@ -40,6 +40,7 @@ add_library(
   XrdEosMgm MODULE
   Access.cc
   ConfigEngine.cc
+  GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc
   Policy.cc
@@ -51,6 +52,7 @@ add_library(
   proc/admin/Debug.cc
   proc/admin/Fs.cc
   proc/admin/Fsck.cc
+  proc/admin/GeoSched.cc
   proc/admin/Group.cc
   proc/admin/Io.cc
   proc/admin/Node.cc
