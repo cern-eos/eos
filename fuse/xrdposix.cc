@@ -2535,7 +2535,7 @@ xrd_open (const char* path,
 
       ino_t old_ino = return_inode?*return_inode:0;
       ino_t new_ino = sino? (eos::common::FileId::Hex2Fid(sino) << 28): 0;
-      if (old_ino != new_ino)
+      if (old_ino && (old_ino != new_ino))
       {
 	// an inode of an existing file can be changed during the process of an open due to an auto-repair
 	std::ostringstream sstr_old;
