@@ -2902,15 +2902,17 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 
   unsigned long long bituser=0;
 
-  // emergency mapping of too high user ids to nob
+  // Emergency mapping of too high user ids to nob
   if ( uid > 0xfffff) 
   {
-    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to nobody\" uid=%u", uid);
+    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                   "nobody\" uid=%u", uid);
     uid = 99;
   }
   if ( gid > 0xffff)
   {
-    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to nobody\" gid=%u", gid);
+    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                   "nobody\" gid=%u", gid);
     gid = 99;
   }
 
@@ -2930,17 +2932,24 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
   // WARNING: we support only one endianess flavour by doing this
   eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
   size_t len = sb64.length();
-  // remove the non-informative '=' in the end
+  // Remove the non-informative '=' in the end
   if (len >2) 
   {
     sb64.erase(len-1);
     len--;
   }
-  // reduce to 7 b64 letters
+
+  // Reduce to 7 b64 letters
   if (len > 7)
-    sb64.erase(0,len-7);
+    sb64.erase(0, len - 7);
+
   sid = "*";
   sid += sb64;
+
+  // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
+  // if necessary.
+  sid.replace('/', '_');
+  sid.replace('+', '-');
   eos_static_debug("user-ident=%s", sid.c_str());
   return STRINGSTORE(sid.c_str());
 }
