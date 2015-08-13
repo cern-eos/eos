@@ -61,6 +61,11 @@ target_link_libraries(
   ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
+set_target_properties(
+  eos-benchmark
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64")
+
 install(
   TARGETS eos-benchmark
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

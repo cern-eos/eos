@@ -242,8 +242,10 @@ target_link_libraries(
 # eoscp executable
 #-------------------------------------------------------------------------------
 add_executable(eoscp txqueue/eoscp.cc)
-set_target_properties(eoscp PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eoscp PROPERTIES COMPILE_FLAGS "-D_LARGE_FILE_SOURCE=1")
+set_target_properties(
+  eoscp
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64")
 
 add_executable(
   eos-check-blockxs
@@ -312,9 +314,10 @@ if(MacOSX)
     PROPERTIES
     MACOSX_RPATH TRUE)
 else()
-  set_target_properties(EosFstIo-Static PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-  set_target_properties(EosFstIo-Static PROPERTIES COMPILE_FLAGS "-D_LARGE_FILE_SOURCE=1")
-  set_target_properties(EosFstIo-Static PROPERTIES COMPILE_FLAGS "-fPIC")
+  set_target_properties(
+   EosFstIo-Static
+    PROPERTIES
+    COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
   target_link_libraries(eoscp EosFstIo-Static)
 
   set_target_properties(

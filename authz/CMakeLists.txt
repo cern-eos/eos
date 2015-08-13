@@ -35,7 +35,4 @@ add_library(
 set_target_properties(
   eosCapability-Static
   PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
   COMPILE_FLAGS -fPIC)

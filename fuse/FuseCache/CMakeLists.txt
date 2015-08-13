@@ -32,29 +32,26 @@ add_library(
   CacheEntry.cc      CacheEntry.hh
   FileAbstraction.cc FileAbstraction.hh)
 
-set_target_properties(FuseCache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+set_target_properties(
+  FuseCache
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64")
 
-if(MacOSX)
-  target_link_libraries(
-    FuseCache
-    eosCommon
-    EosFstIo
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(
+  FuseCache
+  eosCommon
+  EosFstIo
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
+if (Linux)
   set_target_properties(
     FuseCache
     PROPERTIES
-    MACOSX_RPATH TRUE)
-else()
-  target_link_libraries(
-    FuseCache
-    eosCommon
-    EosFstIo-Static
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    INTERFACE_LINK_LIBRARIES "")
 
   add_library(
     FuseCache-Static STATIC
@@ -64,13 +61,19 @@ else()
 
   target_link_libraries(
     FuseCache-Static
-    eosCommon-Static
     EosFstIo-Static
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(
-    FuseCache-Static
-    PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -fPIC")
+  FuseCache-Static
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+
+else()
+  set_target_properties(
+    FuseCache
+    PROPERTIES
+    MACOSX_RPATH TRUE)
 endif()
