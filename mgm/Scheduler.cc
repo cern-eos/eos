@@ -94,19 +94,6 @@ Scheduler::FilePlacement (const char* path, //< path to place
   uid_t uid = vid.uid;
   gid_t gid = vid.gid;
 
-  bool hasgeolocation = false;
-  bool exact_match = false;
-
-  if (vid.geolocation.length())
-  {
-    if ((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica))
-    {
-      // we only do geolocations for replica layouts
-      hasgeolocation = true;
-      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.write.exact") == "on");
-    }
-  }
-
   XrdOucString lindextag = "";
   if (grouptag)
   {

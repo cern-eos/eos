@@ -71,13 +71,11 @@ XrdMgmOfs::_chown (const char *path,
   // try as a directory
   try
   {
-    eos::IContainerMD* pcmd = 0;
     eos::IContainerMD::XAttrMap attrmap;
 
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
     eos::common::Path pPath(gOFS->eosView->getUri(cmd).c_str());
-    pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
     eos::IContainerMD::XAttrMap::const_iterator it;
     // ACL and permission check
     Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
