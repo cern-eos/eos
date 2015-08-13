@@ -59,6 +59,7 @@ if(MacOSX)
   target_link_libraries(
     eosfsd
     FuseCache
+    EosFstIo
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -69,6 +70,7 @@ if(MacOSX)
   target_link_libraries(
     eosd
     FuseCache
+    EosFstIo
     ${UUID_LIBRARIES}
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
@@ -80,11 +82,13 @@ if(MacOSX)
   set_target_properties(
     eosd eosfsd
     PROPERTIES
-    COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
+    COMPILE_FLAGS "-D_LARGE_FILE_SOURCE=1 -D_FILE_OFFSET_BITS=64"
+    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
 else(MacOSX)
   target_link_libraries(
     eosfsd
     FuseCache-Static
+    EosFstIo-Static
     ${FUSE_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -95,6 +99,7 @@ else(MacOSX)
   target_link_libraries(
     eosd
     FuseCache-Static
+    EosFstIo-Static
     ${FUSE_LIBRARY}
     ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
@@ -106,7 +111,7 @@ else(MacOSX)
   set_target_properties(
     eosd eosfsd
     PROPERTIES
-    COMPILE_FLAGS -D_FILE_OFFSET_BITS=64)
+    COMPILE_FLAGS "-D_LARGE_FILE_SOURCE=1 -D_FILE_OFFSET_BITS=64")
 endif(MacOSX)
 
 install(
