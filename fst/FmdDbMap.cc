@@ -583,7 +583,7 @@ FmdDbMapHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::commo
     valfmd.set_locations(locations);
 
     // truncate the checksum to the right string length
-    unsigned long cslen = eos::common::LayoutId::GetChecksumLen(lid)*2;
+    size_t cslen = eos::common::LayoutId::GetChecksumLen(lid)*2;
     valfmd.set_mgmchecksum(
         std::string(valfmd.mgmchecksum()).erase( std::min( valfmd.mgmchecksum().length(), cslen )) );
     valfmd.set_checksum(
