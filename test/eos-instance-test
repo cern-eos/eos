@@ -876,7 +876,6 @@ runtest "### FUSE lnk  " unix 1 "" shell ln -s "/eos/$EOS_TEST_INSTANCE/test/ins
 runtest "### FUSE mkdr " unix 0 "" shell mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1/dir2"
 runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1/dir2"
 runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1/dir2"
-exit
 fi
 
 ################################################################################

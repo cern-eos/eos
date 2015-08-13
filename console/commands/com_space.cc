@@ -327,11 +327,12 @@ com_space_usage:
   fprintf(stdout, "       space config <space-name> space.graceperiod=<sec>             : configure the default grace  period if not defined on a filesystem (see fs for details)\n");
   fprintf(stdout, "       space config <space-name> space.autorepair=on|off             : enable auto-repair of faulty replica's/files (the converter has to be enabled too)");
   fprintf(stdout, "                                                                       => size can be given also like 10T, 20G, 2P ... without space before the unit \n");
-  fprintf(stdout, "       space config <space-name> space.geo.access.policy.exact=on|off: if 'on' use exact matching geo replica (if available), 'off' uses weighting \n");
+  fprintf(stdout, "       space config <space-name> space.geo.access.policy.write.exact=on|off   : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for write case ]\n");
+  fprintf(stdout, "       space config <space-name> space.geo.access.policy.read.exact=on|off    : if 'on' use exact matching geo replica (if available) , 'off' uses weighting [ for read case  ]\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       space config <space-name> fs.<key>=<value>                    : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       space define <space-name> [<groupsize> [<groupmod>]]             : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
+  fprintf(stdout, "       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   fprintf(stdout, "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");

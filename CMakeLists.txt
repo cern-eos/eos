@@ -21,15 +21,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-
 #-------------------------------------------------------------------------------
 # Version Definition
 #-------------------------------------------------------------------------------
 set(VERSION_MAJOR "0" )
 set(VERSION_MINOR "4" )
-set(VERSION_PATCH "6" )
+set(VERSION_PATCH "0" )
 set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-
 
 #-------------------------------------------------------------------------------
 # Main section

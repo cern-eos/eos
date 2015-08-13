@@ -752,7 +752,7 @@ xrd_add_fd2file (eos::fst::Layout* raw_file,
 
   // If there is already an entry for the current user and the current inode
   // then we return the old fd
-  if (!raw_file)
+  while (!raw_file)
   {
     if (iter_fd != inodeuser2fd.end())
     {
@@ -764,24 +764,27 @@ xrd_add_fd2file (eos::fst::Layout* raw_file,
       if (iter_file != fd2fabst.end())
         iter_file->second->IncNumOpen();
       else
+      {
         eos_static_err("fd=%i not found in fd2fobj map", fd);
+	FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
+	fd2fabst[fd] = fabst;
+      }
     }
+    return fd;
+  }
+
+  fd = xrd_generate_fd();
+  
+  if (fd > 0)
+  {
+    FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
+    fd2fabst[fd] = fabst;
+    inodeuser2fd[sstr.str()] = fd;
   }
   else
   {
-    fd = xrd_generate_fd();
-
-    if (fd > 0)
-    {
-      FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
-      fd2fabst[fd] = fabst;
-      inodeuser2fd[sstr.str()] = fd;
-    }
-    else
-    {
-      eos_static_err("error while getting file descriptor");
-      delete raw_file;
-    }
+    eos_static_err("error while getting file descriptor");
+    delete raw_file;
   }
 
   return fd;
@@ -848,7 +851,19 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
 
       if (iter1 != inodeuser2fd.end())
         inodeuser2fd.erase(iter1);
-
+      else
+      {
+	// if a file is repaired during an RW open, the inode can change and we find the fd in a different inode
+	// search the map for the filedescriptor and remove it
+	for (iter1 = inodeuser2fd.begin(); iter1 != inodeuser2fd.end(); ++iter1)
+	{
+	  if (iter1->second == fd)
+	  {
+	    inodeuser2fd.erase(iter1);
+	    break;
+	  }
+	}
+      }
       // Return fd to the pool
       pool_fd.push(fd);
     }
@@ -2679,12 +2694,37 @@ xrd_open (const char* path,
       XrdOucEnv RedEnv = file->GetLastUrl().c_str();
       const char* sino = RedEnv.Get("mgm.id");
 
-      if (sino)
-        *return_inode = eos::common::FileId::Hex2Fid(sino) << 28;
-      else
-        *return_inode = 0;
+      ino_t old_ino = return_inode?*return_inode:0;
+      ino_t new_ino = sino? (eos::common::FileId::Hex2Fid(sino) << 28): 0;
+      if (old_ino && (old_ino != new_ino))
+      {
+	// an inode of an existing file can be changed during the process of an open due to an auto-repair
+	std::ostringstream sstr_old;
+	std::ostringstream sstr_new;
+	sstr_old << old_ino << ":" << (unsigned long)uid;
+	sstr_new << new_ino << ":" << (unsigned long)gid;
+	{
+	  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
+	  if (inodeuser2fd.count(sstr_old.str()))
+	  {
+	    inodeuser2fd[sstr_new.str()] = inodeuser2fd[sstr_old.str()];
+	    inodeuser2fd.erase(sstr_old.str());
+	  }
+	}
 
-      eos_static_debug("path=%s created ino=%lu", path, (unsigned long)*return_inode);
+	{
+	  eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
+	  path2inode.erase(path);
+	  inode2path.erase(old_ino);
+	  path2inode[path] = new_ino;
+	  inode2path[new_ino] = path;
+	  eos_static_info("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	}
+      }
+
+      *return_inode = new_ino;
+      
+      eos_static_debug("path=%s opened ino=%lu", path, (unsigned long)*return_inode);
     }
 
     retc = xrd_add_fd2file(file, *return_inode, uid, path);
@@ -3028,15 +3068,17 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 
   unsigned long long bituser=0;
 
-  // emergency mapping of too high user ids to nob
+  // Emergency mapping of too high user ids to nob
   if ( uid > 0xfffff) 
   {
-    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to nobody\" uid=%u", uid);
+    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                   "nobody\" uid=%u", uid);
     uid = 99;
   }
   if ( gid > 0xffff)
   {
-    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to nobody\" gid=%u", gid);
+    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                   "nobody\" gid=%u", gid);
     gid = 99;
   }
 
@@ -3056,17 +3098,24 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
   // WARNING: we support only one endianess flavour by doing this
   eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
   size_t len = sb64.length();
-  // remove the non-informative '=' in the end
+  // Remove the non-informative '=' in the end
   if (len >2) 
   {
     sb64.erase(len-1);
     len--;
   }
-  // reduce to 7 b64 letters
+
+  // Reduce to 7 b64 letters
   if (len > 7)
-    sb64.erase(0,len-7);
+    sb64.erase(0, len - 7);
+
   sid = "*";
   sid += sb64;
+
+  // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
+  // if necessary.
+  sid.replace('/', '_');
+  sid.replace('+', '-');
   eos_static_debug("user-ident=%s", sid.c_str());
   return STRINGSTORE(sid.c_str());
 }

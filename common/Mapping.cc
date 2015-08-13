@@ -1130,9 +1130,16 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       if (sname.beginswith("*")) 
       {
 	known_tident = true;
-	// that is a new base-64 encoded id following the format '*1234567' where 1234567 is the base64 encoded 42-bit value of 20-bit uid | 16-bit gid | 6-bit session id
+	// that is a new base-64 encoded id following the format '*1234567'
+        // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
+        // 16-bit gid | 6-bit session id.
 	XrdOucString b64name = sname;
 	b64name.erase(0,1);
+
+        // Decoden '_' -> '/', '-' -> '+' that was done to ensure the validity
+        // of the XRootD URL.
+        b64name.replace('_', '/');
+        b64name.replace('-','+');
 	b64name += "=";
 	unsigned long long bituser=0;
 	char* out=0;

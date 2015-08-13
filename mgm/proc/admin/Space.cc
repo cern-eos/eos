@@ -313,12 +313,15 @@ ProcCommand::Space ()
                 (key == "geobalancer") ||
                 (key == "geobalancer.ntx") ||
                 (key == "geobalancer.threshold") ||
-		(key == "geo.access.policy.exact") ||
+		(key == "geo.access.policy.read.exact") ||
+		(key == "geo.access.policy.write.exact") ||
                 (key == "balancer.threshold"))
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
-                  (key== "groupbalancer") || (key== "geobalancer"))
+                  (key == "groupbalancer") || (key == "geobalancer") ||
+		  (key == "geo.access.policy.read.exact") ||
+		  (key == "geo.access.policy.write.exact"))
               {
                 if ((value != "on") && (value != "off"))
                 {
@@ -369,12 +372,19 @@ ProcCommand::Space ()
                       else
                         stdOut += "success: geobalancer is disabled!";
                     }
-                    if (key == "geo.access.policy.exact")
+                    if (key == "geo.access.policy.read.exact")
                     {
                       if (value == "on")
-                        stdOut += "success: geo access policy prefers the exact geo matching replica!";
+                        stdOut += "success: geo access policy prefers the exact geo matching replica for reading!";
                       else
-                        stdOut += "success: geo access policy prefers with a weight the geo matching replica!";
+                        stdOut += "success: geo access policy prefers with a weight the geo matching replica for reading!";
+                    }
+                    if (key == "geo.access.policy.write.exact")
+                    {
+                      if (value == "on")
+                        stdOut += "success: geo access policy prefers the exact geo matching replica for placements!";
+                      else
+                        stdOut += "success: geo access policy prefers with a weight the geo matching replica for placements!";
                     }
                   }
                 }
