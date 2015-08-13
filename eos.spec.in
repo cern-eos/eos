@@ -1,3 +1,6 @@
+#-------------------------------------------------------------------------------
+# Package definitions
+#-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
@@ -18,57 +21,57 @@ BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %endif
 
-BuildRequires: xrootd xrootd-libs
-BuildRequires: xrootd-server-libs, xrootd-server-devel
-BuildRequires: xrootd-client-libs, xrootd-client-devel
-BuildRequires: xrootd-private-devel
+BuildRequires: xrootd >= 3.3.4
+BuildRequires: xrootd-server-devel >= 3.3.4
+BuildRequires: xrootd-private-devel  >= 3.3.4
 BuildRequires: readline-devel, ncurses-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
 BuildRequires: fuse-devel, fuse >= 2.5
+BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
-BuildRequires: libcurl-devel libcurl
-%else
-BuildRequires: curl-devel curl
-%endif
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
-BuildRequires: protobuf >= 2.3.0
-BuildRequires: protobuf-devel >= 2.3.0
-BuildRequires: krb5-devel >= 1.6.1
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
-%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel,zeromq3,zeromq3-devel
+%if 0%{?rhel} >= 6 || 0%{?fedora} || 0%{?el7} == 1
+BuildRequires: libcurl-devel, libcurl, libuuid-devel
+BuildRequires: ncurses-static, openssl-static, zlib-static, sparsehash-devel
+%if 0%{?fedora} >= 18 || 0%{?el7} == 1
+BuildRequires: zeromq3, zeromq3-devel
 %else
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash,zeromq,zeromq-devel
+BuildRequires: zeromq, zeromq-devel
 %endif
 %else
-BuildRequires: gcc44,gcc44-c++,sparsehash,uuid,uuid-devel,openssl,openssl-devel,ncurses,ncurses-devel,zlib,zlib-devel,zeromq,zeromq-devel
+# For SLC5
+BuildRequires: curl, curl-devel, gcc44, gcc44-c++, sparsehash, uuid, uuid-devel
+BuildRequires: openssl, openssl-devel, ncurses, ncurses-devel, zlib, zlib-devel
+BuildRequires: zeromq, zeromq-devel
 %endif
 
 %description
 The EOS software package.
 
-#######################################################################################
+#-------------------------------------------------------------------------------
+# Package eos-server
+#-------------------------------------------------------------------------------
 %package -n eos-server
-#######################################################################################
 Summary: The EOS server installation
 Group: Applications/File
-Requires: xrootd
+
+Requires: xrootd >= 3.3.4
 Requires: xrootd-client
-%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
-Requires: zeromq3
-%else
-Requires: zeromq
-%endif
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
 Requires: libcurl
+
+%if 0%{?fedora} >= 18 || 0%{?el7} == 1
+Requires: zeromq3
+%else
+Requires: zeromq
+%endif
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
@@ -92,84 +95,81 @@ cd build
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
 echo "Installed!"
+
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
-%defattr(-,root,root)
-/usr/lib64/libXrdMqOfs.so.%{version}
-/usr/lib64/libXrdMqOfs.so.0
-/usr/lib64/libXrdMqOfs.so
-/usr/bin/xrdmqdumper
-/usr/sbin/eosha
-/usr/sbin/eoshapl
-/usr/sbin/eosfilesync
-/usr/sbin/eosdirsync
-/usr/sbin/eos-tty-broadcast
-/usr/lib64/libeosCommonServer.so.%{version}
-/usr/lib64/libeosCommonServer.so.0
-/usr/lib64/libeosCommonServer.so
-/usr/lib64/libXrdEosFst.so.%{version}
-/usr/lib64/libXrdEosFst.so.0
-/usr/lib64/libXrdEosFst.so
-/usr/lib64/libEosFstOss.so.%{version}
-/usr/lib64/libEosFstOss.so.0
-/usr/lib64/libEosFstOss.so
-/usr/lib64/libEosAuthOfs.so
-/usr/lib64/libEosAuthOfs.so.0
-/usr/lib64/libEosAuthOfs.so.%{version}
-/usr/lib64/libEosAuthProto.so
-/usr/lib64/libEosAuthProto.so.0
-/usr/lib64/libEosAuthProto.so.%{version}
-/usr/sbin/eosfstregister
-/usr/sbin/eosfstinfo
-/usr/sbin/eosadmin
-/usr/sbin/eos-check-blockxs
-/usr/sbin/eos-udp-dumper
-/usr/sbin/eos-compute-blockxs
-/usr/sbin/eos-scan-fs
-/usr/sbin/eos-adler32
-/usr/sbin/eos-mmap
-/usr/sbin/eos-repair-tool
-/usr/sbin/eos-ioping
-/usr/sbin/eos-iobw
-/usr/sbin/eos-iops
-/usr/lib64/libXrdEosMgm.so.%{version}
-/usr/lib64/libXrdEosMgm.so.0
-/usr/lib64/libXrdEosMgm.so
-/usr/sbin/eos-log-compact
-/usr/sbin/eos-log-repair
-/usr/sbin/eossh-timeout
+%defattr(-, root, root, -)
+%{_bindir}/xrdmqdumper
+%{_sbindir}/eosha
+%{_sbindir}/eoshapl
+%{_sbindir}/eosfilesync
+%{_sbindir}/eosdirsync
+%{_sbindir}/eos-tty-broadcast
+%{_sbindir}/eos-log-compact
+%{_sbindir}/eos-log-repair
+%{_sbindir}/eossh-timeout
+%{_sbindir}/eosfstregister
+%{_sbindir}/eosfstinfo
+%{_sbindir}/eosadmin
+%{_sbindir}/eos-check-blockxs
+%{_sbindir}/eos-udp-dumper
+%{_sbindir}/eos-compute-blockxs
+%{_sbindir}/eos-scan-fs
+%{_sbindir}/eos-adler32
+%{_sbindir}/eos-mmap
+%{_sbindir}/eos-repair-tool
+%{_sbindir}/eos-ioping
+%{_sbindir}/eos-iobw
+%{_sbindir}/eos-iops
+%{_libdir}/libeosCommonServer.so.%{version}
+%{_libdir}/libeosCommonServer.so.0
+%{_libdir}/libeosCommonServer.so
+%{_libdir}/libXrdEosAuth.so.%{version}
+%{_libdir}/libXrdEosAuth.so.0
+%{_libdir}/libXrdEosAuth.so
+%{_libdir}/libXrdEosFst.so.%{version}
+%{_libdir}/libXrdEosFst.so.0
+%{_libdir}/libXrdEosFst.so
+%{_libdir}/libEosFstOss.so.%{version}
+%{_libdir}/libEosFstOss.so.0
+%{_libdir}/libEosFstOss.so
+%{_libdir}/libXrdEosMgm.so.%{version}
+%{_libdir}/libXrdEosMgm.so.0
+%{_libdir}/libXrdEosMgm.so
+%{_libdir}/libXrdMqOfs.so.%{version}
+%{_libdir}/libXrdMqOfs.so.0
+%{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
-%config(noreplace) /etc/xrd.cf.fst
-%config(noreplace) /etc/xrd.cf.mgm
-%config(noreplace) /etc/xrd.cf.mq
-%config(noreplace) /etc/xrd.cf.global-mq
-%config(noreplace) /etc/xrd.cf.sync
-%config(noreplace) /etc/xrd.cf.fed
-%config(noreplace) /etc/xrd.cf.prefix
-%config(noreplace) /etc/sysconfig/eos.example
-%config(noreplace) /etc/xrd.cf.auth
-%_sysconfdir/rc.d/init.d/eos
-%_sysconfdir/rc.d/init.d/eosha
-%_sysconfdir/rc.d/init.d/eossync
-%_sysconfdir/rc.d/init.d/eosslave
-%_sysconfdir/cron.d/eos-logs
-%_sysconfdir/cron.d/eos-reports
-%_sysconfdir/logrotate.d/eos-logs
+%config(noreplace) %{_sysconfdir}/xrd.cf.fst
+%config(noreplace) %{_sysconfdir}/xrd.cf.mgm
+%config(noreplace) %{_sysconfdir}/xrd.cf.mq
+%config(noreplace) %{_sysconfdir}/xrd.cf.global-mq
+%config(noreplace) %{_sysconfdir}/xrd.cf.sync
+%config(noreplace) %{_sysconfdir}/xrd.cf.fed
+%config(noreplace) %{_sysconfdir}/xrd.cf.prefix
+%config(noreplace) %{_sysconfdir}/sysconfig/eos.example
+%{_sysconfdir}/rc.d/init.d/eos
+%{_sysconfdir}/rc.d/init.d/eosha
+%{_sysconfdir}/rc.d/init.d/eossync
+%{_sysconfdir}/rc.d/init.d/eosslave
+%{_sysconfdir}/cron.d/eos-logs
+%{_sysconfdir}/cron.d/eos-reports
+%{_sysconfdir}/logrotate.d/eos-logs
 
 %post -n eos-server
 /sbin/chkconfig --add eos
 /sbin/chkconfig --add eosslave
-echo Starting conditional EOS services
+echo "Starting conditional EOS services"
 sleep 2
 /sbin/service eos condrestart > /dev/null 2>&1 || :
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 
 %preun -n eos-server
 if [ $1 = 0 ]; then
-	echo Stopping EOS services
+	echo "Stopping EOS services"
 	/sbin/service eosha stop > /dev/null 2>&1
 	/sbin/service eosd stop > /dev/null 2>&1
 	/sbin/service eos stop > /dev/null 2>&1 || :
@@ -179,78 +179,77 @@ if [ $1 = 0 ]; then
 	/sbin/chkconfig --del eosslave
 fi
 
-
-#######################################################################################
-# the shell client package
-#######################################################################################
+#-------------------------------------------------------------------------------
+# Package eos-client
+#-------------------------------------------------------------------------------
 %package -n eos-client
-#######################################################################################
 Summary: The EOS shell client
 Group: Applications/File
+
 Requires: xrootd-client
+
 %description -n eos-client
 The EOS shell client.
+
 %files -n eos-client
-/usr/bin/eos
-/usr/bin/eosdropboxd
-/usr/bin/eoscp
-/usr/lib64/libXrdMqClient.so.%{version}
-/usr/lib64/libXrdMqClient.so.0
-/usr/lib64/libXrdMqClient.so
-/usr/lib64/libeosCommon.so.%{version}
-/usr/lib64/libeosCommon.so.0
-/usr/lib64/libeosCommon.so
+%defattr(-, root, root, -)
+%{_bindir}/eos
+%{_bindir}/eosdropboxd
+%{_bindir}/eoscp
+%{_libdir}/libXrdMqClient.so.%{version}
+%{_libdir}/libXrdMqClient.so.0
+%{_libdir}/libXrdMqClient.so
+%{_libdir}/libeosCommon.so.%{version}
+%{_libdir}/libeosCommon.so.0
+%{_libdir}/libeosCommon.so
 
-############################
-# documentation
-%doc %_mandir/man1/
+# Documentation
+%doc %{_mandir}/man1/
 
-#######################################################################################
-# the fuse client package
-#######################################################################################
+#-------------------------------------------------------------------------------
+# Package eos-fuse
+#-------------------------------------------------------------------------------
 %package -n eos-fuse
-#######################################################################################
 Summary: The EOS fuse client
 Group: Applications/File
 
 Requires: xrootd-client
 Requires: eos-client
 Requires: fuse
-Requires: krb5-libs
 
 %description -n eos-fuse
 The EOS fuse client.
+
 %files -n eos-fuse
-/usr/bin/eosfsd
-/usr/sbin/eosd
-/usr/bin/eosfusebind
-%if 0%{?rhel} >= 7 || %{?fedora:1}%{!?fedora:0}
-/etc/fuse.conf.eos
+%defattr(-, root, root, -)
+%{_bindir}/eosfsd
+%{_sbindir}/eosd
+%{_sysconfdir}/rc.d/init.d/eosd
+%{_sysconfdir}/logrotate.d/eos-fuse-logs
+%if %{?fedora:1}%{!?fedora:0}
+%{_sysconfdir}/fuse.conf.eos
 %else
-%config(noreplace) /etc/fuse.conf
-/etc/fuse.conf.eos
+%config(noreplace) %{_sysconfdir}/fuse.conf
+%{_sysconfdir}/fuse.conf.eos
 %endif
-/etc/rc.d/init.d/eosd
-%_sysconfdir/logrotate.d/eos-fuse-logs
-%changelog
 
 %post -n eos-fuse
 /sbin/chkconfig --add eosd
-echo Starting conditional EOS services
+echo "Starting conditional EOS FUSE services"
 sleep 2
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
+
 %preun -n eos-fuse
 if [ $1 = 0 ]; then
-	echo Stopping EOS services
-	/sbin/service eosd stop > /dev/null 2>&1
+	echo "Stopping EOS FUSE services"
+	/sbin/service eosd stop > /dev/null 2>&1 || :
 	/sbin/chkconfig --del eosd
 fi
 
-#######################################################################################
-# the srm scripts package
-#######################################################################################
+#-------------------------------------------------------------------------------
+# Package eos-srm
+#-------------------------------------------------------------------------------
 %package -n eos-srm
-#######################################################################################
 Summary: The EOS srm script package for checksumming and space
 Group: Applications/File
 
@@ -258,17 +257,17 @@ Requires: eos-client
 
 %description -n eos-srm
 The EOS srm package.
+
 %files -n eos-srm
-/usr/sbin/eos-srm-used-bytes
-/usr/sbin/eos-srm-max-bytes
-/usr/sbin/eos-srm-checksum
+%defattr(-, root, root, -)
+%{_sbindir}/eos-srm-used-bytes
+%{_sbindir}/eos-srm-max-bytes
+%{_sbindir}/eos-srm-checksum
 
-
-#######################################################################################
-# the keytab test package
-#######################################################################################
+#-------------------------------------------------------------------------------
+# Package eos-testkeytab
+#-------------------------------------------------------------------------------
 %package -n eos-testkeytab
-#######################################################################################
 Summary: The EOS testkeytab package
 Group: Applications/File
 
@@ -276,87 +275,93 @@ Requires: eos-server
 
 %description -n eos-testkeytab
 Contains an example keytab file.
-%files -n eos-testkeytab
-%config(noreplace) %attr(-,daemon,daemon) %_sysconfdir/eos.keytab
 
-#######################################################################################
-# the EOS archive daemon package - created only for SLC6
-#######################################################################################
-%if 0%{?rhel} >= 6
+%files -n eos-testkeytab
+%config(noreplace) %attr(-, daemon, daemon) %{_sysconfdir}/eos.keytab
+
+#-------------------------------------------------------------------------------
+# Package eos-archive only for >= SLC6
+#-------------------------------------------------------------------------------
+%if %{?rhel}%{!?rhel:0} >= 6
 %package -n eos-archive
-#######################################################################################
 Summary: The EOS archive daemon
 Group: Applications/File
+
 Requires: python-daemon xrootd-python python-zmq
 
 %description -n eos-archive
 The EOS archive daemon.
 
 %files -n eos-archive
-/usr/bin/eosarchived.py
-/usr/bin/eosarch_run.py
+%defattr(-, root, root, -)
 /usr/lib/python*
-%config(noreplace) %_sysconfdir/sysconfig/eosarchived
-%config(noreplace) %_sysconfdir/eosarchived.conf
-%_sysconfdir/rc.d/init.d/eosarchived
+%{_bindir}/eosarchived.py
+%{_bindir}/eosarch_run.py
+%{_bindir}/eosarch_reconstruct.py
+%config(noreplace) %{_sysconfdir}/sysconfig/eosarchived
+%config(noreplace) %{_sysconfdir}/eosarchived.conf
+%{_sysconfdir}/rc.d/init.d/eosarchived
 
 %post -n eos-archive
 /sbin/chkconfig --add eosarchived
-echo Starting conditional EOS archive services
+echo "Starting conditional EOS archive services"
 sleep 2
 /sbin/service eosarchived condrestart > /dev/null 2>&1 || :
 
 %preun -n eos-archive
 if [ $1 = 0 ]; then
-	echo Stopping EOS archive services
-	/sbin/service eosarchvied stop > /dev/null 2>&1
+	echo "Stopping EOS archive services"
+	/sbin/service eosarchvied stop > /dev/null 2>&1 || :
 	/sbin/chkconfig --del eosarchived
 fi
 %endif
 
-#######################################################################################
-# the test package
-#######################################################################################
+#-------------------------------------------------------------------------------
+# Package eos-test
+#-------------------------------------------------------------------------------
 %package -n eos-test
-#######################################################################################
 Summary: The EOS test package
 Group: Applications/File
 
 Requires: eos-server cadaver bc
 
 %description -n eos-test
-Contains an instance test script and some test executables
-%files -n eos-test
-/usr/sbin/eos-instance-test
-/usr/sbin/eos-rain-test
-/usr/sbin/xrdcpabort
-/usr/sbin/xrdcpappend
-/usr/sbin/xrdcpposixcache
-/usr/sbin/xrdcpextend
-/usr/sbin/xrdcpholes
-/usr/sbin/xrdcpbackward
-/usr/sbin/xrdcpdownloadrandom
-/usr/sbin/xrdcprandom
-/usr/sbin/xrdcpshrink
-/usr/sbin/xrdcptruncate
-/usr/sbin/xrdcppartial
-/usr/sbin/xrdstress
-/usr/sbin/xrdstress.exe
-/usr/sbin/eos-io-test
-/usr/sbin/eos-io-tool
+Contains an instance test script and some test executables.
 
-#######################################################################################
-# the cleanup package
-#######################################################################################
+%files -n eos-test
+%defattr(-, root, root, -)
+%{_sbindir}/eos-instance-test
+%{_sbindir}/eos-rain-test
+%{_sbindir}/xrdcpabort
+%{_sbindir}/xrdcpappend
+%{_sbindir}/xrdcpposixcache
+%{_sbindir}/xrdcpextend
+%{_sbindir}/xrdcpholes
+%{_sbindir}/xrdcpbackward
+%{_sbindir}/xrdcpdownloadrandom
+%{_sbindir}/xrdcprandom
+%{_sbindir}/xrdcpshrink
+%{_sbindir}/xrdcptruncate
+%{_sbindir}/xrdcppartial
+%{_sbindir}/xrdstress
+%{_sbindir}/xrdstress.exe
+%{_sbindir}/eos-io-test
+%{_sbindir}/eos-io-tool
+
+#-------------------------------------------------------------------------------
+# Package eos-cleanup
+#-------------------------------------------------------------------------------
 %package -n eos-cleanup
-#######################################################################################
+
 Summary: The EOS test package
 Group: Applications/File
 
 %description -n eos-cleanup
-Contains an clean-up script to remove 'left-overs' of an EOS instance for FST/MGM/FUSE etc ...
+Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/MGM/FUSE etc.
+
 %files -n eos-cleanup
-/usr/sbin/eos-uninstall
-/usr/sbin/eos-log-clean
-/usr/sbin/eos-fst-clean
-/usr/sbin/eos-mgm-clean
+%defattr(-, root, root, -)
+%{_sbindir}/eos-uninstall
+%{_sbindir}/eos-log-clean
+%{_sbindir}/eos-fst-clean
+%{_sbindir}/eos-mgm-clean
