@@ -32,6 +32,7 @@ BuildRequires: xrootd-client-devel
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: git
+BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 
 %if 0%{?rhel} >= 6 || 0%{?fedora} || 0%{?el7} == 1
 BuildRequires: libcurl-devel, libcurl, libuuid-devel
@@ -66,6 +67,7 @@ Requires: acl
 Requires: gdb
 Requires: zeromq
 Requires: libcurl
+Requires: protobuf
 
 %if 0%{?fedora} >= 18 || 0%{?el7} == 1
 Requires: zeromq3
@@ -187,6 +189,7 @@ Summary: The EOS shell client
 Group: Applications/File
 
 Requires: xrootd-client
+Requires: protobuf
 
 %description -n eos-client
 The EOS shell client.
