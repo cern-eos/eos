@@ -481,7 +481,7 @@ Fsck::Check (void)
       for (it = fid2check.begin(); it != fid2check.end(); it++)
       {
         eos::IFileMD* fmd {0};
-        std::unique_ptr<eos::IFileMD> fmd_cpy {0};
+        std::unique_ptr<eos::IFileMD> fmd_cpy;
 
         // Check if locations are online
         try
