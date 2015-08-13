@@ -38,6 +38,7 @@
 #include <fts.h>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
