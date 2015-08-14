@@ -37,6 +37,7 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: redhat-rpm-config
+BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
