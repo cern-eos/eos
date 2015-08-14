@@ -1,4 +1,6 @@
-%define _unpackaged_files_terminate_build 0
+%define unpackaged_files_terminate_build 0
+%define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
+
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
@@ -10,39 +12,42 @@ Group: Applications/File
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
-BuildRequires: cmake >= 2.8
-%define cmake_cmd cmake
-%else
+%if 0%{?rhel} == 5
 BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
+%else
+BuildRequires: cmake >= 2.8
+%define cmake_cmd cmake
 %endif
 
 BuildRequires: xrootd >= 3.3.4
 BuildRequires: xrootd-server-devel >= 3.3.4
 BuildRequires: xrootd-private-devel  >= 3.3.4
-BuildRequires: readline-devel, ncurses-devel
-BuildRequires: libattr-devel, openldap-devel
-BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
-BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-client-devel
+BuildRequires: git, readline-devel
+BuildRequires: libattr-devel, openldap-devel
+BuildRequires: e2fsprogs-devel, xfsprogs-devel
+BuildRequires: openssl, openssl-devel
+BuildRequires: ncurses, ncurses-devel
+BuildRequires: zlib, zlib-devel
+BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
-BuildRequires: libcurl-devel libcurl
-%else
-BuildRequires: curl-devel curl
-%endif
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
-BuildRequires: git
+BuildRequires: redhat-rpm-config
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} || 0%{?el7} == 1
-%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel,zeromq3,zeromq3-devel
+%if %{distribution} == 5
+BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
+BuildRequires: zeromq, zeromq-devel, curl-devel, curl
 %else
-BuildRequires: libuuid-devel,ncurses-static,openssl-static,zlib-static,sparsehash-devel,zeromq,zeromq-devel
+BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
+BuildRequires: libcurl-devel libcurl, sparsehash-devel
+
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+BuildRequires: zeromq, zeromq-devel
+%else
+BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
-%else
-BuildRequires: gcc44,gcc44-c++,sparsehash,uuid,uuid-devel,openssl,openssl-devel,ncurses,ncurses-devel,zlib,zlib-devel,zeromq,zeromq-devel
+
 %endif
 
 %description
@@ -55,17 +60,18 @@ Summary: The EOS server installation
 Group: Applications/File
 Requires: xrootd >= 3.3.4
 Requires: xrootd-client
-%if %{?fedora}%{!?fedora:0} >= 18 || 0%{?el7} == 1
-Requires: zeromq3
-%else
-Requires: zeromq
-%endif
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
 Requires: libcurl
+
+%if %{distribution} == 5 || 0%{?rhel} == 6
+Requires: zeromq
+%else
+Requires: zeromq
+%endif
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
@@ -76,7 +82,7 @@ The EOS server installation containing MGM, FST & MQ service.
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-%if 0%{?rhel} < 6 && %{?fedora}%{!?fedora:0} <= 1
+%if %{distribution} == 5
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 %endif
 
@@ -144,12 +150,14 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) /etc/xrd.cf.fed
 %config(noreplace) /etc/xrd.cf.prefix
 %config(noreplace) /etc/sysconfig/eos.example
+%config(noreplace) /etc/sysconfig/xrootd.example
 %_sysconfdir/rc.d/init.d/eos
 %_sysconfdir/rc.d/init.d/eosha
 %_sysconfdir/rc.d/init.d/eossync
 %_sysconfdir/rc.d/init.d/eosslave
 %_sysconfdir/cron.d/eos-logs
 %_sysconfdir/cron.d/eos-reports
+%_sysconfdir/cron.d/eos-config
 %_sysconfdir/logrotate.d/eos-logs
 
 %post -n eos-server
@@ -273,7 +281,7 @@ Contains an example keytab file.
 #######################################################################################
 # the EOS archive daemon package - created only for SLC6
 #######################################################################################
-%if %{?rhel}%{!?rhel:0} >= 6
+%if 0%{?rhel} >= 6
 %package -n eos-archive
 #######################################################################################
 Summary: The EOS archive daemon
@@ -286,6 +294,7 @@ The EOS archive daemon.
 %files -n eos-archive
 /usr/bin/eosarchived.py
 /usr/bin/eosarch_run.py
+/usr/bin/eosarch_reconstruct.py
 /usr/lib/python*
 %config(noreplace) %_sysconfdir/sysconfig/eosarchived
 %config(noreplace) %_sysconfdir/eosarchived.conf
@@ -335,6 +344,12 @@ Contains an instance test script and some test executables
 /usr/sbin/xrdstress.exe
 /usr/sbin/eos-io-test
 /usr/sbin/eos-io-tool
+/usr/sbin/eos-oc-test
+/usr/sbin/eoschecksumbench
+/usr/sbin/eoscp-rain-test
+/usr/sbin/eoshashbench
+/usr/sbin/eosnsbench
+/usr/sbin/xrdcpupdate
 
 #######################################################################################
 # the cleanup package
