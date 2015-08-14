@@ -1,4 +1,4 @@
-%define unpackaged_files_terminate_build 0
+%define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 
 Summary: The EOS project
