@@ -296,10 +296,12 @@ add_executable( eoscp
 add_executable( eos-ioping 
                 tools/IoPing.cc 
 )
- 
 
-set_target_properties( eoscp PROPERTIES COMPILE_FLAGS "-D_LARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64" )
 set_target_properties( eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1 )
+set_target_properties(
+  eoscp
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
@@ -327,7 +329,10 @@ if (Linux)
     CLEAN_DIRECT_OUTPUT 1
   )
 
- set_target_properties ( EosFstIo-Static PROPERTIES COMPILE_FLAGS "-fPIC -D_LARGEFILE_SOURCE=1 -D_FILE_OFFSET_BITS=64" )
+ set_target_properties(
+   EosFstIo-Static
+   PROPERTIES
+   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
 
 endif(Linux)
 

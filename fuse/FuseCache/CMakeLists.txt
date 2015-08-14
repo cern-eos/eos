@@ -34,7 +34,10 @@ add_library(
   FileAbstraction.cc FileAbstraction.hh )
 
 
-set_target_properties( FuseCache PROPERTIES COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
+set_target_properties(
+  FuseCache
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 if( MacOSX )
 target_link_libraries( 
@@ -74,8 +77,10 @@ target_link_libraries(
   eosCommon-Static 
   ${CMAKE_THREAD_LIBS_INIT} )
 
-set_target_properties( FuseCache-Static PROPERTIES 
-                                       COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -fPIC")
+set_target_properties(
+  FuseCache-Static
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
 
 endif ( MacOSX )
 
