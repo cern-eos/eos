@@ -245,7 +245,7 @@ add_executable(eoscp txqueue/eoscp.cc)
 set_target_properties(
   eoscp
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64")
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 add_executable(
   eos-check-blockxs
@@ -317,7 +317,7 @@ else()
   set_target_properties(
    EosFstIo-Static
     PROPERTIES
-    COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
   target_link_libraries(eoscp EosFstIo-Static)
 
   set_target_properties(

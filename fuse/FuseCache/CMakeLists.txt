@@ -35,7 +35,7 @@ add_library(
 set_target_properties(
   FuseCache
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64")
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 target_link_libraries(
   FuseCache
@@ -69,7 +69,7 @@ if (Linux)
   set_target_properties(
   FuseCache-Static
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGE_FILE_SOURCE -D_LARGE64_FILE_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
 
 else()
   set_target_properties(
