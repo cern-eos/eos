@@ -2,6 +2,8 @@
 # Package definitions
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
+%define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
+
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
@@ -13,40 +15,42 @@ Group: Applications/File
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 18
-BuildRequires: cmake >= 2.8
-%define cmake_cmd cmake
-%else
+%if %{distribution} == 5
 BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
+%else
+BuildRequires: cmake >= 2.8
+%define cmake_cmd cmake
 %endif
 
 BuildRequires: xrootd >= 3.3.4
 BuildRequires: xrootd-server-devel >= 3.3.4
 BuildRequires: xrootd-private-devel  >= 3.3.4
-BuildRequires: readline-devel, ncurses-devel
-BuildRequires: libattr-devel, openldap-devel
-BuildRequires: e2fsprogs-devel, zlib-devel, openssl-devel,ncurses-devel, xfsprogs-devel
-BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: xrootd-client-devel
+BuildRequires: git, readline-devel
+BuildRequires: libattr-devel, openldap-devel
+BuildRequires: e2fsprogs-devel, xfsprogs-devel
+BuildRequires: openssl, openssl-devel
+BuildRequires: ncurses, ncurses-devel
+BuildRequires: zlib, zlib-devel
+BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
-BuildRequires: git
-BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: redhat-rpm-config
 
-%if 0%{?rhel} >= 6 || 0%{?fedora} || 0%{?el7} == 1
-BuildRequires: libcurl-devel, libcurl, libuuid-devel
-BuildRequires: ncurses-static, openssl-static, zlib-static, sparsehash-devel
-%if 0%{?fedora} >= 18 || 0%{?el7} == 1
-BuildRequires: zeromq3, zeromq3-devel
+%if %{distribution} == 5
+BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
+BuildRequires: zeromq, zeromq-devel, curl-devel, curl
 %else
+BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
+BuildRequires: libcurl-devel libcurl, sparsehash-devel
+
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq, zeromq-devel
+%else
+BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
-%else
-# For SLC5
-BuildRequires: curl, curl-devel, gcc44, gcc44-c++, sparsehash, uuid, uuid-devel
-BuildRequires: openssl, openssl-devel, ncurses, ncurses-devel, zlib, zlib-devel
-BuildRequires: zeromq, zeromq-devel
+
 %endif
 
 %description
@@ -69,12 +73,6 @@ Requires: zeromq
 Requires: libcurl
 Requires: protobuf
 
-%if 0%{?fedora} >= 18 || 0%{?el7} == 1
-Requires: zeromq3
-%else
-Requires: zeromq
-%endif
-
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
 
@@ -84,7 +82,8 @@ The EOS server installation containing MGM, FST & MQ service.
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-%if 0%{?rhel} < 6 && %{?fedora}%{!?fedora:0} <= 1
+
+%if %{distribution} == 5
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 %endif
 
@@ -226,6 +225,7 @@ The EOS fuse client.
 %{_sbindir}/eosd
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
+
 %if %{?fedora:1}%{!?fedora:0}
 %{_sysconfdir}/fuse.conf.eos
 %else
@@ -282,7 +282,7 @@ Contains an example keytab file.
 #-------------------------------------------------------------------------------
 # Package eos-archive only for >= SLC6
 #-------------------------------------------------------------------------------
-%if %{?rhel}%{!?rhel:0} >= 6
+%if 0%{?rhel} >= 6
 %package -n eos-archive
 Summary: The EOS archive daemon
 Group: Applications/File
