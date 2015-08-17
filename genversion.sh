@@ -74,8 +74,15 @@ else
   git log -1 >/dev/null 2>&1
 
   if [[  ${?} -ne 0 ]]; then
-    echo "[!] Unable to get the git log, maybe not a git repository. " 1>&2
-    exit 1
+    # Check if we have a spec file and try to extract the version. This happens
+    # in the rpmbuild step. We don't have a git repo bu the version was already
+    # set.
+    if [[ -e "eos.spec" ]]; then
+       VERSION="$(grep "Version:" eos.spec | awk '{print $2;}')"
+    else
+      echo "[!] Unable to get version from git or spec file . " 1>&2
+      exit 1
+    fi
   else
     # Can we match the exact tag?
     git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
@@ -105,6 +112,6 @@ else
 
   cd $CURRENTDIR
 
-  # The version has the following fomat: major minor patch
+  # The version has the following fomat: major.minor.patch
   echo $VERSION
 fi
