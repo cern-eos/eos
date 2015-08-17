@@ -23,7 +23,7 @@ function getVersionFromLog()
     AWK=awk
   fi
 
-  VERSION="$(echo $@ | $AWK '{ gsub("-","",$1); print $1"."$4"."0; }')"
+  VERSION="$(echo $@ | $AWK '{ gsub("-","",$1); print 0"."$1"."$4; }')"
   if test $? -ne 0; then
     echo "unknown";
     return 1
