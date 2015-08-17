@@ -22,14 +22,6 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
-# Version Definition
-#-------------------------------------------------------------------------------
-set(VERSION_MAJOR "0" )
-set(VERSION_MINOR "4" )
-set(VERSION_PATCH "0" )
-set(VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
-
-#-------------------------------------------------------------------------------
 # Main section
 #-------------------------------------------------------------------------------
 cmake_minimum_required (VERSION 2.6)
@@ -46,67 +38,60 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install prefix: /usr" FORCE)
 endif()
 
-# include some generic functions
+# Include some generic functions and GNU path settings
 include(EosUtils)
-
-# include GNU path settings
 include (GNUInstallDirs)
 
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
 set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
 
+EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
+EOS_DefineOperatingSystem()
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
 #-------------------------------------------------------------------------------
-if(NOT DEFINED RELEASE OR NOT RELEASE)
-set(RELEASE "head")
-endif()
-
-EOS_DefineOperatingSystem()
-
 set(PACKAGEONLY CACHE BOOL false)
 
 if (NOT PACKAGEONLY)
   find_package(PythonSitePkg REQUIRED)
-find_package(XRootD REQUIRED)
-find_package(fuse REQUIRED)
-find_package(Threads REQUIRED)
-find_package(z REQUIRED)
-find_package(readline REQUIRED)
-find_package(CURL REQUIRED)
-find_package(uuid REQUIRED)
- find_package(ProtocolBuffers REQUIRED)
+  find_package(XRootD REQUIRED)
+  find_package(fuse REQUIRED)
+  find_package(Threads REQUIRED)
+  find_package(z REQUIRED)
+  find_package(readline REQUIRED)
+  find_package(CURL REQUIRED)
+  find_package(uuid REQUIRED)
+  find_package(ProtocolBuffers REQUIRED)
   find_package(openssl REQUIRED)
   find_package(ncurses REQUIRED)
   find_package(leveldb REQUIRED)
   find_package(ZMQ REQUIRED)
   find_package(Kerberos5 REQUIRED)
+
   if (Linux)
     find_package(glibc REQUIRED)
   endif()
 
   # For server require also the following
   if (NOT CLIENT)
-find_package(SparseHash REQUIRED)
-find_package(rt REQUIRED)
-find_package(ldap REQUIRED)
-find_package(CPPUnit)
-find_package(microhttpd)
+    find_package(SparseHash REQUIRED)
+    find_package(rt REQUIRED)
+    find_package(ldap REQUIRED)
+    find_package(CPPUnit)
+    find_package(microhttpd)
     find_package(httpd)
     find_package(xfs REQUIRED)
-find_package(attr REQUIRED)
+    find_package(attr REQUIRED)
   endif()
 else()
   message(STATUS "Runing CMake in package only mode")
-
-  # Create empty fake function for building the SRPMS in TeamCity
+  # Fake function for building the SRPMS in build system
   function(PROTOBUF_GENERATE_CPP SRCS HDRS)
     return()
   endfunction()
 endif()
-
 
 #-------------------------------------------------------------------------------
 # Check for Gcc >=4.4
@@ -123,25 +108,20 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   endif()
 endif()
 
-
 #-------------------------------------------------------------------------------
 # Platform Specific
 #-------------------------------------------------------------------------------
 if(MacOSX)
- # On MAC we don't link static objects at all
-set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
-
-else(MacOSX)
+  # On MAC we don't link static objects at all
+  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
+else()
   # On Linux we use static objects
-set(LIB_INSTALL_DIR lib64)
-set(RT_LIBS rt)
-
-endif(MacOSX)
-################################################################################
+  set(LIB_INSTALL_DIR lib64)
+  set(RT_LIBS rt)
+endif()
 
 include_directories(/usr/include/xrootd/ /usr/include/)
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
-
 
 #-------------------------------------------------------------------------------
 # Check for out of source build
@@ -158,12 +138,11 @@ else (CLIENT)
 set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
 
-if (NOT MICROHTTPD_FOUND)
-message("  Warning: MicroHttpd not found, no httpd access available")
-else (NOT MICROHTTPD_FOUND)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
-endif (NOT MICROHTTPD_FOUND)
-
+if(NOT MICROHTTPD_FOUND)
+  message("  Warning: MicroHttpd not found, no httpd access available")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
+endif()
 
 #-------------------------------------------------------------------------------
 # Generate client commands doc
@@ -173,38 +152,36 @@ if(PYTHONINTERP_FOUND)
     COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
 endif()
 
-
 #-------------------------------------------------------------------------------
 # Install targets
 #-------------------------------------------------------------------------------
 if (CLIENT)
-add_subdirectory (authz)
-add_subdirectory (fst)
-add_subdirectory (fuse)
-add_subdirectory (console)
-add_subdirectory (man)
-add_subdirectory (mq)
-add_subdirectory (common)
-else (CLIENT)
-add_subdirectory (mq)
-add_subdirectory (common)
-add_subdirectory (authz)
-add_subdirectory (fst)
-add_subdirectory (mgm)
-add_subdirectory (console)
-add_subdirectory (namespace)
-add_subdirectory (etc)
-add_subdirectory (sync)
-add_subdirectory (fuse)
-add_subdirectory (srm)
-add_subdirectory (var)
-add_subdirectory (man)
-add_subdirectory (test)
-add_subdirectory (utils)
-add_subdirectory (archive)
+  add_subdirectory (authz)
+  add_subdirectory (fst)
+  add_subdirectory (fuse)
+  add_subdirectory (console)
+  add_subdirectory (man)
+  add_subdirectory (mq)
+  add_subdirectory (common)
+else()
+  add_subdirectory (mq)
+  add_subdirectory (common)
+  add_subdirectory (authz)
+  add_subdirectory (fst)
+  add_subdirectory (mgm)
+  add_subdirectory (console)
+  add_subdirectory (namespace)
+  add_subdirectory (etc)
+  add_subdirectory (sync)
+  add_subdirectory (fuse)
+  add_subdirectory (srm)
+  add_subdirectory (var)
+  add_subdirectory (man)
+  add_subdirectory (test)
+  add_subdirectory (utils)
+  add_subdirectory (archive)
   add_subdirectory(auth_plugin)
-endif (CLIENT)
-
+endif()
 
 #-------------------------------------------------------------------------------
 # Uninstall target
@@ -236,9 +213,9 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
 	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-                   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+		   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
 		   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-		           "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+			   "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
 add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source
 		  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
@@ -253,7 +230,6 @@ add_custom_target(gitdist
     COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}/ HEAD
     | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-
 
 #-------------------------------------------------------------------------------
 # Source and binary rpms
@@ -271,4 +247,7 @@ add_custom_target(
 add_dependencies(rpm dist)
 add_dependencies(srpm dist)
 
+#-------------------------------------------------------------------------------
+# Print project summary
+#-------------------------------------------------------------------------------
 include(EosSummary)
