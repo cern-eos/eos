@@ -27,8 +27,6 @@ include_directories(
  ${SPARSEHASH_INCLUDE_DIR}
  ${XROOTD_INCLUDE_DIR})
 
-link_directories(${XROOTD_LIB_DIR})
-
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
@@ -56,27 +54,47 @@ set(EOS_NS_MEMORY_SRCS
   accounting/QuotaStats.cc      accounting/QuotaStats.hh
   accounting/FileSystemView.cc  accounting/FileSystemView.hh)
 
+#-------------------------------------------------------------------------------
+# EosNsInMemory library
+#-------------------------------------------------------------------------------
 add_library(
   EosNsInMemory MODULE
   ${EOS_NS_MEMORY_SRCS})
 
+target_link_libraries(
+  EosNsInMemory
+  EosNsCommon
+  ${Z_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${GLIBC_RT_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
+set_target_properties(
+  EosNsInMemory
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES "")
+
+#-------------------------------------------------------------------------------
+# EosNsInMemory-Static library
+#-------------------------------------------------------------------------------
 add_library(
-  EosNsInMemory-Static STATIC 
+  EosNsInMemory-Static STATIC
   ${EOS_NS_MEMORY_SRCS}
   progs/EOSLogCompact.cc
   progs/EOSLogRepair.cc)
 
-if (Linux)
-  target_link_libraries(EosNsInMemory pthread z rt XrdUtils EosNsCommon)
-  target_link_libraries(EosNsInMemory-Static pthread z rt XrdUtils EosNsCommon)
+target_link_libraries(
+  EosNsInMemory-Static
+  EosNsCommon
+  ${Z_LIBRARY_STATIC}
+  ${XROOTD_UTILS_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
 
-  set_target_properties(
-    EosNsInMemory-Static 
-    PROPERTIES COMPILE_FLAGS -fPIC)
-else (Linux)
-  target_link_libraries(EosNsInMemory pthread z XrdUtils EosNsCommon)
-  target_link_libraries(EosNsInMemory-Static pthread z XrdUtils EosNsCommon)
-endif (Linux)
+set_target_properties(
+  EosNsInMemory-Static
+  PROPERTIES COMPILE_FLAGS -fPIC)
 
 add_executable(eos-log-compact progs/EOSLogCompact.cc)
 add_executable(eos-log-repair  progs/EOSLogRepair.cc)
@@ -89,4 +107,3 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-

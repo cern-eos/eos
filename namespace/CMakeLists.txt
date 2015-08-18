@@ -50,9 +50,18 @@ add_library(
   EosNsCommon SHARED
   ${EOS_NS_COMMON_SRCS})
 
-add_library(
-  EosNsCommon-Static STATIC
-  ${EOS_NS_COMMON_SRCS})
+if (Linux)
+  add_library(
+    EosNsCommon-Static STATIC
+    ${EOS_NS_COMMON_SRCS})
+endif ()
+
+set_target_properties(
+  EosNsCommon
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES "")
 
 install(
   TARGETS EosNsCommon
