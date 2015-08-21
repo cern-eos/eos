@@ -70,8 +70,13 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
-Requires: libcurl
 Requires: protobuf
+
+%if %{distribution} == 5
+Requires: curl
+%else
+Requires: libcurl
+%endif
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
