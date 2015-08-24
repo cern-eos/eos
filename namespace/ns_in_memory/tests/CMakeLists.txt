@@ -26,7 +26,8 @@ include_directories(${CPPUNIT_INCLUDE_DIRS})
 #-------------------------------------------------------------------------------
 # EosNsInMemoryTests library
 #-------------------------------------------------------------------------------
-add_library (EosNsInMemoryTests SHARED
+add_library(
+  EosNsInMemoryTests SHARED
   ChangeLogContainerMDSvcTest.cc
   ChangeLogFileMDSvcTest.cc
   ChangeLogTest.cc
@@ -36,30 +37,32 @@ add_library (EosNsInMemoryTests SHARED
   LogCompactingTest.cc
   OtherTests.cc
   ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.hh
-  ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc
-)
+  ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc)
 
-target_link_libraries( EosNsInMemoryTests ${CPPUNIT_LIBRARIES} EosNsInMemory-Static)
+target_link_libraries(
+  EosNsInMemoryTests
+  ${Z_LIBRARY}
+  ${CPPUNIT_LIBRARIES}
+  EosNsInMemory-Static)
+
+set_target_properties(
+  EosNsInMemoryTests
+  PROPERTIES
+  VERSION ${VERSION}
+  SOVERSION ${VERSION_MAJOR}
+  INTERFACE_LINK_LIBRARIES ""
+  POSITION_INDEPENDENT_CODE True)
 
 #-------------------------------------------------------------------------------
 # text-runner and ns-benchmark executables
 #-------------------------------------------------------------------------------
 add_executable(text-runner TextRunner.cc)
-target_link_libraries(text-runner 
+
+target_link_libraries(
+  text-runner
   EosNsInMemoryTests
   ${CPPUNIT_LIBRARIES}
   ${GLIBC_DL_LIBRARY})
 
-add_executable( ns-benchmark NSBenchmark.cc)
-target_link_libraries( ns-benchmark EosNsInMemory-Static )
-
-if (Linux)
-  set_target_properties(
-    EosNsInMemoryTests
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES ""
-    COMPILE_FLAGS -fPIC)
-endif (Linux)
+add_executable(ns-benchmark NSBenchmark.cc)
+target_link_libraries(ns-benchmark EosNsInMemory-Static)

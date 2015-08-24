@@ -79,31 +79,40 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # EosNsInMemory-Static library
 #-------------------------------------------------------------------------------
-add_library(
-  EosNsInMemory-Static STATIC
-  ${EOS_NS_MEMORY_SRCS}
-  progs/EOSLogCompact.cc
-  progs/EOSLogRepair.cc)
+if (Linux)
+  add_library(
+    EosNsInMemory-Static STATIC
+    ${EOS_NS_MEMORY_SRCS}
+    progs/EOSLogCompact.cc
+    progs/EOSLogRepair.cc)
 
-target_link_libraries(
-  EosNsInMemory-Static
-  EosNsCommon
-  ${Z_LIBRARY_STATIC}
-  ${XROOTD_UTILS_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  target_link_libraries(
+    EosNsInMemory-Static
+    EosNsCommon-Static
+    ${Z_LIBRARY_STATIC}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
 
-set_target_properties(
-  EosNsInMemory-Static
-  PROPERTIES COMPILE_FLAGS -fPIC)
+  set_target_properties(
+    EosNsInMemory-Static
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE True)
 
-add_executable(eos-log-compact progs/EOSLogCompact.cc)
-add_executable(eos-log-repair  progs/EOSLogRepair.cc)
+  add_executable(eos-log-compact progs/EOSLogCompact.cc)
+  add_executable(eos-log-repair  progs/EOSLogRepair.cc)
 
-target_link_libraries(eos-log-compact EosNsInMemory-Static)
-target_link_libraries(eos-log-repair EosNsInMemory-Static)
+  target_link_libraries(eos-log-compact EosNsInMemory-Static)
+  target_link_libraries(eos-log-repair EosNsInMemory-Static)
+
+  install(
+    TARGETS eos-log-compact eos-log-repair EosNsInMemory-Static
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+endif()
 
 install(
-  TARGETS eos-log-compact eos-log-repair EosNsInMemory
+  TARGETS EosNsInMemory
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

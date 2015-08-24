@@ -50,6 +50,11 @@ EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEA
 EOS_DefineOperatingSystem()
 
 #-------------------------------------------------------------------------------
+# Avoid CMake warnings
+#-------------------------------------------------------------------------------
+cmake_policy(SET CMP0022 OLD)
+
+#-------------------------------------------------------------------------------
 # Search for dependencies
 #-------------------------------------------------------------------------------
 set(PACKAGEONLY CACHE BOOL false)

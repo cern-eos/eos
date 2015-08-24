@@ -50,11 +50,9 @@ add_library(
   EosNsCommon SHARED
   ${EOS_NS_COMMON_SRCS})
 
-if (Linux)
-  add_library(
-    EosNsCommon-Static STATIC
-    ${EOS_NS_COMMON_SRCS})
-endif ()
+target_link_libraries(
+  EosNsCommon
+  ${Z_LIBRARY})
 
 set_target_properties(
   EosNsCommon
@@ -67,6 +65,25 @@ install(
   TARGETS EosNsCommon
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+#-------------------------------------------------------------------------------
+# EosNsCommon-Static library
+#-------------------------------------------------------------------------------
+if (Linux)
+  add_library(
+    EosNsCommon-Static STATIC
+    ${EOS_NS_COMMON_SRCS})
+
+  target_link_libraries(
+    EosNsCommon-Static
+    ${Z_LIBRARY_STATIC})
+
+  set_target_properties(
+    EosNsCommon-Static
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE True)
+endif ()
+
 
 add_subdirectory(ns_in_memory)
 #add_subdirectory(ns_on_filesystem)
