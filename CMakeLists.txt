@@ -52,10 +52,9 @@ EOS_DefineOperatingSystem()
 #-------------------------------------------------------------------------------
 # Avoid CMake warnings
 #-------------------------------------------------------------------------------
-if(CMAKE_VERSION VERSION_GREATER "2.8.11")
+if(NOT (CMAKE_VERSION VERSION_LESS "2.8.12"))
   cmake_policy(SET CMP0022 NEW)
 endif()
-
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
