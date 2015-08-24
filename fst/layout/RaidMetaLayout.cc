@@ -700,7 +700,6 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset, char* buffer,
  XrdSysMutexHelper scope_lock(mExclAccess);
  eos::common::Timing rt("read");
  COMMONTIMING("start", &rt);
- off_t nread = 0;
  unsigned int stripe_id;
  unsigned int physical_id;
  int64_t read_length = 0;
@@ -753,8 +752,8 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset, char* buffer,
 
      while (len >= mStripeWidth)
      {
-       nread = mStripeWidth;
-       map_all_errors.insert(std::make_pair<off_t, size_t > (offset, nread));
+       map_all_errors.insert(std::make_pair<off_t, size_t > (
+           (off_t)offset, (size_t)mStripeWidth));
        
        if (offset % mSizeGroup == 0)
        {
