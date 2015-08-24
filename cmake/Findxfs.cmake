@@ -8,7 +8,7 @@ include(FindPackageHandleStandardArgs)
 
 if(XFS_INCLUDE_DIRS)
   set(XFS_FIND_QUIETLY TRUE)
-end()
+else()
   find_path(
     XFS_INCLUDE_DIR
     NAMES xfs/xfs.h
@@ -18,7 +18,9 @@ end()
   set(XFS_INCLUDE_DIRS ${XFS_INCLUDE_DIR})
 
   find_package_handle_standard_args(
-    xfs DEFAULT_MSG XFS_INCLUDE_DIR)
+    xfs
+    DEFAULT_MSG
+    XFS_INCLUDE_DIR)
 
   mark_as_advanced(XFS_INCLUDE_DIR)
 endif()

@@ -34,7 +34,7 @@ else()
   find_package_handle_standard_args(
     z
     DEFAULT_MSG
-    Z_LIBRARY Z_INCLUDE_DIR Z_LIBRARY_STATIC )
+    Z_LIBRARY Z_INCLUDE_DIR Z_LIBRARY_STATIC)
 
     mark_as_advanced(Z_LIBRARY Z_LIBRARY_STATIC Z_INCLUDE_DIR)
 endif()
