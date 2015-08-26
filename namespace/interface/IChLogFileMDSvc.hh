@@ -129,13 +129,6 @@ class IChLogFileMDSvc
   //! @return offset value
   //----------------------------------------------------------------------------
   virtual uint64_t getFollowOffset() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Set container service
-  //!
-  //! @param cont_svc container service
-  //----------------------------------------------------------------------------
-  virtual void setContainerService(IChLogContainerMDSvc* cont_svc) = 0;
 };
 
 EOSNSNAMESPACE_END

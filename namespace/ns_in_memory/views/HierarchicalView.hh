@@ -1,4 +1,3 @@
-
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *

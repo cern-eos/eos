@@ -186,8 +186,7 @@ class IFileMDSvc
   //----------------------------------------------------------------------------
   //! Set container service
   //----------------------------------------------------------------------------
-  //virtual void setContainerService(IContainerMDSvc* cont_svc) = 0;
-
+  virtual void setContainerService(IContainerMDSvc* cont_svc) = 0;
 };
 
 EOSNSNAMESPACE_END
