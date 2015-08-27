@@ -255,9 +255,9 @@ namespace eos
                     // ---------------------------------------------------------
                     // attach the sub-container at the next deepness level
                     // ---------------------------------------------------------
-                    for (cIt = (*dIt)->containersBegin(); 
-                         cIt != (*dIt)->containersEnd(); 
-                         cIt++)
+                    for (cIt = (*dIt)->containersBegin();
+                         cIt != (*dIt)->containersEnd();
+                         ++cIt)
                     {
                       dirTree[deepness + 1].insert(cIt->second);
                     }

@@ -25,8 +25,31 @@
 #include "namespace/FileMD.hh"
 #include <sys/stat.h>
 
+#include "namespace/persistency/hashtable/PersistentHashtable.hh"
+
 namespace eos
 {
+  // TODO: Naive hashing function, could be more sophisticated.
+  hash_value_t hash_string (const void* contents)
+  {
+    const char* str = ((std::string*) contents)->c_str();
+
+    char ret = 0;
+    for(size_t i = 0; str[i]; ++i) {
+      ret ^= str[i];
+    }
+
+    return ret;
+  }
+
+  int comp_string (const void* a, const void* b)
+  {
+    return strcmp(
+     ((std::string*)a)->c_str(),
+     ((std::string*)b)->c_str()
+    );
+  }
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
@@ -38,11 +61,10 @@ namespace eos
     pCUid( 0 ),
     pCGid( 0 ),
     pMode( 040755 ),
-    pACLId( 0 )
+    pACLId( 0 ),
+    pSubContainers( 100, hash_string, comp_string )
   {
-    pSubContainers.set_deleted_key( "" );
     pFiles.set_deleted_key( "" );
-    pSubContainers.set_empty_key( "##_EMPTY_##" );
     pFiles.set_empty_key( "##_EMPTY_##" );
     pCTime.tv_sec = 0;
     pCTime.tv_nsec = 0;
@@ -51,7 +73,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Copy constructor
   //----------------------------------------------------------------------------
-  ContainerMD::ContainerMD( const ContainerMD &other )
+  ContainerMD::ContainerMD( const ContainerMD &other ):
+    pSubContainers( 100, hash_string, comp_string )
   {
     *this = other;
   }

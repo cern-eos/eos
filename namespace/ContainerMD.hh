@@ -35,6 +35,7 @@
 #include <sys/time.h>
 
 #include "namespace/persistency/Buffer.hh"
+#include "namespace/persistency/hashtable/PersistentHashtable.hh"
 
 namespace eos
 {
@@ -46,9 +47,9 @@ namespace eos
   class ContainerMD
   {
     public:
-      typedef google::dense_hash_map<std::string, ContainerMD*> ContainerMap;
-      typedef google::dense_hash_map<std::string, FileMD*>      FileMap;
-      typedef std::map<std::string, std::string>                XAttrMap;
+      typedef PersistentHashtable<std::string, ContainerMD*> ContainerMap;
+      typedef google::dense_hash_map<std::string, FileMD*>   FileMap;
+      typedef std::map<std::string, std::string>             XAttrMap;
 
       //------------------------------------------------------------------------
       // Type definitions

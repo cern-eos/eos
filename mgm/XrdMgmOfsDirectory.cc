@@ -213,7 +213,7 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
 
       for (dh_dirs = dh->containersBegin();
               dh_dirs != dh->containersEnd();
-              dh_dirs++)
+              ++dh_dirs)
       {
         dh_list.insert(dh_dirs->first);
       }

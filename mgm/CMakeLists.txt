@@ -125,7 +125,8 @@ target_link_libraries( XrdEosMgm
                        eosNamespace-Static  eosCapability-Static
                        XrdMqClient-Static 
                        crypto               dl
-		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
+                       persistenthashtable
+		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES}
 		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
                        ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
                      )
@@ -141,7 +142,8 @@ target_link_libraries ( testmgmview
                         eosCommon         eosCommonServer
                         XrdMqClient-Static eosCapability-Static
                         crypto            ${NCURSES_LIBRARIES}
-                        dl                
+                        dl
+                        persistenthashtable
 			${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
                         ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 
