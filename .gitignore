@@ -28,6 +28,7 @@ missing
 doxy.log
 doxydoc
 *~
+.*.sw*
 Namespace/tests/text_runner
 valgrind.supp
 eos-log-repair
