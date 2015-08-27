@@ -88,16 +88,10 @@ add_library (eosCommon-Static STATIC
 	    RWMutex.cc
 )
 
-add_executable ( dbmaptestfunc
-       dbmaptest/DbMapTestFunc.cc
-)
-add_executable ( dbmaptestburn
-       dbmaptest/DbMapTestBurn.cc
-)
-
-add_executable ( mutextest
-       mutextest/RWMutexTest.cc
-)
+add_executable (dbmaptestfunc dbmaptest/DbMapTestFunc.cc)
+add_executable (dbmaptestburn dbmaptest/DbMapTestBurn.cc)
+add_executable (mutextest mutextest/RWMutexTest.cc)
+add_executable (shellexectest shellexectest/shell_exec_test.cc)
 
 endif( MacOSX)
 
@@ -189,9 +183,10 @@ if (MICROHTTPD_FOUND)
 target_link_libraries ( eosCommonServer ${MICROHTTPD_LIBRARIES} ) 
 endif(MICROHTTPD_FOUND)
 
-target_link_libraries ( dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries ( mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries (dbmaptestfunc eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (shellexectest eosCommon ${CMAKE_THREAD_LIBS_INIT})
 
 endif( CLIENT )
 

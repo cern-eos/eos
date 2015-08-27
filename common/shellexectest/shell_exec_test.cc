@@ -189,7 +189,7 @@ test_status3 ()
     std::cout << "OK" << std::endl;
   else
     std::cout << "FAILED" << std::endl;
-  if (status.exit_code = 127)
+  if (status.exit_code == 127)
     std::cout << "OK" << std::endl;
   else
     std::cout << "FAILED" << std::endl;
