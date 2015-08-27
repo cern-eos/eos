@@ -28,7 +28,9 @@ if(CPPUNIT_FOUND)
   add_subdirectory( tests )
 endif(CPPUNIT_FOUND)
 
-add_library (eosNamespace SHARED 
+add_subdirectory (persistency/hashtable)
+
+add_library (eosNamespace SHARED
 	    accounting/FileSystemView.hh
 	    ContainerMD.hh
 	    FileMD.hh
@@ -111,8 +113,8 @@ add_library (eosNamespace-Static STATIC
 )
 
 if (Linux)
-  target_link_libraries( eosNamespace pthread z rt XrdUtils )
-  target_link_libraries( eosNamespace-Static pthread z rt XrdUtils )
+  target_link_libraries( eosNamespace pthread persistenthashtable z rt XrdUtils )
+  target_link_libraries( eosNamespace-Static persistenthashtable pthread z rt XrdUtils )
 else (Linux)
   target_link_libraries( eosNamespace pthread z XrdUtils )
   target_link_libraries( eosNamespace-Static pthread z XrdUtils )
