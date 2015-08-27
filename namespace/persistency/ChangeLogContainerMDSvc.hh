@@ -30,6 +30,8 @@
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/accounting/QuotaStats.hh"
 
+#include "namespace/persistency/hashtable/PersistentHashtable.hh"
+
 #include <google/dense_hash_map>
 #include <google/sparse_hash_map>
 #include <list>
@@ -39,6 +41,9 @@
 namespace eos
 {
   class LockHandler;
+
+  hash_value_t hash_id_t (const void* contents);
+  int comp_id_t (const void* a, const void* b);
 
   //----------------------------------------------------------------------------
   //! ChangeLog based container metadata service
@@ -51,13 +56,12 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
+      ChangeLogContainerMDSvc(): pFirstFreeId( 0 ),
+        pIdMap ( 1000000, hash_id_t, comp_id_t ),
+        pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
         pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 )
       {
-        pIdMap.set_deleted_key( 0 );
-        pIdMap.set_empty_key( 0xffffffffffffffffll );
-        pIdMap.resize(1000000);
         pChangeLog = new ChangeLogFile;
       }
 
@@ -290,9 +294,9 @@ namespace eos
         ContainerMD *ptr;
       };
 
-      typedef google::dense_hash_map<ContainerMD::id_t, DataInfo> IdMap;
-      typedef std::list<IContainerMDChangeListener*>              ListenerList;
-      typedef std::list<ContainerMD*>                             ContainerList;
+      typedef PersistentHashtable<ContainerMD::id_t, DataInfo> IdMap;
+      typedef std::list<IContainerMDChangeListener*>           ListenerList;
+      typedef std::list<ContainerMD*>                          ContainerList;
 
       //------------------------------------------------------------------------
       // Changelog record scanner

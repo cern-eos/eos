@@ -23,6 +23,7 @@
 
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/persistency/hashtable/PersistentHashtable.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/Constants.hh"
@@ -35,11 +36,29 @@
 //------------------------------------------------------------------------------
 namespace eos
 {
+  hash_value_t hash_id_t (const void* contents)
+  {
+    return *(eos::ContainerMD::id_t*) contents;
+  }
+
+  int comp_id_t (const void* a, const void* b)
+  {
+    eos::ContainerMD::id_t A = *(eos::ContainerMD::id_t*)a;
+    eos::ContainerMD::id_t B = *(eos::ContainerMD::id_t*)b;
+    if(A < B) {
+      return -1;
+    } else if(A > B) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+
   class ContainerMDFollower: public eos::ILogRecordScanner
   {
     public:
       ContainerMDFollower( eos::ChangeLogContainerMDSvc *contSvc ):
-        pContSvc( contSvc ) 
+        pContSvc( contSvc )
       {
         pQuotaStats = pContSvc->pQuotaStats;
       }
