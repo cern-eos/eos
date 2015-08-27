@@ -62,10 +62,9 @@ namespace eos
     pCGid( 0 ),
     pMode( 040755 ),
     pACLId( 0 ),
-    pSubContainers( 100, hash_string, comp_string )
+    pSubContainers( 100, hash_string, comp_string ),
+    pFiles( 100, hash_string, comp_string )
   {
-    pFiles.set_deleted_key( "" );
-    pFiles.set_empty_key( "##_EMPTY_##" );
     pCTime.tv_sec = 0;
     pCTime.tv_nsec = 0;
   }
@@ -74,7 +73,8 @@ namespace eos
   // Copy constructor
   //----------------------------------------------------------------------------
   ContainerMD::ContainerMD( const ContainerMD &other ):
-    pSubContainers( 100, hash_string, comp_string )
+    pSubContainers( 100, hash_string, comp_string ),
+    pFiles( 100, hash_string, comp_string )
   {
     *this = other;
   }

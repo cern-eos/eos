@@ -48,7 +48,7 @@ namespace eos
   {
     public:
       typedef PersistentHashtable<std::string, ContainerMD*> ContainerMap;
-      typedef google::dense_hash_map<std::string, FileMD*>   FileMap;
+      typedef PersistentHashtable<std::string, FileMD*>      FileMap;
       typedef std::map<std::string, std::string>             XAttrMap;
 
       //------------------------------------------------------------------------

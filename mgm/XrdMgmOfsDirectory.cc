@@ -202,9 +202,8 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
     if (permok)
     {
       // add all the files
-      for (dh_files = dh->filesBegin(); dh_files != dh->filesEnd(); dh_files++)
+      for (dh_files = dh->filesBegin(); dh_files != dh->filesEnd(); ++dh_files)
       {
-        //
         dh_list.insert(dh_files->first);
       }
 

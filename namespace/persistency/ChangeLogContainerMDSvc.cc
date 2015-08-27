@@ -264,9 +264,9 @@ namespace eos
                     // ---------------------------------------------------------
                     // remove every file from it's quota node
                     // ---------------------------------------------------------
-                    for (fIt = (*dIt)->filesBegin(); 
-                         fIt != (*dIt)->filesEnd(); 
-                         fIt++)
+                    for (fIt = (*dIt)->filesBegin();
+                         fIt != (*dIt)->filesEnd();
+                         ++fIt)
                     {
                       QuotaNode *node = getQuotaNode(*dIt);
                       if (node)
@@ -316,9 +316,9 @@ namespace eos
                     // ---------------------------------------------------------
                     // remove every file from it's quota node
                     // ---------------------------------------------------------
-                    for (fIt = (*dIt)->filesBegin(); 
-                         fIt != (*dIt)->filesEnd(); 
-                         fIt++)
+                    for (fIt = (*dIt)->filesBegin();
+                         fIt != (*dIt)->filesEnd();
+                         ++fIt)
                     {
                       QuotaNode *node = getQuotaNode(*dIt);
                       if (node)
