@@ -27,7 +27,8 @@ import logging
 import json
 from XRootD import client
 from XRootD.client.flags import QueryCode
-from eosarch.utils import exec_cmd, get_entry_info, set_dir_info, seal_path
+form eosarch.utils import is_atomic_version_file, seal_path
+from eosarch.utils import exec_cmd, get_entry_info, set_dir_info
 from eosarch.exceptions import CheckEntryException
 
 
@@ -413,7 +414,7 @@ class ArchiveFile(object):
             For BACKUP operations return the status and the list of entries for
             which the verfication failed in order to provide a summary to the user.
         """
-        self.logger.info("Do archive verification")
+        self.logger.info("Do transfer verification")
         status = True
         lst_failed = []
 
@@ -510,6 +511,10 @@ class ArchiveFile(object):
                         if tentry_sec < twindow_sec:
                             # No check for this entry
                             return
+
+                    # This is a backup so don't check atomic version files
+                    if is_atomic_version_file(entry[1]):
+                        return
                 except KeyError as __:
                     # This is not a backup transfer but an archive one, carry on
                     pass
