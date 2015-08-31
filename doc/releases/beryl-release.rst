@@ -7,6 +7,21 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.128 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- avoid to call pthread_cancel after pthread_join (SEGV) in ShellCmd class
+- fix startup script to align with change in grep on CC7
+- fix gcc 5.1 warning
+
+``Version V0.3.127 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- several compilation and build fixes (spec) for i386 and CC7
+- fix fuse base64 encoding to not break URL syntax 
+
 ``Version V0.3.126 Beryl-Aquamarine``
 
 New Features
