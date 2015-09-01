@@ -1253,6 +1253,9 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
   std::ifstream inFile(tmpfile);
   std::string dumpentry;
 
+  // unlink the temporary file
+  unlink(tmpfile);
+
   unsigned long long cnt = 0;
   while (std::getline(inFile, dumpentry))
   {
@@ -1304,8 +1307,6 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
 
   isSyncing[fsid] = false;
 
-  // remove the temporary file
-  unlink(tmpfile);
   free(tmpfile);
   return true;
 }
