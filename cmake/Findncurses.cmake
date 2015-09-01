@@ -29,6 +29,9 @@ else()
     HINTS ${NCURSES_ROOT_DIR}/lib
     PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
+  set(NCURSES_INCLUDE_DIRS ${NCURSES_INCLUDE_DIR})
+  set(NCURSES_LIBRARIES ${NCURSES_LIBRARY})
+
   find_package_handle_standard_args(
     ncurses
     DEFAULT_MSG

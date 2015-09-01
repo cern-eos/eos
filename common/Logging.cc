@@ -147,20 +147,16 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   static struct timeval tv;
   static struct timezone tz;
   static struct tm *tm;
-  gMutex.Lock();
+
+  XrdSysMutexHelper scope_lock(gMutex);
 
   va_list args;
   va_start(args, msg);
-
-
   time(&current_time);
   gettimeofday(&tv, &tz);
-
   static char linen[16];
   sprintf(linen, "%d", line);
-
   static char fcident[1024];
-
   XrdOucString truncname = vid.name;
 
   // we show only the last 16 bytes of the name
@@ -251,7 +247,6 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
   gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize] = buffer;
   rptr = gLogMemory[priority][(gLogCircularIndex[priority]) % gCircularIndexSize].c_str();
   gLogCircularIndex[priority]++;
-  gMutex.UnLock();
   return rptr;
 }
 

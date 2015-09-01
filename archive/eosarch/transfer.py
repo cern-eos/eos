@@ -20,7 +20,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
-"""Module responsible for executing the archive transfer.
+"""Module responsible for executing the transfers.
 """
 from __future__ import unicode_literals
 from __future__ import division
@@ -36,7 +36,7 @@ from hashlib import sha256
 from XRootD import client
 from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags, StatInfoFlags
 from eosarch.archivefile import ArchiveFile
-from eosarch.utils import exec_cmd
+from eosarch.utils import exec_cmd, is_version_file
 from eosarch.asynchandler import MetaHandler
 from eosarch.exceptions import NoErrorException
 
@@ -549,7 +549,7 @@ class Transfer(object):
     def copy_files(self, err_entry=None, found_checkpoint=False):
         """ Copy files.
 
-        Note that when doing put, the layout is not conserved. Therefore, a file
+        Note that when doing PUT the layout is not conserved. Therefore, a file
         with 3 replicas will end up as just a simple file in the new location.
 
         Args:
@@ -602,6 +602,11 @@ class Transfer(object):
                         src = ''.join([src, "&eos.ruid=0&eos.rgid=0"])
                     else:
                         src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
+
+                    # If this is a version file we save it as a 2-replica layout
+                    if is_version_file(fentry[1]):
+                        dst = ''.join([dst, "&eos.layout.checksum=", dfile['xstype'],
+                                       "&eos.layout.type=replica&eos.layout.nstripes=2"])
 
                     # If time window specified then select only the matching entries
                     if (self.archive.header['twindow_type'] and
@@ -958,7 +963,7 @@ class Transfer(object):
         Raises:
             IOError: Failed to transfer backup file.
         """
-        # Copy archive file from EOS to the local disk
+        # Copy backup file from EOS to the local disk
         self.logger.info(("Prepare backup copy from {0} to {1}"
                           "").format(self.efile_full, self.tx_file))
         eos_fs = client.FileSystem(self.efile_full.encode("utf-8"))

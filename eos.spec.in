@@ -71,8 +71,14 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: zeromq
+Requires: protobuf
+
+%if %{distribution} == 5
+Requires: curl
+%else
 Requires: libcurl
 Requires: protobuf
+%endif
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
@@ -239,7 +245,7 @@ The EOS fuse client.
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
-% if %{distribution} == 5 || %{distribution} == 6
+%if %{distribution} == 5 || %{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
 %else

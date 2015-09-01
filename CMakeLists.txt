@@ -42,6 +42,7 @@ endif()
 include(EosUtils)
 include (GNUInstallDirs)
 
+# Force /usr/ installation prefix
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
 set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
@@ -76,7 +77,7 @@ if (NOT PACKAGEONLY)
   find_package(ncurses REQUIRED)
   find_package(leveldb REQUIRED)
   find_package(ZMQ REQUIRED)
-  find_package(Kerberos5 REQUIRED)
+  find_package(krb5 REQUIRED)
 
   if (Linux)
     find_package(glibc REQUIRED)
@@ -202,7 +203,6 @@ configure_file(
 add_custom_target(
    uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
-
 
 #-------------------------------------------------------------------------------
 # Packaging

@@ -62,6 +62,29 @@ def unseal_path(path, seal_dict={"#and#": '&'}):
 
     return path
 
+def is_version_file(path):
+    """ Check if this is a version file i.e. contains the following prefix:
+    ".sys.v#"
+
+    Args:
+        path (string): Relative path
+
+    Returns:
+        True if this is a version file, otherwise false.
+    """
+    return path.startswith(".sys.v#.") or "/.sys.v#." in path
+
+def is_atomic_version_file(path):
+    """ Check if this is a version file i.e. contains the following prefix:
+    ".sys.a#.v#"
+
+    Args:
+        path (string): Relative path
+
+    Returns:
+        True if this is an atomic version file, otherwise false.
+    """
+    return path.startswith(".sys.a#.v#.") or "/.sys.a#.v#." in path
 
 def exec_cmd(cmd):
     """ Execute an EOS /proc/user/ command.

@@ -242,6 +242,7 @@ target_link_libraries(
 # eoscp executable
 #-------------------------------------------------------------------------------
 add_executable(eoscp txqueue/eoscp.cc)
+
 set_target_properties(
   eoscp
   PROPERTIES

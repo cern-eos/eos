@@ -40,7 +40,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-ShellCmd::ShellCmd (std::string const & cmd) : cmd (cmd)
+ShellCmd::ShellCmd (std::string const & cmd) : cmd (cmd), monitor_active(false)
 {
   //----------------------------------------------------------------------------
   // generate the 'uuid' for the 'fifos'
@@ -94,15 +94,23 @@ ShellCmd::~ShellCmd ()
   remove(stdin_name.c_str());
 
   //----------------------------------------------------------------------------
-  // cancel the monitor thread
+  // kill the 'cmd' if active
   //----------------------------------------------------------------------------
-  pthread_cancel(monitor_thread);
+  if (is_active()) kill();
+
+  //----------------------------------------------------------------------------
+  // wait for the monitor thread to exit gracefully  
+  //----------------------------------------------------------------------------
+  if (monitor_active) pthread_join(monitor_thread, 0);
 }
 
 /*----------------------------------------------------------------------------*/
 void
 ShellCmd::monitor ()
 {
+  // set the active flag
+  monitor_active = true;
+
   //----------------------------------------------------------------------------
   // trace the 'command' process (without stopping it),
   // this way the given process becomes its parent
@@ -143,6 +151,8 @@ ShellCmd::monitor ()
   cmd_stat.signaled = WIFSIGNALED(status);
   cmd_stat.signo = WTERMSIG(status);
   cmd_stat.status = status;
+  // reset the active flag
+  monitor_active = false;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -158,7 +168,7 @@ ShellCmd::run_monitor (void * ptr)
 cmd_status
 ShellCmd::wait () const
 {
-  pthread_join(monitor_thread, 0);
+  if (monitor_active) pthread_join(monitor_thread, 0);
   return cmd_stat;
 }
 
@@ -178,7 +188,7 @@ ShellCmd::wait (size_t timeout) const
   if (is_active())
     kill();
 
-  pthread_join(monitor_thread, 0);
+  if (monitor_active) pthread_join(monitor_thread, 0);
   return cmd_stat;
 }
 
