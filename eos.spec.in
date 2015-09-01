@@ -239,10 +239,10 @@ The EOS fuse client.
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
-%if %{?fedora:1}%{!?fedora:0}
+% if %{distribution} == 5 || %{distribution} == 6
+%config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
 %else
-%config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
 %endif
 
