@@ -52,7 +52,7 @@ XrdMgmOfs::AuthMasterThread ()
   backend.bind("inproc://authbackend");
 
   // Start the proxy
-  zmq_device(ZMQ_QUEUE, frontend, backend);
+  zmq_device(ZMQ_QUEUE, &frontend, &backend);
 }
 
 
