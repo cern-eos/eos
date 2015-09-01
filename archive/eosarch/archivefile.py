@@ -27,7 +27,7 @@ import logging
 import json
 from XRootD import client
 from XRootD.client.flags import QueryCode
-form eosarch.utils import is_atomic_version_file, seal_path
+from eosarch.utils import is_atomic_version_file, seal_path
 from eosarch.utils import exec_cmd, get_entry_info, set_dir_info
 from eosarch.exceptions import CheckEntryException
 
