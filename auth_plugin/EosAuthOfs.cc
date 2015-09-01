@@ -410,13 +410,13 @@ EosAuthOfs::AuthProxyThread()
   size_t moresz;
   int poll_size = 2;
   zmq_pollitem_t items [3];
-  items[0] = {*mFrontend, 0, ZMQ_POLLIN, 0};
-  items[1] = {*mBackend1.second, 0, ZMQ_POLLIN, 0};
+  items[0] = {mFrontend, 0, ZMQ_POLLIN, 0};
+  items[1] = {mBackend1.second, 0, ZMQ_POLLIN, 0};
     
   if (!mBackend2.first.empty())
   {
     poll_size = 3;
-    items[2] = {*mBackend2.second, 0, ZMQ_POLLIN, 0};
+    items[2] = {mBackend2.second, 0, ZMQ_POLLIN, 0};
   }
   
   // Main loop in which the proxy thread accepts request from the clients and
