@@ -1,9 +1,26 @@
 #-------------------------------------------------------------------------------
-# Package definitions
+# Helper macros
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} >= 7
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%else
+    %if %{?fedora}%{!?fedora:0} >= 19
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%endif
+
+#-------------------------------------------------------------------------------
+# Package definitions
+#-------------------------------------------------------------------------------
 Summary: The EOS project
 Name: @CPACK_PACKAGE_NAME@
 Version: @CPACK_PACKAGE_VERSION@
@@ -15,7 +32,7 @@ Group: Applications/File
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
-%if %{distribution} == 5
+%if 0%{distribution} == 5
 BuildRequires: cmake28 >= 2.8
 %define cmake_cmd cmake28
 %else
@@ -39,19 +56,25 @@ BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 
-%if %{distribution} == 5
+%if 0%{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
 BuildRequires: zeromq, zeromq-devel, curl-devel, curl
 %else
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
-
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
 BuildRequires: zeromq, zeromq-devel
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
+%endif
 
+%if %{use_systemd}
+BuildRequires: systemd
+Requires:      systemd
+%else
+Requires: chkconfig
+Requires: initscripts
 %endif
 
 %description
@@ -90,7 +113,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
 
-%if %{distribution} == 5
+%if 0%{distribution} == 5
 export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 %endif
 
@@ -245,7 +268,7 @@ The EOS fuse client.
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
-%if %{distribution} == 5 || %{distribution} == 6
+%if 0%{distribution} == 5 || 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
 %else
@@ -306,7 +329,7 @@ Contains an example keytab file.
 Summary: The EOS archive daemon
 Group: Applications/File
 
-Requires: python-daemon xrootd-python python-zmq
+Requires: python-daemon python-zmq xrootd-python
 
 %description -n eos-archive
 The EOS archive daemon.
