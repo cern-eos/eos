@@ -101,10 +101,11 @@ target_link_libraries (
 endif( MacOSX )
 
 if( MacOSX )
-  set_target_properties ( 
-    eosd eosfsd 
-    PROPERTIES 
-    COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE" )
+  set_target_properties(
+    eosd eosfsd
+    PROPERTIES
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
+    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
 else( MacOSX )
   set_target_properties ( 
     eosd eosfsd 

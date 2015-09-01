@@ -134,6 +134,8 @@ XrdMgmOfs::symlink (const char *source_name,
   static const char *epname = "symlink";
   errno = 0;
 
+  eos_info("source=%s target=%s", source_name, target_name);
+
   XrdOucString source, destination;
   XrdOucString sourcen, targetn;
   XrdOucEnv symlinko_Env(infoO);
@@ -141,7 +143,7 @@ XrdMgmOfs::symlink (const char *source_name,
 
 
   sourcen = source_name;
-  targetn = source_name;
+  targetn = target_name;
 
   {
     const char* inpath = source_name;
@@ -149,16 +151,6 @@ XrdMgmOfs::symlink (const char *source_name,
     NAMESPACEMAP;
     BOUNCE_ILLEGAL_NAMES;
     sourcen = path;
-    if (info)info = 0;
-  }
-
-  {
-    const char* inpath = target_name;
-    const char* ininfo = infoN;
-    NAMESPACEMAP;
-    BOUNCE_ILLEGAL_NAMES;
-    targetn = path;
-
     if (info)info = 0;
   }
 
@@ -209,9 +201,7 @@ XrdMgmOfs::_symlink (const char *source_name,
   EXEC_TIMING_BEGIN("SymLink");
 
   eos::common::Path oPath(source_name);
-  eos::common::Path nPath(target_name);
   std::string oP = oPath.GetParentPath();
-  std::string nP = nPath.GetParentPath();
 
   if ((!source_name) || (!target_name))
   {
@@ -254,7 +244,7 @@ XrdMgmOfs::_symlink (const char *source_name,
     try
     {
       dir = eosView->getContainer(oPath.GetParentPath());
-      eosView->createLink(oPath.GetPath(), nPath.GetPath(),
+      eosView->createLink(oPath.GetPath(), target_name,
 			  vid.uid, vid.gid);
       UpdateNowInmemoryDirectoryModificationTime(dir->getId());
     }

@@ -69,7 +69,7 @@ XrdMgmOfs::mkdir (const char *inpath,
 
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
-  eos_info("path=%s", path);
+  eos_info("path=%s ininfo=%s info=%s", path, ininfo, info);
 
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
@@ -147,11 +147,6 @@ XrdMgmOfs::_mkdir (const char *path,
         dir = eosView->getContainer(cPath.GetParentPath());
         copydir = new eos::ContainerMD(*dir);
         dir = copydir;
-        eos::ContainerMD::XAttrMap::const_iterator it;
-        for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
-        {
-          attrmap[it->first] = it->second;
-        }
       }
       catch (eos::MDException &e)
       {
@@ -169,9 +164,11 @@ XrdMgmOfs::_mkdir (const char *path,
       gid_t d_gid = dir->getCGid();
 
       // ACL and permission check
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-              attrmap.count("sys.eval.useracl"));
+      Acl acl(cPath.GetParentPath(),
+              error,
+              vid,
+              attrmap,
+              false);
 
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -242,7 +239,7 @@ XrdMgmOfs::_mkdir (const char *path,
       }
       if (sticky_owner)
       {
-        eos_info("msg=\"client actingd as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+        eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
                  path, vid.uid, vid.gid, d_uid, d_gid);
         // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
         vid.uid = d_uid;
@@ -290,10 +287,15 @@ XrdMgmOfs::_mkdir (const char *path,
     if (recurse)
     {
       int i, j;
+      std::string existingdir;
+
+      uid_t d_uid = 99;
+      gid_t d_gid = 99;
+
       // go the paths up until one exists!
       for (i = cPath.GetSubPathSize() - 1; i >= 0; i--)
       {
-        eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         attrmap.clear();
         eos_debug("testing path %s", cPath.GetSubPath(i));
         try
@@ -301,11 +303,10 @@ XrdMgmOfs::_mkdir (const char *path,
           if (copydir) delete copydir;
           dir = eosView->getContainer(cPath.GetSubPath(i));
           copydir = new eos::ContainerMD(*dir);
-          eos::ContainerMD::XAttrMap::const_iterator it;
-          for (it = dir->attributesBegin(); it != dir->attributesEnd(); ++it)
-          {
-            attrmap[it->first] = it->second;
-          }
+
+	  existingdir = cPath.GetSubPath(i);
+	  d_uid = dir->getCUid();
+	  d_gid = dir->getCGid();
         }
         catch (eos::MDException &e)
         {
@@ -325,14 +326,51 @@ XrdMgmOfs::_mkdir (const char *path,
       }
 
       // ACL and permission check
-      Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-              attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-              attrmap.count("sys.eval.useracl"));
+      Acl acl(existingdir.c_str(),
+	      error,
+	      vid,
+	      attrmap,
+	      true);
 
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.HasEgroup(),
                acl.IsMutable());
+
+      // Check for sys.owner.auth entries, which let people operate as the owner of the directory
+      if (attrmap.count("sys.owner.auth"))
+      {
+        if (attrmap["sys.owner.auth"] == "*")
+	{
+	  eos_info("msg=\"client acting as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+		   existingdir.c_str(), vid.uid, vid.gid, d_uid, d_gid);
+	  // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+	  vid.uid = d_uid;
+	  vid.gid = d_gid;
+        }
+        else
+        {
+          attrmap["sys.owner.auth"] += ",";
+          std::string ownerkey = vid.prot.c_str();
+          ownerkey += ":";
+          if (vid.prot == "gsi")
+          {
+            ownerkey += vid.dn.c_str();
+          }
+          else
+          {
+            ownerkey += vid.uid_string.c_str();
+          }
+          if ((attrmap["sys.owner.auth"].find(ownerkey)) != std::string::npos)
+          {
+            eos_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                     path, vid.uid, vid.gid, d_uid, d_gid);
+            // yes the client can operate as the owner, we rewrite the virtual identity to the directory uid/gid pair
+            vid.uid = d_uid;
+            vid.gid = d_gid;
+          }
+        }
+      }
 
       if (vid.uid && !acl.IsMutable())
       {
@@ -384,6 +422,12 @@ XrdMgmOfs::_mkdir (const char *path,
               newdir->setAttribute(it->first, it->second);
             }
           }
+
+	  // store the in-memory modification time into the parent
+	  eos::ContainerMD::ctime_t ctime;
+	  newdir->getCTime(ctime);
+	  UpdateInmemoryDirectoryModificationTime(dir->getId(), ctime);
+
           // commit
           eosView->updateContainerStore(newdir);
         }

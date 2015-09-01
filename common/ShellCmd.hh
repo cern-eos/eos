@@ -114,6 +114,7 @@ private:
   std::string stdin_name;
 
   pthread_t monitor_thread;
+  bool monitor_active;  
   cmd_status cmd_stat;
 };
 

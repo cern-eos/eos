@@ -267,7 +267,7 @@ WebDAVHandler::Move (eos::common::HttpRequest * request)
 
     rc = gOFS->rename(request->GetUrl().c_str(),
                       destination.c_str(),
-                      error, &client, 0, 0);
+                      error, *mVirtualIdentity, 0, 0, false);
     if (rc != SFS_OK)
     {
       if (rc == SFS_ERROR)
@@ -303,7 +303,7 @@ WebDAVHandler::Move (eos::common::HttpRequest * request)
               // try the rename again
               rc = gOFS->rename(request->GetUrl().c_str(),
                                 destination.c_str(),
-                                error, &client, 0, 0);
+                                error, *mVirtualIdentity, 0, 0, false);
 
               if (rc != SFS_OK)
               {

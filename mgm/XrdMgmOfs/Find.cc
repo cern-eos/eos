@@ -170,7 +170,8 @@ XrdMgmOfs::_find (const char *path,
                                   out_error,
                                   vid,
                                   (const char*) 0,
-                                  attrmap))
+                                  attrmap,
+				  false))
               {
                 for (auto it = attrmap.begin(); it != attrmap.end(); it++)
                 {

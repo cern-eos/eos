@@ -24,6 +24,7 @@ Configuration
    configuration/permission
    configuration/quota
    configuration/recyclebin
+   configuration/scheduler
    configuration/transfer
    configuration/tty
 

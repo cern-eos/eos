@@ -73,6 +73,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
   gid_t gid = vid.gid;
 
   bool hasgeolocation = false;
+  bool exact_match = false;
+  int geo_entry_fsid = 0;
 
   if (vid.geolocation.length())
   {
@@ -80,6 +82,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     {
       // we only do geolocations for replica layouts
       hasgeolocation = true;
+      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.write.exact") == "on");
     }
   }
 
@@ -301,6 +304,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     // -------------------------------------------------------------------------------
     std::string selected_geo_location;
     int n_geolocations = 0;
+
     // check if there are atlast <nfilesystems> in the available map
     if (availablefs.size() >= nfilesystems)
     {
@@ -320,6 +324,11 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	  if (hasgeolocation)
           {
 	    selected_geo_location = availablefsgeolocation[*ait];
+  	    if ((!geo_entry_fsid) && (vid.geolocation == availablefsgeolocation[*ait]))
+	    {
+	      // if this is the first matching
+	      geo_entry_fsid = *ait;
+	    }
 	  }
 	  
 	  eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
@@ -353,12 +362,22 @@ Scheduler::FilePlacement (const char* path, //< path to place
           // only when we need one more geo location, we lower the selection probability
           if ((hasgeolocation) && (n_geolocations != 1) && (selected_geo_location == availablefsgeolocation[*ait]))
           {
-            // we reduce the probability to select a filesystem in an already existing location to 1/20th
-            fsweight *= 0.05;
+	    if (exact_match)
+	      // we dont' schedule not according to geolocation policy
+	      fsweight = 0.0;
+	    else
+	      // we reduce the probability to select a filesystem in an already existing location to 1/20th
+	      fsweight *= 0.05;
           }
-
+	  
           if (fsweight > randomacceptor)
-          {
+          {	    
+	    if (hasgeolocation && (!geo_entry_fsid) && (vid.geolocation == availablefsgeolocation[*ait]))
+	    {
+	      // if this is the first matching
+	      geo_entry_fsid = *ait;
+	    }
+	    
             // push it on the selection list
             selected_filesystems.push_back(*ait);
             if (hasgeolocation)
@@ -420,9 +439,14 @@ Scheduler::FilePlacement (const char* path, //< path to place
     selected_filesystems.clear();
 
     int rrsize = randomselectedfs.size();
+    if (geo_entry_fsid)
+      selected_filesystems.push_back(geo_entry_fsid);
+
     for (int i = 0; i < rrsize; i++)
     {
-      selected_filesystems.push_back(randomselectedfs[(randomindex + i) % rrsize]);
+      int r_fsid = randomselectedfs[(randomindex + i) % rrsize];
+      if (r_fsid != geo_entry_fsid)
+	selected_filesystems.push_back(r_fsid);
     }
     return 0;
   }
@@ -439,6 +463,7 @@ Scheduler::FileAccess (
                        eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
                        unsigned long forcedfsid, //< forced file system for access
                        const char* forcedspace, //< forced space for access
+		       std::string tried_cgi, //< cgi referencing already tried hosts 
                        unsigned long lid, //< layout of the file
                        std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
                        unsigned long &fsindex, //< return index pointing to layout entry filesystem
@@ -550,10 +575,12 @@ Scheduler::FileAccess (
     double renorm = 0; // this is the sum of all weights, we renormalize each weight in the selection with this sum
 
     bool hasgeolocation = false;
+    bool exact_match = false;
 
     if (vid.geolocation.length())
     {
       hasgeolocation = true;
+      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.read.exact") == "on");
     }
 
     // -----------------------------------------------------------------------
@@ -619,7 +646,8 @@ Scheduler::FileAccess (
         if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
             (snapshot.mConfigStatus >= min_fsstatus) &&
             (snapshot.mErrCode == 0) && // this we probably don't need 
-            (snapshot.mActiveStatus))
+            (snapshot.mActiveStatus) &&
+	    ( (!tried_cgi.length()) || ( tried_cgi.find(snapshot.mHost+",") == std::string::npos) )) // filesystem host is not in the tried list
         {
           availablefs.insert(snapshot.mId);
 
@@ -651,6 +679,16 @@ Scheduler::FileAccess (
               // we reduce the probability to 1/10th
               weight *= 0.1;
             }
+	    else
+	    {
+	      if (exact_match)
+	      {
+		// make sure we have the matching geo location before the not matching one
+		if (weight < 0.2)
+		  weight = 0.2;
+	      }
+		
+	    }
           }
 
           availablefsweightsort.insert(std::pair<double, eos::common::FileSystem::fsid_t > (weight, snapshot.mId));
@@ -770,13 +808,15 @@ Scheduler::FileAccess (
     // -----------------------------------------------------------------------
     // now start with the one with the highest weight, but still use probabilty to select it
     // -----------------------------------------------------------------------
+
+
     std::multimap<double, eos::common::FileSystem::fsid_t>::reverse_iterator wit;
     for (wit = availablefsweightsort.rbegin(); wit != availablefsweightsort.rend(); wit++)
     {
       float randomacceptor = (0.999999 * random() / RAND_MAX);
-      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second);
+      eos_static_debug("random acceptor=%.02f norm=%.02f weight=%.02f normweight=%.02f fsid=%u exact-match=%d", randomacceptor, renorm, wit->first, wit->first / renorm, wit->second, exact_match);
 
-      if ((wit->first / renorm) > randomacceptor)
+      if (exact_match || ((wit->first / renorm) > randomacceptor))
       {
         // take this
         for (size_t i = 0; i < locationsfs.size(); i++)

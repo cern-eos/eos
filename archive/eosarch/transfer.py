@@ -20,9 +20,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # ******************************************************************************
-"""Module responsible for executing the archive transfer.
+"""Module responsible for executing the transfers.
 """
 from __future__ import unicode_literals
+from __future__ import division
 import os
 import time
 import logging
@@ -30,11 +31,12 @@ import threading
 import zmq
 import ast
 from os.path import join
+from time import sleep
 from hashlib import sha256
 from XRootD import client
-from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags
+from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags, StatInfoFlags
 from eosarch.archivefile import ArchiveFile
-from eosarch.utils import exec_cmd
+from eosarch.utils import exec_cmd, is_version_file
 from eosarch.asynchandler import MetaHandler
 from eosarch.exceptions import NoErrorException
 
@@ -225,7 +227,11 @@ class Transfer(object):
 
         if self.oper in [self.config.PUT_OP, self.config.GET_OP]:
             self.archive_prepare()
-            self.do_transfer()
+
+            if self.do_retry:
+                self.do_retry_transfer()
+            else:
+                self.do_transfer()
         elif self.oper in [self.config.PURGE_OP, self.config.DELETE_OP]:
             self.archive_prepare()
             self.do_delete((self.oper == self.config.DELETE_OP))
@@ -312,52 +318,17 @@ class Transfer(object):
         self.archive_tx_clean(True)
 
     def do_transfer(self):
-        """ Execute the put or get operation. What this method actually does is
-        copy the JSON archive file from EOS to the local disk and read-in each
-        entry, be it a file or a directory and creates it in the destination
-        location. The archive file first contains the list of all the directories
-        and then the files.
+        """ Execute a put or get operation.
 
         Raises:
             IOError when an IO opperations fails.
         """
         t0 = time.time()
         indx_dir = 0
-        err_entry = None
-
-        # For retry get the first corrupted entry
-        if self.do_retry:
-            msg = "verify last run"
-            self.set_status(msg)
-            check_ok, err_entry = self.archive.verify(False)
-
-            if check_ok:
-                self.do_retry = False
-                raise NoErrorException()
-
-            # Delete the corrupted entry
-            is_dir = (err_entry[0] == 'd')
-            self.logger.info("Delete corrupted entry={0}".format(err_entry))
-
-            if is_dir:
-                self.archive.del_subtree(err_entry[1], None)
-            else:
-                self.archive.del_entry(err_entry[1], False, None)
-
-        found_checkpoint = False  # flag set when reaching recovery entry
 
         # Create directories
         for dentry in self.archive.dirs():
-            # Search for the recovery checkpoint
-            if self.do_retry and not found_checkpoint:
-                if dentry != err_entry:
-                    indx_dir += 1
-                    continue
-                else:
-                    found_checkpoint = True
-
-            # Do special checks for root directory
-            if not self.do_retry and dentry[1] == "./":
+            if dentry[1] == "./":
                 self.archive.check_root_dir()
 
             indx_dir += 1
@@ -366,15 +337,88 @@ class Transfer(object):
             self.set_status(msg)
 
         # For GET issue the Prepare2Get for all the files on tape
-        self.prepare2get(err_entry, found_checkpoint)
+        self.prepare2get()
 
         # Copy files
-        self.copy_files(err_entry, found_checkpoint)
+        self.copy_files()
 
         # For GET set file ownership and permissions
         self.update_file_access()
+
+        # Verify the transferred entries
         self.set_status("verifying")
         check_ok, __ = self.archive.verify(False)
+
+        # For PUT operations what that all the files are on tape
+        # TODO: enable this when we run with XRootD 4.* and have the
+        # BACKUP_EXISTS flag
+        # if self.archive.d2t:
+        #    self.set_status("wait_on_tape")
+        #    self.wait_on_tape()
+
+        self.set_status("cleaning")
+        self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
+        self.archive_tx_clean(check_ok)
+
+    def do_retry_transfer(self):
+        """ Execute a put or get retry operation.
+
+        Raises:
+            IOError when an IO opperations fails.
+        """
+        t0 = time.time()
+        indx_dir = 0
+        err_entry = None
+        tx_ok, meta_ok = True, True
+        found_checkpoint = False  # flag set when reaching recovery entry
+
+        # Get the first corrupted entry and the type of corruption
+        (tx_ok, meta_ok, lst_failed) = self.check_previous_tx()
+
+        if not tx_ok or not meta_ok:
+            err_entry = lst_failed[0]
+
+        # Create directories
+        for dentry in self.archive.dirs():
+            # Search for the recovery checkpoint
+            if not found_checkpoint:
+                if dentry != err_entry:
+                    indx_dir += 1
+                    continue
+                else:
+                    found_checkpoint = True
+
+            indx_dir += 1
+            self.archive.mkdir(dentry)
+            msg = "create dir {0}/{1}".format(indx_dir, self.archive.header['num_dirs'])
+            self.set_status(msg)
+
+        if not tx_ok:
+            # For GET issue the Prepare2Get for all the files on tape
+            self.prepare2get(err_entry, found_checkpoint)
+
+            # Copy files
+            self.copy_files(err_entry, found_checkpoint)
+
+            # For GET set file ownership and permissions for all entries
+            self.update_file_access(err_entry, found_checkpoint)
+
+        else:
+            # For GET metadata errors set file ownership and permissions only
+            # for entries after the first corrupted one
+            self.update_file_access()
+
+        # Verify the transferred entries
+        self.set_status("verifying")
+        check_ok, __ = self.archive.verify(False)
+
+        # For PUT operations what that all the files are on tape
+        # TODO: enable this when we run with XRootD 4.* and have the
+        # BACKUP_EXISTS flag
+        # if self.archive.d2t:
+        #    self.set_status("wait_on_tape")
+        #    self.wait_on_tape()
+
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.archive_tx_clean(check_ok)
@@ -399,8 +443,8 @@ class Transfer(object):
         st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
 
         if not st.ok:
-            self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
-                    self.config.LOG_FILE, eos_log))
+            self.logger.error(("Failed to copy log file {0} to EOS at {1}"
+                               "").format(self.config.LOG_FILE, eos_log))
         else:
             # Delete log file if it was successfully copied to EOS
             try:
@@ -444,15 +488,15 @@ class Transfer(object):
         (status, __, stderr) = exec_cmd(frename)
 
         if not status:
-            err_msg = "Failed to rename {0} to {1}, msg={2}".format(
-                self.efile_full, eosf_rename, stderr)
+            err_msg = ("Failed to rename {0} to {1}, msg={2}"
+                       "").format(self.efile_full, eosf_rename, stderr)
             self.logger.error(err_msg)
             # TODO: raise IOError
         else:
             # For successful delete operations remove also the archive file
             if self.oper == self.config.DELETE_OP and check_ok:
                 fs = client.FileSystem(self.efile_full.encode("utf-8"))
-                st_rm, _ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
+                st_rm, __ = fs.rm(new_url.path + "?eos.ruid=0&eos.rgid=0")
 
                 if not st_rm.ok:
                     warn_msg = "Failed to delete archive {0}".format(new_url.path)
@@ -470,8 +514,8 @@ class Transfer(object):
         st, __ = cp_client.copy(self.config.LOG_FILE, eos_log, force=True)
 
         if not st.ok:
-            self.logger.error("Failed to copy log file {0} to EOS at {1}".format(
-                    self.config.LOG_FILE, eos_log))
+            self.logger.error(("Failed to copy log file {0} to EOS at {1}"
+                               "").format(self.config.LOG_FILE, eos_log))
         else:
             # User triggering archive operation owns the log file
             eos_log_url = client.URL(eos_log)
@@ -481,8 +525,8 @@ class Transfer(object):
             xrd_st, __ = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"))
 
             if not xrd_st.ok:
-                err_msg = "Failed setting ownership of the log file in EOS: {0}".format(
-                    eos_log)
+                err_msg = ("Failed setting ownership of the log file in"
+                           " EOS: {0}").format(eos_log)
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
             else:
@@ -502,16 +546,16 @@ class Transfer(object):
         self.thread_status.do_finish()
         self.thread_status.join()
 
-    def copy_files(self, err_entry, found_checkpoint):
-        """ Copy file from source to destination.
+    def copy_files(self, err_entry=None, found_checkpoint=False):
+        """ Copy files.
 
-        Note that when doing put, the layout is not conserved. Therefore, a file
+        Note that when doing PUT the layout is not conserved. Therefore, a file
         with 3 replicas will end up as just a simple file in the new location.
 
         Args:
             err_entry (list): Entry record from the archive file corresponding
                  to the first file/dir that was corrupted.
-            found_checkpoint (bool): If it's true, it means the checkpoint was
+            found_checkpoint (boolean): If True it means the checkpoint was
                  already found and we don't need to search for it.
 
         Raises:
@@ -550,7 +594,7 @@ class Transfer(object):
 
                 # If checksum 0 don't enforce it
                 if dfile['xs'] != "0":
-                    dst = ''.join([dst, "&eos.checksum=", dfile['xs']]);
+                    dst = ''.join([dst, "&eos.checksum=", dfile['xs']])
 
                 # For backup we try to read as root from the source
                 if self.oper == self.config.BACKUP_OP:
@@ -559,9 +603,14 @@ class Transfer(object):
                     else:
                         src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
 
+                    # If this is a version file we save it as a 2-replica layout
+                    if is_version_file(fentry[1]):
+                        dst = ''.join([dst, "&eos.layout.checksum=", dfile['xstype'],
+                                       "&eos.layout.type=replica&eos.layout.nstripes=2"])
+
                     # If time window specified then select only the matching entries
                     if (self.archive.header['twindow_type'] and
-                        self.archive.header['twindow_val']):
+                            self.archive.header['twindow_val']):
                         twindow_sec = int(self.archive.header['twindow_val'])
                         tentry_sec = int(float(dfile[self.archive.header['twindow_type']]))
 
@@ -613,9 +662,10 @@ class Transfer(object):
                 if not thread.isAlive():
                     status = status and thread.xrd_status.ok
                     log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
-                    self.logger.log(log_level, "Thread={0} status={1} msg={2}".format(
-                            thread.ident, thread.xrd_status.ok,
-                            thread.xrd_status.message.decode("utf-8")))
+                    self.logger.log(log_level,
+                                    ("Thread={0} status={1} msg={2}"
+                                     "").format(thread.ident, thread.xrd_status.ok,
+                                                thread.xrd_status.message.decode("utf-8")))
                     del self.threads[indx]
                     break
 
@@ -642,17 +692,25 @@ class Transfer(object):
                 thread.join()
                 status = status and thread.xrd_status.ok
                 log_level = logging.INFO if thread.xrd_status.ok else logging.ERROR
-                self.logger.log(log_level, "Thread={0} status={1} msg={2}".format(
-                        thread.ident, thread.xrd_status.ok,
-                        thread.xrd_status.message.decode("utf-8")))
+                self.logger.log(log_level,
+                                ("Thread={0} status={1} msg={2}"
+                                 "").format(thread.ident, thread.xrd_status.ok,
+                                            thread.xrd_status.message.decode("utf-8")))
 
             del self.threads[:]
 
         return status
 
-    def update_file_access(self):
+    def update_file_access(self, err_entry=None, found_checkpoint=False):
         """ Set the ownership and the permissions for the files copied to EOS.
         This is done only for GET operation i.e. self.archive.d2t == False.
+
+        Args:
+           err_entry (list): Entry record from the archive file corresponding
+               to the first file/dir that was corrupted.
+           found_checkpoint (boolean): If True, it means the checkpoint was
+                 already found and we don't need to search for it i.e. the
+                 corrupted entry is a directory.
 
         Raises:
             IOError: chown or chmod operations failed
@@ -676,6 +734,13 @@ class Transfer(object):
 
                     if tentry_sec < twindow_sec:
                         continue
+
+            # Search for the recovery checkpoint
+            if err_entry and not found_checkpoint:
+                if fentry != err_entry:
+                    continue
+                else:
+                    found_checkpoint = True
 
             __, surl = self.archive.get_endpoints(fentry[1])
             url = client.URL(surl.encode("utf-8"))
@@ -721,7 +786,7 @@ class Transfer(object):
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
 
-        status  = metahandler.wait(oper)
+        status = metahandler.wait(oper)
 
         if status:
             t1 = time.time()
@@ -731,7 +796,46 @@ class Transfer(object):
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
-    def prepare2get(self, err_entry, found_checkpoint):
+    def check_previous_tx(self):
+        """ Find checkpoint for a previous run. There are two types of checks
+        being done:
+        - transfer check = verify that the files exist and have the correct
+                           size and checksum
+        - metadata check = verify that all the entries have the correct meta-
+                           data values set
+
+        Returns:
+           (tx_ok, meta_ok, lst_failed): Tuple holding the status of the
+           different checks and the list of corrupted entries.
+        """
+        msg = "verify last run"
+        self.set_status(msg)
+        meta_ok = False
+        # Check for existence, file size and checksum
+        tx_ok, lst_failed = self.archive.verify(False, True)
+
+        if tx_ok:
+            meta_ok, lst_failed = self.archive.verify(False, False)
+
+            if meta_ok:
+                self.do_retry = False
+                raise NoErrorException()
+
+        # Delete the corrupted entry if this is a real transfer error
+        if not tx_ok:
+            err_entry = lst_failed[0]
+            is_dir = (err_entry[0] == 'd')
+            self.logger.info("Delete corrupted entry={0}".format(err_entry))
+
+            if is_dir:
+                self.archive.del_subtree(err_entry[1], None)
+            else:
+                self.archive.del_entry(err_entry[1], False, None)
+
+        return (tx_ok, meta_ok, lst_failed)
+
+
+    def prepare2get(self, err_entry=None, found_checkpoint=False):
         """This method is only executed for GET operations and it's purpose is
         to issue the Prepapre2Get commands for the files in the archive which
         will later on be copied back to EOS.
@@ -739,7 +843,7 @@ class Transfer(object):
         Args:
             err_entry (list): Entry record from the archive file corresponding
                  to the first file/dir that was corrupted.
-            found_checkpoint (bool): If it's true, it means the checkpoint was
+            found_checkpoint (bool): If True it means the checkpoint was
                  already found and we don't need to search for it.
 
         Raises:
@@ -771,7 +875,7 @@ class Transfer(object):
 
             if len(lpaths) == limit:
                 xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
-                            callback=metahandler.register(oper, surl))
+                                                     callback=metahandler.register(oper, surl))
 
                 if not xrd_st.ok:
                     __ = metahandler.wait(oper)
@@ -782,8 +886,8 @@ class Transfer(object):
                 # Wait for batch to be executed
                 del lpaths[:]
                 status = status and metahandler.wait(oper)
-                self.logger.debug("Prepare2get done count={0}/{1}".format(
-                        count, self.archive.header['num_files']))
+                self.logger.debug(("Prepare2get done count={0}/{1}"
+                                   "").format(count, self.archive.header['num_files']))
 
                 if not status:
                     break
@@ -791,7 +895,7 @@ class Transfer(object):
         # Send the remaining requests
         if lpaths and status:
             xrd_st = self.archive.fs_dst.prepare(lpaths, PrepareFlags.STAGE,
-                        callback=metahandler.register(oper, surl))
+                                                 callback=metahandler.register(oper, surl))
 
             if not xrd_st.ok:
                 __ = metahandler.wait(oper)
@@ -811,15 +915,57 @@ class Transfer(object):
             self.logger.error(err_msg)
             raise IOError(err_msg)
 
+    def wait_on_tape(self):
+        """ Check and wait that all the files are on tape, which in our case
+        means checking the "m" bit. If file is not on tape then suspend the
+        current thread for a period between 1 and 10 minutes depending on the
+        index of the failed file.
+        """
+        min_timeout, max_timeout = 5, 1
+
+        while True:
+            indx = 0 # index of the first file not on tape
+            all_on_tape = True
+
+            for fentry in self.archive.files():
+                indx += 1
+                __, dst = self.archive.get_endpoints(fentry[1])
+                url = client.URL(dst.encode("utf-8"))
+                st_stat, resp_stat = self.archive.fs_dst.stat(url.path.encode("utf-8"))
+
+                if not st_stat.ok:
+                    err_msg = "Error stat entry={0}".format(dst)
+                    self.logger.err(err_msg)
+                    raise IOError()
+
+                # Check file is on tape
+                if not resp_stat.flags & StatInfoFlags.BACKUP_EXISTS:
+                    self.logger.debug("File {0} is not yet on tape".format(dst))
+                    all_on_tape = False
+                    break
+
+            if all_on_tape:
+                break
+            else:
+                # Set timeout value
+                ratio = indx / int(self.archive.header['num_files'])
+                timeout = int(max_timeout * (1 - ratio))
+
+                if timeout < min_timeout:
+                    timeout = min_timeout
+
+                self.logger.info("Going to sleep for {0} seconds".format(timeout))
+                sleep(timeout)
+
     def backup_prepare(self):
         """ Prepare requested backup operation.
 
         Raises:
             IOError: Failed to transfer backup file.
         """
-        # Copy archive file from EOS to the local disk
-        self.logger.info("Prepare backup copy from {0} to {1}".format(
-                self.efile_full, self.tx_file))
+        # Copy backup file from EOS to the local disk
+        self.logger.info(("Prepare backup copy from {0} to {1}"
+                          "").format(self.efile_full, self.tx_file))
         eos_fs = client.FileSystem(self.efile_full.encode("utf-8"))
         st, _ = eos_fs.copy((self.efile_full + "?eos.ruid=0&eos.rgid=0").encode("utf-8"),
                             self.tx_file.encode("utf-8"), True)
@@ -863,7 +1009,7 @@ class Transfer(object):
             self.set_status(msg)
 
         # Copy files and set metadata information
-        self.copy_files(None, True)
+        self.copy_files()
         self.update_file_access()
 
         self.set_status("verifying")

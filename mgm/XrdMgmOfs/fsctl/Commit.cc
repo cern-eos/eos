@@ -56,6 +56,7 @@
   XrdOucString areplication = env.Get("mgm.replication");
   XrdOucString areconstruction = env.Get("mgm.reconstruction");
   XrdOucString aocchunk = env.Get("mgm.occhunk");
+  XrdOucString aismodified = env.Get("mgm.modified");
 
   bool verifychecksum = (averifychecksum == "1");
   bool commitchecksum = (acommitchecksum == "1");
@@ -63,6 +64,7 @@
   bool commitsize = (acommitsize == "1");
   bool replication = (areplication == "1");
   bool reconstruction = (areconstruction == "1");
+  bool modified = (aismodified == "1");
 
   int envlen;
   int oc_n = 0;
@@ -386,9 +388,9 @@
           {
             fmdname = fmd->getName();
 
-            if (fmd->getSize() != size)
+            if ( (fmd->getSize() != size) || modified )
             {
-	      eos_thread_debug("size difference forces mtime %lld %lld", fmd->getSize(), size);
+	      eos_thread_debug("size difference forces mtime %lld %lld or ismodified=%d", fmd->getSize(), size, modified);
               isUpdate = true;
             }
             fmd->setSize(size);

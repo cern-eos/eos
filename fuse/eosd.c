@@ -125,7 +125,7 @@ eosfs_ll_getattr (fuse_req_t req,
     fuse_reply_attr (req, &stbuf, attrcachetime);
   }
   else
-    fuse_reply_err (req, -retc);
+    fuse_reply_err (req, retc);
 }
 
 
@@ -1141,9 +1141,12 @@ eosfs_ll_read (fuse_req_t req,
                off_t off,
                struct fuse_file_info* fi)
 {
-  fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
-           __FUNCTION__, ino, size, off);
-
+  if (isdebug)
+  {
+    fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
+	     __FUNCTION__, ino, size, off);
+    
+  }
   if (fi && fi->fh)
   {
     struct fd_user_info* info = (fd_user_info*) fi->fh;

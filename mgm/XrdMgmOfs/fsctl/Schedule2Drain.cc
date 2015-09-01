@@ -411,9 +411,11 @@
                   (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)))
               {
                 // exclude another scheduling for RAIN files - there is no alternitive location here
+		std::string tried_cgi;
                 if ((!space) || (retc = space->FileAccess(h_vid,
                                                           (long unsigned int) 0,
                                                           (const char*) 0,
+							  tried_cgi,
                                                           lid,
                                                           locationfs,
                                                           fsindex,

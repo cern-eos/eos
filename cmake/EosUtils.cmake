@@ -1,32 +1,62 @@
 #-------------------------------------------------------------------------------
+# Get version
+#-------------------------------------------------------------------------------
+function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
+  if(("${MAJOR}" STREQUAL "") OR
+     ("${MINOR}" STREQUAL "") OR
+     ("${PATCH}" STREQUAL ""))
+    execute_process(
+      COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR}
+      OUTPUT_VARIABLE VERSION_INFO
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    string(REPLACE "." ";" VERSION_LIST ${VERSION_INFO})
+    list(GET VERSION_LIST 0 MAJOR)
+    list(GET VERSION_LIST 1 MINOR)
+    list(GET VERSION_LIST 2 PATCH)
+  endif()
+
+  set(VERSION_MAJOR ${MAJOR} PARENT_SCOPE)
+  set(VERSION_MINOR ${MINOR} PARENT_SCOPE)
+  set(VERSION_PATCH ${PATCH} PARENT_SCOPE)
+  set(VERSION "${MAJOR}.${MINOR}.${PATCH}" PARENT_SCOPE)
+
+  if("${RELEASE}" STREQUAL "")
+    set(RELEASE "head")
+  endif()
+
+  set(RELEASE ${RELEASE} PARENT_SCOPE)
+endfunction()
+
+#-------------------------------------------------------------------------------
 # Detect the operating system and define variables
 #-------------------------------------------------------------------------------
-function(EOS_defineOperatingSystem)
-	# nothing detected yet
-	set(Linux FALSE PARENT_SCOPE)
-	set(MacOSX FALSE PARENT_SCOPE)
-	set(Windows FALSE PARENT_SCOPE)
-	set(OSDEFINE "")
-	# check if we are on Linux
-	if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-				set(Linux TRUE PARENT_SCOPE)
-                                set(OSDEFINE "-D__LINUX__=1" PARENT_SCOPE)
-				endif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-				# check if we are on MacOSX
-				if(APPLE)
-					set(MacOSX TRUE PARENT_SCOPE)
-					set(CLIENT TRUE PARENT_SCOPE)
-                                        set(OSDEFINE "-D__APPLE__=1" PARENT_SCOPE)
-					endif(APPLE)
+function(EOS_DefineOperatingSystem)
+  # Nothing detected yet
+  set(Linux FALSE PARENT_SCOPE)
+  set(MacOSX FALSE PARENT_SCOPE)
+  set(Windows FALSE PARENT_SCOPE)
+  set(OSDEFINE "")
 
-					# check if we are on Windows
-					if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-								set(Windows TRUE PARENT_SCOPE)
-                                                                set(OSDEFINE "-D__WINDOWS__=1" PARENT_SCOPE)
-								endif(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-endfunction(EOS_defineOperatingSystem)
-#-------------------------------------------------------------------------------
+  # Check if we are on Linux
+  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    set(Linux TRUE PARENT_SCOPE)
+    set(OSDEFINE "-D__LINUX__=1" PARENT_SCOPE)
+  endif()
 
+  # Check if we are on MacOSX
+  if(APPLE)
+    set(MacOSX TRUE PARENT_SCOPE)
+    set(CLIENT TRUE PARENT_SCOPE)
+    set(OSDEFINE "-D__APPLE__=1" PARENT_SCOPE)
+  endif(APPLE)
+
+  # Check if we are on Windows
+  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
+    set(Windows TRUE PARENT_SCOPE)
+    set(OSDEFINE "-D__WINDOWS__=1" PARENT_SCOPE)
+  endif()
+endfunction()
 
 #-------------------------------------------------------------------------------
 # Detect in source builds

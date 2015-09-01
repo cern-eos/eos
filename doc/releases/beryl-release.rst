@@ -7,11 +7,61 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.128 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- avoid to call pthread_cancel after pthread_join (SEGV) in ShellCmd class
+- fix startup script to align with change in grep on CC7
+- fix gcc 5.1 warning
+
+``Version V0.3.127 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- several compilation and build fixes (spec) for i386 and CC7
+- fix fuse base64 encoding to not break URL syntax 
+
+``Version V0.3.126 Beryl-Aquamarine``
+
+New Features
+------------
+- major improvements in automatic error recovery for read and writes
+- a failed create due to a faulty disk server is recovered transparently
+- a failed read due to a faulty disk server is recovered transparently
+- an update on a file where not all replicas are available triggers an inline repair if (<1GB) and if configured via attributes an async repair via the configure - FUSE has been adapted to deal with changing inodes during a repaired open
+- distinguish scheduling policies for read and write via `geo.access.policy.read.exact` `geo.access.policy.write.exact` - if `on` for **write** then only groups matching the geo policy and two-site placement policy will be selected for placement and data will flow through the close fst - if `on` for **read** the replica in the same geo location will always be chosen
+
+``Version V0.3.125 Beryl-Aquamarine``
+
+New Features
+------------
+- allow to disable 'sss' enforcement on FSTs (see /etc/sysconfig/eos.example) - each FST need a prot bind entry on the MGM config file when enabled
+- show the current debug setting in 'node status <node>' as debug.state variable
+- add support for multi-session FUSE connections with uid<1024*1024 and gid<65536 sid<256
+- introduce vid.app, avoid stalling of 'fuse' clients and report application names in 'who -a'
+- implement 'sys.http.index' attribute to allow for static index pages/redirection and support URLs a symbolic link targets
+- follow the 'tried=<>' advice given by the XRootD client not to redirect again to a broken target
+
+Bug Fixes
+---------
+- fix 'eos <cmd>' bug where <cmd> is not executed if it has 3 letters and is a local file or directory (due to XrdOucString::endswith bug)
+- update modification for intermediate directories created by MKPATH option of 'xrdcp'
+- fix 'vid rm <key>'
+- revert 'rename' function to apply by default overwrite behaviour 
+- allow arbitrary symbolic link targets (relative targets etc.)
+- disable readahead for files that have rd/wr operations
+- allow clean-up via the destructor for chunked upload files
+- fix directory listing ACL bug
+- avoid timing related dead-lock in asynchronous backend flush
+
 ``Version V0.3.121 Beryl-Aquamarine``
+
 New Features
 ------------
 - support ALICE tokens in gateway transfers
 - allow to disable enforced authentication for submitted transfers
+- disable direct_io flag on ZFS mounts to avoid disabling filesystems due to scrubbing errors
 
 Bug Fixes
 ---------

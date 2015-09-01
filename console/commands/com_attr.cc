@@ -73,7 +73,7 @@ com_attr (char* arg1)
     in += path;
   }
 
-  if ( (subcommand == "set") || (subcommand == "link") )
+  if ((subcommand == "set") || (subcommand == "link"))
   {
     XrdOucString key = arg;
     XrdOucString value = "";
@@ -89,7 +89,7 @@ com_attr (char* arg1)
       value = "";
     }
 
-    if (subcommand == "link") 
+    if (subcommand == "link")
     {
       key = "sys.attr.link";
       value = arg;
@@ -282,12 +282,12 @@ com_attr (char* arg1)
     in += path;
   }
 
-  if ( (subcommand == "rm") || (subcommand == "unlink") )
+  if ((subcommand == "rm") || (subcommand == "unlink"))
   {
     XrdOucString key = arg;
     XrdOucString path = subtokenizer.GetToken();
 
-    if (subcommand == "unlink") 
+    if (subcommand == "unlink")
     {
       key = "sys.attr.link";
       path = arg;
@@ -409,10 +409,16 @@ com_attr_usage:
   fprintf(stdout, "               e.g.: sys.acl='z:!d' => 'z' is a rule for every user besides root e.g. nobody can delete here'b\n");
   fprintf(stdout, "                     sys.acl='z:i' => directory becomes immutable\n");
   fprintf(stdout, "         sys.eval.useracl                      : enables the evaluation of user acls if key is defined\n");
-  fprintf(stdout, "         sys.owner.auth=<owner-auth-list>      : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list");
+  fprintf(stdout, "         sys.owner.auth=<owner-auth-list>      : set's additional owner on a directory - open/create + mkdir commands will use the owner id for operations if the client is part of the owner authentication list\n");
   fprintf(stdout, "         sys.owner.auth=*                      : every person with write permission will be mapped to the owner uid/gid pair of the parent directory and quota will be accounted on the owner uid/gid pair\n");
   fprintf(stdout, "               => <owner-auth-list> = <auth1>:<name1>,<auth2>:<name2  e.g. krb5:nobody,gsi:DN=...\n");
+  fprintf(stdout, "\n");
   fprintf(stdout, "         sys.attr.link=<directory>             : symbolic links for attributes - all attributes of <directory> are visible in this directory and overwritten/extended by the local attributes\n");
+  // ---------------------------------------------------------------------------
+  fprintf(stdout, "\n");
+  fprintf(stdout, "         sys.http.index=<path>                 : show a static page as directory index instead of the dynamic one\n");
+  fprintf(stdout, "               => <path> can be a relative or absolute file path!\n");
+  fprintf(stdout, "\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout, "User Variables:\n");
   fprintf(stdout, "         user.forced.space=<space>             : s.a.\n");

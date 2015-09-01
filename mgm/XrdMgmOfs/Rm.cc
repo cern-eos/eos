@@ -146,12 +146,12 @@ XrdMgmOfs::_rem (const char *path,
   eos::ContainerMD* container = 0;
 
   eos::ContainerMD::XAttrMap attrmap;
-  Acl acl;
 
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
 
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
+  std::string aclpath;
 
   try
   {
@@ -173,23 +173,21 @@ XrdMgmOfs::_rem (const char *path,
     try
     {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+      aclpath = gOFS->eosView->getUri(container);
       eos_info("got container=%lld", (unsigned long long) container);
-      // get the attributes out
-      eos::ContainerMD::XAttrMap::const_iterator it;
-      for (it = container->attributesBegin(); it != container->attributesEnd(); ++it)
-      {
-        attrmap[it->first] = it->second;
-      }
+
     }
     catch (eos::MDException &e)
     {
       container = 0;
     }
 
-    // ACL and permission check
-    acl.Set(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""),
-            attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid,
-            attrmap.count("sys.eval.useracl"));
+    // ACL and permission check                                                                                                                                                                       
+    Acl acl(aclpath.c_str(),
+	    error,
+	    vid,
+	    attrmap,
+	    false);
 
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
     if (vid.uid && !acl.IsMutable())

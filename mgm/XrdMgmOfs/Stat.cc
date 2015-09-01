@@ -61,7 +61,7 @@ XrdMgmOfs::stat (const char *inpath,
  * @param client XRootD authentication object
  * @param ininfo CGI
  * @param etag string to return the ETag for that object
- * @param follow to indicate to foolow symbolic links on leave nodes
+ * @param follow to indicate to follow symbolic links on leave nodes
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * See the internal implemtation _stat for details.
@@ -134,7 +134,7 @@ XrdMgmOfs::_stat (const char *path,
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
- * @param follow to indicate to foolow symbolic links on leave nodes
+ * @param follow to indicate to follow symbolic links on leave nodes
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * We don't apply any access control on stat calls for performance reasons.

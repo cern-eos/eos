@@ -242,6 +242,12 @@ namespace eos
       virtual void renameFile( FileMD *file, const std::string &newName )
         throw( MDException );
 
+      //------------------------------------------------------------------------
+      //! Absolute Path sanitizing all '/../' and '/./' entries 
+      //------------------------------------------------------------------------
+      virtual void absPath(std::string &path);
+
+
     private:
       ContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
                                       size_t &index,

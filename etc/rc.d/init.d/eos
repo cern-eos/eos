@@ -163,7 +163,7 @@ start() {
 			# Write the pid to a file
 			RETVAL=$?
 			if [ $RETVAL -eq 0 ]; then
-			        pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i -c /etc/xrd" | awk '{print $1}'`
+			        pid=`pgrep -f "$prog -n $i -c /etc/xrd" `
 				if [ $USER = "root" ]; then
 				    rm -f /var/run/$prog.$i.pid
 				fi
@@ -216,9 +216,9 @@ stop() {
 		RETVAL=1
 		echo -n $"Stopping $prog: $role"
 	  	      	# try killing by grep
-		for pid in `ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $role -c /etc/xrd" | awk '{print $1}'`; do
+		for pid in `pgrep -f "$prog -n $role -c /etc/xrd"`; do
 	        	if [ -n "$pid" ]; then
-				kill -15 $pid;
+				kill -0 $pid 2>/dev/null && kill -15 $pid ;
 				usleep 200000
 				[ -d "/proc/$pid" ] && sleep 1 
 				[ -d "/proc/$pid" ] && sleep 1 
@@ -271,7 +271,7 @@ getstatus() {
                                 echo $"$prog for role: $i dead but subsys locked"
                                 RETVAL=1
                         else
-				pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i"| awk '{print $1}' | head -1`
+				pid=`pgrep -f "$prog -n $i"| awk '{print $1}' | head -1`
                                 if [ -n "$pid" ]; then
                                    echo $"$prog for role: $i is starting (pid $pid) "
 				   RETVAL=0

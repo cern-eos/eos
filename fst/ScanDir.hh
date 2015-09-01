@@ -122,7 +122,7 @@ public:
   void ScanFiles ();
 
   void CheckFile (const char*);
-  eos::fst::CheckSum* GetBlockXS (const char*);
+  eos::fst::CheckSum* GetBlockXS (const char*, unsigned long long maxfilesize);
   bool ScanFileLoadAware (const char*, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror);
 
   std::string GetTimestamp ();

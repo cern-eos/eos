@@ -159,6 +159,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
   // of RAIN files
 
+  // tried hosts CGI
+  std::string tried_cgi;
+
   int crOpts = (Mode & SFS_O_MKPTH) ? XRDOSS_mkpath : 0;
 
   // Set the actual open mode and find mode
@@ -245,6 +248,16 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
+  {
+    // populate tried hosts from the CGI
+    const char* val = 0;
+    if ((val = openOpaque->Get("tried")))
+    {
+      tried_cgi = val;
+      tried_cgi +=",";
+    }
+
+  }
   // ---------------------------------------------------------------------------
   // PIO MODE CONFIGURATION
   // ---------------------------------------------------------------------------
@@ -438,20 +451,26 @@ XrdMgmOfsFile::open (const char *inpath,
                      vid,
                      0,
                      attrmap,
-                     false,
-                     true);
+                     false);
 
       if (dmd)
       {
-        if (ocUploadUuid.length())
-        {
-          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-          fmd = dmd->findFile(aPath.GetName());
-        }
-        else
-        {
-          fmd = dmd->findFile(cPath.GetName());
-        }
+	try
+	{
+	  if (ocUploadUuid.length())
+	  {
+	    eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
+	    fmd = gOFS->eosView->getFile(aPath.GetPath());
+	  }
+	  else
+	  {
+	    fmd = gOFS->eosView->getFile(cPath.GetPath());
+	  }
+	}
+	catch (eos::MDException &e)
+	{
+	  fmd = 0;
+	}
 
         if (!fmd)
         {
@@ -507,8 +526,7 @@ XrdMgmOfsFile::open (const char *inpath,
                          vid,
                          0,
                          attrmap,
-                         false,
-                         true);
+                         false);
 
         }
         catch (eos::MDException &e)
@@ -1049,7 +1067,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
-  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
+  if (isCreation || ((open_mode == SFS_O_TRUNC)))
   {
     eos_info("blocksize=%llu lid=%x",
              eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
@@ -1083,6 +1101,11 @@ XrdMgmOfsFile::open (const char *inpath,
         mtime.tv_nsec = ext_mtime_nsec;
         fmd->setMTime(mtime);
       }
+      else
+      {
+	fmd->setMTimeNow();
+      }
+
       if (ext_ctime_sec)
       {
         eos::FileMD::ctime_t ctime;
@@ -1093,16 +1116,19 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
-	std::string uri = gOFS->eosView->getUri(fmd);
-        SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
-        if (space)
-        {
-          eos::QuotaNode* quotanode = 0;
-          quotanode = space->GetQuotaNode();
-          if (quotanode)
-          {
-            quotanode->addFile(fmd);
-          }
+	if (isCreation || (!fmd->getNumLocation())) 
+	{
+	  std::string uri = gOFS->eosView->getUri(fmd);
+	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
+	  if (space)
+	  {
+	    eos::QuotaNode* quotanode = 0;
+	    quotanode = space->GetQuotaNode();
+	    if (quotanode)
+	    {
+	      quotanode->addFile(fmd);
+	    }
+	  }
         }
       }
       catch (eos::MDException &e)
@@ -1115,6 +1141,7 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
       // -----------------------------------------------------------------------
+      gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
     }
   }
 
@@ -1266,7 +1293,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), layoutId,
+    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
                                   selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
 
@@ -1288,8 +1315,77 @@ XrdMgmOfsFile::open (const char *inpath,
       // check if we have a global redirect or stall for offline files
       MAYREDIRECT_ENONET;
       MAYSTALL_ENONET;
+      
+      // ----------------------------------------------------------------------
+      // INLINE REPAIR
+      // - if files are less than 1GB we try to repair them inline - max. 3 time
+      // ----------------------------------------------------------------------
+      if ((!isCreation) && (fmd->getSize() < (1*1024*1024*1024)))
+      {
+        int nmaxheal = 3;
+	if (attrmap.count("sys.heal.unavailable"))
+	  nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
 
+        int nheal = 0;
+        gOFS->MgmHealMapMutex.Lock();
+        if (gOFS->MgmHealMap.count(fileId))
+          nheal = gOFS->MgmHealMap[fileId];
+
+        // if there was already a healing
+        if (nheal >= nmaxheal)
+        {
+          // we tried nmaxheal times to heal, so we abort now and
+          // return an error to the client
+          gOFS->MgmHealMap.erase(fileId);
+          gOFS->MgmHealMap.resize(0);
+          gOFS->MgmHealMapMutex.UnLock();
+          gOFS->MgmStats.Add("OpenFailedHeal", vid.uid, vid.gid, 1);
+          XrdOucString msg = "heal file with inaccesible replica's after ";
+          msg += (int) nmaxheal;
+          msg += " tries - giving up";
+          eos_err("%s", msg.c_str());
+          return Emsg(epname, error, ENOSR, msg.c_str(), path);
+        }
+
+	eos_info("msg=\"in-line healing\" path=%s", path);
+	// increase the heal counter for that file id
+	gOFS->MgmHealMap[fileId] = nheal + 1;
+	gOFS->MgmHealMapMutex.UnLock();
+
+	ProcCommand* procCmd = new ProcCommand();
+	if (procCmd)
+        {
+	  // issue the version command 
+	  XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
+	  cmd += path;
+	  procCmd->open("/proc/user/", cmd.c_str(), vid, &error);
+	  procCmd->close();
+	  delete procCmd;
+	  
+	  int stalltime = 1; // let the client come back quickly
+	  if (attrmap.count("sys.stall.unavailable"))
+          {
+	    stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+	  }
+	  gOFS->MgmStats.Add("OpenStalledHeal", vid.uid, vid.gid, 1);
+	  eos_info("attr=sys info=\"stalling file\" path=%s rw=%d stalltime=%d nstall=%d",
+		   path, isRW, stalltime, nheal);
+	  return gOFS->Stall(error, stalltime, ""
+			     "Required filesystems are currently unavailable!");
+	}
+	else
+        {
+	  gOFS->MgmHealMapMutex.UnLock();
+	  return Emsg(epname, error, ENOMEM,
+		      "allocate memory for proc command", path);
+	}
+      }
+
+      // ----------------------------------------------------------------------
+      // ASYNC REPAIR
+      // - for big files if defined
       // check if we should try to heal offline replicas (rw mode only)
+      // ----------------------------------------------------------------------
       if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable"))
       {
         int nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
@@ -1310,7 +1406,7 @@ XrdMgmOfsFile::open (const char *inpath,
           XrdOucString msg = "heal file with inaccesible replica's after ";
           msg += (int) nmaxheal;
           msg += " tries - giving up";
-          eos_info("%s", msg.c_str());
+          eos_err("%s", msg.c_str());
           return Emsg(epname, error, ENOSR, msg.c_str(), path);
         }
         else

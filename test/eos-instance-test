@@ -597,6 +597,21 @@ runtest "### FileInfo  " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/in
 runtest "### UploadSz  " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
+
+# -------------------------------
+# Verify sys.owner.auth behaviour
+# -------------------------------
+runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/"
+runtest "### Attr      " unix 0 "" eos "attr set sys.owner.auth=* /eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth"
+runtest "### Chown     " unix 0 "" eos chown 2000:2001 "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth"
+runtest "### Upload-L3 " unix 0 "" upload   "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/l1/l2/l3/f1"
+runtest "### Vfy-Uid   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/l1/l2/l3/f1 -m | grep uid=2000"
+runtest "### Vfy-Gid   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/l1/l2/l3/f1 -m | grep gid=2001"
+runtest "### Upload-L1 " unix 0 "" upload   "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/f1"
+runtest "### Vfy-Uid   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/f1 -m | grep uid=2000"
+runtest "### Vfy-Gid   " unix 0 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/f1 -m | grep gid=2001"
+runtest "### Rem       " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/owner-auth/"
+
 ################################################################################################################
 # VERSION
 ################################################################################################################
@@ -758,7 +773,9 @@ runtest "### Update    " unix 1 "" append    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### Chmod     " unix 0 "" eos chmod 755 /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Attr      " unix 0 "" eos attr rm sys.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
 
+# --------------------------------------------------------------------------------------------------------------
 categorie="symlink"
+# --------------------------------------------------------------------------------------------------------------
 runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/
 runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/ref/touch
 runtest "### Symlink(d)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancetest/symdir /eos/$EOS_TEST_INSTANCE/test/instancetest/ref
@@ -856,7 +873,6 @@ runtest "### FUSE lnk  " unix 1 "" shell ln -s "/eos/$EOS_TEST_INSTANCE/test/ins
 runtest "### FUSE mkdr " unix 0 "" shell mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1/dir2"
 runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/link1/dir2"
 runtest "### FUSE stat " unix 0 "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1/dir2"
-exit
 fi
 
 ################################################################################

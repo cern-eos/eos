@@ -77,6 +77,9 @@ Storage::Scrub ()
 
         unsigned long long free = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_bfree;
         unsigned long long blocks = fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_blocks;
+
+	// disable direct IO for ZFS filesystems
+	bool direct_io = (fileSystemsVector[i]->GetStatfs()->GetStatfs()->f_type != 0x2fc12fc1);
         unsigned long id = fileSystemsVector[i]->GetId();
         eos::common::FileSystem::fsstatus_t bootstatus = fileSystemsVector[i]->GetStatus();
         eos::common::FileSystem::fsstatus_t configstatus = fileSystemsVector[i]->GetConfigStatus();
@@ -109,7 +112,7 @@ Storage::Scrub ()
         if (path[0] != '/')
           continue;
 
-        if (ScrubFs(path.c_str(), free, blocks, id))
+        if (ScrubFs(path.c_str(), free, blocks, id, direct_io))
         {
           // filesystem has errors!
           fsMutex.LockRead();
@@ -139,7 +142,7 @@ Storage::Scrub ()
 
 /*----------------------------------------------------------------------------*/
 int
-Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long blocks, unsigned long id)
+Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long blocks, unsigned long id, bool direct_io)
 {
   int MB = 1; // the test files have 1 MB
 
@@ -161,6 +164,11 @@ Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long 
     scrubfile[1] += fs;
     struct stat buf;
 
+    int dflags = 0;
+    if (direct_io)
+      dflags = O_DIRECT;
+
+
     for (int k = 0; k < 2; k++)
     {
       eos_static_debug("Scrubbing file %s", scrubfile[k].c_str());
@@ -169,9 +177,9 @@ Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long 
         // ok, create this file once
         int ff = 0;
         if (k == 0)
-          ff = open(scrubfile[k].c_str(), O_CREAT | O_TRUNC | O_WRONLY | O_DIRECT, S_IRWXU);
+          ff = open(scrubfile[k].c_str(), O_CREAT | O_TRUNC | O_WRONLY | dflags, S_IRWXU);
         else
-          ff = open(scrubfile[k].c_str(), O_CREAT | O_WRONLY | O_DIRECT, S_IRWXU);
+          ff = open(scrubfile[k].c_str(), O_CREAT | O_WRONLY | dflags, S_IRWXU);
 
         if (ff < 0)
         {
@@ -201,7 +209,7 @@ Storage::ScrubFs (const char* path, unsigned long long free, unsigned long long 
       }
 
       // do a read verify
-      int ff = open(scrubfile[k].c_str(), O_DIRECT | O_RDONLY);
+      int ff = open(scrubfile[k].c_str(), dflags | O_RDONLY);
       if (ff < 0)
       {
         eos_static_crit("Unable to open static scrubfile %s", scrubfile[k].c_str());

@@ -73,22 +73,19 @@ XrdMgmOfs::_chown (const char *path,
   // try as a directory
   try
   {
-    eos::ContainerMD* pcmd = 0;
     eos::ContainerMD::XAttrMap attrmap;
 
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
     eos::common::Path pPath(gOFS->eosView->getUri(cmd).c_str());
-    pcmd = gOFS->eosView->getContainer(pPath.GetParentPath());
-
     eos::ContainerMD::XAttrMap::const_iterator it;
-    for (it = pcmd->attributesBegin(); it != pcmd->attributesEnd(); ++it)
-    {
-      attrmap[it->first] = it->second;
-    }
 
-    // acl of the parent!
-    Acl acl(attrmap.count("sys.acl") ? attrmap["sys.acl"] : std::string(""), attrmap.count("user.acl") ? attrmap["user.acl"] : std::string(""), vid, attrmap.count("sys.eval.useracl"));
+    // ACL and permission check                                                                                                                                                                   
+    Acl acl(pPath.GetParentPath(),
+	    error,
+	    vid,
+	    attrmap,
+	    false);
 
     cmd = gOFS->eosView->getContainer(path);
     if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&

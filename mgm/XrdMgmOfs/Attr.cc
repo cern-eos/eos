@@ -274,9 +274,6 @@ XrdMgmOfs::_attr_ls (const char *path,
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
-  // check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | R_OK)))
-    if (!errno)errno = EPERM;
 
   // check for attribute references
   if (map.count("sys.attr.link"))
@@ -462,11 +459,8 @@ XrdMgmOfs::_attr_get (const char *path,
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
-  // check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | R_OK)))
-    if (!errno) errno = EPERM;
 
-  if (dh && errno && (errno != EPERM))
+  if (dh && errno)
   {
     // try linked attributes
     try
