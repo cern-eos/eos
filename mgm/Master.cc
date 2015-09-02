@@ -1968,7 +1968,7 @@ Master::BootNamespace()
 
     if (eos_chlog_filesvc && eos_chlog_dirsvc)
     {
-      eos_chlog_filesvc->setContainerService(eos_chlog_dirsvc);
+      gOFS->eosFileService->setContainerService(gOFS->eosDirectoryService);
 
       if (!IsMaster())
       {

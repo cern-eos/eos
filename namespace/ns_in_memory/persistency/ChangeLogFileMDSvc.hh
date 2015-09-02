@@ -218,7 +218,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //!
   //! @param cont_svc container service
   //----------------------------------------------------------------------------
-  void setContainerService(IChLogContainerMDSvc* cont_svc);
+  void setContainerService(IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Get the change log

@@ -1291,7 +1291,7 @@ ChangeLogFileMDSvc::clearWarningMessages()
 // Set container service
 //------------------------------------------------------------------------------
 void
-ChangeLogFileMDSvc::setContainerService(IChLogContainerMDSvc* cont_svc)
+ChangeLogFileMDSvc::setContainerService(IContainerMDSvc* cont_svc)
 {
   pContSvc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
 }
