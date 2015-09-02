@@ -1,0 +1,19 @@
+[Unit]
+Description=EOS instance %I
+Documentation=http://eos.cern.ch
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/spool/eos/core/
+EnvironmentFile=/etc/eos.systemd.conf
+ExecStart=/usr/bin/xrootd -n %i -c /etc/xrd.cf.%i -l /var/log/eos/xrdlog.%i -R%u
+User=daemon
+Group=daemon
+Restart=on-abort
+RestartSec=0
+KillMode=control-group
+
+[Install]
+RequiredBy=multi-user.target

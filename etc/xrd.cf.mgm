@@ -66,13 +66,16 @@ mgmofs.autosaveconfig true
 # Set the FST gateway host and port
 mgmofs.fstgw someproxy.cern.ch:3001
 
-################################################################################
-#  --- Configuration for the authentication plugin EosAuth ---
-################################################################################
+#-------------------------------------------------------------------------------
+# Configuration for the authentication plugin EosAuth
+#-------------------------------------------------------------------------------
 # Set the number of authentication worker threads running on the MGM
 #mgmofs.auththreads 10
 
 # Set the front end port number for incoming authentication requests
 #mgmofs.authport 15555
 
-###########################################################
+#-------------------------------------------------------------------------------
+# Set the namespace plugin implementation
+#-------------------------------------------------------------------------------
+mgmofs.nslib /usr/lib64/libEosNsInMemory.so
