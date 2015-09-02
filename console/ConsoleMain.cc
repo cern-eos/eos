@@ -469,27 +469,26 @@ dir_generator (const char *text, int state)
   char buffer[4096];
   sprintf(buffer, "%s", comarg.c_str());
   com_ls((char*) buffer);
-
   silent = oldsilent;
-
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
   do
   {
     subtokenizer.GetLine();
     XrdOucString entry = subtokenizer.GetToken();
+
+    if (entry.length() == 0)
+      break;
+
     if (entry.endswith('\n'))
       entry.erase(entry.length() - 1);
+
     if (!entry.endswith("/"))
       continue;
 
     if (entry.length())
-    {
       dirs.push_back(entry.c_str());
-    }
     else
-    {
       break;
-    }
   }
   while (1);
 

@@ -35,7 +35,6 @@ EOSMGMNAMESPACE_BEGIN
 int
 ProcCommand::Ls ()
 {
-  eos_info("calling ls");
   gOFS->MgmStats.Add("Ls", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
   eos::common::Path cPath(spath.c_str());
@@ -63,7 +62,6 @@ ProcCommand::Ls ()
     struct stat buf;
     int listrc = 0;
     XrdOucString filter = "";
-
 
     if (spath.find("*") != STR_NPOS)
     {
@@ -303,6 +301,7 @@ ProcCommand::Ls ()
       }
     }
   }
+
   return SFS_OK;
 }
 
