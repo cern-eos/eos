@@ -70,7 +70,12 @@ XrdMgmOfs::AuthMasterThread ()
   }
 
   // Start the proxy
-  zmq::proxy(frontend, backend, NULL);
+#if ZMQ_VERSION_MAJOR == 2
+  zmq_device(ZMQ_QUEUE, &frontend, &backend);
+#else
+  zmq::proxy(frontend, backend, (void*)0);
+#endif
+
   eos_static_info("successfully started auth master thread");
 }
 
