@@ -7,6 +7,18 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.130 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix eternally booting slave and crazy boot times
+
+``Version V0.3.129 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix for memory leak by ShellCmd not joining properly threads
+
 ``Version V0.3.128 Beryl-Aquamarine``
 
 Bug Fixes
