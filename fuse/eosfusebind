@@ -36,16 +36,18 @@ function ExitUsage
   local exename=`basename $0`
   local nl=${#exename}
   local f="%${nl}.${nl}s"
+  echo
   printf "$f %s\\n" $exename "[krb5|x509] [credfile]"
-  printf "$f %s\\n" "" "bind the current session to given credentials"
+  printf "$f %s\\n\n" "" "bind the current session to given credentials"
   printf "$f %s\\n" $exename "-u|--unlink-session"
-  printf "$f %s\\n" "" "unbind current session from any previsouly bound credentials"
+  printf "$f %s\\n\n" "" "unbind current session from any previsouly bound credentials"
   printf "$f %s\\n" $exename "-U|--unlink-user"
-  printf "$f %s\\n" "" "unbind all sessions of the current user from any previously bound credentials"
+  printf "$f %s\\n\n" "" "unbind all sessions of the current user from any previously bound credentials"
   printf "$f %s\\n" $exename "-s|--show-session"
-  printf "$f %s\\n" "" "show current session binding"
+  printf "$f %s\\n\n" "" "show current session binding"
   printf "$f %s\\n" $exename "-S|--show-user"
   printf "$f %s\\n" "" "show bindings of all sessions of current user"
+  echo
   exit 1
 }
 
@@ -75,7 +77,7 @@ function CheckArgs
 function GetEnvKrb5CredFile
 {
   CREDFILE=$KRB5CCNAME
-  if [[ `echo $KRB5CCNAME | cut -c1-5` != "FILE:" ]]; then
+  if [[ "${#KRB5CCNAME}" != "0" && `echo $KRB5CCNAME | cut -c1-5` != "FILE:" ]]; then
   echo "only cache credential files are supported for krb5"
   fi
   CREDFILE=`echo $KRB5CCNAME | cut -c6-`
@@ -145,7 +147,9 @@ function ShowLink
 
 function ShowHeader
 {
+  echo
   echo "current session id is $SID"
+  echo
   printf "%5s  %4s  %s\\n" sid type credfile
 }
 
@@ -180,6 +184,7 @@ function ShowSession
   FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
   if [[ "X$FILELIST" = "X" ]]; then return ; fi  
   for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
+  echo
 }
 
 function ShowUser
@@ -190,6 +195,7 @@ function ShowUser
   FILELIST=$(shopt -s nullglob; echo ${ActiveLinkedSessions})
   if [[ "X$FILELIST" = "X" ]]; then return ; fi              
   for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
+  echo
 }
 
 function LinkSession
@@ -198,6 +204,9 @@ function LinkSession
   SymlinkName="${SymlinkBaseNameSession}.${AUTHTYPE}"
   #echo "ln -sf $CREDFILE $SymlinkName"
   ln -sf $CREDFILE $SymlinkName
+  if [ $? -ne 0 ]; then
+    echo "Error creating credentials symlink."
+  fi
 }
 
 function UnlinkUser
