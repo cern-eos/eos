@@ -36,8 +36,6 @@ export EOS_ROOT=/usr
 
 . /etc/init.d/functions
 
-
-
 if test ! -x ${EOS_ROOT}/sbin/eosd ; then
   echo Error: ${EOS_ROOT}/sbin/eosd does not exist!
   exit 0
@@ -50,6 +48,8 @@ prog="eosd"
 
 [ -z "${EOS_FUSE_MOUNTS}" ] && EOS_FUSE_MOUNTS="main";
 
+FUSE_OPT_SAVE=${FUSE_OPT}
+
 start() {
     if [ -n "$1" ]; then
         EOS_FUSE_MOUNTS="$1";
@@ -57,7 +57,7 @@ start() {
     for i in ${EOS_FUSE_MOUNTS}; do
         (
         # in any case, we make sure that there is no leftover in the environment from the previous iteration
-        unset EOS_FUSE_DEBUG EOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_CACHE_WRITE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_LOCK_ENVIRONMENT EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LOG_PREFIX
+        unset EOS_FUSE_DEBUG EOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_CACHE_WRITE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_LOCK_ENVIRONMENT EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LOG_PREFIX FUSE_OPT
         # then we use the values from the main /etc/sysconfig/eos config file (if any) as default values
         [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
         if [ "$i" != "main" ]; then
@@ -95,6 +95,8 @@ start() {
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
         export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
+        # make sure that FUSE_OPT keeps the same default value
+        export FUSE_OPT=${FUSE_OPT-"${FUSE_OPT_SAVE}"}
 
         if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
             FUSE_OPT="big_writes,"${FUSE_OPT-""}
