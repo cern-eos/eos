@@ -90,6 +90,7 @@ start() {
         export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
+        export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
 
         if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
             FUSE_OPT="big_writes,"${FUSE_OPT-""}
@@ -140,6 +141,7 @@ start() {
             echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
             echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
             echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
+            echo "EOS_FUSE_LOG_PREFIX       : ${EOS_FUSE_LOG_PREFIX}"
         else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'
