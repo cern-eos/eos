@@ -481,7 +481,13 @@ eosfs_ll_readdir (fuse_req_t req,
   if (!(b = xrd_dirview_getbuffer (ino, 1)))
   {
     // No dirview entry, try to use the directory cache
-    retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, ino);
+    if( (retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino)) )
+    {
+      fprintf (stderr, "could not stat %s\n", dirfullpath);
+      fuse_reply_err (req, errno);
+      free (name);
+      return;
+    }
 
 #ifdef __APPLE__
     dir_status = xrd_dir_cache_get (ino, attr.st_mtimespec, &tmp_buf);
