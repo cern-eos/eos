@@ -51,6 +51,9 @@ prog="eosd"
 [ -z "${EOS_FUSE_MOUNTS}" ] && EOS_FUSE_MOUNTS="main";
 
 start() {
+    if [ -n "$1" ]; then
+        EOS_FUSE_MOUNTS="$1";
+    fi  
     for i in ${EOS_FUSE_MOUNTS}; do
         (
         if [ "$i" = "main" ]; then
@@ -68,76 +71,92 @@ start() {
         fi
 
         # Check if eosd is already running
-	echo
+        echo
         eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
-	export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
-	export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
-	export EOS_FUSE_KERNELCACHE=${EOS_FUSE_KERNELCACHE-1}
-	export EOS_FUSE_DIRECTIO=${EOS_FUSE_DIRECTIO-0}
-	export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
-	export EOS_FUSE_CACHE_SIZE=${EOS_FUSE_CACHE_SIZE-300000000}
-	export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
-	export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}	
-	export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
+        export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
+        export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
+        export EOS_FUSE_KERNELCACHE=${EOS_FUSE_KERNELCACHE-1}
+        export EOS_FUSE_DIRECTIO=${EOS_FUSE_DIRECTIO-0}
+        export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
+        export EOS_FUSE_CACHE_SIZE=${EOS_FUSE_CACHE_SIZE-300000000}
+        export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
+        export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}    
+        export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
         export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
         export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
+        export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
+        export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
+        export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
+        export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
+        export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
-	if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
-	  FUSE_OPT="big_writes,"${FUSE_OPT-""}
-	else
-	  test -n "${FUSE_OPT}" && FUSE_OPT=${FUSE_OPT}","
+
+        if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
+            FUSE_OPT="big_writes,"${FUSE_OPT-""}
+        else
+            test -n "${FUSE_OPT}" && FUSE_OPT=${FUSE_OPT}","
         fi
-	export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
 
         if [ "x$eosdpid" = "x" ]; then
-            echo -n "Starting $prog: "
-	    mkdir -p /var/run/eosd/
-	    cd /var/run/eosd/
-	    mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
-	    chmod -R 755 ${EOS_FUSE_MOUNTDIR-/eos/}
-	    unset KRB5CCNAME
-	    unset X509_USER_CERT
-	    unset X509_USER_KEY
-	    ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
-	    ulimit -n 65000
-	    test -c /dev/fuse || modprobe fuse
+            echo -n "Starting $prog for instance: $i"
+            mkdir -p /var/run/eosd/
+            cd /var/run/eosd/
+            mkdir -p /var/run/eosd/credentials
+            chmod 607 /var/run/eosd/credentials
+            mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
+            chmod -R 733 ${EOS_FUSE_MOUNTDIR-/eos/}
+            unset KRB5CCNAME
+            unset X509_USER_CERT
+            unset X509_USER_KEY
+            ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
+            ulimit -n 65000
+            test -c /dev/fuse || modprobe fuse
             ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-eosdev.cern.ch}/${EOS_FUSE_MOUNTDIR-/eos/}//  >& /dev/null 
-            
-            
+            pid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
             SRETVAL=$?
-	    [ $SRETVAL -eq 0 ] && touch /var/lock/subsys/eosd
-            [ $SRETVAL -eq 0 ] && echo_success;
-            if [ $SRETVAL -gt 0 ]; then
-                RETVAL=$SRETVAL; 
+            if [ $SRETVAL -eq 0 ]; then
+                touch /var/lock/subsys/$prog.$i
+                echo $pid > /var/run/$prog.$i.pid
+                echo_success;
             fi
-	    echo
-	    echo "EOS_FUSE_DEBUG            : ${EOS_FUSE_DEBUG}"
-	    echo "EOS_FUSE_NOACCESS         : ${EOS_FUSE_NOACCESS}"
-	    echo "EOS_FUSE_KERNELCACHE      : ${EOS_FUSE_KERNELCACHE}"
-	    echo "EOS_FUSE_DIRECTIO         : ${EOS_FUSE_DIRECTIO}"
-	    echo "EOS_FUSE_CACHE            : ${EOS_FUSE_CACHE}"
-	    echo "EOS_FUSE_CACHE_SIZE       : ${EOS_FUSE_CACHE_SIZE}"
-	    echo "EOS_FUSE_CACHE_WRITE      : ${EOS_FUSE_CACHE_WRITE}"
-	    echo "EOS_FUSE_BIGWRITES        : ${EOS_FUSE_BIGWRITES}"
+            if [ $SRETVAL -gt 0 ]; then
+                RETVAL=$SRETVAL;
+            fi
+            echo
+            echo "EOS_FUSE_DEBUG            : ${EOS_FUSE_DEBUG}"
+            echo "EOS_FUSE_NOACCESS         : ${EOS_FUSE_NOACCESS}"
+            echo "EOS_FUSE_KERNELCACHE      : ${EOS_FUSE_KERNELCACHE}"
+            echo "EOS_FUSE_DIRECTIO         : ${EOS_FUSE_DIRECTIO}"
+            echo "EOS_FUSE_CACHE            : ${EOS_FUSE_CACHE}"
+            echo "EOS_FUSE_CACHE_SIZE       : ${EOS_FUSE_CACHE_SIZE}"
+            echo "EOS_FUSE_CACHE_WRITE      : ${EOS_FUSE_CACHE_WRITE}"
+            echo "EOS_FUSE_BIGWRITES        : ${EOS_FUSE_BIGWRITES}"
             echo "EOS_FUSE_EXEC             : ${EOS_FUSE_EXEC}"
             echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
-            echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}" 
+            echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
+            echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
+            echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
+            echo "EOS_FUSE_USER_KRB5FIRST   : ${EOS_FUSE_USER_KRB5FIRST}"
+            echo "EOS_FUSE_PIDMAP           : ${EOS_FUSE_PIDMAP}"
+            echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
             echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
             echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
-	    echo "EOS_FUSE_LOG_PREFIX       : ${EOS_FUSE_LOG_PREFIX}"
-	else 
+        else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'
             echo and try again or use directly 'service eosd restart'.
             RETVAL=1
-	    echo_warning
+            echo_warning
         fi
         )
     done
 }
 
 stop() {
+    if [ -n "$1" ]; then
+        EOS_FUSE_MOUNTS="$1";
+    fi  
     for i in ${EOS_FUSE_MOUNTS}; do
         if [ "$i" = "main" ]; then
             [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
@@ -152,62 +171,94 @@ stop() {
                 continue;
             fi
         fi
-        echo -n "Stopping $prog: "
+        echo -n "Stopping $prog for instance: $i"
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	>& /dev/null
-	existed=$?
+        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"    >& /dev/null
+        existed=$?
         umount -f -l $umdir >& /dev/null
-	pkill -f "${EOS_ROOT}/sbin/eosd $umdir"	
-        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"	>& /dev/null
-	killed=$?
-	while [ $killed -eq 0 ]; 
-	do 	
-	        pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
-	        usleep 100000
-                pgrep -f "${EOS_ROOT}/sbin/eosd $umdir" >& /dev/null
-		killed=$?
-   	done
-        rm -f /var/lock/subsys/eosd
+        pkill -f "${EOS_ROOT}/sbin/eosd $umdir"    
+        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"    >& /dev/null
+        killed=$?
+        while [ $killed -eq 0 ]; 
+        do     
+            pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
+            usleep 100000
+            pgrep -f "${EOS_ROOT}/sbin/eosd $umdir" >& /dev/null
+            killed=$?
+        done
+        rm -f /var/lock/subsys/$prog.$i
+        rm -f /var/run/$prog.$i.pid
         echo
-	if [ $existed -eq 0 ]; then
-	        echo_success	
-	else
-		echo_failure
-        fi	
+        if [ $existed -eq 0 ]; then
+            echo_success    
+        else
+            echo_failure
+        fi    
         echo
         RETVAL=0;
     done
 }
 
+getstatus() {
+    if [ -n "$1" ]; then
+        EOS_FUSE_MOUNTS="$1";
+    fi  
+    # Loop over xrootd roles
+    for i in ${EOS_FUSE_MOUNTS}; do
+        pid=`pidofproc $prog.$i`
+        type=""
+        if [ -n "$pid" ]; then
+            echo $"$prog for instance: $i (pid $pid) is running $type ..."
+            continue
+        else
+            # See if /var/lock/subsys/$prog.$i exists
+            if [ -f /var/lock/subsys/$prog.$i ]; then
+                echo $"$prog for instance: $i dead but subsys locked"
+                RETVAL=1
+            else
+                pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i"| awk '{print $1}' | head -1`
+                if [ -n "$pid" ]; then
+                    echo $"$prog for instance: $i is starting (pid $pid) "
+                    RETVAL=0
+                else
+                    echo $"$prog for instance: $i  is stopped"
+                    RETVAL=2
+                fi
+            fi
+        fi                       
+    done
+     
+    return $RETVAL
+}
 
 restart() {
-    stop
-    start
+    stop $1
+    start $1
 }       
 
 reload() {
-    restart
+    restart $1
 }
 
 case "$1" in
     start)
-    start
+    start $2
     ;;
     stop)
-    stop
+    stop $2
     ;;
     reload|restart)
-    restart
+    restart $2
     ;;
     condrestart)
     
     if [ -f /var/lock/subsys/eosd ]; then
-        restart
+        restart 
     fi
     ;;
     status)
     
-    status $prog
+    getstatus $2
     RETVAL=$?
     ;;
     *)
