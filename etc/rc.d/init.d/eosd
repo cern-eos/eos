@@ -55,9 +55,12 @@ start() {
         EOS_FUSE_MOUNTS="$1";
     fi  
     for i in ${EOS_FUSE_MOUNTS}; do
-        if [ "$i" = "main" ]; then
-            [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
-        else 
+        # in any case, we make sure that there is no leftover in the environment from the previous iteration
+        unset EOS_FUSE_DEBUG EOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_CACHE_WRITE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_LOCK_ENVIRONMENT EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LOG_PREFIX
+        # then we use the values from the main /etc/sysconfig/eos config file (if any) as default values
+        [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
+        if [ "$i" != "main" ]; then
+            # then, we override the env vars with the ones in the instance specific config file /etc/sysconfig/eos.$i
             if [ -f /etc/sysconfig/eos.$i ]; then
                 . /etc/sysconfig/eos.$i
             else
