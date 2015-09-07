@@ -63,7 +63,7 @@ BuildRequires: zeromq, zeromq-devel, curl-devel, curl
 BuildRequires: libuuid-devel, ncurses-static, openssl-static, zlib-static,
 BuildRequires: libcurl-devel libcurl, sparsehash-devel
 %if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
-BuildRequires: zeromq, zeromq-devel
+BuildRequires: zeromq3, zeromq3-devel
 %else
 BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 %endif
@@ -93,14 +93,18 @@ Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
-Requires: zeromq
 Requires: protobuf
 
-%if %{distribution} == 5
+%if 0%{distribution} == 5
+Requires: zeromq
 Requires: curl
 %else
 Requires: libcurl
-Requires: protobuf
+%if 0%{?rhel} == 6 || 0%{?el6} == 1 || (0%{?fedora} >= 18 && 0%{?fedora} <= 21)
+BuildRequires: zeromq3, zeromq3-devel
+%else
+BuildRequires: zeromq, zeromq-devel, cppzmq-devel
+%endif
 %endif
 
 %description -n eos-server
@@ -209,14 +213,14 @@ sleep 2
 
 %preun -n eos-server
 if [ $1 = 0 ]; then
-	echo "Stopping EOS services"
-	/sbin/service eosha stop > /dev/null 2>&1
-	/sbin/service eosd stop > /dev/null 2>&1
-	/sbin/service eos stop > /dev/null 2>&1 || :
-	/sbin/service eossync stop > /dev/null 2>&1
-	/sbin/service eosslave stop > /dev/null 2>&1
-	/sbin/chkconfig --del eos
-	/sbin/chkconfig --del eosslave
+        echo "Stopping EOS services"
+        /sbin/service eosha stop > /dev/null 2>&1
+        /sbin/service eosd stop > /dev/null 2>&1
+        /sbin/service eos stop > /dev/null 2>&1 || :
+        /sbin/service eossync stop > /dev/null 2>&1
+        /sbin/service eosslave stop > /dev/null 2>&1
+        /sbin/chkconfig --del eos
+        /sbin/chkconfig --del eosslave
 fi
 
 #-------------------------------------------------------------------------------
@@ -265,6 +269,7 @@ The EOS fuse client.
 %defattr(-, root, root, -)
 %{_bindir}/eosfsd
 %{_sbindir}/eosd
+%{_bindir}/eosfusebind
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
@@ -283,9 +288,9 @@ sleep 2
 
 %preun -n eos-fuse
 if [ $1 = 0 ]; then
-	echo "Stopping EOS FUSE services"
-	/sbin/service eosd stop > /dev/null 2>&1 || :
-	/sbin/chkconfig --del eosd
+        echo "Stopping EOS FUSE services"
+        /sbin/service eosd stop > /dev/null 2>&1 || :
+        /sbin/chkconfig --del eosd
 fi
 
 #-------------------------------------------------------------------------------
@@ -352,9 +357,9 @@ sleep 2
 
 %preun -n eos-archive
 if [ $1 = 0 ]; then
-	echo "Stopping EOS archive services"
-	/sbin/service eosarchvied stop > /dev/null 2>&1 || :
-	/sbin/chkconfig --del eosarchived
+        echo "Stopping EOS archive services"
+        /sbin/service eosarchvied stop > /dev/null 2>&1 || :
+        /sbin/chkconfig --del eosarchived
 fi
 %endif
 

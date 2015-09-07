@@ -243,7 +243,7 @@ XrdMgmOfs::InitializeFileView()
                           eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
         }
       }
-      
+
       {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
@@ -1274,7 +1274,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   {
     eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
   }
-  
+
   if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") && getenv("EOS_TTY_BROADCAST_EGREP"))
   {
     XrdOucString ttybroadcastline = "eos-tty-broadcast ";
@@ -1939,7 +1939,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (!Httpd.Start())
     eos_warning("msg=\"cannot start httpd daemon\"");
 
-  // start the Egroup fetching 
+  // start the Egroup fetching
   if (!gOFS->EgroupRefresh.Start())
     eos_warning("msg=\"cannot start egroup thread\"");
 
@@ -1986,7 +1986,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
 
-    // add SEGV handler   
+    // add SEGV handler
     if (!getenv("EOS_NO_STACKTRACE"))
     {
       (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
@@ -1998,27 +1998,27 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (mNumAuthThreads && mFrontendPort)
   {
     eos_info("starting the authentication master thread");
-    
+
     if ((XrdSysThread::Run(&auth_tid, XrdMgmOfs::StartAuthMasterThread,
                            static_cast<void *>(this), 0, "Auth Master Thread")))
     {
-      eos_crit("cannot start the authentication thread");
+      eos_crit("cannot start the authentication master thread");
       NoGo = 1;
     }
-    
+
     eos_info("starting the authentication worker threads");
-    
+
     for (unsigned int i = 0; i < mNumAuthThreads; i++)
     {
       pthread_t worker_tid;
-      
+
       if ((XrdSysThread::Run(&worker_tid, XrdMgmOfs::StartAuthWorkerThread,
                              static_cast<void *>(this), 0, "Auth Worker Thread")))
       {
         eos_crit("cannot start the authentication thread %i", i);
         NoGo = 1;
       }
-      
+
       mVectTid.push_back(worker_tid);
     }
   }

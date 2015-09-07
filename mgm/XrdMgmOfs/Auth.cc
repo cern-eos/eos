@@ -34,10 +34,10 @@ XrdMgmOfs::StartAuthMasterThread(void *pp)
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Authentication master thread function - accepts requests from EOS AUTH
 // plugins which he then forwards to worker threads.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 XrdMgmOfs::AuthMasterThread ()
 {
@@ -45,14 +45,39 @@ XrdMgmOfs::AuthMasterThread ()
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
   std::ostringstream sstr;
   sstr << "tcp://*:" << mFrontendPort;
-  frontend.bind(sstr.str().c_str());
+
+  try
+  {
+    frontend.bind(sstr.str().c_str());
+  }
+  catch (zmq::error_t& err)
+  {
+    eos_static_err("failed to bind frontend socket");
+    return;
+  }
 
   // Socket facing worker threads
   zmq::socket_t backend(*mZmqContext, ZMQ_DEALER);
-  backend.bind("inproc://authbackend");
+
+  try
+  {
+    backend.bind("inproc://authbackend");
+  }
+  catch (zmq::error_t& err)
+  {
+    eos_static_err("failed to bind backend socket");
+    return;
+  }
 
   // Start the proxy
+#if ZMQ_VERSION_MAJOR == 2
   zmq_device(ZMQ_QUEUE, &frontend, &backend);
+#else
+  zmq::proxy(static_cast<void*>(frontend),static_cast<void*>(backend),
+             static_cast<void*>(0));
+#endif
+
+  eos_static_info("successfully started auth master thread");
 }
 
 
@@ -77,24 +102,36 @@ XrdMgmOfs::AuthWorkerThread()
 {
   using namespace eos::auth;
   int ret;
-  eos_static_info("authentication worker thread started");
+  eos_static_info("authentication worker thread starting");
   zmq::socket_t responder(*mZmqContext, ZMQ_REP);
 
   // Try to connect to proxy thread - the bind can take a longer time so threfore
   // keep trying until it is successful
-  while (1)
-  {
-        try
-        {
-          responder.connect("inproc://authbackend");
-        }
-        catch (zmq::error_t& err)
-        {
-          eos_static_debug("auth worker connection failed - retry");
-          continue;
-        }
+  bool connected = false;
+  uint8_t tries = 0;
 
-        break;
+  while (tries <= 5)
+  {
+    try
+    {
+      responder.connect("inproc://authbackend");
+    }
+    catch (zmq::error_t& err)
+    {
+      eos_static_debug("auth worker connection failed - retry");
+      tries++;
+      sleep(1);
+      continue;
+    }
+
+    connected = true;
+    break;
+  }
+
+  if (!connected)
+  {
+    eos_static_info("kill thread as we could not connect to backend socket");
+    return;
   }
 
   // Main loop of the worker thread

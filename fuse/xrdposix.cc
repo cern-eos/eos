@@ -2330,7 +2330,11 @@ xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
   XrdCl::XRootDStatus status = fs.RmDir(path);
 
   if (xrd_error_retc_map(status.errNo))
+  {
+    if(status.GetErrorMessage().find("Directory not empty")!=std::string::npos)
+      errno = ENOTEMPTY;
     return errno;
+  }
   else
     return 0;
 }
@@ -3379,10 +3383,18 @@ public:
     // get the session id
     pid_t sid;
     proccache_GetSid(pid,&sid);
-    if ((errCode = proccache_InsertEntry (sid)))
+    bool isSessionLeader = (sid==pid);
+    // update the proccache of the session leader
+    if (!isSessionLeader)
     {
-      eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
-      return errCode;
+      xrd_lock_w_pcache (sid);
+      if ((errCode = proccache_InsertEntry (sid)))
+      {
+        eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
+        xrd_unlock_w_pcache (sid);
+        return errCode;
+      }
+      xrd_unlock_w_pcache (sid);
     }
 
     // get the startuptime of the leader of the session
@@ -3514,6 +3526,7 @@ const char* xrd_strongauth_cgi (pid_t pid)
   if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy))
   {
     char buffer[256];
+    buffer[0]=(char)0;
     proccache_GetAuthMethod(pid,buffer,256);
     std::string authmet(buffer);
     if (authmet.compare (0, 5, "krb5:") == 0)
