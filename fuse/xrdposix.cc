@@ -2186,7 +2186,11 @@ xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
   XrdCl::XRootDStatus status = fs.RmDir(path);
 
   if (xrd_error_retc_map(status.errNo))
+  {
+    if(status.GetErrorMessage().find("Directory not empty")!=std::string::npos)
+      errno = ENOTEMPTY;
     return errno;
+  }
   else
     return 0;
 }
