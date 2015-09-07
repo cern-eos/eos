@@ -481,7 +481,7 @@ eosfs_ll_readdir (fuse_req_t req,
   if (!(b = xrd_dirview_getbuffer (ino, 1)))
   {
     // No dirview entry, try to use the directory cache
-    if( (retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino)) )
+    if( (retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, ino)) )
     {
       fprintf (stderr, "could not stat %s\n", dirfullpath);
       fuse_reply_err (req, errno);
