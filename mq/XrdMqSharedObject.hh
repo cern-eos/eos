@@ -152,7 +152,7 @@ public:
     return Set(key, convert, broadcast);
   }
 
-  bool SetDouble(const char* key, double &value, bool broadcast=true) {
+  bool SetDouble(const char* key, const double &value, bool broadcast=true) {
     char convert[1024];
     snprintf(convert, sizeof(convert)-1,"%f", value);
     return Set(key, convert, broadcast);

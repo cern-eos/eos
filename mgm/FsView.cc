@@ -1081,6 +1081,14 @@ FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
       node->insert(snapshot.mId);
       node->SetNodeConfigDefault();
       eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(), snapshot.mId, fs);
+#ifndef EOSMGMFSVIEWTEST
+    std::string s;
+    if(!(s = node->GetConfigMember("dataproxy")).empty())
+      gGeoTreeEngine.insertDataProxy(node,false,false);
+    s.clear();
+    if(!(s = node->GetConfigMember("dataep")).empty())
+      gGeoTreeEngine.insertGateway(node,false,false);
+#endif
     }
 
     //--------------------------------------------------------------------------
@@ -1351,6 +1359,14 @@ FsView::UnRegister (FileSystem* fs, bool unregisterInGeoTreeEngine)
       eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
       if (!node->size())
       {
+#ifndef EOSMGMFSVIEWTEST
+        std::string s;
+        if(!(s = node->GetConfigMember("dataproxy")).empty())
+          gGeoTreeEngine.rmDataProxy(node,false,false);
+        s.clear();
+        if(!(s = node->GetConfigMember("dataep")).empty())
+          gGeoTreeEngine.rmGateway(node,false,false);
+#endif
 	mNodeView.erase(snapshot.mQueue);
 	delete node;
       }
@@ -1459,6 +1475,14 @@ FsView::RegisterNode (const char* nodename)
     mNodeView[nodequeue] = node;
     node->SetNodeConfigDefault();
     eos_debug("creating node view %s", nodequeue.c_str());
+#ifndef EOSMGMFSVIEWTEST
+    std::string s;
+    if(!(s = node->GetConfigMember("dataproxy")).empty())
+      gGeoTreeEngine.insertDataProxy(node,false,false);
+    s.clear();
+    if(!(s = node->GetConfigMember("dataep")).empty())
+      gGeoTreeEngine.insertGateway(node,false,false);
+#endif
     return true;
   }
 }
@@ -1473,7 +1497,17 @@ FsView::UnRegisterNodes ()
   std::map<std::string, FsNode* >::iterator it;
   for (it = mNodeView.begin(); it != mNodeView.end(); it++)
   {
-    delete (it->second);
+    auto node = it->second;
+#ifndef EOSMGMFSVIEWTEST
+    /// WARNING:this function is never called, so the FsView in gGeoTreeEngine might end up misspecified
+    std::string s;
+    if(!(s = node->GetConfigMember("dataproxy")).empty())
+      gGeoTreeEngine.rmDataProxy(node,false,true);
+    s.clear();
+    if(!(s = node->GetConfigMember("dataep")).empty())
+      gGeoTreeEngine.rmGateway(node,false,true);
+#endif
+    delete (node);
   }
 }
 
@@ -1505,7 +1539,16 @@ FsView::UnRegisterNode (const char* nodename)
     if (!hasfs)
     {
       // we have to explicitly remove the node from the view here because no fs was removed
-      delete mNodeView[nodename];
+      auto node = mNodeView[nodename];
+#ifndef EOSMGMFSVIEWTEST
+      std::string s;
+      if(!(s = node->GetConfigMember("dataproxy")).empty())
+        gGeoTreeEngine.rmDataProxy(node,false,false);
+      s.clear();
+      if(!(s = node->GetConfigMember("dataep")).empty())
+        gGeoTreeEngine.rmGateway(node,false,false);
+#endif
+      delete node;
       retc = (mNodeView.erase(nodename) ? true : false);
     }
   }
@@ -1796,9 +1839,8 @@ FsView::HeartBeatCheck ()
     {
       // quickly go through all heartbeats
       eos::common::RWMutexReadLock lock(ViewMutex);
-      std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
       // iterator over all filesystems
-      for (it = mIdView.begin(); it != mIdView.end(); it++)
+      for (auto it = mIdView.begin(); it != mIdView.end(); it++)
       {
 	if (!it->second)
 	continue;
@@ -1830,6 +1872,39 @@ FsView::HeartBeatCheck ()
 	    it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
 	  }
 	}
+      }
+      // iterator over all filesystems
+      for (auto it = mNodeView.begin(); it != mNodeView.end(); it++)
+      {
+        if (!it->second)
+        continue;
+
+        eos::common::FileSystem::host_snapshot_t snapshot;
+        auto shbt = it->second->GetMember("stat.heartbeattime");
+        snapshot.mHeartBeatTime = (time_t) strtoll(shbt.c_str(),NULL,10);
+
+        if (!it->second->HasHeartBeat(snapshot))
+        {
+          // mark as offline
+          if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
+          it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+        }
+        else
+        {
+          std::string queue = it->second->mName;
+
+          if ((FsView::gFsView.mNodeView.count(queue)) &&
+              (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") )
+          {
+            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOnline)
+            it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
+          }
+          else
+          {
+            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
+            it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+          }
+        }
       }
     }
     XrdSysTimer sleeper;
@@ -1931,6 +2006,56 @@ FsNode::~FsNode ()
 };
 
 /*----------------------------------------------------------------------------*/
+bool
+FsNode::SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock)
+{
+  auto som = eos::common::GlobalConfig::gConfig.SOM();
+  if (dolock)
+  {
+    som->HashMutex.LockRead();
+  }
+  XrdMqSharedHash *hash = NULL;
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
+  eos_static_warning("queue name is %s",nodeconfigname.c_str());
+  if ((hash = som->GetObject(nodeconfigname.c_str(), "hash")))
+  {
+    eos_static_warning("hash is %p",hash);
+    host.mQueue = nodeconfigname;
+    host.mHost        = GetMember("hostport");
+    host.mGeoTag        = hash->Get("stat.geotag");
+    host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
+    host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
+    host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
+    host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
+    host.mGopen = hash->GetLongLong("stat.dataproxy.gopen");
+    if (dolock)
+    {
+      som->HashMutex.UnLockRead();
+    }
+    eos_static_warning("mQueue %s   mHost %s   mGeoTag %s   mGopen %d",host.mQueue.c_str(),host.mHost.c_str(),host.mGeoTag.c_str(),(int)host.mGopen);
+    return true;
+  }
+  else
+  {
+    eos_static_warning("hash is %p",hash);
+    if (dolock)
+    {
+      som->HashMutex.UnLockRead();
+    }
+    host.mQueue = nodeconfigname;
+    host.mHost = mName;
+    host.mGeoTag        = "";
+    host.mPublishTimestamp = 0;
+    host.mNetEthRateMiB = 0;
+    host.mNetInRateMiB  = 0;
+    host.mNetOutRateMiB = 0;
+    host.mGopen = 0;
+    eos_static_warning("mQueue %s   mHost %s   mGeoTag %s   mGopen %d",host.mQueue.c_str(),host.mHost.c_str(),host.mGeoTag.c_str(),(int)host.mGopen);
+    return false;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
 std::string
 FsNode::GetMember (std::string member)
 {
@@ -1944,6 +2069,46 @@ FsNode::GetMember (std::string member)
     return BaseView::GetMember(member);
   }
 }
+
+/*----------------------------------------------------------------------------*/
+bool
+FsNode::HasHeartBeat ( eos::common::FileSystem::host_snapshot_t &fs)
+{
+  time_t now = time(NULL);
+  time_t hb = fs.mHeartBeatTime;
+  if ((now - hb) < 60)
+  {
+    // we allow some time drift plus overload delay of 60 seconds
+    return true;
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
+eos::common::FileSystem::fsactive_t
+FsNode::GetActiveStatus ()
+{
+  std::string active = GetMember("stat.active");
+  if (active == "online")
+  {
+    return eos::common::FileSystem::kOnline;
+  }
+  else
+  {
+    return eos::common::FileSystem::kOffline;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+FsNode::SetActiveStatus (eos::common::FileSystem::fsactive_t active)
+{
+  if (active == eos::common::FileSystem::kOnline)
+  return SetConfigMember("stat.active","online",true,mName.c_str(),false);
+  else
+    return SetConfigMember("stat.active","offline",true,mName.c_str(),false);
+}
+
 
 /*----------------------------------------------------------------------------*/
 bool
@@ -3152,7 +3317,6 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
       }
       return find(param)->second;
     }
-
     ~DoubleAggregatedStats()
     {
       for(auto it=begin(); it!=end(); it++)

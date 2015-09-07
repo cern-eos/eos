@@ -520,6 +520,30 @@ public:
     return 0;
   }
 
+  template<typename T>
+  inline static signed char
+  compareGateway(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
+                 const TreeNodeSlots* const &rightp)
+  {
+    // -2 - Should not be disabled
+    int16_t mask = Disabled;
+    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return -1;
+
+    // lexicographic order
+    // -1 - Should be a balancing
+    mask = Available;
+    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return -1;
+
+    // we might add a notion of depth to minimize latency
+    return 0;
+  }
+
   typedef TreeNodeInfo FastTreeNodeInfo;
 
   typedef std::vector<FastTreeNodeInfo> FastTreeInfo;

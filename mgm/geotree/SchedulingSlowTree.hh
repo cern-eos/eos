@@ -116,7 +116,7 @@ public:
     destroy();
   }
 
-  template<typename T1,typename T2> inline bool writeFastTreeNodeTemplate (struct FastTree<T1,T2>::FastTreeNode *ftn) const
+  template<typename T1,typename T2,typename T3> inline bool writeFastTreeNodeTemplate (struct FastTree<T1,T2,T3>::FastTreeNode *ftn) const
   {
     pNodeState.writeCompactVersion(&ftn->fsData);
     return true;
@@ -180,11 +180,14 @@ public:
   { return pNodeCount;}
   std::ostream& display(std::ostream &os, bool useColors=false) const;
 
-  bool buildFastStrctures(
+  bool buildFastStrcturesSched(
       FastPlacementTree *fpt, FastROAccessTree *froat, FastRWAccessTree *frwat,
       FastBalancingPlacementTree *fbpt, FastBalancingAccessTree *fbat,
       FastDrainingPlacementTree *fdpt, FastDrainingAccessTree *fdat,
       FastTreeInfo *fastinfo, Fs2TreeIdxMap *fs2idx, GeoTag2NodeIdxMap *geo2node) const;
+
+  bool buildFastStrcturesGW(
+      FastGatewayAccessTree *fgat, Host2TreeIdxMap *host2idx, FastTreeInfo *fastinfo, GeoTag2NodeIdxMap *geo2node) const;
 
   FastPlacementTree* allocateAndBuildFastTreeTemplate(FastPlacementTree *fasttree, FastTreeInfo *fastinfo, Fs2TreeIdxMap *fs2idx, GeoTag2NodeIdxMap *geo2node) const;
 };

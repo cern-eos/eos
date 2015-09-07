@@ -409,11 +409,199 @@ public:
 
 /*----------------------------------------------------------------------------*/
 /**
+ * @brief Class mapping an FsId to its position in a FastTree
+ *        This position is described by the index of the corresponding node
+ *        in the FastTree. This is a specalized template for string (as opposed
+ *        to numerics)
+ *
+ */
+/*----------------------------------------------------------------------------*/
+template<>
+class FsId2NodeIdxMap<char*> : public SchedTreeBase
+{
+  friend class SlowTree;
+  friend class SlowTreeNode;
+
+  // size
+  static const size_t pStrLen = 64;
+  tFastTreeIdx pMaxSize;
+  tFastTreeIdx pSize;
+  bool pSelfAllocated;
+
+  // data
+  char *pBuffer;
+  //char **pFsIds; that should be pFsIds[i] = pBuffer+pStrLen*i;
+  tFastTreeIdx *pNodeIdxs;
+
+public:
+  // creation, allocation, destruction
+  FsId2NodeIdxMap(): pMaxSize(0), pSize(0),pSelfAllocated(false), pBuffer(NULL)
+  {
+  }
+
+  ~ FsId2NodeIdxMap()
+  {
+    if (pSelfAllocated)
+    selfUnallocate();
+  }
+
+  tFastTreeIdx copyToFsId2NodeIdxMap(FsId2NodeIdxMap* dest) const
+  {
+    if (dest->pMaxSize < pSize)
+    return pSize;
+    dest->pSize = pSize;
+    // copy the data
+    memcpy(dest->pNodeIdxs, pNodeIdxs, sizeof(tFastTreeIdx)*pSize);
+    memcpy(dest->pBuffer, pBuffer, sizeof(char*)*pSize*pStrLen);
+
+    return 0;
+  }
+
+  bool
+  selfAllocate(tFastTreeIdx size)
+  {
+    pSelfAllocated = true;
+    pMaxSize = size;
+    //pFsIds = (T*) new char[(sizeof(T) + sizeof(tFastTreeIdx)) * size];
+    pBuffer = new char[(pStrLen + sizeof(tFastTreeIdx)) * size];
+    pNodeIdxs = (tFastTreeIdx*) (pBuffer + size*pStrLen);
+    return true;
+  }
+  bool
+  selfUnallocate()
+  {
+    delete[] pBuffer;
+    return true;
+  }
+
+  bool
+  allocate(void *buffer, size_t bufSize, tFastTreeIdx size)
+  {
+    size_t memsize = (pStrLen + sizeof(tFastTreeIdx)) * size;
+    if (bufSize < memsize)
+    return false;
+    pMaxSize = size;
+    pSelfAllocated = false;
+    pBuffer = (char*)buffer;
+    pNodeIdxs = (tFastTreeIdx*) (pBuffer + size*pStrLen);
+    return true;
+  }
+
+  bool
+  get(const char* fsid, const tFastTreeIdx * &idx) const
+  {
+    tFastTreeIdx left = 0;
+    tFastTreeIdx right = pSize - 1;
+
+    auto cmpRqLeft = strcmp(fsid,pBuffer+left*pStrLen);
+    auto cmpRqRight = strcmp(fsid,pBuffer+right*pStrLen);
+
+    if (!pSize || cmpRqRight>0 || cmpRqLeft<0)
+    //if (!pSize || fsid > pFsIds[right] || fsid < pFsIds[left])
+    return false;
+
+    //if (fsid == pFsIds[right])
+    if (cmpRqRight==0)
+    {
+      idx = &pNodeIdxs[right];
+      return true;
+    }
+
+    while (right - left > 1)
+    {
+      tFastTreeIdx mid = (left + right) / 2;
+      //if (fsid < pFsIds[mid])
+      auto cmpRqMid = strcmp(fsid,pBuffer+mid*pStrLen);
+      if (cmpRqMid<0)
+      right = mid;
+      else
+      left = mid;
+    }
+
+    //if (fsid == pFsIds[left])
+    if (cmpRqLeft==0)
+    {
+      idx = &pNodeIdxs[left];
+      return true;
+    }
+
+    return false;
+  }
+
+  class const_iterator
+  {
+    friend class FsId2NodeIdxMap<char*>;
+    char* pFsId;
+    tFastTreeIdx* pNodeIdxPtr;
+    const_iterator(char* const & fsid, tFastTreeIdx* const & nodeIdxPtr) :
+    pFsId(fsid), pNodeIdxPtr(nodeIdxPtr)
+    {
+    }
+  public:
+    const_iterator() :
+    pFsId(NULL),pNodeIdxPtr(NULL)
+    {
+    }
+    const_iterator&
+    operator =(const const_iterator &it)
+    {
+      pFsId = it.pFsId;
+      pNodeIdxPtr = it.pNodeIdxPtr;
+      return *this;
+    }
+    const_iterator&
+    operator ++()
+    {
+      pFsId+=FsId2NodeIdxMap<char*>::pStrLen;
+      pNodeIdxPtr++;
+      return *this;
+    }
+    const_iterator
+    operator ++(int unused)
+    {
+      pFsId+=FsId2NodeIdxMap<char*>::pStrLen;
+      pNodeIdxPtr++;
+      return const_iterator(pFsId - 1, pNodeIdxPtr - 1);
+    }
+    bool
+    operator ==(const const_iterator &it) const
+    {
+      return pNodeIdxPtr == it.pNodeIdxPtr && pFsId == it.pFsId;
+    }
+    bool
+    operator !=(const const_iterator &it) const
+    {
+      return pNodeIdxPtr != it.pNodeIdxPtr || pFsId != it.pFsId;
+    }
+    std::pair<char*, tFastTreeIdx>
+    operator *() const
+    {
+      return std::make_pair(pFsId, *pNodeIdxPtr);
+    }
+  };
+
+  inline const_iterator
+  begin() const
+  {
+    return const_iterator(pBuffer, pNodeIdxs);
+  }
+  inline const_iterator
+  end() const
+  {
+    return const_iterator(pBuffer + pSize*pStrLen, pNodeIdxs + pSize);
+  }
+
+};
+
+
+/*----------------------------------------------------------------------------*/
+/**
  * @brief Implementation of FsId2NodeIdxMap with the default FsId type.
  *
  */
 /*----------------------------------------------------------------------------*/
 typedef FsId2NodeIdxMap<eos::common::FileSystem::fsid_t> Fs2TreeIdxMap;
+typedef FsId2NodeIdxMap<char*>                           Host2TreeIdxMap;
 
 std::ostream&
 operator <<(std::ostream &os, const Fs2TreeIdxMap &info);
@@ -642,6 +830,39 @@ public:
 
 /*----------------------------------------------------------------------------*/
 /**
+ * @brief Functor Class to define relative priorities of branches in
+ *        the fast tree for gateway selection
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class GatewayPriorityComparator
+{
+public:
+  SchedTreeBase::tFastTreeIdx saturationThresh;
+  GatewayPriorityComparator() : saturationThresh(0)
+  {
+  }
+  inline signed char
+  operator()(const SchedTreeBase::TreeNodeStateChar* const &lefts, const SchedTreeBase::TreeNodeSlots* const &leftp,
+      const SchedTreeBase::TreeNodeStateChar* const &rights, const SchedTreeBase::TreeNodeSlots* const &rightp) const
+  {
+    return SchedTreeBase::compareGateway<char>(lefts, leftp, rights, rightp);
+  }
+
+  inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
+  {
+    const int16_t mask = SchedTreeBase::Available;
+    return !(SchedTreeBase::Disabled&s->mStatus) && (mask==(s->mStatus&mask));
+  }
+
+  inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
+  {
+    return s->ulScore < saturationThresh || s->dlScore < saturationThresh;
+  }
+};
+
+/*----------------------------------------------------------------------------*/
+/**
  * @brief Functor Class to define relative weights of branches in the tree
  *        having the same priority. This weight is used for file access
  *        by random sampling in all the branches having the same priority.
@@ -658,6 +879,27 @@ public:
   operator()(const SchedTreeBase::TreeNodeStateChar &state, const SchedTreeBase::TreeNodeSlots &plct) const
   {
     return plct.maxUlScore;
+  }
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Functor Class to define relative weights of branches in the tree
+ *        having the same priority. This weight is used for gateway selection
+ *        by random sampling in all the branches having the same priority.
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class GatewayPriorityRandWeightEvaluator
+{
+public:
+  GatewayPriorityRandWeightEvaluator()
+  {
+  }
+  inline unsigned char
+  operator()(const SchedTreeBase::TreeNodeStateChar &state, const SchedTreeBase::TreeNodeSlots &plct) const
+  {
+    return (plct.maxUlScore/2+plct.maxDlScore/2);
   }
 };
 
@@ -701,17 +943,17 @@ typedef ROAccessPriorityComparator BalancingAccessPriorityComparator;
 /*----------------------------------------------------------------------------*/
 typedef AccessPriorityRandWeightEvaluator BalancingAccessPriorityRandWeightEvaluator;
 
-template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting> struct FastTreeBranchComparator;
-template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting> struct FastTreeBranchComparatorInv;
+template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType> struct FastTreeBranchComparator;
+template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType> struct FastTreeBranchComparatorInv;
 
 struct FastTreeBranch
 {
   SchedTreeBase::tFastTreeIdx sonIdx;
 };
 
-template<typename T1,typename T2> class FastTree;
-template<typename T1,typename T2,typename T3, typename T4> size_t
-copyFastTree(FastTree<T1,T2>* dest,const FastTree<T3,T4>* src);
+template<typename T1,typename T2, typename FsIdType=eos::common::FileSystem::fsid_t> class FastTree;
+template<typename T1,typename T2,typename T3, typename T4,typename T5, typename T6> size_t
+copyFastTree(FastTree<T1,T2,T3>* dest,const FastTree<T4,T5,T6>* src);
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -744,12 +986,12 @@ copyFastTree(FastTree<T1,T2>* dest,const FastTree<T3,T4>* src);
  *
  */
 /*----------------------------------------------------------------------------*/
-template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting>
+template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType>
 class FastTree : public SchedTreeBase
 {
 public:
-  template<typename T1,typename T2,typename T3, typename T4> friend size_t
-  copyFastTree(FastTree<T1,T2>* dest,const FastTree<T3,T4>* src);
+  template<typename T1,typename T2,typename T3, typename T4,typename T5, typename T6> friend size_t
+  copyFastTree(FastTree<T1,T2,T3>* dest,const FastTree<T4,T5,T6>* src);
   friend class SlowTree;
   friend class SlowTreeNode;
   friend class GeoTreeEngine;
@@ -792,7 +1034,7 @@ protected:
   Branch *pBranches;
 
   // outsourced data
-  Fs2TreeIdxMap* pFs2Idx;
+  FsId2NodeIdxMap<FsIdType>* pFs2Idx;
   FastTreeInfo * pTreeInfo;
 
   inline bool
@@ -1158,8 +1400,8 @@ public:
   inline void
   sortBranchesAtNode(const tFastTreeIdx &node, bool recursive=false)
   {
-    FastTreeBranchComparator<FsDataMemberForRand,FsAndFileDataComparerForBranchSorting> comparator(this);
-    FastTreeBranchComparatorInv<FsDataMemberForRand,FsAndFileDataComparerForBranchSorting> comparator2(this);
+    FastTreeBranchComparator<FsDataMemberForRand,FsAndFileDataComparerForBranchSorting,FsIdType> comparator(this);
+    FastTreeBranchComparatorInv<FsDataMemberForRand,FsAndFileDataComparerForBranchSorting,FsIdType> comparator2(this);
 
     const tFastTreeIdx &firstBranchIdx = pNodes[node].treeData.firstBranchIdx;
     const tFastTreeIdx &nbChildren = pNodes[node].treeData.childrenCount;
@@ -1571,8 +1813,8 @@ public:
     return 0;
   }
 
-  template<typename T1,typename T2> size_t
-  copyToFastTree(FastTree<T1,T2>* dest) const
+  template<typename T1,typename T2,typename T3> size_t
+  copyToFastTree(FastTree<T1,T2,T3>* dest) const
   {
     return copyFastTree(dest,this);
   }
@@ -1987,8 +2229,8 @@ public:
   }
 };
 
-template<typename T1,typename T2,typename T3, typename T4> inline size_t
-copyFastTree(FastTree<T1,T2>* dest,const FastTree<T3,T4>* src)
+template<typename T1,typename T2,typename T3, typename T4,typename T5, typename T6> inline size_t
+copyFastTree(FastTree<T1,T2,T3>* dest,const FastTree<T4,T5,T6>* src)
 {
   if (dest->pMaxNodeCount < src->pMaxNodeCount)
   return src->pMaxNodeCount;
@@ -1996,14 +2238,14 @@ copyFastTree(FastTree<T1,T2>* dest,const FastTree<T3,T4>* src)
   dest->pFs2Idx = src->pFs2Idx;
   dest->pTreeInfo = src->pTreeInfo;
   // copy the nodes and the branches
-  memcpy(dest->pNodes, src->pNodes, (sizeof(typename FastTree<T1,T2>::FastTreeNode)) * src->pMaxNodeCount);
-  memcpy(dest->pBranches, src->pBranches, (sizeof(typename FastTree<T1,T2>::Branch)) * src->pMaxNodeCount);
+  memcpy(dest->pNodes, src->pNodes, (sizeof(typename FastTree<T1,T2,T3>::FastTreeNode)) * src->pMaxNodeCount);
+  memcpy(dest->pBranches, src->pBranches, (sizeof(typename FastTree<T4,T5,T6>::Branch)) * src->pMaxNodeCount);
   return 0;
 }
 
-template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting> struct FastTreeBranchComparator
+template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType> struct FastTreeBranchComparator
 {
-  typedef FastTree<FsDataMemberForRand, FsAndFileDataComparerForBranchSorting> tFastTree;
+  typedef FastTree<FsDataMemberForRand, FsAndFileDataComparerForBranchSorting, FsIdType> tFastTree;
   typedef FastTreeBranch tBranch;
   const tFastTree *fTree;
   FastTreeBranchComparator(const tFastTree *ftree) : fTree(ftree)
@@ -2014,9 +2256,9 @@ template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSo
   };
 };
 
-template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting> struct FastTreeBranchComparatorInv
+template<typename FsDataMemberForRand, typename FsAndFileDataComparerForBranchSorting, typename FsIdType> struct FastTreeBranchComparatorInv
 {
-  typedef FastTree<FsDataMemberForRand, FsAndFileDataComparerForBranchSorting> tFastTree;
+  typedef FastTree<FsDataMemberForRand, FsAndFileDataComparerForBranchSorting, FsIdType> tFastTree;
   typedef FastTreeBranch tBranch;
   const tFastTree *fTree;
   FastTreeBranchComparatorInv(const tFastTree *ftree) : fTree(ftree)
@@ -2083,16 +2325,23 @@ typedef FastTree<BalancingPlacementPriorityRandWeightEvaluator, BalancingPlaceme
 /*----------------------------------------------------------------------------*/
 typedef FastTree<BalancingAccessPriorityRandWeightEvaluator, BalancingAccessPriorityComparator> FastBalancingAccessTree;
 
-template<typename T1, typename T2>
+/**
+ * @brief FastTree instantiation for gateway selection
+ *
+ */
+/*----------------------------------------------------------------------------*/
+typedef FastTree<GatewayPriorityRandWeightEvaluator, GatewayPriorityComparator, char*> FastGatewayAccessTree;
+
+template<typename T1, typename T2, typename T3>
 inline std::ostream&
-operator <<(std::ostream &os, const FastTree<T1, T2> &tree)
+operator <<(std::ostream &os, const FastTree<T1, T2,T3> &tree)
 {
   return tree.recursiveDisplay(os);
 }
 
-template<typename T1, typename T2>
+template<typename T1, typename T2, typename T3>
 void __attribute__ ((used)) __attribute__ ((noinline))
-debugDisplay(const FastTree<T1, T2> &tree)
+debugDisplay(const FastTree<T1, T2,T3> &tree)
 {
   tree.recursiveDisplay(std::cout);
 }

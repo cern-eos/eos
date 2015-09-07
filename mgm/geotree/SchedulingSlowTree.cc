@@ -292,7 +292,7 @@ SlowTreeNode* SlowTree::moveToNewGeoTag(SlowTreeNode* node, const std::string ne
   return insert(&info,&state);
 }
 
-bool SlowTree::buildFastStrctures(
+bool SlowTree::buildFastStrcturesSched(
     FastPlacementTree *fpt, FastROAccessTree *froat, FastRWAccessTree *frwat,
     FastBalancingPlacementTree *fbpt, FastBalancingAccessTree *fbat,
     FastDrainingPlacementTree *fdpt, FastDrainingAccessTree *fdat,
@@ -367,7 +367,7 @@ bool SlowTree::buildFastStrctures(
     {
       // write the content of the node
       if(
-          !(*it)->writeFastTreeNodeTemplate<PlacementPriorityRandWeightEvaluator, PlacementPriorityComparator>(fpt->pNodes+nodecount) )
+          !(*it)->writeFastTreeNodeTemplate<PlacementPriorityRandWeightEvaluator, PlacementPriorityComparator,eos::common::FileSystem::fsid_t>(fpt->pNodes+nodecount) )
       {
         assert(false);
         return false;
@@ -543,6 +543,219 @@ bool SlowTree::buildFastStrctures(
   }
 
   fpt->checkConsistency(0,true);
+
+  return true;
+}
+
+bool SlowTree::buildFastStrcturesGW(
+    FastGatewayAccessTree *fgat, Host2TreeIdxMap *host2idx, FastTreeInfo *fastinfo, GeoTag2NodeIdxMap *geo2node) const
+{
+
+  // check that the FastTree are large enough
+  if(fgat->getMaxNodeCount()<getNodeCount())
+  return false;
+
+  if(geo2node->getMaxNodeCount()<getNodeCount())
+  {
+    if(geo2node->getMaxNodeCount()==0)
+    geo2node->selfAllocate(getNodeCount());
+    else
+    assert(false);
+    //return false;
+  }
+
+  __EOSMGM_TREECOMMON_DBG1__
+  if(eos::common::Logging::gLogMask & LOG_INFO)
+  {
+    stringstream ss;
+    ss << (*this);
+    eos_static_debug("SLOWTREE IS %s",ss.str().c_str());
+  }
+
+  // update the SlowwTree before converting it
+  ((SlowTree*)this)->pRootNode.update();
+
+  // create the node vector layout
+  vector<vector<const SlowTreeNode*> >nodesByDepth;// [depth][branchIdxAtThisDepth]
+  map<const SlowTreeNode*,int> nodes2idxChildren;
+  map<const SlowTreeNode*,int> nodes2idxGeoTag;
+  nodesByDepth.resize(nodesByDepth.size()+1);
+  nodesByDepth.back().push_back(&pRootNode);
+  size_t count=0;
+  nodes2idxChildren[&pRootNode]=count++;
+  bool godeeper=(bool)pRootNode.pChildren.size();
+  while(godeeper)
+  {
+    // create a new level
+    nodesByDepth.resize(nodesByDepth.size()+1);
+    // iterate through the nodes of the last level
+    for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
+    {
+      godeeper = false;
+      // iterate through the children of each of those nodes
+      for(SlowTreeNode::tNodeMap::const_iterator cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
+      {
+        nodesByDepth.back().push_back(cit->second);
+        nodes2idxChildren[cit->second]=count++;
+        if(!godeeper && !(*cit).second->pChildren.empty() ) godeeper=true;
+      }
+    }
+  }
+
+  // copy the vector layout of the node to the FastTree
+  size_t nodecount=0;
+  size_t linkcount=0;
+  //std::map<unsigned long,tFastTreeIdx> fs2idxMap;
+  std::map<std::string,tFastTreeIdx> host2idxMap;
+  fastinfo->clear();
+  fastinfo->resize(pNodeCount);
+  // it's not necessary to clear the fs2idx map because a given fs should appear only in one placement group
+  bool firstnode=true;
+  for(vector<vector<const SlowTreeNode*> >::const_iterator dit=nodesByDepth.begin();dit!=nodesByDepth.end();dit++)
+  {
+    for(vector<const SlowTreeNode*>::const_iterator it=dit->begin();it!=dit->end();it++)
+    {
+      // write the content of the node
+      if(
+          !(*it)->writeFastTreeNodeTemplate<GatewayPriorityRandWeightEvaluator, GatewayPriorityComparator,char*>(fgat->pNodes+nodecount) )
+      {
+        assert(false);
+        return false;
+      }
+
+      // update the links
+      // father first
+      if(firstnode)
+        fgat->pNodes[nodecount].treeData.fatherIdx = 0;
+      else
+        fgat->pNodes[nodecount].treeData.fatherIdx = (tFastTreeIdx)nodes2idxChildren[(*it)->pFather];
+      // then children
+      tFastTreeIdx nchildren = 0;
+      fgat->pNodes[nodecount].treeData.firstBranchIdx = linkcount;
+      {
+        for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
+        {
+          ( fgat->pBranches[linkcount].sonIdx = (tFastTreeIdx)nodes2idxChildren[cit->second] );
+          linkcount++; nchildren++;
+        }
+      }
+
+      fgat->pNodes[nodecount].treeData.childrenCount = nchildren;
+      // fill in the default TreeNodePlacement
+      fgat->pNodes[nodecount].fileData.freeSlotsCount = (*it)->pLeavesCount;// replica placed so, all slot are available to place a new one
+      fgat->pNodes[nodecount].fileData.takenSlotsCount = 0;
+
+      // fill in the FastTreeInfo
+      (*fastinfo)[nodecount] = (*it)->pNodeInfo;
+      // fill in tFs2TreeIdxMap
+      if((*it)->pNodeInfo.nodeType==TreeNodeInfo::fs)
+      host2idxMap[(*it)->pNodeInfo.host] = nodecount;
+      // iterate the node
+      nodecount++;
+    }
+    firstnode=false;
+  }
+  // finish the gateway tree
+  fgat->updateTree();
+
+  // some sanity checks
+  __EOSMGM_TREECOMMON_CHK1__ if(
+      nodecount != pNodeCount ||
+      linkcount != pNodeCount-1 ||
+      count != pNodeCount
+  )
+  {
+    assert(false);
+    return false;
+  }
+
+  // create the node vector layout
+  nodesByDepth.clear();// [depth][branchIdxAtThisDepth]
+  nodesByDepth.resize(nodesByDepth.size()+1);
+  nodesByDepth.back().push_back(&pRootNode);
+  count=0;
+  nodes2idxGeoTag[&pRootNode]=count;
+  geo2node->pNodes[count].fastTreeIndex=0;
+  strncpy(geo2node->pNodes[count].tag,pRootNode.pNodeInfo.geotag.c_str(),GeoTag2NodeIdxMap::gMaxTagSize);
+  count++;
+  godeeper=(bool)pRootNode.pChildren.size();
+  while(godeeper)
+  {
+    // create a new level
+    nodesByDepth.resize(nodesByDepth.size()+1);
+    // iterate through the nodes of the last level
+    for(vector<const SlowTreeNode*>::const_iterator it=(nodesByDepth.end()-2)->begin();it!=(nodesByDepth.end()-2)->end();it++)
+    {
+      godeeper = false;
+      // iterate through the children of each of those nodes
+      for(auto cit=(*it)->pChildren.begin();cit!=(*it)->pChildren.end();cit++)
+      {
+        nodesByDepth.back().push_back(cit->second);
+        nodes2idxGeoTag[cit->second]=count;
+        geo2node->pNodes[count].fastTreeIndex=nodes2idxChildren[cit->second];
+        strncpy(geo2node->pNodes[count].tag,cit->second->pNodeInfo.geotag.c_str(),GeoTag2NodeIdxMap::gMaxTagSize);
+        count++;
+        if(!godeeper && !cit->second->pChildren.empty() ) godeeper=true;
+      }
+    }
+  }
+
+  nodecount=0;
+  for(vector<vector<const SlowTreeNode*> >::const_iterator dit=nodesByDepth.begin();dit!=nodesByDepth.end();dit++)
+  {
+    for(vector<const SlowTreeNode*>::const_iterator it=dit->begin();it!=dit->end();it++)
+    {
+      geo2node->pNodes[nodecount].branchCount = (tFastTreeIdx)(*it)->pChildren.size();
+      geo2node->pNodes[nodecount].firstBranch = geo2node->pNodes[nodecount].branchCount?
+      nodes2idxGeoTag[(*it)->pChildren.begin()->second]:
+      0;
+      nodecount++;
+    }
+  }
+  geo2node->pSize = nodecount;
+
+  // some sanity checks
+  __EOSMGM_TREECOMMON_CHK1__ if(
+      nodecount != pNodeCount ||
+      linkcount != pNodeCount-1 ||
+      count != pNodeCount
+  )
+  {
+    eos_static_alert("Unable to generate the fast tree because of a failed sanity check.");
+    return false;
+  }
+
+  // fill in the outsourced data
+  if(host2idx->pMaxSize == 0)
+  host2idx->selfAllocate((tFastTreeIdx)host2idxMap.size());
+  if(host2idx->pMaxSize<host2idxMap.size())
+  {
+    eos_static_crit("could not generate the fast tree because the fs2idx is too small");
+    return false;
+  }
+  count = 0;
+  for(auto it=host2idxMap.begin();it!=host2idxMap.end();it++)
+  {
+    strncpy(host2idx->pBuffer+count*host2idx->pStrLen,it->first.c_str(),host2idx->pStrLen);
+    //host2idx->pBuffer[count] = it->first;
+    host2idx->pNodeIdxs[count++] = it->second;
+  }
+  host2idx->pSize = host2idxMap.size();
+
+  fgat->pFs2Idx = host2idx;
+  fgat->pTreeInfo = fastinfo;
+
+  __EOSMGM_TREECOMMON_CHK2__
+  fgat->checkConsistency(2,true);
+
+  __EOSMGM_TREECOMMON_DBG1__ if(eos::common::Logging::gLogMask & LOG_INFO)
+  {
+    stringstream ss;
+    ss << (*fgat);
+    eos_static_debug("FASTTREE IS %s",ss.str().c_str());
+  }
+
+  fgat->checkConsistency(0,true);
 
   return true;
 }

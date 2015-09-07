@@ -370,7 +370,7 @@ int main ()
     // build the FastTree
     //std::cout<<trees[0]<<std::endl;
     assert(
-        trees[idx].buildFastStrctures (&fptrees[idx], &froatrees[idx], &frwatrees[idx], &fbptrees[idx], &fbatrees[idx],
+        trees[idx].buildFastStrcturesSched(&fptrees[idx], &froatrees[idx], &frwatrees[idx], &fbptrees[idx], &fbatrees[idx],
                                        &fdptrees[idx], &fdatrees[idx], &ftinfos[idx], &ftmaps[idx], &geomaps[idx]));
 
     // check the consistency of the FastTree
@@ -633,7 +633,7 @@ int main ()
   {
     int j = i % schedGroups.size ();
     assert(
-        trees[j].buildFastStrctures (&fptrees[j], &froatrees[j], &frwatrees[j], &fbptrees[j], &fbatrees[j],
+        trees[j].buildFastStrcturesSched(&fptrees[j], &froatrees[j], &frwatrees[j], &fbptrees[j], &fbatrees[j],
                                      &fdptrees[j], &fdatrees[j], &ftinfos[j], &ftmaps[j], &geomaps[j]));
   }
   elapsed = clock () - begin;

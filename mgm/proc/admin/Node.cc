@@ -91,11 +91,23 @@ ProcCommand::Node ()
    std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
    std::string status = (pOpaque->Get("mgm.node.state")) ? pOpaque->Get("mgm.node.state") : "";
    std::string txgw = (pOpaque->Get("mgm.node.txgw")) ? pOpaque->Get("mgm.node.txgw") : "";
+   std::string dataproxy = (pOpaque->Get("mgm.node.dataproxy")) ? pOpaque->Get("mgm.node.dataproxy") : "";
+   std::string dataep = (pOpaque->Get("mgm.node.dataep")) ? pOpaque->Get("mgm.node.dataep") : "";
    std::string key = "status";
    if (txgw.length())
    {
      key = "txgw";
      status = txgw;
+   }
+   if (dataproxy.length())
+   {
+     key = "dataproxy";
+     status = dataproxy;
+   }
+   if (dataep.length())
+   {
+     key = "dataep";
+     status = dataep;
    }
    if ((!nodename.length()) || (!status.length()))
    {
