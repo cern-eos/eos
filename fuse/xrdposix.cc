@@ -1312,11 +1312,16 @@ protected:
     if(!proccache_GetAuthMethod(pid,buffer,1024))
       oldauth=buffer;
 
+    // this is useful even in gateway mode because of the recursive deletion protection
     if ((errCode = proccache_InsertEntry (pid)))
     {
       eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
       return errCode;
     }
+
+    // check if we are using strong authentication
+    if(!(use_user_krb5cc || use_user_gsiproxy))
+      return 0;
 
     // get the startuptime of the process
     time_t processSut;
