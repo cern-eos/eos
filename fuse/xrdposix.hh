@@ -656,7 +656,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Do user mapping
   //----------------------------------------------------------------------------
-  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid);
+  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid);
 
   //----------------------------------------------------------------------------
   //! updates the proccache entry for the given pid (only if needed)
@@ -664,7 +664,7 @@ extern "C"
   //! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
   //! used in it
   //----------------------------------------------------------------------------
-  int update_proc_cache(uid_t uid, pid_t pid);
+  int update_proc_cache(uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Create the cgi argument to be added to the url to use the kerberos cc file

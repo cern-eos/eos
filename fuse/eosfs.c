@@ -80,7 +80,7 @@
   do { \
     int errCode; \
     xrd_lock_w_pcache (fuse_ctx->pid); \
-    if( (errCode=update_proc_cache(fuse_ctx->uid,fuse_ctx->pid)) )\
+    if( (errCode=update_proc_cache(fuse_ctx->uid,fuse_ctx->gid,fuse_ctx->pid)) )\
     { \
       xrd_unlock_w_pcache (fuse_ctx->pid); \
       return -errCode; \

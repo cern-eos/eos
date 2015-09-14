@@ -88,7 +88,7 @@ double readopentime = 5.0;
   do { \
     int errCode; \
     xrd_lock_w_pcache (req->ctx.pid); \
-    if( (errCode=update_proc_cache(req->ctx.uid,req->ctx.pid)) )\
+    if( (errCode=update_proc_cache(req->ctx.uid,req->ctx.gid,req->ctx.pid)) )\
     { \
       xrd_unlock_w_pcache (req->ctx.pid); \
       fuse_reply_err (req, errCode); \
@@ -904,7 +904,6 @@ eosfs_ll_rename (fuse_req_t req,
     return;
   }
 
-  const char* user = xrd_mapuser (req->ctx.uid, req->ctx.gid, req->ctx.pid);
   FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
   FULLPARENTPATH (newfullpath, mountprefix, newparentpath, newname);
   sprintf (iparentpath, "%s/%s", newparentpath, newname);

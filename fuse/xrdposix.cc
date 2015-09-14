@@ -987,6 +987,505 @@ xrd_release_rd_buff (pthread_t tid)
 
 
 //------------------------------------------------------------------------------
+//             ******* XROOTD connection/authentication functions *******
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// Get user name from the uid and change the effective user ID of the thread
+//------------------------------------------------------------------------------
+const char*
+xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid)
+{
+  eos_static_debug("uid=%lu gid=%lu pid=%lu",
+                   (unsigned long) uid,
+                   (unsigned long) gid,
+                   (unsigned long) pid);
+
+  XrdOucString sid = "";
+
+  if (uid == 0)
+  {
+    uid = gid = 2;
+  }
+
+  unsigned long long bituser=0;
+
+  // Emergency mapping of too high user ids to nob
+  if ( uid > 0xfffff)
+  {
+    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                   "nobody\" uid=%u", uid);
+    uid = 99;
+  }
+  if ( gid > 0xffff)
+  {
+    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                   "nobody\" gid=%u", gid);
+    gid = 99;
+  }
+
+  bituser = (uid & 0xfffff);
+  bituser <<= 16;
+  bituser |= (gid & 0xffff);
+  bituser <<= 6;
+  if(use_user_gsiproxy || use_user_krb5cc)
+  {
+    // if using strong authentication, the 6 bits are used to map different strong ids to the same uid
+    // if recoonection is needed, it goes through the authidmanager
+    bituser |= (authid & 0x3f);
+  }
+  else
+  {
+    // if using the gateway node, the purpose of the reamining 6 bits is just a connection counter to be able to reconnect
+    XrdSysMutexHelper cLock(connectionIdMutex);
+    if (connectionId)
+      bituser |= (connectionId & 0x3f);
+  }
+
+  bituser = h_tonll(bituser);
+
+  XrdOucString sb64;
+  // WARNING: we support only one endianess flavour by doing this
+  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
+  size_t len = sb64.length();
+  // Remove the non-informative '=' in the end
+  if (len >2)
+  {
+    sb64.erase(len-1);
+    len--;
+  }
+
+  // Reduce to 7 b64 letters
+  if (len > 7)
+    sb64.erase(0, len - 7);
+
+  sid = "*";
+  sid += sb64;
+
+  // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
+  // if necessary.
+  sid.replace('/', '_');
+  sid.replace('+', '-');
+  eos_static_debug("user-ident=%s", sid.c_str());
+  return STRINGSTORE(sid.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Helper structure to get the xrootd login from uid, gid and authid when using secured authentication
+// each user can use up to 64 different ids simultaneously (krb5 and gsi cummulated)
+//------------------------------------------------------------------------------
+struct map_user
+{
+  uid_t uid;
+  gid_t gid;
+  uint8_t authid;
+  // first 20 bits for user id
+  // 16 following bites for authid
+  // 6 following bits for auth id (identity)
+  char base64buf[9];
+  bool base64computed;
+  static const uint16_t sMaxAuthId;
+  map_user (uid_t _uid, gid_t _gid, uint8_t _authid) :
+      uid (_uid), gid(_gid), authid(_authid), base64computed(false)
+  {
+  }
+
+  char*
+  base64 ()
+  {
+    if (!base64computed)
+    {
+      // pid is actually meaningless
+      strncpy(base64buf, xrd_mapuser (uid, gid, 0,authid),8);
+      base64buf[8]=0;
+      base64computed = true;
+    }
+    return base64buf;
+  }
+};
+
+const uint16_t map_user::sMaxAuthId = 2^6;
+
+//------------------------------------------------------------------------------
+// Class in charge of managing the xroot login (i.e. xroot connection)
+// logins are 8 characters long : ABgE73AA23@myrootserver
+// it's base 64 , first 6 are userid and 2 lasts are authid
+// authid is an idx a pool of identities for the specified user
+// if the user comes with a new identity, it's added the pool
+// if the identity is already in the pool, the connection is reused
+// identity are NEVER removed from the pool
+// for a given identity, the SAME conneciton is ALWAYS reused
+//------------------------------------------------------------------------------
+class AuthIdManager
+{
+public:
+  enum CredType {krb5,x509};
+  struct CredInfo
+  {
+    CredType type;     // krb5 or x509
+    std::string lname; // link to credential file
+    std::string fname; // credential file
+    time_t fmtime;     // credential file mtime
+    time_t fctime;     // credential file ctime
+    time_t lmtime;     // link to credential file mtime
+    time_t lctime;     // link to credential file mtime
+    std::string identity; // identity in the credential file
+    std::string cachedStrongLogin;
+  };
+
+protected:
+  friend void xrd_init (); // to allow the sizing of pid2StrongLogin
+  // mutex protecting the maps
+  RWMutex pMutex;
+  // maps (userid,sessionid) -> ( credinfo )
+  // several threads (each from different process) might concurrently access this
+  std::map< std::pair<uid_t,pid_t> , CredInfo > uidsid2credinfo;
+  struct IdenAuthIdEntry {
+    std::map<std::string, uint32_t> strongid2authid;
+    std::list<uint8_t> freeAuthIdPool;
+
+    IdenAuthIdEntry()
+    {
+      // initialize the free authentication id pool with all the number from 0 to sMaxAuthId-1
+      for(uint8_t i=0;i<map_user::sMaxAuthId;i++) freeAuthIdPool.push_back(i);
+    }
+  };
+  // maps userid -> strongid2authid  : ( identity -> authid ) , identity being krb5:<some_identity> or gsi:<some_identity>
+  //                freeAuthIdPool   : a list with all the available authid
+  // several threads (each from different process) might concurrently access this
+  std::map<uid_t, IdenAuthIdEntry > uid2IdenAuthid;
+  // maps procid -> xrootd_login
+  // only one thread per process will access this (protected by one mutex per process)
+  std::vector<std::string> pid2StrongLogin;
+
+  std::string
+  symlinkCredentials (const std::string &authMethod, uid_t uid, std::string identity, const std::string &xrdlogin = "")
+  {
+    std::stringstream ss;
+    size_t i = 0;
+    // avoid characters that could mess up the link name
+    while ((i = identity.find_first_of ("\\/:\"*?<>|", i)) != std::string::npos)
+      identity[i] = '.';
+    ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
+    std::string linkname = ss.str ();
+    auto colidx = authMethod.rfind (':');
+
+    if (xrdlogin.empty ())
+    {
+      std::string filename = authMethod.substr (colidx + 1, std::string::npos);
+      if (filename.empty ()) return "";
+      if (linkname != filename)
+      {
+        unlink (linkname.c_str ()); // remove the previous link first if any
+        if (symlink (filename.c_str (), linkname.c_str ()))
+        {
+          eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
+          return "";
+        }
+      }
+      return authMethod.substr (0, colidx + 1) + linkname;
+    }
+    else
+    {
+      ss.str ("");
+      ss << "/var/run/eosd/credentials/xrd" << xrdlogin;
+      std::string newlinkname = ss.str ();
+      if (linkname != newlinkname)
+      {
+        unlink (newlinkname.c_str ()); // remove the previous link first if any
+        if (symlink (linkname.c_str (), newlinkname.c_str ()))
+        {
+          eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
+          return "";
+        }
+      }
+      return newlinkname;
+    }
+  }
+
+  bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
+  {
+    if (!(use_user_gsiproxy || use_user_krb5cc)) return false;
+
+    bool ret = false;
+    char buffer[1024];
+    char buffer2[1024];
+    const char* format = "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s";
+    const char* suffixes[3] =
+    { "krb5", "x509", "krb5" };
+    int sidx = 1, sn = 2;
+    if (!use_user_krb5cc && use_user_gsiproxy)
+      (sidx = 1) && (sn = 1);
+    else if (use_user_krb5cc && !use_user_gsiproxy)
+      (sidx = 0) && (sn = 1);
+    else if (tryKrb5First)
+      (sidx = 0) && (sn = 2);
+    else
+      (sidx = 1) && (sn = 2);
+
+    // try all the credential types according to settings and stop as soon as a credetnial is found
+    for (int i = sidx; i < sidx + sn; i++)
+    {
+      snprintf (buffer, 1024, format, (int) uid, (int) sid, (int) sst, suffixes[i]);
+      //eos_static_debug("trying to stat %s", buffer);
+      if (!lstat (buffer, &linkstat))
+      {
+        ret = true;
+        credinfo.lname = buffer;
+        credinfo.lmtime = linkstat.st_mtim.tv_sec;
+        credinfo.lctime = linkstat.st_ctim.tv_sec;
+        credinfo.type = i % 2 ? x509 : krb5;
+        eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
+        if (!stat (buffer, &filestat))
+        {
+          size_t bsize = readlink (buffer, buffer2, 1024);
+          if (bsize > 0)
+          {
+            buffer2[bsize] = 0;
+            credinfo.fname = buffer2;
+            credinfo.fmtime = filestat.st_mtim.tv_sec;
+            credinfo.fctime = filestat.st_ctim.tv_sec;
+            eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+          }
+        }
+        else
+        {
+          eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+        }
+        // we found some credential, we stop searching here
+        break;
+      }
+    }
+
+    if (!ret)
+    eos_static_debug("could not find any credential for uid %d and sid %d", (int )uid, (int )sid);
+
+    return ret;
+  }
+
+  bool readCred(CredInfo &credinfo)
+  {
+    bool ret = false;
+    eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":"x509",credinfo.fname.c_str());
+    if(credinfo.type==krb5)
+    {
+      ProcReaderKrb5UserName reader(credinfo.fname);
+      if(!reader.ReadUserName(credinfo.identity))
+        eos_static_debug("could not read principal in krb5 cc file %s",credinfo.fname.c_str());
+      else
+        ret = true;
+    }
+    if(credinfo.type==x509)
+    {
+      ProcReaderGsiIdentity reader(credinfo.fname);
+      if(!reader.ReadIdentity(credinfo.identity))
+        eos_static_debug("could not read identity in x509 proxy file %s",credinfo.fname.c_str());
+      else
+        ret = true;
+    }
+    return ret;
+  }
+
+  bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid)
+  {
+    const unsigned int reqMode = 0600;
+    //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
+    if(
+    // check owner ship
+    linkstat.st_uid == uid
+        && filestat.st_uid == uid
+    // check permissions
+        && (filestat.st_mode & 0777) == reqMode
+        )
+      return true;
+    else
+      return false;
+  }
+
+  int
+  updateProcCache (uid_t uid, gid_t gid, pid_t pid, bool reconnect)
+  {
+    // when entering this function proccachemutexes[pid] must be write locked
+    int errCode;
+    char buffer[1024];
+    std::string oldauth,newauth;
+    if(!proccache_GetAuthMethod(pid,buffer,1024))
+      oldauth=buffer;
+
+    if ((errCode = proccache_InsertEntry (pid)))
+    {
+      eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
+      return errCode;
+    }
+
+    // get the startuptime of the process
+    time_t processSut;
+    proccache_GetStartupTime(pid,&processSut);
+    // get the session id
+    pid_t sid;
+    proccache_GetSid(pid,&sid);
+    bool isSessionLeader = (sid==pid);
+    // update the proccache of the session leader
+    if (!isSessionLeader)
+    {
+      xrd_lock_w_pcache (sid);
+      if ((errCode = proccache_InsertEntry (sid)))
+      {
+        eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
+        xrd_unlock_w_pcache (sid);
+        return errCode;
+      }
+      xrd_unlock_w_pcache (sid);
+    }
+
+    // get the startuptime of the leader of the session
+    time_t sessionSut;
+    proccache_GetStartupTime(sid,&sessionSut);
+
+    // find the credentials
+    CredInfo credinfo;
+    struct stat filestat,linkstat;
+    if(!findCred(credinfo,linkstat,filestat,uid,sid,sessionSut))
+    {
+      eos_static_notice("could not find any credential");
+      return EACCES;
+    }
+
+    // check if the credentials in the credential cache cache are up to date
+    // TODO: should we implement a TTL , my guess is NO
+    bool sessionInCache = false;
+    pMutex.LockRead();
+    auto cacheEntry = uidsid2credinfo.find(std::make_pair(uid,sid));
+    // skip the cache if reconnecting
+    sessionInCache = !reconnect && (cacheEntry!=uidsid2credinfo.end());
+    if(sessionInCache)
+    {
+      sessionInCache = false;
+      const CredInfo &ci = cacheEntry->second;
+      // we also check ctime to be sure that permission/ownership has not changed
+      if(ci.lmtime == credinfo.lmtime
+          && ci.lctime == credinfo.lctime
+          && ci.fmtime == credinfo.fmtime
+          && ci.fctime == credinfo.fctime
+          && ci.fname == credinfo.fname)
+        sessionInCache = true;
+    }
+    pMutex.UnLockRead();
+
+    if(sessionInCache)
+    {
+      // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
+      //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
+      // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
+      eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",(int)uid,(int)sid,(int)pid,cacheEntry->second.cachedStrongLogin.c_str());
+      pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
+      proccache_GetAuthMethod(sid,buffer,1024);
+      proccache_SetAuthMethod(pid,buffer);
+      return 0;
+    }
+
+    // refresh the credentials in the cache
+    // check the credential security
+    if(!checkCredSecurity(linkstat,filestat,uid))
+    {
+      eos_static_alert("credentials are not safe");
+      return EACCES;
+    }
+    // check the credential security
+    if(!readCred(credinfo))
+      return EACCES;
+    // update authmethods for session leader and current pid
+    uint8_t authid;
+    std::string sId = credinfo.type==krb5?"krb5:":"x509:";
+    sId.append(credinfo.lname);
+    std::string newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
+    if(newauthmeth.empty())
+    {
+      eos_static_err("error symlinking credential file ");
+      return EACCES;
+    }
+    proccache_SetAuthMethod(pid,newauthmeth.c_str());
+    proccache_SetAuthMethod(sid,newauthmeth.c_str());
+    // update uid2IdenAuthid
+    {
+      eos::common::RWMutexWriteLock lock (pMutex);
+      // this will create the entry in uid2IdenAuthid if it does not exist already
+      auto &uidEntry = uid2IdenAuthid[uid];
+      sId = credinfo.type==krb5?"krb5:":"x509:";
+      sId.append(credinfo.identity);
+      if (!reconnect && uidEntry.strongid2authid.count (sId))
+        authid = uidEntry.strongid2authid[sId]; // if this identity already has an authid , use it
+      else
+      {
+        if(uidEntry.freeAuthIdPool.empty())
+        {
+          eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
+              ,(int)uid,sId.c_str());
+          return EACCES;
+        }
+        // get the new connection id
+        uint8_t newauthid = uidEntry.freeAuthIdPool.front();
+        // remove the new connection from the connections available to be used
+        uidEntry.freeAuthIdPool.pop_front();
+        // recycle the previsous connection number if reconnecting
+        if(reconnect)
+        {
+          eos_static_debug("dropping authid %d",(int)uidEntry.strongid2authid[sId]);
+          uidEntry.freeAuthIdPool.push_back(uidEntry.strongid2authid[sId]);
+        }
+        // store the new authid
+        eos_static_debug("using newauthid %d",(int)newauthid);
+        authid = (uidEntry.strongid2authid[sId] = newauthid); // create a new authid if this id is not registered yet
+      }
+    }
+    // update pid2StrongLogin (no lock needed as only one thread per process can access this)
+    map_user xrdlogin (uid, gid, authid);
+    pid2StrongLogin[pid] = std::string (xrdlogin.base64 ());
+    // update uidsid2credinfo
+    credinfo.cachedStrongLogin = pid2StrongLogin[pid];
+    eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",(int)uid,(int)sid,(int)pid,credinfo.cachedStrongLogin.c_str());
+    pMutex.LockWrite();
+    uidsid2credinfo[std::make_pair(uid,sid)] = credinfo;
+    pMutex.UnLockWrite();
+
+    eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
+                     pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
+
+    return errCode;
+  }
+
+public:
+
+  inline int
+  updateProcCache (uid_t uid, gid_t gid, pid_t pid)
+  {
+    return updateProcCache (uid, gid, pid,false);
+  }
+
+  inline int
+  reconnectProcCache (uid_t uid, gid_t gid, pid_t pid)
+  {
+    return updateProcCache (uid, gid, pid,true);
+  }
+
+  std::string
+  getXrdLogin (pid_t pid)
+  {
+    eos::common::RWMutexReadLock lock (proccachemutexes[pid]);
+    return pid2StrongLogin[pid];
+  }
+
+};
+
+AuthIdManager authidmanager;
+
+int update_proc_cache (uid_t uid, gid_t gid, pid_t pid)
+{
+  return authidmanager.updateProcCache(uid,gid,pid);
+}
+
+
+//------------------------------------------------------------------------------
 //             ******* XROOTD interface functions *******
 //------------------------------------------------------------------------------
 
@@ -2455,8 +2954,17 @@ xrd_open (const char* path,
     // Force a reauthentication to the head node
     if (spath.endswith("/proc/reconnect"))
     {
-      XrdSysMutexHelper cLock(connectionIdMutex);
-      connectionId++;
+      if(use_user_gsiproxy || use_user_krb5cc)
+      {
+        xrd_lock_w_pcache (pid);
+        authidmanager.reconnectProcCache(uid,gid,pid);
+        xrd_unlock_w_pcache (pid);
+      }
+      else
+      {
+        XrdSysMutexHelper cLock(connectionIdMutex);
+        connectionId++;
+      }
       errno = ECONNABORTED;
       return -1;
     }
@@ -3052,473 +3560,6 @@ xrd_rename (const char* oldpath,
     return 0;
 }
 
-//------------------------------------------------------------------------------
-// Get user name from the uid and change the effective user ID of the thread
-//------------------------------------------------------------------------------
-const char*
-xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
-{
-  eos_static_debug("uid=%lu gid=%lu pid=%lu",
-                   (unsigned long) uid,
-                   (unsigned long) gid,
-                   (unsigned long) pid);
-
-  XrdOucString sid = "";
-
-  if (uid == 0)
-  {
-    uid = gid = 2;
-  }
-
-  unsigned long long bituser=0;
-
-  // Emergency mapping of too high user ids to nob
-  if ( uid > 0xfffff) 
-  {
-    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
-                   "nobody\" uid=%u", uid);
-    uid = 99;
-  }
-  if ( gid > 0xffff)
-  {
-    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
-                   "nobody\" gid=%u", gid);
-    gid = 99;
-  }
-
-  bituser = (uid & 0xfffff);
-  bituser <<= 16;
-  bituser |= (gid & 0xffff);
-  bituser <<= 6;
-  {
-    XrdSysMutexHelper cLock(connectionIdMutex);
-    if (connectionId)
-      bituser |= (connectionId & 0x3f);
-  }
-
-  bituser = h_tonll(bituser);
-
-  XrdOucString sb64;
-  // WARNING: we support only one endianess flavour by doing this
-  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
-  size_t len = sb64.length();
-  // Remove the non-informative '=' in the end
-  if (len >2) 
-  {
-    sb64.erase(len-1);
-    len--;
-  }
-
-  // Reduce to 7 b64 letters
-  if (len > 7)
-    sb64.erase(0, len - 7);
-
-  sid = "*";
-  sid += sb64;
-
-  // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
-  // if necessary.
-  sid.replace('/', '_');
-  sid.replace('+', '-');
-  eos_static_debug("user-ident=%s", sid.c_str());
-  return STRINGSTORE(sid.c_str());
-}
-
-//------------------------------------------------------------------------------
-// Helper structure to get the xrootd login from uid and authid when using secured authentication
-// each user can use up to 4096 different ids simultaneously (krb5 and gsi cummulated)
-//------------------------------------------------------------------------------
-struct map_user
-{
-  uid_t uid;
-  uint16_t authid;
-  // first 6 bytes for user id (in uuencode , it covers the range of uint32_t)
-  // 2 following bytes for authid (in uuencode , it provides 4096 possible authid per user)
-  // the final byte is NULL to get a c string termination
-  char base64buf[9];
-  bool base64computed;
-  static const char base64digits[];
-
-  map_user (uid_t _uid, uint32_t _authid) :
-      uid (_uid), authid(_authid), base64computed(false)
-  {
-  }
-
-  char*
-  base64 ()
-  {
-    if (!base64computed)
-    {
-      auto luid = uid;
-      auto laid = authid & 0xfff; // restict to 12 bits (2base64 digits)
-      // encode uid
-      for (int pos = 5; pos >= 0; pos--)
-      {
-	base64buf[pos] = base64digits[luid & 0x3f];
-	luid >>= 6;
-      }
-      // encode auhtid
-      for (int pos = 7; pos >= 6; pos--)
-      {
-	base64buf[pos] = base64digits[laid & 0x3f];
-	laid >>= 6;
-      }
-      base64buf[8]=0;
-      base64computed = true;
-    }
-    return base64buf;
-  }
-};
-
-//------------------------------------------------------------------------------
-// Alphabet used in the base64 encoding of the xrd login
-//------------------------------------------------------------------------------
-const char map_user::base64digits[]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-//------------------------------------------------------------------------------
-// Class in charge of managing the xroot login (i.e. xroot connection)
-// logins are 8 characters long : ABgE73AA23@myrootserver
-// it's base 64 , first 6 are userid and 2 lasts are authid
-// authid is an idx a pool of identities for the specified user
-// if the user comes with a new identity, it's added the pool
-// if the identity is already in the pool, the connection is reused
-// identity are NEVER removed from the pool
-// for a given identity, the SAME conneciton is ALWAYS reused
-//------------------------------------------------------------------------------
-class AuthIdManager
-{
-public:
-  enum CredType {krb5,x509};
-  struct CredInfo
-  {
-    CredType type;     // krb5 or x509
-    std::string lname; // link to credential file
-    std::string fname; // credential file
-    time_t fmtime;     // credential file mtime
-    time_t fctime;     // credential file ctime
-    time_t lmtime;     // link to credential file mtime
-    time_t lctime;     // link to credential file mtime
-    std::string identity; // identity in the credential file
-    std::string cachedStrongLogin;
-  };
-
-protected:
-  friend void xrd_init (); // to allow the sizing of pid2StrongLogin
-  // mutex protecting the maps
-  RWMutex pMutex;
-  // maps (userid,sessionid) -> ( credinfo )
-  // several threads (each from different process) might concurrently access this
-  std::map< std::pair<uid_t,pid_t> , CredInfo > uidsid2credinfo;
-  // maps userid -> ( identity -> authid ) , identity being krb5:<some_identity> or gsi:<some_identity>
-  // several threads (each from different process) might concurrently access this
-  std::map<uid_t, std::map<std::string, uint32_t> > uid2IdenAuthid;
-  // maps procid -> xrootd_login
-  // only one thread per process will access this (protected by one mutex per process)
-  std::vector<std::string> pid2StrongLogin;
-
-  std::string
-  symlinkCredentials (const std::string &authMethod, uid_t uid, std::string identity, const std::string &xrdlogin = "")
-  {
-    std::stringstream ss;
-    size_t i = 0;
-    // avoid characters that could mess up the link name
-    while ((i = identity.find_first_of ("\\/:\"*?<>|", i)) != std::string::npos)
-      identity[i] = '.';
-    ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
-    std::string linkname = ss.str ();
-    auto colidx = authMethod.rfind (':');
-
-    if (xrdlogin.empty ())
-    {
-      std::string filename = authMethod.substr (colidx + 1, std::string::npos);
-      if (filename.empty ()) return "";
-      if (linkname != filename)
-      {
-        unlink (linkname.c_str ()); // remove the previous link first if any
-        if (symlink (filename.c_str (), linkname.c_str ()))
-        {
-          eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
-          return "";
-        }
-      }
-      return authMethod.substr (0, colidx + 1) + linkname;
-    }
-    else
-    {
-      ss.str ("");
-      ss << "/var/run/eosd/credentials/xrd" << xrdlogin;
-      std::string newlinkname = ss.str ();
-      if (linkname != newlinkname)
-      {
-        unlink (newlinkname.c_str ()); // remove the previous link first if any
-        if (symlink (linkname.c_str (), newlinkname.c_str ()))
-        {
-          eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
-          return "";
-        }
-      }
-      return newlinkname;
-    }
-  }
-
-  bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
-  {
-    if (!(use_user_gsiproxy || use_user_krb5cc)) return false;
-
-    bool ret = false;
-    char buffer[1024];
-    char buffer2[1024];
-    const char* format = "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s";
-    const char* suffixes[3] =
-    { "krb5", "x509", "krb5" };
-    int sidx = 1, sn = 2;
-    if (!use_user_krb5cc && use_user_gsiproxy)
-      (sidx = 1) && (sn = 1);
-    else if (use_user_krb5cc && !use_user_gsiproxy)
-      (sidx = 0) && (sn = 1);
-    else if (tryKrb5First)
-      (sidx = 0) && (sn = 2);
-    else
-      (sidx = 1) && (sn = 2);
-
-    // try all the credential types according to settings and stop as soon as a credetnial is found
-    for (int i = sidx; i < sidx + sn; i++)
-    {
-      snprintf (buffer, 1024, format, (int) uid, (int) sid, (int) sst, suffixes[i]);
-      //eos_static_debug("trying to stat %s", buffer);
-      if (!lstat (buffer, &linkstat))
-      {
-        ret = true;
-        credinfo.lname = buffer;
-        credinfo.lmtime = linkstat.st_mtim.tv_sec;
-        credinfo.lctime = linkstat.st_ctim.tv_sec;
-        credinfo.type = i % 2 ? x509 : krb5;
-        eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
-        if (!stat (buffer, &filestat))
-        {
-          size_t bsize = readlink (buffer, buffer2, 1024);
-          if (bsize > 0)
-          {
-            buffer2[bsize] = 0;
-            credinfo.fname = buffer2;
-            credinfo.fmtime = filestat.st_mtim.tv_sec;
-            credinfo.fctime = filestat.st_ctim.tv_sec;
-            eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
-          }
-        }
-        else
-        {
-          eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
-        }
-        // we found some credential, we stop searching here
-        break;
-      }
-    }
-
-    if (!ret)
-    eos_static_debug("could not find any credential for uid %d and sid %d", (int )uid, (int )sid);
-
-    return ret;
-  }
-
-  bool readCred(CredInfo &credinfo)
-  {
-    bool ret = false;
-    eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":"x509",credinfo.fname.c_str());
-    if(credinfo.type==krb5)
-    {
-      ProcReaderKrb5UserName reader(credinfo.fname);
-      if(!reader.ReadUserName(credinfo.identity))
-        eos_static_debug("could not read principal in krb5 cc file %s",credinfo.fname.c_str());
-      else
-        ret = true;
-    }
-    if(credinfo.type==x509)
-    {
-      ProcReaderGsiIdentity reader(credinfo.fname);
-      if(!reader.ReadIdentity(credinfo.identity))
-        eos_static_debug("could not read identity in x509 proxy file %s",credinfo.fname.c_str());
-      else
-        ret = true;
-    }
-    return ret;
-  }
-
-  bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid)
-  {
-    const unsigned int reqMode = 0600;
-    //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
-    if(
-    // check owner ship
-    linkstat.st_uid == uid
-        && filestat.st_uid == uid
-    // check permissions
-        && (filestat.st_mode & 0777) == reqMode
-        )
-      return true;
-    else
-      return false;
-  }
-public:
-
-  int
-  updateProcCache (uid_t uid, pid_t pid)
-  {
-    // when entering this function proccachemutexes[pid] must be write locked
-    int errCode;
-    char buffer[1024];
-    std::string oldauth,newauth;
-    if(!proccache_GetAuthMethod(pid,buffer,1024))
-      oldauth=buffer;
-
-    if ((errCode = proccache_InsertEntry (pid)))
-    {
-      eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
-      return errCode;
-    }
-
-    // get the startuptime of the process
-    time_t processSut;
-    proccache_GetStartupTime(pid,&processSut);
-    // get the session id
-    pid_t sid;
-    proccache_GetSid(pid,&sid);
-    bool isSessionLeader = (sid==pid);
-    // update the proccache of the session leader
-    if (!isSessionLeader)
-    {
-      xrd_lock_w_pcache (sid);
-      if ((errCode = proccache_InsertEntry (sid)))
-      {
-        eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
-        xrd_unlock_w_pcache (sid);
-        return errCode;
-      }
-      xrd_unlock_w_pcache (sid);
-    }
-
-    // get the startuptime of the leader of the session
-    time_t sessionSut;
-    proccache_GetStartupTime(sid,&sessionSut);
-
-    // find the credentials
-    CredInfo credinfo;
-    struct stat filestat,linkstat;
-    if(!findCred(credinfo,linkstat,filestat,uid,sid,sessionSut))
-    {
-      eos_static_notice("could not find any credential");
-      return EACCES;
-    }
-
-    // check if the credentials in the credential cache cache are up to date
-    // TODO: should we implement a TTL , my guess is NO
-    bool sessionInCache = false;
-    pMutex.LockRead();
-    auto cacheEntry = uidsid2credinfo.find(std::make_pair(uid,sid));
-    sessionInCache = (cacheEntry!=uidsid2credinfo.end());
-    if(sessionInCache)
-    {
-      sessionInCache = false;
-      const CredInfo &ci = cacheEntry->second;
-      // we also check ctime to be sure that permission/ownership has not changed
-      if(ci.lmtime == credinfo.lmtime
-          && ci.lctime == credinfo.lctime
-          && ci.fmtime == credinfo.fmtime
-          && ci.fctime == credinfo.fctime
-          && ci.fname == credinfo.fname)
-        sessionInCache = true;
-    }
-    pMutex.UnLockRead();
-
-    if(sessionInCache)
-    {
-      // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
-      //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
-      // no lock needed as only one thread per process can access this
-      eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",(int)uid,(int)sid,(int)pid,cacheEntry->second.cachedStrongLogin.c_str());
-      pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
-      proccache_GetAuthMethod(sid,buffer,1024);
-      proccache_SetAuthMethod(pid,buffer);
-      return 0;
-    }
-
-    // refresh the credentials in the cache
-    // check the credential security
-    if(!checkCredSecurity(linkstat,filestat,uid))
-    {
-      eos_static_alert("credentials are not safe");
-      return EACCES;
-    }
-    // check the credential security
-    if(!readCred(credinfo))
-      return EACCES;
-    // update authmethods for session leader and current pid
-    uint32_t authid;
-    std::string sId = credinfo.type==krb5?"krb5:":"x509:";
-    sId.append(credinfo.lname);
-    std::string newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
-    if(newauthmeth.empty())
-    {
-      eos_static_err("error symlinking credential file ");
-      return EACCES;
-    }
-    proccache_SetAuthMethod(pid,newauthmeth.c_str());
-    proccache_SetAuthMethod(sid,newauthmeth.c_str());
-    //proccache_SetAuthMethod(sid,sId.c_str());
-    //proccache_SetAuthMethod(pid,sId.c_str());
-    // update uid2IdenAuthid
-    {
-      eos::common::RWMutexWriteLock lock (pMutex);
-      // this will create the entry in uid2IdenAuthid if it does not exist already
-      auto &uidEntry = uid2IdenAuthid[uid];
-      sId = credinfo.type==krb5?"krb5:":"x509:";
-      sId.append(credinfo.identity);
-      if (uidEntry.count (sId))
-        authid = uidEntry[sId]; // if this identity already has an authid , use it
-      else
-      {
-        uint32_t newauthid = uidEntry.size ();
-        if(newauthid==std::numeric_limits<uint32_t>::max())
-        {
-          eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
-              ,(int)uid,sId.c_str());
-          return EACCES;
-        }
-        authid = (uidEntry[sId] = newauthid); // create a new authid if this id is not registered yet
-      }
-    }
-    // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-    map_user xrdlogin (uid, authid);
-    pid2StrongLogin[pid] = std::string (xrdlogin.base64 ());
-    // update uidsid2credinfo
-    credinfo.cachedStrongLogin = pid2StrongLogin[pid];
-    eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",(int)uid,(int)sid,(int)pid,credinfo.cachedStrongLogin.c_str());
-    pMutex.LockWrite();
-    uidsid2credinfo[std::make_pair(uid,sid)] = credinfo;
-    pMutex.UnLockWrite();
-
-    eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
-                     pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
-
-    return errCode;
-  }
-
-  std::string
-  getXrdLogin (pid_t pid)
-  {
-    eos::common::RWMutexReadLock lock (proccachemutexes[pid]);
-    return pid2StrongLogin[pid];
-  }
-
-};
-
-AuthIdManager authidmanager;
-
-int update_proc_cache (uid_t uid, pid_t pid)
-{
-  return authidmanager.updateProcCache(uid,pid);
-}
-
 const char* xrd_strongauth_cgi (pid_t pid)
 {
   XrdOucString str = "";
@@ -3571,7 +3612,7 @@ xrd_user_url (uid_t uid, gid_t gid, pid_t pid)
     }
     else
     {
-      url += xrd_mapuser (uid, gid, pid);
+      url += xrd_mapuser (uid, gid, pid,0);
       url += "@";
     }
   }
