@@ -56,7 +56,8 @@ FileIoPlugin::GetIoObject (int ioType,
     #ifdef KINETICIO_FOUND
       return static_cast<FileIo*> (new KineticIo());
     #endif
-    return NULL; 
+    eos_static_warning("EOS has been compiled without Kinetic support.");
+    return NULL;
   }
   else
     if (ioType == LayoutId::kRados)
