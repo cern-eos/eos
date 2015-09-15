@@ -151,9 +151,9 @@ int ProcCommand::Backup()
   while (std::getline(iss, token, ','))
     set_xattrs.insert(token);
 
-  int ret = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
+  retc = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
 
-  if (!ret)
+  if (!retc)
   {
     // Check if this is an incremental backup with a time windown
     std::string bfile_url = dst_url.GetURL();
@@ -167,7 +167,7 @@ int ProcCommand::Backup()
              << "\"gid\": \"" << pVid->gid << "\" "
              << "}";
 
-    ret = ArchiveExecuteCmd(cmd_json.str());
+    retc = ArchiveExecuteCmd(cmd_json.str());
     eos_debug("sending command: %s", cmd_json.str().c_str());
   }
 
