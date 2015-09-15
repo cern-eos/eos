@@ -294,6 +294,8 @@ class GeoTreeEngine : public eos::common::LogId
     fastStructModified(false)
     {
       slowTree = new SlowTree(groupName);
+      slowTreeMutex.SetBlocking(true);
+      doubleBufferMutex.SetBlocking(true);
     }
 
     ~TreeMapEntry()
@@ -1035,7 +1037,10 @@ public:
     addDisabledBranch("*","plct","nogeotag",NULL,false);
     addDisabledBranch("*","accsblc","nogeotag",NULL,false);
     addDisabledBranch("*","accsdrain","nogeotag",NULL,false);
-
+    // set blocking mutexes for lower latencies
+    pAddRmFsMutex.SetBlocking(true);
+    configMutex.SetBlocking(true);
+    pTreeMapMutex.SetBlocking(true);
     for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
       it->reserve(100);
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
