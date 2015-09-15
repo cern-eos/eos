@@ -55,6 +55,7 @@ template class DbLogT<LvDbDbMapInterface, LvDbDbLogInterface>;
 template<class A, class B> set<string> DbMapT<A, B>::gNames;
 template<class A, class B> eos::common::RWMutex DbMapT<A, B>::gNamesMutex;
 template<class A, class B> eos::common::RWMutex DbMapT<A, B>::gTimeMutex;
+template<class A, class B> bool DbMapT<A, B>::gInitialized = false;
 template<class A, class B> size_t DbMapT<A, B>::pDbIterationChunkSize=10000;
 
 /*----------------------------------------------------------------------------*/

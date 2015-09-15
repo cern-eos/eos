@@ -36,7 +36,8 @@ LvDbInterfaceBase::Option LvDbInterfaceBase::gDefaultOption =
 unsigned LvDbInterfaceBase::pNInstances = 0;
 bool LvDbInterfaceBase::pDebugMode = false;
 bool LvDbInterfaceBase::pAbortOnLvDbError = true;
-RWMutex LvDbInterfaceBase::pDbMgmtMutex;
+RWMutex LvDbInterfaceBase::gDbMgmtMutex;
+bool LvDbInterfaceBase::gInit = false;
 std::map<std::string , std::pair< std::pair<leveldb::DB*,leveldb::Options* > , int> > LvDbInterfaceBase::pName2CountedDb;
 std::map<leveldb::DB* , std::pair<std::string,int> > LvDbInterfaceBase::pDb2CountedName;
 
@@ -541,6 +542,7 @@ bool LvDbDbLogInterface::clear()
 
 LvDbDbMapInterface::LvDbDbMapInterface () : pNDbEntries(0) , pBatched (false)
 {
+  pBatchMutex.SetBlocking(true);
 }
 
 LvDbDbMapInterface::~LvDbDbMapInterface ()

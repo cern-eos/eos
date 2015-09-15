@@ -33,6 +33,7 @@ EOSCOMMONNAMESPACE_BEGIN
 unsigned SqliteInterfaceBase::gNInstances = 0;
 unsigned SqliteDbLogInterface::gNInstances = 0;
 
+bool SqliteInterfaceBase::gInit = false;
 RWMutex SqliteInterfaceBase::gTransactionMutex;
 RWMutex SqliteInterfaceBase::gBaseMutex;
 sqlite3 *SqliteInterfaceBase::gDb = NULL;

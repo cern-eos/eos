@@ -50,6 +50,7 @@ class SqliteInterfaceBase : public eos::common::LogId
 protected:
   static RWMutex gBaseMutex;
   static RWMutex gTransactionMutex;
+  static bool gInit;
   static __thread bool gCurrentThreadTransact;
 
   mutable char pStmt[1024];
@@ -78,6 +79,12 @@ protected:
 public :
   SqliteInterfaceBase() : pRetVecPtr(NULL), pErrStr(NULL)
   {
+    if(!gInit)
+    {
+      gBaseMutex.SetBlocking(true);
+      gTransactionMutex.SetBlocking(true);
+      gInit = true;
+    }
     RWMutexWriteLock lock(gBaseMutex);
     AtomicInc(gNInstances);
     if(gDebugMode) printf("SQLITE3>> number of SqliteInterfaces instances %u\n",gNInstances);

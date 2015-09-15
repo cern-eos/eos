@@ -62,13 +62,14 @@ protected:
   static unsigned pNInstances;
   leveldb::Options pOptions;
 
-  static RWMutex pDbMgmtMutex;
+  static RWMutex gDbMgmtMutex;
+  static bool gInit;
   static std::map<std::string , std::pair< std::pair<leveldb::DB*,leveldb::Options* > , int> > pName2CountedDb;
   static std::map<leveldb::DB* , std::pair<std::string,int> > pDb2CountedName;
 
   static leveldb::Status dbOpen( const leveldb::Options &options, const std::string &dbname, leveldb::DB** db , const size_t cacheSizeMb=0  , const size_t bloomFilterNbits=0)
   {
-    RWMutexWriteLock lock(pDbMgmtMutex);
+    RWMutexWriteLock lock(gDbMgmtMutex);
 
     if(!pName2CountedDb.count(dbname)) // this db is not opened yet, open it
     {
@@ -92,7 +93,7 @@ protected:
   }
 
   static void dbClose( leveldb::DB* db) {
-    RWMutexWriteLock lock(pDbMgmtMutex);
+    RWMutexWriteLock lock(gDbMgmtMutex);
 
     if(pDb2CountedName.count(db))
     { // if the db is open, close (destroy) it and update references
@@ -128,6 +129,11 @@ public :
 
   LvDbInterfaceBase()
   {
+    if(!gInit)
+    {
+      gDbMgmtMutex.SetBlocking(true);
+      gInit = true;
+    }
   }
 protected:
   static Option gDefaultOption;
