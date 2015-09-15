@@ -208,7 +208,7 @@ XrdMgmOfs::FSctl (const int cmd,
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
 
-  if (info) info = 0; // for compiler happyness;
+  //if (info) info = 0; // for compiler happyness;
 
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
