@@ -18,6 +18,7 @@
     %endif
 %endif
 
+%define majorversion @CPACK_PACKAGE_VERSION_MAJOR@
 #-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
@@ -159,31 +160,31 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/eos-iobw
 %{_sbindir}/eos-iops
 %{_libdir}/libeosCommonServer.so.%{version}
-%{_libdir}/libeosCommonServer.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libeosCommonServer.so.%{majorversion}
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libEosFstOss.so.%{version}
-%{_libdir}/libEosFstOss.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libEosFstOss.so.%{majorversion}
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosFst.so.%{version}
-%{_libdir}/libXrdEosFst.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libXrdEosFst.so.%{majorversion}
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosPluginManager.so.%{version}
-%{_libdir}/libEosPluginManager.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libEosPluginManager.so.%{majorversion}
 %{_libdir}/libEosPluginManager.so
 %{_libdir}/libEosNsCommon.so.%{version}
-%{_libdir}/libEosNsCommon.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libEosNsCommon.so.%{majorversion}
 %{_libdir}/libEosNsCommon.so
 %{_libdir}/libEosNsInMemory.so.%{version}
-%{_libdir}/libEosNsInMemory.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libEosNsInMemory.so.%{majorversion}
 %{_libdir}/libEosNsInMemory.so
 %{_libdir}/libEosAuthProto.so.%{version}
-%{_libdir}/libEosAuthProto.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libEosAuthProto.so.%{majorversion}
 %{_libdir}/libEosAuthProto.so
 %{_libdir}/libXrdEosMgm.so.%{version}
-%{_libdir}/libXrdEosMgm.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libXrdEosMgm.so.%{majorversion}
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so.%{version}
-%{_libdir}/libXrdMqOfs.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libXrdMqOfs.so.%{majorversion}
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
@@ -242,10 +243,10 @@ The EOS shell client.
 %{_bindir}/eosdropboxd
 %{_bindir}/eoscp
 %{_libdir}/libXrdMqClient.so.%{version}
-%{_libdir}/libXrdMqClient.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libXrdMqClient.so.%{majorversion}
 %{_libdir}/libXrdMqClient.so
 %{_libdir}/libeosCommon.so.%{version}
-%{_libdir}/libeosCommon.so.@CPACK_PACKAGE_VERSION_MAJOR@
+%{_libdir}/libeosCommon.so.%{majorversion}
 %{_libdir}/libeosCommon.so
 
 # Documentation
