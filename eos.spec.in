@@ -159,31 +159,31 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/eos-iobw
 %{_sbindir}/eos-iops
 %{_libdir}/libeosCommonServer.so.%{version}
-%{_libdir}/libeosCommonServer.so.0
+%{_libdir}/libeosCommonServer.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libEosFstOss.so.%{version}
-%{_libdir}/libEosFstOss.so.0
+%{_libdir}/libEosFstOss.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosFst.so.%{version}
-%{_libdir}/libXrdEosFst.so.0
+%{_libdir}/libXrdEosFst.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosPluginManager.so.%{version}
-%{_libdir}/libEosPluginManager.so.0
+%{_libdir}/libEosPluginManager.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libEosPluginManager.so
 %{_libdir}/libEosNsCommon.so.%{version}
-%{_libdir}/libEosNsCommon.so.0
+%{_libdir}/libEosNsCommon.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libEosNsCommon.so
 %{_libdir}/libEosNsInMemory.so.%{version}
-%{_libdir}/libEosNsInMemory.so.0
+%{_libdir}/libEosNsInMemory.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libEosNsInMemory.so
 %{_libdir}/libEosAuthProto.so.%{version}
-%{_libdir}/libEosAuthProto.so.0
+%{_libdir}/libEosAuthProto.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libEosAuthProto.so
 %{_libdir}/libXrdEosMgm.so.%{version}
-%{_libdir}/libXrdEosMgm.so.0
+%{_libdir}/libXrdEosMgm.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so.%{version}
-%{_libdir}/libXrdMqOfs.so.0
+%{_libdir}/libXrdMqOfs.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
@@ -242,10 +242,10 @@ The EOS shell client.
 %{_bindir}/eosdropboxd
 %{_bindir}/eoscp
 %{_libdir}/libXrdMqClient.so.%{version}
-%{_libdir}/libXrdMqClient.so.0
+%{_libdir}/libXrdMqClient.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libXrdMqClient.so
 %{_libdir}/libeosCommon.so.%{version}
-%{_libdir}/libeosCommon.so.0
+%{_libdir}/libeosCommon.so.@CPACK_PACKAGE_VERSION_MAJOR@
 %{_libdir}/libeosCommon.so
 
 # Documentation
