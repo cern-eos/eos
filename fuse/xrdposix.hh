@@ -83,6 +83,8 @@ extern "C"
   {
     unsigned long long fd;
     uid_t uid;
+    gid_t gid;
+    gid_t pid;
     long long ino;
   } fd_user_info;
 
@@ -330,7 +332,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Remove file descriptor from mapping
   //----------------------------------------------------------------------------
-  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid);
+  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //              ******* FUSE Directory Cache *******
@@ -542,7 +544,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_close (int fd, unsigned long inode, uid_t uid);
+  int xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
 
 
   //----------------------------------------------------------------------------

@@ -816,7 +816,7 @@ xrd_get_file (int fd)
 // Remove entry from mapping
 //------------------------------------------------------------------------------
 int
-xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
+xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
 {
   int retc = -1;
   eos_static_debug("fd=%i, inode=%lu", fd, inode);
@@ -838,7 +838,7 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
       if ( (path=fabst->GetUtimes(utimes)) )
       {
         // run the utimes command now after the close
-        xrd_utimes(path, utimes, uid,0,0);
+        xrd_utimes(path, utimes, uid,gid,pid);
       }
       delete fabst;
       fabst = 0;
@@ -1869,10 +1869,12 @@ xrd_stat (const char* path,
   std::string surl=xrd_user_url(uid, gid, pid);
   if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
   surl += xrd_strongauth_cgi(pid);
+
   eos_static_debug("stat url is %s",surl.c_str());
   XrdCl::URL Url(surl.c_str());
   XrdCl::FileSystem fs(Url);
 
+  eos_static_debug("arg = %s",arg.ToString().c_str());
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &stattiming);
@@ -1971,7 +1973,7 @@ xrd_stat (const char* path,
   if (EOS_LOGS_DEBUG)
     stattiming.Print();
 
-  eos_static_info("path=%s st-size=%llu errno=%i", path, buf->st_size, errno);
+  eos_static_info("path=%s st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
   delete response;
   return errno;
 }
@@ -3175,7 +3177,7 @@ xrd_open (const char* path,
         eos_static_debug("opaque info not what we expected");
     }
     else
-      eos_static_err("failed get request for pio read");
+      eos_static_err("failed get request for pio read. query was   %s  ,  response was   %s    and   error was    %s",arg.ToString().c_str(),response->ToString().c_str(),status.ToStr().c_str());
   }
 
   eos_static_debug("the spath is:%s", spath.c_str());
@@ -3192,6 +3194,12 @@ xrd_open (const char* path,
   {
     open_cgi += "&fst.readahead=true&fst.blocksize=";
     open_cgi += rdahead_window.c_str();
+  }
+
+  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared)
+  {
+    open_cgi += "&";
+    open_cgi += xrd_strongauth_cgi(pid);
   }
 
   eos_static_debug("open_path=%s, open_cgi=%s", spath.c_str(), open_cgi.c_str());
@@ -3261,9 +3269,9 @@ xrd_open (const char* path,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
 int
-xrd_close (int fildes, unsigned long inode, uid_t uid)
+xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
 {
-  eos_static_info("fd=%d inode=%lu, uid=%i", fildes, inode, uid);
+  eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode, uid, gid, pid);
   int ret = -1;
   FileAbstraction* fabst = xrd_get_file(fildes);
 
@@ -3281,7 +3289,7 @@ xrd_close (int fildes, unsigned long inode, uid_t uid)
   }
 
   // Close file and remove it from all mappings
-  ret = xrd_remove_fd2file(fildes, inode, uid);
+  ret = xrd_remove_fd2file(fildes, inode, uid, gid, pid);
 
   if (ret)
     errno = EIO;
