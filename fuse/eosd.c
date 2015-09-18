@@ -223,7 +223,7 @@ eosfs_ll_setattr (fuse_req_t req,
                             &rinode)) > 0)
         {
           retc = xrd_truncate (fd, attr->st_size);
-          xrd_close (fd, ino, req->ctx.uid);
+          xrd_close (fd, ino, req->ctx.uid, req->ctx.gid, req->ctx.pid);
         }
         else
         {
@@ -249,7 +249,7 @@ eosfs_ll_setattr (fuse_req_t req,
                           &rinode)) > 0)
       {
         retc = xrd_truncate (fd, attr->st_size);
-        xrd_close (fd, ino, req->ctx.uid);
+        xrd_close (fd, ino, req->ctx.uid, req->ctx.gid, req->ctx.pid);
       }
     }
   }
@@ -1170,6 +1170,8 @@ eosfs_ll_open (fuse_req_t req,
   fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
   info->fd = res;
   info->uid = req->ctx.uid;
+  info->gid = req->ctx.gid;
+  info->pid = req->ctx.pid;
   fi->fh = (uint64_t) info;
 
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
@@ -1311,7 +1313,7 @@ eosfs_ll_release (fuse_req_t req,
     }
 
     if (isdebug) fprintf (stderr, "[%s]: Try to close file fd=%llu\n", __FUNCTION__, info->fd);
-    int res = xrd_close (info->fd, ino, info->uid);
+    int res = xrd_close (info->fd, ino, info->uid, info->gid, info->pid);
     xrd_release_rd_buff (pthread_self());
 
       // Free memory
@@ -1669,6 +1671,8 @@ eosfs_ll_create(fuse_req_t req,
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
     info->fd = res;
     info->uid = req->ctx.uid;
+    info->gid = req->ctx.gid;
+    info->pid = req->ctx.pid;
     fi->fh = (uint64_t) info;
 
     // Update the entry parameters
@@ -1688,7 +1692,7 @@ eosfs_ll_create(fuse_req_t req,
 
     if (!rinode)
     {
-      xrd_close(res, 0, req->ctx.uid);
+      xrd_close(res, 0, req->ctx.uid, req->ctx.gid, req->ctx.pid);
       fuse_reply_err (req, -res);
       return;
     }
