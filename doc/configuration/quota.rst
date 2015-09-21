@@ -36,7 +36,7 @@ The quota system is easiest explained lookint at the output of
 a **quota** command in the EOS shell:
 
 .. code-block:: bash
-
+   
    eosdevsrv1:# eos -b quota
    # _______________________________________________________________________________________________
    # ==> Quota Node: /eos/dev/2rep/
@@ -84,7 +84,7 @@ project account. E.g. the recycle bin uses this quota type to measure a subtree
 size. In the EOS shell interface project quota is currently defined setting 
 quota for group 99:
 
-.. code-block::
+.. code-block:: bash
    
    eosdevsrv1:# eos -b set -g 99 -p /eos/lhc/higgs-project/ -v 1P -i 100M
 

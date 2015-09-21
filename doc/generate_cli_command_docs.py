@@ -23,7 +23,7 @@ import sys
 import os
 
 EOS_COMMAND = 'eos'
-EXCLUDE_COMMANDS = ['console', '?', '.q', 'license', 'version', 'motd', 'pwd', 'silent',
+EXCLUDE_COMMANDS = ['console', '?', '.q', 'license', 'version', 'motd', 'pwd', 'silent', 'touch',
                     'whoami', 'json', 'exit', 'timing', 'help', 'quit']
 
 CLI_COMMANDS_BASE_NAME = 'clicommands'

@@ -15,11 +15,6 @@ Documentation
    using
    releases
 
->>>>>>> master
-
-
-
-
 
 
 

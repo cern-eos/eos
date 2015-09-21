@@ -80,6 +80,7 @@ Define an optional threshold ratio
 If you want to keep files as long as possible you can set a keep ratio on the recycle bin:
 
 .. code-block:: bash
+   
    EOS Console [root://localhost] |/eos/> recycle config --ratio 0.8
 
 In this example the recycle bin can be filled up-to 80%. Once it reaches the watermark it will clean all files matching the
@@ -143,6 +144,7 @@ Objects are restored using recycle restore <restore-key>.
 The <restore-key> is shown by **recycle ls**.
 
 .. code-block:: bash
+   
    EOS Console [root://localhost] |/eos/> recycle restore 00000000000007cf
 
    error: to recycle this file you have to have the role of the file owner: uid=755 (errc=1) (Operation not permitted)
