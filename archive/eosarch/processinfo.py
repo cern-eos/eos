@@ -42,6 +42,7 @@ class ProcessInfo(object):
        pid         (int): PID of process executing the transfer
        root_dir (string): Root directory in EOS of the archive/backup
        op       (string): Operation type
+       orig_req   (JSON): JSON object representing the original request
     """
     def __init__(self, req_json = None):
         """ Initializing the process info object
@@ -55,6 +56,7 @@ class ProcessInfo(object):
         """
         self.logger = logging.getLogger("dispatcher")
         self.proc = None
+        self.orig_req = req_json;
 
         if req_json:
             # Normal, 'owned' process

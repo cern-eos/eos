@@ -151,9 +151,9 @@ int ProcCommand::Backup()
   while (std::getline(iss, token, ','))
     set_xattrs.insert(token);
 
-  int ret = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
+  retc = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
 
-  if (!ret)
+  if (!retc)
   {
     // Check if this is an incremental backup with a time windown
     std::string bfile_url = dst_url.GetURL();
@@ -167,7 +167,7 @@ int ProcCommand::Backup()
 	     << "\"gid\": \"" << pVid->gid << "\" "
 	     << "}";
 
-    ret = ArchiveExecuteCmd(cmd_json.str());
+    retc = ArchiveExecuteCmd(cmd_json.str());
     eos_debug("sending command: %s", cmd_json.str().c_str());
   }
 
@@ -218,8 +218,8 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
   if (!backup_ofs.is_open())
   {
-    eos_err("Failed to open local archive file:%s", backup_fn.c_str());
-    stdErr = "failed to open archive file at MGM ";
+    eos_err("Failed to open local backup file:%s", backup_fn.c_str());
+    stdErr = "failed to open backup file at MGM ";
     retc = EIO;
     return retc;
   }
@@ -319,6 +319,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   url_src.SetPath(backup_fn.c_str());
   url_dst.SetProtocol(tmp_url.GetProtocol());
   url_dst.SetHostName(tmp_url.GetHostName());
+  url_dst.SetPort(tmp_url.GetPort());
   url_dst.SetUserName("root");
   url_dst.SetPath(dst_path);
   url_dst.SetParams("eos.ruid=0&eos.rgid=0");

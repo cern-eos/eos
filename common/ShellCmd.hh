@@ -66,12 +66,12 @@ public:
   //----------------------------------------------------------------------------
   // waits until the 'command' process terminates
   //----------------------------------------------------------------------------
-  cmd_status wait () const;
+  cmd_status wait ();
 
   //----------------------------------------------------------------------------
   // waits until the 'command' process terminates or the timeout has passed
   //----------------------------------------------------------------------------
-  cmd_status wait (size_t timeout) const;
+  cmd_status wait (size_t timeout);
 
 
   //----------------------------------------------------------------------------
@@ -115,6 +115,7 @@ private:
 
   pthread_t monitor_thread;
   bool monitor_active;  
+  bool monitor_joined;
   cmd_status cmd_stat;
 };
 
