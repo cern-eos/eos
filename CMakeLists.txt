@@ -40,7 +40,7 @@ endif()
 
 # Include some generic functions and GNU path settings
 include(EosUtils)
-include (GNUInstallDirs)
+include(GNUInstallDirs)
 
 # Force /usr/ installation prefix
 set(CMAKE_INSTALL_SYSCONFDIR /etc)

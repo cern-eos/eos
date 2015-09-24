@@ -24,7 +24,7 @@ function getVersionFromLog()
   fi
 
   MAJOR="$(echo $1 | $AWK -F "." '{print $1;}')"
-  VERSION="$(echo $2 | $AWK '{ gsub("-","",$1); print ${MAJOR}"."$1"."$4; }')"
+  VERSION="$(echo $2 | $AWK -v major="${MAJOR}" '{ gsub("-","",$1); print major"."$1"."$4; }')"
 
   if test $? -ne 0; then
     echo "unknown";
@@ -105,7 +105,7 @@ else
 
     else
       # Get last tag to extract the major version number
-      LAST_TAG = "$(git describe --tags --abbrev=0)"
+      LAST_TAG="$(git describe --tags --abbrev=0)"
 
       if [[ ${?} -ne 0 ]]; then
 	echo "[!] Can not find last tag to build the commit version"
@@ -121,7 +121,7 @@ else
 	exit 1
       fi
 
-      VERSION="$(getVersionFromLog $LAST_TAG $LOGINFO)"
+      VERSION="$(getVersionFromLog "$LAST_TAG" "$LOGINFO")"
     fi
   fi
 
