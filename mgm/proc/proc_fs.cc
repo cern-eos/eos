@@ -381,7 +381,7 @@ proc_fs_add (std::string &sfsid, std::string &uuid, std::string &nodename, std::
     FsView::gFsView.ViewMutex.LockWrite();
 
     // rough check that the filesystem is added from a host with the same tident ... anyway we should have configured 'sss' security
-    if ((vid_in.uid != 0) && ((vid_in.prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length())))
+    if ((vid_in.uid != 0) && ((vid_in.prot != "sss") || tident.compare(0, rnodename.length(), rnodename, 0, rnodename.length())))
     {
       stdErr += "error: filesystems can only be added as 'root' or from the server mounting them using sss protocol\n";
       retc = EPERM;
