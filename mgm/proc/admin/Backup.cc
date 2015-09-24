@@ -218,8 +218,8 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
   if (!backup_ofs.is_open())
   {
-    eos_err("Failed to open local archive file:%s", backup_fn.c_str());
-    stdErr = "failed to open archive file at MGM ";
+    eos_err("Failed to open local backup file:%s", backup_fn.c_str());
+    stdErr = "failed to open backup file at MGM ";
     retc = EIO;
     return retc;
   }
@@ -314,6 +314,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   copy_job.source.SetPath(backup_fn.c_str());
   copy_job.target.SetProtocol(dst_url.GetProtocol());
   copy_job.target.SetHostName(dst_url.GetHostName());
+  copy_job.target.SetPort(dst_url.GetPort());
   copy_job.target.SetUserName("root");
   std::string dst_path = dst_url.GetPath();
   dst_path += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
