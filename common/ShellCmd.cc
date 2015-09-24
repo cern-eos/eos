@@ -40,7 +40,7 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-ShellCmd::ShellCmd (std::string const & cmd) : cmd (cmd), monitor_active(false)
+ShellCmd::ShellCmd (std::string const & cmd) : cmd (cmd), monitor_active(false), monitor_joined(false)
 {
   //----------------------------------------------------------------------------
   // generate the 'uuid' for the 'fifos'
@@ -100,8 +100,9 @@ ShellCmd::~ShellCmd ()
 
   //----------------------------------------------------------------------------
   // wait for the monitor thread to exit gracefully  
+  // (make sure the thread is joined to avoid memory leaks)
   //----------------------------------------------------------------------------
-  if (monitor_active) pthread_join(monitor_thread, 0);
+  if (monitor_active || !monitor_joined) pthread_join(monitor_thread, 0);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -166,15 +167,19 @@ ShellCmd::run_monitor (void * ptr)
 
 /*----------------------------------------------------------------------------*/
 cmd_status
-ShellCmd::wait () const
+ShellCmd::wait ()
 {
-  if (monitor_active) pthread_join(monitor_thread, 0);
+  if (monitor_active)
+  {
+    monitor_joined = true;
+    pthread_join(monitor_thread, 0);
+  }
   return cmd_stat;
 }
 
 /*----------------------------------------------------------------------------*/
 cmd_status
-ShellCmd::wait (size_t timeout) const
+ShellCmd::wait (size_t timeout)
 {
   for (size_t i=0; i< timeout; ++i) 
   {
@@ -188,7 +193,11 @@ ShellCmd::wait (size_t timeout) const
   if (is_active())
     kill();
 
-  if (monitor_active) pthread_join(monitor_thread, 0);
+  if (monitor_active)
+  {
+    monitor_joined = true;
+    pthread_join(monitor_thread, 0);
+  }
   return cmd_stat;
 }
 
