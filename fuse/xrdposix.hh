@@ -531,6 +531,7 @@ extern "C"
   //!
   //----------------------------------------------------------------------------
   int xrd_truncate (int fildes, off_t offset);
+  int xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid);
 
 
   //----------------------------------------------------------------------------

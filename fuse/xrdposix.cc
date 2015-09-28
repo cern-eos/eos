@@ -3372,6 +3372,46 @@ xrd_truncate (int fildes, off_t offset)
 }
 
 
+int
+xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid)
+{
+  if (inode)
+  {
+    // Try to stat via an open file - first find the file descriptor using the
+    // inodeuser2fd map and then find the file object using the fd2fabst map.
+    // Meanwhile keep the mutex locked for read so that no other thread can
+    // delete the file object
+    eos_static_debug("path=%s, uid=%lu, inode=%lu",
+                     fullpath, (unsigned long) uid, inode);
+    eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
+    std::ostringstream sstr;
+    sstr << inode << ":" << (unsigned long)uid;
+    google::dense_hash_map<std::string, int>::iterator
+      iter_fd = inodeuser2fd.find(sstr.str());
+
+    if (iter_fd != inodeuser2fd.end())
+    {
+      return xrd_truncate(iter_fd->second,truncsize);
+    }
+    else
+      eos_static_debug("path=%s not open", fullpath);
+  }
+
+  int fd,retc;
+  unsigned long rinode;
+  eos_static_debug ("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__, (long long) truncsize, inode);
+
+  if ((fd = xrd_open (fullpath, O_WRONLY,
+  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                      uid, gid, pid, &rinode)) > 0)
+  {
+    retc = xrd_truncate (fd, truncsize);
+    xrd_close (fd, rinode, uid, gid, pid);
+  }
+
+  return retc;
+}
+
 //------------------------------------------------------------------------------
 // Read from file. Returns the number of bytes transferred, or 0 if offset
 // was at or beyond the end of the file

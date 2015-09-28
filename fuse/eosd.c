@@ -197,61 +197,11 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (to_set & FUSE_SET_ATTR_SIZE)
   {
-    if (fi)
-    {
-      if (isdebug) fprintf (stderr, "[%s]: truncate\n", __FUNCTION__);
 
-      if (fi->fh)
-      {
-        struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-        retc = xrd_truncate ((unsigned long long) info->fd, attr->st_size);
-      }
-      else
-      {
-        int fd;
-
-        if (isdebug)
-        {
-          fprintf (stderr, "[%s]: set attr size=%lld ino=%lld\n",
-                   __FUNCTION__, (long long) attr->st_size, (long long) ino);
-        }
-
-        if ((fd = xrd_open (fullpath, O_WRONLY,
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid,
-                            req->ctx.gid,
-                            req->ctx.pid,
-                            &rinode)) > 0)
-        {
-          retc = xrd_truncate (fd, attr->st_size);
-          xrd_close (fd, ino, req->ctx.uid, req->ctx.gid, req->ctx.pid);
-        }
-        else
-        {
-          retc = -1;
-        }
-      }
-    }
-    else
-    {
-      int fd;
-
-      if (isdebug)
-      {
-        fprintf (stderr, "[%s]: set attr size=%lld ino=%lld\n",
-                 __FUNCTION__, (long long) attr->st_size, (long long) ino);
-      }
-
-      if ((fd = xrd_open (fullpath, O_WRONLY,
-                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                          req->ctx.uid,
-                          req->ctx.gid,
-                          req->ctx.pid,
-                          &rinode)) > 0)
-      {
-        retc = xrd_truncate (fd, attr->st_size);
-        xrd_close (fd, ino, req->ctx.uid, req->ctx.gid, req->ctx.pid);
-      }
-    }
+          xrd_truncate2 (fullpath, ino, attr->st_size,
+                              req->ctx.uid,
+                              req->ctx.gid,
+                              req->ctx.pid);
   }
 
   if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
