@@ -30,7 +30,8 @@ add_library(
   FuseCache SHARED
   FuseWriteCache.cc  FuseWriteCache.hh
   CacheEntry.cc      CacheEntry.hh
-  FileAbstraction.cc FileAbstraction.hh)
+  FileAbstraction.cc FileAbstraction.hh
+  LayoutWrapper.cc LayoutWrapper.hh)
 
 set_target_properties(
   FuseCache
@@ -57,7 +58,8 @@ if (Linux)
     FuseCache-Static STATIC
     FuseWriteCache.cc  FuseWriteCache.hh
     CacheEntry.cc      CacheEntry.hh
-    FileAbstraction.cc FileAbstraction.hh)
+    FileAbstraction.cc FileAbstraction.hh
+    LayoutWrapper.cc LayoutWrapper.hh)
 
   target_link_libraries(
     FuseCache-Static

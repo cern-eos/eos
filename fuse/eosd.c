@@ -1334,7 +1334,7 @@ eosfs_ll_flush (fuse_req_t req,
     //UPDATEPROCCACHE;
 
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    int err_flush = xrd_flush (info->fd);
+    int err_flush = xrd_flush (info->fd, req->ctx.uid, req->ctx.gid, req->ctx.pid);
 
     if (err_flush)
       errno = EIO;

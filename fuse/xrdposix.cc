@@ -60,6 +60,7 @@
 /*----------------------------------------------------------------------------*/
 #include "FuseCache/FuseWriteCache.hh"
 #include "FuseCache/FileAbstraction.hh"
+#include "FuseCache/LayoutWrapper.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -736,7 +737,7 @@ xrd_generate_fd ()
 // Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
 int
-xrd_add_fd2file (eos::fst::Layout* raw_file,
+xrd_add_fd2file (LayoutWrapper* raw_file,
                  unsigned long inode,
                  uid_t uid,
                  const char* path="")
@@ -766,7 +767,7 @@ xrd_add_fd2file (eos::fst::Layout* raw_file,
       else
       {
         eos_static_err("fd=%i not found in fd2fobj map", fd);
-	FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
+        FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
 	fd2fabst[fd] = fabst;
       }
     }
@@ -830,15 +831,18 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
     if (!fabst->IsInUse())
     {
       eos_static_debug("fd=%i is not in use, remove it", fd);
-      eos::fst::Layout* raw_file = fabst->GetRawFile();
-      retc = raw_file->Close();
+      LayoutWrapper* raw_file = fabst->GetRawFile();
 
-      struct timespec utimes[2];
-      const char* path=0;
-      if ( (path=fabst->GetUtimes(utimes)) )
+      if(raw_file->mOpen)
       {
-        // run the utimes command now after the close
-        xrd_utimes(path, utimes, uid,gid,pid);
+        retc = raw_file->Close ();
+        struct timespec utimes[2];
+        const char* path = 0;
+        if ((path = fabst->GetUtimes (utimes)))
+        {
+          // run the utimes command now after the close
+          xrd_utimes (path, utimes, uid, gid, pid);
+        }
       }
       delete fabst;
       fabst = 0;
@@ -1839,7 +1843,7 @@ xrd_stat (const char* path,
 	}
 
         struct stat tmp;
-        eos::fst::Layout* file = iter_file->second->GetRawFile();
+        LayoutWrapper* file = iter_file->second->GetRawFile();
 
         if (!file->Stat(&tmp))
         {
@@ -2985,8 +2989,8 @@ xrd_open (const char* path,
       spath += xrd_strongauth_cgi(pid);
       if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
-      eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl);
+      LayoutWrapper* file = new LayoutWrapper( new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl) );
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
@@ -3013,8 +3017,8 @@ xrd_open (const char* path,
       spath += xrd_strongauth_cgi(pid);
       if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
-      eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl);
+      LayoutWrapper* file = new LayoutWrapper( new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl) );
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
 
@@ -3040,8 +3044,8 @@ xrd_open (const char* path,
       spath += xrd_strongauth_cgi(pid);
       if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
-      eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl);
+      LayoutWrapper* file = new LayoutWrapper( new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl) );
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
@@ -3168,7 +3172,7 @@ xrd_open (const char* path,
                                (unsigned long)*return_inode);
             }
 
-            retc = xrd_add_fd2file(file, *return_inode, uid);
+            retc = xrd_add_fd2file(new LayoutWrapper( file ), *return_inode, uid);
             return retc;
           }
         }
@@ -3181,8 +3185,8 @@ xrd_open (const char* path,
   }
 
   eos_static_debug("the spath is:%s", spath.c_str());
-  eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                     eos::common::LayoutId::kXrdCl);
+  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                     eos::common::LayoutId::kXrdCl) );
   XrdOucString open_cgi = "eos.app=fuse";
 
   if (oflags & (O_RDWR | O_WRONLY))
@@ -3302,7 +3306,7 @@ xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
 // Flush file data to disk
 //------------------------------------------------------------------------------
 int
-xrd_flush (int fd)
+xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
 {
   int retc = 0;
   eos_static_info("fd=%d ", fd);
@@ -3327,6 +3331,21 @@ xrd_flush (int fd)
       eos_static_info("Extract error from queue");
       retc = error.first;
     }
+
+    auto raw_file = fabst->GetRawFile();
+    int retc2 = raw_file->Close();
+    eos_static_debug("temporarily closing file %s  returned  %d",raw_file->mPath.c_str(),retc2);
+    if(retc2) retc=retc2;
+
+    struct timespec utimes[2];
+    const char* path=0;
+    if ( (path=fabst->GetUtimes(utimes)) )
+    {
+      // run the utimes command now after the close
+      xrd_utimes(path, utimes, uid,gid,pid);
+    }
+    fabst->mMutexRW.UnLock();
+
   }
 
   fabst->DecNumRef();
@@ -3351,7 +3370,7 @@ xrd_truncate (int fildes, off_t offset)
     return ret;
   }
 
-  eos::fst::Layout* file = fabst->GetRawFile();
+  LayoutWrapper* file = fabst->GetRawFile();
 
   if (XFC && fuse_cache_write)
   {
@@ -3441,13 +3460,13 @@ xrd_pread (int fildes,
   {
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
-    eos::fst::Layout* file = fabst->GetRawFile();
+    LayoutWrapper* file = fabst->GetRawFile();
     ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
     fabst->mMutexRW.UnLock();
   }
   else
   {
-    eos::fst::Layout* file = fabst->GetRawFile();
+    LayoutWrapper* file = fabst->GetRawFile();
     ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
   }
 
@@ -3505,7 +3524,7 @@ xrd_pwrite (int fildes,
   }
   else
   {
-    eos::fst::Layout* file = fabst->GetRawFile();
+    LayoutWrapper* file = fabst->GetRawFile();
     ret = file->Write(offset, static_cast<const char*> (buf), nbyte);
 
     if (ret == -1)
@@ -3546,7 +3565,7 @@ xrd_fsync (int fildes)
     fabst->mMutexRW.UnLock();
   }
 
-  eos::fst::Layout* file = fabst->GetRawFile();
+  LayoutWrapper* file = fabst->GetRawFile();
   ret = file->Sync();
 
   if (ret)
