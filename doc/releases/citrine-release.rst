@@ -4,7 +4,7 @@
    single: Citrine-Release
 
 
-Beryl Release Notes
+Citrine Release Notes
 ===================
 
 ``Version V4.0.0 Citrine``
