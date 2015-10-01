@@ -152,8 +152,8 @@ Logging::log (const char* func, const char* file, int line, const char* logid, c
 
   va_list args;
   va_start(args, msg);
-  time(&current_time);
   gettimeofday(&tv, &tz);
+  current_time = tv.tv_sec;
   static char linen[16];
   sprintf(linen, "%d", line);
   static char fcident[1024];
