@@ -271,6 +271,23 @@ public:
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
 
+  //--------------------------------------------------------------------------
+  //! Check for the existance of a file
+  //!
+  //! @param path to the file
+  //!
+  //! @return true if exists, otherwise false
+  //--------------------------------------------------------------------------
+  virtual bool Exists(const char* path) = 0;
+
+  //--------------------------------------------------------------------------
+  //! Delete a file
+  //!
+  //! @param path to the file to be deleted
+  //!
+  //! @return 0 if successfull, otherwise errno
+  //--------------------------------------------------------------------------
+  virtual int Delete(const char* path) = 0;
 
   //--------------------------------------------------------------------------
   //! Get pointer to async meta handler object
