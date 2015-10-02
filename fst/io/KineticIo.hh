@@ -208,16 +208,16 @@ public:
   //!
   //! @param path to the file
   //!
-  //! @return true if exists, otherwise false
+  //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  bool Exists(const char* path);
+  int Exists(const char* path);
 
   //--------------------------------------------------------------------------
   //! Delete a file
   //!
   //! @param path to the file to be deleted
   //!
-  //! @return 0 if successful, otherwise errno
+  //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
   int Delete(const char* path);
 

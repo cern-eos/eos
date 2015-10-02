@@ -182,17 +182,18 @@ int KineticIo::Delete(const char* path)
     kio->Close();
     return SFS_OK;
   } KIO_CATCH
-  return errno;
+  return SFS_ERROR;
 }
 
-bool KineticIo::Exists(const char* path)
+int KineticIo::Exists(const char* path)
 {
   eos_debug("path: %s",path);
   try{
     if(kio::Factory::makeFileAttr(path))
-      return true;
+      return SFS_OK;
+    errno = ENOENT;
   } KIO_CATCH
-  return false;
+  return SFS_ERROR;
 }
 
 void* KineticIo::ftsOpen(std::string subtree)
