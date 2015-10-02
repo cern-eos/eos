@@ -3416,7 +3416,7 @@ xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsiz
       eos_static_debug("path=%s not open", fullpath);
   }
 
-  int fd,retc;
+  int fd, retc = -1;
   unsigned long rinode;
   eos_static_debug ("[%s]: set attr size=%lld ino=%lld\n", __FUNCTION__, (long long) truncsize, inode);
 
