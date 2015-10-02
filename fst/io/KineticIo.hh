@@ -204,6 +204,24 @@ public:
   int Statfs (const char* path, struct statfs* statFs);
 
   //--------------------------------------------------------------------------
+  //! Check for the existence of a file
+  //!
+  //! @param path to the file
+  //!
+  //! @return true if exists, otherwise false
+  //--------------------------------------------------------------------------
+  bool Exists(const char* path);
+
+  //--------------------------------------------------------------------------
+  //! Delete a file
+  //!
+  //! @param path to the file to be deleted
+  //!
+  //! @return 0 if successful, otherwise errno
+  //--------------------------------------------------------------------------
+  int Delete(const char* path);
+
+  //--------------------------------------------------------------------------
   //! Open a curser to traverse a storage system
   //! @param subtree where to start traversing
   //! @return returns implementation dependent handle or 0 in case of error

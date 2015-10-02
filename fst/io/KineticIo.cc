@@ -173,6 +173,28 @@ int KineticIo::Statfs (const char* path, struct statfs* statFs)
   return errno;
 }
 
+int KineticIo::Delete(const char* path)
+{
+  eos_debug("path: %s",path);
+  try{
+    kio->Open(path);
+    kio->Remove();
+    kio->Close();
+    return SFS_OK;
+  } KIO_CATCH
+  return errno;
+}
+
+bool KineticIo::Exists(const char* path)
+{
+  eos_debug("path: %s",path);
+  try{
+    if(kio::Factory::makeFileAttr(path))
+      return true;
+  } KIO_CATCH
+  return false;
+}
+
 void* KineticIo::ftsOpen(std::string subtree)
 {
   eos_debug("subtree: %s", subtree.c_str());
