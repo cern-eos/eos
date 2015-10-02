@@ -101,11 +101,6 @@ Master::Init()
   else
     fRemoteHost = getenv("EOS_MGM_MASTER1");
 
-  // Start the online compacting background thread
-  XrdSysThread::Run(&fCompactingThread, Master::StaticOnlineCompacting,
-		    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-		    "Master OnlineCompacting Thread");
-
   if (fThisHost == fRemoteHost)
   {
     // No master slave configuration ... also fine
@@ -537,6 +532,17 @@ void*
 Master::StaticOnlineCompacting(void* arg)
 {
   return reinterpret_cast<Master*>(arg)->Compacting();
+}
+
+//------------------------------------------------------------------------------
+// Start online compacting thread if namespace supports it
+//------------------------------------------------------------------------------
+void
+Master::StartOnlineCompacting()
+{
+  XrdSysThread::Run(&fCompactingThread, Master::StaticOnlineCompacting,
+		    static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+		    "Master OnlineCompacting Thread");
 }
 
 //------------------------------------------------------------------------------
@@ -2049,6 +2055,8 @@ Master::BootNamespace()
     MasterLog(eos_notice("running in master mode"));
   }
 
+  // Start online compacting thread
+  StartOnlineCompacting();
   return true;
 }
 

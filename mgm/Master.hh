@@ -141,6 +141,11 @@ class Master : public eos::common::LogId
   void StartSlaveFollower(std::string&& log_file);
 
   //----------------------------------------------------------------------------
+  //! Start online compacting thread
+  //----------------------------------------------------------------------------
+  void StartOnlineCompacting();
+
+  //----------------------------------------------------------------------------
   //! Shutdown slave follower thread
   //----------------------------------------------------------------------------
   void ShutdownSlaveFollower();
