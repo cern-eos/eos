@@ -3464,7 +3464,7 @@ xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsiz
       eos_static_debug("path=%s not open", fullpath);
   }
 
-  int fd,retc;
+  int fd, retc = -1;
   unsigned long rinode;
 
   if ((fd = xrd_open (fullpath, O_WRONLY,
