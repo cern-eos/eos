@@ -150,7 +150,7 @@ endif (CLIENT)
 # Generate documentation
 #-------------------------------------------------------------------------------
 if(PYTHONINTERP_FOUND AND SPHINX_FOUND)
-  add_custom_target(doc ALL
+  add_custom_target(doc
     COMMAND ${PYTHON_EXECUTABLE} generate_docs.py
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/doc"
     COMMENT "Build HTML documentation with Sphinx ...")
