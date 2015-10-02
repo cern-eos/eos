@@ -23,6 +23,7 @@
 
 //------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
+#include "LayoutWrapper.hh"
 #include "CacheEntry.hh"
 #include "common/Logging.hh"
 #include "fst/layout/Layout.hh"
@@ -32,7 +33,7 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file, const char* path) :
+FileAbstraction::FileAbstraction(int fd, LayoutWrapper* file, const char* path) :
   mMutexRW(),
   mFd(fd),
   mFile(file),
@@ -51,6 +52,8 @@ FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file, const char* pat
 
   mUtime[0].tv_sec = mUtime[1].tv_sec = 0;
   mUtime[0].tv_nsec = mUtime[1].tv_nsec = 0;
+
+  mFile->fabs = this;
 }
 
 //------------------------------------------------------------------------------

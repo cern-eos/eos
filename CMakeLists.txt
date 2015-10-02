@@ -78,12 +78,13 @@ if (NOT PACKAGEONLY)
   find_package(leveldb REQUIRED)
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
+  find_package(Sphinx)
 
   if (Linux)
     find_package(glibc REQUIRED)
   endif()
 
-  # For server require also the following
+  # The server build also requires
   if (NOT CLIENT)
     find_package(SparseHash REQUIRED)
     find_package(rt REQUIRED)
@@ -124,9 +125,7 @@ if(MacOSX)
   # On MAC we don't link static objects at all
   set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
 else()
-  # On Linux we use static objects
   set(LIB_INSTALL_DIR lib64)
-  set(RT_LIBS rt)
 endif()
 
 include_directories(/usr/include/xrootd/ /usr/include/)
@@ -147,18 +146,14 @@ else (CLIENT)
 set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
 
-if(NOT MICROHTTPD_FOUND)
-  message("  Warning: MicroHttpd not found, no httpd access available")
-else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
-endif()
-
 #-------------------------------------------------------------------------------
-# Generate client commands doc
+# Generate documentation
 #-------------------------------------------------------------------------------
-if(PYTHONINTERP_FOUND)
-  add_custom_target(doc
-    COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_SOURCE_DIR}/doc/generate_cli_command_docs.py)
+if(PYTHONINTERP_FOUND AND SPHINX_FOUND)
+  add_custom_target(doc ALL
+    COMMAND ${PYTHON_EXECUTABLE} generate_docs.py
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/doc"
+    COMMENT "Build HTML documentation with Sphinx ...")
 endif()
 
 #-------------------------------------------------------------------------------
