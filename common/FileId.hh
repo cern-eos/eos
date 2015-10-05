@@ -101,18 +101,22 @@ public:
 
     unsigned long long fid = Hex2Fid(hexstring);
     char sfullpath[16384];
+    XrdOucString slocalprefix = localprefix;
+
+    if (!slocalprefix.endswith("/")) 
+    {
+      slocalprefix += "/";
+    }
+
     if (subindex)
     {
-      sprintf(sfullpath, "%s/%08llx/%s.%u", localprefix, fid / 10000, hexstring, subindex);
+      sprintf(sfullpath, "%s%08llx/%s.%u", localprefix, fid / 10000, hexstring, subindex);
     }
     else
     {
-      sprintf(sfullpath, "%s/%08llx/%s", localprefix, fid / 10000, hexstring);
+      sprintf(sfullpath, "%s%08llx/%s", localprefix, fid / 10000, hexstring);
     }
     fullpath = sfullpath;
-    while (fullpath.replace("//", "/"))
-    {
-    }
   }
 
   //! Compute a fid from a prefix path
