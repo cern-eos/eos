@@ -177,7 +177,8 @@ int KineticIo::Delete(const char* path)
 {
   eos_debug("path: %s",path);
   try{
-    kio->Open(path);
+    std::string opath=path;
+    kio->Open(opath,0);
     kio->Remove();
     kio->Close();
     return SFS_OK;

@@ -276,16 +276,16 @@ public:
   //!
   //! @param path to the file
   //!
-  //! @return true if exists, otherwise false
+  //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual bool Exists(const char* path) = 0;
+  virtual int Exists(const char* path) = 0;
 
   //--------------------------------------------------------------------------
   //! Delete a file
   //!
   //! @param path to the file to be deleted
   //!
-  //! @return 0 if successfull, otherwise errno
+  //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
   virtual int Delete(const char* path) = 0;
 

@@ -663,6 +663,54 @@ XrdIo::Remove (uint16_t timeout)
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Check for existance
+//------------------------------------------------------------------------------
+int
+XrdIo::Exists(const char* url)
+{
+  XrdCl::URL xUrl(url);
+  XrdCl::FileSystem fs(xUrl);
+  XrdCl::StatInfo* stat;;
+  XrdCl::XRootDStatus status = fs.Stat(xUrl.GetPath(),stat);
+  errno = 0;
+  if (!status.IsOK())
+  {
+    errno = EIO;
+    mLastErrMsg = "failed to check for existance";
+    return SFS_ERROR;
+  }
+  if (stat) 
+  {
+    delete stat;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Delete file by path
+//------------------------------------------------------------------------------
+int
+XrdIo::Delete(const char* url)
+{
+  XrdCl::URL xUrl(url);
+  XrdCl::FileSystem fs(xUrl);
+  XrdCl::XRootDStatus status = fs.Rm(xUrl.GetPath());
+  errno = 0;
+  if (!status.IsOK())
+  {
+    eos_err("error=failed to delete file - %s", url);
+    mLastErrMsg = "failed to delete file";
+    errno = EIO;
+    return SFS_ERROR;
+  }
+  return true;
+}
+
 
 //------------------------------------------------------------------------------
 // Prefetch block using the readahead mechanism
