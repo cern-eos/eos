@@ -771,7 +771,7 @@ XrdFstOfsFile::open (const char* path,
 
   layOut->SetLogId(logId, vid, tident);
 
-  if ((retc = layOut->Stat(&updateStat)))
+  if ((retc = layOut->GetFileIo()->Exists(fstPath.c_str())))
   {
     //..........................................................................
     // File does not exist, keep the create lfag
@@ -994,6 +994,12 @@ XrdFstOfsFile::open (const char* path,
   eos_info("fstpath=%s open-mode=%x create-mode=%x layout-name=%s", fstPath.c_str(), open_mode, create_mode, layOut->GetName());
   int rc = layOut->Open(fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
 
+  if (isReplication && !isCreation)
+  {
+    // retrieve the current size to detect modification during replication
+    layOut->Stat(&updateStat);
+  }
+  
   if ((!rc) && isCreation && bookingsize)
   {
     // ----------------------------------
@@ -1401,16 +1407,23 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::closeofs ()
+XrdFstOfsFile::modified ()
 {
   int rc = 0;
-
   bool fileExists = true;
 
   struct stat statinfo;
-  if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
+  if (layOut) 
   {
-    fileExists = false;
+    if ((layOut->Stat(&statinfo)))
+      fileExists = false;
+  }
+  else 
+  {
+    if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
+    {
+      fileExists = false;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1449,8 +1462,13 @@ XrdFstOfsFile::closeofs ()
                 "file has been modified during replication", Path.c_str());
     }
   }
+  return rc;
+}
 
-
+int
+XrdFstOfsFile::closeofs ()
+{
+  int rc = 0;
   rc |= XrdOfsFile::close();
   return rc;
 }
@@ -2108,11 +2126,13 @@ XrdFstOfsFile::close ()
 
     if (layOut)
     {
+      rc |= modified();
       closerc = layOut->Close();
       rc |= closerc;
     }
     else
     {
+      rc |= modified();
       rc |= closeofs();
     }
 

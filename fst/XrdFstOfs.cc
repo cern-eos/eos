@@ -1081,7 +1081,6 @@ XrdFstOfs::_rem (const char* path,
                  bool ignoreifnotexist)
 {
   EPNAME("rem");
-  int retc = SFS_OK;
   XrdOucString fstPath = "";
   const char* localprefix = 0;
   const char* hexfid = 0;
@@ -1116,36 +1115,20 @@ XrdFstOfs::_rem (const char* path,
     fstPath = fstpath;
   }
 
-  struct stat statinfo;
-
-  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
-  {
-    if (!ignoreifnotexist)
-    {
-      eos_notice("unable to delete file - file does not exist (anymore): %s "
-                 "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
-      return gOFS.Emsg(epname, error, ENOENT, "delete file - file does not exist", fstPath.c_str());
-    }
-  }
-
   eos_info("fstpath=%s", fstPath.c_str());
   int rc = 0;
 
-  if (!retc)
-  {
-    // unlink file and possible blockxs file
-    errno = 0;
-    rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
+  // unlink file and possible blockxs file
+  errno = 0;
+  // eos::common::LayoutId::GetIoType(fstPath.c_str())
+  std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(fstPath.c_str())));
 
-    if (rc)
-      eos_info("rc=%d errno=%d", rc, errno);
-  }
-
-  if (ignoreifnotexist)
+  if (!io) 
   {
-    // hide error if a deleted file is deleted
-    rc = 0;
+    return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble", fstPath.c_str());
   }
+  
+  rc = io->Delete(fstPath.c_str());
 
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid))
@@ -1155,10 +1138,27 @@ XrdFstOfs::_rem (const char* path,
   }
 
   if (rc)
-  {
-    return rc;
-  }
+  { 
 
+    if (errno == ENOENT) 
+    {
+      if (ignoreifnotexist)
+      {
+	// hide error if a deleted file is deleted
+	rc = 0;
+      }
+      else 
+      {
+	eos_notice("unable to delete file - file does not exist (anymore): %s "
+		   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+      }
+    }
+    if (rc)
+    {
+      return gOFS.Emsg(epname, error, errno, "delete file", fstPath.c_str());
+    }
+  }
+    
   if (!gFmdSqliteHandler.DeleteFmd(fid, fsid))
   {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
