@@ -29,6 +29,7 @@
 #include "fst/io/ChunkHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClBuffer.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -676,18 +677,28 @@ XrdIo::Exists(const char* url)
   errno = 0;
   if (!status.IsOK())
   {
-    errno = EIO;
-    mLastErrMsg = "failed to check for existance";
+    if (status.errNo == kXR_NotFound)
+    {
+      errno = ENOENT;
+      mLastErrMsg = "no such file or directory";
+    }
+    else
+    {
+      errno = EIO;
+      mLastErrMsg = "failed to check for existance";
+    }
+
     return SFS_ERROR;
   }
   if (stat) 
   {
     delete stat;
-    return true;
+    return SFS_OK;
   }
   else
   {
-    return false;
+    errno = ENODATA;
+    return SFS_ERROR;
   }
 }
 
@@ -769,6 +780,106 @@ XrdIo::GetAsyncHandler ()
 {
   return static_cast<void*> (mMetaHandler);
 }
+
+
+//------------------------------------------------------------------------------
+// Run a space query command as statfs
+//------------------------------------------------------------------------------
+
+int 
+XrdIo::Statfs (const char* path, struct statfs* sfs)
+{
+  XrdCl::URL xUrl(path);
+  XrdCl::FileSystem fs(xUrl);
+
+  XrdCl::Buffer *response = 0;
+  XrdCl::Buffer arg( xUrl.GetPath().size() );
+  arg.FromString( xUrl.GetPath() );
+
+  XrdCl::XRootDStatus status = fs.Query(
+					XrdCl::QueryCode::Space,
+					arg,
+					response,
+					(uint16_t)15);
+
+  errno = 0;
+
+  if (!status.IsOK())
+  {
+    eos_err("msg=\"failed to statfs remote XRootD\" url=\"%s\"", path);
+    mLastErrMsg = "failed to statfs remote XRootD";
+    errno = EREMOTEIO;
+    return errno;
+  }
+  
+  if (response) 
+  {
+    //  oss.cgroup=default&oss.space=469799256416256&oss.free=468894771826688&oss.maxf=68719476736&oss.used=904484589568&oss.quota=469799256416256
+    XrdOucEnv spaceEnv(response->ToString().c_str());
+
+    unsigned long long free_bytes = 0;
+    unsigned long long used_bytes = 0;
+    unsigned long long total_bytes = 0;
+    unsigned long long max_file = 0;
+
+    if (spaceEnv.Get("oss.free")) 
+    {
+      free_bytes = strtoull(spaceEnv.Get("oss.free"),0,10);
+    }
+    else 
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    if (spaceEnv.Get("oss.used"))
+    {
+      used_bytes = strtoull(spaceEnv.Get("oss.used"),0,10);
+    }
+    else
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    if (spaceEnv.Get("oss.maxf"))
+    {
+      max_file = strtoull(spaceEnv.Get("oss.maxf"),0,10);
+    } 
+    else 
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    if (spaceEnv.Get("oss.space"))
+    {
+      total_bytes = strtoull(spaceEnv.Get("oss.space"),0,10);
+    }
+    else 
+    {
+      errno = EINVAL;
+      return errno;
+    }
+    
+    sfs->f_frsize = 4096;
+    sfs->f_bsize = sfs->f_frsize;
+    sfs->f_blocks = (fsblkcnt_t) ( total_bytes / sfs->f_frsize);
+    sfs->f_bavail = (fsblkcnt_t) ( free_bytes / sfs->f_frsize);
+    sfs->f_bfree = sfs->f_bavail;
+    sfs->f_files = 1000000;
+    sfs->f_ffree = 1000000;
+    delete response;
+
+    return 0;
+  }
+  else
+  {
+    errno = EREMOTEIO;
+    return errno;
+  }
+}
+
 
 EOSFSTNAMESPACE_END
 

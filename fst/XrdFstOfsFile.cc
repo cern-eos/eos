@@ -774,6 +774,16 @@ XrdFstOfsFile::open (const char* path,
   if ((retc = layOut->GetFileIo()->Exists(fstPath.c_str())))
   {
     //..........................................................................
+    // We have to distinguish if an Exists call fails or return ENOENT, otherwise
+    // we might trigger an automatic clean-up of a file !!!
+    //..........................................................................
+    if (errno != ENOENT)
+    {
+      delete fMd;
+      return gOFS.Emsg(epname, error, EIO, "open - unable to check for existance of file ",
+		       capOpaque->Env(envlen));
+    }
+    //..........................................................................
     // File does not exist, keep the create lfag
     //..........................................................................
     isCreation = true;

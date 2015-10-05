@@ -298,11 +298,7 @@ public:
   //! @return 0 if successful otherwise errno
   //--------------------------------------------------------------------------
 
-  int Statfs (const char* path, struct statfs* statFs)
-  {
-    eos_info("path=%s", path);
-    return -ENODATA;
-  }
+  int Statfs (const char* path, struct statfs* statFs);
 
   //--------------------------------------------------------------------------
   //! Class implementing extended attribute support
