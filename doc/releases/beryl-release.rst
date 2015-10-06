@@ -6,6 +6,11 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.133 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+- fix wrong EXITSTATUS() macro preventing clean Slave2Master transitions
 
 ``Version V0.3.132 Beryl_Aquamarine``
 
