@@ -698,8 +698,10 @@ xrd_dir_cache_add_entry (unsigned long long inode,
 eos::common::RWMutex rwmutex_fd2fabst;
 google::dense_hash_map<int, FileAbstraction*> fd2fabst;
 
-// Map <inode, user> to a file descriptor - used only in the xrd_stat method
-google::dense_hash_map<std::string, int> inodeuser2fd;
+// Map <inode, user> to a file descriptor
+google::dense_hash_map<std::string, int> inodexrdlogin2fd;
+// Helper function to construct a key in the previous map
+std::string get_xrd_login(uid_t uid, gid_t gid, pid_t pid);
 
 // Pool of available file descriptors
 int base_fd = 1;
@@ -740,23 +742,23 @@ xrd_generate_fd ()
 int
 xrd_add_fd2file (LayoutWrapper* raw_file,
                  unsigned long inode,
-                 uid_t uid,
+                 uid_t uid, gid_t gid, pid_t pid ,
                  const char* path="")
 {
   eos_static_debug("file raw ptr=%p, inode=%lu, uid=%lu",
                    raw_file, inode, (unsigned long) uid);
   int fd = -1;
   std::ostringstream sstr;
-  sstr << inode << ":" << (unsigned long)uid;
+  sstr << inode << ":" << get_xrd_login(uid,gid,pid);
 
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-  auto iter_fd = inodeuser2fd.find(sstr.str());
+  auto iter_fd = inodexrdlogin2fd.find(sstr.str());
 
   // If there is already an entry for the current user and the current inode
   // then we return the old fd
   while (!raw_file)
   {
-    if (iter_fd != inodeuser2fd.end())
+    if (iter_fd != inodexrdlogin2fd.end())
     {
       eos_static_warning("inodeuid mapping exists, just return old fd=%i",
                          iter_fd->second);
@@ -781,7 +783,7 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
   {
     FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
     fd2fabst[fd] = fabst;
-    inodeuser2fd[sstr.str()] = fd;
+    inodexrdlogin2fd[sstr.str()] = fd;
   }
   else
   {
@@ -851,20 +853,20 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
 
       // Remove entry also from the inodeuser2fd
       std::ostringstream sstr;
-      sstr << inode << ":" << (unsigned long)uid;
-      auto iter1 = inodeuser2fd.find(sstr.str());
+      sstr << inode << ":" << get_xrd_login(uid,gid,pid);
+      auto iter1 = inodexrdlogin2fd.find(sstr.str());
 
-      if (iter1 != inodeuser2fd.end())
-        inodeuser2fd.erase(iter1);
+      if (iter1 != inodexrdlogin2fd.end())
+        inodexrdlogin2fd.erase(iter1);
       else
       {
 	// if a file is repaired during an RW open, the inode can change and we find the fd in a different inode
 	// search the map for the filedescriptor and remove it
-	for (iter1 = inodeuser2fd.begin(); iter1 != inodeuser2fd.end(); ++iter1)
+	for (iter1 = inodexrdlogin2fd.begin(); iter1 != inodexrdlogin2fd.end(); ++iter1)
 	{
 	  if (iter1->second == fd)
 	  {
-	    inodeuser2fd.erase(iter1);
+	    inodexrdlogin2fd.erase(iter1);
 	    break;
 	  }
 	}
@@ -1494,6 +1496,10 @@ int update_proc_cache (uid_t uid, gid_t gid, pid_t pid)
   return authidmanager.updateProcCache(uid,gid,pid);
 }
 
+std::string get_xrd_login(uid_t uid, gid_t gid, pid_t pid)
+{
+  return (use_user_krb5cc||use_user_gsiproxy)?authidmanager.getXrdLogin(pid):xrd_mapuser (uid, gid, pid,0);
+}
 
 //------------------------------------------------------------------------------
 //             ******* XROOTD interface functions *******
@@ -1812,7 +1818,7 @@ xrd_stat (const char* path,
   eos::common::Timing stattiming("xrd_stat");
   off_t file_size = -1;
   struct timespec atime,mtime;
-  atime.tv_sec = mtime.tv_sec = 0;
+  atime.tv_sec = atime.tv_nsec = mtime.tv_sec= mtime.tv_nsec = 0;
   errno = 0;
   COMMONTIMING("START", &stattiming);
 
@@ -1826,11 +1832,11 @@ xrd_stat (const char* path,
                      path, (unsigned long) uid, inode);
     eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
     std::ostringstream sstr;
-    sstr << inode << ":" << (unsigned long)uid;
+    sstr << inode << ":" << get_xrd_login(uid,gid,pid);
     google::dense_hash_map<std::string, int>::iterator
-      iter_fd = inodeuser2fd.find(sstr.str());
+      iter_fd = inodexrdlogin2fd.find(sstr.str());
 
-    if (iter_fd != inodeuser2fd.end())
+    if (iter_fd != inodexrdlogin2fd.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
         iter_file = fd2fabst.find(iter_fd->second);
@@ -2188,15 +2194,15 @@ xrd_chmod (const char* path,
 int
 xrd_set_utimes_close(unsigned long long inode,
                     struct timespec* tvp,
-                    uid_t uid)
+                    uid_t uid, gid_t gid, pid_t pid)
 {
   // try to attach the utimes call until a referenced filedescriptor on that path is closed
   std::ostringstream sstr;
-  sstr << inode << ":" << (unsigned long)uid;
+  sstr << inode << ":" << get_xrd_login(uid,gid,pid);
   {
     eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-    auto iter_fd = inodeuser2fd.find(sstr.str());
-    if (iter_fd != inodeuser2fd.end())
+    auto iter_fd = inodexrdlogin2fd.find(sstr.str());
+    if (iter_fd != inodexrdlogin2fd.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
         iter_file = fd2fabst.find(iter_fd->second);
@@ -2968,7 +2974,7 @@ xrd_open (const char* path,
   spath += path;
   errno = 0;
   int t0;
-  int retc = xrd_add_fd2file(0, *return_inode, uid, path);
+  int retc = xrd_add_fd2file(0, *return_inode, uid, gid, pid, path);
 
   if (retc != -1)
   {
@@ -3032,7 +3038,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid);
+        retc = xrd_add_fd2file(file, *return_inode, uid, gid, pid);
         return retc;
       }
     }
@@ -3061,7 +3067,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid);
+        retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid);
         return retc;
       }
     }
@@ -3091,7 +3097,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid);
+        retc = xrd_add_fd2file(file, *return_inode, uid,gid,pid);
         return retc;
       }
     }
@@ -3205,7 +3211,7 @@ xrd_open (const char* path,
                                (unsigned long)*return_inode);
             }
 
-            retc = xrd_add_fd2file(new LayoutWrapper( file , use_localtime_consistency), *return_inode, uid);
+            retc = xrd_add_fd2file(new LayoutWrapper( file , use_localtime_consistency), *return_inode, uid,gid,pid);
             return retc;
           }
         }
@@ -3266,14 +3272,14 @@ xrd_open (const char* path,
 	// an inode of an existing file can be changed during the process of an open due to an auto-repair
 	std::ostringstream sstr_old;
 	std::ostringstream sstr_new;
-	sstr_old << old_ino << ":" << (unsigned long)uid;
-	sstr_new << new_ino << ":" << (unsigned long)gid;
+	sstr_old << old_ino << ":" << get_xrd_login(uid,gid,pid);
+	sstr_new << new_ino << ":" << get_xrd_login(uid,gid,pid);
 	{
 	  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-	  if (inodeuser2fd.count(sstr_old.str()))
+	  if (inodexrdlogin2fd.count(sstr_old.str()))
 	  {
-	    inodeuser2fd[sstr_new.str()] = inodeuser2fd[sstr_old.str()];
-	    inodeuser2fd.erase(sstr_old.str());
+	    inodexrdlogin2fd[sstr_new.str()] = inodexrdlogin2fd[sstr_old.str()];
+	    inodexrdlogin2fd.erase(sstr_old.str());
 	  }
 	}
 
@@ -3292,7 +3298,7 @@ xrd_open (const char* path,
       eos_static_debug("path=%s opened ino=%lu", path, (unsigned long)*return_inode);
     }
 
-    retc = xrd_add_fd2file(file, *return_inode, uid, path);
+    retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid,path);
 
     COMMONTIMING("end", &opentiming);
     
@@ -3446,11 +3452,11 @@ xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsiz
                      fullpath, (unsigned long) uid, inode);
     eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
     std::ostringstream sstr;
-    sstr << inode << ":" << (unsigned long)uid;
+    sstr << inode << ":" << get_xrd_login(uid,gid,pid);
     google::dense_hash_map<std::string, int>::iterator
-      iter_fd = inodeuser2fd.find(sstr.str());
+      iter_fd = inodexrdlogin2fd.find(sstr.str());
 
-    if (iter_fd != inodeuser2fd.end())
+    if (iter_fd != inodexrdlogin2fd.end())
     {
       return xrd_truncate(iter_fd->second,truncsize);
     }
@@ -4110,8 +4116,8 @@ xrd_init ()
   inode2cache.set_empty_key(0);
   inode2cache.set_deleted_key(0xffffffffll);
 
-  inodeuser2fd.set_empty_key("");
-  inodeuser2fd.set_deleted_key("#__deleted__#");
+  inodexrdlogin2fd.set_empty_key("");
+  inodexrdlogin2fd.set_deleted_key("#__deleted__#");
 
   fd2fabst.set_empty_key(-1);
   fd2fabst.set_deleted_key(-2);

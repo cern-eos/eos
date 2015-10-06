@@ -215,7 +215,7 @@ eosfs_ll_setattr (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
 
-    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid)) ) {
+    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid, req->ctx.gid, req->ctx.pid)) ) {
       retc = xrd_utimes (fullpath, tvp,
 			 req->ctx.uid,
 			 req->ctx.gid,
