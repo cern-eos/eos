@@ -51,6 +51,7 @@ class Dispatcher(object):
         self.config = config
         self.logger = logging.getLogger("dispatcher")
         self.procs = {}
+        self.pending = {}
         self.backend_req, self.backend_pub, self.backend_poller = None, None, None
 
     def run(self):
@@ -228,6 +229,15 @@ class Dispatcher(object):
             if not pinfo.is_alive():
                 del self.procs[pinfo.uuid]
 
+        # Submit any pending transfers while the limit is not exceeded
+        while len(self.procs) < self.config.MAX_TRANSFERS and self.pending:
+            (__, pinfo) = self.pending.popitem() # take the oldest one
+            # Don't pipe stdout and stderr as we log all the output
+            pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(pinfo.orig_req)],
+                                          close_fds=True)
+            pinfo.pid = pinfo.proc.pid
+            self.procs[pinfo.uuid] = pinfo
+
     def start_transfer(self, req_json):
         """ Start new transfer
 
@@ -246,18 +256,19 @@ class Dispatcher(object):
             of the request.
         """
         self.logger.debug("Start transfer {0}".format(req_json))
-
-        if len(self.procs) >= self.config.MAX_TRANSFERS:
-            self.logger.warning("Maximum number of concurrent transfers reached")
-            return "ERROR error: max number of transfers reached"
-
         pinfo = ProcessInfo(req_json)
-        self.logger.debug("Adding job={0}, path={1}".format(pinfo.uuid, pinfo.root_dir))
+        self.logger.debug("Creating job={0}, path={1}".format(pinfo.uuid, pinfo.root_dir))
 
         if pinfo.uuid in self.procs:
             err_msg = "Job with same uuid={0} already exists".format(pinfo.uuid)
             self.logger.error(err_msg)
             return "ERROR error: job with same signature exists"
+
+        if len(self.procs) >= self.config.MAX_TRANSFERS:
+            self.logger.warning("Maximum number of concurrent transfers reached, "
+                                "adding job={0} to the pending list".format(pinfo.uuid))
+            self.pending[pinfo.uuid] = pinfo
+            return "OK Id={0} added to the pending list".format(pinfo.uuid)
 
         # Don't pipe stdout and stderr as we log all the output
         pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(req_json)],
@@ -288,12 +299,14 @@ class Dispatcher(object):
         self.logger.debug("Show transfers type={0}".format(ls_type))
 
         if ls_type == "all":
-            proc_list = self.procs.itervalues()
+            proc_list = self.procs.values()
+            proc_list.extend(self.pending.values())
         elif ls_type in self.procs:
             # ls_type is a transfer uuid
             proc_list.append(self.procs[ls_type])
         else:
             proc_list = [elem for elem in self.procs.itervalues() if elem.op == ls_type]
+            proc_list.extend([elem for elem in self.pending.itervalues() if elem.op == ls_type])
 
         for proc in proc_list:
             row_data.append((time.asctime(time.localtime(proc.timestamp)), proc.uuid,
