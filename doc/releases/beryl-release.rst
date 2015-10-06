@@ -7,6 +7,12 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.132 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+- revert faulty bug fix introduced in 0.3.130 preventing a slave to boot the file namespace
+
 ``Version V0.3.131 Beryl_Aquamarine``
 
 Bug Fixes
