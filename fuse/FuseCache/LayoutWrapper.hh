@@ -26,11 +26,8 @@
 
 #include "FileAbstraction.hh"
 
-// forward declaration
-class FileAbstraction;
-
 //------------------------------------------------------------------------------
-//! Class that that wraps a FileLayout to keep track of change times and to
+//! Class that wraps a FileLayout to keep track of change times and to
 //  be able to close the layout and be able to automatically reopen it if it's needed
 //  This is a trick needed because the flush function if the fuse API can be called
 //  several times and it's not clear if the file can still be used in between
@@ -38,24 +35,29 @@ class FileAbstraction;
 //------------------------------------------------------------------------------
 class LayoutWrapper
 {
-public:
+  friend class FileAbstraction;
+
   eos::fst::Layout* mFile;
   bool mOpen;
-  bool mHasWrite;
+  XrdSfsXferSize mDebugSize; // file size, debug purpose only
+  bool mDebugHasWrite; // debug purpose only
   std::string mPath;
   XrdSfsFileOpenMode mFlags;
   mode_t mMode;
   std::string mOpaque;
-  FileAbstraction *fabs;
-  timespec mLocalMtime, mLocalAtime;
+  FileAbstraction *mFabs;
+  bool mLocalTimeConsistent;
+  timespec mLocalUtime[2];
+  bool mDebugWasReopen; // debug purpose only
 
+public:
   //--------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param file layout to be wrapped
   //!
   //--------------------------------------------------------------------------
-  LayoutWrapper (eos::fst::Layout* file);
+  LayoutWrapper (eos::fst::Layout* file, bool localtimeconsistent);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -101,7 +103,7 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque);
+  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -116,12 +118,12 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int64_t Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length);
+  int64_t Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, bool touchMtime=true);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Truncate (XrdSfsFileOffset offset);
+  int Truncate (XrdSfsFileOffset offset, bool touchMtime=true);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -139,9 +141,34 @@ public:
   int Stat (struct stat* buf);
 
   //--------------------------------------------------------------------------
-  //! Set atime and mtime at current time
+  //! Set atime and mtime at current time and commit them at file closure
   //--------------------------------------------------------------------------
-  void UtimesNow ();
+  void UtimesToCommitNow ();
+
+  //--------------------------------------------------------------------------
+  //! Set atime and mtime according to argument without commit at file closure
+  //--------------------------------------------------------------------------
+  void Utimes ( const struct stat *buf);
+
+  //--------------------------------------------------------------------------
+  //! Get Last Opened Path
+  //--------------------------------------------------------------------------
+  std::string GetLastPath ();
+
+  //--------------------------------------------------------------------------
+  //! Is the file Opened
+  //--------------------------------------------------------------------------
+  bool IsOpen ();
+
+  //--------------------------------------------------------------------------
+  //! Path accessor
+  //--------------------------------------------------------------------------
+  inline const std::string & GetOpenPath() const {return mPath;}
+
+  //--------------------------------------------------------------------------
+  //! Open Flags accessors
+  //--------------------------------------------------------------------------
+  inline const XrdSfsFileOpenMode & GetOpenFlags() const {return mFlags;}
 };
 
 #endif

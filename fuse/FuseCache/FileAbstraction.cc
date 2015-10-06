@@ -50,10 +50,9 @@ FileAbstraction::FileAbstraction(int fd, LayoutWrapper* file, const char* path) 
   errorsQueue = new eos::common::ConcurrentQueue<error_type > ();
   mCondUpdate = XrdSysCondVar(0);
 
-  mUtime[0].tv_sec = mUtime[1].tv_sec = 0;
-  mUtime[0].tv_nsec = mUtime[1].tv_nsec = 0;
-
-  mFile->fabs = this;
+  mFile->mFabs = this;
+  mUtime[0] = mFile->mLocalUtime[0];
+  mUtime[1] = mFile->mLocalUtime[1];
 }
 
 //------------------------------------------------------------------------------
