@@ -1817,24 +1817,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     MgmMaster.ApplyMasterConfig(stdOut, stdErr, 0);
   }
 
-
-  /*
-  if (MgmConfigAutoLoad.length()) {
-    eos_info("autoload config=%s", MgmConfigAutoLoad.c_str());
-    XrdOucString configloader = "mgm.config.file=";
-    configloader += MgmConfigAutoLoad;
-    XrdOucEnv configenv(configloader.c_str());
-    XrdOucString stdErr="";
-    if (!ConfEngine->LoadConfig(configenv, stdErr)) {
-      eos_crit("Unable to auto-load config %s - fix your configuration file!", MgmConfigAutoLoad.c_str());
-      eos_crit("%s\n", stdErr.c_str());
-      return 1;
-    } else {
-      eos_info("Successful auto-load config %s", MgmConfigAutoLoad.c_str());
-    }
-  }
-   */
-
   if (!MgmRedirector)
   {
     if (ErrorLog)
@@ -1855,15 +1837,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
 
-    if (MgmMaster.IsMaster())
     {
       eos_info("starting file view loader thread");
       if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *> (this),
 			     0, "File View Loader")))
-	{
-	  eos_crit("cannot start file view loader");
-	  NoGo = 1;
-	}
+      {
+	eos_crit("cannot start file view loader");
+	NoGo = 1;
+      }
     }
   }
 #ifdef EOS_INSTRUMENTED_RWMUTEX
