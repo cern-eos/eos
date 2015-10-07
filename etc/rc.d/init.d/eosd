@@ -94,6 +94,7 @@ start() {
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
         export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
+        export EOS_FUSE_LOCALTIMECONSISTENT=${EOS_FUSE_LOCALTIMECONSISTENT-0}
         # make sure that FUSE_OPT keeps the same default value
         export FUSE_OPT=${FUSE_OPT-"${FUSE_OPT_SAVE}"}
 
@@ -128,25 +129,26 @@ start() {
                 RETVAL=$SRETVAL;
             fi
             echo
-            echo "EOS_FUSE_DEBUG            : ${EOS_FUSE_DEBUG}"
-            echo "EOS_FUSE_NOACCESS         : ${EOS_FUSE_NOACCESS}"
-            echo "EOS_FUSE_KERNELCACHE      : ${EOS_FUSE_KERNELCACHE}"
-            echo "EOS_FUSE_DIRECTIO         : ${EOS_FUSE_DIRECTIO}"
-            echo "EOS_FUSE_CACHE            : ${EOS_FUSE_CACHE}"
-            echo "EOS_FUSE_CACHE_SIZE       : ${EOS_FUSE_CACHE_SIZE}"
-            echo "EOS_FUSE_CACHE_WRITE      : ${EOS_FUSE_CACHE_WRITE}"
-            echo "EOS_FUSE_BIGWRITES        : ${EOS_FUSE_BIGWRITES}"
-            echo "EOS_FUSE_EXEC             : ${EOS_FUSE_EXEC}"
-            echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
-            echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
-            echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
-            echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
-            echo "EOS_FUSE_USER_KRB5FIRST   : ${EOS_FUSE_USER_KRB5FIRST}"
-            echo "EOS_FUSE_PIDMAP           : ${EOS_FUSE_PIDMAP}"
-            echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
-            echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
-            echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
-            echo "EOS_FUSE_LOG_PREFIX       : ${EOS_FUSE_LOG_PREFIX}"
+            echo "EOS_FUSE_DEBUG               : ${EOS_FUSE_DEBUG}"
+            echo "EOS_FUSE_NOACCESS            : ${EOS_FUSE_NOACCESS}"
+            echo "EOS_FUSE_KERNELCACHE         : ${EOS_FUSE_KERNELCACHE}"
+            echo "EOS_FUSE_DIRECTIO            : ${EOS_FUSE_DIRECTIO}"
+            echo "EOS_FUSE_CACHE               : ${EOS_FUSE_CACHE}"
+            echo "EOS_FUSE_CACHE_SIZE          : ${EOS_FUSE_CACHE_SIZE}"
+            echo "EOS_FUSE_CACHE_WRITE         : ${EOS_FUSE_CACHE_WRITE}"
+            echo "EOS_FUSE_BIGWRITES           : ${EOS_FUSE_BIGWRITES}"
+            echo "EOS_FUSE_EXEC                : ${EOS_FUSE_EXEC}"
+            echo "EOS_FUSE_LOCK_ENVIRONMENT    : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
+            echo "EOS_FUSE_NO_MT               : ${EOS_FUSE_NO_MT}"
+            echo "EOS_FUSE_USER_KRB5CC         : ${EOS_FUSE_USER_KRB5CC}"
+            echo "EOS_FUSE_USER_GSIPROXY       : ${EOS_FUSE_USER_GSIPROXY}"
+            echo "EOS_FUSE_USER_KRB5FIRST      : ${EOS_FUSE_USER_KRB5FIRST}"
+            echo "EOS_FUSE_PIDMAP              : ${EOS_FUSE_PIDMAP}"
+            echo "EOS_FUSE_RMLVL_PROTECT       : ${EOS_FUSE_RMLVL_PROTECT}"
+            echo "EOS_FUSE_RDAHEAD             : ${EOS_FUSE_RDAHEAD}"
+            echo "EOS_FUSE_RDAHEAD_WINDOW      : ${EOS_FUSE_RDAHEAD_WINDOW}"
+            echo "EOS_FUSE_LOG_PREFIX          : ${EOS_FUSE_LOG_PREFIX}"
+            echo "EOS_FUSE_LOCALTIMECONSISTENT : ${EOS_FUSE_LOCALTIMECONSISTENT}"
         else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'

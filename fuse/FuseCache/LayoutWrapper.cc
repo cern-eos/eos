@@ -27,9 +27,11 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-LayoutWrapper::LayoutWrapper (eos::fst::Layout* file) :
-    mFile (file), mOpen (false), mHasWrite (false)
+LayoutWrapper::LayoutWrapper (eos::fst::Layout* file, bool localtimesoncistent) :
+    mFile (file), mOpen (false), mDebugSize(0), mDebugHasWrite (false), mFabs(NULL),  mLocalTimeConsistent(localtimesoncistent), mDebugWasReopen(false)
 {
+  mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
+  mLocalUtime[0].tv_nsec = mLocalUtime[1].tv_nsec = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -51,7 +53,7 @@ int LayoutWrapper::MakeOpen ()
   {
     if (mPath.size ())
     {
-      if (mFile->Open (mPath, mFlags, mMode, mOpaque.c_str ()))
+      if (Open (mPath, mFlags, mMode, mOpaque.c_str (),NULL))
       {
         eos_static_debug("error while openning");
         return -1;
@@ -60,9 +62,9 @@ int LayoutWrapper::MakeOpen ()
       {
         eos_static_debug("successfully opened");
         mOpen = true;
+        mDebugWasReopen = true;
         return 0;
       }
-
     }
     else
       return -1;
@@ -123,7 +125,7 @@ bool LayoutWrapper::IsEntryServer ()
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
-int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
+int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf)
 {
   eos_static_debug("opening file %s", path.c_str ());
   if (mOpen)
@@ -131,8 +133,9 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
     eos_static_debug("already open");
     return -1;
   }
+
   mPath = path;
-  mFlags = flags | ~O_TRUNC; // we don't want to truncate the file in case it does not exist
+  mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT); // we don't want to truncate the file in case we reopen it
   mMode = mode;
   mOpaque = opaque;
   if (mFile->Open (path, flags, mode, opaque))
@@ -144,6 +147,19 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   {
     eos_static_debug("successfully opened");
     mOpen = true;
+    struct stat s;
+    mFile->Stat (&s);
+    mDebugSize = s.st_size;
+
+    if(mLocalTimeConsistent)
+    {
+    // if the file is newly created or truncated, update and commit the mtime to now
+    if ((flags & SFS_O_TRUNC) || (!buf && (flags & SFS_O_CREAT)))
+      UtimesToCommitNow ();
+    // else we keep the timestamp of the existing file
+    else if (buf) Utimes (buf);
+    }
+
     return 0;
   }
 }
@@ -169,25 +185,46 @@ int64_t LayoutWrapper::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
-int64_t LayoutWrapper::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length)
+int64_t LayoutWrapper::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, bool touchMtime)
 {
-  LayoutWrapper::MakeOpen ();
-  mHasWrite = true;
-  // TODO: enable this to update the timestamp to local modification date
-  //  UtimesNow();
-  return mFile->Write (offset, buffer, length);
+  int retc = 0;
+  MakeOpen ();
+
+  if (length >= 0)
+  {
+    if ((retc = mFile->Write (offset, buffer, length)) < 0)
+    {
+      eos_static_err("Error writng from wrapper : file %s  opaque %s", mPath.c_str (), mOpaque.c_str ());
+      return -1;
+    }
+  }
+
+  mDebugHasWrite = true;
+
+  if (mLocalTimeConsistent && touchMtime) UtimesToCommitNow ();
+
+  if (offset + length > mDebugSize) mDebugSize = offset + length + 1;
+
+  return retc;
 }
 
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
-int LayoutWrapper::Truncate (XrdSfsFileOffset offset)
+int LayoutWrapper::Truncate (XrdSfsFileOffset offset, bool touchMtime)
 {
   MakeOpen ();
-  mHasWrite = true;
-  // TODO: enable this to update the timestamp to local modification date
-  //  UtimesNow();
-  return mFile->Truncate (offset);
+
+  if(mFile->Truncate (offset))
+    return -1;
+
+  mDebugHasWrite = true;
+
+  if(mLocalTimeConsistent && touchMtime)
+    UtimesToCommitNow();
+
+  mDebugSize = offset;
+  return 0;
 }
 
 //--------------------------------------------------------------------------
@@ -204,7 +241,7 @@ int LayoutWrapper::Sync ()
 //--------------------------------------------------------------------------
 int LayoutWrapper::Close ()
 {
-  eos_static_debug("closing file %s", mPath.c_str ());
+  eos_static_debug("closing file %s  WASREOPEN %d", mPath.c_str (), (int)mDebugWasReopen);
   if (!mOpen)
   {
     eos_static_debug("already closed");
@@ -218,7 +255,7 @@ int LayoutWrapper::Close ()
   else
   {
     mOpen = false;
-    mHasWrite = false;
+    mDebugHasWrite = false;
     eos_static_debug("successfully closed");
     return 0;
   }
@@ -230,16 +267,58 @@ int LayoutWrapper::Close ()
 int LayoutWrapper::Stat (struct stat* buf)
 {
   MakeOpen ();
-  return mFile->Stat (buf);
+  if (mFile->Stat (buf)) return -1;
+
+  // if we use the localtime consistency, replace the mtime on the fst by the mtime we keep in memory
+  if (mLocalTimeConsistent)
+  {
+    buf->st_atim = mLocalUtime[0];
+    buf->st_mtim = mLocalUtime[1];
+    buf->st_atime = buf->st_atim.tv_sec;
+    buf->st_mtime = buf->st_mtim.tv_sec;
+  }
+
+  return 0;
 }
 
 //--------------------------------------------------------------------------
 // Set atime and mtime at current time
 //--------------------------------------------------------------------------
-void LayoutWrapper::UtimesNow ()
+void LayoutWrapper::UtimesToCommitNow ()
 {
-  struct timespec ts[2];
-  clock_gettime (CLOCK_REALTIME, ts);
-  ts[1] = ts[0];
-  fabs->SetUtimes (ts);
+  clock_gettime (CLOCK_REALTIME, mLocalUtime);
+  // set local Utimes
+  mLocalUtime[1] = mLocalUtime[0];
+  eos_static_debug("setting timespec  atime:%lu.%.9lu      mtime:%lu.%.9lu",mLocalUtime[0].tv_sec,mLocalUtime[0].tv_nsec,mLocalUtime[1].tv_sec,mLocalUtime[1].tv_nsec);
+  // if using local time consistency, commit this time when the file closes
+  if(mLocalTimeConsistent && mFabs)
+    mFabs->SetUtimes (mLocalUtime);
+}
+
+
+//--------------------------------------------------------------------------
+// Set atime and mtime at current time
+//--------------------------------------------------------------------------
+void LayoutWrapper::Utimes (const struct stat *buf)
+{
+  // set local Utimes
+  mLocalUtime[0] = buf->st_atim;
+  mLocalUtime[1] = buf->st_mtim;
+  eos_static_debug("setting timespec  atime:%lu.%.9lu      mtime:%lu.%.9lu",mLocalUtime[0].tv_sec,mLocalUtime[0].tv_nsec,mLocalUtime[1].tv_sec,mLocalUtime[1].tv_nsec);
+}
+
+//--------------------------------------------------------------------------
+// Get Last Opened Path
+//--------------------------------------------------------------------------
+std::string LayoutWrapper::GetLastPath ()
+{
+  return mPath;
+}
+
+//--------------------------------------------------------------------------
+//! Is the file Opened
+//--------------------------------------------------------------------------
+bool LayoutWrapper::IsOpen ()
+{
+  return mOpen;
 }
