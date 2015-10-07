@@ -769,7 +769,7 @@ Master::Compacting ()
       {
 	// clean-up any old .oc file
 	rc = unlink(ocfile.c_str());
-	if (!WEXITSTATUS(rc))
+	if (!rc)
 	{
 	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(file) unlinked\""));
 	}
@@ -778,7 +778,7 @@ Master::Compacting ()
       if (CompactDirectories)
       {
 	rc = unlink(ocdir.c_str());
-	if (!WEXITSTATUS(rc))
+	if (!rc)
 	{
 	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
 	}
