@@ -1865,8 +1865,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s returned %d", errorlogline.c_str(), rrc);
     }
 
-
-    if (MgmMaster.IsMaster())
     {
       eos_info("starting file view loader thread");
 

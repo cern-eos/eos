@@ -1604,19 +1604,18 @@ Master::Slave2Master()
 
     eos::common::ShellCmd scmd3("service eos start sync");
     rc = scmd3.wait(30);
-
-    if (WEXITSTATUS(rc))
+    if (rc.exit_code)
+    {
       MasterLog(eos_warning("slave=>master transition - sync didnt' start"));
-
+    }
     return false;
   }
 
   eos::common::ShellCmd scmd3("service eos start sync");
   rc = scmd3.wait(30);
-
-  if (WEXITSTATUS(rc))
+  if (rc.exit_code)
   {
-    MasterLog(eos_warning("failed to start sync service"));
+    MasterLog(eos_warning("failed to start sync service - %d", rc.exit_code));
     MasterLog(eos_crit("slave=>master transition aborted since sync didn't start"));
 
     try
