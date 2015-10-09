@@ -146,23 +146,23 @@ class GeoTreeEngine : public eos::common::LogId
     FastStructures()
     {
       rOAccessTree = new FastROAccessTree;
-      rOAccessTree->selfAllocate(255);
+      rOAccessTree->selfAllocate(65535);
       rWAccessTree = new FastRWAccessTree;
-      rWAccessTree->selfAllocate(255);
+      rWAccessTree->selfAllocate(65535);
       blcAccessTree = new FastBalancingAccessTree;
-      blcAccessTree->selfAllocate(255);
+      blcAccessTree->selfAllocate(65535);
       drnAccessTree = new FastDrainingAccessTree;
-      drnAccessTree->selfAllocate(255);
+      drnAccessTree->selfAllocate(65535);
       placementTree = new FastPlacementTree;
-      placementTree->selfAllocate(255);
+      placementTree->selfAllocate(65535);
       blcPlacementTree = new FastBalancingPlacementTree;
-      blcPlacementTree->selfAllocate(255);
+      blcPlacementTree->selfAllocate(65535);
       drnPlacementTree = new FastDrainingPlacementTree;
-      drnPlacementTree->selfAllocate(255);
+      drnPlacementTree->selfAllocate(65535);
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
-      penalties->reserve(255);
+      penalties->reserve(65535);
 
       rOAccessTree->pFs2Idx
       = rWAccessTree->pFs2Idx
@@ -183,10 +183,10 @@ class GeoTreeEngine : public eos::common::LogId
       = treeInfo;
 
       fs2TreeIdx = new Fs2TreeIdxMap;
-      fs2TreeIdx->selfAllocate(255);
+      fs2TreeIdx->selfAllocate(65535);
 
       tag2NodeIdx = new GeoTag2NodeIdxMap;
-      tag2NodeIdx->selfAllocate(255);
+      tag2NodeIdx->selfAllocate(65535);
     }
 
     ~FastStructures()
