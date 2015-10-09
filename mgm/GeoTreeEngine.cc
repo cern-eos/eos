@@ -44,7 +44,7 @@ EOSMGMNAMESPACE_BEGIN
 
 GeoTreeEngine gGeoTreeEngine;
 
-const size_t GeoTreeEngine::gGeoBufferSize = 64 * 1024;
+const size_t GeoTreeEngine::gGeoBufferSize = 4 * 1024 * 1024; // maybe 2*1024*1024 is enough
 __thread void* GeoTreeEngine::tlGeoBuffer = NULL;
 __thread const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
 
