@@ -1314,7 +1314,7 @@ public:
     checkConsistency(node, true);
   }
 
-  unsigned char
+  inline tFastTreeIdx
   getMaxNodeCount() const
   {
     return pMaxNodeCount;
