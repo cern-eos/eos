@@ -329,7 +329,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     {
       mapEntry->slowTreeMutex.UnLockWrite();
       pTreeMapMutex.LockRead();
-      eos_err("error inserting fs %lu into group %s : fast structures update failed",
+      eos_err("error inserting fs %lu into group %s/%s : fast structures update failed",
 	  fsid,
 	  group->mName.c_str(),
 	  pFs2TreeMapEntry[fsid]->group->mName.c_str()
@@ -476,7 +476,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
   {
     mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockRead();
-    eos_err("error removing fs %lu from group %s : fast structures update failed",
+    eos_err("error removing fs %lu from group %s/%s : fast structures update failed",
 	fsid,
 	group->mName.c_str(),
 	pFs2TreeMapEntry[fsid]->group->mName.c_str()
@@ -2027,7 +2027,7 @@ void GeoTreeEngine::updateAtomicPenalties()
         {
           // the fs/host is saturated, we don't use the whole host in the estimate
           if(it->second.saturated)
-          eos_debug("fs update in node %s : box is saturated");
+          eos_debug("fs update in node %s : box is saturated", nodestr.c_str());
 // could force to get everything
 //          long long wopen = node->SumLongLong("stat.wopen",false);
 //          long long ropen = node->SumLongLong("stat.ropen",false);
@@ -2076,8 +2076,8 @@ void GeoTreeEngine::updateAtomicPenalties()
           }
           else
           {
-            eos_debug("netSpeedClass %d : using update values %lf for penalties with weight %f%%",
-                netSpeedClass, pPenaltyUpdateRate);
+            eos_debug("netSpeedClass %d : using update values %lf for penalties with weight %f",
+                netSpeedClass, update, pPenaltyUpdateRate);
             eos_debug("netSpeedClass %d : values before update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
                 netSpeedClass, pAccessDlScorePenaltyF[netSpeedClass],pPlctDlScorePenaltyF[netSpeedClass],pAccessUlScorePenaltyF[netSpeedClass],pPlctUlScorePenaltyF[netSpeedClass]);
             union
@@ -2321,7 +2321,6 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
     {
       // first, clear the list of disabled branches
       gGeoTreeEngine.rmDisabledBranch("*","*","*",NULL);
-      eos_warning("disablebranches full line %s",value.c_str());
       // remove leading and trailing square brackets
       string list(value.substr(2,value.size()-4));
       // from the end to avoid reallocation of the string
@@ -2329,15 +2328,11 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
       while((idxr=list.rfind(')'))!=std::string::npos && ok)
       {
         idxl=list.rfind('(');
-        eos_warning("disablebranches full token %s",value.c_str()+idxl);
         auto comidx = list.find(',',idxl);
         string geotag(list.substr(idxl+1,comidx-idxl-1));
-        eos_warning("geotag token %s",geotag.c_str());
         auto comidx2 = list.find(',',comidx+1);
         string optype(list.substr(comidx+1,comidx2-comidx-1));
-        eos_warning("optype token %s",optype.c_str());
         string group(list.substr(comidx2+1,idxr-comidx2-1));
-        eos_warning("group token %s",group.c_str());
         ok = ok && gGeoTreeEngine.addDisabledBranch(group,optype,geotag,NULL);
         list.erase(idxl,std::string::npos);
       }
