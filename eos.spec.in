@@ -164,9 +164,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libEosFstOss.so.%{version}
 %{_libdir}/libEosFstOss.so.0
 %{_libdir}/libEosFstOss.so
-%{_libdir}/libXrdEosAuth.so.%{version}
-%{_libdir}/libXrdEosAuth.so.0
-%{_libdir}/libXrdEosAuth.so
 %{_libdir}/libXrdEosFst.so.%{version}
 %{_libdir}/libXrdEosFst.so.0
 %{_libdir}/libXrdEosFst.so
