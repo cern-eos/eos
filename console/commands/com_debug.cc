@@ -94,7 +94,8 @@ com_debug (char* arg1)
   fprintf(stdout, "                                                  set the MGM where the console is connected to into debug level <level>\n");
   fprintf(stdout, "debug  <node-queue> <level> [-filter <unitlist>] :\n");
   fprintf(stdout, "                                                  set the <node-queue> into debug level <level>. <node-queue> are internal EOS names e.g. '/eos/<hostname>:<port>/fst'\n");
-  fprintf(stdout, "     <unitlist> : a comma seperated list of strings of software units which should be filtered out in the message log ! The default filter list is 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash'.\n\n");
+  fprintf(stdout, "     <unitlist> : a comma seperated list of strings of software units which should be filtered out in the message log ! The default filter list is 'Process,AddQuota,UpdateHint,UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,\n");
+  fprintf(stdout, "                                                                            placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures'.\n\n");
   fprintf(stdout, "The allowed debug levels are: debug info warning notice err crit alert emerg\n\n");
   fprintf(stdout, "Examples:\n");
   fprintf(stdout, "  debug info *                        set MGM & all FSTs into debug mode 'info'\n\n");

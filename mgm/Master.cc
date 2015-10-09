@@ -162,6 +162,9 @@ Master::Init()
   else
     fCheckRemote = false;
 
+  // start the heartbeat thread anyway
+  XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
+
   // get sync up if it is not up
   eos::common::ShellCmd scmd1("service eos status sync || service eos start sync");
   eos::common::cmd_status rc = scmd1.wait(30);
