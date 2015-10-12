@@ -146,23 +146,23 @@ class GeoTreeEngine : public eos::common::LogId
     FastStructures()
     {
       rOAccessTree = new FastROAccessTree;
-      rOAccessTree->selfAllocate(65535);
+      rOAccessTree->selfAllocate(FastROAccessTree::sGetMaxNodeCount());
       rWAccessTree = new FastRWAccessTree;
-      rWAccessTree->selfAllocate(65535);
+      rWAccessTree->selfAllocate(FastRWAccessTree::sGetMaxNodeCount());
       blcAccessTree = new FastBalancingAccessTree;
-      blcAccessTree->selfAllocate(65535);
+      blcAccessTree->selfAllocate(FastBalancingAccessTree::sGetMaxNodeCount());
       drnAccessTree = new FastDrainingAccessTree;
-      drnAccessTree->selfAllocate(65535);
+      drnAccessTree->selfAllocate(FastDrainingAccessTree::sGetMaxNodeCount());
       placementTree = new FastPlacementTree;
-      placementTree->selfAllocate(65535);
+      placementTree->selfAllocate(FastPlacementTree::sGetMaxNodeCount());
       blcPlacementTree = new FastBalancingPlacementTree;
-      blcPlacementTree->selfAllocate(65535);
+      blcPlacementTree->selfAllocate(FastBalancingPlacementTree::sGetMaxNodeCount());
       drnPlacementTree = new FastDrainingPlacementTree;
-      drnPlacementTree->selfAllocate(65535);
+      drnPlacementTree->selfAllocate(FastDrainingPlacementTree::sGetMaxNodeCount());
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
-      penalties->reserve(65535);
+      penalties->reserve(SchedTreeBase::sGetMaxNodeCount());
 
       rOAccessTree->pFs2Idx
       = rWAccessTree->pFs2Idx
@@ -183,10 +183,10 @@ class GeoTreeEngine : public eos::common::LogId
       = treeInfo;
 
       fs2TreeIdx = new Fs2TreeIdxMap;
-      fs2TreeIdx->selfAllocate(65535);
+      fs2TreeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
 
       tag2NodeIdx = new GeoTag2NodeIdxMap;
-      tag2NodeIdx->selfAllocate(65535);
+      tag2NodeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
     }
 
     ~FastStructures()

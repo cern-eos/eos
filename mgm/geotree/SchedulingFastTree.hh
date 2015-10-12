@@ -1327,6 +1327,11 @@ public:
     return pMaxNodeCount;
   }
 
+  inline static size_t sGetMaxDataMemSize()
+  {
+    return (sizeof(FastTreeNode) + sizeof(Branch)) * sGetMaxNodeCount();
+  }
+
   inline tFastTreeIdx
   getNodeCount() const
   {

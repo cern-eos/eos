@@ -44,7 +44,7 @@ EOSMGMNAMESPACE_BEGIN
 
 GeoTreeEngine gGeoTreeEngine;
 
-const size_t GeoTreeEngine::gGeoBufferSize = 4 * 1024 * 1024; // maybe 2*1024*1024 is enough
+const size_t GeoTreeEngine::gGeoBufferSize = sizeof(FastPlacementTree) + FastPlacementTree::sGetMaxDataMemSize(); // we assume that all the trees have the same max size, we should take the max of all the sizes otherwise
 __thread void* GeoTreeEngine::tlGeoBuffer = NULL;
 __thread const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
 
