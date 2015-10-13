@@ -146,23 +146,23 @@ class GeoTreeEngine : public eos::common::LogId
     FastStructures()
     {
       rOAccessTree = new FastROAccessTree;
-      rOAccessTree->selfAllocate(65535);
+      rOAccessTree->selfAllocate(FastROAccessTree::sGetMaxNodeCount());
       rWAccessTree = new FastRWAccessTree;
-      rWAccessTree->selfAllocate(65535);
+      rWAccessTree->selfAllocate(FastRWAccessTree::sGetMaxNodeCount());
       blcAccessTree = new FastBalancingAccessTree;
-      blcAccessTree->selfAllocate(65535);
+      blcAccessTree->selfAllocate(FastBalancingAccessTree::sGetMaxNodeCount());
       drnAccessTree = new FastDrainingAccessTree;
-      drnAccessTree->selfAllocate(65535);
+      drnAccessTree->selfAllocate(FastDrainingAccessTree::sGetMaxNodeCount());
       placementTree = new FastPlacementTree;
-      placementTree->selfAllocate(65535);
+      placementTree->selfAllocate(FastPlacementTree::sGetMaxNodeCount());
       blcPlacementTree = new FastBalancingPlacementTree;
-      blcPlacementTree->selfAllocate(65535);
+      blcPlacementTree->selfAllocate(FastBalancingPlacementTree::sGetMaxNodeCount());
       drnPlacementTree = new FastDrainingPlacementTree;
-      drnPlacementTree->selfAllocate(65535);
+      drnPlacementTree->selfAllocate(FastDrainingPlacementTree::sGetMaxNodeCount());
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
-      penalties->reserve(65535);
+      penalties->reserve(SchedTreeBase::sGetMaxNodeCount());
 
       rOAccessTree->pFs2Idx
       = rWAccessTree->pFs2Idx
@@ -183,10 +183,10 @@ class GeoTreeEngine : public eos::common::LogId
       = treeInfo;
 
       fs2TreeIdx = new Fs2TreeIdxMap;
-      fs2TreeIdx->selfAllocate(65535);
+      fs2TreeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
 
       tag2NodeIdx = new GeoTag2NodeIdxMap;
-      tag2NodeIdx->selfAllocate(65535);
+      tag2NodeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
     }
 
     ~FastStructures()
@@ -656,7 +656,7 @@ protected:
                           );
       if(++count == (int)pCircSize)
       {
-        eos_warning("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
+        eos_debug("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
         break;
       }
     }
@@ -791,7 +791,7 @@ protected:
       SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nAdjustCollocatedReplicas)?0:startFromNode;
       if(!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, skipSaturated))
       {
-	if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
+	if(skipSaturated) eos_debug("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
 	if( (!skipSaturated) || !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false) )
 	{
 	  eos_debug("could not find a new slot for a replica in the fast tree");
@@ -882,10 +882,10 @@ protected:
       SchedTreeBase::tFastTreeIdx idx;
       if(!tree->findFreeSlot(idx,accesserNode,true,true,skipSaturated))
       {
-	if(skipSaturated) eos_notice("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
+	if(skipSaturated) eos_debug("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
 	if( (!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false) )
 	{
-	  eos_err("could not find a new slot for a replica in the fast tree");
+	  eos_debug("could not find a new slot for a replica in the fast tree");
 	  return 0;
 	}
 	else retCode = 1;

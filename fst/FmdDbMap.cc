@@ -122,6 +122,8 @@ FmdDbMapHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString opt
   // create / or attach the db (try to repair if needed)
 #ifndef EOS_SQLITE_DBMAP
     eos::common::LvDbDbMapInterface::Option *dbopt=&lvdboption;
+    // if we have not set the leveldb option, use the default (currently, bloom filter 10 bits and 100MB cache)
+    if(lvdboption.BloomFilterNbits==0 && lvdboption.BloomFilterNbits==0) dbopt=NULL;
 #endif
 
   if(!dbmap[fsid]->attachDb(fsDBFileName,true,0,dbopt)) {
