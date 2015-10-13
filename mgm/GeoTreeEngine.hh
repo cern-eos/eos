@@ -656,7 +656,7 @@ protected:
                           );
       if(++count == (int)pCircSize)
       {
-        eos_warning("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
+        eos_debug("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
         break;
       }
     }
@@ -791,7 +791,7 @@ protected:
       SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nAdjustCollocatedReplicas)?0:startFromNode;
       if(!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, skipSaturated))
       {
-	if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
+	if(skipSaturated) eos_debug("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
 	if( (!skipSaturated) || !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false) )
 	{
 	  eos_debug("could not find a new slot for a replica in the fast tree");
@@ -882,10 +882,10 @@ protected:
       SchedTreeBase::tFastTreeIdx idx;
       if(!tree->findFreeSlot(idx,accesserNode,true,true,skipSaturated))
       {
-	if(skipSaturated) eos_notice("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
+	if(skipSaturated) eos_debug("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
 	if( (!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false) )
 	{
-	  eos_err("could not find a new slot for a replica in the fast tree");
+	  eos_debug("could not find a new slot for a replica in the fast tree");
 	  return 0;
 	}
 	else retCode = 1;
