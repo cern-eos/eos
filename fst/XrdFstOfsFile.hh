@@ -29,7 +29,7 @@
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
 /******************************************************************************
- * NOTE: Added from the XRootD headers and should be removed in the future 
+ * NOTE: Added from the XRootD headers and should be removed in the future
  * when this header file is available in the private headers.
  ******************************************************************************/
 #include "XrdOfsTPCInfo.hh"
@@ -126,9 +126,9 @@ public:
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int dropall (eos::common::FileId::fileid_t fileid, 
-	       std::string path, 
-	       std::string manager);
+  int dropall (eos::common::FileId::fileid_t fileid,
+               std::string path,
+               std::string manager);
 
   //--------------------------------------------------------------------------
   //!
@@ -259,7 +259,11 @@ public:
   //--------------------------------------------------------------------------
   //! Return logical path
   //--------------------------------------------------------------------------
-  std::string GetPath () {return Path.c_str();}
+
+  std::string GetPath ()
+  {
+    return Path.c_str();
+  }
 
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
@@ -270,6 +274,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return the file size seen at open time
   //--------------------------------------------------------------------------
+
   off_t getOpenSize ()
   {
     return openSize;
@@ -278,6 +283,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return the file id
   //--------------------------------------------------------------------------
+
   unsigned long long getFileId ()
   {
     return fileid;
@@ -286,28 +292,38 @@ public:
   //--------------------------------------------------------------------------
   //! Disable the checksumming before close
   //--------------------------------------------------------------------------
-  void disableChecksum(bool broadcast=true);
+  void disableChecksum (bool broadcast = true);
 
   //--------------------------------------------------------------------------
   //! Return checksum
   //--------------------------------------------------------------------------
-  eos::fst::CheckSum* GetChecksum() { return checkSum;}
+
+  eos::fst::CheckSum* GetChecksum ()
+  {
+    return checkSum;
+  }
 
   //--------------------------------------------------------------------------
   //! Return FMD checksum
   //--------------------------------------------------------------------------
-  
-  std::string GetFmdChecksum() {
+
+  std::string GetFmdChecksum ()
+  {
     return fMd->fMd.checksum;
   }
 
   //--------------------------------------------------------------------------
   //! Check for chunked upload flag
   //--------------------------------------------------------------------------
-  bool IsChunkedUpload() 
+
+  bool IsChunkedUpload ()
   {
     return isOCchunk;
   }
+
+  //--------------------------------------------------------------------------
+  static int LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
+  static int FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
 protected:
   XrdOucEnv* openOpaque;
@@ -442,18 +458,15 @@ protected:
   //--------------------------------------------------------------------------
   void MakeReportEnv (XrdOucString& reportString);
 
-  //--------------------------------------------------------------------------                                                                                                                               
-  //! Read callback used by CheckSum class                                                                                                                                                                   
-  //!                                                                                                                                                                                                        
-  //! @param cbd - callback data                                                                                                                                                                             
-  //!                                                                                                                                                                                                        
-  //! @return result of Layout::Read(...)                                                                                                                                                                    
-  //!                                                                                                                                                                                                     
-   
-  //--------------------------------------------------------------------------                                                                                                                                
-  static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
+  //--------------------------------------------------------------------------
+  //! Read callback used by CheckSum class
+  //!
+  //! @param cbd - callback data
+  //!
+  //! @return result of Layout::Read(...)
+  //!
 
- private:
+private:
 
   //----------------------------------------------------------------------------
   //! Static method used to start an asynchronous thread which is doing the
@@ -468,7 +481,7 @@ protected:
   //----------------------------------------------------------------------------
   //! Do TPC transfer
   //----------------------------------------------------------------------------
-  void* DoTpcTransfer();
+  void* DoTpcTransfer ();
 
 
   //----------------------------------------------------------------------------
@@ -477,7 +490,7 @@ protected:
   //! @param state TPC state
   //!
   //----------------------------------------------------------------------------
-  void SetTpcState(TpcState_t state);
+  void SetTpcState (TpcState_t state);
 
 
   //----------------------------------------------------------------------------
@@ -485,7 +498,7 @@ protected:
   //!
   //! @return TPC state
   //----------------------------------------------------------------------------
-  TpcState_t GetTpcState();
+  TpcState_t GetTpcState ();
 
   int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
   pthread_t mTpcThread; ///< thread doing the TPC transfer

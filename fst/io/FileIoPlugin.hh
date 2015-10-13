@@ -66,6 +66,16 @@ public:
     //empty
   }
 
+  //--------------------------------------------------------------------------
+  //! Get ATTR object from IO object
+  //!
+  //! @param url
+  //!
+  //! @return requested attribute object
+  //!
+  //--------------------------------------------------------------------------
+  static eos::common::Attr*
+  GetIoAttr (const char* url);
 
   //--------------------------------------------------------------------------
   //! Get IO object

@@ -205,6 +205,11 @@ ReplicaParLayout::Open (const std::string& path,
       FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(path.c_str()),
                                                mOfsFile, mSecEntity);
 
+
+      // evt. mark an IO module as talking to external storage
+      if ((file->GetIoType() != "LocalIo"))
+        file->SetExternalStorage();
+
       if (file->Open(path, flags, mode, opaque, mTimeout))
       {
         eos_err("Failed to open replica - local open failed on path=%s errno=%d", path.c_str(), errno);

@@ -28,11 +28,12 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Load.hh"
 #include "fst/Namespace.hh"
-#include "fst/FmdSqlite.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "common/Attr.hh"
+#include "fst/io/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include <syslog.h>
 /*----------------------------------------------------------------------------*/
@@ -44,8 +45,7 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class ScanDir : eos::common::LogId
-{
+class ScanDir : eos::common::LogId {
   // ---------------------------------------------------------------------------
   //! This class scan's a directory tree and checks checksums (and blockchecksums if present)
   //! in a defined interval with limited bandwidth
@@ -89,7 +89,8 @@ public:
     buffer = 0;
     bgThread = bgthread;
 
-    alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
+    if (dirpath[0] != '/')
+      alignment = pathconf((dirpath[0] != '/') ? "/" : dirPath.c_str(), _PC_REC_XFER_ALIGN);
     size_t palignment = alignment;
 
     if (alignment > 0)
@@ -123,7 +124,7 @@ public:
 
   void CheckFile (const char*);
   eos::fst::CheckSum* GetBlockXS (const char*, unsigned long long maxfilesize);
-  bool ScanFileLoadAware (const char*, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror);
+  bool ScanFileLoadAware (eos::fst::FileIo*, eos::common::Attr*, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror);
 
   std::string GetTimestamp ();
   std::string GetTimestampSmeared ();

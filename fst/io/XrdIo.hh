@@ -28,6 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "fst/io/SimpleHandler.hh"
+#include "common/FileMap.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
@@ -263,15 +264,15 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf, uint16_t timeout = 0);
-  
+
   //--------------------------------------------------------------------------
-  //! Check for the existance of a file                                                                                                                                                                      
-  //!                                                                                                                                                                                                        
-  //! @param path to the file                                                                                                                                                                                
-  //!                                                                                                                                                                                                        
+  //! Check for the existance of a file
+  //!
+  //! @param path to the file
+  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------                                                                                                                               
-  virtual int Exists(const char* url);
+  //--------------------------------------------------------------------------
+  virtual int Exists (const char* url);
 
   //--------------------------------------------------------------------------                                                                                                                                 //! Delete a file
   //!
@@ -279,7 +280,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Delete(const char* url);
+  virtual int Delete (const char* url);
 
   //--------------------------------------------------------------------------
   //! Get pointer to async meta handler object
@@ -304,69 +305,112 @@ public:
   //! Class implementing extended attribute support
   //--------------------------------------------------------------------------
 
-  class Attr : public FileIo::Attr {
+  class Attr : public eos::common::Attr, public eos::common::LogId {
+  private:
+    std::string mUrl;
+    eos::common::FileMap mFileMap; //< extended attribute file map
   public:
-    // -----------------------------------------------------------------------
-    //! Set a binary attribute
-    // -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //! Set a binary attribute (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    bool Set (const char* name, const char* value, size_t len);
 
-    virtual bool Set (const char* name, const char* value, size_t len)
-    {
-      return false;
-    }
+    // ------------------------------------------------------------------------
+    //! Set a string attribute (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    bool Set (std::string key, std::string value);
 
-    // -----------------------------------------------------------------------
-    //! Set a string attribute
-    // -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //! Get a binary attribute by name (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    bool Get (const char* name, char* value, size_t &size);
 
-    virtual bool Set (std::string key, std::string value)
-    {
-      return false;
-    }
-
-    // -----------------------------------------------------------------------
-    //! Get a binary attribute by name
-    // -----------------------------------------------------------------------
-
-    virtual bool Get (const char* name, char* value, size_t &size)
-    {
-      return false;
-    }
-
-    // -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------
     //! Get a string attribute by name (name has to start with 'user.' !!!)
-    // -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    std::string Get (std::string name);
 
-    virtual std::string Get (std::string name)
+    // ------------------------------------------------------------------------
+    //! Factory function to create an attribute object
+    // ------------------------------------------------------------------------
+    static Attr* OpenAttr (const char* url);
+
+    // ------------------------------------------------------------------------
+    //! Non static Factory function to create an attribute object
+    // ------------------------------------------------------------------------
+    Attr* OpenAttribute (const char* path);
+
+    // ------------------------------------------------------------------------
+    // Get URL to the attribute file
+    // ------------------------------------------------------------------------
+
+    std::string GetUrl ()
     {
-      return "";
+      return mUrl;
     }
 
-    // -----------------------------------------------------------------------
-    //! Non-static Factory function to create an attribute object
-    // -----------------------------------------------------------------------
-
-    virtual Attr* OpenAttribute (const char* path)
-    {
-      return 0;
-    }
-
-    // -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------
     // Constructor
-    // -----------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-    Attr () : FileIo::Attr (0)
+    Attr () : mUrl ("")
     {
     }
 
-    Attr (const char* path) : FileIo::Attr (path)
-    {
-    }
+    Attr (const char* path);
 
     virtual ~Attr ()
     {
     }
   };
+
+  //--------------------------------------------------------------------------
+  //! traversing filesystem/storage routines
+  //--------------------------------------------------------------------------
+
+  //--------------------------------------------------------------------------
+  //! FTS search handle
+  //--------------------------------------------------------------------------
+
+  class FtsHandle {
+    friend class XrdIo;
+  protected:
+    std::vector< std::vector<std::string> > found_dirs;
+    std::deque< std::string> found_files;
+    size_t deepness;
+  public:
+
+    FtsHandle (const char* dirp)
+    {
+      found_dirs.resize(1);
+      deepness = 0;
+    };
+
+    virtual ~FtsHandle ()
+    {
+    }
+  };
+
+  //--------------------------------------------------------------------------
+  //! Open a curser to traverse a storage system
+  //! @param subtree where to start traversing
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  FileIo::FtsHandle* ftsOpen (std::string subtree);
+
+  //--------------------------------------------------------------------------
+  //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //! @param fts_handle cursor obtained by ftsOpen
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  std::string ftsRead (FileIo::FtsHandle* fts_handle);
+
+  //--------------------------------------------------------------------------
+  //! Close a traversal cursor
+  //! @param fts_handle cursor to close
+  //! @return 0 if fts_handle was an open cursor, otherwise -1
+  //--------------------------------------------------------------------------
+  virtual int ftsClose (FileIo::FtsHandle* fts_handle);
 
 private:
 
@@ -378,7 +422,6 @@ private:
   PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
   XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
-
 
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
@@ -408,6 +451,31 @@ private:
 
 
   //--------------------------------------------------------------------------
+  //! Download a remote file into a string object
+  //! @param url from where to download
+  //! @param download string where to place the contents
+  //! @return 0 success, otherwise -1 and errno
+  //--------------------------------------------------------------------------
+  static int Download (std::string url, std::string& download);
+
+  //--------------------------------------------------------------------------
+  //! Upload a string object into a remote file
+  //! @param url from where to upload
+  //! @param upload string to store into remote file
+  //! @return 0 success, otherwise -1 and errno
+  //--------------------------------------------------------------------------
+  static int Upload (std::string url, std::string& upload);
+
+  //--------------------------------------------------------------------------
+  //! Get a directory listing - taken from XrdCl sources
+  //--------------------------------------------------------------------------
+
+  XrdCl::XRootDStatus GetDirList (XrdCl::FileSystem *fs,
+                                  const XrdCl::URL &url,
+                                  std::vector<std::string> *files,
+                                  std::vector<std::string> *directories);
+
+  //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
   XrdIo (const XrdIo&) = delete;
@@ -419,6 +487,8 @@ private:
   XrdIo& operator = (const XrdIo&) = delete;
 
 };
+
+
 
 EOSFSTNAMESPACE_END
 

@@ -11,15 +11,15 @@
 #include <kio/FileIoInterface.hh>
 #include <kio/FileAttrInterface.hh>
 #include <memory>
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-class KineticIo : public FileIo
-{
+class KineticIo : public FileIo {
 public:
-  class Attr : public eos::common::Attr, public eos::common::LogId
-  {
+
+  class Attr : public eos::common::Attr, public eos::common::LogId {
   private:
     //! The actual implementation class.
     std::unique_ptr<kio::FileAttrInterface> kattr;
@@ -76,7 +76,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
   int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode = 0,
-      const std::string& opaque = "", uint16_t timeout = 0);
+            const std::string& opaque = "", uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -88,7 +88,7 @@ public:
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
   int64_t Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-      uint16_t timeout = 0);
+                uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Write to file - sync
@@ -100,7 +100,7 @@ public:
   //! @return number of bytes written or -1 if error
   //--------------------------------------------------------------------------
   int64_t Write (XrdSfsFileOffset offset, const char* buffer,
-      XrdSfsXferSize length, uint16_t timeout = 0);
+                 XrdSfsXferSize length, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - async
@@ -113,7 +113,7 @@ public:
   //! @return number of bytes read or -1 if error
   //--------------------------------------------------------------------------
   int64_t ReadAsync (XrdSfsFileOffset offset, char* buffer,
-      XrdSfsXferSize length, bool readahead = false, uint16_t timeout = 0);
+                     XrdSfsXferSize length, bool readahead = false, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Write to file - async
@@ -125,7 +125,7 @@ public:
   //! @return number of bytes written or -1 if error
   //--------------------------------------------------------------------------
   int64_t WriteAsync (XrdSfsFileOffset offset, const char* buffer,
-      XrdSfsXferSize length, uint16_t timeout = 0);
+                      XrdSfsXferSize length, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -210,7 +210,7 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int Exists(const char* path);
+  int Exists (const char* path);
 
   //--------------------------------------------------------------------------
   //! Delete a file
@@ -219,14 +219,30 @@ public:
   //!
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int Delete(const char* path);
+  int Delete (const char* path);
+
+  class FtsHandle : public FileIo::FtsHandle {
+    friend class KineticIo;
+  protected:
+    void* mHandle;
+  public:
+
+    FtsHandle (const char* dirp) : FileIo::FtsHandle (dirp)
+    {
+    }
+
+    virtual ~FtsHandle ()
+    {
+    }
+  };
+
 
   //--------------------------------------------------------------------------
-  //! Open a curser to traverse a storage system
+  //! Open a cursor to traverse a storage system
   //! @param subtree where to start traversing
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-  void* ftsOpen(std::string subtree);
+  FileIo::FtsHandle* ftsOpen (std::string subtree);
 
   //--------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
@@ -234,14 +250,14 @@ public:
   //! @return returns full path (including mountpoint) for the next path
   //!         indicated by traversal cursor, empty string if there is no next
   //--------------------------------------------------------------------------
-  std::string ftsRead(void* fts_handle);
+  std::string ftsRead (FileIo::FtsHandle* fts_handle);
 
   //--------------------------------------------------------------------------
   //! Close a traversal cursor
   //! @param fts_handle cursor to close
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //--------------------------------------------------------------------------
-  int ftsClose(void* fts_handle);
+  int ftsClose (FileIo::FtsHandle* fts_handle);
 
   //--------------------------------------------------------------------------
   //! Constructor

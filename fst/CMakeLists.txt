@@ -32,6 +32,17 @@ else()
     set(KINETICIO_HDR "")
 endif()
 
+if(DAVIX_FOUND)
+    add_definitions(-DDAVIX_FOUND)
+    set(DAVIX_SRC "io/DavixIo.cc")
+    set(DAVIX_HDR "io/DavixIo.hh")
+else()
+    set(DAVIX_INCLUDE_DIR "")
+    set(DAVIX_LIBRARIES "")
+    set(DAVIX_SRC "")
+    set(DAVIX_HDR "")
+endif()
+
 include_directories(../
                     ./
                     ${XROOTD_INCLUDE_DIR}
@@ -41,6 +52,7 @@ include_directories(../
                     ${Z_INCLUDE_DIR}
                     ${KINETICIO_INCLUDE_DIR}
                     ${JSONC_INCLUDE_DIR}
+		    ${DAVIX_INCLUDE_DIR}
 )
 
 link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
@@ -66,7 +78,9 @@ add_library(EosFstIo-Static STATIC
             io/FileIoPlugin.hh             io/FileIoPlugin.cc
             io/FileIo.hh
             io/LocalIo.cc                  io/LocalIo.hh
+	    io/FsIo.cc                     io/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
+	    ${DAVIX_SRC}		   ${DAVIX_HDR}
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -98,6 +112,7 @@ target_link_libraries(  EosFstIo-Static
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
                         ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
+			${DAVIX_LIBRARIES}			
                         ${CMAKE_THREAD_LIBS_INIT}                  
 )
 
@@ -105,7 +120,9 @@ add_library( EosFstIo SHARED
                 io/FileIoPlugin.hh             io/FileIoPlugin.cc
                 io/FileIo.hh 
                 io/LocalIo.cc                  io/LocalIo.hh
+  	        io/FsIo.cc                     io/FsIo.hh
                 ${KINETICIO_SRC}               ${KINETICIO_HDR}
+		${DAVIX_SRC}                   ${DAVIX_HDR}
                 io/RadosIo.cc                  io/RadosIo.hh
                 io/XrdIo.cc                    io/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -138,6 +155,7 @@ target_link_libraries(  EosFstIo
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
                         ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
+			${DAVIX_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
 
@@ -167,7 +185,9 @@ add_library(XrdEosFst SHARED
             io/FileIoPlugin.hh
             io/FileIo.hh 
             io/LocalIo.cc                  io/LocalIo.hh
+	    io/FsIo.cc                     io/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
+	    ${DAVIX_SRC}                   ${DAVIX_HDR}
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -202,6 +222,7 @@ target_link_libraries(  XrdEosFst
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
                         ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
+			${DAVIX_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
 else (CLIENT)
@@ -230,7 +251,9 @@ add_library(XrdEosFst MODULE
             io/FileIoPlugin.hh
             io/FileIo.hh 
             io/LocalIo.cc                  io/LocalIo.hh
+	    io/FsIo.cc                     io/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
+	    ${DAVIX_SRC}                 ${DAVIX_HDR}
             io/RadosIo.cc                  io/RadosIo.hh
             io/XrdIo.cc                    io/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
@@ -265,6 +288,7 @@ target_link_libraries(  XrdEosFst
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
                         ${RT_LIBRARIES}         ${KINETICIO_LIBRARIES}
+			${DAVIX_LIBRARIES}
                         ${CMAKE_THREAD_LIBS_INIT}
 )
 endif (CLIENT)
@@ -294,8 +318,6 @@ add_executable( eos-compute-blockxs
 add_executable( eos-scan-fs 
                 ScanDir.cc
                 tools/ScanXS.cc
-		FmdSqlite.cc
-		FmdClient.cc
 		checksum/Adler.cc
                 checksum/CheckSum.cc
                 checksum/crc32c.cc
@@ -328,7 +350,12 @@ set_target_properties(
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-scan-fs eosCommon eosCommonServer XrdCl ${RT_LIBRARIES} ${KINETICIO_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+if (MacOSX)
+target_link_libraries( eos-scan-fs eosCommon EosFstIo XrdCl ${RT_LIBRARIES} ${KINETICIO_LIBRARIES} ${DAVIX_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+else (MacOSX)
+target_link_libraries( eos-scan-fs eosCommon EosFstIo-Static XrdCl ${RT_LIBRARIES} ${KINETICIO_LIBRARIES} ${DAVIX_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
+endif (MacOSX)
+
 target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
 
 if (MacOSX)

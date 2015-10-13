@@ -40,19 +40,25 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           XrdOucErrInfo* outError,
                           eos::common::LayoutId::eIoType io,
                           uint16_t timeout) :
-    Layout (file, lid, client, outError, io, timeout),
-    mFileSize(0),
-    mDisableRdAhead(false)
+Layout (file, lid, client, outError, io, timeout),
+mFileSize (0),
+mDisableRdAhead (false)
 {
   // For the plain layout we use only the LocalFileIo type
   mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
   mFileIO = mPlainFile;
+
+  // evt. mark an IO module as talking to external storage
+  if ((mFileIO->GetIoType() != "LocalIo"))
+    mFileIO->SetExternalStorage();
+
   mIsEntryServer = true;
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
+
 PlainLayout::~PlainLayout ()
 {
   // mPlainFile is deleted via mFileIO in the base class
@@ -61,6 +67,7 @@ PlainLayout::~PlainLayout ()
 //------------------------------------------------------------------------------
 // Open File
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Open (const std::string& path,
                    XrdSfsFileOpenMode flags,
@@ -88,6 +95,7 @@ PlainLayout::Open (const std::string& path,
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
+
 int64_t
 PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
                    XrdSfsXferSize length, bool readahead)
@@ -96,14 +104,14 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
   {
     if (mIoType == eos::common::LayoutId::eIoType::kXrdCl)
     {
-      if ((uint64_t)(offset + length) > mFileSize)
+      if ((uint64_t) (offset + length) > mFileSize)
         length = mFileSize - offset;
 
       int64_t nread = mPlainFile->ReadAsync(offset, buffer, length, readahead);
 
       // Wait for any async requests
       AsyncMetaHandler* ptr_handler = static_cast<AsyncMetaHandler*>
-          (mPlainFile->GetAsyncHandler());
+              (mPlainFile->GetAsyncHandler());
 
       if (ptr_handler)
       {
@@ -123,13 +131,14 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
+
 int64_t
 PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer,
                     XrdSfsXferSize length)
 {
   mDisableRdAhead = true;
 
-  if ((uint64_t)(offset + length) > mFileSize)
+  if ((uint64_t) (offset + length) > mFileSize)
     mFileSize = offset + length;
 
   return mPlainFile->Write(offset, buffer, length, mTimeout);
@@ -138,6 +147,7 @@ PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Truncate (XrdSfsFileOffset offset)
 {
@@ -148,6 +158,7 @@ PlainLayout::Truncate (XrdSfsFileOffset offset)
 //------------------------------------------------------------------------------
 // Reserve space for file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Fallocate (XrdSfsFileOffset length)
 {
@@ -157,6 +168,7 @@ PlainLayout::Fallocate (XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 // Deallocate reserved space
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
@@ -166,6 +178,7 @@ PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Sync ()
 {
@@ -175,6 +188,7 @@ PlainLayout::Sync ()
 //------------------------------------------------------------------------------
 // Get stats for file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Stat (struct stat* buf)
 {
@@ -184,6 +198,7 @@ PlainLayout::Stat (struct stat* buf)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Close ()
 {
@@ -193,6 +208,7 @@ PlainLayout::Close ()
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Remove ()
 {

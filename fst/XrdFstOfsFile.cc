@@ -161,7 +161,7 @@ XrdFstOfsFile::openofs (const char* path,
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::dropall(eos::common::FileId::fileid_t fileid, std::string path, std::string manager)
+XrdFstOfsFile::dropall (eos::common::FileId::fileid_t fileid, std::string path, std::string manager)
 {
   // If we committed the replica and an error happened remote, we have
   // to unlink it again
@@ -174,24 +174,24 @@ XrdFstOfsFile::dropall(eos::common::FileId::fileid_t fileid, std::string path, s
   OpaqueString += hexstring;
   OpaqueString += "&mgm.fsid=anyway";
   OpaqueString += "&mgm.dropall=1";
-  
+
   XrdOucEnv Opaque(OpaqueString.c_str());
   capOpaqueString += OpaqueString;
   // Delete the replica in the MGM
-  int rcode = gOFS.CallManager(&error, 
-			       path.c_str(),
-			       manager.c_str(), 
-			       capOpaqueString);
-  
+  int rcode = gOFS.CallManager(&error,
+                               path.c_str(),
+                               manager.c_str(),
+                               capOpaqueString);
+
   if (rcode && (rcode != -EIDRM))
   {
     eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
-		hexstring.c_str(), fileid, manager.c_str());
+                hexstring.c_str(), fileid, manager.c_str());
   }
 
   eos_info("info=\"removing on manager\" manager=%s fid=%llu fsid= drop-allrc=%d",
-	   manager.c_str(), (unsigned long long) fileid,
-	   rcode);
+           manager.c_str(), (unsigned long long) fileid,
+           rcode);
   return rcode;
 }
 
@@ -781,7 +781,7 @@ XrdFstOfsFile::open (const char* path,
     {
       delete fMd;
       return gOFS.Emsg(epname, error, EIO, "open - unable to check for existance of file ",
-		       capOpaque->Env(envlen));
+                       capOpaque->Env(envlen));
     }
     //..........................................................................
     // File does not exist, keep the create lfag
@@ -954,22 +954,22 @@ XrdFstOfsFile::open (const char* path,
     {
       if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
       {
-	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-	int ecode = 1094;
-	eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
-		    RedirectManager.c_str(), ecode);
-	
-	if (hasCreationMode) 
-	{
-	  // clean-up before re-bouncing
-	  dropall(fileid, path, RedirectManager.c_str());
-	}
-	return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+        eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+        int ecode = 1094;
+        eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
+                    RedirectManager.c_str(), ecode);
+
+        if (hasCreationMode)
+        {
+          // clean-up before re-bouncing
+          dropall(fileid, path, RedirectManager.c_str());
+        }
+        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }
       else
       {
-	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
-	return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
+        eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
+        return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
       }
     }
   }
@@ -1009,7 +1009,7 @@ XrdFstOfsFile::open (const char* path,
     // retrieve the current size to detect modification during replication
     layOut->Stat(&updateStat);
   }
-  
+
   if ((!rc) && isCreation && bookingsize)
   {
     // ----------------------------------
@@ -1027,11 +1027,11 @@ XrdFstOfsFile::open (const char* path,
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
 
-	if (hasCreationMode)
-	{
-	  // clean-up before re-bouncing
-	  dropall(fileid, path, RedirectManager.c_str());
-	}
+        if (hasCreationMode)
+        {
+          // clean-up before re-bouncing
+          dropall(fileid, path, RedirectManager.c_str());
+        }
 
         return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }
@@ -1055,11 +1055,11 @@ XrdFstOfsFile::open (const char* path,
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
 
-	if (hasCreationMode) 
-	{
-	  // clean-up before re-bouncing
-	  dropall(fileid, path, RedirectManager.c_str());
-	}
+        if (hasCreationMode)
+        {
+          // clean-up before re-bouncing
+          dropall(fileid, path, RedirectManager.c_str());
+        }
 
         return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }
@@ -1145,7 +1145,7 @@ XrdFstOfsFile::open (const char* path,
     //........................................................................
     // Set the eos lfn as extended attribute
     //........................................................................
-    eos::common::Attr* attr = layOut->GetFileIo()->DoAttr().OpenAttr(layOut->GetLocalReplicaPath());
+    eos::common::Attr* attr = dynamic_cast<eos::common::Attr*> (FileIoPlugin::GetIoAttr(layOut->GetLocalReplicaPath()));
 
     if (attr && isRW)
     {
@@ -1232,10 +1232,10 @@ XrdFstOfsFile::open (const char* path,
       rc = SFS_REDIRECT;
       eos_warning("rebouncing client after open error back to MGM %s:%d", RedirectManager.c_str(), ecode);
 
-      if (hasCreationMode) 
+      if (hasCreationMode)
       {
-	// clean-up before re-bouncing
-	dropall(fileid, path, RedirectManager.c_str());
+        // clean-up before re-bouncing
+        dropall(fileid, path, RedirectManager.c_str());
       }
 
       return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
@@ -1423,12 +1423,12 @@ XrdFstOfsFile::modified ()
   bool fileExists = true;
 
   struct stat statinfo;
-  if (layOut) 
+  if (layOut)
   {
     if ((layOut->Stat(&statinfo)))
       fileExists = false;
   }
-  else 
+  else
   {
     if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
     {
@@ -1494,6 +1494,11 @@ XrdFstOfsFile::LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* 
   return ((Layout*) cbd->caller)->Read(cbd->offset, cbd->buffer, cbd->size);
 }
 
+int
+XrdFstOfsFile::FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
+{
+  return ((FileIo*) cbd->caller)->Read(cbd->offset, cbd->buffer, cbd->size);
+}
 
 //------------------------------------------------------------------------------
 //
@@ -1642,7 +1647,8 @@ XrdFstOfsFile::verifychecksum ()
         // If we have no write, we don't set this attributes (xrd3cp!)
         // set the eos checksum extended attributes
         //............................................................................
-        eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+
+        eos::common::Attr* attr = dynamic_cast<eos::common::Attr*> (FileIoPlugin::GetIoAttr(fstPath.c_str()));
 
         if (attr)
         {
@@ -1988,17 +1994,17 @@ XrdFstOfsFile::close ()
               capOpaqueFile += checkSum->GetHexChecksum();
             }
 
-	    capOpaqueFile += "&mgm.mtime=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
-	    capOpaqueFile += "&mgm.mtime_ns=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
+            capOpaqueFile += "&mgm.mtime=";
+            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
+            capOpaqueFile += "&mgm.mtime_ns=";
+            capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
 
-	    if (haswrite) 
-	    {
-	      capOpaqueFile += "&mgm.modified=1";
-	    }
+            if (haswrite)
+            {
+              capOpaqueFile += "&mgm.modified=1";
+            }
 
-	    capOpaqueFile += "&mgm.add.fsid=";
+            capOpaqueFile += "&mgm.add.fsid=";
             capOpaqueFile += (int) fMd->fMd.fsid;
 
             // If <drainfsid> is set, we can issue a drop replica
@@ -2224,7 +2230,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-    if ( deleteOnClose && (isCreation || IsChunkedUpload()) )
+    if (deleteOnClose && (isCreation || IsChunkedUpload()))
     {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());

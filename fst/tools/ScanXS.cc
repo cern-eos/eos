@@ -25,21 +25,23 @@
 #include "fst/ScanDir.hh"
 #include "common/Attr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/FmdSqlite.hh"
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-eos::fst::FmdSqliteHandler gFmdSqliteHandler; // needed for compilation
 eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
+
 /*----------------------------------------------------------------------------*/
 
 int
 main (int argc, char *argv[])
 {
   bool setxs = false;
+  eos::common::Logging::Init();
+  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetUnit("Scandir");
   if ((argc < 2) || (argc > 3))
   {
     fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");

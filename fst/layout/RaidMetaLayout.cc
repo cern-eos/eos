@@ -192,6 +192,9 @@ RaidMetaLayout::Open (const std::string& path,
   FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(path.c_str()),
                                            mOfsFile, mSecEntity);
 
+  // evt. mark an IO module as talking to external storage
+  if ((file->GetIoType() != "LocalIo"))
+    file->SetExternalStorage();
   //............................................................................
   // When recovery enabled we open the files in RDWR mode
   //............................................................................
