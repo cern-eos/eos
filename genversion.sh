@@ -83,7 +83,7 @@ else
     if [[ -e "eos.spec" ]]; then
        VERSION="$(grep "Version:" eos.spec | awk '{print $2;}')"
     else
-      echo "[!] Unable to get version from git or spec file . " 1>&2
+      echo "[!] Unable to get version from git or spec file." 1>&2
       exit 1
     fi
   else
