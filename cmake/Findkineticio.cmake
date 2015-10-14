@@ -29,3 +29,15 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(kineticio DEFAULT_MSG KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)
 
 mark_as_advanced(KINETICIO_INCLUDE_DIRS KINETICIO_LIBRARIES)
+
+# set KINETICIO_FOUND as a define usable in source code for conditional includes, set library / include dir 
+# variables to empty if the library isn't there, so that they can be used in CMakeLists.txt without testing
+# for KINETICIO_FOUND first
+if(KINETICIO_FOUND)
+    add_definitions(-DKINETICIO_FOUND)
+else()
+    set(KINETICIO_INCLUDE_DIRS "")
+    set(KINETICIO_INCLUDE_DIR "")
+    set(KINETICIO_LIBRARY "")
+    set(KINETICIO_LIBRARIES "")
+endif()

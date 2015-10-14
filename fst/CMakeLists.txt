@@ -22,12 +22,9 @@
 # ************************************************************************
 
 if(KINETICIO_FOUND)
-    add_definitions(-DKINETICIO_FOUND)
     set(KINETICIO_SRC "io/KineticIo.cc")
     set(KINETICIO_HDR "io/KineticIo.hh")
 else()
-    set(KINETICIO_INCLUDE_DIR "")
-    set(KINETICIO_LIBRARIES "")
     set(KINETICIO_SRC "")
     set(KINETICIO_HDR "")
 endif()
