@@ -6,6 +6,11 @@
 
 Beryl Release Notes
 ===================
+
+``Version V0.3.134 Beryl_Aquamarine``
+---------
+- avoid 'fork' calls in the namespace library using the 'ShellCmd' class
+
 ``Version V0.3.133 Beryl_Aquamarine``
 
 Bug Fixes
