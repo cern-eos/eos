@@ -27,6 +27,7 @@
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
+#include "common/ShellCmd.hh"
 
 #include <algorithm>
 #include <utility>
@@ -830,8 +831,9 @@ namespace eos
     copyCmd += " ";
     copyCmd += tmpChangeLogPath.c_str();
 
-    int rc = system( copyCmd.c_str() );
-    if( WEXITSTATUS(rc) )
+    eos::common::ShellCmd scmd( copyCmd.c_str() );
+    os::common::cmd_status rc = scmd.Wait(1800);
+    if( rc.exit_code )
     {
       MDException e( EIO ) ;
       e.getMessage() << "Failed to copy the current change log file <";

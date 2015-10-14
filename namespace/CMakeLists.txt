@@ -111,18 +111,18 @@ add_library (eosNamespace-Static STATIC
 )
 
 if (Linux)
-  target_link_libraries( eosNamespace pthread z rt XrdUtils )
-  target_link_libraries( eosNamespace-Static pthread z rt XrdUtils )
+  target_link_libraries( eosNamespace eosCommon pthread z rt XrdUtils )
+  target_link_libraries( eosNamespace-Static eosCommon-Static pthread z rt XrdUtils )
 else (Linux)
-  target_link_libraries( eosNamespace pthread z XrdUtils )
-  target_link_libraries( eosNamespace-Static pthread z XrdUtils )
+  target_link_libraries( eosNamespace eosCommon pthread z XrdUtils )
+  target_link_libraries( eosNamespace-Static eosCommon-Static pthread z XrdUtils )
 endif (Linux)
 
 add_executable ( eos-log-compact progs/EOSLogCompact.cc )
 add_executable ( eos-log-repair  progs/EOSLogRepair.cc )
 
-target_link_libraries ( eos-log-compact eosNamespace-Static )
-target_link_libraries ( eos-log-repair eosNamespace-Static )
+target_link_libraries ( eos-log-compact eosNamespace-Static eosCommon-Static )
+target_link_libraries ( eos-log-repair eosNamespace-Static eosCommon-Static)
 
 if (Linux)
   set_target_properties ( eosNamespace-Static PROPERTIES COMPILE_FLAGS -fPIC)
