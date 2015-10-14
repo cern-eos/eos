@@ -69,6 +69,7 @@ private:
   long long seqBandwidth; // measurement of sequential bandwidth
   int IOPS; // measurement of IOPS
   FileIo* mFileIO; // file io plugin used for statfs calls
+  bool mRecoverable; // true if a filesystem was booted and then set to ops error
 
 public:
   FileSystem (const char* queuepath, const char* queue, XrdMqSharedObjectManager* som);
@@ -132,8 +133,25 @@ public:
   void
   SetStatus (eos::common::FileSystem::fsstatus_t status)
   {
-    mLocalBootStatus = status;
+
     eos::common::FileSystem::SetStatus(status);
+
+    if (mLocalBootStatus == status)
+      return;
+
+    eos_static_debug("before=%d after=%d", mLocalBootStatus, status);
+
+    if ( (mLocalBootStatus == kBooted) && 
+	 (status == kOpsError) )
+    {
+      mRecoverable = true;
+    }
+    else
+    {
+      mRecoverable = false;
+    }
+
+    mLocalBootStatus = status;
   }
 
   eos::common::FileSystem::fsstatus_t

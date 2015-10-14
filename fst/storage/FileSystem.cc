@@ -64,6 +64,8 @@ FileSystem::FileSystem (const char* queuepath,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
 
+  mRecoverable = false;
+
   mFileIO = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(GetPath().c_str()));
 }
 
@@ -160,7 +162,19 @@ FileSystem::GetStatfs ()
     BroadcastError("cannot statfs");
     return 0;
   }
-
+  else
+  {
+    eos_static_debug("ec=%d error=%s recover=%d", GetStatus(), GetString("stat.errmsg").c_str(), mRecoverable);
+    if ( (GetStatus() == eos::common::FileSystem::kOpsError) && mRecoverable)
+    {
+      if ( GetString("stat.errmsg") == "cannot statfs" )
+      {
+	// reset the statfs error
+	SetStatus(eos::common::FileSystem::kBooted);
+	SetError(0,"");
+      }
+    }
+  }
   return statFs;
 }
 
