@@ -89,7 +89,7 @@ public:
   const char* GetEntry() { return entry.c_str(); }
 
   void Dump(XrdOucString &out) {
-    char formatline[1024];
+    char formatline[65536];
     snprintf(formatline, sizeof(formatline)-1,"value:%-32s age:%.2f changeid:%llu", entry.c_str(), GetAgeInSeconds(), ChangeId);
     out += formatline;
   }
