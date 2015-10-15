@@ -147,6 +147,148 @@ ProcCommand::Space ()
     }
   }
 
+  if (mSubCmd == "node-set")
+  {
+    if (pVid->uid == 0)
+    {
+      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+      std::string key = (pOpaque->Get("mgm.space.node-set.key")) ? pOpaque->Get("mgm.space.node-set.key") : "";
+      std::string val = (pOpaque->Get("mgm.space.node-set.val")) ? pOpaque->Get("mgm.space.node-set.val") : "";
+
+      if ((!spacename.length()) || (!key.length()) || (!val.length()))
+      {
+        stdErr = "error: illegal parameters";
+        retc = EINVAL;
+      }
+      else
+      {
+        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        if (!FsView::gFsView.mSpaceView.count(spacename))
+        {
+          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          retc = EINVAL;
+        }
+        else
+        {
+          {
+            // loop over all nodes
+            std::map<std::string, FsNode*>::const_iterator it;
+            for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++)
+            {
+	      XrdOucString file = val.c_str();
+	      if (file.beginswith("file:/")) 
+	      {
+		// load the file on the MGM
+		file.erase(0,5);
+		eos::common::Path iPath(file.c_str());
+		XrdOucString fpath = iPath.GetPath();
+
+		if (!fpath.beginswith("/var/eos/"))
+		{
+		  stdErr = "error: cannot load requested file="; 
+		  stdErr += file.c_str();
+		  stdErr += " - only files under /var/eos/ can bo loaded\n";
+		  retc = EINVAL;
+		}
+		else 
+		{
+		  std::ifstream ifs(file.c_str(), std::ios::in | std::ios::binary);
+		  if (!ifs)
+		  {
+		    stdErr = "error: cannot load requested file="; 
+		    stdErr += file.c_str();
+		    retc = EINVAL;
+		  }
+		  else 
+		  {
+		    val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		    // store the value b64 encoded                                                                                                                                                                            
+		    XrdOucString val64;
+		    
+		    eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
+		    val = "base64:";
+		    val += val64.c_str();
+		    stdOut += "success: loaded contents \n";
+		    stdOut += val.c_str();
+		  }
+		}
+	      }
+		
+              if ( !retc && !it->second->SetConfigMember(key, val, true, "/eos/*/mgm"))
+              {
+                stdErr += "error: cannot set node-set for node <";
+                stdErr += it->first.c_str();
+                stdErr += ">\n";
+                retc = EIO;
+              }
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
+
+  if (mSubCmd == "node-get")
+  {
+    if (pVid->uid == 0)
+    {
+      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+      std::string key = (pOpaque->Get("mgm.space.node-get.key")) ? pOpaque->Get("mgm.space.node-get.key") : "";
+
+      if ((!spacename.length()) || (!key.length()))
+      {
+        stdErr = "error: illegal parameters";
+        retc = EINVAL;
+      }
+      else
+      {
+        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        if (!FsView::gFsView.mSpaceView.count(spacename))
+        {
+          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          retc = EINVAL;
+        }
+        else
+        {
+          {
+	    std::string val = "";
+	    bool identical=true;
+            // loop over all nodes
+            std::map<std::string, FsNode*>::const_iterator it;
+            for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++)
+            {
+	      std::string new_val = it->second->GetConfigMember(key);
+	      if (val.length() && new_val != val)
+		identical = false;
+	      val = new_val;
+	      stdOut += it->first.c_str();
+	      stdOut += ":=";
+	      stdOut += new_val.c_str();
+	      stdOut += "\n";
+            }
+	    if (identical)
+	    {
+	      stdOut = "*:=";
+	      stdOut += val.c_str();
+	      stdOut += "\n";
+	    }
+          }
+        }
+      }
+    }
+    else
+    {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
   if (mSubCmd == "reset")
   {
     std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
