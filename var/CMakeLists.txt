@@ -22,8 +22,10 @@
 # ************************************************************************
 
 INSTALL ( DIRECTORY DESTINATION /var/eos )
+INSTALL ( DIRECTORY DESTINATION /var/eos/kinetic/ )
 INSTALL ( DIRECTORY DESTINATION /var/log/eos )
 INSTALL ( DIRECTORY DESTINATION /var/www/eos/cgi-bin )
 INSTALL ( DIRECTORY DESTINATION /var/log/eos/httpd/ )
 INSTALL ( DIRECTORY DESTINATION /var/share/eos/ )
 INSTALL ( FILES eos/html/error.html DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/html/ PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eos/kinetic/kinetic-cluster-example.json eos/kinetic/kinetic-location-example.json eos/kinetic/kinetic-security-example.json DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/kinetic/ PERMISSIONS OWNER_READ OWNER_EXECUTE )
