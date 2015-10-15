@@ -11,22 +11,26 @@ extern int com_space (char*);
 
 typedef kio::AdminClusterInterface::OperationTarget OperationTarget;
 
-enum class Operation{
+enum class Operation
+{
   STATUS, COUNT, SCAN, REPAIR, RESET, INVALID, CONFIG_SHOW, CONFIG_PUBLISH
 };
 
-struct Configuration{
-    Operation op;
-    OperationTarget target; 
-    std::string id;
-    std::string space;
-    int numthreads;
-    int verbosity; 
-    bool monitoring; 
+struct Configuration
+{
+  Operation op;
+  OperationTarget target;
+  std::string id;
+  std::string space;
+  int numthreads;
+  int verbosity;
+  bool monitoring;
 };
 
-int kinetic_help(){
-  fprintf(stdout, "usage: kinetic --id <clusterid> [--op] status|count|scan|repair|reset --target all|file|attribute|indicator [--threads <numthreads>] [-v debug|notice|warning] [-m]\n"); 
+int
+kinetic_help ()
+{
+  fprintf(stdout, "usage: kinetic --id <clusterid> [--op] status|count|scan|repair|reset --target all|file|attribute|indicator [--threads <numthreads>] [-v debug|notice|warning] [-m]\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       kinetic ... --id <clusterid> ...                              : specify the cluster identifier where to run an operation\n");
@@ -53,17 +57,18 @@ int kinetic_help(){
   return EXIT_SUCCESS;
 }
 
-void printKeyCount(const kio::AdminClusterInterface::KeyCounts& kc, Configuration& config)
+void
+printKeyCount (const kio::AdminClusterInterface::KeyCounts& kc, Configuration& config)
 {
-  if (config.monitoring) 
+  if (config.monitoring)
   {
     fprintf(stdout, "kinetic.stat.keys.n=%d kinetic.stat.drives.inaccessible.n=%d kinetic.stat.require.action.n=%d kinetic.stat.repaired.n=%d kinetic.stat.removed.n=%d Kinetic.stat.notrepairable.n=%d\n",
-	    kc.total,
-	    kc.incomplete,
-	    kc.need_action,
-	    kc.repaired,
-	    kc.removed,
-	    kc.unrepairable);
+            kc.total,
+            kc.incomplete,
+            kc.need_action,
+            kc.repaired,
+            kc.removed,
+            kc.unrepairable);
   }
   else
   {
@@ -79,12 +84,17 @@ void printKeyCount(const kio::AdminClusterInterface::KeyCounts& kc, Configuratio
   }
 }
 
-bool mshouldLog(const char* func, int level, int target_level){
+bool
+mshouldLog (const char* func, int level, int target_level)
+{
   return level <= target_level;
 }
 
-void mlog(const char* func, const char* file, int line, int level, const char* msg){
-  switch(level){
+void
+mlog (const char* func, const char* file, int line, int level, const char* msg)
+{
+  switch (level)
+  {
     case LOG_DEBUG:
       fprintf(stdout, "DEBUG:");
       break;
@@ -98,8 +108,9 @@ void mlog(const char* func, const char* file, int line, int level, const char* m
   fprintf(stdout, " %s\n", msg);
 }
 
-
-bool parseArguments(char* arg, Configuration& config) {
+bool
+parseArguments (char* arg, Configuration& config)
+{
   config.op = Operation::INVALID;
   config.target = OperationTarget::INVALID;
   config.numthreads = 1;
@@ -110,102 +121,118 @@ bool parseArguments(char* arg, Configuration& config) {
   subtokenizer.GetLine();
 
   XrdOucString str = subtokenizer.GetToken();
-  
-  while(str.length()){
-    if(str == "--id"){
-      str = subtokenizer.GetToken(); 
-      if(str.length()) 
+
+  while (str.length())
+  {
+    if (str == "--id")
+    {
+      str = subtokenizer.GetToken();
+      if (str.length())
         config.id = str.c_str();
     }
-    else if(str == "--space"){
-      str = subtokenizer.GetToken(); 
-      if(str.length()) 
+    else if (str == "--space")
+    {
+      str = subtokenizer.GetToken();
+      if (str.length())
         config.space = str.c_str();
     }
-    else if(str == "-m") {
-      config.monitoring=true;
+    else if (str == "-m")
+    {
+      config.monitoring = true;
     }
-    else if(str == "--threads"){
-      str = subtokenizer.GetToken(); 
-      if(str.length())
-       config.numthreads = atoi(str.c_str());
+    else if (str == "--threads")
+    {
+      str = subtokenizer.GetToken();
+      if (str.length())
+        config.numthreads = atoi(str.c_str());
     }
-    else if( (str == "--op") || (!str.beginswith("--"))) {
+    else if ((str == "--op") || (!str.beginswith("--")))
+    {
       if (str.beginswith("--"))
-	str = subtokenizer.GetToken();
-      if(str.length()){
-         if(str == "scan")
-           config.op = Operation::SCAN;
-         else if(str == "count")
-           config.op = Operation::COUNT;
-         else if(str == "repair")
-           config.op = Operation::REPAIR;
-         else if(str == "status")
-           config.op = Operation::STATUS;
-         else if(str == "reset")
-	   config.op = Operation::RESET;
-	 else if(str == "config")
-	   {
-	     config.op = Operation::CONFIG_SHOW;
-	     config.id = "default";
-	   }
+        str = subtokenizer.GetToken();
+      if (str.length())
+      {
+        if (str == "scan")
+          config.op = Operation::SCAN;
+        else if (str == "count")
+          config.op = Operation::COUNT;
+        else if (str == "repair")
+          config.op = Operation::REPAIR;
+        else if (str == "status")
+          config.op = Operation::STATUS;
+        else if (str == "reset")
+          config.op = Operation::RESET;
+        else if (str == "config")
+        {
+          config.op = Operation::CONFIG_SHOW;
+          config.id = "default";
+        }
       }
     }
-    else if(str == "--target"){
+    else if (str == "--target")
+    {
       str = subtokenizer.GetToken();
-      if(str.length()){
-        if(str == "all")
+      if (str.length())
+      {
+        if (str == "all")
           config.target = OperationTarget::ALL;
-        else if(str == "indicator")
+        else if (str == "indicator")
           config.target = OperationTarget::INDICATOR;
-        else if(str == "file")
+        else if (str == "file")
           config.target = OperationTarget::FILE;
-        else if(str == "attribute")
+        else if (str == "attribute")
           config.target = OperationTarget::ATTRIBUTE;
       }
     }
-    else if(str == "-v"){
+    else if (str == "-v")
+    {
       str = subtokenizer.GetToken();
-      if(str.length()){
-        if(str == "debug")
+      if (str.length())
+      {
+        if (str == "debug")
           config.verbosity = LOG_DEBUG;
-        else if(str == "notice")
+        else if (str == "notice")
           config.verbosity = LOG_NOTICE;
-        else if(str == "warning")
+        else if (str == "warning")
           config.verbosity = LOG_WARNING;
       }
     }
-    else if (str == "--publish") {
+    else if (str == "--publish")
+    {
       if (config.op == Operation::CONFIG_SHOW)
-	config.op = Operation::CONFIG_PUBLISH;
+        config.op = Operation::CONFIG_PUBLISH;
       else
-	config.op = Operation::INVALID;
+        config.op = Operation::INVALID;
     }
 
     str = subtokenizer.GetToken();
   }
-  
+
   return config.id.length() && config.op != Operation::INVALID &&
-    ( (config.op == Operation::STATUS) | (config.target != OperationTarget::INVALID) | (config.op == Operation::CONFIG_SHOW) | (config.op == Operation::CONFIG_PUBLISH) );
+          ((config.op == Operation::STATUS) | (config.target != OperationTarget::INVALID) | (config.op == Operation::CONFIG_SHOW) | (config.op == Operation::CONFIG_PUBLISH));
 
 }
 
-int countkeys(std::unique_ptr<kio::AdminClusterInterface>& ac)
+int
+countkeys (std::unique_ptr<kio::AdminClusterInterface>& ac)
 {
   fprintf(stdout, "Counting number of keys on cluster: \n");
   auto total = 0;
-  while(true){
+  while (true)
+  {
     auto c = ac->count(5000, total == 0);
-    if(!c) break;
+    if (!c) break;
     total += c;
-    fprintf(stdout, "\r\t %d",total);
+    fprintf(stdout, "\r\t %d", total);
     fflush(stdout);
   }
-  fprintf(stdout, "\r\t %d\n",total);;
+  fprintf(stdout, "\r\t %d\n", total);
+  ;
   return total;
 }
 
-void printStatus(std::unique_ptr<kio::AdminClusterInterface>& ac, Configuration& config)
+void
+printStatus (std::unique_ptr<kio::AdminClusterInterface>& ac, Configuration& config)
 {
   /* Wait a second so that connections register as failed correctly */
   if (!config.monitoring)
@@ -216,39 +243,40 @@ void printStatus(std::unique_ptr<kio::AdminClusterInterface>& ac, Configuration&
   }
   sleep(1);
   auto v = ac->status();
-  for(size_t i=0; i<v.size(); i++) 
+  for (size_t i = 0; i < v.size(); i++)
   {
-    if (config.monitoring) 
+    if (config.monitoring)
       fprintf(stdout, "kinetic.drive.index=%lu kinetic.drive.status=%s\n", i, v[i] ? "OK" : "FAILED");
     else
     {
       XrdOucString sdrive;
-      sdrive += (int)i;
+      sdrive += (int) i;
       fprintf(stdout, "# drive %5s : %s\n", sdrive.c_str(), v[i] ? "OK" : "FAILED");
     }
   }
 }
 
-void doConfig( Configuration& config )
+void
+doConfig (Configuration& config)
 {
-  if (config.op == Operation::CONFIG_SHOW) 
+  if (config.op == Operation::CONFIG_SHOW)
   {
     XrdOucString cmd1 = "node-get ";
     cmd1 += config.space.c_str();
-    cmd1+= " kinetic.cluster.";  
+    cmd1 += " kinetic.cluster.";
     cmd1 += config.space.c_str();
     XrdOucString cmd2 = "node-get ";
-    cmd2 += config.space.c_str(); 
+    cmd2 += config.space.c_str();
     cmd2 += " kinetic.location.";
-    cmd2 += config.space.c_str(); 
+    cmd2 += config.space.c_str();
     XrdOucString cmd3 = "node-get ";
     cmd3 += config.space.c_str();
     cmd3 += " kinetic.security.";
-    cmd3 += config.space.c_str(); 
+    cmd3 += config.space.c_str();
 
-    com_space( (char*)cmd1.c_str());
-    com_space( (char*)cmd2.c_str());
-    com_space( (char*)cmd3.c_str());
+    com_space((char*) cmd1.c_str());
+    com_space((char*) cmd2.c_str());
+    com_space((char*) cmd3.c_str());
   }
   if (config.op == Operation::CONFIG_PUBLISH)
   {
@@ -257,61 +285,63 @@ void doConfig( Configuration& config )
     XrdOucString cmd3 = "node-set ";
     cmd1 += config.space.c_str();
     cmd1 += " kinetic.cluster.";
-    cmd1 += config.space.c_str(); 
-    cmd1 += " file:/var/eos/kinetic/kinetic-cluster-"; 
+    cmd1 += config.space.c_str();
+    cmd1 += " file:/var/eos/kinetic/kinetic-cluster-";
     cmd1 += config.space.c_str();
     cmd1 += ".json";
 
     cmd2 += config.space.c_str();
     cmd2 += " kinetic.location.";
-    cmd2 += config.space.c_str(); 
-    cmd2 += " file:/var/eos/kinetic/kinetic-location-"; 
+    cmd2 += config.space.c_str();
+    cmd2 += " file:/var/eos/kinetic/kinetic-location-";
     cmd2 += config.space.c_str();
     cmd2 += ".json";
 
     cmd3 += config.space.c_str();
     cmd3 += " kinetic.security.";
     cmd3 += config.space.c_str();
-    cmd3 += " file:/var/eos/kinetic/kinetic-security-"; 
+    cmd3 += " file:/var/eos/kinetic/kinetic-security-";
     cmd3 += config.space.c_str();
     cmd3 += ".json";
-    com_space( (char*)cmd1.c_str());
-    com_space( (char*)cmd2.c_str());
-    com_space( (char*)cmd3.c_str());
+    com_space((char*) cmd1.c_str());
+    com_space((char*) cmd2.c_str());
+    com_space((char*) cmd3.c_str());
   }
   return;
 }
 
-
-void doOperation(
-    std::unique_ptr<kio::AdminClusterInterface>& ac,
-    Configuration& config
-)
+void
+doOperation (
+             std::unique_ptr<kio::AdminClusterInterface>& ac,
+             Configuration& config
+             )
 {
   const auto totalkeys = countkeys(ac);
   auto numsteps = 50;
-  const auto perstep = (totalkeys+numsteps-1) / numsteps;
+  const auto perstep = (totalkeys + numsteps - 1) / numsteps;
 
-  int step = perstep; 
-  
-  for(int i=0; step; i++){
-    switch(config.op){
+  int step = perstep;
+
+  for (int i = 0; step; i++)
+  {
+    switch (config.op)
+    {
       case Operation::SCAN:
-        step = ac->scan(perstep, i==0);
+        step = ac->scan(perstep, i == 0);
         break;
       case Operation::REPAIR:
-        step = ac->repair(perstep, i==0);
+        step = ac->repair(perstep, i == 0);
         break;
       case Operation::RESET:
-        step = ac->reset(perstep, i==0);
+        step = ac->reset(perstep, i == 0);
         break;
-      default: 
+      default:
         break;
     }
     fprintf(stdout, "\r[");
-    for(int j=0; j<=i; j++)
+    for (int j = 0; j <= i; j++)
       fprintf(stdout, "*");
-    for(int j=i+1; j<numsteps; j++)
+    for (int j = i + 1; j < numsteps; j++)
       fprintf(stdout, "-");
     fprintf(stdout, "]");
     fflush(stdout);
@@ -320,37 +350,41 @@ void doOperation(
   printKeyCount(ac->getCounts(), config);
 }
 
-
-int com_kinetic (char *arg)
+int
+com_kinetic (char *arg)
 {
-  if(wants_help(arg))
+  if (wants_help(arg))
     return kinetic_help();
 
   Configuration config;
-  if(!parseArguments(arg, config)){
+  if (!parseArguments(arg, config))
+  {
     fprintf(stdout, "Incorrect arguments\n");
     kinetic_help();
     return EXIT_FAILURE;
   }
 
-  switch(config.op){
-  case Operation::CONFIG_SHOW:
-  case Operation::CONFIG_PUBLISH:
-    doConfig(config);
-    return EXIT_SUCCESS;
-  default: break;
+  switch (config.op)
+  {
+    case Operation::CONFIG_SHOW:
+    case Operation::CONFIG_PUBLISH:
+      doConfig(config);
+      return EXIT_SUCCESS;
+    default: break;
   }
 
 
-  try{
-    kio::Factory::registerLogFunction(mlog, 
-            std::bind(mshouldLog, std::placeholders::_1, std::placeholders::_2, config.verbosity)
-    );
-    
+  try
+  {
+    kio::Factory::registerLogFunction(mlog,
+                                      std::bind(mshouldLog, std::placeholders::_1, std::placeholders::_2, config.verbosity)
+                                      );
+
     auto ac = kio::Factory::makeAdminCluster(config.id.c_str(), config.target, config.numthreads);
 
-    switch(config.op){
-      case Operation::STATUS: 
+    switch (config.op)
+    {
+      case Operation::STATUS:
         printStatus(ac, config);
         break;
       case Operation::COUNT:
@@ -360,7 +394,9 @@ int com_kinetic (char *arg)
         doOperation(ac, config);
         break;
     }
-  }catch(std::exception& e){
+  }
+  catch (std::exception& e)
+  {
     fprintf(stdout, "Encountered Exception: %s\n", e.what());
     return EXIT_FAILURE;
   }
@@ -368,7 +404,9 @@ int com_kinetic (char *arg)
 }
 #else
 
-int com_kinetic (char *arg){
+int
+com_kinetic (char *arg)
+{
   fprintf(stdout, "EOS has not been compiled with Kinetic support.\n");
   return EXIT_FAILURE;
 }
