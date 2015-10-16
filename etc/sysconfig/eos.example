@@ -83,6 +83,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Disable 'sss' enforcement to allow generic TPC
 #export EOS_FST_NO_SSS_ENFORCEMENT=1
 
+# Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
+#export EOS_FS_FULL_SIZE_IN_GB=5
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
