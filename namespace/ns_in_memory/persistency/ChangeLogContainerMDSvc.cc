@@ -585,8 +585,10 @@ namespace eos
     copyCmd += " ";
     copyCmd += tmpChangeLogPath.c_str();
 
-    int rc = system( copyCmd.c_str() );
-    if( WEXITSTATUS(rc) )
+    eos::common::ShellCmd scmd(copyCmd.c_str());
+    eos::common::cmd_status rc = scmd.wait(60);
+
+    if( rc.exit_code )
     {
       MDException e( EIO ) ;
       e.getMessage() << "Failed to copy the current change log file <";
