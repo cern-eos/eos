@@ -24,6 +24,7 @@
 #include "ChangeLogFileMDSvc.hh"
 #include "ChangeLogContainerMDSvc.hh"
 #include "ChangeLogConstants.hh"
+#include "common/ShellCmd.hh"
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
@@ -770,7 +771,7 @@ void ChangeLogFileMDSvc::slave2Master(
   copyCmd += " ";
   copyCmd += tmpChangeLogPath.c_str();
 
-  eos::common::ShellCmd scmd(copyCmd.c_str());
+  eos::common::ShellCmd scmd (copyCmd);
   eos::common::cmd_status rc = scmd.wait(60);
 
   if( rc.exit_code )

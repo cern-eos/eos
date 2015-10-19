@@ -21,6 +21,7 @@
 // desc:   Change log based ContainerMD service
 //------------------------------------------------------------------------------
 
+#include "common/ShellCmd.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/utils/Locking.hh"
@@ -585,7 +586,7 @@ namespace eos
     copyCmd += " ";
     copyCmd += tmpChangeLogPath.c_str();
 
-    eos::common::ShellCmd scmd(copyCmd.c_str());
+    eos::common::ShellCmd scmd (copyCmd);
     eos::common::cmd_status rc = scmd.wait(60);
 
     if( rc.exit_code )

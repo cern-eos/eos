@@ -52,7 +52,10 @@ set(EOS_NS_MEMORY_SRCS
 
   views/HierarchicalView.cc     views/HierarchicalView.hh
   accounting/QuotaStats.cc      accounting/QuotaStats.hh
-  accounting/FileSystemView.cc  accounting/FileSystemView.hh)
+  accounting/FileSystemView.cc  accounting/FileSystemView.hh
+
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 #-------------------------------------------------------------------------------
 # EosNsInMemory library
