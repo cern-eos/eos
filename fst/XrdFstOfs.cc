@@ -523,6 +523,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx = "gw.ntx";
   std::string watch_error_simulation = "error.simulation";
+  std::string watch_kinetic_reload = "kinetic.reload";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
@@ -535,6 +536,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
   ObjectManager.ModificationWatchKeys.insert(watch_error_simulation);
+  ObjectManager.ModificationWatchKeys.insert(watch_kinetic_reload);
   ObjectManager.SubjectsMutex.UnLock();
 
 

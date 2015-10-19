@@ -283,6 +283,8 @@ doConfig (Configuration& config)
     XrdOucString cmd1 = "node-set ";
     XrdOucString cmd2 = "node-set ";
     XrdOucString cmd3 = "node-set ";
+    XrdOucString cmd4 = "node-set ";
+
     cmd1 += config.space.c_str();
     cmd1 += " kinetic.cluster.";
     cmd1 += config.space.c_str();
@@ -303,9 +305,16 @@ doConfig (Configuration& config)
     cmd3 += " file:/var/eos/kinetic/kinetic-security-";
     cmd3 += config.space.c_str();
     cmd3 += ".json";
+
+    // to trigger the configuration reload
+    cmd4 += config.space.c_str();
+    cmd4 += " kinetic.reload ";
+    cmd4 += config.space.c_str();
+
     com_space((char*) cmd1.c_str());
     com_space((char*) cmd2.c_str());
     com_space((char*) cmd3.c_str());
+    com_space((char*) cmd4.c_str());
   }
   return;
 }

@@ -309,33 +309,21 @@ com_space (char* arg1)
 	XrdOucString node = nodeline;
 	node.erase(nodeline.find(":"));
 	nodeline.erase(0, nodeline.find(":="));
-	nodeline.erase(0,9);
+	nodeline.erase(0,2);
+
 	// base 64 decode
-	XrdOucString val64 = nodeline.c_str();
-	char* valout = 0;
-	unsigned int valout_len = 0;
-	eos::common::SymKey::Base64Decode(val64, valout, valout_len);
-	if (valout)
+	eos::common::SymKey::DeBase64(nodeline, val);
+
+	if (node == "*")
 	{
-	  val.assign(valout, 0, valout_len-1);
-	  free(valout);
-	  if (node == "*")
-	  {
-	    fprintf(stdout,"%s\n", val.c_str());
-	  }
-	  else
-	  {
-	    fprintf(stdout,"# [ %s ]\n %s\n", node.c_str(), val.c_str());
-	  }
-	  global_retc =0;
-	  return (0);
-	} 
+	  fprintf(stdout,"%s\n", val.c_str());
+	}
 	else
 	{
-	  fprintf(stderr,"error: unable to base64 decode result!\n");
-	  global_retc = EINVAL;
-	  return (0);
+	  fprintf(stdout,"# [ %s ]\n %s\n", node.c_str(), val.c_str());
 	}
+	global_retc =0;
+	return (0);
       }
     }
   }

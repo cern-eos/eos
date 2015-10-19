@@ -24,6 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
+#ifdef KINETICIO_FOUND
+#include <kio/KineticIoFactory.hh>
+#include <kio/LoggingException.hh>
+#endif
 
 /*----------------------------------------------------------------------------*/
 
@@ -77,7 +81,7 @@ Storage::Communicator ()
 
         if (!queue.beginswith(Config::gConfig.FstQueue))
         {
-	  // ! endswith seems to be buggy if the comparable suffix is longer than the string !
+          // ! endswith seems to be buggy if the comparable suffix is longer than the string !
           if (queue.beginswith("/config/") && (queue.length() > Config::gConfig.FstHostPort.length()) && queue.endswith(Config::gConfig.FstHostPort))
           {
             // this is the configuration entry and we should store it to have access to it since it's name depends on the instance name and we don't know (yet)
@@ -162,7 +166,7 @@ Storage::Communicator ()
           if (key == "symkey")
           {
             gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a new symkey 
+            // we received a new symkey
             XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
             if (hash)
             {
@@ -176,7 +180,7 @@ Storage::Communicator ()
           if (key == "manager")
           {
             gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a manager 
+            // we received a manager
             XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
             if (hash)
             {
@@ -191,7 +195,7 @@ Storage::Communicator ()
           if (key == "publish.interval")
           {
             gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a manager 
+            // we received a manager
             XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
             if (hash)
             {
@@ -206,7 +210,7 @@ Storage::Communicator ()
           if (key == "debug.level")
           {
             gOFS.ObjectManager.HashMutex.LockRead();
-            // we received a manager 
+            // we received a manager
             XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
             if (hash)
             {
@@ -302,9 +306,68 @@ Storage::Communicator ()
             {
               std::string value = hash->Get("error.simulation");
               eos_static_info("cmd=set error.simulation=%s", value.c_str());
-	      gOFS.SetSimulationError(value.c_str());
+              gOFS.SetSimulationError(value.c_str());
             }
             gOFS.ObjectManager.HashMutex.UnLockRead();
+          }
+
+          if (key == "kinetic.reload")
+          {
+            bool do_reload = false;
+            gOFS.ObjectManager.HashMutex.LockRead();
+            XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(queue.c_str(), "hash");
+            if (hash)
+            {
+              // retrieve new keys
+              std::string space = hash->Get("kinetic.reload");
+              eos_static_info("cmd=set kinetic.reload=%s", space.c_str());
+              std::string kinetic_cluster_key = "kinetic.cluster.";
+              kinetic_cluster_key += space;
+              std::string kinetic_location_key = "kinetic.location.";
+              kinetic_location_key += space;
+              std::string kinetic_security_key = "kinetic.security.";
+              kinetic_security_key += space;
+
+              // base64 decode new keys
+              XrdOucString k_cluster_64 = hash->Get(kinetic_cluster_key).c_str();
+              XrdOucString k_location_64 = hash->Get(kinetic_location_key).c_str();
+              XrdOucString k_security_64 = hash->Get(kinetic_security_key).c_str();
+              XrdOucString k_cluster;
+              XrdOucString k_location;
+              XrdOucString k_security;
+
+              eos::common::SymKey::DeBase64(k_cluster_64, k_cluster);
+              eos::common::SymKey::DeBase64(k_location_64, k_location);
+              eos::common::SymKey::DeBase64(k_security_64, k_security);
+
+              if (k_cluster.length() && k_location.length() && k_security.length())
+              {
+                eos_static_info("msg=\"reloading kinetic configuration\" space=%s", space.c_str());
+                eos_static_debug("\n%s", k_cluster.c_str());
+                eos_static_debug("\n%s", k_location.c_str());
+                eos_static_debug("'\n%s", k_security.c_str());
+                // store the decoded json strings in the environment
+                setenv("KINETIC_DRIVE_LOCATION", k_location.c_str(), 1);
+                setenv("KINETIC_DRIVE_SECURITY", k_security.c_str(), 1);
+                setenv("KINETIC_CLUSTER_DEFINITION", k_cluster.c_str(), 1);
+                do_reload = true;
+              }
+            }
+            gOFS.ObjectManager.HashMutex.UnLockRead();
+
+#ifdef KINETICIO_FOUND
+            if (do_reload)
+            {
+              try
+              {
+                kio::Factory::reloadConfiguration();
+              }
+              catch (kio::LoggingException &e)
+              {
+                eos_static_crit("msg=\"reload of kinetic configuration failed\" exception=\"%s\"", e.what());
+              }
+            }
+#endif
           }
         }
         else
