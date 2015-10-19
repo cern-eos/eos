@@ -256,6 +256,31 @@ SymKey::Base64Decode (XrdOucString &in, char* &out, unsigned int &outlen)
   return true;
 }
 
+bool
+SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
+{
+  if (!in.beginswith("base64:"))
+  {
+    out = in;
+    return true;
+  }
+
+  XrdOucString in64 = in;
+
+  in64.erase(0,7);
+
+  char* valout = 0;
+  unsigned int valout_len = 0;
+
+  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  if (valout)
+  {
+    out.assign(valout, 0, valout_len-1);
+    free(valout);
+    return true;
+  }
+  return false;
+}
 
 //------------------------------------------------------------------------------
 // Constructor
