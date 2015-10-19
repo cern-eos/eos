@@ -832,7 +832,8 @@ namespace eos
     copyCmd += tmpChangeLogPath.c_str();
 
     eos::common::ShellCmd scmd( copyCmd.c_str() );
-    os::common::cmd_status rc = scmd.Wait(1800);
+    eos::common::cmd_status rc = scmd.wait(1800);
+
     if( rc.exit_code )
     {
       MDException e( EIO ) ;
