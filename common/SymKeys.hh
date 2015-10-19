@@ -126,6 +126,11 @@ public:
  //----------------------------------------------------------------------------
  static bool Base64Decode (XrdOucString &in, char* &out, unsigned int &outlen);
 
+ //----------------------------------------------------------------------------
+ //! Base64 decode a string to a string if the input starts with base64:
+ //----------------------------------------------------------------------------
+ static bool DeBase64 (XrdOucString &in, XrdOucString &out);
+
 
  //----------------------------------------------------------------------------
  //! 
