@@ -529,6 +529,7 @@ protected:
   //
   /// Thread local buffer to hold a working copy of a fast structure
   static __thread void* tlGeoBuffer;
+  static pthread_key_t gPthreadKey;
   /// Current scheduling group for the current thread
   static __thread const FsGroup* tlCurrentGroup;
   //
@@ -600,6 +601,10 @@ protected:
 
     eos_debug("%d pending deletions executed",count);
   }
+
+  /// thread-local buffer management
+  static void tlFree( void *arg);
+  static char* tlAlloc( size_t size);
 
   inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
   {
@@ -696,7 +701,8 @@ protected:
     }
 
     // make a working copy of the required fast tree
-    if(!tlGeoBuffer) tlGeoBuffer = new char[gGeoBufferSize];// should store this and delete it in the destructor
+    // allocate the buffer only once for the lifetime of the thread
+    if(!tlGeoBuffer) tlGeoBuffer = tlAlloc(gGeoBufferSize);
 
     if(placementTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
     {
@@ -825,7 +831,8 @@ protected:
     }
 
     // make a working copy of the required fast tree
-    if(!tlGeoBuffer) tlGeoBuffer = new char[gGeoBufferSize];// should store this and delete it in the destructor
+    // allocate the buffer only once for the lifetime of the thread
+    if(!tlGeoBuffer) tlGeoBuffer = tlAlloc(gGeoBufferSize);
 
     if(accessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
     {
@@ -1043,6 +1050,8 @@ public:
     pTreeMapMutex.SetBlocking(true);
     for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
       it->reserve(100);
+    // create the thread local key to handle allocation/destruction of thread local geobuffers
+    pthread_key_create(&gPthreadKey, GeoTreeEngine::tlFree);
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex::SetOrderCheckingGlobal(true);

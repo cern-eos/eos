@@ -46,6 +46,7 @@ GeoTreeEngine gGeoTreeEngine;
 
 const size_t GeoTreeEngine::gGeoBufferSize = sizeof(FastPlacementTree) + FastPlacementTree::sGetMaxDataMemSize(); // we assume that all the trees have the same max size, we should take the max of all the sizes otherwise
 __thread void* GeoTreeEngine::tlGeoBuffer = NULL;
+pthread_key_t GeoTreeEngine::gPthreadKey;
 __thread const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
 
 const int
@@ -2531,6 +2532,23 @@ bool GeoTreeEngine::showDisabledBranches (const std::string& group, const std::s
   if(lock) configMutex.UnLockRead();
   return true;
 }
+
+void GeoTreeEngine::tlFree( void *arg)
+{
+  eos_static_debug("destroying thread specific geobuffer");
+  // delete the buffer
+  delete[] (char*)arg;
+}
+
+char* GeoTreeEngine::tlAlloc( size_t size)
+{
+  eos_static_debug("allocating thread specific geobuffer");
+  char *buf = new char[size];
+  if(pthread_setspecific(gPthreadKey, buf))
+    eos_static_crit("error registering thread-local buffer located at %p for cleaning up : memory will be leaked when thread is terminated",buf);
+  return buf;
+}
+
 
 EOSMGMNAMESPACE_END
 
