@@ -68,6 +68,7 @@ target_link_libraries(
   EosNsInMemory
   EosNsCommon
   ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
@@ -92,6 +93,7 @@ if (Linux)
   target_link_libraries(
     EosNsInMemory-Static
     EosNsCommon-Static
+    ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
