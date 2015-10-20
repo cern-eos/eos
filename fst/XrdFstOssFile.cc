@@ -223,7 +223,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
       }
     }
 
-    if (nread)
+    if (nread >= 0)
     {
       if (piece->offset < offset)
       {
@@ -236,7 +236,7 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
         retval += len_copy;
       }
       else if ((piece->offset >= offset) &&
-	       (nread != eos::common::LayoutId::OssXsBlockSize))
+	       ((size_t)nread != eos::common::LayoutId::OssXsBlockSize))
       {
         // Copy back end edge
         len_copy = std::min((ssize_t)(offset + length - piece->offset), nread);
@@ -246,6 +246,11 @@ XrdFstOssFile::Read (void* buffer, off_t offset, size_t length)
       }
       else
         retval += nread;
+    }
+    else
+    {
+      eos_err("error=failed read offset=%zu, length=%zu", piece->offset, piece->size);
+      return -EIO;
     }
   }
 
