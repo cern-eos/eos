@@ -637,17 +637,6 @@ Master::ScheduleOnlineCompacting(time_t starttime, time_t repetitioninterval)
 void*
 Master::Compacting()
 {
-  eos::IChLogFileMDSvc* eos_chlog_filesvc =
-      dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-  eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
-      dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
-
-  if (!eos_chlog_filesvc || !eos_chlog_dirsvc)
-  {
-    eos_notice("msg=\"namespace does not support compacting - disable it\"");
-    return 0;
-  }
-
   do
   {
     XrdSysThread::SetCancelOff();
@@ -704,6 +693,19 @@ Master::Compacting()
       }
     }
     while (!go);
+
+
+    eos::IChLogFileMDSvc* eos_chlog_filesvc =
+      dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+    eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
+      dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+
+    // Check if namespace supports compacting
+    if (!eos_chlog_filesvc || !eos_chlog_dirsvc)
+    {
+      eos_notice("msg=\"namespace does not support compacting - disable it\"");
+      return 0;
+    }
 
     if (runcompacting)
     {
