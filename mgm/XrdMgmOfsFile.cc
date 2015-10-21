@@ -254,7 +254,7 @@ XrdMgmOfsFile::open (const char *inpath,
     if ((val = openOpaque->Get("tried")))
     {
       tried_cgi = val;
-      tried_cgi +=",";
+      tried_cgi += ",";
     }
 
   }
@@ -455,22 +455,22 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (dmd)
       {
-	try
-	{
-	  if (ocUploadUuid.length())
-	  {
-	    eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-	    fmd = gOFS->eosView->getFile(aPath.GetPath());
-	  }
-	  else
-	  {
-	    fmd = gOFS->eosView->getFile(cPath.GetPath());
-	  }
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = 0;
-	}
+        try
+        {
+          if (ocUploadUuid.length())
+          {
+            eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
+            fmd = gOFS->eosView->getFile(aPath.GetPath());
+          }
+          else
+          {
+            fmd = gOFS->eosView->getFile(cPath.GetPath());
+          }
+        }
+        catch (eos::MDException &e)
+        {
+          fmd = 0;
+        }
 
         if (!fmd)
         {
@@ -1103,7 +1103,7 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       else
       {
-	fmd->setMTimeNow();
+        fmd->setMTimeNow();
       }
 
       if (ext_ctime_sec)
@@ -1116,19 +1116,19 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
-	if (isCreation || (!fmd->getNumLocation())) 
-	{
-	  std::string uri = gOFS->eosView->getUri(fmd);
-	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
-	  if (space)
-	  {
-	    eos::QuotaNode* quotanode = 0;
-	    quotanode = space->GetQuotaNode();
-	    if (quotanode)
-	    {
-	      quotanode->addFile(fmd);
-	    }
-	  }
+        if (isCreation || (!fmd->getNumLocation()))
+        {
+          std::string uri = gOFS->eosView->getUri(fmd);
+          SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
+          if (space)
+          {
+            eos::QuotaNode* quotanode = 0;
+            quotanode = space->GetQuotaNode();
+            if (quotanode)
+            {
+              quotanode->addFile(fmd);
+            }
+          }
         }
       }
       catch (eos::MDException &e)
@@ -1315,16 +1315,16 @@ XrdMgmOfsFile::open (const char *inpath,
       // check if we have a global redirect or stall for offline files
       MAYREDIRECT_ENONET;
       MAYSTALL_ENONET;
-      
+
       // ----------------------------------------------------------------------
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
       // ----------------------------------------------------------------------
-      if ((!isCreation) && (fmd->getSize() < (1*1024*1024*1024)))
+      if ((!isCreation) && (fmd->getSize() < (1 * 1024 * 1024 * 1024)))
       {
         int nmaxheal = 3;
-	if (attrmap.count("sys.heal.unavailable"))
-	  nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
+        if (attrmap.count("sys.heal.unavailable"))
+          nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
 
         int nheal = 0;
         gOFS->MgmHealMapMutex.Lock();
@@ -1340,45 +1340,45 @@ XrdMgmOfsFile::open (const char *inpath,
           gOFS->MgmHealMap.resize(0);
           gOFS->MgmHealMapMutex.UnLock();
           gOFS->MgmStats.Add("OpenFailedHeal", vid.uid, vid.gid, 1);
-          XrdOucString msg = "heal file with inaccesible replica's after ";
+          XrdOucString msg = "heal file with inaccessible replica's after ";
           msg += (int) nmaxheal;
           msg += " tries - giving up";
           eos_err("%s", msg.c_str());
           return Emsg(epname, error, ENOSR, msg.c_str(), path);
         }
 
-	eos_info("msg=\"in-line healing\" path=%s", path);
-	// increase the heal counter for that file id
-	gOFS->MgmHealMap[fileId] = nheal + 1;
-	gOFS->MgmHealMapMutex.UnLock();
+        eos_info("msg=\"in-line healing\" path=%s", path);
+        // increase the heal counter for that file id
+        gOFS->MgmHealMap[fileId] = nheal + 1;
+        gOFS->MgmHealMapMutex.UnLock();
 
-	ProcCommand* procCmd = new ProcCommand();
-	if (procCmd)
+        ProcCommand* procCmd = new ProcCommand();
+        if (procCmd)
         {
-	  // issue the version command 
-	  XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
-	  cmd += path;
-	  procCmd->open("/proc/user/", cmd.c_str(), vid, &error);
-	  procCmd->close();
-	  delete procCmd;
-	  
-	  int stalltime = 1; // let the client come back quickly
-	  if (attrmap.count("sys.stall.unavailable"))
+          // issue the version command
+          XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
+          cmd += path;
+          procCmd->open("/proc/user/", cmd.c_str(), vid, &error);
+          procCmd->close();
+          delete procCmd;
+
+          int stalltime = 1; // let the client come back quickly
+          if (attrmap.count("sys.stall.unavailable"))
           {
-	    stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
-	  }
-	  gOFS->MgmStats.Add("OpenStalledHeal", vid.uid, vid.gid, 1);
-	  eos_info("attr=sys info=\"stalling file\" path=%s rw=%d stalltime=%d nstall=%d",
-		   path, isRW, stalltime, nheal);
-	  return gOFS->Stall(error, stalltime, ""
-			     "Required filesystems are currently unavailable!");
-	}
-	else
+            stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+          }
+          gOFS->MgmStats.Add("OpenStalledHeal", vid.uid, vid.gid, 1);
+          eos_info("attr=sys info=\"stalling file\" path=%s rw=%d stalltime=%d nstall=%d",
+                   path, isRW, stalltime, nheal);
+          return gOFS->Stall(error, stalltime, ""
+                             "Required filesystems are currently unavailable!");
+        }
+        else
         {
-	  gOFS->MgmHealMapMutex.UnLock();
-	  return Emsg(epname, error, ENOMEM,
-		      "allocate memory for proc command", path);
-	}
+          gOFS->MgmHealMapMutex.UnLock();
+          return Emsg(epname, error, ENOMEM,
+                      "allocate memory for proc command", path);
+        }
       }
 
       // ----------------------------------------------------------------------
