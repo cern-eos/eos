@@ -175,46 +175,46 @@ ProcCommand::Space ()
             std::map<std::string, FsNode*>::const_iterator it;
             for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++)
             {
-	      XrdOucString file = val.c_str();
-	      if (file.beginswith("file:/")) 
-	      {
-		// load the file on the MGM
-		file.erase(0,5);
-		eos::common::Path iPath(file.c_str());
-		XrdOucString fpath = iPath.GetPath();
+              XrdOucString file = val.c_str();
+              if (file.beginswith("file:/"))
+              {
+                // load the file on the MGM
+                file.erase(0, 5);
+                eos::common::Path iPath(file.c_str());
+                XrdOucString fpath = iPath.GetPath();
 
-		if (!fpath.beginswith("/var/eos/"))
-		{
-		  stdErr = "error: cannot load requested file="; 
-		  stdErr += file.c_str();
-		  stdErr += " - only files under /var/eos/ can bo loaded\n";
-		  retc = EINVAL;
-		}
-		else 
-		{
-		  std::ifstream ifs(file.c_str(), std::ios::in | std::ios::binary);
-		  if (!ifs)
-		  {
-		    stdErr = "error: cannot load requested file="; 
-		    stdErr += file.c_str();
-		    retc = EINVAL;
-		  }
-		  else 
-		  {
-		    val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		    // store the value b64 encoded                                                                                                                                                                            
-		    XrdOucString val64;
-		    
-		    eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
-		    val = "base64:";
-		    val += val64.c_str();
-		    stdOut += "success: loaded contents \n";
-		    stdOut += val.c_str();
-		  }
-		}
-	      }
-		
-              if ( !retc && !it->second->SetConfigMember(key, val, true, "/eos/*/mgm"))
+                if (!fpath.beginswith("/var/eos/"))
+                {
+                  stdErr = "error: cannot load requested file=";
+                  stdErr += file.c_str();
+                  stdErr += " - only files under /var/eos/ can bo loaded\n";
+                  retc = EINVAL;
+                }
+                else
+                {
+                  std::ifstream ifs(file.c_str(), std::ios::in | std::ios::binary);
+                  if (!ifs)
+                  {
+                    stdErr = "error: cannot load requested file=";
+                    stdErr += file.c_str();
+                    retc = EINVAL;
+                  }
+                  else
+                  {
+                    val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+                    // store the value b64 encoded
+                    XrdOucString val64;
+
+                    eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
+                    val = "base64:";
+                    val += val64.c_str();
+                    stdOut += "success: loaded contents \n";
+                    stdOut += val.c_str();
+                  }
+                }
+              }
+
+              if (!retc && !it->second->SetConfigMember(key, val, true, "/eos/*/mgm"))
               {
                 stdErr += "error: cannot set node-set for node <";
                 stdErr += it->first.c_str();
@@ -248,7 +248,7 @@ ProcCommand::Space ()
       }
       else
       {
-        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         if (!FsView::gFsView.mSpaceView.count(spacename))
         {
           stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
@@ -257,27 +257,27 @@ ProcCommand::Space ()
         else
         {
           {
-	    std::string val = "";
-	    bool identical=true;
+            std::string val = "";
+            bool identical = true;
             // loop over all nodes
             std::map<std::string, FsNode*>::const_iterator it;
             for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++)
             {
-	      std::string new_val = it->second->GetConfigMember(key);
-	      if (val.length() && new_val != val)
-		identical = false;
-	      val = new_val;
-	      stdOut += it->first.c_str();
-	      stdOut += ":=";
-	      stdOut += new_val.c_str();
-	      stdOut += "\n";
+              std::string new_val = it->second->GetConfigMember(key);
+              if (val.length() && new_val != val)
+                identical = false;
+              val = new_val;
+              stdOut += it->first.c_str();
+              stdOut += ":=";
+              stdOut += new_val.c_str();
+              stdOut += "\n";
             }
-	    if (identical)
-	    {
-	      stdOut = "*:=";
-	      stdOut += val.c_str();
-	      stdOut += "\n";
-	    }
+            if (identical)
+            {
+              stdOut = "*:=";
+              stdOut += val.c_str();
+              stdOut += "\n";
+            }
           }
         }
       }
@@ -295,23 +295,23 @@ ProcCommand::Space ()
     XrdOucString option = pOpaque->Get("mgm.option");
 
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-    if ((!option.length()) || (option == "drain")) 
+    if ((!option.length()) || (option == "drain"))
     {
       if (FsView::gFsView.mSpaceView.count(spacename))
       {
-	FsView::gFsView.mSpaceView[spacename]->ResetDraining();
-	stdOut = "info: reset draining in space '";
-	stdOut += spacename.c_str();
-	stdOut += "'";
+        FsView::gFsView.mSpaceView[spacename]->ResetDraining();
+        stdOut = "info: reset draining in space '";
+        stdOut += spacename.c_str();
+        stdOut += "'";
       }
       else
       {
-	stdErr = "error: illegal space name";
-	retc = EINVAL;
+        stdErr = "error: illegal space name";
+        retc = EINVAL;
       }
     }
 
-    if ((!option.length()) || (option == "egroup")) 
+    if ((!option.length()) || (option == "egroup"))
     {
       Egroup::Reset();
       stdOut += "\ninfo: clear cached EGroup information ...";
@@ -319,19 +319,19 @@ ProcCommand::Space ()
       stdOut += "\ninfo: clear all user/group uid/gid caches ...\n";
     }
 
-    if ( option == "scheduledrain" )
+    if (option == "scheduledrain")
     {
       XrdSysMutexHelper Lock(gOFS->ScheduledToDrainFidMutex);
       gOFS->ScheduledToDrainFid.clear();
-      stdOut ="info: reset drain scheduling map in space '";
+      stdOut = "info: reset drain scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";
     }
-    if ( option == "schedulebalance" )
+    if (option == "schedulebalance")
     {
       XrdSysMutexHelper Lock(gOFS->ScheduledToBalanceFidMutex);
       gOFS->ScheduledToBalanceFid.clear();
-      stdOut ="info: reset balance scheduling map in space '";
+      stdOut = "info: reset balance scheduling map in space '";
       stdOut += spacename.c_str();
       stdOut += "'";
     }
@@ -455,15 +455,15 @@ ProcCommand::Space ()
                 (key == "geobalancer") ||
                 (key == "geobalancer.ntx") ||
                 (key == "geobalancer.threshold") ||
-		(key == "geo.access.policy.read.exact") ||
-		(key == "geo.access.policy.write.exact") ||
+                (key == "geo.access.policy.read.exact") ||
+                (key == "geo.access.policy.write.exact") ||
                 (key == "balancer.threshold"))
             {
               if ((key == "balancer") || (key == "converter") ||
                   (key == "autorepair") || (key == "lru") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
-		  (key == "geo.access.policy.read.exact") ||
-		  (key == "geo.access.policy.write.exact"))
+                  (key == "geo.access.policy.read.exact") ||
+                  (key == "geo.access.policy.write.exact"))
               {
                 if ((value != "on") && (value != "off"))
                 {
