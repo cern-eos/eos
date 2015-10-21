@@ -1346,14 +1346,11 @@ ProcCommand::File ()
                 std::vector<unsigned int> unavailfs;
                 std::vector<unsigned int> sourcefs = fmd_cpy->getLocations();
                 std::string tried_cgi;
-               
-                // this is now our source filesystem
-                unsigned int sourcefsid = selectedfs[fsIndex];
 
                 // now we just need to ask for <n> targets
                 int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
                                                             eos::common::LayoutId::kNone,
-                                                              nnewreplicas);
+							    nnewreplicas);
                 eos::common::Path cPath(spath.c_str());
                 eos::IContainerMD::XAttrMap attrmap;
                 gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0,attrmap);
@@ -1395,6 +1392,10 @@ ProcCommand::File ()
 							 unavailfs))
         	    )
                     {
+
+		      // this is now our source filesystem
+		      unsigned int sourcefsid = sourcefs[fsIndex];
+
                       // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
                       // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
                       // Add replication here

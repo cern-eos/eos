@@ -24,6 +24,7 @@
 #include "ChangeLogFileMDSvc.hh"
 #include "ChangeLogContainerMDSvc.hh"
 #include "ChangeLogConstants.hh"
+#include "common/ShellCmd.hh"
 #include "namespace/Constants.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
@@ -769,9 +770,11 @@ void ChangeLogFileMDSvc::slave2Master(
   copyCmd += currentChangeLogPath.c_str();
   copyCmd += " ";
   copyCmd += tmpChangeLogPath.c_str();
-  int rc = system(copyCmd.c_str());
 
-  if (WEXITSTATUS(rc))
+  eos::common::ShellCmd scmd (copyCmd);
+  eos::common::cmd_status rc = scmd.wait(60);
+
+  if( rc.exit_code )
   {
     MDException e(EIO) ;
     e.getMessage() << "Failed to copy the current change log file <";
