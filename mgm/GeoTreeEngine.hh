@@ -566,7 +566,9 @@ protected:
   /// they are delayed so that any function that is using the treemapentry can safely finish
   std::list<TreeMapEntry*> pPendingDeletions;
   /// indicate if the updater is paused
+  static XrdSysSemaphore gUpdaterPauseSem;
   static bool gUpdaterPaused;
+  static bool gUpdaterStarted;
 //**********************************************************
 // END DATA MEMBERS
 //**********************************************************
@@ -1269,15 +1271,25 @@ public:
   //! Pause the updating of the GeoTreeEngine but keep accumulating
   //! modification notifications
   // ---------------------------------------------------------------------------
-  inline void PauseUpdater()
-  { gUpdaterPaused = true;}
+  inline static void PauseUpdater()
+  { if(gUpdaterStarted && !gUpdaterPaused) { gUpdaterPauseSem.Wait(); gUpdaterPaused = true; }}
 
   // ---------------------------------------------------------------------------
   //! Resume the updating of the GeoTreeEngine
   //! Process all the notifications accumulated since it was paused
   // ---------------------------------------------------------------------------
-  inline void ResumeUpdater()
-  { gUpdaterPaused = false;}
+  inline static void ResumeUpdater()
+  { if(gUpdaterStarted && gUpdaterPaused) { gUpdaterPauseSem.Post(); gUpdaterPaused = false; }}
+
+  // ---------------------------------------------------------------------------
+  //! Helper class to use Pausing the updater
+  // ---------------------------------------------------------------------------
+  class UpdaterPauser
+  {
+  public:
+    UpdaterPauser() { GeoTreeEngine::PauseUpdater(); }
+    ~UpdaterPauser() { GeoTreeEngine::ResumeUpdater(); }
+  };
 
   // ---------------------------------------------------------------------------
   //! Stop the background updater thread

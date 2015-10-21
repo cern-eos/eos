@@ -102,7 +102,9 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
 };
 
 map<string,int> GeoTreeEngine::gNotificationsBuffer;
+XrdSysSemaphore GeoTreeEngine::gUpdaterPauseSem;
 bool GeoTreeEngine::gUpdaterPaused = false;
+bool GeoTreeEngine::gUpdaterStarted = false;
 
 bool GeoTreeEngine::TreeMapEntry::updateFastStructures()
 {
@@ -1325,6 +1327,7 @@ bool GeoTreeEngine::StopUpdater()
 {
   XrdSysThread::Cancel(pUpdaterTid);
   XrdSysThread::Join(pUpdaterTid, 0);
+  gUpdaterStarted = false;
   return true;
 }
 
@@ -1336,6 +1339,8 @@ void* GeoTreeEngine::startFsChangeListener(void *pp)
 
 void GeoTreeEngine::listenFsChange()
 {
+  gUpdaterStarted = true;
+
   gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
 
   if(!gOFS->ObjectNotifier.StartNotifyCurrentThread())
@@ -1349,7 +1354,8 @@ void GeoTreeEngine::listenFsChange()
 
   do
   {
-    while(gUpdaterPaused) sleep(1);
+    gUpdaterPauseSem.Wait();
+
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait(1);
     //gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
 
@@ -1449,9 +1455,10 @@ void GeoTreeEngine::listenFsChange()
     }
     XrdSysThread::SetCancelOff();
     size_t elapsedMs = (curtime.tv_sec-prevtime.tv_sec)*1000 +(curtime.tv_usec-prevtime.tv_usec)/1000;
+    pFrameCount++;
+    gUpdaterPauseSem.Post();
     if((int)elapsedMs<pTimeFrameDurationMs)
       XrdSysTimer::Wait(pTimeFrameDurationMs-(int)elapsedMs);
-    pFrameCount++;
   }
   while (1);
 }
@@ -2003,10 +2010,17 @@ void GeoTreeEngine::updateAtomicPenalties()
 
       // we use the view to check that we have all the fs in a node
       // could be removed if we were sure to run a single on fst daemon / box
-      FsView::gFsView.ViewMutex.LockRead();
+
+      // WARNING: see below / FsView::gFsView.ViewMutex.LockRead();
       for( auto it = pUpdatingNodes.begin(); it!= pUpdatingNodes.end(); it++)
       {
-        const std::string &nodestr = it->first;
+         const std::string &nodestr = it->first;
+        // ===============
+        // WARNING: the following part is commented out because it can create a deadlock with FsViewMutex/pAddRmFsMutex in the above FsViewMutex lock when inserting/removing a filesystem
+        //          it can be fixed but it's not trivial. Because it's not needed in operation, we don't fix it for now.
+        //          When using several fst daemons on the same host, it could give overestimated atomic penalties when they are selfestimated
+        // ===============
+        /*
         FsNode *node = NULL;
         if(FsView::gFsView.mNodeView.count(nodestr))
         node = FsView::gFsView.mNodeView[nodestr];
@@ -2020,6 +2034,9 @@ void GeoTreeEngine::updateAtomicPenalties()
           continue;
         }
         if((!it->second.saturated) && it->second.fsCount == node->size())
+        */
+        // ===============
+        if((!it->second.saturated))
         {
 //          eos_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
 //              it->first.c_str(),it->second.wOpen,it->second.rOpen,it->second.netOutWeight,it->second.netInWeight);
@@ -2027,8 +2044,8 @@ void GeoTreeEngine::updateAtomicPenalties()
         else
         {
           // the fs/host is saturated, we don't use the whole host in the estimate
-          if(it->second.saturated)
           eos_debug("fs update in node %s : box is saturated", nodestr.c_str());
+          continue;
 // could force to get everything
 //          long long wopen = node->SumLongLong("stat.wopen",false);
 //          long long ropen = node->SumLongLong("stat.ropen",false);
@@ -2042,7 +2059,7 @@ void GeoTreeEngine::updateAtomicPenalties()
         fscount[it->second.netSpeedClass]+=it->second.fsCount;
         hostcount[it->second.netSpeedClass]++;
       }
-      FsView::gFsView.ViewMutex.UnLockRead();
+      // WARNING: see above / FsView::gFsView.ViewMutex.UnLockRead();
 
       for(size_t netSpeedClass=0; netSpeedClass<=pMaxNetSpeedClass; netSpeedClass++)
       {
