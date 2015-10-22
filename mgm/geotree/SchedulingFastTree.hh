@@ -490,13 +490,15 @@ public:
   bool
   get(const char* fsid, const tFastTreeIdx * &idx) const
   {
+    if(!pSize)
+      return false;
     tFastTreeIdx left = 0;
     tFastTreeIdx right = pSize - 1;
 
     auto cmpRqLeft = strcmp(fsid,pBuffer+left*pStrLen);
     auto cmpRqRight = strcmp(fsid,pBuffer+right*pStrLen);
 
-    if (!pSize || cmpRqRight>0 || cmpRqLeft<0)
+    if (cmpRqRight>0 || cmpRqLeft<0)
     //if (!pSize || fsid > pFsIds[right] || fsid < pFsIds[left])
     return false;
 

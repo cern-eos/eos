@@ -112,7 +112,6 @@ const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
 };
 
 map<string,int> GeoTreeEngine::gNotificationsBufferFs;
-map<string,int> GeoTreeEngine::gNotificationsBufferGw;
 map<string,int> GeoTreeEngine::gNotificationsBufferDp;
 bool GeoTreeEngine::gUpdaterPaused = false;
 const unsigned char GeoTreeEngine::sntFilesystem=1,GeoTreeEngine::sntGateway=2,GeoTreeEngine::sntDataproxy=4;
@@ -137,19 +136,19 @@ bool GeoTreeEngine::forceRefresh()
   it->second->fastStructModified = true;
   it->second->slowTreeModified = true;
   }
-  // => DATAPROXYS AND GATEWAYS
-  for(auto it=pGwQueue2GwId.begin(); it!=pGwQueue2GwId.end(); it++)
-    gNotificationsBufferGw[it->first] = (~0);
-  pGatewayStructures.fastStructModified = true;
-  pGatewayStructures.slowTreeModified= true;
-  for(auto it=pDpQueue2DpId.begin(); it!=pDpQueue2DpId.end(); it++)
-    gNotificationsBufferDp[it->first] = (~0);
-  pDataProxyStructures.fastStructModified = true;
-  pDataProxyStructures.slowTreeModified= true;
+  // mark all fs needing a refresh for all the watched attributes
+  // => PROTOCOL
+  for(auto it=pPxyQueue2PxyId.begin(); it!=pPxyQueue2PxyId.end(); it++)
+    gNotificationsBufferFs[it->first]=(~0);
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++)
+  {
+  it->second->fastStructModified = true;
+  it->second->slowTreeModified = true;
+  }
 
   // do the update
   pTreeMapMutex.UnLockWrite();
-  updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferGw,gNotificationsBufferDp);
+  updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
   pAddRmFsMutex.UnLockWrite();
   // signal a resume to the background updating
   ResumeUpdater();
@@ -706,23 +705,20 @@ void GeoTreeEngine::printInfo(std::string &info,
   }
 
   // ==== run through the map of file systems
-  std::map<std::string,GwTMEBase*> type2gwTMEBase;
-  type2gwTMEBase["gateway"] = &pGatewayStructures;
-  type2gwTMEBase["dataproxy"] = &pDataProxyStructures;
-  for(auto it = type2gwTMEBase.begin(); it != type2gwTMEBase.end(); it++)
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++)
   {
     stringstream ostr;
 
-    if(dispTree && (schedgroup.empty() || schedgroup=="*" ) )
+    if(dispTree && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->first)) )
     {
-      ostr << "### scheduling tree for gateway function "<< it->first <<" :" << std::endl;
+      ostr << "### scheduling tree for proxy group "<< it->first <<" :" << std::endl;
       it->second->slowTree->display(ostr,useColors);
       ostr <<std::endl;
     }
 
-    if(dispSnaps && (schedgroup.empty() || schedgroup=="*") )
+    if(dispSnaps && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->first)) )
     {
-        ostr << "### scheduling snapshot for gateway function "<< it->first <<" :" << std::endl;
+        ostr << "### scheduling snapshot for proxy group "<< it->first <<" :" << std::endl;
         it->second->foregroundFastStruct->gWAccessTree->recursiveDisplay(ostr,useColors)<<endl;
     }
     orderByGroupName[it->first] = ostr.str();
@@ -1488,13 +1484,6 @@ void GeoTreeEngine::listenFsChange()
             else
             (gNotificationsBufferFs)[queue] = gNotifKey2Enum.at(key);
           }
-          if(notifTypeIt->second & sntGateway)
-          {
-            if(gNotificationsBufferGw.count(queue))
-            (gNotificationsBufferGw)[queue] |= gNotifKey2EnumGw.at(key);
-            else
-            (gNotificationsBufferGw)[queue] = gNotifKey2EnumGw.at(key);
-          }
           if(notifTypeIt->second & sntDataproxy)
           {
             if(gNotificationsBufferDp.count(queue))
@@ -1530,10 +1519,9 @@ void GeoTreeEngine::listenFsChange()
       checkPendingDeletions(); // do it before tree info to leave some time to the other threads
       {
 	eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-	updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferGw,gNotificationsBufferDp);
+	updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
       }
       gNotificationsBufferFs.clear();
-      gNotificationsBufferGw.clear();
       gNotificationsBufferDp.clear();
     }
     XrdSysThread::SetCancelOff();
@@ -1828,7 +1816,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_
       if(stn) stn->pNodeInfo.netSpeedClass = netSpeedClass;
     }
 
-    nodeAgreg& na = pPenaltySched.pUpdatingNodes[fs->mQueue];// this one will create the entry if it doesnt exists already
+    nodeAgreg& na = pPenaltySched.pUpdatingNodes[fs->mHostPort];// this one will create the entry if it doesnt exists already
     na.fsCount++;
     if(!na.saturated)
     {
@@ -1987,7 +1975,7 @@ bool GeoTreeEngine::updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::ho
       if(stn) stn->pNodeInfo.netSpeedClass = netSpeedClass;
     }
 
-    nodeAgreg& na = pPenaltySched.pUpdatingNodes[hs->mQueue];    // this one will create the entry if it doesnt exists already
+    nodeAgreg& na = pPenaltySched.pUpdatingNodes[hs->mHost];    // this one will create the entry if it doesnt exists already
     na.fsCount++;
     if(!na.saturated)
     {
@@ -2017,7 +2005,7 @@ bool GeoTreeEngine::updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::ho
 #undef unsetOneStateVarStatusInAllFastTrees
 }
 
-bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesGw, const map<string,int> &updatesDp)
+bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesDp)
 {
   // copy the foreground FastStructures to the BackGround FastStructures
   // so that the penalties applied after the placement/access are kept by defaut
@@ -2048,16 +2036,16 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
     }
   }
   pTreeMapMutex.UnLockRead();
-  // => DATAPROXY AND GATEWAY
-  GwTMEBase *GwEntries[2] = { &pDataProxyStructures, &pGatewayStructures };
-  for(int ige=0; ige<2;ige++)
+  // => PROTOCOL
+  pPxyTreeMapMutex.LockRead();
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++ )
   {
-    GwTMEBase *entry = GwEntries[ige];
+    DataProxyTME *entry = it->second;
     RWMutexReadLock lock(entry->slowTreeMutex);
     if(!entry->foregroundFastStruct->DeepCopyTo(entry->backgroundFastStruct))
     {
       eos_crit("error deep copying in double buffering");
-      pTreeMapMutex.UnLockRead();
+      pPxyTreeMapMutex.UnLockRead();
       return false;
     }
 
@@ -2073,6 +2061,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
       AtomicCAS((*entry->foregroundFastStruct->penalties)[cur.second].ulScorePenalty,(*entry->foregroundFastStruct->penalties)[cur.second].ulScorePenalty,(char)0);
     }
   }
+  pPxyTreeMapMutex.UnLockRead();
 
 
   // timestamp the current frame
@@ -2156,10 +2145,8 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
     entry->doubleBufferMutex.UnLockRead();
     AtomicDec(entry->fastStructLockWaitersCount);
   }
-  // => DATAPROXY AND GATEWAYS
-  const map<string,int> *GwUpdMaps[2] = { &updatesDp, &updatesGw };
-  for(int ige=0;ige<2;ige++)
-  for(auto it = GwUpdMaps[ige]->begin(); it != GwUpdMaps[ige]->end(); ++it)
+  // => PROTOCOL
+  for(auto it = updatesDp.begin(); it != updatesDp.end(); ++it)
   {
     gOFS->ObjectManager.HashMutex.LockRead();
     XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(it->first.c_str(), "hash");
@@ -2181,8 +2168,16 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
     eos::common::FileSystem::host_snapshot_t hs;
     eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first,hs,true);
 
-    GwTMEBase *entry = GwEntries[ige];
+    pPxyTreeMapMutex.LockRead();
+    if(!pPxyHost2DpTME.count(hs.mHost))
+    {
+      eos_err("update : TreeEntryMap has been removed, skipping this update");
+      pPxyTreeMapMutex.UnLockRead();
+      continue;
+    }
+    DataProxyTME *entry = pPxyHost2DpTME[hs.mHost];
     AtomicInc(entry->fastStructLockWaitersCount);
+    pPxyTreeMapMutex.UnLockRead();
 
     eos_debug("CHANGE BITFIELD %x",it->second);
 
@@ -2236,18 +2231,20 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
     }
   }
   pTreeMapMutex.UnLockRead();
-  // DATAPROXY AND GATEWAY
-  for(int ige=0; ige<2;ige++)
+  // => PROTOCOL
+  pPxyTreeMapMutex.LockRead();
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++ )
   {
-    GwTMEBase *entry = GwEntries[ige];
+    DataProxyTME *entry = it->second;
     RWMutexReadLock lock(entry->slowTreeMutex);
     if(!updateFastStructures(entry))
     {
-      pTreeMapMutex.UnLockRead();
+      pPxyTreeMapMutex.UnLockRead();
       eos_err("error updating the tree");
       return false;
     }
   }
+  pPxyTreeMapMutex.UnLockRead();
 
   return true;
 }
@@ -2352,15 +2349,16 @@ void GeoTreeEngine::updateAtomicPenalties()
       {
         const std::string &nodestr = it->first;
         FsNode *node = NULL;
-        if(FsView::gFsView.mNodeView.count(nodestr))
-        node = FsView::gFsView.mNodeView[nodestr];
+        std::string key = "/eos/"+nodestr+"/fst";
+        if(FsView::gFsView.mNodeView.count(key))
+        node = FsView::gFsView.mNodeView[key];
         else
         {
           std::stringstream ss;
           ss.str("");
           for (auto it2 = FsView::gFsView.mNodeView.begin(); it2 != FsView::gFsView.mNodeView.end(); it2++)
           ss << it2->first << "  ";
-          eos_err("Inconsistency : cannot find updating node %s in %s",nodestr.c_str(),ss.str().c_str());
+          eos_err("Inconsistency : cannot find updating node %s in %s",key.c_str(),ss.str().c_str());
           continue;
         }
         if((!it->second.saturated) && it->second.fsCount == node->size())
@@ -2914,40 +2912,61 @@ bool GeoTreeEngine::showDisabledBranches (const std::string& group, const std::s
   return true;
 }
 
-bool GeoTreeEngine::insertGwNode(FsNode *host , bool updateFastStruct, GwTMEBase*entry, const std::string &hosttype, bool lockFsView)
+bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStruct)
 {
-  {
-  struct stat s;
-  while(stat("/tmp/mylock",&s)==0)
-    sleep(1);
-  }
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
 
-  // ==== get the entry
-  entry->slowTreeMutex.LockWrite();
-
-  // ==== fill the entry
-  // create new TreeNodeInfo/TreeNodeState pair and update its data
   eos::common::FileSystem::host_snapshot_t hsn;
   if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
   host->SnapShotHost(hsn,true);
   const std::string &url = hsn.mHost;
   if(lockFsView) FsView::gFsView.ViewMutex.UnLockRead();
-  bool isDp = (hosttype=="DataProxy");
-  bool isGw = (hosttype=="Gateway");
 
-  // check if there is still some space for a new fs
+  DataProxyTME *mapEntry;
+
+  {
+    pPxyTreeMapMutex.LockWrite();
+    // ==== check that host is not already registered
+    if(pPxyHost2DpTME.count(url))
+    {
+      eos_err("error inserting host %s into protocol %s : host is already part of a protocol",
+          url.c_str(),
+          protocol.c_str()
+      );
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+
+    // ==== get the entry
+    if(pPxyGrp2DpTME.count(protocol))
+    mapEntry = pPxyGrp2DpTME[protocol];
+    else
+    {
+      mapEntry = new DataProxyTME(protocol);
+      updateFastStruct = true; // force update to be sure that the fast structures are properly created
+#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+#endif
+    }
+    mapEntry->slowTreeMutex.LockWrite();
+    pPxyTreeMapMutex.UnLockWrite();
+  }
+
+  // ==== fill the entry
+  // create new TreeNodeInfo/TreeNodeState pair and update its data
+  // check if there is still some space for a new host
   {
     size_t depth=1;
     std::string sub("::");
     for (size_t offset = hsn.mGeoTag.find(sub); offset != std::string::npos;
-             offset = hsn.mGeoTag.find(sub, offset + sub.length())) depth++;
-    if(depth + entry->slowTree->getNodeCount() > SchedTreeBase::sGetMaxNodeCount()-2 )
+        offset = hsn.mGeoTag.find(sub, offset + sub.length())) depth++;
+    if(depth + mapEntry->slowTree->getNodeCount() > SchedTreeBase::sGetMaxNodeCount()-2 )
     {
-      entry->slowTreeMutex.UnLockWrite();
+      mapEntry->slowTreeMutex.UnLockWrite();
 
-      eos_err("error inserting %s %s : the DataProxy-tree is full",
-          hosttype.c_str(),(unsigned long)url.c_str());
+      eos_err("error inserting host %lu into protocol %s : the protocol-tree is full",
+          url.c_str(),
+          protocol.c_str()
+      );
 
       return false;
     }
@@ -2974,53 +2993,40 @@ bool GeoTreeEngine::insertGwNode(FsNode *host , bool updateFastStruct, GwTMEBase
   info.netSpeedClass = (unsigned char)round(log10(hsn.mNetEthRateMiB*8 * 1024 * 1024 + 1));
   info.netSpeedClass = info.netSpeedClass>8 ? info.netSpeedClass-8 : (unsigned char)0; // netSpeedClass 1 means 1Gbps
   // TODO: is it necessary to give a fake fsid ?
-  if(isGw)
+  if(pPxyId2Recycle.empty())
+  info.fsId = pPxyQueue2PxyId.size()+1;
+  else
   {
-    if(pGwId2Recycle.empty())
-    info.fsId = pGwQueue2GwId.size()+1;
-    else
-    {
-      info.fsId = *pGwId2Recycle.begin();
-      pGwId2Recycle.erase(pGwId2Recycle.begin());
-    }
-    pGwQueue2GwId[hsn.mQueue] = info.fsId;
+    info.fsId = *pPxyId2Recycle.begin();
+    pPxyId2Recycle.erase(pPxyId2Recycle.begin());
   }
-  else if(isDp)
-  {
-    if(pDpId2Recycle.empty())
-    info.fsId = pDpQueue2DpId.size()+1;
-    else
-    {
-      info.fsId = *pDpId2Recycle.begin();
-      pDpId2Recycle.erase(pDpId2Recycle.begin());
-    }
-    pDpQueue2DpId[hsn.mQueue] = info.fsId;
-  }
+  pPxyQueue2PxyId[hsn.mQueue] = info.fsId;
   //info.fsId = 0;
 
   SchedTreeBase::TreeNodeStateFloat state;
   state.mStatus = SchedTreeBase::Available|SchedTreeBase::Writable|SchedTreeBase::Readable;
   // try to insert the new node in the Slowtree
-  SlowTreeNode *node = entry->slowTree->insert(&info,&state);
+  SlowTreeNode *node = mapEntry->slowTree->insert(&info,&state);
   if(node==NULL)
   {
-    entry->slowTreeMutex.UnLockWrite();
+    mapEntry->slowTreeMutex.UnLockWrite();
 
-    eos_err("error inserting %s %s : slow tree node insertion failed",
-        hosttype.c_str(),url.c_str()
+    eos_err("error inserting host %lu into protocol %s : slow tree node insertion failed",
+        url.c_str(),
+        protocol.c_str()
     );
 
     return false;
   }
 
-//  // ==== update the penalties vectors if necessary
-//  if((info.fsId+1)>pLatencySched.pFsId2LatencyStats.size())
-//  {
-//    for(auto it=pPenaltySched.pCircFrCnt2HostPenalties.begin(); it!=pPenaltySched.pCircFrCnt2HostPenalties.end(); it++)
-//    {
-//      it->resize(info.fsId+1);
-//    }
-//  }
+  //  // ==== update the penalties vectors if necessary
+  //  if((info.fsId+1)>pLatencySched.pFsId2LatencyStats.size())
+  //  {
+  //    for(auto it=pPenaltySched.pCircFrCnt2HostPenalties.begin(); it!=pPenaltySched.pCircFrCnt2HostPenalties.end(); it++)
+  //    {
+  //      it->resize(info.fsId+1);
+  //    }
+  //  }
 
   // ==== update the shared object notifications
   {
@@ -3033,96 +3039,136 @@ bool GeoTreeEngine::insertGwNode(FsNode *host , bool updateFastStruct, GwTMEBase
     }
     if(gQueue2NotifType.count(hsn.mQueue)==0 && !gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",hsn.mQueue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
-      entry->slowTreeMutex.UnLockWrite();
-      eos_err("error inserting %s %s : error subscribing to shared object notifications",
-          hosttype.c_str(),url.c_str()
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_crit("error inserting host %lu into protocol %s : error subscribing to shared object notifications",
+          url.c_str(),
+          protocol.c_str()
       );
       return false;
     }
-    gQueue2NotifType[hsn.mQueue] |= (isDp?sntDataproxy:sntGateway);
+    gQueue2NotifType[hsn.mQueue] |= (sntDataproxy);
   }
 
   // update all the information about this new node
-  if(!updateTreeInfo(entry,&hsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
+  if(!updateTreeInfo(mapEntry,&hsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
   {
-    entry->slowTreeMutex.UnLockWrite();
-    eos_err("error inserting %s %s : slow tree node update failed",
-        hosttype.c_str(),url.c_str()
+    eos_err("error inserting host %lu into protocol %s : slow tree node update failed",
+        url.c_str(),
+        protocol.c_str()
     );
     return false;
   }
 
-  entry->host2SlowTreeNode[url] = node;
-  entry->slowTreeModified = true;
+  mapEntry->host2SlowTreeNode[url] = node;
+  mapEntry->slowTreeModified = true;
 
   // update the fast structures now if requested
   if(updateFastStruct)
   {
-    if(!updateFastStructures(entry))
+    if(!updateFastStructures(mapEntry))
     {
-      entry->slowTreeMutex.UnLockWrite();
-      eos_err("error inserting %s %s : fast structures update failed",
-          hosttype.c_str(),url.c_str()
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_err("error inserting host %lu into protocol %s : fast structures update failed",
+          url.c_str(),
+          protocol.c_str()
       );
       return false;
     }
     else
     {
-      entry->slowTreeModified = false;
+      mapEntry->slowTreeModified = false;
     }
+  }
+
+  // ==== update the entry in the map
+  {
+    pPxyTreeMapMutex.LockWrite();
+    mapEntry->group = NULL;
+    pPxyGrp2DpTME[protocol] = mapEntry;
+    pPxyHost2DpTME[url] = mapEntry;
+    // TODO: fix that?
+    // pFsId2FsPtr[fsid] = fs;
+    pPxyTreeMapMutex.UnLockWrite();
+    mapEntry->slowTreeMutex.UnLockWrite();
   }
 
   if(eos::common::Logging::gLogMask & LOG_INFO)
   {
     stringstream ss;
-    ss << (*entry->slowTree);
+    ss << (*mapEntry->slowTree);
 
-    eos_debug("inserted %s %s : geotag is %s and fullgeotag is %s\n%s",
-        hosttype.c_str(),url.c_str(),
+    eos_debug("inserted host %lu into protocol %s : : geotag is %s and fullgeotag is %s\n%s",
+        url.c_str(),
+        protocol.c_str(),
         node->pNodeInfo.geotag.c_str(),
         node->pNodeInfo.fullGeotag.c_str(),
         ss.str().c_str()
     );
   }
 
-  entry->slowTreeMutex.UnLockWrite();
   return true;
 }
 
-bool GeoTreeEngine::removeGwnode(FsNode *host,bool updateFastStruct, GwTMEBase*entry, const std::string &hosttype, bool lockFsView)
+bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStruct)
 {
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-  //eos::common::FileSystem::host_snapshot_t hs;
-  //eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager,queue,hs,true);
 
   eos::common::FileSystem::host_snapshot_t hsn;
   if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
   host->SnapShotHost(hsn,true);
+  const std::string &url = hsn.mHost;
   if(lockFsView) FsView::gFsView.ViewMutex.UnLockRead();
-  const std::string &hostname  = hsn.mHost;
+  const std::string &hostname = hsn.mHost;
   const std::string &queue = hsn.mQueue;
 
-  bool isDp = (hosttype=="DataProxy");
-  bool isGw = (hosttype=="Gateway");
   bool rmHost = false;
 
-  entry->slowTreeMutex.LockWrite();
+  DataProxyTME *mapEntry;
+  {
+    pPxyTreeMapMutex.LockWrite();
+    // ==== check that host is registered
+    if(!pPxyHost2DpTME.count(url))
+    {
+      eos_err("error removing host %lu from protocol %s  : host is already part of a protocol",
+          url.c_str(),
+          protocol.c_str()
+      );
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+    mapEntry = pPxyHost2DpTME[url];
+
+    // ==== get the entry
+    if(!pPxyGrp2DpTME.count(protocol))
+    {
+      eos_err("error removing host %lu from protocol %s  : host is not registered ",
+          url.c_str(),
+          protocol.c_str()
+      );
+
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+    pPxyTreeMapMutex.UnLockWrite();
+    mapEntry = pPxyGrp2DpTME[protocol];
+    mapEntry->slowTreeMutex.LockWrite();
+  }
 
   // ==== update the shared object notifications
   {
     if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",queue,gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
-      entry->slowTreeMutex.UnLockWrite();
-      eos_crit("error removing %s %s : error unsubscribing to shared object notifications",
-          hosttype.c_str(),hostname.c_str() );
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_crit("error removing host %lu into protocol %s : error unsubscribing to shared object notifications",
+          url.c_str(),
+          protocol.c_str()
+      );
+
       return false;
     }
     if(gQueue2NotifType.count(queue))
     {
-      if(isDp)
       gQueue2NotifType[queue] &= ~GeoTreeEngine::sntDataproxy;
-      else if(isGw)
-      gQueue2NotifType[queue] &= ~GeoTreeEngine::sntGateway;
       if(gQueue2NotifType[queue]==0)
       {
         gQueue2NotifType.erase(queue);
@@ -3133,10 +3179,7 @@ bool GeoTreeEngine::removeGwnode(FsNode *host,bool updateFastStruct, GwTMEBase*e
 
   // ==== discard updates about this fs
   // ==== clean the notifications buffer
-  if(isDp)
-    gNotificationsBufferDp.erase(queue);
-  else if(isGw)
-    gNotificationsBufferGw.erase(queue);
+  gNotificationsBufferDp.erase(queue);
   // ==== clean the thread-local notification queue
   if(rmHost)
   {
@@ -3156,29 +3199,16 @@ bool GeoTreeEngine::removeGwnode(FsNode *host,bool updateFastStruct, GwTMEBase*e
   }
 
   // remove the entry in the fake fsid system
-  if(isGw)
+  auto it = pPxyQueue2PxyId.find(hsn.mQueue);
+  if(it!=pPxyQueue2PxyId.end())
   {
-    auto it = pGwQueue2GwId.find(hsn.mQueue);
-    if(it!=pGwQueue2GwId.end())
-    {
-      pGwId2Recycle.insert(it->second);
-      pGwQueue2GwId.erase(it);
-    }
+    pPxyId2Recycle.insert(it->second);
+    pPxyQueue2PxyId.erase(it);
   }
-  else if(isDp)
-  {
-    auto it = pDpQueue2DpId.find(hsn.mQueue);
-    if(it!=pDpQueue2DpId.end())
-    {
-      pDpId2Recycle.insert(it->second);
-      pDpQueue2DpId.erase(it);
-    }
-  }
-
 
   // ==== update the entry
   SchedTreeBase::TreeNodeInfo info;
-  const SlowTreeNode *intree = entry->host2SlowTreeNode[hostname];
+  const SlowTreeNode *intree = mapEntry->host2SlowTreeNode[hostname];
   info = intree->pNodeInfo;
   info.geotag = intree->pNodeInfo.fullGeotag;
   eos_debug("SlowNodeTree to be removed is %lu   %s   %s   %s",
@@ -3189,55 +3219,77 @@ bool GeoTreeEngine::removeGwnode(FsNode *host,bool updateFastStruct, GwTMEBase*e
 
   // try to update the SlowTree
   info.fsId = 0;
-  if(!entry->slowTree->remove(&info))
+  if(!mapEntry->slowTree->remove(&info))
   {
-    entry->slowTreeMutex.UnLockWrite();
-    eos_err("error removing %s %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
-        hosttype.c_str(),hostname.c_str(),
+    mapEntry->slowTreeMutex.UnLockWrite();
+    eos_err("error inserting host %lu into protocol %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
+        url.c_str(),
+        protocol.c_str(),
         info.geotag.c_str(),
         intree->pNodeInfo.fullGeotag.c_str(),
         intree->pNodeInfo.geotag.c_str()
     );
+
     return false;
   }
-  entry->host2SlowTreeNode.erase(hostname);
+  mapEntry->host2SlowTreeNode.erase(hostname);
   // if the tree is empty, remove the entry from the map
-  if(!entry->host2SlowTreeNode.empty())// if the tree is getting empty, no need to update it
-  entry->slowTreeModified = true;
+  if(!mapEntry->host2SlowTreeNode.empty())// if the tree is getting empty, no need to update it
+  mapEntry->slowTreeModified = true;
 
-  if(updateFastStruct && entry->slowTreeModified)
-  if(!updateFastStructures(entry))
+  if(updateFastStruct && mapEntry->slowTreeModified)
+  if(!updateFastStructures(mapEntry))
   {
-    entry->slowTreeMutex.UnLockWrite();
-    eos_err("error removing %s %s : fast structures update failed",
-        hosttype.c_str(),hostname.c_str());
+    eos_err("error inserting host %lu into protocol %s : fast structures update failed",
+        url.c_str(),
+        protocol.c_str()
+    );
+
     return false;
   }
 
-  entry->slowTreeMutex.UnLockWrite();
-  return true;
+  // ==== update the entry in the map if needed
+  {
+    pPxyTreeMapMutex.LockWrite();
+    pPxyHost2DpTME.erase(url);
+    // TODO:: p Hostname2NodePtr ??
+    // pFsId2FsPtr.erase(fsid);
+    if(mapEntry->host2SlowTreeNode.empty())
+    {
+      pPxyGrp2DpTME.erase(protocol); // prevent from access by other threads
+      // TODO: Pending Deletions for DataProxy?
+      // pPendingDeletions.push_back(mapEntry);
+    }
+    mapEntry->slowTreeMutex.UnLockWrite();
+    pPxyTreeMapMutex.UnLockWrite();
+  }
+
+  return false;
 }
 
 bool GeoTreeEngine::insertDataProxy(FsNode *node , bool updateFastStruct, bool lockFsView)
 {
-  return insertGwNode(node,updateFastStruct,&pDataProxyStructures,"DataProxy",lockFsView);
+  //return insertGwNode(node,updateFastStruct,&pDataProxyStructures,"DataProxy",lockFsView);
+  return insertHostIntoProt(node , "dataproxy", lockFsView, updateFastStruct);
 }
 
 bool GeoTreeEngine::insertGateway(FsNode *node , bool updateFastStruct, bool lockFsView)
 {
-  return insertGwNode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
+  //return insertGwNode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
+  return insertHostIntoProt(node , "gateway", lockFsView, updateFastStruct);
 }
 
 bool GeoTreeEngine::rmDataProxy(FsNode *node , bool updateFastStruct, bool lockFsView)
 {
-  return removeGwnode(node,updateFastStruct,&pDataProxyStructures,"DataProxy",lockFsView);
+  //return removeGwnode(node,updateFastStruct,&pDataProxyStructures,"DataProxy",lockFsView);
+  return removeHostFromProt(node , "dataproxy", lockFsView, updateFastStruct);
 }
 
 bool GeoTreeEngine::rmGateway(FsNode *node , bool updateFastStruct, bool lockFsView)
 {
-  return removeGwnode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
+  //return removeGwnode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
+  return removeHostFromProt(node , "gateway", lockFsView, updateFastStruct);
 }
-
 
 
 EOSMGMNAMESPACE_END

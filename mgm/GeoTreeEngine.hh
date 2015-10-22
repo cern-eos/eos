@@ -893,7 +893,8 @@ protected:
   // State
   //--------------------------------------------------------------------------------------------------------
   //
-  // => scheduling groups management / operations
+  // => fs scheduling groups management / operations
+  //    they are used to schedule fs accesses
   //
   std::map<const FsGroup*,SchedTME*> pGroup2SchedTME;
   std::map<FileSystem::fsid_t,SchedTME*> pFs2SchedTME;
@@ -901,20 +902,16 @@ protected:
   /// protects all the above maps
   eos::common::RWMutex pTreeMapMutex;
 
+  // => proxy scheduling groups management / operations
+  //    they are used to schedule data proxy to translate dedicated protocol to xrootd to serve the client (if any defined)
+  //    they are also used to manage the entry points to the instance (if any defined)
   //
-  // => DataProxy / Gateway selection
-  //
-  GatewayTME   pGatewayStructures;
-  std::map<std::string,SchedTreeBase::tFastTreeIdx> pGwQueue2GwId;
-  std::set<SchedTreeBase::tFastTreeIdx> pGwId2Recycle;
+  std::map<std::string ,DataProxyTME*> pPxyGrp2DpTME;
+  std::map<std::string , DataProxyTME*> pPxyHost2DpTME;
+  std::map<std::string,SchedTreeBase::tFastTreeIdx> pPxyQueue2PxyId;
+  std::set<SchedTreeBase::tFastTreeIdx> pPxyId2Recycle;
   /// protects all the above maps
-  eos::common::RWMutex pTreeMapMutexGw;
-  //
-  DataProxyTME pDataProxyStructures;
-  std::map<std::string,SchedTreeBase::tFastTreeIdx> pDpQueue2DpId;
-  std::set<SchedTreeBase::tFastTreeIdx> pDpId2Recycle;
-  /// protects all the above maps
-  eos::common::RWMutex pTreeMapMutexDp;
+  eos::common::RWMutex pPxyTreeMapMutex;
 
   //
   // => thread local data
@@ -955,7 +952,7 @@ protected:
         pPlctDlScorePenalty(8,10),pPlctUlScorePenalty(8,10),     // 8 is just a simple way to deal with the initialiaztion of the vector (it's an overshoot but the overhead is tiny)
         pAccessDlScorePenalty(8,10),pAccessUlScorePenalty(8,10),pGwScorePenalty(8,10) {};
   };
-  PenaltySubSys pPenaltySched,pPenaltyGw,pPenaltyDp;
+  PenaltySubSys pPenaltySched;
   //
   // => latency estimation
   //
@@ -969,7 +966,7 @@ protected:
     LatencySubSys(const size_t &circSize) :
       pCircFrCnt2Timestamp(circSize) {}
   };
-  LatencySubSys pLatencySched,pLatencyGw,pLatencyDp;
+  LatencySubSys pLatencySched;
   //
   // => background updating
   //
@@ -977,7 +974,6 @@ protected:
   pthread_t pUpdaterTid;
   /// maps a notification subject to changes that happened in the current time frame
   static std::map<std::string,int> gNotificationsBufferFs;
-  static std::map<std::string,int> gNotificationsBufferGw;
   static std::map<std::string,int> gNotificationsBufferDp;
   static const unsigned char sntFilesystem,sntGateway,sntDataproxy;
   static std::map<std::string,unsigned char> gQueue2NotifType;
@@ -1134,7 +1130,11 @@ protected:
     }
 
     // make a working copy of the required fast tree
-    if(!tlGeoBuffer) tlGeoBuffer = new char[gGeoBufferSize];// should store this and delete it in the destructor
+    if(!tlGeoBuffer)
+    {
+      // allocate the buffer only once for the lifetime of the thread
+      tlGeoBuffer = new char[gGeoBufferSize];
+    }
 
     if(placementTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
     {
@@ -1338,7 +1338,7 @@ protected:
 
   bool updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
   bool updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::host_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftidx=0 , SlowTreeNode *stn=NULL);
-  bool updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesGw, const map<string,int> &updatesDp);
+  bool updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesDp);
   //bool updateTreeInfoFs(const map<string,int> &updatesFs);
 
   template<typename T> bool _setInternalParam(T& param, const T& value, bool updateStructs)
@@ -1433,9 +1433,6 @@ protected:
     return ret;
   }
 
-  bool insertGwNode(FsNode *fs ,  bool updateFastStruct, GwTMEBase*entry, const std::string &hosttype, bool lockFsView);
-  bool removeGwnode(FsNode *fs,bool updateFastStruct, GwTMEBase*entry, const std::string &hosttype, bool lockFsView);
-
   bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
   bool applyBranchDisablings(const SchedTME& entry);
   bool applyBranchDisablings(const GwTMEBase& entry);
@@ -1471,17 +1468,16 @@ public:
   pPenaltyUpdateRate(1),
   pFillRatioLimit(80),pFillRatioCompTol(100),pSaturationThres(10),
   pTimeFrameDurationMs(1000),pPublishToPenaltyDelayMs(1000),
-  pGatewayStructures("Gateways"),pDataProxyStructures("DataProxies"),
   pCircSize(30),pFrameCount(0),
-  pPenaltySched(pCircSize),pPenaltyGw(pCircSize),pPenaltyDp(pCircSize),
-  pLatencySched(pCircSize),pLatencyGw(pCircSize),pLatencyDp(pCircSize),
+  pPenaltySched(pCircSize),
+  pLatencySched(pCircSize),
   pUpdaterTid(0)
   {
     // by default, disable all the placement operations for non geotagged fs
     addDisabledBranch("*","plct","nogeotag",NULL,false);
     addDisabledBranch("*","accsblc","nogeotag",NULL,false);
     addDisabledBranch("*","accsdrain","nogeotag",NULL,false);
-
+    //sleep(10);
     for(auto it=pPenaltySched.pCircFrCnt2FsPenalties.begin(); it!=pPenaltySched.pCircFrCnt2FsPenalties.end(); it++)
       it->reserve(100);
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
@@ -1809,6 +1805,19 @@ public:
   bool insertGateway(FsNode *node , bool updateFastStructures , bool lockFsView);
 
   // ---------------------------------------------------------------------------
+  //! Insert a file system into the GeoTreeEngine
+  // @param host
+  //   the host to be inserted
+  // @param protocol
+  //   the protocol the host is a dataproxy for
+  // @param updateFastStructures
+  //   should the fast structures be updated immediately without waiting for the next time frame
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool insertHostIntoProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStructures = false);
+
+  // ---------------------------------------------------------------------------
   //! Insert a data proxy into the GeoTreeEngine
   // @param node
   //   the node to be inserted
@@ -1818,6 +1827,7 @@ public:
   //   true if success false else
   // ---------------------------------------------------------------------------
   bool insertDataProxy(FsNode *node , bool updateFastStructures , bool lockFsView);
+  //bool insertDataProxy(FsNode *node ,  , bool updateFastStructures , bool lockFsView);
 
   // ---------------------------------------------------------------------------
   //! Remove a Gateway from the GeoTreeEngine
@@ -1829,6 +1839,19 @@ public:
   //   true if success false else
   // ---------------------------------------------------------------------------
   bool rmGateway(FsNode *node, bool updateFastStructures , bool lockFsView);
+
+  // ---------------------------------------------------------------------------
+  //! Remove a file system into the GeoTreeEngine
+  // @param fs
+  //   the file system to be removed
+  // @param group
+  //   the group the file system belongs to
+  // @param updateFastStructures
+  //   should the fast structures be updated immediately without waiting for the next time frame
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool removeHostFromProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStructures = true);
 
   // ---------------------------------------------------------------------------
   //! Remove a DataProxy from the GeoTreeEngine
