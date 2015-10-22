@@ -151,6 +151,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    (default 0)
 # EOS_FUSE_USER_KRB5FIRST=0
 
+# Enable the fuse local host time consistency model
+#   this allows a more precise handling of mtime. Time reference is then the localhost time
+#   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
+#   this only affects the shared fuse mount (default 0)
+#   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
+# EOS_FUSE_LOCALTIMECONSISTENT=0
+
 # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
 #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
 #    (default 0)

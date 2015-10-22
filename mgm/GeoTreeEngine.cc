@@ -44,8 +44,9 @@ EOSMGMNAMESPACE_BEGIN
 
 GeoTreeEngine gGeoTreeEngine;
 
-const size_t GeoTreeEngine::gGeoBufferSize = 64 * 1024;
+const size_t GeoTreeEngine::gGeoBufferSize = sizeof(FastPlacementTree) + FastPlacementTree::sGetMaxDataMemSize(); // we assume that all the trees have the same max size, we should take the max of all the sizes otherwise
 __thread void* GeoTreeEngine::tlGeoBuffer = NULL;
+pthread_key_t GeoTreeEngine::gPthreadKey;
 __thread const FsGroup* GeoTreeEngine::tlCurrentGroup = NULL;
 
 const int
@@ -113,7 +114,9 @@ const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
 
 map<string,int> GeoTreeEngine::gNotificationsBufferFs;
 map<string,int> GeoTreeEngine::gNotificationsBufferDp;
+XrdSysSemaphore GeoTreeEngine::gUpdaterPauseSem;
 bool GeoTreeEngine::gUpdaterPaused = false;
+bool GeoTreeEngine::gUpdaterStarted = false;
 const unsigned char GeoTreeEngine::sntFilesystem=1,GeoTreeEngine::sntGateway=2,GeoTreeEngine::sntDataproxy=4;
 std::map<std::string,unsigned char> GeoTreeEngine::gQueue2NotifType;
 const unsigned char GeoTreeEngine::fsTypeEosReplica=1, GeoTreeEngine::fsTypeEosPIO=2, GeoTreeEngine::fsTypeKinetic=4, GeoTreeEngine::fstTypeAll=255;
@@ -1388,6 +1391,7 @@ bool GeoTreeEngine::StopUpdater()
 {
   XrdSysThread::Cancel(pUpdaterTid);
   XrdSysThread::Join(pUpdaterTid, 0);
+  gUpdaterStarted = false;
   return true;
 }
 
@@ -1399,6 +1403,8 @@ void* GeoTreeEngine::startFsChangeListener(void *pp)
 
 void GeoTreeEngine::listenFsChange()
 {
+  gUpdaterStarted = true;
+
   gOFS->ObjectNotifier.BindCurrentThread("geotreeengine");
 
   if(!gOFS->ObjectNotifier.StartNotifyCurrentThread())
@@ -1412,7 +1418,8 @@ void GeoTreeEngine::listenFsChange()
 
   do
   {
-    while(gUpdaterPaused) sleep(1);
+    gUpdaterPauseSem.Wait();
+
     gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait(1);
     //gOFS->ObjectNotifier.tlSubscriber->SubjectsSem.Wait();
 
@@ -1526,9 +1533,10 @@ void GeoTreeEngine::listenFsChange()
     }
     XrdSysThread::SetCancelOff();
     size_t elapsedMs = (curtime.tv_sec-prevtime.tv_sec)*1000 +(curtime.tv_usec-prevtime.tv_usec)/1000;
+    pFrameCount++;
+    gUpdaterPauseSem.Post();
     if((int)elapsedMs<pTimeFrameDurationMs)
       XrdSysTimer::Wait(pTimeFrameDurationMs-(int)elapsedMs);
-    pFrameCount++;
   }
   while (1);
 }
@@ -2344,24 +2352,33 @@ void GeoTreeEngine::updateAtomicPenalties()
 
       // we use the view to check that we have all the fs in a node
       // could be removed if we were sure to run a single on fst daemon / box
-      FsView::gFsView.ViewMutex.LockRead();
+
+      // WARNING: see below / FsView::gFsView.ViewMutex.LockRead();
       for( auto it = pPenaltySched.pUpdatingNodes.begin(); it!= pPenaltySched.pUpdatingNodes.end(); it++)
       {
-        const std::string &nodestr = it->first;
+         const std::string &nodestr = it->first;
+        // ===============
+        // WARNING: the following part is commented out because it can create a deadlock with FsViewMutex/pAddRmFsMutex in the above FsViewMutex lock when inserting/removing a filesystem
+        //          it can be fixed but it's not trivial. Because it's not needed in operation, we don't fix it for now.
+        //          When using several fst daemons on the same host, it could give overestimated atomic penalties when they are selfestimated
+        // ===============
+        /*
         FsNode *node = NULL;
-        std::string key = "/eos/"+nodestr+"/fst";
-        if(FsView::gFsView.mNodeView.count(key))
-        node = FsView::gFsView.mNodeView[key];
+        if(FsView::gFsView.mNodeView.count(nodestr))
+        node = FsView::gFsView.mNodeView[nodestr];
         else
         {
           std::stringstream ss;
           ss.str("");
           for (auto it2 = FsView::gFsView.mNodeView.begin(); it2 != FsView::gFsView.mNodeView.end(); it2++)
           ss << it2->first << "  ";
-          eos_err("Inconsistency : cannot find updating node %s in %s",key.c_str(),ss.str().c_str());
+          eos_err("Inconsistency : cannot find updating node %s in %s",nodestr.c_str(),ss.str().c_str());
           continue;
         }
         if((!it->second.saturated) && it->second.fsCount == node->size())
+        */
+        // ===============
+        if((!it->second.saturated))
         {
           // eos_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
           //   it->first.c_str(),it->second.wOpen,it->second.rOpen,it->second.netOutWeight,it->second.netInWeight);
@@ -2379,14 +2396,14 @@ void GeoTreeEngine::updateAtomicPenalties()
         else
         {
           // the fs/host is saturated, we don't use the whole host in the estimate
-          if(it->second.saturated)
-          eos_debug("fs update in node %s : box is saturated");
-          // could force to get everything
-          //          long long wopen = node->SumLongLong("stat.wopen",false);
-          //          long long ropen = node->SumLongLong("stat.ropen",false);
+          eos_debug("fs update in node %s : box is saturated", nodestr.c_str());
+          continue;
+// could force to get everything
+//          long long wopen = node->SumLongLong("stat.wopen",false);
+//          long long ropen = node->SumLongLong("stat.ropen",false);
         }
       }
-      FsView::gFsView.ViewMutex.UnLockRead();
+      // WARNING: see above / FsView::gFsView.ViewMutex.UnLockRead();
 
       for(size_t netSpeedClass=0; netSpeedClass<=pPenaltySched.pMaxNetSpeedClass; netSpeedClass++)
       {
@@ -2690,7 +2707,6 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
     {
       // first, clear the list of disabled branches
       gGeoTreeEngine.rmDisabledBranch("*","*","*",NULL);
-      eos_warning("disablebranches full line %s",value.c_str());
       // remove leading and trailing square brackets
       string list(value.substr(2,value.size()-4));
       // from the end to avoid reallocation of the string
@@ -2698,15 +2714,11 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
       while((idxr=list.rfind(')'))!=std::string::npos && ok)
       {
         idxl=list.rfind('(');
-        eos_warning("disablebranches full token %s",value.c_str()+idxl);
         auto comidx = list.find(',',idxl);
         string geotag(list.substr(idxl+1,comidx-idxl-1));
-        eos_warning("geotag token %s",geotag.c_str());
         auto comidx2 = list.find(',',comidx+1);
         string optype(list.substr(comidx+1,comidx2-comidx-1));
-        eos_warning("optype token %s",optype.c_str());
         string group(list.substr(comidx2+1,idxr-comidx2-1));
-        eos_warning("group token %s",group.c_str());
         ok = ok && gGeoTreeEngine.addDisabledBranch(group,optype,geotag,NULL);
         list.erase(idxl,std::string::npos);
       }
@@ -3289,6 +3301,22 @@ bool GeoTreeEngine::rmGateway(FsNode *node , bool updateFastStruct, bool lockFsV
 {
   //return removeGwnode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
   return removeHostFromProt(node , "gateway", lockFsView, updateFastStruct);
+}
+
+void GeoTreeEngine::tlFree( void *arg)
+{
+  eos_static_debug("destroying thread specific geobuffer");
+  // delete the buffer
+  delete[] (char*)arg;
+}
+
+char* GeoTreeEngine::tlAlloc( size_t size)
+{
+  eos_static_debug("allocating thread specific geobuffer");
+  char *buf = new char[size];
+  if(pthread_setspecific(gPthreadKey, buf))
+    eos_static_crit("error registering thread-local buffer located at %p for cleaning up : memory will be leaked when thread is terminated",buf);
+  return buf;
 }
 
 

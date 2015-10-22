@@ -1,3 +1,5 @@
+:orphan:
+
 .. highlight:: rst
 
 .. index::

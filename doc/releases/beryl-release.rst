@@ -1,11 +1,24 @@
+:orphan:
+
 .. highlight:: rst
 
 .. index::
    single: Beryl(-Aquamarine)-Release
 
-
 Beryl Release Notes
 ===================
+
+``Version V0.3.130 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix eternally booting slave and crazy boot times
+
+``Version V0.3.129 Beryl-Aquamarine``
+
+Bug Fixes
+---------
+- fix for memory leak by ShellCmd not joining properly threads
 
 ``Version V0.3.128 Beryl-Aquamarine``
 
@@ -20,7 +33,7 @@ Bug Fixes
 Bug Fixes
 ---------
 - several compilation and build fixes (spec) for i386 and CC7
-- fix fuse base64 encoding to not break URL syntax 
+- fix fuse base64 encoding to not break URL syntax
 
 ``Version V0.3.126 Beryl-Aquamarine``
 
@@ -48,7 +61,7 @@ Bug Fixes
 - fix 'eos <cmd>' bug where <cmd> is not executed if it has 3 letters and is a local file or directory (due to XrdOucString::endswith bug)
 - update modification for intermediate directories created by MKPATH option of 'xrdcp'
 - fix 'vid rm <key>'
-- revert 'rename' function to apply by default overwrite behaviour 
+- revert 'rename' function to apply by default overwrite behaviour
 - allow arbitrary symbolic link targets (relative targets etc.)
 - disable readahead for files that have rd/wr operations
 - allow clean-up via the destructor for chunked upload files
@@ -104,7 +117,7 @@ New Features
 
 Bug Fixes
 ---------
-- fix asynchronous egroup refresh query 
+- fix asynchronous egroup refresh query
 
 ``Version V0.3.115 Beryl-Aquamarine``
 
@@ -135,7 +148,7 @@ Bug Fixes
 ---------
 - fix logical quota summary accounting bug
 - fix not working 'file version' command for directories with 'sys.versioning=1' configured
-- fix order violation bug in 'Drop' implementation which might lead to SEGV 
+- fix order violation bug in 'Drop' implementation which might lead to SEGV
 
 ``Version V0.3.111 Beryl-Aquamarine``
 
@@ -221,7 +234,7 @@ New Features
 - allow 'sys.owner.auth=*' to have sticky uid/gids for such directories
 - new FST proxy redirection to send file IO through a proxy frontend
 - recursive 'rm -r' protection in fuse
-- add MIME type suffix detection 
+- add MIME type suffix detection
 
 Bug Fixes
 ---------
@@ -234,21 +247,21 @@ New Features
 ------------
 - forbid 'rm -r' & 'rm -rf' on a predefined tree deepness
 
-Bug Fixes 
+Bug Fixes
 ---------
 - various fixes in archive daemon
-- improve speed of HTTP HEAD requests with trailing /  
+- improve speed of HTTP HEAD requests with trailing /
 - store proxy and client identity properly in VID structure
 
 ``Version V0.3.96 Beryl-Aquamarine``
 
 Bug Fixes
 ---------
-- fix -1 bug in 'chown' 
+- fix -1 bug in 'chown'
 
 New Features
 ------------
-- add dummy responses for LOCK,UNLOCK,PROPPATCH enabling OSX & Windows WebDAV clients 
+- add dummy responses for LOCK,UNLOCK,PROPPATCH enabling OSX & Windows WebDAV clients
 - allow to modifiy only group ownership in chown
 
 ``Version V0.3.95 Beryl-Aquamarine``
@@ -263,16 +276,16 @@ Bug Fixes
 - fix substantial memory leak in PUT requests on FSTs
 - fix 's3' lower-case headers
 - disable 'delete-on-close & repair-on-close' for chunked uploads to allow for single chunk retry
-- fix '\n' encoding for FUSE listing 
+- fix '\n' encoding for FUSE listing
 - require 'targetsize' in standard HTTP PUT
 - fix documentation of attributes for max/minsize in 'attr help'
 - fix sealing of empty checksum FMD info
 - fix double mapping of propfind requests
-- enable re-entrant https mapping as required by HTTPS Webdav gateways 
+- enable re-entrant https mapping as required by HTTPS Webdav gateways
 - fix JSON format for fsck reports
 - swap HTTP/ROOT share url
 - fix return codes for chunked uploads for cases like no quota etc.
-- add 'open' serialization for identical file paths to avoid open errors using HTTP protocol 
+- add 'open' serialization for identical file paths to avoid open errors using HTTP protocol
 - don't send redirect on FST put's to avoid incomplete files
 - fix missing targetsize for standard oc PUTs to avoid acceptance of incomplete files
 - fix and use atomic CLOEXEC flag in various places
@@ -308,7 +321,7 @@ Bug Fixes
 ---------
 - balancing: was never starting
 - scheduler: was skipping scheduling group when one node >95% network-out loaded
-- nginx: don't forward PUT payload to MGM 
+- nginx: don't forward PUT payload to MGM
 - microhttpd: fix virtual memory leaking due to fragmentation
 - http: let HTTP clients see errors on PUT
 
@@ -366,7 +379,7 @@ Consolidation
 - improve 'quota ls' performance and bypass uid/gid translations as much as possible
 - avoid lock contention in uid/gid translations
 - limit the 'gdb' stack trace to maximum 120s to avoid service lock-up in case of a stuck GDB process
-- FST never give up in calling a manager for errors allowing a retry 
+- FST never give up in calling a manager for errors allowing a retry
 
 New Features
 ------------
@@ -402,13 +415,13 @@ New Features
 - add support to feed VST informatino using UDP into InfluxDB for vizualisation with Grafana
 - add global-mq config file to run a global VST broker
 - support 'mtime' propagation as needed by OwnCloud sync client to optimize the sync process
-- better support OwnCloud sync clients 
+- better support OwnCloud sync clients
 - restrict OwnCloud sync tree requiring 'sys.allow.oc.sync=1' on the entry directory
 - add support for atomic file uploads - files are visible with the target name when they are complete - disabled for FUSE
 - support LDAP authentication (basic HTTP authentication) in NGINX proxy on port 4443 (by default)
 - add 'file info' command for directories
 - implement 'fsck repair --adjust-replica-nodrop' for safe repair (nothing get's removed - only added)
-- allow 'grep'-like functionality in 'fs ls' commands 
+- allow 'grep'-like functionality in 'fs ls' commands
 - support encoding models like UTF-8 (set export EOS_UTF8=1 in /etc/sysconfig/eos)
 - accept any checksum configuration in 'xrootd.chksum' config file
 
@@ -456,11 +469,11 @@ New Features
 ------------
 - allow to match hostnames in VID interface for gateway machines e.g. vid add gateway lxplus* https
 - broadcast hotfile list per filesystem to the MGM and add interface to this list via ``io ns -f``
-- use inode+checksum for file ETAGs in HTTP, otherwise inode+mtime time - for directories use inode+mtime 
+- use inode+checksum for file ETAGs in HTTP, otherwise inode+mtime time - for directories use inode+mtime
 - add support for file versioning using attribute ``sys.versioning`` or via shell interface ``file version ..``
 - make ApMon more flexible to match individual mountpoints via environment match variable ``APMON_STORAGEPATH`` (try df | grep $APMON_STORAGEPATH).
 - eos-deploy script is added to the repository allowing RPM installation of (possibly ALICE enabled) EOS instances with a dual MGM and multi FST setup via a single command
-- allow to list files at risk/offline via ``fs status -l <fs-id>`` 
+- allow to list files at risk/offline via ``fs status -l <fs-id>``
 
 Consolidation
 -------------
@@ -483,7 +496,7 @@ Bug Fixes
 ---------
 - make krb5 keytab file accessible to EOS MGM
 - fix lock from rw to wr-lock when a space/node group is defined or created
-- fix boradcasting and value application on slave filesystem view  
+- fix boradcasting and value application on slave filesystem view
 - add the eos-test RPM to the MGM installation done via eos-deploy
 - fix path reparsing for .. to allow filenames like ..myfile
 - use path filter function in the Attr shell interface to support attr ls . etc.
@@ -495,6 +508,3 @@ Bug Fixes
 - fix eos-uninstall script
 - don't block slave/master transitions if eosha is enabled
 - start recycle thread only when the namespace is fully booted
-
-
-

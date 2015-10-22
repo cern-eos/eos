@@ -226,6 +226,12 @@ public:
   }
 
   inline tFastTreeIdx
+  getNodeCount() const
+  {
+    return pSize;
+  }
+
+  inline tFastTreeIdx
   getClosestFastTreeNode(const char *tag) const
   {
     tFastTreeIdx node = 0;
@@ -1032,6 +1038,7 @@ protected:
   //          for 2 locations 1 building/location 1 room/building 30 racks overall 100 fs overall (135 nodes) 135*(9+2) -> 1485 bytes
   bool pSelfAllocated;
   tFastTreeIdx pMaxNodeCount;
+  tFastTreeIdx pNodeCount;
   FastTreeNode *pNodes;
   Branch *pBranches;
 
@@ -1558,10 +1565,21 @@ public:
     checkConsistency(node, true);
   }
 
-  unsigned char
+  inline tFastTreeIdx
   getMaxNodeCount() const
   {
     return pMaxNodeCount;
+  }
+
+  inline static size_t sGetMaxDataMemSize()
+  {
+    return (sizeof(FastTreeNode) + sizeof(Branch)) * sGetMaxNodeCount();
+  }
+
+  inline tFastTreeIdx
+  getNodeCount() const
+  {
+    return pNodeCount;
   }
 
   inline bool
@@ -1736,6 +1754,7 @@ public:
   pRandVar(), pBranchComp()
   {
     pMaxNodeCount = 0;
+    pNodeCount = 0;
     pSelfAllocated = false;
   }
 
@@ -1792,7 +1811,7 @@ public:
   {
     (*static_cast<SchedTreeBase*>(this)) = *static_cast<const SchedTreeBase*>(&model);
     this->pFs2Idx = model.pFs2Idx;
-    this->pMaxNodeCount = model.pMaxNodeCount;
+    this->pNodeCount = model.pNodeCount;
     this->pSelfAllocated = model.pSelfAllocated;
     this->pTreeInfo = model.pTreeInfo;
     this->pBranchComp = model.pBranchComp;
@@ -1802,7 +1821,7 @@ public:
   size_t
   copyToBuffer(char* buffer, size_t bufSize) const
   {
-    size_t memsize = (sizeof(FastTreeNode) + sizeof(Branch)) * pMaxNodeCount + sizeof(FastTree);
+    size_t memsize = (sizeof(FastTreeNode) + sizeof(Branch)) * pNodeCount + sizeof(FastTree);
     if (bufSize < memsize)
     return memsize;
     // copy all the data members
@@ -1810,8 +1829,9 @@ public:
     // adjust the value of some of them
     (*destFastTree) = *this;
     destFastTree->pNodes = (FastTreeNode *) (buffer += sizeof(tSelf));
-    destFastTree->pBranches = (Branch *) (buffer += sizeof(FastTreeNode) * pMaxNodeCount);
-    memcpy(destFastTree->pNodes, pNodes, (sizeof(FastTreeNode) + sizeof(Branch)) * pMaxNodeCount);// pNodes and pBranches copied at once
+    memcpy(destFastTree->pNodes, pNodes, (sizeof(FastTreeNode)) * pNodeCount);
+    destFastTree->pBranches = (Branch *) (buffer += sizeof(FastTreeNode) * pNodeCount);
+    memcpy(destFastTree->pBranches, pBranches, (sizeof(Branch)) * pNodeCount);
     return 0;
   }
 
@@ -2234,14 +2254,15 @@ public:
 template<typename T1,typename T2,typename T3, typename T4,typename T5, typename T6> inline size_t
 copyFastTree(FastTree<T1,T2,T3>* dest,const FastTree<T4,T5,T6>* src)
 {
-  if (dest->pMaxNodeCount < src->pMaxNodeCount)
-  return src->pMaxNodeCount;
+  if (dest->pMaxNodeCount < src->pNodeCount)
+  return src->pNodeCount;
   // copy some members
   dest->pFs2Idx = src->pFs2Idx;
   dest->pTreeInfo = src->pTreeInfo;
+  dest->pNodeCount = src->pNodeCount;
   // copy the nodes and the branches
-  memcpy(dest->pNodes, src->pNodes, (sizeof(typename FastTree<T1,T2,T3>::FastTreeNode)) * src->pMaxNodeCount);
-  memcpy(dest->pBranches, src->pBranches, (sizeof(typename FastTree<T4,T5,T6>::Branch)) * src->pMaxNodeCount);
+  memcpy(dest->pNodes, src->pNodes, (sizeof(typename FastTree<T1,T2>::FastTreeNode)) * src->pNodeCount);
+  memcpy(dest->pBranches, src->pBranches, (sizeof(typename FastTree<T1,T2>::Branch)) * src->pNodeCount);
   return 0;
 }
 

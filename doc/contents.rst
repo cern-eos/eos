@@ -8,37 +8,10 @@ Documentation
 
    intro
    configuration
+   clicommands
    install
    quickstart
    develop
    clicommands
    using
    releases
-
->>>>>>> master
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

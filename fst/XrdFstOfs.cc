@@ -933,6 +933,7 @@ XrdFstOfs::SendFsck (XrdMqMessage* message)
 
     for (unsigned int i = 0; i < gOFS.Storage->fileSystemsVector.size(); i++)
     {
+      XrdSysMutexHelper ISLock(gOFS.Storage->fileSystemsVector[i]->InconsistencyStatsMutex);
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >* icset =
           gOFS.Storage->fileSystemsVector[i]->GetInconsistencySets();
       std::map<std::string, std::set<eos::common::FileId::fileid_t> >::const_iterator icit;

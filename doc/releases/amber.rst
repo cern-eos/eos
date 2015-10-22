@@ -1,3 +1,5 @@
+:orphan:
+
 .. highlight:: rst
 
 .. index::
@@ -5,7 +7,6 @@
 
 Amber
 ========
-.. note::
 
 ``Lifetime: 2010-2013``
 The **Amber** release was the first production version of EOS. It has been used

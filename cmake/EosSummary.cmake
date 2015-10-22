@@ -36,6 +36,12 @@ else (CLIENT)
 endif (LEVELDB_FOUND)
 endif (CLIENT)
 
+if(NOT MICROHTTPD_FOUND)
+  message("  Warning: MicroHttpd not found, no httpd access available")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
+endif()
+
 message( STATUS "................................................." )
 message( STATUS "prefix        : " ${CMAKE_INSTALL_PREFIX} )
 message( STATUS "bin dir       : " ${CMAKE_INSTALL_FULL_BINDIR} )

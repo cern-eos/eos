@@ -29,6 +29,7 @@
 #include <sys/types.h>
 //------------------------------------------------------------------------------
 #include <XrdSys/XrdSysPthread.hh>
+#include "fst/layout/Layout.hh"
 //------------------------------------------------------------------------------
 #include "common/ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
@@ -45,6 +46,7 @@ namespace eos
 //! Definition of an error occurring in a write operation
 typedef std::pair<int, off_t> error_type;
 
+class LayoutWrapper;
 
 //------------------------------------------------------------------------------
 //! Class that keeps track of the operations done at file level
@@ -64,7 +66,7 @@ class FileAbstraction
     //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    FileAbstraction(int fd, eos::fst::Layout* file, const char* path="");
+    FileAbstraction(int fd, LayoutWrapper* file, const char* path="");
 
 
     //--------------------------------------------------------------------------
@@ -97,7 +99,7 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     //! Get undelying raw file object
     //--------------------------------------------------------------------------
-    inline eos::fst::Layout* GetRawFile() const
+    inline LayoutWrapper* GetRawFile() const
     {
       return mFile;
     };
@@ -207,7 +209,7 @@ class FileAbstraction
   private:
 
     int mFd; ///< file descriptor used for the block key range
-    eos::fst::Layout* mFile; ///< raw file object
+    LayoutWrapper* mFile; ///< raw file object
     int mNoReferences; ///< number of held referencess to this file
     int mNumOpen; ///< number of open request without a matching close
     size_t mSizeWrites; ///< the size of write blocks in cache

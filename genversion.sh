@@ -7,9 +7,9 @@
 # If the last commit is not tagged then the version is built using the date of
 # the last commit and its hash value. Therefore, we have the following
 # convention:
-# MAJOR = YYYYMMDD of the last commit
-# MINOR = hash 7 characters long
-# PATCH = 0
+# MAJOR = major value of the last tag in the current branch
+# MINOR = YYYYMMDD of the last commit
+# PATCH = hash 7 characters long of the last commit
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
@@ -23,12 +23,14 @@ function getVersionFromLog()
     AWK=awk
   fi
 
-  VERSION="$(echo $@ | $AWK '{ gsub("-","",$1); print 0"."$1"."$4; }')"
+  MAJOR="$(echo $1 | $AWK -F "." '{print $1;}')"
+  VERSION="$(echo $2 | $AWK -v major="${MAJOR}" '{ gsub("-","",$1); print major"."$1"."$4; }')"
 
   if test $? -ne 0; then
     echo "unknown";
     return 1
   fi
+
   echo $VERSION
 }
 
@@ -76,12 +78,12 @@ else
 
   if [[  ${?} -ne 0 ]]; then
     # Check if we have a spec file and try to extract the version. This happens
-    # in the rpmbuild step. We don't have a git repo bu the version was already
-    # set.
+    # in the rpmbuild step. We don't have a git repo but the version was already
+    # set in the eos.spec file.
     if [[ -e "eos.spec" ]]; then
        VERSION="$(grep "Version:" eos.spec | awk '{print $2;}')"
     else
-      echo "[!] Unable to get version from git or spec file . " 1>&2
+      echo "[!] Unable to get version from git or spec file." 1>&2
       exit 1
     fi
   else
@@ -102,12 +104,24 @@ else
       fi
 
     else
-      LOGINFO="$(git log -1 --format='%ai %h')"
+      # Get last tag to extract the major version number
+      LAST_TAG="$(git describe --tags --abbrev=0)"
 
-      if [[ ${?} -eq 0 ]]; then
-	VERSION="$(getVersionFromLog $LOGINFO)"
+      if [[ ${?} -ne 0 ]]; then
+	echo "[!] Can not find last tag to build the commit version"
+	VERSION=""
+	exit 1
       fi
 
+      # Get last commit date and hash used to build the rest of the version
+      LOGINFO="$(git log -1 --format='%ai %h')"
+
+      if [[ ${?} -ne 0 ]]; then
+	echo "[!] Can not get info about last commit"
+	exit 1
+      fi
+
+      VERSION="$(getVersionFromLog "$LAST_TAG" "$LOGINFO")"
     fi
   fi
 

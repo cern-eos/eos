@@ -83,6 +83,8 @@ extern "C"
   {
     unsigned long long fd;
     uid_t uid;
+    gid_t gid;
+    gid_t pid;
     long long ino;
   } fd_user_info;
 
@@ -324,13 +326,13 @@ extern "C"
   //! @param fd file descriptor
   //!
   //----------------------------------------------------------------------------
-  void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd);
+  void xrd_add_inodeuser_fd(unsigned long inode,  uid_t uid, gid_t gid, pid_t pid, int fd);
 
 
   //----------------------------------------------------------------------------
   //! Remove file descriptor from mapping
   //----------------------------------------------------------------------------
-  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid);
+  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //              ******* FUSE Directory Cache *******
@@ -529,6 +531,7 @@ extern "C"
   //!
   //----------------------------------------------------------------------------
   int xrd_truncate (int fildes, off_t offset);
+  int xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid);
 
 
   //----------------------------------------------------------------------------
@@ -542,13 +545,13 @@ extern "C"
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_close (int fd, unsigned long inode, uid_t uid);
+  int xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
 
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_flush (int fd);
+  int xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //!
@@ -631,7 +634,7 @@ extern "C"
   int
   xrd_set_utimes_close(unsigned long long ino,
                        struct timespec* tvp,
-                       uid_t uid
+                       uid_t uid, gid_t gid, pid_t pid
                        );
 
   //----------------------------------------------------------------------------
@@ -656,7 +659,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Do user mapping
   //----------------------------------------------------------------------------
-  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid);
+  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid);
 
   //----------------------------------------------------------------------------
   //! updates the proccache entry for the given pid (only if needed)
@@ -664,7 +667,7 @@ extern "C"
   //! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
   //! used in it
   //----------------------------------------------------------------------------
-  int update_proc_cache(uid_t uid, pid_t pid);
+  int update_proc_cache(uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
   //! Create the cgi argument to be added to the url to use the kerberos cc file

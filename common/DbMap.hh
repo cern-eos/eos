@@ -333,6 +333,7 @@ private:
 
   static RWMutex gNamesMutex;
   static RWMutex gTimeMutex;
+  static bool gInitialized;
 
   // ------------------------------------------------------------------------
   //! the name of the DbMap instance. Default is db%p where %p is the value of 'this' pointer. it can be changed
@@ -829,6 +830,13 @@ public:
     gNames.insert(pName);
     gNamesMutex.UnLockWrite();
     pDb->setName(pName);
+    pMutex.SetBlocking(true);
+    if(!gInitialized)
+    {
+      gTimeMutex.SetBlocking(true);
+      gNamesMutex.SetBlocking(true);
+      gInitialized = true;
+    }
 #ifndef EOS_STDMAP_DBMAP
     pMap.set_empty_key("\x01");
     pMap.set_deleted_key("\x02");
@@ -1259,6 +1267,7 @@ public:
   DbLogT()
   {
     pDb=new TDbLogInterface();
+    pMutex.SetBlocking(true);
   }
 
   DbLogT(const std::string dbfile,int volumeduration=-1, int createperm=0, Toption *option=NULL)

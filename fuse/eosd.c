@@ -65,6 +65,7 @@ double entrycachetime = 5.0;
 double attrcachetime = 5.0;
 double readopentime = 5.0;
 
+extern int use_localtime_consistency;
 
 //------------------------------------------------------------------------------
 // Convenience macros to build strings in C ...
@@ -88,7 +89,7 @@ double readopentime = 5.0;
   do { \
     int errCode; \
     xrd_lock_w_pcache (req->ctx.pid); \
-    if( (errCode=update_proc_cache(req->ctx.uid,req->ctx.pid)) )\
+    if( (errCode=update_proc_cache(req->ctx.uid,req->ctx.gid,req->ctx.pid)) )\
     { \
       xrd_unlock_w_pcache (req->ctx.pid); \
       fuse_reply_err (req, errCode); \
@@ -197,70 +198,16 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (to_set & FUSE_SET_ATTR_SIZE)
   {
-    if (fi)
-    {
-      if (isdebug) fprintf (stderr, "[%s]: truncate\n", __FUNCTION__);
-
-      if (fi->fh)
-      {
-        struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-        retc = xrd_truncate ((unsigned long long) info->fd, attr->st_size);
-      }
-      else
-      {
-        int fd;
-
-        if (isdebug)
-        {
-          fprintf (stderr, "[%s]: set attr size=%lld ino=%lld\n",
-                   __FUNCTION__, (long long) attr->st_size, (long long) ino);
-        }
-
-        if ((fd = xrd_open (fullpath, O_WRONLY,
-                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid,
-                            req->ctx.gid,
-                            req->ctx.pid,
-                            &rinode)) > 0)
-        {
-          retc = xrd_truncate (fd, attr->st_size);
-          xrd_close (fd, ino, req->ctx.uid);
-        }
-        else
-        {
-          retc = -1;
-        }
-      }
-    }
-    else
-    {
-      int fd;
-
-      if (isdebug)
-      {
-        fprintf (stderr, "[%s]: set attr size=%lld ino=%lld\n",
-                 __FUNCTION__, (long long) attr->st_size, (long long) ino);
-      }
-
-      if ((fd = xrd_open (fullpath, O_WRONLY,
-                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                          req->ctx.uid,
-                          req->ctx.gid,
-                          req->ctx.pid,
-                          &rinode)) > 0)
-      {
-        retc = xrd_truncate (fd, attr->st_size);
-        xrd_close (fd, ino, req->ctx.uid);
-      }
-    }
+    retc = xrd_truncate2 (fullpath, ino, attr->st_size, req->ctx.uid, req->ctx.gid, req->ctx.pid);
   }
 
   if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
   {
     struct timespec tvp[2];
-    tvp[0].tv_sec = attr->st_atime;
-    tvp[0].tv_nsec = 0;
-    tvp[1].tv_sec = attr->st_mtime;
-    tvp[1].tv_nsec = 0;
+    tvp[0].tv_sec = attr->st_atim.tv_sec;
+    tvp[0].tv_nsec = attr->st_atim.tv_nsec;
+    tvp[1].tv_sec = attr->st_mtim.tv_sec;
+    tvp[1].tv_nsec = attr->st_mtim.tv_nsec;
 
     if (isdebug)
     {
@@ -268,7 +215,7 @@ eosfs_ll_setattr (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
 
-    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid)) ) {
+    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid, req->ctx.gid, req->ctx.pid)) ) {
       retc = xrd_utimes (fullpath, tvp,
 			 req->ctx.uid,
 			 req->ctx.gid,
@@ -904,7 +851,6 @@ eosfs_ll_rename (fuse_req_t req,
     return;
   }
 
-  const char* user = xrd_mapuser (req->ctx.uid, req->ctx.gid, req->ctx.pid);
   FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
   FULLPARENTPATH (newfullpath, mountprefix, newparentpath, newname);
   sprintf (iparentpath, "%s/%s", newparentpath, newname);
@@ -1171,6 +1117,8 @@ eosfs_ll_open (fuse_req_t req,
   fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
   info->fd = res;
   info->uid = req->ctx.uid;
+  info->gid = req->ctx.gid;
+  info->pid = req->ctx.pid;
   fi->fh = (uint64_t) info;
 
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
@@ -1312,7 +1260,7 @@ eosfs_ll_release (fuse_req_t req,
     }
 
     if (isdebug) fprintf (stderr, "[%s]: Try to close file fd=%llu\n", __FUNCTION__, info->fd);
-    int res = xrd_close (info->fd, ino, info->uid);
+    int res = xrd_close (info->fd, ino, info->uid, info->gid, info->pid);
     xrd_release_rd_buff (pthread_self());
 
       // Free memory
@@ -1383,7 +1331,7 @@ eosfs_ll_flush (fuse_req_t req,
     //UPDATEPROCCACHE;
 
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    int err_flush = xrd_flush (info->fd);
+    int err_flush = xrd_flush (info->fd, req->ctx.uid, req->ctx.gid, req->ctx.pid);
 
     if (err_flush)
       errno = EIO;
@@ -1670,6 +1618,8 @@ eosfs_ll_create(fuse_req_t req,
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
     info->fd = res;
     info->uid = req->ctx.uid;
+    info->gid = req->ctx.gid;
+    info->pid = req->ctx.pid;
     fi->fh = (uint64_t) info;
 
     // Update the entry parameters
@@ -1679,17 +1629,34 @@ eosfs_ll_create(fuse_req_t req,
     e.entry_timeout = 0;
     e.ino = rinode;
     e.attr.st_mode = S_IFREG;
-    e.attr.st_atime = time(NULL);
-    e.attr.st_mtime = time(NULL);
-    e.attr.st_ctime = time(NULL);
     e.attr.st_uid = req->ctx.uid;
     e.attr.st_gid = req->ctx.gid;
     e.attr.st_dev = 0;
+    struct stat s;
+    if (use_localtime_consistency && !xrd_stat (fullpath, &s, req->ctx.uid, req->ctx.gid, req->ctx.pid, rinode))
+    {
+      e.attr.st_atime = s.st_mtime;
+      e.attr.st_mtime = s.st_mtime;
+      e.attr.st_ctime = s.st_mtime;
+      e.attr.st_atim = s.st_mtim;
+      e.attr.st_mtim = s.st_mtim;
+      e.attr.st_ctim = s.st_mtim;
+    }
+    else
+    {
+      if(use_localtime_consistency)
+        fprintf (stderr,"[%s]: error stating created file. time stamping with local time without ns",__FUNCTION__);
+
+      e.attr.st_atime = time (NULL);
+      e.attr.st_mtime = time (NULL);
+      e.attr.st_ctime = time (NULL);
+    }
+
     if (isdebug) fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
     if (!rinode)
     {
-      xrd_close(res, 0, req->ctx.uid);
+      xrd_close(res, 0, req->ctx.uid, req->ctx.gid, req->ctx.pid);
       fuse_reply_err (req, -res);
       return;
     }

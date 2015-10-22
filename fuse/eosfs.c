@@ -80,7 +80,7 @@
   do { \
     int errCode; \
     xrd_lock_w_pcache (fuse_ctx->pid); \
-    if( (errCode=update_proc_cache(fuse_ctx->uid,fuse_ctx->pid)) )\
+    if( (errCode=update_proc_cache(fuse_ctx->uid,fuse_ctx->gid,fuse_ctx->pid)) )\
     { \
       xrd_unlock_w_pcache (fuse_ctx->pid); \
       return -errCode; \
@@ -516,7 +516,7 @@ eosdfs_truncate (const char* path, off_t size)
     return -errno;
 
   xrd_truncate (fd, size);
-  xrd_close (fd, rinode, uid);
+  xrd_close (fd, rinode, uid,gid,pid);
   return 0;
 }
 
@@ -669,7 +669,7 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
   char rootpath[4096];
   eosatime = time (0);
   struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-  xrd_close(info->fd, info->ino, info->uid);
+  xrd_close(info->fd, info->ino, info->uid,gid,pid);
   xrd_release_rd_buff(pthread_self());
 
   // Free memory allocated in eosdfs_open or eosdfs_create

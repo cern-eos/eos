@@ -82,40 +82,40 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Log Macros usable in objects inheriting from the logId Class
 /*----------------------------------------------------------------------------*/
 #define eos_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, this->uid, this->gid,this->ruid, this->rgid, this->cident,  LOG_MASK(__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_DEBUG)  , __VA_ARGS__)
-#define eos_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_INFO)   , __VA_ARGS__)
-#define eos_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_NOTICE) , __VA_ARGS__)
-#define eos_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_WARNING), __VA_ARGS__)
-#define eos_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ERR)    , __VA_ARGS__)
-#define eos_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_CRIT)   , __VA_ARGS__)
-#define eos_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ALERT)  , __VA_ARGS__)
-#define eos_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_EMERG)  , __VA_ARGS__)
+#define eos_debug(...)   ((LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_DEBUG)  , __VA_ARGS__):"")
+#define eos_info(...)    ((LOG_MASK(LOG_INFO) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_INFO)   , __VA_ARGS__):"")
+#define eos_notice(...)  ((LOG_MASK(LOG_NOTICE) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_NOTICE) , __VA_ARGS__):"")
+#define eos_warning(...) ((LOG_MASK(LOG_WARNING) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_WARNING), __VA_ARGS__):"")
+#define eos_err(...)     ((LOG_MASK(LOG_ERR) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ERR)    , __VA_ARGS__):"")
+#define eos_crit(...)    ((LOG_MASK(LOG_CRIT) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_CRIT)   , __VA_ARGS__):"")
+#define eos_alert(...)   ((LOG_MASK(LOG_ALERT) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_ALERT)  , __VA_ARGS__):"")
+#define eos_emerg(...)   ((LOG_MASK(LOG_EMERG) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, this->logId, vid, this->cident, (LOG_EMERG)  , __VA_ARGS__):"")
 
 /*----------------------------------------------------------------------------*/
 //! Log Macros usable in singleton objects used by individual threads
 //! You should define locally LodId ThreadLogId in the thread function
 /*----------------------------------------------------------------------------*/
-#define eos_thread_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_DEBUG)  , __VA_ARGS__)
-#define eos_thread_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_INFO)   , __VA_ARGS__)
-#define eos_thread_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_NOTICE) , __VA_ARGS__)
-#define eos_thread_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_WARNING), __VA_ARGS__)
-#define eos_thread_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_ERR)    , __VA_ARGS__)
-#define eos_thread_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_CRIT)   , __VA_ARGS__)
-#define eos_thread_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_ALERT)  , __VA_ARGS__)
-#define eos_thread_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_EMERG)  , __VA_ARGS__)
+#define eos_thread_debug(...)   ((LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_DEBUG)  , __VA_ARGS__):"")
+#define eos_thread_info(...)    ((LOG_MASK(LOG_INFO) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_INFO)   , __VA_ARGS__):"")
+#define eos_thread_notice(...)  ((LOG_MASK(LOG_NOTICE) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_NOTICE) , __VA_ARGS__):"")
+#define eos_thread_warning(...) ((LOG_MASK(LOG_WARNING) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_WARNING), __VA_ARGS__):"")
+#define eos_thread_err(...)     ((LOG_MASK(LOG_ERR) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_ERR)    , __VA_ARGS__):"")
+#define eos_thread_crit(...)    ((LOG_MASK(LOG_CRIT) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_CRIT)   , __VA_ARGS__):"")
+#define eos_thread_alert(...)   ((LOG_MASK(LOG_ALERT) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_ALERT)  , __VA_ARGS__):"")
+#define eos_thread_emerg(...)   ((LOG_MASK(LOG_EMERG) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, ThreadLogId.logId, vid, ThreadLogId.cident, (LOG_EMERG)  , __VA_ARGS__):"")
 
 /*----------------------------------------------------------------------------*/
 //! Log Macros usable from static member functions without LogId object
 /*----------------------------------------------------------------------------*/
 #define eos_static_log(__EOSCOMMON_LOG_PRIORITY__ , ...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static", 0,0,0,0,"",  (__EOSCOMMON_LOG_PRIORITY__) , __VA_ARGS__
-#define eos_static_debug(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_DEBUG)  , __VA_ARGS__)
-#define eos_static_info(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_INFO)   , __VA_ARGS__)
-#define eos_static_notice(...)  eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_NOTICE) , __VA_ARGS__)
-#define eos_static_warning(...) eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_WARNING), __VA_ARGS__)
-#define eos_static_err(...)     eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_ERR)    , __VA_ARGS__)
-#define eos_static_crit(...)    eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_CRIT)   , __VA_ARGS__)
-#define eos_static_alert(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_ALERT)  , __VA_ARGS__)
-#define eos_static_emerg(...)   eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__)
+#define eos_static_debug(...)   ((LOG_MASK(LOG_DEBUG) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_DEBUG)  , __VA_ARGS__):"")
+#define eos_static_info(...)    ((LOG_MASK(LOG_INFO) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_INFO)   , __VA_ARGS__):"")
+#define eos_static_notice(...)  ((LOG_MASK(LOG_NOTICE) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_NOTICE) , __VA_ARGS__):"")
+#define eos_static_warning(...) ((LOG_MASK(LOG_WARNING) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_WARNING), __VA_ARGS__):"")
+#define eos_static_err(...)     ((LOG_MASK(LOG_ERR) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_ERR)    , __VA_ARGS__):"")
+#define eos_static_crit(...)    ((LOG_MASK(LOG_CRIT) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_CRIT)   , __VA_ARGS__):"")
+#define eos_static_alert(...)   ((LOG_MASK(LOG_ALERT) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_ALERT)  , __VA_ARGS__):"")
+#define eos_static_emerg(...)   ((LOG_MASK(LOG_EMERG) & eos::common::Logging::gLogMask)?eos::common::Logging::log(__FUNCTION__,__FILE__, __LINE__, "static..............................", eos::common::Logging::gZeroVid,"", (LOG_EMERG)  , __VA_ARGS__):"")
 
 /*----------------------------------------------------------------------------*/
 //! Log Macros to check if a function would log in a certain log level

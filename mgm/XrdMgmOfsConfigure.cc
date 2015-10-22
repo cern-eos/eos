@@ -1361,11 +1361,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Logging::SetUnit(unit.c_str());
   std::string filter =
     "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
+    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,"
+    "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures";
   eos::common::Logging::SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
-             "RegisterNode,SharedHash");
+             "RegisterNode,SharedHash,"
+             "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures");
   // We automatically append the host name to the config dir now !!!
   MgmConfigDir += HostName;
   MgmConfigDir += "/";
@@ -1571,8 +1573,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Mapping::Init();
 
   // Initialize the master/slave class
-  // TODO: start the online compacting thread after we boot the namespace
-  // making sure the namespace supportes compacting
   if (!MgmMaster.Init())
     return 1;
 
@@ -1865,13 +1865,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s returned %d", errorlogline.c_str(), rrc);
     }
 
-    eos_info("starting file view loader thread");
 
-    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-                           static_cast<void*>(this), 0, "File View Loader")))
+    if (MgmMaster.IsMaster())
     {
-      eos_crit("cannot start file view loader");
-      NoGo = 1;
+      eos_info("starting file view loader thread");
+
+      if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
+			     static_cast<void *> (this), 0, "File View Loader")))
+	{
+	  eos_crit("cannot start file view loader");
+	  NoGo = 1;
+	}
     }
   }
 
