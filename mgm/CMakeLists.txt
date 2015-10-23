@@ -193,15 +193,6 @@ target_link_libraries(
 
 set_target_properties(testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST")
 
-if (Linux)
-  set_target_properties(
-    XrdEosMgm
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    INTERFACE_LINK_LIBRARIES "")
-endif()
-
 install(
   TARGETS XrdEosMgm
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

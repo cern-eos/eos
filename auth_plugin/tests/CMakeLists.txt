@@ -40,13 +40,6 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${CPPUNIT_LIBRARIES})
 
-set_target_properties(
-  EosAuthTests
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES "")
-
 install(
   TARGETS EosAuthTests
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

@@ -121,7 +121,7 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY})
 
 set_target_properties(
-  EosAuthOfs EosAuthProto
+  EosAuthProto
   PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
