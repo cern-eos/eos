@@ -1154,7 +1154,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
       for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
       {
-	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+	if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
 	{
 	  char buffer[1024];
 	  buffer[0]=0;
@@ -1240,7 +1240,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       }
     }
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       char buffer[1024];
       buffer[0]=0;
