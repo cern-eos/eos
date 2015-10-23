@@ -60,23 +60,6 @@ class FileSystemView: public IFsView
   virtual void fileMDRead(IFileMD* obj);
 
   //----------------------------------------------------------------------------
-  //! Get a list of files registered in given fs
-  //----------------------------------------------------------------------------
-  std::pair<FileIterator, FileIterator> getFiles(
-      IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
-  //! Get a list of unlinked but not deleted files
-  //----------------------------------------------------------------------------
-  std::pair<FileIterator, FileIterator> getUnlinkedFiles(
-      IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
-  //! Get a list of unlinked but not deleted files
-  //----------------------------------------------------------------------------
-  std::pair<FileIterator, FileIterator> getNoReplicaFiles();
-
-  //----------------------------------------------------------------------------
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
