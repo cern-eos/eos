@@ -47,14 +47,12 @@ XrdMgmOfs::FsConfigListener ()
   // setup the modifications which the fs listener thread is waiting for
   std::string watch_errc = "stat.errc";
   std::string watch_geotag = "stat.geotag";
-  std::string watch_dataproxy = "dataproxy";
-  std::string watch_dataep = "dataep";
+  std::string watch_proxygroups = "proxygroups";
 
   bool ok = true;
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_geotag,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify the FsView when a geotag changes to keep the tree structure up-to-date
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to take action an filesystem errors
-  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_dataproxy,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify GeoTreeEngine when a dataproxy turns on or off
-  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_dataep,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify GeoTreeEngine when a dataproxy turns on or off
+  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_proxygroups,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify GeoTreeEngine when the proxygroups to which a node belongs to are changing
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",MgmConfigQueue.c_str(),XrdMqSharedObjectChangeNotifier::kMqSubjectModification);  // we need to apply remote configuration changes
   ok &= ObjectNotifier.SubscribesToSubjectRegex("fsconfiglistener",".*",XrdMqSharedObjectChangeNotifier::kMqSubjectKeyDeletion);  // we need to apply remote configuration changes
   if(!ok)
@@ -284,7 +282,7 @@ XrdMgmOfs::FsConfigListener ()
               FsView::gFsView.ViewMutex.UnLockRead();
           }
         }
-        else if(key == watch_dataep || key == watch_dataproxy)
+        else if(key == watch_proxygroups)
         {
           eos_info("got dataproxy/ep update");
           // -------------------------------------------------------------------
@@ -292,48 +290,21 @@ XrdMgmOfs::FsConfigListener ()
           // -------------------------------------------------------------------
           std::string status;
           eos::mgm::FsNode* node = 0;
-          bool insert = false, remove = false;
 
-          // read the id from the hash and the new geotag
+          // read the proxygrouplist
           gOFS->ObjectManager.HashMutex.LockRead ();
           XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject (queue.c_str (), "hash");
           if (hash)
-          {
-            if (key == watch_dataproxy)
-              status = hash->Get ("dataproxy");
-            else
-              status = hash->Get ("dataep");
-          }
+              status = hash->Get ("proxygroups");
           gOFS->ObjectManager.HashMutex.UnLockRead ();
           if (status.size ())
           {
-            if (status == "on")
-              insert = true;
-            else if (status == "off") insert = false;
-          }
-
-          if (insert || remove)
-          {
             eos::mgm::FsView::gFsView.ViewMutex.LockRead ();
-            std::string hostport = eos::common::StringConversion::GetHostPortFromQueue (queue.c_str ()).c_str();
+            std::string hostport = "/eos/"+queue.substr(queue.rfind('/')+1)+"/fst";
             if (eos::mgm::FsView::gFsView.mNodeView.count (hostport))
             {
               node = eos::mgm::FsView::gFsView.mNodeView[hostport];
-
-              if(insert)
-              {
-              if (key == watch_dataproxy)
-                eos::mgm::gGeoTreeEngine.insertDataProxy (node, false, false);
-              else
-                eos::mgm::gGeoTreeEngine.insertGateway (node, false, false);
-              }
-              else
-              {
-                if (key == watch_dataproxy)
-                  eos::mgm::gGeoTreeEngine.rmDataProxy (node, false, false);
-                else
-                  eos::mgm::gGeoTreeEngine.rmGateway (node, false, false);
-              }
+              eos::mgm::gGeoTreeEngine.matchHostPxyGr(node,status,false,false);
             }
             else
             {

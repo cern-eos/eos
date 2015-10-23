@@ -1212,14 +1212,15 @@ RWMutex::GetWriteLockCounter ()
   return AtomicGet(writeLockCounter);
 }
 
-RWMutexWriteLock::RWMutexWriteLock (RWMutex &mutex)
+RWMutexWriteLock::RWMutexWriteLock (RWMutex &mutex, bool doit)
 {
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
 
   Mutex = &mutex;
-  Mutex->LockWrite();
+  DoIt = doit;
+  if(DoIt) Mutex->LockWrite();
 }
 
 RWMutexWriteLock::~RWMutexWriteLock ()
@@ -1228,7 +1229,7 @@ RWMutexWriteLock::~RWMutexWriteLock ()
   //! Destructor
   // ---------------------------------------------------------------------------
 
-  Mutex->UnLockWrite();
+  if(DoIt) Mutex->UnLockWrite();
 }
 
 RWMutexReadLock::RWMutexReadLock (RWMutex &mutex)

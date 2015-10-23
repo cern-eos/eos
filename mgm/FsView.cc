@@ -853,7 +853,7 @@ FsView::GetNodeFormat (std::string option)
   if (option == "m")
   {
     // monitoring format
-    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.dataep:width=1:format=os|sep= |member=cfg.dataproxy:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=ol|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |member=stat.gw.queued:width=1:format=os:tag=stat.gw.queued|sep= |member=cfg.stat.sys.vsize:width=1:format=ol|sep= |member=cfg.stat.sys.rss:width=1:format=ol|sep= |member=cfg.stat.sys.threads:width=1:format=ol|sep= |member=cfg.stat.sys.sockets:width=1:format=os|sep= |member=cfg.stat.sys.eos.version:width=1:format=os|sep= |member=cfg.stat.sys.kernel:width=1:format=os|sep= |member=cfg.stat.sys.eos.start:width=1:format=os|sep= |member=cfg.stat.sys.uptime:width=1:format=os|sep= |sum=stat.disk.iops?configstatsu@rw:width=1:format=ol|sep= |sum=stat.disk.bw?configstatus@rw:width=1:format=ol|sep= |member=cfg.stat.geotag:width=1:format=os|";
+    return "member=type:width=1:format=os|sep= |member=hostport:width=1:format=os|sep= |member=status:width=1:format=os|sep= |member=cfg.status:width=1:format=os|sep= |member=cfg.txgw:width=1:format=os|sep= |member=heartbeatdelta:width=1:format=os|sep= |member=nofs:width=1:format=ol|sep= |avg=stat.disk.load:width=1:format=of|sep= |sig=stat.disk.load:width=1:format=of|sep= |sum=stat.disk.readratemb:width=1:format=ol|sep= |sum=stat.disk.writeratemb:width=1:format=ol|sep= |sum=stat.net.ethratemib:width=1:format=ol|sep= |sum=stat.net.inratemib:width=1:format=ol|sep= |sum=stat.net.outratemib:width=1:format=ol|sep= |sum=stat.ropen:width=1:format=ol|sep= |sum=stat.wopen:width=1:format=ol|sep= |sum=stat.statfs.freebytes:width=1:format=ol|sep= |sum=stat.statfs.usedbytes:width=1:format=ol|sep= |sum=stat.statfs.capacity:width=1:format=ol|sep= |sum=stat.usedfiles:width=1:format=ol|sep= |sum=stat.statfs.ffree:width=1:format=ol|sep= |sum=stat.statfs.fused:width=1:format=ol|sep= |sum=stat.statfs.files:width=1:format=ol|sep= |sum=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |sum=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |member=stat.gw.queued:width=1:format=os:tag=stat.gw.queued|sep= |member=cfg.stat.sys.vsize:width=1:format=ol|sep= |member=cfg.stat.sys.rss:width=1:format=ol|sep= |member=cfg.stat.sys.threads:width=1:format=ol|sep= |member=cfg.stat.sys.sockets:width=1:format=os|sep= |member=cfg.stat.sys.eos.version:width=1:format=os|sep= |member=cfg.stat.sys.kernel:width=1:format=os|sep= |member=cfg.stat.sys.eos.start:width=1:format=os|sep= |member=cfg.stat.sys.uptime:width=1:format=os|sep= |sum=stat.disk.iops?configstatsu@rw:width=1:format=ol|sep= |sum=stat.disk.bw?configstatus@rw:width=1:format=ol|sep= |member=cfg.stat.geotag:width=1:format=os|";
   }
 
   if (option == "io")
@@ -877,10 +877,10 @@ FsView::GetNodeFormat (std::string option)
   if (option == "l")
   {
     // long format
-    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.dataep:width=9:format=s|sep= |member=cfg.dataproxy:width=9:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue";
+    return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue";
   }
   // default format
-  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.dataep:width=9:format=s|sep= |member=cfg.dataproxy:width=9:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=inqueue:width=10:format=s:tag=gw-queued|sep= |member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|sep= |member=cfg.gw.rate:width=8:format=s:tag=gw-rate|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s";
+  return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |sep= |member=cfg.txgw:width=6:format=s|sep= |member=inqueue:width=10:format=s:tag=gw-queued|sep= |member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|sep= |member=cfg.gw.rate:width=8:format=s:tag=gw-rate|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s";
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1081,14 +1081,6 @@ FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
       node->insert(snapshot.mId);
       node->SetNodeConfigDefault();
       eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(), snapshot.mId, fs);
-#ifndef EOSMGMFSVIEWTEST
-    std::string s;
-    if(!(s = node->GetConfigMember("dataproxy")).empty())
-      gGeoTreeEngine.insertDataProxy(node,false,false);
-    s.clear();
-    if(!(s = node->GetConfigMember("dataep")).empty())
-      gGeoTreeEngine.insertGateway(node,false,false);
-#endif
     }
 
     //--------------------------------------------------------------------------
@@ -1359,14 +1351,6 @@ FsView::UnRegister (FileSystem* fs, bool unregisterInGeoTreeEngine)
       eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
       if (!node->size())
       {
-#ifndef EOSMGMFSVIEWTEST
-        std::string s;
-        if(!(s = node->GetConfigMember("dataproxy")).empty())
-          gGeoTreeEngine.rmDataProxy(node,false,false);
-        s.clear();
-        if(!(s = node->GetConfigMember("dataep")).empty())
-          gGeoTreeEngine.rmGateway(node,false,false);
-#endif
 	mNodeView.erase(snapshot.mQueue);
 	delete node;
       }
@@ -1475,14 +1459,6 @@ FsView::RegisterNode (const char* nodename)
     mNodeView[nodequeue] = node;
     node->SetNodeConfigDefault();
     eos_debug("creating node view %s", nodequeue.c_str());
-#ifndef EOSMGMFSVIEWTEST
-    std::string s;
-    if(!(s = node->GetConfigMember("dataproxy")).empty())
-      gGeoTreeEngine.insertDataProxy(node,false,false);
-    s.clear();
-    if(!(s = node->GetConfigMember("dataep")).empty())
-      gGeoTreeEngine.insertGateway(node,false,false);
-#endif
     return true;
   }
 }
@@ -1498,15 +1474,6 @@ FsView::UnRegisterNodes ()
   for (it = mNodeView.begin(); it != mNodeView.end(); it++)
   {
     auto node = it->second;
-#ifndef EOSMGMFSVIEWTEST
-    /// WARNING:this function is never called, so the FsView in gGeoTreeEngine might end up misspecified
-    std::string s;
-    if(!(s = node->GetConfigMember("dataproxy")).empty())
-      gGeoTreeEngine.rmDataProxy(node,false,true);
-    s.clear();
-    if(!(s = node->GetConfigMember("dataep")).empty())
-      gGeoTreeEngine.rmGateway(node,false,true);
-#endif
     delete (node);
   }
 }
@@ -1540,14 +1507,6 @@ FsView::UnRegisterNode (const char* nodename)
     {
       // we have to explicitly remove the node from the view here because no fs was removed
       auto node = mNodeView[nodename];
-#ifndef EOSMGMFSVIEWTEST
-      std::string s;
-      if(!(s = node->GetConfigMember("dataproxy")).empty())
-        gGeoTreeEngine.rmDataProxy(node,false,false);
-      s.clear();
-      if(!(s = node->GetConfigMember("dataep")).empty())
-        gGeoTreeEngine.rmGateway(node,false,false);
-#endif
       delete node;
       retc = (mNodeView.erase(nodename) ? true : false);
     }

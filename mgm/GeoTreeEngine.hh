@@ -700,7 +700,7 @@ class GeoTreeEngine : public eos::common::LogId
 	return false;
       }
       applyBranchDisablings(*entry);
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
 	stringstream ss;
 	ss << (*entry->backgroundFastStruct->placementTree);
@@ -715,7 +715,7 @@ class GeoTreeEngine : public eos::common::LogId
     {
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
 	stringstream ss;
 	ss << (*entry->backgroundFastStruct->placementTree);
@@ -754,7 +754,7 @@ class GeoTreeEngine : public eos::common::LogId
         return false;
       }
       applyBranchDisablings(*entry);
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->gWAccessTree);
@@ -769,7 +769,7 @@ class GeoTreeEngine : public eos::common::LogId
     {
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
         stringstream ss;
         ss << (*entry->backgroundFastStruct->gWAccessTree);
@@ -905,11 +905,11 @@ protected:
   eos::common::RWMutex pTreeMapMutex;
 
   // => proxy scheduling groups management / operations
-  //    they are used to schedule data proxy to translate dedicated protocol to xrootd to serve the client (if any defined)
+  //    they are used to schedule data proxy to translate dedicated proxygroup to xrootd to serve the client (if any defined)
   //    they are also used to manage the entry points to the instance (if any defined)
   //
-  std::map<std::string ,DataProxyTME*> pPxyGrp2DpTME;
-  std::map<std::string , DataProxyTME*> pPxyHost2DpTME;
+  std::map<std::string ,DataProxyTME*>  pPxyGrp2DpTME;           // one proxygroup => one TreeMapEntry
+  std::map<std::string ,std::set<DataProxyTME*>> pPxyHost2DpTMEs; // one proxyhost  => several proxygroups
   std::map<std::string,SchedTreeBase::tFastTreeIdx> pPxyQueue2PxyId;
   std::set<SchedTreeBase::tFastTreeIdx> pPxyId2Recycle;
   /// protects all the above maps
@@ -1131,7 +1131,7 @@ protected:
 
     bool updateNeeded = false;
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*placementTree);
@@ -1217,7 +1217,7 @@ protected:
     }
 
     // do the placement
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*tree);
@@ -1261,7 +1261,7 @@ protected:
       bool skipSaturated=false)
   {
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*accessTree);
@@ -1313,7 +1313,7 @@ protected:
     }
 
     // do the access
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*tree);
@@ -1816,51 +1816,17 @@ public:
   bool showDisabledBranches (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output, bool lock=true);
 
   // ---------------------------------------------------------------------------
-  //! Insert a Gateway into the GeoTreeEngine
-  // @param node
-  //   the node to be inserted
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
-  bool insertGateway(FsNode *node , bool updateFastStructures , bool lockFsView);
-
-  // ---------------------------------------------------------------------------
   //! Insert a file system into the GeoTreeEngine
   // @param host
   //   the host to be inserted
-  // @param protocol
-  //   the protocol the host is a dataproxy for
+  // @param proxygroup
+  //   the proxygroup the host is a dataproxy for
   // @param updateFastStructures
   //   should the fast structures be updated immediately without waiting for the next time frame
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool insertHostIntoProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStructures = false);
-
-  // ---------------------------------------------------------------------------
-  //! Insert a data proxy into the GeoTreeEngine
-  // @param node
-  //   the node to be inserted
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
-  bool insertDataProxy(FsNode *node , bool updateFastStructures , bool lockFsView);
-  //bool insertDataProxy(FsNode *node ,  , bool updateFastStructures , bool lockFsView);
-
-  // ---------------------------------------------------------------------------
-  //! Remove a Gateway from the GeoTreeEngine
-  // @param node
-  //   the node to be removed
-  // @param updateFastStructures
-  //   should the fast structures be updated immediately without waiting for the next time frame
-  // @return
-  //   true if success false else
-  // ---------------------------------------------------------------------------
-  bool rmGateway(FsNode *node, bool updateFastStructures , bool lockFsView);
+  bool insertHostIntoPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStructures = false);
 
   // ---------------------------------------------------------------------------
   //! Remove a file system into the GeoTreeEngine
@@ -1873,18 +1839,19 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool removeHostFromProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStructures = true);
+  bool removeHostFromPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStructures = true);
 
-  // ---------------------------------------------------------------------------
-  //! Remove a DataProxy from the GeoTreeEngine
-  // @param node
-  //   the node to be removed
+  //! Remove a file system into the GeoTreeEngine
+  // @param fs
+  //   the file system to be removed
+  // @param status
+  //   the names of the proxygroups separated by colons
   // @param updateFastStructures
   //   should the fast structures be updated immediately without waiting for the next time frame
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool rmDataProxy(FsNode *node, bool updateFastStructures , bool lockFsView);
+  bool matchHostPxyGr(FsNode *host , const std::string &status, bool lockFsView, bool updateFastStructures = true);
 };
 
 extern GeoTreeEngine gGeoTreeEngine;

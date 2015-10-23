@@ -1218,7 +1218,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
       for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
       {
-	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+	if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
 	{
 	  char buffer[1024];
 	  buffer[0]=0;
@@ -1304,7 +1304,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       }
     }
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       char buffer[1024];
       buffer[0]=0;
@@ -2177,46 +2177,51 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
     eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first,hs,true);
 
     pPxyTreeMapMutex.LockRead();
-    if(!pPxyHost2DpTME.count(hs.mHost))
+    if(!pPxyHost2DpTMEs.count(hs.mHost))
     {
       eos_err("update : TreeEntryMap has been removed, skipping this update");
       pPxyTreeMapMutex.UnLockRead();
       continue;
     }
-    DataProxyTME *entry = pPxyHost2DpTME[hs.mHost];
-    AtomicInc(entry->fastStructLockWaitersCount);
+    auto entryset = pPxyHost2DpTMEs[hs.mHost];
     pPxyTreeMapMutex.UnLockRead();
-
-    eos_debug("CHANGE BITFIELD %x",it->second);
-
-    // update only the fast structures because even if a fast structure rebuild is needed from the slow tree
-    // its information and state is updated from the fast structures
-    entry->doubleBufferMutex.LockRead();
-    const SchedTreeBase::tFastTreeIdx *idx=NULL;
-    SlowTreeNode *node=NULL;
-    if( !entry->backgroundFastStruct->host2TreeIdx->get(host.c_str(),idx) )
+    for(auto setit=entryset.begin(); setit!=entryset.end(); setit++)
     {
-      auto nodeit = entry->host2SlowTreeNode.find(host);
-      if(nodeit == entry->host2SlowTreeNode.end())
+      DataProxyTME *entry = *setit;
+
+      AtomicInc(entry->fastStructLockWaitersCount);
+
+      eos_debug("CHANGE BITFIELD %x",it->second);
+
+      // update only the fast structures because even if a fast structure rebuild is needed from the slow tree
+      // its information and state is updated from the fast structures
+      entry->doubleBufferMutex.LockRead();
+      const SchedTreeBase::tFastTreeIdx *idx=NULL;
+      SlowTreeNode *node=NULL;
+      if( !entry->backgroundFastStruct->host2TreeIdx->get(host.c_str(),idx) )
       {
-        eos_crit("Inconsistency : cannot locate an host: %s supposed to be in the fast structures",host.c_str());
-        entry->doubleBufferMutex.UnLockRead();
-        AtomicDec(entry->fastStructLockWaitersCount);
-        return false;
+        auto nodeit = entry->host2SlowTreeNode.find(host);
+        if(nodeit == entry->host2SlowTreeNode.end())
+        {
+          eos_crit("Inconsistency : cannot locate an host: %s supposed to be in the fast structures",host.c_str());
+          entry->doubleBufferMutex.UnLockRead();
+          AtomicDec(entry->fastStructLockWaitersCount);
+          return false;
+        }
+        node = nodeit->second;
+        eos_debug("no fast tree for host %s : updating slowtree",host.c_str());
       }
-      node = nodeit->second;
-      eos_debug("no fast tree for host %s : updating slowtree",host.c_str());
+      else
+      {
+        eos_debug("fast tree available for fs %s : not updating slowtree",host.c_str());
+      }
+      updateTreeInfo(entry, &hs, it->second, idx?*idx:0 , node);
+      if(idx) entry->fastStructModified = true;
+      if(node) entry->slowTreeModified = true;
+      // if we update the slowtree, then a fast tree generation is already pending
+      entry->doubleBufferMutex.UnLockRead();
+      AtomicDec(entry->fastStructLockWaitersCount);
     }
-    else
-    {
-      eos_debug("fast tree available for fs %s : not updating slowtree",host.c_str());
-    }
-    updateTreeInfo(entry, &hs, it->second, idx?*idx:0 , node);
-    if(idx) entry->fastStructModified = true;
-    if(node) entry->slowTreeModified = true;
-    // if we update the slowtree, then a fast tree generation is already pending
-    entry->doubleBufferMutex.UnLockRead();
-    AtomicDec(entry->fastStructLockWaitersCount);
   }
 
   // update the atomic penalties
@@ -2924,9 +2929,9 @@ bool GeoTreeEngine::showDisabledBranches (const std::string& group, const std::s
   return true;
 }
 
-bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStruct)
+bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStruct)
 {
-  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex,lockAddRm);
 
   eos::common::FileSystem::host_snapshot_t hsn;
   if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
@@ -2938,27 +2943,28 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
 
   {
     pPxyTreeMapMutex.LockWrite();
-    // ==== check that host is not already registered
-    if(pPxyHost2DpTME.count(url))
+    // ==== get the entry
+    if(pPxyGrp2DpTME.count(proxygroup))
+    mapEntry = pPxyGrp2DpTME[proxygroup];
+    else
     {
-      eos_err("error inserting host %s into protocol %s : host is already part of a protocol",
+      mapEntry = new DataProxyTME(proxygroup);
+      updateFastStruct = true; // force update to be sure that the fast structures are properly created
+#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+#endif
+    }
+
+    // ==== check that host is not already registered
+    if(pPxyHost2DpTMEs.count(url) && pPxyHost2DpTMEs[url].count(mapEntry))
+    {
+      eos_err("error inserting host %s into proxygroup %s : host is already registered with proxygroup",
           url.c_str(),
-          protocol.c_str()
+          proxygroup.c_str()
       );
       pPxyTreeMapMutex.UnLockWrite();
       return false;
     }
 
-    // ==== get the entry
-    if(pPxyGrp2DpTME.count(protocol))
-    mapEntry = pPxyGrp2DpTME[protocol];
-    else
-    {
-      mapEntry = new DataProxyTME(protocol);
-      updateFastStruct = true; // force update to be sure that the fast structures are properly created
-#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
-#endif
-    }
     mapEntry->slowTreeMutex.LockWrite();
     pPxyTreeMapMutex.UnLockWrite();
   }
@@ -2975,9 +2981,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
     {
       mapEntry->slowTreeMutex.UnLockWrite();
 
-      eos_err("error inserting host %lu into protocol %s : the protocol-tree is full",
+      eos_err("error inserting host %lu into proxygroup %s : the proxygroup-tree is full",
           url.c_str(),
-          protocol.c_str()
+          proxygroup.c_str()
       );
 
       return false;
@@ -3023,9 +3029,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
   {
     mapEntry->slowTreeMutex.UnLockWrite();
 
-    eos_err("error inserting host %lu into protocol %s : slow tree node insertion failed",
+    eos_err("error inserting host %lu into proxygroup %s : slow tree node insertion failed",
         url.c_str(),
-        protocol.c_str()
+        proxygroup.c_str()
     );
 
     return false;
@@ -3052,9 +3058,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
     if(gQueue2NotifType.count(hsn.mQueue)==0 && !gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",hsn.mQueue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
       mapEntry->slowTreeMutex.UnLockWrite();
-      eos_crit("error inserting host %lu into protocol %s : error subscribing to shared object notifications",
+      eos_crit("error inserting host %lu into proxygroup %s : error subscribing to shared object notifications",
           url.c_str(),
-          protocol.c_str()
+          proxygroup.c_str()
       );
       return false;
     }
@@ -3064,9 +3070,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
   // update all the information about this new node
   if(!updateTreeInfo(mapEntry,&hsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
   {
-    eos_err("error inserting host %lu into protocol %s : slow tree node update failed",
+    eos_err("error inserting host %lu into proxygroup %s : slow tree node update failed",
         url.c_str(),
-        protocol.c_str()
+        proxygroup.c_str()
     );
     return false;
   }
@@ -3080,9 +3086,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
     if(!updateFastStructures(mapEntry))
     {
       mapEntry->slowTreeMutex.UnLockWrite();
-      eos_err("error inserting host %lu into protocol %s : fast structures update failed",
+      eos_err("error inserting host %lu into proxygroup %s : fast structures update failed",
           url.c_str(),
-          protocol.c_str()
+          proxygroup.c_str()
       );
       return false;
     }
@@ -3096,8 +3102,8 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
   {
     pPxyTreeMapMutex.LockWrite();
     mapEntry->group = NULL;
-    pPxyGrp2DpTME[protocol] = mapEntry;
-    pPxyHost2DpTME[url] = mapEntry;
+    pPxyGrp2DpTME[proxygroup] = mapEntry;
+    pPxyHost2DpTMEs[url].insert( mapEntry );
     // TODO: fix that?
     // pFsId2FsPtr[fsid] = fs;
     pPxyTreeMapMutex.UnLockWrite();
@@ -3109,9 +3115,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
     stringstream ss;
     ss << (*mapEntry->slowTree);
 
-    eos_debug("inserted host %lu into protocol %s : : geotag is %s and fullgeotag is %s\n%s",
+    eos_debug("inserted host %lu into proxygroup %s : : geotag is %s and fullgeotag is %s\n%s",
         url.c_str(),
-        protocol.c_str(),
+        proxygroup.c_str(),
         node->pNodeInfo.geotag.c_str(),
         node->pNodeInfo.fullGeotag.c_str(),
         ss.str().c_str()
@@ -3121,9 +3127,9 @@ bool GeoTreeEngine::insertHostIntoProt(FsNode *host , const std::string &protoco
   return true;
 }
 
-bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protocol, bool lockFsView, bool updateFastStruct)
+bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStruct)
 {
-  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex,lockAddRm);
 
   eos::common::FileSystem::host_snapshot_t hsn;
   if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
@@ -3138,42 +3144,43 @@ bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protoco
   DataProxyTME *mapEntry;
   {
     pPxyTreeMapMutex.LockWrite();
-    // ==== check that host is registered
-    if(!pPxyHost2DpTME.count(url))
-    {
-      eos_err("error removing host %lu from protocol %s  : host is already part of a protocol",
-          url.c_str(),
-          protocol.c_str()
-      );
-      pPxyTreeMapMutex.UnLockWrite();
-      return false;
-    }
-    mapEntry = pPxyHost2DpTME[url];
-
     // ==== get the entry
-    if(!pPxyGrp2DpTME.count(protocol))
+    if(!pPxyGrp2DpTME.count(proxygroup))
     {
-      eos_err("error removing host %lu from protocol %s  : host is not registered ",
+      eos_err("error removing host %lu from proxygroup %s  : host is not registered ",
           url.c_str(),
-          protocol.c_str()
+          proxygroup.c_str()
       );
 
       pPxyTreeMapMutex.UnLockWrite();
       return false;
     }
+    mapEntry = pPxyGrp2DpTME[proxygroup];
+
+    // ==== check that host is registered
+    if(!pPxyHost2DpTMEs.count(url) || !pPxyHost2DpTMEs[url].count(mapEntry))
+    {
+      eos_err("error removing host %lu from proxygroup %s  : host is not registered with this proxygroup",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+
     pPxyTreeMapMutex.UnLockWrite();
-    mapEntry = pPxyGrp2DpTME[protocol];
     mapEntry->slowTreeMutex.LockWrite();
   }
 
   // ==== update the shared object notifications
+  if(pPxyHost2DpTMEs[url].size()==1) // this is the proxygroup for this host, no need to get notifications anymore
   {
-    if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",queue,gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
+    if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",queue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
       mapEntry->slowTreeMutex.UnLockWrite();
-      eos_crit("error removing host %lu into protocol %s : error unsubscribing to shared object notifications",
+      eos_crit("error removing host %lu into proxygroup %s : error unsubscribing to shared object notifications",
           url.c_str(),
-          protocol.c_str()
+          proxygroup.c_str()
       );
 
       return false;
@@ -3234,9 +3241,9 @@ bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protoco
   if(!mapEntry->slowTree->remove(&info))
   {
     mapEntry->slowTreeMutex.UnLockWrite();
-    eos_err("error inserting host %lu into protocol %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
+    eos_err("error inserting host %lu into proxygroup %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
         url.c_str(),
-        protocol.c_str(),
+        proxygroup.c_str(),
         info.geotag.c_str(),
         intree->pNodeInfo.fullGeotag.c_str(),
         intree->pNodeInfo.geotag.c_str()
@@ -3252,9 +3259,9 @@ bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protoco
   if(updateFastStruct && mapEntry->slowTreeModified)
   if(!updateFastStructures(mapEntry))
   {
-    eos_err("error inserting host %lu into protocol %s : fast structures update failed",
+    eos_err("error inserting host %lu into proxygroup %s : fast structures update failed",
         url.c_str(),
-        protocol.c_str()
+        proxygroup.c_str()
     );
 
     return false;
@@ -3263,12 +3270,17 @@ bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protoco
   // ==== update the entry in the map if needed
   {
     pPxyTreeMapMutex.LockWrite();
-    pPxyHost2DpTME.erase(url);
+    if(pPxyHost2DpTMEs.count(url))
+    {
+      pPxyHost2DpTMEs[url].erase(mapEntry);
+      if(pPxyHost2DpTMEs[url].empty())
+        pPxyHost2DpTMEs.erase(url);
+    }
     // TODO:: p Hostname2NodePtr ??
     // pFsId2FsPtr.erase(fsid);
     if(mapEntry->host2SlowTreeNode.empty())
     {
-      pPxyGrp2DpTME.erase(protocol); // prevent from access by other threads
+      pPxyGrp2DpTME.erase(proxygroup); // prevent from access by other threads
       // TODO: Pending Deletions for DataProxy?
       // pPendingDeletions.push_back(mapEntry);
     }
@@ -3276,31 +3288,80 @@ bool GeoTreeEngine::removeHostFromProt(FsNode *host , const std::string &protoco
     pPxyTreeMapMutex.UnLockWrite();
   }
 
-  return false;
+  return true;
 }
 
-bool GeoTreeEngine::insertDataProxy(FsNode *node , bool updateFastStruct, bool lockFsView)
+bool GeoTreeEngine::matchHostPxyGr(FsNode *host , const std::string &status, bool lockFsView, bool updateFastStructures)
 {
-  //return insertGwNode(node,updateFastStruct,&pDataProxyStructures,"DataProxy",lockFsView);
-  return insertHostIntoProt(node , "dataproxy", lockFsView, updateFastStruct);
-}
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
 
-bool GeoTreeEngine::insertGateway(FsNode *node , bool updateFastStruct, bool lockFsView)
-{
-  //return insertGwNode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
-  return insertHostIntoProt(node , "gateway", lockFsView, updateFastStruct);
-}
+  eos::common::FileSystem::host_snapshot_t hsn;
+  if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
+  host->SnapShotHost(hsn,true);
+  const std::string &url = hsn.mHost;
+  if(lockFsView) FsView::gFsView.ViewMutex.UnLockRead();
 
-bool GeoTreeEngine::rmDataProxy(FsNode *node , bool updateFastStruct, bool lockFsView)
-{
-  //return removeGwnode(node,updateFastStruct,&pDataProxyStructures,"DataProxy",lockFsView);
-  return removeHostFromProt(node , "dataproxy", lockFsView, updateFastStruct);
-}
+  std::vector<std::string> groups2insert;
+  std::vector<std::string> groups2remove;
+  std::set<std::string> finalgroups;
 
-bool GeoTreeEngine::rmGateway(FsNode *node , bool updateFastStruct, bool lockFsView)
-{
-  //return removeGwnode(node,updateFastStruct,&pGatewayStructures,"Gateway",lockFsView);
-  return removeHostFromProt(node , "gateway", lockFsView, updateFastStruct);
+  std::string::size_type pos1=0,pos2=0;
+  do
+  {
+    pos2=status.find(',',pos1);
+
+    // ==== INSERT THE NODE IF IT'S NOT IN THE GROUP
+    std::string proxygroup = status.substr(pos1,pos2==std::string::npos?std::string::npos:pos2-pos1);
+    finalgroups.insert(proxygroup);
+    // ====
+
+    pos1=pos2;
+    if(pos1!=std::string::npos) pos1++;
+  }while(pos2!=std::string::npos);
+
+  pPxyTreeMapMutex.LockRead();
+  for(auto it = pPxyGrp2DpTME.begin(); it!= pPxyGrp2DpTME.end(); it++)
+  {
+    auto proxygroup = it->first;
+    bool alreadythere = !( !pPxyGrp2DpTME.count(proxygroup) ||  !pPxyHost2DpTMEs.count(url) || !pPxyHost2DpTMEs[url].count(pPxyGrp2DpTME[proxygroup]) );
+
+    if(finalgroups.count(proxygroup)) // we should have this proxygroup
+    {
+      if(!alreadythere) // we don't have it
+      groups2insert.push_back(proxygroup); // we will add it
+    }
+    else // we should NOT have this proxygroup
+    {
+      if(alreadythere) //we have it
+        groups2remove.push_back(proxygroup); // we will remove it
+    }
+    finalgroups.erase(proxygroup);
+  }
+  pPxyTreeMapMutex.UnLockRead();
+  // the remaining proxygroups do not exist in the GeoTreeEngine yet, they are to be added
+  for(auto it=finalgroups.begin(); it!= finalgroups.end(); it++)
+  {
+    if(!insertHostIntoPxyGr(host,*it,false,lockFsView,updateFastStructures))
+      return false;
+  }
+
+  for(auto it=groups2insert.begin(); it!= groups2insert.end(); it++)
+  {
+    eos_debug("trying to insert proxygroup %s for host %s",it->c_str(),url.c_str());
+    if(!insertHostIntoPxyGr(host,*it,false,lockFsView,updateFastStructures))
+      return false;
+    eos_debug("success");
+  }
+
+  for(auto it=groups2remove.begin(); it!= groups2remove.end(); it++)
+  {
+    eos_debug("trying to remove proxygroup %s for host %s",it->c_str(),url.c_str());
+    if(!removeHostFromPxyGr(host,*it,false,lockFsView,updateFastStructures))
+      return false;
+    eos_debug("success");
+  }
+
+  return true;
 }
 
 void GeoTreeEngine::tlFree( void *arg)

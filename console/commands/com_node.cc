@@ -142,7 +142,7 @@ com_node (char* arg1)
     ok = true;
   }
 
-  if (subcommand == "txgw" || subcommand=="dataep" || subcommand=="dataproxy" )
+  if (subcommand == "txgw")
   {
     in = "mgm.cmd=node&mgm.subcmd=set";
     XrdOucString nodename = subtokenizer.GetToken();
@@ -157,11 +157,34 @@ com_node (char* arg1)
       printusage = true;
     in += "&mgm.node=";
     in += nodename;
-    //in += "&mgm.node.txgw=";
-    in += "&mgm.node.";
-    in += subcommand;
-    in += "=";
+    in += "&mgm.node.txgw=";
     in += active;
+    ok = true;
+  }
+  if (subcommand == "proxygroupadd" || subcommand=="proxygrouprm" || subcommand=="proxygroupclear" )
+  {
+    in = "mgm.cmd=node&mgm.subcmd=set";
+    XrdOucString action;
+    if(subcommand=="proxygroupadd") action="add";
+    if(subcommand=="proxygrouprm") action="rm";
+    if(subcommand=="proxygroupclear") action="clear";
+    XrdOucString proxygroup;
+    if(action!="clear") proxygroup = subtokenizer.GetToken();
+    XrdOucString nodename = subtokenizer.GetToken();
+
+    if (!nodename.length() || (!proxygroup.length() && !(action=="clear") ) )
+    {
+      printusage = true;
+    }
+    in += "&mgm.node=";
+    in += nodename;
+    if(proxygroup.length())
+    {
+        in += "&mgm.node.proxygroup=";
+        in += proxygroup;
+    }
+    in += "&mgm.node.action=";
+    in += action;
     ok = true;
   }
 
@@ -337,9 +360,10 @@ com_node_usage:
   fprintf(stdout, "                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
   fprintf(stdout, "                                                                --force : removes any existing filesystem label and re-registers\n");
   fprintf(stdout, "                                                                --root  : allows to register paths on the root partition\n");
-  fprintf(stdout, "       node txgw      <queue-name>|<host:port> <on|off>         : enable (on) or disable (off) node as a transfer gateway\n");
-  fprintf(stdout, "       node dataproxy <queue-name>|<host:port> <on|off>         : enable (on) or disable (off) node as a data proxy\n");
-  fprintf(stdout, "       node dataep    <queue-name>|<host:port> <on|off>         : enable (on) or disable (off) node as a data entry point\n");
-  fprintf(stdout, "       node status    <queue-name>|<host:port>                  : print's all defined variables for a node\n");
+  fprintf(stdout, "       node txgw       <queue-name>|<host:port> <on|off>        : enable (on) or disable (off) node as a transfer gateway\n");
+  fprintf(stdout, "       node proxygroupadd <group-name> <queue-name>|<host:port> : add a node to a proxy group\n");
+  fprintf(stdout, "       node proxygrouprm  <group-name> <queue-name>|<host:port> : rm a node from a proxy group\n");
+  fprintf(stdout, "       node proxygroupclear  <queue-name>|<host:port>              : clear the list of groups a node belongs to\n");
+  fprintf(stdout, "       node status     <queue-name>|<host:port>                 : print's all defined variables for a node\n");
   return (0);
 }

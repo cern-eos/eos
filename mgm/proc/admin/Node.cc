@@ -85,29 +85,26 @@ ProcCommand::Node ()
      retc = ENOENT;
    }
  }
-
  if (mSubCmd == "set")
  {
    std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
    std::string status = (pOpaque->Get("mgm.node.state")) ? pOpaque->Get("mgm.node.state") : "";
    std::string txgw = (pOpaque->Get("mgm.node.txgw")) ? pOpaque->Get("mgm.node.txgw") : "";
-   std::string dataproxy = (pOpaque->Get("mgm.node.dataproxy")) ? pOpaque->Get("mgm.node.dataproxy") : "";
-   std::string dataep = (pOpaque->Get("mgm.node.dataep")) ? pOpaque->Get("mgm.node.dataep") : "";
    std::string key = "status";
+   std::string action = (pOpaque->Get("mgm.node.action")) ? pOpaque->Get("mgm.node.action") : "";
+
    if (txgw.length())
    {
      key = "txgw";
      status = txgw;
    }
-   if (dataproxy.length())
+   if( action.size())
    {
-     key = "dataproxy";
-     status = dataproxy;
-   }
-   if (dataep.length())
-   {
-     key = "dataep";
-     status = dataep;
+     // we are setting a proxygroup
+     key = "proxygroups";
+     status = (pOpaque->Get("mgm.node.proxygroup")) ? pOpaque->Get("mgm.node.proxygroup") : "clear";
+     if(status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-")!=std::string::npos)
+       status.clear();
    }
    if ((!nodename.length()) || (!status.length()))
    {
@@ -179,22 +176,51 @@ ProcCommand::Node ()
          }
        }
      }
-     if (!retc)
-     {
-       if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename.c_str()))
-       {
-         retc = EIO;
-         stdErr = "error: cannot set node config value";
-       }
-       // set also the manager name
-       if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", FsNode::gManagerId, true, nodename.c_str(), true))
-       {
-         retc = EIO;
-         stdErr = "error: cannot set the manager name";
-       }
-     }
-   }
- }
+      if (!retc)
+      {
+          if(action.size())
+          {
+            // we need to take the previous version of groupproxys to update it
+            std::string proxygroups = FsView::gFsView.mNodeView[nodename]->GetConfigMember(key);
+            eos_static_debug(" old proxygroups value %s",proxygroups.c_str());
+            // find a previous occurence
+            std::set<std::string> groups;
+            std::string::size_type pos1=0,pos2=0;
+            if(proxygroups.size())
+            do
+            {
+              pos2=proxygroups.find(',',pos1);
+              groups.insert(proxygroups.substr(pos1,pos2==std::string::npos?std::string::npos:pos2-pos1));
+              pos1=pos2;
+              if(pos1!=std::string::npos) pos1++;
+            }while(pos2!=std::string::npos);
+            if( action=="clear" ) proxygroups="";
+            else
+            {
+              if( action=="add") groups.insert(status);
+              else if( action=="rm") groups.erase(status);
+              proxygroups.clear();
+              for(auto it = groups.begin(); it!=groups.end(); it++) proxygroups.append(*it+",");
+              if(proxygroups.size()) proxygroups.resize(proxygroups.size()-1);
+            }
+            eos_static_debug(" new proxygroups value %s",proxygroups.c_str());
+            status = proxygroups;
+          }
+
+          if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename.c_str()))
+          {
+            retc = EIO;
+            stdErr = "error: cannot set node config value";
+          }
+          // set also the manager name
+          if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", FsNode::gManagerId, true, nodename.c_str(), true))
+          {
+            retc = EIO;
+            stdErr = "error: cannot set the manager name";
+          }
+      }
+    }
+  }
 
  if (mSubCmd == "rm")
  {
