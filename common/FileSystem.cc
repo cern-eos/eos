@@ -573,7 +573,6 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue
   XrdMqSharedHash *hash = NULL;
   if ((hash = som->GetObject(queue.c_str(), "hash")))
   {
-    eos_static_warning("hash is %p",hash);
     host.mQueue = queue;
     host.mHost        = hash->Get("stat.hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
@@ -586,7 +585,6 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue
     {
       som->HashMutex.UnLockRead();
     }
-    eos_static_warning("mQueue %s   mHost %s   mGeoTag %s   mGopen %d",host.mQueue.c_str(),host.mHost.c_str(),host.mGeoTag.c_str(),(int)host.mGopen);
     return true;
   }
   else
