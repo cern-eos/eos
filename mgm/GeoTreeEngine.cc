@@ -357,7 +357,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     mapEntry->slowTreeMutex.UnLockWrite();
   }
 
-  if(eos::common::Logging::gLogMask & LOG_INFO)
+  if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     stringstream ss;
     ss << (*mapEntry->slowTree);

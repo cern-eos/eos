@@ -316,7 +316,7 @@ bool SlowTree::buildFastStrctures(
   }
 
   __EOSMGM_TREECOMMON_DBG1__
-  if(eos::common::Logging::gLogMask & LOG_INFO)
+  if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     stringstream ss;
     ss << (*this);
@@ -538,7 +538,7 @@ bool SlowTree::buildFastStrctures(
   __EOSMGM_TREECOMMON_CHK2__
   fdat->checkConsistency(0,true);
 
-  __EOSMGM_TREECOMMON_DBG1__ if(eos::common::Logging::gLogMask & LOG_INFO)
+  __EOSMGM_TREECOMMON_DBG1__ if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     stringstream ss;
     ss << (*fpt);

@@ -180,7 +180,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
 					NULL,
 					NULL);
 
-  	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+  	if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
 				char buffer[1024];
 				buffer[0]=0;
