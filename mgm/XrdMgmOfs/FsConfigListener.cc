@@ -297,8 +297,6 @@ XrdMgmOfs::FsConfigListener ()
           if (hash)
               status = hash->Get ("proxygroups");
           gOFS->ObjectManager.HashMutex.UnLockRead ();
-          if (status.size ())
-          {
             eos::mgm::FsView::gFsView.ViewMutex.LockRead ();
             std::string hostport = "/eos/"+queue.substr(queue.rfind('/')+1)+"/fst";
             if (eos::mgm::FsView::gFsView.mNodeView.count (hostport))
@@ -311,7 +309,6 @@ XrdMgmOfs::FsConfigListener ()
               eos_err("could not find the FsNode object associated with queue %s  and  hostport %s", queue.c_str (), hostport.c_str ());
             }
             eos::mgm::FsView::gFsView.ViewMutex.UnLockRead ();
-          }
         }
         else
         {

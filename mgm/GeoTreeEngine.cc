@@ -2981,7 +2981,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
     {
       mapEntry->slowTreeMutex.UnLockWrite();
 
-      eos_err("error inserting host %lu into proxygroup %s : the proxygroup-tree is full",
+      eos_err("error inserting host %s into proxygroup %s : the proxygroup-tree is full",
           url.c_str(),
           proxygroup.c_str()
       );
@@ -3029,7 +3029,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
   {
     mapEntry->slowTreeMutex.UnLockWrite();
 
-    eos_err("error inserting host %lu into proxygroup %s : slow tree node insertion failed",
+    eos_err("error inserting host %s into proxygroup %s : slow tree node insertion failed",
         url.c_str(),
         proxygroup.c_str()
     );
@@ -3058,7 +3058,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
     if(gQueue2NotifType.count(hsn.mQueue)==0 && !gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",hsn.mQueue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
       mapEntry->slowTreeMutex.UnLockWrite();
-      eos_crit("error inserting host %lu into proxygroup %s : error subscribing to shared object notifications",
+      eos_crit("error inserting host %s into proxygroup %s : error subscribing to shared object notifications",
           url.c_str(),
           proxygroup.c_str()
       );
@@ -3070,7 +3070,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
   // update all the information about this new node
   if(!updateTreeInfo(mapEntry,&hsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
   {
-    eos_err("error inserting host %lu into proxygroup %s : slow tree node update failed",
+    eos_err("error inserting host %s into proxygroup %s : slow tree node update failed",
         url.c_str(),
         proxygroup.c_str()
     );
@@ -3086,7 +3086,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
     if(!updateFastStructures(mapEntry))
     {
       mapEntry->slowTreeMutex.UnLockWrite();
-      eos_err("error inserting host %lu into proxygroup %s : fast structures update failed",
+      eos_err("error inserting host %s into proxygroup %s : fast structures update failed",
           url.c_str(),
           proxygroup.c_str()
       );
@@ -3115,7 +3115,7 @@ bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxyg
     stringstream ss;
     ss << (*mapEntry->slowTree);
 
-    eos_debug("inserted host %lu into proxygroup %s : : geotag is %s and fullgeotag is %s\n%s",
+    eos_debug("inserted host %s into proxygroup %s : : geotag is %s and fullgeotag is %s\n%s",
         url.c_str(),
         proxygroup.c_str(),
         node->pNodeInfo.geotag.c_str(),
@@ -3147,7 +3147,7 @@ bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxyg
     // ==== get the entry
     if(!pPxyGrp2DpTME.count(proxygroup))
     {
-      eos_err("error removing host %lu from proxygroup %s  : host is not registered ",
+      eos_err("error removing host %s from proxygroup %s  : host is not registered ",
           url.c_str(),
           proxygroup.c_str()
       );
@@ -3160,7 +3160,7 @@ bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxyg
     // ==== check that host is registered
     if(!pPxyHost2DpTMEs.count(url) || !pPxyHost2DpTMEs[url].count(mapEntry))
     {
-      eos_err("error removing host %lu from proxygroup %s  : host is not registered with this proxygroup",
+      eos_err("error removing host %s from proxygroup %s  : host is not registered with this proxygroup",
           url.c_str(),
           proxygroup.c_str()
       );
@@ -3178,7 +3178,7 @@ bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxyg
     if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",queue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
       mapEntry->slowTreeMutex.UnLockWrite();
-      eos_crit("error removing host %lu into proxygroup %s : error unsubscribing to shared object notifications",
+      eos_crit("error removing host %s into proxygroup %s : error unsubscribing to shared object notifications",
           url.c_str(),
           proxygroup.c_str()
       );
@@ -3241,7 +3241,7 @@ bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxyg
   if(!mapEntry->slowTree->remove(&info))
   {
     mapEntry->slowTreeMutex.UnLockWrite();
-    eos_err("error inserting host %lu into proxygroup %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
+    eos_err("error inserting host %s into proxygroup %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
         url.c_str(),
         proxygroup.c_str(),
         info.geotag.c_str(),
@@ -3259,7 +3259,7 @@ bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxyg
   if(updateFastStruct && mapEntry->slowTreeModified)
   if(!updateFastStructures(mapEntry))
   {
-    eos_err("error inserting host %lu into proxygroup %s : fast structures update failed",
+    eos_err("error inserting host %s into proxygroup %s : fast structures update failed",
         url.c_str(),
         proxygroup.c_str()
     );
@@ -3306,6 +3306,7 @@ bool GeoTreeEngine::matchHostPxyGr(FsNode *host , const std::string &status, boo
   std::set<std::string> finalgroups;
 
   std::string::size_type pos1=0,pos2=0;
+  if(status.size())
   do
   {
     pos2=status.find(',',pos1);

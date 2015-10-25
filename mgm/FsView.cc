@@ -1975,10 +1975,8 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock)
   }
   XrdMqSharedHash *hash = NULL;
   std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
-  eos_static_warning("queue name is %s",nodeconfigname.c_str());
   if ((hash = som->GetObject(nodeconfigname.c_str(), "hash")))
   {
-    eos_static_warning("hash is %p",hash);
     host.mQueue = nodeconfigname;
     host.mHost        = GetMember("hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
@@ -1991,12 +1989,10 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock)
     {
       som->HashMutex.UnLockRead();
     }
-    eos_static_warning("mQueue %s   mHost %s   mGeoTag %s   mGopen %d",host.mQueue.c_str(),host.mHost.c_str(),host.mGeoTag.c_str(),(int)host.mGopen);
     return true;
   }
   else
   {
-    eos_static_warning("hash is %p",hash);
     if (dolock)
     {
       som->HashMutex.UnLockRead();
@@ -2009,7 +2005,6 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock)
     host.mNetInRateMiB  = 0;
     host.mNetOutRateMiB = 0;
     host.mGopen = 0;
-    eos_static_warning("mQueue %s   mHost %s   mGeoTag %s   mGopen %d",host.mQueue.c_str(),host.mHost.c_str(),host.mGeoTag.c_str(),(int)host.mGopen);
     return false;
   }
 }

@@ -373,14 +373,14 @@ class GeoTreeEngine : public eos::common::LogId
     FastStructGW()
     {
       gWAccessTree = new FastGatewayAccessTree;
-      gWAccessTree->selfAllocate(255);
+      gWAccessTree->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
-      penalties->reserve(255);
+      penalties->reserve(FastGatewayAccessTree::sGetMaxNodeCount());
 
       host2TreeIdx = new Host2TreeIdxMap;
-      host2TreeIdx->selfAllocate(255);
+      host2TreeIdx->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
 
       gWAccessTree->pFs2Idx = host2TreeIdx;
 
@@ -388,7 +388,7 @@ class GeoTreeEngine : public eos::common::LogId
       = treeInfo;
 
       tag2NodeIdx = new GeoTag2NodeIdxMap;
-      tag2NodeIdx->selfAllocate(255);
+      tag2NodeIdx->selfAllocate(FastGatewayAccessTree::sGetMaxNodeCount());
     }
 
     ~FastStructGW()

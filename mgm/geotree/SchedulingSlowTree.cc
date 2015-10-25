@@ -660,6 +660,7 @@ bool SlowTree::buildFastStrcturesGW(
   }
   // finish the gateway tree
   fgat->updateTree();
+  fgat->pNodeCount = pNodeCount;
 
   // some sanity checks
   __EOSMGM_TREECOMMON_CHK1__ if(
