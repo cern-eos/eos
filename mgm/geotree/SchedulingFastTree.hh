@@ -1737,7 +1737,7 @@ public:
   std::ostream&
   recursiveDisplay(std::ostream &os, bool useColors=false, const std::string &prefix = "") const
   {
-    if(pNodes[0].treeData.childrenCount)
+    if(pNodeCount && pNodes[0].treeData.childrenCount)
     {
       recursiveDisplay(os, prefix, 0, useColors);
       // reset the console colors in case it's used
