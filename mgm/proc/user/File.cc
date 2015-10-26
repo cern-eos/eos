@@ -1374,27 +1374,24 @@ ProcCommand::File ()
                                                         plctplcy,targetgeotag,
                                                         SFS_O_TRUNC,
                                                         forcedsubgroup,
-                                                        fmd_cpy->getSize()))
-                      )
+                                                        fmd_cpy->getSize())))
+                {
+                  // yes we got a new replication vector
+                  for (unsigned int i = 0; i < selectedfs.size(); i++)
                   {
-                    // yes we got a new replication vector
-                    for (unsigned int i = 0; i < selectedfs.size(); i++)
-        	  {
-        	    if (!(errno = quotaspace->FileAccess(*pVid,
-							 (unsigned long) 0,
-							 space.c_str(),
+                    if (!(errno = quotaspace->FileAccess(*pVid,
+                                                         (unsigned long) 0,
+                                                         space.c_str(),
                                                          tried_cgi,
-							 (unsigned long) fmd->getLayoutId(),
-							 sourcefs,
-							 fsIndex,
-							 false,
-							 (long long unsigned) 0,
-							 unavailfs))
-        	    )
+                                                         (unsigned long) fmd->getLayoutId(),
+                                                         sourcefs,
+                                                         fsIndex,
+                                                         false,
+                                                         (long long unsigned) 0,
+                                                         unavailfs)))
                     {
-
-		      // this is now our source filesystem
-		      unsigned int sourcefsid = sourcefs[fsIndex];
+                      // this is now our source filesystem
+                      unsigned int sourcefsid = sourcefs[fsIndex];
 
                       // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
                       // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
@@ -1424,19 +1421,18 @@ ProcCommand::File ()
                         stdOut += "\n";
                       }
                     }
-                  else
-                  {
-        	      stdErr = "error: create new replicas => no source available: ";
-                    stdErr += spath;
-                    stdErr += "\n";
-                    retc = ENOSPC;
-        	    }
-
+                    else
+                    {
+                      stdErr = "error: create new replicas => no source available: ";
+                      stdErr += spath;
+                      stdErr += "\n";
+                      retc = ENOSPC;
+                    }
                   }
                 }
                 else
                 {
-        	  stdErr = "error: create new replicas => cannot place replicas: ";
+                  stdErr = "error: create new replicas => cannot place replicas: ";
                   stdErr += spath;
                   stdErr += "\n";
                   retc = ENONET;

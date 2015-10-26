@@ -423,8 +423,6 @@ XrdMgmOfs::_rem (const char *path,
 
   if (lock_quota) 
     Quota::gQuotaMutex.UnLockRead();
-    
-
 
   EXEC_TIMING_END("Rm");
 
