@@ -1418,7 +1418,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
           out += errline;
         }
 
-        if (fmd && haslocation)
+        if (haslocation)
         {
           // -------------------------------------------------------------------
           // drop in the namespace
@@ -1676,53 +1676,50 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
         }
         else
         {
-          if (fmd)
+          // -----------------------------------------------------------------
+          // drop in the namespace
+          // -----------------------------------------------------------------
+          if (gOFS->_dropstripe(path.c_str(),
+                                error,
+                                vid,
+                                efsmapit->first,
+                                false))
           {
-            // -----------------------------------------------------------------
-            // drop in the namespace
-            // -----------------------------------------------------------------
-            if (gOFS->_dropstripe(path.c_str(),
-                                  error,
-                                  vid,
-                                  efsmapit->first,
-                                  false))
-            {
-              char outline[1024];
-              snprintf(outline,
-                       sizeof (outline) - 1,
-                       "error: unable to drop stripe on fsid=%u fxid=%llx\n",
-                       efsmapit->first, *it);
-              out += outline;
-            }
-            else
-            {
-              char outline[1024];
-              snprintf(outline,
-                       sizeof (outline) - 1,
-                       "success: send dropped stripe on fsid=%u fxid=%llx\n",
-                       efsmapit->first, *it);
-              out += outline;
-            }
-
-            // -----------------------------------------------------------------
-            // execute a proc command
-            // -----------------------------------------------------------------
-            ProcCommand Cmd;
-            XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
-            info += path.c_str();
-            info += "&mgm.format=fuse";
-            Cmd.open("/proc/user", info.c_str(), vid, &error);
-            Cmd.AddOutput(out, err);
-            if (!out.endswith("\n"))
-            {
-              out += "\n";
-            }
-            if (!err.endswith("\n"))
-            {
-              err += "\n";
-            }
-            Cmd.close();
+            char outline[1024];
+            snprintf(outline,
+                     sizeof (outline) - 1,
+                     "error: unable to drop stripe on fsid=%u fxid=%llx\n",
+                     efsmapit->first, *it);
+            out += outline;
           }
+          else
+          {
+            char outline[1024];
+            snprintf(outline,
+                     sizeof (outline) - 1,
+                     "success: send dropped stripe on fsid=%u fxid=%llx\n",
+                     efsmapit->first, *it);
+            out += outline;
+          }
+
+          // -----------------------------------------------------------------
+          // execute a proc command
+          // -----------------------------------------------------------------
+          ProcCommand Cmd;
+          XrdOucString info = "mgm.cmd=file&mgm.subcmd=adjustreplica&mgm.path=";
+          info += path.c_str();
+          info += "&mgm.format=fuse";
+          Cmd.open("/proc/user", info.c_str(), vid, &error);
+          Cmd.AddOutput(out, err);
+          if (!out.endswith("\n"))
+          {
+            out += "\n";
+          }
+          if (!err.endswith("\n"))
+          {
+            err += "\n";
+          }
+          Cmd.close();
         }
       }
     }
@@ -1755,18 +1752,18 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       eos::IFileMD::ctime_t ctime;
       ctime.tv_sec = 0;
       ctime.tv_nsec = 0;
+
       try
       {
-        {
-          eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-          fmd = gOFS->eosFileService->getFileMD(*it);
-          path = gOFS->eosView->getUri(fmd);
-          fmd->getCTime(ctime);
-        }
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        fmd = gOFS->eosFileService->getFileMD(*it);
+        path = gOFS->eosView->getUri(fmd);
+        fmd->getCTime(ctime);
       }
       catch (eos::MDException &e)
       {
       }
+
       if (fmd)
       {
         if ((ctime.tv_sec + (24 * 3600)) < now)
