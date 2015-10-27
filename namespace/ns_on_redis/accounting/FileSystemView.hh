@@ -17,8 +17,8 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   The filesystem view over the stored files
+//! @author Elvin Sindrilaru <esindril@cern.ch>
+//! @brief The filesystem view which is stored in Redis
 //------------------------------------------------------------------------------
 
 #ifndef EOS_NS_FILESYSTEM_VIEW_HH
@@ -61,42 +61,46 @@ class FileSystemView: public IFsView
   virtual void fileMDRead(IFileMD* obj);
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of files
+  //! Return set of files on filesystem
   //! BEWARE: any replica change may invalidate iterators
+  //! @param location filesystem identifier
+  //!
+  //! @return set of files on filesystem
   //----------------------------------------------------------------------------
-  const FileList& getFileList(IFileMD::location_t location);
+  IFsView::FileList getFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
-  //! Return reference to a list of unlinked files
+  //! Return set of unlinked files
   //! BEWARE: any replica change may invalidate iterators
+  //! @param location filesystem identifier
+  //!
+  //! @return set of unlinked files
   //----------------------------------------------------------------------------
-  const FileList& getUnlinkedFileList(IFileMD::location_t location);
+  IFsView::FileList getUnlinkedFileList(IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Get set of files without replicas
+  //! BEWARE: any replica change may invalidate iterators
+  //!
+  //! @return set of files with no replicas
+  //----------------------------------------------------------------------------
+  IFsView::FileList getNoReplicasFileList();
+
+  //----------------------------------------------------------------------------
+  //! Clear unlinked files for filesystem
+  //!
+  //! @param location filssystem id
+  //!
+  //! @return true if cleanup done successfully, otherwise false
+  //----------------------------------------------------------------------------
+  bool clearUnlinkedFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Get number of file systems
+  //!
+  //! @return number of file systems
   //----------------------------------------------------------------------------
-  size_t getNumFileSystems() const
-  {
-    return pFiles.size();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  FileList& getNoReplicasFileList()
-  {
-    return pNoReplicas;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  const FileList& getNoReplicasFileList() const
-  {
-    return pNoReplicas;
-  }
+  size_t getNumFileSystems();
 
   //----------------------------------------------------------------------------
   //! Initizalie
@@ -109,9 +113,6 @@ class FileSystemView: public IFsView
   void finalize();
 
  private:
-  std::vector<FileList> pFiles;
-  std::vector<FileList> pUnlinkedFiles;
-  FileList              pNoReplicas;
 
   // Redis related variables
   redox::Redox pRedox; ///< Redix C++ client
@@ -119,8 +120,9 @@ class FileSystemView: public IFsView
   static const std::string sFilesPrefix;
   //! Set prefix for unlinked file ids on a fs
   static const std::string sUnlinkedPrefix;
- ///< Set prefix for file ids with no replicas
+  //! Set prefix for file ids with no replicas
   static const std::string sNoReplicaPrefix;
+  static const std::string sSetFsIds; ///< Set of FS ids
 };
 
 EOSNSNAMESPACE_END

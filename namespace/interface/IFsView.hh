@@ -46,8 +46,8 @@ class IFsView: public IFileMDChangeListener
   // memory consuming. We changed to dense hash set since it is much faster
   // and the memory overhead is not visible in a million file namespace.
   //------------------------------------------------------------------------
-  typedef google::dense_hash_set<IFileMD::id_t> FileList;
-  typedef FileList::iterator                    FileIterator;
+  typedef std::set<IFileMD::id_t> FileList;
+  typedef FileList::iterator      FileIterator;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -67,6 +67,38 @@ class IFsView: public IFileMDChangeListener
   virtual void fileMDRead(IFileMD* obj) = 0;
 
   //----------------------------------------------------------------------------
+  //! Return reference to a list of files
+  //! BEWARE: any replica change may invalidate iterators
+  //----------------------------------------------------------------------------
+  virtual FileList getFileList(IFileMD::location_t location) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Return reference to a list of unlinked files
+  //! BEWARE: any replica change may invalidate iterators
+  //----------------------------------------------------------------------------
+  virtual FileList getUnlinkedFileList(IFileMD::location_t location) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Clear unlinked files for filesystem
+  //!
+  //! @param location filssystem id
+  //!
+  //! @return True if cleanup done successfully, otherwise false.
+  //----------------------------------------------------------------------------
+  virtual bool clearUnlinkedFileList(IFileMD::location_t location) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get list of files without replicas
+  //! BEWARE: any replica change may invalidate iterators
+  //----------------------------------------------------------------------------
+  virtual FileList getNoReplicasFileList() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get number of file systems
+  //----------------------------------------------------------------------------
+  virtual size_t getNumFileSystems() = 0;
+
+  //----------------------------------------------------------------------------
   //! Initizalie
   //----------------------------------------------------------------------------
   virtual void initialize() = 0;
@@ -75,35 +107,6 @@ class IFsView: public IFileMDChangeListener
   //! Finalize
   //----------------------------------------------------------------------------
   virtual void finalize() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Return reference to a list of files
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  virtual const FileList& getFileList(IFileMD::location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Return reference to a list of unlinked files
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  virtual FileList& getUnlinkedFileList(IFileMD::location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get number of file systems
-  //----------------------------------------------------------------------------
-  virtual size_t getNumFileSystems() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  virtual FileList& getNoReplicasFileList() = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  virtual const FileList& getNoReplicasFileList() const = 0;
 };
 
 EOSNSNAMESPACE_END
