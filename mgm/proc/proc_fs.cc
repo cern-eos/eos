@@ -931,7 +931,8 @@ proc_fs_rm (std::string &nodename, std::string &mountpoint, std::string &id, Xrd
 
 /*----------------------------------------------------------------------------*/
 int
-proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in)
+proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdErr,
+		      std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in)
 {
   int retc = 0;
   eos::common::FileSystem::fsid_t fsid = 0;
@@ -949,7 +950,8 @@ proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdEr
     else
     {
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
-      try
+
+      if (gOFS->eosFsView->clearUnlinkedFileList(fsid))
       {
         eos::IFsView::FileList& unlinklist = gOFS->eosFsView->getUnlinkedFileList(fsid);
         unlinklist.clear();
@@ -957,9 +959,9 @@ proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdEr
         stdOut += "success: dropped deletions on fsid=";
         stdOut += id.c_str();
       }
-      catch (eos::MDException &e)
+      else
       {
-        stdErr = "error: there is no deletion list for fsid=";
+	stdErr = "error: there is no deletion list for fsid=";
         stdErr += id.c_str();
       }
     }

@@ -452,7 +452,7 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  const eos::IFsView::FileList *filelist = 0;
+  eos::IFsView::FileList filelist;
   std::vector<eos::common::FileSystem::fsid_t> &validFs = mGeotagFs[geotag];
 
   eos::common::FileSystem::fsid_t fsid;
@@ -460,16 +460,9 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
   {
     rndIndex = getRandom(validFs.size() - 1);
     fsid = validFs[rndIndex];
+    filelist = gOFS->eosFsView->getFileList(fsid);
 
-    try
-    {
-      filelist = &gOFS->eosFsView->getFileList(fsid);
-    }
-    catch (eos::MDException &e)
-    {
-    }
-
-    if (filelist && filelist->size() > 0)
+    if (filelist.size() > 0)
       break;
 
     validFs.erase(validFs.begin() + rndIndex);
@@ -482,7 +475,7 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
     fillGeotagsByAvg();
   }
 
-  if (!filelist || filelist->size() == 0)
+  if (filelist.size() == 0)
     return -1;
 
   int attempts = 10;
@@ -490,8 +483,8 @@ GeoBalancer::chooseFidFromGeotag (const std::string &geotag)
 
   while (attempts-- > 0)
   {
-    rndIndex = getRandom(filelist->size() - 1);
-    fid_it = filelist->begin();
+    rndIndex = getRandom(filelist.size() - 1);
+    fid_it = filelist.begin();
     std::advance(fid_it, rndIndex);
 
     if (mTransfers.count(*fid_it) == 0)
@@ -523,6 +516,8 @@ GeoBalancer::prepareTransfer ()
     std::vector<std::string>::const_iterator over_it = mGeotagsOverAvg.cbegin();
     std::advance(over_it, rndIndex);
 
+    // TODO: this loop should be improved not to request the file list too
+    // many times in a tight loop
     eos::common::FileId::fileid_t fid = chooseFidFromGeotag(*over_it);
     if ((int) fid == -1)
     {

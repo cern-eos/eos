@@ -445,8 +445,9 @@ GroupBalancer::chooseFidFromGroup (FsGroup *group)
   int rndIndex;
   eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-  const eos::IFsView::FileList *filelist = 0;
+  eos::IFsView::FileList filelist;
   std::vector<int> validFsIndexes(group->size());
+
   for (size_t i = 0; i < group->size(); i++)
     validFsIndexes[i] = (int) i;
 
@@ -462,23 +463,16 @@ GroupBalancer::chooseFidFromGroup (FsGroup *group)
     if (FsView::gFsView.mIdView[*fs_it]->GetActiveStatus() ==
         eos::common::FileSystem::kOnline)
     {
-      try
-      {
-        filelist = &gOFS->eosFsView->getFileList(*fs_it);
-      }
-      catch (eos::MDException &e)
-      {
-      }
+      filelist = gOFS->eosFsView->getFileList(*fs_it);
 
-      if (filelist && filelist->size() > 0)
+      if (filelist.size() > 0)
         break;
     }
 
     validFsIndexes.erase(validFsIndexes.begin() + rndIndex);
   }
 
-  // CHECK IF THIS IS POSSIBLE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  if (!filelist || filelist->size() == 0)
+  if (filelist.size() == 0)
     return -1;
 
   int attempts = 10;
@@ -486,8 +480,8 @@ GroupBalancer::chooseFidFromGroup (FsGroup *group)
 
   while (attempts-- > 0)
   {
-    rndIndex = getRandom(filelist->size() - 1);
-    fid_it = filelist->begin();
+    rndIndex = getRandom(filelist.size() - 1);
+    fid_it = filelist.begin();
     std::advance(fid_it, rndIndex);
 
     if (mTransfers.count(*fid_it) == 0)
