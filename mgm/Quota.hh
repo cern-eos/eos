@@ -451,6 +451,11 @@ public:
   static void NodeToSpaceQuota(const char* name);
 
   //----------------------------------------------------------------------------
+  //! Clean-up all space quotas by deleting them and clearing the map
+  //----------------------------------------------------------------------------
+  static void CleanUp();
+
+  //----------------------------------------------------------------------------
   //! Print out quota information
   //----------------------------------------------------------------------------
   static void PrintOut(const char* space, XrdOucString& output,
@@ -458,9 +463,11 @@ public:
 		       bool monitoring = false, bool translate_ids = false);
 
   static gid_t gProjectId; ///< gid indicating project quota
-  //! Map from path to SpaceQuota objects
-  static std::map<std::string, SpaceQuota*> gQuota;
   static eos::common::RWMutex gQuotaMutex; ///< mutex to protect access to gQuota
+
+private:
+  //! Map from path to SpaceQuota object
+  static std::map<std::string, SpaceQuota*> pMapQuota;
 };
 
 EOSMGMNAMESPACE_END

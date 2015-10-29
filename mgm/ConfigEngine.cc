@@ -642,13 +642,8 @@ ConfigEngine::ResetConfig ()
   changeLog.configChanges = "";
   currentConfigFile = "";
 
-  Quota::gQuotaMutex.LockWrite();
-  while (Quota::gQuota.begin() != Quota::gQuota.end())
-  {
-    delete Quota::gQuota.begin()->second;
-    Quota::gQuota.erase(Quota::gQuota.begin());
-  }
-  Quota::gQuotaMutex.UnLockWrite();
+  // Cleanup the quota map
+  (void) Quota::CleanUp();
 
   eos::common::Mapping::gMapMutex.LockWrite();
   eos::common::Mapping::gUserRoleVector.clear();
@@ -689,13 +684,8 @@ ConfigEngine::ApplyConfig (XrdOucString &err)
 {
   err = "";
 
-  Quota::gQuotaMutex.LockWrite();
-  while (Quota::gQuota.begin() != Quota::gQuota.end())
-  {
-    delete Quota::gQuota.begin()->second;
-    Quota::gQuota.erase(Quota::gQuota.begin());
-  }
-  Quota::gQuotaMutex.UnLockWrite();
+  // Cleanup quota map
+  (void) Quota::CleanUp();
 
   eos::common::Mapping::gMapMutex.LockWrite();
   eos::common::Mapping::gUserRoleVector.clear();

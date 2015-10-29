@@ -31,7 +31,7 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-std::map<std::string, SpaceQuota*> Quota::gQuota;
+std::map<std::string, SpaceQuota*> Quota::pMapQuota;
 eos::common::RWMutex Quota::gQuotaMutex;
 gid_t Quota::gProjectId = 99;
 
@@ -1335,7 +1335,7 @@ Quota::GetSpaceQuota(const char* cpath, bool nocreate)
   if ((path[0] == '/') && (path.back()!= '/'))
       path += "/";
 
-  if ((!gQuota.count(path)) || !(space_quota = gQuota[path]))
+  if ((!pMapQuota.count(path)) || !(space_quota = pMapQuota[path]))
   {
     if (nocreate)
       return NULL;
@@ -1347,11 +1347,11 @@ Quota::GetSpaceQuota(const char* cpath, bool nocreate)
       gQuotaMutex.UnLockRead();
       gQuotaMutex.LockWrite();
       space_quota = new SpaceQuota(path.c_str());
-      gQuota[path] = space_quota;
+      pMapQuota[path] = space_quota;
       gQuotaMutex.UnLockWrite();
       gQuotaMutex.LockRead();
     }
-    while ((!gQuota.count(path) && (!(space_quota = gQuota[path]))));
+    while ((!pMapQuota.count(path) && (!(space_quota = pMapQuota[path]))));
   }
 
   return space_quota;
@@ -1367,7 +1367,7 @@ Quota::GetResponsibleSpaceQuota(const char* cpath)
   XrdOucString matchpath = cpath;
   SpaceQuota* spacequota = 0;
 
-  for (auto it = gQuota.begin(); it != gQuota.end(); it++)
+  for (auto it = pMapQuota.begin(); it != pMapQuota.end(); it++)
   {
     if (matchpath.beginswith(it->second->GetSpaceName()))
     {
@@ -1624,7 +1624,7 @@ Quota::RmSpaceQuota(const std::string& space, std::string& msg, int& retc)
     msg = "success: removed space quota for ";
     msg += space;
     spacequota->RemoveQuotaNode(msg, retc);
-    gQuota.erase(space.c_str());
+    pMapQuota.erase(space.c_str());
     // Remove all configuration entries
     std::string match = space;
     match += ":";
@@ -1824,7 +1824,7 @@ Quota::PrintOut(const char* space, XrdOucString& output, long uid_sel,
 
     std::map<std::string, SpaceQuota*>::const_iterator it;
 
-    for (it = gQuota.begin(); it != gQuota.end(); it++)
+    for (it = pMapQuota.begin(); it != pMapQuota.end(); it++)
     {
       it->second->Refresh();
       it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
@@ -1843,5 +1843,18 @@ Quota::PrintOut(const char* space, XrdOucString& output, long uid_sel,
   }
 }
 
+//------------------------------------------------------------------------------
+// Clean-up all space quotas by deleting them and clearing the map
+//------------------------------------------------------------------------------
+void
+Quota::CleanUp()
+{
+  eos::common::RWMutexWriteLock wr_lock(gQuotaMutex);
+
+  for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it)
+    delete it->second;
+
+  pMapQuota.clear();
+}
 
 EOSMGMNAMESPACE_END
