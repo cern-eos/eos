@@ -1332,7 +1332,7 @@ Quota::GetSpaceQuota(const char* cpath, bool nocreate)
   SpaceQuota* space_quota = 0;
 
   // Allow sloppy guys to skip typing '/' at the end
-  if ((path[0] == '/') && (path.back()!= '/'))
+  if ((path[0] == '/') && (path[path.length() - 1]!= '/'))
       path += "/";
 
   if ((!pMapQuota.count(path)) || !(space_quota = pMapQuota[path]))
@@ -1435,7 +1435,7 @@ Quota::SetQuotaTypeForId(const std::string& space, long id, Quota::IdT id_type,
   // If no path use "/eos/"
   if (path.empty())
     path = "/eos/";
-  else if (path.back() != '/')
+  else if (path[path.length() - 1] != '/')
     path += '/';
 
   // Get type of quota to set and construct config entry
@@ -1509,7 +1509,7 @@ Quota::RmQuotaTypeForId(const std::string& space, long id, Quota::IdT id_type,
   // If no path use "/eos/"
   if (path.empty())
     path = "/eos/";
-  else if (path.back() != '/')
+  else if (path[path.length() - 1] != '/')
     path += '/';
 
   // Get type of quota to remove and construct config entry
