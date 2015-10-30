@@ -831,20 +831,14 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
     ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
     ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
     tag.assign(skey, tagoffset + 1);
-
-    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-
-    SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
-
     long id = strtol(ugid.c_str(), 0, 10);
 
-    if (spacequota)
+    if (id > 0 || (ugid == "0"))
     {
-      if (id > 0 || (ugid == "0"))
-      {
-        spacequota->RmQuota(SpaceQuota::GetTagFromString(tag), id, false);
-      }
+      if (!Quota::RmQuotaForTag(space.c_str(), tag.c_str(), id))
+	eos_static_err("failed to remote quota %s for id=%ll", tag.c_str(), id);
     }
+
     return 0;
   }
 
@@ -865,7 +859,6 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
     XrdOucEnv videnv(vidstr.c_str());
     // remove vid entry
     Vid::Rm(videnv, retc, stdOut, stdErr, false);
-
     return 0;
   }
 
@@ -1020,28 +1013,26 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
     ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
     tag.assign(skey, tagoffset + 1);
-
-    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-
-    SpaceQuota* spacequota = Quota::GetSpaceQuota(space.c_str());
-
     unsigned long long value = strtoll(def->c_str(), 0, 10);
     long id = strtol(ugid.c_str(), 0, 10);
 
-    if (spacequota)
+    if (id > 0 || (ugid == "0"))
     {
-      if (id > 0 || (ugid == "0"))
+      if (!Quota::SetQuotaForTag(space.c_str(), tag.c_str(), id, value))
       {
-        spacequota->SetQuota(SpaceQuota::GetTagFromString(tag), id, value, false);
-      }
-      else
-      {
-        *err += "error: illegal id found: ";
-        *err += ugid;
-        *err += "\n";
-        eos_static_err("config id is negative");
+	*err += "error: failed to set quota for id:";
+	*err += ugid;
+	eos_static_err("failed to set quota for id=%s", ugid.c_str());
       }
     }
+    else
+    {
+      *err += "error: illegal id found: ";
+      *err += ugid;
+      *err += "\n";
+      eos_static_err("config id is negative");
+    }
+
     return 0;
   }
 
