@@ -56,11 +56,15 @@ EOSMGMNAMESPACE_BEGIN
 
 #define EOSMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
 
+class Quota;
+
 //------------------------------------------------------------------------------
 //! Class SpaceQuota
 //------------------------------------------------------------------------------
 class SpaceQuota : public Scheduler
 {
+  friend class Quota;
+
 public:
 
   //----------------------------------------------------------------------------
@@ -74,47 +78,6 @@ public:
   ~SpaceQuota();
 
   //----------------------------------------------------------------------------
-  //! Convert int tag to string representation
-  //!
-  //! @param tag int tag value
-  //!
-  //! @return string representation of the tag
-  //----------------------------------------------------------------------------
-  static const char* GetTagAsString(int tag);
-
-  //----------------------------------------------------------------------------
-  //! Convert string tag to int representation
-  //!
-  //! @param tag string tag
-  //!
-  //! @return int representation of the tag
-  //----------------------------------------------------------------------------
-  static unsigned long GetTagFromString(XrdOucString& tag);
-
-  //----------------------------------------------------------------------------
-  //! Convert int tag to user or group category
-  //!
-  //! @param tag int tag value
-  //!
-  //! @return user/group category
-  //----------------------------------------------------------------------------
-  const char* GetTagCategory(int tag);
-
-  //----------------------------------------------------------------------------
-  //! Convert int tag to string description
-  //!
-  //! @param tag int tag value
-  //!
-  //! @return string tag description
-  //----------------------------------------------------------------------------
-  const char* GetTagName(int tag);
-
-  //----------------------------------------------------------------------------
-  //! Updates the valid address of a quota node from the filesystem view
-  //----------------------------------------------------------------------------
-  bool UpdateQuotaNodeAddress();
-
-  //----------------------------------------------------------------------------
   //! Get QuotaNode
   //!
   //! @return QuotaNode object
@@ -125,40 +88,9 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get quota status
-  //!
-  //! @para is current quota value
-  //! @param avail available quota value
-  //!
-  //! @return string representing the status i.e. ignored/ok/warning/exceeded
-  //----------------------------------------------------------------------------
-  const char* GetQuotaStatus(unsigned long long is, unsigned long long avail);
-
-  //----------------------------------------------------------------------------
-  //! Get current quota value as percentage of the available one
-  //!
-  //! @param is current quota value
-  //! @param avail available quota value
-  //! @param spercentage (out) string representation of the percentage
-  //!
-  //! @return string representation of the percentage value
-  //----------------------------------------------------------------------------
-  const char*
-  GetQuotaPercentage(unsigned long long is, unsigned long long avail,
-		     XrdOucString& spercentage);
-
-  //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  void UpdateLogicalSizeFactor();
-  void UpdateTargetSums();
-  void UpdateIsSums();
   void UpdateFromQuotaNode(uid_t uid, gid_t gid, bool calc_project_quota = false);
-
-  //----------------------------------------------------------------------------
-  //! Remove quota node
-  //----------------------------------------------------------------------------
-  void RemoveQuotaNode(std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Get space name
@@ -169,36 +101,9 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set quota
-  //----------------------------------------------------------------------------
-  void SetQuota(unsigned long tag, unsigned long id, unsigned long long value,
-		bool lock = true);
-
-  //----------------------------------------------------------------------------
   //! Get quota
   //----------------------------------------------------------------------------
   long long GetQuota(unsigned long tag, unsigned long id, bool lock = true);
-
-
-  //----------------------------------------------------------------------------
-  //! Remove quota
-  //----------------------------------------------------------------------------
-  bool RmQuota(unsigned long tag, unsigned long id, bool lock = true);
-
-  //----------------------------------------------------------------------------
-  //! Add quota
-  //----------------------------------------------------------------------------
-  void AddQuota(unsigned long tag, unsigned long id, long long value,
-		bool lock = true);
-
-  //----------------------------------------------------------------------------
-  //! Reset quota
-  //----------------------------------------------------------------------------
-  void
-  ResetQuota(unsigned long tag, unsigned long id, bool lock = true)
-  {
-    return SetQuota(tag, id, 0, lock);
-  }
 
   //----------------------------------------------------------------------------
   //! Print quota information
@@ -211,25 +116,6 @@ public:
   //! Refresh quota
   //----------------------------------------------------------------------------
   void Refresh();
-
-  //----------------------------------------------------------------------------
-  //! Serialize index
-  //----------------------------------------------------------------------------
-  unsigned long long Index(unsigned long tag, unsigned long id)
-  {
-    unsigned long long fulltag = tag;
-    fulltag <<= 32;
-    fulltag |= id;
-    return fulltag;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Deserialize index
-  //----------------------------------------------------------------------------
-  unsigned long UnIndex(unsigned long long reindex)
-  {
-    return (reindex >> 32) & 0xffffffff;
-  }
 
   //----------------------------------------------------------------------------
   //! Check user and/or group quota. If both are present, they both have to be
@@ -252,7 +138,7 @@ public:
   //! @param path path to place
   //! @param vid virtual id of client
   //! @param grouptag group tag for placement
-   //! @param lid layout to be placed
+  //! @param lid layout to be placed
   //! @param alreadyused_filsystems filesystems to avoid
   //! @param selected_filesystems filesystems selected by scheduler
   //! @param plctpolicy indicates if placement should be local/spread/hybrid
@@ -293,7 +179,64 @@ public:
     kAllGroupFilesIs = 23,            kAllGroupFilesTarget = 24
   };
 
+
 private:
+
+  //----------------------------------------------------------------------------
+  //! Set quota
+  //----------------------------------------------------------------------------
+  void SetQuota(unsigned long tag, unsigned long id, unsigned long long value,
+		bool lock = true);
+
+  //----------------------------------------------------------------------------
+  //! Add quota
+  //----------------------------------------------------------------------------
+  void AddQuota(unsigned long tag, unsigned long id, long long value,
+		bool lock = true);
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void UpdateLogicalSizeFactor();
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void UpdateTargetSums();
+
+  //----------------------------------------------------------------------------
+  //!
+  //----------------------------------------------------------------------------
+  void UpdateIsSums();
+
+  //----------------------------------------------------------------------------
+  //! Updates the valid address of a quota node from the filesystem view
+  //----------------------------------------------------------------------------
+  bool UpdateQuotaNodeAddress();
+
+  //----------------------------------------------------------------------------
+  //! Serialize index
+  //----------------------------------------------------------------------------
+  unsigned long long Index(unsigned long tag, unsigned long id)
+  {
+    unsigned long long fulltag = tag;
+    fulltag <<= 32;
+    fulltag |= id;
+    return fulltag;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Deserialize index
+  //----------------------------------------------------------------------------
+  unsigned long UnIndex(unsigned long long reindex)
+  {
+    return (reindex >> 32) & 0xffffffff;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove quota node
+  //----------------------------------------------------------------------------
+  void RemoveQuotaNode(std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Check if quota is enabled
@@ -302,16 +245,89 @@ private:
   //----------------------------------------------------------------------------
   bool IsEnabled();
 
+  //----------------------------------------------------------------------------
+  //! Remove quota
+  //----------------------------------------------------------------------------
+  bool RmQuota(unsigned long tag, unsigned long id, bool lock = true);
+
+  //----------------------------------------------------------------------------
+  //! Reset quota
+  //----------------------------------------------------------------------------
+  void
+  ResetQuota(unsigned long tag, unsigned long id, bool lock = true)
+  {
+    return SetQuota(tag, id, 0, lock);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current quota value as percentage of the available one
+  //!
+  //! @param is current quota value
+  //! @param avail available quota value
+  //! @param spercentage (out) string representation of the percentage
+  //!
+  //! @return string representation of the percentage value
+  //----------------------------------------------------------------------------
+  const char*
+  GetQuotaPercentage(unsigned long long is, unsigned long long avail,
+		     XrdOucString& spercentage);
+
+  //----------------------------------------------------------------------------
+  //! Get quota status
+  //!
+  //! @para is current quota value
+  //! @param avail available quota value
+  //!
+  //! @return string representing the status i.e. ignored/ok/warning/exceeded
+  //----------------------------------------------------------------------------
+  const char* GetQuotaStatus(unsigned long long is, unsigned long long avail);
+
+  //----------------------------------------------------------------------------
+  //! Convert int tag to string representation
+  //!
+  //! @param tag int tag value
+  //!
+  //! @return string representation of the tag
+  //----------------------------------------------------------------------------
+  static const char* GetTagAsString(int tag);
+
+  //----------------------------------------------------------------------------
+  //! Convert int tag to string description
+  //!
+  //! @param tag int tag value
+  //!
+  //! @return string tag description
+  //----------------------------------------------------------------------------
+  static const char* GetTagName(int tag);
+
+  //----------------------------------------------------------------------------
+  //! Convert string tag to int representation
+  //!
+  //! @param tag string tag
+  //!
+  //! @return int representation of the tag
+  //----------------------------------------------------------------------------
+  static unsigned long GetTagFromString(const std::string& tag);
+
+  //----------------------------------------------------------------------------
+  //! Convert int tag to user or group category
+  //!
+  //! @param tag int tag value
+  //!
+  //! @return user/group category
+  //----------------------------------------------------------------------------
+  static const char* GetTagCategory(int tag);
+
   bool mEnabled; ///< true if space quota enabled, otherwise false
   eos::IQuotaNode* mQuotaNode;
-  XrdSysMutex mMutex; ///< mutex to protect access to mMapQuota
+  XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
   time_t mLastEnableCheck; ///< timestamp of the last check
   double mLayoutSizeFactor; ///< layout dependent size factor
   bool mDirtyTarget; ///< mark to recompute target values
 
   //! One hash map for user view! depending on eQuota Tag id is either uid or gid!
   //! The key is (eQuotaTag<<32) | id
-  std::map<long long, unsigned long long> mMapQuota;
+  std::map<long long, unsigned long long> mMapIdQuota;
 };
 
 
@@ -387,6 +403,22 @@ public:
 				unsigned long long value, std::string& msg,
 				int& retc);
 
+
+  //----------------------------------------------------------------------------
+  //! Set quota specified by the quota tag.
+  //!
+  //! @param space quota path
+  //! @param quota_tag string representation of the SpaceQuota::eQuotaTag. From
+  //!                  this we can deduce the quota type and the id type.
+  //! @param id uid or gid value depending on the space_tag
+  //! @param value quota value to be set
+  //!
+  //! @return true if quota set successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool SetQuotaForTag(const std::string& space,
+			     const std::string& quota_tag,
+			     long id, unsigned long long value);
+
   //----------------------------------------------------------------------------
   //! Remove all quota types for an id
   //!
@@ -416,6 +448,19 @@ public:
   static bool RmQuotaTypeForId(const std::string& space, long id,
 			       Quota::IdT id_type, Quota::Type quota_type,
 			       std::string& msg, int& retc);
+
+  //------------------------------------------------------------------------------
+  //! Remove quota specified by the quota tag
+  //!
+  //! @param space quota path
+  //! @param quota_tag string representation of the SpaceQuota::eQuotaTag. From
+  //!                  this we can deduce the quota type and the id type.
+  //! @param id uid or gid value depending on the space_tag
+  //!
+  //! @return true if quota set successful, otherwise false
+  //------------------------------------------------------------------------------
+  static bool RmQuotaForTag(const std::string& space, const std::string& quota_stag,
+			    long id);
 
   //----------------------------------------------------------------------------
   //! Removes a quota node

@@ -53,10 +53,9 @@ SpaceQuota::SpaceQuota(const char* name):
   mLayoutSizeFactor(1.0)
 {
   SpaceName = name;
-
-  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::IContainerMD* quotadir = 0;
   std::string path = name;
+  eos::IContainerMD* quotadir = 0;
+  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   if (path[0] == '/')
   {
@@ -112,10 +111,6 @@ SpaceQuota::SpaceQuota(const char* name):
       }
     }
   }
-  else
-  {
-    mQuotaNode = 0;
-  }
 
   mDirtyTarget = true;
 }
@@ -144,101 +139,12 @@ bool SpaceQuota::IsEnabled()
       mEnabled = (ison == "on");
     }
     else
+    {
       mEnabled = false;
+    }
   }
 
   return mEnabled;
-}
-
-
-//------------------------------------------------------------------------------
-// Convert int tag to string representation
-//------------------------------------------------------------------------------
-const char* SpaceQuota::GetTagAsString(int tag)
-{
-  if (tag == kUserBytesTarget) return "userbytes";
-  if (tag == kUserFilesTarget) return "userfiles";
-  if (tag == kGroupBytesTarget) return "groupbytes";
-  if (tag == kGroupFilesTarget) return "groupfiles";
-  if (tag == kAllUserBytesTarget) return "alluserbytes";
-  if (tag == kAllUserFilesTarget) return "alluserfiles";
-  if (tag == kAllGroupBytesTarget) return "allgroupbytes";
-  if (tag == kAllGroupFilesTarget) return "allgroupfiles";
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Convert string tag to int representation
-//------------------------------------------------------------------------------
-unsigned long SpaceQuota::GetTagFromString(XrdOucString& tag)
-{
-  if (tag == "userbytes") return kUserBytesTarget;
-  if (tag == "userfiles") return kUserFilesTarget;
-  if (tag == "groupbytes") return kGroupBytesTarget;
-  if (tag == "groupfiles") return kGroupFilesTarget;
-  if (tag == "alluserbytes") return kAllUserBytesTarget;
-  if (tag == "alluserfiles") return kAllUserFilesTarget;
-  if (tag == "allgroupbytes") return kAllGroupBytesTarget;
-  if (tag == "allgroupfiles") return kAllGroupFilesTarget;
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Convert int tag to user or group category
-//------------------------------------------------------------------------------
-const char* SpaceQuota::GetTagCategory(int tag)
-{
-  if ((tag == kUserBytesIs) || (tag == kUserBytesTarget) ||
-      (tag == kUserLogicalBytesIs) || (tag == kUserLogicalBytesTarget) ||
-      (tag == kUserFilesIs) || (tag == kUserFilesTarget) ||
-      (tag == kAllUserBytesIs) || (tag == kAllUserBytesTarget) ||
-      (tag == kAllUserFilesIs) || (tag == kAllUserFilesTarget))
-  {
-    return "user";
-  }
-
-  if ((tag == kGroupBytesIs) || (tag == kGroupBytesTarget) ||
-      (tag == kGroupLogicalBytesIs) || (tag == kGroupLogicalBytesTarget) ||
-      (tag == kGroupFilesIs) || (tag == kGroupFilesTarget) ||
-      (tag == kAllGroupBytesIs) || (tag == kAllGroupBytesTarget) ||
-      (tag == kAllGroupFilesIs) || (tag == kAllGroupFilesTarget))
-  {
-    return "group";
-  }
-
-  return "-----";
-}
-
-//------------------------------------------------------------------------------
-// Convert int tag to string description
-//------------------------------------------------------------------------------
-const char* SpaceQuota::GetTagName(int tag)
-{
-  if (tag == kUserBytesIs) return "used bytes";
-  if (tag == kUserLogicalBytesIs) return "logi bytes";
-  if (tag == kUserBytesTarget) return "aval bytes";
-  if (tag == kUserFilesIs) return "used files";
-  if (tag == kUserFilesTarget) return "aval files";
-  if (tag == kUserLogicalBytesTarget) return "aval logib";
-  if (tag == kGroupBytesIs) return "used bytes";
-  if (tag == kGroupLogicalBytesIs) return "logi bytes";
-  if (tag == kGroupBytesTarget) return "aval bytes";
-  if (tag == kGroupFilesIs)  return "used files";
-  if (tag == kGroupFilesTarget) return "aval files";
-  if (tag == kGroupLogicalBytesTarget) return "aval logib";
-  if (tag == kAllUserBytesIs) return "used bytes";
-  if (tag == kAllUserLogicalBytesIs) return "logi bytes";
-  if (tag == kAllUserBytesTarget) return "aval bytes";
-  if (tag == kAllUserFilesIs) return "used files";
-  if (tag == kAllUserFilesTarget) return "aval files";
-  if (tag == kAllUserLogicalBytesTarget) return "aval logib";
-  if (tag == kAllGroupBytesIs) return "used bytes";
-  if (tag == kAllGroupLogicalBytesIs) return "logi bytes";
-  if (tag == kAllGroupBytesTarget) return "aval bytes";
-  if (tag == kAllGroupFilesIs) return "used files";
-  if (tag == kAllGroupFilesTarget) return "aval files";
-  if (tag == kAllGroupLogicalBytesTarget) return "aval logib";
-  return "---- -----";
 }
 
 //------------------------------------------------------------------------------
@@ -389,10 +295,10 @@ SpaceQuota::RmQuota(unsigned long tag, unsigned long id, bool lock)
 
   if (lock) mMutex.Lock();
 
-  if (mMapQuota.count(Index(tag, id)))
+  if (mMapIdQuota.count(Index(tag, id)))
   {
     removed = true;
-    mMapQuota.erase(Index(tag, id));
+    mMapIdQuota.erase(Index(tag, id));
     mDirtyTarget = true;
   }
 
@@ -407,7 +313,7 @@ long long
 SpaceQuota::GetQuota(unsigned long tag, unsigned long id, bool lock)
 {
   if (lock) mMutex.Lock();
-  long long ret = mMapQuota[Index(tag, id)];
+  long long ret = mMapIdQuota[Index(tag, id)];
   if (lock) mMutex.UnLock();
 
   eos_static_debug("get quota tag=%lu id=%lu value=%lld", tag, id, ret);
@@ -425,7 +331,7 @@ SpaceQuota::SetQuota(unsigned long tag, unsigned long id,
 
   if (lock) mMutex.Lock();
 
-  mMapQuota[Index(tag, id)] = value;
+  mMapIdQuota[Index(tag, id)] = value;
 
   if (lock) mMutex.UnLock();
 
@@ -453,11 +359,11 @@ SpaceQuota::AddQuota(unsigned long tag, unsigned long id, long long value,
 
   // user/group quota implementation
   // fix for avoiding negative numbers
-  if ((((long long) mMapQuota[Index(tag, id)]) + (long long) value) >= 0)
-    mMapQuota[Index(tag, id)] += value;
+  if ((((long long) mMapIdQuota[Index(tag, id)]) + (long long) value) >= 0)
+    mMapIdQuota[Index(tag, id)] += value;
 
   eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id,
-		   mMapQuota[Index(tag, id)]);
+		   mMapIdQuota[Index(tag, id)]);
 
   if (lock) mMutex.UnLock();
 }
@@ -482,7 +388,7 @@ SpaceQuota::UpdateTargetSums()
   ResetQuota(kAllGroupLogicalBytesTarget, 0, false);
   std::map<long long, unsigned long long>::const_iterator it;
 
-  for (it = mMapQuota.begin(); it != mMapQuota.end(); it++)
+  for (it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++)
   {
     if ((UnIndex(it->first) == kUserBytesTarget))
     {
@@ -527,7 +433,7 @@ SpaceQuota::UpdateIsSums()
   ResetQuota(kAllGroupLogicalBytesIs, 0, false);
   std::map<long long, unsigned long long>::const_iterator it;
 
-  for (it = mMapQuota.begin(); it != mMapQuota.end(); it++)
+  for (it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++)
   {
     if ((UnIndex(it->first) == kUserBytesIs))
       AddQuota(kAllUserBytesIs, 0, it->second, false);
@@ -647,8 +553,8 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 {
   char headerline[4096];
   std::map<long long, unsigned long long>::const_iterator it;
-  int* sortuidarray = (int*) malloc(sizeof(int) * (mMapQuota.size() + 1));
-  int* sortgidarray = (int*) malloc(sizeof(int) * (mMapQuota.size() + 1));
+  int* sortuidarray = (int*) malloc(sizeof(int) * (mMapIdQuota.size() + 1));
+  int* sortgidarray = (int*) malloc(sizeof(int) * (mMapIdQuota.size() + 1));
   int userentries = 0;
   int groupentries = 0;
   // Make a map containing once all the defined uid's+gid's
@@ -657,7 +563,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
   std::map<unsigned long, unsigned long >::const_iterator sortit;
 
   // for project space we just print the user/group entry gProjectId
-  if (mMapQuota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0)
+  if (mMapIdQuota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0)
     gid_sel = Quota::gProjectId;
 
   if (!SpaceName.beginswith("/"))
@@ -682,7 +588,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 	"____________________________________\n";
     }
 
-    for (it = mMapQuota.begin(); it != mMapQuota.end(); it++)
+    for (it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++)
     {
       if ((UnIndex(it->first) >= kUserBytesIs)
 	  && (UnIndex(it->first) <= kUserFilesTarget))
@@ -1318,6 +1224,96 @@ SpaceQuota::FilePlacement(const char* path,
 }
 
 //------------------------------------------------------------------------------
+// Convert int tag to string representation
+//------------------------------------------------------------------------------
+const char* SpaceQuota::GetTagAsString(int tag)
+{
+  if (tag == kUserBytesTarget) return "userbytes";
+  if (tag == kUserFilesTarget) return "userfiles";
+  if (tag == kGroupBytesTarget) return "groupbytes";
+  if (tag == kGroupFilesTarget) return "groupfiles";
+  if (tag == kAllUserBytesTarget) return "alluserbytes";
+  if (tag == kAllUserFilesTarget) return "alluserfiles";
+  if (tag == kAllGroupBytesTarget) return "allgroupbytes";
+  if (tag == kAllGroupFilesTarget) return "allgroupfiles";
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Convert string tag to int representation
+//------------------------------------------------------------------------------
+unsigned long SpaceQuota::GetTagFromString(const std::string& tag)
+{
+  if (tag == "userbytes") return kUserBytesTarget;
+  if (tag == "userfiles") return kUserFilesTarget;
+  if (tag == "groupbytes") return kGroupBytesTarget;
+  if (tag == "groupfiles") return kGroupFilesTarget;
+  if (tag == "alluserbytes") return kAllUserBytesTarget;
+  if (tag == "alluserfiles") return kAllUserFilesTarget;
+  if (tag == "allgroupbytes") return kAllGroupBytesTarget;
+  if (tag == "allgroupfiles") return kAllGroupFilesTarget;
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Convert int tag to user or group category
+//------------------------------------------------------------------------------
+const char* SpaceQuota::GetTagCategory(int tag)
+{
+  if ((tag == kUserBytesIs) || (tag == kUserBytesTarget) ||
+      (tag == kUserLogicalBytesIs) || (tag == kUserLogicalBytesTarget) ||
+      (tag == kUserFilesIs) || (tag == kUserFilesTarget) ||
+      (tag == kAllUserBytesIs) || (tag == kAllUserBytesTarget) ||
+      (tag == kAllUserFilesIs) || (tag == kAllUserFilesTarget))
+  {
+    return "user";
+  }
+
+  if ((tag == kGroupBytesIs) || (tag == kGroupBytesTarget) ||
+      (tag == kGroupLogicalBytesIs) || (tag == kGroupLogicalBytesTarget) ||
+      (tag == kGroupFilesIs) || (tag == kGroupFilesTarget) ||
+      (tag == kAllGroupBytesIs) || (tag == kAllGroupBytesTarget) ||
+      (tag == kAllGroupFilesIs) || (tag == kAllGroupFilesTarget))
+  {
+    return "group";
+  }
+
+  return "-----";
+}
+
+//------------------------------------------------------------------------------
+// Convert int tag to string description
+//------------------------------------------------------------------------------
+const char* SpaceQuota::GetTagName(int tag)
+{
+  if (tag == kUserBytesIs) return "used bytes";
+  if (tag == kUserLogicalBytesIs) return "logi bytes";
+  if (tag == kUserBytesTarget) return "aval bytes";
+  if (tag == kUserFilesIs) return "used files";
+  if (tag == kUserFilesTarget) return "aval files";
+  if (tag == kUserLogicalBytesTarget) return "aval logib";
+  if (tag == kGroupBytesIs) return "used bytes";
+  if (tag == kGroupLogicalBytesIs) return "logi bytes";
+  if (tag == kGroupBytesTarget) return "aval bytes";
+  if (tag == kGroupFilesIs)  return "used files";
+  if (tag == kGroupFilesTarget) return "aval files";
+  if (tag == kGroupLogicalBytesTarget) return "aval logib";
+  if (tag == kAllUserBytesIs) return "used bytes";
+  if (tag == kAllUserLogicalBytesIs) return "logi bytes";
+  if (tag == kAllUserBytesTarget) return "aval bytes";
+  if (tag == kAllUserFilesIs) return "used files";
+  if (tag == kAllUserFilesTarget) return "aval files";
+  if (tag == kAllUserLogicalBytesTarget) return "aval logib";
+  if (tag == kAllGroupBytesIs) return "used bytes";
+  if (tag == kAllGroupLogicalBytesIs) return "logi bytes";
+  if (tag == kAllGroupBytesTarget) return "aval bytes";
+  if (tag == kAllGroupFilesIs) return "used files";
+  if (tag == kAllGroupFilesTarget) return "aval files";
+  if (tag == kAllGroupLogicalBytesTarget) return "aval logib";
+  return "---- -----";
+}
+
+//------------------------------------------------------------------------------
 // *** Class Quota implementaion ***
 //------------------------------------------------------------------------------
 
@@ -1471,7 +1467,7 @@ Quota::SetQuotaTypeForId(const std::string& space, long id, Quota::IdT id_type,
     return false;
   }
 
-  eos::common::RWMutexReadLock lock(gQuotaMutex);
+  eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
   SpaceQuota* space_quota = GetSpaceQuota(path.c_str());
 
   if (!space_quota)
@@ -1493,6 +1489,27 @@ Quota::SetQuotaTypeForId(const std::string& space, long id, Quota::IdT id_type,
   msg = oss_msg.str();
   retc = 0;
   return true;
+}
+
+//------------------------------------------------------------------------------
+// Set quota depending on the quota tag.
+//------------------------------------------------------------------------------
+bool
+Quota::SetQuotaForTag(const std::string& space,
+		      const std::string& quota_stag,
+		      long id, unsigned long long value)
+{
+  unsigned long spaceq_type = SpaceQuota::GetTagFromString(quota_stag);
+  eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
+  SpaceQuota* space_quota = GetSpaceQuota(space.c_str());
+
+  if (space_quota)
+  {
+    space_quota->SetQuota(spaceq_type, id, value);
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -1635,6 +1652,27 @@ Quota::RmSpaceQuota(const std::string& space, std::string& msg, int& retc)
 
     return true;
   }
+}
+
+//------------------------------------------------------------------------------
+// Remove quota depending on the quota tag. Convenience wrapper around the
+// default RmQuotaTypeForId.
+//------------------------------------------------------------------------------
+bool
+Quota::RmQuotaForTag(const std::string& space, const std::string& quota_stag,
+		     long id)
+{
+  unsigned long spaceq_type = SpaceQuota::GetTagFromString(quota_stag);
+  eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
+  SpaceQuota* space_quota = GetSpaceQuota(space.c_str());
+
+  if (space_quota)
+  {
+    space_quota->RmQuota(spaceq_type, id);
+    return true;
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
