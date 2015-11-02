@@ -140,7 +140,8 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   // rename to the version directory target
   // -----------------------------------------------------
 
-  if ((!gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) && (!simulate) && gOFS->_rename(path.c_str(), versionpath.c_str(), error, fidvid, 0, 0, false, false, false))
+  if ((!gOFS->_stat(vpath.c_str(), &buf, error, fidvid, 0, 0)) && (!simulate) &&
+      gOFS->_rename(path.c_str(), versionpath.c_str(), error, fidvid, 0, 0, false, false))
   {
     return Emsg(epname, error, errno, "version file", path.c_str());
   }

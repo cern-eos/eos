@@ -451,18 +451,17 @@ Recycle::Recycler ()
 }
 
 /*----------------------------------------------------------------------------*/
-
 int
 Recycle::ToGarbage (const char* epname, XrdOucErrInfo & error)
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-
   char srecyclegroup[4096];
   char srecycleuser[4096];
   char srecyclepath[4096];
 
-  bool isdir = false; // if path ends with '/' we recycle a full directory tree aka directory
+  // If path ends with '/' we recycle a full directory tree aka directory
+  bool isdir = false;
 
   // rewrite the file name /a/b/c as #:#a#:#b#:#c
   XrdOucString contractedpath = mPath.c_str();
@@ -478,96 +477,83 @@ Recycle::ToGarbage (const char* epname, XrdOucErrInfo & error)
   if (mRecycleDir.length() > 1)
   {
     if (mRecycleDir[mRecycleDir.length() - 1] == '/')
-    {
       mRecycleDir.erase(mRecycleDir.length() - 1);
-    }
   }
+
   while (contractedpath.replace("/", "#:#"))
   {
   }
 
-  std::string lPostFix = ""; // for dir's we add a '.d' in the end of the recycle path
-  if (isdir)
-  {
-    lPostFix = Recycle::gRecyclingPostFix;
-  }
+  // For dir's we add a '.d' in the end of the recycle path
+  std::string lPostFix = "";
 
+  if (isdir)
+    lPostFix = Recycle::gRecyclingPostFix;
 
   snprintf(srecyclegroup, sizeof (srecyclegroup) - 1, "%s/%u", mRecycleDir.c_str(), mOwnerGid);
-  snprintf(srecycleuser, sizeof (srecycleuser) - 1, "%s/%u/%u", mRecycleDir.c_str(), mOwnerGid, mOwnerUid);
-  snprintf(srecyclepath, sizeof (srecyclepath) - 1, "%s/%u/%u/%s.%016llx%s", mRecycleDir.c_str(), mOwnerGid, mOwnerUid, contractedpath.c_str(), mId, lPostFix.c_str());
-
+  snprintf(srecycleuser, sizeof (srecycleuser) - 1, "%s/%u/%u", mRecycleDir.c_str(),
+	   mOwnerGid, mOwnerUid);
+  snprintf(srecyclepath, sizeof (srecyclepath) - 1, "%s/%u/%u/%s.%016llx%s",
+	   mRecycleDir.c_str(), mOwnerGid, mOwnerUid, contractedpath.c_str(),
+	   mId, lPostFix.c_str());
 
   mRecyclePath = srecyclepath;
 
-  // verify/create group/user directory
-
-
+  // Verify/create group/user directory
   if (gOFS->_mkdir(srecycleuser, S_IRUSR | S_IXUSR | SFS_O_MKPTH, error, rootvid, ""))
   {
-    return gOFS->Emsg(epname,
-                      error,
-                      EIO,
-                      "remove existing file - the recycle space user directory couldn't be created");
+    return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
+		      "recycle space user directory couldn't be created");
   }
 
-  // check the user recycle directory
+  // Check the user recycle directory
   struct stat buf;
   if (gOFS->_stat(srecycleuser, &buf, error, rootvid, ""))
   {
-    // check the ownership of the user directory
-    return gOFS->Emsg(epname,
-                      error,
-                      EIO,
-                      "remove existing file - could not determine ownership of the recycle space user directory", srecycleuser);
+    return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
+		      "determine ownership of the recycle space user directory",
+		      srecycleuser);
   }
 
+  // Check the ownership of the user directory
   if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid))
   {
-    // set the correct ownership
+    // Set the correct ownership
     if (gOFS->_chown(srecycleuser, mOwnerUid, mOwnerGid, error, rootvid, ""))
     {
-      return gOFS->Emsg(epname,
-                        error,
-                        EIO,
-                        "remove existing file - could not change ownership of the recycle space user directory", srecycleuser);
-
+      return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
+			"change ownership of the recycle space user directory",
+			srecycleuser);
     }
   }
 
-  // check the group recycle directory
+  // Check the group recycle directory
   if (gOFS->_stat(srecyclegroup, &buf, error, rootvid, ""))
   {
-    // check the ownership of the group directory
-    return gOFS->Emsg(epname,
-                      error,
-                      EIO,
-                      "remove existing file - could not determine ownership of the recycle space group directory", srecyclegroup);
+    return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
+		      "determine ownership of the recycle space group directory",
+		      srecyclegroup);
   }
 
+  // Check the ownership of the group directory
   if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid))
   {
-    // set the correct ownership
+    // Set the correct ownership
     if (gOFS->_chown(srecycleuser, mOwnerUid, mOwnerGid, error, rootvid, ""))
     {
-      return gOFS->Emsg(epname,
-                        error,
-                        EIO,
-                        "remove existing file - could not change ownership of the recycle space group directory",
+      return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
+			"change ownership of the recycle space group directory",
                         srecycleuser);
-
     }
   }
 
-  // finally do the rename
-  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, rootvid, "", "", true, true, false, false))
+  // Finally do the rename
+  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, rootvid, "", "", true,
+		    true, false))
   {
-    return gOFS->Emsg(epname,
-                      error,
-                      EIO,
-                      "rename file/directory",
-                      srecyclepath);
+    return gOFS->Emsg(epname, error, EIO, "rename file/directory", srecyclepath);
   }
+
   return SFS_OK;
 }
 
