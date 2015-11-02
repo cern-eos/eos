@@ -88,11 +88,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //!
-  //----------------------------------------------------------------------------
-  void UpdateFromQuotaNode(uid_t uid, gid_t gid, bool calc_project_quota = false);
-
-  //----------------------------------------------------------------------------
   //! Get space name
   //----------------------------------------------------------------------------
   const char* GetSpaceName()
@@ -101,21 +96,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get quota
-  //----------------------------------------------------------------------------
-  long long GetQuota(unsigned long tag, unsigned long id, bool lock = true);
-
-  //----------------------------------------------------------------------------
   //! Print quota information
   //----------------------------------------------------------------------------
   void PrintOut(XrdOucString& output, long uid_sel = -1,
 		long gid_sel = -1, bool monitoring = false,
 		bool translate_ids = false);
-
-  //----------------------------------------------------------------------------
-  //! Refresh quota
-  //----------------------------------------------------------------------------
-  void Refresh();
 
   //----------------------------------------------------------------------------
   //! Check user and/or group quota. If both are present, they both have to be
@@ -179,20 +164,47 @@ public:
     kAllGroupFilesIs = 23,            kAllGroupFilesTarget = 24
   };
 
-
 private:
 
   //----------------------------------------------------------------------------
-  //! Set quota
+  //! Get quota
+  //!
+  //! @param tag quota tag
+  //! @param id uid/gid/projec it
+  //!
+  //! @return reuqest quota value
   //----------------------------------------------------------------------------
-  void SetQuota(unsigned long tag, unsigned long id, unsigned long long value,
-		bool lock = true);
+  long long GetQuota(unsigned long tag, unsigned long id, bool lock = true);
+
+  //----------------------------------------------------------------------------
+  //! Set quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param id user/group id
+  //! @param value quota value to set
+  //----------------------------------------------------------------------------
+  void SetQuota(unsigned long tag, unsigned long id, unsigned long long value);
 
   //----------------------------------------------------------------------------
   //! Add quota
   //----------------------------------------------------------------------------
   void AddQuota(unsigned long tag, unsigned long id, long long value,
 		bool lock = true);
+
+  //----------------------------------------------------------------------------
+  //! Update SpaceQuota from the ns quota node for the given identity
+  //!
+  //! @param uid user id
+  //! @param gid group id
+  //! @param upd_proj_quota if true then update also the project quota
+  //!
+  //----------------------------------------------------------------------------
+  void UpdateFromQuotaNode(uid_t uid, gid_t, bool upd_proj_quota);
+
+  //----------------------------------------------------------------------------
+  //! Refresh quota
+  //----------------------------------------------------------------------------
+  void Refresh();
 
   //----------------------------------------------------------------------------
   //!
@@ -254,9 +266,9 @@ private:
   //! Reset quota
   //----------------------------------------------------------------------------
   void
-  ResetQuota(unsigned long tag, unsigned long id, bool lock = true)
+  ResetQuota(unsigned long tag, unsigned long id)
   {
-    return SetQuota(tag, id, 0, lock);
+    return SetQuota(tag, id, 0);
   }
 
   //----------------------------------------------------------------------------
@@ -474,6 +486,33 @@ public:
   static bool RmSpaceQuota(const std::string& space, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
+  //! Get group quota values for a particular space and id
+  //!
+  //! @param space space name
+  //! @param id uid/gid/projectid
+  //!
+  //! @return map between quota types and values. The map contains 4 entries
+  //!         corresponding to the following keys: kGroupBytesIs,
+  //!         kGroupBytesTarget, kGroupFilesIs and kGroupFilesTarget
+  //----------------------------------------------------------------------------
+  static std::map<int, unsigned long long>
+  GetGroupStatistics(const std::string& space, long id);
+
+  //----------------------------------------------------------------------------
+  //! Update SpaceQuota from the namespace quota only if the requested path is
+  //! actually a ns quota node. This also performs an update for the project
+  //! quota.
+  //!
+  //! @param path path
+  //! @param uid user id
+  //! @param gid group id
+  //!
+  //! @return true if update successful, otherwise it means that current path
+  //!         doesn't point to a ns quota node and return false.
+  //----------------------------------------------------------------------------
+  static bool UpdateFromNsQuota(const std::string& path, uid_t uid, gid_t gid);
+
+  //----------------------------------------------------------------------------
   //! Callback function for the namespace implementation to calculate the size
   //! a file occupies
   //----------------------------------------------------------------------------
@@ -492,6 +531,8 @@ public:
 
   //----------------------------------------------------------------------------
   //! Insert current state of a single quota node into a SpaceQuota
+  //!
+  //! @param path space quota path
   //----------------------------------------------------------------------------
   static void NodeToSpaceQuota(const char* name);
 
@@ -511,6 +552,9 @@ public:
   static eos::common::RWMutex gQuotaMutex; ///< mutex to protect access to gQuota
 
 private:
+
+
+
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
 };

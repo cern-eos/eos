@@ -464,64 +464,37 @@ LRU::AgeExpire (const char* dir,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//! Expire the oldest files to go under the low watermark
+//!
+//! @param dir directory to process
+//! @param policy high water mark when to start expiration
+//------------------------------------------------------------------------------
 void
 LRU::CacheExpire (const char* dir,
                   std::string& lowmark,
                   std::string& highmark)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief expire the oldest files to go under the low watermark
- * @param dir directory to process
- * @param policy high water mark when to start expiration
- */
-/*----------------------------------------------------------------------------*/
+
 {
   eos_static_info("msg=\"applying volume deletion policy\" "
                   "dir=\"%s\" low-mark=\"%s\" high-mark=\"%s\"",
-                  dir,
-                  lowmark.c_str(),
-                  highmark.c_str());
+                  dir, lowmark.c_str(), highmark.c_str());
 
-  // ---------------------------------------------------------------------------
-  // get the quota space 
-  // ---------------------------------------------------------------------------
-  RWMutexReadLock gLock(Quota::gQuotaMutex);
-
-  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(dir);
-  if (!space)
-  {
-    // there is no quota here - do nothing
+  // Update space quota, return if this is not a ns quota node
+  if (!Quota::UpdateFromNsQuota(dir, 0, 0))
     return;
-  }
 
-  if (strcmp(space->GetSpaceName(), dir))
-  {
-    // this is not the quota node itself - do nothing
-    return;
-  }
-
-  // ---------------------------------------------------------------------------
-  // update the quota information
-  // ---------------------------------------------------------------------------
-  space->UpdateFromQuotaNode(0, 0, true);
-
-  // ---------------------------------------------------------------------------
-  // check for project quota 
-  // ---------------------------------------------------------------------------
-
-  long long target_volume = space->GetQuota(SpaceQuota::kGroupBytesTarget,
-                                            Quota::gProjectId,
-                                            false);
-  long long is_volume = space->GetQuota(SpaceQuota::kGroupBytesIs,
-                                        Quota::gProjectId,
-                                        false);
+  // Check for project quota
+  auto map_quotas = Quota::GetGroupStatistics(dir, Quota::gProjectId);
+  long long target_volume = map_quotas[SpaceQuota::kGroupBytesTarget];
+  long long is_volume = map_quotas[SpaceQuota::kGroupBytesIs];
 
   if (target_volume <= 0)
     return;
 
   errno = 0;
   double lwm = strtod(lowmark.c_str(), 0);
+
   if (!lwm || errno || (lwm >= 100))
   {
     eos_static_err("msg=\"low watermark value is illegal - "
@@ -529,8 +502,10 @@ LRU::CacheExpire (const char* dir,
                    lowmark.c_str());
     return;
   }
+
   errno = 0;
   double hwm = strtod(highmark.c_str(), 0);
+
   if (!hwm || errno || (hwm < lwm) || (hwm >= 100))
   {
     eos_static_err("msg = \"high watermark value is illegal - "
@@ -544,27 +519,19 @@ LRU::CacheExpire (const char* dir,
   double cwm = 100.0 * is_volume / target_volume;
 
   eos_static_debug("cwm=%.02f hwm=%.02f", cwm, hwm);
-  // ---------------------------------------------------------------------------
+
   // check if we have to do cache cleanup e.g. current is over high water mark
-  // ---------------------------------------------------------------------------
   if (cwm < hwm)
     return;
 
   unsigned long long bytes_to_free = is_volume - (lwm * target_volume / 100.0);
   XrdOucString sizestring;
   eos_static_notice("low-mark=%.02f high-mark=%.02f current-mark=%.02f "
-                    "deletion-bytes=%s",
-                    lwm,
-                    hwm,
-                    cwm,
-                    StringConversion::GetReadableSizeString(sizestring, bytes_to_free, "B")
-                    );
+                    "deletion-bytes=%s", lwm, hwm,  cwm,
+                    StringConversion::GetReadableSizeString(sizestring, bytes_to_free, "B"));
 
-  // ---------------------------------------------------------------------------
-  // build the LRU list 
-  // ---------------------------------------------------------------------------
+  // Build the LRU list
   std::map<std::string, std::set<std::string> > cachedirs;
-
   XrdOucString stdErr;
 
   time_t ms = 0;
@@ -579,22 +546,11 @@ LRU::CacheExpire (const char* dir,
   std::set<lru_entry_t> lru_map;
   unsigned long long lru_size = 0;
 
-  if (!gOFS->_find(dir,
-                   mError,
-                   stdErr,
-                   mRootVid,
-                   cachedirs,
-                   "",
-                   "",
-                   false,
-                   ms
-                   ))
+  if (!gOFS->_find(dir, mError, stdErr, mRootVid, cachedirs, "", "", false, ms))
   {
-    // -------------------------------------------------------------------------
-    // loop through the result and build an LRU list
-    // we just keep as many entries in the LRU list to have the required
+    // Loop through the result and build an LRU list
+    // We just keep as many entries in the LRU list to have the required
     // number of bytes to free available.
-    // -------------------------------------------------------------------------
     for (auto dit = cachedirs.begin(); dit != cachedirs.end(); dit++)
     {
       eos_static_debug("path=%s", dit->first.c_str());
@@ -657,11 +613,9 @@ LRU::CacheExpire (const char* dir,
 
   eos_static_notice("msg=\"cleaning LRU cache\" files-to-delete=%llu",
                     lru_map.size());
-  // ---------------------------------------------------------------------------
-  // delete starting with the 'oldest' entry until we have freed enough space
-  // to go under the low watermark
-  // ---------------------------------------------------------------------------
 
+  // Delete starting with the 'oldest' entry until we have freed enough space
+  // to go under the low watermark
   for (auto it = lru_map.begin(); it != lru_map.end(); it++)
   {
     eos_static_notice("msg=\"delete LRU file\" path=\"%s\" ctime=%lu size=%llu",
