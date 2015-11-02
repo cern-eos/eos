@@ -513,6 +513,20 @@ public:
   static bool UpdateFromNsQuota(const std::string& path, uid_t uid, gid_t gid);
 
   //----------------------------------------------------------------------------
+  //! Check if the requested volume and inode values respect the quota
+  //!
+  //! @param path path
+  //! @param uid user id
+  //! @param gid group id
+  //! @param desired_vol desired space
+  //! @param desired_inodes desired number of inondes
+  //!
+  //! @return true if quota is respected, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Check(const std::string& path, uid_t uid, gid_t gid,
+		    long long desired_vol, unsigned int desired_inodes);
+
+  //----------------------------------------------------------------------------
   //! Callback function for the namespace implementation to calculate the size
   //! a file occupies
   //----------------------------------------------------------------------------

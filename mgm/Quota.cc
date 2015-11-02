@@ -95,19 +95,7 @@ SpaceQuota::SpaceQuota(const char* name):
       catch (eos::MDException& e)
       {
 	mQuotaNode = 0;
-      }
-
-      if (!mQuotaNode)
-      {
-	try
-	{
-	  mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir);
-	}
-	catch (eos::MDException& e)
-	{
-	  mQuotaNode = 0;
-	  eos_static_crit("Cannot register quota node %s", name);
-	}
+	eos_static_crit("Cannot register quota node %s", name);
       }
     }
   }
@@ -996,16 +984,15 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 }
 
 //------------------------------------------------------------------------------
-// Straigh-forward user/group quota checks
-// If user & group quota is defined, both have to be fullfilled
+// User/group/project quota checks. If both user and group quotas are defined,
+// then both need to be satisfied.
 //------------------------------------------------------------------------------
 bool
 SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_space,
 			    unsigned int inodes)
 {
   bool hasquota = false;
-  // copy info from namespace Quota Node ...
-  // get user/group and if defined project quota
+  // Update info from the ns quota node - user, group and project quotas
   UpdateFromQuotaNode(uid, gid, GetQuota(kGroupBytesTarget, Quota::gProjectId, false)
 		      ? true : false);
   eos_static_info("uid=%d gid=%d size=%llu quota=%llu", uid, gid, desired_space,
@@ -1074,8 +1061,8 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_space,
 
   if (groupvolumequota)
   {
-    if (((GetQuota(kGroupBytesTarget, gid, false)) - (GetQuota(kGroupBytesIs, gid,
-	 false))) > (long long)(desired_space))
+    if (((GetQuota(kGroupBytesTarget, gid, false)) - (GetQuota(kGroupBytesIs, gid, false))) >
+	desired_space)
     {
       hasgroupquota = true;
     }
@@ -1088,7 +1075,7 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_space,
   if (groupinodequota)
   {
     if ((((GetQuota(kGroupFilesTarget, gid, false)) - (GetQuota(kGroupFilesIs, gid,
-	  false))) > (inodes)))
+	  false))) > inodes))
     {
       if (!groupvolumequota)
 	hasgroupquota = true;
@@ -1099,11 +1086,10 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_space,
     }
   }
 
-  if ((((GetQuota(kGroupBytesTarget, Quota::gProjectId,
-		  false)) - (GetQuota(kGroupBytesIs, Quota::gProjectId,
-				      false))) > (long long)(desired_space)) &&
-      (((GetQuota(kGroupFilesTarget, Quota::gProjectId,
-		  false)) - (GetQuota(kGroupFilesIs, Quota::gProjectId, false))) > (inodes)))
+  if ((((GetQuota(kGroupBytesTarget, Quota::gProjectId, false)) -
+	(GetQuota(kGroupBytesIs, Quota::gProjectId, false))) > desired_space) &&
+      (((GetQuota(kGroupFilesTarget, Quota::gProjectId, false)) -
+	(GetQuota(kGroupFilesIs, Quota::gProjectId, false))) > inodes))
   {
     hasprojectquota = true;
   }
@@ -1111,30 +1097,24 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_space,
   if (!userquota && !groupquota)
     projectquota = true;
 
-  eos_static_info("userquota=%d groupquota=%d userquota=%d groupquota=%d userinodequota=%d uservolumequota=%d projectquota=%d hasprojectquota=%d\n",
-		  userquota, groupquota, hasuserquota, hasgroupquota, userinodequota,
-		  uservolumequota, projectquota, hasprojectquota);
+  eos_static_info("userquota=%d groupquota=%d userquota=%d groupquota=%d "
+		  "userinodequota=%d uservolumequota=%d projectquota=%d "
+		  "hasprojectquota=%d\n", userquota, groupquota, hasuserquota,
+		  hasgroupquota, userinodequota, uservolumequota, projectquota,
+		  hasprojectquota);
 
-  if ((userquota) && (groupquota))
-  {
-    // both are defined, we need to have both
+  // If both quotas are defined we need to have both
+  if (userquota && groupquota)
     hasquota = hasuserquota & hasgroupquota;
-  }
   else
-  {
     hasquota = hasuserquota || hasgroupquota;
-  }
 
   if (projectquota && hasprojectquota)
-  {
     hasquota = true;
-  }
 
+  // Root does not need any quota
   if (uid == 0)
-  {
-    // root does not need any quota
     hasquota = true;
-  }
 
   return hasquota;
 }
@@ -1371,8 +1351,8 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
 			  const char* path, long long& max_bytes,
 			  long long& free_bytes)
 {
-  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
+  eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
+  SpaceQuota* space = GetResponsibleSpaceQuota(path);
 
   if (space)
   {
@@ -1537,7 +1517,7 @@ Quota::RmQuotaTypeForId(const std::string& space, long id, Quota::IdT id_type,
       quota_tag = SpaceQuota::kGroupFilesTarget;
   }
 
-  eos::common::RWMutexReadLock lock(gQuotaMutex);
+  eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
   SpaceQuota* squota = GetSpaceQuota(path.c_str());
 
   if (!squota)
@@ -1610,7 +1590,7 @@ bool
 Quota::RmSpaceQuota(const std::string& space, std::string& msg, int& retc)
 {
   eos_static_debug("space=%s", space.c_str());
-  eos::common::RWMutexWriteLock lock(gQuotaMutex);
+  eos::common::RWMutexWriteLock wr_lock(gQuotaMutex);
   SpaceQuota* spacequota = GetSpaceQuota(space.c_str(), true);
 
   if (!spacequota)
@@ -1900,6 +1880,22 @@ Quota::UpdateFromNsQuota(const std::string& path, uid_t uid, gid_t gid)
   squota->UpdateFromQuotaNode(uid, gid, true);
   return true;
 }
+
+//----------------------------------------------------------------------------
+//! Check if the requested volume and inode values respect the quota
+//----------------------------------------------------------------------------
+ bool
+ Quota::Check(const std::string& path, uid_t uid, gid_t gid,
+	      long long desired_vol, unsigned int desired_inodes)
+ {
+   eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
+   SpaceQuota* squota = GetResponsibleSpaceQuota(path.c_str());
+
+   if (!squota)
+     return true;
+
+   return squota->CheckWriteQuota(uid, gid, desired_vol, desired_inodes);
+ }
 
 //------------------------------------------------------------------------------
 // Clean-up all space quotas by deleting them and clearing the map
