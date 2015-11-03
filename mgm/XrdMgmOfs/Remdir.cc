@@ -82,8 +82,7 @@ XrdMgmOfs::_remdir (const char *path,
                     XrdOucErrInfo &error,
                     eos::common::Mapping::VirtualIdentity &vid,
                     const char *ininfo,
-                    bool simulate, 
-		    bool lock_quota)
+                    bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -117,23 +116,6 @@ XrdMgmOfs::_remdir (const char *path,
 
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
-
-  // ---------------------------------------------------------------------------
-  // make sure this is not a quota node
-  // ---------------------------------------------------------------------------
-  {
-    if (lock_quota)
-	Quota::gQuotaMutex.LockRead();
-    SpaceQuota* quota = Quota::GetSpaceQuota(path, true);
-
-    if (lock_quota)
-	Quota::gQuotaMutex.UnLockRead();
-    if (quota)
-    {
-      errno = EBUSY;
-      return Emsg(epname, error, errno, "rmdir - this is a quota node", path);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -204,8 +186,7 @@ XrdMgmOfs::_remdir (const char *path,
     stdpermcheck = true;
   }
 
-
-  // check permissions
+  // Check permissions
   bool permok = stdpermcheck ? (dhpar ? (dhpar->access(vid.uid, vid.gid, X_OK | W_OK)) : false) : aclok;
 
   if (!permok)

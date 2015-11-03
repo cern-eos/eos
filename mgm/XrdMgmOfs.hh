@@ -377,8 +377,7 @@ public:
                XrdOucErrInfo &out_error,
                eos::common::Mapping::VirtualIdentity &vid,
                const char *opaque = 0,
-               bool simulate = false,
-               bool lock_quota = true);
+               bool simulate = false);
 
   // ---------------------------------------------------------------------------
   // rename file
