@@ -326,39 +326,29 @@ XrdMgmOfs::_rem (const char *path,
 
   if (doRecycle && (!simulate))
   {
-    // Two-step deletion re-cycle logic
+    // Two-step deletion recycle logic
     std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
     fmd = (eos::IFileMD*)(0);
     gOFS->eosViewRWMutex.UnLockWrite();
     // -------------------------------------------------------------------------
+    std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
 
-    SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(attrmap[Recycle::gRecyclingAttribute].c_str());
-    eos_info("%llu %s", namespacequota, attrmap[Recycle::gRecyclingAttribute].c_str());
-    if (namespacequota)
+    if (Quota::ExistsResponsible(recycle_space))
     {
-      // there is quota defined on that recycle path
-      if (!namespacequota->CheckWriteQuota(fmd_cpy->getCUid(),
-                                           fmd_cpy->getCGid(),
-                                           fmd_cpy->getSize(),
-                                           fmd_cpy->getNumLocation()))
+      if (!Quota::Check(recycle_space, fmd_cpy->getCUid(), fmd_cpy->getCGid(),
+			fmd_cpy->getSize(), fmd_cpy->getNumLocation()))
       {
-        // ---------------------------------------------------------------------
-        // this is the very critical case where we have to reject to delete
+        // This is the very critical case where we have to reject the delete
         // since the recycle space is full
-        // ---------------------------------------------------------------------
         errno = ENOSPC;
 	if (lock_quota) 
 	  Quota::gQuotaMutex.UnLockRead();
-        return Emsg(epname,
-                    error,
-                    ENOSPC,
-                    "remove existing file - the recycle space is full");
+        return Emsg(epname, error, ENOSPC, "remove existing file - the recycle "
+		    "space is full");
       }
       else
       {
-        // ---------------------------------------------------------------------
-        // move the file to the recycle bin
-        // ---------------------------------------------------------------------
+        // Move the file to the recycle bin
         eos::common::Mapping::VirtualIdentity rootvid;
         eos::common::Mapping::Root(rootvid);
         int rc = 0;
@@ -377,17 +367,12 @@ XrdMgmOfs::_rem (const char *path,
     }
     else
     {
-      // -----------------------------------------------------------------------
-      // there is no quota defined on that recycle path
-      // -----------------------------------------------------------------------
+      // There is no quota defined on that recycle path
       errno = ENODEV;
       if (lock_quota) 
 	Quota::gQuotaMutex.UnLockRead();
-      return Emsg(epname,
-                  error,
-                  ENODEV,
-                  "remove existing file - the recycle space has no quota configuration"
-                  );
+      return Emsg(epname, error, ENODEV, "remove existing file - the recycle "
+		  "space has no quota configuration");
     }
 
     if (!keepversion)
@@ -396,9 +381,7 @@ XrdMgmOfs::_rem (const char *path,
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
-
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
-
       error.clear();
       errno = 0; // purge might return ENOENT if there was no version
     }
@@ -413,9 +396,7 @@ XrdMgmOfs::_rem (const char *path,
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
-
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
-
       error.clear();
       errno = 0; // purge might return ENOENT if there was no version
     }
