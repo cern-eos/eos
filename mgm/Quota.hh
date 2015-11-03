@@ -384,6 +384,15 @@ public:
   static SpaceQuota* GetResponsibleSpaceQuota(const char* cpath);
 
   //----------------------------------------------------------------------------
+  //! Check if there is a SpaceQuota responsible for the given path
+  //!
+  //! @param path path for which a quota node is searched
+  //!
+  //! @return true if SpaceQuota exists, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ExistsResponsible(const std::string& path);
+
+  //----------------------------------------------------------------------------
   //! Get individual quota values
   //!
   //! @param vid client virtual identity

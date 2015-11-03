@@ -1125,11 +1125,14 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_space,
 int
 SpaceQuota::FilePlacement(const char* path,
 			  eos::common::Mapping::VirtualIdentity_t& vid,
-			  const char* grouptag, unsigned long lid,
+			  const char* grouptag,
+			  unsigned long lid,
 			  std::vector<unsigned int>& alreadyused_filesystems,
 			  std::vector<unsigned int>& selected_filesystems,
-			  tPlctPolicy plctpolicy, const std::string& plctTrgGeotag,
-			  bool truncate, int forced_scheduling_group_index,
+			  tPlctPolicy plctpolicy,
+			  const std::string& plctTrgGeotag,
+			  bool truncate,
+			  int forced_scheduling_group_index,
 			  unsigned long long bookingsize)
 {
   // 0 = 1 replica !
@@ -1341,6 +1344,16 @@ Quota::GetResponsibleSpaceQuota(const char* cpath)
   }
 
   return spacequota;
+}
+
+//------------------------------------------------------------------------------
+// Check if there is a SpaceQuota responsible for the given path
+//------------------------------------------------------------------------------
+bool
+Quota::ExistsResponsible(const std::string& path)
+{
+  eos::common::RWMutexReadLock rd_lock(gQuotaMutex);
+  return (GetResponsibleSpaceQuota(path.c_str()) != 0);
 }
 
 //------------------------------------------------------------------------------
