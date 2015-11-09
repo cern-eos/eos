@@ -76,6 +76,12 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Add secondary group information from database/LDAP (set to 1 to enable)
 #export EOS_SECONDARY_GROUPS=0
 
+# Do subtree accounting on directories (set to 1 to enable)
+#export EOS_NS_ACCOUNTING=0
+
+# Do sync time propagation (set to 1 to enable)
+#export EOS_SYNCTIME_ACCOUNTING=0
+
 # ------------------------------------------------------------------
 # FST Configuration
 # ------------------------------------------------------------------
