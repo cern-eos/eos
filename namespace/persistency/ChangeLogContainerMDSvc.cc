@@ -155,7 +155,10 @@ namespace eos
               ChangeLogContainerMDSvc::DataInfo( 0, currentCont );
             itP = idMap->find( currentCont->getParentId() );
             if( itP != idMap->end() )
+	    {
               itP->second.ptr->addContainer( currentCont );
+	      pContSvc->notifyListeners( currentCont , IContainerMDChangeListener::MTimeChange );
+	    }
           }
           else
           {
@@ -170,6 +173,7 @@ namespace eos
                 // meta data change - keeping directory name
                 // -------------------------------------------------------------
                 (*it->second.ptr) = *currentCont;
+		pContSvc->notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
                 delete currentCont;
               }
               else
@@ -189,6 +193,7 @@ namespace eos
                   // add container with new name
                   // -----------------------------------------------------------
                   itP->second.ptr->addContainer(currentCont);
+		  pContSvc->notifyListeners( itP->second.ptr , IContainerMDChangeListener::MTimeChange );
                   // -----------------------------------------------------------
                   // update idmap pointer to the container
                   // -----------------------------------------------------------
@@ -562,6 +567,7 @@ namespace eos
         if( it->second.ptr )
           continue;
         recreateContainer( it, orphans, nameConflicts );
+	notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
       }
       //------------------------------------------------------------------------
       // Deal with broken containers if we're not in the slave mode
@@ -1102,6 +1108,7 @@ namespace eos
         nameConflicts.push_back( child );
         parent->addContainer( container );
       }
+
     }
   }
 

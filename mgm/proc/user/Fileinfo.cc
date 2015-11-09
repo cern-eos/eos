@@ -347,7 +347,7 @@ ProcCommand::FileInfo (const char* path)
             eos::FileMD::ctime_t mtime;
             fmd->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId()<<28, (unsigned long long)filemtime);
+	    snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId()<<28, (unsigned long long)filemtime);
             etag = setag;
           }
 
@@ -775,31 +775,39 @@ ProcCommand::DirInfo (const char* path)
       {
         char ctimestring[4096];
         char mtimestring[4096];
-        eos::FileMD::ctime_t mtime;
-        eos::FileMD::ctime_t ctime;
+        char tmtimestring[4096];
+        eos::ContainerMD::mtime_t mtime;
+        eos::ContainerMD::ctime_t ctime;
+        eos::ContainerMD::tmtime_t tmtime;
         fmd->getCTime(ctime);
+	fmd->getMTime(mtime);
+	fmd->getTMTime(tmtime);
+
+	fprintf(stderr,"%llu.%llu %llu.%llu %llu.%llu\n", ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec, mtime.tv_nsec, tmtime.tv_sec, tmtime.tv_sec);
         {
-          XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
-          mtime.tv_sec = gOFS->MgmDirectoryModificationTime[fmd->getId()].tv_sec;
-          mtime.tv_nsec = gOFS->MgmDirectoryModificationTime[fmd->getId()].tv_nsec;
           if (!mtime.tv_sec)
           {
             mtime.tv_sec = ctime.tv_sec;
             mtime.tv_nsec = ctime.tv_nsec;
           }
+          if (!tmtime.tv_sec)
+          {
+            tmtime.tv_sec = mtime.tv_sec;
+            tmtime.tv_nsec = mtime.tv_nsec;
+          }
         }
 
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
+        time_t filetmtime = (time_t) tmtime.tv_sec;
         char fid[32];
         snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
 
         std::string etag;
 
-        // use inode + mtime
+        // use inode + tmtime
         char setag[256];
-        filemtime = (time_t) mtime.tv_sec;
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filemtime);
+        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filetmtime);
         etag = setag;
 
         if (!Monitoring)
@@ -829,6 +837,14 @@ ProcCommand::DirInfo (const char* path)
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_sec);
           stdOut += ".";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
+          stdOut += "\n";
+          stdOut += "Sync:   ";
+          stdOut += ctime_r(&filetmtime, tmtimestring);
+          stdOut.erase(stdOut.length() - 1);
+          stdOut += " Timestamp: ";
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) tmtime.tv_sec);
+          stdOut += ".";
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) tmtime.tv_nsec);
           stdOut += "\n";
           stdOut += "  CUid: ";
           stdOut += (int) fmd->getCUid();

@@ -315,9 +315,10 @@ XrdMgmOfs::_rem (const char *path,
         }
 
         if (container)
-        {
-          // update the in-memory modification time
-          UpdateNowInmemoryDirectoryModificationTime(container->getId());
+        {        
+	  container->setMTimeNow();
+	  container->notifyMTimeChange( gOFS->eosDirectoryService );
+	  eosView->updateContainerStore(container);
         }
       }
       errno = 0;

@@ -127,6 +127,8 @@
 #include "namespace/IContainerMDSvc.hh"
 #include "namespace/views/HierarchicalView.hh"
 #include "namespace/accounting/FileSystemView.hh"
+#include "namespace/accounting/ContainerAccounting.hh"
+#include "namespace/accounting/SyncTimeAccounting.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
 /*----------------------------------------------------------------------------*/
@@ -1005,6 +1007,8 @@ public:
   eos::ChangeLogFileMDSvc *eosFileService; //< changelog for files
   eos::IView *eosView; //< hierarchical view of the namespace
   eos::FileSystemView *eosFsView; //< filesystem view of the namespace
+  eos::ContainerAccounting *eosContainerAccounting; //< subtree accoutning
+  eos::SyncTimeAccounting *eosSyncTimeAccounting; //< subtree mtime propagation
   XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
   XrdOucString MgmMetaLogDir; //  Directory containing the meta data (change) log files

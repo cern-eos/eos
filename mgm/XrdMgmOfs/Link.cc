@@ -246,7 +246,9 @@ XrdMgmOfs::_symlink (const char *source_name,
       dir = eosView->getContainer(oPath.GetParentPath());
       eosView->createLink(oPath.GetPath(), target_name,
 			  vid.uid, vid.gid);
-      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+      dir->setMTimeNow();
+      dir->notifyMTimeChange( gOFS->eosDirectoryService );
+      eosView->updateContainerStore(dir);
     }
     catch (eos::MDException &e)
     {

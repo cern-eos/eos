@@ -234,8 +234,12 @@ XrdMgmOfs::_remdir (const char *path,
       gOFS->MgmDirectoryModificationTime.erase(dh_id);
       gOFS->MgmDirectoryModificationTimeMutex.UnLock();
       // update the in-memory modification time of the parent directory
-      UpdateNowInmemoryDirectoryModificationTime(dhpar_id);
-
+      if (dhpar)
+      {
+	dhpar->setMTimeNow();
+	dhpar->notifyMTimeChange( gOFS->eosDirectoryService );
+	eosView->updateContainerStore(dhpar);
+      }
       eosView->removeContainer(path);
     }
     catch (eos::MDException &e)

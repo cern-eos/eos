@@ -357,4 +357,18 @@ namespace eos
     pChecksum.resize( size );
     offset = buffer.grabData( offset, pChecksum.getDataPtr(), size );
   };
+
+  //------------------------------------------------------------------------                                                                                            
+  //! Set size - 48 bytes will be used                                                                                                                                  
+  //------------------------------------------------------------------------                                                                                            
+  void FileMD::setSize( uint64_t size )
+  {
+    int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
+    pSize = size & 0x0000ffffffffffff;
+
+    IFileMDChangeListener::Event e( this,
+                                    IFileMDChangeListener::SizeChange,
+                                    0,0, sizeChange );
+    pFileMDSvc->notifyListeners( &e );
+  }
 }

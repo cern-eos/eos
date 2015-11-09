@@ -384,8 +384,9 @@ XrdMgmOfs::_attr_set (const char *path,
           }
         }
         dh->setAttribute(key, value);
+	dh->setMTimeNow();
+	dh->notifyMTimeChange( gOFS->eosDirectoryService );
         eosView->updateContainerStore(dh);
-        UpdateNowInmemoryDirectoryModificationTime(dh->getId());
         errno = 0;
       }
     }

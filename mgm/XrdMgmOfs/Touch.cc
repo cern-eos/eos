@@ -89,6 +89,15 @@ XrdMgmOfs::_touch (const char *path,
     }
     fmd->setMTimeNow();
     gOFS->eosView->updateFileStore(fmd);
+
+    unsigned long long cid = fmd->getContainerId();
+    eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+    eos::FileMD::ctime_t mtime;
+    fmd->getMTime(mtime);
+    cmd->setMTime(mtime);
+    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+    gOFS->eosView->updateContainerStore(cmd);
+
     errno = 0;
   }
   catch (eos::MDException &e)

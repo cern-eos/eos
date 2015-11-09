@@ -385,7 +385,9 @@ XrdMgmOfs::_rename (const char *old_name,
 	    if (file)
 	    {
 	      eosView->renameFile(file, nPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	      dir->setMTimeNow();
+	      dir->notifyMTimeChange( gOFS->eosDirectoryService );
+	      eosView->updateContainerStore(dir);
 	    }
 	  }
 	  else
@@ -395,8 +397,12 @@ XrdMgmOfs::_rename (const char *old_name,
 	    {
 	      // move to a new directory
 	      dir->removeFile(oPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-	      UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+	      dir->setMTimeNow();
+	      dir->notifyMTimeChange( gOFS->eosDirectoryService );
+	      newdir->setMTimeNow();
+	      newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+	      eosView->updateContainerStore(dir);
+	      eosView->updateContainerStore(newdir);
 	      file->setName(nPath.GetName());
 	      file->setContainerId(newdir->getId());
 	      if (updateCTime)
@@ -572,7 +578,9 @@ XrdMgmOfs::_rename (const char *old_name,
 	      // rename within a container
 	      // -------------------------------------------------------------------
 	      eosView->renameContainer(rdir, nPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
+	      rdir->setMTimeNow();
+	      rdir->notifyMTimeChange( gOFS->eosDirectoryService );
+	      eosView->updateContainerStore(rdir);
 	    }
 	    else
 	    {
@@ -580,14 +588,18 @@ XrdMgmOfs::_rename (const char *old_name,
 	      // move from one container to another one
 	      // -------------------------------------------------------------------
 	      dir->removeContainer(oPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	      dir->setMTimeNow();
+	      dir->notifyMTimeChange( gOFS->eosDirectoryService );
+	      eosView->updateContainerStore(dir);	     
 	      rdir->setName(nPath.GetName());
 	      if (updateCTime)
 	      {
 		rdir->setCTimeNow();
 	      }
 	      newdir->addContainer(rdir);
-	      UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+	      newdir->setMTimeNow();
+	      newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+	      eosView->updateContainerStore(newdir);
 	      eosView->updateContainerStore(rdir);
 	    }
 	  }

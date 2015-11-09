@@ -43,10 +43,11 @@ namespace eos
         {
           Updated = 0,
           Deleted,
-          Created
+          Created,
+	  MTimeChange
         };
 
-      virtual void containerMDChanged( ContainerMD *obj, Action type );
+      virtual void containerMDChanged( ContainerMD *obj, Action type ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -116,6 +117,12 @@ namespace eos
       //! the store
       //------------------------------------------------------------------------
       virtual void addChangeListener( IContainerMDChangeListener *listener ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Notify all subscribed listener
+      //------------------------------------------------------------------------
+      virtual void notifyListeners( ContainerMD *obj,
+				    IContainerMDChangeListener::Action a  ) = 0;
   };
 }
 

@@ -35,9 +35,9 @@ add_library (eosNamespace SHARED
 	    IContainerMDSvc.hh
 	    IFileMDSvc.hh
 	    IView.hh
-      MDException.hh
-      Constants.hh
-      Constants.cc
+            MDException.hh
+            Constants.hh
+            Constants.cc
 	    persistency/Buffer.hh
 	    persistency/ChangeLogConstants.hh
 	    persistency/ChangeLogContainerMDSvc.hh
@@ -52,6 +52,10 @@ add_library (eosNamespace SHARED
 	    views/HierarchicalView.hh
 	    accounting/FileSystemView.cc
 	    accounting/FileSystemView.hh
+	    accounting/ContainerAccounting.cc
+            accounting/ContainerAccounting.hh
+	    accounting/SyncTimeAccounting.cc
+            accounting/SyncTimeAccounting.hh
 	    ContainerMD.cc
 	    FileMD.cc
 	    persistency/ChangeLogConstants.cc
@@ -76,8 +80,8 @@ add_library (eosNamespace-Static STATIC
 	    IFileMDSvc.hh
 	    IView.hh
 	    MDException.hh
-      Constants.hh
-      Constants.cc
+            Constants.hh
+            Constants.cc
 	    persistency/Buffer.hh
 	    persistency/ChangeLogConstants.hh
 	    persistency/ChangeLogContainerMDSvc.hh
@@ -92,6 +96,10 @@ add_library (eosNamespace-Static STATIC
 	    views/HierarchicalView.hh
 	    accounting/FileSystemView.cc
 	    accounting/FileSystemView.hh
+	    accounting/ContainerAccounting.cc
+            accounting/ContainerAccounting.hh
+	    accounting/SyncTimeAccounting.cc
+            accounting/SyncTimeAccounting.hh
 	    ContainerMD.cc
 	    FileMD.cc
 	    persistency/ChangeLogConstants.cc

@@ -871,6 +871,13 @@ XrdMgmOfsFile::open (const char *inpath,
             // oc chunks start with flags=0
 
             cid = fmd->getContainerId();
+
+	    eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	    eos::FileMD::ctime_t mtime;
+	    fmd->getMTime(mtime);
+	    cmd->setMTime(mtime);
+	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	    gOFS->eosView->updateContainerStore(cmd);
           }
           catch (eos::MDException &e)
           {
@@ -889,11 +896,6 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, errno, "create file", path);
         }
         isCreation = true;
-        // -------------------------------------------------------------------------
-        // store the in-memory modification time
-        // we get the current time, but we don't update the creation time
-        // -------------------------------------------------------------------------
-        gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
         // -------------------------------------------------------------------------
       }
     }
@@ -1116,6 +1118,13 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
+	eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	eos::FileMD::ctime_t mtime;
+	fmd->getMTime(mtime);
+	cmd->setMTime(mtime);
+	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	gOFS->eosView->updateContainerStore(cmd);
+
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
 	  std::string uri = gOFS->eosView->getUri(fmd);
@@ -1141,7 +1150,6 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
       // -----------------------------------------------------------------------
-      gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
     }
   }
 

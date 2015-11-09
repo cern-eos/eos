@@ -313,47 +313,36 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_uid = cmd->getCUid();
     buf->st_gid = cmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
-    buf->st_size = cmd->getNumContainers();
+    buf->st_size = cmd->getTreeSize();
     buf->st_blksize = 0;
     buf->st_blocks = 0;
-    eos::ContainerMD::ctime_t atime;
-    cmd->getCTime(atime);
+    eos::ContainerMD::ctime_t ctime;
+    eos::ContainerMD::ctime_t mtime;
+    eos::ContainerMD::ctime_t tmtime;
+    cmd->getCTime(ctime);
+    cmd->getTMTime(mtime);
+    cmd->getTMTime(tmtime);
+
 
 #ifdef __APPLE__
-    buf->st_atimespec.tv_sec = atime.tv_sec;
-    buf->st_mtimespec.tv_sec = atime.tv_sec;
-    buf->st_ctimespec.tv_sec = atime.tv_sec;
-    buf->st_atimespec.tv_nsec = atime.tv_nsec;
-    buf->st_mtimespec.tv_nsec = atime.tv_nsec;
-    buf->st_ctimespec.tv_nsec = atime.tv_nsec;
+    buf->st_atimespec.tv_sec = tmtime.tv_sec;
+    buf->st_mtimespec.tv_sec = mtime.tv_sec;
+    buf->st_ctimespec.tv_sec = ctime.tv_sec;
+    buf->st_atimespec.tv_nsec = tmtime.tv_nsec;
+    buf->st_mtimespec.tv_nsec = mtime.tv_nsec;
+    buf->st_ctimespec.tv_nsec = ctime.tv_nsec;
 #else
-    buf->st_atime = atime.tv_sec;
-    buf->st_mtime = atime.tv_sec;
-    buf->st_ctime = atime.tv_sec;
+    buf->st_atime = tmtime.tv_sec;
+    buf->st_mtime = mtime.tv_sec;
+    buf->st_ctime = ctime.tv_sec;
 
-    buf->st_atim.tv_sec = atime.tv_sec;
-    buf->st_mtim.tv_sec = atime.tv_sec;
-    buf->st_ctim.tv_sec = atime.tv_sec;
-    buf->st_atim.tv_nsec = atime.tv_nsec;
-    buf->st_mtim.tv_nsec = atime.tv_nsec;
-    buf->st_ctim.tv_nsec = atime.tv_nsec;
+    buf->st_atim.tv_sec = tmtime.tv_sec;
+    buf->st_mtim.tv_sec = mtime.tv_sec;
+    buf->st_ctim.tv_sec = ctime.tv_sec;
+    buf->st_atim.tv_nsec = tmtime.tv_nsec;
+    buf->st_mtim.tv_nsec = mtime.tv_nsec;
+    buf->st_ctim.tv_nsec = ctime.tv_nsec;
 #endif
-
-    // if we have a cached modification time, return that one
-    // -->
-    gOFS->MgmDirectoryModificationTimeMutex.Lock();
-    if (gOFS->MgmDirectoryModificationTime.count(buf->st_ino))
-    {
-#ifdef __APPLE__
-      buf->st_mtimespec.tv_sec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_sec;
-      buf->st_mtimespec.tv_nsec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_nsec;
-#else
-      buf->st_mtime = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_sec;
-      buf->st_mtim.tv_sec = buf->st_mtime;
-      buf->st_mtim.tv_nsec = gOFS->MgmDirectoryModificationTime[buf->st_ino].tv_nsec;
-#endif
-    }
-    gOFS->MgmDirectoryModificationTimeMutex.UnLock();
 
     if (etag)
     {

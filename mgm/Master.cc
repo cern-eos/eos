@@ -1712,6 +1712,18 @@ Master::MasterRO2Slave ()
         delete gOFS->eosFsView;
         gOFS->eosFsView = 0;
       }
+      if (gOFS->eosContainerAccounting)
+      {
+        gOFS->eosContainerAccounting->finalize();
+        delete gOFS->eosContainerAccounting;
+        gOFS->eosContainerAccounting = 0;
+      }
+      if (gOFS->eosSyncTimeAccounting)
+      {
+        gOFS->eosSyncTimeAccounting->finalize();
+        delete gOFS->eosSyncTimeAccounting;
+        gOFS->eosSyncTimeAccounting = 0;
+      }
       if (gOFS->eosView)
       {
         gOFS->eosView->finalize();
@@ -1864,6 +1876,24 @@ Master::BootNamespace ()
   gOFS->eosFileService = new eos::ChangeLogFileMDSvc;
   gOFS->eosView = new eos::HierarchicalView;
   gOFS->eosFsView = new eos::FileSystemView;
+  gOFS->eosContainerAccounting = 0;
+  gOFS->eosSyncTimeAccounting = 0;
+
+  if (getenv("EOS_NS_ACCOUNTING") && ( 
+				      (std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
+				      (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes")) )
+  {
+    eos_alert("msg=\"enabling recursive size accounting ...\n\"");
+    gOFS->eosContainerAccounting = new eos::ContainerAccounting ( gOFS->eosDirectoryService ) ;
+  }
+  if (getenv("EOS_SYNCTIME_ACCOUNTING") && ( 
+				      (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
+				      (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")) )
+  {
+    eos_alert("msg=\"enabling sync time propagation ...\n\"");
+    gOFS->eosSyncTimeAccounting = new eos::SyncTimeAccounting ( gOFS->eosDirectoryService ) ;
+  }
+
 
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
@@ -1920,8 +1950,14 @@ Master::BootNamespace ()
       MasterLog(eos_notice("%s", (char*) "eos directory view configure started as slave"));
 
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
+    if (gOFS->eosContainerAccounting)
+      gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
+
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
+
+    if (gOFS->eosSyncTimeAccounting)
+      gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
 
     gOFS->eosFileService->getChangeLog()->clearWarningMessages();
     gOFS->eosDirectoryService->getChangeLog()->clearWarningMessages();
@@ -2346,6 +2382,18 @@ Master::RebootSlaveNamespace ()
         gOFS->eosFsView->finalize();
         delete gOFS->eosFsView;
         gOFS->eosFsView = 0;
+      }
+      if (gOFS->eosContainerAccounting)
+      {
+        gOFS->eosContainerAccounting->finalize();
+        delete gOFS->eosContainerAccounting;
+        gOFS->eosContainerAccounting = 0;
+      }
+      if (gOFS->eosSyncTimeAccounting)
+      {
+        gOFS->eosSyncTimeAccounting->finalize();
+        delete gOFS->eosSyncTimeAccounting;
+        gOFS->eosSyncTimeAccounting = 0;
       }
       if (gOFS->eosView)
       {

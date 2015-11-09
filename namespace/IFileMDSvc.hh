@@ -25,6 +25,7 @@
 #define EOS_NS_I_FILE_MD_SVC_HH
 
 #include "namespace/FileMD.hh"
+#include "namespace/ContainerMD.hh"
 #include "namespace/MDException.hh"
 
 #include <map>
@@ -49,7 +50,8 @@ namespace eos
           LocationAdded,
           LocationUnlinked,
           LocationRemoved,
-          LocationReplaced
+          LocationReplaced,
+	  SizeChange
         };
 
       //------------------------------------------------------------------------
@@ -59,28 +61,32 @@ namespace eos
       {
         Event( FileMD *_file, Action _action,
                FileMD::location_t _location = 0,
-               FileMD::location_t _oldLocation = 0 ):
+               FileMD::location_t _oldLocation = 0,
+	       int64_t _changed_size = 0):
           file( _file ),
           fileId( 0 ),
           action( _action ),
           location( _location ),
-          oldLocation( _oldLocation ) {}
+          oldLocation( _oldLocation ),
+	  sizeChange( _changed_size) {}
 
         Event( FileMD::id_t _fileId, Action _action,
                FileMD::location_t _location = 0,
-               FileMD::location_t _oldLocation = 0 ):
+               FileMD::location_t _oldLocation = 0,
+	       int64_t _changed_size = 0):
           file( 0 ),
           fileId( _fileId ),
           action( _action ),
           location( _location ),
-          oldLocation( _oldLocation ) {}
-
+          oldLocation( _oldLocation ),
+	  sizeChange( _changed_size) {}
 
         FileMD             *file;
         FileMD::id_t        fileId;
         Action              action;
         FileMD::location_t  location;
         FileMD::location_t  oldLocation;
+	int64_t sizeChange;
       };
 
       virtual void fileMDChanged( Event *event ) = 0;
