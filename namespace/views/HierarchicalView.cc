@@ -948,7 +948,6 @@ namespace eos
 	break;
     }
     mypath = abspath;
-    fprintf(stderr,"abspath: %s => %s\n", path.c_str(), mypath.c_str());
   }
 };
 
