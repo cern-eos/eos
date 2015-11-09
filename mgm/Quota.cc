@@ -492,44 +492,20 @@ void
 SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 		     bool monitoring, bool translate_ids)
 {
+  using eos::common::StringConversion;
   char headerline[4096];
-  std::map<long long, unsigned long long>::const_iterator it;
-  int* sortuidarray = (int*) malloc(sizeof(int) * (mMapIdQuota.size() + 1));
-  int* sortgidarray = (int*) malloc(sizeof(int) * (mMapIdQuota.size() + 1));
-  int userentries = 0;
-  int groupentries = 0;
-  // Make a map containing once all the defined uid's+gid's
-  std::map<unsigned long, unsigned long > sortuidhash;
-  std::map<unsigned long, unsigned long > sortgidhash;
-  std::map<unsigned long, unsigned long >::const_iterator sortit;
+  // Make a map containing once all the defined uid's and gid's
+  std::set<unsigned long> set_uids, set_gids;
+  XrdOucString header;
 
-  // for project space we just print the user/group entry gProjectId
-  if (mMapIdQuota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0)
-    gid_sel = Quota::gProjectId;
-
-  if (!SpaceName.beginswith("/"))
   {
-    free(sortuidarray);
-    free(sortgidarray);
-    // we don't show them right now ... maybe if we put quota on physical spaces we will
-    return;
-  }
-  else
-  {
-    XrdOucString header;
+    XrdSysMutexHelper scope_lock(mMutex);
 
-    // This is a virtual quota node
-    if (!monitoring)
-    {
-      header += "# ___________________________________________________________"
-	"____________________________________\n";
-      sprintf(headerline, "# ==> Quota Node: %-16s\n", SpaceName.c_str());
-      header += headerline;
-      header += "# ___________________________________________________________"
-	"____________________________________\n";
-    }
+    // For project space we just print the user/group entry gProjectId
+    if (mMapIdQuota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0)
+      gid_sel = Quota::gProjectId;
 
-    for (it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++)
+    for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++)
     {
       if ((UnIndex(it->first) >= kUserBytesIs)
 	  && (UnIndex(it->first) <= kUserFilesTarget))
@@ -538,15 +514,14 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 	unsigned long ugid = (it->first) & 0xffffffff;
 
 	// uid selection filter
-	if (uid_sel >= 0)
-	  if (ugid != (unsigned long) uid_sel)
-	    continue;
+	if ((uid_sel >= 0) && (ugid != (unsigned long) uid_sel))
+	  continue;
 
 	// we don't print the users if a gid is selected
 	if (gid_sel >= 0)
 	  continue;
 
-	sortuidhash[ugid] = ugid;
+	set_uids.insert(ugid);
       }
 
       if ((UnIndex(it->first) >= kGroupBytesIs)
@@ -555,401 +530,390 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 	unsigned long ugid = (it->first) & 0xffffffff;
 
 	// uid selection filter
-	if (gid_sel >= 0)
-	  if (ugid != (unsigned long) gid_sel)
-	    continue;
+	if ((gid_sel >= 0) && (ugid != (unsigned long) gid_sel))
+	  continue;
 
 	// We don't print the group if a uid is selected
 	if (uid_sel >= 0)
 	  continue;
 
-	sortgidhash[ugid] = ugid;
+	set_gids.insert(ugid);
       }
     }
+  }
 
-    for (sortit = sortuidhash.begin(); sortit != sortuidhash.end(); sortit++)
+  std::vector<unsigned long> uids {set_uids.begin(), set_uids.end()};
+  std::vector<unsigned long> gids {set_gids.begin(), set_gids.end()};
+
+  // Sort the uids and gids
+  std::sort(uids.begin(), uids.end());
+  std::sort(gids.begin(), gids.end());
+  eos_static_debug("sorted");
+
+  for (unsigned int i = 0; i < uids.size(); ++i)
+    eos_static_debug("sort %d %d", i, uids[i]);
+
+  for (unsigned int i = 0; i < gids.size(); ++i)
+    eos_static_debug("sort %d %d", i, gids[i]);
+
+  // Uid and gid output lines
+  std::vector <std::string> uidout;
+  std::vector <std::string> gidout;
+
+  if (!monitoring)
+  {
+    header += "# ___________________________________________________________"
+      "____________________________________\n";
+    sprintf(headerline, "# ==> Quota Node: %-16s\n", SpaceName.c_str());
+    header += headerline;
+    header += "# ___________________________________________________________"
+      "____________________________________\n";
+  }
+
+  // Print the header for selected uid/gid's only if there is something to print
+  // If we have a full listing we print even empty quota nodes (=header only)
+  if (((uid_sel < 0) && (gid_sel < 0)) || !uids.empty() || !gids.empty())
+    output += header;
+
+  if (!uids.empty())
+  {
+    // Table header
+    if (!monitoring)
     {
-      sortuidarray[userentries] = (sortit->first);
-      eos_static_debug("loop %d %d", userentries, sortuidarray[userentries]);
-      userentries++;
-    }
-
-    for (sortit = sortgidhash.begin(); sortit != sortgidhash.end(); sortit++)
-    {
-      // sort only based on the user bytes entries
-      sortgidarray[groupentries] = (sortit->first);
-      eos_static_debug("loop %d %d", groupentries, sortgidarray[groupentries]);
-      groupentries++;
-    }
-
-    sort(sortuidarray, sortuidarray + userentries);
-    sort(sortgidarray, sortgidarray + groupentries);
-    eos_static_debug("sorted");
-
-    for (int k = 0; k < userentries; k++)
-      eos_static_debug("sort %d %d", k, sortuidarray[k]);
-
-    for (int k = 0; k < groupentries; k++)
-      eos_static_debug("sort %d %d", k, sortgidarray[k]);
-
-    std::vector <std::string> uidout;
-    std::vector <std::string> gidout;
-
-    if (((uid_sel < 0) && (gid_sel < 0)) || userentries || groupentries)
-    {
-      // Print the header for selected uid/gid's only if there is something to print
-      // If we have a full listing we print even empty quota nodes (=header only)
-      output += header;
-    }
-
-    if (userentries)
-    {
-      // user loop
-      if (!monitoring)
-      {
-	sprintf(headerline, "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s "
-		"%-10s %-10s\n", GetTagCategory(kUserBytesIs), GetTagName(kUserBytesIs),
-		GetTagName(kUserLogicalBytesIs), GetTagName(kUserFilesIs),
-		GetTagName(kUserBytesTarget), GetTagName(kUserLogicalBytesTarget),
-		GetTagName(kUserFilesTarget), "filled[%]", "vol-status", "ino-status");
-	output += headerline;
-      }
-    }
-
-    for (int lid = 0; lid < userentries; lid++)
-    {
-      eos_static_debug("loop with id=%d", lid);
-      XrdOucString value1 = "";
-      XrdOucString value2 = "";
-      XrdOucString value3 = "";
-      XrdOucString value4 = "";
-      XrdOucString value5 = "";
-      XrdOucString value6 = "";
-      XrdOucString id = "";
-      id += sortuidarray[lid];
-
-      if (translate_ids)
-      {
-	if (gid_sel == Quota::gProjectId)
-	{
-	  id = "project";
-	}
-	else
-	{
-	  int errc = 0;
-	  std::string username = eos::common::Mapping::UidToUserName(sortuidarray[lid],
-				 errc);
-	  char uidlimit[16];
-
-	  if (username.length())
-	  {
-	    snprintf(uidlimit, 11, "%s", username.c_str());
-	    id = uidlimit;
-	  }
-	}
-      }
-
-      XrdOucString percentage = "";
-
-      if (!monitoring)
-      {
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-		eos::common::StringConversion::GetReadableSizeString(value1,
-		    GetQuota(kUserBytesIs, sortuidarray[lid]), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value2,
-		    GetQuota(kUserLogicalBytesIs, sortuidarray[lid]), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value3,
-		    GetQuota(kUserFilesIs, sortuidarray[lid]), "-"),
-		eos::common::StringConversion::GetReadableSizeString(value4,
-		    GetQuota(kUserBytesTarget, sortuidarray[lid]), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value5,
-		    (long long)(GetQuota(kUserBytesTarget, sortuidarray[lid]) / mLayoutSizeFactor),
-		    "B"),
-		eos::common::StringConversion::GetReadableSizeString(value6,
-		    GetQuota(kUserFilesTarget, sortuidarray[lid]), "-"),
-		GetQuotaPercentage(GetQuota(kUserBytesIs, sortuidarray[lid]),
-				   GetQuota(kUserBytesTarget, sortuidarray[lid]), percentage),
-		GetQuotaStatus(GetQuota(kUserBytesIs, sortuidarray[lid]),
-			       GetQuota(kUserBytesTarget, sortuidarray[lid])),
-		GetQuotaStatus(GetQuota(kUserFilesIs, sortuidarray[lid]),
-			       GetQuota(kUserFilesTarget, sortuidarray[lid])));
-      }
-      else
-      {
-	sprintf(headerline, "quota=node uid=%s space=%s usedbytes=%llu "
-		"usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu "
-		"maxlogicalbytes=%llu maxfiles=%llu percentageusedbytes=%s "
-		"statusbytes=%s statusfiles=%s\n", id.c_str(), SpaceName.c_str(),
-		GetQuota(kUserBytesIs, sortuidarray[lid]),
-		GetQuota(kUserLogicalBytesIs, sortuidarray[lid]),
-		GetQuota(kUserFilesIs, sortuidarray[lid]),
-		GetQuota(kUserBytesTarget, sortuidarray[lid]),
-		(unsigned long long)(GetQuota(kUserBytesTarget,
-					      sortuidarray[lid]) / mLayoutSizeFactor),
-		GetQuota(kUserFilesTarget, sortuidarray[lid]),
-		GetQuotaPercentage(GetQuota(kUserBytesIs, sortuidarray[lid]),
-				   GetQuota(kUserBytesTarget, sortuidarray[lid]), percentage),
-		GetQuotaStatus(GetQuota(kUserBytesIs, sortuidarray[lid]),
-			       GetQuota(kUserBytesTarget, sortuidarray[lid])),
-		GetQuotaStatus(GetQuota(kUserFilesIs, sortuidarray[lid]),
-			       GetQuota(kUserFilesTarget, sortuidarray[lid])));
-      }
-
-      if (!translate_ids)
-	output += headerline;
-      else
-	uidout.push_back(headerline);
-    }
-
-    if (translate_ids)
-    {
-      std::sort(uidout.begin(), uidout.end());
-
-      for (size_t i = 0; i < uidout.size(); i++)
-	output += uidout[i].c_str();
-    }
-
-    if (groupentries)
-    {
-      // group loop
-      if (!monitoring)
-      {
-	output += "# ........................................................."
-	  "......................................\n";
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
-		GetTagCategory(kGroupBytesIs), GetTagName(kGroupBytesIs),
-		GetTagName(kGroupLogicalBytesIs), GetTagName(kGroupFilesIs),
-		GetTagName(kGroupBytesTarget), GetTagName(kGroupLogicalBytesTarget),
-		GetTagName(kGroupFilesTarget), "filled[%]", "vol-status", "ino-status");
-	output += headerline;
-      }
-    }
-
-    for (int lid = 0; lid < groupentries; lid++)
-    {
-      eos_static_debug("loop with id=%d", lid);
-      XrdOucString value1 = "";
-      XrdOucString value2 = "";
-      XrdOucString value3 = "";
-      XrdOucString value4 = "";
-      XrdOucString value5 = "";
-      XrdOucString value6 = "";
-      XrdOucString id = "";
-      id += sortgidarray[lid];
-
-      if (translate_ids)
-      {
-	if (gid_sel == Quota::gProjectId)
-	{
-	  id = "project";
-	}
-	else
-	{
-	  int errc = 0;
-	  std::string groupname = eos::common::Mapping::GidToGroupName(sortgidarray[lid],
-				  errc);
-	  char gidlimit[16];
-
-	  if (groupname.length())
-	  {
-	    snprintf(gidlimit, 11, "%s", groupname.c_str());
-	    id = gidlimit;
-	  }
-	}
-      }
-
-      XrdOucString percentage = "";
-
-      if (!monitoring)
-      {
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-		eos::common::StringConversion::GetReadableSizeString(value1,
-		    GetQuota(kGroupBytesIs, sortgidarray[lid]), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value2,
-		    GetQuota(kGroupLogicalBytesIs, sortgidarray[lid]), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value3,
-		    GetQuota(kGroupFilesIs, sortgidarray[lid]), "-"),
-		eos::common::StringConversion::GetReadableSizeString(value4,
-		    GetQuota(kGroupBytesTarget, sortgidarray[lid]), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value5,
-		    (long long)(GetQuota(kGroupBytesTarget, sortgidarray[lid]) / mLayoutSizeFactor),
-		    "B"),
-		eos::common::StringConversion::GetReadableSizeString(value6,
-		    GetQuota(kGroupFilesTarget, sortgidarray[lid]), "-"),
-		GetQuotaPercentage(GetQuota(kGroupBytesIs, sortgidarray[lid]),
-				   GetQuota(kGroupBytesTarget, sortgidarray[lid]), percentage),
-		GetQuotaStatus(GetQuota(kGroupBytesIs, sortgidarray[lid]),
-			       GetQuota(kGroupBytesTarget, sortgidarray[lid])),
-		GetQuotaStatus(GetQuota(kGroupFilesIs, sortgidarray[lid]),
-			       GetQuota(kGroupFilesTarget, sortgidarray[lid])));
-      }
-      else
-      {
-	sprintf(headerline,
-		"quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
-		"usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
-		"percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-		id.c_str(), SpaceName.c_str(),
-		GetQuota(kGroupBytesIs, sortgidarray[lid]),
-		GetQuota(kGroupLogicalBytesIs, sortgidarray[lid]),
-		GetQuota(kGroupFilesIs, sortgidarray[lid]),
-		GetQuota(kGroupBytesTarget, sortgidarray[lid]),
-		(unsigned long long)(GetQuota(kGroupBytesTarget,
-					      sortgidarray[lid]) / mLayoutSizeFactor),
-		GetQuota(kGroupFilesTarget, sortgidarray[lid]),
-		GetQuotaPercentage(GetQuota(kGroupBytesIs, sortgidarray[lid]),
-				   GetQuota(kGroupBytesTarget, sortgidarray[lid]), percentage),
-		GetQuotaStatus(GetQuota(kGroupBytesIs, sortgidarray[lid]),
-			       GetQuota(kGroupBytesTarget, sortgidarray[lid])),
-		GetQuotaStatus(GetQuota(kGroupFilesIs, sortgidarray[lid]),
-			       GetQuota(kGroupFilesTarget, sortgidarray[lid])));
-      }
-
-      if (!translate_ids)
-      {
-	output += headerline;
-      }
-      else
-      {
-	gidout.push_back(headerline);
-      }
-    }
-
-    if (translate_ids)
-    {
-      std::sort(gidout.begin(), gidout.end());
-
-      for (size_t i = 0; i < gidout.size(); i++)
-	output += gidout[i].c_str();
-    }
-
-    if ((uid_sel < 0) && (gid_sel < 0))
-    {
-      if (!monitoring)
-      {
-	output += "# ---------------------------------------------------------"
-	  "-------------------------------------------------\n";
-	output += "# ==> Summary\n";
-      }
-
-      XrdOucString value1 = "";
-      XrdOucString value2 = "";
-      XrdOucString value3 = "";
-      XrdOucString value4 = "";
-      XrdOucString value5 = "";
-      XrdOucString value6 = "";
-      XrdOucString id = "ALL";
-      XrdOucString percentage = "";
-
-      if (!monitoring)
-      {
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
-		GetTagCategory(kAllUserBytesIs), GetTagName(kAllUserBytesIs),
-		GetTagName(kAllUserLogicalBytesIs), GetTagName(kAllUserFilesIs),
-		GetTagName(kAllUserBytesTarget), GetTagName(kAllUserLogicalBytesTarget),
-		GetTagName(kAllUserFilesTarget), "filled[%]", "vol-status", "ino-status");
-	output += headerline;
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-		eos::common::StringConversion::GetReadableSizeString(value1,
-		    GetQuota(kAllUserBytesIs, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value2,
-		    GetQuota(kAllUserLogicalBytesIs, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value3,
-		    GetQuota(kAllUserFilesIs, 0), "-"),
-		eos::common::StringConversion::GetReadableSizeString(value4,
-		    GetQuota(kAllUserBytesTarget, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value5,
-		    GetQuota(kAllUserLogicalBytesTarget, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value6,
-		    GetQuota(kAllUserFilesTarget, 0), "-"),
-		GetQuotaPercentage(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget,
-				   0), percentage),
-		GetQuotaStatus(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)),
-		GetQuotaStatus(GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)));
-      }
-      else
-      {
-	sprintf(headerline,
-		"quota=node uid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
-		"usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
-		"percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-		id.c_str(), SpaceName.c_str(),
-		GetQuota(kAllUserBytesIs, 0),
-		GetQuota(kAllUserLogicalBytesIs, 0),
-		GetQuota(kAllUserFilesIs, 0),
-		GetQuota(kAllUserBytesTarget, 0),
-		GetQuota(kAllUserLogicalBytesTarget, 0),
-		GetQuota(kAllUserFilesTarget, 0),
-		GetQuotaPercentage(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget,
-				   0), percentage),
-		GetQuotaStatus(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)),
-		GetQuotaStatus(GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)));
-      }
-
-      output += headerline;
-
-      if (!monitoring)
-      {
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
-		GetTagCategory(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs),
-		GetTagName(kAllGroupLogicalBytesIs), GetTagName(kAllGroupFilesIs),
-		GetTagName(kAllGroupBytesTarget), GetTagName(kAllGroupLogicalBytesTarget),
-		GetTagName(kAllGroupFilesTarget), "filled[%]", "vol-status", "ino-status");
-	output += headerline;
-	sprintf(headerline,
-		"%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
-		eos::common::StringConversion::GetReadableSizeString(value1,
-		    GetQuota(kAllGroupBytesIs, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value2,
-		    GetQuota(kAllGroupLogicalBytesIs, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value3,
-		    GetQuota(kAllGroupFilesIs, 0), "-"),
-		eos::common::StringConversion::GetReadableSizeString(value4,
-		    GetQuota(kAllGroupBytesTarget, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value5,
-		    GetQuota(kAllGroupLogicalBytesTarget, 0), "B"),
-		eos::common::StringConversion::GetReadableSizeString(value6,
-		    GetQuota(kAllGroupFilesTarget, 0), "-"),
-		GetQuotaPercentage(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-				   0), percentage),
-		GetQuotaStatus(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-			       0)),
-		GetQuotaStatus(GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget,
-			       0)));
-      }
-      else
-      {
-	sprintf(headerline,
-		"quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
-		"usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
-		"percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-		id.c_str(), SpaceName.c_str(),
-		GetQuota(kAllGroupBytesIs, 0),
-		GetQuota(kAllGroupLogicalBytesIs, 0),
-		GetQuota(kAllGroupFilesIs, 0),
-		GetQuota(kAllGroupBytesTarget, 0),
-		GetQuota(kAllGroupLogicalBytesTarget, 0),
-		GetQuota(kAllGroupFilesTarget, 0),
-		GetQuotaPercentage(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-				   0), percentage),
-		GetQuotaStatus(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
-			       0)),
-		GetQuotaStatus(GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget,
-			       0)));
-      }
-
+      sprintf(headerline, "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s "
+	      "%-10s %-10s\n", GetTagCategory(kUserBytesIs), GetTagName(kUserBytesIs),
+	      GetTagName(kUserLogicalBytesIs), GetTagName(kUserFilesIs),
+	      GetTagName(kUserBytesTarget), GetTagName(kUserLogicalBytesTarget),
+	      GetTagName(kUserFilesTarget), "filled[%]", "vol-status", "ino-status");
       output += headerline;
     }
   }
 
-  free(sortuidarray);
-  free(sortgidarray);
+  for (unsigned int lid = 0; lid < uids.size(); lid++)
+  {
+    eos_static_debug("loop with id=%d", lid);
+    XrdOucString value1 = "";
+    XrdOucString value2 = "";
+    XrdOucString value3 = "";
+    XrdOucString value4 = "";
+    XrdOucString value5 = "";
+    XrdOucString value6 = "";
+    XrdOucString id = "";
+    id += std::to_string(uids[lid]).c_str();
+
+    if (translate_ids)
+    {
+      if (gid_sel == Quota::gProjectId)
+      {
+	id = "project";
+      }
+      else
+      {
+	int errc = 0;
+	std::string username = eos::common::Mapping::UidToUserName(uids[lid], errc);
+	char uidlimit[16];
+
+	if (username.length())
+	{
+	  snprintf(uidlimit, 11, "%s", username.c_str());
+	  id = uidlimit;
+	}
+      }
+    }
+
+    XrdOucString percentage = "";
+
+    if (!monitoring)
+    {
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
+	      StringConversion::GetReadableSizeString(value1,
+		  GetQuota(kUserBytesIs, uids[lid]), "B"),
+	      StringConversion::GetReadableSizeString(value2,
+		  GetQuota(kUserLogicalBytesIs, uids[lid]), "B"),
+	      StringConversion::GetReadableSizeString(value3,
+		  GetQuota(kUserFilesIs, uids[lid]), "-"),
+	      StringConversion::GetReadableSizeString(value4,
+		  GetQuota(kUserBytesTarget, uids[lid]), "B"),
+	      StringConversion::GetReadableSizeString(value5,
+		  (long long)(GetQuota(kUserBytesTarget, uids[lid]) / mLayoutSizeFactor),
+		  "B"),
+	      StringConversion::GetReadableSizeString(value6,
+		  GetQuota(kUserFilesTarget, uids[lid]), "-"),
+	      GetQuotaPercentage(GetQuota(kUserBytesIs, uids[lid]),
+				 GetQuota(kUserBytesTarget, uids[lid]), percentage),
+	      GetQuotaStatus(GetQuota(kUserBytesIs, uids[lid]),
+			     GetQuota(kUserBytesTarget, uids[lid])),
+	      GetQuotaStatus(GetQuota(kUserFilesIs, uids[lid]),
+			     GetQuota(kUserFilesTarget, uids[lid])));
+    }
+    else
+    {
+      sprintf(headerline, "quota=node uid=%s space=%s usedbytes=%llu "
+	      "usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu "
+	      "maxlogicalbytes=%llu maxfiles=%llu percentageusedbytes=%s "
+	      "statusbytes=%s statusfiles=%s\n", id.c_str(), SpaceName.c_str(),
+	      GetQuota(kUserBytesIs, uids[lid]),
+	      GetQuota(kUserLogicalBytesIs, uids[lid]),
+	      GetQuota(kUserFilesIs, uids[lid]),
+	      GetQuota(kUserBytesTarget, uids[lid]),
+	      (unsigned long long)(GetQuota(kUserBytesTarget,
+					    uids[lid]) / mLayoutSizeFactor),
+	      GetQuota(kUserFilesTarget, uids[lid]),
+	      GetQuotaPercentage(GetQuota(kUserBytesIs, uids[lid]),
+				 GetQuota(kUserBytesTarget, uids[lid]), percentage),
+	      GetQuotaStatus(GetQuota(kUserBytesIs, uids[lid]),
+			     GetQuota(kUserBytesTarget, uids[lid])),
+	      GetQuotaStatus(GetQuota(kUserFilesIs, uids[lid]),
+			     GetQuota(kUserFilesTarget, uids[lid])));
+    }
+
+    if (!translate_ids)
+      output += headerline;
+    else
+      uidout.push_back(headerline);
+  }
+
+  if (translate_ids)
+  {
+    std::sort(uidout.begin(), uidout.end());
+
+    for (size_t i = 0; i < uidout.size(); i++)
+      output += uidout[i].c_str();
+  }
+
+  if (!gids.empty())
+  {
+    // group loop
+    if (!monitoring)
+    {
+      output += "# ........................................................."
+		"......................................\n";
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
+	      GetTagCategory(kGroupBytesIs), GetTagName(kGroupBytesIs),
+	      GetTagName(kGroupLogicalBytesIs), GetTagName(kGroupFilesIs),
+	      GetTagName(kGroupBytesTarget), GetTagName(kGroupLogicalBytesTarget),
+	      GetTagName(kGroupFilesTarget), "filled[%]", "vol-status", "ino-status");
+      output += headerline;
+    }
+  }
+
+  for (unsigned int lid = 0; lid < gids.size(); lid++)
+  {
+    eos_static_debug("loop with id=%d", lid);
+    XrdOucString value1 = "";
+    XrdOucString value2 = "";
+    XrdOucString value3 = "";
+    XrdOucString value4 = "";
+    XrdOucString value5 = "";
+    XrdOucString value6 = "";
+    XrdOucString id = "";
+    id += std::to_string(gids[lid]).c_str();
+
+    if (translate_ids)
+    {
+      if (gid_sel == Quota::gProjectId)
+      {
+	id = "project";
+      }
+      else
+      {
+	int errc = 0;
+	std::string groupname = eos::common::Mapping::GidToGroupName(gids[lid],
+				errc);
+	char gidlimit[16];
+
+	if (groupname.length())
+	{
+	  snprintf(gidlimit, 11, "%s", groupname.c_str());
+	  id = gidlimit;
+	}
+      }
+    }
+
+    XrdOucString percentage = "";
+
+    if (!monitoring)
+    {
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
+	      StringConversion::GetReadableSizeString(value1,
+		  GetQuota(kGroupBytesIs, gids[lid]), "B"),
+	      StringConversion::GetReadableSizeString(value2,
+		  GetQuota(kGroupLogicalBytesIs, gids[lid]), "B"),
+	      StringConversion::GetReadableSizeString(value3,
+		  GetQuota(kGroupFilesIs, gids[lid]), "-"),
+	      StringConversion::GetReadableSizeString(value4,
+		  GetQuota(kGroupBytesTarget, gids[lid]), "B"),
+	      StringConversion::GetReadableSizeString(value5,
+		  (long long)(GetQuota(kGroupBytesTarget, gids[lid]) / mLayoutSizeFactor),
+		  "B"),
+	      StringConversion::GetReadableSizeString(value6,
+		  GetQuota(kGroupFilesTarget, gids[lid]), "-"),
+	      GetQuotaPercentage(GetQuota(kGroupBytesIs, gids[lid]),
+				 GetQuota(kGroupBytesTarget, gids[lid]), percentage),
+	      GetQuotaStatus(GetQuota(kGroupBytesIs, gids[lid]),
+			     GetQuota(kGroupBytesTarget, gids[lid])),
+	      GetQuotaStatus(GetQuota(kGroupFilesIs, gids[lid]),
+			     GetQuota(kGroupFilesTarget, gids[lid])));
+    }
+    else
+    {
+      sprintf(headerline,
+	      "quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
+	      "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
+	      "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
+	      id.c_str(), SpaceName.c_str(),
+	      GetQuota(kGroupBytesIs, gids[lid]),
+	      GetQuota(kGroupLogicalBytesIs, gids[lid]),
+	      GetQuota(kGroupFilesIs, gids[lid]),
+	      GetQuota(kGroupBytesTarget, gids[lid]),
+	      (unsigned long long)(GetQuota(kGroupBytesTarget,
+					    gids[lid]) / mLayoutSizeFactor),
+	      GetQuota(kGroupFilesTarget, gids[lid]),
+	      GetQuotaPercentage(GetQuota(kGroupBytesIs, gids[lid]),
+				 GetQuota(kGroupBytesTarget, gids[lid]), percentage),
+	      GetQuotaStatus(GetQuota(kGroupBytesIs, gids[lid]),
+			     GetQuota(kGroupBytesTarget, gids[lid])),
+	      GetQuotaStatus(GetQuota(kGroupFilesIs, gids[lid]),
+			     GetQuota(kGroupFilesTarget, gids[lid])));
+    }
+
+    if (!translate_ids)
+      output += headerline;
+    else
+      gidout.push_back(headerline);
+  }
+
+  if (translate_ids)
+  {
+    std::sort(gidout.begin(), gidout.end());
+
+    for (size_t i = 0; i < gidout.size(); i++)
+      output += gidout[i].c_str();
+  }
+
+  if ((uid_sel < 0) && (gid_sel < 0))
+  {
+    if (!monitoring)
+    {
+      output += "# ---------------------------------------------------------"
+		"-------------------------------------------------\n";
+      output += "# ==> Summary\n";
+    }
+
+    XrdOucString value1 = "";
+    XrdOucString value2 = "";
+    XrdOucString value3 = "";
+    XrdOucString value4 = "";
+    XrdOucString value5 = "";
+    XrdOucString value6 = "";
+    XrdOucString id = "ALL";
+    XrdOucString percentage = "";
+
+    if (!monitoring)
+    {
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
+	      GetTagCategory(kAllUserBytesIs), GetTagName(kAllUserBytesIs),
+	      GetTagName(kAllUserLogicalBytesIs), GetTagName(kAllUserFilesIs),
+	      GetTagName(kAllUserBytesTarget), GetTagName(kAllUserLogicalBytesTarget),
+	      GetTagName(kAllUserFilesTarget), "filled[%]", "vol-status", "ino-status");
+      output += headerline;
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
+	      StringConversion::GetReadableSizeString(value1,
+		  GetQuota(kAllUserBytesIs, 0), "B"),
+	      StringConversion::GetReadableSizeString(value2,
+		  GetQuota(kAllUserLogicalBytesIs, 0), "B"),
+	      StringConversion::GetReadableSizeString(value3,
+		  GetQuota(kAllUserFilesIs, 0), "-"),
+	      StringConversion::GetReadableSizeString(value4,
+		  GetQuota(kAllUserBytesTarget, 0), "B"),
+	      StringConversion::GetReadableSizeString(value5,
+		  GetQuota(kAllUserLogicalBytesTarget, 0), "B"),
+	      StringConversion::GetReadableSizeString(value6,
+		  GetQuota(kAllUserFilesTarget, 0), "-"),
+	      GetQuotaPercentage(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget,
+				 0), percentage),
+	      GetQuotaStatus(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)),
+	      GetQuotaStatus(GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)));
+    }
+    else
+    {
+      sprintf(headerline,
+	      "quota=node uid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
+	      "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
+	      "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
+	      id.c_str(), SpaceName.c_str(),
+	      GetQuota(kAllUserBytesIs, 0),
+	      GetQuota(kAllUserLogicalBytesIs, 0),
+	      GetQuota(kAllUserFilesIs, 0),
+	      GetQuota(kAllUserBytesTarget, 0),
+	      GetQuota(kAllUserLogicalBytesTarget, 0),
+	      GetQuota(kAllUserFilesTarget, 0),
+	      GetQuotaPercentage(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget,
+				 0), percentage),
+	      GetQuotaStatus(GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)),
+	      GetQuotaStatus(GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)));
+    }
+
+    output += headerline;
+
+    if (!monitoring)
+    {
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n",
+	      GetTagCategory(kAllGroupBytesIs), GetTagName(kAllGroupBytesIs),
+	      GetTagName(kAllGroupLogicalBytesIs), GetTagName(kAllGroupFilesIs),
+	      GetTagName(kAllGroupBytesTarget), GetTagName(kAllGroupLogicalBytesTarget),
+	      GetTagName(kAllGroupFilesTarget), "filled[%]", "vol-status", "ino-status");
+      output += headerline;
+      sprintf(headerline,
+	      "%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n", id.c_str(),
+	      StringConversion::GetReadableSizeString(value1,
+		  GetQuota(kAllGroupBytesIs, 0), "B"),
+	      StringConversion::GetReadableSizeString(value2,
+		  GetQuota(kAllGroupLogicalBytesIs, 0), "B"),
+	      StringConversion::GetReadableSizeString(value3,
+		  GetQuota(kAllGroupFilesIs, 0), "-"),
+	      StringConversion::GetReadableSizeString(value4,
+		  GetQuota(kAllGroupBytesTarget, 0), "B"),
+	      StringConversion::GetReadableSizeString(value5,
+		  GetQuota(kAllGroupLogicalBytesTarget, 0), "B"),
+	      StringConversion::GetReadableSizeString(value6,
+		  GetQuota(kAllGroupFilesTarget, 0), "-"),
+	      GetQuotaPercentage(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
+				 0), percentage),
+	      GetQuotaStatus(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
+			     0)),
+	      GetQuotaStatus(GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget,
+			     0)));
+    }
+    else
+    {
+      sprintf(headerline,
+	      "quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
+	      "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
+	      "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
+	      id.c_str(), SpaceName.c_str(),
+	      GetQuota(kAllGroupBytesIs, 0),
+	      GetQuota(kAllGroupLogicalBytesIs, 0),
+	      GetQuota(kAllGroupFilesIs, 0),
+	      GetQuota(kAllGroupBytesTarget, 0),
+	      GetQuota(kAllGroupLogicalBytesTarget, 0),
+	      GetQuota(kAllGroupFilesTarget, 0),
+	      GetQuotaPercentage(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
+				 0), percentage),
+	      GetQuotaStatus(GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget,
+			     0)),
+	      GetQuotaStatus(GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget,
+			     0)));
+    }
+
+    output += headerline;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1135,7 +1099,6 @@ SpaceQuota::NsQuotaToSpaceQuota()
     }
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Convert int tag to string representation
