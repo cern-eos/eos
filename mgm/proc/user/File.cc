@@ -1383,7 +1383,7 @@ ProcCommand::File ()
                                                          (unsigned long) 0,
                                                          space.c_str(),
                                                          tried_cgi,
-                                                         (unsigned long) fmd->getLayoutId(),
+                                                         (unsigned long) fmd_cpy->getLayoutId(),
                                                          sourcefs,
                                                          fsIndex,
                                                          false,
@@ -1653,7 +1653,7 @@ ProcCommand::File ()
                 }
               }
             }
-          } 
+          }
 	  else
 	  {
 	    // if this is a rain layout, we try to rewrite the file using the converter
