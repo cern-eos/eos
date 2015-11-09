@@ -28,9 +28,9 @@
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 /*----------------------------------------------------------------------------*/
-#include <google/dense_hash_map>
-#include <google/sparsehash/densehashtable.h>
-/*----------------------------------------------------------------------------*/
+#include <vector>
+#include <set>
+#include <stdint.h>
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -40,16 +40,8 @@
 #include "common/Mapping.hh"
 #include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
-#include "mq/XrdMqMessage.hh"
 #include "namespace/interface/IQuota.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPthread.hh"
-/*----------------------------------------------------------------------------*/
-#include <vector>
-#include <set>
-#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
@@ -78,29 +70,12 @@ public:
   ~SpaceQuota();
 
   //----------------------------------------------------------------------------
-  //! Get QuotaNode
-  //!
-  //! @return QuotaNode object
-  //----------------------------------------------------------------------------
-  inline eos::IQuotaNode* GetQuotaNode()
-  {
-    return mQuotaNode;
-  }
-
-  //----------------------------------------------------------------------------
   //! Get space name
   //----------------------------------------------------------------------------
-  const char* GetSpaceName()
+  inline const char* GetSpaceName()
   {
     return SpaceName.c_str();
   }
-
-  //----------------------------------------------------------------------------
-  //! Print quota information
-  //----------------------------------------------------------------------------
-  void PrintOut(XrdOucString& output, long uid_sel = -1,
-		long gid_sel = -1, bool monitoring = false,
-		bool translate_ids = false);
 
   //----------------------------------------------------------------------------
   //! Check user and/or group quota. If both are present, they both have to be
@@ -108,46 +83,25 @@ public:
   //!
   //! @param uid user id
   //! @param gid group id
-  //! @param desired_space space
-  //! @param inodes
+  //! @param desired_vol desired volume (size)
+  //! @param desired_inodes desired number of inodes
   //!
   //! @return true if user has enough quota, otherwise false
   //----------------------------------------------------------------------------
-  bool CheckWriteQuota(uid_t uid, gid_t gid, long long desiredspace,
-		       unsigned int inodes);
+  bool CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
+		       unsigned int desired_inodes);
 
   //----------------------------------------------------------------------------
-  //! Write placement routine. We implement the quota check while the scheduling
-  //! is in the Scheduler base class.
+  //! Print quota information
   //!
-  //! @param path path to place
-  //! @param vid virtual id of client
-  //! @param grouptag group tag for placement
-  //! @param lid layout to be placed
-  //! @param alreadyused_filsystems filesystems to avoid
-  //! @param selected_filesystems filesystems selected by scheduler
-  //! @param plctpolicy indicates if placement should be local/spread/hybrid
-  //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
-  //!                      should be placed
-  //! @param truncate indicates placement with truncation
-  //! @param forched_scheduling_group_index forced index for the scheduling
-  //!                      subgroup to be used
-  //! @param bookingsize size to book for the placement
-  //!
-  //! @return
   //----------------------------------------------------------------------------
-  int FilePlacement(const char* path,
-		    eos::common::Mapping::VirtualIdentity_t& vid,
-		    const char* grouptag,
-		    unsigned long lid,
-		    std::vector<unsigned int>& alreadyused_filesystems,
-		    std::vector<unsigned int>& selected_filesystems,
-		    tPlctPolicy plctpolicy,
-		    const std::string& plctTrgGeotag,
-		    bool truncate = false,
-		    int forced_scheduling_group_index = -1,
-		    unsigned long long bookingsize = 1024 * 1024 * 1024ll);
+  void PrintOut(XrdOucString& output, long uid_sel = -1,
+		long gid_sel = -1, bool monitoring = false,
+		bool translate_ids = false);
 
+  //----------------------------------------------------------------------------
+  //! Quota type tags
+  //----------------------------------------------------------------------------
   enum eQuotaTag
   {
     kUserBytesIs = 1,                 kUserLogicalBytesIs = 2,
@@ -169,12 +123,12 @@ private:
   //----------------------------------------------------------------------------
   //! Get quota
   //!
-  //! @param tag quota tag
+  //! @param tag quota type tag (eQuotaTag)
   //! @param id uid/gid/projec it
   //!
-  //! @return reuqest quota value
+  //! @return reuqested quota value
   //----------------------------------------------------------------------------
-  long long GetQuota(unsigned long tag, unsigned long id, bool lock = true);
+  long long GetQuota(unsigned long tag, unsigned long id);
 
   //----------------------------------------------------------------------------
   //! Set quota
@@ -186,90 +140,105 @@ private:
   void SetQuota(unsigned long tag, unsigned long id, unsigned long long value);
 
   //----------------------------------------------------------------------------
-  //! Add quota
+  //! Reset quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param uid uid/gid/project id
+  //!
+  //! @warning Caller needs to hold a lock on mMutex
   //----------------------------------------------------------------------------
-  void AddQuota(unsigned long tag, unsigned long id, long long value,
-		bool lock = true);
+  void  ResetQuota(unsigned long tag, unsigned long id);
 
   //----------------------------------------------------------------------------
-  //! Update SpaceQuota from the ns quota node for the given identity
+  //! Add quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param id user/group id
+  //! @param value quota value to be added
+  //!
+  //! @warning Caller needs to hold a lock on mMutex.
+  //----------------------------------------------------------------------------
+  void AddQuota(unsigned long tag, unsigned long id, long long value);
+
+  //----------------------------------------------------------------------------
+  //! Import ns quota values into current space quota
+  //----------------------------------------------------------------------------
+  void NsQuotaToSpaceQuota();
+
+  //----------------------------------------------------------------------------
+  //! Update quota from the ns quota node for the given identity only if the
+  //! requested path is actually a ns quota node.
   //!
   //! @param uid user id
   //! @param gid group id
   //! @param upd_proj_quota if true then update also the project quota
-  //!
   //----------------------------------------------------------------------------
   void UpdateFromQuotaNode(uid_t uid, gid_t, bool upd_proj_quota);
 
   //----------------------------------------------------------------------------
-  //! Refresh quota
+  //! Refresh quota all quota values for current space
+  //!
+  //! @warning Caller needs to hold a read-lock on both eosViewRWMutex and
+  //!          pMapMutex
   //----------------------------------------------------------------------------
   void Refresh();
 
   //----------------------------------------------------------------------------
-  //!
+  //! Calculate the size factor used to estimate the logical available bytes
   //----------------------------------------------------------------------------
   void UpdateLogicalSizeFactor();
 
   //----------------------------------------------------------------------------
-  //!
+  //! Update target quota values
   //----------------------------------------------------------------------------
   void UpdateTargetSums();
 
   //----------------------------------------------------------------------------
-  //!
+  //! Update current quota values
   //----------------------------------------------------------------------------
   void UpdateIsSums();
 
   //----------------------------------------------------------------------------
-  //! Updates the valid address of a quota node from the filesystem view
+  //! Update ns quota node address referred to by current space quota
+  //!
+  //! @return true if update successful, otherwise false
+  //! @warning Caller needs to hold a read-lock on eosViewRWMutexo
   //----------------------------------------------------------------------------
   bool UpdateQuotaNodeAddress();
 
   //----------------------------------------------------------------------------
   //! Serialize index
   //----------------------------------------------------------------------------
-  unsigned long long Index(unsigned long tag, unsigned long id)
+  inline unsigned long long Index(unsigned long tag, unsigned long id)
   {
-    unsigned long long fulltag = tag;
-    fulltag <<= 32;
-    fulltag |= id;
-    return fulltag;
+    return ((tag << 32) | id);
   }
 
   //----------------------------------------------------------------------------
   //! Deserialize index
   //----------------------------------------------------------------------------
-  unsigned long UnIndex(unsigned long long reindex)
+  inline unsigned long UnIndex(unsigned long long reindex)
   {
     return (reindex >> 32) & 0xffffffff;
   }
 
   //----------------------------------------------------------------------------
-  //! Remove quota node
-  //----------------------------------------------------------------------------
-  void RemoveQuotaNode(std::string& msg, int& retc);
-
-  //----------------------------------------------------------------------------
-  //! Check if quota is enabled
+  //! Check if quota is enabled - needs a lock on the FsView
   //!
   //! @return true if quota enabled, otherwise false
+  //! @warning Caller needs to hold a read-lock on gFsView::ViewMutex
   //----------------------------------------------------------------------------
   bool IsEnabled();
 
   //----------------------------------------------------------------------------
   //! Remove quota
+  //!
+  //! @param tag quota type tag
+  //! @param uid uid/gid/project id
+  //!
+  //! @return true if quota deleted, false if quota not found
   //----------------------------------------------------------------------------
-  bool RmQuota(unsigned long tag, unsigned long id, bool lock = true);
-
-  //----------------------------------------------------------------------------
-  //! Reset quota
-  //----------------------------------------------------------------------------
-  void
-  ResetQuota(unsigned long tag, unsigned long id)
-  {
-    return SetQuota(tag, id, 0);
-  }
+  bool RmQuota(unsigned long tag, unsigned long id);
 
   //----------------------------------------------------------------------------
   //! Get current quota value as percentage of the available one
@@ -331,14 +300,13 @@ private:
   static const char* GetTagCategory(int tag);
 
   bool mEnabled; ///< true if space quota enabled, otherwise false
-  eos::IQuotaNode* mQuotaNode;
+  eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
   XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
   time_t mLastEnableCheck; ///< timestamp of the last check
   double mLayoutSizeFactor; ///< layout dependent size factor
   bool mDirtyTarget; ///< mark to recompute target values
 
-  //! One hash map for user view! depending on eQuota Tag id is either uid or gid!
-  //! The key is (eQuotaTag<<32) | id
+  //! Map for user view, depending on eQuota and uid/gid
   std::map<long long, unsigned long long> mMapIdQuota;
 };
 
@@ -361,34 +329,23 @@ public:
   //----------------------------------------------------------------------------
   //! Desstructor
   //----------------------------------------------------------------------------
-  ~Quota() { };
+  virtual ~Quota() { }
 
   //----------------------------------------------------------------------------
-  //! Get space quota object for exact path or create if doesn't exist
+  //! Check if space quota exists
   //!
-  //! @param cpath path
-  //! @param nocreate if true, don't try to create it
+  //! @param space quota space to search for
   //!
-  //! @return SpaceQuota object
+  //! @return true if space quota exists, otherwise false
   //----------------------------------------------------------------------------
-  static SpaceQuota* GetSpaceQuota(const char* cpath, bool nocreate = false);
+  static bool ExistsSpace(const std::string& space);
 
   //----------------------------------------------------------------------------
-  //! Get space quota node responsible for path looking for the most specific
-  //! match.
-  //!
-  //! @param cpath path
-  //!
-  //! @return SpaceQuota object
-  //----------------------------------------------------------------------------
-  static SpaceQuota* GetResponsibleSpaceQuota(const char* cpath);
-
-  //----------------------------------------------------------------------------
-  //! Check if there is a SpaceQuota responsible for the given path
+  //! Check if there is a quota node responsible for the given path
   //!
   //! @param path path for which a quota node is searched
   //!
-  //! @return true if SpaceQuota exists, otherwise false
+  //! @return true if quota node exists, otherwise false
   //----------------------------------------------------------------------------
   static bool ExistsResponsible(const std::string& path);
 
@@ -402,7 +359,7 @@ public:
   //!
   //----------------------------------------------------------------------------
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
-				 const char* path, long long& max_bytes,
+				 const std::string& path, long long& max_bytes,
 				 long long& free_bytes);
 
 
@@ -492,7 +449,7 @@ public:
   //!
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool RmSpaceQuota(const std::string& space, std::string& msg, int& retc);
+  static bool RmSpaceQuota(std::string& space, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Get group quota values for a particular space and id
@@ -536,8 +493,11 @@ public:
 		    long long desired_vol, unsigned int desired_inodes);
 
   //----------------------------------------------------------------------------
-  //! Callback function for the namespace implementation to calculate the size
-  //! a file occupies
+  //! Callback function to calculate how much pyhisical space a file occupies
+  //!
+  //! @param file file MD object
+  //!
+  //! @return physical size depending on file layout type
   //----------------------------------------------------------------------------
   static uint64_t MapSizeCB(const eos::IFileMD* file);
 
@@ -548,18 +508,6 @@ public:
   static void LoadNodes();
 
   //----------------------------------------------------------------------------
-  //! Inserts the current state of the quota nodes into SpaceQuota's
-  //----------------------------------------------------------------------------
-  static void NodesToSpaceQuota();
-
-  //----------------------------------------------------------------------------
-  //! Insert current state of a single quota node into a SpaceQuota
-  //!
-  //! @param path space quota path
-  //----------------------------------------------------------------------------
-  static void NodeToSpaceQuota(const char* name);
-
-  //----------------------------------------------------------------------------
   //! Clean-up all space quotas by deleting them and clearing the map
   //----------------------------------------------------------------------------
   static void CleanUp();
@@ -567,19 +515,121 @@ public:
   //----------------------------------------------------------------------------
   //! Print out quota information
   //----------------------------------------------------------------------------
-  static void PrintOut(const char* space, XrdOucString& output,
+  static void PrintOut(const std::string& space, XrdOucString& output,
 		       long uid_sel = -1, long gid_sel = -1,
 		       bool monitoring = false, bool translate_ids = false);
 
+  //----------------------------------------------------------------------------
+  //! Take the decision where to place a new file in the system. The core of the
+  //! implementation is in the Scheduler and GeoTreeEngine.
+  //!
+  //! @param space quota space name
+  //! @param path file path
+  //! @param vid virtual id of client
+  //! @param grouptag group tag for placement
+  //! @param lid layout to be placed
+  //! @param alreadyused_filsystems filesystems to avoid
+  //! @param selected_filesystems filesystems selected by scheduler
+  //! @param plctpolicy indicates if placement should be local/spread/hybrid
+  //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
+  //!                      should be placed
+  //! @param truncate indicates placement with truncation
+  //! @param forched_scheduling_group_index forced index for the scheduling
+  //!                      subgroup to be used
+  //! @param bookingsize size to book for the placement
+  //!
+  //! @return 0 if placement successful, otherwise a non-zero value
+  //!         ENOSPC - no space quota defined for current space
+  //!         EDQUOT - no quota node found or not enough quota to place
+  //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
+  //----------------------------------------------------------------------------
+  static
+  int FilePlacement(const std::string& space,
+		    const char* path,
+		    eos::common::Mapping::VirtualIdentity_t& vid,
+		    const char* grouptag,
+		    unsigned long lid,
+		    std::vector<unsigned int>& alreadyused_filesystems,
+		    std::vector<unsigned int>& selected_filesystems,
+		    Scheduler::tPlctPolicy plctpolicy,
+		    const std::string& plctTrgGeotag,
+		    bool truncate = false,
+		    int forced_scheduling_group_index = -1,
+		    unsigned long long bookingsize = 1024 * 1024 * 1024ll);
+
+  //----------------------------------------------------------------------------
+  //! Take the decision from where to access a file. The core of the
+  //! implementation is in the Scheduler and GeoTreeEngine.
+  //!
+  //! @param space quota space name
+  //! @param vid virutal id of the client
+  //! @param focedfsid forced filesystem for access
+  //! @param forcedspace forced space for access
+  //! @param tried_cgi cgi containing already tried hosts
+  //! @param lid layout fo the file
+  //! @param locationsfs filesystem ids where layout is stored
+  //! @param fsindex return index pointing to layout entry filesystem
+  //! @param isRW indicate pure read or rd/wr access
+  //! @param bookingsize size to book additionally for rd/wr access
+  //! @param unavailfs return filesystems currently unavailable
+  //! @param min_fsstatus define minimum filesystem state to allow fs selection
+  //! @param overridegeoloc override geolocation defined in the virtual id
+  //! @param noIO don't apply the penalty as this file access won't result in
+  //!             any IO
+  //!
+  //! @return 0 if successful, otherwise a non-zero value
+  //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
+  //----------------------------------------------------------------------------
+  static int FileAccess(const std::string& space,
+			eos::common::Mapping::VirtualIdentity_t& vid,
+			unsigned long forcedfsid,
+			const char* forcedspace,
+			std::string tried_cgi,
+			unsigned long lid,
+			std::vector<unsigned int>& locationsfs,
+			unsigned long& fsindex,
+			 bool isRW,
+			unsigned long long bookingsize,
+			std::vector<unsigned int>& unavailfs,
+			eos::common::FileSystem::fsstatus_t min_fsstatus =
+			eos::common::FileSystem::kDrain,
+			std::string overridegeoloc = "",
+			bool noIO = false);
+
   static gid_t gProjectId; ///< gid indicating project quota
-  static eos::common::RWMutex gQuotaMutex; ///< mutex to protect access to gQuota
+  static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota
 
 private:
 
+  //----------------------------------------------------------------------------
+  //! Get space quota object for exact path or create if doesn't exist
+  //!
+  //! @param path path of the space quota
+  //!
+  //! @return SpaceQuota object
+  //----------------------------------------------------------------------------
+  static SpaceQuota* GetSpaceQuota(const std::string& path);
 
+  //----------------------------------------------------------------------------
+  //! Get space quota node responsible for path looking for the most specific
+  //! match.
+  //!
+  //! @param path path for which we search for a responsible space quotap
+  //!
+  //! @return SpaceQuota object
+  //----------------------------------------------------------------------------
+  static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Create space quota
+  //!
+  //! @param path quota node path which needs to be '/' terminated
+  //----------------------------------------------------------------------------
+  static void CreateSpaceQuota(const std::string& path);
 
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
+
 };
 
 EOSMGMNAMESPACE_END
