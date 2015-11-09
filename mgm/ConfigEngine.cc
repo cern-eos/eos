@@ -1009,6 +1009,10 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     XrdOucString ugid = "";
     XrdOucString tag = "";
     space.assign(skey, 0, ugoffset - 1);
+
+    if (!space.endswith('/'))
+      space += '/';
+
     ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
     ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
     tag.assign(skey, tagoffset + 1);
@@ -1017,6 +1021,9 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 
     if (id > 0 || (ugid == "0"))
     {
+      // Create space quota
+      (void) Quota::CreateSpaceQuota(space.c_str());
+
       if (!Quota::ExistsSpace(space.c_str()))
       {
 	*err += "error: failed to get quota for space=";

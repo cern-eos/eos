@@ -94,7 +94,6 @@ SpaceQuota::SpaceQuota(const char* path):
     {
       try
       {
-	eos_static_info("register quota node for path=%s", path);
 	mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir);
       }
       catch (eos::MDException &e)

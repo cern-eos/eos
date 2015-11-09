@@ -332,6 +332,13 @@ public:
   virtual ~Quota() { }
 
   //----------------------------------------------------------------------------
+  //! Create space quota
+  //!
+  //! @param path quota node path which needs to be '/' terminated
+  //----------------------------------------------------------------------------
+  static void CreateSpaceQuota(const std::string& path);
+
+  //----------------------------------------------------------------------------
   //! Check if space quota exists
   //!
   //! @param space quota space to search for
@@ -619,13 +626,6 @@ private:
   //! @return SpaceQuota object
   //----------------------------------------------------------------------------
   static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
-
-  //----------------------------------------------------------------------------
-  //! Create space quota
-  //!
-  //! @param path quota node path which needs to be '/' terminated
-  //----------------------------------------------------------------------------
-  static void CreateSpaceQuota(const std::string& path);
 
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
