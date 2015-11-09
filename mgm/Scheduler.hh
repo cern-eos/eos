@@ -58,22 +58,26 @@ public:
   enum tPlctPolicy {kScattered, kHybrid, kGathered};
 
   //----------------------------------------------------------------------------
-  //! Write placement routine
+  //! Take the decision where to place a new file in the system.
   //!
-  //! @param path path to place
-  //! @param vid virtual id of the client
+  //! @param path file path
+  //! @param vid virtual id of client
   //! @param grouptag group tag for placement
   //! @param lid layout to be placed
-  //! @param alreadyused_filesystems filesystems to avoid
-  //! @param selected_filesystems return filesystems selected by the scheduler
-  //! @param plctpolicy type of placement local/spread/hybrid
-  //! @param plctTrgGeotag geotag where collocated stripes should be placed
+  //! @param alreadyused_filsystems filesystems to avoid
+  //! @param selected_filesystems filesystems selected by scheduler
+  //! @param plctpolicy indicates if placement should be local/spread/hybrid
+  //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
+  //!                      should be placed
   //! @param truncate indicates placement with truncation
-  //! @param forced_scheduling_group_index forced index for the scheduling
-  //!               group to be used
+  //! @param forched_scheduling_group_index forced index for the scheduling
+  //!                      subgroup to be used
   //! @param bookingsize size to book for the placement
   //!
-  //! @return
+  //! @return 0 if placement successful, otherwise a non-zero value
+  //!         ENOSPC - no space quota defined for current space
+  //!
+  //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   virtual int FilePlacement(const char* path,
 			    eos::common::Mapping::VirtualIdentity_t& vid,
@@ -88,7 +92,7 @@ public:
 			    unsigned long long bookingsize = 1024 * 1024 * 1024ll);
 
   //----------------------------------------------------------------------------
-  //! Read(/write) access routine
+  //! Take the decision from where to access a file.
   //!
   //! @param vid virutal id of the client
   //! @param focedfsid forced filesystem for access
@@ -105,7 +109,9 @@ public:
   //! @param noIO don't apply the penalty as this file access won't result in
   //!             any IO
   //!
-  //! @return
+  //! @return 0 if successful, otherwise a non-zero value
+  //!
+  //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   virtual int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 			 unsigned long forcedfsid,
@@ -130,8 +136,6 @@ protected:
   //! Points to the current scheduling group where to start scheduling =>
   //! std::string = <grouptag>|<uid>:<gid>
   std::map<std::string, FsGroup*> schedulingGroup;
-  //! Points to the current feilsystem where to start scheduling
-  std::map<std::string, eos::common::FileSystem::fsid_t> schedulingFileSystem;
 };
 
 EOSMGMNAMESPACE_END

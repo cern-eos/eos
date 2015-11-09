@@ -40,7 +40,7 @@ Scheduler::Scheduler() { }
 Scheduler::~Scheduler() { }
 
 //------------------------------------------------------------------------------
-// Write placement routine
+// Take the decision where to place a new file in the system
 //------------------------------------------------------------------------------
 int
 Scheduler::FilePlacement(const char* path,
@@ -117,7 +117,7 @@ Scheduler::FilePlacement(const char* path,
   std::vector<std::string> fsidsgeotags;
   std::vector<FsGroup*> groupsToTry;
 
-  // If there are preexisting replicas, check in which group they are located
+  // If there are pre-existing replicas, check in which group they are located
   // and chose the group where they are located the most
   if (!alreadyused_filesystems.empty())
   {
@@ -233,7 +233,7 @@ Scheduler::FilePlacement(const char* path,
 }
 
 //------------------------------------------------------------------------------
-// Read(/write) access routine
+// Take the decision from where to access a file
 //------------------------------------------------------------------------------
 int
 Scheduler::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
