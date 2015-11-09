@@ -42,8 +42,8 @@
  * The MGM code uses mainly three global mutexes given in the order they have
  * to be used:
  * - eos::common::RWMutexXXXLock lock(FsView::gFsView.ViewMutex)  : lock 1
- * - eos::common::RWMutexXXXLock lock(Quota::gQuotaMutex)         : lock 2
- * - eos::common::RWMutexXXXLock lock(gOFS->eosViewRWMutex)       : lock 3
+ * - eos::common::RWMutexXXXLock lock(gOFS->eosViewRWMutex)       : lock 2
+ * - eos::common::RWMutexXXXLock lock(Quota::pMapMutex)           : lock 3
  * The XXX is either Read or Write depending what has to be done on the
  * objects they are protecting. The first mutex is the file system view object
  * (FsView.cc) which contains the current state of the storage
@@ -343,8 +343,7 @@ public:
             eos::common::Mapping::VirtualIdentity &vid,
             const char *opaque = 0,
             bool simulate = false,
-            bool keepversion = false,
-            bool lock_quota = true);
+            bool keepversion = false);
 
   // ---------------------------------------------------------------------------
   // find files internal function

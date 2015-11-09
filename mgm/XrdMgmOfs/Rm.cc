@@ -83,8 +83,7 @@ XrdMgmOfs::_rem (const char *path,
                  eos::common::Mapping::VirtualIdentity &vid,
                  const char *ininfo,
                  bool simulate,
-                 bool keepversion, 
-		 bool lock_quota)
+                 bool keepversion)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -136,9 +135,6 @@ XrdMgmOfs::_rem (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  if (lock_quota) 
-    Quota::gQuotaMutex.LockRead();
-
   gOFS->eosViewRWMutex.LockWrite();
 
   // free the booked quota
@@ -188,8 +184,6 @@ XrdMgmOfs::_rem (const char *path,
     {
       errno = EPERM;
       gOFS->eosViewRWMutex.UnLockWrite();
-      if (lock_quota) 
-	Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
@@ -217,8 +211,6 @@ XrdMgmOfs::_rem (const char *path,
       {
         errno = EPERM;
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname, error, errno, "remove file", path);
       }
 
@@ -226,8 +218,6 @@ XrdMgmOfs::_rem (const char *path,
       if (acl.CanWriteOnce() && (fmd->getSize()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this is a write once user
         return Emsg(epname, error, EPERM, "remove existing file - you are write-once user");
@@ -239,8 +229,6 @@ XrdMgmOfs::_rem (const char *path,
 
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM, "remove existing file - ACL forbids file deletion");
@@ -249,8 +237,6 @@ XrdMgmOfs::_rem (const char *path,
       if ((!stdpermcheck) && (!acl.CanWrite()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this user is not allowed to write
         return Emsg(epname, error, EPERM, "remove existing file - you don't have write permissions");
@@ -276,20 +262,15 @@ XrdMgmOfs::_rem (const char *path,
         // ---------------------------------------------------------------------
         if (!simulate)
         {
-          eos::IQuotaNode* quotanode = 0;
           try
           {
-            quotanode = gOFS->eosView->getQuotaNode(container);
-            eos_info("got quotanode=%lld", (unsigned long long) quotanode);
-            if (quotanode)
-            {
-              quotanode->removeFile(fmd);
-            }
+            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container);
+            eos_info("got quot anode=%lld", (unsigned long long) ns_quota);
+
+            if (ns_quota)
+              ns_quota->removeFile(fmd);
           }
-          catch (eos::MDException &e)
-          {
-            quotanode = 0;
-          }
+          catch (eos::MDException &e) { }
         }
       }
     }
@@ -341,8 +322,6 @@ XrdMgmOfs::_rem (const char *path,
         // This is the very critical case where we have to reject the delete
         // since the recycle space is full
         errno = ENOSPC;
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname, error, ENOSPC, "remove existing file - the recycle "
 		    "space is full");
       }
@@ -358,19 +337,13 @@ XrdMgmOfs::_rem (const char *path,
                          fmd_cpy->getId());
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
-        {
-	  if (lock_quota) 
-	    Quota::gQuotaMutex.LockRead();
           return rc;
-        }
       }
     }
     else
     {
       // There is no quota defined on that recycle path
       errno = ENODEV;
-      if (lock_quota) 
-	Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname, error, ENODEV, "remove existing file - the recycle "
 		  "space has no quota configuration");
     }
@@ -402,16 +375,17 @@ XrdMgmOfs::_rem (const char *path,
     }
   }
 
-  if (lock_quota) 
-    Quota::gQuotaMutex.UnLockRead();
-
   EXEC_TIMING_END("Rm");
 
   if (errno)
+  {
     return Emsg(epname, error, errno, "remove", path);
+  }
   else
   {
-    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
+    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u "
+	     "vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid,
+	     vid.uid, vid.gid);
     return SFS_OK;
   }
 }

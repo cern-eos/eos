@@ -394,8 +394,8 @@ XrdMgmOfs::_rename (const char *old_name,
 	    newdir->addFile(file);
 	    eosView->updateFileStore(file);
 	    // Adjust the ns quota
-	    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir, true, false);
-	    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir, true, false);
+	    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir);
+	    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir);
 
 	    if (old_qnode)
 	      old_qnode->removeFile(file);
@@ -501,8 +501,8 @@ XrdMgmOfs::_rename (const char *old_name,
 		if (file)
 		{
 		  // Get quota nodes from file path and target directory
-		  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir, true, false);
-		  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir, true, false);
+		  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir);
+		  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir);
 
 		  if (old_qnode)
 		    old_qnode->removeFile(file);

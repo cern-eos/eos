@@ -125,14 +125,12 @@ ProcCommand::Quota ()
 
       bool monitor = false;
       bool translate = true;
+
       if (monitoring == "m")
-      {
 	monitor = true;
-      }
+
       if (printid == "n")
-      {
 	translate = false;
-      }
 
       XrdOucString out1 = "";
       XrdOucString out2 = "";
@@ -167,6 +165,13 @@ ProcCommand::Quota ()
 	XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
 	XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
 	XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
+
+	if (!space.length())
+	{
+	  stdErr = "error: command not properly formatted";
+	  retc = EINVAL;
+	  return SFS_OK;
+	}
 
 	if (uid_sel.length() && gid_sel.length())
 	{
@@ -263,6 +268,13 @@ ProcCommand::Quota ()
 	int errc;
 	XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
 	XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
+
+	if (!space.length())
+	{
+	  stdErr = "error: command not properly formatted";
+	  retc = EINVAL;
+	  return SFS_OK;
+	}
 
 	if (uid_sel.length() && gid_sel.length())
 	{

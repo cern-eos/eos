@@ -151,11 +151,8 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   // -----------------------------------------------------
   if (max_versions > 0)
   {
-    eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
     if (gOFS->PurgeVersion(vpath.c_str(), error, max_versions))
-    {
       return Emsg(epname, error, errno, "purge versions", path.c_str());
-    }
   }
 
   if (!simulate)
@@ -256,13 +253,13 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
         std::string deletionpath = path;
         deletionpath += "/";
         deletionpath += versions[i];
-        success |= gOFS->_rem(deletionpath.c_str(), error, rootvid, (const char*) 0, false, false, false); // we have the gQuotaMutex lock
+        success |= gOFS->_rem(deletionpath.c_str(), error, rootvid, (const char*) 0, false, false);
       }
     }
     if (max_versions == 0)
     {
       // remove also the version dir itself
-      success |= gOFS->_remdir(versiondir, error, vid, (const char*) 0, false, false); // we have the gQuotaMutex lock
+      success |= gOFS->_remdir(versiondir, error, vid, (const char*) 0, false);
     }
     if (success == SFS_OK)
       eos_info("dir=\"%s\" msg=\"purging ok\" old-versions=%d new-versions=%d", versiondir, versions.size(), max_versions);

@@ -665,8 +665,6 @@ ConfigEngine::ResetConfig ()
 
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
-  // fill the current accounting
-  Quota::NodesToSpaceQuota();
   configBroadcast = true;
 }
 
@@ -836,7 +834,7 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
     if (id > 0 || (ugid == "0"))
     {
       if (!Quota::RmQuotaForTag(space.c_str(), tag.c_str(), id))
-	eos_static_err("failed to remote quota %s for id=%ll", tag.c_str(), id);
+	eos_static_err("failed to remove quota %s for id=%ll", tag.c_str(), id);
     }
 
     return 0;
@@ -984,6 +982,7 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 
   if (skey.beginswith("quota:"))
   {
+    eos_static_info("skey=%s", skey.c_str());
     // set a quota definition
     skey.erase(0, 6);
     int spaceoffset = 0;
@@ -1018,7 +1017,13 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 
     if (id > 0 || (ugid == "0"))
     {
-      if (!Quota::SetQuotaForTag(space.c_str(), tag.c_str(), id, value))
+      if (!Quota::ExistsSpace(space.c_str()))
+      {
+	*err += "error: failed to get quota for space=";
+	*err += space.c_str();
+	eos_static_err("failed to get quota for space=%s", space.c_str());
+      }
+      else if (!Quota::SetQuotaForTag(space.c_str(), tag.c_str(), id, value))
       {
 	*err += "error: failed to set quota for id:";
 	*err += ugid;

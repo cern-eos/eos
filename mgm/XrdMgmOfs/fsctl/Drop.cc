@@ -48,7 +48,7 @@
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     eos::IFileMD* fmd = 0;
     eos::IContainerMD* container = 0;
-    eos::IQuotaNode* quotanode = 0;
+    eos::IQuotaNode* ns_quota = 0;
 
     try
     {
@@ -76,14 +76,14 @@
     {
       try
       {
-        quotanode = gOFS->eosView->getQuotaNode(container);
+        ns_quota = gOFS->eosView->getQuotaNode(container);
 
-        if (quotanode)
-          quotanode->removeFile(fmd);
+        if (ns_quota)
+          ns_quota->removeFile(fmd);
       }
       catch (eos::MDException &e)
       {
-        quotanode = 0;
+        ns_quota = 0;
       }
     }
 
@@ -132,18 +132,18 @@
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
           }
 
-          if (quotanode)
-            quotanode->addFile(fmd);
+          if (ns_quota)
+            ns_quota->addFile(fmd);
         }
 
         // Finally delete the record if all replicas are dropped
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
         {
-          if (quotanode)
+          if (ns_quota)
           {
             // If we were still attached to a container, we can now detach
             // and count the file as removed
-            quotanode->removeFile(fmd);
+            ns_quota->removeFile(fmd);
           }
 
           gOFS->eosView->removeFile(fmd);

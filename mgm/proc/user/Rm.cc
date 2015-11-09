@@ -216,7 +216,9 @@ ProcCommand::Rm ()
           }
           spath += "/";
 
-          eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(), pVid, buf.st_uid, buf.st_gid, (unsigned long long) buf.st_ino);
+          eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(),
+				     pVid, buf.st_uid, buf.st_gid,
+				     (unsigned long long) buf.st_ino);
           int rc = 0;
           if ((rc = lRecycle.ToGarbage("rm-r", *mError)))
           {

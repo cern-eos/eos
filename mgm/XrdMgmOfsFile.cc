@@ -777,7 +777,7 @@ XrdMgmOfsFile::open (const char *inpath,
       else
       {
         // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info, false, false, false))
+        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, info, false, false))
         {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
@@ -999,35 +999,15 @@ XrdMgmOfsFile::open (const char *inpath,
 
   unsigned long newlayoutId = 0;
   // select space and layout according to policies
-  Policy::GetLayoutAndSpace(path,
-                            attrmap,
-                            vid,
-                            newlayoutId,
-                            space,
-                            *openOpaque,
-                            forcedFsId,
-                            forcedGroup);
+  Policy::GetLayoutAndSpace(path, attrmap, vid, newlayoutId, space, *openOpaque,
+                            forcedFsId, forcedGroup);
 
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
   // get placement policy
-  Policy::GetPlctPolicy(path,
-                        attrmap,
-                        vid,
-                        *openOpaque,
-                        plctplcy,
-                        targetgeotag);
+  Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
 
-  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
-  eos::common::RWMutexReadLock lock(Quota::gQuotaMutex); // lock order 2
-
-  SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(), false);
-
-  if (!quotaspace)
-  {
-    gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
-    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
-  }
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
@@ -1117,21 +1097,21 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
+
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
 	  std::string uri = gOFS->eosView->getUri(fmd);
-	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
+	  eos::common::Path eos_path {uri.c_str()};
+	  std::string dir_path = eos_path.GetParentPath();
+	  eos::IContainerMD* dir = gOFS->eosView->getContainer(dir_path);
+	  // Get symlink free dir
+	  dir_path = gOFS->eosView->getUri(dir);
+	  dir = gOFS->eosView->getContainer(dir_path);
 
-	  if (space)
-	  {
-	    eos::IQuotaNode* quotanode = 0;
+	  eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir);
 
-	    quotanode = space->GetQuotaNode();
-	    if (quotanode)
-	    {
-	      quotanode->addFile(fmd);
-	    }
-	  }
+	  if (ns_quota)
+	    ns_quota->addFile(fmd);
         }
       }
       catch (eos::MDException &e)
@@ -1252,36 +1232,31 @@ XrdMgmOfsFile::open (const char *inpath,
   std::vector<unsigned int> unavailfs;
   // file systems which have been replaced with a new reconstructed stripe
   std::vector<unsigned int> replacedfs;
-
   std::vector<unsigned int>::const_iterator sfs;
 
   int retc = 0;
 
-  // ---------------------------------------------------------------------------
+  if (!Quota::ExistsSpace(space.c_str()))
+  {
+    gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
+  }
+
+  // Place a new file
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
   {
-    // -------------------------------------------------------------------------
-    // place a new file
-    // -------------------------------------------------------------------------
     const char* containertag = 0;
+
     if (attrmap.count("user.tag"))
-    {
       containertag = attrmap["user.tag"].c_str();
-    }
-    retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
-                                     selectedfs, selectedfs,
-                                     plctplcy,targetgeotag,
-                                     open_mode & SFS_O_TRUNC,
-                                     forcedGroup,
-                                     bookingsize);
+
+    retc = Quota::FilePlacement(space.c_str(), path, vid, containertag, layoutId,
+				selectedfs, selectedfs, plctplcy, targetgeotag,
+				open_mode & SFS_O_TRUNC, forcedGroup, bookingsize);
   }
   else
   {
-    // -------------------------------------------------------------------------
-    // access existing file
-    // -------------------------------------------------------------------------
-
-    // fill the vector with the existing locations
+    // Access existing file - fill the vector with the existing locations
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
     {
       int loc = fmd->getLocation(i);
@@ -1296,16 +1271,14 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, ENODEV, "open - no replica exists", path);
     }
 
-    // reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
-                                  selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
-                                  unavailfs);
+    // Reconstruction opens files in RW mode but we actually need RO mode in this case
+    retc = Quota::FileAccess(space.c_str(), vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
+			     selectedfs, fsIndex, isPioReconstruct ? false : isRW,
+			     fmd->getSize(), unavailfs);
 
     if (retc == EXDEV)
     {
-      // -----------------------------------------------------------------------
-      // indicating that the layout requires the replacement of stripes
-      // -----------------------------------------------------------------------
+      // Indicating that the layout requires the replacement of stripes
       retc = 0; // TODO: we currently don't support repair on the fly mode
     }
   }
@@ -1516,7 +1489,7 @@ XrdMgmOfsFile::open (const char *inpath,
         // ---------------------------------------------------------------------
         eos::common::Mapping::VirtualIdentity vidroot;
         eos::common::Mapping::Root(vidroot);
-        gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false, false);
+        gOFS->_rem(cPath.GetPath(), error, vidroot, 0, false, false);
       }
 
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
@@ -1718,10 +1691,8 @@ XrdMgmOfsFile::open (const char *inpath,
       // scheduled in the file placement routine
       // -----------------------------------------------------------------------
       unsigned long plainLayoutId = newlayoutId;
-      eos::common::LayoutId::SetStripeNumber(
-                                             plainLayoutId,
-                                             PioReconstructFsList.size() - 1
-                                             );
+      eos::common::LayoutId::SetStripeNumber(plainLayoutId,
+                                             PioReconstructFsList.size() - 1);
 
       // -----------------------------------------------------------------------
       // get the original placement group of the first fs to reconstruct
@@ -1783,11 +1754,10 @@ XrdMgmOfsFile::open (const char *inpath,
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
 
-      retc = quotaspace->FilePlacement(path, rootvid, containertag, plainLayoutId,
-                                       selectedfs, PioReplacementFsList,
-                                       plctplcy,targetgeotag,
-                                       false, forcedGroup,
-                                       plainBookingSize);
+      retc = Quota::FilePlacement(space.c_str(), path, rootvid, containertag,
+				  plainLayoutId, selectedfs, PioReplacementFsList,
+				  plctplcy, targetgeotag, false, forcedGroup,
+				  plainBookingSize);
 
       if (retc)
       {

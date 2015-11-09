@@ -364,11 +364,11 @@
 	  // Get symlink free dir
 	  dir_path = eosView->getUri(dir);
 	  dir = eosView->getContainer(dir_path);
-          eos::IQuotaNode* quotanode = eosView->getQuotaNode(dir, true, false);
+          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir);
 
 	  // Free previous quota
-          if (quotanode)
-	    quotanode->removeFile(fmd);
+          if (ns_quota)
+	    ns_quota->removeFile(fmd);
 
           fmd->addLocation(fsid);
 
@@ -396,8 +396,8 @@
             fmd->setSize(size);
           }
 
-          if (quotanode)
-            quotanode->addFile(fmd);
+          if (ns_quota)
+            ns_quota->addFile(fmd);
         }
 
         if (occhunk && commitsize)

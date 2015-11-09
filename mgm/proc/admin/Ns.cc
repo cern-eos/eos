@@ -104,14 +104,14 @@ ProcCommand::Ns ()
        if (FsView::gFsView.ViewMutex.GetTiming())
        {
          FsView::gFsView.ViewMutex.SetTiming(false);
-         Quota::gQuotaMutex.SetTiming(false);
+         Quota::pMapMutex.SetTiming(false);
          gOFS->eosViewRWMutex.SetTiming(false);
          stdOut += "mutex timing is off\n";
        }
        else
        {
          FsView::gFsView.ViewMutex.SetTiming(true);
-         Quota::gQuotaMutex.SetTiming(true);
+         Quota::pMapMutex.SetTiming(true);
          gOFS->eosViewRWMutex.SetTiming(true);
          stdOut += "mutex timing is on\n";
        }
@@ -136,7 +136,7 @@ ProcCommand::Ns ()
        if (smplrate10) rate = 0.1;
        if (smplrate100) rate = 1.0;
        FsView::gFsView.ViewMutex.SetSampling(true, rate);
-       Quota::gQuotaMutex.SetSampling(true, rate);
+       Quota::pMapMutex.SetSampling(true, rate);
        gOFS->eosViewRWMutex.SetSampling(true, rate);
      }
 

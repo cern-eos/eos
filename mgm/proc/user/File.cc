@@ -1128,36 +1128,33 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "adjustreplica")
     {
-      // -----------------------------------------------------------------------
-      // only root can do that
-      // -----------------------------------------------------------------------
+      // Only root can do this
       if (pVid->uid == 0)
       {
         eos::IFileMD* fmd = 0;
         bool nodrop = false;
+	XrdOucString file_option = pOpaque->Get("mgm.file.option");
 
-        if (pOpaque->Get("mgm.file.option") &&
-            (!strcmp(pOpaque->Get("mgm.file.option"), "nodrop")))
-        {
-          nodrop = true;
-        }
-        // ---------------------------------------------------------------------
-        // this flag indicates that the replicate command should queue
+	if (file_option == "nodrop")
+	  nodrop = true;
+
+        // This flag indicates that the replicate command should queue
         // this transfers on the head of the FST transfer lists
-        // ---------------------------------------------------------------------
-        XrdOucString sexpressflag = (pOpaque->Get("mgm.file.express"));
         bool expressflag = false;
-        if (sexpressflag == "1")
+        XrdOucString file_express = pOpaque->Get("mgm.file.express");
+
+        if (file_express == "1")
           expressflag = 1;
 
-        XrdOucString creationspace = pOpaque->Get("mgm.file.desiredspace");
         int icreationsubgroup = -1;
+        XrdOucString creationspace = pOpaque->Get("mgm.file.desiredspace");
 
         if (pOpaque->Get("mgm.file.desiredsubgroup"))
-        {
           icreationsubgroup = atoi(pOpaque->Get("mgm.file.desiredsubgroup"));
-        }
 
+	gOFS->eosViewRWMutex.LockRead();
+
+	// Reference by fid+fsid
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
         {
           unsigned long long fid = 0;
@@ -1166,15 +1163,13 @@ ProcCommand::File ()
             spath.replace("fid:", "");
             fid = strtoull(spath.c_str(), 0, 10);
           }
+
           if (spath.beginswith("fxid:"))
           {
             spath.replace("fxid:", "");
             fid = strtoull(spath.c_str(), 0, 16);
           }
 
-          // reference by fid+fsid
-          //-------------------------------------------
-          gOFS->eosViewRWMutex.LockRead();
           try
           {
             fmd = gOFS->eosFileService->getFileMD(fid);
@@ -1191,10 +1186,7 @@ ProcCommand::File ()
         }
         else
         {
-          // -------------------------------------------------------------------
-          // reference by path
-          // -------------------------------------------------------------------
-          gOFS->eosViewRWMutex.LockRead();
+          // Reference by path
           try
           {
             fmd = gOFS->eosView->getFile(spath.c_str());
@@ -1223,17 +1215,14 @@ ProcCommand::File ()
           gOFS->eosViewRWMutex.UnLockRead();
           //-------------------------------------------
 
-          // check if that is a replica layout at all
+          // Check if that is a replica layout at all
           if (eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
               eos::common::LayoutId::kReplica)
           {
-            // check the configured and available replicas
-
+            // Check the configured and available replicas
             XrdOucString sizestring;
-
             eos::IFileMD::LocationVector::const_iterator lociter;
-            int nreplayout =
-                    eos::common::LayoutId::GetStripeNumber(fmd_cpy->getLayoutId()) + 1;
+            int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd_cpy->getLayoutId()) + 1;
             int nrep = (int) fmd_cpy->getNumLocation();
             int nreponline = 0;
             int ngroupmix = 0;
@@ -1251,14 +1240,16 @@ ProcCommand::File ()
               eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
               FileSystem* filesystem = 0;
+
               if (FsView::gFsView.mIdView.count((int) *lociter))
                 filesystem = FsView::gFsView.mIdView[(int) *lociter];
+
               if (filesystem)
               {
                 eos::common::FileSystem::fs_snapshot_t snapshot;
                 filesystem->SnapShotFileSystem(snapshot, true);
 
-                // remember the spacename
+                // Remember the spacename
                 space = snapshot.mSpace.c_str();
 
                 if (!refspace.length())
@@ -1275,62 +1266,46 @@ ProcCommand::File ()
 
                 forcedsubgroup = snapshot.mGroupIndex;
 
-                if (
-                    (snapshot.mConfigStatus > eos::common::FileSystem::kDrain) &&
-                    (snapshot.mStatus == eos::common::FileSystem::kBooted)
-                    )
+                if ((snapshot.mConfigStatus > eos::common::FileSystem::kDrain) &&
+                    (snapshot.mStatus == eos::common::FileSystem::kBooted))
                 {
-                  // this is a good accessible one
+                  // This is an accessible replica
                   nreponline++;
                 }
               }
             }
 
             eos_debug("path=%s nrep=%lu nrep-layout=%lu nrep-online=%lu",
-                      spath.c_str(),
-                      nrep,
-                      nreplayout,
-                      nreponline);
+                      spath.c_str(), nrep, nreplayout, nreponline);
 
             if (nreplayout > nreponline)
             {
-              eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
-              eos::common::RWMutexReadLock lock(Quota::gQuotaMutex); // lock order 2
+              eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
 
-              // set the desired space & subgroup if provided
+              // Set the desired space & subgroup if provided
               if (creationspace.length())
-              {
                 space = creationspace;
-              }
 
               if (icreationsubgroup != -1)
-              {
                 forcedsubgroup = icreationsubgroup;
-              }
 
-              // if the space is explicitly set,
-              // we don't force into a particular subgroup
+              // If the space is explicitly set, we don't force into a
+	      // particular subgroup
               if (creationspace.length())
-              {
                 forcedsubgroup = -1;
-              }
 
-              // we don't have enough replica's online,
-              // we trigger asynchronous replication
-              int nnewreplicas = nreplayout - nreponline; // we have to create that much new replica
+              // We don't have enough replica's online - trigger
+	      // asynchronous replication
+              int nnewreplicas = nreplayout - nreponline;
 
               eos_debug("forcedsubgroup=%d icreationsubgroup=%d",
-                        forcedsubgroup,
-                        icreationsubgroup);
+                        forcedsubgroup, icreationsubgroup);
 
-              // get the location where we can read that file
-              SpaceQuota* quotaspace = Quota::GetSpaceQuota(space.c_str(), true);
+              // Get the location where we can read that file
               eos_debug("creating %d new replicas space=%s subgroup=%d",
-                        nnewreplicas,
-                        space.c_str(),
-                        forcedsubgroup);
+                        nnewreplicas, space.c_str(), forcedsubgroup);
 
-              if (!quotaspace)
+	      if (!Quota::ExistsSpace(space.c_str()))
               {
                 stdErr = "error: create new replicas => cannot get space: ";
                 stdErr += space;
@@ -1339,7 +1314,8 @@ ProcCommand::File ()
               }
               else
               {
-                unsigned long fsIndex; // this defines the fs to use in the selectefs vector
+		// This defines the fs to use in the selectedfs vector
+                unsigned long fsIndex;
 
                 // Fill the existing locations
                 std::vector<unsigned int> selectedfs;
@@ -1347,7 +1323,7 @@ ProcCommand::File ()
                 std::vector<unsigned int> sourcefs = fmd_cpy->getLocations();
                 std::string tried_cgi;
 
-                // now we just need to ask for <n> targets
+                // Now we just need to ask for <n> targets
                 int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
                                                             eos::common::LayoutId::kNone,
 							    nnewreplicas);
@@ -1356,54 +1332,41 @@ ProcCommand::File ()
                 gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0,attrmap);
                 eos::mgm::Scheduler::tPlctPolicy plctplcy;
                 std::string targetgeotag;
-                // get placement policy
-                Policy::GetPlctPolicy(spath.c_str(),
-                                      attrmap,
-                                      *pVid,
-                                      *pOpaque,
-                                      plctplcy,
-                                      targetgeotag);
+                // Get placement policy
+                Policy::GetPlctPolicy(spath.c_str(), attrmap, *pVid, *pOpaque,
+                                      plctplcy, targetgeotag);
 
                 // We don't know the container tag here, but we don't really
                 // care since we are scheduled as root
-                if (!(errno = quotaspace->FilePlacement(spath.c_str(),
-                                                        *pVid, 0,
-                                                        layoutId,
-                                                        sourcefs,
-                                                        selectedfs,
-                                                        plctplcy,targetgeotag,
-                                                        SFS_O_TRUNC,
-                                                        forcedsubgroup,
-                                                        fmd_cpy->getSize())))
+                if (!(errno = Quota::FilePlacement(space.c_str(), spath.c_str(),
+						   *pVid, 0, layoutId, sourcefs,
+						   selectedfs, plctplcy, targetgeotag,
+						   SFS_O_TRUNC, forcedsubgroup,
+						   fmd_cpy->getSize())))
                 {
-                  // yes we got a new replication vector
+                  // We got a new replication vector
                   for (unsigned int i = 0; i < selectedfs.size(); i++)
                   {
-                    if (!(errno = quotaspace->FileAccess(*pVid,
-                                                         (unsigned long) 0,
-                                                         space.c_str(),
-                                                         tried_cgi,
-                                                         (unsigned long) fmd_cpy->getLayoutId(),
-                                                         sourcefs,
-                                                         fsIndex,
-                                                         false,
-                                                         (long long unsigned) 0,
-                                                         unavailfs)))
+                    if (!(errno = Quota::FileAccess(space.c_str(), *pVid,
+						    (unsigned long) 0,
+						    space.c_str(),
+						    tried_cgi,
+						    (unsigned long) fmd_cpy->getLayoutId(),
+						    sourcefs,
+						    fsIndex,
+						    false,
+						    (long long unsigned) 0,
+						    unavailfs)))
                     {
-                      // this is now our source filesystem
+                      // This is now our source filesystem
                       unsigned int sourcefsid = sourcefs[fsIndex];
 
                       // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
                       // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
                       // Add replication here
-                      if (gOFS->_replicatestripe(fmd_cpy.get(),
-                                                 spath.c_str(),
-                                                 *mError,
-                                                 *pVid,
-                                                 sourcefsid,
-                                                 selectedfs[i],
-                                                 false,
-                                                 expressflag))
+                      if (gOFS->_replicatestripe(fmd_cpy.get(), spath.c_str(),
+                                                 *mError, *pVid, sourcefsid,
+                                                 selectedfs[i], false, expressflag))
                       {
                         stdErr += "error: unable to replicate stripe ";
                         stdErr += (int) sourcefsid;
@@ -1441,7 +1404,7 @@ ProcCommand::File ()
             }
             else
             {
-              // we do this only if we didn't create replicas in the if section before,
+              // we do this only if we didn't create replicas in the section before,
               // otherwise we remove replicas which have used before for new replications
 
               // this is magic code to adjust the number of replicas to the desired policy ;-)
@@ -1456,15 +1419,12 @@ ProcCommand::File ()
                 std::multimap <std::string /*schedgroup*/, int /*fsid*/> groupmap;
                 std::multimap <std::string /*space*/, int /*fsid*/> spacemap;
 
-                // we have too many replica's online, we drop (nrepoonline-nreplayout)
+                // We have too many replica's online, we drop (nrepoonline-nreplayout)
                 // replicas starting with the lowest configuration state
-
                 eos_debug("trying to drop %d replicas space=%s subgroup=%d",
-                          n2delete,
-                          creationspace.c_str(),
-                          icreationsubgroup);
+                          n2delete, creationspace.c_str(), icreationsubgroup);
 
-                // fill the views
+                // Fill the views
                 eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
                 for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                 {
@@ -1491,7 +1451,6 @@ ProcCommand::File ()
                     spacemap.insert(std::pair<std::string, int>(fs.mSpace, fsid));
                   }
                 }
-
 
                 if (!creationspace.length())
                 {
@@ -1656,34 +1615,29 @@ ProcCommand::File ()
           }
 	  else
 	  {
-	    // if this is a rain layout, we try to rewrite the file using the converter
-	    if ( (eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
-		  eos::common::LayoutId::kRaidDP) ||
-		 (eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
-		  eos::common::LayoutId::kArchive) ||
-		 (eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
-		  eos::common::LayoutId::kRaid6)
-		 ) 
+	    // This is a rain layout, we try to rewrite the file using the converter
+	    if ((eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+		 eos::common::LayoutId::kRaidDP) ||
+		(eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+		 eos::common::LayoutId::kArchive) ||
+		(eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+		 eos::common::LayoutId::kRaid6))
 	    {
 	      ProcCommand Cmd;
 	      // rewrite the file asynchronous using the converter
 	      XrdOucString option = pOpaque->Get("mgm.option");
-
-	      
 	      XrdOucString info;
 	      info += "&mgm.cmd=file&mgm.subcmd=convert&mgm.option=rewrite&mgm.path=";
 	      info += spath.c_str();
 	      retc = Cmd.open("/proc/user", info.c_str(), *pVid, mError);
 	      Cmd.AddOutput(stdOut, stdErr);
 	      Cmd.close();
-	      
 	      retc = Cmd.GetRetc();
 	    }
 	    else 
 	    {
 	      stdOut += "warning: no action for this layout type (neither replica nor rain)\n";
 	    }
-
 	  }
         }
         else

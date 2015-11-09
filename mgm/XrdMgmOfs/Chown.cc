@@ -121,7 +121,7 @@ XrdMgmOfs::_chown (const char *path,
       // Translate to path without symlinks
       std::string uri_cmd = eosView->getUri(cmd);
       cmd = eosView->getContainer(uri_cmd);
-      eos::IQuotaNode* quota_node = gOFS->eosView->getQuotaNode(cmd, true, false);
+      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd);
 
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4))
       {
@@ -132,8 +132,8 @@ XrdMgmOfs::_chown (const char *path,
         fmd = gOFS->eosView->getFile(path);
 
         // Substract the file
-        if (quota_node)
-          quota_node->removeFile(fmd);
+        if (ns_quota)
+          ns_quota->removeFile(fmd);
 
 	// Change the owner
 	if ( (unsigned int) uid != 0xffffffff) 
@@ -144,8 +144,8 @@ XrdMgmOfs::_chown (const char *path,
             fmd->setCGid(gid);
 
         // Re-add the file
-        if (quota_node)
-          quota_node->addFile(fmd);
+        if (ns_quota)
+          ns_quota->addFile(fmd);
 
         eosView->updateFileStore(fmd);
       }
