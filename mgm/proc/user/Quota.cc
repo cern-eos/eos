@@ -41,17 +41,20 @@ ProcCommand::Quota ()
   long id = 0;
   Quota::IdT id_type = Quota::IdT::kUid;
   Quota::Type quota_type = Quota::Type::kUnknown;
+  std::string space = "";
 
-  XrdOucString space = pOpaque->Get("mgm.quota.space");
+  if (pOpaque->Get("mgm.quota.space"))
+    space = pOpaque->Get("mgm.quota.space");
+
   gOFS->MgmStats.Add("Quota", pVid->uid, pVid->gid, 1);
 
-  if (space.length())
+  if (!space.empty())
   {
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf;
-    XrdOucString sspace = space;
-    if (!space.endswith("/"))
-      sspace += "/";
+    std::string sspace = space;
+    if (sspace[sspace.length() - 1] != '/')
+      sspace += '/';
 
     if (!gOFS->_stat(sspace.c_str(), &buf, *mError, *pVid, 0))
     {
@@ -74,10 +77,10 @@ ProcCommand::Quota ()
     XrdOucString out1 = "";
     XrdOucString out2 = "";
     if (!monitor) stdOut += "By user ...\n";
-    Quota::PrintOut(space.c_str(), out1, pVid->uid, -1, monitor, true);
+    Quota::PrintOut(space, out1, pVid->uid, -1, monitor, true);
     stdOut += out1;
     if (!monitor)stdOut += "By group ...\n";
-    Quota::PrintOut(space.c_str(), out2, -1, pVid->gid, monitor, true);
+    Quota::PrintOut(space, out2, -1, pVid->gid, monitor, true);
     stdOut += out2;
     mDoSort = false;
     return SFS_OK;
@@ -96,10 +99,10 @@ ProcCommand::Quota ()
     // figure out if the authenticated user is a quota admin
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     eos::IContainerMD::XAttrMap attrmap;
-    if (!space.beginswith("/"))
+    if (space[0] != '/')
     {
       // take the proc directory
-      space = gOFS->MgmProcPath;
+      space = gOFS->MgmProcPath.c_str();
     }
 
     // ACL and permission check
@@ -137,19 +140,19 @@ ProcCommand::Quota ()
 
       if ((!uid_sel.length() && (!gid_sel.length())))
       {
-	Quota::PrintOut(space.c_str(), stdOut, -1, -1, monitor, translate);
+	Quota::PrintOut(space, stdOut, -1, -1, monitor, translate);
       }
       else
       {
 	if (uid_sel.length())
 	{
-	  Quota::PrintOut(space.c_str(), out1, uid, -1, monitor, translate);
+	  Quota::PrintOut(space, out1, uid, -1, monitor, translate);
 	  stdOut += out1;
 	}
 
 	if (gid_sel.length())
 	{
-	  Quota::PrintOut(space.c_str(), out2, -1, gid, monitor, translate);
+	  Quota::PrintOut(space, out2, -1, gid, monitor, translate);
 	  stdOut += out2;
 	}
       }
@@ -166,7 +169,7 @@ ProcCommand::Quota ()
 	XrdOucString svolume = pOpaque->Get("mgm.quota.maxbytes");
 	XrdOucString sinodes = pOpaque->Get("mgm.quota.maxinodes");
 
-	if (!space.length())
+	if (space.empty())
 	{
 	  stdErr = "error: command not properly formatted";
 	  retc = EINVAL;
@@ -209,8 +212,8 @@ ProcCommand::Quota ()
 	else if (svolume.length())
 	{
 	  // Set volume quota
-	  if (Quota::SetQuotaTypeForId(std::string(space.c_str()), id, id_type,
-				       Quota::Type::kVolume, size, msg, retc))
+	  if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kVolume,
+				       size, msg, retc))
 	  {
 	    stdOut = msg.c_str();
 	  }
@@ -233,8 +236,8 @@ ProcCommand::Quota ()
 	else if (sinodes.length())
 	{
 	  // Set inode quota
-	  if (Quota::SetQuotaTypeForId(std::string(space.c_str()), id, id_type,
-				       Quota::Type::kInode, inodes, msg, retc))
+	  if (Quota::SetQuotaTypeForId(space, id, id_type, Quota::Type::kInode,
+				       inodes, msg, retc))
 	  {
 	    stdOut += msg.c_str();
 	  }
@@ -269,7 +272,7 @@ ProcCommand::Quota ()
 	XrdOucString uid_sel = pOpaque->Get("mgm.quota.uid");
 	XrdOucString gid_sel = pOpaque->Get("mgm.quota.gid");
 
-	if (!space.length())
+	if (space.empty())
 	{
 	  stdErr = "error: command not properly formatted";
 	  retc = EINVAL;
@@ -335,15 +338,14 @@ ProcCommand::Quota ()
 	}
 	else if (quota_type == Quota::Type::kAll)
 	{
-	  if (Quota::RmQuotaForId(std::string(space.c_str()), id, id_type, msg, retc))
+	  if (Quota::RmQuotaForId(space, id, id_type, msg, retc))
 	    stdOut = msg.c_str();
 	  else
 	    stdErr = msg.c_str();
 	}
 	else
 	{
-	  if (Quota::RmQuotaTypeForId(std::string(space.c_str()), id, id_type,
-				      quota_type, msg, retc))
+	  if (Quota::RmQuotaTypeForId(space, id, id_type, quota_type, msg, retc))
 	    stdOut = msg.c_str();
 	  else
 	    stdErr = msg.c_str();
