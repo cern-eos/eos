@@ -91,6 +91,8 @@ public:
     QUOTA_AVAIL = 0x0200,
     QUOTA_USED = 0x0400,
     GET_OCID = 0x0800, 
+    GET_OCSIZE = 0x1000,
+    GET_OCPERM = 0x2000,
     ALLPROP_MARKER = 0xf000
   };
 
@@ -186,6 +188,8 @@ public:
     else if (property == "quota-available-bytes") return QUOTA_AVAIL;
     else if (property == "quota-used-bytes") return QUOTA_USED;
     else if (property == "id") return GET_OCID;
+    else if (property == "size") return GET_OCSIZE;
+    else if (property == "permissions") return GET_OCPERM;
     else return NONE;
   }
 

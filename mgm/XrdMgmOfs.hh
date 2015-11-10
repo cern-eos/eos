@@ -531,6 +531,14 @@ public:
   int _access (const char*, int mode, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char*);
 
   // ---------------------------------------------------------------------------
+  // define access permissions by vid for a file/directory
+  // ---------------------------------------------------------------------------
+  int acc_access (const char*,
+                  XrdOucErrInfo&,
+                  eos::common::Mapping::VirtualIdentity &vid,
+                  std::string& accperm);
+
+  // ---------------------------------------------------------------------------
   // set utimes
   // ---------------------------------------------------------------------------
   int utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
