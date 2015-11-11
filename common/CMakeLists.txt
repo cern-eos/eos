@@ -155,7 +155,8 @@ else()
     ${CURL_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
 endif()
