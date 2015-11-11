@@ -28,6 +28,7 @@
 #include "namespace/MDException.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include <google/dense_hash_set>
+#include <set>
 
 EOSNSNAMESPACE_BEGIN
 
