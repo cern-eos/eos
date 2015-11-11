@@ -1572,7 +1572,6 @@ Quota::MapSizeCB(const eos::IFileMD* file)
 void
 Quota::LoadNodes()
 {
-  eos_static_info("Calling LoadNodes");
   std::vector<std::string> create_quota;
 
   // Load all known nodes
@@ -1593,7 +1592,8 @@ Quota::LoadNodes()
 	if (quota_path[quota_path.length() - 1] != '/')
 	  quota_path += '/';
 
-	create_quota.push_back(quota_path);
+	if (!ExistsSpace(quota_path))
+	  create_quota.push_back(quota_path);
       }
       catch (eos::MDException& e)
       {

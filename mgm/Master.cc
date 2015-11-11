@@ -2034,6 +2034,7 @@ Master::BootNamespace()
     else
       MasterLog(eos_notice("%s", (char*) "eos directory view configure started as slave"));
 
+    // TODO: this can be removed since the FS view is now in Redis
     gOFS->eosFileService->addChangeListener(gOFS->eosFsView);
 
     // This is only done for the ChangeLog implementation

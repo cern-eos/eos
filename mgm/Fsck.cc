@@ -575,8 +575,7 @@ Fsck::Check (void)
             {
               XrdSysMutexHelper lock(eMutex);
               eFsDark[nfsid] += filelist.size();
-              Log(false, "shadow fsid=%lu shadow_entries=%llu ", nfsid,
-                  filelist.size());
+              Log(false, "shadow fsid=%lu shadow_entries=%llu ", nfsid, filelist.size());
             }
           }
         }
