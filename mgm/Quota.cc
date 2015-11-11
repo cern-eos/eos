@@ -542,8 +542,8 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
     }
   }
 
-  std::vector<unsigned long> uids {set_uids.begin(), set_uids.end()};
-  std::vector<unsigned long> gids {set_gids.begin(), set_gids.end()};
+  std::vector<unsigned long> uids (set_uids.begin(), set_uids.end());
+  std::vector<unsigned long> gids (set_gids.begin(), set_gids.end());
 
   // Sort the uids and gids
   std::sort(uids.begin(), uids.end());
@@ -599,7 +599,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
     XrdOucString value5 = "";
     XrdOucString value6 = "";
     XrdOucString id = "";
-    id += std::to_string(uids[lid]).c_str();
+    id += std::to_string((long long unsigned int)uids[lid]).c_str();
 
     if (translate_ids)
     {
@@ -709,7 +709,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
     XrdOucString value5 = "";
     XrdOucString value6 = "";
     XrdOucString id = "";
-    id += std::to_string(gids[lid]).c_str();
+    id += std::to_string((long long unsigned int)gids[lid]).c_str();
 
     if (translate_ids)
     {
