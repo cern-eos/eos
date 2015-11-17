@@ -847,6 +847,7 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 
   // unlock, cleanup
   cleanup:
+  if(!success) newReplicas->clear();
   entry->doubleBufferMutex.UnLockRead();
   AtomicDec(entry->fastStructLockWaitersCount);
   if(existingReplicasIdx) delete existingReplicasIdx;
