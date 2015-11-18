@@ -93,7 +93,10 @@ com_ns (char* arg1)
       {
 	if ( (compacttype != "files") &&
 	     (compacttype != "directories") && 
-	     (compacttype != "all") )
+	     (compacttype != "all") && 
+	     (compacttype != "files-repair") && 
+	     (compacttype != "directories-repair") && 
+	     (compacttype != "all-repair") )
 	  goto com_ns_usage;
 
 	in += "&mgm.ns.compact.type=";
