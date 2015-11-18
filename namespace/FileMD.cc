@@ -298,6 +298,23 @@ namespace eos
     uint8_t size = pChecksum.getSize();
     buffer.putData( &size, sizeof( size ) );
     buffer.putData( pChecksum.getDataPtr(), size );
+
+    // may store xattr
+    if (pXAttrs.size())
+    {
+      uint16_t len = pXAttrs.size();
+      buffer.putData( &len, sizeof( len ) );
+      XAttrMap::iterator it;
+      for( it = pXAttrs.begin(); it != pXAttrs.end(); ++it )
+      {
+	uint16_t strLen = it->first.length()+1;
+	buffer.putData( &strLen, sizeof( strLen ) );
+	buffer.putData( it->first.c_str(), strLen );
+	strLen = it->second.length()+1;
+	buffer.putData( &strLen, sizeof( strLen ) );
+	buffer.putData( it->second.c_str(), strLen );
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -356,6 +373,26 @@ namespace eos
     offset = buffer.grabData( offset, &size, sizeof( size ) );
     pChecksum.resize( size );
     offset = buffer.grabData( offset, pChecksum.getDataPtr(), size );
+
+    if ( (buffer.size()-offset) >= 4)
+    {
+      // XAttr are optional
+      uint16_t len1 = 0;
+      uint16_t len2 = 0;
+      uint16_t len = 0;
+      offset = buffer.grabData( offset, &len, sizeof( len ) );
+
+      for( uint16_t i = 0; i < len; ++i )
+      {
+	offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
+	char strBuffer1[len1];
+	offset = buffer.grabData( offset, strBuffer1, len1 );
+	offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
+	char strBuffer2[len2];
+	offset = buffer.grabData( offset, strBuffer2, len2 );
+	pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
+      }
+    }
   };
 
   //------------------------------------------------------------------------                                                                                            
