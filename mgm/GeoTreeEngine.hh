@@ -146,23 +146,23 @@ class GeoTreeEngine : public eos::common::LogId
     FastStructures()
     {
       rOAccessTree = new FastROAccessTree;
-      rOAccessTree->selfAllocate(255);
+      rOAccessTree->selfAllocate(FastROAccessTree::sGetMaxNodeCount());
       rWAccessTree = new FastRWAccessTree;
-      rWAccessTree->selfAllocate(255);
+      rWAccessTree->selfAllocate(FastRWAccessTree::sGetMaxNodeCount());
       blcAccessTree = new FastBalancingAccessTree;
-      blcAccessTree->selfAllocate(255);
+      blcAccessTree->selfAllocate(FastBalancingAccessTree::sGetMaxNodeCount());
       drnAccessTree = new FastDrainingAccessTree;
-      drnAccessTree->selfAllocate(255);
+      drnAccessTree->selfAllocate(FastDrainingAccessTree::sGetMaxNodeCount());
       placementTree = new FastPlacementTree;
-      placementTree->selfAllocate(255);
+      placementTree->selfAllocate(FastPlacementTree::sGetMaxNodeCount());
       blcPlacementTree = new FastBalancingPlacementTree;
-      blcPlacementTree->selfAllocate(255);
+      blcPlacementTree->selfAllocate(FastBalancingPlacementTree::sGetMaxNodeCount());
       drnPlacementTree = new FastDrainingPlacementTree;
-      drnPlacementTree->selfAllocate(255);
+      drnPlacementTree->selfAllocate(FastDrainingPlacementTree::sGetMaxNodeCount());
 
       treeInfo = new SchedTreeBase::FastTreeInfo;
       penalties = new tPenaltiesVec;
-      penalties->reserve(255);
+      penalties->reserve(SchedTreeBase::sGetMaxNodeCount());
 
       rOAccessTree->pFs2Idx
       = rWAccessTree->pFs2Idx
@@ -183,10 +183,10 @@ class GeoTreeEngine : public eos::common::LogId
       = treeInfo;
 
       fs2TreeIdx = new Fs2TreeIdxMap;
-      fs2TreeIdx->selfAllocate(255);
+      fs2TreeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
 
       tag2NodeIdx = new GeoTag2NodeIdxMap;
-      tag2NodeIdx->selfAllocate(255);
+      tag2NodeIdx->selfAllocate(SchedTreeBase::sGetMaxNodeCount());
     }
 
     ~FastStructures()
@@ -383,7 +383,7 @@ class GeoTreeEngine : public eos::common::LogId
 	return false;
       }
       applyBranchDisablings(*entry);
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
 	stringstream ss;
 	ss << (*entry->backgroundFastStruct->placementTree);
@@ -398,7 +398,7 @@ class GeoTreeEngine : public eos::common::LogId
     {
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
 	stringstream ss;
 	ss << (*entry->backgroundFastStruct->placementTree);
@@ -529,6 +529,7 @@ protected:
   //
   /// Thread local buffer to hold a working copy of a fast structure
   static __thread void* tlGeoBuffer;
+  static pthread_key_t gPthreadKey;
   /// Current scheduling group for the current thread
   static __thread const FsGroup* tlCurrentGroup;
   //
@@ -565,7 +566,9 @@ protected:
   /// they are delayed so that any function that is using the treemapentry can safely finish
   std::list<TreeMapEntry*> pPendingDeletions;
   /// indicate if the updater is paused
+  static XrdSysSemaphore gUpdaterPauseSem;
   static bool gUpdaterPaused;
+  static bool gUpdaterStarted;
 //**********************************************************
 // END DATA MEMBERS
 //**********************************************************
@@ -600,6 +603,10 @@ protected:
 
     eos_debug("%d pending deletions executed",count);
   }
+
+  /// thread-local buffer management
+  static void tlFree( void *arg);
+  static char* tlAlloc( size_t size);
 
   inline void applyDlScorePenalty(TreeMapEntry *entry, const SchedTreeBase::tFastTreeIdx &idx, const char &penalty, bool background=false)
   {
@@ -656,7 +663,7 @@ protected:
                           );
       if(++count == (int)pCircSize)
       {
-        eos_warning("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
+        eos_debug("Last fs update for fs %d is older than older penalty : it could happen as a transition but should not happen permanently.",(int)fsid);
         break;
       }
     }
@@ -688,7 +695,7 @@ protected:
 
     bool updateNeeded = false;
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*placementTree);
@@ -696,7 +703,8 @@ protected:
     }
 
     // make a working copy of the required fast tree
-    if(!tlGeoBuffer) tlGeoBuffer = new char[gGeoBufferSize];// should store this and delete it in the destructor
+    // allocate the buffer only once for the lifetime of the thread
+    if(!tlGeoBuffer) tlGeoBuffer = tlAlloc(gGeoBufferSize);
 
     if(placementTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
     {
@@ -773,7 +781,7 @@ protected:
     }
 
     // do the placement
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*tree);
@@ -791,7 +799,7 @@ protected:
       SchedTreeBase::tFastTreeIdx startidx = (k<nNewReplicas-nAdjustCollocatedReplicas)?0:startFromNode;
       if(!tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, skipSaturated))
       {
-	if(skipSaturated) eos_notice("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
+	if(skipSaturated) eos_debug("Could not find any replica for placement while skipping saturated fs. Trying with saturated nodes included");
 	if( (!skipSaturated) || !tree->findFreeSlot(idx, startidx, true /*allow uproot if necessary*/, true, false) )
 	{
 	  eos_debug("could not find a new slot for a replica in the fast tree");
@@ -817,7 +825,7 @@ protected:
       bool skipSaturated=false)
   {
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*accessTree);
@@ -825,7 +833,8 @@ protected:
     }
 
     // make a working copy of the required fast tree
-    if(!tlGeoBuffer) tlGeoBuffer = new char[gGeoBufferSize];// should store this and delete it in the destructor
+    // allocate the buffer only once for the lifetime of the thread
+    if(!tlGeoBuffer) tlGeoBuffer = tlAlloc(gGeoBufferSize);
 
     if(accessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
     {
@@ -868,7 +877,7 @@ protected:
     }
 
     // do the access
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*tree);
@@ -882,10 +891,10 @@ protected:
       SchedTreeBase::tFastTreeIdx idx;
       if(!tree->findFreeSlot(idx,accesserNode,true,true,skipSaturated))
       {
-	if(skipSaturated) eos_notice("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
+	if(skipSaturated) eos_debug("Could not find any replica to access while skipping saturated fs. Trying with saturated nodes included");
 	if( (!skipSaturated) || !tree->findFreeSlot(idx, 0, false, true, false) )
 	{
-	  eos_err("could not find a new slot for a replica in the fast tree");
+	  eos_debug("could not find a new slot for a replica in the fast tree");
 	  return 0;
 	}
 	else retCode = 1;
@@ -1043,6 +1052,8 @@ public:
     pTreeMapMutex.SetBlocking(true);
     for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
       it->reserve(100);
+    // create the thread local key to handle allocation/destruction of thread local geobuffers
+    pthread_key_create(&gPthreadKey, GeoTreeEngine::tlFree);
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex::SetOrderCheckingGlobal(true);
@@ -1260,15 +1271,25 @@ public:
   //! Pause the updating of the GeoTreeEngine but keep accumulating
   //! modification notifications
   // ---------------------------------------------------------------------------
-  inline void PauseUpdater()
-  { gUpdaterPaused = true;}
+  inline static void PauseUpdater()
+  { if(gUpdaterStarted && !gUpdaterPaused) { gUpdaterPauseSem.Wait(); gUpdaterPaused = true; }}
 
   // ---------------------------------------------------------------------------
   //! Resume the updating of the GeoTreeEngine
   //! Process all the notifications accumulated since it was paused
   // ---------------------------------------------------------------------------
-  inline void ResumeUpdater()
-  { gUpdaterPaused = false;}
+  inline static void ResumeUpdater()
+  { if(gUpdaterStarted && gUpdaterPaused) { gUpdaterPauseSem.Post(); gUpdaterPaused = false; }}
+
+  // ---------------------------------------------------------------------------
+  //! Helper class to use Pausing the updater
+  // ---------------------------------------------------------------------------
+  class UpdaterPauser
+  {
+  public:
+    UpdaterPauser() { GeoTreeEngine::PauseUpdater(); }
+    ~UpdaterPauser() { GeoTreeEngine::ResumeUpdater(); }
+  };
 
   // ---------------------------------------------------------------------------
   //! Stop the background updater thread

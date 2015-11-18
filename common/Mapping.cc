@@ -1388,7 +1388,7 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
 
 /*----------------------------------------------------------------------------*/
 uid_t
-Mapping::UserNameToUid (std::string &username, int &errc)
+Mapping::UserNameToUid (const std::string &username, int &errc)
 {
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
@@ -1454,7 +1454,7 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 
 /*----------------------------------------------------------------------------*/
 gid_t
-Mapping::GroupNameToGid (std::string &groupname, int &errc)
+Mapping::GroupNameToGid (const std::string &groupname, int &errc)
 {
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);

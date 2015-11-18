@@ -326,7 +326,7 @@ extern "C"
   //! @param fd file descriptor
   //!
   //----------------------------------------------------------------------------
-  void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd);
+  void xrd_add_inodeuser_fd(unsigned long inode,  uid_t uid, gid_t gid, pid_t pid, int fd);
 
 
   //----------------------------------------------------------------------------
@@ -634,7 +634,7 @@ extern "C"
   int
   xrd_set_utimes_close(unsigned long long ino,
                        struct timespec* tvp,
-                       uid_t uid
+                       uid_t uid, gid_t gid, pid_t pid
                        );
 
   //----------------------------------------------------------------------------

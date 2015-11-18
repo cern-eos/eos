@@ -65,6 +65,7 @@ double entrycachetime = 5.0;
 double attrcachetime = 5.0;
 double readopentime = 5.0;
 
+extern int use_localtime_consistency;
 
 //------------------------------------------------------------------------------
 // Convenience macros to build strings in C ...
@@ -197,20 +198,16 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (to_set & FUSE_SET_ATTR_SIZE)
   {
-
-          xrd_truncate2 (fullpath, ino, attr->st_size,
-                              req->ctx.uid,
-                              req->ctx.gid,
-                              req->ctx.pid);
+    retc = xrd_truncate2 (fullpath, ino, attr->st_size, req->ctx.uid, req->ctx.gid, req->ctx.pid);
   }
 
   if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
   {
     struct timespec tvp[2];
-    tvp[0].tv_sec = attr->st_atime;
-    tvp[0].tv_nsec = 0;
-    tvp[1].tv_sec = attr->st_mtime;
-    tvp[1].tv_nsec = 0;
+    tvp[0].tv_sec = attr->st_atim.tv_sec;
+    tvp[0].tv_nsec = attr->st_atim.tv_nsec;
+    tvp[1].tv_sec = attr->st_mtim.tv_sec;
+    tvp[1].tv_nsec = attr->st_mtim.tv_nsec;
 
     if (isdebug)
     {
@@ -218,7 +215,7 @@ eosfs_ll_setattr (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
 
-    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid)) ) {
+    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid, req->ctx.gid, req->ctx.pid)) ) {
       retc = xrd_utimes (fullpath, tvp,
 			 req->ctx.uid,
 			 req->ctx.gid,
@@ -1632,12 +1629,29 @@ eosfs_ll_create(fuse_req_t req,
     e.entry_timeout = 0;
     e.ino = rinode;
     e.attr.st_mode = S_IFREG;
-    e.attr.st_atime = time(NULL);
-    e.attr.st_mtime = time(NULL);
-    e.attr.st_ctime = time(NULL);
     e.attr.st_uid = req->ctx.uid;
     e.attr.st_gid = req->ctx.gid;
     e.attr.st_dev = 0;
+    struct stat s;
+    if (use_localtime_consistency && !xrd_stat (fullpath, &s, req->ctx.uid, req->ctx.gid, req->ctx.pid, rinode))
+    {
+      e.attr.st_atime = s.st_mtime;
+      e.attr.st_mtime = s.st_mtime;
+      e.attr.st_ctime = s.st_mtime;
+      e.attr.st_atim = s.st_mtim;
+      e.attr.st_mtim = s.st_mtim;
+      e.attr.st_ctim = s.st_mtim;
+    }
+    else
+    {
+      if(use_localtime_consistency)
+        fprintf (stderr,"[%s]: error stating created file. time stamping with local time without ns",__FUNCTION__);
+
+      e.attr.st_atime = time (NULL);
+      e.attr.st_mtime = time (NULL);
+      e.attr.st_ctime = time (NULL);
+    }
+
     if (isdebug) fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
     if (!rinode)

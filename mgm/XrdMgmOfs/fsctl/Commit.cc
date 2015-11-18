@@ -175,9 +175,8 @@
 
     {
       // ---------------------------------------------------------------------
-      // keep the lock order View=>Quota=>Namespace
+      // keep the lock order View=>Namespace=>Quota
       // ---------------------------------------------------------------------
-      eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
       XrdOucString emsg = "";
       try
@@ -354,28 +353,29 @@
           }
         }
 
-        // -----------------------------------------------------------------
-        // for changing the modification time we have to figure out if we
+        // For changing the modification time we have to figure out if we
         // just attach a new replica or if we have a change of the contents
-        // -----------------------------------------------------------------
         bool isUpdate = false;
 
         {
-          SpaceQuota* space = Quota::GetResponsibleSpaceQuota(spath);
-          eos::IQuotaNode* quotanode = 0;
-          if (space)
-          {
-            quotanode = space->GetQuotaNode();
-            // free previous quota
-            if (quotanode)
-              quotanode->removeFile(fmd);
-          }
+	  eos::common::Path eos_path {spath};
+	  std::string dir_path = eos_path.GetParentPath();
+	  eos::IContainerMD* dir = eosView->getContainer(dir_path);
+	  // Get symlink free dir
+	  dir_path = eosView->getUri(dir);
+	  dir = eosView->getContainer(dir_path);
+          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir);
+
+	  // Free previous quota
+          if (ns_quota)
+	    ns_quota->removeFile(fmd);
+
           fmd->addLocation(fsid);
-          // if fsid is in the deletion list, we try to remove it if there is something in the deletion list
+
+	  // If fsid is in the deletion list, we try to remove it if there
+	  // is something in the deletion list
           if (fmd->getNumUnlinkedLocation())
-          {
-            fmd->removeLocation(fsid);
-          }
+	    fmd->removeLocation(fsid);
 
           if (dropfsid)
           {
@@ -389,16 +389,15 @@
 
             if ( (fmd->getSize() != size) || modified )
             {
-	      eos_thread_debug("size difference forces mtime %lld %lld or ismodified=%d", fmd->getSize(), size, modified);
+	      eos_thread_debug("size difference forces mtime %lld %lld or "
+			       "ismodified=%d", fmd->getSize(), size, modified);
               isUpdate = true;
             }
             fmd->setSize(size);
           }
 
-          if (quotanode)
-          {
-            quotanode->addFile(fmd);
-          }
+          if (ns_quota)
+            ns_quota->addFile(fmd);
         }
 
         if (occhunk && commitsize)

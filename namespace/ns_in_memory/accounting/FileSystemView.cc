@@ -151,48 +151,6 @@ namespace eos
   }
 
   //----------------------------------------------------------------------------
-  // Get a list of files registered in given fs
-  //----------------------------------------------------------------------------
-  std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
-  FileSystemView::getFiles( IFileMD::location_t location )
-  {
-    if( pFiles.size() <= location )
-    {
-      MDException e( ENOENT );
-      e.getMessage() << "Location does not exist" << std::endl;
-      throw( e );
-    }
-
-    return std::make_pair( pFiles[location].begin(), pFiles[location].end() );
-  }
-
-  //----------------------------------------------------------------------------
-  // Get a list of unlinked but not deleted files 
-  //----------------------------------------------------------------------------
-  std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
-  FileSystemView::getUnlinkedFiles( IFileMD::location_t location )
-  {
-    if( pUnlinkedFiles.size() <= location )
-    {
-      MDException e( ENOENT );
-      e.getMessage() << "Location does not exist" << std::endl;
-      throw( e );
-    }
-
-    return std::make_pair( pUnlinkedFiles[location].begin(),
-                           pUnlinkedFiles[location].end() );
-  }
-
-  //----------------------------------------------------------------------------
-  // Get files with no replicas
-  //----------------------------------------------------------------------------
-  std::pair<FileSystemView::FileIterator, FileSystemView::FileIterator>
-  FileSystemView::getNoReplicaFiles()
-  {
-    return std::make_pair( pNoReplicas.begin(), pNoReplicas.end() );
-  }
-
-  //----------------------------------------------------------------------------
   // Return reference to a list of files
   //----------------------------------------------------------------------------
   const FileSystemView::FileList &FileSystemView::getFileList(

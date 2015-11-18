@@ -147,7 +147,7 @@ XrdMqSharedObjectChangeNotifier::SubscribesToSubjectAndKey (const std::string &s
   Subscriber *s = GetSubscriberFromCatalog (subscriber);
   XrdSysMutexHelper lock (s->WatchMutex);
 
-  if (eos::common::Logging::gLogMask & LOG_DEBUG)
+  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     size_t bufsize = 0;
     for (auto it = subjects.begin (); it != subjects.end (); ++it)
@@ -404,7 +404,7 @@ XrdMqSharedObjectChangeNotifier::UnsubscribesToSubjectAndKey (const std::string 
 							      std::set<std::string> keys,
 							      XrdMqSharedObjectChangeNotifier::notification_t type)
 {
-  if (eos::common::Logging::gLogMask & LOG_DEBUG)
+  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     size_t bufsize = 0;
     for (auto it = subjects.begin (); it != subjects.end (); ++it)
@@ -625,7 +625,7 @@ XrdMqSharedObjectChangeNotifier::StartNotifySubjectsAndKeys (Subscriber *subscri
 							     XrdMqSharedObjectChangeNotifier::notification_t type)
 {
 
-  if (eos::common::Logging::gLogMask & LOG_DEBUG)
+  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     size_t bufsize = 0;
     for (auto it = subjects.begin (); it != subjects.end (); ++it)
@@ -763,7 +763,7 @@ XrdMqSharedObjectChangeNotifier::StopNotifySubjectsAndKeys (Subscriber *subscrib
 							    XrdMqSharedObjectChangeNotifier::notification_t type)
 {
 
-  if (eos::common::Logging::gLogMask & LOG_DEBUG)
+  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     size_t bufsize = 0;
     for (auto it = subjects.begin (); it != subjects.end (); ++it)

@@ -141,7 +141,11 @@ TestEnv::TestEnv()
   mMapParam.insert(std::make_pair("align7_resp_off", "20971520 20975616 20979712"));
   mMapParam.insert(std::make_pair("align7_resp_len", "4096 4096 4096"));
 
-
+  // Test set 8
+  mMapParam.insert(std::make_pair("align8_off", "10"));
+  mMapParam.insert(std::make_pair("align8_len", "1025"));
+  mMapParam.insert(std::make_pair("align8_resp_off", "0"));
+  mMapParam.insert(std::make_pair("align8_resp_len", "4096"));
 }
 
 

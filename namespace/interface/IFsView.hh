@@ -77,23 +77,6 @@ class IFsView: public IFileMDChangeListener
   virtual void finalize() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get a list of files registered in given fs
-  //----------------------------------------------------------------------------
-  virtual std::pair<FileIterator, FileIterator> getFiles(
-      IFileMD::location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get a list of unlinked but not deleted files
-  //----------------------------------------------------------------------------
-  virtual std::pair<FileIterator, FileIterator> getUnlinkedFiles(
-      IFileMD::location_t location) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get a list of unlinked but not deleted files
-  //----------------------------------------------------------------------------
-  virtual std::pair<FileIterator, FileIterator> getNoReplicaFiles() = 0;
-
-  //----------------------------------------------------------------------------
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------

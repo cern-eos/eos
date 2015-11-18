@@ -316,7 +316,7 @@ bool SlowTree::buildFastStrctures(
   }
 
   __EOSMGM_TREECOMMON_DBG1__
-  if(eos::common::Logging::gLogMask & LOG_INFO)
+  if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     stringstream ss;
     ss << (*this);
@@ -406,19 +406,22 @@ bool SlowTree::buildFastStrctures(
     firstnode=false;
   }
   // finish the placment tree
+  fpt->pNodeCount = pNodeCount;
   fpt->updateTree();
 
   //finish the RO access tree
   if( fpt->copyToFastTree(froat))
   { assert(false); return false;}
-  for(tFastTreeIdx i=0;i<froat->pMaxNodeCount;i++)
+  for(tFastTreeIdx i=0;i<froat->pNodeCount;i++)
   froat->pNodes[i].fileData.freeSlotsCount = 0;
+  froat->pNodeCount = pNodeCount;
   froat->updateTree();
   //finish the RW access tree
   if( fpt->copyToFastTree(frwat))
   { assert(false); return false;}
-  for(tFastTreeIdx i=0;i<frwat->pMaxNodeCount;i++)
+  for(tFastTreeIdx i=0;i<frwat->pNodeCount;i++)
   frwat->pNodes[i].fileData.freeSlotsCount = 0;
+  frwat->pNodeCount = pNodeCount;
   frwat->updateTree();
   // copy them to the other trees (balancing and draining)
   if( fpt->copyToFastTree(fbpt) )
@@ -535,7 +538,7 @@ bool SlowTree::buildFastStrctures(
   __EOSMGM_TREECOMMON_CHK2__
   fdat->checkConsistency(0,true);
 
-  __EOSMGM_TREECOMMON_DBG1__ if(eos::common::Logging::gLogMask & LOG_INFO)
+  __EOSMGM_TREECOMMON_DBG1__ if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     stringstream ss;
     ss << (*fpt);

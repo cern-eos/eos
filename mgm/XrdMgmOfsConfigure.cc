@@ -208,12 +208,12 @@ XrdMgmOfs::InitializeFileView()
           eosView->updateFileStore(fmd);
         }
 
-      {
-        XrdSysMutexHelper lock(InitializationMutex);
-        Initialized = kBooted;
-        eos_static_alert("msg=\"namespace booted (as master)\"");
+	{
+	  XrdSysMutexHelper lock(InitializationMutex);
+	  Initialized = kBooted;
+	  eos_static_alert("msg=\"namespace booted (as master)\"");
+	}
       }
-    }
     }
 
     if (!MgmMaster.IsMaster())
@@ -303,7 +303,6 @@ XrdMgmOfs::InitializeFileView()
 
   // Fill the current accounting and load all the quota nodes from the namespace
   Quota::LoadNodes();
-  Quota::NodesToSpaceQuota();
   return 0;
 }
 
@@ -1361,11 +1360,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Logging::SetUnit(unit.c_str());
   std::string filter =
     "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
+    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash,"
+    "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures";
   eos::common::Logging::SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
-             "RegisterNode,SharedHash");
+             "RegisterNode,SharedHash,"
+             "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures");
   // We automatically append the host name to the config dir now !!!
   MgmConfigDir += HostName;
   MgmConfigDir += "/";
@@ -1571,8 +1572,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos::common::Mapping::Init();
 
   // Initialize the master/slave class
-  // TODO: start the online compacting thread after we boot the namespace
-  // making sure the namespace supportes compacting
   if (!MgmMaster.Init())
     return 1;
 
@@ -1884,16 +1883,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   FsView::gFsView.ViewMutex.SetDebugName("FsView");
   FsView::gFsView.ViewMutex.SetTiming(false);
   FsView::gFsView.ViewMutex.SetSampling(true, 0.01);
-  Quota::gQuotaMutex.SetDebugName("QuotaView");
-  Quota::gQuotaMutex.SetTiming(false);
-  Quota::gQuotaMutex.SetSampling(true, 0.01);
+  Quota::pMapMutex.SetDebugName("QuotaView");
+  Quota::pMapMutex.SetTiming(false);
+  Quota::pMapMutex.SetSampling(true, 0.01);
   eosViewRWMutex.SetDebugName("eosView");
   eosViewRWMutex.SetTiming(false);
   eosViewRWMutex.SetSampling(true, 0.01);
   std::vector<eos::common::RWMutex*> order;
   order.push_back(&FsView::gFsView.ViewMutex);
-  order.push_back(&Quota::gQuotaMutex);
   order.push_back(&eosViewRWMutex);
+  order.push_back(&Quota::pMapMutex);
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
   eos_info("starting statistics thread");
@@ -1929,14 +1928,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   {
     eos_crit("cannot intialize transfer database");
     NoGo = 1;
-  }
-
-  // Create the 'default' quota space which is needed if quota is disabled!
-  {
-    eos::common::RWMutexReadLock qLock(Quota::gQuotaMutex);
-
-    if (!Quota::GetSpaceQuota("default"))
-      eos_crit("failed to get default quota space");
   }
 
   // Start the Httpd if available

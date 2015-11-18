@@ -52,7 +52,10 @@ set(EOS_NS_MEMORY_SRCS
 
   views/HierarchicalView.cc     views/HierarchicalView.hh
   accounting/QuotaStats.cc      accounting/QuotaStats.hh
-  accounting/FileSystemView.cc  accounting/FileSystemView.hh)
+  accounting/FileSystemView.cc  accounting/FileSystemView.hh
+
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 #-------------------------------------------------------------------------------
 # EosNsInMemory library
@@ -65,16 +68,10 @@ target_link_libraries(
   EosNsInMemory
   EosNsCommon
   ${Z_LIBRARY}
+  ${UUID_LIBRARIES}
   ${XROOTD_UTILS_LIBRARY}
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-set_target_properties(
-  EosNsInMemory
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES "")
 
 #-------------------------------------------------------------------------------
 # EosNsInMemory-Static library
@@ -89,6 +86,7 @@ if (Linux)
   target_link_libraries(
     EosNsInMemory-Static
     EosNsCommon-Static
+    ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})

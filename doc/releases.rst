@@ -9,11 +9,6 @@ Releases
 .. toctree::
    :maxdepth: 1
 
-   releases/amber
-   releases/beryl
-   releases/citrine
-   releases/diamond
-
 .. epigraph::
 
    ================================= =================== =================== =================================

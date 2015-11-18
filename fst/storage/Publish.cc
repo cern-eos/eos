@@ -234,8 +234,12 @@ Storage::Publish ()
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = now;
               XrdSysMutexHelper ISLock(fileSystemsVector[i]->InconsistencyStatsMutex);
-              gFmdDbMapHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
-              for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++)
+              gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
+                 *fileSystemsVector[i]->GetInconsistencyStats(),
+                 *fileSystemsVector[i]->GetInconsistencySets());
+
+              for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin();
+                   isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++)
               {
                 //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
                 std::string sname = "stat.fsck.";

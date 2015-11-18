@@ -320,7 +320,7 @@ void
 FileTest::AlignBufferTest()
 {
   using namespace eos::fst;
-  int num_datasets = 8;
+  int num_datasets = 9;
   char* ptr_off, *ptr_len;
   size_t len_req;
   off_t off_req;
