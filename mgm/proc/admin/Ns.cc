@@ -483,9 +483,9 @@ ProcCommand::Ns ()
 	   if ( ( type != "files") &&
 		( type != "directories") &&
 		( type != "all") &&
-		( type != "files") &&
-		( type != "directories") &&
-		( type != "all") )
+		( type != "files-repair") &&
+		( type != "directories-repair") &&
+		( type != "all-repair") )
            {
 	     retc = EINVAL;
 	     stdErr += "error: invalid arguments specified - type must be 'files','files-repair','directories','directories-repair' or 'all','all-repair'\n";
