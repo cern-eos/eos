@@ -36,9 +36,9 @@ XrdMgmOfs::attr_ls (const char *inpath,
                     eos::ContainerMD::XAttrMap & map)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief list extended attributes for a given directory
+ * @brief list extended attributes for a given file/directory
  *
- * @param inpath directory name to list attributes
+ * @param inpath file/directory name to list attributes
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
@@ -85,9 +85,9 @@ XrdMgmOfs::attr_set (const char *inpath,
                      const char *value)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief set an extended attribute for a given directory to key=value
+ * @brief set an extended attribute for a given file/directory to key=value
  *
- * @param inpath directory name to set attribute
+ * @param inpath file/directory name to set attribute
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
@@ -134,9 +134,9 @@ XrdMgmOfs::attr_get (const char *inpath,
                      XrdOucString & value)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief get an extended attribute for a given directory by key
+ * @brief get an extended attribute for a given file/directory by key
  *
- * @param inpath directory name to get attribute
+ * @param inpath file/directory name to get attribute
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
@@ -183,9 +183,9 @@ XrdMgmOfs::attr_rem (const char *inpath,
                      const char *key)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief delete an extended attribute for a given directory by key
+ * @brief delete an extended attribute for a given file/directory by key
  *
- * @param inpath directory name to delete attribute
+ * @param inpath file/directory name to delete attribute
  * @param error error object
  * @param client XRootD authentication object
  * @param ininfo CGI
@@ -233,9 +233,9 @@ XrdMgmOfs::_attr_ls (const char *path,
                      bool links)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief list extended attributes for a given directory
+ * @brief list extended attributes for a given file/directory
  *
- * @param path directory name to list attributes
+ * @param path file/directory name to list attributes
  * @param error error object
  * @param vid virtual identity of the client
  * @param info CGI
@@ -249,6 +249,7 @@ XrdMgmOfs::_attr_ls (const char *path,
 {
   static const char *epname = "attr_ls";
   eos::ContainerMD *dh = 0;
+  eos::FileMD *fmd = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrLs");
@@ -273,6 +274,26 @@ XrdMgmOfs::_attr_ls (const char *path,
     dh = 0;
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  if (!dh)
+  {
+    try
+    {
+      fmd = gOFS->eosView->getFile(path);
+      eos::FileMD::XAttrMap::const_iterator it;
+      for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it)
+      {
+	map[it->first] = it->second;
+      }
+      errno = 0;
+    }
+    catch (eos::MDException &e)
+    {
+      fmd = 0;
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+    }
   }
 
   // check for attribute references
@@ -339,6 +360,8 @@ XrdMgmOfs::_attr_set (const char *path,
 {
   static const char *epname = "attr_set";
   eos::ContainerMD *dh = 0;
+  eos::FileMD *fmd = 0;
+
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrSet");
@@ -399,6 +422,40 @@ XrdMgmOfs::_attr_set (const char *path,
               e.getErrno(), e.getMessage().str().c_str());
   }
 
+  if (!dh)
+  {
+    try
+    {
+      fmd = gOFS->eosView->getFile(path);
+      XrdOucString Key = key;
+      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+	errno = EPERM;
+      else
+      {
+	// check permissions in case of user attributes
+	if (fmd && Key.beginswith("user.") && (vid.uid != fmd->getCUid())
+	    && (!vid.sudoer))
+	{
+	  errno = EPERM;
+	}
+	else
+	{
+	  fmd->setAttribute(key, value);
+	  fmd->setMTimeNow();
+	  eosView->updateFileStore(fmd);
+	  errno = 0;
+	}
+      }
+    }
+    catch (eos::MDException &e)
+    {
+      fmd = 0;
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
   EXEC_TIMING_END("AttrSet");
 
   if (errno)
@@ -435,6 +492,7 @@ XrdMgmOfs::_attr_get (const char *path,
 {
   static const char *epname = "attr_get";
   eos::ContainerMD *dh = 0;
+  eos::FileMD *fmd = 0;
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrGet");
@@ -481,6 +539,22 @@ XrdMgmOfs::_attr_get (const char *path,
     }
   }
 
+  if (!dh)
+  {
+    try
+    {
+      fmd = gOFS->eosView->getFile(path);
+      value = (fmd->getAttribute(key)).c_str();
+      errno = 0;
+    }
+    catch (eos::MDException &e)
+    {
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
   if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
 
   EXEC_TIMING_END("AttrGet");
@@ -501,7 +575,7 @@ XrdMgmOfs::_attr_rem (const char *path,
                       const char *key)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief delete an extended attribute for a given directory by key
+ * @brief delete an extended attribute for a given file/directory by key
  *
  * @param path directory name to set attribute
  * @param error error object
@@ -518,6 +592,8 @@ XrdMgmOfs::_attr_rem (const char *path,
 {
   static const char *epname = "attr_rm";
   eos::ContainerMD *dh = 0;
+  eos::FileMD *fmd = 0;
+
   errno = 0;
 
   EXEC_TIMING_BEGIN("AttrRm");
@@ -537,14 +613,22 @@ XrdMgmOfs::_attr_rem (const char *path,
       errno = EPERM;
     else
     {
-      if (dh->hasAttribute(key))
+      // TODO: REVIEW: check permissions
+      if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
       {
-        dh->removeAttribute(key);
-        eosView->updateContainerStore(dh);
+	errno = EPERM;
       }
       else
       {
-        errno = ENODATA;
+	if (dh->hasAttribute(key))
+	{
+	  dh->removeAttribute(key);
+	  eosView->updateContainerStore(dh);
+	}
+	else
+	{
+	  errno = ENODATA;
+	}
       }
     }
   }
@@ -554,9 +638,46 @@ XrdMgmOfs::_attr_rem (const char *path,
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
-  // check permissions
-  if (dh && (!dh->access(vid.uid, vid.gid, X_OK | R_OK)))
-    if (!errno) errno = EPERM;
+
+  if (!dh)
+  {
+    try 
+    {
+      fmd = gOFS->eosView->getFile(path);
+      XrdOucString Key = key;
+      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+	errno = EPERM;
+      else
+      {
+	// check permissions
+	if (vid.uid && (fmd->getCUid() != vid.uid))
+	{
+	  // TODO: REVIEW: only owner can set file attributes
+	  errno = EPERM;
+	}
+	else
+	{
+	  if (fmd->hasAttribute(key))
+	  {
+	    fmd->removeAttribute(key);
+	    eosView->updateFileStore(fmd);
+	    errno = 0;
+	  }
+	  else
+	  {
+	    errno = ENODATA;
+	  }
+	}
+      }
+    }
+    catch (eos::MDException &e)
+    {
+      dh = 0;
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+    }
+  }
+
 
   EXEC_TIMING_END("AttrRm");
 
@@ -574,7 +695,7 @@ XrdMgmOfs::_attr_clear (const char *path,
                         const char *info)
 /*----------------------------------------------------------------------------*/
 /*
- * @brief clear all  extended attribute for a given directory
+ * @brief clear all  extended attribute for a given file/directory
  *
  * @param path directory name to set attribute
  * @param error error object

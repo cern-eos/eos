@@ -69,9 +69,6 @@
             response += "&";
           }
           response += "\0";
-          while (response.replace("user.", "tmp."))
-          {
-          }
           while (response.replace("tmp.", "user.eos."))
           {
           }
@@ -87,7 +84,6 @@
         XrdOucString value;
         XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
-        key.replace("user.eos.", "user.");
         int rc = gOFS->attr_get(spath.c_str(), error, client,
                                 (const char*) 0, key.c_str(), value);
 
@@ -108,7 +104,6 @@
         XrdOucString key = env.Get("mgm.xattrname");
         XrdOucString value = env.Get("mgm.xattrvalue");
         key.replace("user.admin.", "sys.");
-        key.replace("user.eos.", "user.");
         int rc = gOFS->attr_set(spath.c_str(), error, client,
                                 (const char *) 0, key.c_str(), value.c_str());
 
@@ -122,7 +117,6 @@
       { // rmxattr
         XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
-        key.replace("user.eos.", "user.");
         int rc = gOFS->attr_rem(spath.c_str(), error, client,
                                 (const char *) 0, key.c_str());
 
@@ -137,8 +131,11 @@
   else if (!retc && S_ISREG(buf.st_mode))
   { //extended attributes for files
 
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     eos::FileMD* fmd = 0;
+
+    // ---------------------------------------------------->
+    gOFS->eosViewRWMutex.LockRead();
+
     try
     {
       fmd = gOFS->eosView->getFile(spath.c_str());
@@ -147,7 +144,16 @@
     {
       eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                        e.getErrno(), e.getMessage().str().c_str());
+      XrdOucString response = "setxattr: retc=2"; //error ENOENT
+      error.setErrInfo(response.length() + 1, response.c_str());
+      gOFS->eosViewRWMutex.UnLockRead();
+      return SFS_DATA;
     }
+
+    eos::FileMD fmdCopy(*fmd);
+    fmd = &fmdCopy;
+    gOFS->eosViewRWMutex.UnLockRead();
+    // <----------------------------------------------------
 
     if ((sub_cmd = env.Get("mgm.subcmd")))
     {
@@ -158,7 +164,22 @@
 
       if (subcmd == "ls")
       { //listxattr
-        response = "lsxattr: retc=0 ";
+	eos::ContainerMD::XAttrMap map;
+        int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
+
+        XrdOucString response = "lsxattr: retc=";
+        response += rc;
+        response += " ";
+        if (rc == SFS_OK)
+        {
+          for (std::map<std::string,
+                  std::string>::iterator iter = map.begin();
+                  iter != map.end(); iter++)
+          {
+            response += iter->first.c_str();
+            response += "&";
+          }
+        }
         response += "user.eos.cid";
         response += "&";
         response += "user.eos.fid";
@@ -169,6 +190,7 @@
         response += "&";
         response += "user.eos.XS";
         response += "&";
+	response += "\0";
         error.setErrInfo(response.length() + 1, response.c_str());
       }
       else if (subcmd == "get")
@@ -221,19 +243,60 @@
           response += "value=";
           response += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
         }
-        else
-          response += "1 ";
+	else 
+	{
+	  XrdOucString value;
+	  XrdOucString key = env.Get("mgm.xattrname");
+	  key.replace("user.admin.", "sys.");
+	  int rc = gOFS->attr_get(spath.c_str(), error, client,
+				  (const char*) 0, key.c_str(), value);
+	  
+	  response = "getxattr: retc=";
+	  response += rc;
+	  
+	  if (rc == SFS_OK)
+	  {
+	    response += " value=";
+	    response += value;
+	  }
+	}
 
         error.setErrInfo(response.length() + 1, response.c_str());
       }
       else if (subcmd == "rm")
       { //rmxattr
-        response = "rmxattr: retc=38"; //error ENOSYS
+	XrdOucString key = env.Get("mgm.xattrname");
+        key.replace("user.admin.", "sys.");
+        int rc = gOFS->attr_rem(spath.c_str(), error, client,
+                                (const char *) 0, key.c_str());
+
+        XrdOucString response = "rmxattr: retc=";
+        response += rc;
+
         error.setErrInfo(response.length() + 1, response.c_str());
       }
       else if (subcmd == "set")
       { //setxattr
-        response = "setxattr: retc=38"; //error ENOSYS
+	if ( ( key == "user.eos.cid" ) ||
+	     ( key == "user.eos.fid") ||
+	     ( key == "user.eos.lid") ||
+	     ( key == "user.eos.XStype") ||
+	     ( key == "user.eos.XS")  )
+	{
+	  response = "setxattr: retc=38"; //error ENOSYS
+	  error.setErrInfo(response.length() + 1, response.c_str());
+	  return SFS_DATA;
+	}
+	  
+	XrdOucString key = env.Get("mgm.xattrname");
+        XrdOucString value = env.Get("mgm.xattrvalue");
+        key.replace("user.admin.", "sys.");
+        int rc = gOFS->attr_set(spath.c_str(), error, client,
+                                (const char *) 0, key.c_str(), value.c_str());
+
+        response = "setxattr: retc=";
+        response += rc;
+	fprintf(stderr,"return: %s\n", response.c_str());
         error.setErrInfo(response.length() + 1, response.c_str());
       }
 

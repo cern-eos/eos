@@ -101,9 +101,9 @@ ProcCommand::Attr ()
 
             if ( (mSubCmd == "ls") )
             {
-	      if (gOFS->_access(foundit->first.c_str(),R_OK|X_OK, *mError, *pVid,0))
+	      if (gOFS->_access(foundit->first.c_str(),R_OK, *mError, *pVid,0))
 	      {
-                stdErr += "error: unable to browse directory ";
+                stdErr += "error: unable to get attributues  ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
 		return SFS_OK;
@@ -112,7 +112,7 @@ ProcCommand::Attr ()
               XrdOucString partialStdOut = "";
               if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, true))
               {
-                stdErr += "error: unable to list attributes in directory ";
+                stdErr += "error: unable to list attributes of ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
@@ -152,7 +152,7 @@ ProcCommand::Attr ()
                                                    (const char*) 0,
                                                    "sys.eval.useracl",evalacl))
 		{
-                  stdErr += "error: unable to set user.acl - the directory does not "
+                  stdErr += "error: unable to set user.acl - the file/directory does not "
                       "evaluate user acls (sys.eval.useracl is undefined)!\n";
 		  retc = EINVAL;
 		  return SFS_OK;
@@ -161,7 +161,7 @@ ProcCommand::Attr ()
 
               if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val.c_str()))
               {
-                stdErr += "error: unable to set attribute in directory ";
+                stdErr += "error: unable to set attribute in file/directory ";
                 stdErr += foundit->first.c_str();
                 if (mError != 0)
                 {
@@ -186,7 +186,7 @@ ProcCommand::Attr ()
             {
 	      if (gOFS->_access(foundit->first.c_str(),R_OK, *mError, *pVid,0))
 	      {
-                stdErr += "error: unable to browse directory ";
+                stdErr += "error: unable to get attributes of ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
 		return SFS_OK;
