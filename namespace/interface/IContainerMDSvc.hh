@@ -123,6 +123,12 @@ class IContainerMDSvc
   //----------------------------------------------------------------------------
   virtual void setQuotaStats(IQuotaStats* quota_stats) = 0;
 
+  //------------------------------------------------------------------------
+  //! Notify all subscribed listener
+  //------------------------------------------------------------------------
+  virtual void notifyListeners( IContainerMD *obj,
+                                IContainerMDChangeListener::Action a  ) = 0;
+
 };
 
 EOSNSNAMESPACE_END
