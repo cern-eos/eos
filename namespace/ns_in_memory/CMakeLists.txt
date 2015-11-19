@@ -73,13 +73,6 @@ target_link_libraries(
   ${GLIBC_RT_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-set_target_properties(
-  EosNsInMemory
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES "")
-
 #-------------------------------------------------------------------------------
 # EosNsInMemory-Static library
 #-------------------------------------------------------------------------------

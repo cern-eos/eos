@@ -882,7 +882,7 @@ protected:
   getRandomBranch(const tFastTreeIdx &node, bool* visited=NULL) const
   {
     const tFastTreeIdx &nBranches = pNodes[node].fileData.lastHighestPriorityOffset + 1;
-    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << "getRandomBranch at " << (*pTreeInfo)[node] << " choose among " << (int) nBranches << std::endl;
@@ -927,7 +927,7 @@ protected:
     if(brchBegIdx>=brchEndIdx)
     return false;
 
-    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << "getRandomBranchGeneric from Branch " << (int)brchBegIdx << " to branch " << (int)brchEndIdx << std::endl;

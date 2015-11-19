@@ -30,11 +30,11 @@
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rename (const char *old_name,
-                   const char *new_name,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *infoO,
-                   const char *infoN)
+		   const char *new_name,
+		   XrdOucErrInfo &error,
+		   const XrdSecEntity *client,
+		   const char *infoO,
+		   const char *infoN)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -119,12 +119,12 @@ XrdMgmOfs::rename (const char *old_name,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::rename (const char *old_name,
-                   const char *new_name,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity& vid,
-                   const char *infoO,
-                   const char *infoN,
-                   bool overwrite)
+		   const char *new_name,
+		   XrdOucErrInfo &error,
+		   eos::common::Mapping::VirtualIdentity& vid,
+		   const char *infoO,
+		   const char *infoN,
+		   bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief rename a file or directory
@@ -194,21 +194,7 @@ XrdMgmOfs::rename (const char *old_name,
 }
 
 /*----------------------------------------------------------------------------*/
-int
-XrdMgmOfs::_rename (const char *old_name,
-                    const char *new_name,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity& vid,
-                    const char *infoO,
-                    const char *infoN,
-                    bool updateCTime,
-                    bool checkQuota,
-                    bool overwrite,
-		    bool lock_quota
-                    )
-/*----------------------------------------------------------------------------*/
-/*
- * @brief rename a file or directory
+/* Rename a file or directory
  *
  * @param old_name old name
  * @param new_name new name
@@ -219,7 +205,6 @@ XrdMgmOfs::_rename (const char *old_name,
  * @param updateCTime indicates to update the change time of a directory
  * @param checkQuota indicates to check the quota during a rename operation
  * @param overwrite indicates if the target name can be overwritten
- * @param lock_quota tells if we have to lock the quota mutex internally
  * @return SFS_OK on success otherwise SFS_ERROR
  *
  * There are three flavours of rename function, two external and one internal
@@ -230,15 +215,22 @@ XrdMgmOfs::_rename (const char *old_name,
  * if there is not enough quota left. Overall it is a quite complex function.
  */
 /*----------------------------------------------------------------------------*/
-
+int
+XrdMgmOfs::_rename (const char *old_name,
+		    const char *new_name,
+		    XrdOucErrInfo &error,
+		    eos::common::Mapping::VirtualIdentity& vid,
+		    const char *infoO,
+		    const char *infoN,
+		    bool updateCTime,
+		    bool checkQuota,
+		    bool overwrite)
 {
   static const char *epname = "_rename";
+  eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
   errno = 0;
 
-  eos_info("source=%s target=%s overwrite=%d", old_name, new_name, overwrite);
-
   EXEC_TIMING_BEGIN("Rename");
-
   eos::common::Path oPath(old_name);
   eos::common::Path nPath(new_name);
   std::string oP = oPath.GetParentPath();
@@ -250,11 +242,9 @@ XrdMgmOfs::_rename (const char *old_name,
     return Emsg(epname, error, EINVAL, "rename - 0 source or target name");
   }
 
+  // If source and target are the same return success
   if (!strcmp(old_name, new_name))
-  {
-    // source and target are the same, nothing to do
     return SFS_OK;
-  }
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
@@ -283,13 +273,14 @@ XrdMgmOfs::_rename (const char *old_name,
       XrdOucString vpath = nPath.GetPath();
 
       if ((!_exists(oPath.GetVersionDirectory(), version_exists, error, vid, infoN)) &&
-          (version_exists == XrdSfsFileExistIsDirectory) &&
-          (!vpath.beginswith(oPath.GetVersionDirectory())) &&
-          (!vpath.beginswith(Recycle::gRecyclingPrefix.c_str())))
+	  (version_exists == XrdSfsFileExistIsDirectory) &&
+	  (!vpath.beginswith(oPath.GetVersionDirectory())) &&
+	  (!vpath.beginswith(Recycle::gRecyclingPrefix.c_str())))
       {
-        renameVersion = true;
+	renameVersion = true;
       }
     }
+
     if (file_exists == XrdSfsFileExistIsDirectory)
     {
       std::string n_path = nPath.GetPath();
@@ -300,7 +291,7 @@ XrdMgmOfs::_rename (const char *old_name,
 	o_path += "/";
 
       renameDir = true;
-      // check if old path is a subpath of new path
+      // Check if old path is a subpath of new path
       if ( (n_path.length() > o_path.length()) && (!n_path.compare(0,o_path.length(),o_path)))
       {
 	errno = EINVAL;
@@ -315,318 +306,264 @@ XrdMgmOfs::_rename (const char *old_name,
     {
       if (overwrite && renameFile)
       {
-        // check if we are renaming a version to the primary copy
-        bool keepversion = false;
-        {
-          XrdOucString op = oPath.GetParentPath();
-          XrdOucString vp = nPath.GetVersionDirectory();
-          if (op == vp)
-            keepversion = true;
-        }
-        // delete the existing target
-        if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion))
-          return SFS_ERROR;
+	// Check if we are renaming a version to the primary copy
+	bool keepversion = false;
+	{
+	  XrdOucString op = oPath.GetParentPath();
+	  XrdOucString vp = nPath.GetVersionDirectory();
+	  if (op == vp)
+	    keepversion = true;
+	}
+
+	// Delete the existing target
+	if (gOFS->_rem(new_name, error, vid, infoN, false, keepversion))
+	  return SFS_ERROR;
       }
       else
       {
-        errno = EEXIST;
-        return Emsg(epname, error, EEXIST, "rename - target file name exists");
+	errno = EEXIST;
+	return Emsg(epname, error, EEXIST, "rename - target file name exists");
       }
     }
     if (file_exists == XrdSfsFileExistIsDirectory)
     {
       errno = EEXIST;
-      return Emsg(epname, error, EEXIST,
-                  "rename - target directory name exists");
+      return Emsg(epname, error, EEXIST, "rename - target directory name exists");
     }
   }
 
-  std::map<std::string, std::set<std::string> > found; //< list of source files if a directory is renamed
+  // List of source files if a directory is renamed
+  std::map<std::string, std::set<std::string> > found;
   if (renameDir)
   {
-    // for directory renaming which move into a different directory
-    // we build the list of files which we are moving
+    // For directory renaming which move into a different directory, we build
+    // the list of files which we are moving
     if (oP != nP)
     {
       XrdOucString stdErr;
 
       if (!gOFS->_find(oPath.GetFullPath().c_str(), error, stdErr, vid, found))
-      {
-        findOk = true;
-      }
+	findOk = true;
       else
-      {
-        return Emsg(epname, error, errno, "rename - cannot do 'find' inside the source tree");
-      }
+	return Emsg(epname, error, errno, "rename - cannot do 'find' inside the source tree");
     }
   }
-  // ---------------------------------------------------------------------------
-  {
-    if (lock_quota)
-      Quota::gQuotaMutex.LockRead();
 
+  {
+    eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
+    try
     {
-      eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      try
+      dir = eosView->getContainer(oPath.GetParentPath());
+      newdir = eosView->getContainer(nPath.GetParentPath());
+      // Translate to paths without symlinks
+      std::string duri = eosView->getUri(dir);
+      std::string newduri = eosView->getUri(newdir);
+      // Get symlink-free dir's
+      dir = eosView->getContainer(duri);
+      newdir = eosView->getContainer(newduri);
+
+      if (renameFile)
       {
-	dir = eosView->getContainer(oPath.GetParentPath());
-	newdir = eosView->getContainer(nPath.GetParentPath());
-	// translate both parths to paths without symlinks
-	std::string duri = eosView->getUri(dir);
-	std::string newduri = eosView->getUri(newdir);
-	// get symlink-free dir's
-	dir = eosView->getContainer(duri);
-	newdir = eosView->getContainer(newduri);
-	if (renameFile)
+	if (oP == nP)
 	{
-	  if (oP == nP)
+	  file = dir->findFile(oPath.GetName());
+
+	  if (file)
 	  {
-	    file = dir->findFile(oPath.GetName());
-	    if (file)
+	    eosView->renameFile(file, nPath.GetName());
+	    UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	  }
+	}
+	else
+	{
+	  file = dir->findFile(oPath.GetName());
+
+	  if (file)
+	  {
+	    // Move to a new directory
+	    dir->removeFile(oPath.GetName());
+	    UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	    UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+	    file->setName(nPath.GetName());
+	    file->setContainerId(newdir->getId());
+
+	    if (updateCTime)
+	      file->setCTimeNow();
+
+	    newdir->addFile(file);
+	    eosView->updateFileStore(file);
+	    // Adjust the ns quota
+	    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir);
+	    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir);
+
+	    if (old_qnode)
+	      old_qnode->removeFile(file);
+
+	    if (new_qnode)
+	      new_qnode->addFile(file);
+	  }
+	}
+      }
+
+      if (renameDir)
+      {
+	rdir = dir->findContainer(oPath.GetName());
+
+	if (rdir)
+	{
+	  // Remove all the quota from the source node and add to the target node
+	  std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
+	  std::set<std::string>::const_iterator fileit;
+
+	  // Loop over all the files and subtract them from their quota node
+	  if (findOk)
+	  {
+	    if (checkQuota)
 	    {
-	      eosView->renameFile(file, nPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	      std::map<uid_t, unsigned long long> user_del_size;
+	      std::map<gid_t, unsigned long long> group_del_size;
+
+	      // Compute the total quota we need to rename by uid/gid
+	      for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
+	      {
+		for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+		     fileit++)
+		{
+		  std::string fspath = rfoundit->first;
+		  fspath += *fileit;
+		  eos::IFileMD* fmd = 0;
+
+		  // Stat this file and add to the deletion maps
+		  try
+		  {
+		    fmd = gOFS->eosView->getFile(fspath.c_str());
+		  }
+		  catch (eos::MDException& e)
+		  {
+		    errno = e.getErrno();
+		    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+			      e.getErrno(), e.getMessage().str().c_str());
+		  }
+
+		  if (!fmd)
+		  {
+		    return Emsg(epname, error, errno, "rename - cannot stat file in subtree",
+				fspath.c_str());
+		  }
+
+		  user_del_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
+		  group_del_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
+		}
+	      }
+
+	      // Verify for each uid/gid that there is enough quota to rename
+	      bool userok = true;
+	      bool groupok = true;
+
+	      // Either all have user quota therefore userok is true
+	      for (auto it = user_del_size.begin(); it != user_del_size.end(); ++it)
+	      {
+		if (!Quota::Check(nP, it->first, Quota::gProjectId, it->second, 1))
+		{
+		  userok = false;
+		  break;
+		}
+	      }
+
+	      // or all have group quota therefore groupok is true
+	      for (auto it = group_del_size.begin(); it != group_del_size.end(); it++)
+	      {
+		if (!Quota::Check(nP, Quota::gProjectId, it->first, it->second, 1))
+		{
+		  groupok = false;
+		  break;
+		}
+	      }
+
+	      if ((!userok) && (!groupok))
+	      {
+		// Deletion will fail as there is not enough quota on the target
+		return Emsg(epname, error, ENOSPC, "rename - cannot get all "
+			    "the needed quota for the target directory");
+	      }
+	    } // if (checkQuota)
+
+	    for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
+	    {
+	      for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
+		   fileit++)
+	      {
+		std::string fspath = rfoundit->first;
+		fspath += *fileit;
+		file = gOFS->eosView->getFile(fspath.c_str());
+
+		if (file)
+		{
+		  // Get quota nodes from file path and target directory
+		  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir);
+		  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir);
+
+		  if (old_qnode)
+		    old_qnode->removeFile(file);
+
+		  if (new_qnode)
+		    new_qnode->addFile(file);
+		}
+	      }
 	    }
+	  }
+
+	  if (nP == oP)
+	  {
+	    // Rename within a container
+	    eosView->renameContainer(rdir, nPath.GetName());
+	    UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
 	  }
 	  else
 	  {
-	    file = dir->findFile(oPath.GetName());
-	    if (file)
-	    {
-	      // move to a new directory
-	      dir->removeFile(oPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-	      UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
-	      file->setName(nPath.GetName());
-	      file->setContainerId(newdir->getId());
-	      if (updateCTime)
-	      {
-		file->setCTimeNow();
-	      }
-	      newdir->addFile(file);
-	      eosView->updateFileStore(file);
-	      // adjust the quota
-	      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(oP.c_str());
-	      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str());
-	      eos::IQuotaNode* oldquotanode = 0;
-	      eos::IQuotaNode* newquotanode = 0;
-	      if (oldspace)
-	      {
-		oldquotanode = oldspace->GetQuotaNode();
-		// remove quota
-		if (oldquotanode)
-		{
-		  oldquotanode->removeFile(file);
-		}
-	      }
-	      if (newspace)
-	      {
-		newquotanode = newspace->GetQuotaNode();
-		// add quota
-		if (newquotanode)
-		{
-		  newquotanode->addFile(file);
-		}
-	      }
-	    }
-	  }
-	}
-	if (renameDir)
-	{
-	  rdir = dir->findContainer(oPath.GetName());
-	  if (rdir)
-	  {
-	    // remove all the quota from the source node and add to the target node
-	    
-	    std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
-	    std::set<std::string>::const_iterator fileit;
-	    // loop over all the files and subtract them from their quota node
-	    if (findOk)
-	    {
-	      if (checkQuota)
-	      {
-		std::map<uid_t, unsigned long long> user_deletion_size;
-		std::map<gid_t, unsigned long long> group_deletion_size;
-		// -----------------------------------------------------------------
-		// compute the total quota we need to rename by uid/gid
-		// -----------------------------------------------------------------s
-		for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-		{
-		  for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
-		  {
-		    std::string fspath = rfoundit->first;
-		    fspath += *fileit;
-		    eos::IFileMD* fmd = 0;
-		    // stat this file and add to the deletion maps
-		    
-		    try
-		    {
-		      fmd = gOFS->eosView->getFile(fspath.c_str());
-		    }
-		    catch (eos::MDException &e)
-		    {
-		      errno = e.getErrno();
-		      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-				e.getErrno(), e.getMessage().str().c_str());
-		    }
-		    
-		    if (!fmd)
-		    {
-		      if (lock_quota)
-			Quota::gQuotaMutex.UnLockRead();
-		      return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
-		    }
-		    user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
-		    group_deletion_size[fmd->getCGid()] += (fmd->getSize() * fmd->getNumLocation());
-		  }
-              }
-		// -----------------------------------------------------------------
-		// verify for each uid/gid that there is enough quota to rename
-		// -----------------------------------------------------------------
-		bool userok = true;
-		bool groupok = true;
+	    // Remove from one container to another one
+	    dir->removeContainer(oPath.GetName());
+	    UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+	    rdir->setName(nPath.GetName());
 
-		// either all have user quota then userok is true
-		for (auto it = user_deletion_size.begin(); it != user_deletion_size.end(); it++)
-		{
-		  SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(nP.c_str());
-		  
-		  if (namespacequota)
-		  {
-		    // there is quota defined on that recycle path
-		    if (!namespacequota->CheckWriteQuota(it->first,
-							 Quota::gProjectId,
-							 it->second,
-							 1))
-		    {
-		      userok = false;
-		    }
-		  }
-		}
-		
-		// or all have group quota then groupok is true
-		for (auto it = group_deletion_size.begin(); it != group_deletion_size.end(); it++)
-		{
-		  SpaceQuota* namespacequota = Quota::GetResponsibleSpaceQuota(nP.c_str());
-		  
-		  if (namespacequota)
-		    {
-		      // there is quota defined on that recycle path
-		      if (!namespacequota->CheckWriteQuota(Quota::gProjectId,
-							   it->first,
-							   it->second,
-							   1))
-		      {
-			groupok = false;
-		      }
-		    }
-		}
-		
-		if ((!userok) && (!groupok))
-		{
-		  // deletion has to fail there is not enough quota on the target
-		  if (lock_quota)
-		    Quota::gQuotaMutex.UnLockRead();
-		  return Emsg(epname, error, ENOSPC, "rename - cannot get all the needed quota for the target directory");
-		}
-	      } // if (checkQuota)
-	      
-	      for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++)
-		{
-		  for (fileit = rfoundit->second.begin(); fileit != rfoundit->second.end(); fileit++)
-		  {
-		    std::string fspath = rfoundit->first;
-		    fspath += *fileit;
-		    file = gOFS->eosView->getFile(fspath.c_str());
-		    if (file)
-		    {
-		      SpaceQuota* oldspace = Quota::GetResponsibleSpaceQuota(fspath.c_str()); // quota node from file path
-		      SpaceQuota* newspace = Quota::GetResponsibleSpaceQuota(nP.c_str()); // quota node of target directory
-		      eos::IQuotaNode* oldquotanode = 0;
-		      eos::IQuotaNode* newquotanode = 0;
-		      if (oldspace)
-		      {
-			oldquotanode = oldspace->GetQuotaNode();
-			// remove quota
-			if (oldquotanode)
-			{
-			  oldquotanode->removeFile(file);
-			}
-		      }
-		      if (newspace)
-		      {
-			newquotanode = newspace->GetQuotaNode();
-			// add quota
-			if (newquotanode)
-			{
-			  newquotanode->addFile(file);
-			}
-		      }
-		    }
-		  }
-		}
-	    }
-	    if (nP == oP)
-	    {
-	      // -------------------------------------------------------------------
-	      // rename within a container
-	      // -------------------------------------------------------------------
-	      eosView->renameContainer(rdir, nPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
-	    }
-	    else
-	    {
-	      // -------------------------------------------------------------------
-	      // move from one container to another one
-	      // -------------------------------------------------------------------
-	      dir->removeContainer(oPath.GetName());
-	      UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-	      rdir->setName(nPath.GetName());
-	      if (updateCTime)
-	      {
-		rdir->setCTimeNow();
-	      }
-	      newdir->addContainer(rdir);
-	      UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
-	      eosView->updateContainerStore(rdir);
-	    }
+	    if (updateCTime)
+	      rdir->setCTimeNow();
+
+	    newdir->addContainer(rdir);
+	    UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+	    eosView->updateContainerStore(rdir);
 	  }
-	  file = 0;
 	}
-      }
-      catch (eos::MDException &e)
-      {
-	dir = 0;
+
 	file = 0;
-	errno = e.getErrno();
-	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		  e.getErrno(), e.getMessage().str().c_str());
       }
     }
-
-    if (lock_quota)
-      Quota::gQuotaMutex.UnLockRead();
-
-    if ((!dir) || ((!file) && (!rdir)))
+    catch (eos::MDException& e)
     {
-
-      errno = ENOENT;
-      return Emsg(epname, error, ENOENT, "rename", old_name);
+      dir = 0;
+      file = 0;
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+		e.getErrno(), e.getMessage().str().c_str());
     }
+  }
+
+  if ((!dir) || ((!file) && (!rdir)))
+  {
+    errno = ENOENT;
+    return Emsg(epname, error, ENOENT, "rename", old_name);
   }
 
   // check if this was a versioned file
   if (renameVersion)
   {
     // rename also the version directory
-
     if (_rename(oPath.GetVersionDirectory(), nPath.GetVersionDirectory(),
-                error, vid, infoO, infoN, false, false, false))
+		error, vid, infoO, infoN, false, false, false))
       return SFS_ERROR;
   }
 
   EXEC_TIMING_END("Rename");
-
   return SFS_OK;
 }
-

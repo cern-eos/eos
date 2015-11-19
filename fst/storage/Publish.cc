@@ -234,8 +234,12 @@ Storage::Publish ()
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = now;
               XrdSysMutexHelper ISLock(fileSystemsVector[i]->InconsistencyStatsMutex);
-              gFmdDbMapHandler.GetInconsistencyStatistics(fsid, *fileSystemsVector[i]->GetInconsistencyStats(), *fileSystemsVector[i]->GetInconsistencySets());
-              for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin(); isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++)
+              gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
+                 *fileSystemsVector[i]->GetInconsistencyStats(),
+                 *fileSystemsVector[i]->GetInconsistencySets());
+
+              for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin();
+                   isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++)
               {
                 //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
                 std::string sname = "stat.fsck.";
@@ -312,7 +316,13 @@ Storage::Publish ()
             long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
             // stop the writers if it get's critical under 5 GB space
 
-            if ((fbytes < 5 * 1024ll * 1024ll * 1024ll))
+	    int full_gb = 5;
+	    if (getenv("EOS_FS_FULL_SIZE_IN_GB"))
+	    {
+	      full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
+	    }
+
+            if ((fbytes < full_gb * 1024ll * 1024ll * 1024ll))
             {
               fileSystemFullMap[fsid] = true;
             }

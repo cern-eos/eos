@@ -357,7 +357,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     mapEntry->slowTreeMutex.UnLockWrite();
   }
 
-  if(eos::common::Logging::gLogMask & LOG_INFO)
+  if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
   {
     stringstream ss;
     ss << (*mapEntry->slowTree);
@@ -847,6 +847,7 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 
   // unlock, cleanup
   cleanup:
+  if(!success) newReplicas->clear();
   entry->doubleBufferMutex.UnLockRead();
   AtomicDec(entry->fastStructLockWaitersCount);
   if(existingReplicasIdx) delete existingReplicasIdx;
@@ -1154,7 +1155,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
       for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
       {
-	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+	if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
 	{
 	  char buffer[1024];
 	  buffer[0]=0;
@@ -1240,7 +1241,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       }
     }
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       char buffer[1024];
       buffer[0]=0;

@@ -383,7 +383,7 @@ class GeoTreeEngine : public eos::common::LogId
 	return false;
       }
       applyBranchDisablings(*entry);
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
 	stringstream ss;
 	ss << (*entry->backgroundFastStruct->placementTree);
@@ -398,7 +398,7 @@ class GeoTreeEngine : public eos::common::LogId
     {
       // the rebuild of the fast structures is not necessary
       entry->refreshBackGroundFastStructures();
-      if(eos::common::Logging::gLogMask & LOG_DEBUG)
+      if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
 	stringstream ss;
 	ss << (*entry->backgroundFastStruct->placementTree);
@@ -695,7 +695,7 @@ protected:
 
     bool updateNeeded = false;
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*placementTree);
@@ -781,7 +781,7 @@ protected:
     }
 
     // do the placement
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*tree);
@@ -825,7 +825,7 @@ protected:
       bool skipSaturated=false)
   {
 
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*accessTree);
@@ -877,7 +877,7 @@ protected:
     }
 
     // do the access
-    if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << (*tree);

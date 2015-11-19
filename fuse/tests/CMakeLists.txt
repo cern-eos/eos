@@ -39,15 +39,6 @@ target_link_libraries(
  FuseCache-Static
  ${CPPUNIT_LIBRARIES} )
 
-if ( Linux )
-  set_target_properties (
-    EosFuseTests 
-    PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1 )
-endif( Linux )
-
 install( TARGETS EosFuseTests
          LIBRARY DESTINATION ${LIB_INSTALL_DIR}
          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

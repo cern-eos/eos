@@ -3219,7 +3219,7 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
       // "key=<key>:width=<width>:format=[slfo]"
 
       bool alignleft = false;
-      if ((formattags["format"].find("-") != std::string::npos))
+      if (formattags.count("format") && (formattags["format"].find("-") != std::string::npos))
       {
 	alignleft = true;
       }

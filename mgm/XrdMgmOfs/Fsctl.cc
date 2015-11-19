@@ -93,18 +93,17 @@ XrdMgmOfs::fsctl (const int cmd,
       }
       else
       {
-        if (path.substr(path.length() - 1, 1) != "/")
-        {
-          path += "/";
-        }
-        eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
-        SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path.c_str());
-        if (space)
-        {
-          space->Refresh();
-          maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget, 0);
-          freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs, 0);
-        }
+        if (path[path.length() - 1] != '/')
+	  path += '/';
+
+	// Get quota group values for path and id 0
+	auto map_quotas = Quota::GetGroupStatistics(path, 0);
+
+	if (!map_quotas.empty())
+	{
+          maxbytes = map_quotas[SpaceQuota::kAllGroupBytesTarget];
+          freebytes = maxbytes - map_quotas[SpaceQuota::kAllGroupBytesIs];
+	}
       }
     }
 

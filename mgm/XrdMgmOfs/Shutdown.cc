@@ -175,11 +175,7 @@ xrdmgmofs_shutdown (int sig)
 
   // ---------------------------------------------------------------------------
   eos_static_warning("Shutdown:: cleanup quota...");
-  std::map<std::string, SpaceQuota*>::const_iterator it;
-  for (it = Quota::gQuota.begin(); it != Quota::gQuota.end(); it++)
-  {
-    delete (it->second);
-  }
+  (void) Quota::CleanUp();
 
   // ----------------------------------------------------------------------------
   eos_static_warning("Shutdown:: stop shared object modification notifier ... ");

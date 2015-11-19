@@ -115,19 +115,13 @@ XrdMgmOfs::_chown (const char *path,
     errno = 0;
     try
     {
-      // try as a file
-      std::string uri;
+      // Try as a file
       eos::common::Path cPath(path);
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-      uri = gOFS->eosView->getUri(cmd);
-
-      SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
-      eos::IQuotaNode* quotanode = 0;
-      
-      if (space)
-      {
-        quotanode = space->GetQuotaNode();
-      }
+      // Translate to path without symlinks
+      std::string uri_cmd = eosView->getUri(cmd);
+      cmd = eosView->getContainer(uri_cmd);
+      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd);
 
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4))
       {
@@ -137,32 +131,21 @@ XrdMgmOfs::_chown (const char *path,
       {
         fmd = gOFS->eosView->getFile(path);
 
-        // substract the file
-        if (quotanode)
-        {
-          quotanode->removeFile(fmd);
-        }
+        // Substract the file
+        if (ns_quota)
+          ns_quota->removeFile(fmd);
 
+	// Change the owner
 	if ( (unsigned int) uid != 0xffffffff) 
-        {
-	  // change the owner
 	  fmd->setCUid(uid);
-	}
 
-        // re-add the file
-        if (quotanode)
-        {
-          quotanode->addFile(fmd);
-        }
-
-        if (!vid.uid)
-        {
-	  if ( (unsigned int) gid != 0xffffffff) 
-          {
-            // change the group
+	// Change the group
+        if (!vid.uid && ((unsigned int) gid != 0xffffffff))
             fmd->setCGid(gid);
-          }
-        }
+
+        // Re-add the file
+        if (ns_quota)
+          ns_quota->addFile(fmd);
 
         eosView->updateFileStore(fmd);
       }
@@ -170,13 +153,12 @@ XrdMgmOfs::_chown (const char *path,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-    };
+    }
   }
 
   // ---------------------------------------------------------------------------
   if (cmd && (!errno))
   {
-
     EXEC_TIMING_END("Chmod");
     return SFS_OK;
   }

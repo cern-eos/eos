@@ -25,44 +25,52 @@
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
-
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::AdminQuota ()
+ProcCommand::AdminQuota()
 {
- if (mSubCmd == "rmnode")
- {
-   eos_notice("quota rm");
-   if ( (pVid->prot != "sss") && (eos::common::Mapping::IsLocalhost(*pVid) ) )
-   {
-     XrdOucString space = pOpaque->Get("mgm.quota.space");
-     XrdOucString msg = "";
-     if (!Quota::RmSpaceQuota(space, msg, retc))
-     {
-       stdErr = msg;
-     }
-     else
-     {
-       stdOut = msg;
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you cannot remove quota nodes from storage node with 'sss' authentication!";
-   }
- }
- else
- {
-   stdErr = "error: I don't know subcommand <";
-   stdErr += mSubCmd;
-   stdErr += ">";
-   retc = EINVAL;
- }
- return SFS_OK;
+  if (mSubCmd == "rmnode")
+  {
+    eos_notice("quota rm");
+
+    if ((pVid->prot != "sss") && (eos::common::Mapping::IsLocalhost(*pVid)))
+    {
+      std::string msg = "";
+      std::string tag = "mgm.quota.space";
+
+      if (!pOpaque->Get(tag.c_str()))
+      {
+	retc = EINVAL;
+	stdErr = "error: no quota space specified";
+	return SFS_OK;
+      }
+
+      std::string space = pOpaque->Get(tag.c_str());
+
+      if (Quota::RmSpaceQuota(space, msg, retc))
+	stdOut = msg.c_str();
+      else
+	stdErr = msg.c_str();
+    }
+    else
+    {
+      retc = EPERM;
+      stdErr = "error: you cannot remove quota nodes from storage node with"
+	       " 'sss' authentication!";
+    }
+  }
+  else
+  {
+    stdErr = "error: unknown subcommand <";
+    stdErr += mSubCmd;
+    stdErr += ">";
+    retc = EINVAL;
+  }
+
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

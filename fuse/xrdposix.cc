@@ -3846,14 +3846,6 @@ int is_toplevel_rm(int pid, char* local_dir)
       rm_entries.insert(token);
   }
 
-  bool skip_relpath = !rm_watch_relpath;
-  if( (!skip_relpath) && (rm_cmd!=rm_command) )
-  {
-    eos_static_warning("using rm command %s different from the system rm command %s : cannot watch recursive deletion on relative paths"
-        ,rm_cmd.c_str(),rm_command.c_str());
-    skip_relpath = true;
-  }
-
   for (std::set<std::string>::iterator it = rm_opt.begin();
        it != rm_opt.end(); ++it)
   {
@@ -3873,6 +3865,15 @@ int is_toplevel_rm(int pid, char* local_dir)
     mMapPidDenyRm[pid] = entry;
     mMapPidDenyRmMutex.UnLockWrite();
     return 0;
+  }
+
+  // check that we dealing with the system rm command
+  bool skip_relpath = !rm_watch_relpath;
+  if( (!skip_relpath) && (rm_cmd!=rm_command) )
+  {
+    eos_static_warning("using rm command %s different from the system rm command %s : cannot watch recursive deletion on relative paths"
+        ,rm_cmd.c_str(),rm_command.c_str());
+    skip_relpath = true;
   }
 
   // get the current working directory
