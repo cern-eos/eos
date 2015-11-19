@@ -289,7 +289,7 @@ void FileMD::serialize(Buffer& buffer)
     nameAndLink += pLinkName;
   }
   
-  uint16_t len = pName.length() + 1;    
+  uint16_t len = nameAndLink.length() + 1;
   buffer.putData(&len,          sizeof(len));
   buffer.putData(nameAndLink.c_str(), len);
   len = pLocation.size();
