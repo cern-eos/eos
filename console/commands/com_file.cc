@@ -156,7 +156,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") && (cmd != "symlink") )
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") && (cmd != "symlink") && (cmd != "tag") )
   {
     goto com_file_usage;
   }
@@ -388,21 +388,42 @@ com_file (char* arg1)
     }
   }
 
-  if (cmd == "layout")
+  if (cmd == "adjustreplica")
   {
     if (!path.length())
       goto com_file_usage;
 
-    in += "&mgm.subcmd=layout";
+    in += "&mgm.subcmd=adjustreplica";
     in += "&mgm.path=";
     in += path;
-    if (fsid1 != "-stripes")
-      goto com_file_usage;
-    if (!fsid2.length())
+    if (fsid1.length())
+    {
+      in += "&mgm.file.desiredspace=";
+      in += fsid1;
+      if (fsid2.length())
+      {
+        in += "&mgm.file.desiredsubgroup=";
+        in += fsid2;
+      }
+    }
+  }
+
+  if (cmd == "tag")
+  {
+    if (!path.length())
       goto com_file_usage;
 
-    in += "&mgm.file.layout.stripes=";
-    in += fsid2;
+    in += "&mgm.subcmd=tag";
+    in += "&mgm.path=";
+    in += path;
+    if ( (!fsid1.beginswith("+")) &&
+	 (!fsid1.beginswith("-")) &&
+	 (!fsid1.beginswith("~")) )
+    {
+      goto com_file_usage;
+    }
+    in += "&mgm.file.tag.fsid=";
+    in += fsid1;
   }
 
   if (cmd == "verify")
@@ -849,6 +870,9 @@ com_file_usage:
 
   fprintf(stdout, "file symlink <name> <link-name> :\n");
   fprintf(stdout, "                                                  create a symlink with <name> pointing to <link-name>\n");
+  fprintf(stdout, "file tag <name> +|-|~<fsid> :\n");
+  fprintf(stdout, "                                                  add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!\n");
+  fprintf(stdout, "                                                  unlink keeps the location in the list of deleted files e.g. the location get's a deletion request\n");
   fprintf(stdout, "file touch <path> :\n");
   fprintf(stdout, "                                                  create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time\n");
 

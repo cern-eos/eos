@@ -630,6 +630,110 @@ ProcCommand::File ()
     }
 
     // -------------------------------------------------------------------------
+    // tag/untag a file to be located on a certain file system
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "tag")
+    {
+      XrdOucString sfsid = pOpaque->Get("mgm.file.tag.fsid");
+      bool do_add=false;
+      bool do_rm = false;
+      bool do_unlink = false;
+
+      if (sfsid.beginswith("+"))
+      {
+	do_add = true;
+      }
+      if (sfsid.beginswith("-"))
+      {
+	do_rm = true;
+      }
+      if (sfsid.beginswith("~"))
+      {
+	do_unlink = true;
+      }
+
+      sfsid.erase(0,1);
+      errno = 0;
+      int fsid = (sfsid.c_str())?(int)strtol(sfsid.c_str(),0,10):0;
+      if (errno || fsid == 0 || (!do_add && !do_rm && !do_unlink))
+      {
+	stdErr = "error: you have to provide a valid filesystem id and a valid operation (+|-) e.g. 'file tag /myfile +1000'\n";
+	retc = EINVAL;
+	stdErr += sfsid;
+      }
+      else
+      {
+	eos::FileMD* fmd = 0;
+	{
+	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+	  try
+	  {
+	    fmd = gOFS->eosView->getFile(spath.c_str());
+	    if (do_add && fmd->hasLocation(fsid))
+	    {
+	      stdErr += "error: file '";
+	      stdErr += spath.c_str();
+	      stdErr += "' is already located on fs=";
+	      stdErr += (int) fsid;
+	      retc = EINVAL;
+	    }
+	    else if ( ( do_rm || do_unlink) && (!fmd->hasLocation(fsid) && !fmd->hasUnlinkedLocation(fsid)) )
+	    {
+	      stdErr += "error: file '";
+	      stdErr += spath.c_str();
+	      stdErr += "' is not located on fs=";
+	      stdErr += (int) fsid;
+	      retc = EINVAL;
+	    }
+	    else
+	    {
+	      if (do_add)
+		fmd->addLocation(fsid);
+
+	      if (do_rm || do_unlink)
+	      {
+		fmd->unlinkLocation(fsid);
+		if (do_rm)
+		  fmd->removeLocation(fsid);
+	      }
+
+	      gOFS->eosView->updateFileStore(fmd);
+
+	      if (do_add)
+	      {
+		stdOut += "success: added location to file '";
+	      }
+	      if (do_rm)
+	      {
+		stdOut += "success: removed location from file '";
+	      }	
+	      if (do_unlink)
+	      {
+		stdOut += "success: unlinked location from file '";
+	      }	
+	      stdOut += spath.c_str();
+	      stdOut += "' on fs=";
+	      stdOut += (int) fsid;
+	    }
+	  }
+	  catch (eos::MDException &e)
+	  {
+	    errno = e.getErrno();
+	    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+	  }
+	  
+	  if (!fmd)
+	  {
+	    stdErr += "error: unable to get file meta data of file '";
+	    stdErr += spath.c_str();
+	    stdErr += "'";
+	    retc = errno;
+	  }
+	}
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // third-party copy files/directories
     // -------------------------------------------------------------------------
     if (mSubCmd == "copy")
