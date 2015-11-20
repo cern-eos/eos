@@ -76,6 +76,7 @@ mTpcThreadStatus(EINVAL)
   openSize = 0;
   closeSize = 0;
   isReplication = false;
+  isInjection = false;
   isReconstruction = false;
   deleteOnClose = false;
   repairOnClose = false;
@@ -484,6 +485,11 @@ XrdFstOfsFile::open (const char* path,
     opaqueCheckSum = val;
   }
 
+  if ((val = openOpaque->Get("eos.injection")))
+  {
+    isInjection = true;
+  }
+  
   int caprc = 0;
 
   //.............................................................................
@@ -1688,6 +1694,7 @@ XrdFstOfsFile::close ()
   bool targetsizeerror = false;
   bool committed = false;
   bool minimumsizeerror = false;
+  bool consistencyerror = false;
 
   // Any close on a file opened in TPC mode invalidates tpc keys
   if (TpcKey.length())
@@ -1842,7 +1849,7 @@ XrdFstOfsFile::close ()
         eos_warning("simlating checksum errors on write");
       }
 
-      if (isCreation && (checksumerror || targetsizeerror || minimumsizeerror))
+      if ( isRW && (checksumerror || targetsizeerror || minimumsizeerror) )
       {
         // We have a checksum error if the checksum was preset and does not match!
         // We have a target size error, if the target size was preset and does not match!
@@ -1855,12 +1862,11 @@ XrdFstOfsFile::close ()
                                   capOpaque->Get("mgm.manager"), capOpaqueString);
 
         if (rc)
-          {
+	{
           eos_warning("(unpersist): unable to drop file id %s fsid %u at manager %s",
                       hexstring.c_str(), fMd->fMd.fid, capOpaque->Get("mgm.manager"));
         }
       }
-
       // Store the entry server information before closing the layout
       bool isEntryServer = false;
 
@@ -1974,7 +1980,7 @@ XrdFstOfsFile::close ()
             }
             else
             {
-              if (isEntryServer && !isReplication)
+              if (isEntryServer && !isReplication && !isInjection)
               {
                 // The entry server commits size and checksum
                 capOpaqueFile += "&mgm.commit.size=1&mgm.commit.checksum=1";
@@ -2021,6 +2027,7 @@ XrdFstOfsFile::close ()
                   eos_err("info=\"unlinking fid=%08x path=%s - "
                           "file size of replica does not match reference\"",
                           fMd->fMd.fid, Path.c_str());
+		  consistencyerror = true;
                 }
 
                 if (rc == -EBADR)
@@ -2028,6 +2035,7 @@ XrdFstOfsFile::close ()
                   eos_err("info=\"unlinking fid=%08x path=%s - "
                           "checksum of replica does not match reference\"",
                           fMd->fMd.fid, Path.c_str());
+		  consistencyerror = true;
                 }
 
                 deleteOnClose = true;
@@ -2175,7 +2183,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-    if ( deleteOnClose && (isCreation || IsChunkedUpload()) )
+    if ( deleteOnClose && (isInjection || isCreation || IsChunkedUpload()) )
     {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());
@@ -2300,15 +2308,26 @@ XrdFstOfsFile::close ()
                     eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
                              "\"target size mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
                   }
-                  else
-                  {
-                    // Client has disconnected and file is cleaned-up
+		  else 
+		  {  
+		    if (consistencyerror)
+		    {
                     gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
-                              "cleaned because of a client disconnect", Path.c_str());
-                    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s "
-                             "reason=\"client disconnect\"", capOpaque->Get("mgm.path"),
-                             fstPath.c_str());
-                  }
+                              "cleaned because the stored file does not match "
+                              "the reference meta-data size/checksum", Path.c_str());
+                    eos_crit("info=\"deleting on close\" fn=%s fstpath=%s reason="
+                             "\"meta-data size/checksum mismatch\"", capOpaque->Get("mgm.path"), fstPath.c_str());
+		    }
+		    else
+		    {
+		      // Client has disconnected and file is cleaned-up
+		      gOFS.Emsg(epname, this->error, EIO, "store file - file has been "
+				"cleaned because of a client disconnect", Path.c_str());
+		      eos_crit("info=\"deleting on close\" fn=%s fstpath=%s "
+			       "reason=\"client disconnect\"", capOpaque->Get("mgm.path"),
+			       fstPath.c_str());
+		    }
+		  }
                 }
               }
             }
