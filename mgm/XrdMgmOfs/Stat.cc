@@ -323,7 +323,7 @@ XrdMgmOfs::_stat (const char *path,
     eos::IContainerMD::ctime_t mtime;
     eos::IContainerMD::ctime_t tmtime;
     cmd->getCTime(ctime);
-    cmd->getTMTime(mtime);
+    cmd->getMTime(mtime);
     cmd->getTMTime(tmtime);
 
 #ifdef __APPLE__
