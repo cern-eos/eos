@@ -320,7 +320,7 @@ XrdMgmOfs::_stat (const char *path,
     eos::ContainerMD::ctime_t mtime;
     eos::ContainerMD::ctime_t tmtime;
     cmd->getCTime(ctime);
-    cmd->getTMTime(mtime);
+    cmd->getMTime(mtime);
     cmd->getTMTime(tmtime);
 
 
