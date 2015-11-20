@@ -799,6 +799,20 @@ runtest "### Symlink(L)" unix 0 "" eos ln /eos/$EOS_TEST_INSTANCE/test/instancet
 runtest "### Symlink(L)" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/bwd-loop
 runtest "### Symlink(L)" unix 1 "" eos ls /eos/$EOS_TEST_INSTANCE/test/instancetest/fwd-loop
 
+# --------------------------------------------------------------------------------------------------------------
+categorie="tag"
+# --------------------------------------------------------------------------------------------------------------
+runtest "### Mkdir     " unix 0 "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/
+runtest "### Touch     " unix 0 "" eos touch /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch
+runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch +1
+runtest "### Tag       " unix 1 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch +1
+runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch ~1
+runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch ~1
+runtest "### Tag       " unix 0 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch -1
+runtest "### Tag       " unix 1 "" eos file tag /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch -1
+runtest "### Rm        " unix 0 "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/touch
+runtest "### Rmdir     " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/tag/
+
 # --------------------------
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
