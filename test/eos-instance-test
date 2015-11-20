@@ -734,6 +734,15 @@ runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.blocksize /eos/$EOS_
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.layout /eos/$EOS_TEST_INSTANCE/test"
 runtest "### Attr Rm   " unix 0 "" eos attr rm  "sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test"
+runtest "### File Touch" unix 0 "" eos file touch "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Set  " unix 0 "" eos attr set user.attr.test=foo "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Get  " unix 0 "" eos attr get user.attr.test "/eos/$EOS_TEST_INSTANCE/test/file | grep foo"
+runtest "### Attr Get  " unix 1 "" eos attr get user.attr.bar "/eos/$EOS_TEST_INSTANCE/test/file | grep foo"
+runtest "### Attr Ls   " unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/file | grep foo"
+runtest "### Attr Rm   " unix 0 "" eos attr rm user.attr.test "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Attr Rm   " unix 1 "" eos attr rm user.attr.test "/eos/$EOS_TEST_INSTANCE/test/file"
+runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/file"
+
 ################################################################################################################
 # NAMESPACE
 ################################################################################################################
