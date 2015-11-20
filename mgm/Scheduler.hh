@@ -60,6 +60,7 @@ public:
   //----------------------------------------------------------------------------
   //! Take the decision where to place a new file in the system.
   //!
+  //! @param spacename space name
   //! @param path file path
   //! @param vid virtual id of client
   //! @param grouptag group tag for placement
@@ -79,7 +80,8 @@ public:
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  virtual int FilePlacement(const char* path,
+  virtual int FilePlacement(const std::string& spacename,
+                            const char* path,
 			    eos::common::Mapping::VirtualIdentity_t& vid,
 			    const char* grouptag,
 			    unsigned long lid,

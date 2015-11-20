@@ -1305,101 +1305,91 @@ ProcCommand::File ()
               eos_debug("creating %d new replicas space=%s subgroup=%d",
                         nnewreplicas, space.c_str(), forcedsubgroup);
 
-	      if (!Quota::ExistsSpace(space.c_str()))
+              // This defines the fs to use in the selectedfs vector
+              unsigned long fsIndex;
+
+              // Fill the existing locations
+              std::vector<unsigned int> selectedfs;
+              std::vector<unsigned int> unavailfs;
+              std::vector<unsigned int> sourcefs = fmd_cpy->getLocations();
+              std::string tried_cgi;
+
+              // Now we just need to ask for <n> targets
+              int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
+                                                          eos::common::LayoutId::kNone,
+                                                          nnewreplicas);
+              eos::common::Path cPath(spath.c_str());
+              eos::IContainerMD::XAttrMap attrmap;
+              gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0,attrmap);
+              eos::mgm::Scheduler::tPlctPolicy plctplcy;
+              std::string targetgeotag;
+              // Get placement policy
+              Policy::GetPlctPolicy(spath.c_str(), attrmap, *pVid, *pOpaque,
+                                    plctplcy, targetgeotag);
+
+              // We don't know the container tag here, but we don't really
+              // care since we are scheduled as root
+              if (!(errno = Quota::FilePlacement(space.c_str(), spath.c_str(),
+                                                 *pVid, 0, layoutId, sourcefs,
+                                                 selectedfs, plctplcy, targetgeotag,
+                                                 SFS_O_TRUNC, forcedsubgroup,
+                                                 fmd_cpy->getSize())))
               {
-                stdErr = "error: create new replicas => cannot get space: ";
-                stdErr += space;
-                stdErr += "\n";
-                errno = ENOSPC;
-              }
-              else
-              {
-		// This defines the fs to use in the selectedfs vector
-                unsigned long fsIndex;
-
-                // Fill the existing locations
-                std::vector<unsigned int> selectedfs;
-                std::vector<unsigned int> unavailfs;
-                std::vector<unsigned int> sourcefs = fmd_cpy->getLocations();
-                std::string tried_cgi;
-
-                // Now we just need to ask for <n> targets
-                int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
-                                                            eos::common::LayoutId::kNone,
-							    nnewreplicas);
-                eos::common::Path cPath(spath.c_str());
-                eos::IContainerMD::XAttrMap attrmap;
-                gOFS->_attr_ls(cPath.GetParentPath(), *mError, *pVid, (const char *) 0,attrmap);
-                eos::mgm::Scheduler::tPlctPolicy plctplcy;
-                std::string targetgeotag;
-                // Get placement policy
-                Policy::GetPlctPolicy(spath.c_str(), attrmap, *pVid, *pOpaque,
-                                      plctplcy, targetgeotag);
-
-                // We don't know the container tag here, but we don't really
-                // care since we are scheduled as root
-                if (!(errno = Quota::FilePlacement(space.c_str(), spath.c_str(),
-						   *pVid, 0, layoutId, sourcefs,
-						   selectedfs, plctplcy, targetgeotag,
-						   SFS_O_TRUNC, forcedsubgroup,
-						   fmd_cpy->getSize())))
+                // We got a new replication vector
+                for (unsigned int i = 0; i < selectedfs.size(); i++)
                 {
-                  // We got a new replication vector
-                  for (unsigned int i = 0; i < selectedfs.size(); i++)
+                  if (!(errno = Quota::FileAccess(spath.c_str(), *pVid,
+                                                  (unsigned long) 0,
+                                                  space.c_str(),
+                                                  tried_cgi,
+                                                  (unsigned long) fmd_cpy->getLayoutId(),
+                                                  sourcefs,
+                                                  fsIndex,
+                                                  false,
+                                                  (long long unsigned) 0,
+                                                  unavailfs)))
                   {
-                    if (!(errno = Quota::FileAccess(space.c_str(), *pVid,
-						    (unsigned long) 0,
-						    space.c_str(),
-						    tried_cgi,
-						    (unsigned long) fmd_cpy->getLayoutId(),
-						    sourcefs,
-						    fsIndex,
-						    false,
-						    (long long unsigned) 0,
-						    unavailfs)))
-                    {
-                      // This is now our source filesystem
-                      unsigned int sourcefsid = sourcefs[fsIndex];
+                    // This is now our source filesystem
+                    unsigned int sourcefsid = sourcefs[fsIndex];
 
-                      // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
-                      // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
-                      // Add replication here
-                      if (gOFS->_replicatestripe(fmd_cpy.get(), spath.c_str(),
-                                                 *mError, *pVid, sourcefsid,
-                                                 selectedfs[i], false, expressflag))
-                      {
-                        stdErr += "error: unable to replicate stripe ";
-                        stdErr += (int) sourcefsid;
-                        stdErr += " => ";
-                        stdErr += (int) selectedfs[i];
-                        stdErr += "\n";
-                        retc = errno;
-                      }
-                      else
-                      {
-                        stdOut += "success: scheduled replication from source fs=";
-                        stdOut += (int) sourcefsid;
-                        stdOut += " => target fs=";
-                        stdOut += (int) selectedfs[i];
-                        stdOut += "\n";
-                      }
+                    // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
+                    // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+                    // Add replication here
+                    if (gOFS->_replicatestripe(fmd_cpy.get(), spath.c_str(),
+                                               *mError, *pVid, sourcefsid,
+                                               selectedfs[i], false, expressflag))
+                    {
+                      stdErr += "error: unable to replicate stripe ";
+                      stdErr += (int) sourcefsid;
+                      stdErr += " => ";
+                      stdErr += (int) selectedfs[i];
+                      stdErr += "\n";
+                      retc = errno;
                     }
                     else
                     {
-                      stdErr = "error: create new replicas => no source available: ";
-                      stdErr += spath;
-                      stdErr += "\n";
-                      retc = ENOSPC;
+                      stdOut += "success: scheduled replication from source fs=";
+                      stdOut += (int) sourcefsid;
+                      stdOut += " => target fs=";
+                      stdOut += (int) selectedfs[i];
+                      stdOut += "\n";
                     }
                   }
+                  else
+                  {
+                    stdErr = "error: create new replicas => no source available: ";
+                    stdErr += spath;
+                    stdErr += "\n";
+                    retc = ENOSPC;
+                  }
                 }
-                else
-                {
-                  stdErr = "error: create new replicas => cannot place replicas: ";
-                  stdErr += spath;
-                  stdErr += "\n";
-                  retc = ENONET;
-                }
+              }
+              else
+              {
+                stdErr = "error: create new replicas => cannot place replicas: ";
+                stdErr += spath;
+                stdErr += "\n";
+                retc = ENONET;
               }
             }
             else
