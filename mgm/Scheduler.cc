@@ -46,6 +46,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
                           unsigned long lid, //< layout to be placed
                           std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                           std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                          std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+                          std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
                           tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
                           const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
                           bool truncate, //< indicates placement with truncation
@@ -57,7 +59,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
   //! the write placement routine
   //! ------------------------------------------------------------- 
 
-	eos_static_debug("requesting file placement from geolocation %s",vid.geolocation.c_str());
+  eos_static_debug("requesting file placement from geolocation %s",vid.geolocation.c_str());
 
   // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex) 
   std::map<eos::common::FileSystem::fsid_t, float> availablefs;
@@ -65,29 +67,29 @@ Scheduler::FilePlacement (const char* path, //< path to place
   std::list<eos::common::FileSystem::fsid_t> availablevector;
 
   // compute the number of locations of stripes according to the placement policy
-  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1; // 0 = 1 replica !
+  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1;// 0 = 1 replica !
   unsigned int ncollocatedfs = 0;
   switch(plctpolicy)
   {
-  case kScattered:
-  	ncollocatedfs = 0;
-  	break;
-  case kHybrid:
-  	switch(eos::common::LayoutId::GetLayoutType(lid))
-  	{
-  	case eos::common::LayoutId::kPlain:
-  		ncollocatedfs = 1;
-  		break;
-  	case eos::common::LayoutId::kReplica:
-  		ncollocatedfs = nfilesystems-1;
-  		break;
-  	default:
-  		ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(lid);
-  		break;
-  	}
-  	break;
-  case kGathered:
-  	ncollocatedfs = nfilesystems;
+    case kScattered:
+    ncollocatedfs = 0;
+    break;
+    case kHybrid:
+    switch(eos::common::LayoutId::GetLayoutType(lid))
+    {
+      case eos::common::LayoutId::kPlain:
+      ncollocatedfs = 1;
+      break;
+      case eos::common::LayoutId::kReplica:
+      ncollocatedfs = nfilesystems-1;
+      break;
+      default:
+      ncollocatedfs = nfilesystems - eos::common::LayoutId::GetRedundancyStripeNumber(lid);
+      break;
+    }
+    break;
+    case kGathered:
+    ncollocatedfs = nfilesystems;
   }
   eos_static_debug("checking placement policy : policy is %d, nfilesystems is %d and ncollocated is %d",(int)plctpolicy,(int)nfilesystems,(int)ncollocatedfs);
 
@@ -166,37 +168,40 @@ Scheduler::FilePlacement (const char* path, //< path to place
     // if it's unsuccessful, go to the other groups
     FsGroup *group = groupindex<groupsToTry.size()?groupsToTry[groupindex]:(*git);
     // we search for available slots for replicas but all in the same group. If we fail on a group, we look in the next one
-  	// placement is spread out in all the tree to strengthen reliability ( -> "" )
-			bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
-	group, nfilesystems,
-					&selected_filesystems,
-					GeoTreeEngine::regularRW,
-	&alreadyused_filesystems, // file systems to avoid are assumed to already host a replica
-	&fsidsgeotags,
-					bookingsize,
-  			plctTrgGeotag,
-  			ncollocatedfs,
-	NULL,
-					NULL,
-					NULL);
+    // placement is spread out in all the tree to strengthen reliability ( -> "" )
+    bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
+        group, nfilesystems,
+        &selected_filesystems,
+        dataproxys,
+        firewallentpts,
+        GeoTreeEngine::regularRW,
+        &alreadyused_filesystems,// file systems to avoid are assumed to already host a replica
+        &fsidsgeotags,
+        bookingsize,
+        plctTrgGeotag,
+        vid.geolocation,
+        ncollocatedfs,
+        NULL,
+        NULL,
+        NULL);
 
-  	if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
-				char buffer[1024];
-				buffer[0]=0;
-				char *buf = buffer;
-				for(auto it = selected_filesystems.begin(); it!= selected_filesystems.end(); ++it)
-				buf += sprintf(buf,"%lu  ",(unsigned long)(*it));
+      char buffer[1024];
+      buffer[0]=0;
+      char *buf = buffer;
+      for(auto it = selected_filesystems.begin(); it!= selected_filesystems.end(); ++it)
+      buf += sprintf(buf,"%lu  ",(unsigned long)(*it));
 
-				eos_static_debug("GeoTree Placement returned %d with fs id's -> %s", (int)placeRes, buffer);
-  	}
+      eos_static_debug("GeoTree Placement returned %d with fs id's -> %s", (int)placeRes, buffer);
+    }
 
-  	if (placeRes)
-  	{
+    if (placeRes)
+    {
       eos_static_debug("placing replicas for %s in subgroup %s",path,group->mName.c_str());
-  	}
-  	else
-  	{
+    }
+    else
+    {
       eos_static_debug("could not place all replica(s) for %s in subgroup %s, checking next group",path,group->mName.c_str());
     }
 
@@ -207,19 +212,19 @@ Scheduler::FilePlacement (const char* path, //< path to place
       {
         git = FsView::gFsView.mSpaceGroupView[spacename].begin();
       }
-      
+
       // remember the last group for that indextag
       schedulingMutex.Lock();
       schedulingGroup[indextag] = *git;
       schedulingMutex.UnLock();
     }
-    
+
     if (placeRes)
-      return 0;
+    return 0;
     else
       continue;
   }
-  
+
   selected_filesystems.clear();
   return ENOSPC;
 }
@@ -233,6 +238,8 @@ Scheduler::FileAccess (
 		       std::string tried_cgi, //< cgi referencing already tried hosts 
                        unsigned long lid, //< layout of the file
                        std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
+                       std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+                       std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
                        unsigned long &fsindex, //< return index pointing to layout entry filesystem
                        bool isRW, //< indicating if pure read or read/write access
                        unsigned long long bookingsize, //< size to book additionally for read/write access
@@ -243,14 +250,16 @@ Scheduler::FileAccess (
 {
   // Read(/write) access routine
   size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid):
-      eos::common::LayoutId::GetMinOnlineReplica(lid);
+  eos::common::LayoutId::GetMinOnlineReplica(lid);
   eos_static_debug("requesting file access from geolocation %s",vid.geolocation.c_str());
-  
+
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,
-						       isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
-                                                       overridegeoloc.empty() ?
-                                                       vid.geolocation :
-                                                       overridegeoloc,forcedfsid,&unavailfs,noIO);
+      dataproxys,
+      firewallentpts,
+      isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
+      overridegeoloc.empty() ?
+      vid.geolocation :
+      overridegeoloc,forcedfsid,&unavailfs,noIO);
 }
 
 EOSMGMNAMESPACE_END

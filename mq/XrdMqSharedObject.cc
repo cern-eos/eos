@@ -1193,11 +1193,13 @@ XrdMqSharedObjectChangeNotifier::SomListener ()
 //                eos_static_warning("WARNING ID CHANGE in queue %s FROM %s to %s",queue.c_str(),LastValues[newsubject].c_str(),newVal.c_str());
 //              }
 		LastValues[newsubject] = newVal;
+
 	      }
 	      else
 	      {
 		//eos_static_info("notification on %s : new value %s IS NOT a strict change",newsubject.c_str(),newVal.c_str());
 		continue;
+
 	      }
 	    }
 

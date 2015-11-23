@@ -1028,6 +1028,8 @@ SpaceQuota::FilePlacement (const char* path, //< path to place
                            unsigned long lid, //< layout to be placed
                            std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                            std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                           std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+                           std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
                            tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
                            const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
                            bool truncate, //< indicates placement with truncation
@@ -1082,7 +1084,8 @@ SpaceQuota::FilePlacement (const char* path, //< path to place
   }
 
   // call the scheduler implementation now
-  return Scheduler::FilePlacement(path, vid, grouptag, lid, alreadyused_filesystems, selected_filesystems, plctpolicy, plctTrgGeotag, truncate, forced_scheduling_group_index, bookingsize);
+  return Scheduler::FilePlacement(path, vid, grouptag, lid, alreadyused_filesystems, selected_filesystems, dataproxys, firewallentpts,
+                                  plctpolicy, plctTrgGeotag, truncate, forced_scheduling_group_index, bookingsize);
 }
 
 /*----------------------------------------------------------------------------*/

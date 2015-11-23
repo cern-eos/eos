@@ -1268,12 +1268,28 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       containertag = attrmap["user.tag"].c_str();
     }
+    /// ###############
+    /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
+    std::vector<std::string> proxys,firewalleps;
+    /// ###############
     retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
-                                     selectedfs, selectedfs,
+                                     selectedfs, selectedfs, &proxys, &firewalleps,
                                      plctplcy,targetgeotag,
                                      open_mode & SFS_O_TRUNC,
                                      forcedGroup,
                                      bookingsize);
+    /// ###############
+    /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
+    std::stringstream strstr;
+    strstr << "\nselectedfs are : ";
+    for(auto it=selectedfs.begin();it!=selectedfs.end();it++) strstr<<*it<<"  ";
+    strstr << "\nproxys are : ";
+    for(auto it=proxys.begin();it!=proxys.end();it++) strstr<<*it<<"  ";
+    strstr << "\nfirewallentrypoints are : ";
+    for(auto it=firewalleps.begin();it!=firewalleps.end();it++) strstr<<*it<<"  ";
+    strstr << "  and retc=" << retc;
+    eos_static_info(strstr.str().c_str());
+    /// ###############
   }
   else
   {
@@ -1296,10 +1312,28 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, ENODEV, "open - no replica exists", path);
     }
 
+    /// ###############
+    /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
+    std::vector<std::string> proxys,firewalleps;
+    /// ###############
     // reconstruction opens files in RW mode but we actually need RO mode in this case
     retc = quotaspace->FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
-                                  selectedfs, fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
+                                  selectedfs,&proxys,&firewalleps,
+                                  fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
+    /// ###############
+    /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
+    std::stringstream strstr;
+    strstr << "\nselectedfs are : ";
+    for(auto it=selectedfs.begin();it!=selectedfs.end();it++) strstr<<*it<<"  ";
+    strstr << "\nproxys are : ";
+    for(auto it=proxys.begin();it!=proxys.end();it++) strstr<<*it<<"  ";
+    strstr << "\nfirewallentrypoints are : ";
+    for(auto it=firewalleps.begin();it!=firewalleps.end();it++) strstr<<*it<<"  ";
+    strstr << "  and retc=" << retc;
+    eos_static_info(strstr.str().c_str());
+    /// ###############
+
 
     if (retc == EXDEV)
     {
@@ -1783,11 +1817,28 @@ XrdMgmOfsFile::open (const char *inpath,
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
 
+      /// ###############
+      /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
+      std::vector<std::string> proxys,firewalleps;
+      /// ###############
       retc = quotaspace->FilePlacement(path, rootvid, containertag, plainLayoutId,
-                                       selectedfs, PioReplacementFsList,
+                                       selectedfs, PioReplacementFsList, &proxys, &firewalleps,
                                        plctplcy,targetgeotag,
                                        false, forcedGroup,
                                        plainBookingSize);
+      /// ###############
+      /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
+      std::stringstream strstr;
+      strstr << "\nselectedfs are : ";
+      for(auto it=selectedfs.begin();it!=selectedfs.end();it++) strstr<<*it<<"  ";
+      strstr << "\nproxys are : ";
+      for(auto it=proxys.begin();it!=proxys.end();it++) strstr<<*it<<"  ";
+      strstr << "\nfirewallentrypoints are : ";
+      for(auto it=firewalleps.begin();it!=firewalleps.end();it++) strstr<<*it<<"  ";
+      strstr << "  and retc=" << retc;
+      eos_static_info(strstr.str().c_str());
+      /// ###############
+
 
       if (retc)
       {

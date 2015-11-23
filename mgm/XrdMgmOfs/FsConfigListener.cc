@@ -284,7 +284,6 @@ XrdMgmOfs::FsConfigListener ()
         }
         else if(key == watch_proxygroups)
         {
-          eos_info("got dataproxy/ep update");
           // -------------------------------------------------------------------
           // this is a dataproxy / dataep status update
           // -------------------------------------------------------------------

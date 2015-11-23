@@ -505,10 +505,10 @@ public:
     auto cmpRqRight = strcmp(fsid,pBuffer+right*pStrLen);
 
     if (cmpRqRight>0 || cmpRqLeft<0)
-    //if (!pSize || fsid > pFsIds[right] || fsid < pFsIds[left])
-    return false;
+    {
+      return false;
+    }
 
-    //if (fsid == pFsIds[right])
     if (cmpRqRight==0)
     {
       idx = &pNodeIdxs[right];
@@ -518,7 +518,6 @@ public:
     while (right - left > 1)
     {
       tFastTreeIdx mid = (left + right) / 2;
-      //if (fsid < pFsIds[mid])
       auto cmpRqMid = strcmp(fsid,pBuffer+mid*pStrLen);
       if (cmpRqMid<0)
       right = mid;
@@ -526,7 +525,6 @@ public:
       left = mid;
     }
 
-    //if (fsid == pFsIds[left])
     if (cmpRqLeft==0)
     {
       idx = &pNodeIdxs[left];
@@ -1009,7 +1007,7 @@ public:
 
   typedef FastTreeBranch Branch;
 
-  typedef FastTree<FsDataMemberForRand, FsAndFileDataComparerForBranchSorting> tSelf;
+  typedef FastTree<FsDataMemberForRand, FsAndFileDataComparerForBranchSorting,FsIdType> tSelf;
   typedef TreeNodeStateChar FsData;
 
   struct FileData : public TreeNodeSlots
@@ -1126,7 +1124,7 @@ protected:
   getRandomBranch(const tFastTreeIdx &node, bool* visited=NULL) const
   {
     const tFastTreeIdx &nBranches = pNodes[node].fileData.lastHighestPriorityOffset + 1;
-    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << "getRandomBranch at " << (*pTreeInfo)[node] << " choose among " << (int) nBranches << std::endl;
@@ -1171,7 +1169,7 @@ protected:
     if(brchBegIdx>=brchEndIdx)
     return false;
 
-    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_DEBUG)
+    __EOSMGM_TREECOMMON_DBG3__ if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
       stringstream ss;
       ss << "getRandomBranchGeneric from Branch " << (int)brchBegIdx << " to branch " << (int)brchEndIdx << std::endl;
@@ -1909,6 +1907,7 @@ public:
     << "|ulSc:"<< (int) pNodes[node].fsData.ulScore
     << "|dlSc:"<< (int) pNodes[node].fsData.dlScore
     << "|filR:"<< (int) pNodes[node].fsData.fillRatio
+//    << "|pxyG:"<< (*pTreeInfo)[node].proxygroup
     << "|totS:"<< pNodes[node].fsData.totalSpace<< ")";
     ss << std::right << std::setw(7) << std::setfill(' ') << "";
 

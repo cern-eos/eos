@@ -138,6 +138,7 @@ public:
     std::string geotag;
     std::string fullGeotag;
     std::string host;
+    std::string proxygroup;
     eos::common::FileSystem::fsid_t fsId;
     float netSpeedClass;
 

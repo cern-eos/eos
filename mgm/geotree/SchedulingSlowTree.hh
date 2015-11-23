@@ -167,6 +167,10 @@ public:
   {
     pRootNode.pNodeInfo.geotag=groupId;
   }
+  const std::string & getName() const
+  {
+    return pRootNode.pNodeInfo.geotag;
+  }
   SlowTree()
   { Init();}
   ~SlowTree()

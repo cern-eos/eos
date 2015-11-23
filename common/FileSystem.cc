@@ -435,6 +435,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mUuid = mHash->Get("uuid");
     fs.mHost = mHash->Get("host");
     fs.mHostPort = mHash->Get("hostport");
+    fs.mProxyGroup = mHash->Get("proxygroup");
     fs.mPort = mHash->Get("port");
 
     std::string::size_type dpos = 0;
@@ -516,6 +517,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mUuid = "";
     fs.mHost = "";
     fs.mHostPort = "";
+    fs.mProxyGroup = "";
     fs.mPort = "";
     fs.mErrMsg = "";
     fs.mGeoTag ="";

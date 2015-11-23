@@ -611,6 +611,8 @@ public:
                      unsigned long lid, //< layout to be placed
                      std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
                      std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
+                     std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+                     std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
                      tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
                      const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
                      bool truncate = false, //< indicates placement with truncation

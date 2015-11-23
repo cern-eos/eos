@@ -419,6 +419,7 @@
 							  tried_cgi,
                                                           lid,
                                                           locationfs,
+                                                          NULL,NULL,
                                                           fsindex,
                                                           false,
                                                           (long long unsigned) 0,

@@ -616,6 +616,10 @@ class GeoTreeEngine : public eos::common::LogId
         slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
         slowState.fillRatio = float(fastState.fillRatio)/255;
         slowState.totalSpace = float(fastState.totalSpace);
+        SchedTreeBase::TreeNodeInfo &fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
+        SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
+        slowInfo.netSpeedClass = fastInfo.netSpeedClass;
+        slowInfo.proxygroup = fastInfo.proxygroup;
       }
     }
 
@@ -654,6 +658,9 @@ class GeoTreeEngine : public eos::common::LogId
         slowState.dlScore = float(fastState.dlScore)/255;
         slowState.ulScore = float(fastState.ulScore)/255;
         slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
+        SchedTreeBase::TreeNodeInfo &fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
+        SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
+        slowInfo.netSpeedClass = fastInfo.netSpeedClass;
       }
     }
 
@@ -821,7 +828,7 @@ protected:
   sfgGeotag,sfgId,sfgBoot,sfgDrain,sfgDrainer,sfgBlcingrun,sfgBlcerrun,
   sfgBalthres,sfgActive,sfgBlkavailb,sfgDiskload,
   sfgEthmib,sfgInratemib,sfgOutratemib,sfgWriteratemb,
-  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc,sfgPubTmStmp;
+  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc,sfgPubTmStmp,sfgPxyGrp;
 
   //! This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
   //! To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
@@ -858,6 +865,8 @@ protected:
   bool pSkipSaturatedPlct,pSkipSaturatedAccess,
   pSkipSaturatedDrnAccess,pSkipSaturatedBlcAccess,
   pSkipSaturatedDrnPlct,pSkipSaturatedBlcPlct;
+  /// these setting indicates if sthe proxy should be selected closest to the fs or closest to the client
+  bool pProxyCloseToFs;
 
   /// this set the speed on how fast the penalties are allowed to
   /// change as they are estimated
@@ -1440,6 +1449,7 @@ protected:
     return ret;
   }
 
+  bool findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsidxs, std::vector<SchedTME *> entries, std::vector<std::string> *proxies, const std::string &proxyGroup="",const std::string &clientgeotag="");
   bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
   bool applyBranchDisablings(const SchedTME& entry);
   bool applyBranchDisablings(const GwTMEBase& entry);
@@ -1449,6 +1459,7 @@ protected:
   bool setSkipSaturatedBlcAccess(bool value);
   bool setSkipSaturatedDrnPlct(bool value);
   bool setSkipSaturatedBlcPlct(bool value);
+  bool setProxyCloseToFs(bool value);
   bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &value, const std::string &configentry);
   bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* vvalue, const std::string &configentry);
   bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry);
@@ -1471,7 +1482,7 @@ public:
   GeoTreeEngine () :
   pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
   pSkipSaturatedDrnAccess(true),pSkipSaturatedBlcAccess(true),
-  pSkipSaturatedDrnPlct(false),pSkipSaturatedBlcPlct(false),
+  pSkipSaturatedDrnPlct(false),pSkipSaturatedBlcPlct(false),pProxyCloseToFs(false),
   pPenaltyUpdateRate(1),
   pFillRatioLimit(80),pFillRatioCompTol(100),pSaturationThres(10),
   pTimeFrameDurationMs(1000),pPublishToPenaltyDelayMs(1000),
@@ -1577,6 +1588,13 @@ public:
   // @param newReplicas
   //   vector to which fsids of new replicas are appended if the placement
   //   succeeds. They are appended in decreasing priority order
+  // @param dataProxys
+  //   if this pointer is non NULL, one proxy is returned for each filesystem returned
+  //   if they have a proxygroup defined
+  //   if a fs has proxygroup and no proxy could be found, the placement operation fails
+  // @param firewallEntryPoints
+  //   if this pointer is non NULL, one firewall entry point is returned for each filesystem returned
+  //   if no entry point could be found for an fs, the placement operation fails
   // @param type
   //   type of placement to be performed. It can be:
   //     regularRO, regularRW, balancing or draining
@@ -1589,6 +1607,8 @@ public:
   // @param startFromGeoTag
   //   try to place the files under this geotag
   //   useful to group up replicas or to replace a replica by a new one nearby
+  // @param clientGeoTag
+  //   try to place the proxys (data and firewall) close to the client
   // @param nCollocatedReplicas
   //   among the nNewReplicas, nCollocatedReplicas are placed as close as possible to startFromGeoTag
   //   the other ones are scattered out as much as possible in the tree
@@ -1606,11 +1626,14 @@ public:
   // ---------------------------------------------------------------------------
   bool placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
       std::vector<eos::common::FileSystem::fsid_t> *newReplicas,
+      std::vector<std::string> *dataProxys,
+      std::vector<std::string> *firewallEntryPoints,
       SchedType type,
       std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
       std::vector<std::string>*fsidsgeotags=0,
       unsigned long long bookingSize=0,
       const std::string &startFromGeoTag="",
+      const std::string &clientGeoTag="",
       const size_t &nCollocatedReplicas=0,
       std::vector<eos::common::FileSystem::fsid_t> *excludeFs=NULL,
       std::vector<std::string> *excludeGeoTags=NULL,
@@ -1673,6 +1696,13 @@ public:
   //   return the index of the head replica in the existingReplicas vector
   // @param existingReplicas
   //   fsids of preexisting replicas for the current file
+  // @param dataProxys
+  //   if this pointer is non NULL, one proxy is returned for each filesystem returned
+  //   if they have a proxygroup defined
+  //   if a fs has proxygroup and no proxy could be found, the access operation fails
+  // @param firewallEntryPoints
+  //   if this pointer is non NULL, one firewall entry point is returned for each filesystem returned
+  //   if no entry point could be found for an fs, the access operation fails
   // @param type
   //   type of access to be performed. It can be:
   //     regularRO, regularRW, balancing or draining
@@ -1694,6 +1724,8 @@ public:
   int accessHeadReplicaMultipleGroup(const size_t &nReplicas,
       unsigned long &fsIndex,
       std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+      std::vector<std::string> *dataProxys,
+      std::vector<std::string> *firewallEntryPoints,
       SchedType type=regularRO,
       const std::string &accesserGeotag="",
       const eos::common::FileSystem::fsid_t &forcedFsId=0,

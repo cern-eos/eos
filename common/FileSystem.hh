@@ -124,6 +124,7 @@ public:
     std::string mUuid;
     std::string mHost;
     std::string mHostPort;
+    std::string mProxyGroup;
     std::string mPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;
