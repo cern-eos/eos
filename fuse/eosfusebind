@@ -28,7 +28,7 @@
 
 function CheckCredDir
 {
-  if [[ `stat -c "%a" /var/run/eosd/credentials` != "607" ]]; then echo "credential directory is not ready"; exit 1; fi 
+  if [[ `stat -c "%a" /var/run/eosd/credentials` != "607" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
 }
 
 function ExitUsage
@@ -47,6 +47,8 @@ function ExitUsage
   printf "$f %s\\n\n" "" "show current session binding"
   printf "$f %s\\n" $exename "-S|--show-user"
   printf "$f %s\\n" "" "show bindings of all sessions of current user"
+  printf "$f %s\\n" $exename "--pam"
+  printf "$f %s\\n" "" "PAM module mode using environment variable PAM_TYPE. Recognized values for this variable are open_session and close_session"
   echo
   exit 1
 }
@@ -59,6 +61,15 @@ function ParseArgs
   REQLSSES=0
   AUTHTYPE="krb5"
   CREDFILE=""
+  if [[ $# = 1   &&  (  $1 = "--pam" ) ]]; then
+     if [[ "$PAM_TYPE" = "close_session" ]]; then
+         REQULNKSES=1; REQULNK=1; return
+     elif [[ "$PAM_TYPE" = "open_session" ]]; then
+         return
+     else
+         echo "PAM mode: Unknown PAM_TYPE='$PAM_TYPE'" >&2; exit 1
+     fi
+  fi
   if [[ $# = 1   &&  (  $1 = "-h" || $1 = "--help" ) ]]; then ExitUsage; fi
   if [[ $# = 1   &&  (  $1 = "-u" || $1 = "--unbind-session" ) ]]; then REQULNKSES=1; REQULNK=1; return; fi
   if [[ $# = 1   &&  (  $1 = "-U" || $1 = "--unbind-user" ) ]]; then REQULNKUSR=1; REQULNK=1; return; fi
@@ -70,15 +81,15 @@ function ParseArgs
 
 function CheckArgs
 {
-  if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  echo "invalid authentication type $AUTHTYPE"; exit 1; fi
-  if [[ "X$CREDFILE" != "X" && `stat -c "%a" $CREDFILE` != "600" ]]; then  echo "credential file $CREDFILE does not exist or has bad permissions"; exit 1; fi
+  if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  echo "invalid authentication type $AUTHTYPE" >&2; exit 1; fi
+  if [[ "X$CREDFILE" != "X" && `stat -c "%a" $CREDFILE` != "600" ]]; then  echo "credential file $CREDFILE does not exist or has bad permissions" >&2; exit 1; fi
 }
 
 function GetEnvKrb5CredFile
 {
   CREDFILE=$KRB5CCNAME
   if [[ "${#KRB5CCNAME}" != "0" && `echo $KRB5CCNAME | cut -c1-5` != "FILE:" ]]; then
-  echo "only cache credential files are supported for krb5"
+  echo "only cache credential files are supported for krb5" >&2
   fi
   CREDFILE=`echo $KRB5CCNAME | cut -c6-`
 }
@@ -93,7 +104,7 @@ function GetAutoKrb5CredFile
   GetEnvKrb5CredFile
   if [[ "X$CREDFILE" = "X" || `stat -c "%a" $CREDFILE` != "600" ]]; then  GetDefaultKrb5CredFile; fi
   if [[ "X$CREDFILE" = "X" || `stat -c "%a" $CREDFILE` != "600" ]]; then  echo "could not find autmatically a credential file"; exit 1; fi
-  echo "using krb5 cache credential file $CREDFILE"
+  #echo "using krb5 cache credential file $CREDFILE"
 }
 
 function GetEnvX509CredFile
@@ -110,8 +121,8 @@ function GetAutoX509CredFile
 {
   GetEnvX509CredFile
   if [[ "X$CREDFILE" = "X" || `stat -c "%a" $CREDFILE` != "600" ]]; then GetDefaultX509CredFile; fi
-  if [[ "X$CREDFILE" = "X" || `stat -c "%a" $CREDFILE` != "600" ]]; then echo "could not find autmatically a credential file"; exit 1; fi
-  echo "using x509 user proxy file $CREDFILE"
+  if [[ "X$CREDFILE" = "X" || `stat -c "%a" $CREDFILE` != "600" ]]; then echo "could not find automatically a credential file" >&2; exit 1; fi
+  #echo "using x509 user proxy file $CREDFILE"
 }
 
 
@@ -205,7 +216,7 @@ function LinkSession
   #echo "ln -sf $CREDFILE $SymlinkName"
   ln -sf $CREDFILE $SymlinkName
   if [ $? -ne 0 ]; then
-    echo "Error creating credentials symlink."
+    echo "Error creating credentials symlink." >&2
   fi
 }
 
