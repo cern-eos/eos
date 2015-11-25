@@ -117,7 +117,25 @@ ShellCmd::monitor ()
   // this way the given process becomes its parent
   // and can use 'waitpid' for waiting
   //----------------------------------------------------------------------------
-  ptrace(PTRACE_ATTACH, pid, 0, 0);
+  if ( (ptrace(PTRACE_ATTACH, pid, 0, 0)) == -1)
+  {
+    // ptrace attach failed, we cannot proceed, but we block until the child terminated
+    perror("error: failed to attach to forked process");
+    while (is_active())
+    {
+      XrdSysTimer snooze;
+      snooze.Wait(250);
+    }
+    cmd_stat.exited = false;
+    cmd_stat.exit_code = EPERM;
+    cmd_stat.signaled = false;
+    cmd_stat.signo = 0;
+    cmd_stat.status = 0;
+    
+    // reset the active flag
+    monitor_active = false;
+    return;
+  }
 
   // wait for the 'command' process
   int status = 0;
@@ -142,7 +160,11 @@ ShellCmd::monitor ()
     }
     else
     {
+      perror("error: failed to waitpid for attached process");
       if (!is_active()) break;
+      XrdSysTimer snooze;
+      // prevent tight loops
+      snooze.Wait(250);
     }
   }
 
