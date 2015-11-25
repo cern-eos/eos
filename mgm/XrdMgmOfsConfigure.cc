@@ -28,6 +28,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <string.h>
+#include <sys/fsuid.h>
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -304,6 +305,12 @@ XrdMgmOfs::InitializeFileView ()
 int
 XrdMgmOfs::Configure (XrdSysError &Eroute)
 {
+  // the process run's as root, but acts on the filesystem as daemon
+  seteuid(0);
+  setegid(0);
+  setfsuid(2);
+  setfsgid(2);
+
   char *var;
   const char *val;
   int cfgFD, retc, NoGo = 0;
@@ -818,9 +825,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += MgmMetaLogDir;
             src = system(chownit.c_str());
             if (src)
@@ -855,9 +860,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += MgmTxDir;
             src = system(chownit.c_str());
             if (src)
@@ -891,9 +894,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += MgmAuthDir;
             src = system(chownit.c_str());
             if (src)
@@ -934,9 +935,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += IoReportStorePath;
             src = system(chownit.c_str());
             if (src)
@@ -1317,9 +1316,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (src)
     eos_err("%s returned %d", makeit.c_str(), src);
 
-  XrdOucString chownit = "chown -R ";
-  chownit += (int) geteuid();
-  chownit += " ";
+  XrdOucString chownit = "chown -R 2 ";
   chownit += MgmConfigDir;
   src = system(chownit.c_str());
   if (src)
