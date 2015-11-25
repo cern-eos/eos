@@ -229,7 +229,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   const std::string getName() const
   {
-    return std::string(pName);
+    return pName;
   }
 
   //----------------------------------------------------------------------------

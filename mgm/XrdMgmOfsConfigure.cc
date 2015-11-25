@@ -1930,6 +1930,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
+  // Create the top quota node '/eos/' if it doesn't exist already
+  if (!Quota::Exists("/eos/"))
+    Quota::Create("/eos/");
+
   // Start the Httpd if available
   if (!Httpd.Start())
     eos_warning("msg=\"cannot start httpd daemon\"");

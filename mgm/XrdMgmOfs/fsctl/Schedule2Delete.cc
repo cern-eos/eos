@@ -70,11 +70,16 @@
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     eos::IFsView::FileList lIdSet;
 
+    try
     {
-      // reduce lock contention
       eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
       // TODO: use ROV rather than copy
       lIdSet = eosFsView->getUnlinkedFileList(fslist[i]);
+    }
+    catch (...)
+    {
+      eos_static_warning("fs %lu no longer in the ns view", fslist[i]);
+      continue;
     }
 
     if (lIdSet.empty())

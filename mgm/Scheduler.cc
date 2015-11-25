@@ -43,7 +43,8 @@ Scheduler::~Scheduler() { }
 // Take the decision where to place a new file in the system
 //------------------------------------------------------------------------------
 int
-Scheduler::FilePlacement(const char* path,
+Scheduler::FilePlacement(const std::string& spacename,
+                         const char* path,
                          eos::common::Mapping::VirtualIdentity_t& vid,
                          const char* grouptag,
                          unsigned long lid,
@@ -112,7 +113,6 @@ Scheduler::FilePlacement(const char* path,
   }
 
   std::string indextag = lindextag.c_str();
-  std::string spacename = SpaceName.c_str();
   std::set<FsGroup*>::const_iterator git;
   std::vector<std::string> fsidsgeotags;
   std::vector<FsGroup*> groupsToTry;

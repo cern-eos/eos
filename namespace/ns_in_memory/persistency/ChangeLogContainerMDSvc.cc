@@ -1161,4 +1161,16 @@ namespace eos
   {
     pChangeLog->clearWarningMessages();
   }
+
+  //----------------------------------------------------------------------------
+  // Notify the listeners about the change
+  //----------------------------------------------------------------------------
+  void
+  ChangeLogContainerMDSvc::notifyListeners( IContainerMD *obj,
+                                            IContainerMDChangeListener::Action a )
+  {
+    ListenerList::iterator it;
+    for( it = pListeners.begin(); it != pListeners.end(); ++it )
+      (*it)->containerMDChanged( obj, a );
+  }
 }

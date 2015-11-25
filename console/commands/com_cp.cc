@@ -741,7 +741,6 @@ com_cp (char* argin)
       // local file
       // ------------------------------------------
       struct stat buf;
-      fprintf(stderr,"doing stat of %s\n", source_list[nfile].c_str());
       if (!stat(source_list[nfile].c_str(), &buf))
       {
         if (S_ISDIR(buf.st_mode))
@@ -993,6 +992,8 @@ com_cp (char* argin)
         if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
         {
           fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+	    retc |= EEXIST;
+	    continue;
         }
       }
       else
@@ -1002,6 +1003,8 @@ com_cp (char* argin)
           if (!stat(targetfile.c_str(), &buf))
           {
             fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+	    retc |= EEXIST;
+	    continue;
           }
         }
       }

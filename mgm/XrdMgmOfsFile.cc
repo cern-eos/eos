@@ -1236,12 +1236,6 @@ XrdMgmOfsFile::open (const char *inpath,
 
   int retc = 0;
 
-  if (!Quota::ExistsSpace(space.c_str()))
-  {
-    gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
-    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
-  }
-
   // Place a new file
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
   {
@@ -1272,7 +1266,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // Reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = Quota::FileAccess(space.c_str(), vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
+    retc = Quota::FileAccess(path, vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
 			     selectedfs, fsIndex, isPioReconstruct ? false : isRW,
 			     fmd->getSize(), unavailfs);
 
