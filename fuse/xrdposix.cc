@@ -1171,8 +1171,6 @@ protected:
     std::stringstream ss;
     size_t i = 0;
     // avoid characters that could mess up the link name
-//    while ((i = identity.find_first_of ("\\/:\"*?<>|", i)) != std::string::npos)
-//      identity[i] = '.';
     while ((i = identity.find_first_of ("/", i)) != std::string::npos)
       identity[i] = '.';
     ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
@@ -1290,7 +1288,7 @@ protected:
     eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":(credinfo.type==krb5?"krk5":"x509"),credinfo.fname.c_str());
     if(credinfo.type==krk5)
     {
-      // fileless authentication cannot rely on simlinks to be able to change the cache credential file
+      // fileless authentication cannot rely on symlinks to be able to change the cache credential file
       // instead of the identity, we use the keyring information and each has a different xrd login
       credinfo.identity = credinfo.fname;
       ret = true;
@@ -1316,21 +1314,16 @@ protected:
 
   bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid, CredType credtype)
   {
-    //const unsigned int reqMode = 0600;
     //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
     if (
     // check owner ship
-    linkstat.st_uid == uid
-    )
+    linkstat.st_uid == uid)
     {
       if (credtype == krk5)
         return true;
-      else if (filestat.st_uid == uid
-      // check permissions
-      //&& (filestat.st_mode & 0777) == reqMode
-          && (filestat.st_mode & 0077) == 0 // no access to other users/groups
-          && (filestat.st_mode & 0400) != 0 // read allowed for the user
-              ) return true;
+      else if (filestat.st_uid == uid && (filestat.st_mode & 0077) == 0 // no access to other users/groups
+      && (filestat.st_mode & 0400) != 0 // read allowed for the user
+          ) return true;
     }
 
     return false;
@@ -1342,9 +1335,6 @@ protected:
     // when entering this function proccachemutexes[pid] must be write locked
     int errCode;
     char buffer[1024];
-    std::string oldauth,newauth;
-    if(!proccache_GetAuthMethod(pid,buffer,1024))
-      oldauth=buffer;
 
     // this is useful even in gateway mode because of the recursive deletion protection
     if ((errCode = proccache_InsertEntry (pid)))
