@@ -411,7 +411,6 @@ int
 ReplicaParLayout::Stat (struct stat* buf)
 {
   int rc = 0;
-  fprintf(stderr, "***** replicate-size %d\n", mReplicaFile.size());
   for (unsigned int i = 0; i < mReplicaFile.size(); i++)
   {
     rc = mReplicaFile[i]->Stat(buf, mTimeout);
