@@ -83,7 +83,7 @@ Storage::Remover ()
         }
 
         // update the manager
-        int rc = gOFS.CallManager(&error, 0, todelete.managerId.c_str(), capOpaqueString);
+        int rc = gOFS.CallManager(&error, 0, 0 , capOpaqueString);
         if (rc)
         {
           eos_static_err("unable to drop file id %s fsid %u at manager %s", hexstring.c_str(), todelete.fsId, todelete.managerId.c_str());
@@ -125,7 +125,7 @@ Storage::Remover ()
 
       XrdOucErrInfo error;
       XrdOucString response = "";
-      int rc = gOFS.CallManager(&error, "/", manager.c_str(), managerQuery, &response);
+      int rc = gOFS.CallManager(&error, "/", 0, managerQuery, &response);
       if (rc)
       {
         eos_static_err("manager returned errno=%d", rc);

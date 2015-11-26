@@ -55,8 +55,7 @@ Storage::WaitConfigQueue (std::string & nodeconfigqueue)
 void
 Storage::GetDrainSlotVariables (unsigned long long &nparalleltx,
                                 unsigned long long &ratetx,
-                                std::string nodeconfigqueue,
-                                std::string &manager
+                                std::string nodeconfigqueue
                                 )
 /*----------------------------------------------------------------------------*/
 /**
@@ -70,7 +69,7 @@ Storage::GetDrainSlotVariables (unsigned long long &nparalleltx,
   gOFS.ObjectManager.HashMutex.LockRead();
 
   XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(nodeconfigqueue.c_str());
-  manager = confighash ? confighash->Get("manager") : "unknown";
+  std::string manager = confighash ? confighash->Get("manager") : "unknown";
   nparalleltx = confighash ? confighash->GetLongLong("stat.drain.ntx") : 0;
   ratetx = confighash ? confighash->GetLongLong("stat.drain.rate") : 0;
 
@@ -263,12 +262,11 @@ Storage::GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
 
 /*----------------------------------------------------------------------------*/
 bool
-Storage::GetDrainJob (unsigned int index, std::string manager)
+Storage::GetDrainJob (unsigned int index)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief get a drain job for the filesystem in the filesystem vector with index
  * @param index index in the filesystem vector
- * @param manger to call
  * @return true if scheduled otherwise false
  */
 /*----------------------------------------------------------------------------*/
@@ -294,7 +292,7 @@ Storage::GetDrainJob (unsigned int index, std::string manager)
   XrdOucString response = "";
   int rc = gOFS.CallManager(&error,
                             "/",
-                            manager.c_str(),
+                            0,
                             managerQuery,
                             &response);
 
@@ -333,7 +331,6 @@ Storage::Drainer ()
   eos_static_info("Start Drainer ...");
 
   std::string nodeconfigqueue = "";
-  std::string manager = "";
   unsigned long long nparalleltx = 0;
   unsigned long long ratetx = 0;
   unsigned long long nscheduled = 0;
@@ -373,7 +370,7 @@ Storage::Drainer ()
 
     while (!nparalleltx) 
     {      
-      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = time(NULL);
       XrdSysTimer sleeper;
       sleeper.Snooze(10);
@@ -385,7 +382,7 @@ Storage::Drainer ()
     // -------------------------------------------------------------------------
     if (!last_config_update || ( ((long long)now-(long long)last_config_update) > 60) )
     {
-      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = now;
     }
 
@@ -467,7 +464,7 @@ Storage::Drainer ()
             // ---------------------------------------------------------------------
             // try to get a drainjob for the indexed filesystem
             // ---------------------------------------------------------------------
-            if (GetDrainJob(drainfsindex[i], manager))
+            if (GetDrainJob(drainfsindex[i]))
             {
               eos_static_debug("got scheduled totalscheduled=%llu slotstofill=%llu", totalscheduled, slotstofill);
               drainfsindexSchedulingTime[drainfsindex[i]] = 0;

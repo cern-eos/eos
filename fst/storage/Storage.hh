@@ -126,8 +126,8 @@ public:
   void Balancer ();
   void GetBalanceSlotVariables (unsigned long long &nparalleltx,
                                 unsigned long long &ratex,
-                                std::string configqueue,
-                                std::string &manager);
+                                std::string configqueue);
+
 
   unsigned long long GetScheduledBalanceJobs (unsigned long long totalscheduled,
                                               unsigned long long &totalexecuted);
@@ -141,7 +141,7 @@ public:
                                    unsigned long long nparalleltx,
                                    unsigned long long ratetx);
 
-  bool GetBalanceJob (unsigned int index, std::string manager);
+  bool GetBalanceJob (unsigned int index);
 
   // ---------------------------------------------------------------------------
   // drain related methods
@@ -151,8 +151,7 @@ public:
 
   void GetDrainSlotVariables (unsigned long long &nparalleltx,
                               unsigned long long &ratex,
-                              std::string configqueue,
-                              std::string &manager);
+                              std::string configqueue);
 
   unsigned long long GetScheduledDrainJobs (unsigned long long totalscheduled,
                                             unsigned long long &totalexecuted);
@@ -166,7 +165,7 @@ public:
                                  unsigned long long nparalleltx,
                                  unsigned long long ratetx);
 
-  bool GetDrainJob (unsigned int index, std::string manager);
+  bool GetDrainJob (unsigned int index);
 
   // ---------------------------------------------------------------------------
   void Cleaner ();
