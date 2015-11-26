@@ -19,6 +19,7 @@
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 /*----------------------------------------------------------------------------*/
+#include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_in_memory/NsInMemoryPlugin.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
@@ -111,7 +112,7 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 EOSNSNAMESPACE_BEGIN
 
 // Static variables
-eos::IContainerMDSvc* pContMDSvc = 0;
+eos::IContainerMDSvc* NsInMemoryPlugin::pContMDSvc = 0;
 
 //------------------------------------------------------------------------------
 // Create container metadata service
