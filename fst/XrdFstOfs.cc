@@ -731,6 +731,16 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
   XrdOucString address = "root://";
+  XrdOucString lManager;
+
+  if (!manager)
+  {
+    // use the broadcasted manager name
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    lManager = Config::gConfig.Manager.c_str();
+    manager = lManager.c_str();
+  }
+
   address += manager;
   address += "//dummy";
   XrdCl::URL url(address.c_str());
