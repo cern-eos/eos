@@ -40,6 +40,7 @@
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Workflow.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
@@ -136,7 +137,7 @@ XrdMgmOfsFile::open (const char *inpath,
   if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
   {
     //-------------------------------------------
-    // reference by fid+fsid                                                                                                                                                                                           
+    // reference by fid+fsid
     //-------------------------------------------
     unsigned long long fid = 0;
     if (spath.beginswith("fid:"))
@@ -161,8 +162,8 @@ XrdMgmOfsFile::open (const char *inpath,
     catch (eos::MDException &e)
     {
       eos_debug("caught exception %d %s\n",
-		e.getErrno(),
-		e.getMessage().str().c_str());
+                e.getErrno(),
+                e.getMessage().str().c_str());
       return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
     }
   }
@@ -193,7 +194,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // list of filesystem IDs to reconstruct
   std::vector<unsigned int> PioReconstructFsList;
 
-  // list of filesystem IDs usable for replacmenet
+  // list of filesystem IDs usable for replacement
   std::vector<unsigned int> PioReplacementFsList;
 
   // of RAIN files
@@ -263,6 +264,8 @@ XrdMgmOfsFile::open (const char *inpath,
   MAYSTALL;
   MAYREDIRECT;
 
+  XrdOucString currentWorkflow = "default";
+
   openOpaque = new XrdOucEnv(info);
 
   {
@@ -293,10 +296,19 @@ XrdMgmOfsFile::open (const char *inpath,
     if ((val = openOpaque->Get("tried")))
     {
       tried_cgi = val;
-      tried_cgi +=",";
+      tried_cgi += ",";
     }
-
   }
+
+  {
+    // extract the workflow name from the CGI
+    const char* val = 0;
+    if ((val = openOpaque->Get("eos.workflow")))
+    {
+      currentWorkflow = val;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // PIO MODE CONFIGURATION
   // ---------------------------------------------------------------------------
@@ -469,6 +481,8 @@ XrdMgmOfsFile::open (const char *inpath,
   eos::ContainerMD* dmd = 0;
   eos::ContainerMD::XAttrMap attrmap;
   Acl acl;
+  Workflow workflow;
+
   bool stdpermcheck = false;
 
   int versioning = 0;
@@ -492,24 +506,27 @@ XrdMgmOfsFile::open (const char *inpath,
                      attrmap,
                      false);
 
+      // extract workflows
+      workflow.Init(&attrmap);
+
       if (dmd)
       {
-	try
-	{
-	  if (ocUploadUuid.length())
-	  {
-	    eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-	    fmd = gOFS->eosView->getFile(aPath.GetPath());
-	  }
-	  else
-	  {
-	    fmd = gOFS->eosView->getFile(cPath.GetPath());
-	  }
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = 0;
-	}
+        try
+        {
+          if (ocUploadUuid.length())
+          {
+            eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
+            fmd = gOFS->eosView->getFile(aPath.GetPath());
+          }
+          else
+          {
+            fmd = gOFS->eosView->getFile(cPath.GetPath());
+          }
+        }
+        catch (eos::MDException &e)
+        {
+          fmd = 0;
+        }
 
         if (!fmd)
         {
@@ -920,12 +937,12 @@ XrdMgmOfsFile::open (const char *inpath,
 
             cid = fmd->getContainerId();
 
-	    eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	    eos::FileMD::ctime_t mtime;
-	    fmd->getMTime(mtime);
-	    cmd->setMTime(mtime);
-	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
-	    gOFS->eosView->updateContainerStore(cmd);
+            eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+            eos::FileMD::ctime_t mtime;
+            fmd->getMTime(mtime);
+            cmd->setMTime(mtime);
+            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+            gOFS->eosView->updateContainerStore(cmd);
           }
           catch (eos::MDException &e)
           {
@@ -1153,7 +1170,7 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       else
       {
-	fmd->setMTimeNow();
+        fmd->setMTimeNow();
       }
 
       if (ext_ctime_sec)
@@ -1166,26 +1183,26 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
-	eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	eos::FileMD::ctime_t mtime;
-	fmd->getMTime(mtime);
-	cmd->setMTime(mtime);
-	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
-	gOFS->eosView->updateContainerStore(cmd);
+        eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+        eos::FileMD::ctime_t mtime;
+        fmd->getMTime(mtime);
+        cmd->setMTime(mtime);
+        cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+        gOFS->eosView->updateContainerStore(cmd);
 
-	if (isCreation || (!fmd->getNumLocation())) 
-	{
-	  std::string uri = gOFS->eosView->getUri(fmd);
-	  SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
-	  if (space)
-	  {
-	    eos::QuotaNode* quotanode = 0;
-	    quotanode = space->GetQuotaNode();
-	    if (quotanode)
-	    {
-	      quotanode->addFile(fmd);
-	    }
-	  }
+        if (isCreation || (!fmd->getNumLocation()))
+        {
+          std::string uri = gOFS->eosView->getUri(fmd);
+          SpaceQuota* space = Quota::GetResponsibleSpaceQuota(uri.c_str());
+          if (space)
+          {
+            eos::QuotaNode* quotanode = 0;
+            quotanode = space->GetQuotaNode();
+            if (quotanode)
+            {
+              quotanode->addFile(fmd);
+            }
+          }
         }
       }
       catch (eos::MDException &e)
@@ -1326,8 +1343,8 @@ XrdMgmOfsFile::open (const char *inpath,
       eos::FileMD::LocationVector::const_iterator it;
       for (it = fmd->unlinkedLocationsBegin(); it != fmd->unlinkedLocationsEnd(); ++it)
       {
-	// file systems with pending deletions cannot be re-selected for injection
-	unavailfs.push_back(*it);
+        // file systems with pending deletions cannot be re-selected for injection
+        unavailfs.push_back(*it);
       }
     }
     retc = quotaspace->FilePlacement(path, vid, containertag, layoutId,
@@ -1376,20 +1393,32 @@ XrdMgmOfsFile::open (const char *inpath,
     // if we don't have quota we don't bounce the client back
     if ((retc != ENOSPC) && (retc != EDQUOT))
     {
+      // ----------------------------------------------------------------------
+      // INLINE Workflows
+      // ----------------------------------------------------------------------
+      int stalltime = 0;
+      if ((stalltime = workflow.Trigger("open", "enonet")) > 0)
+      {
+        eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
+
+
+        return gOFS->Stall(error, stalltime, ""
+                           "File is currently unavailable - triggered workflow!");
+      }
 
       // check if we have a global redirect or stall for offline files
       MAYREDIRECT_ENONET;
       MAYSTALL_ENONET;
-      
+
       // ----------------------------------------------------------------------
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
       // ----------------------------------------------------------------------
-      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1*1024*1024*1024)))
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1 * 1024 * 1024 * 1024)))
       {
         int nmaxheal = 3;
-	if (attrmap.count("sys.heal.unavailable"))
-	  nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
+        if (attrmap.count("sys.heal.unavailable"))
+          nmaxheal = atoi(attrmap["sys.heal.unavailable"].c_str());
 
         int nheal = 0;
         gOFS->MgmHealMapMutex.Lock();
@@ -1412,38 +1441,42 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, ENOSR, msg.c_str(), path);
         }
 
-	eos_info("msg=\"in-line healing\" path=%s", path);
-	// increase the heal counter for that file id
-	gOFS->MgmHealMap[fileId] = nheal + 1;
-	gOFS->MgmHealMapMutex.UnLock();
+        eos_info("msg=\"in-line healing\" path=%s", path);
+        // increase the heal counter for that file id
+        gOFS->MgmHealMap[fileId] = nheal + 1;
+        gOFS->MgmHealMapMutex.UnLock();
 
-	ProcCommand* procCmd = new ProcCommand();
-	if (procCmd)
+        ProcCommand* procCmd = new ProcCommand();
+        if (procCmd)
         {
-	  // issue the version command 
-	  XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
-	  cmd += path;
-	  procCmd->open("/proc/user/", cmd.c_str(), vid, &error);
-	  procCmd->close();
-	  delete procCmd;
-	  
-	  int stalltime = 1; // let the client come back quickly
-	  if (attrmap.count("sys.stall.unavailable"))
+          // unlock mutexes (results in double unlock when scope left)
+          FsView::gFsView.ViewMutex.UnLockRead();
+          Quota::gQuotaMutex.UnLockRead();
+
+          // issue the version command
+          XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
+          cmd += path;
+          procCmd->open("/proc/user/", cmd.c_str(), vid, &error);
+          procCmd->close();
+          delete procCmd;
+
+          int stalltime = 1; // let the client come back quickly
+          if (attrmap.count("sys.stall.unavailable"))
           {
-	    stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
-	  }
-	  gOFS->MgmStats.Add("OpenStalledHeal", vid.uid, vid.gid, 1);
-	  eos_info("attr=sys info=\"stalling file\" path=%s rw=%d stalltime=%d nstall=%d",
-		   path, isRW, stalltime, nheal);
-	  return gOFS->Stall(error, stalltime, ""
-			     "Required filesystems are currently unavailable!");
-	}
-	else
+            stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+          }
+          gOFS->MgmStats.Add("OpenStalledHeal", vid.uid, vid.gid, 1);
+          eos_info("attr=sys info=\"stalling file\" path=%s rw=%d stalltime=%d nstall=%d",
+                   path, isRW, stalltime, nheal);
+          return gOFS->Stall(error, stalltime, ""
+                             "Required filesystems are currently unavailable!");
+        }
+        else
         {
-	  gOFS->MgmHealMapMutex.UnLock();
-	  return Emsg(epname, error, ENOMEM,
-		      "allocate memory for proc command", path);
-	}
+          gOFS->MgmHealMapMutex.UnLock();
+          return Emsg(epname, error, ENOMEM,
+                      "allocate memory for proc command", path);
+        }
       }
 
       // ----------------------------------------------------------------------
@@ -1481,6 +1514,10 @@ XrdMgmOfsFile::open (const char *inpath,
           ProcCommand* procCmd = new ProcCommand();
           if (procCmd)
           {
+            // unlock mutexes (results in double unlock when scope left)
+            FsView::gFsView.ViewMutex.UnLockRead();
+            Quota::gQuotaMutex.UnLockRead();
+
             // issue the adjustreplica command as root
             eos::common::Mapping::VirtualIdentity vidroot;
             eos::common::Mapping::Copy(vid, vidroot);
@@ -2118,6 +2155,16 @@ XrdMgmOfsFile::open (const char *inpath,
   // add the MGM hex id for this file
   redirectionhost += "&mgm.id=";
   redirectionhost += hexfid;
+
+  // add workflow cgis
+  if (isRW)
+  {
+    redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str()).c_str();
+  }
+  else
+  {
+    redirectionhost += workflow.getCGICloseR(currentWorkflow.c_str()).c_str();
+  }
 
   // Always redirect
   ecode = targetport;

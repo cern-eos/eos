@@ -84,6 +84,7 @@ add_library (XrdEosMgm MODULE
             Quota.cc
             Scheduler.cc
             Vid.cc
+            Workflow.cc
             FsView.cc
             VstView.cc
             XrdMgmOfsConfigure.cc
