@@ -144,7 +144,7 @@ XrdMgmOfs::_access (const char *path,
   try
   {
     eos::IContainerMD::XAttrMap attrmap;
-    
+
     if (fh || (!dh))
     {
       std::string uri;
@@ -302,13 +302,13 @@ XrdMgmOfs::acc_access (const char* path,
  *
  * Definition of accperm see here:
  * Code  Resource         Description
- * S 	   File or Folder 	is shared
- * R 	   File or Folder 	can share (includes reshare)
- * M 	   File or Folder 	is mounted (like on DropBox, Samba, etc.)
- * W 	   File             can write file
- * C 	   Folder           can create file in folder
- * K 	   Folder           can create folder (mkdir)
- * D 	   File or Folder   can delete file or folder
+ * S       File or Folder       is shared
+ * R       File or Folder       can share (includes reshare)
+ * M       File or Folder       is mounted (like on DropBox, Samba, etc.)
+ * W       File             can write file
+ * C       Folder           can create file in folder
+ * K       Folder           can create folder (mkdir)
+ * D       File or Folder   can delete file or folder
  * N     File or Folder   can rename file or folder
  * V     File or Folder   can move file or folder
  */
