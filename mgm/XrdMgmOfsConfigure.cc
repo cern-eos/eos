@@ -1517,6 +1517,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmProcArchivePath = MgmProcPath;
   MgmProcArchivePath += "/archive";
 
+  MgmProcWorkflowPath = MgmProcPath;
+  MgmProcWorkflowPath += "/workflow";
+  MgmProcLockPath = MgmProcPath;
+  MgmProcLockPath += "/lock";
+  MgmProcDelegationPath = MgmProcPath;
+  MgmProcDelegationPath += "/delegation";
+
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
 
   instancepath += subpath;
@@ -1744,6 +1751,96 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       {
         Eroute.Emsg("Config", "cannot set the /eos/../proc/archive directory mode to inital mode");
         eos_crit("cannot set the /eos/../proc/archive directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create workflow directory
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcWorkflowPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // workflow directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcWorkflowPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/workflow directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/workflow directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create lock directory
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcLockPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // lock directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcLockPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/lock directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/lock directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create delegation directory
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcDelegationPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // delegation directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcDelegationPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/delegation directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/delegation directory mode to 700");
         return 1;
       }
     }

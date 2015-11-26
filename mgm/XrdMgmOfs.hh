@@ -942,6 +942,9 @@ public:
   XrdOucString MgmArchiveDir;
   XrdOucString MgmProcPath; //< Directory with proc files
   XrdOucString MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
+  XrdOucString MgmProcWorkflowPath; //< Directory with worflows 
+  XrdOucString MgmProcLockPath; //< Directory with client locks
+  XrdOucString MgmProcDelegationPath; //< Directory with client delegations
   XrdOucString MgmProcMasterPath; //< Full path to the master indication proc file
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
   ///< are saved for fast find functionality
