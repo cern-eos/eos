@@ -8,6 +8,35 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.134 Beryl_Aquamarine``
+---------
+- avoid 'fork' calls in the namespace library using the 'ShellCmd' class
+
+``Version V0.3.133 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+- fix wrong EXITSTATUS() macro preventing clean Slave2Master transitions
+
+``Version V0.3.132 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+- revert faulty bug fix introduced in 0.3.130 preventing a slave to boot the file namespace
+
+``Version V0.3.131 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+- fix comparison beteen FQDN and hostname when registering FSTs with the MGM
+- forward errno to client console when archive/backup command fails
+- fix accidental deletion of opaque info at the MGM for fsctl commands
+- various FUSE bugfixes
+
+New Features
+------------
+- add queuing functionality to the archive/backup tool
+
 ``Version V0.3.130 Beryl-Aquamarine``
 
 Bug Fixes

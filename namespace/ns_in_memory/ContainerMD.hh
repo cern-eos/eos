@@ -190,6 +190,107 @@ class ContainerMD: public IContainerMD
   }
 
   //----------------------------------------------------------------------------
+  //! Set creation time
+  //----------------------------------------------------------------------------
+  void setMTime(mtime_t mtime);
+
+  //----------------------------------------------------------------------------
+  //! Set creation time to now
+  //----------------------------------------------------------------------------
+  void setMTimeNow();
+
+  //----------------------------------------------------------------------------
+  //! Trigger an mtime change event
+  //----------------------------------------------------------------------------
+  void notifyMTimeChange(IContainerMDSvc *containerMDSvc);
+
+  //----------------------------------------------------------------------------
+  //! Get modification time
+  //----------------------------------------------------------------------------
+  void getMTime(mtime_t &mtime) const
+  {
+    mtime.tv_sec = pMTime.tv_sec;
+    mtime.tv_nsec = pMTime.tv_nsec;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set propagated modification time (if newer)
+  //----------------------------------------------------------------------------
+  bool setTMTime(tmtime_t tmtime)
+  {
+    if ( (tmtime.tv_sec > pMTime.tv_sec ) ||
+         ( (tmtime.tv_sec == pMTime.tv_sec) &&
+           (tmtime.tv_nsec > pMTime.tv_nsec) ) )
+    {
+      pTMTime.tv_sec = tmtime.tv_sec;
+      pTMTime.tv_nsec = tmtime.tv_nsec;
+      return true;
+    }
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set propagated modification time to now
+  //----------------------------------------------------------------------------
+  void setTMTimeNow()
+  {
+    tmtime_t tmtime;
+#ifdef __APPLE__
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    tmtime..tv_sec = tv.tv_sec;
+    tmtime.tv_nsec = tv.tv_usec * 1000;
+#else
+    clock_gettime(CLOCK_REALTIME, &tmtime);
+#endif
+    setTMTime(tmtime);
+    return;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get creation time
+  //----------------------------------------------------------------------------
+  void getTMTime(tmtime_t &tmtime) const
+  {
+    tmtime.tv_sec = pTMTime.tv_sec;
+    tmtime.tv_nsec = pTMTime.tv_nsec;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get tree size
+  //----------------------------------------------------------------------------
+  uint64_t getTreeSize() const
+  {
+    return pTreeSize;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set tree size
+  //----------------------------------------------------------------------------
+  void setTreeSize(uint64_t treesize)
+  {
+    pTreeSize = treesize;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Add to tree size
+  //----------------------------------------------------------------------------
+  uint64_t addTreeSize(uint64_t addsize)
+  {
+    pTreeSize += addsize;
+    return pTreeSize;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove from tree size
+  //----------------------------------------------------------------------------
+  uint64_t removeTreeSize(uint64_t removesize)
+  {
+    pTreeSize += removesize;
+    return pTreeSize;
+  }
+
+  //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
   const std::string& getName() const
@@ -413,6 +514,11 @@ class ContainerMD: public IContainerMD
  private:
   ContainerMap::iterator pIterContainer; ///< subcontainers iterator
   FileMap::iterator pIterFile;           ///< files iterator
+
+  // Non-presistent data members
+  mtime_t      pMTime;
+  tmtime_t     pTMTime;
+  uint64_t     pTreeSize;
 };
 
 EOSNSNAMESPACE_END

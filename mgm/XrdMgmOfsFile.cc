@@ -863,6 +863,13 @@ XrdMgmOfsFile::open (const char *inpath,
             // oc chunks start with flags=0
 
             cid = fmd->getContainerId();
+
+	    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	    eos::IFileMD::ctime_t mtime;
+	    fmd->getMTime(mtime);
+	    cmd->setMTime(mtime);
+	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	    gOFS->eosView->updateContainerStore(cmd);
           }
           catch (eos::MDException &e)
           {
@@ -881,11 +888,6 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, errno, "create file", path);
         }
         isCreation = true;
-        // -------------------------------------------------------------------------
-        // store the in-memory modification time
-        // we get the current time, but we don't update the creation time
-        // -------------------------------------------------------------------------
-        gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
         // -------------------------------------------------------------------------
       }
     }
@@ -1097,6 +1099,12 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
+	eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	eos::IFileMD::ctime_t mtime;
+	fmd->getMTime(mtime);
+	cmd->setMTime(mtime);
+	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	gOFS->eosView->updateContainerStore(cmd);
 
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
@@ -1124,7 +1132,6 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
       // -----------------------------------------------------------------------
-      gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
     }
   }
 
@@ -1291,7 +1298,7 @@ XrdMgmOfsFile::open (const char *inpath,
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
       // ----------------------------------------------------------------------
-      if ((!isCreation) && (fmd->getSize() < (1*1024*1024*1024)))
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1*1024*1024*1024)))
       {
         int nmaxheal = 3;
 	if (attrmap.count("sys.heal.unavailable"))

@@ -1556,8 +1556,8 @@ xrd_rmxattr (const char* path,
   }
   else
   {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code==XrdCl::errAuthFailed?EPERM:EFAULT;
+    eos_static_err("status is NOT ok : %s",status.ToString().c_str());
+    errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
   }
 
   COMMONTIMING("END", &rmxattrtiming);
@@ -1595,6 +1595,15 @@ xrd_setxattr (const char* path,
   request += "mgm.subcmd=set&";
   request += "mgm.xattrname=";
   request += xattr_name;
+
+  std::string s_xattr_name = xattr_name;
+  if (s_xattr_name.find("&") != std::string::npos)
+  {
+    // & is a forbidden character in attribute names
+    errno = EINVAL;
+    return errno;
+  }
+
   request += "&";
   request += "mgm.xattrvalue=";
   request += std::string(xattr_value, size);
@@ -1664,6 +1673,14 @@ xrd_getxattr (const char* path,
   request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=get&";
   request += "mgm.xattrname=";
+  std::string s_xattr_name = xattr_name;
+  if (s_xattr_name.find("&") != std::string::npos)
+  {
+    // & is a forbidden character in attribute names
+    errno = EINVAL;
+    return errno;
+  }
+  
   request += xattr_name;
   arg.FromString(request);
 

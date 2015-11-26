@@ -1833,19 +1833,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
 
+  // Hook to the appropiate config file
+  XrdOucString stdOut;
+  XrdOucString stdErr;
+  
+  if (!MgmMaster.ApplyMasterConfig(stdOut, stdErr,
+                                   Master::Transition::Type::kMasterToMaster))
   {
-    // Hook to the appropiate config file
-    XrdOucString stdOut;
-    XrdOucString stdErr;
-
-    if (!MgmMaster.ApplyMasterConfig(stdOut, stdErr,
-                                     Master::Transition::Type::kMasterToMaster))
-    {
-      Eroute.Emsg("Config", "failed to apply master configuration");
-      return 1;
-    }
+    Eroute.Emsg("Config", "failed to apply master configuration");
+    return 1;
   }
-
+  
   if (!MgmRedirector)
   {
     if (ErrorLog)
@@ -1864,17 +1862,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s returned %d", errorlogline.c_str(), rrc);
     }
 
-
     if (MgmMaster.IsMaster())
     {
       eos_info("starting file view loader thread");
 
       if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
 			     static_cast<void *> (this), 0, "File View Loader")))
-	{
-	  eos_crit("cannot start file view loader");
-	  NoGo = 1;
-	}
+      {
+        eos_crit("cannot start file view loader");
+        NoGo = 1;
+      }
     }
   }
 

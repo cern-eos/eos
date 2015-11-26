@@ -101,8 +101,6 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
     return Emsg(epname, error, EPERM, "create version - you are not the owner of this file", path.c_str());
   }
 
-  gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
-
   vpath += ".sys.v#.";
   vpath += bname;
   versionpath = vpath;

@@ -49,6 +49,7 @@ class IFileMD
   typedef uint32_t layoutId_t;
   typedef struct timespec ctime_t;
   typedef std::vector<location_t> LocationVector;
+  typedef std::map<std::string, std::string> XAttrMap;
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -296,12 +297,12 @@ class IFileMD
   virtual IFileMDSvc* getFileMDSvc() = 0;
 
   //----------------------------------------------------------------------------
-  //! Get symbolic link 
+  //! Get symbolic link
   //----------------------------------------------------------------------------
   virtual std::string getLink() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Set symbolic link 
+  //! Set symbolic link
   //----------------------------------------------------------------------------
   virtual void setLink(std::string link) = 0;
 
@@ -309,7 +310,43 @@ class IFileMD
   //! Check if symbolic link
   //----------------------------------------------------------------------------
   virtual bool isLink() const = 0;
-  
+
+  //----------------------------------------------------------------------------
+  //! Add extended attribute
+  //----------------------------------------------------------------------------
+  virtual void setAttribute (const std::string &name, const std::string &value) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Remove attribute
+  //----------------------------------------------------------------------------
+  virtual void removeAttribute (const std::string &name) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Check if the attribute exist
+  //----------------------------------------------------------------------------
+  virtual bool hasAttribute (const std::string &name) const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Return number of attributes
+  //----------------------------------------------------------------------------
+  virtual size_t numAttributes () const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get the attribute
+  //----------------------------------------------------------------------------
+  virtual std::string getAttribute (const std::string &name) const = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get attribute begin iterator
+  //----------------------------------------------------------------------------
+  virtual XAttrMap::iterator attributesBegin() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get the attribute end iterator
+  //----------------------------------------------------------------------------
+  virtual XAttrMap::iterator attributesEnd() = 0;
+
+
 };
 
 EOSNSNAMESPACE_END

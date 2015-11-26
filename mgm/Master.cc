@@ -751,17 +751,20 @@ Master::Compacting()
       {
 	// Clean-up any old .oc file
 	rc = unlink(ocfile.c_str());
-
-	if (!WEXITSTATUS(rc))
+	if (!rc)
+	{
 	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(file) unlinked\""));
+        }
       }
-
+      
       if (CompactDirectories)
       {
 	rc = unlink(ocdir.c_str());
 
-	if (!WEXITSTATUS(rc))
-	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
+	if (!rc)
+	{
+          MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
+        }
       }
 
       bool compacted = false;
@@ -1600,22 +1603,23 @@ Master::Slave2Master()
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s",
                        e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = Run::State::kIsNothing;
-
     eos::common::ShellCmd scmd3("service eos start sync");
     rc = scmd3.wait(30);
 
-    if (WEXITSTATUS(rc))
+    if (rc.exit_code)
+    {
       MasterLog(eos_warning("slave=>master transition - sync didnt' start"));
+    }
 
     return false;
   }
 
+  fRunningState = Run::State::kIsRunningMaster;
   eos::common::ShellCmd scmd3("service eos start sync");
   rc = scmd3.wait(30);
-
-  if (WEXITSTATUS(rc))
+  if (rc.exit_code)
   {
-    MasterLog(eos_warning("failed to start sync service"));
+    MasterLog(eos_warning("failed to start sync service - %d", rc.exit_code));
     MasterLog(eos_crit("slave=>master transition aborted since sync didn't start"));
 
     try
@@ -1732,7 +1736,16 @@ Master::MasterRO2Slave()
 	delete gOFS->eosFsView;
 	gOFS->eosFsView = 0;
       }
-
+      if (gOFS->eosContainerAccounting)
+      {
+        delete gOFS->eosContainerAccounting;
+        gOFS->eosContainerAccounting = 0;
+      }
+      if (gOFS->eosSyncTimeAccounting)
+      {
+        delete gOFS->eosSyncTimeAccounting;
+        gOFS->eosSyncTimeAccounting = 0;
+      }
       if (gOFS->eosView)
       {
 	gOFS->eosView->finalize();
@@ -1922,6 +1935,38 @@ Master::BootNamespace()
     return false;
   }
 
+  if (getenv("EOS_NS_ACCOUNTING") &&
+      ((std::string(getenv("EOS_NS_ACCOUNTING")) == "1") ||
+       (std::string(getenv("EOS_NS_ACCOUNTING")) == "yes")) )
+  {
+    eos_alert("msg=\"enabling recursive size accounting ...\n\"");
+    gOFS->eosContainerAccounting = static_cast<IFileMDChangeListener*>(
+        pm.CreateObject("ContainerAccounting"));
+
+    if (!gOFS->eosContainerAccounting)
+    {
+      eos_err("msg=\"namespace implemetation does not provide ContainerAccounting"
+              "class\"");
+      return false;
+    }
+  }
+  
+  if (getenv("EOS_SYNCTIME_ACCOUNTING") &&
+      ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
+       (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")) )
+  {
+    eos_alert("msg=\"enabling sync time propagation ...\n\"");
+    gOFS->eosSyncTimeAccounting = static_cast<IContainerMDChangeListener*>(
+        pm.CreateObject("SyncTimeAccounting"));
+
+    if (!gOFS->eosSyncTimeAccounting)
+    {
+      eos_err("msg=\"namespace implemetation does not provide SyncTimeAccounting"
+              "class\"");
+      return false;
+    }
+  }
+
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
@@ -1986,8 +2031,15 @@ Master::BootNamespace()
       eos_chlog_dirsvc->clearWarningMessages();
     }
 
+    if (gOFS->eosContainerAccounting)
+      gOFS->eosFileService->addChangeListener(gOFS->eosContainerAccounting);
+
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
+    
+    if (gOFS->eosSyncTimeAccounting)
+      gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
+
     gOFS->eosView->getQuotaStats()->registerSizeMapper(Quota::MapSizeCB);
     gOFS->eosView->initialize1();
     time_t tstop = time(0);
@@ -2396,7 +2448,16 @@ Master::RebootSlaveNamespace()
 	delete gOFS->eosFsView;
 	gOFS->eosFsView = 0;
       }
-
+      if (gOFS->eosContainerAccounting)
+      {
+        delete gOFS->eosContainerAccounting;
+        gOFS->eosContainerAccounting = 0;
+      }
+      if (gOFS->eosSyncTimeAccounting)
+      {
+        delete gOFS->eosSyncTimeAccounting;
+        gOFS->eosSyncTimeAccounting = 0;
+      }
       if (gOFS->eosView)
       {
 	gOFS->eosView->finalize();

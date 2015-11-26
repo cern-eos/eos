@@ -1,0 +1,160 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Tue Aug 25 16:02:23 2015
+;; Desktop file format version 206
+;; Emacs version 23.1.1
+
+;; Global section:
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring '("Quota" "mMount" "configure" "clear" "getWar" "setSla" "make" "compact" "start" "stop" "set" "setC" "getFollow" "set" "getWa" "setSlave"))
+(setq regexp-search-ring nil)
+(setq register-alist nil)
+
+;; Buffer section -- buffers listed in same order as in buffer list:
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_on_filesystem/FsHierarchicalView.hh"
+  "FsHierarchicalView.hh"
+  'c++-mode
+  '(abbrev-mode)
+  2790
+  '(12092 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . utf-8-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_in_memory/views/HierarchicalView.hh"
+  "HierarchicalView.hh"
+  'c++-mode
+  '(abbrev-mode)
+  1
+  '(12589 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_on_filesystem/persistency/FsContainerMDSvc.cc"
+  "FsContainerMDSvc.cc"
+  'c++-mode
+  '(abbrev-mode)
+  3940
+  '(nil nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/mgm/XrdMgmOfsConfigure.cc"
+  "XrdMgmOfsConfigure.cc"
+  'c++-mode
+  '(abbrev-mode)
+  47064
+  '(31719 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_on_filesystem/persistency/FsContainerMDSvc.hh"
+  "FsContainerMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode)
+  8026
+  '(8026 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/interface/IChLogFileMDSvc.hh"
+  "IChLogFileMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode)
+  5765
+  '(6033 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_on_filesystem/persistency/FsFileMDSvc.hh"
+  "FsFileMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode)
+  3059
+  '(5924 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/interface/IFileMDSvc.hh"
+  "IFileMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode)
+  7944
+  '(304 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.cc"
+  "ChangeLogContainerMDSvc.cc"
+  'c++-mode
+  '(abbrev-mode)
+  26878
+  '(1 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/mgm/Master.cc"
+  "Master.cc"
+  'c++-mode
+  '(abbrev-mode)
+  52294
+  '(54606 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc"
+  "ChangeLogFileMDSvc.cc"
+  'c++-mode
+  '(abbrev-mode)
+  28841
+  '(23353 nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/ns_on_filesystem/FsContainerMD.cc"
+  "FsContainerMD.cc"
+  'c++-mode
+  '(abbrev-mode)
+  1
+  '(nil nil)
+  nil
+  nil
+  '((indent-tabs-mode) (buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/home/esindril/Programs/eos/namespace/CMakeLists.txt"
+  "CMakeLists.txt"
+  'text-mode
+  nil
+  2983
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+

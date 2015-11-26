@@ -24,6 +24,8 @@
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 #include "namespace/ns_in_memory/views/HierarchicalView.hh"
 #include "namespace/ns_in_memory/accounting/FileSystemView.hh"
+#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
+#include "namespace/ns_in_memory/accounting/SyncTimeAccounting.hh"
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -31,7 +33,7 @@
 //------------------------------------------------------------------------------
 int32_t ExitFunc()
 {
-  return 0;  
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -69,13 +71,29 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
   param_fsview.CreateFunc = eos::NsInMemoryPlugin::CreateFsView;
   param_fsview.DestroyFunc = eos::NsInMemoryPlugin::DestroyFsView;
 
-  // TODO: define the necessary objectes to be provided by the namespace in a
+  // Register recursive container accounting view
+  PF_RegisterParams param_contacc;
+  param_contacc.version.major = 0;
+  param_contacc.version.minor = 1;
+  param_contacc.CreateFunc = eos::NsInMemoryPlugin::CreateContAcc;
+  param_contacc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContAcc;
+
+  // Register recursive container accounting view
+  PF_RegisterParams param_syncacc;
+  param_syncacc.version.major = 0;
+  param_syncacc.version.minor = 1;
+  param_syncacc.CreateFunc = eos::NsInMemoryPlugin::CreateSyncTimeAcc;
+  param_syncacc.DestroyFunc = eos::NsInMemoryPlugin::DestroySyncTimeAcc;
+
+  // TODO: define the necessary objects to be provided by the namespace in a
   // common header
   std::map<std::string, PF_RegisterParams> map_obj =
-      { {"ContainerMDSvc",   param_cmdsvc},
-        {"FileMDSvc",        param_fmdsvc},
-        {"HierarchicalView", param_hview},
-        {"FileSystemView",   param_fsview} };
+      { {"ContainerMDSvc",      param_cmdsvc},
+        {"FileMDSvc",           param_fmdsvc},
+        {"HierarchicalView",    param_hview},
+        {"FileSystemView",      param_fsview},
+        {"ContainerAccounting", param_contacc},
+        {"SyncTimeAccounting",  param_syncacc} };
 
   // Register all the provided object with the Plugin Manager
   for (auto it = map_obj.begin(); it != map_obj.end(); ++it)
@@ -92,13 +110,17 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 
 EOSNSNAMESPACE_BEGIN
 
+// Static variables
+eos::IContainerMDSvc* pContMDSvc = 0;
+
 //------------------------------------------------------------------------------
 // Create container metadata service
 //------------------------------------------------------------------------------
 void*
 NsInMemoryPlugin::CreateContainerMDSvc(PF_PlatformServices* services)
 {
-  return new ChangeLogContainerMDSvc();
+  pContMDSvc = new ChangeLogContainerMDSvc();
+  return pContMDSvc;
 }
 
 //------------------------------------------------------------------------------
@@ -172,6 +194,56 @@ NsInMemoryPlugin::CreateFsView(PF_PlatformServices* services)
 //------------------------------------------------------------------------------
 int32_t
 NsInMemoryPlugin::DestroyFsView(void* obj)
+{
+  if (!obj)
+    return -1;
+
+  delete static_cast<FileSystemView*>(obj);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Create recursive container accounting listener
+//------------------------------------------------------------------------------
+void*
+NsInMemoryPlugin::CreateContAcc(PF_PlatformServices* services)
+{
+  if (!pContMDSvc)
+    return 0;
+
+  return new ContainerAccounting(pContMDSvc);
+}
+
+//------------------------------------------------------------------------------
+// Destroy recursive container accounting listener
+//------------------------------------------------------------------------------
+int32_t
+NsInMemoryPlugin::DestroyContAcc(void* obj)
+{
+  if (!obj)
+    return -1;
+
+  delete static_cast<ContainerAccounting*>(obj);
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Create sync time propagation listener
+//------------------------------------------------------------------------------
+void*
+NsInMemoryPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
+{
+  if (!pContMDSvc)
+    return 0;
+
+  return new SyncTimeAccounting(pContMDSvc);
+}
+
+//------------------------------------------------------------------------------
+// Destroy sync time propagation listener
+//------------------------------------------------------------------------------
+int32_t
+NsInMemoryPlugin::DestroySyncTimeAcc(void* obj)
 {
   if (!obj)
     return -1;

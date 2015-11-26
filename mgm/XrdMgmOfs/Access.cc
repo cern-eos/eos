@@ -284,3 +284,168 @@ XrdMgmOfs::_access (const char *path,
   return Emsg(epname, error, EOPNOTSUPP, "access", path);
 }
 
+/*----------------------------------------------------------------------------*/
+int
+XrdMgmOfs::acc_access (const char* path,
+                       XrdOucErrInfo &error,
+                       eos::common::Mapping::VirtualIdentity &vid,
+                       std::string& accperm)
+/*----------------------------------------------------------------------------*/
+/*
+ * @brief define access permissions for files/directories
+ *
+ * @param path path to access
+ * @param error object
+ * @param virtual ID of the client
+ * @param accperm - return string defining access permission
+ * @return SFS_OK if found, otherwise SFS_ERR
+ *
+ * Definition of accperm see here:
+ * Code  Resource         Description
+ * S 	   File or Folder 	is shared
+ * R 	   File or Folder 	can share (includes reshare)
+ * M 	   File or Folder 	is mounted (like on DropBox, Samba, etc.)
+ * W 	   File             can write file
+ * C 	   Folder           can create file in folder
+ * K 	   Folder           can create folder (mkdir)
+ * D 	   File or Folder   can delete file or folder
+ * N     File or Folder   can rename file or folder
+ * V     File or Folder   can move file or folder
+ */
+/*----------------------------------------------------------------------------*/
+{
+  eos_debug("path=%s mode=%x uid=%u gid=%u", path, vid.uid, vid.gid);
+  gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
+
+  eos::common::Path cPath(path);
+
+  eos::IContainerMD* dh = 0;
+  eos::IFileMD* fh = 0;
+
+  std::string attr_path = cPath.GetPath();
+  bool r_ok = false;
+  bool w_ok = false;
+  bool x_ok = false;
+  bool d_ok = false;
+
+  // ---------------------------------------------------------------------------
+  eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
+  // check for existing file
+  try
+  {
+    fh = gOFS->eosView->getFile(cPath.GetPath());
+  }
+  catch (eos::MDException &e)
+  {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  try
+  {
+    dh = gOFS->eosView->getContainer(cPath.GetPath());
+  }
+  catch (eos::MDException &e)
+  {
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+  }
+  try
+  {
+    eos::IContainerMD::XAttrMap attrmap;
+
+    if (fh || (!dh))
+    {
+      std::string uri;
+      // if this is a file or a not existing directory we check the access on the parent directory
+      if (fh)
+      {
+        uri = gOFS->eosView->getUri(fh);
+      }
+      else
+      {
+        uri = cPath.GetPath();
+      }
+
+      eos::common::Path pPath(uri.c_str());
+
+      dh = gOFS->eosView->getContainer(pPath.GetParentPath());
+      attr_path = pPath.GetParentPath();
+    }
+
+
+    if (dh->access(vid.uid, vid.gid, R_OK))
+      r_ok = true;
+
+    if (dh->access(vid.uid, vid.gid, W_OK))
+    {
+      w_ok = true;
+      d_ok = true;
+    }
+
+    if (dh->access(vid.uid, vid.gid, X_OK))
+      x_ok = true;
+
+    // ACL and permission check
+    Acl acl(attr_path.c_str(),
+            error,
+            vid,
+            attrmap,
+            false);
+
+    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
+             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+
+    // browse permission by ACL
+    if (acl.HasAcl())
+    {
+
+      // write-once or write is fine for OC write permission
+      if (!(acl.CanWrite() || acl.CanWriteOnce()))
+        w_ok = false;
+      // deletion might be overwritten/forbidden
+      if (acl.CanNotDelete())
+        d_ok = false;
+
+      // the r/x are added to the posix permissions already set
+      if (acl.CanRead())
+        r_ok |= true;
+      if (acl.CanBrowse())
+        x_ok |= true;
+      if (!acl.IsMutable())
+      {
+        w_ok = d_ok = false;
+      }
+    }
+  }
+  catch (eos::MDException &e)
+  {
+    dh = 0;
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  // check permissions
+  if (!dh)
+  {
+    accperm = "";
+    return SFS_ERROR;
+  }
+
+  // return the OC string;
+  accperm == "R";
+  if (r_ok)
+    accperm += "R";
+  if (w_ok)
+  {
+    accperm += "WCKNV";
+  }
+  if (d_ok)
+  {
+    accperm += "D";
+  }
+  return SFS_OK;
+}
+/*----------------------------------------------------------------------------*/
