@@ -210,7 +210,7 @@ XrdMgmOfs::InitializeFileView ()
         {
           XrdSysMutexHelper lock(InitializationMutex);
           Initialized = kBooted;
-	  eos_static_alert("msg=\"namespace booted (as master)\"");
+          eos_static_alert("msg=\"namespace booted (as master)\"");
         }
       }
     }
@@ -240,7 +240,7 @@ XrdMgmOfs::InitializeFileView ()
       {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
-	eos_static_alert("msg=\"namespace booted (as slave)\"");
+        eos_static_alert("msg=\"namespace booted (as slave)\"");
       }
     }
 
@@ -333,7 +333,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
-  UTF8 = getenv("EOS_UTF8")?true:false;
+  UTF8 = getenv("EOS_UTF8") ? true : false;
 
   Shutdown = false;
 
@@ -399,7 +399,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       Eroute.Emsg("Config", errno, "create temporary outputfile"
                   " directory /tmp/eos.mgm/");
       NoGo = 1;
-      return NoGo;;
+      return NoGo;
+      ;
     }
 
     // Own the directory by daemon
@@ -408,7 +409,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eos_err("Unable to own temporary outputfile directory %s", out_dir.GetParentPath());
       Eroute.Emsg("Config", errno, "own outputfile directory /tmp/eos.mgm/");
       NoGo = 1;
-      return NoGo;;
+      return NoGo;
+      ;
     }
   }
 
@@ -648,7 +650,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val)))
+              strcmp("1", val) && strcmp("0", val)))
           {
             Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
                         "Must be <true>, <false>, <1> or <0>!");
@@ -672,7 +674,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val)))
+              strcmp("1", val) && strcmp("0", val)))
           {
             Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
                         "Must be <true>, <false>, <1> or <0>!");
@@ -699,7 +701,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val)))
+              strcmp("1", val) && strcmp("0", val)))
           {
             Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
                         "Must be <true>,<false>,<1> or <0>!");
@@ -979,12 +981,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             }
 
             Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
-                       std::to_string((long long int)mFstGwPort).c_str());
+                       std::to_string((long long int) mFstGwPort).c_str());
           }
         }
 
         if (!strcmp("trace", var))
         {
+
           static struct traceopts
           {
             const char *opname;
@@ -1206,7 +1209,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
   }
-  
+
   if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") && getenv("EOS_TTY_BROADCAST_EGREP"))
   {
     XrdOucString ttybroadcastline = "eos-tty-broadcast ";
@@ -1277,7 +1280,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     else
     {
       ep = (XrdAccAuthorize * (*)(XrdSysLogger *, const char *, const char *))
-        (myLib->getPlugin("XrdAccAuthorizeObject"));
+              (myLib->getPlugin("XrdAccAuthorizeObject"));
       if (!ep)
       {
         Eroute.Emsg("Config", "Failed to get authorization library plugin!");
@@ -1300,7 +1303,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
   std::string filter = "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
+          "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
   eos::common::Logging::SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
@@ -1837,10 +1840,10 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     {
       eos_info("starting file view loader thread");
       if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *> (this),
-			     0, "File View Loader")))
+                             0, "File View Loader")))
       {
-	eos_crit("cannot start file view loader");
-	NoGo = 1;
+        eos_crit("cannot start file view loader");
+        NoGo = 1;
       }
     }
   }
@@ -1955,6 +1958,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("DumpMd", 0, 0, 0);
   gOFS->MgmStats.Add("Drop", 0, 0, 0);
   gOFS->MgmStats.Add("DropStripe", 0, 0, 0);
+  gOFS->MgmStats.Add("Event", 0, 0, 0);
   gOFS->MgmStats.Add("Exists", 0, 0, 0);
   gOFS->MgmStats.Add("Exists", 0, 0, 0);
   gOFS->MgmStats.Add("FileInfo", 0, 0, 0);
