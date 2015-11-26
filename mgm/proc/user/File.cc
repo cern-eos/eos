@@ -628,6 +628,14 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "tag")
     {
+      if ( (! ((vid.prot == "sss") && (eos::common::Mapping::HasUid(2, vid.uid_list))) ) &&
+	   (vid.uid) )
+      {
+	stdErr = "error: permission denied - you have to be root to run the 'tag' command";
+	retc = EPERM;
+	return SFS_OK;
+      }
+
       XrdOucString sfsid = pOpaque->Get("mgm.file.tag.fsid");
       bool do_add=false;
       bool do_rm = false;
