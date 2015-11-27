@@ -29,6 +29,10 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+// Initialize static variables
+XrdSysMutex Scheduler::pMapMutex;
+std::map<std::string, FsGroup*> Scheduler::schedulingGroup;
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -147,7 +151,7 @@ Scheduler::FilePlacement(const std::string& spacename,
   }
   else
   {
-    XrdSysMutexHelper scope_lock(schedulingMutex);
+    XrdSysMutexHelper scope_lock(pMapMutex);
 
     if (schedulingGroup.count(indextag))
     {
@@ -217,9 +221,9 @@ Scheduler::FilePlacement(const std::string& spacename,
         git = FsView::gFsView.mSpaceGroupView[spacename].begin();
 
       // remember the last group for that indextag
-      schedulingMutex.Lock();
+      pMapMutex.Lock();
       schedulingGroup[indextag] = *git;
-      schedulingMutex.UnLock();
+      pMapMutex.UnLock();
     }
 
     if (placeRes)

@@ -1273,7 +1273,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // Reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = Quota::FileAccess(path, vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
+    retc = Quota::FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
 			     selectedfs, fsIndex, isPioReconstruct ? false : isRW,
 			     fmd->getSize(), unavailfs);
 

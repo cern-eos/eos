@@ -53,7 +53,7 @@ class Quota;
 //------------------------------------------------------------------------------
 //! Class SpaceQuota
 //------------------------------------------------------------------------------
-class SpaceQuota : public Scheduler
+class SpaceQuota
 {
   friend class Quota;
 
@@ -74,7 +74,7 @@ public:
   //----------------------------------------------------------------------------
   inline const char* GetSpaceName()
   {
-    return SpaceName.c_str();
+    return pPath.c_str();
   }
 
   //----------------------------------------------------------------------------
@@ -299,6 +299,7 @@ private:
   //----------------------------------------------------------------------------
   static const char* GetTagCategory(int tag);
 
+  std::string pPath; ///< quota node path
   eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
   XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
   time_t mLastEnableCheck; ///< timestamp of the last check
@@ -567,7 +568,6 @@ public:
   //! Take the decision from where to access a file. The core of the
   //! implementation is in the Scheduler and GeoTreeEngine.
   //!
-  //! @param path lookup path for quota node
   //! @param vid virutal id of the client
   //! @param focedfsid forced filesystem for access
   //! @param forcedspace forced space for access
@@ -586,8 +586,7 @@ public:
   //! @return 0 if successful, otherwise a non-zero value
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FileAccess(const std::string& path,
-			eos::common::Mapping::VirtualIdentity_t& vid,
+  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 			unsigned long forcedfsid,
 			const char* forcedspace,
 			std::string tried_cgi,
@@ -628,7 +627,6 @@ private:
 
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
-
 };
 
 EOSMGMNAMESPACE_END

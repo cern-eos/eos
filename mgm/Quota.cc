@@ -47,12 +47,12 @@ gid_t Quota::gProjectId = 99;
 // Constructor - requires the eosViewRWMutex write-lock
 //------------------------------------------------------------------------------
 SpaceQuota::SpaceQuota(const char* path):
+  pPath(path),
   mQuotaNode(0),
   mLastEnableCheck(0),
   mLayoutSizeFactor(1.0),
   mDirtyTarget(true)
 {
-  SpaceName = path;
   eos::IContainerMD* quotadir = 0;
 
   try
@@ -158,7 +158,7 @@ SpaceQuota::UpdateQuotaNodeAddress()
 {
   try
   {
-    eos::IContainerMD* quotadir = gOFS->eosView->getContainer(SpaceName.c_str());
+    eos::IContainerMD* quotadir = gOFS->eosView->getContainer(pPath.c_str());
     mQuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
 
     if (!mQuotaNode)
@@ -185,7 +185,7 @@ SpaceQuota::UpdateLogicalSizeFactor()
   eos::common::Mapping::Root(vid);
   vid.sudoer = 1;
   eos::IContainerMD::XAttrMap map;
-  int retc = gOFS->_attr_ls(SpaceName.c_str(), error, vid, 0, map, false);
+  int retc = gOFS->_attr_ls(pPath.c_str(), error, vid, 0, map, false);
 
   if (!retc)
   {
@@ -193,9 +193,9 @@ SpaceQuota::UpdateLogicalSizeFactor()
     XrdOucEnv env;
     unsigned long forcedfsid;
     long forcedgroup;
-    XrdOucString spn = SpaceName;
+    XrdOucString spn = pPath.c_str();
     // get the layout in this quota node
-    Policy::GetLayoutAndSpace(SpaceName.c_str(), map, vid, layoutId, spn, env,
+    Policy::GetLayoutAndSpace(pPath.c_str(), map, vid, layoutId, spn, env,
 			      forcedfsid, forcedgroup);
     mLayoutSizeFactor = eos::common::LayoutId::GetSizeFactor(layoutId);
   }
@@ -537,7 +537,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
   {
     header += "# ___________________________________________________________"
       "____________________________________\n";
-    sprintf(headerline, "# ==> Quota Node: %-16s\n", SpaceName.c_str());
+    sprintf(headerline, "# ==> Quota Node: %-16s\n", pPath.c_str());
     header += headerline;
     header += "# ___________________________________________________________"
       "____________________________________\n";
@@ -625,7 +625,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
       sprintf(headerline, "quota=node uid=%s space=%s usedbytes=%llu "
 	      "usedlogicalbytes=%llu usedfiles=%llu maxbytes=%llu "
 	      "maxlogicalbytes=%llu maxfiles=%llu percentageusedbytes=%s "
-	      "statusbytes=%s statusfiles=%s\n", id.c_str(), SpaceName.c_str(),
+	      "statusbytes=%s statusfiles=%s\n", id.c_str(), pPath.c_str(),
 	      GetQuota(kUserBytesIs, uids[lid]),
 	      GetQuota(kUserLogicalBytesIs, uids[lid]),
 	      GetQuota(kUserFilesIs, uids[lid]),
@@ -737,7 +737,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 	      "quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
 	      "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
 	      "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-	      id.c_str(), SpaceName.c_str(),
+	      id.c_str(), pPath.c_str(),
 	      GetQuota(kGroupBytesIs, gids[lid]),
 	      GetQuota(kGroupLogicalBytesIs, gids[lid]),
 	      GetQuota(kGroupFilesIs, gids[lid]),
@@ -819,7 +819,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 	      "quota=node uid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
 	      "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
 	      "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-	      id.c_str(), SpaceName.c_str(),
+	      id.c_str(), pPath.c_str(),
 	      GetQuota(kAllUserBytesIs, 0),
 	      GetQuota(kAllUserLogicalBytesIs, 0),
 	      GetQuota(kAllUserFilesIs, 0),
@@ -870,7 +870,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long uid_sel, long gid_sel,
 	      "quota=node gid=%s space=%s usedbytes=%llu usedlogicalbytes=%llu "
 	      "usedfiles=%llu maxbytes=%llu maxlogicalbytes=%llu maxfiles=%llu "
 	      "percentageusedbytes=%s statusbytes=%s statusfiles=%s\n",
-	      id.c_str(), SpaceName.c_str(),
+	      id.c_str(), pPath.c_str(),
 	      GetQuota(kAllGroupBytesIs, 0),
 	      GetQuota(kAllGroupLogicalBytesIs, 0),
 	      GetQuota(kAllGroupFilesIs, 0),
@@ -1809,10 +1809,10 @@ Quota::FilePlacement(const std::string& space,
   }
 
   // Call the scheduler implementation
-  return squota->FilePlacement(space, path, vid, grouptag, lid,
-			       alreadyused_filesystems,
-			       selected_filesystems, plctpolicy, plctTrgGeotag,
-			       truncate, forced_scheduling_group_index, bookingsize);
+  return Scheduler::FilePlacement(space, path, vid, grouptag, lid,
+                                  alreadyused_filesystems,
+                                  selected_filesystems, plctpolicy, plctTrgGeotag,
+                                  truncate, forced_scheduling_group_index, bookingsize);
 }
 
 //------------------------------------------------------------------------------
@@ -1820,8 +1820,7 @@ Quota::FilePlacement(const std::string& space,
 // implementation is in the Scheduler and GeoTreeEngine.
 //------------------------------------------------------------------------------
 int
-Quota::FileAccess(const std::string& path,
-		  eos::common::Mapping::VirtualIdentity_t& vid,
+Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 		  unsigned long forcedfsid,
 		  const char* forcedspace,
 		  std::string tried_cgi,
@@ -1835,18 +1834,9 @@ Quota::FileAccess(const std::string& path,
 		  std::string overridegeoloc,
 		  bool noIO)
 {
-  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
-
-  if (!squota)
-  {
-    eos_static_err("no responsible quota node for path=%s", path.c_str());
-    return ENOSPC;
-  }
-
-  return squota->FileAccess(vid, forcedfsid, forcedspace, tried_cgi, lid,
-			    locationsfs, fsindex, isRW, bookingsize, unavailfs,
-			    min_fsstatus, overridegeoloc, noIO);
+  return Scheduler::FileAccess(vid, forcedfsid, forcedspace, tried_cgi, lid,
+                               locationsfs, fsindex, isRW, bookingsize, unavailfs,
+                               min_fsstatus, overridegeoloc, noIO);
 }
 
 //------------------------------------------------------------------------------

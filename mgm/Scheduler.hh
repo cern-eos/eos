@@ -80,18 +80,18 @@ public:
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  virtual int FilePlacement(const std::string& spacename,
-                            const char* path,
-			    eos::common::Mapping::VirtualIdentity_t& vid,
-			    const char* grouptag,
-			    unsigned long lid,
-			    std::vector<unsigned int>& alreadyused_filesystems,
-			    std::vector<unsigned int>& selected_filesystems,
-			    tPlctPolicy plctpolicy,
-			    const std::string& plctTrgGeotag = "",
-			    bool truncate = false,
-			    int forced_scheduling_group_index = -1,
-			    unsigned long long bookingsize = 1024 * 1024 * 1024ll);
+  static int FilePlacement(const std::string& spacename,
+                           const char* path,
+                           eos::common::Mapping::VirtualIdentity_t& vid,
+                           const char* grouptag,
+                           unsigned long lid,
+                           std::vector<unsigned int>& alreadyused_filesystems,
+                           std::vector<unsigned int>& selected_filesystems,
+                           tPlctPolicy plctpolicy,
+                           const std::string& plctTrgGeotag = "",
+                           bool truncate = false,
+                           int forced_scheduling_group_index = -1,
+                           unsigned long long bookingsize = 1024 * 1024 * 1024ll);
 
   //----------------------------------------------------------------------------
   //! Take the decision from where to access a file.
@@ -115,29 +115,28 @@ public:
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  virtual int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
-			 unsigned long forcedfsid,
-			 const char* forcedspace,
-			 std::string tried_cgi,
-			 unsigned long lid,
-			 std::vector<unsigned int>& locationsfs,
-			 unsigned long& fsindex,
-			 bool isRW,
-			 unsigned long long bookingsize,
-			 std::vector<unsigned int>& unavailfs,
-			 eos::common::FileSystem::fsstatus_t min_fsstatus =
-			 eos::common::FileSystem::kDrain,
-			 std::string overridegeoloc = "",
-			 bool noIO = false);
+  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
+                        unsigned long forcedfsid,
+                        const char* forcedspace,
+                        std::string tried_cgi,
+                        unsigned long lid,
+                        std::vector<unsigned int>& locationsfs,
+                         unsigned long& fsindex,
+                        bool isRW,
+                        unsigned long long bookingsize,
+                        std::vector<unsigned int>& unavailfs,
+                        eos::common::FileSystem::fsstatus_t min_fsstatus =
+                        eos::common::FileSystem::kDrain,
+                        std::string overridegeoloc = "",
+                        bool noIO = false);
 
 protected:
 
-  XrdOucString SpaceName; //< space name where the scheduling object is attached
-  XrdSysMutex schedulingMutex; //< protect the following scheduling state maps
+  static XrdSysMutex pMapMutex; //< protect the following scheduling state maps
 
   //! Points to the current scheduling group where to start scheduling =>
   //! std::string = <grouptag>|<uid>:<gid>
-  std::map<std::string, FsGroup*> schedulingGroup;
+  static std::map<std::string, FsGroup*> schedulingGroup;
 };
 
 EOSMGMNAMESPACE_END

@@ -1442,7 +1442,7 @@ ProcCommand::File ()
                 // We got a new replication vector
                 for (unsigned int i = 0; i < selectedfs.size(); i++)
                 {
-                  if (!(errno = Quota::FileAccess(spath.c_str(), *pVid,
+                  if (!(errno = Quota::FileAccess(*pVid,
                                                   (unsigned long) 0,
                                                   space.c_str(),
                                                   tried_cgi,
