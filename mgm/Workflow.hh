@@ -25,6 +25,7 @@
 #define __EOSMGM_WORKFLOW__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "common/FileId.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/ContainerMD.hh"
 /*----------------------------------------------------------------------------*/
@@ -45,9 +46,11 @@ public:
     mAttr = 0;
   };
 
-  void Init (eos::ContainerMD::XAttrMap *attr)
+  void Init (eos::ContainerMD::XAttrMap *attr, std::string path = "", eos::common::FileId::fileid_t fid = 0)
   {
     mAttr = attr;
+    mPath = path;
+    mFid = fid;
   }
 
   int Trigger (std::string event, std::string workflow);
@@ -60,9 +63,27 @@ public:
   {
   };
 
+  void Reset ()
+  {
+    mPath = "";
+    mFid = 0;
+    mEvent = "";
+    mWorkflow = "";
+    mAttr = 0;
+    mAction = "";
+  }
+  bool Create ();
+  bool Attach (const char* path);
+  bool Delete ();
+
 private:
 
   eos::ContainerMD::XAttrMap* mAttr;
+  std::string mPath;
+  eos::common::FileId::fileid_t mFid;
+  std::string mEvent;
+  std::string mWorkflow;
+  std::string mAction;
 };
 
 EOSMGMNAMESPACE_END

@@ -88,8 +88,9 @@
     }
   }
 
+  std::string path = spath;
   // load the corresponding workflow
-  workflow.Init(&attr);
+  workflow.Init(&attr, path, fid);
 
   // trigger the specified event
   workflow.Trigger(event, aworkflow);
