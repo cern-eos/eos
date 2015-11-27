@@ -7,7 +7,30 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.136 Beryl_Aquamarine``
+
+New Features
+------------
+- implement 'eos ls -lh' for readable sizes
+- add extended attributes on files
+- add 'file tag' command to manually set/remove locations
+- allow 'file injection' to upload contents into an existing file
+- add optional namespace subtree aggregation and introduce the concept of sync time
+- implement <oc::size> and <oc::permissions> in PROPFIND requests
+- run MGM/FST with effective user ID of root and filesystem ID of daemon/daemon
+
+
+Bug Fixes
+---------
+- avoid default auto-repair trigger if not configured
+- fix high system time bug in ShellCmd class 
+- don't use fork when doing a stack trace, use ShellCmd class
+- use always the current configured manager from global configuration to avoid eternal looping in case of certain failover scenarios
+- avoid rescheduling of files on a location still in the deletion list
+
 ``Version V0.3.134 Beryl_Aquamarine``
+
+Bug Fixes
 ---------
 - avoid 'fork' calls in the namespace library using the 'ShellCmd' class
 
