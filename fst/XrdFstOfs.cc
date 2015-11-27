@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/fsuid.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -280,6 +281,11 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 int
 XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
 {
+  seteuid(0);
+  setegid(0);
+  setfsuid(2);
+  setfsgid(2);
+
   char* var;
   const char* val;
   int cfgFD;
