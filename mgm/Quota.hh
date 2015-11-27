@@ -53,7 +53,7 @@ class Quota;
 //------------------------------------------------------------------------------
 //! Class SpaceQuota
 //------------------------------------------------------------------------------
-class SpaceQuota : public Scheduler
+class SpaceQuota
 {
   friend class Quota;
 
@@ -74,7 +74,7 @@ public:
   //----------------------------------------------------------------------------
   inline const char* GetSpaceName()
   {
-    return SpaceName.c_str();
+    return pPath.c_str();
   }
 
   //----------------------------------------------------------------------------
@@ -299,7 +299,7 @@ private:
   //----------------------------------------------------------------------------
   static const char* GetTagCategory(int tag);
 
-  bool mEnabled; ///< true if space quota enabled, otherwise false
+  std::string pPath; ///< quota node path
   eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
   XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
   time_t mLastEnableCheck; ///< timestamp of the last check
@@ -336,16 +336,16 @@ public:
   //!
   //! @param path quota node path which needs to be '/' terminated
   //----------------------------------------------------------------------------
-  static void CreateSpaceQuota(const std::string& path);
+  static void Create(const std::string& path);
 
   //----------------------------------------------------------------------------
-  //! Check if space quota exists
+  //! Check if quota node for path exists
   //!
-  //! @param space quota space to search for
+  //! @param path path to search for
   //!
-  //! @return true if space quota exists, otherwise false
+  //! @return true if quota node exists, otherwise false
   //----------------------------------------------------------------------------
-  static bool ExistsSpace(const std::string& space);
+  static bool Exists(const std::string& path);
 
   //----------------------------------------------------------------------------
   //! Check if there is a quota node responsible for the given path
@@ -373,7 +373,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set quota type of id (uid/gid)
   //!
-  //! @param space quota path
+  //! @param qpath quota path
   //! @param id uid or gid value depending on the id_type
   //! @param id_type type of id, can be uid or gid
   //! @param quota_type type of quota to remove, can be inode or volume
@@ -383,7 +383,7 @@ public:
   //!
   //! @return true if quota set successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool SetQuotaTypeForId(const std::string& space, long id,
+  static bool SetQuotaTypeForId(const std::string& qpath, long id,
 				Quota::IdT id_type, Quota::Type quota_type,
 				unsigned long long value, std::string& msg,
 				int& retc);
@@ -392,7 +392,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set quota specified by the quota tag.
   //!
-  //! @param space quota path
+  //! @param qpath quota path
   //! @param quota_tag string representation of the SpaceQuota::eQuotaTag. From
   //!                  this we can deduce the quota type and the id type.
   //! @param id uid or gid value depending on the space_tag
@@ -400,14 +400,14 @@ public:
   //!
   //! @return true if quota set successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool SetQuotaForTag(const std::string& space,
+  static bool SetQuotaForTag(const std::string& qpath,
 			     const std::string& quota_tag,
 			     long id, unsigned long long value);
 
   //----------------------------------------------------------------------------
   //! Remove all quota types for an id
   //!
-  //! @param space path to node
+  //! @param path quota node path
   //! @param id uid or gid value depending on the id_type
   //! @param id_type type of id, can be uid or gid
   //! @param msg message returned to the client
@@ -415,13 +415,13 @@ public:
   //!
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool RmQuotaForId(const std::string& space, long id,
+  static bool RmQuotaForId(const std::string& path, long id,
 			   Quota::IdT id_type, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Remove quota type for id
   //!
-  //! @param space path to node
+  //! @param qpath quota node path
   //! @param id uid or gid value depending on the id_type
   //! @param id_type type of id, can be uid or gid
   //! @param quota_type type of quota to remove, can be inode or volume
@@ -430,14 +430,14 @@ public:
   //!
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool RmQuotaTypeForId(const std::string& space, long id,
+  static bool RmQuotaTypeForId(const std::string& qpath, long id,
 			       Quota::IdT id_type, Quota::Type quota_type,
 			       std::string& msg, int& retc);
 
   //------------------------------------------------------------------------------
   //! Remove quota specified by the quota tag
   //!
-  //! @param space quota path
+  //! @param qpath quota node path
   //! @param quota_tag string representation of the SpaceQuota::eQuotaTag. From
   //!                  this we can deduce the quota type and the id type.
   //! @param id uid or gid value depending on the space_tag
@@ -450,18 +450,18 @@ public:
   //----------------------------------------------------------------------------
   //! Removes a quota node
   //!
-  //! @param space path for quota node to be removed
+  //! @param path quota node path to be removed
   //! @param msg message returned to the client
   //! @param retc error number returned to the client
   //!
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool RmSpaceQuota(std::string& space, std::string& msg, int& retc);
+  static bool RmSpaceQuota(std::string& path, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
-  //! Get group quota values for a particular space and id
+  //! Get group quota values for a particular path and id
   //!
-  //! @param space space name
+  //! @param path quota node path
   //! @param id uid/gid/projectid
   //!
   //! @return map between quota types and values. The map contains 4 entries
@@ -469,7 +469,7 @@ public:
   //!         kGroupBytesTarget, kGroupFilesIs and kGroupFilesTarget
   //----------------------------------------------------------------------------
   static std::map<int, unsigned long long>
-  GetGroupStatistics(const std::string& space, long id);
+  GetGroupStatistics(const std::string& path, long id);
 
   //----------------------------------------------------------------------------
   //! Update SpaceQuota from the namespace quota only if the requested path is
@@ -522,7 +522,7 @@ public:
   //----------------------------------------------------------------------------
   //! Print out quota information
   //----------------------------------------------------------------------------
-  static void PrintOut(const std::string& space, XrdOucString& output,
+  static void PrintOut(const std::string& path, XrdOucString& output,
 		       long uid_sel = -1, long gid_sel = -1,
 		       bool monitoring = false, bool translate_ids = false);
 
@@ -568,7 +568,6 @@ public:
   //! Take the decision from where to access a file. The core of the
   //! implementation is in the Scheduler and GeoTreeEngine.
   //!
-  //! @param space quota space name
   //! @param vid virutal id of the client
   //! @param focedfsid forced filesystem for access
   //! @param forcedspace forced space for access
@@ -587,8 +586,7 @@ public:
   //! @return 0 if successful, otherwise a non-zero value
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FileAccess(const std::string& space,
-			eos::common::Mapping::VirtualIdentity_t& vid,
+  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 			unsigned long forcedfsid,
 			const char* forcedspace,
 			std::string tried_cgi,
@@ -609,9 +607,9 @@ public:
 private:
 
   //----------------------------------------------------------------------------
-  //! Get space quota object for exact path or create if doesn't exist
+  //! Get space quota object for exact path
   //!
-  //! @param path path of the space quota
+  //! @param path path of the quota node
   //!
   //! @return SpaceQuota object
   //----------------------------------------------------------------------------
@@ -629,7 +627,6 @@ private:
 
   //! Map from path to SpaceQuota object
   static std::map<std::string, SpaceQuota*> pMapQuota;
-
 };
 
 EOSMGMNAMESPACE_END

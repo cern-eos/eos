@@ -29,6 +29,10 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+// Initialize static variables
+XrdSysMutex Scheduler::pMapMutex;
+std::map<std::string, FsGroup*> Scheduler::schedulingGroup;
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -43,7 +47,8 @@ Scheduler::~Scheduler() { }
 // Take the decision where to place a new file in the system
 //------------------------------------------------------------------------------
 int
-Scheduler::FilePlacement(const char* path,
+Scheduler::FilePlacement(const std::string& spacename,
+                         const char* path,
                          eos::common::Mapping::VirtualIdentity_t& vid,
                          const char* grouptag,
                          unsigned long lid,
@@ -112,7 +117,6 @@ Scheduler::FilePlacement(const char* path,
   }
 
   std::string indextag = lindextag.c_str();
-  std::string spacename = SpaceName.c_str();
   std::set<FsGroup*>::const_iterator git;
   std::vector<std::string> fsidsgeotags;
   std::vector<FsGroup*> groupsToTry;
@@ -147,7 +151,7 @@ Scheduler::FilePlacement(const char* path,
   }
   else
   {
-    XrdSysMutexHelper scope_lock(schedulingMutex);
+    XrdSysMutexHelper scope_lock(pMapMutex);
 
     if (schedulingGroup.count(indextag))
     {
@@ -217,9 +221,9 @@ Scheduler::FilePlacement(const char* path,
         git = FsView::gFsView.mSpaceGroupView[spacename].begin();
 
       // remember the last group for that indextag
-      schedulingMutex.Lock();
+      pMapMutex.Lock();
       schedulingGroup[indextag] = *git;
-      schedulingMutex.UnLock();
+      pMapMutex.UnLock();
     }
 
     if (placeRes)

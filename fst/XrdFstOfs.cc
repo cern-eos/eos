@@ -51,6 +51,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/fsuid.h>
 
 #include <math.h>
 #include <stdio.h>
@@ -280,6 +281,11 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
 int
 XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
 {
+  seteuid(0);
+  setegid(0);
+  setfsuid(2);
+  setfsgid(2);
+
   char* var;
   const char* val;
   int cfgFD;
@@ -712,6 +718,16 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   XrdCl::Buffer* response = 0;
   XrdCl::XRootDStatus status;
   XrdOucString address = "root://";
+  XrdOucString lManager;
+
+  if (!manager)
+  {
+    // use the broadcasted manager name
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    lManager = Config::gConfig.Manager.c_str();
+    manager = lManager.c_str();
+  }
+
   address += manager;
   address += "//dummy";
   XrdCl::URL url(address.c_str());

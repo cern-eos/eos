@@ -539,6 +539,14 @@ public:
   int _access (const char*, int mode, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char*);
 
   // ---------------------------------------------------------------------------
+  // define access permissions by vid for a file/directory
+  // ---------------------------------------------------------------------------
+  int acc_access (const char*,
+                  XrdOucErrInfo&,
+                  eos::common::Mapping::VirtualIdentity &vid,
+                  std::string& accperm);
+
+  // ---------------------------------------------------------------------------
   // set utimes
   // ---------------------------------------------------------------------------
   int utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
@@ -1096,6 +1104,8 @@ public:
   eos::IFileMDSvc *eosFileService; //< changelog for files
   eos::IView *eosView; //< hierarchical view of the namespace
   eos::IFsView *eosFsView; //< filesystem view of the namespace
+  eos::IFileMDChangeListener* eosContainerAccounting; //< subtree accoutning
+  eos::IContainerMDChangeListener* eosSyncTimeAccounting; //< subtree mtime propagation
   XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
   XrdOucString MgmMetaLogDir; //  Directory containing the meta data (change) log files

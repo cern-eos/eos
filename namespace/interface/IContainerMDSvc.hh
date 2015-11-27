@@ -24,14 +24,14 @@
 #ifndef EOS_NS_I_CONTAINER_MD_SVC_HH
 #define EOS_NS_I_CONTAINER_MD_SVC_HH
 
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/MDException.hh"
 #include <map>
 #include <string>
-#include "namespace/MDException.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 //! Forward declaration
-class IContainerMD;
 class IQuotaStats;
 
 //----------------------------------------------------------------------------
@@ -45,10 +45,11 @@ class IContainerMDChangeListener
   {
     Updated = 0,
     Deleted,
-    Created
+    Created,
+    MTimeChange
   };
 
-  virtual void containerMDChanged(IContainerMD* obj, Action type);
+  virtual void containerMDChanged(IContainerMD* obj, Action type) = 0;
 };
 
 //----------------------------------------------------------------------------
@@ -122,6 +123,12 @@ class IContainerMDSvc
   //! @param quota_stats object implementing the IQuotaStats interface
   //----------------------------------------------------------------------------
   virtual void setQuotaStats(IQuotaStats* quota_stats) = 0;
+
+  //------------------------------------------------------------------------
+  //! Notify all subscribed listener
+  //------------------------------------------------------------------------
+  virtual void notifyListeners( IContainerMD *obj,
+                                IContainerMDChangeListener::Action a  ) = 0;
 
 };
 

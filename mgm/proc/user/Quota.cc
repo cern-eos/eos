@@ -190,7 +190,7 @@ ProcCommand::Quota ()
 	}
 	else if (gid_sel.length())
 	{
-	  id_type = Quota::IdT::kUid;
+	  id_type = Quota::IdT::kGid;
 	  id = Mapping::GroupNameToGid(gid_sel.c_str(), errc);
 	}
 	else

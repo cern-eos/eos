@@ -1022,9 +1022,9 @@ ConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
     if (id > 0 || (ugid == "0"))
     {
       // Create space quota
-      (void) Quota::CreateSpaceQuota(space.c_str());
+      (void) Quota::Create(space.c_str());
 
-      if (!Quota::ExistsSpace(space.c_str()))
+      if (!Quota::Exists(space.c_str()))
       {
 	*err += "error: failed to get quota for space=";
 	*err += space.c_str();

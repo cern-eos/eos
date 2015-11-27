@@ -154,10 +154,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set size - 48 bytes will be used
   //----------------------------------------------------------------------------
-  void setSize(uint64_t size)
-  {
-    pSize = size & 0x0000ffffffffffff;
-  }
+  void setSize(uint64_t size);
 
   //----------------------------------------------------------------------------
   //! Get tag
@@ -229,7 +226,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   const std::string getName() const
   {
-    return std::string(pName);
+    return pName;
   }
 
   //----------------------------------------------------------------------------
@@ -498,7 +495,7 @@ class FileMD: public IFileMD
   void deserialize(const Buffer& buffer);
 
   //----------------------------------------------------------------------------
-  //! Get symbolic link 
+  //! Get symbolic link
   //----------------------------------------------------------------------------
   std::string getLink() const
   {
@@ -506,7 +503,7 @@ class FileMD: public IFileMD
   }
 
   //----------------------------------------------------------------------------
-  //! Set symbolic link 
+  //! Set symbolic link
   //----------------------------------------------------------------------------
   void setLink(std::string link_name)
   {
@@ -521,6 +518,72 @@ class FileMD: public IFileMD
     return pLinkName.length() ? true:false;
   }
 
+  //----------------------------------------------------------------------------
+  //! Add extended attribute
+  //----------------------------------------------------------------------------
+  void setAttribute (const std::string &name, const std::string &value)
+  {
+    pXAttrs[name] = value;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Remove attribute
+  //----------------------------------------------------------------------------
+  void removeAttribute (const std::string &name)
+  {
+    XAttrMap::iterator it = pXAttrs.find(name);
+
+    if (it != pXAttrs.end())
+      pXAttrs.erase(it);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if the attribute exist
+  //----------------------------------------------------------------------------
+  bool hasAttribute (const std::string &name) const
+  {
+    return pXAttrs.find(name) != pXAttrs.end();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Return number of attributes
+  //----------------------------------------------------------------------------
+  size_t numAttributes () const
+  {
+    return pXAttrs.size();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the attribute
+  //----------------------------------------------------------------------------
+  std::string getAttribute (const std::string &name) const
+  {
+    XAttrMap::const_iterator it = pXAttrs.find(name);
+
+    if (it == pXAttrs.end())
+    {
+      MDException e(ENOENT);
+      e.getMessage() << "Attribute: " << name << " not found";
+      throw e;
+    }
+    return it->second;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get attribute begin iterator
+  //----------------------------------------------------------------------------
+  XAttrMap::iterator attributesBegin()
+  {
+    return pXAttrs.begin();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the attribute end iterator
+  //----------------------------------------------------------------------------
+  XAttrMap::iterator attributesEnd()
+  {
+    return pXAttrs.end();
+  }
 
  protected:
   //----------------------------------------------------------------------------
@@ -540,6 +603,7 @@ class FileMD: public IFileMD
   LocationVector      pLocation;
   LocationVector      pUnlinkedLocation;
   Buffer              pChecksum;
+  XAttrMap            pXAttrs;
   IFileMDSvc*         pFileMDSvc;
 };
 

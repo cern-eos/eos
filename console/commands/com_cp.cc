@@ -439,13 +439,13 @@ com_cp (char* argin)
       l += "find -f ";
       if (source_find_list[nfile].beginswith("/") && (!source_find_list[nfile].beginswith("/eos")))
       {
-        l += "file:";
+        l += "\"file:";
 
       }
 
       l += source_find_list[nfile];
 
-      l += " 2> /dev/null";
+      l += "\" 2> /dev/null";
 
       if (debug) fprintf(stderr, "[eos-cp] running %s\n", l.c_str());
       FILE* fp = popen(l.c_str(), "r");

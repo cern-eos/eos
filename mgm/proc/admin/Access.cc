@@ -54,6 +54,7 @@ ProcCommand::Access ()
 
   if ((option.find("m")) != std::string::npos)
     monitoring = true;
+
   if ((option.find("n")) != std::string::npos)
     translate = false;
 
@@ -64,6 +65,7 @@ ProcCommand::Access ()
     {
       int errc = 0;
       uid_t uid = eos::common::Mapping::UserNameToUid(user, errc);
+
       if (!errc)
       {
         Access::gBannedUsers.insert(uid);
@@ -514,24 +516,24 @@ ProcCommand::Access ()
               }
               else
               {
-		if (type == "ENONET") 
+                if (type == "ENONET")
                 {
-		  Access::gStallRules[std::string("ENONET:*")] = stall;
-		  Access::gStallComment[std::string("ENONET:*")] = mComment.c_str();
-		} 
-		else 
+                  Access::gStallRules[std::string("ENONET:*")] = stall;
+                  Access::gStallComment[std::string("ENONET:*")] = mComment.c_str();
+                }
+                else
                 {
-		  if (type == "ENOENT") 
+                  if (type == "ENOENT")
                   {
-		    Access::gStallRules[std::string("ENOENT:*")] = stall;
-		    Access::gStallComment[std::string("ENOENT:*")] = mComment.c_str();
-		  } 
-                  else 
+                    Access::gStallRules[std::string("ENOENT:*")] = stall;
+                    Access::gStallComment[std::string("ENOENT:*")] = mComment.c_str();
+                  }
+                  else
                   {
-		    Access::gStallRules[std::string("*")] = stall;
-		    Access::gStallComment[std::string("*")] = mComment.c_str();
-		  }
-		}
+                    Access::gStallRules[std::string("*")] = stall;
+                    Access::gStallComment[std::string("*")] = mComment.c_str();
+                  }
+                }
               }
             }
           }
@@ -746,7 +748,9 @@ ProcCommand::Access ()
       {
         cnt++;
         if (monitoring)
+        {
           stdOut += "user.banned=";
+        }
         else
         {
           char counter[16];
@@ -755,6 +759,7 @@ ProcCommand::Access ()
           stdOut += counter;
           stdOut += " ] ";
         }
+
         if (!translate)
         {
           stdOut += eos::common::Mapping::UidAsString(*ituid).c_str();
@@ -764,6 +769,7 @@ ProcCommand::Access ()
           int terrc = 0;
           stdOut += eos::common::Mapping::UidToUserName(*ituid, terrc).c_str();
         }
+
         stdOut += "\n";
       }
     }
@@ -801,6 +807,7 @@ ProcCommand::Access ()
           int terrc = 0;
           stdOut += eos::common::Mapping::GidToGroupName(*itgid, terrc).c_str();
         }
+
         stdOut += "\n";
       }
     }
@@ -856,6 +863,7 @@ ProcCommand::Access ()
           stdOut += counter;
           stdOut += " ] ";
         }
+
         if (!translate)
         {
           stdOut += eos::common::Mapping::UidAsString(*ituid).c_str();
@@ -865,6 +873,7 @@ ProcCommand::Access ()
           int terrc = 0;
           stdOut += eos::common::Mapping::UidToUserName(*ituid, terrc).c_str();
         }
+
         stdOut += "\n";
       }
     }
@@ -902,6 +911,7 @@ ProcCommand::Access ()
           int terrc = 0;
           stdOut += eos::common::Mapping::GidToGroupName(*itgid, terrc).c_str();
         }
+
         stdOut += "\n";
       }
     }

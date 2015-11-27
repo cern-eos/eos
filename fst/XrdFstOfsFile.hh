@@ -389,6 +389,7 @@ protected:
   bool isRW; //! indicator that file is opened for rw
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
+  bool isInjection; //! indicator that the opened file is a file injection where the size and checksum must match
   bool isReconstruction; //! indicator that the opened file is in a RAIN reconstruction process
   bool deleteOnClose; //! indicator that the file has to be cleaned on close
   bool repairOnClose; //! indicator that the file should get repaired on close

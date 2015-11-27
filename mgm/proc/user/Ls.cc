@@ -256,8 +256,12 @@ ProcCommand::Ls ()
                 stdOut += lsline;
               }
 
-              sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr, (int) buf.st_nlink,
-                      suid.c_str(), sgid.c_str(), eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size), t_creat, val, dirmarker.c_str());
+	      if ((option.find("h")) == STR_NPOS)
+		sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr, (int) buf.st_nlink,
+			suid.c_str(), sgid.c_str(), eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size), t_creat, val, dirmarker.c_str());
+	      else
+		sprintf(lsline, "%s %3d %-8.8s %-8.8s %12s %s %s%s", modestr, (int) buf.st_nlink,
+			suid.c_str(), sgid.c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring, (unsigned long long) buf.st_size, ""), t_creat, val, dirmarker.c_str());
               if ((option.find("l")) != STR_NPOS)
 	      {
                 stdOut += lsline;

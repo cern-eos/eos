@@ -424,10 +424,13 @@ XrdMgmOfs::_mkdir (const char *path,
 	  // store the in-memory modification time into the parent
 	  eos::IContainerMD::ctime_t ctime;
 	  newdir->getCTime(ctime);
-	  UpdateInmemoryDirectoryModificationTime(dir->getId(), ctime);
-
+	  newdir->setMTime(ctime);
+	  newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+	  dir->setMTime(ctime);
+	  dir->notifyMTimeChange( gOFS->eosDirectoryService );
           // commit
           eosView->updateContainerStore(newdir);
+	  eosView->updateContainerStore(dir);
         }
         catch (eos::MDException &e)
         {
@@ -478,7 +481,10 @@ XrdMgmOfs::_mkdir (const char *path,
     // store the in-memory modification time
     eos::IContainerMD::ctime_t ctime;
     newdir->getCTime(ctime);
-    UpdateInmemoryDirectoryModificationTime(dir->getId(), ctime);
+    newdir->setMTime(ctime);
+    newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+    dir->setMTime(ctime);
+    dir->notifyMTimeChange( gOFS->eosDirectoryService );
 
     if ((dir->getMode() & S_ISGID) &&
         (cPath.GetFullPath().find(EOS_COMMON_PATH_VERSION_PREFIX) == STR_NPOS))
@@ -496,6 +502,7 @@ XrdMgmOfs::_mkdir (const char *path,
     }
     // commit on disk
     eosView->updateContainerStore(newdir);
+    eosView->updateContainerStore(dir);
   }
   catch (eos::MDException &e)
   {

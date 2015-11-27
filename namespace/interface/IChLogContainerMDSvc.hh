@@ -25,6 +25,9 @@
 #define __EOS_NS_ICHLOGCONTAINERMDSVC_HH__
 
 #include "namespace/Namespace.hh"
+#include <map>
+#include <vector>
+#include <string>
 
 EOSNSNAMESPACE_BEGIN
 

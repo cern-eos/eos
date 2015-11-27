@@ -320,16 +320,9 @@ class ChangeLogContainerMDSvc:
   };
 
   //--------------------------------------------------------------------------
-  // Notify the listeners about the change
+  //! Notify the listeners about the change
   //--------------------------------------------------------------------------
-  void notifyListeners(IContainerMD* obj,
-                       IContainerMDChangeListener::Action a)
-  {
-    ListenerList::iterator it;
-
-    for (it = pListeners.begin(); it != pListeners.end(); ++it)
-      (*it)->containerMDChanged(obj, a);
-  }
+  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a);
 
   //--------------------------------------------------------------------------
   // Recreate the container structure recursively and create the list

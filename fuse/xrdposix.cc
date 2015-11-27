@@ -1126,10 +1126,10 @@ const uint16_t map_user::sMaxAuthId = 2^6;
 class AuthIdManager
 {
 public:
-  enum CredType {krb5,x509};
+  enum CredType {krb5,krk5,x509};
   struct CredInfo
   {
-    CredType type;     // krb5 or x509
+    CredType type;     // krb5 , krk5 or x509
     std::string lname; // link to credential file
     std::string fname; // credential file
     time_t fmtime;     // credential file mtime
@@ -1157,7 +1157,7 @@ protected:
       for(uint8_t i=0;i<map_user::sMaxAuthId;i++) freeAuthIdPool.push_back(i);
     }
   };
-  // maps userid -> strongid2authid  : ( identity -> authid ) , identity being krb5:<some_identity> or gsi:<some_identity>
+  // maps userid -> strongid2authid  : ( identity -> authid ) , identity being krb5:<some_identity> or krk5:<some_fileless_param> or gsi:<some_identity>
   //                freeAuthIdPool   : a list with all the available authid
   // several threads (each from different process) might concurrently access this
   std::map<uid_t, IdenAuthIdEntry > uid2IdenAuthid;
@@ -1171,11 +1171,13 @@ protected:
     std::stringstream ss;
     size_t i = 0;
     // avoid characters that could mess up the link name
-    while ((i = identity.find_first_of ("\\/:\"*?<>|", i)) != std::string::npos)
+    while ((i = identity.find_first_of ("/", i)) != std::string::npos)
       identity[i] = '.';
     ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
     std::string linkname = ss.str ();
-    auto colidx = authMethod.rfind (':');
+    auto colidx = authMethod.find (':');
+
+    eos_static_debug("authmethod=%s",authMethod.c_str());
 
     if (xrdlogin.empty ())
     {
@@ -1218,17 +1220,21 @@ protected:
     char buffer[1024];
     char buffer2[1024];
     const char* format = "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s";
-    const char* suffixes[3] =
-    { "krb5", "x509", "krb5" };
+    // krb5 -> kerberos 5 credential cache file
+    // krk5 -> kerberos 5 credential cache not in a file (e.g. KeyRing)
+    // x509 -> gsi authentication
+    const char* suffixes[5] =
+    { "krb5", "krk5", "x509", "krb5", "krk5" };
+    CredType credtypes[5] = {krb5, krk5,x509,krb5,krk5};
     int sidx = 1, sn = 2;
     if (!use_user_krb5cc && use_user_gsiproxy)
-      (sidx = 1) && (sn = 1);
+      (sidx = 2) && (sn = 1);
     else if (use_user_krb5cc && !use_user_gsiproxy)
-      (sidx = 0) && (sn = 1);
-    else if (tryKrb5First)
       (sidx = 0) && (sn = 2);
+    else if (tryKrb5First)
+      (sidx = 0) && (sn = 3);
     else
-      (sidx = 1) && (sn = 2);
+      (sidx = 2) && (sn = 3);
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
     for (int i = sidx; i < sidx + sn; i++)
@@ -1241,11 +1247,17 @@ protected:
         credinfo.lname = buffer;
         credinfo.lmtime = linkstat.st_mtim.tv_sec;
         credinfo.lctime = linkstat.st_ctim.tv_sec;
-        credinfo.type = i % 2 ? x509 : krb5;
+        credinfo.type = credtypes[i];
+        size_t bsize = readlink (buffer, buffer2, 1024);
+        buffer2[bsize] = 0;
         eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
-        if (!stat (buffer, &filestat))
+        if(credinfo.type==krk5)
         {
-          size_t bsize = readlink (buffer, buffer2, 1024);
+          credinfo.fname = buffer2;
+          break; // there is no file to stat in that case
+        }
+        if (!stat (buffer2, &filestat))
+        {
           if (bsize > 0)
           {
             buffer2[bsize] = 0;
@@ -1273,7 +1285,14 @@ protected:
   bool readCred(CredInfo &credinfo)
   {
     bool ret = false;
-    eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":"x509",credinfo.fname.c_str());
+    eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":(credinfo.type==krb5?"krk5":"x509"),credinfo.fname.c_str());
+    if(credinfo.type==krk5)
+    {
+      // fileless authentication cannot rely on symlinks to be able to change the cache credential file
+      // instead of the identity, we use the keyring information and each has a different xrd login
+      credinfo.identity = credinfo.fname;
+      ret = true;
+    }
     if(credinfo.type==krb5)
     {
       ProcReaderKrb5UserName reader(credinfo.fname);
@@ -1293,20 +1312,21 @@ protected:
     return ret;
   }
 
-  bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid)
+  bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid, CredType credtype)
   {
-    const unsigned int reqMode = 0600;
     //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
-    if(
+    if (
     // check owner ship
-    linkstat.st_uid == uid
-        && filestat.st_uid == uid
-    // check permissions
-        && (filestat.st_mode & 0777) == reqMode
-        )
-      return true;
-    else
-      return false;
+    linkstat.st_uid == uid)
+    {
+      if (credtype == krk5)
+        return true;
+      else if (filestat.st_uid == uid && (filestat.st_mode & 0077) == 0 // no access to other users/groups
+      && (filestat.st_mode & 0400) != 0 // read allowed for the user
+          ) return true;
+    }
+
+    return false;
   }
 
   int
@@ -1315,9 +1335,6 @@ protected:
     // when entering this function proccachemutexes[pid] must be write locked
     int errCode;
     char buffer[1024];
-    std::string oldauth,newauth;
-    if(!proccache_GetAuthMethod(pid,buffer,1024))
-      oldauth=buffer;
 
     // this is useful even in gateway mode because of the recursive deletion protection
     if ((errCode = proccache_InsertEntry (pid)))
@@ -1376,11 +1393,15 @@ protected:
       const CredInfo &ci = cacheEntry->second;
       // we also check ctime to be sure that permission/ownership has not changed
       if(ci.lmtime == credinfo.lmtime
-          && ci.lctime == credinfo.lctime
-          && ci.fmtime == credinfo.fmtime
-          && ci.fctime == credinfo.fctime
-          && ci.fname == credinfo.fname)
-        sessionInCache = true;
+          && ci.lctime == credinfo.lctime )
+      {
+        if(credinfo.type==krk5) // if this is fileless credential cache, no target file to check
+          sessionInCache = true;
+        else if(ci.fmtime == credinfo.fmtime
+            && ci.fctime == credinfo.fctime
+            && ci.fname == credinfo.fname)
+          sessionInCache = true;
+      }
     }
     pMutex.UnLockRead();
 
@@ -1398,7 +1419,7 @@ protected:
 
     // refresh the credentials in the cache
     // check the credential security
-    if(!checkCredSecurity(linkstat,filestat,uid))
+    if(!checkCredSecurity(linkstat,filestat,uid,credinfo.type))
     {
       eos_static_alert("credentials are not safe");
       return EACCES;
@@ -1408,9 +1429,25 @@ protected:
       return EACCES;
     // update authmethods for session leader and current pid
     uint8_t authid;
-    std::string sId = credinfo.type==krb5?"krb5:":"x509:";
-    sId.append(credinfo.lname);
-    std::string newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
+    std::string sId;
+    if(credinfo.type==krb5) sId = "krb5:";
+    else if(credinfo.type==krk5) sId = "krk5:";
+    else sId = "x509:";
+
+    std::string newauthmeth;
+    if(credinfo.type==krk5)
+    {
+      // don't need to create any symlink in that case
+      sId.append(credinfo.fname);
+      newauthmeth = sId;
+    }
+    else
+    {
+      // binding (uid_identity to the latest credential file received)
+      sId.append(credinfo.lname);
+      newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
+    }
+
     if(newauthmeth.empty())
     {
       eos_static_err("error symlinking credential file ");
@@ -1423,7 +1460,9 @@ protected:
       eos::common::RWMutexWriteLock lock (pMutex);
       // this will create the entry in uid2IdenAuthid if it does not exist already
       auto &uidEntry = uid2IdenAuthid[uid];
-      sId = credinfo.type==krb5?"krb5:":"x509:";
+      if(credinfo.type==krb5) sId = "krb5:";
+      else if(credinfo.type==krk5) sId = "krk5:";
+      else sId = "x509:";
       sId.append(credinfo.identity);
       if (!reconnect && uidEntry.strongid2authid.count (sId))
         authid = uidEntry.strongid2authid[sId]; // if this identity already has an authid , use it
@@ -1556,8 +1595,8 @@ xrd_rmxattr (const char* path,
   }
   else
   {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code==XrdCl::errAuthFailed?EPERM:EFAULT;
+    eos_static_err("status is NOT ok : %s",status.ToString().c_str());
+    errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
   }
 
   COMMONTIMING("END", &rmxattrtiming);
@@ -1595,6 +1634,15 @@ xrd_setxattr (const char* path,
   request += "mgm.subcmd=set&";
   request += "mgm.xattrname=";
   request += xattr_name;
+
+  std::string s_xattr_name = xattr_name;
+  if (s_xattr_name.find("&") != std::string::npos)
+  {
+    // & is a forbidden character in attribute names
+    errno = EINVAL;
+    return errno;
+  }
+
   request += "&";
   request += "mgm.xattrvalue=";
   request += std::string(xattr_value, size);
@@ -1664,6 +1712,14 @@ xrd_getxattr (const char* path,
   request += "mgm.pcmd=xattr&eos.app=fuse&";
   request += "mgm.subcmd=get&";
   request += "mgm.xattrname=";
+  std::string s_xattr_name = xattr_name;
+  if (s_xattr_name.find("&") != std::string::npos)
+  {
+    // & is a forbidden character in attribute names
+    errno = EINVAL;
+    return errno;
+  }
+  
   request += xattr_name;
   arg.FromString(request);
 
@@ -2917,7 +2973,7 @@ xrd_error_retc_map (int retc)
     errno = EIO;
 
   if (retc == kXR_NotAuthorized)
-    errno = EPERM;
+    errno = EACCES;
 
   if (retc == kXR_NotFound)
     errno = ENOENT;
@@ -3033,7 +3089,7 @@ xrd_open (const char* path,
 
       if (retc)
       {
-        eos_static_err("open failed for %s", spath.c_str());
+        eos_static_err("open failed for %s : error code is %d", spath.c_str(),(int)errno);
         return xrd_error_retc_map(errno);
       }
       else
@@ -3253,7 +3309,7 @@ xrd_open (const char* path,
 
   if (retc)
   {
-    eos_static_err("open failed for %s.", spath.c_str());
+    eos_static_err("open failed for %s : error code is %d.", spath.c_str(),(int)errno);
     delete file;
     return xrd_error_retc_map(errno);
   }
@@ -3695,6 +3751,12 @@ const char* xrd_strongauth_cgi (pid_t pid)
     proccache_GetAuthMethod(pid,buffer,256);
     std::string authmet(buffer);
     if (authmet.compare (0, 5, "krb5:") == 0)
+    {
+      str += "xrd.k5ccname=";
+      str += (authmet.c_str()+5);
+      str += "&xrd.wantprot=krb5";
+    }
+    else if (authmet.compare (0, 5, "krk5:") == 0)
     {
       str += "xrd.k5ccname=";
       str += (authmet.c_str()+5);

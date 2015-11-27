@@ -123,6 +123,42 @@ XrdMgmOfsFile::open (const char *inpath,
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
 
+  XrdOucString spath = path;
+
+  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+  {
+    //-------------------------------------------
+    // reference by fid+fsid                                                                                                                                                                                           
+    //-------------------------------------------
+    unsigned long long fid = 0;
+    if (spath.beginswith("fid:"))
+    {
+      spath.replace("fid:", "");
+      fid = strtoull(spath.c_str(), 0, 10);
+    }
+    if (spath.beginswith("fxid:"))
+    {
+      spath.replace("fxid:", "");
+      fid = strtoull(spath.c_str(), 0, 16);
+    }
+
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    try
+    {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      spath = gOFS->eosView->getUri(fmd).c_str();
+      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
+      path = spath.c_str();
+    }
+    catch (eos::MDException &e)
+    {
+      eos_debug("caught exception %d %s\n",
+		e.getErrno(),
+		e.getMessage().str().c_str());
+      return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
+    }
+  }
+
   int open_flag = 0;
   int isRW = 0;
   int isRewrite = 0;
@@ -139,6 +175,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
+
+  // flag indicating a new injection - upload of a file into a stub without physical location
+  bool isInjection = false;
 
   // chunk upload ID
   XrdOucString ocUploadUuid = "";
@@ -700,9 +739,18 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
+  if (openOpaque->Get("eos.injection"))
+  {
+    isInjection = true;
+  }
+
   // disable atomic uploads for FUSE clients
   if (isFuse)
     isAtomicUpload = false;
+
+  // disable injection in fuse clients
+  if (isFuse)
+    isInjection = false;
 
   if (isRW)
   {
@@ -730,7 +778,7 @@ XrdMgmOfsFile::open (const char *inpath,
                   "you have to be a priviledged user for updates");
     }
 
-    if ((open_mode & SFS_O_TRUNC) && fmd)
+    if (!isInjection && (open_mode & SFS_O_TRUNC) && fmd)
     {
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl())
@@ -863,6 +911,13 @@ XrdMgmOfsFile::open (const char *inpath,
             // oc chunks start with flags=0
 
             cid = fmd->getContainerId();
+
+	    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	    eos::IFileMD::ctime_t mtime;
+	    fmd->getMTime(mtime);
+	    cmd->setMTime(mtime);
+	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	    gOFS->eosView->updateContainerStore(cmd);
           }
           catch (eos::MDException &e)
           {
@@ -881,11 +936,6 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, errno, "create file", path);
         }
         isCreation = true;
-        // -------------------------------------------------------------------------
-        // store the in-memory modification time
-        // we get the current time, but we don't update the creation time
-        // -------------------------------------------------------------------------
-        gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
         // -------------------------------------------------------------------------
       }
     }
@@ -1048,7 +1098,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
   }
 
-  if (isCreation || ((open_mode == SFS_O_TRUNC)))
+  if ((!isInjection) && (isCreation || ((open_mode == SFS_O_TRUNC))))
   {
     eos_info("blocksize=%llu lid=%x",
              eos::common::LayoutId::GetBlocksize(newlayoutId), newlayoutId);
@@ -1097,6 +1147,12 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd);
+	eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	eos::IFileMD::ctime_t mtime;
+	fmd->getMTime(mtime);
+	cmd->setMTime(mtime);
+	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	gOFS->eosView->updateContainerStore(cmd);
 
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
@@ -1124,7 +1180,6 @@ XrdMgmOfsFile::open (const char *inpath,
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
       // -----------------------------------------------------------------------
-      gOFS->UpdateNowInmemoryDirectoryModificationTime(cid);
     }
   }
 
@@ -1236,14 +1291,8 @@ XrdMgmOfsFile::open (const char *inpath,
 
   int retc = 0;
 
-  if (!Quota::ExistsSpace(space.c_str()))
-  {
-    gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
-    return Emsg(epname, error, EINVAL, "get quota space ", space.c_str());
-  }
-
   // Place a new file
-  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())))
+  if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())) || isInjection)
   {
     const char* containertag = 0;
 
@@ -1272,7 +1321,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     // Reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = Quota::FileAccess(space.c_str(), vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
+    retc = Quota::FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
 			     selectedfs, fsIndex, isPioReconstruct ? false : isRW,
 			     fmd->getSize(), unavailfs);
 
@@ -1297,7 +1346,7 @@ XrdMgmOfsFile::open (const char *inpath,
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
       // ----------------------------------------------------------------------
-      if ((!isCreation) && (fmd->getSize() < (1*1024*1024*1024)))
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1*1024*1024*1024)))
       {
         int nmaxheal = 3;
 	if (attrmap.count("sys.heal.unavailable"))

@@ -398,8 +398,7 @@
 		 (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)))
             {
 	      std::string tried_cgi;
-	      if (Quota::FileAccess(fullpath.c_str(), h_vid,
-				    (long unsigned int) 0, (const char*) 0,
+	      if (Quota::FileAccess(h_vid, (long unsigned int) 0, (const char*) 0,
 				    tried_cgi, lid, locationfs, fsindex,
 				    false, (long long unsigned) 0, unavailfs))
               {

@@ -67,6 +67,13 @@ PlainLayout::Open (const std::string& path,
 {
   mLocalPath = path;
   int retc = mPlainFile->Open(path, flags, mode, opaque, mTimeout);
+
+  if (retc)
+  {
+    eos_err("failed open for file=%s", path.c_str());
+    return SFS_ERROR;
+  }
+
   mLastUrl = mPlainFile->GetLastUrl();
 
   // Get initial file size

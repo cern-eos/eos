@@ -26,6 +26,7 @@
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfs.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -42,8 +43,8 @@ ReplicaParLayout::ReplicaParLayout (XrdFstOfsFile* file,
                                     uint16_t timeout) :
 Layout (file, lid, client, outError, io, timeout)
 {
- mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
- ioLocal = false;
+  mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
+  ioLocal = false;
 }
 
 
@@ -244,12 +245,12 @@ ReplicaParLayout::Open (const std::string& path,
 //------------------------------------------------------------------------------
 ReplicaParLayout::~ReplicaParLayout ()
 {
- while (!mReplicaFile.empty())
- {
-   FileIo* file_io = mReplicaFile.back();
-   mReplicaFile.pop_back();
-   delete file_io;
- }
+  while (!mReplicaFile.empty())
+  {
+    FileIo* file_io = mReplicaFile.back();
+    mReplicaFile.pop_back();
+    delete file_io;
+  }
 }
 
 
@@ -345,30 +346,30 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
                          const char* buffer,
                          XrdSfsXferSize length)
 {
- int64_t rc;
+  int64_t rc;
 
- for (unsigned int i = 0; i < mReplicaFile.size(); i++)
- {
-   rc = mReplicaFile[i]->WriteAsync(offset, buffer, length, mTimeout);
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+  {
+    rc = mReplicaFile[i]->WriteAsync(offset, buffer, length, mTimeout);
 
-   if (rc != length)
-   {
-     XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-     // mask some opaque parameters to shorten the logging
-     eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-     eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-     eos::common::StringConversion::MaskTag(maskUrl, "authz");
+    if (rc != length)
+    {
+      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
+      // mask some opaque parameters to shorten the logging
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+      eos::common::StringConversion::MaskTag(maskUrl, "authz");
 
-     if (i != 0) errno = EREMOTEIO;
+      if (i != 0) errno = EREMOTEIO;
 
-     eos_err("Failed to write replica %i - write failed - %llu %s",
-             i, offset, maskUrl.c_str());
-     return gOFS.Emsg("ReplicaWrite", *mError, errno, "write replica failed",
-                      maskUrl.c_str());
-   }
- }
+      eos_err("Failed to write replica %i - write failed - %llu %s",
+              i, offset, maskUrl.c_str());
+      return gOFS.Emsg("ReplicaWrite", *mError, errno, "write replica failed",
+                       maskUrl.c_str());
+    }
+  }
 
- return length;
+  return length;
 }
 
 
@@ -378,28 +379,28 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
 int
 ReplicaParLayout::Truncate (XrdSfsFileOffset offset)
 {
- int rc = SFS_OK;
+  int rc = SFS_OK;
 
- for (unsigned int i = 0; i < mReplicaFile.size(); i++)
- {
-   rc = mReplicaFile[i]->Truncate(offset, mTimeout);
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+  {
+    rc = mReplicaFile[i]->Truncate(offset, mTimeout);
 
-   if (rc != SFS_OK)
-   {
-     if (i != 0) errno = EREMOTEIO;
+    if (rc != SFS_OK)
+    {
+      if (i != 0) errno = EREMOTEIO;
 
-     XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-     // mask some opaque parameters to shorten the logging
-     eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-     eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-     eos::common::StringConversion::MaskTag(maskUrl, "authz");
-     eos_err("Failed to truncate replica %i", i);
-     return gOFS.Emsg("ReplicaParTuncate", *mError, errno, "truncate failed",
-                      maskUrl.c_str());
-   }
- }
+      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
+      // mask some opaque parameters to shorten the logging
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      eos_err("Failed to truncate replica %i", i);
+      return gOFS.Emsg("ReplicaParTuncate", *mError, errno, "truncate failed",
+                       maskUrl.c_str());
+    }
+  }
 
- return rc;
+  return rc;
 }
 
 
@@ -414,7 +415,7 @@ ReplicaParLayout::Stat (struct stat* buf)
   {
     rc = mReplicaFile[i]->Stat(buf, mTimeout);
     // we stop with the first stat which works
-    if (!rc) 
+    if (!rc)
       break;
   }
   return rc;
@@ -427,28 +428,28 @@ ReplicaParLayout::Stat (struct stat* buf)
 int
 ReplicaParLayout::Sync ()
 {
- int rc = 0;
+  int rc = 0;
 
- for (unsigned int i = 0; i < mReplicaFile.size(); i++)
- {
-   XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-   // mask some opaque parameters to shorten the logging
-   eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-   eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-   eos::common::StringConversion::MaskTag(maskUrl, "authz");
-   rc = mReplicaFile[i]->Sync(mTimeout);
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+  {
+    XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
+    // mask some opaque parameters to shorten the logging
+    eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+    eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+    eos::common::StringConversion::MaskTag(maskUrl, "authz");
+    rc = mReplicaFile[i]->Sync(mTimeout);
 
-   if (rc != SFS_OK)
-   {
-     if (i != 0) errno = EREMOTEIO;
+    if (rc != SFS_OK)
+    {
+      if (i != 0) errno = EREMOTEIO;
 
-     eos_err("error=failed to sync replica %i", i);
-     return gOFS.Emsg("ReplicaParSync", *mError, errno, "sync failed",
-                      maskUrl.c_str());
-   }
- }
+      eos_err("error=failed to sync replica %i", i);
+      return gOFS.Emsg("ReplicaParSync", *mError, errno, "sync failed",
+                       maskUrl.c_str());
+    }
+  }
 
- return rc;
+  return rc;
 }
 
 
@@ -458,34 +459,34 @@ ReplicaParLayout::Sync ()
 int
 ReplicaParLayout::Remove ()
 {
- int rc = SFS_OK;
- bool got_error = false;
+  int rc = SFS_OK;
+  bool got_error = false;
 
- for (unsigned int i = 0; i < mReplicaFile.size(); i++)
- {
-   rc = mReplicaFile[i]->Remove();
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+  {
+    rc = mReplicaFile[i]->Remove();
 
-   if (rc != SFS_OK)
-   {
-     XrdOucString maskUrl = mReplicaUrl[0].c_str() ? mReplicaUrl[i].c_str() : "";
-     // mask some opaque parameters to shorten the logging
-     eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-     eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-     eos::common::StringConversion::MaskTag(maskUrl, "authz");
-     got_error = true;
+    if (rc != SFS_OK)
+    {
+      XrdOucString maskUrl = mReplicaUrl[0].c_str() ? mReplicaUrl[i].c_str() : "";
+      // mask some opaque parameters to shorten the logging
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
+      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
+      eos::common::StringConversion::MaskTag(maskUrl, "authz");
+      got_error = true;
 
-     if (i != 0) errno = EREMOTEIO;
+      if (i != 0) errno = EREMOTEIO;
 
-     eos_err("error=failed to remove replica %i", i);
-   }
- }
+      eos_err("error=failed to remove replica %i", i);
+    }
+  }
 
- if (got_error)
- {
-   return gOFS.Emsg("ReplicaParRemove", *mError, errno, "remove failed");
- }
+  if (got_error)
+  {
+    return gOFS.Emsg("ReplicaParRemove", *mError, errno, "remove failed");
+  }
 
- return rc;
+  return rc;
 }
 
 
@@ -495,43 +496,43 @@ ReplicaParLayout::Remove ()
 int
 ReplicaParLayout::Close ()
 {
- int rc = SFS_OK;
- int rc_close = SFS_OK;
+  int rc = SFS_OK;
+  int rc_close = SFS_OK;
 
- for (unsigned int i = 0; i < mReplicaFile.size(); i++)
- {
-   // Wait for any async requests before closing 
-   if (mReplicaFile[i])
-   {
-     AsyncMetaHandler* ptr_handler =
-         static_cast<AsyncMetaHandler*>(mReplicaFile[i]->GetAsyncHandler());
+  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
+  {
+    // Wait for any async requests before closing
+    if (mReplicaFile[i])
+    {
+      AsyncMetaHandler* ptr_handler =
+              static_cast<AsyncMetaHandler*> (mReplicaFile[i]->GetAsyncHandler());
 
-     if (ptr_handler)
-     {
-       if (ptr_handler->WaitOK() != XrdCl::errNone)
-       {
-         eos_err("error=async requests failed for replica %s", mReplicaUrl[i].c_str());
-         rc = SFS_ERROR;
-       }
-     }
-   }
-   
-   rc_close = mReplicaFile[i]->Close(mTimeout);
-   rc += rc_close;
+      if (ptr_handler)
+      {
+        if (ptr_handler->WaitOK() != XrdCl::errNone)
+        {
+          eos_err("error=async requests failed for replica %s", mReplicaUrl[i].c_str());
+          rc = SFS_ERROR;
+        }
+      }
+    }
 
-   if (rc_close != SFS_OK)
-   {
-     if (i != 0) errno = EREMOTEIO;
-     eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
-   }
- }
+    rc_close = mReplicaFile[i]->Close(mTimeout);
+    rc += rc_close;
 
- if (rc != SFS_OK)
- {
-   return gOFS.Emsg("ReplicaParClose", *mError, errno, "close failed", "");
- }
- 
- return rc;
+    if (rc_close != SFS_OK)
+    {
+      if (i != 0) errno = EREMOTEIO;
+      eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
+    }
+  }
+
+  if (rc != SFS_OK)
+  {
+    return gOFS.Emsg("ReplicaParClose", *mError, errno, "close failed", "");
+  }
+
+  return rc;
 }
 
 
@@ -541,7 +542,7 @@ ReplicaParLayout::Close ()
 int
 ReplicaParLayout::Fallocate (XrdSfsFileOffset length)
 {
- return mReplicaFile[0]->Fallocate(length);
+  return mReplicaFile[0]->Fallocate(length);
 }
 
 
@@ -552,7 +553,7 @@ int
 ReplicaParLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
                                XrdSfsFileOffset toOffset)
 {
- return mReplicaFile[0]->Fdeallocate(fromOffset, toOffset);
+  return mReplicaFile[0]->Fdeallocate(fromOffset, toOffset);
 }
 
 
