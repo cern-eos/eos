@@ -2973,7 +2973,7 @@ xrd_error_retc_map (int retc)
     errno = EIO;
 
   if (retc == kXR_NotAuthorized)
-    errno = EPERM;
+    errno = EACCES;
 
   if (retc == kXR_NotFound)
     errno = ENOENT;
@@ -3089,7 +3089,7 @@ xrd_open (const char* path,
 
       if (retc)
       {
-        eos_static_err("open failed for %s", spath.c_str());
+        eos_static_err("open failed for %s : error code is %d", spath.c_str(),(int)errno);
         return xrd_error_retc_map(errno);
       }
       else
@@ -3309,7 +3309,7 @@ xrd_open (const char* path,
 
   if (retc)
   {
-    eos_static_err("open failed for %s.", spath.c_str());
+    eos_static_err("open failed for %s : error code is %d.", spath.c_str(),(int)errno);
     delete file;
     return xrd_error_retc_map(errno);
   }
