@@ -1397,6 +1397,7 @@ XrdMgmOfsFile::open (const char *inpath,
       // INLINE Workflows
       // ----------------------------------------------------------------------
       int stalltime = 0;
+      workflow.SetFile(path, fmd->getId());
       if ((stalltime = workflow.Trigger("open", "enonet")) > 0)
       {
         eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);

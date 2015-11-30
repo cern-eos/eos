@@ -53,6 +53,14 @@ public:
     mFid = fid;
   }
 
+  void SetFile (std::string path = "", eos::common::FileId::fileid_t fid = 0)
+  {
+    if (path.length())
+      mPath = path;
+
+    if (fid)
+      mFid = fid;
+  }
   int Trigger (std::string event, std::string workflow);
 
   std::string getCGICloseW (std::string workflow);

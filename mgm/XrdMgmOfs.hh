@@ -73,6 +73,7 @@
  * - Httpd
  * - Recycler
  * - LRU
+ * - WFE
  *
  * Many functions in the MgmOfs interface take CGI parameters. The supported
  * CGI parameter are:
@@ -112,6 +113,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/LRU.hh"
+#include "mgm/WFE.hh"
 #include "mgm/Master.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
@@ -1069,6 +1071,8 @@ public:
   HttpServer Httpd; //<  Http daemon if available
 
   LRU LRUd; //< LRU object running the LRU policy engine
+
+  WFE WFEd; //< WFE object running the WFE engine
 
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 

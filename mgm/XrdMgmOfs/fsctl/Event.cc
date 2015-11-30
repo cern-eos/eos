@@ -73,7 +73,15 @@
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     try
     {
-      fmd = gOFS->eosFileService->getFileMD(fid);
+      if (fid)
+      {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+      }
+      else
+      {
+        fmd = gOFS->eosView->getFile(spath);
+      }
+
       dh = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       eos::ContainerMD::XAttrMap::const_iterator it;
       for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)

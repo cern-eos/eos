@@ -29,6 +29,7 @@
 #include "mgm/Workflow.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
+#include <ctime>
 
 /*----------------------------------------------------------------------------*/
 
@@ -41,31 +42,61 @@ Workflow::Trigger (std::string event, std::string workflow)
 {
   eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(), workflow.c_str());
 
-  if (event == "open")
+  if ((event == "open") || (event == "prepare"))
   {
-    std::string key = "sys.workflow.open." + workflow;
+    std::string key = "sys.workflow.";
+    key += event;
+    key += ".";
+    key += workflow;
+    eos_static_info("key=%s %d %d", key.c_str(), mAttr, (*mAttr).count(key));
     if (mAttr && (*mAttr).count(key))
     {
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      return 1;
+      bool ok = Create();
+      if (ok)
+      {
+        if ((workflow == "enonet"))
+        {
+          std::string stallkey = key + ".stall";
+
+          if ((*mAttr).count(stallkey))
+          {
+            int stalltime = eos::common::StringConversion::GetSizeFromString((*mAttr)[stallkey]);
+            return stalltime;
+          }
+        }
+        return 0;
+      }
+      return -1;
     }
   }
-  if (event == "enonet")
+  if (event == "closer")
   {
-    std::string key = "sys.workflow.enoent." + workflow;
+    std::string key = "sys.workflow.closer." + workflow;
     if (mAttr && (*mAttr).count(key))
     {
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      return 1;
+      return Create();
+    }
+  }
+  if (event == "closew")
+  {
+    std::string key = "sys.workflow.closew." + workflow;
+    if (mAttr && (*mAttr).count(key))
+    {
+
+      mEvent = event;
+      mWorkflow = workflow;
+      mAction = (*mAttr)[key];
+      return Create();
     }
   }
   // not defined
   return -1;
-
 }
 
 /*----------------------------------------------------------------------------*/
@@ -76,6 +107,7 @@ Workflow::getCGICloseW (std::string workflow)
   std::string key = "sys.workflow.closew." + workflow;
   if (mAttr && (*mAttr).count(key.c_str()))
   {
+
     cgi = "&mgm.event=close&mgm.workflow=";
     cgi += workflow;
   }
@@ -90,6 +122,7 @@ Workflow::getCGICloseR (std::string workflow)
   std::string key = "sys.workflow.closer." + workflow;
   if (mAttr && (*mAttr).count(key.c_str()))
   {
+
     cgi = "&mgm.event=close&mgm.workflow=";
     cgi += workflow;
   }
@@ -100,6 +133,7 @@ Workflow::getCGICloseR (std::string workflow)
 bool
 Workflow::Attach (const char* path)
 {
+
   return false;
 }
 
@@ -107,51 +141,12 @@ Workflow::Attach (const char* path)
 bool
 Workflow::Create ()
 {
-  std::string workflowdir = gOFS->MgmProcWorkflowPath.c_str();
-  workflowdir += "/";
-  workflowdir += mWorkflow;
-  workflowdir += "/";
-  workflowdir += "/q/";
-  std::string now;
-  std::string entry;
-  eos::common::StringConversion::GetSizeString(now, (unsigned long long) time(NULL));
-  eos::common::StringConversion::GetSizeString(entry, mFid);
 
-  XrdOucErrInfo lError;
-  eos::common::Mapping::VirtualIdentity rootvid;
-  eos::common::Mapping::Root(rootvid);
+  WFE::Job job(mFid);
 
-  // check that the workflow directory exists
-  struct stat buf;
-  if (gOFS->_stat(workflowdir.c_str(),
-                  &buf,
-                  lError,
-                  rootvid,
-                  ""))
-  {
-    // create the workflow sub directory
-    if (gOFS->_mkdir(workflowdir.c_str(),
-                     S_IRWXU,
-                     lError,
-                     rootvid,
-                     ""))
-    {
-      eos_static_err("msg=\"failed to create workflow directory\" path=\"%s\"", workflowdir.c_str());
-      return false;
-    }
-  }
-
-  // write a workflow file
-  std::string workflowpath = workflowdir + now + "." + entry;
-
-  if (gOFS->_touch(workflowpath.c_str(), lError, rootvid, 0))
-  {
-
-    eos_static_err("msg=\"failed to create workflow entry\" path=\"%s\"", workflowpath.c_str());
-    return false;
-  }
-
-  return true;
+  time_t t = time(0);
+  job.AddAction(mAction, mEvent, t, mWorkflow);
+  return job.Save("q");
 }
 
 /*----------------------------------------------------------------------------*/

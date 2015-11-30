@@ -105,6 +105,7 @@ add_library (XrdEosMgm MODULE
             Master.cc
             Recycle.cc
             LRU.cc
+	    WFE.cc
             http/HttpServer.cc
             http/HttpHandler.cc
             http/s3/S3Handler.cc

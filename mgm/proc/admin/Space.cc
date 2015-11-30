@@ -305,6 +305,8 @@ ProcCommand::Space ()
                 (key == "converter") ||
                 (key == "lru") ||
                 (key == "lru.interval") ||
+                (key == "wfe") ||
+                (key == "wfe.interval") ||
                 (key == "converter.ntx") ||
                 (key == "autorepair") ||
                 (key == "groupbalancer") ||
@@ -318,7 +320,7 @@ ProcCommand::Space ()
                 (key == "balancer.threshold"))
             {
               if ((key == "balancer") || (key == "converter") ||
-                  (key == "autorepair") || (key == "lru") ||
+                  (key == "autorepair") || (key == "lru") || (key == "wfe") ||
                   (key == "groupbalancer") || (key == "geobalancer") ||
 		  (key == "geo.access.policy.read.exact") ||
 		  (key == "geo.access.policy.write.exact"))

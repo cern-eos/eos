@@ -148,9 +148,9 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
-mFstGwHost(""),
-mFstGwPort(0)
+XrdMgmOfs::XrdMgmOfs (XrdSysError *ep) :
+mFstGwHost (""),
+mFstGwPort (0)
 {
   eDest = ep;
   ConfigFN = 0;
@@ -462,23 +462,23 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
 
-  int retc=SFS_OK;
+  int retc = SFS_OK;
 
   // check that all files exist
-  while (pptr) 
+  while (pptr)
   {
-    XrdOucString prep_path = pptr?(pptr->text?pptr->text:""):"";
+    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
     eos_info("path=\"%s\"", prep_path.c_str());
     XrdSfsFileExistence check;
-    if (_exists(prep_path.c_str(), 
-		check,
-		error,
-		client,
-		"") || (check != XrdSfsFileExistIsFile))
-		 
+    if (_exists(prep_path.c_str(),
+                check,
+                error,
+                client,
+                "") || (check != XrdSfsFileExistIsFile))
+
     {
-      if ( check != XrdSfsFileExistIsFile )
-	Emsg(epname, error, ENOENT, "prepare - file does not exist or is not accessible to you", prep_path.c_str());
+      if (check != XrdSfsFileExistIsFile)
+        Emsg(epname, error, ENOENT, "prepare - file does not exist or is not accessible to you", prep_path.c_str());
       return SFS_ERROR;
     }
     if (pptr)
@@ -495,12 +495,12 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
   pptr = pargs.paths;
   optr = pargs.oinfo;
 
-  while (pptr) 
+  while (pptr)
   {
-    XrdOucString prep_path = pptr?(pptr->text?pptr->text:""):"";
+    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
     eos_info("path=\"%s\"", prep_path.c_str());
 
-    XrdOucString prep_info = optr?(optr->text?optr->text:""):"";
+    XrdOucString prep_info = optr ? (optr->text ? optr->text : "") : "";
 
     XrdOucEnv prep_env(prep_info.c_str());
 
@@ -518,6 +518,7 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
     {
       prep_info += "default";
     }
+
     prep_info += "&mgm.fid=0&mgm.path=";
     prep_info += prep_path.c_str();
     prep_info += "&mgm.logid=";
@@ -529,10 +530,10 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
     args.Arg2 = prep_info.c_str();
     args.Arg2Len = prep_info.length();
 
-    if (XrdMgmOfs::FSctl (SFS_FSCTL_PLUGIN,
-			  args,
-			  error,
-			  client) != SFS_DATA)
+    if (XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,
+                         args,
+                         error,
+                         client) != SFS_DATA)
     {
       retc = SFS_ERROR;
     }
@@ -546,7 +547,7 @@ XrdMgmOfs::prepare (XrdSfsPrep &pargs,
       optr = optr->next;
     }
   }
-  
+
   return retc;
 }
 
@@ -631,7 +632,7 @@ XrdMgmOfs::Emsg (const char *pfx,
   }
   else
   {
-    if ((!strcmp(op, "stat")) || ( (!strcmp(pfx,"attr_get") || (!strcmp(pfx,"attr_ls")) ) && (ecode == ENOENT) ) )
+    if ((!strcmp(op, "stat")) || ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls"))) && (ecode == ENOENT)))
     {
       eos_debug("Unable to %s %s; %s", op, target, etext);
     }
@@ -810,7 +811,6 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
   return stime;
 }
 
-
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Redirect (XrdOucErrInfo &error,
@@ -842,7 +842,6 @@ XrdMgmOfs::Redirect (XrdOucErrInfo &error,
   // ---------------------------------------------------------------------------
   return SFS_REDIRECT;
 }
-
 
 /*----------------------------------------------------------------------------*/
 void*

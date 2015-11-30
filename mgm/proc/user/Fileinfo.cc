@@ -783,7 +783,6 @@ ProcCommand::DirInfo (const char* path)
 	fmd->getMTime(mtime);
 	fmd->getTMTime(tmtime);
 
-	fprintf(stderr,"%llu.%llu %llu.%llu %llu.%llu\n", ctime.tv_sec, ctime.tv_nsec, mtime.tv_sec, mtime.tv_nsec, tmtime.tv_sec, tmtime.tv_sec);
         {
           if (!mtime.tv_sec)
           {

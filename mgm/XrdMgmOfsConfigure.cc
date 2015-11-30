@@ -1145,6 +1145,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("LRU");
+  lFanOutTags.push_back("WFE");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("GeoBalancer");
   lFanOutTags.push_back("#");
@@ -2016,6 +2017,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     eos_warning("msg=\"cannot start LRU thread\"");
   }
+
+  // start the WFE daemon
+  if (!gOFS->WFEd.Start())
+  {
+    eos_warning("msg=\"cannot start WFE thread\"");
+  }
+
   // start the recycler garbage collection thread on a master machine
   if ((MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
   {
@@ -2093,6 +2101,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("IdMap", 0, 0, 0);
   gOFS->MgmStats.Add("Ls", 0, 0, 0);
   gOFS->MgmStats.Add("LRUFind", 0, 0, 0);
+  gOFS->MgmStats.Add("WFEFind", 0, 0, 0);
   gOFS->MgmStats.Add("MarkDirty", 0, 0, 0);
   gOFS->MgmStats.Add("MarkClean", 0, 0, 0);
   gOFS->MgmStats.Add("Mkdir", 0, 0, 0);
