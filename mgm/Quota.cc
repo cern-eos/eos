@@ -1592,7 +1592,7 @@ Quota::LoadNodes()
 	if (quota_path[quota_path.length() - 1] != '/')
 	  quota_path += '/';
 
-	if (!ExistsSpace(quota_path))
+	if (!Exists(quota_path))
 	  create_quota.push_back(quota_path);
       }
       catch (eos::MDException& e)
