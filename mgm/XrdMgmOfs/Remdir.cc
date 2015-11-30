@@ -30,9 +30,9 @@
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::remdir (const char *inpath,
-                   XrdOucErrInfo &error,
-                   const XrdSecEntity *client,
-                   const char *ininfo)
+		   XrdOucErrInfo &error,
+		   const XrdSecEntity *client,
+		   const char *ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -79,10 +79,10 @@ XrdMgmOfs::remdir (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_remdir (const char *path,
-                    XrdOucErrInfo &error,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    const char *ininfo,
-                    bool simulate)
+		    XrdOucErrInfo &error,
+		    eos::common::Mapping::VirtualIdentity &vid,
+		    const char *ininfo,
+		    bool simulate)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a directory from the namespace
@@ -117,6 +117,19 @@ XrdMgmOfs::_remdir (const char *path,
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
 
+  // Make sure this is not a quota node
+  std::string qpath = path;
+
+  if (qpath[qpath.length() - 1] != '/')
+    qpath += '/';
+
+  if (Quota::Exists(qpath))
+  {
+    errno = EBUSY;
+    return Emsg(epname, error, errno, "rmdir - this is a quota node",
+                qpath.c_str());
+  }
+
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
@@ -137,7 +150,7 @@ XrdMgmOfs::_remdir (const char *path,
     dh = 0;
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
+	      e.getErrno(), e.getMessage().str().c_str());
   }
 
   // check existence
@@ -146,7 +159,7 @@ XrdMgmOfs::_remdir (const char *path,
     errno = ENOENT;
     return Emsg(epname, error, errno, "rmdir", path);
   }
-   
+
   // ACL and permission check
   Acl acl(aclpath.c_str(), error, vid, attrmap, false);
 
@@ -161,10 +174,10 @@ XrdMgmOfs::_remdir (const char *path,
   if (acl.HasAcl())
   {
     if ((dh->getCUid() != vid.uid) &&
-        (vid.uid) && // not the root user
-        (vid.uid != 3) && // not the admin user
-        (vid.gid != 4) && // not the admin group
-        (acl.CanNotDelete()))
+	(vid.uid) && // not the root user
+	(vid.uid != 3) && // not the admin user
+	(vid.gid != 4) && // not the admin group
+	(acl.CanNotDelete()))
     {
       // deletion is explicitly forbidden
       errno = EPERM;
@@ -223,7 +236,7 @@ XrdMgmOfs::_remdir (const char *path,
     {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
+		e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
@@ -239,4 +252,3 @@ XrdMgmOfs::_remdir (const char *path,
     return SFS_OK;
   }
 }
-

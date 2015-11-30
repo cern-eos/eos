@@ -1221,7 +1221,6 @@ Quota::Exists(const std::string& path)
   return (pMapQuota.count(path) != 0);
 }
 
-
 //------------------------------------------------------------------------------
 // Check if there is a SpaceQuota responsible for the given path
 //------------------------------------------------------------------------------
@@ -1771,29 +1770,26 @@ Quota::FilePlacement(const std::string& space,
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u", vid.uid,
 		   vid.gid, grouptag, nfilesystems);
 
-  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
-
-  if (!squota)
-  {
-    eos_static_err("no quota node responsible for path=%s", path);
-    return EDQUOT;
-  }
-
   // Check if quota enabled for current space
   if (FsView::gFsView.IsQuotaEnabled(space))
   {
-    bool has_quota = false;
-    long long desired_vol = 1ll * nfilesystems * bookingsize;
-    has_quota = squota->CheckWriteQuota(vid.uid, vid.gid, desired_vol,
-                                        nfilesystems);
+    eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+    SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
-    if (!has_quota)
+    if (squota)
     {
-      eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
-                       "has no quota left!", vid.uid, vid.gid, grouptag,
-                       nfilesystems);
-      return EDQUOT;
+      bool has_quota = false;
+      long long desired_vol = 1ll * nfilesystems * bookingsize;
+      has_quota = squota->CheckWriteQuota(vid.uid, vid.gid, desired_vol,
+					  nfilesystems);
+
+      if (!has_quota)
+      {
+	eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
+			 "has no quota left!", vid.uid, vid.gid, grouptag,
+			 nfilesystems);
+	return EDQUOT;
+      }
     }
   }
   else
@@ -1810,9 +1806,9 @@ Quota::FilePlacement(const std::string& space,
 
   // Call the scheduler implementation
   return Scheduler::FilePlacement(space, path, vid, grouptag, lid,
-                                  alreadyused_filesystems,
-                                  selected_filesystems, plctpolicy, plctTrgGeotag,
-                                  truncate, forced_scheduling_group_index, bookingsize);
+				  alreadyused_filesystems,
+				  selected_filesystems, plctpolicy, plctTrgGeotag,
+				  truncate, forced_scheduling_group_index, bookingsize);
 }
 
 //------------------------------------------------------------------------------
@@ -1835,8 +1831,8 @@ Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 		  bool noIO)
 {
   return Scheduler::FileAccess(vid, forcedfsid, forcedspace, tried_cgi, lid,
-                               locationsfs, fsindex, isRW, bookingsize, unavailfs,
-                               min_fsstatus, overridegeoloc, noIO);
+			       locationsfs, fsindex, isRW, bookingsize, unavailfs,
+			       min_fsstatus, overridegeoloc, noIO);
 }
 
 //------------------------------------------------------------------------------

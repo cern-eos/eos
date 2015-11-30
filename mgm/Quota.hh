@@ -341,7 +341,7 @@ public:
   //----------------------------------------------------------------------------
   //! Check if quota node for path exists
   //!
-  //! @param path path to search for
+  //! @param path path to search for, which needs to be '/' terminated
   //!
   //! @return true if quota node exists, otherwise false
   //----------------------------------------------------------------------------
@@ -350,7 +350,8 @@ public:
   //----------------------------------------------------------------------------
   //! Check if there is a quota node responsible for the given path
   //!
-  //! @param path path for which a quota node is searched
+  //! @param path path for which a quota node is searched, which needs to be
+  //!             '/' terminated
   //!
   //! @return true if quota node exists, otherwise false
   //----------------------------------------------------------------------------
