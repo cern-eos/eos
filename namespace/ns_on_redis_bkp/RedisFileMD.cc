@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -16,23 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @author Lukasz Janyst <ljanyst@cern.ch>
-//! @brief Class representing the file metadata
-//------------------------------------------------------------------------------
-
-#include "namespace/ns_on_redis/FileMD.hh"
+#include "namespace/ns_on_redis/RedisFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include <sstream>
 
-namespace eos
-{
+EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
+RedisFileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
   IFileMD(),
   pId(id),
   pSize(0),
@@ -51,16 +45,16 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
 //------------------------------------------------------------------------------
 // Virtual copy constructor
 //------------------------------------------------------------------------------
-FileMD*
-FileMD::clone() const
+RedisFileMD*
+RedisFileMD::clone() const
 {
-  return new FileMD(*this);
+  return new RedisFileMD(*this);
 }
 
 //------------------------------------------------------------------------------
 // Copy constructor
 //------------------------------------------------------------------------------
-FileMD::FileMD(const FileMD& other)
+RedisFileMD::RedisFileMD(const RedisFileMD& other)
 {
   *this = other;
 }
@@ -68,8 +62,8 @@ FileMD::FileMD(const FileMD& other)
 //------------------------------------------------------------------------------
 // Asignment operator
 //------------------------------------------------------------------------------
-FileMD&
-FileMD::operator = (const FileMD& other)
+RedisFileMD&
+RedisFileMD::operator = (const RedisFileMD& other)
 {
   pName        = other.pName;
   pId          = other.pId;
@@ -92,7 +86,7 @@ FileMD::operator = (const FileMD& other)
 //------------------------------------------------------------------------------
 // Add location
 //------------------------------------------------------------------------------
-void FileMD::addLocation(location_t location)
+void RedisFileMD::addLocation(location_t location)
 {
   if (hasLocation(location))
     return;
@@ -107,7 +101,7 @@ void FileMD::addLocation(location_t location)
 //------------------------------------------------------------------------------
 // Replace location by index
 //------------------------------------------------------------------------------
-void FileMD::replaceLocation(unsigned int index, location_t newlocation)
+void RedisFileMD::replaceLocation(unsigned int index, location_t newlocation)
 {
   location_t oldLocation = pLocation[index];
   pLocation[index] = newlocation;
@@ -120,7 +114,7 @@ void FileMD::replaceLocation(unsigned int index, location_t newlocation)
 //------------------------------------------------------------------------------
 // Remove location
 //------------------------------------------------------------------------------
-void FileMD::removeLocation(location_t location)
+void RedisFileMD::removeLocation(location_t location)
 {
   std::vector<location_t>::iterator it;
 
@@ -141,7 +135,7 @@ void FileMD::removeLocation(location_t location)
 //------------------------------------------------------------------------------
 // Remove all locations that were previously unlinked
 //------------------------------------------------------------------------------
-void FileMD::removeAllLocations()
+void RedisFileMD::removeAllLocations()
 {
   std::vector<location_t>::reverse_iterator it;
 
@@ -158,7 +152,7 @@ void FileMD::removeAllLocations()
 //------------------------------------------------------------------------------
 // Unlink location
 //------------------------------------------------------------------------------
-void FileMD::unlinkLocation(location_t location)
+void RedisFileMD::unlinkLocation(location_t location)
 {
   std::vector<location_t>::iterator it;
 
@@ -180,7 +174,7 @@ void FileMD::unlinkLocation(location_t location)
 //------------------------------------------------------------------------------
 // Unlink all locations
 //------------------------------------------------------------------------------
-void FileMD::unlinkAllLocations()
+void RedisFileMD::unlinkAllLocations()
 {
   std::vector<location_t>::reverse_iterator it;
 
@@ -199,7 +193,7 @@ void FileMD::unlinkAllLocations()
 //------------------------------------------------------------------------
 //  Env Representation
 //------------------------------------------------------------------------
-void FileMD::getEnv(std::string& env, bool escapeAnd)
+void RedisFileMD::getEnv(std::string& env, bool escapeAnd)
 {
   env = "";
   std::ostringstream o;
@@ -260,166 +254,10 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
 
 
 //------------------------------------------------------------------------------
-// Serialize the object to a buffer
-//------------------------------------------------------------------------------
-void FileMD::serialize(Buffer& buffer)
-{
-  if (!pFileMDSvc)
-  {
-    MDException ex(ENOTSUP);
-    ex.getMessage() << "This was supposed to be a read only copy!";
-    throw ex;
-  }
-
-  buffer.putData(&pId,          sizeof(pId));
-  buffer.putData(&pCTime,       sizeof(pCTime));
-  buffer.putData(&pMTime,       sizeof(pMTime));
-  uint64_t tmp = pFlags;
-  tmp <<= 48;
-  tmp |= (pSize & 0x0000ffffffffffff);
-  buffer.putData(&tmp,          sizeof(tmp));
-  buffer.putData(&pContainerId, sizeof(pContainerId));
-
-  // Symbolic links are serialized as <name>//<link>
-  std::string nameAndLink = pName;
-
-  if (pLinkName.length())
-  {
-    nameAndLink += "//";
-    nameAndLink += pLinkName;
-  }
-
-  uint16_t len = nameAndLink.length() + 1;
-  buffer.putData(&len,          sizeof(len));
-  buffer.putData(nameAndLink.c_str(), len);
-  len = pLocation.size();
-  buffer.putData(&len, sizeof(len));
-  LocationVector::iterator it;
-
-  for (it = pLocation.begin(); it != pLocation.end(); ++it)
-  {
-    location_t location = *it;
-    buffer.putData(&location, sizeof(location_t));
-  }
-
-  len = pUnlinkedLocation.size();
-  buffer.putData(&len, sizeof(len));
-
-  for (it = pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it)
-  {
-    location_t location = *it;
-    buffer.putData(&location, sizeof(location_t));
-  }
-
-  buffer.putData(&pCUid,      sizeof(pCUid));
-  buffer.putData(&pCGid,      sizeof(pCGid));
-  buffer.putData(&pLayoutId, sizeof(pLayoutId));
-  uint8_t size = pChecksum.getSize();
-  buffer.putData(&size, sizeof(size));
-  buffer.putData(pChecksum.getDataPtr(), size);
-
-  // May store xattr
-  if (pXAttrs.size())
-  {
-    uint16_t len = pXAttrs.size();
-    buffer.putData( &len, sizeof( len ) );
-    XAttrMap::iterator it;
-
-    for( it = pXAttrs.begin(); it != pXAttrs.end(); ++it )
-    {
-      uint16_t strLen = it->first.length()+1;
-      buffer.putData( &strLen, sizeof( strLen ) );
-      buffer.putData( it->first.c_str(), strLen );
-      strLen = it->second.length()+1;
-      buffer.putData( &strLen, sizeof( strLen ) );
-      buffer.putData( it->second.c_str(), strLen );
-    }
-  }
-
-}
-
-//------------------------------------------------------------------------------
-// Deserialize the class to a buffer
-//------------------------------------------------------------------------------
-void FileMD::deserialize(const Buffer& buffer)
-{
-  uint16_t offset = 0;
-  offset = buffer.grabData(offset, &pId,          sizeof(pId));
-  offset = buffer.grabData(offset, &pCTime,       sizeof(pCTime));
-  offset = buffer.grabData(offset, &pMTime,       sizeof(pMTime));
-  uint64_t tmp;
-  offset = buffer.grabData(offset, &tmp,          sizeof(tmp));
-  pSize = tmp & 0x0000ffffffffffff;
-  tmp >>= 48;
-  pFlags = tmp & 0x000000000000ffff;
-  offset = buffer.grabData(offset, &pContainerId, sizeof(pContainerId));
-  uint16_t len = 0;
-  offset = buffer.grabData(offset, &len, 2);
-  char strBuffer[len];
-  offset = buffer.grabData(offset, strBuffer, len);
-  pName = strBuffer;
-
-  // Possibly extract symbolic link
-  size_t link_pos = pName.find("//");
-
-  if (link_pos != std::string::npos)
-  {
-    pLinkName = pName.substr(link_pos+2);
-    pName.erase(link_pos);
-  }
-
-  offset = buffer.grabData(offset, &len, 2);
-
-  for (uint16_t i = 0; i < len; ++i)
-  {
-    location_t location;
-    offset = buffer.grabData(offset, &location, sizeof(location_t));
-    pLocation.push_back(location);
-  }
-
-  offset = buffer.grabData(offset, &len, 2);
-
-  for (uint16_t i = 0; i < len; ++i)
-  {
-    location_t location;
-    offset = buffer.grabData(offset, &location, sizeof(location_t));
-    pUnlinkedLocation.push_back(location);
-  }
-
-  offset = buffer.grabData(offset, &pCUid,      sizeof(pCUid));
-  offset = buffer.grabData(offset, &pCGid,      sizeof(pCGid));
-  offset = buffer.grabData(offset, &pLayoutId, sizeof(pLayoutId));
-  uint8_t size = 0;
-  offset = buffer.grabData(offset, &size, sizeof(size));
-  pChecksum.resize(size);
-  offset = buffer.grabData(offset, pChecksum.getDataPtr(), size);
-
-  if ((buffer.size() - offset) >= 4)
-  {
-    // XAttr are optional
-    uint16_t len1 = 0;
-    uint16_t len2 = 0;
-    uint16_t len = 0;
-    offset = buffer.grabData( offset, &len, sizeof( len ) );
-
-    for( uint16_t i = 0; i < len; ++i )
-    {
-      offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
-      char strBuffer1[len1];
-      offset = buffer.grabData( offset, strBuffer1, len1 );
-      offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
-      char strBuffer2[len2];
-      offset = buffer.grabData( offset, strBuffer2, len2 );
-      pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
-    }
-  }
-};
-
-//------------------------------------------------------------------------------
 // Get vector with all the locations
 //------------------------------------------------------------------------------
 IFileMD::LocationVector
-FileMD::getLocations() const
+RedisFileMD::getLocations() const
 {
   return pLocation;
 }
@@ -428,26 +266,11 @@ FileMD::getLocations() const
 // Get vector with all unlinked locations
 //------------------------------------------------------------------------------
 IFileMD::LocationVector
-FileMD::getUnlinkedLocations() const
+RedisFileMD::getUnlinkedLocations() const
 {
   IFileMD::LocationVector result;
   result = pUnlinkedLocation;
   return std::move(result);
 }
 
-//------------------------------------------------------------------------------
-// Set size - 48 bytes will be used
-//------------------------------------------------------------------------------
-void
-FileMD::setSize(uint64_t size)
-{
-  int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
-  pSize = size & 0x0000ffffffffffff;
-
-  IFileMDChangeListener::Event e( this,
-                                  IFileMDChangeListener::SizeChange,
-                                  0,0, sizeChange );
-  pFileMDSvc->notifyListeners( &e );
-}
-
-}
+EOSNSNAMESPACE_END

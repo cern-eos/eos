@@ -41,10 +41,15 @@ ContainerMD::ContainerMD(id_t id):
   pCUid(0),
   pCGid(0),
   pMode(040755),
-  pACLId(0)
+  pACLId(0),
+  pTreeSize(0)
 {
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
+  pMTime.tv_sec = 0;
+  pMTime.tv_nsec = 0;
+  pTMTime.tv_sec = 0;
+  pTMTime.tv_nsec = 0;
   pSubContainers.set_deleted_key("");
   pFiles.set_deleted_key("");
   pSubContainers.set_empty_key("##_EMPTY_##");
@@ -77,6 +82,8 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pParentId = other.pParentId;
   pFlags    = other.pFlags;
   pCTime    = other.pCTime;
+  pMTime    = other.pMTime;
+  pTMTime   = other.pTMTime;
   pName     = other.pName;
   pCUid     = other.pCUid;
   pCGid     = other.pCGid;
@@ -142,6 +149,10 @@ ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(pId);
   pFiles[file->getName()] = file;
+  IFileMDChangeListener::Event e(file,
+                                 IFileMDChangeListener::SizeChange,
+                                 0,0, file->getSize() );
+  file->getFileMDSvc()->notifyListeners( &e );
 }
 
 //------------------------------------------------------------------------------
@@ -150,7 +161,15 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  pFiles.erase(name);
+  if (pFiles.count(name))
+  {
+    IFileMD* file = pFiles[name];
+    IFileMDChangeListener::Event e(file,
+                                   IFileMDChangeListener::SizeChange,
+                                   0, 0, -file->getSize() );
+    file->getFileMDSvc()->notifyListeners( &e );
+    pFiles.erase( name );
+  }
 }
 
 //------------------------------------------------------------------------
@@ -187,7 +206,7 @@ ContainerMD::serialize(Buffer& buffer)
   uint16_t len = pName.length() + 1;
   buffer.putData(&len,          2);
   buffer.putData(pName.c_str(), len);
-  len = pXAttrs.size();
+  len = pXAttrs.size() + 2;
   buffer.putData(&len, sizeof(len));
   XAttrMap::iterator it;
 
@@ -200,6 +219,32 @@ ContainerMD::serialize(Buffer& buffer)
     buffer.putData(&strLen, sizeof(strLen));
     buffer.putData(it->second.c_str(), strLen);
   }
+
+  // Store mtime as ext. attributes
+  std::string k1 = "sys.mtime.s";
+  std::string k2 = "sys.mtime.ns";
+  uint16_t l1 = k1.length() + 1;
+  uint16_t l2 = k2.length() + 1;
+  uint16_t l3;
+  char stime[64];
+
+  snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_sec);
+  l3 = strlen(stime) + 1;
+  // key
+  buffer.putData(&l1, sizeof(l1));
+  buffer.putData(k1.c_str(), l1);
+  // value
+  buffer.putData(&l3, sizeof(l3));
+  buffer.putData(stime, l3);
+  snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_nsec);
+  l3 = strlen(stime) + 1;
+
+  // key
+  buffer.putData(&l2, sizeof(l2));
+  buffer.putData(k2.c_str(), l2);
+  // value
+  buffer.putData(&l3, sizeof(l3));
+  buffer.putData(stime, l3);
 }
 
 //------------------------------------------------------------------------------
@@ -235,7 +280,25 @@ ContainerMD::deserialize(Buffer& buffer)
     offset = buffer.grabData(offset, &len2, sizeof(len2));
     char strBuffer2[len2];
     offset = buffer.grabData(offset, strBuffer2, len2);
-    pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
+    std::string key = strBuffer1;
+
+    if (key=="sys.mtime.s")
+    {
+      // Stored modification time in s
+      pMTime.tv_sec = strtoull(strBuffer2,0,10);
+    }
+    else
+    {
+      if (key== "sys.mtime.ns")
+      {
+        // Stored modification time in ns
+        pMTime.tv_nsec = strtoull(strBuffer2,0,10);
+      }
+      else
+      {
+        pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
+      }
+    }
   }
 }
 
@@ -392,6 +455,40 @@ ContainerMD::nextFile()
     return (IFileMD*)(0);
   else
     return pIterFile->second;
+}
+
+
+//------------------------------------------------------------------------------
+// Set modification time
+//------------------------------------------------------------------------------
+void
+ContainerMD::setMTime( mtime_t mtime)
+{
+  pMTime.tv_sec = mtime.tv_sec;
+  pMTime.tv_nsec = mtime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set creation time to now
+//------------------------------------------------------------------------------
+void ContainerMD::setMTimeNow()
+{
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  pMTime.tv_sec = tv.tv_sec;
+  pMTime.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &pMTime);
+#endif
+}
+
+//------------------------------------------------------------------------------
+// Trigger an mtime change event
+//------------------------------------------------------------------------------
+void ContainerMD::notifyMTimeChange( IContainerMDSvc *containerMDSvc )
+{
+  containerMDSvc->notifyListeners( this , IContainerMDChangeListener::MTimeChange);
 }
 
 EOSNSNAMESPACE_END

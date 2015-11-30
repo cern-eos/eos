@@ -19,14 +19,11 @@
 /*----------------------------------------------------------------------------*/
 #include <iostream>
 /*----------------------------------------------------------------------------*/
-#include "namespace/interface/IContainerMDSvc.hh"
-#include "namespace/ns_on_redis/NsInMemoryPlugin.hh"
-#include "namespace/ns_on_redis/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_on_redis/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_on_redis/views/HierarchicalView.hh"
-#include "namespace/ns_on_redis/accounting/FileSystemView.hh"
-#include "namespace/ns_on_redis/accounting/ContainerAccounting.hh"
-#include "namespace/ns_on_redis/accounting/SyncTimeAccounting.hh"
+#include "namespace/ns_on_filesystem/NsRedisPlugin.hh"
+#include "namespace/ns_on_filesystem/RedisContainerMDSvc.hh"
+#include "namespace/ns_on_filesystem/RedisFileMDSvc.hh"
+#include "namespace/ns_on_filesystem/RedisHierarchicalView.hh"
+#include "namespace/ns_on_filesystem/RedisFileSystemView.hh"
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -34,7 +31,7 @@
 //------------------------------------------------------------------------------
 int32_t ExitFunc()
 {
-  return 0;
+  return 0;  
 }
 
 //------------------------------------------------------------------------------
@@ -42,66 +39,50 @@ int32_t ExitFunc()
 //------------------------------------------------------------------------------
 PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 {
-  std::cout << "Register objects provide by NsInMemoryPlugin ..." << std::endl;
+  std::cout << "Register objects provide by NsRedisPlugin ..." << std::endl;
 
   // Register container metadata service
   PF_RegisterParams param_cmdsvc;
   param_cmdsvc.version.major = 0;
   param_cmdsvc.version.minor = 1;
-  param_cmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateContainerMDSvc;
-  param_cmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContainerMDSvc;
+  param_cmdsvc.CreateFunc = eos::NsRedisPlugin::CreateContainerMDSvc;
+  param_cmdsvc.DestroyFunc = eos::NsRedisPlugin::DestroyContainerMDSvc;
 
   // Register file metadata service
   PF_RegisterParams param_fmdsvc;
   param_fmdsvc.version.major = 0;
   param_fmdsvc.version.minor = 1;
-  param_fmdsvc.CreateFunc = eos::NsInMemoryPlugin::CreateFileMDSvc;
-  param_fmdsvc.DestroyFunc = eos::NsInMemoryPlugin::DestroyFileMDSvc;
+  param_fmdsvc.CreateFunc = eos::NsRedisPlugin::CreateFileMDSvc;
+  param_fmdsvc.DestroyFunc = eos::NsRedisPlugin::DestroyFileMDSvc;
 
   // Register hierarchical view
   PF_RegisterParams param_hview;
   param_hview.version.major = 0;
   param_hview.version.minor = 1;
-  param_hview.CreateFunc = eos::NsInMemoryPlugin::CreateHierarchicalView;
-  param_hview.DestroyFunc = eos::NsInMemoryPlugin::DestroyHierarchicalView;
+  param_hview.CreateFunc = eos::NsRedisPlugin::CreateHierarchicalView;
+  param_hview.DestroyFunc = eos::NsRedisPlugin::DestroyHierarchicalView;
 
   // Register file system view
   PF_RegisterParams param_fsview;
   param_fsview.version.major = 0;
   param_fsview.version.minor = 1;
-  param_fsview.CreateFunc = eos::NsInMemoryPlugin::CreateFsView;
-  param_fsview.DestroyFunc = eos::NsInMemoryPlugin::DestroyFsView;
+  param_fsview.CreateFunc = eos::NsRedisPlugin::CreateFsView;
+  param_fsview.DestroyFunc = eos::NsRedisPlugin::DestroyFsView;
 
-  // Register recursive container accounting view
-  PF_RegisterParams param_contacc;
-  param_contacc.version.major = 0;
-  param_contacc.version.minor = 1;
-  param_contacc.CreateFunc = eos::NsInMemoryPlugin::CreateContAcc;
-  param_contacc.DestroyFunc = eos::NsInMemoryPlugin::DestroyContAcc;
-
-  // Register recursive container accounting view
-  PF_RegisterParams param_syncacc;
-  param_syncacc.version.major = 0;
-  param_syncacc.version.minor = 1;
-  param_syncacc.CreateFunc = eos::NsInMemoryPlugin::CreateSyncTimeAcc;
-  param_syncacc.DestroyFunc = eos::NsInMemoryPlugin::DestroySyncTimeAcc;
-
-  // TODO: define the necessary objects to be provided by the namespace in a
+  // Define the necessary objects to be provided by the namespace in a
   // common header
   std::map<std::string, PF_RegisterParams> map_obj =
-      { {"ContainerMDSvc",      param_cmdsvc},
-        {"FileMDSvc",           param_fmdsvc},
-        {"HierarchicalView",    param_hview},
-        {"FileSystemView",      param_fsview},
-        {"ContainerAccounting", param_contacc},
-        {"SyncTimeAccounting",  param_syncacc} };
+      { {"ContainerMDSvc",   param_cmdsvc},
+        {"FileMDSvc",        param_fmdsvc},
+        {"HierarchicalView", param_hview},
+        {"FileSystemView",   param_fsview} };
 
   // Register all the provided object with the Plugin Manager
   for (auto it = map_obj.begin(); it != map_obj.end(); ++it)
   {
     if (services->registerObject(it->first.c_str(), &it->second))
     {
-      std::cerr << "Failed registering object " << it->first << std::endl;
+      std::cerr << "Failed to register object " << it->first << std::endl;
       return NULL;
     }
   }
@@ -111,29 +92,25 @@ PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 
 EOSNSNAMESPACE_BEGIN
 
-// Static variables
-eos::IContainerMDSvc* NsInMemoryPlugin::pContMDSvc = 0;
-
 //------------------------------------------------------------------------------
 // Create container metadata service
 //------------------------------------------------------------------------------
 void*
-NsInMemoryPlugin::CreateContainerMDSvc(PF_PlatformServices* services)
+NsRedisPlugin::CreateContainerMDSvc(PF_PlatformServices* services)
 {
-  pContMDSvc = new ChangeLogContainerMDSvc();
-  return pContMDSvc;
+  return new RedisContainerMDSvc();
 }
 
 //------------------------------------------------------------------------------
 // Destroy container metadata service
 //------------------------------------------------------------------------------
 int32_t
-NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
+NsRedisPlugin::DestroyContainerMDSvc(void* obj)
 {
   if (!obj)
     return -1;
 
-  delete static_cast<ChangeLogContainerMDSvc*>(obj);
+  delete static_cast<RedisContainerMDSvc*>(obj);
   return 0;
 }
 
@@ -141,21 +118,21 @@ NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
 // Create file metadata service
 //------------------------------------------------------------------------------
 void*
-NsInMemoryPlugin::CreateFileMDSvc(PF_PlatformServices* services)
+NsRedisPlugin::CreateFileMDSvc(PF_PlatformServices* services)
 {
-  return new ChangeLogFileMDSvc();
+  return new RedisFileMDSvc();
 }
 
 //------------------------------------------------------------------------------
 // Destroy file metadata service
 //------------------------------------------------------------------------------
 int32_t
-NsInMemoryPlugin::DestroyFileMDSvc(void* obj)
+NsRedisPlugin::DestroyFileMDSvc(void* obj)
 {
   if (!obj)
     return -1;
 
-  delete static_cast<ChangeLogFileMDSvc*>(obj);
+  delete static_cast<RedisFileMDSvc*>(obj);
   return 0;
 }
 
@@ -163,21 +140,21 @@ NsInMemoryPlugin::DestroyFileMDSvc(void* obj)
 // Create hierarchical view
 //------------------------------------------------------------------------------
 void*
-NsInMemoryPlugin::CreateHierarchicalView(PF_PlatformServices* services)
+NsRedisPlugin::CreateHierarchicalView(PF_PlatformServices* services)
 {
-  return new HierarchicalView();
+  return new RedisHierarchicalView();
 }
 
 //------------------------------------------------------------------------------
 // Destroy hierarchical view
 //------------------------------------------------------------------------------
 int32_t
-NsInMemoryPlugin::DestroyHierarchicalView(void* obj)
+NsRedisPlugin::DestroyHierarchicalView(void* obj)
 {
   if (!obj)
     return -1;
 
-  delete static_cast<HierarchicalView*>(obj);
+  delete static_cast<RedisHierarchicalView*>(obj);
   return 0;
 }
 
@@ -185,71 +162,21 @@ NsInMemoryPlugin::DestroyHierarchicalView(void* obj)
 // Create file system view
 //------------------------------------------------------------------------------
 void*
-NsInMemoryPlugin::CreateFsView(PF_PlatformServices* services)
+NsRedisPlugin::CreateFsView(PF_PlatformServices* services)
 {
-  return new FileSystemView();
+  return new RedisFileSystemView();
 }
 
 //------------------------------------------------------------------------------
 // Destroy file system view
 //------------------------------------------------------------------------------
 int32_t
-NsInMemoryPlugin::DestroyFsView(void* obj)
+NsRedisPlugin::DestroyFsView(void* obj)
 {
   if (!obj)
     return -1;
 
-  delete static_cast<FileSystemView*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create recursive container accounting listener
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateContAcc(PF_PlatformServices* services)
-{
-  if (!pContMDSvc)
-    return 0;
-
-  return new ContainerAccounting(pContMDSvc);
-}
-
-//------------------------------------------------------------------------------
-// Destroy recursive container accounting listener
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroyContAcc(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<ContainerAccounting*>(obj);
-  return 0;
-}
-
-//------------------------------------------------------------------------------
-// Create sync time propagation listener
-//------------------------------------------------------------------------------
-void*
-NsInMemoryPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
-{
-  if (!pContMDSvc)
-    return 0;
-
-  return new SyncTimeAccounting(pContMDSvc);
-}
-
-//------------------------------------------------------------------------------
-// Destroy sync time propagation listener
-//------------------------------------------------------------------------------
-int32_t
-NsInMemoryPlugin::DestroySyncTimeAcc(void* obj)
-{
-  if (!obj)
-    return -1;
-
-  delete static_cast<FileSystemView*>(obj);
+  delete static_cast<RedisFileSystemView*>(obj);
   return 0;
 }
 

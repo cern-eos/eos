@@ -50,9 +50,11 @@ set(EOS_NS_REDIS_SRCS
   persistency/LogManager.hh
   persistency/LogManager.cc
 
-  views/HierarchicalView.cc     views/HierarchicalView.hh
-  accounting/QuotaStats.cc      accounting/QuotaStats.hh
-  accounting/FileSystemView.cc  accounting/FileSystemView.hh
+  views/HierarchicalView.cc          views/HierarchicalView.hh
+  accounting/QuotaStats.cc           accounting/QuotaStats.hh
+  accounting/FileSystemView.cc       accounting/FileSystemView.hh
+  accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
+  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
 
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)

@@ -1,0 +1,337 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Mon Sep 28 12:20:08 2015
+;; Desktop file format version 206
+;; Emacs version 24.3.1
+
+;; Global section:
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring '("getversion" "EOS_GET" "EOS_GetVersion" "Can not fin" "<<<<" "<<" "<<<" "R" "Redirect" "ProcessSendParams" "timeout" "ReOpenFileAt" "OpenHandler" "OnStateError" "::OnStat" "::OnStateEr"))
+(setq regexp-search-ring nil)
+(setq register-alist '((48 . "=======\n  XrdCl::URL dst_url(dst_surl);\n  struct XrdCl::JobDescriptor copy_job;\n  copy_job.source.SetProtocol(\"file\");\n  copy_job.source.SetPath(backup_fn.c_str());\n  copy_job.target.SetProtocol(dst_url.GetProtocol());\n  copy_job.target.SetHostName(dst_url.GetHostName());\n  copy_job.target.SetPort(dst_url.GetPort());\n  copy_job.target.SetUserName(\"root\");\n  std::string dst_path = dst_url.GetPath();\n>>>>>>> origin/beryl_aquamarine\n")))
+(setq file-name-history '("/mnt/Code/eos/cmake/EosUtils.cmake" "/mnt/Code/eos/CMakeLists.txt" "/mnt/Code/eos/genversion.sh" "/mnt/Code/eos/doc/releases.rst" "/mnt/Code/eos/etc/rc.d/init.d/eosd" "/mnt/Code/eos/etc/rc.d/." "/mnt/Code/eos/fuse/eosd.c" "/mnt/Code/eos/mgm/XrdMgmOfsConfigure.cc" "/mnt/Code/eos/mgm/proc/admin/Backup.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClConstants.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClFile.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClFile.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClFileStateHandler.cc" "/tmp/tpc_castor_eos.sh" "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPCInfo.cc" "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPCInfo.hh" "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPC.hh" "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPCAuth.cc" "/mnt/Code/eos/genversion.sh" "/mnt/Code/xrootd/src/XrdCl/XrdClFileStateHandler.cc" "/mnt/Code/xrootd/src/XrdXrootd/XrdXrootdXeq.cc" "/mnt/Code/xrootd/src/XrdOfs/XrdOfs.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClURL.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClURL.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClURL.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClURL.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClURL.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClFileStateHandler.hh"))
+
+;; Buffer section -- buffers listed in same order as in buffer list:
+(desktop-create-buffer 206
+  "/mnt/Code/eos/genversion.sh"
+  "genversion.sh"
+  'sh-mode
+  '(auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  496
+  '(496 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/CMakeLists.txt"
+  "CMakeLists.txt"
+  'text-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  2125
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/cmake/EosUtils.cmake"
+  "EosUtils.cmake"
+  'fundamental-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  1761
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.cc"
+  "XrdClMessageUtils.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  4414
+  '(337 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/mgm/XrdMgmOfsConfigure.cc"
+  "XrdMgmOfsConfigure.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  55106
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/doc/releases.rst"
+  "releases.rst"
+  'rst-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  691
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/etc/rc.d/init.d/eosd"
+  "eosd"
+  'sh-mode
+  '(auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  2013
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  nil
+  "init.d"
+  'dired-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  227
+  '(nil nil)
+  t
+  '("/mnt/Code/eos/etc/rc.d/init.d/")
+  nil)
+
+(desktop-create-buffer 206
+  nil
+  "rc.d"
+  'dired-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  216
+  '(nil nil)
+  t
+  '("/mnt/Code/eos/etc/rc.d/")
+  nil)
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/fuse/eosd.c"
+  "eosd.c"
+  'c-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  7483
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/mgm/proc/admin/Backup.cc"
+  "Backup.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  11430
+  '(5427 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPCAuth.cc"
+  "XrdOfsTPCAuth.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  9911
+  '(9910 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClFile.hh"
+  "XrdClFile.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  2687
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClFile.cc"
+  "XrdClFile.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  4289
+  '(4198 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPCInfo.cc"
+  "XrdOfsTPCInfo.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  3303
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPCInfo.hh"
+  "XrdOfsTPCInfo.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  2698
+  '(140 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdOfs/XrdOfsTPC.hh"
+  "XrdOfsTPC.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  2474
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdOfs/XrdOfs.cc"
+  "XrdOfs.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  15813
+  '(14483 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdXrootd/XrdXrootdXeq.cc"
+  "XrdXrootdXeq.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  44788
+  '(44392 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClXRootDMsgHandler.cc"
+  "XrdClXRootDMsgHandler.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  43504
+  '(69678 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClURL.hh"
+  "XrdClURL.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  4255
+  '(8249 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClFileSystem.hh"
+  "XrdClFileSystem.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  4428
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/tests/common/Server.cc"
+  "Server.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  5293
+  '(9241 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/tests/XrdClTests/PollerTest.cc"
+  "PollerTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  8137
+  '(8137 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClPostMaster.cc"
+  "XrdClPostMaster.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  162
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClPollerBuiltIn.cc"
+  "XrdClPollerBuiltIn.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  14640
+  '(9803 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/src/XrdCl/XrdClPollerBuiltIn.hh"
+  "XrdClPollerBuiltIn.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  5228
+  '(5133 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/xrootd/tests/common/Server.hh"
+  "Server.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  6108
+  '(5658 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/NsRedisPlugin.cc"
+  "NsRedisPlugin.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode projectile-mode)
+  3392
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+

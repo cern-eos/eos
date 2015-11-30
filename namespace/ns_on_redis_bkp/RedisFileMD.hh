@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,12 +17,12 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Class representing the file metadata
+//! @author: Elvin Sindrilaru <esindril@cern.ch>
+//! @brief: Class representing file metadata saved in Redis
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_FILE_MD_HH__
-#define __EOS_NS_FILE_MD_HH__
+#ifndef __EOS_REDIS_FS_FILE_MD_HH__
+#define __EOS_REDIS_FS_FILE_MD_HH__
 
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -34,40 +34,40 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declration
+//! Forward declaration
 class IFileMDSvc;
 class IContainerMD;
 
 //------------------------------------------------------------------------------
-//! Class holding the metadata information concerning a single file
+//! Class representing a file-system file object 
 //------------------------------------------------------------------------------
-class FileMD: public IFileMD
+class RedisFileMD: public IFileMD
 {
  public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileMD(id_t id, IFileMDSvc* fileMDSvc);
+  RedisFileMD(id_t id, IFileMDSvc* fileMDSvc);
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  virtual ~FileMD() {};
+  virtual ~RedisFileMD() {};
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
   //----------------------------------------------------------------------------
-  virtual FileMD* clone() const;
+  virtual RedisFileMD* clone() const;
 
   //----------------------------------------------------------------------------
   //! Copy constructor
   //----------------------------------------------------------------------------
-  FileMD(const FileMD& other);
+  RedisFileMD(const FileMD& other);
 
   //----------------------------------------------------------------------------
   //! Asignment operator
   //----------------------------------------------------------------------------
-  FileMD& operator = (const FileMD& other);
+  RedisFileMD& operator = (const FileMD& other);
 
   //----------------------------------------------------------------------------
   //! Get file id
@@ -80,76 +80,37 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getCTime(ctime_t& ctime) const
-  {
-    ctime.tv_sec = pCTime.tv_sec;
-    ctime.tv_nsec = pCTime.tv_nsec;
-  }
+  void getCTime(ctime_t& ctime) const;
 
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setCTime(ctime_t ctime)
-  {
-    pCTime.tv_sec = ctime.tv_sec;
-    pCTime.tv_nsec = ctime.tv_nsec;
-  }
+  void setCTime(ctime_t ctime);
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setCTimeNow()
-  {
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    pCTime.tv_sec = tv.tv_sec;
-    pCTime.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &pCTime);
-#endif
-  }
+  void setCTimeNow();
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(ctime_t& mtime) const
-  {
-    mtime.tv_sec = pMTime.tv_sec;
-    mtime.tv_nsec = pMTime.tv_nsec;
-  }
+  void getMTime(ctime_t& mtime) const;
 
   //----------------------------------------------------------------------------
   //! Set modification time
   //----------------------------------------------------------------------------
-  void setMTime(ctime_t mtime)
-  {
-    pMTime.tv_sec = mtime.tv_sec;
-    pMTime.tv_nsec = mtime.tv_nsec;
-  }
+  void setMTime(ctime_t mtime);
 
   //----------------------------------------------------------------------------
   //! Set modification time to now
   //----------------------------------------------------------------------------
-  void setMTimeNow()
-  {
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    pMTime.tv_sec = tv.tv_sec;
-    pMTime.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &pMTime);
-#endif
-  }
+  void setMTimeNow();
 
   //----------------------------------------------------------------------------
   //! Get size
   //----------------------------------------------------------------------------
-  uint64_t getSize() const
-  {
-    return pSize;
-  }
+  uint64_t getSize() const;
 
   //----------------------------------------------------------------------------
   //! Set size - 48 bytes will be used
@@ -175,39 +136,24 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get checksum
   //----------------------------------------------------------------------------
-  const Buffer& getChecksum() const
-  {
-    return pChecksum;
-  }
+  const Buffer& getChecksum() const;
 
   //----------------------------------------------------------------------------
   //! Compare checksums
   //! WARNING: you have to supply enough bytes to compare with the checksum
   //! stored in the object!
   //----------------------------------------------------------------------------
-  bool checksumMatch(const void* checksum) const
-  {
-    return !memcmp(checksum, pChecksum.getDataPtr(), pChecksum.getSize());
-  }
+  bool checksumMatch(const void* checksum) const;
 
   //----------------------------------------------------------------------------
   //! Set checksum
   //----------------------------------------------------------------------------
-  void setChecksum(const Buffer& checksum)
-  {
-    pChecksum = checksum;
-  }
+  void setChecksum(const Buffer& checksum);
 
   //----------------------------------------------------------------------------
   //! Clear checksum
   //----------------------------------------------------------------------------
-  void clearChecksum(uint8_t size = 20)
-  {
-    char zero = 0;
-
-    for (uint8_t i = 0; i < size; i++)
-      pChecksum.putData(&zero, 1);
-  }
+  void clearChecksum(uint8_t size = 20);
 
   //----------------------------------------------------------------------------
   //! Set checksum
@@ -215,18 +161,14 @@ class FileMD: public IFileMD
   //! @param checksum address of a memory location string the checksum
   //! @param size     size of the checksum in bytes
   //----------------------------------------------------------------------------
-  void setChecksum(const void* checksum, uint8_t size)
-  {
-    pChecksum.clear();
-    pChecksum.putData(checksum, size);
-  }
+  void setChecksum(const void* checksum, uint8_t size);
 
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
   const std::string getName() const
   {
-    return pName;
+    return std::string(pName);
   }
 
   //----------------------------------------------------------------------------
@@ -485,16 +427,6 @@ class FileMD: public IFileMD
   }
 
   //----------------------------------------------------------------------------
-  //! Serialize the object to a buffer
-  //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer);
-
-  //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
-  //----------------------------------------------------------------------------
-  void deserialize(const Buffer& buffer);
-
-  //----------------------------------------------------------------------------
   //! Get symbolic link
   //----------------------------------------------------------------------------
   std::string getLink() const
@@ -518,76 +450,10 @@ class FileMD: public IFileMD
     return pLinkName.length() ? true:false;
   }
 
-  //----------------------------------------------------------------------------
-  //! Add extended attribute
-  //----------------------------------------------------------------------------
-  void setAttribute (const std::string &name, const std::string &value)
-  {
-    pXAttrs[name] = value;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Remove attribute
-  //----------------------------------------------------------------------------
-  void removeAttribute (const std::string &name)
-  {
-    XAttrMap::iterator it = pXAttrs.find(name);
-
-    if (it != pXAttrs.end())
-      pXAttrs.erase(it);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check if the attribute exist
-  //----------------------------------------------------------------------------
-  bool hasAttribute (const std::string &name) const
-  {
-    return pXAttrs.find(name) != pXAttrs.end();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Return number of attributes
-  //----------------------------------------------------------------------------
-  size_t numAttributes () const
-  {
-    return pXAttrs.size();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the attribute
-  //----------------------------------------------------------------------------
-  std::string getAttribute (const std::string &name) const
-  {
-    XAttrMap::const_iterator it = pXAttrs.find(name);
-
-    if (it == pXAttrs.end())
-    {
-      MDException e(ENOENT);
-      e.getMessage() << "Attribute: " << name << " not found";
-      throw e;
-    }
-    return it->second;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get attribute begin iterator
-  //----------------------------------------------------------------------------
-  XAttrMap::iterator attributesBegin()
-  {
-    return pXAttrs.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the attribute end iterator
-  //----------------------------------------------------------------------------
-  XAttrMap::iterator attributesEnd()
-  {
-    return pXAttrs.end();
-  }
 
  protected:
   //----------------------------------------------------------------------------
-  // Data members
+  //! Data members
   //----------------------------------------------------------------------------
   id_t                pId;
   ctime_t             pCTime;
@@ -603,10 +469,9 @@ class FileMD: public IFileMD
   LocationVector      pLocation;
   LocationVector      pUnlinkedLocation;
   Buffer              pChecksum;
-  XAttrMap            pXAttrs;
   IFileMDSvc*         pFileMDSvc;
 };
 
 EOSNSNAMESPACE_END
 
-#endif // __EOS_NS_FILE_MD_HH__
+#endif // __EOS_REDIS_FS_FILE_MD_HH__

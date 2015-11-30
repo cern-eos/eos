@@ -18,11 +18,11 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin Sindrilaru <esindril@cern.ch>
-//! @brief  Namespace in memory plugin interface implementation
+//! @brief  Namespace on Redis plugin interface implementation
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_IN_MEMORY_PLUGIN_HH__
-#define __EOS_NS_IN_MEMORY_PLUGIN_HH__
+#ifndef __EOS_REDIS_FS_PLUGIN_HH__
+#define __EOS_REDIS_FS_PLUGIN_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "common/plugin_manager/Plugin.hh"
@@ -41,16 +41,13 @@ extern "C" PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services);
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declaration
-class IContainerMDSvc;
-
 //------------------------------------------------------------------------------
-//! Class NsInMemoryPlugin
+//! Class NsRedisPlugin
 //------------------------------------------------------------------------------
-class NsInMemoryPlugin
+class NsRedisPlugin
 {
  public:
-
+  
   //----------------------------------------------------------------------------
   //! Create container metadata service
   //!
@@ -118,46 +115,8 @@ class NsInMemoryPlugin
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int32_t DestroyFsView(void *);
-
-  //----------------------------------------------------------------------------
-  //! Create recursive container accounting listener
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to container accounting listener
-  //----------------------------------------------------------------------------
-  static void* CreateContAcc(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy recursive container accounting listener
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroyContAcc(void *);
-
-  //----------------------------------------------------------------------------
-  //! Create sync time propagation listener
-  //!
-  //! @param services pointer to other services that the plugin manager might
-  //!         provide
-  //!
-  //! @return pointer to sync time propagation listener
-  //----------------------------------------------------------------------------
-  static void* CreateSyncTimeAcc(PF_PlatformServices* services);
-
-  //----------------------------------------------------------------------------
-  //! Destroy sync time propagation listener
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int32_t DestroySyncTimeAcc(void *);
-
- private:
-
-  static IContainerMDSvc* pContMDSvc; ///< pointer to container MD service
 };
 
 EOSNSNAMESPACE_END
 
-#endif // __EOS_NS_IN_MEMORY_PLUGIN_HH__
+#endif // __EOS_REDIS_FS_PLUGIN_HH__
