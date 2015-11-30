@@ -48,8 +48,9 @@ add_executable(xrdcppartial XrdCpPartial.cc)
 add_executable(xrdcpupdate XrdCpUpdate.cc)
 add_executable(eos-udp-dumper EosUdpDumper.cc)
 add_executable(eos-mmap EosMmap.cc)
-add_executable(eosnsbench EosNamespaceBenchmark.cc)
-add_executable(eoshashbench EosHashBenchmark.cc)
+# TODO: fix this by using the correct NS library
+#add_executable(eosnsbench EosNamespaceBenchmark.cc)
+#add_executable(eoshashbench EosHashBenchmark.cc)
 add_executable(eos-io-tool eos_io_tool.cc)
 
 add_executable(
@@ -78,8 +79,9 @@ target_link_libraries(xrdcptruncate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRA
 target_link_libraries(xrdcpposixcache ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcppartial ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
 target_link_libraries(xrdcpupdate ${XROOTD_POSIX_LIBRARY} ${XROOTD_UTILS_LIBRARY})
-target_link_libraries(eosnsbench eosCommon-Static EosNsInMemory-Static)
-target_link_libraries(eoshashbench eosCommon-Static EosNsInMemory-Static)
+# TODO: fix this by using the correct NS library
+#target_link_libraries(eosnsbench eosCommon-Static EosNsInMemory-Static)
+#target_link_libraries(eoshashbench eosCommon-Static EosNsInMemory-Static)
 target_link_libraries(testhmacsha256 eosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-udp-dumper)
 
@@ -118,15 +120,15 @@ set_target_properties(xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BIT
 set_target_properties(xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 set_target_properties(xrdcpupdate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 set_target_properties(xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+# TODO: fix this by using the correct NS library
+#set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+#set_target_properties(eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2")
 
 install(
   TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
 	  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-	  xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
-	  eos-io-tool
+	  xrdcpposixcache eoschecksumbench eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
