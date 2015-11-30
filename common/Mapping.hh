@@ -548,12 +548,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Convert a user name to a uid
   // ---------------------------------------------------------------------------
-  static uid_t UserNameToUid (std::string &username, int &errc);
+  static uid_t UserNameToUid (const std::string &username, int &errc);
 
   // ---------------------------------------------------------------------------
   //! Convert a group name to a gid
   // ---------------------------------------------------------------------------
-  static gid_t GroupNameToGid (std::string &groupname, int &errc);
+  static gid_t GroupNameToGid (const std::string &groupname, int &errc);
 
   // ---------------------------------------------------------------------------
   //! Convert a uid into a string

@@ -285,6 +285,7 @@ com_ls (char* arg1)
 com_ls_usage:
   fprintf(stdout, "usage: ls [-lani] <path>                                                  :  list directory <path>\n");
   fprintf(stdout, "                    -l : show long listing\n");
+  fprintf(stdout, "                    -lh: show long listing with readable sizes\n");
   fprintf(stdout, "                    -a : show hidden files\n");
   fprintf(stdout, "                    -i : add inode information\n");
   fprintf(stdout, "                    -n : show numerical user/group ids\n");

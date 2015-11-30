@@ -163,11 +163,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libeosCommonServer.so.%{version}
 %{_libdir}/libeosCommonServer.so.%{major_version}
 %{_libdir}/libeosCommonServer.so
-%{_libdir}/libEosFstOss.so.%{version}
-%{_libdir}/libEosFstOss.so.%{major_version}
 %{_libdir}/libEosFstOss.so
-%{_libdir}/libXrdEosFst.so.%{version}
-%{_libdir}/libXrdEosFst.so.%{major_version}
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosPluginManager.so.%{version}
 %{_libdir}/libEosPluginManager.so.%{major_version}
@@ -175,17 +171,11 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libEosNsCommon.so.%{version}
 %{_libdir}/libEosNsCommon.so.%{major_version}
 %{_libdir}/libEosNsCommon.so
-%{_libdir}/libEosNsInMemory.so.%{version}
-%{_libdir}/libEosNsInMemory.so.%{major_version}
 %{_libdir}/libEosNsInMemory.so
 %{_libdir}/libEosAuthProto.so.%{version}
 %{_libdir}/libEosAuthProto.so.%{major_version}
 %{_libdir}/libEosAuthProto.so
-%{_libdir}/libXrdEosMgm.so.%{version}
-%{_libdir}/libXrdEosMgm.so.%{major_version}
 %{_libdir}/libXrdEosMgm.so
-%{_libdir}/libXrdMqOfs.so.%{version}
-%{_libdir}/libXrdMqOfs.so.%{major_version}
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/

@@ -38,8 +38,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-char dav_rfc3986[256] = {0};
+        /*----------------------------------------------------------------------------*/
+        char dav_rfc3986[256] = {0};
 char dav_html5[256] = {0};
 
 /*----------------------------------------------------------------------------*/
@@ -55,14 +55,16 @@ dav_uri_encode (unsigned char *s, char *enc, char *tb)
 }
 
 int
-dav_uri_decode (char* source, char* dest )
+dav_uri_decode (char* source, char* dest)
 {
   int nLength;
-  for (nLength = 0; *source; nLength++) {
-    dest[nLength+1] = 0;
-    if (*source == '%' && source[1] && source[2] && isxdigit(source[1]) && isxdigit(source[2])) {
-      source[1] -= source[1] <= '9' ? '0' : (source[1] <= 'F' ? 'A' : 'a')-10;
-      source[2] -= source[2] <= '9' ? '0' : (source[2] <= 'F' ? 'A' : 'a')-10;
+  for (nLength = 0; *source; nLength++)
+  {
+    dest[nLength + 1] = 0;
+    if (*source == '%' && source[1] && source[2] && isxdigit(source[1]) && isxdigit(source[2]))
+    {
+      source[1] -= source[1] <= '9' ? '0' : (source[1] <= 'F' ? 'A' : 'a') - 10;
+      source[2] -= source[2] <= '9' ? '0' : (source[2] <= 'F' ? 'A' : 'a') - 10;
       dest[nLength] = 16 * source[1] + source[2];
       source += 3;
       continue;
@@ -72,7 +74,6 @@ dav_uri_decode (char* source, char* dest )
   dest[nLength] = '\0';
   return nLength;
 }
-
 
 /*----------------------------------------------------------------------------*/
 std::string
@@ -105,8 +106,8 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
 
   // Get the requested property types
   ParseRequestPropertyTypes(rootNode);
-  
-  if (mRequestPropertyTypes & PropertyTypes::GET_OCID) 
+
+  if (mRequestPropertyTypes & PropertyTypes::GET_OCID)
   {
     XrdOucErrInfo error;
     XrdOucString val;
@@ -119,7 +120,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
       return this;
     }
   }
-  
+
   // Build the response
   // xml declaration
   xml_node<> *decl = mXMLResponseDocument.allocate_node(node_declaration);
@@ -180,7 +181,7 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
     // Stat the resource and all child resources
     XrdMgmOfsDirectory directory;
     int listrc = directory._open(request->GetUrl().c_str(), *mVirtualIdentity,
-                                (const char*) 0);
+                                 (const char*) 0);
 
     responseNode = BuildResponseNode(request->GetUrl().c_str(), request->GetUrl(true).c_str());
 
@@ -195,13 +196,13 @@ PropFindResponse::BuildResponse (eos::common::HttpRequest *request)
       while ((val = directory.nextEntry()))
       {
         XrdOucString entryname = val;
-	// don't display . .., atomic(+version) uploads and version directories
-        if ( entryname.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
-	     entryname.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
-	     entryname.beginswith(EOS_WEBDAV_HIDE_IN_PROPFIND_PREFIX) || 
-	     (entryname == ".") || 
-	     (entryname == "..") )
-	  {
+        // don't display . .., atomic(+version) uploads and version directories
+        if (entryname.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
+            entryname.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+            entryname.beginswith(EOS_WEBDAV_HIDE_IN_PROPFIND_PREFIX) ||
+            (entryname == ".") ||
+            (entryname == ".."))
+        {
           // skip over . .. and hidden files
           continue;
         }
@@ -330,7 +331,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   std::string etag;
   std::string id;
 
-  bool allpropresponse=false;
+  bool allpropresponse = false;
 
   XrdOucString urlp = url.c_str();
   XrdOucString hrefp = hrefurl.c_str();
@@ -411,6 +412,8 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   xml_node<> *quotaAvail = 0;
   xml_node<> *quotaUsed = 0;
   xml_node<> *ocid = 0;
+  xml_node<> *ocsize = 0;
+  xml_node<> *ocperm = 0;
 
   if (mRequestPropertyTypes & PropertyTypes::GET_CONTENT_LENGTH)
     contentLength = AllocateNode("d:getcontentlength");
@@ -432,12 +435,16 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     checkedOut = AllocateNode("d:checked-out");
   if (mRequestPropertyTypes & PropertyTypes::GET_OCID)
     ocid = AllocateNode("oc:id");
+  if (mRequestPropertyTypes & PropertyTypes::GET_OCSIZE)
+    ocsize = AllocateNode("oc:size");
+  if (mRequestPropertyTypes & PropertyTypes::GET_OCPERM)
+    ocperm = AllocateNode("oc:permissions");
   if (mRequestPropertyTypes & PropertyTypes::ALLPROP_MARKER)
-    allpropresponse=true;
+    allpropresponse = true;
 
   if ((S_ISDIR(statInfo.st_mode)) &&
       ((mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL) ||
-       (mRequestPropertyTypes & PropertyTypes::QUOTA_USED)))
+      (mRequestPropertyTypes & PropertyTypes::QUOTA_USED)))
   {
     // -----------------------------------------------------------
     // retrieve the current quota
@@ -450,7 +457,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
 
     long long maxbytes = 0;
     long long freebytes = 0;
-    Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes);
+    Quota::GetIndividualQuota(*mVirtualIdentity, path, maxbytes, freebytes);
 
     if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL)
     {
@@ -498,6 +505,21 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     propFound->append_node(ocid);
   }
 
+  if (ocsize)
+  {
+    SetValue(ocsize, eos::common::StringConversion::GetSizeString(id, (unsigned long long) statInfo.st_size));
+    propFound->append_node(ocsize);
+  }
+
+  if (ocperm)
+  {
+    // test access permissions
+    std::string oc_perm = "";
+    gOFS->acc_access(urlp.c_str(), error, *mVirtualIdentity, oc_perm);
+    SetValue(ocperm, oc_perm.c_str());
+    propFound->append_node(ocperm);
+  }
+
   if (displayName)
   {
     eos::common::Path path(urlp.c_str());
@@ -516,7 +538,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
       propFound->append_node(resourceType);
     }
 
-    if (!allpropresponse) 
+    if (!allpropresponse)
     {
       // ANDROID does not digest this response properly in allprop requests
       if (contentLength) propNotFound->append_node(contentLength);
@@ -555,7 +577,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   }
 
   // We don't use these (yet)
-  if (!allpropresponse) 
+  if (!allpropresponse)
   {
     // ANDROID does not digest this response properly in allprop requests
     if (checkedIn) propNotFound->append_node(checkedIn);

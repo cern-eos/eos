@@ -51,8 +51,8 @@ VstView::Print (std::string &out,
   if (option == "io")
     ioformating = true;
 
-  const char* format = "%s %-16s %-4s %-40s %-16s %-6s %-10s %-8s %12s %8s %5s %6s %8s %11s %11s %8s\n";
-  const char* ioformat = "%s %-20s %-4s %12s %8s %5s %11s %11s %8s %5s %5s %10s %10s %10s %10s %5s %5s\n";
+  const char* format = "%s %-32s %-4s %-40s %-16s %-6s %-20s %-8s %12s %8s %5s %6s %8s %11s %11s %8s\n";
+  const char* ioformat = "%s %-32s %-4s %12s %8s %5s %11s %11s %8s %5s %5s %10s %10s %10s %10s %5s %5s\n";
   char line[4096];
   if (!monitoring)
   {

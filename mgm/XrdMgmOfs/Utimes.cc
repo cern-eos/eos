@@ -95,8 +95,8 @@ XrdMgmOfs::_utimes (const char *path,
  *
  * @return SFS_OK if success otherwise SFS_ERROR
  *
- * For directories this routine set's the creation time and the in-memory
- * modification time to the specified modificationt time. For files it
+ * For directories this routine set's the modification
+ * time to the specified modification time. For files it
  * set's the modification time.
  */
 /*----------------------------------------------------------------------------*/
@@ -113,7 +113,8 @@ XrdMgmOfs::_utimes (const char *path,
   try
   {
     cmd = gOFS->eosView->getContainer(path);
-    UpdateInmemoryDirectoryModificationTime(cmd->getId(), tvp[1]);
+    cmd->setMTime(tvp[1]);
+    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
     eosView->updateContainerStore(cmd);
     done = true;
   }

@@ -51,7 +51,8 @@ class IFileMDChangeListener
     LocationAdded,
     LocationUnlinked,
     LocationRemoved,
-    LocationReplaced
+    LocationReplaced,
+    SizeChange
   };
 
   //------------------------------------------------------------------------
@@ -61,28 +62,33 @@ class IFileMDChangeListener
   {
     Event(IFileMD* _file, Action _action,
           IFileMD::location_t _location = 0,
-          IFileMD::location_t _oldLocation = 0):
+          IFileMD::location_t _oldLocation = 0,
+          int64_t _changed_size = 0):
         file(_file),
         fileId(0),
         action(_action),
         location(_location),
-        oldLocation(_oldLocation) {}
+        oldLocation(_oldLocation),
+        sizeChange(_changed_size) {}
 
     Event(IFileMD::id_t _fileId, Action _action,
           IFileMD::location_t _location = 0,
-          IFileMD::location_t _oldLocation = 0):
+          IFileMD::location_t _oldLocation = 0,
+          int64_t _changed_size = 0):
         file(0),
         fileId(_fileId),
         action(_action),
         location(_location),
-        oldLocation(_oldLocation) {}
+        oldLocation(_oldLocation),
+        sizeChange(_changed_size) {}
 
 
     IFileMD*             file;
     IFileMD::id_t        fileId;
-    Action              action;
+    Action               action;
     IFileMD::location_t  location;
     IFileMD::location_t  oldLocation;
+    int64_t              sizeChange;
   };
 
   virtual void fileMDChanged(Event* event) = 0;

@@ -991,6 +991,16 @@ public:
   /// Set containing all nodes which are usable as a gateway machine
   std::set<std::string> mGwNodes;
 
+  //----------------------------------------------------------------------------
+  //! Check if quota is enabled for space
+  //!
+  //! @param space space name
+  //!
+  //! @return true if quota enabled for space, otherwise false
+  //! @warning needs to be called with a read-lock on the MapMutex
+  //---------------------------------------------------------------------------
+  bool IsQuotaEnabled(const std::string& space);
+
   // ---------------------------------------------------------------------------
   // find filesystem by queue path
   // ---------------------------------------------------------------------------

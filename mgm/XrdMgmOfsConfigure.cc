@@ -28,6 +28,7 @@
 #include <time.h>
 #include <dirent.h>
 #include <string.h>
+#include <sys/fsuid.h>
 /*----------------------------------------------------------------------------*/
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -208,12 +209,12 @@ XrdMgmOfs::InitializeFileView()
           eosView->updateFileStore(fmd);
         }
 
-      {
-        XrdSysMutexHelper lock(InitializationMutex);
-        Initialized = kBooted;
-        eos_static_alert("msg=\"namespace booted (as master)\"");
+	{
+	  XrdSysMutexHelper lock(InitializationMutex);
+	  Initialized = kBooted;
+	  eos_static_alert("msg=\"namespace booted (as master)\"");
+	}
       }
-    }
     }
 
     if (!MgmMaster.IsMaster())
@@ -303,7 +304,6 @@ XrdMgmOfs::InitializeFileView()
 
   // Fill the current accounting and load all the quota nodes from the namespace
   Quota::LoadNodes();
-  Quota::NodesToSpaceQuota();
   return 0;
 }
 
@@ -313,8 +313,14 @@ XrdMgmOfs::InitializeFileView()
 int
 XrdMgmOfs::Configure(XrdSysError& Eroute)
 {
-  char* var;
-  const char* val;
+  // the process run's as root, but acts on the filesystem as daemon
+  seteuid(0);
+  setegid(0);
+  setfsuid(2);
+  setfsgid(2);
+
+  char *var;
+  const char *val;
   int cfgFD, retc, NoGo = 0;
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   XrdOucString role = "server";
@@ -847,9 +853,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += MgmMetaLogDir;
             src = system(chownit.c_str());
 
@@ -887,9 +891,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += MgmTxDir;
             src = system(chownit.c_str());
 
@@ -927,9 +929,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += MgmAuthDir;
             src = system(chownit.c_str());
 
@@ -973,9 +973,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R ";
-            chownit += (int) geteuid();
-            chownit += " ";
+            XrdOucString chownit = "chown -R 2 ";
             chownit += IoReportStorePath;
             src = system(chownit.c_str());
 
@@ -1378,9 +1376,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (src)
     eos_err("%s returned %d", makeit.c_str(), src);
 
-  XrdOucString chownit = "chown -R ";
-  chownit += (int) geteuid();
-  chownit += " ";
+  XrdOucString chownit = "chown -R 2 ";
   chownit += MgmConfigDir;
   src = system(chownit.c_str());
 
@@ -1834,19 +1830,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
 
+  // Hook to the appropiate config file
+  XrdOucString stdOut;
+  XrdOucString stdErr;
+  
+  if (!MgmMaster.ApplyMasterConfig(stdOut, stdErr,
+                                   Master::Transition::Type::kMasterToMaster))
   {
-    // Hook to the appropiate config file
-    XrdOucString stdOut;
-    XrdOucString stdErr;
-
-    if (!MgmMaster.ApplyMasterConfig(stdOut, stdErr,
-                                     Master::Transition::Type::kMasterToMaster))
-    {
-      Eroute.Emsg("Config", "failed to apply master configuration");
-      return 1;
-    }
+    Eroute.Emsg("Config", "failed to apply master configuration");
+    return 1;
   }
-
+  
   if (!MgmRedirector)
   {
     if (ErrorLog)
@@ -1865,17 +1859,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s returned %d", errorlogline.c_str(), rrc);
     }
 
-
     if (MgmMaster.IsMaster())
     {
       eos_info("starting file view loader thread");
 
       if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
 			     static_cast<void *> (this), 0, "File View Loader")))
-	{
-	  eos_crit("cannot start file view loader");
-	  NoGo = 1;
-	}
+      {
+        eos_crit("cannot start file view loader");
+        NoGo = 1;
+      }
     }
   }
 
@@ -1884,16 +1877,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   FsView::gFsView.ViewMutex.SetDebugName("FsView");
   FsView::gFsView.ViewMutex.SetTiming(false);
   FsView::gFsView.ViewMutex.SetSampling(true, 0.01);
-  Quota::gQuotaMutex.SetDebugName("QuotaView");
-  Quota::gQuotaMutex.SetTiming(false);
-  Quota::gQuotaMutex.SetSampling(true, 0.01);
+  Quota::pMapMutex.SetDebugName("QuotaView");
+  Quota::pMapMutex.SetTiming(false);
+  Quota::pMapMutex.SetSampling(true, 0.01);
   eosViewRWMutex.SetDebugName("eosView");
   eosViewRWMutex.SetTiming(false);
   eosViewRWMutex.SetSampling(true, 0.01);
   std::vector<eos::common::RWMutex*> order;
   order.push_back(&FsView::gFsView.ViewMutex);
-  order.push_back(&Quota::gQuotaMutex);
   order.push_back(&eosViewRWMutex);
+  order.push_back(&Quota::pMapMutex);
   eos::common::RWMutex::AddOrderRule("Eos Mgm Mutexes", order);
 #endif
   eos_info("starting statistics thread");
@@ -1929,14 +1922,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   {
     eos_crit("cannot intialize transfer database");
     NoGo = 1;
-  }
-
-  // Create the 'default' quota space which is needed if quota is disabled!
-  {
-    eos::common::RWMutexReadLock qLock(Quota::gQuotaMutex);
-
-    if (!Quota::GetSpaceQuota("default"))
-      eos_crit("failed to get default quota space");
   }
 
   // Start the Httpd if available

@@ -71,7 +71,6 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY})
 
 set_target_properties(
-  XrdMqOfs
   XrdMqClient
   PROPERTIES
   VERSION ${VERSION}

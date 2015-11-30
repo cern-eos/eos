@@ -66,14 +66,6 @@ target_link_libraries(
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
 
-set_target_properties(
-  EosFstOss
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES "")
-
-
 #-------------------------------------------------------------------------------
 # EosFstIo library
 #-------------------------------------------------------------------------------
@@ -308,25 +300,19 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT})
 
 if(MacOSX)
-  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
-
   set_target_properties(
-    EosFstIo XrdEosFst
+    EosFstIo
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
     PROPERTIES
     MACOSX_RPATH TRUE)
+  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
 else()
   set_target_properties(
-   EosFstIo-Static
+    EosFstIo-Static
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
   target_link_libraries(eoscp EosFstIo-Static)
-
-  set_target_properties(
-    XrdEosFst
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    INTERFACE_LINK_LIBRARIES "")
 endif()
 
 target_link_libraries(eos-ioping ${GLIBC_M_LIBRARY})

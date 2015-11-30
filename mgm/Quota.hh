@@ -40,631 +40,601 @@
 #include "common/Mapping.hh"
 #include "common/GlobalConfig.hh"
 #include "common/RWMutex.hh"
-#include "mq/XrdMqMessage.hh"
 #include "namespace/interface/IQuota.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPthread.hh"
 /*----------------------------------------------------------------------------*/
-#include <vector>
-#include <set>
-#include <stdint.h>
-
-/*----------------------------------------------------------------------------*/
-
 
 EOSMGMNAMESPACE_BEGIN
 
 #define EOSMGMQUOTA_DISKHEADROOM 1024ll*1024ll*1024l*25
 
-class SpaceQuota : public Scheduler
+class Quota;
+
+//------------------------------------------------------------------------------
+//! Class SpaceQuota
+//------------------------------------------------------------------------------
+class SpaceQuota
 {
-private:
-  XrdSysMutex Mutex;
-  time_t LastCalculationTime;
-  time_t LastEnableCheck;
-  bool On;
-  eos::IQuotaNode* QuotaNode;
-  double LayoutSizeFactor; // this is layout dependent!
-  bool DirtyTarget; // indicating to recompute the target values
-  bool
-  Enabled ()
-  {
-    time_t now = time (NULL);
-    if (now > (LastEnableCheck + 5))
-    {
-      std::string spacename = SpaceName.c_str ();
-      std::string key = "quota";
-      if (FsView::gFsView.mSpaceView.count (spacename))
-      {
-        std::string ison = FsView::gFsView.mSpaceView[spacename]->GetConfigMember (key);
-        if (ison == "on")
-        {
-          On = true;
-        }
-        else
-        {
-          On = false;
-        }
-      }
-      else
-      {
-        On = false;
-      }
-      LastEnableCheck = now;
-    }
-    return On;
-  }
-
-  // one hash map for user view! depending on eQuota Tag id is either uid or gid!
-
-  std::map<long long, unsigned long long> Quota; // the key is (eQuotaTag<<32) | id
-
-  unsigned long long PhysicalFreeBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalFreeFiles; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalMaxBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalMaxFiles; // this is coming from the statfs calls on all file systems
-
-  // this is used to recalculate the values without invalidating the old one
-  unsigned long long PhysicalTmpFreeBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalTmpFreeFiles; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalTmpMaxBytes; // this is coming from the statfs calls on all file systems
-  unsigned long long PhysicalTmpMaxFiles; // this is coming from the statfs calls on all file systems
+  friend class Quota;
 
 public:
-  XrdSysMutex OpMutex;
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  SpaceQuota(const char* name);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~SpaceQuota();
+
+  //----------------------------------------------------------------------------
+  //! Get space name
+  //----------------------------------------------------------------------------
+  inline const char* GetSpaceName()
+  {
+    return pPath.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check user and/or group quota. If both are present, they both have to be
+  //! fullfilled.
+  //!
+  //! @param uid user id
+  //! @param gid group id
+  //! @param desired_vol desired volume (size)
+  //! @param desired_inodes desired number of inodes
+  //!
+  //! @return true if user has enough quota, otherwise false
+  //----------------------------------------------------------------------------
+  bool CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
+		       unsigned int desired_inodes);
+
+  //----------------------------------------------------------------------------
+  //! Print quota information
+  //!
+  //----------------------------------------------------------------------------
+  void PrintOut(XrdOucString& output, long uid_sel = -1,
+		long gid_sel = -1, bool monitoring = false,
+		bool translate_ids = false);
+
+  //----------------------------------------------------------------------------
+  //! Quota type tags
+  //----------------------------------------------------------------------------
   enum eQuotaTag
   {
-    kUserBytesIs = 1, kUserLogicalBytesIs = 2, kUserLogicalBytesTarget = 3, kUserBytesTarget = 4,
-    kUserFilesIs = 5, kUserFilesTarget = 6,
-    kGroupBytesIs = 7, kGroupLogicalBytesIs = 8, kGroupLogicalBytesTarget = 9, kGroupBytesTarget = 10,
-    kGroupFilesIs = 11, kGroupFilesTarget = 12,
-    kAllUserBytesIs = 13, kAllUserLogicalBytesIs = 14, kAllUserLogicalBytesTarget = 15, kAllUserBytesTarget = 16,
-    kAllGroupBytesIs = 17, kAllGroupLogicalBytesIs = 18, kAllGroupLogicalBytesTarget = 19, kAllGroupBytesTarget = 20,
-    kAllUserFilesIs = 21, kAllUserFilesTarget = 22,
-    kAllGroupFilesIs = 23, kAllGroupFilesTarget = 24
+    kUserBytesIs = 1,                 kUserLogicalBytesIs = 2,
+    kUserLogicalBytesTarget = 3,      kUserBytesTarget = 4,
+    kUserFilesIs = 5,                 kUserFilesTarget = 6,
+    kGroupBytesIs = 7,                kGroupLogicalBytesIs = 8,
+    kGroupLogicalBytesTarget = 9,     kGroupBytesTarget = 10,
+    kGroupFilesIs = 11,               kGroupFilesTarget = 12,
+    kAllUserBytesIs = 13,             kAllUserLogicalBytesIs = 14,
+    kAllUserLogicalBytesTarget = 15,  kAllUserBytesTarget = 16,
+    kAllGroupBytesIs = 17,            kAllGroupLogicalBytesIs = 18,
+    kAllGroupLogicalBytesTarget = 19, kAllGroupBytesTarget = 20,
+    kAllUserFilesIs = 21,             kAllUserFilesTarget = 22,
+    kAllGroupFilesIs = 23,            kAllGroupFilesTarget = 24
   };
 
-  static const char*
-  GetTagAsString (int tag)
+private:
+
+  //----------------------------------------------------------------------------
+  //! Get quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param id uid/gid/projec it
+  //!
+  //! @return reuqested quota value
+  //----------------------------------------------------------------------------
+  long long GetQuota(unsigned long tag, unsigned long id);
+
+  //----------------------------------------------------------------------------
+  //! Set quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param id user/group id
+  //! @param value quota value to set
+  //----------------------------------------------------------------------------
+  void SetQuota(unsigned long tag, unsigned long id, unsigned long long value);
+
+  //----------------------------------------------------------------------------
+  //! Reset quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param uid uid/gid/project id
+  //!
+  //! @warning Caller needs to hold a lock on mMutex
+  //----------------------------------------------------------------------------
+  void  ResetQuota(unsigned long tag, unsigned long id);
+
+  //----------------------------------------------------------------------------
+  //! Add quota
+  //!
+  //! @param tag quota type tag (eQuotaTag)
+  //! @param id user/group id
+  //! @param value quota value to be added
+  //!
+  //! @warning Caller needs to hold a lock on mMutex.
+  //----------------------------------------------------------------------------
+  void AddQuota(unsigned long tag, unsigned long id, long long value);
+
+  //----------------------------------------------------------------------------
+  //! Import ns quota values into current space quota
+  //----------------------------------------------------------------------------
+  void NsQuotaToSpaceQuota();
+
+  //----------------------------------------------------------------------------
+  //! Update quota from the ns quota node for the given identity only if the
+  //! requested path is actually a ns quota node.
+  //!
+  //! @param uid user id
+  //! @param gid group id
+  //! @param upd_proj_quota if true then update also the project quota
+  //----------------------------------------------------------------------------
+  void UpdateFromQuotaNode(uid_t uid, gid_t, bool upd_proj_quota);
+
+  //----------------------------------------------------------------------------
+  //! Refresh quota all quota values for current space
+  //!
+  //! @warning Caller needs to hold a read-lock on both eosViewRWMutex and
+  //!          pMapMutex
+  //----------------------------------------------------------------------------
+  void Refresh();
+
+  //----------------------------------------------------------------------------
+  //! Calculate the size factor used to estimate the logical available bytes
+  //----------------------------------------------------------------------------
+  void UpdateLogicalSizeFactor();
+
+  //----------------------------------------------------------------------------
+  //! Update target quota values
+  //----------------------------------------------------------------------------
+  void UpdateTargetSums();
+
+  //----------------------------------------------------------------------------
+  //! Update current quota values
+  //----------------------------------------------------------------------------
+  void UpdateIsSums();
+
+  //----------------------------------------------------------------------------
+  //! Update ns quota node address referred to by current space quota
+  //!
+  //! @return true if update successful, otherwise false
+  //! @warning Caller needs to hold a read-lock on eosViewRWMutexo
+  //----------------------------------------------------------------------------
+  bool UpdateQuotaNodeAddress();
+
+  //----------------------------------------------------------------------------
+  //! Serialize index
+  //----------------------------------------------------------------------------
+  inline unsigned long long Index(unsigned long tag, unsigned long id)
   {
-    if (tag == kUserBytesTarget)
-    {
-      return "userbytes";
-    }
-    if (tag == kUserFilesTarget)
-    {
-      return "userfiles";
-    }
-    if (tag == kGroupBytesTarget)
-    {
-      return "groupbytes";
-    }
-    if (tag == kGroupFilesTarget)
-    {
-      return "groupfiles";
-    }
-    if (tag == kAllUserBytesTarget)
-    {
-      return "alluserbytes";
-    }
-    if (tag == kAllUserFilesTarget)
-    {
-      return "alluserfiles";
-    }
-    if (tag == kAllGroupBytesTarget)
-    {
-      return "allgroupbytes";
-    }
-    if (tag == kAllGroupFilesTarget)
-    {
-      return "allgroupfiles";
-    }
-    return 0;
+    return ((tag << 32) | id);
   }
 
-  static unsigned long
-  GetTagFromString (XrdOucString &tag)
-  {
-    if (tag == "userbytes") return kUserBytesTarget;
-    if (tag == "userfiles") return kUserFilesTarget;
-    if (tag == "groupbytes") return kGroupBytesTarget;
-    if (tag == "groupfiles") return kGroupFilesTarget;
-    if (tag == "alluserbytes") return kAllUserBytesTarget;
-    if (tag == "alluserfiles") return kAllUserFilesTarget;
-    if (tag == "allgroupbytes") return kAllGroupBytesTarget;
-    if (tag == "allgroupfiles") return kAllGroupFilesTarget;
-    return 0;
-  }
-
-  const char*
-  GetTagCategory (int tag)
-  {
-
-    if ((tag == kUserBytesIs) || (tag == kUserBytesTarget) || (tag == kUserLogicalBytesIs) || (tag == kUserLogicalBytesTarget) ||
-        (tag == kUserFilesIs) || (tag == kUserFilesTarget)) return "user ";
-    if ((tag == kGroupBytesIs) || (tag == kGroupBytesTarget) || (tag == kGroupLogicalBytesIs) || (tag == kGroupLogicalBytesTarget) ||
-        (tag == kGroupFilesIs) || (tag == kGroupFilesTarget)) return "group";
-    if ((tag == kAllUserBytesIs) || (tag == kAllUserBytesTarget) ||
-        (tag == kAllUserFilesIs) || (tag == kAllUserFilesTarget)) return "user ";
-    if ((tag == kAllGroupBytesIs) || (tag == kAllGroupBytesTarget) ||
-        (tag == kAllGroupFilesIs) || (tag == kAllGroupFilesTarget)) return "group";
-    return "-----";
-  }
-
-  const char*
-  GetTagName (int tag)
-  {
-    if (tag == kUserBytesIs)
-    {
-      return "used bytes";
-    }
-    if (tag == kUserLogicalBytesIs)
-    {
-      return "logi bytes";
-    }
-    if (tag == kUserBytesTarget)
-    {
-      return "aval bytes";
-    }
-    if (tag == kUserFilesIs)
-    {
-      return "used files";
-    }
-    if (tag == kUserFilesTarget)
-    {
-      return "aval files";
-    }
-    if (tag == kUserLogicalBytesTarget)
-    {
-      return "aval logib";
-    }
-
-    if (tag == kGroupBytesIs)
-    {
-      return "used bytes";
-    }
-    if (tag == kGroupLogicalBytesIs)
-    {
-      return "logi bytes";
-    }
-    if (tag == kGroupBytesTarget)
-    {
-      return "aval bytes";
-    }
-    if (tag == kGroupFilesIs)
-    {
-      return "used files";
-    }
-    if (tag == kGroupFilesTarget)
-    {
-      return "aval files";
-    }
-    if (tag == kGroupLogicalBytesTarget)
-    {
-      return "aval logib";
-    }
-
-    if (tag == kAllUserBytesIs)
-    {
-      return "used bytes";
-    }
-    if (tag == kAllUserLogicalBytesIs)
-    {
-      return "logi bytes";
-    }
-    if (tag == kAllUserBytesTarget)
-    {
-      return "aval bytes";
-    }
-    if (tag == kAllUserFilesIs)
-    {
-      return "used files";
-    }
-    if (tag == kAllUserFilesTarget)
-    {
-      return "aval files";
-    }
-    if (tag == kAllUserLogicalBytesTarget)
-    {
-      return "aval logib";
-    }
-    if (tag == kAllGroupBytesIs)
-    {
-      return "used bytes";
-    }
-    if (tag == kAllGroupLogicalBytesIs)
-    {
-      return "logi bytes";
-    }
-    if (tag == kAllGroupBytesTarget)
-    {
-      return "aval bytes";
-    }
-    if (tag == kAllGroupFilesIs)
-    {
-      return "used files";
-    }
-    if (tag == kAllGroupFilesTarget)
-    {
-      return "aval files";
-    }
-    if (tag == kAllGroupLogicalBytesTarget)
-    {
-      return "aval logib";
-    }
-    return "---- -----";
-  }
-
-  bool UpdateQuotaNodeAddress (); // updates the valid address of a quota node from the filesystem view
-
-  eos::IQuotaNode*
-  GetQuotaNode ()
-  {
-    return QuotaNode;
-  }
-
-  const char*
-  GetQuotaStatus (unsigned long long is, unsigned long long avail)
-  {
-    if (!avail)
-    {
-      return "ignored";
-    }
-    double p = (100.0 * is / avail);
-    if (p < 90)
-    {
-      return "ok";
-    }
-    if (p < 99)
-    {
-      return "warning";
-    }
-    return "exceeded";
-  }
-
-  const char*
-  GetQuotaPercentage (unsigned long long is, unsigned long long avail, XrdOucString &spercentage)
-  {
-    char percentage[1024];
-    float fp = avail ? (100.0 * is / avail) : 100.0;
-    if (fp > 100.0)
-    {
-      fp = 100.0;
-    }
-    if (fp < 0)
-    {
-      fp = 0;
-    }
-    sprintf (percentage, "%.02f", fp);
-    spercentage = percentage;
-    return spercentage.c_str ();
-  }
-
-  bool
-  NeedsRecalculation ()
-  {
-    if ((time (NULL) - LastCalculationTime) > 10) return true;
-    else return false;
-  }
-
-  void UpdateLogicalSizeFactor ();
-  void UpdateTargetSums ();
-  void UpdateIsSums ();
-  void UpdateFromQuotaNode (uid_t uid, gid_t gid, bool calc_project_quota=false);
-
-  SpaceQuota (const char* name);
-  ~SpaceQuota ();
-
-  void RemoveQuotaNode (XrdOucString &msg, int &retc);
-
-  std::map<long long, unsigned long long>::const_iterator
-  Begin ()
-  {
-    return Quota.begin ();
-  }
-
-  std::map<long long, unsigned long long>::const_iterator
-  End ()
-  {
-    return Quota.end ();
-  }
-
-  const char*
-  GetSpaceName ()
-  {
-    return SpaceName.c_str ();
-  }
-
-  long long GetQuota (unsigned long tag, unsigned long id, bool lock = true);
-
-  void SetQuota (unsigned long tag, unsigned long id, unsigned long long value, bool lock = true);
-  bool RmQuota (unsigned long tag, unsigned long id, bool lock = true);
-  void AddQuota (unsigned long tag, unsigned long id, long long value, bool lock = true);
-
-  void
-  SetPhysicalTmpFreeBytes (unsigned long long bytes)
-  {
-    PhysicalTmpFreeBytes = bytes;
-  }
-
-  void
-  SetPhysicalTmpFreeFiles (unsigned long long files)
-  {
-    PhysicalTmpFreeFiles = files;
-  }
-
-  void
-  SetPhysicalFreeBytes (unsigned long long bytes)
-  {
-    PhysicalFreeBytes = bytes;
-  }
-
-  void
-  SetPhysicalFreeFiles (unsigned long long files)
-  {
-    PhysicalFreeFiles = files;
-  }
-
-  void
-  SetPhysicalTmpMaxBytes (unsigned long long bytes)
-  {
-    PhysicalTmpMaxBytes = bytes;
-  }
-
-  void
-  SetPhysicalTmpMaxFiles (unsigned long long files)
-  {
-    PhysicalTmpMaxFiles = files;
-  }
-
-  void
-  SetPhysicalMaxBytes (unsigned long long bytes)
-  {
-    PhysicalMaxBytes = bytes;
-  }
-
-  void
-  SetPhysicalMaxFiles (unsigned long long files)
-  {
-    PhysicalMaxFiles = files;
-  }
-
-  void
-  ResetPhysicalFreeBytes ()
-  {
-    SetPhysicalFreeBytes (0);
-  }
-
-  void
-  ResetPhysicalFreeFiles ()
-  {
-    SetPhysicalFreeFiles (0);
-  }
-
-  void
-  ResetPhysicalMaxBytes ()
-  {
-    SetPhysicalMaxBytes (0);
-  }
-
-  void
-  ResetPhysicalMaxFiles ()
-  {
-    SetPhysicalMaxFiles (0);
-  }
-
-  void
-  ResetPhysicalTmpFreeBytes ()
-  {
-    SetPhysicalTmpFreeBytes (0);
-  }
-
-  void
-  ResetPhysicalTmpFreeFiles ()
-  {
-    SetPhysicalTmpFreeFiles (0);
-  }
-
-  void
-  ResetPhysicalTmpMaxBytes ()
-  {
-    SetPhysicalTmpMaxBytes (0);
-  }
-
-  void
-  ResetPhysicalTmpMaxFiles ()
-  {
-    SetPhysicalTmpMaxFiles (0);
-  }
-
-  void
-  AddPhysicalFreeBytes (unsigned long long bytes)
-  {
-    PhysicalFreeBytes += bytes;
-  }
-
-  void
-  AddPhysicalFreeFiles (unsigned long long files)
-  {
-    PhysicalFreeFiles += files;
-  }
-
-  void
-  AddPhysicalMaxBytes (unsigned long long bytes)
-  {
-    PhysicalMaxBytes += bytes;
-  }
-
-  void
-  AddPhysicalMaxFiles (unsigned long long files)
-  {
-    PhysicalMaxFiles += files;
-  }
-
-  void
-  AddPhysicalTmpFreeBytes (unsigned long long bytes)
-  {
-    PhysicalTmpFreeBytes += bytes;
-  }
-
-  void
-  AddPhysicalTmpFreeFiles (unsigned long long files)
-  {
-    PhysicalTmpFreeFiles += files;
-  }
-
-  void
-  AddPhysicalTmpMaxBytes (unsigned long long bytes)
-  {
-    PhysicalTmpMaxBytes += bytes;
-  }
-
-  void
-  AddPhysicalTmpMaxFiles (unsigned long long files)
-  {
-    PhysicalTmpMaxFiles += files;
-  }
-
-  void
-  PhysicalTmpToFreeBytes ()
-  {
-    PhysicalFreeBytes = PhysicalTmpFreeBytes;
-  }
-
-  void
-  PhysicalTmpToFreeFiles ()
-  {
-    PhysicalFreeFiles = PhysicalTmpFreeFiles;
-  }
-
-  void
-  PhysicalTmpToMaxBytes ()
-  {
-    PhysicalMaxBytes = PhysicalTmpMaxBytes;
-  }
-
-  void
-  PhysicalTmpToMaxFiles ()
-  {
-    PhysicalMaxFiles = PhysicalTmpMaxFiles;
-  }
-
-  unsigned long long
-  GetPhysicalFreeBytes ()
-  {
-    return PhysicalFreeBytes;
-  }
-
-  unsigned long long
-  GetPhysicalFreeFiles ()
-  {
-    return PhysicalFreeFiles;
-  }
-
-  unsigned long long
-  GetPhysicalMaxBytes ()
-  {
-    return PhysicalMaxBytes;
-  }
-
-  unsigned long long
-  GetPhysicalMaxFiles ()
-  {
-    return PhysicalMaxFiles;
-  }
-
-  void
-  ResetQuota (unsigned long tag, unsigned long id, bool lock = true)
-  {
-    return SetQuota (tag, id, 0, lock);
-  }
-  void PrintOut (XrdOucString& output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);
-
-  void Refresh ();
-
-  unsigned long long
-  Index (unsigned long tag, unsigned long id)
-  {
-    unsigned long long fulltag = tag;
-    fulltag <<= 32;
-    fulltag |= id;
-    return fulltag;
-  }
-
-  unsigned long
-  UnIndex (unsigned long long reindex)
+  //----------------------------------------------------------------------------
+  //! Deserialize index
+  //----------------------------------------------------------------------------
+  inline unsigned long UnIndex(unsigned long long reindex)
   {
     return (reindex >> 32) & 0xffffffff;
   }
 
-  bool CheckWriteQuota (uid_t, gid_t, long long desiredspace, unsigned int inodes);
+  //----------------------------------------------------------------------------
+  //! Check if quota is enabled - needs a lock on the FsView
+  //!
+  //! @return true if quota enabled, otherwise false
+  //! @warning Caller needs to hold a read-lock on gFsView::ViewMutex
+  //----------------------------------------------------------------------------
+  bool IsEnabled();
 
-  //! -------------------------------------------------------------
-  //! the write placement routine - here we implement the quota check while the scheduling is in the Scheduler base calss
-  //! -------------------------------------------------------------
-  int FilePlacement (const char* path, //< path to place
-                     eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
-                     const char* grouptag, //< group tag for placement
-                     unsigned long lid, //< layout to be placed
-                     std::vector<unsigned int> &alreadyused_filesystems, //< filesystems to avoid
-                     std::vector<unsigned int> &selected_filesystems, //< return filesystems selected by scheduler
-                     std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
-                     std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
-                     tPlctPolicy plctpolicy, //< indicates if the placement should be local or spread or hybrid
-                     const std::string &plctTrgGeotag, //< indicates close to which Geotag collocated stripes should be placed
-                     bool truncate = false, //< indicates placement with truncation
-                     int forced_scheduling_group_index = -1, //< forced index for the scheduling subgroup to be used 
-                     unsigned long long bookingsize = 1024 * 1024 * 1024ll //< size to book for the placement
-                     );
+  //----------------------------------------------------------------------------
+  //! Remove quota
+  //!
+  //! @param tag quota type tag
+  //! @param uid uid/gid/project id
+  //!
+  //! @return true if quota deleted, false if quota not found
+  //----------------------------------------------------------------------------
+  bool RmQuota(unsigned long tag, unsigned long id);
 
+  //----------------------------------------------------------------------------
+  //! Get current quota value as percentage of the available one
+  //!
+  //! @param is current quota value
+  //! @param avail available quota value
+  //! @param spercentage (out) string representation of the percentage
+  //!
+  //! @return string representation of the percentage value
+  //----------------------------------------------------------------------------
+  const char*
+  GetQuotaPercentage(unsigned long long is, unsigned long long avail,
+		     XrdOucString& spercentage);
+
+  //----------------------------------------------------------------------------
+  //! Get quota status
+  //!
+  //! @para is current quota value
+  //! @param avail available quota value
+  //!
+  //! @return string representing the status i.e. ignored/ok/warning/exceeded
+  //----------------------------------------------------------------------------
+  const char* GetQuotaStatus(unsigned long long is, unsigned long long avail);
+
+  //----------------------------------------------------------------------------
+  //! Convert int tag to string representation
+  //!
+  //! @param tag int tag value
+  //!
+  //! @return string representation of the tag
+  //----------------------------------------------------------------------------
+  static const char* GetTagAsString(int tag);
+
+  //----------------------------------------------------------------------------
+  //! Convert int tag to string description
+  //!
+  //! @param tag int tag value
+  //!
+  //! @return string tag description
+  //----------------------------------------------------------------------------
+  static const char* GetTagName(int tag);
+
+  //----------------------------------------------------------------------------
+  //! Convert string tag to int representation
+  //!
+  //! @param tag string tag
+  //!
+  //! @return int representation of the tag
+  //----------------------------------------------------------------------------
+  static unsigned long GetTagFromString(const std::string& tag);
+
+  //----------------------------------------------------------------------------
+  //! Convert int tag to user or group category
+  //!
+  //! @param tag int tag value
+  //!
+  //! @return user/group category
+  //----------------------------------------------------------------------------
+  static const char* GetTagCategory(int tag);
+
+  std::string pPath; ///< quota node path
+  eos::IQuotaNode* mQuotaNode; ///< corresponding ns quota node
+  XrdSysMutex mMutex; ///< mutex to protect access to mMapIdQuota
+  time_t mLastEnableCheck; ///< timestamp of the last check
+  double mLayoutSizeFactor; ///< layout dependent size factor
+  bool mDirtyTarget; ///< mark to recompute target values
+
+  //! Map for user view, depending on eQuota and uid/gid
+  std::map<long long, unsigned long long> mMapIdQuota;
 };
 
-class Quota : eos::common::LogId
+
+//------------------------------------------------------------------------------
+//! Class Quota
+//------------------------------------------------------------------------------
+class Quota: eos::common::LogId
 {
+public:
+
+  enum IdT { kUid, kGid }; ///< Id type enum
+  enum Type { kUnknown, kVolume, kInode, kAll }; ///< Quota types
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  Quota() { }
+
+  //----------------------------------------------------------------------------
+  //! Desstructor
+  //----------------------------------------------------------------------------
+  virtual ~Quota() { }
+
+  //----------------------------------------------------------------------------
+  //! Create space quota
+  //!
+  //! @param path quota node path which needs to be '/' terminated
+  //----------------------------------------------------------------------------
+  static void Create(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Check if quota node for path exists
+  //!
+  //! @param path path to search for
+  //!
+  //! @return true if quota node exists, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Exists(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Check if there is a quota node responsible for the given path
+  //!
+  //! @param path path for which a quota node is searched
+  //!
+  //! @return true if quota node exists, otherwise false
+  //----------------------------------------------------------------------------
+  static bool ExistsResponsible(const std::string& path);
+
+  //----------------------------------------------------------------------------
+  //! Get individual quota values
+  //!
+  //! @param vid client virtual identity
+  //! @param path path
+  //! @param max_bytes max bytes value
+  //! @param free_bytes free bytes value
+  //!
+  //----------------------------------------------------------------------------
+  static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
+				 const std::string& path, long long& max_bytes,
+				 long long& free_bytes);
+
+
+  //----------------------------------------------------------------------------
+  //! Set quota type of id (uid/gid)
+  //!
+  //! @param qpath quota path
+  //! @param id uid or gid value depending on the id_type
+  //! @param id_type type of id, can be uid or gid
+  //! @param quota_type type of quota to remove, can be inode or volume
+  //! @param value quota value to be set
+  //! @param msg message returned to the client
+  //! @param retc error number returned to the client
+  //!
+  //! @return true if quota set successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool SetQuotaTypeForId(const std::string& qpath, long id,
+				Quota::IdT id_type, Quota::Type quota_type,
+				unsigned long long value, std::string& msg,
+				int& retc);
+
+
+  //----------------------------------------------------------------------------
+  //! Set quota specified by the quota tag.
+  //!
+  //! @param qpath quota path
+  //! @param quota_tag string representation of the SpaceQuota::eQuotaTag. From
+  //!                  this we can deduce the quota type and the id type.
+  //! @param id uid or gid value depending on the space_tag
+  //! @param value quota value to be set
+  //!
+  //! @return true if quota set successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool SetQuotaForTag(const std::string& qpath,
+			     const std::string& quota_tag,
+			     long id, unsigned long long value);
+
+  //----------------------------------------------------------------------------
+  //! Remove all quota types for an id
+  //!
+  //! @param path quota node path
+  //! @param id uid or gid value depending on the id_type
+  //! @param id_type type of id, can be uid or gid
+  //! @param msg message returned to the client
+  //! @param retc error number returned to the client
+  //!
+  //! @return true if operation successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool RmQuotaForId(const std::string& path, long id,
+			   Quota::IdT id_type, std::string& msg, int& retc);
+
+  //----------------------------------------------------------------------------
+  //! Remove quota type for id
+  //!
+  //! @param qpath quota node path
+  //! @param id uid or gid value depending on the id_type
+  //! @param id_type type of id, can be uid or gid
+  //! @param quota_type type of quota to remove, can be inode or volume
+  //! @param msg message returned to the client
+  //! @param retc error number returned to the client
+  //!
+  //! @return true if operation successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool RmQuotaTypeForId(const std::string& qpath, long id,
+			       Quota::IdT id_type, Quota::Type quota_type,
+			       std::string& msg, int& retc);
+
+  //------------------------------------------------------------------------------
+  //! Remove quota specified by the quota tag
+  //!
+  //! @param qpath quota node path
+  //! @param quota_tag string representation of the SpaceQuota::eQuotaTag. From
+  //!                  this we can deduce the quota type and the id type.
+  //! @param id uid or gid value depending on the space_tag
+  //!
+  //! @return true if quota set successful, otherwise false
+  //------------------------------------------------------------------------------
+  static bool RmQuotaForTag(const std::string& space, const std::string& quota_stag,
+			    long id);
+
+  //----------------------------------------------------------------------------
+  //! Removes a quota node
+  //!
+  //! @param path quota node path to be removed
+  //! @param msg message returned to the client
+  //! @param retc error number returned to the client
+  //!
+  //! @return true if operation successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool RmSpaceQuota(std::string& path, std::string& msg, int& retc);
+
+  //----------------------------------------------------------------------------
+  //! Get group quota values for a particular path and id
+  //!
+  //! @param path quota node path
+  //! @param id uid/gid/projectid
+  //!
+  //! @return map between quota types and values. The map contains 4 entries
+  //!         corresponding to the following keys: kGroupBytesIs,
+  //!         kGroupBytesTarget, kGroupFilesIs and kGroupFilesTarget
+  //----------------------------------------------------------------------------
+  static std::map<int, unsigned long long>
+  GetGroupStatistics(const std::string& path, long id);
+
+  //----------------------------------------------------------------------------
+  //! Update SpaceQuota from the namespace quota only if the requested path is
+  //! actually a ns quota node. This also performs an update for the project
+  //! quota.
+  //!
+  //! @param path path
+  //! @param uid user id
+  //! @param gid group id
+  //!
+  //! @return true if update successful, otherwise it means that current path
+  //!         doesn't point to a ns quota node and return false.
+  //----------------------------------------------------------------------------
+  static bool UpdateFromNsQuota(const std::string& path, uid_t uid, gid_t gid);
+
+  //----------------------------------------------------------------------------
+  //! Check if the requested volume and inode values respect the quota
+  //!
+  //! @param path path
+  //! @param uid user id
+  //! @param gid group id
+  //! @param desired_vol desired space
+  //! @param desired_inodes desired number of inondes
+  //!
+  //! @return true if quota is respected, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Check(const std::string& path, uid_t uid, gid_t gid,
+		    long long desired_vol, unsigned int desired_inodes);
+
+  //----------------------------------------------------------------------------
+  //! Callback function to calculate how much pyhisical space a file occupies
+  //!
+  //! @param file file MD object
+  //!
+  //! @return physical size depending on file layout type
+  //----------------------------------------------------------------------------
+  static uint64_t MapSizeCB(const eos::IFileMD* file);
+
+  //----------------------------------------------------------------------------
+  //! Load function to initialize all SpaceQuota's with the quota node
+  //! definition from the namespace
+  //----------------------------------------------------------------------------
+  static void LoadNodes();
+
+  //----------------------------------------------------------------------------
+  //! Clean-up all space quotas by deleting them and clearing the map
+  //----------------------------------------------------------------------------
+  static void CleanUp();
+
+  //----------------------------------------------------------------------------
+  //! Print out quota information
+  //----------------------------------------------------------------------------
+  static void PrintOut(const std::string& path, XrdOucString& output,
+		       long uid_sel = -1, long gid_sel = -1,
+		       bool monitoring = false, bool translate_ids = false);
+
+  //----------------------------------------------------------------------------
+  //! Take the decision where to place a new file in the system. The core of the
+  //! implementation is in the Scheduler and GeoTreeEngine.
+  //!
+  //! @param space quota space name
+  //! @param path file path
+  //! @param vid virtual id of client
+  //! @param grouptag group tag for placement
+  //! @param lid layout to be placed
+  //! @param alreadyused_filsystems filesystems to avoid
+  //! @param selected_filesystems filesystems selected by scheduler
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
+  //! @param plctpolicy indicates if placement should be local/spread/hybrid
+  //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
+  //!                      should be placed
+  //! @param truncate indicates placement with truncation
+  //! @param forched_scheduling_group_index forced index for the scheduling
+  //!                      subgroup to be used
+  //! @param bookingsize size to book for the placement
+  //!
+  //! @return 0 if placement successful, otherwise a non-zero value
+  //!         ENOSPC - no space quota defined for current space
+  //!         EDQUOT - no quota node found or not enough quota to place
+  //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
+  //----------------------------------------------------------------------------
+  static
+  int FilePlacement(const std::string& space,
+		    const char* path,
+		    eos::common::Mapping::VirtualIdentity_t& vid,
+		    const char* grouptag,
+		    unsigned long lid,
+		    std::vector<unsigned int>& alreadyused_filesystems,
+		    std::vector<unsigned int>& selected_filesystems,
+            std::vector<std::string> *dataproxys,
+            std::vector<std::string> *firewallentpts,
+		    Scheduler::tPlctPolicy plctpolicy,
+		    const std::string& plctTrgGeotag,
+		    bool truncate = false,
+		    int forced_scheduling_group_index = -1,
+		    unsigned long long bookingsize = 1024 * 1024 * 1024ll);
+
+  //----------------------------------------------------------------------------
+  //! Take the decision from where to access a file. The core of the
+  //! implementation is in the Scheduler and GeoTreeEngine.
+  //!
+  //! @param vid virutal id of the client
+  //! @param focedfsid forced filesystem for access
+  //! @param forcedspace forced space for access
+  //! @param tried_cgi cgi containing already tried hosts
+  //! @param lid layout fo the file
+  //! @param locationsfs filesystem ids where layout is stored
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
+  //! @param fsindex return index pointing to layout entry filesystem
+  //! @param isRW indicate pure read or rd/wr access
+  //! @param bookingsize size to book additionally for rd/wr access
+  //! @param unavailfs return filesystems currently unavailable
+  //! @param min_fsstatus define minimum filesystem state to allow fs selection
+  //! @param overridegeoloc override geolocation defined in the virtual id
+  //! @param noIO don't apply the penalty as this file access won't result in
+  //!             any IO
+  //!
+  //! @return 0 if successful, otherwise a non-zero value
+  //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
+  //----------------------------------------------------------------------------
+  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
+			unsigned long forcedfsid,
+			const char* forcedspace,
+			std::string tried_cgi,
+			unsigned long lid,
+			std::vector<unsigned int>& locationsfs,
+                        std::vector<std::string> *dataproxys,
+                        std::vector<std::string> *firewallentpts,
+			unsigned long& fsindex,
+			bool isRW,
+			unsigned long long bookingsize,
+			std::vector<unsigned int>& unavailfs,
+			eos::common::FileSystem::fsstatus_t min_fsstatus =
+			eos::common::FileSystem::kDrain,
+			std::string overridegeoloc = "",
+			bool noIO = false);
+
+  static gid_t gProjectId; ///< gid indicating project quota
+  static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota
+
 private:
 
-public:
-  static std::map<std::string, SpaceQuota*> gQuota;
-  static eos::common::RWMutex gQuotaMutex;
+  //----------------------------------------------------------------------------
+  //! Get space quota object for exact path
+  //!
+  //! @param path path of the quota node
+  //!
+  //! @return SpaceQuota object
+  //----------------------------------------------------------------------------
+  static SpaceQuota* GetSpaceQuota(const std::string& path);
 
-  static SpaceQuota* GetSpaceQuota (const char* name, bool nocreate = false);
-  static SpaceQuota* GetResponsibleSpaceQuota (const char*path); // returns a space (+quota node), which is responsible for <path>
+  //----------------------------------------------------------------------------
+  //! Get space quota node responsible for path looking for the most specific
+  //! match.
+  //!
+  //! @param path path for which we search for a responsible space quotap
+  //!
+  //! @return SpaceQuota object
+  //----------------------------------------------------------------------------
+  static SpaceQuota* GetResponsibleSpaceQuota(const std::string& path);
 
-  Quota () { }
-
-  ~Quota () { };
-
-  void Recalculate ();
-
-  // builds a list with the names of all spaces
-  static int GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg);
-
-  static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes);
-
-  static void PrintOut (const char* space, XrdOucString &output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);
-
-  static bool SetQuota (XrdOucString space, long uid_sel, long gid_sel, long long bytes, long long files, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
-
-  static bool RmQuota (XrdOucString space, long uid_sel, long gid_sel, XrdOucString &msg, int &retc); // -1 means it is not set for all long/long long values
-
-  static bool RmSpaceQuota (XrdOucString space, XrdOucString &msg, int &retc); // removes a quota space/quota node
-
-  // callback function for the namespace implementation to calculate the size a file occupies
-  static uint64_t MapSizeCB (const eos::IFileMD *file);
-
-  // load function to initialize all SpaceQuota's with the quota node definition from the namespace
-  static void LoadNodes ();
-
-  // inserts the current state of the quota nodes into SpaceQuota's
-  static void NodesToSpaceQuota ();
-
-  // insert current state of a single quota node into a SpaceQuota
-  static void NodeToSpaceQuota (const char* name);
-
-  static gid_t gProjectId; //< gid indicating project quota
+  //! Map from path to SpaceQuota object
+  static std::map<std::string, SpaceQuota*> pMapQuota;
 };
 
 EOSMGMNAMESPACE_END

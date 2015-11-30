@@ -1104,10 +1104,10 @@ Stat::Circulate ()
     gOFS->eosViewRWMutex.ResetTimingStatistics();
 
     // quota lock statistics extraction
-    qu1tmp = Quota::gQuotaMutex.GetReadLockCounter();
-    qu2tmp = Quota::gQuotaMutex.GetWriteLockCounter();
-    Quota::gQuotaMutex.GetTimingStatistics(qu12stmp);
-    Quota::gQuotaMutex.ResetTimingStatistics();
+    qu1tmp = Quota::pMapMutex.GetReadLockCounter();
+    qu2tmp = Quota::pMapMutex.GetWriteLockCounter();
+    Quota::pMapMutex.GetTimingStatistics(qu12stmp);
+    Quota::pMapMutex.ResetTimingStatistics();
 #endif
     Add("HashSet", 0, 0, l1tmp - l1);
     Add("HashSetNoLock", 0, 0, l2tmp - l2);

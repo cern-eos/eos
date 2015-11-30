@@ -216,14 +216,6 @@
     }
     source_fs->SnapShotFileSystem(source_snapshot);
 
-    // ---------------------------------------------------------------------
-    // keep the lock order View=>Quota=>Namespace
-    // ---------------------------------------------------------------------
-    eos::common::RWMutexReadLock gLock(Quota::gQuotaMutex);
-    // ---------------------------------------------------------------------
-    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-    // ---------------------------------------------------------------------
-
     eos::IFsView::FileList source_filelist;
     eos::IFsView::FileList target_filelist;
 
@@ -297,354 +289,336 @@
           continue;
         }
         else
-        {
-          eos::IFileMD* fmd = 0;
-          unsigned long long cid = 0;
-          unsigned long long size = 0;
-          long unsigned int lid = 0;
-          uid_t uid = 0;
-          gid_t gid = 0;
-          std::string fullpath = "";
-          std::vector<unsigned int> locationfs;
-          try
+	{
+	  std::string fullpath = "";
+	  std::unique_ptr<eos::IFileMD> fmd_cpy;
+
+	  {
+	    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
+	    try
+	    {
+	      eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
+	      fullpath = gOFS->eosView->getUri(fmd);
+	      XrdOucString savepath = fullpath.c_str();
+	      while (savepath.replace("&", "#AND#")){}
+	      fullpath = savepath.c_str();
+	      fmd = gOFS->eosFileService->getFileMD(fid);
+	      fmd_cpy.reset(fmd->clone());
+	      fmd = (eos::IFileMD*)(0);
+	    }
+	    catch (eos::MDException &e)
+	    {
+	      fit++;
+	      continue;
+	    }
+	  }
+
+	  if (fmd_cpy.get() == 0)
           {
-            fmd = gOFS->eosFileService->getFileMD(fid);
-            fullpath = gOFS->eosView->getUri(fmd);
-	    XrdOucString savepath = fullpath.c_str();
-	    while (savepath.replace("&", "#AND#")){}
-	    fullpath = savepath.c_str();
-            fmd = gOFS->eosFileService->getFileMD(fid);
-            lid = fmd->getLayoutId();
-            cid = fmd->getContainerId();
-            size = fmd->getSize();
-            uid = fmd->getCUid();
-            gid = fmd->getCGid();
+	      fit++;
+	      continue;
+	  }
+
+	  std::vector<unsigned int> locationfs;
+	  long unsigned int lid = fmd_cpy->getLayoutId();
+	  unsigned long long cid = fmd_cpy->getContainerId();
+	  unsigned long long size = fmd_cpy->getSize();
+	  uid_t uid = fmd_cpy->getCUid();
+	  gid_t gid = fmd_cpy->getCGid();
 	    
-            eos::IFileMD::LocationVector::const_iterator lociter;
-            eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
-            for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
-            {
-              // ignore filesystem id 0
-              if ((*lociter))
-              {
-                if (source_snapshot.mId == *lociter)
-                {
-                  if (source_snapshot.mConfigStatus == eos::common::FileSystem::kDrain)
-                  {
-                    // only add filesystems which are not in drain dead to the possible locations
-                    locationfs.push_back(*lociter);
-                  }
-                }
-                else
-                {
-                  locationfs.push_back(*lociter);
-                }
-              }
-            }
-          }
-          catch (eos::MDException &e)
+	  eos::IFileMD::LocationVector::const_iterator lociter;
+	  eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
+	  for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
           {
-            fmd = 0;
-          }
-
-          if (fmd)
-          {
-            XrdOucString fullcapability = "";
-            XrdOucString hexfid = "";
-
-            if (((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
-                (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ||
-                (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6)) &&
-                source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead)
+	    // ignore filesystem id 0
+	    if ((*lociter))
             {
-              // -----------------------------------------------------------
-              // RAIN layouts (not replica) drain by running a
-              // reconstruction 'eoscp -c' ... if they are in draindead
-              // they are easy to configure, they just call an open with
-              // reconstruction/replacement option and the real scheduling
-              // is done when 'eoscp' is executed.
-              // -----------------------------------------------------------
-              eos_thread_info(
-                              "msg=\"creating RAIN reconstruction job\" path=%s", fullpath.c_str()
-                              );
-
-              fullcapability += "source.url=root://";
-              fullcapability += gOFS->ManagerId;
-              fullcapability += "/";
-              fullcapability += fullpath.c_str();
-              fullcapability += "&target.url=/dev/null";
-              XrdOucString source_env;
-              source_env = "eos.pio.action=reconstruct&";
-              source_env += "eos.pio.recfs=";
-              source_env += (int) source_snapshot.mId;
-              fullcapability += "&source.env=";
-              fullcapability += XrdMqMessage::Seal(source_env, "_AND_");
-              fullcapability += "&tx.layout.reco=true";
-            }
-            else
-            {
-              // -----------------------------------------------------------
-              // Plain/replica layouts get source/target scheduled here
-              // -----------------------------------------------------------
-
-              XrdOucString sizestring = "";
-              long unsigned int fsindex = 0;
-
-              // get the responsible quota space
-              SpaceQuota* space = Quota::GetSpaceQuota(source_snapshot.mSpace.c_str(), false);
-              if (space)
+	      if (source_snapshot.mId == *lociter)
               {
-                eos_thread_debug("space=%s", space->GetSpaceName());
-              }
-              else
-              {
-                eos_thread_err("cmd=schedule2drain msg=\"no responsible space for |%s|\"", source_snapshot.mSpace.c_str());
-              }
-
-              // schedule access to that file with the original layout
-              int retc = 0;
-              std::vector<unsigned int> unavailfs; // not used
-              eos::common::Mapping::VirtualIdentity_t h_vid;
-              eos::common::Mapping::Root(h_vid);
-
-              if (((eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaidDP) &&
-                  (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive) &&
-                  (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)))
-              {
-                // exclude another scheduling for RAIN files - there is no alternitive location here
-		std::string tried_cgi;
-                if ((!space) || (retc = space->FileAccess(h_vid,
-                                                          (long unsigned int) 0,
-                                                          (const char*) 0,
-							  tried_cgi,
-                                                          lid,
-                                                          locationfs,
-                                                          NULL,NULL,
-                                                          fsindex,
-                                                          false,
-                                                          (long long unsigned) 0,
-                                                          unavailfs)))
+		if (source_snapshot.mConfigStatus == eos::common::FileSystem::kDrain)
                 {
-                  // inaccessible files we let retry after 60 seconds
-                  eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);
-                  ScheduledToDrainFid[fid] = time(NULL) + 60;
-                  // try with next file
-                  fit++;
-                  continue;
-                }
-              }
-
-              if ((size < freebytes))
-              {
-                eos::common::FileSystem* replica_source_fs = 0;
-                replica_source_fs = FsView::gFsView.mIdView[locationfs[fsindex]];
-                if (!replica_source_fs)
-                {
-                  fit++;
-                  continue;
-                }
-                replica_source_fs->SnapShotFileSystem(replica_source_snapshot);
-
-                // we can schedule fid from replica_source => target_it
-                eos_thread_info("cmd=schedule2drain subcmd=scheduling fid=%llx drain_fsid=%u replica_source_fsid=%u target_fsid=%u", fid, source_fsid, locationfs[fsindex], target_fsid);
-
-                XrdOucString replica_source_capability = "";
-                XrdOucString sizestring;
-                replica_source_capability += "mgm.access=read";
-                replica_source_capability += "&mgm.lid=";
-                replica_source_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) lid & 0xffffff0f);
-                // make's it a plain replica
-                replica_source_capability += "&mgm.cid=";
-                replica_source_capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
-                replica_source_capability += "&mgm.ruid=";
-                replica_source_capability += (int) 1;
-                replica_source_capability += "&mgm.rgid=";
-                replica_source_capability += (int) 1;
-                replica_source_capability += "&mgm.uid=";
-                replica_source_capability += (int) 1;
-                replica_source_capability += "&mgm.gid=";
-                replica_source_capability += (int) 1;
-                replica_source_capability += "&mgm.path=";
-                replica_source_capability += fullpath.c_str();
-                replica_source_capability += "&mgm.manager=";
-                replica_source_capability += gOFS->ManagerId.c_str();
-                replica_source_capability += "&mgm.fid=";
-
-                eos::common::FileId::Fid2Hex(fid, hexfid);
-                replica_source_capability += hexfid;
-
-                replica_source_capability += "&mgm.sec=";
-                replica_source_capability += eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
-
-                replica_source_capability += "&mgm.drainfsid=";
-                replica_source_capability += (int) source_fsid;
-
-                // build the replica_source_capability contents
-                replica_source_capability += "&mgm.localprefix=";
-                replica_source_capability += replica_source_snapshot.mPath.c_str();
-                replica_source_capability += "&mgm.fsid=";
-                replica_source_capability += (int) replica_source_snapshot.mId;
-                replica_source_capability += "&mgm.sourcehostport=";
-                replica_source_capability += replica_source_snapshot.mHostPort.c_str();
-
-                XrdOucString target_capability = "";
-                target_capability += "mgm.access=write";
-                target_capability += "&mgm.lid=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) lid & 0xffffff0f);
-                // make's it a plain replica
-                target_capability += "&mgm.source.lid=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) lid);
-                target_capability += "&mgm.source.ruid=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) uid);
-                target_capability += "&mgm.source.rgid=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) gid);
-
-                target_capability += "&mgm.cid=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
-                target_capability += "&mgm.ruid=";
-                target_capability += (int) 1;
-                target_capability += "&mgm.rgid=";
-                target_capability += (int) 1;
-                target_capability += "&mgm.uid=";
-                target_capability += (int) 1;
-                target_capability += "&mgm.gid=";
-                target_capability += (int) 1;
-                target_capability += "&mgm.path=";
-                target_capability += fullpath.c_str();
-                target_capability += "&mgm.manager=";
-                target_capability += gOFS->ManagerId.c_str();
-                target_capability += "&mgm.fid=";
-                target_capability += hexfid;
-                target_capability += "&mgm.sec=";
-                target_capability += eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
-
-                target_capability += "&mgm.drainfsid=";
-                target_capability += (int) source_fsid;
-
-                // build the target_capability contents
-                target_capability += "&mgm.localprefix=";
-                target_capability += target_snapshot.mPath.c_str();
-                target_capability += "&mgm.fsid=";
-                target_capability += (int) target_snapshot.mId;
-                target_capability += "&mgm.targethostport=";
-                target_capability += target_snapshot.mHostPort.c_str();
-                target_capability += "&mgm.bookingsize=";
-                target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);
-                // issue a replica_source_capability
-                XrdOucEnv insource_capability(replica_source_capability.c_str());
-                XrdOucEnv intarget_capability(target_capability.c_str());
-                XrdOucEnv* source_capabilityenv = 0;
-                XrdOucEnv* target_capabilityenv = 0;
-                eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-
-                int caprc = 0;
-                if ((caprc = gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
-                    (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey)))
-                {
-                  eos_thread_err("unable to create source/target capability - errno=%u", caprc);
-                  gOFS->MgmStats.Add("SchedulingFailedDrain", 0, 0, 1);
-                  return Emsg(epname, error, caprc, "create source/target capability [EADV]");
-                }
-                else
-                {
-                  int caplen = 0;
-                  XrdOucString source_cap = source_capabilityenv->Env(caplen);
-                  XrdOucString target_cap = target_capabilityenv->Env(caplen);
-                  source_cap.replace("cap.sym", "source.cap.sym");
-                  target_cap.replace("cap.sym", "target.cap.sym");
-                  source_cap.replace("cap.msg", "source.cap.msg");
-                  target_cap.replace("cap.msg", "target.cap.msg");
-                  source_cap += "&source.url=root://";
-                  source_cap += replica_source_snapshot.mHostPort.c_str();
-                  source_cap += "//replicate:";
-                  source_cap += hexfid;
-                  target_cap += "&target.url=root://";
-                  target_cap += target_snapshot.mHostPort.c_str();
-                  target_cap += "//replicate:";
-                  target_cap += hexfid;
-                  fullcapability += source_cap;
-                  fullcapability += target_cap;
-                }
-
-                if (source_capabilityenv)
-                  delete source_capabilityenv;
-                if (target_capabilityenv)
-                  delete target_capabilityenv;
-              }
-              else
-              {
-                fit++;
-                continue;
-              }
-            }
-
-            eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
-
-            if (!simulate)
-            {
-              if (!size)
-              {
-                // this is a zero size file, we just move the location by adding it to the static move map
-                eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
-                XrdSysMutexHelper zLock(sZeroMoveMutex);
-                sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
-                if (txjob)
-                  delete txjob;
-                // try to find another one to hand out
-                fit++;
-                continue;
-              }
-              else
-              {
-		if ( fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos) 
-		{
-		  // if we need to drain a left-over atomic file we just drop it
-		  eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
-		  XrdSysMutexHelper zLock(sZeroMoveMutex);
-		  sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
-		  if (txjob)
-		    delete txjob;
-		  // try to find another one to hand out
-		  fit++;
-		  continue;
+		  // only add filesystems which are not in drain dead to the possible locations
+		  locationfs.push_back(*lociter);
 		}
+	      }
+	      else
+              {
+		locationfs.push_back(*lociter);
+	      }
+	    }
+	  }
 
-                if (target_fs->GetDrainQueue()->Add(txjob))
-                {
-                  eos_thread_info("cmd=schedule2drain msg=queued fid=%x source_fs=%u target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
-                  eos_thread_debug("cmd=schedule2drain job=%s", fullcapability.c_str());
+	  XrdOucString fullcapability = "";
+	  XrdOucString hexfid = "";
 
-                  if (!simulate)
-                  {
-                    // this file fits
-                    ScheduledToDrainFid[fid] = time(NULL) + 3600;
-                  }
-
-                  // send submitted response
-                  XrdOucString response = "submitted";
-                  error.setErrInfo(response.length() + 1, response.c_str());
-                }
-                else
-                {
-                  eos_thread_err("cmd=schedule2drain msg=\"failed to submit job\" job=%s", fullcapability.c_str());
-                  error.setErrInfo(0, "");
-                }
-              }
-            }
-
-            if (txjob)
-            {
-              delete txjob;
-            }
-            gOFS->MgmStats.Add("Scheduled2Drain", 0, 0, 1);
-            EXEC_TIMING_END("Scheduled2Drain");
-            return SFS_DATA;
-          }
-          else
+	  if (((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaidDP) ||
+	       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kArchive) ||
+	       (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kRaid6)) &&
+	      source_snapshot.mConfigStatus == eos::common::FileSystem::kDrainDead)
           {
-            fit++;
-            continue;
-          }
+	    // -----------------------------------------------------------
+	    // RAIN layouts (not replica) drain by running a
+	    // reconstruction 'eoscp -c' ... if they are in draindead
+	    // they are easy to configure, they just call an open with
+	    // reconstruction/replacement option and the real scheduling
+	    // is done when 'eoscp' is executed.
+	    // -----------------------------------------------------------
+	    eos_thread_info("msg=\"creating RAIN reconstruction job\" path=%s",
+			    fullpath.c_str());
+
+	    fullcapability += "source.url=root://";
+	    fullcapability += gOFS->ManagerId;
+	    fullcapability += "/";
+	    fullcapability += fullpath.c_str();
+	    fullcapability += "&target.url=/dev/null";
+	    XrdOucString source_env;
+	    source_env = "eos.pio.action=reconstruct&";
+	    source_env += "eos.pio.recfs=";
+	    source_env += (int) source_snapshot.mId;
+	    fullcapability += "&source.env=";
+	    fullcapability += XrdMqMessage::Seal(source_env, "_AND_");
+	    fullcapability += "&tx.layout.reco=true";
+	  }
+	  else
+          {
+	    // Plain/replica layouts get source/target scheduled here
+	    XrdOucString sizestring = "";
+	    long unsigned int fsindex = 0;
+
+	    // Schedule access to that file with the original layout
+	    int retc = 0;
+	    std::vector<unsigned int> unavailfs; // not used
+	    eos::common::Mapping::VirtualIdentity_t h_vid;
+	    eos::common::Mapping::Root(h_vid);
+
+	    // Exclude another scheduling for RAIN files - there is no alternitive location here
+	    if (((eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaidDP) &&
+		 (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive) &&
+		 (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)))
+            {
+	      std::string tried_cgi;
+	      if (Quota::FileAccess(h_vid, (long unsigned int) 0, (const char*) 0,
+				    tried_cgi, lid, locationfs, NULL, NULL, fsindex,
+				    false, (long long unsigned) 0, unavailfs))
+              {
+		// inaccessible files we retry after 60 seconds
+		eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);
+		ScheduledToDrainFid[fid] = time(NULL) + 60;
+		// try with next file
+		fit++;
+		continue;
+	      }
+	    }
+
+	    if (size < freebytes)
+            {
+	      eos::common::FileSystem* replica_source_fs = 0;
+	      replica_source_fs = FsView::gFsView.mIdView[locationfs[fsindex]];
+
+	      if (!replica_source_fs)
+              {
+		fit++;
+		continue;
+	      }
+	      replica_source_fs->SnapShotFileSystem(replica_source_snapshot);
+
+	      // we can schedule fid from replica_source => target_it
+	      eos_thread_info("cmd=schedule2drain subcmd=scheduling fid=%llx "
+			      "drain_fsid=%u replica_source_fsid=%u target_fsid=%u",
+			      fid, source_fsid, locationfs[fsindex], target_fsid);
+
+	      XrdOucString replica_source_capability = "";
+	      XrdOucString sizestring;
+	      replica_source_capability += "mgm.access=read";
+	      replica_source_capability += "&mgm.lid=";
+	      replica_source_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) lid & 0xffffff0f);
+	      // make's it a plain replica
+	      replica_source_capability += "&mgm.cid=";
+	      replica_source_capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
+	      replica_source_capability += "&mgm.ruid=";
+	      replica_source_capability += (int) 1;
+	      replica_source_capability += "&mgm.rgid=";
+	      replica_source_capability += (int) 1;
+	      replica_source_capability += "&mgm.uid=";
+	      replica_source_capability += (int) 1;
+	      replica_source_capability += "&mgm.gid=";
+	      replica_source_capability += (int) 1;
+	      replica_source_capability += "&mgm.path=";
+	      replica_source_capability += fullpath.c_str();
+	      replica_source_capability += "&mgm.manager=";
+	      replica_source_capability += gOFS->ManagerId.c_str();
+	      replica_source_capability += "&mgm.fid=";
+
+	      eos::common::FileId::Fid2Hex(fid, hexfid);
+	      replica_source_capability += hexfid;
+	      replica_source_capability += "&mgm.sec=";
+	      replica_source_capability += eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
+	      replica_source_capability += "&mgm.drainfsid=";
+	      replica_source_capability += (int) source_fsid;
+
+               // build the replica_source_capability contents
+	      replica_source_capability += "&mgm.localprefix=";
+	      replica_source_capability += replica_source_snapshot.mPath.c_str();
+	      replica_source_capability += "&mgm.fsid=";
+	      replica_source_capability += (int) replica_source_snapshot.mId;
+	      replica_source_capability += "&mgm.sourcehostport=";
+	      replica_source_capability += replica_source_snapshot.mHostPort.c_str();
+
+	      XrdOucString target_capability = "";
+	      target_capability += "mgm.access=write";
+	      target_capability += "&mgm.lid=";
+	      target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) lid & 0xffffff0f);
+	      // make's it a plain replica
+	      target_capability += "&mgm.source.lid=";
+	      target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) lid);
+	      target_capability += "&mgm.source.ruid=";
+	      target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) uid);
+	      target_capability += "&mgm.source.rgid=";
+	      target_capability += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) gid);
+	      target_capability += "&mgm.cid=";
+	      target_capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
+	      target_capability += "&mgm.ruid=";
+	      target_capability += (int) 1;
+	      target_capability += "&mgm.rgid=";
+	      target_capability += (int) 1;
+	      target_capability += "&mgm.uid=";
+	      target_capability += (int) 1;
+	      target_capability += "&mgm.gid=";
+	      target_capability += (int) 1;
+	      target_capability += "&mgm.path=";
+	      target_capability += fullpath.c_str();
+	      target_capability += "&mgm.manager=";
+	      target_capability += gOFS->ManagerId.c_str();
+	      target_capability += "&mgm.fid=";
+	      target_capability += hexfid;
+	      target_capability += "&mgm.sec=";
+	      target_capability += eos::common::SecEntity::ToKey(0, "eos/draining").c_str();
+	      target_capability += "&mgm.drainfsid=";
+	      target_capability += (int) source_fsid;
+
+	      // build the target_capability contents
+	      target_capability += "&mgm.localprefix=";
+	      target_capability += target_snapshot.mPath.c_str();
+	      target_capability += "&mgm.fsid=";
+	      target_capability += (int) target_snapshot.mId;
+	      target_capability += "&mgm.targethostport=";
+	      target_capability += target_snapshot.mHostPort.c_str();
+	      target_capability += "&mgm.bookingsize=";
+	      target_capability += eos::common::StringConversion::GetSizeString(sizestring, size);
+	      // issue a replica_source_capability
+	      XrdOucEnv insource_capability(replica_source_capability.c_str());
+	      XrdOucEnv intarget_capability(target_capability.c_str());
+	      XrdOucEnv* source_capabilityenv = 0;
+	      XrdOucEnv* target_capabilityenv = 0;
+	      eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+	      int caprc = 0;
+
+	      if ((caprc = gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
+		  (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey)))
+              {
+		eos_thread_err("unable to create source/target capability - errno=%u", caprc);
+		gOFS->MgmStats.Add("SchedulingFailedDrain", 0, 0, 1);
+		return Emsg(epname, error, caprc, "create source/target capability [EADV]");
+	      }
+              else
+	      {
+		int caplen = 0;
+		XrdOucString source_cap = source_capabilityenv->Env(caplen);
+		XrdOucString target_cap = target_capabilityenv->Env(caplen);
+		source_cap.replace("cap.sym", "source.cap.sym");
+		target_cap.replace("cap.sym", "target.cap.sym");
+		source_cap.replace("cap.msg", "source.cap.msg");
+		target_cap.replace("cap.msg", "target.cap.msg");
+		source_cap += "&source.url=root://";
+		source_cap += replica_source_snapshot.mHostPort.c_str();
+		source_cap += "//replicate:";
+		source_cap += hexfid;
+		target_cap += "&target.url=root://";
+		target_cap += target_snapshot.mHostPort.c_str();
+		target_cap += "//replicate:";
+		target_cap += hexfid;
+		fullcapability += source_cap;
+		fullcapability += target_cap;
+	      }
+
+	      if (source_capabilityenv)
+		delete source_capabilityenv;
+	      if (target_capabilityenv)
+		delete target_capabilityenv;
+	    }
+	    else
+            {
+	      fit++;
+	      continue;
+	    }
+	  }
+
+	  eos::common::TransferJob* txjob = new eos::common::TransferJob(fullcapability.c_str());
+
+	  if (!simulate)
+          {
+	    if (!size)
+            {
+	      // this is a zero size file, we just move the location by adding it to the static move map
+	      eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x source_fs=%u "
+			      "target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+	      XrdSysMutexHelper zLock(sZeroMoveMutex);
+	      sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
+	      if (txjob)
+		delete txjob;
+	      // try to find another one to hand out
+	      fit++;
+	      continue;
+	    }
+	    else
+            {
+	      if (fullpath.find(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) != std::string::npos)
+	      {
+		// if we need to drain a left-over atomic file we just drop it
+		eos_thread_info("cmd=schedule2drain msg=zero-move fid=%x "
+				"source_fs=%u target_fs=%u", hexfid.c_str(),
+				source_fsid, target_fsid);
+		XrdSysMutexHelper zLock(sZeroMoveMutex);
+		sZeroMove[fid] = std::make_pair(source_fsid, target_fsid);
+		if (txjob)
+		  delete txjob;
+		// try to find another one to hand out
+		fit++;
+		continue;
+	      }
+
+	      if (target_fs->GetDrainQueue()->Add(txjob))
+              {
+		eos_thread_info("cmd=schedule2drain msg=queued fid=%x source_fs=%u "
+				"target_fs=%u", hexfid.c_str(), source_fsid, target_fsid);
+		eos_thread_debug("cmd=schedule2drain job=%s", fullcapability.c_str());
+
+		if (!simulate)
+                {
+		  // this file fits
+		  ScheduledToDrainFid[fid] = time(NULL) + 3600;
+		}
+		
+		// send submitted response
+		XrdOucString response = "submitted";
+		error.setErrInfo(response.length() + 1, response.c_str());
+	      }
+	      else
+              {
+		eos_thread_err("cmd=schedule2drain msg=\"failed to submit job\""
+			       " job=%s", fullcapability.c_str());
+		error.setErrInfo(0, "");
+	      }
+	    }
+	  }
+
+	  if (txjob)
+	    delete txjob;
+
+	  gOFS->MgmStats.Add("Scheduled2Drain", 0, 0, 1);
+	  EXEC_TIMING_END("Scheduled2Drain");
+	  return SFS_DATA;
         }
       }
     }

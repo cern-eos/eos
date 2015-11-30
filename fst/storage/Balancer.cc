@@ -31,8 +31,7 @@ EOSFSTNAMESPACE_BEGIN
 void
 Storage::GetBalanceSlotVariables (unsigned long long &nparalleltx,
                                   unsigned long long &ratetx,
-                                  std::string nodeconfigqueue,
-                                  std::string &manager
+                                  std::string nodeconfigqueue
                                   )
 /*----------------------------------------------------------------------------*/
 /**
@@ -46,7 +45,7 @@ Storage::GetBalanceSlotVariables (unsigned long long &nparalleltx,
   gOFS.ObjectManager.HashMutex.LockRead();
 
   XrdMqSharedHash* confighash = gOFS.ObjectManager.GetHash(nodeconfigqueue.c_str());
-  manager = confighash ? confighash->Get("manager") : "unknown";
+  std::string manager = confighash ? confighash->Get("manager") : "unknown";
   nparalleltx = confighash ? confighash->GetLongLong("stat.balance.ntx") : 0;
   ratetx = confighash ? confighash->GetLongLong("stat.balance.rate") : 0;
 
@@ -251,12 +250,11 @@ Storage::GetFileSystemInBalanceMode (std::vector<unsigned int> &balancefsvector,
 
 /*----------------------------------------------------------------------------*/
 bool
-Storage::GetBalanceJob (unsigned int index, std::string manager)
+Storage::GetBalanceJob (unsigned int index)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief get a balance job for the filesystem in the filesystem vector with index
  * @param index index in the filesystem vector
- * @param manger to call
  * @return true if scheduled otherwise false
  */
 /*----------------------------------------------------------------------------*/
@@ -282,7 +280,7 @@ Storage::GetBalanceJob (unsigned int index, std::string manager)
   XrdOucString response = "";
   int rc = gOFS.CallManager(&error,
                             "/",
-                            manager.c_str(),
+                            0,
                             managerQuery,
                             &response);
   if (rc)
@@ -318,7 +316,6 @@ Storage::Balancer ()
   eos_static_info("Start Balancer ...");
 
   std::string nodeconfigqueue = "";
-  std::string manager = "";
   unsigned long long nparalleltx = 0;
   unsigned long long ratetx = 0;
   unsigned long long nscheduled = 0;
@@ -357,7 +354,7 @@ Storage::Balancer ()
 
     while (!nparalleltx)
     {
-      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = time(NULL);
       XrdSysTimer sleeper;
       sleeper.Snooze(10);
@@ -369,7 +366,7 @@ Storage::Balancer ()
     // -------------------------------------------------------------------------
     if (!last_config_update || ( ((long long)now-(long long)last_config_update) > 60) )
     {
-      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue, manager);
+      GetBalanceSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = now;
     }
 
@@ -445,7 +442,7 @@ Storage::Balancer ()
             // ---------------------------------------------------------------------
             // try to get a balancejob for the indexed filesystem
             // ---------------------------------------------------------------------
-            if (GetBalanceJob(balancefsindex[i], manager))
+            if (GetBalanceJob(balancefsindex[i]))
             {
               balancefsindexSchedulingTime[balancefsindex[i]] = 0;
               totalscheduled++;

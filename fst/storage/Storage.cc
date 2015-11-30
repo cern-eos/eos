@@ -334,7 +334,7 @@ Storage::Boot (FileSystem *fs)
   // test if we have rw access
   struct stat buf;
   if (::stat(fs->GetPath().c_str(), &buf) ||
-      (buf.st_uid != geteuid()) ||
+      (buf.st_uid != 2) ||
       ((buf.st_mode & S_IRWXU) != S_IRWXU))
   {
 
@@ -343,7 +343,7 @@ Storage::Boot (FileSystem *fs)
       errno = EPERM;
     }
 
-    if (buf.st_uid != geteuid())
+    if (buf.st_uid != 2)
     {
       errno = ENOTCONN;
     }
@@ -485,7 +485,7 @@ Storage::Boot (FileSystem *fs)
     }
   }
 
-  if (chown(transactionDirectory.c_str(), geteuid(), getegid()))
+  if (chown(transactionDirectory.c_str(), 2, 2))
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(errno ? errno : EIO, "cannot change ownership of transactiondirectory");

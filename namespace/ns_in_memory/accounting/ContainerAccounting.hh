@@ -17,37 +17,41 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   The filesystem view over the stored files
+//! @author Andreas-Joachim Peters <apeters@cern.ch>
+//! @brief Container subtree accounting
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_FILESYSTEM_VIEW_HH
-#define EOS_NS_FILESYSTEM_VIEW_HH
+#ifndef EOS_NS_CONTAINER_ACCOUNTING_HH
+#define EOS_NS_CONTAINER_ACCOUNTING_HH
 
+#include "namespace/interface/IContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_in_memory/ContainerMD.hh"
+#include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
-#include "namespace/interface/IFsView.hh"
 #include <utility>
+#include <list>
+#include <deque>
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// File System view implementation of a in-memeory namespace
+//! Container subtree accounting listener
 //------------------------------------------------------------------------------
-class FileSystemView: public IFsView
+class ContainerAccounting : public IFileMDChangeListener
 {
  public:
 
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileSystemView();
+  ContainerAccounting(IContainerMDSvc* svc);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView() {}
-
+  virtual ~ContainerAccounting() {}
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -57,62 +61,22 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj);
-
-  //----------------------------------------------------------------------------
-  //! Return reference to a list of files
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  const FileList& getFileList(IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
-  //! Return reference to a list of unlinked files
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  const FileList& getUnlinkedFileList(IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
-  //! Get number of file systems
-  //----------------------------------------------------------------------------
-  size_t getNumFileSystems() const
-  {
-    return pFiles.size();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  FileList& getNoReplicasFileList()
-  {
-    return pNoReplicas;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get list of files without replicas
-  //! BEWARE: any replica change may invalidate iterators
-  //----------------------------------------------------------------------------
-  const FileList& getNoReplicasFileList() const
-  {
-    return pNoReplicas;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Initizalie
-  //----------------------------------------------------------------------------
-  void initialize();
-
-  //----------------------------------------------------------------------------
-  //! Finalize
-  //----------------------------------------------------------------------------
-  void finalize();
+  virtual void fileMDRead(IFileMD* obj) {}
 
  private:
-  std::vector<FileList> pFiles;
-  std::vector<FileList> pUnlinkedFiles;
-  FileList              pNoReplicas;
+
+  IContainerMDSvc* pContainerMDSvc; ///< container MD service
+
+  //----------------------------------------------------------------------------
+  //! Account a file in the respective container
+  //!
+  //! @param obj file meta-data object
+  //! @param dsize size change
+  //----------------------------------------------------------------------------
+  void Account(IFileMD* obj , int64_t dsize);
+
 };
 
 EOSNSNAMESPACE_END
 
-#endif // EOS_NS_FILESYSTEM_VIEW_HH
+#endif

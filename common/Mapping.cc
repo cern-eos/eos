@@ -756,7 +756,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
   {
     vid.uid = sel_uid;
     vid.gid = sel_gid;
-    if (ruid.length() || rgid.length()) 
+    if (ruid.length() || rgid.length())
     {
       if (!eos::common::Mapping::HasGid(sel_gid, vid))
         vid.gid_list.push_back(sel_gid);
@@ -777,7 +777,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
     vid.gid_string = GidToGroupName(vid.gid, errc);
   }
 
-  if (rapp.length()) 
+  if (rapp.length())
   {
     vid.app = rapp.c_str();
   }
@@ -810,7 +810,7 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
          // if we have a previously matched geoloc and if it's longer that the current one, try the next one
          if(longuestmatch != gGeoMap.end() && it->first.length() <= longuestmatch->first.length())
            continue;
-         if(sipstring.compare(0,it->first.length(),it->first)==0) 
+         if(sipstring.compare(0,it->first.length(),it->first)==0)
          {
            vid.geolocation = it->second;
            longuestmatch = it;
@@ -1108,7 +1108,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       // -------------------------------------------------------------------------
       // check if name is a 8 digit hex number indication <uid-hex><gid-hex>
       // -------------------------------------------------------------------------
-      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);     
+      unsigned long long hexid = strtoull(sname.c_str(), 0, 16);
       char rhexid[16];
       bool known_tident = false;
 
@@ -1116,7 +1116,7 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
       eos_static_debug("hexname=%s hexid=%llu name=%s", rhexid, hexid, name);
       if (sname == rhexid)
       {
-	known_tident = true;
+        known_tident = true;
         // that is a hex id
         XrdOucString suid = sname;
         suid.erase(4);
@@ -1127,49 +1127,49 @@ Mapping::getPhysicalIds (const char* name, VirtualIdentity & vid)
         eos_static_debug("using hexmapping %s %d %d", sname.c_str(), id->uid, id->gid);
       }
 
-      if (sname.beginswith("*")) 
+      if (sname.beginswith("*"))
       {
-	known_tident = true;
-	// that is a new base-64 encoded id following the format '*1234567'
+        known_tident = true;
+        // that is a new base-64 encoded id following the format '*1234567'
         // where 1234567 is the base64 encoded 42-bit value of 20-bit uid |
         // 16-bit gid | 6-bit session id.
-	XrdOucString b64name = sname;
-	b64name.erase(0,1);
+        XrdOucString b64name = sname;
+        b64name.erase(0,1);
 
         // Decoden '_' -> '/', '-' -> '+' that was done to ensure the validity
         // of the XRootD URL.
         b64name.replace('_', '/');
         b64name.replace('-','+');
-	b64name += "=";
-	unsigned long long bituser=0;
-	char* out=0;
-	unsigned int outlen;
-	if (eos::common::SymKey::Base64Decode (b64name, out, outlen))
-	{
-	  if (outlen <= 8) {
-	    memcpy( (((char*)&bituser))+8-outlen,out,outlen);
-	    eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx", bituser, n_tohll(bituser));
-	  }
-	  else
-	  {
-	    eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d",outlen);
-	    return ;
-	  }
-
-	  bituser = n_tohll(bituser);
-	  if (out)
-	    free(out);
-	  id  = new id_pair( (bituser >> 22 ) & 0xfffff, (bituser>>6) & 0xffff);
-	  eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid, id->gid);
-	}
-	else 
+        b64name += "=";
+        unsigned long long bituser=0;
+        char* out=0;
+        unsigned int outlen;
+        if (eos::common::SymKey::Base64Decode (b64name, out, outlen))
         {
-	  eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s", sname.c_str());
-	  return;
-	}
+          if (outlen <= 8) {
+            memcpy( (((char*)&bituser))+8-outlen,out,outlen);
+            eos_static_debug("msg=\"decoded base-64 uid/gid/sid\" val=%llx val=%llx", bituser, n_tohll(bituser));
+          }
+          else
+          {
+            eos_static_err("msg=\"decoded base-64 uid/gid/sid too long\" len=%d",outlen);
+            return ;
+          }
+
+          bituser = n_tohll(bituser);
+          if (out)
+            free(out);
+          id  = new id_pair( (bituser >> 22 ) & 0xfffff, (bituser>>6) & 0xffff);
+          eos_static_debug("using base64 mapping %s %d %d", sname.c_str(), id->uid, id->gid);
+        }
+        else
+        {
+          eos_static_err("msg=\"failed to decoded base-64 uid/gid/sid\" id=%s", sname.c_str());
+          return;
+        }
       }
 
-      if (known_tident) 
+      if (known_tident)
       {
         if (!id->uid || !id->gid)
         {
@@ -1292,37 +1292,35 @@ Mapping::UidToUserName (uid_t uid, int &errc)
   errc = 0;
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+
     if (gPhysicalUserNameCache.count(uid))
-    {
       return gPhysicalUserNameCache[uid];
-    }
   }
 
+  char buffer[131072];
+  int buflen = sizeof (buffer);
+  std::string uid_string = "";
+  struct passwd pwbuf;
+  struct passwd *pwbufp = 0;
+  (void) getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp);
+
+  if (pwbufp == NULL)
   {
-    char buffer[131072];
-    int buflen = sizeof (buffer);
-    std::string uid_string = "";
-    struct passwd pwbuf;
-    struct passwd *pwbufp = 0;
-    {
-      if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
-      {
-        char suid[1024];
-        snprintf(suid, sizeof (suid) - 1, "%u", uid);
-        uid_string = suid;
-        errc = EINVAL;
-      }
-      else
-      {
-        uid_string = pwbuf.pw_name;
-        errc = 0;
-      }
-    }
-    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-    gPhysicalUserNameCache[uid] = uid_string;
-    gPhysicalUserIdCache[uid_string] = uid;
-    return uid_string;
+    char suid[1024];
+    snprintf(suid, sizeof (suid) - 1, "%u", uid);
+    uid_string = suid;
+    errc = EINVAL;
   }
+  else
+  {
+    uid_string = pwbuf.pw_name;
+    errc = 0;
+  }
+
+  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+  gPhysicalUserNameCache[uid] = uid_string;
+  gPhysicalUserIdCache[uid_string] = uid;
+  return uid_string;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1388,14 +1386,13 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
 
 /*----------------------------------------------------------------------------*/
 uid_t
-Mapping::UserNameToUid (std::string &username, int &errc)
+Mapping::UserNameToUid (const std::string &username, int &errc)
 {
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+
     if (gPhysicalUserIdCache.count(username))
-    {
       return gPhysicalUserIdCache[username];
-    }
   }
 
   char buffer[131072];
@@ -1404,13 +1401,12 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   struct passwd pwbuf;
   struct passwd *pwbufp = 0;
   errc = 0;
-  {
-    getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
-  }
+  (void) getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
 
-  if (!pwbufp)
+  if (pwbufp == NULL)
   {
     bool is_number = true;
+
     for (size_t i = 0; i < username.length(); i++)
     {
       if (!isdigit(username[i]))
@@ -1420,18 +1416,21 @@ Mapping::UserNameToUid (std::string &username, int &errc)
       }
     }
 
-    uid = atoi(username.c_str());
-    if ((uid != 0) && (is_number))
+    if (is_number)
+    {
+      uid = atoi(username.c_str());
       errc = 0;
+      return uid;
+    }
     else
     {
       errc = EINVAL;
       uid = 99;
+      return uid;
     }
   }
   else
   {
-
     uid = pwbuf.pw_uid;
     errc = 0;
   }
@@ -1454,7 +1453,7 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 
 /*----------------------------------------------------------------------------*/
 gid_t
-Mapping::GroupNameToGid (std::string &groupname, int &errc)
+Mapping::GroupNameToGid (const std::string &groupname, int &errc)
 {
   {
     XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
@@ -1544,4 +1543,3 @@ Mapping::ip_cache::GetIp (const char* hostname)
 }
 /*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
-

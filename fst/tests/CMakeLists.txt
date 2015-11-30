@@ -47,15 +47,6 @@ target_link_libraries(
   ${XROOTD_SERVER_LIBRARY}
   ${CPPUNIT_LIBRARIES})
 
-if(Linux)
-  set_target_properties(
-    EosFstTests PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    INTERFACE_LINK_LIBRARIES ""
-    LINK_INTERFACE_LIBRARIES "")
-endif()
-
 install(
   TARGETS EosFstTests
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

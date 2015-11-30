@@ -838,6 +838,23 @@ bool LongLongAggregator::deepAggregate(const std::set<eos::common::FileSystem::f
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Check if quota is enabled for space
+//-----------------------------------------------------------------------------
+bool FsView::IsQuotaEnabled(const std::string& space)
+{
+  bool is_enabled = false;
+  std::string key = "quota";
+
+  if (mSpaceView.count(space))
+  {
+    std::string is_on = mSpaceView[space]->GetConfigMember(key);
+    is_enabled = (is_on == "on");
+  }
+
+  return is_enabled;
+}
+
 /*----------------------------------------------------------------------------*/
 std::string
 /*----------------------------------------------------------------------------*/
@@ -3337,7 +3354,7 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
       // "key=<key>:width=<width>:format=[slfo]"
 
       bool alignleft = false;
-      if ((formattags["format"].find("-") != std::string::npos))
+      if (formattags.count("format") && (formattags["format"].find("-") != std::string::npos))
       {
 	alignleft = true;
       }
