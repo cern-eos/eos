@@ -38,6 +38,7 @@ set(EOS_NS_REDIS_SRCS
   NsInMemoryPlugin.cc    NsInMemoryPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
+  RedisClient.cc         RedisClient.hh
 
   persistency/ChangeLogConstants.hh
   persistency/ChangeLogConstants.cc

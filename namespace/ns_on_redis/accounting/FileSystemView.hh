@@ -24,16 +24,20 @@
 #ifndef EOS_NS_FILESYSTEM_VIEW_HH
 #define EOS_NS_FILESYSTEM_VIEW_HH
 
-#include "redox.hpp"
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
 #include <utility>
 
 EOSNSNAMESPACE_BEGIN
 
+//! Forward declaration
+
 //------------------------------------------------------------------------------
-// File System view implementation of a in-memeory namespace
+//! File System view implementation of a in-memeory namespace
+//!
+//! TODO: add description about the format of the data saved in Redis
 //------------------------------------------------------------------------------
 class FileSystemView: public IFsView
 {
@@ -47,7 +51,7 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView();
+  virtual ~FileSystemView() {};
 
 
   //----------------------------------------------------------------------------
@@ -115,7 +119,7 @@ class FileSystemView: public IFsView
  private:
 
   // Redis related variables
-  redox::Redox pRedox; ///< Redix C++ client
+  redox::Redox* pRedox; ///< Redix C++ client
   //! Set prefix for file ids on a fs
   static const std::string sFilesPrefix;
   //! Set prefix for unlinked file ids on a fs

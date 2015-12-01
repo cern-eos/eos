@@ -266,7 +266,7 @@ XrdMgmOfs::_rem (const char *path,
           try
           {
             eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container);
-            eos_info("got quot anode=%lld", (unsigned long long) ns_quota);
+            eos_info("got quota node=%lld", (unsigned long long) ns_quota);
 
             if (ns_quota)
               ns_quota->removeFile(fmd);

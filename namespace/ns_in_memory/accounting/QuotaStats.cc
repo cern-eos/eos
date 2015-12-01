@@ -126,5 +126,4 @@ namespace eos
     delete it->second;
     pNodeMap.erase( it );
   }
-
 }

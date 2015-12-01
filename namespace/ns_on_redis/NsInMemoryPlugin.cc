@@ -42,7 +42,7 @@ int32_t ExitFunc()
 //------------------------------------------------------------------------------
 PF_ExitFunc PF_initPlugin(const PF_PlatformServices* services)
 {
-  std::cout << "Register objects provide by NsInMemoryPlugin ..." << std::endl;
+  std::cout << "Register objects provided by NsInMemoryPlugin ..." << std::endl;
 
   // Register container metadata service
   PF_RegisterParams param_cmdsvc;
@@ -120,7 +120,9 @@ eos::IContainerMDSvc* NsInMemoryPlugin::pContMDSvc = 0;
 void*
 NsInMemoryPlugin::CreateContainerMDSvc(PF_PlatformServices* services)
 {
-  pContMDSvc = new ChangeLogContainerMDSvc();
+  if (!pContMDSvc)
+    pContMDSvc = new ChangeLogContainerMDSvc();
+
   return pContMDSvc;
 }
 

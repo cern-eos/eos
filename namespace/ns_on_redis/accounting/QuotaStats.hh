@@ -17,8 +17,8 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   User quota accounting
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch.
+//! @brief Quota accounting on top of Redis
 //------------------------------------------------------------------------------
 
 #ifndef EOS_NS_QUOTA_STATS_HH
@@ -26,15 +26,18 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
 #include <map>
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declration
+//! Forward declaration
 class QuotaStats;
 
 //------------------------------------------------------------------------------
 //! Placeholder for space occupancy statistics of an accounting node
+//!
+//! TODO: add description about the format of the data saved in Redis
 //------------------------------------------------------------------------------
 class QuotaNode: public IQuotaNode
 {
@@ -43,105 +46,37 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaNode(IQuotaStats* quotaStats):
-      IQuotaNode(quotaStats)
-  {}
+  QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t nodeId);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid) throw(MDException)
-  {
-    return pUserUsage[uid].space;
-  }
+  uint64_t getUsedSpaceByUser(uid_t uid);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid) throw(MDException)
-  {
-    return pGroupUsage[gid].space;
-  }
+  uint64_t getUsedSpaceByGroup(gid_t gid);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid) throw(MDException)
-  {
-    return pUserUsage[uid].physicalSpace;
-  }
+  uint64_t getPhysicalSpaceByUser(uid_t uid);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid) throw(MDException)
-  {
-    return pGroupUsage[gid].physicalSpace;
-  }
+  uint64_t getPhysicalSpaceByGroup(gid_t gid);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid) throw(MDException)
-  {
-    return pUserUsage[uid].files;
-  }
+  uint64_t getNumFilesByUser(uid_t uid);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid) throw(MDException)
-  {
-    return pGroupUsage[gid].files;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  void changeSpaceUser(uid_t uid, int64_t delta) throw(MDException)
-  {
-    pUserUsage[uid].space += delta;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occpied by the given group
-  //----------------------------------------------------------------------------
-  void changeSpaceGroup(gid_t gid, int64_t delta) throw(MDException)
-  {
-    pGroupUsage[gid].space += delta;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  void changePhysicalSpaceUser(uid_t uid, int64_t delta) throw(MDException)
-  {
-    pUserUsage[uid].physicalSpace += delta;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occpied by the given group
-  //----------------------------------------------------------------------------
-  void changePhysicalSpaceGroup(gid_t gid, int64_t delta) throw(MDException)
-  {
-    pGroupUsage[gid].physicalSpace += delta;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Change the number of files owned by the given user
-  //----------------------------------------------------------------------------
-  uint64_t changeNumFilesUser(uid_t uid, uint64_t delta) throw(MDException)
-  {
-    return pUserUsage[uid].files += delta;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Change the number of files owned by the given group
-  //----------------------------------------------------------------------------
-  uint64_t changeNumFilesGroup(gid_t gid, uint64_t delta) throw(MDException)
-  {
-    return pGroupUsage[gid].files += delta;
-  }
+  uint64_t getNumFilesByGroup(gid_t gid);
 
   //----------------------------------------------------------------------------
   //! Account a new file, adjust the size using the size mapping function
@@ -158,10 +93,76 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   void meld(const IQuotaNode* node);
 
+  //----------------------------------------------------------------------------
+  //! Get current uid qutoa key
+  //----------------------------------------------------------------------------
+  std::string getUidKey() const
+  {
+    return pQuotaUidKey;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get current uid qutoa key
+  //----------------------------------------------------------------------------
+  std::string getGidKey() const
+  {
+    return pQuotaGidKey;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the set of all quota node ids. The quota node id corresponds to the
+  //! container id.
+  //!
+  //! @return set of quota node ids
+  //----------------------------------------------------------------------------
+  std::set<std::string> getAllIds();
+
+  //----------------------------------------------------------------------------
+  //! Get the set of uids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return vector of uids
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long> getUids();
+
+  //----------------------------------------------------------------------------
+  //! Get the set of gids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return vector of gids
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long> getGids();
+
+private:
+
+  //----------------------------------------------------------------------------
+  //! Get all uid fields for current quota node
+  //!
+  //! @return vector of all uid fileds for current quota node
+  //----------------------------------------------------------------------------
+  std::vector<std::string> getAllUidFields();
+
+  //----------------------------------------------------------------------------
+  //! Get all gid fields for current quota node
+  //!
+  //! @return vector of all gid fileds for current quota node
+  //----------------------------------------------------------------------------
+  std::vector<std::string> getAllGidFields();
+
+  //! Quota quota node uid hash key e.g. quota_node:id_t:uid
+  std::string pQuotaUidKey;
+  //! Quota quota node gid hash key e.g. quota_node:id_t:gid
+  std::string pQuotaGidKey;
+
+  static const std::string sSpaceTag; ///< Tag for space quota
+  static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
+  static const std::string sFilesTag; ///< Tag for number of files quota
 };
 
 //----------------------------------------------------------------------------
 //! Manager of the quota nodes
+//!
+//! TODO: add description about the format of the data saved in Redis
 //----------------------------------------------------------------------------
 class QuotaStats: public IQuotaStats
 {
@@ -169,7 +170,7 @@ class QuotaStats: public IQuotaStats
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaStats() {}
+  QuotaStats();
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -179,17 +180,33 @@ class QuotaStats: public IQuotaStats
   //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
   //----------------------------------------------------------------------------
-  IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId);
+  IQuotaNode* getQuotaNode(IContainerMD::id_t node_id);
 
   //----------------------------------------------------------------------------
   //! Register a new quota node
   //----------------------------------------------------------------------------
-  IQuotaNode* registerNewNode(IContainerMD::id_t nodeId) throw(MDException);
+  IQuotaNode* registerNewNode(IContainerMD::id_t node_id);
 
   //----------------------------------------------------------------------------
   //! Remove quota node
   //----------------------------------------------------------------------------
-  void removeNode(IContainerMD::id_t nodeId) throw(MDException);
+  void removeNode(IContainerMD::id_t node_id);
+
+  //----------------------------------------------------------------------------
+  //! Get the set of all quota node ids. The quota node id corresponds to the
+  //! container id.
+  //!
+  //! @return set of quota node ids
+  //----------------------------------------------------------------------------
+  std::set<std::string> getAllIds();
+
+  static const std::string sQuotaPrefix; ///< Quota node prefix
+  static const std::string sSetQuotaIds; ///< Set of quota node ids
+
+private:
+
+  redox::Redox* pRedox; ///< Redix client
+  std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
 };
 
 EOSNSNAMESPACE_END

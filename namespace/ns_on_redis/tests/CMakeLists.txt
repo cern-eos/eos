@@ -32,8 +32,8 @@ add_library(
   ChangeLogFileMDSvcTest.cc
   ChangeLogTest.cc
   FileSystemViewTest.cc
-  HierarchicalViewTest.cc
-  HierarchicalSlaveTest.cc
+#  HierarchicalViewTest.cc
+#  HierarchicalSlaveTest.cc
   LogCompactingTest.cc
   OtherTests.cc
   ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.hh

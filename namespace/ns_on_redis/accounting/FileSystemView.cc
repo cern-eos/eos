@@ -17,12 +17,10 @@
  ************************************************************************/
 
 #include "namespace/ns_on_redis/accounting/FileSystemView.hh"
+
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
-
-static const std::string REDIS_HOST = "localhost";
-static const int REDIS_PORT = 6380;
 
 const std::string FileSystemView::sSetFsIds = "fsview_set_fsid";
 const std::string FileSystemView::sFilesPrefix = "fsview_files:";
@@ -34,16 +32,7 @@ const std::string FileSystemView::sNoReplicaPrefix = "fsview_noreplicas";
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView()
 {
-  // Connect to the server
-  pRedox.connect(REDIS_HOST, REDIS_PORT);  // TODO: catch exceptions
-}
-
-//------------------------------------------------------------------------------
-// Destructor
-//------------------------------------------------------------------------------
-FileSystemView:: ~FileSystemView()
-{
-  pRedox.disconnect();
+  pRedox = RedisClient::getInstance();
 }
 
 //------------------------------------------------------------------------------
@@ -57,12 +46,12 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
   {
     // New file has been created
     case IFileMDChangeListener::Created:
-      pRedox.sadd(sNoReplicaPrefix, std::to_string(e->file->getId()));
+      pRedox->sadd(sNoReplicaPrefix, std::to_string(e->file->getId()));
       break;
 
     // File has been deleted
     case IFileMDChangeListener::Deleted:
-      pRedox.srem(sNoReplicaPrefix, std::to_string(e->fileId));
+      pRedox->srem(sNoReplicaPrefix, std::to_string(e->fileId));
       break;
 
     // Add location
@@ -70,40 +59,40 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
       // Store fsid if it doesn't exist
       val = std::to_string(e->location);
 
-      if (!pRedox.sismember(sSetFsIds, val))
-	pRedox.sadd(sSetFsIds, val);
+      if (!pRedox->sismember(sSetFsIds, val))
+	pRedox->sadd(sSetFsIds, val);
 
       key = sFilesPrefix + val;
       val = std::to_string(e->file->getId());
-      pRedox.sadd(key, val);
-      pRedox.sadd(sNoReplicaPrefix, val);
+      pRedox->sadd(key, val);
+      pRedox->sadd(sNoReplicaPrefix, val);
       break;
 
     // Replace location
     case IFileMDChangeListener::LocationReplaced:
       key = sFilesPrefix + std::to_string(e->oldLocation);
 
-      if (!pRedox.exists(key))
-	return; // incostency, we should probably crash here...
+      if (!pRedox->exists(key))
+	return; // inconstency, we should probably crash here...
 
       val = std::to_string(e->file->getId());
-      pRedox.srem(key, val);
+      pRedox->srem(key, val);
       key = sFilesPrefix + std::to_string(e->location);
-      pRedox.sadd(key, val);
+      pRedox->sadd(key, val);
       break;
 
     // Remove location
     case IFileMDChangeListener::LocationRemoved:
       key = sUnlinkedPrefix + std::to_string(e->location);
 
-      if (!pRedox.exists(key))
+      if (!pRedox->exists(key))
 	return; // incostency, we should probably crash here...
 
       val = std::to_string(e->file->getId());
-      pRedox.srem(key, val);
+      pRedox->srem(key, val);
 
       if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
-	pRedox.srem(sNoReplicaPrefix, val);
+	pRedox->srem(sNoReplicaPrefix, val);
 
       break;
 
@@ -111,13 +100,13 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
     case IFileMDChangeListener::LocationUnlinked:
       key = sFilesPrefix + std::to_string(e->location);
 
-      if (!pRedox.exists(key))
+      if (!pRedox->exists(key))
 	return; // incostency, we should probably crash here...
 
       val = std::to_string(e->file->getId());
-      pRedox.srem(key, val);
+      pRedox->srem(key, val);
       key = sUnlinkedPrefix + std::to_string(e->location);
-      pRedox.sadd(key, val);
+      pRedox->sadd(key, val);
       break;
 
     default:
@@ -135,29 +124,29 @@ void FileSystemView::fileMDRead( IFileMD *obj )
   std::string key, val;
 
   for( it = loc_vect.begin(); it != loc_vect.end(); ++it )
-    {
-      // Store fsid if it doesn't exist
-      key = sSetFsIds;
-      val = std::to_string(*it);
+  {
+    // Store fsid if it doesn't exist
+    key = sSetFsIds;
+    val = std::to_string(*it);
 
-      if (!pRedox.sismember(key, val))
-	pRedox.sadd(key, val);
+    if (!pRedox->sismember(key, val))
+      pRedox->sadd(key, val);
 
-      // Add file to corresponding fs file set
-      key = sFilesPrefix + val;
-      pRedox.sadd(key, std::to_string(obj->getId()));
-    }
+    // Add file to corresponding fs file set
+    key = sFilesPrefix + val;
+    pRedox->sadd(key, std::to_string(obj->getId()));
+  }
 
   IFileMD::LocationVector unlink_vect = obj->getUnlinkedLocations();
 
   for( it = unlink_vect.begin(); it != unlink_vect.end(); ++it )
-    {
-      key = sUnlinkedPrefix + std::to_string(*it);
-      pRedox.sadd(key, std::to_string(obj->getId()));
-    }
+  {
+    key = sUnlinkedPrefix + std::to_string(*it);
+    pRedox->sadd(key, std::to_string(obj->getId()));
+  }
 
   if( obj->getNumLocation() == 0 && obj->getNumUnlinkedLocation() == 0 )
-    pRedox.sadd(sNoReplicaPrefix, std::to_string(obj->getId()));
+    pRedox->sadd(sNoReplicaPrefix, std::to_string(obj->getId()));
 }
 
 //------------------------------------------------------------------------------
@@ -168,7 +157,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
 {
   std::string key = sFilesPrefix + std::to_string(location);
 
-  if (!pRedox.exists(key))
+  if (!pRedox->exists(key))
   {
     MDException e( ENOENT );
     e.getMessage() << "Location does not exist" << std::endl;
@@ -176,7 +165,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
   }
 
   IFsView::FileList set_files;
-  std::set<std::string> files = pRedox.smembers(key);
+  std::set<std::string> files = pRedox->smembers(key);
 
   for (const auto& elem: files)
     set_files.insert(std::stoul(elem));
@@ -191,16 +180,8 @@ IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = sUnlinkedPrefix + std::to_string(location);
-
-  if (!pRedox.exists(key))
-  {
-    MDException e( ENOENT );
-    e.getMessage() << "Location does not exist" << std::endl;
-    throw( e );
-  }
-
+  std::set<std::string> unlinked = pRedox->smembers(key);
   IFsView::FileList set_unlinked;
-  std::set<std::string> unlinked = pRedox.smembers(key);
 
   for (const auto& elem: unlinked)
     set_unlinked.insert(std::stoul(elem));
@@ -214,7 +195,7 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 IFsView::FileList FileSystemView::getNoReplicasFileList()
 {
   IFsView::FileList set_noreplicas;
-  std::set<std::string> noreplicas = pRedox.smembers(sNoReplicaPrefix);
+  std::set<std::string> noreplicas = pRedox->smembers(sNoReplicaPrefix);
 
   for (const auto&  elem: noreplicas)
     set_noreplicas.insert(std::stoul(elem));
@@ -229,7 +210,7 @@ bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = sUnlinkedPrefix + std::to_string(location);
-  return pRedox.del(key);
+  return pRedox->del(key);
 }
 
 
@@ -238,7 +219,7 @@ FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 //------------------------------------------------------------------------------
 size_t FileSystemView::getNumFileSystems()
 {
-  return (size_t) pRedox.scard(sSetFsIds);
+  return (size_t) pRedox->scard(sSetFsIds);
 }
 
 //------------------------------------------------------------------------------
