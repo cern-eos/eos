@@ -32,12 +32,23 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declaration
-
 //------------------------------------------------------------------------------
-//! File System view implementation of a in-memeory namespace
+//! FileSystemView implementation on top of Redis
 //!
-//! TODO: add description about the format of the data saved in Redis
+//! This class keeps a mapping between filesystem ids and the actual file ids
+//! that reside on that particular filesystem. For each fs id we keep a set
+//! structure in Redis i.e. fsview_files:fs_ids that holds the file ids. E.g.:
+//!
+//! fsview_files:1 -->  fid4, fid87, fid1002 etc.
+//! fsview_files:2 ...
+//! ...
+//! fsview_files:n ...
+//!
+//! Besides these data structures we alos have:
+//!
+//! fsview_set_fsid   - set with all the file system ids used
+//! fsview_noreplicas - file ids that don't have any replicas on any fs
+//! fsview_unlinked:x - set of file ids that are unlinked on file system "x"
 //------------------------------------------------------------------------------
 class FileSystemView: public IFsView
 {

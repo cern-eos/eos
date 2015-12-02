@@ -35,9 +35,32 @@ EOSNSNAMESPACE_BEGIN
 class QuotaStats;
 
 //------------------------------------------------------------------------------
-//! Placeholder for space occupancy statistics of an accounting node
+//! QuotaNode class which keeps track of user/group volume/inode use
 //!
-//! TODO: add description about the format of the data saved in Redis
+//! The class accounts the volume/inodes used by each user/group in the
+//! corresponding container. Each such object saves two HMAPs in the Redis
+//! instance using the following convention:
+//!
+//! 1. quota_node:id_t:uid - this is the HMAP key, where id_t is the id of the
+//!    corresponding container. It contains only information about the uids
+//!    of the uses who have written to the container.
+//!
+//!    { uid1:space          --> val1,
+//!      uid1:physical_space --> val2,
+//!      uid1:files          --> val3,
+//!      ...
+//!      uidn:files          --> val3n }
+//!
+//! 2. quota_node:id_t:gid - the same for group ids
+//!
+//!   { gid1:space          --> val1,
+//!     gid1:physical_space --> val2,
+//!     gid1:files          --> val3,
+//!     ...
+//!     gidm:files          --> val3m}
+//!
+//! Besides these, we also save the ids of all the containers that are also
+//! quota nodes in a set structure called "quota_set_ids".
 //------------------------------------------------------------------------------
 class QuotaNode: public IQuotaNode
 {
@@ -162,7 +185,10 @@ private:
 //----------------------------------------------------------------------------
 //! Manager of the quota nodes
 //!
-//! TODO: add description about the format of the data saved in Redis
+//! The informatio about the exists quota nodes which in this class is stored
+//! in the pNodeMap is also saved in redis as a HSET holding the container
+//! ids for the corresponding quota nodes. The key name of the set in the
+//! Redis instance needs to be unique i.e the sSetQuotaIds static variable.
 //----------------------------------------------------------------------------
 class QuotaStats: public IQuotaStats
 {
