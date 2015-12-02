@@ -7,6 +7,11 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.137 Beryl_Aquamarine``
+------------
+- don't scan partial read files when also if no blockchecksums are configured
+- fix recursive copy command allowing spaces in path names
+
 ``Version V0.3.136 Beryl_Aquamarine``
 
 New Features
