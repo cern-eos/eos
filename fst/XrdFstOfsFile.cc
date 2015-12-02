@@ -1480,7 +1480,7 @@ XrdFstOfsFile::verifychecksum ()
     if (checkSum->NeedsRecalculation())
     {
       if ((!isRW) && ((sFwdBytes + sBwdBytes)
-                      || (checkSum->GetMaxOffset() != openSize)) && hasBlockXs)
+          || (checkSum->GetMaxOffset() != openSize)))
       {
         //......................................................................
         // we don't rescan files if they are read non-sequential or only partially
