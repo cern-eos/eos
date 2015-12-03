@@ -29,23 +29,22 @@ struct Configuration
 int
 kinetic_help ()
 {
-  fprintf(stdout, "usage: kinetic config [--publish] [--space <space> ]\n");
+  fprintf(stdout, "usage: kinetic config [--publish] [--space <space>]\n");
   fprintf(stdout, "       kinetic config [--space <space> ]                     : shows the currently deployed kinetic configuration - by default 'default' space\n");
-  fprintf(stdout, "       kinetic config --publish                              : publishes the default MGM configuration files under <mgm>:/var/eos/kinetic to all currently existing FSTs in default or referenced space\n");
-  fprintf(stdout, "       kinetic config --publish [--space <name>]             : identifier <name> refers to the MGM files like /var/eos/kinetic/kinetic-cluster-<name>.json /var/eos/kinetic/kinetic-drives-<name>.json /var/eos/kinetic/kinetic-security-<name>.json\n");
-  fprintf(stdout, "\n\n");
-  fprintf(stdout, "usage: kinetic --id <clusterid> <operation> <target> [--threads <numthreads>] [-m]\n");
+  fprintf(stdout, "       kinetic config --publish [--space <name>]             : publishes the configuration files under <mgm>:/var/eos/kinetic/ to all currently existing FSTs in default or referenced space\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "usage: kinetic --id <clusterid> <operation> <target> [--threads <numthreads>] [--space <name>] [-m]\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       kinetic ... --id <clusterid> ...                      : specify cluster, <clusterid> refers to the name of the cluster set in the cluster configuration\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       kinetic ... <operation> <target> ...                  : run <operation> on keys of type <target>\n");
+  fprintf(stdout, "       kinetic ... <operation> [<target>] ...                  : run <operation> on keys of type <target>\n");
   fprintf(stdout, "         <operation>\n");
-  fprintf(stdout, "             status                                          : show connection status, does not require a <target> type\n");
+  fprintf(stdout, "             status                                          : show connection status of cluster\n");
   fprintf(stdout, "             count                                           : count number of keys existing in the cluster\n");
-  fprintf(stdout, "             scan                                            : check keys and display their status information (Warning: Long Runtime)\n");
-  fprintf(stdout, "             repair                                          : check keys, repair as required, display key status information (Warning: Long Runtime)\n");
-  fprintf(stdout, "             reset                                           : force remove keys (Warning: Data will be lost!)\n");
-  fprintf(stdout, "         <target>\n");
+  fprintf(stdout, "             scan                                            : check keys and display their status information\n");
+  fprintf(stdout, "             repair                                          : check keys, repair as required, display key status information\n");
+  fprintf(stdout, "             reset                                           : force remove keys, requires target (Warning: Data will be lost!)\n");
+  fprintf(stdout, "         <target>, required for all operations except status operation\n");
   fprintf(stdout, "             data                                            : data keys\n");
   fprintf(stdout, "             metadata                                        : metadata keys\n");
   fprintf(stdout, "             attribute                                       : attribute keys\n");
@@ -53,7 +52,7 @@ kinetic_help ()
   fprintf(stdout, "\n");
   fprintf(stdout, "       kinetic ... [--threads <numthreads>] ...              : (optional) specify the number of background io threads \n");
   fprintf(stdout, "       kinetic ... [-m] ...                                  : (optional) monitoring key=value output format\n");
-
+  fprintf(stdout, "       kinetic ... [--space <name>] ...                      : (optional) use the kinetic configuration for the referenced space - by default 'default' space\n");
   return EXIT_SUCCESS;
 }
 
@@ -163,10 +162,51 @@ parseArguments (char* arg, Configuration& config)
   return config.target != OperationTarget::INVALID;
 }
 
-void printinc(int value){
+void
+printincremental(int value){
   fprintf(stdout, "\r\t %d", value);
   fflush(stdout);
 }
+
+XrdOucString
+resultToString(XrdOucEnv* result)
+{
+  XrdOucString val = result->Get("mgm.proc.stdout");
+  eos::common::StringTokenizer subtokenizer(val.c_str());
+
+  if (subtokenizer.GetLine())
+  {
+    XrdOucString nodeline = subtokenizer.GetToken();
+    XrdOucString node = nodeline;
+    node.erase(nodeline.find(":"));
+    nodeline.erase(0, nodeline.find(":="));
+    nodeline.erase(0, 2);
+
+    // base 64 decode
+    eos::common::SymKey::DeBase64(nodeline, val);
+  }
+  return val;
+}
+
+void
+setEnvironmentVariables(Configuration& config)
+{
+  XrdOucString spacename = config.space.c_str();
+  XrdOucString base = "mgm.cmd=space&mgm.subcmd=node-get&mgm.space="+spacename+"&mgm.space.node-get.key=";
+
+  XrdOucString location = base+"kinetic.location."+spacename;
+  XrdOucString security = base+"kinetic.security."+spacename;
+  XrdOucString cluster  = base+"kinetic.cluster."+spacename;
+
+  XrdOucEnv* location_result = client_admin_command(location);
+  XrdOucEnv* security_result = client_admin_command(security);
+  XrdOucEnv* cluster_result = client_admin_command(cluster);
+
+  setenv("KINETIC_DRIVE_LOCATION", resultToString(location_result).c_str(), 1);
+  setenv("KINETIC_DRIVE_SECURITY",  resultToString(security_result).c_str(), 1);
+  setenv("KINETIC_CLUSTER_DEFINITION", resultToString(cluster_result).c_str(), 1);
+}
+
 
 void
 doConfig (Configuration& config)
@@ -245,14 +285,7 @@ com_kinetic (char *arg)
     return EXIT_FAILURE;
   }
 
-  switch (config.op)
-  {
-    case Operation::CONFIG_SHOW:
-    case Operation::CONFIG_PUBLISH:
-      doConfig(config);
-      return EXIT_SUCCESS;
-    default: break;
-  }
+  setEnvironmentVariables(config);
 
   try{
     auto ac = kio::KineticIoFactory::makeAdminCluster(
@@ -282,20 +315,24 @@ com_kinetic (char *arg)
       }
       case Operation::COUNT:
         fprintf(stdout, "Counting number of keys on cluster: \n");
-        ac->count(config.target, printinc);
+        ac->count(config.target, printincremental);
         fprintf(stdout, "\n");
         break;
       case Operation::SCAN:
         fprintf(stdout, "Scanning keys on cluster: \n");
-        printKeyCount( ac->scan(config.target, printinc, config.numthreads), config);
+        printKeyCount(ac->scan(config.target, printincremental, config.numthreads), config);
         break;
       case Operation::REPAIR:
         fprintf(stdout, "Scan & repair of keys on cluster: \n");
-        printKeyCount( ac->repair(config.target, printinc, config.numthreads), config);
+        printKeyCount(ac->repair(config.target, printincremental, config.numthreads), config);
         break;
       case Operation::RESET:
         fprintf(stdout, "Removing keys from cluster: \n");
-        printKeyCount( ac->reset(config.target, printinc, config.numthreads), config);
+        printKeyCount(ac->reset(config.target, printincremental, config.numthreads), config);
+        break;
+      case Operation::CONFIG_SHOW:
+      case Operation::CONFIG_PUBLISH:
+        doConfig(config);
         break;
       case Operation::INVALID:
       default:
