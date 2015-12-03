@@ -52,6 +52,7 @@ Storage::Publish ()
   }
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ? getenv("EOS_GEOTAG") : "");
+  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ? getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
 
   FILE* fnetspeed = fopen(tmpname, "r");
   if (fnetspeed)
@@ -256,11 +257,9 @@ Storage::Publish ()
           }
 
           // copy out net info 
-          // TODO: take care of eth0 only ..
-          // somethimg has to tell us if we are 1GBit, or 10GBit ... we assume 1GBit now as the default
           success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
-          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate("eth0", "rxbytes") / 1024.0 / 1024.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate("eth0", "txbytes") / 1024.0 / 1024.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
           success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors")*512.0 / 1000000.0);
           success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors")*512.0 / 1000000.0);
