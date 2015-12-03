@@ -6,6 +6,9 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.139 Beryl_Aquamarine``
+- automatically chown files on FST partitions once (to compensate to bug introduced in 0.3.137)
+- make the XRD stream timeout configurable and increase the default to 5 minutes
 
 ``Version V0.3.138 Beryl_Aquamarine``
 ------------
