@@ -92,6 +92,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Network interface to monitor (default eth0)
 #export EOS_FST_NETWORK_INTERFACE="eth0"
 
+# Stream timeout for operations
+#export EOS_FST_STREAM_TIMEOUT=300
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
