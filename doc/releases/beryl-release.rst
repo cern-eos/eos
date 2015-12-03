@@ -7,6 +7,11 @@
 Beryl Release Notes
 ===================
 
+``Version V0.3.138 Beryl_Aquamarine``
+------------
+- allow to specify the network interface to monitor on the FST via environment variable
+- run the FST and MGM again as daemon/daemon and switch only the monitoring thread in ShellCmd to enable ptrace for all spawned sub commands
+
 ``Version V0.3.137 Beryl_Aquamarine``
 ------------
 - don't scan partial read files when also if no blockchecksums are configured
