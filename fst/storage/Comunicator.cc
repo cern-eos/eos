@@ -360,7 +360,7 @@ Storage::Communicator ()
             {
               try
               {
-                kio::Factory::reloadConfiguration();
+                kio::KineticIoFactory::reloadConfiguration();
               }
               catch (kio::LoggingException &e)
               {

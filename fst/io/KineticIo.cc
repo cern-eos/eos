@@ -33,13 +33,13 @@ public:
 
   LogFunctionInitializer ()
   {
-    kio::Factory::registerLogFunction(logmsg, eos::common::Logging::shouldlog);
+    kio::KineticIoFactory::registerLogFunction(logmsg, eos::common::Logging::shouldlog);
   }
 };
 static LogFunctionInitializer kio_loginit;
 
 KineticIo::KineticIo () :
-kio (kio::Factory::makeFileIo ())
+kio (kio::KineticIoFactory::makeFileIo ())
 {
   eos_debug("");
 }
@@ -234,7 +234,7 @@ KineticIo::Exists (const char* path)
   eos_debug("path: %s", path);
   try
   {
-    if (kio::Factory::makeFileAttr(path))
+    if (kio::KineticIoFactory::makeFileAttr(path))
       return SFS_OK;
     errno = ENOENT;
   }
@@ -343,7 +343,7 @@ KineticIo::Attr::OpenAttr (const char* path)
   eos_static_debug("path: %s", path);
   try
   {
-    auto ka(kio::Factory::makeFileAttr(path));
+    auto ka(kio::KineticIoFactory::makeFileAttr(path));
     if (ka) return new KineticIo::Attr(std::move(ka));
   }
   catch (const std::exception& e)
