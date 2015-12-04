@@ -44,7 +44,6 @@ private:
 
   off_t sha1offset;
   unsigned char sha1[SHA_DIGEST_LENGTH + 1];
-  unsigned char sha1hex[(SHA_DIGEST_LENGTH * 2) + 1];
 public:
 
   SHA1 () : CheckSum ("sha1")
@@ -114,7 +113,6 @@ public:
     sha1offset = 0;
     SHA1_Init(&ctx);
     memset(sha1, 0, SHA_DIGEST_LENGTH + 1);
-    memset(sha1, 0, (SHA_DIGEST_LENGTH * 2) + 1);
     needsRecalculation = 0;
     sha1[0] = 0;
     finalized = false;
