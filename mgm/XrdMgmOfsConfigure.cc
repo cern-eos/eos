@@ -314,10 +314,6 @@ int
 XrdMgmOfs::Configure(XrdSysError& Eroute)
 {
   // the process run's as root, but acts on the filesystem as daemon
-  seteuid(0);
-  setegid(0);
-  setfsuid(2);
-  setfsgid(2);
 
   char *var;
   const char *val;

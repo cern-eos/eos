@@ -42,7 +42,7 @@ extern XrdOssSys* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint16_t XrdFstOfsFile::msDefaultTimeout = 60; // default timeout value
+const uint16_t XrdFstOfsFile::msDefaultTimeout = 300; // default timeout value
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -98,6 +98,7 @@ mTpcThreadStatus(EINVAL)
   mForcedMtime = 0;
   mForcedMtime_ms = 0;
   isOCchunk = 0;
+  mTimeout = getenv("EOS_FST_STREAM_TIMEOUT")?strtoul(getenv("EOS_FST_STREAM_TIMEOUT"),0,10):msDefaultTimeout;
 }
 
 
@@ -918,7 +919,7 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
                                                    eos::common::LayoutId::kLocal,
-                                                   msDefaultTimeout, store_recovery);
+                                                   mTimeout, store_recovery);
 
   if (!layOut)
   {
@@ -1436,7 +1437,7 @@ XrdFstOfsFile::verifychecksum ()
     if (checkSum->NeedsRecalculation())
     {
       if ((!isRW) && ((sFwdBytes + sBwdBytes)
-                      || (checkSum->GetMaxOffset() != openSize)) && hasBlockXs)
+          || (checkSum->GetMaxOffset() != openSize)))
       {
         //......................................................................
         // we don't rescan files if they are read non-sequential or only partially

@@ -138,12 +138,12 @@ EOS_CheckOutOfSourceBuild()
 
 if (CLIENT)
   if (MacOSX)
-    set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+    set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
   else ()
-set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
   endif()
 else (CLIENT)
-set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
+set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
 
 #-------------------------------------------------------------------------------

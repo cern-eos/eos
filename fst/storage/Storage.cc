@@ -31,6 +31,7 @@
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
+#include "common/ShellCmd.hh"
 #include "mq/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
@@ -331,8 +332,33 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
-  // test if we have rw access
   struct stat buf;
+  
+  // look at a state file to change ownership on a FST tree
+  std::string chowntagfile=fs->GetPath().c_str();
+  chowntagfile += "/.eoschowned";
+  if (stat(chowntagfile.c_str(),&buf))
+  {
+    std::string cmd = "chown -R daemon:daemon ";
+    cmd += fs->GetPath();
+    eos::common::ShellCmd scmd(cmd.c_str());
+    eos::common::cmd_status rc = scmd.wait(600);
+    if (rc.exit_code)
+    {
+      eos_alert("msg=\"unable to set ownership on FST tree to daemon:daemon\" ");
+    }
+    else
+    {
+      // write the tag file to avoid to repeat the operation
+      int fd = open(chowntagfile.c_str(),
+		    O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+
+      if (fd>=0)
+	close(fd);
+    }
+  }
+
+  // test if we have rw access
   if (::stat(fs->GetPath().c_str(), &buf) ||
       (buf.st_uid != 2) ||
       ((buf.st_mode & S_IRWXU) != S_IRWXU))
