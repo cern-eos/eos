@@ -170,13 +170,14 @@ parseArguments (char* arg, Configuration& config)
     str = subtokenizer.GetToken();
   }
 
-  if(!config.id.length())
-    return false;
+  /* Invalid operation is never valid */
   if(config.op == Operation::INVALID)
     return false;
-  if(config.op == Operation::STATUS || config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_PUBLISH)
+  /* CONFIG operations do not require additional arguments */
+  if(config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_PUBLISH)
     return true;
-  return config.target != OperationTarget::INVALID;
+  /* All other operations require a cluster id, and non-status operations require a target */
+  return config.id.length() && (config.op == Operation::STATUS || config.target != OperationTarget::INVALID);
 }
 
 void
