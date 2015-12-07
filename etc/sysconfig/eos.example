@@ -94,9 +94,14 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Disable 'sss' enforcement to allow generic TPC
 #export EOS_FST_NO_SSS_ENFORCEMENT=1
 
+# Network interface to monitor (default eth0)
+#export EOS_FST_NETWORK_INTERFACE="eth0"
+
+# Stream timeout for operations
+#export EOS_FST_STREAM_TIMEOUT=300
+
 # Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
-
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
@@ -125,7 +130,6 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 
 # Configure FUSE read-ahead window (default 128k)
 #export EOS_FUSE_RDAHEAD_WINDOW=131072
-
 # Disable using access for access permission check (default on)
 # export EOS_FUSE_NOACCESS=0
 

@@ -335,8 +335,33 @@ Storage::Boot (FileSystem *fs)
   {
   // test if we have rw access
   struct stat buf;
+
+  // look at a state file to change ownership on a FST tree
+  std::string chowntagfile=fs->GetPath().c_str();
+  chowntagfile += "/.eoschowned";
+  if (stat(chowntagfile.c_str(),&buf))
+  {
+    std::string cmd = "chown -R daemon:daemon ";
+    cmd += fs->GetPath();
+    eos::common::ShellCmd scmd(cmd.c_str());
+    eos::common::cmd_status rc = scmd.wait(600);
+    if (rc.exit_code)
+    {
+      eos_alert("msg=\"unable to set ownership on FST tree to daemon:daemon\" ");
+    }
+    else
+    {
+      // write the tag file to avoid to repeat the operation
+      int fd = open(chowntagfile.c_str(),
+		    O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+
+      if (fd>=0)
+	close(fd);
+    }
+  }
+
   if (::stat(fs->GetPath().c_str(), &buf) ||
-        (buf.st_uid != geteuid()) ||
+      (buf.st_uid != 2) ||
       ((buf.st_mode & S_IRWXU) != S_IRWXU))
   {
 
@@ -345,7 +370,7 @@ Storage::Boot (FileSystem *fs)
       errno = EPERM;
     }
 
-      if (buf.st_uid != geteuid())
+    if (buf.st_uid != 2)
     {
       errno = ENOTCONN;
     }
@@ -372,8 +397,8 @@ Storage::Boot (FileSystem *fs)
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EIO, "filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
       return;
-      }
     }
+  }
   }
 
   gOFS.OpenFidMutex.Lock();
