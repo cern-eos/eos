@@ -31,6 +31,7 @@
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/LinuxStat.hh"
+#include "common/ShellCmd.hh"
 #include "mq/XrdMqMessaging.hh"
 /*----------------------------------------------------------------------------*/
 #include <google/dense_hash_map>
