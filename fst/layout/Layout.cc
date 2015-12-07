@@ -58,14 +58,17 @@ mTimeout(timeout)
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
   mIsEntryServer = false;
   mLocalPath = "";
+  mFileIO = FileIoPlugin::GetIoObject(io, 0, 0);
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-Layout::~Layout () {
-  // empty
+Layout::~Layout ()
+{
+  if (mFileIO)
+    delete mFileIO;
 }
 
 EOSFSTNAMESPACE_END

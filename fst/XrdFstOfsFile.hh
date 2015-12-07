@@ -352,6 +352,8 @@ public:
     return isOCchunk;
   }
 
+  static int LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
+  static int FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 protected:
   XrdOucEnv* openOpaque;
   XrdOucEnv* capOpaque;

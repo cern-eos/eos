@@ -29,6 +29,7 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/LocalIo.hh"
 #include "fst/io/XrdIo.hh"
+#include "fst/io/RadosIo.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -42,8 +43,7 @@ class XrdFstOfsFile;
 //------------------------------------------------------------------------------
 //! Class used to obtain a IO plugin object
 //------------------------------------------------------------------------------
-class FileIoPlugin
-{
+class FileIoPlugin {
 public:
 
   //----------------------------------------------------------------------------
@@ -62,6 +62,8 @@ public:
   {
     //empty
   }
+  static eos::common::Attr*
+  GetIoAttr (const char* url);
 
 
   //----------------------------------------------------------------------------

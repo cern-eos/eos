@@ -21,6 +21,25 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if(KINETICIO_FOUND)
+    set(KINETICIO_SRC "io/KineticIo.cc")
+    set(KINETICIO_HDR "io/KineticIo.hh")
+else()
+    set(KINETICIO_SRC "")
+    set(KINETICIO_HDR "")
+endif()
+
+if(DAVIX_FOUND)
+    add_definitions(-DDAVIX_FOUND)
+    set(DAVIX_SRC "io/DavixIo.cc")
+    set(DAVIX_HDR "io/DavixIo.hh")
+else()
+    set(DAVIX_INCLUDE_DIR "")
+    set(DAVIX_LIBRARIES "")
+    set(DAVIX_SRC "")
+    set(DAVIX_HDR "")
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -29,7 +48,11 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${Z_INCLUDE_DIRS}
-  ${XFS_INCLUDE_DIRS})
+  ${XFS_INCLUDE_DIRS}
+  ${KINETICIO_INCLUDE_DIR}
+  ${JSONC_INCLUDE_DIR}
+  ${DAVIX_INCLUDE_DIR}
+)
 
 if (CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -78,7 +101,12 @@ set(
   # File IO interface
   #-----------------------------------------------------------------------------
   io/FileIo.hh
+  io/FileIoPlugin.hh             io/FileIoPlugin.cc
   io/LocalIo.cc                  io/LocalIo.hh
+  io/FsIo.cc                     io/FsIo.hh
+  ${KINETICIO_SRC}               ${KINETICIO_HDR}
+  ${DAVIX_SRC}                   ${DAVIX_HDR}
+  io/RadosIo.cc                  io/RadosIo.hh
   io/XrdIo.cc                    io/XrdIo.hh
   io/HeaderCRC.cc                io/HeaderCRC.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -127,7 +155,11 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${JSONC_LIBRARIES}
+  ${KINETICIO_LIBRARIES}
+  ${DAVIX_LIBRARIES}
+)
 
 if(Linux)
   add_library(
@@ -147,7 +179,11 @@ if(Linux)
     ${XROOTD_UTILS_LIBRARY}
     ${NCURSES_LIBRARY_STATIC}
     ${OPENSSL_CRYPTO_LIBRARY_STATIC}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${JSONC_LIBRARIES}
+    ${KINETICIO_LIBRARIES}
+    ${DAVIX_LIBRARIES}
+)
 endif()
 
 #-------------------------------------------------------------------------------
@@ -159,7 +195,6 @@ set(
   Load.cc
   ScanDir.cc
   Messaging.cc
-  io/FileIoPlugin-Server.cc
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
 
   #-----------------------------------------------------------------------------
@@ -192,7 +227,7 @@ set(
   #-----------------------------------------------------------------------------
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
-  FmdSqlite.cc         FmdSqlite.hh
+#  FmdSqlite.cc         FmdSqlite.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
@@ -228,7 +263,11 @@ target_link_libraries(
    ${XROOTD_CL_LIBRARY}
    ${XOORTD_UTILS_LIBRARY}
    ${OPENSSL_CRYPTO_LIBRARY}
-   ${CMAKE_THREAD_LIBS_INIT})
+   ${CMAKE_THREAD_LIBS_INIT}
+   ${JSONC_LIBRARIES}
+   ${KINETICIO_LIBRARIES}
+   ${DAVIX_LIBRARIES}
+)
 
 #-------------------------------------------------------------------------------
 # eoscp executable
@@ -260,7 +299,8 @@ add_executable(
   eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdHandler.cc
-  FmdSqlite.cc           FmdDbMap.cc
+#  FmdSqlite.cc           
+  FmdDbMap.cc
   FmdClient.cc           tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
   checksum/crc32c.cc     checksum/crc32ctables.cc
@@ -290,14 +330,31 @@ target_link_libraries(eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT})
 
+if(MacOSX)
 target_link_libraries(
   eos-scan-fs
   eosCommon
   eosCommonServer
+  EosFstIo
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${PROTOBUF_LIBRARIES}
+  ${KINETICIO_LIBRARIES} 
+  ${DAVIX_LIBRARIES} 
   ${CMAKE_THREAD_LIBS_INIT})
+else(MacOSX)
+target_link_libraries(
+  eos-scan-fs
+  eosCommon
+  eosCommonServer
+  EosFstIo-Static
+  ${GLIBC_RT_LIBRARY}
+  ${XROOTD_CL_LIBRARY}
+  ${PROTOBUF_LIBRARIES}
+  ${KINETICIO_LIBRARIES} 
+  ${DAVIX_LIBRARIES} 
+  ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
 if(MacOSX)
   set_target_properties(

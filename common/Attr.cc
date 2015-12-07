@@ -32,11 +32,11 @@
 EOSCOMMONNAMESPACE_BEGIN;
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Factory function checking if file exists.
- * 
+ *
  * @param file path to the file with extended attributes
- * 
+ *
  * @return Attr object if file exists otherwise 0
  */
 
@@ -55,7 +55,7 @@ Attr::OpenAttr (const char * file)
 };
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Create an attribute object for file. Better use the factory function
  * OpenAttr!
  * @param file path toe the file with extended attributes
@@ -67,23 +67,29 @@ Attr::Attr (const char* file)
   mName = file;
 }
 
+Attr::Attr ()
+{
+}
+
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Destructor
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
-Attr::~Attr () { }
+Attr::~Attr ()
+{
+}
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Set an attribute with name to value
- * 
+ *
  * @param name attribute name should start with 'user.'
  * @param value attribute string value
  * @param len length of string value
- * 
+ *
  * @return true if successful - false if error
  */
 
@@ -103,12 +109,12 @@ Attr::Set (const char* name, const char* value, size_t len)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Set an attribute named by key to value
- * 
+ *
  * @param key string of the key should start with 'user.'
  * @param value string value
- * 
+ *
  * @return true if successful - false if error
  */
 
@@ -121,14 +127,14 @@ Attr::Set (std::string key, std::string value)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Retrieve a binary attribute - value buffer is of size 'size' and the result is store there.
  * The value buffer must be large enough to hold the full attribute.
- * 
+ *
  * @param name name of the attribute to retrieve
  * @param value pointer to string where to store the value
  * @param size size of the value buffer.
- * 
+ *
  * @return true if the attribute has been retrieved - false if error
  */
 
@@ -154,11 +160,11 @@ Attr::Get (const char* name, char* value, size_t &size)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return a string for the extended attribute by name
- * 
+ *
  * @param name key of the extended attribute
- * 
+ *
  * @return string of the value and also empty "" if it does not exist
  */
 

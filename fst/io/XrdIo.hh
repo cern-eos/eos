@@ -28,9 +28,11 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "fst/io/SimpleHandler.hh"
+#include "common/FileMap.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 /*----------------------------------------------------------------------------*/
+#include <queue>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -288,12 +290,150 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object 
+  //! Check for the existance of a file
   //!
-  //! @return pointer to async handler, NULL otherwise 
+  //! @param path to the file
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int Exists (const char* url);
+
+  //--------------------------------------------------------------------------                                                                                                                                 //! Delete a file
+  //!
+  //! @param path to the file to be deleted
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int Delete (const char* url);
+
+  //--------------------------------------------------------------------------
+  //! Get pointer to async meta handler object
+  //!
+  //! @return pointer to async handler, NULL otherwise
   //!
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler ();
+
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  int Statfs (const char* path, struct statfs* statFs);
+
+  //--------------------------------------------------------------------------
+  //! Class implementing extended attribute support
+  //--------------------------------------------------------------------------
+
+  class Attr : public eos::common::Attr, public eos::common::LogId {
+  private:
+    std::string mUrl;
+    eos::common::FileMap mFileMap; //< extended attribute file map
+  public:
+    // ------------------------------------------------------------------------
+    //! Set a binary attribute (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    bool Set (const char* name, const char* value, size_t len);
+
+    // ------------------------------------------------------------------------
+    //! Set a string attribute (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    bool Set (std::string key, std::string value);
+
+    // ------------------------------------------------------------------------
+    //! Get a binary attribute by name (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    bool Get (const char* name, char* value, size_t &size);
+
+    // ------------------------------------------------------------------------
+    //! Get a string attribute by name (name has to start with 'user.' !!!)
+    // ------------------------------------------------------------------------
+    std::string Get (std::string name);
+
+    // ------------------------------------------------------------------------
+    //! Factory function to create an attribute object
+    // ------------------------------------------------------------------------
+    static Attr* OpenAttr (const char* url);
+
+    // ------------------------------------------------------------------------
+    //! Non static Factory function to create an attribute object
+    // ------------------------------------------------------------------------
+    Attr* OpenAttribute (const char* path);
+
+    // ------------------------------------------------------------------------
+    // Get URL to the attribute file
+    // ------------------------------------------------------------------------
+
+    std::string GetUrl ()
+    {
+      return mUrl;
+    }
+
+    // ------------------------------------------------------------------------
+    // Constructor
+    // ------------------------------------------------------------------------
+
+    Attr () : mUrl ("")
+    {
+    }
+
+    Attr (const char* path);
+
+    virtual ~Attr ()
+    {
+    }
+  };
+
+  //--------------------------------------------------------------------------
+  //! traversing filesystem/storage routines
+  //--------------------------------------------------------------------------
+
+  //--------------------------------------------------------------------------
+  //! FTS search handle
+  //--------------------------------------------------------------------------
+
+  class FtsHandle {
+    friend class XrdIo;
+  protected:
+    std::vector< std::vector<std::string> > found_dirs;
+    std::deque< std::string> found_files;
+    size_t deepness;
+  public:
+
+    FtsHandle (const char* dirp)
+    {
+      found_dirs.resize(1);
+      deepness = 0;
+    };
+
+    virtual ~FtsHandle ()
+    {
+    }
+  };
+
+  //--------------------------------------------------------------------------
+  //! Open a curser to traverse a storage system
+  //! @param subtree where to start traversing
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  FileIo::FtsHandle* ftsOpen (std::string subtree);
+
+  //--------------------------------------------------------------------------
+  //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //! @param fts_handle cursor obtained by ftsOpen
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  std::string ftsRead (FileIo::FtsHandle* fts_handle);
+
+  //--------------------------------------------------------------------------
+  //! Close a traversal cursor
+  //! @param fts_handle cursor to close
+  //! @return 0 if fts_handle was an open cursor, otherwise -1
+  //--------------------------------------------------------------------------
+  virtual int ftsClose (FileIo::FtsHandle* fts_handle);
 
 private:
 
@@ -337,6 +477,24 @@ private:
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
+  static int Download (std::string url, std::string& download);
+
+  //--------------------------------------------------------------------------
+  //! Upload a string object into a remote file
+  //! @param url from where to upload
+  //! @param upload string to store into remote file
+  //! @return 0 success, otherwise -1 and errno
+  //--------------------------------------------------------------------------
+  static int Upload (std::string url, std::string& upload);
+
+  //--------------------------------------------------------------------------
+  //! Get a directory listing - taken from XrdCl sources
+  //--------------------------------------------------------------------------
+
+  XrdCl::XRootDStatus GetDirList (XrdCl::FileSystem *fs,
+                                  const XrdCl::URL &url,
+                                  std::vector<std::string> *files,
+                                  std::vector<std::string> *directories);
   XrdIo (const XrdIo&) = delete;
 
 

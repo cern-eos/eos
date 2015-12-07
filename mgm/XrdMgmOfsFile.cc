@@ -158,7 +158,6 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
     }
   }
-
   int open_flag = 0;
   int isRW = 0;
   int isRewrite = 0;
@@ -176,10 +175,8 @@ XrdMgmOfsFile::open (const char *inpath,
   // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
   bool isAtomicUpload = false;
 
-  // flag indicating a new injection - upload of a file into a stub without physical location
-  bool isInjection = false;
-
   // chunk upload ID
+  bool isInjection = false;
   XrdOucString ocUploadUuid = "";
 
   // list of filesystem IDs to reconstruct
@@ -743,15 +740,12 @@ XrdMgmOfsFile::open (const char *inpath,
   {
     isInjection = true;
   }
-
   // disable atomic uploads for FUSE clients
   if (isFuse)
     isAtomicUpload = false;
 
-  // disable injection in fuse clients
   if (isFuse)
     isInjection = false;
-
   if (isRW)
   {
     if (isRewrite &&
@@ -911,7 +905,6 @@ XrdMgmOfsFile::open (const char *inpath,
             // oc chunks start with flags=0
 
             cid = fmd->getContainerId();
-
 	    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	    eos::IFileMD::ctime_t mtime;
 	    fmd->getMTime(mtime);
@@ -936,6 +929,10 @@ XrdMgmOfsFile::open (const char *inpath,
           return Emsg(epname, error, errno, "create file", path);
         }
         isCreation = true;
+        // -------------------------------------------------------------------------
+        // store the in-memory modification time
+        // we get the current time, but we don't update the creation time
+        // -------------------------------------------------------------------------
         // -------------------------------------------------------------------------
       }
     }
@@ -1057,7 +1054,7 @@ XrdMgmOfsFile::open (const char *inpath,
   // get placement policy
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
 
-  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex); // lock order 1
 
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
@@ -1153,7 +1150,6 @@ XrdMgmOfsFile::open (const char *inpath,
 	cmd->setMTime(mtime);
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd);
-
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
 	  std::string uri = gOFS->eosView->getUri(fmd);
@@ -1287,25 +1283,31 @@ XrdMgmOfsFile::open (const char *inpath,
   std::vector<unsigned int> unavailfs;
   // file systems which have been replaced with a new reconstructed stripe
   std::vector<unsigned int> replacedfs;
+
   std::vector<unsigned int>::const_iterator sfs;
 
   int retc = 0;
 
-  // Place a new file
+  // ---------------------------------------------------------------------------
   if (isCreation || ((open_mode == SFS_O_TRUNC) && (!fmd->getNumLocation())) || isInjection)
   {
     const char* containertag = 0;
-
+    // -------------------------------------------------------------------------
+    // place a new file
+    // -------------------------------------------------------------------------
     if (attrmap.count("user.tag"))
       containertag = attrmap["user.tag"].c_str();
-
     retc = Quota::FilePlacement(space.c_str(), path, vid, containertag, layoutId,
 				selectedfs, selectedfs, plctplcy, targetgeotag,
 				open_mode & SFS_O_TRUNC, forcedGroup, bookingsize);
   }
   else
   {
-    // Access existing file - fill the vector with the existing locations
+    // -------------------------------------------------------------------------
+    // access existing file
+    // -------------------------------------------------------------------------
+
+    // fill the vector with the existing locations
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++)
     {
       int loc = fmd->getLocation(i);
@@ -1320,14 +1322,16 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, ENODEV, "open - no replica exists", path);
     }
 
-    // Reconstruction opens files in RW mode but we actually need RO mode in this case
+    // reconstruction opens files in RW mode but we actually need RO mode in this case
     retc = Quota::FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
 			     selectedfs, fsIndex, isPioReconstruct ? false : isRW,
 			     fmd->getSize(), unavailfs);
 
     if (retc == EXDEV)
     {
-      // Indicating that the layout requires the replacement of stripes
+      // -----------------------------------------------------------------------
+      // indicating that the layout requires the replacement of stripes
+      // -----------------------------------------------------------------------
       retc = 0; // TODO: we currently don't support repair on the fly mode
     }
   }
@@ -1806,7 +1810,7 @@ XrdMgmOfsFile::open (const char *inpath,
       retc = Quota::FilePlacement(space.c_str(), path, rootvid, containertag,
 				  plainLayoutId, selectedfs, PioReplacementFsList,
 				  plctplcy, targetgeotag, false, forcedGroup,
-				  plainBookingSize);
+                                       plainBookingSize);
 
       if (retc)
       {
@@ -2465,4 +2469,3 @@ XrdMgmOfsFile::Emsg (const char *pfx,
 
   return SFS_ERROR;
 }
-

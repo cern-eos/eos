@@ -285,6 +285,19 @@ public:
   //----------------------------------------------------------------------------
   virtual int Stat (struct stat* buf) = 0;
 
+  //--------------------------------------------------------------------------
+  //! Get stats about the file
+  //!
+  //! @param buf stat buffer
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  FileIo* GetFileIo ()
+  {
+    return mFileIO;
+  }
   
 protected:
 
@@ -299,7 +312,7 @@ protected:
   eos::common::LayoutId::eIoType mIoType; ///< type of access ( ofs/xrd )
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
-
+  FileIo* mFileIO; //< IO object as entry server
 };
 
 EOSFSTNAMESPACE_END

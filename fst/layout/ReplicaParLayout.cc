@@ -182,8 +182,12 @@ ReplicaParLayout::Open (const std::string& path,
      // Only the referenced entry URL does local IO
      mLocalPath = path;
      mReplicaUrl.push_back(mLocalPath);
-     FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
+      FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(path.c_str()),
                                               mOfsFile, mSecEntity);
+
+      // evt. mark an IO module as talking to external storage
+      if ((file->GetIoType() != "LocalIo"))
+        file->SetExternalStorage();
 
      if (file->Open(path, flags, mode, opaque, mTimeout))
      {
@@ -210,7 +214,7 @@ ReplicaParLayout::Open (const std::string& path,
          eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
          eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
          eos::common::StringConversion::MaskTag(maskUrl, "authz");
-         FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
+          FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(mReplicaUrl[i].c_str()),
                                                   mOfsFile, mSecEntity);
 
          // Write case

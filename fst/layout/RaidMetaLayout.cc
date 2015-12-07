@@ -172,8 +172,12 @@ RaidMetaLayout::Open (const std::string& path,
 
  // Do open on local stripe - force it in RDWR mode if store recovery enabled
  mLocalPath = path;
- FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
+  FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(path.c_str()),
                                           mOfsFile, mSecEntity);
+
+  // evt. mark an IO module as talking to external storage
+  if ((file->GetIoType() != "LocalIo"))
+    file->SetExternalStorage();
 
  // When recovery enabled we open the files in RDWR mode
  if (mStoreRecovery)
@@ -301,7 +305,7 @@ RaidMetaLayout::Open (const std::string& path,
 
        stripe_urls[i] += remoteOpenOpaque.c_str();
        int ret = -1;
-       FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
+        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(stripe_urls[i].c_str()),
                                                 mOfsFile, mSecEntity);
 
        // Set the correct open flags for the stripe

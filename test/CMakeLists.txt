@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1")
+set (CMAKE_CXX_FLAGS "-Wall -g -O0 -std=gnu++0x -DHAVE_ATOMICS=1 ")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
@@ -29,6 +29,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
+  ${KINETIC_INCLUDE_DIR}
   ${CMAKE_SOURCE_DIR}/common/ulib/)
 
 add_subdirectory(benchmark)
@@ -60,7 +61,7 @@ add_executable(
 
 add_executable(
   eoschecksumbench
-  EosChecksumBenchmark.cc
+ 	        EosChecksumBenchmark.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/Adler.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/CheckSum.cc
   ${CMAKE_SOURCE_DIR}/fst/checksum/crc32c.cc
@@ -88,7 +89,8 @@ target_link_libraries(
   EosFstIo-Static
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
-  ${PROTOBUF_LIBRARIES})
+  ${PROTOBUF_LIBRARIES}
+  ${KINETIC_LIBRARIES})
 
 target_link_libraries(
   xrdstress.exe
@@ -105,33 +107,33 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-set_target_properties(xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcprandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpextend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpappend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpholes PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpbackward PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpupdate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
-set_target_properties(eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2")
+set_target_properties ( xrdstress.exe PROPERTIES COMPILE_FLAGS "-std=gnu++0x -D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpabort PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcprandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpextend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpappend PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpholes PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpbackward PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpdownloadrandom PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpshrink PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcptruncate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcppartial PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpupdate PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( xrdcpposixcache PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( eoshashbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )
+set_target_properties ( eoschecksumbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -msse4.2" )
 
 install(
   TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcpextend xrdcpshrink xrdcpappend
-	  xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
-	  xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
-	  eos-io-tool
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+	 xrdcptruncate xrdcpholes xrdcpbackward xrdcpdownloadrandom xrdcppartial xrdcpupdate
+	 xrdcpposixcache eoschecksumbench eosnsbench eoshashbench eos-udp-dumper eos-mmap
+	 eos-io-tool
+	 RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} )
 
 install(
   PROGRAMS xrdstress eos-instance-test eos-rain-test eoscp-rain-test eos-io-test eos-oc-test
-  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+	  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE
 	      WORLD_READ WORLD_EXECUTE)

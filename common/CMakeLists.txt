@@ -27,7 +27,7 @@ include_directories(
   ${Z_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
-  ${CURL_INCLUDE_DIRS}
+		     ${CURL_INCLUDE_DIRS}
   ${LEVELDB_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS})
@@ -46,25 +46,25 @@ set_source_files_properties(
 #-------------------------------------------------------------------------------
 set(
   EOSCOMMON_SRCS
-  Fmd.cc
-  Logging.cc
-  Mapping.cc
-  Statfs.cc
-  SymKeys.cc
-  GlobalConfig.cc
-  Attr.cc
-  Report.cc
-  ZMQ.cc
-  ShellExecutor.cc
-  ShellCmd.cc
-  StringTokenizer.cc
-  StringConversion.cc
-  CommentLog.cc
+	    Fmd.cc
+	    Logging.cc
+	    Mapping.cc
+	    Statfs.cc
+	    SymKeys.cc
+	    GlobalConfig.cc
+            Attr.cc
+            Report.cc
+	    ZMQ.cc
+	    ShellExecutor.cc
+	    ShellCmd.cc
+	    StringTokenizer.cc
+            StringConversion.cc
+	    CommentLog.cc
   RWMutex.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
-if(MacOSX)
+if( MacOSX )
   target_link_libraries(
     eosCommon
     XrdMqClient
@@ -96,29 +96,29 @@ else()
 
   add_library(
     eosCommonServer SHARED
-    FileSystem.cc
-    TransferQueue.cc
-    TransferJob.cc
-    sqlite/sqlite3.c
-    DbMap.cc
+ 	    FileSystem.cc
+            TransferQueue.cc
+            TransferJob.cc
+            sqlite/sqlite3.c
+            DbMap.cc
     DbMapSqlite.cc
     DbMapLevelDb.cc
     DbMapCommon.cc
-    http/HttpServer.cc
-    http/HttpRequest.cc
-    http/HttpResponse.cc
-    http/s3/S3Handler.cc
+            http/HttpServer.cc
+            http/HttpRequest.cc
+            http/HttpResponse.cc
+            http/s3/S3Handler.cc
     stringencoders/modp_numtoa.c)
 
   target_link_libraries(
     eosCommonServer
-    XrdMqClient
+                        XrdMqClient 
     ${Z_LIBRARY}
-    ${UUID_LIBRARIES}
+                        ${UUID_LIBRARIES} 
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
     ${LEVELDB_LIBRARIES}
-    ${CURL_LIBRARIES}
+  		        ${CURL_LIBRARIES}
     ${GLIBC_RT_LIBRARY}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
@@ -144,13 +144,13 @@ else()
 
   target_link_libraries(
     eosCommon-Static
-    XrdMqClient-Static
+                        XrdMqClient-Static 
     ${Z_LIBRARY}
     ${ZMQ_LIBRARIES}
-    ${UUID_LIBRARIES}
+                        ${UUID_LIBRARIES} 
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
-    ${CURL_LIBRARIES}
+                        ${CURL_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
@@ -185,8 +185,8 @@ if (Linux)
     ${DBMAPTEST_SRCS}
     ${DBMAPTEST_HDRS})
 
-  target_link_libraries(dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
-  target_link_libraries(mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (dbmaptestburn eosCommonServer eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (mutextest eosCommon ${CMAKE_THREAD_LIBS_INIT})
   target_link_libraries(
     dbmaptestfunc
     eosCommonServer
@@ -207,15 +207,15 @@ add_library(
   plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 
-set_target_properties(
+  set_target_properties ( 
   EosPluginManager
   PROPERTIES
   VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
+    SOVERSION ${VERSION_MAJOR}
   INTERFACE_LINK_LIBRARIES ""
   MACOSX_RPATH TRUE)
 
 install(
   TARGETS EosPluginManager
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

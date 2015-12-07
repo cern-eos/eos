@@ -64,6 +64,9 @@ FileSystem::FileSystem (const char* queuepath,
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
 
+  mRecoverable = false;
+
+  mFileIO = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(GetPath().c_str()));
 }
 
 /*----------------------------------------------------------------------------*/
@@ -74,6 +77,8 @@ FileSystem::~FileSystem ()
     delete scanDir;
   }
 
+  if (mFileIO)
+    delete mFileIO;
   // ----------------------------------------------------------------------------
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
@@ -136,12 +141,37 @@ FileSystem::BroadcastError (int errc, const char* errmsg)
 eos::common::Statfs*
 FileSystem::GetStatfs ()
 {
-  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
+  if (!GetPath().length())
+    return 0;
+		       
+  eos::common::Statfs::Callback::callback_data_t lData;
+  std::string path = GetPath();
+
+  lData.path = path.c_str();
+  lData.caller = (void*) mFileIO;
+  // lData.statfs is set in DoStatfs
+
+  eos::common::Statfs::Callback::callback_t lCallback = FileIo::StatfsCB;
+
+  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str(), lCallback, &lData);
   if ((!statFs) && GetPath().length())
   {
     eos_err("cannot statfs");
     BroadcastError("cannot statfs");
     return 0;
+  }
+  else
+  {
+    eos_static_debug("ec=%d error=%s recover=%d", GetStatus(), GetString("stat.errmsg").c_str(), mRecoverable);
+    if ( (GetStatus() == eos::common::FileSystem::kOpsError) && mRecoverable)
+    {
+      if ( GetString("stat.errmsg") == "cannot statfs" )
+      {
+	// reset the statfs error
+	SetStatus(eos::common::FileSystem::kBooted);
+	SetError(0,"");
+      }
+    }
   }
 
   return statFs;
@@ -297,6 +327,8 @@ FileSystem::SyncTransactions (const char* manager)
 void
 FileSystem::RunScanner (Load* fstLoad, time_t interval)
 {
+  if (GetPath()[0] != '/')
+    return;
   if (scanDir)
   {
     delete scanDir;
@@ -351,20 +383,28 @@ FileSystem::IoPing ()
 
   eos_info("\"%s\" \"%s\"", cmdbw.c_str(), cmdiops.c_str());
 
+  seqBandwidth = 0;
+  IOPS = 0;
+  // ----------------------
+  // exclude 'remote' disks
+  // ----------------------
+  if (GetPath()[0] == '/')
+  {
   std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdbw.c_str());
   std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdiops.c_str());
 
   if ( 
       bwMeasurement.length() &&
       iopsMeasurement.length() )
-  {
-    seqBandwidth = strtol(bwMeasurement.c_str(),0,10);
-    IOPS = atoi(iopsMeasurement.c_str());
-  }
-  else
-  {
-    seqBandwidth = 0;
-    IOPS = 0;
+    {
+      seqBandwidth = strtol(bwMeasurement.c_str(),0,10);
+      IOPS = atoi(iopsMeasurement.c_str());
+    }
+    else
+    {
+      seqBandwidth = 0;
+      IOPS = 0;
+    }
   }
   eos_info("bw=%lld iops=%d",seqBandwidth,IOPS);
 }

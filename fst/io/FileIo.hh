@@ -29,6 +29,8 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
+#include "common/Statfs.hh"
+#include "common/Attr.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -60,7 +62,10 @@ public:
   FileIo () :
   eos::common::LogId (),
   mFilePath (""),
-  mLastUrl("")
+  mLastUrl (""),
+  mType ("FileIo"),
+  mLastErrMsg (""),
+  mExternalStorage (false)
   {
     //empty
   }
@@ -122,7 +127,19 @@ public:
   //!
   //----------------------------------------------------------------------------
   virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
-                         uint16_t timeout = 0) = 0;
+                         uint16_t timeout = 0)
+  {
+    int64_t ret = 0;
+    for(auto it = chunkList.begin(); it != chunkList.end(); it++)
+    {
+      auto r = Read(it->offset,(char*)it->buffer,it->length,timeout);
+      if( r<0 )
+        return -1;
+      else
+        ret += r;
+    }
+    return ret;
+  }
 
 
   //------------------------------------------------------------------------------
@@ -135,9 +152,11 @@ public:
   //!
   //------------------------------------------------------------------------------
   virtual int64_t ReadVAsync (XrdCl::ChunkList& chunkList,
-                              uint16_t timeout = 0) = 0;
+      uint16_t timeout = 0)
+  {
+    return ReadV( chunkList , timeout );
+  }
 
- 
   //----------------------------------------------------------------------------
   //! Write to file - sync
   //!
@@ -291,6 +310,16 @@ public:
   //! @return pointer to async handler, NULL otherwise 
   //!
   //----------------------------------------------------------------------------
+  virtual int Exists (const char* path) = 0;
+
+  //--------------------------------------------------------------------------
+  //! Delete a file
+  //!
+  //! @param path to the file to be deleted
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int Delete (const char* path) = 0;
   virtual void* GetAsyncHandler () = 0;
 
 
@@ -315,6 +344,135 @@ public:
   //--------------------------------------------------------------------------
   //! Get last error message
   //--------------------------------------------------------------------------
+  class FtsHandle
+  {
+  protected:
+    std::string mPath;
+  public:
+
+    FtsHandle (const char* dirp) : mPath (dirp)
+    {
+    }
+
+    virtual ~FtsHandle ()
+    {
+    }
+  };
+
+  //--------------------------------------------------------------------------
+  //! Open a cursor to traverse a storage system
+  //! @param subtree where to start traversing
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+
+  virtual FileIo::FtsHandle* ftsOpen (std::string subtree)
+  {
+    return 0;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //! @param fts_handle cursor obtained by ftsOpen
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+
+  virtual std::string ftsRead (FileIo::FtsHandle* handle)
+  {
+    return "";
+  }
+
+  //--------------------------------------------------------------------------
+  //! Close a traversal cursor
+  //! @param fts_handle cursor to close
+  //! @return 0 if fts_handle was an open cursor, otherwise -1
+  //--------------------------------------------------------------------------
+
+  virtual int ftsClose (FileIo::FtsHandle* handle)
+  {
+    return -1;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Callback function to fill a statfs structure about the storage filling
+  //! state
+  //! @param data containing path, return code and statfs structure
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  static int StatfsCB (eos::common::Statfs::Callback::callback_data* data)
+  {
+    if (data)
+    {
+      data->retc = ((FileIo*) (data->caller))->Statfs(data->path, data->statfs);
+      return data->retc;
+    }
+    else
+      return -1;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+
+  virtual int Statfs (const char* path, struct statfs* statFs)
+  {
+    eos_warning("msg=\"base class statfs called\"");
+    return -ENODATA;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Class implementing extended attribute support
+  //--------------------------------------------------------------------------
+
+  class Attr : public eos::common::Attr {
+  public:
+    // -----------------------------------------------------------------------
+    // Constructor
+    // -----------------------------------------------------------------------
+
+    Attr ()
+    {
+    }
+
+    Attr (const char* path) : eos::common::Attr (path)
+    {
+    }
+
+    // -----------------------------------------------------------------------
+    // Destructor
+    // -----------------------------------------------------------------------
+
+    virtual ~Attr ()
+    {
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // Mark this IO as an IO module towards an external storage system
+  // -------------------------------------------------------------------------
+
+  void SetExternalStorage ()
+  {
+    mExternalStorage = true;
+  }
+
+  // -------------------------------------------------------------------------
+  // Return the IO type
+  // -------------------------------------------------------------------------
+
+  std::string GetIoType ()
+  {
+    return mType;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get last error message
+  //--------------------------------------------------------------------------
+
   const std::string&
   GetLastErrMsg ()
   {
@@ -322,10 +480,12 @@ public:
   }
 
 protected:
-
+  Attr mAttr;
   std::string mFilePath; ///< path to current physical file
   std::string mLastUrl;  ///< last used url if remote file
+  std::string mType; ///< type
   std::string mLastErrMsg; ///< last error stored
+  bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
 };
 
 EOSFSTNAMESPACE_END

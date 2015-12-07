@@ -323,7 +323,7 @@ Storage::Boot (FileSystem *fs)
     return;
 
   // try to statfs the filesystem
-  eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(fs->GetPath().c_str());
+  eos::common::Statfs* statfs = fs->GetStatfs();
   if (!statfs)
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -331,10 +331,12 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
+  if (fs->GetPath()[0] == '/')
+  {
   // test if we have rw access
   struct stat buf;
   if (::stat(fs->GetPath().c_str(), &buf) ||
-      (buf.st_uid != 2) ||
+        (buf.st_uid != geteuid()) ||
       ((buf.st_mode & S_IRWXU) != S_IRWXU))
   {
 
@@ -343,7 +345,7 @@ Storage::Boot (FileSystem *fs)
       errno = EPERM;
     }
 
-    if (buf.st_uid != 2)
+      if (buf.st_uid != geteuid())
     {
       errno = ENOTCONN;
     }
@@ -370,6 +372,7 @@ Storage::Boot (FileSystem *fs)
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
       fs->SetError(EIO, "filesystem is on the root partition without or wrong <uuid> label file .eosfsuuid");
       return;
+      }
     }
   }
 
@@ -402,7 +405,7 @@ Storage::Boot (FileSystem *fs)
   // resync the DB 
   gFmdDbMapHandler.StayDirty(fsid, true); // indicate the flag to keep the DP dirty
 
-  if (resyncdisk)
+  if (resyncdisk && (fs->GetPath()[0] == '/'))
   {
     if (resyncmgm)
     {
@@ -472,7 +475,17 @@ Storage::Boot (FileSystem *fs)
 
   // create FS transaction directory
   std::string transactionDirectory = fs->GetPath();
+  if (fs->GetPath()[0] != '/')
+  {
+    transactionDirectory = metaDirectory.c_str();
   transactionDirectory += "/.eostransaction";
+    transactionDirectory += "-";
+    transactionDirectory += (int) fs->GetId();
+  }
+  else
+  {
+    transactionDirectory += "/.eostransaction";
+  }
 
   if (mkdir(transactionDirectory.c_str(),
             S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
@@ -485,7 +498,7 @@ Storage::Boot (FileSystem *fs)
     }
   }
 
-  if (chown(transactionDirectory.c_str(), 2, 2))
+  if (chown(transactionDirectory.c_str(), geteuid(), getegid()))
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(errno ? errno : EIO, "cannot change ownership of transactiondirectory");
@@ -511,6 +524,8 @@ Storage::FsLabel (std::string path,
   //----------------------------------------------------------------
   //! writes file system label files .eosfsid .eosuuid according to config (if they didn't exist!)
   //----------------------------------------------------------------
+  if (path[0] != '/')
+    return true;
 
   XrdOucString fsidfile = path.c_str();
   fsidfile += "/.eosfsid";
@@ -572,6 +587,8 @@ Storage::CheckLabel (std::string path,
   //----------------------------------------------------------------
   //! checks that the label on the filesystem is the same as the configuration
   //----------------------------------------------------------------
+  if (path[0] != '/')
+    return true;
 
   XrdOucString fsidfile = path.c_str();
   fsidfile += "/.eosfsid";

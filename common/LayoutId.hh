@@ -100,12 +100,34 @@ public:
   //! Definition of IO types
   //--------------------------------------------------------------------------
 
-  enum eIoType
-  {
+  enum eIoType {
     kLocal = 0x0,
-    kXrdCl = 0x1
+    kXrdCl = 0x1,
+    kRados = 0x2,
+    kKinetic = 0x3,
+    kDavix = 0x4
   };
 
+  static eIoType
+  GetIoType (const char* path)
+  {
+    XrdOucString spath = path;
+    if (spath.beginswith("root:"))
+      return kXrdCl;
+    if (spath.beginswith("kinetic:"))
+      return kKinetic;
+    if (spath.beginswith("rados:"))
+      return kRados;
+    if (spath.beginswith("http:"))
+      return kDavix;
+    if (spath.beginswith("https:"))
+      return kDavix;
+    if (spath.beginswith("s3:"))
+      return kDavix;
+    if (spath.beginswith("s3s:"))
+      return kDavix;
+    return kLocal;
+  }
 
   //--------------------------------------------------------------------------
   //! Definition of predefined block sizes

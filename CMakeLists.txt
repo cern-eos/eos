@@ -79,6 +79,8 @@ if (NOT PACKAGEONLY)
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
   find_package(Sphinx)
+  find_package(kineticio)
+  find_package(davix)
 
   if (Linux)
     find_package(glibc REQUIRED)
@@ -140,10 +142,10 @@ if (CLIENT)
   if (MacOSX)
     set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
   else ()
-set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+  set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
   endif()
 else (CLIENT)
-set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
+  set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
 endif (CLIENT)
 
 #-------------------------------------------------------------------------------
@@ -242,6 +244,7 @@ set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_fi
 add_custom_target(
   srpm
   COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
+
 
 add_custom_target(
   rpm

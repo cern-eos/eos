@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-// File: PlainLayout.cc
-// Author: Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
+// File: RadosIo.cc
+// Author: Elvin-Alin Sindrilaru - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -22,10 +22,12 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/PlainLayout.hh"
-#include "fst/io/FileIoPlugin.hh"
-#include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include "fst/io/RadosIo.hh"
+/*----------------------------------------------------------------------------*/
+#ifndef __APPLE__
+#include <xfs/xfs.h>
+#endif
 
 /*----------------------------------------------------------------------------*/
 
@@ -34,202 +36,190 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-PlainLayout::PlainLayout (XrdFstOfsFile* file,
-                          unsigned long lid,
-                          const XrdSecEntity* client,
-                          XrdOucErrInfo* outError,
-                          eos::common::LayoutId::eIoType io,
-                          uint16_t timeout) :
-Layout (file, lid, client, outError, io, timeout),
-mFileSize (0),
-mDisableRdAhead (false)
+RadosIo::RadosIo (XrdFstOfsFile* file,
+                  const XrdSecEntity* client) :
+FileIo (),
+mLogicalFile (file),
+mSecEntity (client)
 {
-  // For the plain layout we use only the LocalFileIo type
-  mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
-  mFileIO = mPlainFile;
-
-  // evt. mark an IO module as talking to external storage
-  if ((mFileIO->GetIoType() != "LocalIo"))
-    mFileIO->SetExternalStorage();
-
-  mIsEntryServer = true;
+  //............................................................................
+  // In this case the logical file is the same as the local physical file
+  //............................................................................
+  // empty
+  mType = "RadosIO";
 }
+
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 
-PlainLayout::~PlainLayout ()
+RadosIo::~RadosIo ()
 {
-  // mPlainFile is deleted via mFileIO in the base class
+  //empty
 }
 
+
 //------------------------------------------------------------------------------
-// Open File
+// Open file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Open (const std::string& path,
-                   XrdSfsFileOpenMode flags,
-                   mode_t mode,
-                   const char* opaque)
+RadosIo::Open (const std::string& path,
+               XrdSfsFileOpenMode flags,
+               mode_t mode,
+               const std::string& opaque,
+               uint16_t timeout)
 {
-  mLocalPath = path;
-  int retc = mPlainFile->Open(path, flags, mode, opaque, mTimeout);
-
-  if (retc)
-  {
-    eos_err("failed open for file=%s", path.c_str());
-    return SFS_ERROR;
-  }
-
-  mLastUrl = mPlainFile->GetLastUrl();
-
-  // Get initial file size
-  struct stat st_info;
-  int retc_stat = mPlainFile->Stat(&st_info);
-
-  if (retc_stat)
-  {
-    eos_err("failed stat for file=%s", path.c_str());
-    return SFS_ERROR;
-  }
-
-  mFileSize = st_info.st_size;
-  return retc;
+  return SFS_ERROR;
 }
 
+
 //------------------------------------------------------------------------------
-// Read from file
+// Read from file - sync
 //------------------------------------------------------------------------------
 
 int64_t
-PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
-                   XrdSfsXferSize length, bool readahead)
+RadosIo::Read (XrdSfsFileOffset offset,
+               char* buffer,
+               XrdSfsXferSize length,
+               uint16_t timeout)
 {
-  if (readahead && !mDisableRdAhead)
-  {
-    if (mIoType == eos::common::LayoutId::eIoType::kXrdCl)
-    {
-      if ((uint64_t) (offset + length) > mFileSize)
-        length = mFileSize - offset;
-
-      int64_t nread = mPlainFile->ReadAsync(offset, buffer, length, readahead);
-
-      // Wait for any async requests
-      AsyncMetaHandler* ptr_handler = static_cast<AsyncMetaHandler*>
-              (mPlainFile->GetAsyncHandler());
-
-      if (ptr_handler)
-      {
-        uint16_t error_type = ptr_handler->WaitOK();
-
-        if (error_type != XrdCl::errNone)
-          return SFS_ERROR;
-      }
-
-      return nread;
-    }
-  }
-
-  return mPlainFile->Read(offset, buffer, length, mTimeout);
-}
-
-//------------------------------------------------------------------------------
-// Vector read 
-//------------------------------------------------------------------------------
-int64_t
-PlainLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
-{
-  return mPlainFile->ReadV(chunkList);
+  return SFS_ERROR;
 }
 
 
 //------------------------------------------------------------------------------
-// Write to file
+// Write to file - sync
 //------------------------------------------------------------------------------
 
 int64_t
-PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer,
-                    XrdSfsXferSize length)
+RadosIo::Write (XrdSfsFileOffset offset,
+                const char* buffer,
+                XrdSfsXferSize length,
+                uint16_t timeout)
 {
-  mDisableRdAhead = true;
-
-  if ((uint64_t) (offset + length) > mFileSize)
-    mFileSize = offset + length;
-
-  return mPlainFile->Write(offset, buffer, length, mTimeout);
+  return SFS_ERROR;
 }
+
+
+//------------------------------------------------------------------------------
+// Read from file async - falls back on synchronous mode
+//------------------------------------------------------------------------------
+
+int64_t
+RadosIo::ReadAsync (XrdSfsFileOffset offset,
+                    char* buffer,
+                    XrdSfsXferSize length,
+                    bool readahead,
+                    uint16_t timeout)
+{
+  return Read(offset, buffer, length, timeout);
+}
+
+
+//------------------------------------------------------------------------------
+// Write to file async - falls back on synchronous mode
+//------------------------------------------------------------------------------
+
+int64_t
+RadosIo::WriteAsync (XrdSfsFileOffset offset,
+                     const char* buffer,
+                     XrdSfsXferSize length,
+                     uint16_t timeout)
+{
+  return Write(offset, buffer, length, timeout);
+}
+
 
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Truncate (XrdSfsFileOffset offset)
+RadosIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
-  mFileSize = offset;
-  return mPlainFile->Truncate(offset, mTimeout);
+  return SFS_ERROR;
 }
 
+
 //------------------------------------------------------------------------------
-// Reserve space for file
+// Allocate space for file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Fallocate (XrdSfsFileOffset length)
+RadosIo::Fallocate (XrdSfsFileOffset length)
 {
-  return mPlainFile->Fallocate(length);
+  return SFS_ERROR;
 }
 
+
 //------------------------------------------------------------------------------
-// Deallocate reserved space
+// Deallocate space reserved for file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
+RadosIo::Fdeallocate (XrdSfsFileOffset fromOffset,
+                      XrdSfsFileOffset toOffset)
 {
-  return mPlainFile->Fdeallocate(fromOffset, toOffset);
+  return SFS_ERROR;
 }
+
 
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Sync ()
+RadosIo::Sync (uint16_t timeout)
 {
-  return mPlainFile->Sync(mTimeout);
+  return SFS_ERROR;
 }
 
+
 //------------------------------------------------------------------------------
-// Get stats for file
+// Get stats about the file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Stat (struct stat* buf)
+RadosIo::Stat (struct stat* buf, uint16_t timeout)
 {
-  return mPlainFile->Stat(buf, mTimeout);
+  return SFS_ERROR;
 }
+
 
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Close ()
+RadosIo::Close (uint16_t timeout)
 {
-  return mPlainFile->Close(mTimeout);
+  return SFS_ERROR;
 }
+
 
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
 
 int
-PlainLayout::Remove ()
+RadosIo::Remove (uint16_t timeout)
 {
-  return mPlainFile->Remove();
+  return SFS_ERROR;
+}
+
+
+//------------------------------------------------------------------------------
+// Get pointer to async meta handler object
+//------------------------------------------------------------------------------
+
+void*
+RadosIo::GetAsyncHandler ()
+{
+  return NULL;
 }
 
 EOSFSTNAMESPACE_END
+
+

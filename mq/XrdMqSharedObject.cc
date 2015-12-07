@@ -1498,7 +1498,7 @@ void
 XrdMqSharedObjectManager::DumpSharedObjectList (XrdOucString& out)
 {
   out = "";
-  char formatline[1024];
+  char formatline[65536];
 
   XrdMqRWMutexReadLock lock(HashMutex);
 

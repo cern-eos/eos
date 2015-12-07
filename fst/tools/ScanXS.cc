@@ -40,6 +40,9 @@ int
 main (int argc, char *argv[])
 {
   bool setxs = false;
+  eos::common::Logging::Init();
+  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetUnit("Scandir");
   if ((argc < 2) || (argc > 3))
   {
     fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");

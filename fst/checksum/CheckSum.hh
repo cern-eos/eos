@@ -140,7 +140,51 @@ public:
     return needsRecalculation;
   }
 
+  class ReadCallBack {
+  public:
+
+    typedef struct callback_data {
+      callback_data () : caller (0), path (0), offset (0), buffer (0), size (0), retc (-1)
+      {
+      }
+      void* caller;
+      const char* path;
+      off_t offset;
+      char* buffer;
+      size_t size;
+      int retc;
+    } callback_data_t;
+
+    typedef int (*callback_t)(callback_data_t*);
+
+    ReadCallBack ()
+    {
+      call = 0;
+    }
+
+    ReadCallBack (callback_t tocall, callback_data_t& info)
+    {
+      call = tocall;
+      data = info;
+      data.retc = 0;
+    }
+
+    virtual ~ReadCallBack ()
+    {
+    };
+
+    ReadCallBack (const ReadCallBack &obj)
+    {
+      call = obj.call;
+      data = obj.data;
+    }
+
+    callback_t call;
+    callback_data_t data;
+  };
+
   virtual bool ScanFile (const char* path, unsigned long long &scansize, float &scantime, int rate = 0);
+  virtual bool ScanFile (ReadCallBack rcb, unsigned long long &scansize, float &scantime, int rate = 0);
   virtual bool ScanFile (int fd, unsigned long long &scansize, float &scantime, int rate = 0);
   virtual bool ScanFile (const char* path, off_t offsetInit, size_t lengthInit, const char* partialChecksum,
                          unsigned long long &scansize, float &scantime, int rate = 0);
