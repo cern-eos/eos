@@ -208,7 +208,7 @@ ConverterJob::DoIt ()
     std::string source = mSourcePath.c_str();
     std::string target = mProcPath.c_str();
 
-    std::string cgi = "eos.ruid="DAEMONUID"&eos.rgid="DAEMONGID"&";
+    std::string cgi = "eos.ruid=" #DAEMONUID "&eos.rgid=" #DAEMONGID "&";
     cgi += mTargetCGI.c_str();
     cgi += "&eos.app=converter";
     cgi += "&eos.targetsize=";
