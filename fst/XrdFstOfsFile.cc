@@ -1416,6 +1416,22 @@ XrdFstOfsFile::closeofs ()
   return rc;
 }
 
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+
+int
+XrdFstOfsFile::LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
+{
+  return ((Layout*) cbd->caller)->Read(cbd->offset, cbd->buffer, cbd->size);
+}
+
+int
+XrdFstOfsFile::FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
+{
+  return ((FileIo*) cbd->caller)->Read(cbd->offset, cbd->buffer, cbd->size);
+}
+
 
 //------------------------------------------------------------------------------
 //
