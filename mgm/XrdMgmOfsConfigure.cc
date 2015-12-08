@@ -821,7 +821,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += MgmMetaLogDir;
             src = system(chownit.c_str());
             if (src)
@@ -856,7 +856,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += MgmTxDir;
             src = system(chownit.c_str());
             if (src)
@@ -890,7 +890,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += MgmAuthDir;
             src = system(chownit.c_str());
             if (src)
@@ -931,7 +931,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             int src = system(makeit.c_str());
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += IoReportStorePath;
             src = system(chownit.c_str());
             if (src)
@@ -1312,7 +1312,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (src)
     eos_err("%s returned %d", makeit.c_str(), src);
 
-  XrdOucString chownit = "chown -R 2 ";
+  XrdOucString chownit = "chown -R daemon ";
   chownit += MgmConfigDir;
   src = system(chownit.c_str());
   if (src)
