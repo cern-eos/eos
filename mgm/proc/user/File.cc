@@ -634,7 +634,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "tag")
     {
-      if ( (! ((vid.prot == "sss") && (eos::common::Mapping::HasUid(2, vid.uid_list))) ) &&
+      if ( (! ((vid.prot == "sss") && (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list))) ) &&
 	   (vid.uid) )
       {
 	stdErr = "error: permission denied - you have to be root to run the 'tag' command";

@@ -2918,7 +2918,7 @@ xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
 
   if (uid == 0)
   {
-    uid = gid = 2;
+    uid = gid = DAEMONUID;
   }
 
   unsigned long long bituser=0;

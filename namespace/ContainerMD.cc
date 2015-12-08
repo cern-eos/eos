@@ -312,7 +312,7 @@ namespace eos
       return true;
 
     // daemon can read everything
-    if( (uid == 2) &&
+    if( (uid == DAEMONUID) &&
         (!(flags & W_OK)) )
       return true;
 
