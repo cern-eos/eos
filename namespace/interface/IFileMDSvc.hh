@@ -168,11 +168,6 @@ class IFileMDSvc
   virtual uint64_t getNumFiles() const = 0;
 
   //------------------------------------------------------------------------
-  //! Visit all the files
-  //------------------------------------------------------------------------
-  virtual void visit(IFileVisitor* visitor) = 0;
-
-  //------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
   //! the store
   //------------------------------------------------------------------------

@@ -91,7 +91,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  virtual size_t getNumContainers() const = 0;
+  virtual size_t getNumContainers() = 0;
 
   //----------------------------------------------------------------------------
   //! Add file
@@ -111,7 +111,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  virtual size_t getNumFiles() const = 0;
+  virtual size_t getNumFiles() = 0;
 
   //----------------------------------------------------------------------------
   //! Get name
@@ -316,25 +316,45 @@ class IContainerMD
   //!
   //! @return set of file names
   //----------------------------------------------------------------------------
+<<<<<<< HEAD
   virtual std::set<std::string> getNameFiles() const = 0;
+=======
+  virtual std::unique_ptr<IContainerMD> beginSubContainer() = 0;
+>>>>>>> NS: Implement the ContainerMD/ContainerMDSvc and FileMD/FileMDSvc on top of Redis
 
   //----------------------------------------------------------------------------
   //! Get set of subcontainer names contained in the current object
   //!
   //! @return set of subcontainer names
   //----------------------------------------------------------------------------
+<<<<<<< HEAD
   virtual std::set<std::string> getNameContainers() const = 0;
 
  private:
+=======
+  virtual std::unique_ptr<IContainerMD> nextSubContainer() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get pointer to first file in the container. *MUST* be used in conjunction
+  //! with nextFile to iterate over the list of files.
+  //!
+  //! @return pointer to the first file or 0 if no files
+  //----------------------------------------------------------------------------
+  virtual std::unique_ptr<IFileMD> beginFile() = 0;
+>>>>>>> NS: Implement the ContainerMD/ContainerMDSvc and FileMD/FileMDSvc on top of Redis
 
   //----------------------------------------------------------------------------
   //! Make copy constructor and assignment operator private to avoid "slicing"
   //! when dealing with derived classes.
   //----------------------------------------------------------------------------
+<<<<<<< HEAD
   IContainerMD(const IContainerMD& other);
 
   IContainerMD& operator=(const IContainerMD& other);
 
+=======
+  virtual std::unique_ptr<IFileMD> nextFile() = 0;
+>>>>>>> NS: Implement the ContainerMD/ContainerMDSvc and FileMD/FileMDSvc on top of Redis
 };
 
 EOSNSNAMESPACE_END

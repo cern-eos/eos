@@ -44,7 +44,7 @@ namespace eos
       //------------------------------------------------------------------------
       Buffer( unsigned size = 512 )
       {
-        reserve( size );
+	reserve( size );
       }
 
       //------------------------------------------------------------------------
@@ -57,7 +57,7 @@ namespace eos
       //------------------------------------------------------------------------
       Buffer( const Buffer &other )
       {
-        *this = other;
+	*this = other;
       };
 
       //------------------------------------------------------------------------
@@ -65,9 +65,9 @@ namespace eos
       //------------------------------------------------------------------------
       Buffer &operator = ( const Buffer &other )
       {
-        resize( other.getSize() );
-        memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
-        return *this;
+	resize( other.getSize() );
+	memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+	return *this;
       };
 
       //------------------------------------------------------------------------
@@ -75,7 +75,7 @@ namespace eos
       //------------------------------------------------------------------------
       char *getDataPtr()
       {
-        return &operator[]( 0 );
+	return &operator[]( 0 );
       }
 
       //------------------------------------------------------------------------
@@ -83,7 +83,7 @@ namespace eos
       //------------------------------------------------------------------------
       const char *getDataPtr() const
       {
-        return &operator[]( 0 );
+	return &operator[]( 0 );
       }
 
       //------------------------------------------------------------------------
@@ -91,9 +91,9 @@ namespace eos
       //------------------------------------------------------------------------
       const char getDataPadded(size_t i) const
       {
-        if (i < size())
+	if (i < size())
 	  return (operator[](i));
-        return 0;
+	return 0;
       }
 
       //------------------------------------------------------------------------
@@ -101,7 +101,7 @@ namespace eos
       //------------------------------------------------------------------------
       size_t getSize() const
       {
-        return size();
+	return size();
       }
 
       //------------------------------------------------------------------------
@@ -109,36 +109,54 @@ namespace eos
       //------------------------------------------------------------------------
       void putData( const void *ptr, size_t dataSize )
       {
-        size_t currSize = size();
-        resize( currSize + dataSize );
-        memcpy( &operator[](currSize), ptr, dataSize );
+	size_t currSize = size();
+	resize( currSize + dataSize );
+	memcpy( &operator[](currSize), ptr, dataSize );
       }
 
       //------------------------------------------------------------------------
       //! Add data
       //------------------------------------------------------------------------
       uint16_t grabData( uint16_t offset, void *ptr, size_t dataSize ) const
-        throw( MDException )
+	throw( MDException )
       {
-        if( offset+dataSize > getSize() )
-        {
-          MDException e( EINVAL );
-          e.getMessage() << "Not enough data to fulfil the request";
-          throw e;
-        }
-        memcpy( ptr, &operator[](offset), dataSize );
-        return offset+dataSize;
+	if( offset+dataSize > getSize() )
+	{
+	  MDException e( EINVAL );
+	  e.getMessage() << "Not enough data to fulfil the request";
+	  throw e;
+	}
+	memcpy( ptr, &operator[](offset), dataSize );
+	return offset+dataSize;
       }
 
-      //------------------------------------------------------------------------
-      //! Calculate the CRC32 checksum
-      //------------------------------------------------------------------------
-      uint32_t getCRC32() const
-      {
-        return crc32( crc32( 0L, Z_NULL, 0 ),
-                     (const Bytef*)getDataPtr(), size() );
-      }
-    protected:
+    //--------------------------------------------------------------------------
+    //! Copy specified amount of data from buffer to new destination
+    //!
+    //! @param buffer std::string holding source binary blob
+    //! @param offset offset in the buffer from where we start copying
+    //! @param size amount of data that we copy
+    //! @param dest_ptr destination where data is copied
+    //!
+    //! @return new offset in the original string
+    //--------------------------------------------------------------------------
+    static uint64_t
+    grabData(const std::string& buffer, uint64_t offset, uint64_t size, void* dest_ptr)
+    {
+      const char* src_ptr = buffer.data() + offset;
+      (void*) memcpy(dest_ptr, src_ptr, size);
+      return offset + size;
+    }
+
+    //------------------------------------------------------------------------
+    //! Calculate the CRC32 checksum
+    //------------------------------------------------------------------------
+    uint32_t getCRC32() const
+    {
+      return crc32( crc32( 0L, Z_NULL, 0 ),
+		    (const Bytef*)getDataPtr(), size() );
+    }
+  protected:
   };
 }
 

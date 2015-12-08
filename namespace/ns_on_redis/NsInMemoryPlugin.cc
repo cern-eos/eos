@@ -21,8 +21,8 @@
 /*----------------------------------------------------------------------------*/
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_on_redis/NsInMemoryPlugin.hh"
-#include "namespace/ns_on_redis/persistency/ChangeLogContainerMDSvc.hh"
-#include "namespace/ns_on_redis/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/views/HierarchicalView.hh"
 #include "namespace/ns_on_redis/accounting/FileSystemView.hh"
 #include "namespace/ns_on_redis/accounting/ContainerAccounting.hh"
@@ -121,7 +121,7 @@ void*
 NsInMemoryPlugin::CreateContainerMDSvc(PF_PlatformServices* services)
 {
   if (!pContMDSvc)
-    pContMDSvc = new ChangeLogContainerMDSvc();
+    pContMDSvc = new ContainerMDSvc();
 
   return pContMDSvc;
 }
@@ -135,7 +135,7 @@ NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
   if (!obj)
     return -1;
 
-  delete static_cast<ChangeLogContainerMDSvc*>(obj);
+  delete static_cast<ContainerMDSvc*>(obj);
   return 0;
 }
 
@@ -145,7 +145,7 @@ NsInMemoryPlugin::DestroyContainerMDSvc(void* obj)
 void*
 NsInMemoryPlugin::CreateFileMDSvc(PF_PlatformServices* services)
 {
-  return new ChangeLogFileMDSvc();
+  return new FileMDSvc();
 }
 
 //------------------------------------------------------------------------------
@@ -157,7 +157,7 @@ NsInMemoryPlugin::DestroyFileMDSvc(void* obj)
   if (!obj)
     return -1;
 
-  delete static_cast<ChangeLogFileMDSvc*>(obj);
+  delete static_cast<FileMDSvc*>(obj);
   return 0;
 }
 

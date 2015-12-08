@@ -103,11 +103,6 @@ class IContainerMDSvc
   virtual void removeContainer(IContainerMD* obj) = 0;
 
   //------------------------------------------------------------------------
-  //! Remove object from the store
-  //------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD::id_t containerId) = 0;
-
-  //------------------------------------------------------------------------
   //! Get number of containers
   //------------------------------------------------------------------------
   virtual uint64_t getNumContainers() const = 0;
@@ -125,12 +120,22 @@ class IContainerMDSvc
   //----------------------------------------------------------------------------
   virtual void setQuotaStats(IQuotaStats* quota_stats) = 0;
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Notify all subscribed listener
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void notifyListeners( IContainerMD *obj,
                                 IContainerMDChangeListener::Action a  ) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Get the orphans container
+  //----------------------------------------------------------------------------
+  virtual IContainerMD* getLostFoundContainer(const std::string &name) = 0;
+
+  //------------------------------------------------------------------------
+  // Create container in parent
+  //------------------------------------------------------------------------
+  virtual IContainerMD* createInParent(const std::string& name,
+				       IContainerMD* parent) = 0;
 };
 
 EOSNSNAMESPACE_END

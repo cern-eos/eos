@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,8 +17,8 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Class representing the container metadata
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @brief Class representing the container metadata
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_CONTAINER_MD_HH__
@@ -35,6 +35,12 @@
 #include <google/dense_hash_map>
 #include <map>
 #include <sys/time.h>
+
+//! Forward declaration
+namespace redox
+{
+  class Redox;
+}
 
 EOSNSNAMESPACE_BEGIN
 
@@ -54,6 +60,11 @@ class ContainerMD: public IContainerMD
   //! Constructor
   //----------------------------------------------------------------------------
   ContainerMD(id_t id);
+
+  //----------------------------------------------------------------------------
+  //! Desstructor
+  //----------------------------------------------------------------------------
+  virtual ~ContainerMD();
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
@@ -88,10 +99,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  size_t getNumContainers() const
-  {
-    return pSubContainers.size();
-  }
+  size_t getNumContainers();
 
   //----------------------------------------------------------------------------
   //! Add file
@@ -111,10 +119,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  size_t getNumFiles() const
-  {
-    return pFiles.size();
-  }
+  size_t getNumFiles();
 
   //----------------------------------------------------------------------------
   //! Get container id
@@ -219,8 +224,8 @@ class ContainerMD: public IContainerMD
   bool setTMTime(tmtime_t tmtime)
   {
     if ( (tmtime.tv_sec > pMTime.tv_sec ) ||
-         ( (tmtime.tv_sec == pMTime.tv_sec) &&
-           (tmtime.tv_nsec > pMTime.tv_nsec) ) )
+	 ( (tmtime.tv_sec == pMTime.tv_sec) &&
+	   (tmtime.tv_nsec > pMTime.tv_nsec) ) )
     {
       pTMTime.tv_sec = tmtime.tv_sec;
       pTMTime.tv_nsec = tmtime.tv_nsec;
@@ -461,7 +466,7 @@ class ContainerMD: public IContainerMD
   //!
   //! @return pointer to first subcontainer or 0 if no subcontainers
   //----------------------------------------------------------------------------
-  IContainerMD* beginSubContainer();
+  std::unique_ptr<IContainerMD> beginSubContainer();
 
   //----------------------------------------------------------------------------
   //! Get pointer to the next subcontainer object. Must be used in conjunction
@@ -469,7 +474,7 @@ class ContainerMD: public IContainerMD
   //!
   //! @return pointer to next subcontainer or 0 if no subcontainers
   //----------------------------------------------------------------------------
-  IContainerMD* nextSubContainer();
+  std::unique_ptr<IContainerMD> nextSubContainer();
 
   //----------------------------------------------------------------------------
   //! Get pointer to first file in the container. Must be used in conjunction
@@ -477,7 +482,7 @@ class ContainerMD: public IContainerMD
   //!
   //! @return pointer to the first file or 0 if no files
   //----------------------------------------------------------------------------
-  IFileMD* beginFile();
+  std::unique_ptr<IFileMD> beginFile();
 
   //----------------------------------------------------------------------------
   //! Get pointer to the next file object. Must be used in conjunction
@@ -485,17 +490,17 @@ class ContainerMD: public IContainerMD
   //!
   //! @return pointer to next file or 0 if no files
   //----------------------------------------------------------------------------
-  IFileMD* nextFile();
+  std::unique_ptr<IFileMD> nextFile();
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer);
+  void serialize(std::string& buffer);
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void deserialize(Buffer& buffer);
+  void deserialize(const std::string& buffer);
 
  protected:
   id_t         pId;
@@ -508,17 +513,25 @@ class ContainerMD: public IContainerMD
   mode_t       pMode;
   uint16_t     pACLId;
   XAttrMap     pXAttrs;
-  ContainerMap pSubContainers;
-  FileMap      pFiles;
 
  private:
-  ContainerMap::iterator pIterContainer; ///< subcontainers iterator
-  FileMap::iterator pIterFile;           ///< files iterator
+  std::vector<std::string> pFiles; ///< List of file ids
+  std::vector<std::string> pSubCont; ///< List of subcontainer ids
+  std::vector<std::string>::iterator pIterFile, pIterSubCont;
+
+  // uint64_t pFileCursor; ///< File hmap cursor for scan operations
+  // uint64_t pDirCursor; ///< Directory hmap cursor for scan operations
 
   // Non-presistent data members
-  mtime_t      pMTime;
-  tmtime_t     pTMTime;
-  uint64_t     pTreeSize;
+  mtime_t pMTime;
+  tmtime_t pTMTime;
+  uint64_t pTreeSize;
+
+  IContainerMDSvc* pContSvc; ///< Container metadata service
+  IFileMDSvc* pFileSvc; ///< File metadata service
+  std::string pFilesKey; ///< Key of hmap holding info about files
+  std::string pDirsKey; ///< Key of hmap holding info about subcontainers
+  redox::Redox* pRedox; ///< Redis client
 };
 
 EOSNSNAMESPACE_END

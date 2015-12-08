@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -17,8 +17,8 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Class representing the file metadata
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+//! @brief Class representing the file metadata
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_FILE_MD_HH__
@@ -336,7 +336,7 @@ class FileMD: public IFileMD
     for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++)
     {
       if (pUnlinkedLocation[i] == location)
-        return true;
+	return true;
     }
 
     return false;
@@ -366,7 +366,7 @@ class FileMD: public IFileMD
     for (unsigned int i = 0; i < pLocation.size(); i++)
     {
       if (pLocation[i] == location)
-        return true;
+	return true;
     }
 
     return false;
@@ -485,16 +485,6 @@ class FileMD: public IFileMD
   }
 
   //----------------------------------------------------------------------------
-  //! Serialize the object to a buffer
-  //----------------------------------------------------------------------------
-  void serialize(Buffer& buffer);
-
-  //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
-  //----------------------------------------------------------------------------
-  void deserialize(const Buffer& buffer);
-
-  //----------------------------------------------------------------------------
   //! Get symbolic link
   //----------------------------------------------------------------------------
   std::string getLink() const
@@ -584,6 +574,21 @@ class FileMD: public IFileMD
   {
     return pXAttrs.end();
   }
+
+  //----------------------------------------------------------------------------
+  //! Serialize the object to a std::string buffer
+  //!
+  //! @param output buffer holding the binary representation of the object
+  //----------------------------------------------------------------------------
+  void serialize(std::string& buffer);
+
+  //----------------------------------------------------------------------------
+  //! Deserialize the class from a std::string buffer
+  //!
+  //! @param input buffer holding the binary representation of the object
+  //----------------------------------------------------------------------------
+  void deserialize(const std::string& buffer);
+
 
  protected:
   //----------------------------------------------------------------------------

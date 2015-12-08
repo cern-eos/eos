@@ -28,7 +28,7 @@ include_directories(
  ${XROOTD_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
-  add_subdirectory(tests)
+#  add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
 #-----------------------------------------------------------------------------
@@ -40,16 +40,10 @@ set(EOS_NS_REDIS_SRCS
   ContainerMD.cc         ContainerMD.hh
   RedisClient.cc         RedisClient.hh
 
-  persistency/ChangeLogConstants.hh
-  persistency/ChangeLogConstants.cc
-  persistency/ChangeLogContainerMDSvc.hh
-  persistency/ChangeLogContainerMDSvc.cc
-  persistency/ChangeLogFile.hh
-  persistency/ChangeLogFile.cc
-  persistency/ChangeLogFileMDSvc.hh
-  persistency/ChangeLogFileMDSvc.cc
-  persistency/LogManager.hh
-  persistency/LogManager.cc
+  persistency/ContainerMDSvc.hh
+  persistency/ContainerMDSvc.cc
+  persistency/FileMDSvc.hh
+  persistency/FileMDSvc.cc
 
   views/HierarchicalView.cc          views/HierarchicalView.hh
   accounting/QuotaStats.cc           accounting/QuotaStats.hh
@@ -83,9 +77,7 @@ target_link_libraries(
 if (Linux)
   add_library(
     EosNsOnRedis-Static STATIC
-    ${EOS_NS_REDIS_SRCS}
-    progs/EOSLogCompact.cc
-    progs/EOSLogRepair.cc)
+    ${EOS_NS_REDIS_SRCS})
 
   target_link_libraries(
     EosNsOnRedis-Static

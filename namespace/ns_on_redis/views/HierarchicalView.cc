@@ -22,7 +22,7 @@
 //------------------------------------------------------------------------------
 
 #include "namespace/ns_on_redis/views/HierarchicalView.hh"
-#include "namespace/ns_on_redis/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -83,8 +83,6 @@ namespace eos
     {
       pRoot = pContainerSvc->createContainer();
       pRoot->setParentId( pRoot->getId() );
-      if (!static_cast<ChangeLogContainerMDSvc*>(pContainerSvc)->getSlaveMode())
-	pContainerSvc->updateStore( pRoot );
     }
   }
 
@@ -100,8 +98,8 @@ namespace eos
     // BE DONE! THE INFO NEEDS TO BE STORED WITH CONTAINERS
     //--------------------------------------------------------------------------
 
-    FileVisitor visitor( pContainerSvc, pQuotaStats, this );
-    pFileSvc->visit( &visitor );
+    // FileVisitor visitor( pContainerSvc, pQuotaStats, this );
+    // pFileSvc->visit( &visitor );
   }
 
   //----------------------------------------------------------------------------
@@ -318,6 +316,7 @@ namespace eos
       IContainerMD *cont = pContainerSvc->getContainerMD( file->getContainerId() );
       cont->removeFile( file->getName() );
     }
+
     pFileSvc->removeFile( file );
   }
 
@@ -500,7 +499,6 @@ namespace eos
       cleanUpContainer( cont );
 
     pContainerSvc->removeContainer( cont );
-
   }
 
   //----------------------------------------------------------------------------
