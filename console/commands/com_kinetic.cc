@@ -170,13 +170,14 @@ parseArguments (char* arg, Configuration& config)
     str = subtokenizer.GetToken();
   }
 
-  if(!config.id.length())
-    return false;
+  /* Invalid operation is never valid */
   if(config.op == Operation::INVALID)
     return false;
-  if(config.op == Operation::STATUS || config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_PUBLISH)
+  /* CONFIG operations do not require additional arguments */
+  if(config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_PUBLISH)
     return true;
-  return config.target != OperationTarget::INVALID;
+  /* All other operations require a cluster id, and non-status operations require a target */
+  return config.id.length() && (config.op == Operation::STATUS || config.target != OperationTarget::INVALID);
 }
 
 void
@@ -301,17 +302,26 @@ com_kinetic (char *arg)
     return EXIT_FAILURE;
   }
 
-  setEnvironmentVariables(config);
-
-  std::function<void(int)> callback;
-  if(!config.monitoring)
-    callback = printincremental;
-
   try{
+
+    switch(config.op){
+      case Operation::CONFIG_SHOW:
+      case Operation::CONFIG_PUBLISH:
+        doConfig(config);
+        return EXIT_SUCCESS;
+      default:
+        break;
+    }
+
+    setEnvironmentVariables(config);
     auto ac = kio::KineticIoFactory::makeAdminCluster(
         config.id.c_str(),
         config.target == OperationTarget::DATA ? kio::RedundancyType::ERASURE_CODING : kio::RedundancyType::REPLICATION
     );
+
+    std::function<void(int)> callback;
+    if(!config.monitoring)
+      callback = printincremental;
 
     switch(config.op){
       case Operation::STATUS:{
@@ -352,10 +362,6 @@ com_kinetic (char *arg)
         if(!config.monitoring)
           fprintf(stdout, "Removing keys from cluster: \n");
         printStatistics(ac->reset(config.target, callback, config.numthreads), config);
-        break;
-      case Operation::CONFIG_SHOW:
-      case Operation::CONFIG_PUBLISH:
-        doConfig(config);
         break;
       case Operation::INVALID:
       default:
