@@ -641,11 +641,11 @@ TransferJob::DoIt ()
     ss << downloadcmd.c_str();
     if (mId)
     {
-      ss << "eoscp -u 2 -g 2 -R -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+      ss << "eoscp -u daemon -g daemon -R -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
     }
     else
     {
-      ss << "eoscp -u 2 -g 2 -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+      ss << "eoscp -u daemon -g daemon -n -p -O $PROGRESS -t $BANDWIDTH \"-\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
      
     }
 
@@ -655,17 +655,17 @@ TransferJob::DoIt ()
     // if we use XRootD protocol on both ends
     if (mId)
     {
-      ss << "eoscp -u 2 -g 2 -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+      ss << "eoscp -u daemon -g daemon -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
     }
     else
     {
       if (isReco) 
       {
-	ss << "eoscp -u 2 -g 2 -c -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+	ss << "eoscp -u daemon -g daemon -c -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
       } 
       else
       {
-	ss << "eoscp -u 2 -g 2 -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
+	ss << "eoscp -u daemon -g daemon -R -n -p -O $PROGRESS -t $BANDWIDTH \"$SOURCE\" \"$DEST\" 1>$FILEOUTPUT 2>&1 && touch $FILERETURN &" << std::endl;
       }
     }
   }
