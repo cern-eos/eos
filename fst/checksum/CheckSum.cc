@@ -252,7 +252,7 @@ CheckSum::OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize
     {
       return false;
     }
-    if (::chown(cPath.GetParentPath(), geteuid(), getegid()))
+    if (::chown(cPath.GetParentPath(), 2, 2))
       return false;
   }
 
