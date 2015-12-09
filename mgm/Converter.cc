@@ -38,6 +38,10 @@
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
 
+#define _STR(x) #x
+#define STR(x) _STR(x)
+#define SDUID STR(DAEMONUID)
+#define SDGID STR(DAEMONGID)
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
@@ -195,7 +199,7 @@ ConverterJob::DoIt ()
 
     std::string source = mSourcePath.c_str();
     std::string target = mProcPath.c_str();
-    std::string cgi = "eos.ruid=2&eos.rgid=2&";
+    std::string cgi = "eos.ruid=" SDUID "&eos.rgid=" SDGID "&";
     cgi += mTargetCGI.c_str();
     cgi += "&eos.app=converter";
     cgi += "&eos.targetsize=";
