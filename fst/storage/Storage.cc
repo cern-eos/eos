@@ -362,7 +362,7 @@ Storage::Boot (FileSystem *fs)
   }
 
   if (::stat(fs->GetPath().c_str(), &buf) ||
-      (buf.st_uid != 2) ||
+      (buf.st_uid != DAEMONUID) ||
       ((buf.st_mode & S_IRWXU) != S_IRWXU))
   {
 
@@ -371,7 +371,7 @@ Storage::Boot (FileSystem *fs)
       errno = EPERM;
     }
 
-    if (buf.st_uid != 2)
+    if (buf.st_uid != DAEMONUID)
     {
       errno = ENOTCONN;
     }

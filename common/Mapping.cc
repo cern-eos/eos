@@ -570,11 +570,11 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       {
         eos_static_debug("tident root uid squash");
         vid.uid_list.clear();
-        vid.uid_list.push_back(2);
-        vid.uid = 2;
+        vid.uid_list.push_back(DAEMONUID);
+        vid.uid = DAEMONUID;
         vid.gid_list.clear();
-        vid.gid = 2;
-        vid.gid_list.push_back(2);
+        vid.gid = DAEMONGID;
+        vid.gid_list.push_back(DAEMONGID);
       }
       else
       {
@@ -615,8 +615,8 @@ Mapping::IdMap (const XrdSecEntity* client, const char* env, const char* tident,
       {
         eos_static_debug("tident root gid squash");
         vid.gid_list.clear();
-        vid.gid_list.push_back(2);
-        vid.gid = 2;
+        vid.gid_list.push_back(DAEMONGID);
+        vid.gid = DAEMONGID;
       }
       else
       {

@@ -22,6 +22,30 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
+# Get UID/GID for an account
+#-------------------------------------------------------------------------------
+function(EOS_GetUidGid USERNAME UIDVARNAME GIDVARNAME)
+    execute_process(
+      COMMAND sh -c "id -u ${USERNAME}"
+      OUTPUT_VARIABLE UID
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE RETC)
+
+    execute_process(
+      COMMAND sh -c "id -g ${USERNAME}"
+      OUTPUT_VARIABLE GID
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE RETC)
+
+  set(${UIDVARNAME} ${UID} PARENT_SCOPE)
+  set(${GIDVARNAME} ${GID} PARENT_SCOPE)
+
+  if(NOT ("${RETC}" STREQUAL "0") )
+    message(FATAL_ERROR "Error calling uid, return code is ${RETC}")
+  endif()
+endfunction()
+
+#-------------------------------------------------------------------------------
 # Get version
 #-------------------------------------------------------------------------------
 function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
