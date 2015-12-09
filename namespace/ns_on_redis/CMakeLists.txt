@@ -32,10 +32,10 @@ if(CPPUNIT_FOUND)
 endif(CPPUNIT_FOUND)
 
 #-----------------------------------------------------------------------------
-# EosNsInMemory library sources
+# EosNsOnRedis library sources
 #-----------------------------------------------------------------------------
 set(EOS_NS_REDIS_SRCS
-  NsInMemoryPlugin.cc    NsInMemoryPlugin.hh
+  NsOnRedisPlugin.cc     NsOnRedisPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
   RedisClient.cc         RedisClient.hh

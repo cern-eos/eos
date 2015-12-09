@@ -18,11 +18,11 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin Sindrilaru <esindril@cern.ch>
-//! @brief  Namespace in memory plugin interface implementation
+//! @brief  Namespace on Redis plugin interface implementation
 //------------------------------------------------------------------------------
 
-#ifndef __EOS_NS_IN_MEMORY_PLUGIN_HH__
-#define __EOS_NS_IN_MEMORY_PLUGIN_HH__
+#ifndef __EOS_NS_ON_REDIS_PLUGIN_HH__
+#define __EOS_NS_ON_REDIS_PLUGIN_HH__
 
 /*----------------------------------------------------------------------------*/
 #include "common/plugin_manager/Plugin.hh"
@@ -45,12 +45,11 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 
 //------------------------------------------------------------------------------
-//! Class NsInMemoryPlugin
+//! Class NsOnRedisPlugin
 //------------------------------------------------------------------------------
-class NsInMemoryPlugin
+class NsOnRedisPlugin
 {
  public:
-
   //----------------------------------------------------------------------------
   //! Create container metadata service
   //!
@@ -160,4 +159,4 @@ class NsInMemoryPlugin
 
 EOSNSNAMESPACE_END
 
-#endif // __EOS_NS_IN_MEMORY_PLUGIN_HH__
+#endif // __EOS_NS_ON_REDIS_PLUGIN_HH__
