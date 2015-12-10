@@ -31,11 +31,11 @@
 
 int
 XrdMgmOfs::stat (const char *inpath,
-                 struct stat *buf,
-                 XrdOucErrInfo &error,
-                 const XrdSecEntity *client,
-                 const char *ininfo
-                 )
+		 struct stat *buf,
+		 XrdOucErrInfo &error,
+		 const XrdSecEntity *client,
+		 const char *ininfo
+		 )
 {
 
   return stat(inpath, buf, error, 0, client, ininfo, false);
@@ -44,13 +44,13 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::stat (const char *inpath,
-                 struct stat *buf,
-                 XrdOucErrInfo &error,
-                 std::string *etag,
-                 const XrdSecEntity *client,
-                 const char *ininfo,
-                 bool follow,
-                 std::string *uri)
+		 struct stat *buf,
+		 XrdOucErrInfo &error,
+		 std::string *etag,
+		 const XrdSecEntity *client,
+		 const char *ininfo,
+		 bool follow,
+		 std::string *uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -118,13 +118,13 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_stat (const char *path,
-                  struct stat *buf,
-                  XrdOucErrInfo &error,
-                  eos::common::Mapping::VirtualIdentity &vid,
-                  const char *ininfo,
-                  std::string* etag,
-                  bool follow,
-                  std::string* uri)
+		  struct stat *buf,
+		  XrdOucErrInfo &error,
+		  eos::common::Mapping::VirtualIdentity &vid,
+		  const char *ininfo,
+		  std::string* etag,
+		  bool follow,
+		  std::string* uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -180,7 +180,7 @@ XrdMgmOfs::_stat (const char *path,
   {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-              e.getErrno(), e.getMessage().str().c_str());
+	      e.getErrno(), e.getMessage().str().c_str());
     if (errno == ELOOP)
     {
       return Emsg(epname, error, errno, "stat", cPath.GetPath());
@@ -212,9 +212,9 @@ XrdMgmOfs::_stat (const char *path,
     else
     {
       if (!flags)
-        buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+	buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
       else
-        buf->st_mode |= flags;
+	buf->st_mode |= flags;
 
       buf->st_nlink = fmd->getNumLocation();
     }
@@ -263,29 +263,29 @@ XrdMgmOfs::_stat (const char *path,
       size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
       if (cxlen)
       {
-        // use inode + checksum
-        char setag[256];
-        snprintf(setag, sizeof (setag) - 1, "\"%llu:", (unsigned long long) buf->st_ino);
-        // if MD5 checksums are used we omit the inode number in the ETag (S3 wants that)
-        if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) != eos::common::LayoutId::kMD5)
-          *etag = setag;
-        else
-          *etag = "";
+	// use inode + checksum
+	char setag[256];
+	snprintf(setag, sizeof (setag) - 1, "\"%llu:", (unsigned long long) buf->st_ino);
+	// if MD5 checksums are used we omit the inode number in the ETag (S3 wants that)
+	if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) != eos::common::LayoutId::kMD5)
+	  *etag = setag;
+	else
+	  *etag = "";
 
-        for (unsigned int i = 0; i < cxlen; i++)
-        {
-          char hb[3];
-          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
-          *etag += hb;
-        }
-        *etag += "\"";
+	for (unsigned int i = 0; i < cxlen; i++)
+	{
+	  char hb[3];
+	  sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
+	  *etag += hb;
+	}
+	*etag += "\"";
       }
       else
       {
-        // use inode + mtime
-        char setag[256];
-        snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino, (unsigned long long) buf->st_mtime);
-        *etag = setag;
+	// use inode + mtime
+	char setag[256];
+	snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino, (unsigned long long) buf->st_mtime);
+	*etag = setag;
       }
     }
     EXEC_TIMING_END("Stat");
@@ -372,10 +372,10 @@ XrdMgmOfs::_stat (const char *path,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::lstat (const char *path,
-                  struct stat *buf,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity *client,
-                  const char *info)
+		  struct stat *buf,
+		  XrdOucErrInfo &error,
+		  const XrdSecEntity *client,
+		  const char *info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief stat following links (not existing in EOS - behaves like stat)
@@ -385,4 +385,3 @@ XrdMgmOfs::lstat (const char *path,
 
   return stat(path, buf, error, client, info);
 }
-
