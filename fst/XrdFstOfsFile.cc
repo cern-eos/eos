@@ -756,8 +756,44 @@ XrdFstOfsFile::open (const char* path,
 
   }
 
-  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &updateStat)))
+  if ((val = capOpaque->Get("mgm.logid")))
   {
+    snprintf(logId, sizeof ( logId) - 1, "%s", val);
+  }
+
+  SetLogId(logId, vid, tident);
+  eos_info("fstpath=%s", fstPath.c_str());
+
+  //............................................................................
+  // Get the layout object
+  //............................................................................
+  layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
+                                                   eos::common::LayoutId::GetIoType(fstPath.c_str()),
+                                                   msDefaultTimeout, store_recovery);
+
+  if (!layOut)
+  {
+    int envlen;
+    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
+    delete fMd;
+    return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
+                     capOpaque->Env(envlen));
+  }
+
+  layOut->SetLogId(logId, vid, tident);
+
+  if ((retc = layOut->GetFileIo()->Exists(fstPath.c_str())))
+  {
+    //..........................................................................
+    // We have to distinguish if an Exists call fails or return ENOENT, otherwise
+    // we might trigger an automatic clean-up of a file !!!
+    //..........................................................................
+    if (errno != ENOENT)
+    {
+      delete fMd;
+      return gOFS.Emsg(epname, error, EIO, "open - unable to check for existance of file ",
+                       capOpaque->Env(envlen));
+    }
     //..........................................................................
     // File does not exist, keep the create lfag
     //..........................................................................
@@ -770,6 +806,7 @@ XrdFstOfsFile::open (const char* path,
     // force the create flag
     open_mode |= SFS_O_CREAT;
     create_mode |= SFS_O_MKPTH;
+    eos_warning("adding creation flag because of %d %d", retc, errno);
   }
   else
   {
@@ -1125,7 +1162,7 @@ XrdFstOfsFile::open (const char* path,
     //........................................................................
     // Set the eos lfn as extended attribute
     //........................................................................
-    eos::common::Attr* attr = eos::common::Attr::OpenAttr(layOut->GetLocalReplicaPath());
+    eos::common::Attr* attr = dynamic_cast<eos::common::Attr*> (FileIoPlugin::GetIoAttr(layOut->GetLocalReplicaPath()));
 
     if (attr && isRW)
     {
@@ -1362,16 +1399,24 @@ XrdFstOfsFile::MakeReportEnv (XrdOucString & reportString)
 //------------------------------------------------------------------------------
 
 int
-XrdFstOfsFile::closeofs ()
+XrdFstOfsFile::modified ()
 {
   int rc = 0;
 
   bool fileExists = true;
 
   struct stat statinfo;
+  if (layOut)
+  {
+    if ((layOut->Stat(&statinfo)))
+      fileExists = false;
+  }
+  else
+  {
   if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
   {
     fileExists = false;
+  }
   }
 
   // ---------------------------------------------------------------------------
@@ -1410,8 +1455,14 @@ XrdFstOfsFile::closeofs ()
                 "file has been modified during replication", Path.c_str());
     }
   }
+  return rc;
+}
 
 
+int
+XrdFstOfsFile::closeofs ()
+{
+  int rc = 0;
   rc |= XrdOfsFile::close();
   return rc;
 }
@@ -1574,7 +1625,7 @@ XrdFstOfsFile::verifychecksum ()
         // If we have no write, we don't set this attributes (xrd3cp!)
         // set the eos checksum extended attributes
         //............................................................................
-        eos::common::Attr* attr = eos::common::Attr::OpenAttr(fstPath.c_str());
+        eos::common::Attr* attr = dynamic_cast<eos::common::Attr*> (FileIoPlugin::GetIoAttr(fstPath.c_str()));
 
         if (attr)
         {

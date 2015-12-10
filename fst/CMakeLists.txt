@@ -93,7 +93,7 @@ target_link_libraries(
 # EosFstIo library
 #-------------------------------------------------------------------------------
 set(
-  EOSFSTIO_SRCS
+  EOSFSTIO_SRCS_SERVER
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
 
@@ -101,7 +101,7 @@ set(
   # File IO interface
   #-----------------------------------------------------------------------------
   io/FileIo.hh
-  io/FileIoPlugin.hh             io/FileIoPlugin.cc
+  io/FileIoPlugin.hh
   io/LocalIo.cc                  io/LocalIo.hh
   io/FsIo.cc                     io/FsIo.hh
   ${KINETICIO_SRC}               ${KINETICIO_HDR}
@@ -136,6 +136,11 @@ set(
   layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
   layout/jerasure/galois.cc          layout/jerasure/galois.hh
   layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh)
+
+set(
+  EOSFSTIO_SRCS
+  ${EOSFSTIO_SRCS_SERVER}
+)
 
 add_library(
   EosFstIo SHARED
@@ -227,7 +232,6 @@ set(
   #-----------------------------------------------------------------------------
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
-#  FmdSqlite.cc         FmdSqlite.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
@@ -243,7 +247,8 @@ set(
   #-----------------------------------------------------------------------------
   # EosFstIo interface
   #-----------------------------------------------------------------------------
-  ${EOSFSTIO_SRCS})
+  io/FileIoPlugin-Server.cc
+  ${EOSFSTIO_SRCS_SERVER})
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
