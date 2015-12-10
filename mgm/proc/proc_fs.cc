@@ -246,7 +246,7 @@ proc_fs_config (std::string &identifier, std::string &key, std::string &value, X
     {
       // check the allowed strings
       if (((key == "configstatus") && (eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown)) ||
-          (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") || (key == "drainperiod"))))
+          (((key == "headroom") || (key == "scaninterval") || (key == "graceperiod") || (key == "drainperiod") || (key == "proxygroup") )))
       {
 
         std::string nodename = fs->GetString("host");

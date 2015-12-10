@@ -124,6 +124,7 @@ public:
     std::string mUuid;
     std::string mHost;
     std::string mHostPort;
+    std::string mProxyGroup;
     std::string mPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;
@@ -168,6 +169,18 @@ public:
     time_t mGracePeriod;
     time_t mDrainPeriod;
   } fs_snapshot_t;
+
+  typedef struct host_snapshot {
+    std::string mQueue;
+    std::string mHost;
+    std::string mGeoTag;
+    size_t mPublishTimestamp;
+    time_t mHeartBeatTime;
+    double mNetEthRateMiB;
+    double mNetInRateMiB;
+    double mNetOutRateMiB;
+    long mGopen; // number of files open as data proxy
+  } host_snapshot_t;
 
   // ------------------------------------------------------------------------
   // Constructor
@@ -793,6 +806,12 @@ public:
   //------------------------------------------------------------------------
 
   bool SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock = true);
+
+  //------------------------------------------------------------------------
+  //! Snapshot host.
+  //------------------------------------------------------------------------
+
+  static bool SnapShotHost (XrdMqSharedObjectManager *som, const std::string &queue, FileSystem::host_snapshot_t &fs, bool dolock = true);
 
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.

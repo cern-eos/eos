@@ -399,7 +399,7 @@
             {
 	      std::string tried_cgi;
 	      if (Quota::FileAccess(h_vid, (long unsigned int) 0, (const char*) 0,
-				    tried_cgi, lid, locationfs, fsindex,
+				    tried_cgi, lid, locationfs, NULL, NULL, fsindex,
 				    false, (long long unsigned) 0, unavailfs))
               {
 		// inaccessible files we retry after 60 seconds

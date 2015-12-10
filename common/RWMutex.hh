@@ -432,12 +432,13 @@ class RWMutexWriteLock
 {
 private:
   RWMutex* Mutex;
+  bool     DoIt;
 
 public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  RWMutexWriteLock(RWMutex &mutex);
+  RWMutexWriteLock(RWMutex &mutex, bool doit=true);
 
   // ---------------------------------------------------------------------------
   //! Destructor

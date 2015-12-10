@@ -54,6 +54,8 @@ Scheduler::FilePlacement(const std::string& spacename,
                          unsigned long lid,
                          std::vector<unsigned int>& alreadyused_filesystems,
                          std::vector<unsigned int>& selected_filesystems,
+                         std::vector<std::string> *dataproxys,
+                         std::vector<std::string> *firewallentpts,
                          tPlctPolicy plctpolicy,
                          const std::string& plctTrgGeotag,
                          bool truncate,
@@ -184,10 +186,21 @@ Scheduler::FilePlacement(const std::string& spacename,
     // We search for available slots for replicas but all in the same group.
     // If we fail on a group, we look in the next one  placement is spread
     // out in all the tree to strengthen reliability ( -> "" )
-    bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(group, nfilesystems,
-                    &selected_filesystems, GeoTreeEngine::regularRW,
-                    &alreadyused_filesystems, &fsidsgeotags, bookingsize,
-                    plctTrgGeotag, ncollocatedfs, NULL, NULL, NULL);
+    bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
+        group, nfilesystems,
+        &selected_filesystems,
+        dataproxys,
+        firewallentpts,
+        GeoTreeEngine::regularRW,
+        &alreadyused_filesystems,// file systems to avoid are assumed to already host a replica
+        &fsidsgeotags,
+        bookingsize,
+        plctTrgGeotag,
+        vid.geolocation,
+        ncollocatedfs,
+        NULL,
+        NULL,
+        NULL);
 
     if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
     {
@@ -240,29 +253,35 @@ Scheduler::FilePlacement(const std::string& spacename,
 // Take the decision from where to access a file
 //------------------------------------------------------------------------------
 int
-Scheduler::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
-                      unsigned long forcedfsid,
-                      const char* forcedspace,
-                      std::string tried_cgi,
-                      unsigned long lid,
-                      std::vector<unsigned int>& locationsfs,
-                      unsigned long& fsindex,
-                      bool isRW,
-                      unsigned long long bookingsize,
-                      std::vector<unsigned int>& unavailfs,
-                      eos::common::FileSystem::fsstatus_t min_fsstatus,
-                      std::string overridegeoloc,
-                      bool noIO)
+Scheduler::FileAccess (
+                       eos::common::Mapping::VirtualIdentity_t &vid, //< virtual id of client
+                       unsigned long forcedfsid, //< forced file system for access
+                       const char* forcedspace, //< forced space for access
+		       std::string tried_cgi, //< cgi referencing already tried hosts 
+                       unsigned long lid, //< layout of the file
+                       std::vector<unsigned int> &locationsfs, //< filesystem id's where layout is stored
+                       std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+                       std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
+                       unsigned long &fsindex, //< return index pointing to layout entry filesystem
+                       bool isRW, //< indicating if pure read or read/write access
+                       unsigned long long bookingsize, //< size to book additionally for read/write access
+                       std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
+                       eos::common::FileSystem::fsstatus_t min_fsstatus, //< defines minimum filesystem state to allow filesystem selection
+                       std::string overridegeoloc, //< override geolocation defined in virtual id
+                       bool noIO)
 {
-  size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid) :
-                       eos::common::LayoutId::GetMinOnlineReplica(lid);
-  eos_static_debug("requesting file access from geolocation %s",
-                   vid.geolocation.c_str());
-  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes, fsindex,
-         &locationsfs,
-         isRW ? GeoTreeEngine::regularRW : GeoTreeEngine::regularRO,
-         overridegeoloc.empty() ? vid.geolocation : overridegeoloc,
-         forcedfsid, &unavailfs, noIO);
+  // Read(/write) access routine
+  size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid):
+  eos::common::LayoutId::GetMinOnlineReplica(lid);
+  eos_static_debug("requesting file access from geolocation %s",vid.geolocation.c_str());
+
+  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,
+      dataproxys,
+      firewallentpts,
+      isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
+      overridegeoloc.empty() ?
+      vid.geolocation :
+      overridegeoloc,forcedfsid,&unavailfs,noIO);
 }
 
 EOSMGMNAMESPACE_END

@@ -435,6 +435,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mUuid = mHash->Get("uuid");
     fs.mHost = mHash->Get("host");
     fs.mHostPort = mHash->Get("hostport");
+    fs.mProxyGroup = mHash->Get("proxygroup");
     fs.mPort = mHash->Get("port");
 
     std::string::size_type dpos = 0;
@@ -516,6 +517,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mUuid = "";
     fs.mHost = "";
     fs.mHostPort = "";
+    fs.mProxyGroup = "";
     fs.mPort = "";
     fs.mErrMsg = "";
     fs.mGeoTag ="";
@@ -553,7 +555,60 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
+ * Snapshots all variables of a filesystem into a snapsthot struct
+ *
+ * @param fs Snapshot struct to be filled
+ * @param dolock Indicates if the shared hash representing the filesystme has to be locked or not
+ *
+ * @return true if successful - false
+ */
+
+/*----------------------------------------------------------------------------*/
+bool
+FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue, FileSystem::host_snapshot_t &host, bool dolock)
+{
+  if (dolock)
+  {
+    som->HashMutex.LockRead();
+  }
+  XrdMqSharedHash *hash = NULL;
+  if ((hash = som->GetObject(queue.c_str(), "hash")))
+  {
+    host.mQueue = queue;
+    host.mHost        = hash->Get("stat.hostport");
+    host.mGeoTag        = hash->Get("stat.geotag");
+    host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
+    host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
+    host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
+    host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
+    host.mGopen = hash->GetLongLong("stat.dataproxy.gopen");
+    if (dolock)
+    {
+      som->HashMutex.UnLockRead();
+    }
+    return true;
+  }
+  else
+  {
+    if (dolock)
+    {
+      som->HashMutex.UnLockRead();
+    }
+    host.mQueue = queue;
+    //host.mHost = "";
+    host.mGeoTag        = "";
+    host.mPublishTimestamp = 0;
+    host.mNetEthRateMiB = 0;
+    host.mNetInRateMiB  = 0;
+    host.mNetOutRateMiB = 0;
+    host.mGopen = 0;
+    return false;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/**
  * Store a given statfs struct into the hash representation
  * 
  * @param statfs struct to read

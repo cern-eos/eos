@@ -45,6 +45,7 @@
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
+#include "mgm/GeoTreeEngine.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"

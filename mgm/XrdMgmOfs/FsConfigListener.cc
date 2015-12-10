@@ -47,9 +47,12 @@ XrdMgmOfs::FsConfigListener ()
   // setup the modifications which the fs listener thread is waiting for
   std::string watch_errc = "stat.errc";
   std::string watch_geotag = "stat.geotag";
+  std::string watch_proxygroups = "proxygroups";
+
   bool ok = true;
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_geotag,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify the FsView when a geotag changes to keep the tree structure up-to-date
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to take action an filesystem errors
+  ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_proxygroups,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify GeoTreeEngine when the proxygroups to which a node belongs to are changing
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",MgmConfigQueue.c_str(),XrdMqSharedObjectChangeNotifier::kMqSubjectModification);  // we need to apply remote configuration changes
   ok &= ObjectNotifier.SubscribesToSubjectRegex("fsconfiglistener",".*",XrdMqSharedObjectChangeNotifier::kMqSubjectKeyDeletion);  // we need to apply remote configuration changes
   if(!ok)
@@ -278,6 +281,33 @@ XrdMgmOfs::FsConfigListener ()
             else
               FsView::gFsView.ViewMutex.UnLockRead();
           }
+        }
+        else if(key == watch_proxygroups)
+        {
+          // -------------------------------------------------------------------
+          // this is a dataproxy / dataep status update
+          // -------------------------------------------------------------------
+          std::string status;
+          eos::mgm::FsNode* node = 0;
+
+          // read the proxygrouplist
+          gOFS->ObjectManager.HashMutex.LockRead ();
+          XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject (queue.c_str (), "hash");
+          if (hash)
+              status = hash->Get ("proxygroups");
+          gOFS->ObjectManager.HashMutex.UnLockRead ();
+            eos::mgm::FsView::gFsView.ViewMutex.LockRead ();
+            std::string hostport = "/eos/"+queue.substr(queue.rfind('/')+1)+"/fst";
+            if (eos::mgm::FsView::gFsView.mNodeView.count (hostport))
+            {
+              node = eos::mgm::FsView::gFsView.mNodeView[hostport];
+              eos::mgm::gGeoTreeEngine.matchHostPxyGr(node,status,false,false);
+            }
+            else
+            {
+              eos_err("could not find the FsNode object associated with queue %s  and  hostport %s", queue.c_str (), hostport.c_str ());
+            }
+            eos::mgm::FsView::gFsView.ViewMutex.UnLockRead ();
         }
         else
         {
