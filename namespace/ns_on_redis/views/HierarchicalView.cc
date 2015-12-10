@@ -82,7 +82,9 @@ namespace eos
     catch( MDException &e )
     {
       pRoot = pContainerSvc->createContainer();
+      pRoot->setName("/");
       pRoot->setParentId( pRoot->getId() );
+      pContainerSvc->updateStore(pRoot);
     }
   }
 
@@ -131,8 +133,8 @@ namespace eos
       throw e;
     }
 
-    eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;
+    eos::PathProcessor::splitPath( elements, uriBuffer );
     IContainerMD *cont = findLastContainer(elements, elements.size()-1,
 					   position, link_depths);
 
@@ -148,7 +150,7 @@ namespace eos
     if( !file )
     {
       MDException e( ENOENT );
-      e.getMessage() << "File does not exist";
+      e.getMessage() << "File " << uri << "does not exist";
       throw e;
     }
     else
@@ -688,8 +690,11 @@ namespace eos
 
     if (search)
     {
-      while( current != pRoot && (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
-	current = pContainerSvc->getContainerMD( current->getParentId() );
+      while(current->getName() != pRoot->getName() &&
+	    (current->getFlags() & QUOTA_NODE_FLAG) == 0)
+      {
+	current = pContainerSvc->getContainerMD(current->getParentId());
+      }
     }
 
     //--------------------------------------------------------------------------

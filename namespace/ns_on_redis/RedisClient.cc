@@ -23,7 +23,7 @@ EOSNSNAMESPACE_BEGIN
 // Static variables
 redox::Redox* RedisClient::sInstance = nullptr;
 std::string RedisClient::sRedisHost = "localhost";
-int RedisClient::sRedisPort = 6381;
+int RedisClient::sRedisPort = 6382;
 
 //------------------------------------------------------------------------------
 // Get instance

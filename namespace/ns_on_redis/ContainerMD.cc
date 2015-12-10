@@ -223,7 +223,17 @@ ContainerMD::removeFile(const std::string& name)
     throw e;
   }
 
-  IFileMDChangeListener::Event e(file.get(),IFileMDChangeListener::SizeChange,
+  // File is in the list for current container remove it
+  try
+  {
+    pRedox->hdel(pFilesKey, name);
+  }
+  catch (std::runtime_error& e)
+  {
+    // It was already deleted - don't do anything
+  }
+
+  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
 				 0, 0, -file->getSize());
   pFileSvc->notifyListeners(&e);
 }
