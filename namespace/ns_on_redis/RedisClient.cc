@@ -16,11 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @author Elvin-Alin Sindrilaru <esindril@cern.ch.
-//! @brief Redis client singleton
-//------------------------------------------------------------------------------
-
 #include "namespace/ns_on_redis/RedisClient.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -28,7 +23,7 @@ EOSNSNAMESPACE_BEGIN
 // Static variables
 redox::Redox* RedisClient::sInstance = nullptr;
 std::string RedisClient::sRedisHost = "localhost";
-int RedisClient::sRedisPort = 6380;
+int RedisClient::sRedisPort = 6381;
 
 //------------------------------------------------------------------------------
 // Get instance
@@ -36,10 +31,12 @@ int RedisClient::sRedisPort = 6380;
 redox::Redox*
 RedisClient::getInstance()
 {
+  // TODO: fix possible race condition
+
   if (!sInstance)
   {
     sInstance = new redox::Redox();
-    // TODO: catch exceptions
+
     try
     {
       sInstance->connect(sRedisHost, sRedisPort);

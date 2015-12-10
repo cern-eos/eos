@@ -27,11 +27,27 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ContainerMDSvc:: ContainerMDSvc():
+  pQuotaStats(nullptr),
+  pFileSvc(nullptr),
+  pRedox(nullptr) {}
+
+//------------------------------------------------------------------------------
 // Initizlize the container service
 //------------------------------------------------------------------------------
 void ContainerMDSvc::initialize()
 {
   pRedox = RedisClient::getInstance();
+
+  if (!pFileSvc)
+  {
+    MDException e(EINVAL);
+    e.getMessage() << "No file metadata service set for the container "
+		   << "metadata service";
+    throw e;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -69,7 +85,8 @@ IContainerMD* ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     throw e;
   }
 
-  ContainerMD* cont {new ContainerMD(0)};
+  ContainerMD* cont {new ContainerMD(0, pFileSvc,
+				     static_cast<IContainerMDSvc*>(this))};
   cont->deserialize(blob);
   return cont;
 }
@@ -81,8 +98,11 @@ IContainerMD* ContainerMDSvc::createContainer()
 {
   // Get the first free container id
   uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				     constants::sFieldLastCid, 1);
-  IContainerMD* cont = new ContainerMD(free_id);
+				     constants::sFirstFreeCid, 1);
+  // Increase total number of containers
+  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
+  IContainerMD* cont = new ContainerMD(free_id, pFileSvc,
+				       static_cast<IContainerMDSvc*>(this));
   return cont;
 }
 
@@ -191,6 +211,15 @@ IContainerMD* ContainerMDSvc::getLostFoundContainer(const std::string& name)
     return cont;
 
   return createInParent(name, lostFound);
+}
+
+//------------------------------------------------------------------------------
+// Get number of containers
+//------------------------------------------------------------------------------
+uint64_t ContainerMDSvc::getNumContainers()
+{
+  return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+				  constants::sNumConts));
 }
 
 EOSNSNAMESPACE_END

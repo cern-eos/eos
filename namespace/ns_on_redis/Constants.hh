@@ -37,7 +37,7 @@ namespace constants
   //! Sufix for file metadata in Redis
   static const std::string sFileKeySuffix {":file_md"};
   //! Suffix for set of subcontainers in a container
-  static const std::string sMapDirsSuffix {":cont_hmap_dirs"};
+  static const std::string sMapDirsSuffix {":cont_hmap_conts"};
   //! Suffix for set of files in a container
   static const std::string sMapFilesSuffix {":cont_hmap_files"};
   //! Key for set of orphan containers
@@ -45,11 +45,15 @@ namespace constants
   //! Key for set of name conflicts
   static const std::string sSetConflicts {"cont_set_conflicts"};
   //! Key for map containing meta info
-  static const std::string sMapMetaInfoKey {"meta_hmap_info"};
+  static const std::string sMapMetaInfoKey {"meta_hmap"};
   //! Field last used file id in meta info map
-  static const std::string sFieldLastFid {"file_last_id"};
+  static const std::string sFirstFreeFid {"first_free_fid"};
   //! Field last used container id in meta info map
-  static const std::string sFieldLastCid {"const_last_id"};
+  static const std::string sFirstFreeCid {"first_free_cid"};
+  //! Field number of files in meta info map
+  static const std::string sNumFiles {"num_files"};
+  //! Field number of containers in meta info map
+  static const std::string sNumConts {"num_conts"};
 }
 
 EOSNSNAMESPACE_END

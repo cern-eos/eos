@@ -27,8 +27,9 @@
 
 EOSNSNAMESPACE_BEGIN
 
-const std::string QuotaStats::sQuotaPrefix = "quota_node:";
 const std::string QuotaStats::sSetQuotaIds = "quota_set_ids";
+const std::string QuotaStats::sQuotaUidsSuffix = ":quota_hmap_uid";
+const std::string QuotaStats::sQuotaGidsSuffix = ":quota_hmap_gid";
 
 const std::string QuotaNode::sSpaceTag = ":space";
 const std::string QuotaNode::sPhysicalSpaceTag = ":physical_space";
@@ -44,8 +45,8 @@ const std::string QuotaNode::sFilesTag = ":files";
 QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id):
   IQuotaNode(quotaStats)
 {
-  pQuotaUidKey = QuotaStats::sQuotaPrefix + std::to_string(node_id) + ":uid";
-  pQuotaGidKey = QuotaStats::sQuotaPrefix + std::to_string(node_id) + ":gid";
+  pQuotaUidKey = std::to_string(node_id) + QuotaStats::sQuotaUidsSuffix;
+  pQuotaGidKey = std::to_string(node_id) + QuotaStats::sQuotaGidsSuffix;
 }
 
 //------------------------------------------------------------------------------
@@ -354,14 +355,11 @@ void QuotaStats::removeNode(IContainerMD::id_t node_id)
     throw e;
   }
 
-  std::string sqnode = sQuotaPrefix + snode_id;
-
-  if (!pRedox->del(sqnode))
-  {
-    MDException e;
-    e.getMessage() << "Quota node " << node_id << "does not exist";
-    throw e;
-  }
+  // Delete the hmaps associated with the current node
+  std::string key = snode_id + sQuotaUidsSuffix;
+  (void) pRedox->del(key);
+  key = snode_id + sQuotaGidsSuffix;
+  (void) pRedox->del(key);
 }
 
 //------------------------------------------------------------------------------

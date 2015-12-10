@@ -52,7 +52,7 @@ class ContainerMDSvc: public IContainerMDSvc
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerMDSvc() {};
+  ContainerMDSvc();
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -99,7 +99,7 @@ class ContainerMDSvc: public IContainerMDSvc
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumContainers() const;
+  virtual uint64_t getNumContainers();
 
   //----------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
@@ -124,6 +124,14 @@ class ContainerMDSvc: public IContainerMDSvc
   IContainerMD* getLostFoundContainer(const std::string& name);
 
   //----------------------------------------------------------------------------
+  //! Set file metadata service
+  //----------------------------------------------------------------------------
+  void setFileMDService(IFileMDSvc* file_svc)
+  {
+    pFileSvc = file_svc;
+  }
+
+  //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower
   //----------------------------------------------------------------------------
   void setQuotaStats(IQuotaStats* quotaStats)
@@ -145,8 +153,9 @@ class ContainerMDSvc: public IContainerMDSvc
       (*it)->containerMDChanged(obj, a);
   }
 
-  ListenerList pListeners;
-  IQuotaStats* pQuotaStats;
+  ListenerList pListeners; ///< List of listeners to be notified
+  IQuotaStats* pQuotaStats; ///< Quota view
+  IFileMDSvc*  pFileSvc; ///< File metadata service
   redox::Redox* pRedox; ///< Redis client
 };
 

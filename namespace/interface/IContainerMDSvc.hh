@@ -105,7 +105,7 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   //! Get number of containers
   //------------------------------------------------------------------------
-  virtual uint64_t getNumContainers() const = 0;
+  virtual uint64_t getNumContainers() = 0;
 
   //------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
@@ -136,6 +136,11 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   virtual IContainerMD* createInParent(const std::string& name,
 				       IContainerMD* parent) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set file metadata service
+  //----------------------------------------------------------------------------
+  virtual void setFileMDService(IFileMDSvc* file_svc) = 0;
 };
 
 EOSNSNAMESPACE_END

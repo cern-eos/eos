@@ -44,6 +44,9 @@ namespace redox
 
 EOSNSNAMESPACE_BEGIN
 
+class IContainerMDSvc;
+class IFileMDSvc;
+
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single container
 //------------------------------------------------------------------------------
@@ -59,7 +62,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ContainerMD(id_t id);
+  ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Desstructor

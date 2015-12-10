@@ -34,7 +34,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(id_t id):
+ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc):
   IContainerMD(),
   pId(id),
   pParentId(0),
@@ -44,7 +44,9 @@ ContainerMD::ContainerMD(id_t id):
   pCGid(0),
   pMode(040755),
   pACLId(0),
-  pTreeSize(0)
+  pTreeSize(0),
+  pContSvc(cont_svc),
+  pFileSvc(file_svc)
 {
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
@@ -54,6 +56,7 @@ ContainerMD::ContainerMD(id_t id):
   pTMTime.tv_nsec = 0;
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
+  pRedox = RedisClient::getInstance();
 }
 
 //------------------------------------------------------------------------------
@@ -99,6 +102,8 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
   pACLId    = other.pACLId;
   pXAttrs   = other.pXAttrs;
   pFlags    = other.pFlags;
+  pFileSvc  = other.pFileSvc;
+  pContSvc  = other.pContSvc;
   return *this;
 }
 

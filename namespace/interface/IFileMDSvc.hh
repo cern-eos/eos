@@ -165,7 +165,7 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Get number of files
   //------------------------------------------------------------------------
-  virtual uint64_t getNumFiles() const = 0;
+  virtual uint64_t getNumFiles() = 0;
 
   //------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in

@@ -87,9 +87,11 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 //------------------------------------------------------------------------------
 IFileMD* FileMDSvc::createFile()
 {
+  // Get first available file id
   uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-					   constants::sFieldLastFid, 1);
-
+				     constants::sFirstFreeFid, 1);
+  // Increase total number of files
+  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
   IFileMD* file {new FileMD(free_id, this)};
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::Created);
   notifyListeners(&e);
@@ -185,6 +187,15 @@ void FileMDSvc::attachBroken(const std::string& parent,
   s2 << file->getName() << "." << file->getId();
   file->setName(s2.str());
   cont->addFile(file);
+}
+
+//------------------------------------------------------------------------------
+// Get number of files
+//------------------------------------------------------------------------------
+uint64_t FileMDSvc::getNumFiles()
+{
+  return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+				  constants::sNumFiles));
 }
 
 EOSNSNAMESPACE_END

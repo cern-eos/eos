@@ -41,7 +41,7 @@ class QuotaStats;
 //! corresponding container. Each such object saves two HMAPs in the Redis
 //! instance using the following convention:
 //!
-//! 1. quota_node:id_t:uid - this is the HMAP key, where id_t is the id of the
+//! 1. id_t:quota_hmap_id - this is the HMAP key, where id_t is the id of the
 //!    corresponding container. It contains only information about the uids
 //!    of the uses who have written to the container.
 //!
@@ -51,7 +51,7 @@ class QuotaStats;
 //!      ...
 //!      uidn:files          --> val3n }
 //!
-//! 2. quota_node:id_t:gid - the same for group ids
+//! 2. id_t:quota_hmap_gid - the same for group ids
 //!
 //!   { gid1:space          --> val1,
 //!     gid1:physical_space --> val2,
@@ -226,8 +226,9 @@ class QuotaStats: public IQuotaStats
   //----------------------------------------------------------------------------
   std::set<std::string> getAllIds();
 
-  static const std::string sQuotaPrefix; ///< Quota node prefix
   static const std::string sSetQuotaIds; ///< Set of quota node ids
+  static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
+  static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
 
 private:
 
