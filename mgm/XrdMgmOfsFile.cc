@@ -1283,6 +1283,7 @@ XrdMgmOfsFile::open (const char *inpath,
   eos::mgm::FileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
+  std::vector<std::string> proxys;
   // file systems which are unavailable during a read operation
   std::vector<unsigned int> unavailfs;
   // file systems which have been replaced with a new reconstructed stripe
@@ -1301,10 +1302,10 @@ XrdMgmOfsFile::open (const char *inpath,
 
     /// ###############
     /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
-    std::vector<std::string> proxys,firewalleps;
+    std::vector<std::string> firewalleps;
     /// ###############
     retc = Quota::FilePlacement(space.c_str(),path, vid, containertag, layoutId,
-                                     selectedfs, selectedfs, &proxys, &firewalleps,
+                                     selectedfs, selectedfs, &proxys, /*&firewalleps*/NULL,
                                      plctplcy,targetgeotag,
                                      open_mode & SFS_O_TRUNC,
                                      forcedGroup,
@@ -1341,11 +1342,11 @@ XrdMgmOfsFile::open (const char *inpath,
 
     /// ###############
     /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
-    std::vector<std::string> proxys,firewalleps;
+    std::vector<std::string> firewalleps;
     /// ###############
     // reconstruction opens files in RW mode but we actually need RO mode in this case
     retc = Quota::FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
-                                  selectedfs, &proxys,&firewalleps,
+                                  selectedfs, &proxys,/*&firewalleps*/NULL,
                                   fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
                                   unavailfs);
     /// ###############
@@ -1677,10 +1678,40 @@ XrdMgmOfsFile::open (const char *inpath,
   }
   else
   {
-    targethost = filesystem->GetString("host").c_str();
-    targetport = atoi(filesystem->GetString("port").c_str());
+    std::string fsprefix;
+    if (proxys[fsIndex].empty ()) // there is no proxy to use
+    {
+      targethost  = filesystem->GetString ("host").c_str ();
+      targetport  = atoi (filesystem->GetString ("port").c_str ());
+    }
+    else // we have a proxy to use
+    {
+      proxys[fsIndex].c_str();
+      eos_info("DEBUG-PROXY1 : %s",proxys[fsIndex].c_str());
+      auto idx = proxys[fsIndex].rfind(":");
+      if(idx!=std::string::npos)
+      {
+        targethost=proxys[fsIndex].substr(0,idx).c_str();
+        targetport=atoi(proxys[fsIndex].substr(idx+1,std::string::npos).c_str());
+        eos_info("DEBUG-PROXY2 : %s|%s|%d",targethost.c_str(),proxys[fsIndex].substr(idx+1,std::string::npos).c_str(),targetport);
+      }
+      else
+      {
+        targethost=proxys[fsIndex].c_str();
+        targetport=0;
+        eos_info("DEBUG-PROXY3 : %s|%d",targethost.c_str(),targetport);
+      }
+      fsprefix = filesystem->GetPath();
+    }
     redirectionhost = targethost;
     redirectionhost += "?";
+    if(fsprefix.size())
+    {
+      XrdOucString s = ("mgm.fsprefix="+fsprefix).c_str();
+      s.replace(":","#COL#");
+      redirectionhost += s;
+    }
+    eos_info("DEBUG-PROXY4 : %s",redirectionhost.c_str());
   }
 
 
@@ -1841,11 +1872,11 @@ XrdMgmOfsFile::open (const char *inpath,
 
       /// ###############
       /// FOR DEMONSTRATION PUPOSE, TO BE REMOVED
-      std::vector<std::string> proxys,firewalleps;
+      std::vector<std::string> firewalleps;
       /// ###############
       retc = Quota::FilePlacement(space.c_str(),path, rootvid, containertag, plainLayoutId,
                                   selectedfs, PioReplacementFsList,
-                                  &proxys, &firewalleps,
+                                  &proxys, /*&firewalleps*/NULL,
                                   plctplcy,targetgeotag,
                                   false, forcedGroup,
                                   plainBookingSize);
@@ -1989,37 +2020,56 @@ XrdMgmOfsFile::open (const char *inpath,
       // -----------------------------------------------------------------------
       // Logic to mask 'offline' filesystems
       // -----------------------------------------------------------------------
-      bool exclude = false;
       for (size_t k = 0; k < unavailfs.size(); k++)
       {
         if (selectedfs[i] == unavailfs[k])
         {
-          exclude = true;
+          replicahost = "__offline_";
           break;
         }
       }
 
-      if (exclude)
+      std::string fsprefix;
+      if (proxys[i].empty ()) // there is no proxy to use
       {
-        replicahost = "__offline_";
-        replicahost += repfilesystem->GetString("host").c_str();
+        replicahost += repfilesystem->GetString ("host").c_str ();
+        replicaport = atoi (repfilesystem->GetString ("port").c_str ());
+
       }
-      else
+      else // we have a proxy to use
       {
-        replicahost = repfilesystem->GetString("host").c_str();
+        proxys[i].c_str();
+        auto idx = proxys[i].rfind(":");
+        if(idx!=std::string::npos)
+        {
+          replicahost=proxys[i].substr(0,idx).c_str();
+          replicaport=atoi(proxys[i].substr(idx,std::string::npos).c_str());
+        }
+        else
+        {
+          replicahost=proxys[i].c_str();
+          replicaport=0;
+        }
+        fsprefix = repfilesystem->GetPath();
       }
-
-      replicaport = atoi(repfilesystem->GetString("port").c_str());
-
       capability += replicahost;
       capability += ":";
       capability += replicaport;
+
       capability += "//";
       // add replica fsid
       capability += "&mgm.fsid";
       capability += i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
+      if(fsprefix.size())
+      {
+        XrdOucString s = "mgm.fsprefix";
+        s += i;
+        s += ("="+fsprefix).c_str();
+        s.replace(":","#COL#");
+        capability += s;
+      }
 
       if (isPio)
       {
