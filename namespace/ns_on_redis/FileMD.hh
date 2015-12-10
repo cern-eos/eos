@@ -25,12 +25,10 @@
 #define __EOS_NS_FILE_MD_HH__
 
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/interface/IFileMDSvc.hh"
-#include <stdint.h>
 #include <cstring>
 #include <string>
-#include <vector>
 #include <sys/time.h>
+#include <stdint.h>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -72,84 +70,42 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get file id
   //----------------------------------------------------------------------------
-  id_t getId() const
-  {
-    return pId;
-  }
+  inline id_t getId() const { return pId; }
 
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getCTime(ctime_t& ctime) const
-  {
-    ctime.tv_sec = pCTime.tv_sec;
-    ctime.tv_nsec = pCTime.tv_nsec;
-  }
+  void getCTime(ctime_t& ctime) const;
 
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setCTime(ctime_t ctime)
-  {
-    pCTime.tv_sec = ctime.tv_sec;
-    pCTime.tv_nsec = ctime.tv_nsec;
-  }
+  void setCTime(ctime_t ctime);
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setCTimeNow()
-  {
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    pCTime.tv_sec = tv.tv_sec;
-    pCTime.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &pCTime);
-#endif
-  }
+  void setCTimeNow();
 
   //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(ctime_t& mtime) const
-  {
-    mtime.tv_sec = pMTime.tv_sec;
-    mtime.tv_nsec = pMTime.tv_nsec;
-  }
+  void getMTime(ctime_t& mtime) const;
 
   //----------------------------------------------------------------------------
   //! Set modification time
   //----------------------------------------------------------------------------
-  void setMTime(ctime_t mtime)
-  {
-    pMTime.tv_sec = mtime.tv_sec;
-    pMTime.tv_nsec = mtime.tv_nsec;
-  }
+  void setMTime(ctime_t mtime);
 
   //----------------------------------------------------------------------------
   //! Set modification time to now
   //----------------------------------------------------------------------------
-  void setMTimeNow()
-  {
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    pMTime.tv_sec = tv.tv_sec;
-    pMTime.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &pMTime);
-#endif
-  }
+  void setMTimeNow();
 
   //----------------------------------------------------------------------------
   //! Get size
   //----------------------------------------------------------------------------
-  uint64_t getSize() const
-  {
-    return pSize;
-  }
+  inline uint64_t getSize() const { return pSize; }
 
   //----------------------------------------------------------------------------
   //! Set size - 48 bytes will be used
@@ -159,7 +115,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get tag
   //----------------------------------------------------------------------------
-  IContainerMD::id_t getContainerId() const
+  inline IContainerMD::id_t getContainerId() const
   {
     return pContainerId;
   }
@@ -175,15 +131,17 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get checksum
   //----------------------------------------------------------------------------
-  const Buffer& getChecksum() const
+  inline const Buffer& getChecksum() const
   {
     return pChecksum;
   }
 
   //----------------------------------------------------------------------------
   //! Compare checksums
-  //! WARNING: you have to supply enough bytes to compare with the checksum
-  //! stored in the object!
+  //!
+  //! @param checksum checksum value to compare with
+  //! @warning You need to supply enough bytes to compare with the checksum
+  //!          stored in the object
   //----------------------------------------------------------------------------
   bool checksumMatch(const void* checksum) const
   {
@@ -224,7 +182,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
-  const std::string getName() const
+  inline const std::string getName() const
   {
     return pName;
   }
@@ -232,41 +190,9 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  void setName(const std::string& name)
+  inline void setName(const std::string& name)
   {
     pName = name;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Start iterator for locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator locationsBegin() const
-  {
-    return pLocation.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! End iterator for locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator locationsEnd() const
-  {
-    return pLocation.end();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Start iterator for unlinked locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator unlinkedLocationsBegin() const
-  {
-    return pUnlinkedLocation.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! End iterator for unlinked locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator unlinkedLocationsEnd() const
-  {
-    return pUnlinkedLocation.end();
   }
 
   //----------------------------------------------------------------------------
@@ -306,6 +232,36 @@ class FileMD: public IFileMD
   void removeAllLocations();
 
   //----------------------------------------------------------------------------
+  //! Clear locations without notifying the listeners
+  //----------------------------------------------------------------------------
+  void clearLocations()
+  {
+    pLocation.clear();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Test the location
+  //----------------------------------------------------------------------------
+  bool hasLocation(location_t location)
+  {
+    for (location_t i = 0; i < pLocation.size(); i++)
+    {
+      if (pLocation[i] == location)
+	return true;
+    }
+
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of location
+  //----------------------------------------------------------------------------
+  inline size_t getNumLocation() const
+  {
+    return pLocation.size();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get vector with all unlinked locations
   //----------------------------------------------------------------------------
   LocationVector getUnlinkedLocations() const;
@@ -323,7 +279,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Clear unlinked locations without notifying the listeners
   //----------------------------------------------------------------------------
-  void clearUnlinkedLocations()
+  inline void clearUnlinkedLocations()
   {
     pUnlinkedLocation.clear();
   }
@@ -333,7 +289,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   bool hasUnlinkedLocation(location_t location)
   {
-    for (unsigned int i = 0; i < pUnlinkedLocation.size(); i++)
+    for (location_t i = 0; i < pUnlinkedLocation.size(); i++)
     {
       if (pUnlinkedLocation[i] == location)
 	return true;
@@ -345,45 +301,15 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get number of unlinked locations
   //----------------------------------------------------------------------------
-  size_t getNumUnlinkedLocation() const
+  inline size_t getNumUnlinkedLocation() const
   {
     return pUnlinkedLocation.size();
   }
 
   //----------------------------------------------------------------------------
-  //! Clear locations without notifying the listeners
-  //----------------------------------------------------------------------------
-  void clearLocations()
-  {
-    pLocation.clear();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Test the location
-  //----------------------------------------------------------------------------
-  bool hasLocation(location_t location)
-  {
-    for (unsigned int i = 0; i < pLocation.size(); i++)
-    {
-      if (pLocation[i] == location)
-	return true;
-    }
-
-    return false;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get number of location
-  //----------------------------------------------------------------------------
-  size_t getNumLocation() const
-  {
-    return pLocation.size();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get uid
   //----------------------------------------------------------------------------
-  uid_t getCUid() const
+  inline uid_t getCUid() const
   {
     return pCUid;
   }
@@ -391,7 +317,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set uid
   //----------------------------------------------------------------------------
-  void setCUid(uid_t uid)
+  inline void setCUid(uid_t uid)
   {
     pCUid = uid;
   }
@@ -399,7 +325,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get gid
   //----------------------------------------------------------------------------
-  gid_t getCGid() const
+  inline gid_t getCGid() const
   {
     return pCGid;
   }
@@ -407,7 +333,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set gid
   //----------------------------------------------------------------------------
-  void setCGid(gid_t gid)
+  inline void setCGid(gid_t gid)
   {
     pCGid = gid;
   }
@@ -415,7 +341,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get layout
   //----------------------------------------------------------------------------
-  layoutId_t getLayoutId() const
+  inline layoutId_t getLayoutId() const
   {
     return pLayoutId;
   }
@@ -423,7 +349,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set layout
   //----------------------------------------------------------------------------
-  void setLayoutId(layoutId_t layoutId)
+  inline void setLayoutId(layoutId_t layoutId)
   {
     pLayoutId = layoutId;
   }
@@ -431,7 +357,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get flags
   //----------------------------------------------------------------------------
-  uint16_t getFlags() const
+  inline uint16_t getFlags() const
   {
     return pFlags;
   }
@@ -439,7 +365,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get the n-th flag
   //----------------------------------------------------------------------------
-  bool getFlag(uint8_t n)
+  inline bool getFlag(uint8_t n)
   {
     return pFlags & (0x0001 << n);
   }
@@ -447,7 +373,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set flags
   //----------------------------------------------------------------------------
-  void setFlags(uint16_t flags)
+  inline void setFlags(uint16_t flags)
   {
     pFlags = flags;
   }
@@ -471,7 +397,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set the FileMDSvc object
   //----------------------------------------------------------------------------
-  void setFileMDSvc(IFileMDSvc* fileMDSvc)
+  inline void setFileMDSvc(IFileMDSvc* fileMDSvc)
   {
     pFileMDSvc = fileMDSvc;
   }
@@ -479,7 +405,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get the FileMDSvc object
   //----------------------------------------------------------------------------
-  virtual IFileMDSvc* getFileMDSvc()
+  inline virtual IFileMDSvc* getFileMDSvc()
   {
     return pFileMDSvc;
   }
@@ -487,7 +413,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get symbolic link
   //----------------------------------------------------------------------------
-  std::string getLink() const
+  inline std::string getLink() const
   {
     return pLinkName;
   }
@@ -495,7 +421,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Set symbolic link
   //----------------------------------------------------------------------------
-  void setLink(std::string link_name)
+  inline void setLink(std::string link_name)
   {
     pLinkName = link_name;
   }
@@ -505,13 +431,13 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   bool isLink() const
   {
-    return pLinkName.length() ? true:false;
+    return (pLinkName.length() ? true : false);
   }
 
   //----------------------------------------------------------------------------
   //! Add extended attribute
   //----------------------------------------------------------------------------
-  void setAttribute (const std::string &name, const std::string &value)
+  void setAttribute(const std::string& name, const std::string& value)
   {
     pXAttrs[name] = value;
   }
@@ -519,7 +445,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Remove attribute
   //----------------------------------------------------------------------------
-  void removeAttribute (const std::string &name)
+  void removeAttribute(const std::string& name)
   {
     XAttrMap::iterator it = pXAttrs.find(name);
 
@@ -530,15 +456,15 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
-  bool hasAttribute (const std::string &name) const
+  bool hasAttribute(const std::string& name) const
   {
-    return pXAttrs.find(name) != pXAttrs.end();
+    return (pXAttrs.find(name) != pXAttrs.end());
   }
 
   //----------------------------------------------------------------------------
   //! Return number of attributes
   //----------------------------------------------------------------------------
-  size_t numAttributes () const
+  inline size_t numAttributes() const
   {
     return pXAttrs.size();
   }
@@ -546,7 +472,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   //! Get the attribute
   //----------------------------------------------------------------------------
-  std::string getAttribute (const std::string &name) const
+  std::string getAttribute(const std::string& name) const
   {
     XAttrMap::const_iterator it = pXAttrs.find(name);
 
@@ -556,6 +482,7 @@ class FileMD: public IFileMD
       e.getMessage() << "Attribute: " << name << " not found";
       throw e;
     }
+
     return it->second;
   }
 
@@ -589,11 +516,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   void deserialize(const std::string& buffer);
 
-
- protected:
-  //----------------------------------------------------------------------------
-  // Data members
-  //----------------------------------------------------------------------------
+protected:
   id_t                pId;
   ctime_t             pCTime;
   ctime_t             pMTime;

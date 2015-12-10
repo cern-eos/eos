@@ -20,6 +20,7 @@
 #include "namespace/ns_on_redis/FileMD.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
+#include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 
 EOSNSNAMESPACE_BEGIN
@@ -37,23 +38,6 @@ void FileMDSvc::initialize()
   }
 
   pRedox = RedisClient::getInstance();
-}
-
-//------------------------------------------------------------------------------
-// Configure the file service
-//------------------------------------------------------------------------------
-void FileMDSvc::configure(
-  std::map<std::string, std::string>& config)
-{
-  // empty
-}
-
-//------------------------------------------------------------------------------
-// Finalize the file service
-//------------------------------------------------------------------------------
-void FileMDSvc::finalize()
-{
-  // empty
 }
 
 //------------------------------------------------------------------------------
@@ -103,7 +87,6 @@ IFileMD* FileMDSvc::createFile()
 //------------------------------------------------------------------------------
 void FileMDSvc::updateStore(IFileMD* obj)
 {
-  // Store the file in the changelog and notify the listener
   std::string buffer;
   dynamic_cast<FileMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
@@ -139,6 +122,9 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
     throw e;
   }
 
+  // Derease total number of files
+  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
+
   // Notify the listeners
   IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
@@ -150,6 +136,15 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
 void FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 {
   pListeners.push_back(listener);
+}
+
+//------------------------------------------------------------------------------
+// Notify the listeners about the change
+//------------------------------------------------------------------------------
+void FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
+{
+  for (auto it = pListeners.begin(); it != pListeners.end(); ++it)
+    (*it)->fileMDChanged(event);
 }
 
 //------------------------------------------------------------------------------
@@ -171,10 +166,18 @@ FileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
 }
 
 //------------------------------------------------------------------------------
+// Get number of files
+//------------------------------------------------------------------------------
+uint64_t FileMDSvc::getNumFiles()
+{
+  return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+				  constants::sNumFiles));
+}
+
+//------------------------------------------------------------------------------
 // Attach a broken file to lost+found
 //------------------------------------------------------------------------------
-void FileMDSvc::attachBroken(const std::string& parent,
-			     IFileMD* file)
+void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 {
   std::ostringstream s1, s2;
   IContainerMD* parentCont = pContSvc->getLostFoundContainer(parent);
@@ -187,15 +190,6 @@ void FileMDSvc::attachBroken(const std::string& parent,
   s2 << file->getName() << "." << file->getId();
   file->setName(s2.str());
   cont->addFile(file);
-}
-
-//------------------------------------------------------------------------------
-// Get number of files
-//------------------------------------------------------------------------------
-uint64_t FileMDSvc::getNumFiles()
-{
-  return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-				  constants::sNumFiles));
 }
 
 EOSNSNAMESPACE_END

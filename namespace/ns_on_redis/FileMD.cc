@@ -27,16 +27,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
-  IFileMD(),
-  pId(id),
-  pSize(0),
-  pContainerId(0),
-  pCUid(0),
-  pCGid(0),
-  pLayoutId(0),
-  pFlags(0),
-  pChecksum(0),
-  pFileMDSvc(fileMDSvc)
+  IFileMD(), pId(id), pSize(0), pContainerId(0), pCUid(0), pCGid(0),
+  pLayoutId(0), pFlags(0), pChecksum(0), pFileMDSvc(fileMDSvc)
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
@@ -96,6 +88,24 @@ void FileMD::addLocation(location_t location)
 				 IFileMDChangeListener::LocationAdded,
 				 location);
   pFileMDSvc->notifyListeners(&e);
+}
+
+//------------------------------------------------------------------------------
+// Get vector with all the locations
+//------------------------------------------------------------------------------
+IFileMD::LocationVector
+FileMD::getLocations() const
+{
+  return pLocation;
+}
+
+//------------------------------------------------------------------------------
+// Get vector with all unlinked locations
+//------------------------------------------------------------------------------
+IFileMD::LocationVector
+FileMD::getUnlinkedLocations() const
+{
+  return pUnlinkedLocation;
 }
 
 //------------------------------------------------------------------------------
@@ -218,17 +228,16 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
   o << "&lid=" << pLayoutId;
   env += o.str();
   env += "&location=";
-  LocationVector::iterator it;
   char locs[16];
 
-  for (it = pLocation.begin(); it != pLocation.end(); ++it)
+  for (auto it = pLocation.begin(); it != pLocation.end(); ++it)
   {
     snprintf(locs, sizeof(locs), "%u", *it);
     env += locs;
     env += ",";
   }
 
-  for (it = pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it)
+  for (auto it = pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it)
   {
     snprintf(locs, sizeof(locs), "!%u", *it);
     env += locs;
@@ -406,24 +415,6 @@ FileMD::deserialize(const std::string& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Get vector with all the locations
-//------------------------------------------------------------------------------
-IFileMD::LocationVector
-FileMD::getLocations() const
-{
-  return pLocation;
-}
-
-//------------------------------------------------------------------------------
-// Get vector with all unlinked locations
-//------------------------------------------------------------------------------
-IFileMD::LocationVector
-FileMD::getUnlinkedLocations() const
-{
-  return pUnlinkedLocation;
-}
-
-//------------------------------------------------------------------------------
 // Set size - 48 bytes will be used
 //------------------------------------------------------------------------------
 void
@@ -436,6 +427,72 @@ FileMD::setSize(uint64_t size)
 				  IFileMDChangeListener::SizeChange,
 				  0,0, sizeChange );
   pFileMDSvc->notifyListeners( &e );
+}
+
+//------------------------------------------------------------------------------
+// Get creation time
+//------------------------------------------------------------------------------
+void FileMD::getCTime(ctime_t& ctime) const
+{
+  ctime.tv_sec = pCTime.tv_sec;
+  ctime.tv_nsec = pCTime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set creation time
+//------------------------------------------------------------------------------
+void FileMD::setCTime(ctime_t ctime)
+{
+  pCTime.tv_sec = ctime.tv_sec;
+  pCTime.tv_nsec = ctime.tv_nsec;
+}
+
+//----------------------------------------------------------------------------
+// Set creation time to now
+//----------------------------------------------------------------------------
+void FileMD::setCTimeNow()
+{
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  pCTime.tv_sec = tv.tv_sec;
+  pCTime.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &pCTime);
+#endif
+}
+
+//------------------------------------------------------------------------------
+// Get modification time
+//------------------------------------------------------------------------------
+void FileMD::getMTime(ctime_t& mtime) const
+{
+  mtime.tv_sec = pMTime.tv_sec;
+  mtime.tv_nsec = pMTime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set modification time
+//------------------------------------------------------------------------------
+void FileMD::setMTime(ctime_t mtime)
+{
+  pMTime.tv_sec = mtime.tv_sec;
+  pMTime.tv_nsec = mtime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set modification time to now
+//------------------------------------------------------------------------------
+void FileMD::setMTimeNow()
+{
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  pMTime.tv_sec = tv.tv_sec;
+  pMTime.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &pMTime);
+#endif
 }
 
 EOSNSNAMESPACE_END

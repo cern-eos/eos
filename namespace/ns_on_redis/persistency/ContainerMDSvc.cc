@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/ShellCmd.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_on_redis/FileMD.hh"
 #include "namespace/ns_on_redis/ContainerMD.hh"
@@ -29,10 +28,9 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMDSvc:: ContainerMDSvc():
-  pQuotaStats(nullptr),
-  pFileSvc(nullptr),
-  pRedox(nullptr) {}
+ContainerMDSvc::ContainerMDSvc():
+  pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr)
+{}
 
 //------------------------------------------------------------------------------
 // Initizlize the container service
@@ -48,22 +46,6 @@ void ContainerMDSvc::initialize()
 		   << "metadata service";
     throw e;
   }
-}
-
-//----------------------------------------------------------------------------
-// Configure the container service
-//----------------------------------------------------------------------------
-void ContainerMDSvc::configure(std::map<std::string, std::string>& config)
-{
-  // empty
-}
-
-//----------------------------------------------------------------------------
-// Finalize the container service
-//----------------------------------------------------------------------------
-void ContainerMDSvc::finalize()
-{
-  // empty
 }
 
 //----------------------------------------------------------------------------
@@ -99,10 +81,10 @@ IContainerMD* ContainerMDSvc::createContainer()
   // Get the first free container id
   uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				     constants::sFirstFreeCid, 1);
-  // Increase total number of containers
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
   IContainerMD* cont = new ContainerMD(free_id, pFileSvc,
 				       static_cast<IContainerMDSvc*>(this));
+  // Increase total number of containers
+  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
   return cont;
 }
 
@@ -220,6 +202,16 @@ uint64_t ContainerMDSvc::getNumContainers()
 {
   return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
 				  constants::sNumConts));
+}
+
+//------------------------------------------------------------------------------
+// Notify the listeners about the change
+//------------------------------------------------------------------------------
+void ContainerMDSvc::notifyListeners(IContainerMD* obj,
+				     IContainerMDChangeListener::Action a)
+{
+  for (auto it = pListeners.begin(); it != pListeners.end(); ++it)
+    (*it)->containerMDChanged(obj, a);
 }
 
 EOSNSNAMESPACE_END

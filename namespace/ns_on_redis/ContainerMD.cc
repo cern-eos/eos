@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2015 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -16,14 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Class representing the container metadata
-//------------------------------------------------------------------------------
-
 #include "namespace/ns_on_redis/Constants.hh"
 #include "namespace/ns_on_redis/ContainerMD.hh"
-#include "namespace/ns_on_redis/FileMD.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
@@ -34,19 +28,10 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc):
-  IContainerMD(),
-  pId(id),
-  pParentId(0),
-  pFlags(0),
-  pName(""),
-  pCUid(0),
-  pCGid(0),
-  pMode(040755),
-  pACLId(0),
-  pTreeSize(0),
-  pContSvc(cont_svc),
-  pFileSvc(file_svc)
+ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
+			 IContainerMDSvc* cont_svc):
+  IContainerMD(), pId(id), pParentId(0), pFlags(0), pName(""), pCUid(0), pCGid(0),
+  pMode(040755), pACLId(0), pTreeSize(0), pContSvc(cont_svc), pFileSvc(file_svc)
 {
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
@@ -57,14 +42,6 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_sv
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
   pRedox = RedisClient::getInstance();
-}
-
-//------------------------------------------------------------------------------
-// Desstructor
-//------------------------------------------------------------------------------
-ContainerMD::~ContainerMD()
-{
-  // empty
 }
 
 //------------------------------------------------------------------------------
@@ -108,7 +85,7 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 }
 
 //------------------------------------------------------------------------------
-// Find sub container
+// Find subcontainer
 //------------------------------------------------------------------------------
 IContainerMD*
 ContainerMD::findContainer(const std::string& name)
@@ -199,8 +176,8 @@ ContainerMD::addFile(IFileMD* file)
   }
 
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
-				 0, 0, file->getSize() );
-  pFileSvc->notifyListeners( &e );
+				 0, 0, file->getSize());
+  pFileSvc->notifyListeners(&e);
 }
 
 //------------------------------------------------------------------------------
@@ -223,9 +200,9 @@ ContainerMD::removeFile(const std::string& name)
     throw e;
   }
 
-  // File is in the list for current container remove it
   try
   {
+    // Remove from the list of files in current container
     pRedox->hdel(pFilesKey, name);
   }
   catch (std::runtime_error& e)
@@ -244,7 +221,14 @@ ContainerMD::removeFile(const std::string& name)
 size_t
 ContainerMD::getNumFiles()
 {
-  return pRedox->hlen(pFilesKey);
+  try
+  {
+    return pRedox->hlen(pFilesKey);
+  }
+  catch (std::runtime_error& e)
+  {
+    return 0;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -253,7 +237,14 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
-  return pRedox->hlen(pDirsKey);
+  try
+  {
+    return pRedox->hlen(pDirsKey);
+  }
+  catch (std::runtime_error& e)
+  {
+    return 0;
+  }
 }
 
 //------------------------------------------------------------------------
@@ -294,6 +285,355 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 }
 
 //------------------------------------------------------------------------------
+// Get pointer to first subcontainer. Must be used in conjunction with
+// nextContainer to iterate over the list of subcontainers.
+//------------------------------------------------------------------------------
+std::unique_ptr<IContainerMD>
+ContainerMD::beginSubContainer()
+{
+  // TODO: review this to be more efficient in case there are many subcont
+  // i.e. use the hscan function and do the same also for files
+  pSubCont = pRedox->hvals(pDirsKey);
+
+  if (pSubCont.empty())
+  {
+    pIterSubCont = pSubCont.end();
+    return std::unique_ptr<IContainerMD> {nullptr};
+  }
+  else
+  {
+    pIterSubCont = pSubCont.begin();
+    return std::unique_ptr<IContainerMD>
+    {pContSvc->getContainerMD(std::stoull(*pIterSubCont))};
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to the next subcontainer object. Must be used in conjunction
+// with beginContainers to iterate over the list of subcontainers.
+//------------------------------------------------------------------------------
+std::unique_ptr<IContainerMD>
+ContainerMD::nextSubContainer()
+{
+  if ((pIterSubCont == pSubCont.end()) || (++pIterSubCont == pSubCont.end()))
+  {
+    return std::unique_ptr<IContainerMD> {nullptr};
+  }
+  else
+  {
+    return std::unique_ptr<IContainerMD>
+      {pContSvc->getContainerMD(std::stoull(*pIterSubCont))};
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to first file in the container. Must be used in conjunction
+// with nextFile to iterate over the list of files.
+//------------------------------------------------------------------------------
+std::unique_ptr<IFileMD>
+ContainerMD::beginFile()
+{
+  pFiles = pRedox->hvals(pFilesKey);
+
+  if (pFiles.empty())
+  {
+    pIterFile = pFiles.end();
+    return std::unique_ptr<IFileMD>(nullptr);
+  }
+  else
+  {
+    pIterFile = pFiles.begin();
+    return std::unique_ptr<IFileMD>
+    {
+      pFileSvc->getFileMD(std::stoull(*pIterFile))
+    };
+  }
+}
+
+//------------------------------------------------------------------------------
+// Get pointer to the next file object. Must be used in conjunction
+// with beginFiles to iterate over the list of files.
+//------------------------------------------------------------------------------
+std::unique_ptr<IFileMD>
+ContainerMD::nextFile()
+{
+  if ((pIterFile == pFiles.end()) || (++pIterFile == pFiles.end()))
+  {
+    return std::unique_ptr<IFileMD> {nullptr};
+  }
+  else
+  {
+    return std::unique_ptr<IFileMD>
+    {
+      pFileSvc->getFileMD(std::stoull(*pIterFile))
+    };
+  }
+}
+
+//------------------------------------------------------------------------------
+// Access checking helpers
+//------------------------------------------------------------------------------
+#define CANREAD  0x01
+#define CANWRITE 0x02
+#define CANENTER 0x04
+
+static char convertModetUser(mode_t mode)
+{
+  char perms = 0;
+
+  if (mode & S_IRUSR) perms |= CANREAD;
+
+  if (mode & S_IWUSR) perms |= CANWRITE;
+
+  if (mode & S_IXUSR) perms |= CANENTER;
+
+  return perms;
+}
+
+static char convertModetGroup(mode_t mode)
+{
+  char perms = 0;
+
+  if (mode & S_IRGRP) perms |= CANREAD;
+
+  if (mode & S_IWGRP) perms |= CANWRITE;
+
+  if (mode & S_IXGRP) perms |= CANENTER;
+
+  return perms;
+}
+
+static char convertModetOther(mode_t mode)
+{
+  char perms = 0;
+
+  if (mode & S_IROTH) perms |= CANREAD;
+
+  if (mode & S_IWOTH) perms |= CANWRITE;
+
+  if (mode & S_IXOTH) perms |= CANENTER;
+
+  return perms;
+}
+
+static bool checkPerms(char actual, char requested)
+{
+  for (int i = 0; i < 3; ++i)
+  {
+    if (requested & (1 << i))
+      if (!(actual & (1 << i)))
+	return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Check the access permissions
+//------------------------------------------------------------------------------
+bool
+ContainerMD::access(uid_t uid, gid_t gid, int flags)
+{
+  // root can do everything
+  if (uid == 0)
+    return true;
+
+  // daemon can read everything
+  if ((uid == 2) && (!(flags & W_OK)))
+    return true;
+
+  // Convert the flags
+  char convFlags = 0;
+
+  if (flags & R_OK) convFlags |= CANREAD;
+
+  if (flags & W_OK) convFlags |= CANWRITE;
+
+  if (flags & X_OK) convFlags |= CANENTER;
+
+  // Check the perms
+  if (uid == pCUid)
+  {
+    char user = convertModetUser(pMode);
+    return checkPerms(user, convFlags);
+  }
+
+  if (gid == pCGid)
+  {
+    char group = convertModetGroup(pMode);
+    return checkPerms(group, convFlags);
+  }
+
+  char other = convertModetOther(pMode);
+  return checkPerms(other, convFlags);
+}
+
+//------------------------------------------------------------------------------
+// Set creation time
+//------------------------------------------------------------------------------
+void ContainerMD::setCTime(ctime_t ctime)
+{
+  pCTime.tv_sec = ctime.tv_sec;
+  pCTime.tv_nsec = ctime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set creation time to now
+//------------------------------------------------------------------------------
+void ContainerMD::setCTimeNow()
+{
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  pCTime.tv_sec = tv.tv_sec;
+  pCTime.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &pCTime);
+#endif
+}
+
+//------------------------------------------------------------------------------
+// Get creation time
+//------------------------------------------------------------------------------
+void ContainerMD::getCTime(ctime_t& ctime) const
+{
+  ctime.tv_sec = pCTime.tv_sec;
+  ctime.tv_nsec = pCTime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set modification time
+//------------------------------------------------------------------------------
+void
+ContainerMD::setMTime(mtime_t mtime)
+{
+  pMTime.tv_sec = mtime.tv_sec;
+  pMTime.tv_nsec = mtime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set creation time to now
+//------------------------------------------------------------------------------
+void ContainerMD::setMTimeNow()
+{
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  pMTime.tv_sec = tv.tv_sec;
+  pMTime.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &pMTime);
+#endif
+}
+
+//------------------------------------------------------------------------------
+// Get modification time
+//------------------------------------------------------------------------------
+void ContainerMD::getMTime(mtime_t& mtime) const
+{
+  mtime.tv_sec = pMTime.tv_sec;
+  mtime.tv_nsec = pMTime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Set propagated modification time (if newer)
+//------------------------------------------------------------------------------
+bool ContainerMD::setTMTime(tmtime_t tmtime)
+{
+  if ((tmtime.tv_sec > pMTime.tv_sec) ||
+      ((tmtime.tv_sec == pMTime.tv_sec) &&
+       (tmtime.tv_nsec > pMTime.tv_nsec)))
+  {
+    pTMTime.tv_sec = tmtime.tv_sec;
+    pTMTime.tv_nsec = tmtime.tv_nsec;
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Set propagated modification time to now
+//------------------------------------------------------------------------------
+void ContainerMD::setTMTimeNow()
+{
+  tmtime_t tmtime;
+#ifdef __APPLE__
+  struct timeval tv;
+  gettimeofday(&tv, 0);
+  tmtime..tv_sec = tv.tv_sec;
+  tmtime.tv_nsec = tv.tv_usec * 1000;
+#else
+  clock_gettime(CLOCK_REALTIME, &tmtime);
+#endif
+  setTMTime(tmtime);
+  return;
+}
+
+//------------------------------------------------------------------------------
+// Get propagated modification time
+//------------------------------------------------------------------------------
+void ContainerMD::getTMTime(tmtime_t& tmtime) const
+{
+  tmtime.tv_sec = pTMTime.tv_sec;
+  tmtime.tv_nsec = pTMTime.tv_nsec;
+}
+
+//------------------------------------------------------------------------------
+// Trigger an mtime change event
+//------------------------------------------------------------------------------
+void ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
+{
+  containerMDSvc->notifyListeners(this, IContainerMDChangeListener::MTimeChange);
+}
+
+//------------------------------------------------------------------------------
+// Add to tree size
+//------------------------------------------------------------------------------
+uint64_t ContainerMD::addTreeSize(uint64_t addsize)
+{
+  pTreeSize += addsize;
+  return pTreeSize;
+}
+
+//------------------------------------------------------------------------------
+// Remove from tree size
+//------------------------------------------------------------------------------
+uint64_t ContainerMD::removeTreeSize(uint64_t removesize)
+{
+  pTreeSize += removesize;
+  return pTreeSize;
+}
+
+//------------------------------------------------------------------------------
+// Get the attribute
+//------------------------------------------------------------------------------
+std::string ContainerMD::getAttribute(const std::string& name) const
+{
+  XAttrMap::const_iterator it = pXAttrs.find(name);
+
+  if (it == pXAttrs.end())
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Attribute: " << name << " not found";
+    throw e;
+  }
+
+  return it->second;
+}
+
+//------------------------------------------------------------------------------
+// Remove attribute
+//------------------------------------------------------------------------------
+void ContainerMD::removeAttribute(const std::string& name)
+{
+  XAttrMap::iterator it = pXAttrs.find(name);
+
+  if (it != pXAttrs.end())
+    pXAttrs.erase(it);
+}
+
+//------------------------------------------------------------------------------
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
@@ -312,9 +652,8 @@ ContainerMD::serialize(std::string& buffer)
   buffer.append(pName.c_str(), len);
   len = pXAttrs.size() + 2;
   buffer.append(reinterpret_cast<const char*>(&len), sizeof(len));
-  XAttrMap::iterator it;
 
-  for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
+  for (auto it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
   {
     uint16_t strLen = it->first.length() + 1;
     buffer.append(reinterpret_cast<const char*>(&strLen), sizeof(strLen));
@@ -331,7 +670,6 @@ ContainerMD::serialize(std::string& buffer)
   uint16_t l2 = k2.length() + 1;
   uint16_t l3;
   char stime[64];
-
   snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_sec);
   l3 = strlen(stime) + 1;
   // key
@@ -342,7 +680,6 @@ ContainerMD::serialize(std::string& buffer)
   buffer.append(stime, l3);
   snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_nsec);
   l3 = strlen(stime) + 1;
-
   // key
   buffer.append(reinterpret_cast<const char*>(&l2), sizeof(l2));
   buffer.append(k2.c_str(), l2);
@@ -386,7 +723,7 @@ ContainerMD::deserialize(const std::string& buffer)
     offset = Buffer::grabData(buffer, offset, len2, strBuffer2);
     std::string key = strBuffer1;
 
-    if (key=="sys.mtime.s")
+    if (key == "sys.mtime.s")
     {
       // Stored modification time in s
       pMTime.tv_sec = strtoull(strBuffer2, 0, 10);
@@ -407,212 +744,6 @@ ContainerMD::deserialize(const std::string& buffer)
 
   pFilesKey = std::to_string(pId) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
-}
-
-//------------------------------------------------------------------------------
-// Get pointer to first subcontainer. Must be used in conjunction with
-// nextContainer to iterate over the list of subcontainers.
-//------------------------------------------------------------------------------
-std::unique_ptr<IContainerMD>
-ContainerMD::beginSubContainer()
-{
-  // TODO: review this to be more efficient in case there are many subcont
-  // i.e. use the hscan function and do the same also for files
-  pSubCont = pRedox->hvals(pDirsKey);
-
-  if (pSubCont.empty())
-  {
-    pIterSubCont = pSubCont.end();
-    return std::unique_ptr<IContainerMD>{nullptr};
-  }
-  else
-  {
-    pIterSubCont = pSubCont.begin();
-    return std::unique_ptr<IContainerMD>
-      {pContSvc->getContainerMD(std::stoull(*pIterSubCont))};
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get pointer to the next subcontainer object. Must be used in conjunction
-// with beginContainers to iterate over the list of subcontainers.
-//------------------------------------------------------------------------------
-std::unique_ptr<IContainerMD>
-ContainerMD::nextSubContainer()
-{
-  if (pIterSubCont == pSubCont.end())
-    return nullptr;
-
-  ++pIterSubCont;
-
-  if (pIterSubCont == pSubCont.end())
-  {
-    return std::unique_ptr<IContainerMD>{nullptr};
-  }
-  else
-  {
-    return std::unique_ptr<IContainerMD>
-      {pContSvc->getContainerMD(std::stoull(*pIterSubCont))};
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get pointer to first file in the container. Must be used in conjunction
-// with nextFile to iterate over the list of files.
-//------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
-ContainerMD::beginFile()
-{
-  pFiles = pRedox->hvals(pFilesKey);
-
-  if (pFiles.empty())
-  {
-    pIterFile = pFiles.end();
-    return std::unique_ptr<IFileMD>(nullptr);
-  }
-  else
-  {
-    pIterFile = pFiles.begin();
-    return std::unique_ptr<IFileMD>{
-      pFileSvc->getFileMD(std::stoull(*pIterFile))};
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get pointer to the next file object. Must be used in conjunction
-// with beginFiles to iterate over the list of files.
-//------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
-ContainerMD::nextFile()
-{
-  if (pIterFile == pFiles.end())
-    return std::unique_ptr<IFileMD>(nullptr);
-
-  ++pIterFile;
-
-  if (pIterFile == pFiles.end())
-  {
-    return std::unique_ptr<IFileMD>{nullptr};
-  }
-  else
-  {
-    return std::unique_ptr<IFileMD>{
-      pFileSvc->getFileMD(std::stoull(*pIterFile))};
-  }
-}
-
-//------------------------------------------------------------------------------
-// Access checking helpers
-//------------------------------------------------------------------------------
-#define CANREAD  0x01
-#define CANWRITE 0x02
-#define CANENTER 0x04
-
-static char convertModetUser(mode_t mode)
-{
-  char perms = 0;
-  if (mode & S_IRUSR) perms |= CANREAD;
-  if (mode & S_IWUSR) perms |= CANWRITE;
-  if (mode & S_IXUSR) perms |= CANENTER;
-  return perms;
-}
-
-static char convertModetGroup(mode_t mode)
-{
-  char perms = 0;
-  if (mode & S_IRGRP) perms |= CANREAD;
-  if (mode & S_IWGRP) perms |= CANWRITE;
-  if (mode & S_IXGRP) perms |= CANENTER;
-  return perms;
-}
-
-static char convertModetOther(mode_t mode)
-{
-  char perms = 0;
-  if (mode & S_IROTH) perms |= CANREAD;
-  if (mode & S_IWOTH) perms |= CANWRITE;
-  if (mode & S_IXOTH) perms |= CANENTER;
-  return perms;
-}
-
-static bool checkPerms(char actual, char requested)
-{
-  for (int i = 0; i < 3; ++i)
-    if (requested & (1 << i))
-      if (!(actual & (1 << i)))
-	return false;
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
-// Check the access permissions
-//------------------------------------------------------------------------------
-bool
-ContainerMD::access(uid_t uid, gid_t gid, int flags)
-{
-  // root can do everything
-  if (uid == 0)
-    return true;
-
-  // daemon can read everything
-  if ((uid == 2) && (!(flags & W_OK)))
-    return true;
-
-  // Convert the flags
-  char convFlags = 0;
-  if (flags & R_OK) convFlags |= CANREAD;
-  if (flags & W_OK) convFlags |= CANWRITE;
-  if (flags & X_OK) convFlags |= CANENTER;
-
-  // Check the perms
-  if (uid == pCUid)
-  {
-    char user = convertModetUser(pMode);
-    return checkPerms(user, convFlags);
-  }
-
-  if (gid == pCGid)
-  {
-    char group = convertModetGroup(pMode);
-    return checkPerms(group, convFlags);
-  }
-
-  char other = convertModetOther(pMode);
-  return checkPerms(other, convFlags);
-}
-
-//------------------------------------------------------------------------------
-// Set modification time
-//------------------------------------------------------------------------------
-void
-ContainerMD::setMTime(mtime_t mtime)
-{
-  pMTime.tv_sec = mtime.tv_sec;
-  pMTime.tv_nsec = mtime.tv_nsec;
-}
-
-//------------------------------------------------------------------------------
-// Set creation time to now
-//------------------------------------------------------------------------------
-void ContainerMD::setMTimeNow()
-{
-#ifdef __APPLE__
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  pMTime.tv_sec = tv.tv_sec;
-  pMTime.tv_nsec = tv.tv_usec * 1000;
-#else
-  clock_gettime(CLOCK_REALTIME, &pMTime);
-#endif
-}
-
-//------------------------------------------------------------------------------
-// Trigger an mtime change event
-//------------------------------------------------------------------------------
-void ContainerMD::notifyMTimeChange(IContainerMDSvc *containerMDSvc)
-{
-  containerMDSvc->notifyListeners(this , IContainerMDChangeListener::MTimeChange);
 }
 
 EOSNSNAMESPACE_END

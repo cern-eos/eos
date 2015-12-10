@@ -24,19 +24,13 @@
 #ifndef __EOS_NS_CONTAINER_MD_HH__
 #define __EOS_NS_CONTAINER_MD_HH__
 
-#include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include <stdint.h>
-#include <unistd.h>
-#include <cstring>
+#include <cstdint>
 #include <string>
 #include <vector>
-#include <google/sparse_hash_map>
-#include <google/dense_hash_map>
-#include <map>
 #include <sys/time.h>
 
-//! Forward declaration
+//! Forward declarations
 namespace redox
 {
   class Redox;
@@ -52,12 +46,7 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 class ContainerMD: public IContainerMD
 {
- public:
-  //----------------------------------------------------------------------------
-  // Type definitions
-  //----------------------------------------------------------------------------
-  typedef google::dense_hash_map<std::string, IContainerMD*> ContainerMap;
-  typedef google::dense_hash_map<std::string, IFileMD*>      FileMap;
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -67,7 +56,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Desstructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMD();
+  virtual ~ContainerMD() {};
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
@@ -95,7 +84,7 @@ class ContainerMD: public IContainerMD
   void removeContainer(const std::string& name);
 
   //----------------------------------------------------------------------------
-  //! Find sub container
+  //! Find subcontainer
   //----------------------------------------------------------------------------
   IContainerMD* findContainer(const std::string& name);
 
@@ -127,7 +116,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
-  id_t getId() const
+  inline id_t getId() const
   {
     return pId;
   }
@@ -135,7 +124,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
-  id_t getParentId() const
+  inline id_t getParentId() const
   {
     return pParentId;
   }
@@ -159,7 +148,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get the flags
   //----------------------------------------------------------------------------
-  uint16_t getFlags() const
+  inline uint16_t getFlags() const
   {
     return pFlags;
   }
@@ -167,35 +156,17 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set creation time
   //----------------------------------------------------------------------------
-  void setCTime(ctime_t ctime)
-  {
-    pCTime.tv_sec = ctime.tv_sec;
-    pCTime.tv_nsec = ctime.tv_nsec;
-  }
+  void setCTime(ctime_t ctime);
 
   //----------------------------------------------------------------------------
   //! Set creation time to now
   //----------------------------------------------------------------------------
-  void setCTimeNow()
-  {
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    pCTime.tv_sec = tv.tv_sec;
-    pCTime.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &pCTime);
-#endif
-  }
+  void setCTimeNow();
 
   //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
-  void getCTime(ctime_t& ctime) const
-  {
-    ctime.tv_sec = pCTime.tv_sec;
-    ctime.tv_nsec = pCTime.tv_nsec;
-  }
+  void getCTime(ctime_t& ctime) const;
 
   //----------------------------------------------------------------------------
   //! Set creation time
@@ -208,66 +179,34 @@ class ContainerMD: public IContainerMD
   void setMTimeNow();
 
   //----------------------------------------------------------------------------
-  //! Trigger an mtime change event
-  //----------------------------------------------------------------------------
-  void notifyMTimeChange(IContainerMDSvc *containerMDSvc);
-
-  //----------------------------------------------------------------------------
   //! Get modification time
   //----------------------------------------------------------------------------
-  void getMTime(mtime_t &mtime) const
-  {
-    mtime.tv_sec = pMTime.tv_sec;
-    mtime.tv_nsec = pMTime.tv_nsec;
-  }
+  void getMTime(mtime_t& mtime) const;
 
   //----------------------------------------------------------------------------
   //! Set propagated modification time (if newer)
   //----------------------------------------------------------------------------
-  bool setTMTime(tmtime_t tmtime)
-  {
-    if ( (tmtime.tv_sec > pMTime.tv_sec ) ||
-	 ( (tmtime.tv_sec == pMTime.tv_sec) &&
-	   (tmtime.tv_nsec > pMTime.tv_nsec) ) )
-    {
-      pTMTime.tv_sec = tmtime.tv_sec;
-      pTMTime.tv_nsec = tmtime.tv_nsec;
-      return true;
-    }
-    return false;
-  }
+  bool setTMTime(tmtime_t tmtime);
 
   //----------------------------------------------------------------------------
   //! Set propagated modification time to now
   //----------------------------------------------------------------------------
-  void setTMTimeNow()
-  {
-    tmtime_t tmtime;
-#ifdef __APPLE__
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    tmtime..tv_sec = tv.tv_sec;
-    tmtime.tv_nsec = tv.tv_usec * 1000;
-#else
-    clock_gettime(CLOCK_REALTIME, &tmtime);
-#endif
-    setTMTime(tmtime);
-    return;
-  }
+  void setTMTimeNow();
 
   //----------------------------------------------------------------------------
-  //! Get creation time
+  //! Get propagated modification time
   //----------------------------------------------------------------------------
-  void getTMTime(tmtime_t &tmtime) const
-  {
-    tmtime.tv_sec = pTMTime.tv_sec;
-    tmtime.tv_nsec = pTMTime.tv_nsec;
-  }
+  void getTMTime(tmtime_t& tmtime) const;
+
+  //----------------------------------------------------------------------------
+  //! Trigger an mtime change event
+  //----------------------------------------------------------------------------
+  void notifyMTimeChange(IContainerMDSvc* containerMDSvc);
 
   //----------------------------------------------------------------------------
   //! Get tree size
   //----------------------------------------------------------------------------
-  uint64_t getTreeSize() const
+  inline uint64_t getTreeSize() const
   {
     return pTreeSize;
   }
@@ -275,7 +214,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set tree size
   //----------------------------------------------------------------------------
-  void setTreeSize(uint64_t treesize)
+  inline void setTreeSize(uint64_t treesize)
   {
     pTreeSize = treesize;
   }
@@ -283,25 +222,17 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Add to tree size
   //----------------------------------------------------------------------------
-  uint64_t addTreeSize(uint64_t addsize)
-  {
-    pTreeSize += addsize;
-    return pTreeSize;
-  }
+  uint64_t addTreeSize(uint64_t addsize);
 
   //----------------------------------------------------------------------------
   //! Remove from tree size
   //----------------------------------------------------------------------------
-  uint64_t removeTreeSize(uint64_t removesize)
-  {
-    pTreeSize += removesize;
-    return pTreeSize;
-  }
+  uint64_t removeTreeSize(uint64_t removesize);
 
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
-  const std::string& getName() const
+  inline const std::string& getName() const
   {
     return pName;
   }
@@ -309,7 +240,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set name
   //----------------------------------------------------------------------------
-  void setName(const std::string& name)
+  inline void setName(const std::string& name)
   {
     pName = name;
   }
@@ -317,7 +248,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get uid
   //----------------------------------------------------------------------------
-  uid_t getCUid() const
+  inline uid_t getCUid() const
   {
     return pCUid;
   }
@@ -325,7 +256,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set uid
   //----------------------------------------------------------------------------
-  void setCUid(uid_t uid)
+  inline void setCUid(uid_t uid)
   {
     pCUid = uid;
   }
@@ -333,7 +264,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get gid
   //----------------------------------------------------------------------------
-  gid_t getCGid() const
+  inline gid_t getCGid() const
   {
     return pCGid;
   }
@@ -341,7 +272,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set gid
   //----------------------------------------------------------------------------
-  void setCGid(gid_t gid)
+  inline void setCGid(gid_t gid)
   {
     pCGid = gid;
   }
@@ -349,7 +280,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get mode
   //----------------------------------------------------------------------------
-  mode_t getMode() const
+  inline mode_t getMode() const
   {
     return pMode;
   }
@@ -357,7 +288,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set mode
   //----------------------------------------------------------------------------
-  void setMode(mode_t mode)
+  inline void setMode(mode_t mode)
   {
     pMode = mode;
   }
@@ -365,7 +296,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Get ACL Id
   //----------------------------------------------------------------------------
-  uint16_t getACLId() const
+  inline uint16_t getACLId() const
   {
     return pACLId;
   }
@@ -373,7 +304,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Set ACL Id
   //----------------------------------------------------------------------------
-  void setACLId(uint16_t ACLId)
+  inline void setACLId(uint16_t ACLId)
   {
     pACLId = ACLId;
   }
@@ -389,13 +320,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Remove attribute
   //----------------------------------------------------------------------------
-  void removeAttribute(const std::string& name)
-  {
-    XAttrMap::iterator it = pXAttrs.find(name);
-
-    if (it != pXAttrs.end())
-      pXAttrs.erase(it);
-  }
+  void removeAttribute(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
@@ -416,19 +341,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   // Get the attribute
   //----------------------------------------------------------------------------
-  std::string getAttribute(const std::string& name) const
-  {
-    XAttrMap::const_iterator it = pXAttrs.find(name);
-
-    if (it == pXAttrs.end())
-    {
-      MDException e(ENOENT);
-      e.getMessage() << "Attribute: " << name << " not found";
-      throw e;
-    }
-
-    return it->second;
-  }
+  std::string getAttribute(const std::string& name) const;
 
   //----------------------------------------------------------------------------
   //! Get attribute begin iterator
@@ -505,7 +418,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   void deserialize(const std::string& buffer);
 
- protected:
+protected:
   id_t         pId;
   id_t         pParentId;
   uint16_t     pFlags;
@@ -517,7 +430,7 @@ class ContainerMD: public IContainerMD
   uint16_t     pACLId;
   XAttrMap     pXAttrs;
 
- private:
+private:
   std::vector<std::string> pFiles; ///< List of file ids
   std::vector<std::string> pSubCont; ///< List of subcontainer ids
   std::vector<std::string>::iterator pIterFile, pIterSubCont;

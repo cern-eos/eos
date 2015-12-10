@@ -24,20 +24,18 @@
 #ifndef __EOS_NS_FILE_MD_SVC_HH__
 #define __EOS_NS_FILE_MD_SVC_HH__
 
-#include "namespace/MDException.hh"
-#include "namespace/Constants.hh"
-#include "namespace/Namespace.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include <list>
 
-//! Forward declaration
+//! Forward declarations
 namespace Redox
 {
   class Redox;
 }
 
 EOSNSNAMESPACE_BEGIN
+
+class IQuotaStats;
 
 //------------------------------------------------------------------------------
 //! FileMDSvc based on Redis
@@ -63,12 +61,12 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Configure the file service
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(std::map<std::string, std::string>& config) {};
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
   //----------------------------------------------------------------------------
-  virtual void finalize();
+  virtual void finalize() {};
 
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
@@ -110,11 +108,7 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  virtual void notifyListeners(IFileMDChangeListener::Event* event)
-  {
-    for (auto it = pListeners.begin(); it != pListeners.end(); ++it)
-      (*it)->fileMDChanged(event);
-  }
+  virtual void notifyListeners(IFileMDChangeListener::Event* event);
 
   //----------------------------------------------------------------------------
   //! Set container service

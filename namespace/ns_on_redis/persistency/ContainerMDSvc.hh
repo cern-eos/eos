@@ -18,22 +18,18 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief ContainerMD service based on Redis
+//! @brief Container metadata service based on Redis
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_CONTAINER_MD_SVC_HH__
 #define __EOS_NS_CONTAINER_MD_SVC_HH__
 
-#include "namespace/Namespace.hh"
-#include "namespace/MDException.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_on_redis/Constants.hh"
 #include "namespace/ns_on_redis/accounting/QuotaStats.hh"
-
 #include <list>
 #include <map>
-#include <pthread.h>
 
 //! Forward declarations
 namespace redox
@@ -48,7 +44,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class ContainerMDSvc: public IContainerMDSvc
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -67,12 +63,12 @@ class ContainerMDSvc: public IContainerMDSvc
   //----------------------------------------------------------------------------
   //! Configure the container service
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(std::map<std::string, std::string>& config) {};
 
   //----------------------------------------------------------------------------
   //! Finalize the container service
   //----------------------------------------------------------------------------
-  virtual void finalize();
+  virtual void finalize() {};
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
@@ -139,19 +135,15 @@ class ContainerMDSvc: public IContainerMDSvc
     pQuotaStats = quotaStats;
   }
 
- private:
+private:
 
   typedef std::list<IContainerMDChangeListener*> ListenerList;
 
   //----------------------------------------------------------------------------
-  // Notify the listeners about the change
+  //! Notify the listeners about the change
   //----------------------------------------------------------------------------
   void notifyListeners(IContainerMD* obj,
-		       IContainerMDChangeListener::Action a)
-  {
-    for (auto it = pListeners.begin(); it != pListeners.end(); ++it)
-      (*it)->containerMDChanged(obj, a);
-  }
+		       IContainerMDChangeListener::Action a);
 
   ListenerList pListeners; ///< List of listeners to be notified
   IQuotaStats* pQuotaStats; ///< Quota view
