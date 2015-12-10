@@ -689,7 +689,7 @@ XrdMgmOfsFile::open (const char *inpath,
                          vid.gid,
                          (isRW) ? W_OK | X_OK : R_OK | X_OK)))
     {
-      if (!((vid.uid == 2) && (isPioReconstruct)))
+      if (!((vid.uid == DAEMONUID) && (isPioReconstruct)))
       {
         // we don't apply this permission check for reconstruction jobs issued via the daemon account
         errno = EPERM;

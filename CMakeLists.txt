@@ -136,14 +136,20 @@ link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 #-------------------------------------------------------------------------------
 EOS_CheckOutOfSourceBuild()
 
+#-------------------------------------------------------------------------------
+# Get daemon uid and gid
+#-------------------------------------------------------------------------------
+set( DAEMONUID "" )
+set( DAEMONGID "" )
+EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")	 
 if (CLIENT)
   if (MacOSX)
-    set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+    set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1 -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
   else ()
-set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
+  set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1 -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
   endif()
 else (CLIENT)
-set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )
+  set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
 endif (CLIENT)
 
 #-------------------------------------------------------------------------------

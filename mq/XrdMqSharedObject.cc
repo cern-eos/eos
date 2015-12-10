@@ -113,7 +113,7 @@ XrdMqSharedObjectChangeNotifier::SubscribesToKey (const std::string &subscriber,
   if (s->Notify)
   {
     // if the notification is started for this process, update it
-    if (!StopNotifyKey (s, key, type)) return false;
+    if (!StartNotifyKey (s, key, type)) return false;
   }
   return true;
 }
@@ -132,7 +132,7 @@ XrdMqSharedObjectChangeNotifier::SubscribesToKeyRegex (const std::string &subscr
   if (s->Notify)
   {
     // if the notification is started for this process, update it
-    if (!StopNotifyKeyRegex (s, key, type)) return false;
+    if (!StartNotifyKeyRegex (s, key, type)) return false;
   }
   return true;
 }

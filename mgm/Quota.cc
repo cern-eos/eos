@@ -1759,8 +1759,8 @@ Quota::FilePlacement(const std::string& space,
 		     unsigned long lid,
 		     std::vector<unsigned int>& alreadyused_filesystems,
 		     std::vector<unsigned int>& selected_filesystems,
-                     std::vector<std::string> *dataproxys,
-                     std::vector<std::string> *firewallentpts,
+		     std::vector<std::string> *dataproxys,
+		     std::vector<std::string> *firewallentpts,
 		     Scheduler::tPlctPolicy plctpolicy,
 		     const std::string& plctTrgGeotag,
 		     bool truncate,
@@ -1773,17 +1773,12 @@ Quota::FilePlacement(const std::string& space,
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u", vid.uid,
 		   vid.gid, grouptag, nfilesystems);
 
+  if (FsView::gFsView.IsQuotaEnabled(space))
+  {
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
-  if (!squota)
-  {
-    eos_static_err("no quota node responsible for path=%s", path);
-    return EDQUOT;
-  }
-
-  // Check if quota enabled for current space
-  if (FsView::gFsView.IsQuotaEnabled(space))
+    if (squota)
   {
     bool has_quota = false;
     long long desired_vol = 1ll * nfilesystems * bookingsize;
@@ -1796,6 +1791,7 @@ Quota::FilePlacement(const std::string& space,
                        "has no quota left!", vid.uid, vid.gid, grouptag,
                        nfilesystems);
       return EDQUOT;
+      }
     }
   }
   else
@@ -1829,8 +1825,8 @@ Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 		  std::string tried_cgi,
 		  unsigned long lid,
 		  std::vector<unsigned int>& locationsfs,
-                  std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
-                  std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
+		  std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+		  std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
 		  unsigned long& fsindex,
 		  bool isRW,
 		  unsigned long long bookingsize,

@@ -28,6 +28,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/ptrace.h>
+#include <sys/syscall.h>
 #include <uuid/uuid.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -112,6 +113,9 @@ ShellCmd::monitor ()
   // set the active flag
   monitor_active = true;
 
+  // switch this thread to root to be able to attach
+
+  syscall(SYS_setresuid,0,0,0);
   //----------------------------------------------------------------------------
   // trace the 'command' process (without stopping it),
   // this way the given process becomes its parent
