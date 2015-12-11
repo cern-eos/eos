@@ -43,6 +43,8 @@
 #endif
 /*----------------------------------------------------------------------------*/
 #include <XrdSys/XrdSysTimer.hh>
+#include <fst/io/FileIo.hh>
+#include <fst/io/FileIoPluginCommon.hh>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -340,26 +342,17 @@ CheckSum::OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize
 
   eos::common::CloExec::Set(ChecksumMapFd);
 
-  // tag the map file with attributes
-  eos::common::Attr* attr = eos::common::Attr::OpenAttr(mapfilepath);
-  if (!attr)
+  char sblocksize[1024];
+  snprintf(sblocksize, sizeof (sblocksize) - 1, "%llu", (unsigned long long) blocksize);
+  std::string sBlockSize = sblocksize;
+  std::string sBlockCheckSum = Name.c_str();
+
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(mapfilepath));
+  if ((io->attrSet(std::string("user.eos.blocksize"), sBlockSize)) || (io->attrSet(std::string("user.eos.blockchecksum"), sBlockCheckSum)))
   {
+    //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
+    close(ChecksumMapFd);
     return false;
-  }
-  else
-  {
-    char sblocksize[1024];
-    snprintf(sblocksize, sizeof (sblocksize) - 1, "%llu", (unsigned long long) blocksize);
-    std::string sBlockSize = sblocksize;
-    std::string sBlockCheckSum = Name.c_str();
-    if ((!attr->Set(std::string("user.eos.blocksize"), sBlockSize)) || (!attr->Set(std::string("user.eos.blockchecksum"), sBlockCheckSum)))
-    {
-      //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
-      delete attr;
-      close(ChecksumMapFd);
-      return false;
-    }
-    delete attr;
   }
 
   ChecksumMapSize = ((maxfilesize / blocksize) + 1) * (GetCheckSumLen());

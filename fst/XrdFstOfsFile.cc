@@ -32,6 +32,8 @@
 #include "XrdOss/XrdOssApi.hh"
 /*----------------------------------------------------------------------------*/
 #include <math.h>
+#include <fst/io/FileIoPluginCommon.hh>
+
 /*----------------------------------------------------------------------------*/
 
 extern XrdOssSys* XrdOfsOss;
@@ -757,7 +759,7 @@ XrdFstOfsFile::open (const char* path,
   // Get the layout object
   //............................................................................
   layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
-                                                   eos::common::LayoutId::GetIoType(fstPath.c_str()),
+                                                   fstPath.c_str(),
                                                    msDefaultTimeout, store_recovery);
 
   if (!layOut)
@@ -771,7 +773,7 @@ XrdFstOfsFile::open (const char* path,
 
   layOut->SetLogId(logId, vid, tident);
 
-  if ((retc = layOut->GetFileIo()->Exists(fstPath.c_str())))
+  if ((retc = layOut->GetFileIo()->fileExists()))
   {
     //..........................................................................
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
@@ -795,11 +797,11 @@ XrdFstOfsFile::open (const char* path,
     // force the create flag
     open_mode |= SFS_O_CREAT;
     create_mode |= SFS_O_MKPTH;
-    eos_warning("adding creation flag because of %d %d", retc, errno);
+    eos_debug("adding creation flag because of %d %d", retc, errno);
   }
   else
   {
-    eos_warning("removing creation flag because of %d %d", retc, errno);
+    eos_debug("removing creation flag because of %d %d", retc, errno);
     // remove the creat flag
     if (open_mode & SFS_O_CREAT)
       open_mode -= SFS_O_CREAT;
@@ -1002,7 +1004,7 @@ XrdFstOfsFile::open (const char* path,
   // Open layout implementation
   //............................................................................
   eos_info("fstpath=%s open-mode=%x create-mode=%x layout-name=%s", fstPath.c_str(), open_mode, create_mode, layOut->GetName());
-  int rc = layOut->Open(fstPath.c_str(), open_mode, create_mode, oss_opaque.c_str());
+  int rc = layOut->Open(open_mode, create_mode, oss_opaque.c_str());
 
   if (isReplication && !isCreation)
   {
@@ -1145,9 +1147,8 @@ XrdFstOfsFile::open (const char* path,
     //........................................................................
     // Set the eos lfn as extended attribute
     //........................................................................
-    eos::common::Attr* attr = dynamic_cast<eos::common::Attr*> (FileIoPlugin::GetIoAttr(layOut->GetLocalReplicaPath()));
-
-    if (attr && isRW)
+    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(layOut->GetLocalReplicaPath()));
+    if (isRW)
     {
       if (Path.beginswith("/replicate:"))
       {
@@ -1155,7 +1156,7 @@ XrdFstOfsFile::open (const char* path,
         {
           XrdOucString unsealedpath = capOpaque->Get("mgm.path");
           XrdOucString sealedpath = path;
-          if (!attr->Set(std::string("user.eos.lfn"), std::string(unsealedpath.c_str())))
+          if (io->attrSet(std::string("user.eos.lfn"), std::string(unsealedpath.c_str())))
           {
             eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
           }
@@ -1167,7 +1168,7 @@ XrdFstOfsFile::open (const char* path,
       }
       else
       {
-        if (!attr->Set(std::string("user.eos.lfn"), std::string(Path.c_str())))
+        if (io->attrSet(std::string("user.eos.lfn"), std::string(Path.c_str())))
         {
           eos_err("unable to set extended attribute <eos.lfn> errno=%d", errno);
         }
@@ -1176,12 +1177,7 @@ XrdFstOfsFile::open (const char* path,
 
     //........................................................................
     // Try to get error if the file has a scan error
-    //........................................................................
-    if (attr)
-    {
-      filecxerror = attr->Get("user.filecxerror");
-      delete attr;
-    }
+    io->attrGet("user.filecxerror", filecxerror);
   }
 
   if ((!isRW) && (filecxerror == "1"))
@@ -1648,41 +1644,35 @@ XrdFstOfsFile::verifychecksum ()
         // set the eos checksum extended attributes
         //............................................................................
 
-        eos::common::Attr* attr = dynamic_cast<eos::common::Attr*> (FileIoPlugin::GetIoAttr(fstPath.c_str()));
-
-        if (attr)
+        std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str()));
+        if (((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) ||
+            (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)))
         {
-          if (((eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kPlain) ||
-              (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)))
-          {
-            //............................................................................
-            // Don't put file checksum tags for complex layouts like raid6,readdp, archive
-            //............................................................................
-
-            if (!attr->Set(std::string("user.eos.checksumtype"), std::string(checkSum->GetName())))
-            {
-              eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
-            }
-
-            if (!attr->Set("user.eos.checksum", checkSum->GetBinChecksum(checksumlen), checksumlen))
-            {
-              eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
-            }
-          }
           //............................................................................
-          // Reset any tagged error
+          // Don't put file checksum tags for complex layouts like raid6,readdp, archive
           //............................................................................
-          if (!attr->Set("user.eos.filecxerror", "0"))
+
+          if (io->xattrSet(std::string("user.eos.checksumtype"), std::string(checkSum->GetName())))
           {
-            eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+            eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
           }
 
-          if (!attr->Set("user.eos.blockcxerror", "0"))
+          if (io->xattrSet("user.eos.checksum", checkSum->GetBinChecksum(checksumlen), checksumlen))
           {
-            eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
+            eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
           }
+        }
+        //............................................................................
+        // Reset any tagged error
+        //............................................................................
+        if (io->xattrSet("user.eos.filecxerror", "0"))
+        {
+          eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
+        }
 
-          delete attr;
+        if (io->xattrSet("user.eos.blockcxerror", "0"))
+        {
+          eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
         }
       }
     }
@@ -2955,7 +2945,7 @@ XrdFstOfsFile::DoTpcTransfer ()
     src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
   }
 
-  XrdIo tpcIO; // the remote IO object
+  XrdIo tpcIO((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>())); // the remote IO object
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
   if (tpcIO.Open(src_url.c_str(), 0, 0, src_cgi.c_str(), 10))

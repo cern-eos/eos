@@ -66,7 +66,7 @@ FileSystem::FileSystem (const char* queuepath,
 
   mRecoverable = false;
 
-  mFileIO = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(GetPath().c_str()));
+  mFileIO = FileIoPlugin::GetIoObject(GetPath().c_str());
 }
 
 /*----------------------------------------------------------------------------*/

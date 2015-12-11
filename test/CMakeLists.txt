@@ -137,7 +137,7 @@ target_link_libraries(xrdcptruncate XrdPosix XrdUtils)
 target_link_libraries(xrdcpposixcache XrdPosix XrdUtils)
 target_link_libraries(xrdcppartial XrdPosix XrdUtils)
 target_link_libraries(xrdcpupdate XrdPosix XrdUtils)
-target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eoschecksumbench XrdPosix eosCommon XrdUtils EosFstIo-Static ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(eos-io-tool XrdCl XrdServer EosFstIo-Static ${KINETIC_LIBRARIES})
 
 target_link_libraries(eos-udp-dumper)

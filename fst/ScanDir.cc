@@ -22,7 +22,6 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Attr.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
@@ -140,8 +139,8 @@ ScanDir::ScanFiles ()
 {
 
   int io_type = eos::common::LayoutId::GetIoType(dirPath.c_str());
-  FileIo* io = FileIoPluginHelper::GetIoObject(io_type);
-  if (!io)
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(io_type));
+  if (!io->Open(dirPath.c_str(), 0))
   {
     if (bgThread)
     {
@@ -214,8 +213,7 @@ ScanDir::CheckFile (const char* filepath)
 
   filePath = filepath;
 
-  FileIo* io = FileIoPluginHelper::GetIoObject(eos::common::LayoutId::GetIoType(filepath));
-  eos::common::Attr *attr = dynamic_cast<eos::common::Attr*> (FileIoPluginHelper::GetIoAttr(filePath.c_str()));
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(eos::common::LayoutId::GetIoType(filepath)));
 
   noTotalFiles++;
 
@@ -233,8 +231,6 @@ ScanDir::CheckFile (const char* filepath)
     {
       fprintf(stderr, "error: cannot stat %s\n", filePath.c_str());
     }
-    if (attr)
-      delete attr;
     return;
   }
 
@@ -255,117 +251,114 @@ ScanDir::CheckFile (const char* filepath)
   }
 #endif
 
-  if (attr)
+
+  io->xattrGet("user.eos.checksumtype", checksumType);
+  memset(checksumVal, 0, sizeof (checksumVal));
+  checksumLen = SHA_DIGEST_LENGTH;
+  if (io->xattrGet("user.eos.checksum", checksumVal, checksumLen))
   {
-    checksumType = attr->Get("user.eos.checksumtype");
-    memset(checksumVal, 0, sizeof (checksumVal));
-    checksumLen = SHA_DIGEST_LENGTH;
-    if (!attr->Get("user.eos.checksum", checksumVal, checksumLen))
-    {
-      checksumLen = 0;
-    }
+    checksumLen = 0;
+  }
+  io->xattrGet("user.eos.timestamp", checksumStamp);
+  io->xattrGet("user.eos.lfn", logicalFileName);
 
-    checksumStamp = attr->Get("user.eos.timestamp");
-    logicalFileName = attr->Get("user.eos.lfn");
-
-    if (RescanFile(checksumStamp))
+  if (RescanFile(checksumStamp))
+  {
+    //     if (checksumType.compare(""))
+    if (1)
     {
-      //     if (checksumType.compare(""))
-      if (1)
+      bool blockcxerror = false;
+      bool filecxerror = false;
+
+      XrdOucString envstring = "eos.layout.checksum=";
+      envstring += checksumType.c_str();
+      XrdOucEnv env(envstring.c_str());
+      unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
+      layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
+      if (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid, logicalFileName.c_str(), filecxerror, blockcxerror))
       {
-        bool blockcxerror = false;
-        bool filecxerror = false;
-
-        XrdOucString envstring = "eos.layout.checksum=";
-        envstring += checksumType.c_str();
-        XrdOucEnv env(envstring.c_str());
-        unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
-        layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
-        if (!ScanFileLoadAware(io, attr, scansize, scantime, checksumVal, layoutid, logicalFileName.c_str(), filecxerror, blockcxerror))
+        if ((!io->Stat(&buf2)) && (buf1.st_mtime == buf2.st_mtime))
         {
-          if ((!io->Stat(&buf2)) && (buf1.st_mtime == buf2.st_mtime))
-          {
-            if (filecxerror)
-            {
-              if (bgThread)
-              {
-                syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
-                eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
-              }
-              else
-                fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
-            }
-          }
-          else
+          if (filecxerror)
           {
             if (bgThread)
             {
-              eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
+              syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+              eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
             }
             else
-            {
-              fprintf(stderr, "[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n", filePath.c_str());
-            }
+              fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
           }
         }
-        //collect statistics
-        durationScan += scantime;
-        totalScanSize += scansize;
-
-
-        if ((!attr->Set("user.eos.timestamp", GetTimestampSmeared())) ||
-            (!attr->Set("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-            (!attr->Set("user.eos.blockcxerror", blockcxerror ? "1" : "0")))
+        else
         {
           if (bgThread)
           {
-            eos_err("Can not set extended attributes to file %s", filePath.c_str());
+            eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
           }
           else
           {
-            fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
+            fprintf(stderr, "[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n", filePath.c_str());
           }
         }
-#ifndef _NOOFS
+      }
+      //collect statistics
+      durationScan += scantime;
+      totalScanSize += scansize;
+
+
+      if ((io->xattrSet("user.eos.timestamp", GetTimestampSmeared())) ||
+          (io->xattrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+          (io->xattrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0")))
+      {
         if (bgThread)
         {
-          if (filecxerror || blockcxerror)
+          eos_err("Can not set extended attributes to file %s", filePath.c_str());
+        }
+        else
+        {
+          fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
+        }
+      }
+#ifndef _NOOFS
+      if (bgThread)
+      {
+        if (filecxerror || blockcxerror)
+        {
+          XrdOucString manager = "";
+          // ask the meta data handling class to update the error flags for this file
+          gFmdSqliteHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
-            XrdOucString manager = "";
-            // ask the meta data handling class to update the error flags for this file
-            gFmdSqliteHandler.ResyncDisk(filePath.c_str(), fsId, false);
+            XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
+            manager = eos::fst::Config::gConfig.Manager.c_str();
+          }
+          if (manager.length())
+          {
+            errno = 0;
+            eos::common::Path cPath(filePath.c_str());
+            eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
+            if (fid && !errno)
             {
-              XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
-              manager = eos::fst::Config::gConfig.Manager.c_str();
-            }
-            if (manager.length())
-            {
-              errno = 0;
-              eos::common::Path cPath(filePath.c_str());
-              eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
-              if (fid && !errno)
-              {
-                // call the autorepair method on the MGM
-                // if the MGM has autorepair disabled it won't do anything
-                gFmdSqliteHandler.CallAutoRepair(manager.c_str(), fid);
-              }
+              // call the autorepair method on the MGM
+              // if the MGM has autorepair disabled it won't do anything
+              gFmdSqliteHandler.CallAutoRepair(manager.c_str(), fid);
             }
           }
         }
+      }
 #endif
-      }
-      else
-      {
-        noNoChecksumFiles++;
-      }
     }
     else
     {
-
-      SkippedFiles++;
+      noNoChecksumFiles++;
     }
-    delete attr;
   }
+  else
+  {
+
+    SkippedFiles++;
+  }
+
   io->Close();
 }
 
@@ -377,14 +370,13 @@ ScanDir::GetBlockXS (const char* filepath, unsigned long long maxfilesize)
   std::string checksumType, checksumSize, logicalFileName;
   XrdOucString fileXSPath = filepath;
 
-  eos::common::Attr *attr = eos::common::Attr::OpenAttr(fileXSPath.c_str());
-
-  if (attr)
+  auto io_type = eos::common::LayoutId::GetIoType(filepath);
+  std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(io_type));
+  if (!io->Open(filepath, 0))
   {
-    checksumType = attr->Get("user.eos.blockchecksum");
-    checksumSize = attr->Get("user.eos.blocksize");
-    logicalFileName = attr->Get("user.eos.lfn");
-    delete attr;
+    io->xattrGet("user.eos.blockchecksum", checksumType);
+    io->xattrGet("user.eos.blocksize", checksumSize);
+    io->xattrGet("user.eos.lfn", logicalFileName);
 
     if (checksumType.compare(""))
     {
@@ -603,7 +595,7 @@ ScanDir::ThreadProc (void)
 
 /*----------------------------------------------------------------------------*/
 bool
-ScanDir::ScanFileLoadAware (eos::fst::FileIo* io, eos::common::Attr* attr, unsigned long long &scansize, float &scantime, const char* checksumVal, unsigned long layoutid, const char* lfn, bool &filecxerror, bool &blockcxerror)
+ScanDir::ScanFileLoadAware (const std::unique_ptr<eos::fst::FileIo>& io, unsigned long long &scansize, float &scantime, const char* checksumVal, unsigned long layoutid, const char* lfn, bool &filecxerror, bool &blockcxerror)
 {
   double load;
   bool retVal, corruptBlockXS = false;
@@ -716,20 +708,16 @@ ScanDir::ScanFileLoadAware (eos::fst::FileIo* io, eos::common::Attr* attr, unsig
       fprintf(stderr, "error: computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
       if (setChecksum)
       {
-        if (attr)
+        int checksumlen = 0;
+        normalXS->GetBinChecksum(checksumlen);
+        if (io->xattrSet("user.eos.checksum", normalXS->GetBinChecksum(checksumlen), checksumlen) ||
+            io->xattrSet("user.eos.filecxerror", "0"))
         {
-          int checksumlen = 0;
-          normalXS->GetBinChecksum(checksumlen);
-          if ((!attr->Set("user.eos.checksum", normalXS->GetBinChecksum(checksumlen), checksumlen)) ||
-              (!attr->Set("user.eos.filecxerror", "0")))
-          {
-            fprintf(stderr, "error: failed to reset existing checksum \n");
-          }
-          else
-          {
-            fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
-          }
-          delete attr;
+          fprintf(stderr, "error: failed to reset existing checksum \n");
+        }
+        else
+        {
+          fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
         }
       }
     }

@@ -30,7 +30,6 @@
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/Statfs.hh"
-#include "common/Attr.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
 /*----------------------------------------------------------------------------*/
@@ -56,6 +55,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <attr/xattr.h>
 /*----------------------------------------------------------------------------*/
 
 
@@ -1122,15 +1122,14 @@ XrdFstOfs::_rem (const char* path,
 
   // unlink file and possible blockxs file
   errno = 0;
-  // eos::common::LayoutId::GetIoType(fstPath.c_str())
-  std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(fstPath.c_str())));
+  std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(fstPath.c_str()));
 
   if (!io) 
   {
     return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble", fstPath.c_str());
   }
   
-  rc = io->Delete(fstPath.c_str());
+  rc = io->fileRemove();
 
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid))

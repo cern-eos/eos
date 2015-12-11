@@ -32,7 +32,6 @@
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
-#include "common/Attr.hh"
 #include "fst/io/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include <syslog.h>
@@ -124,7 +123,7 @@ public:
 
   void CheckFile (const char*);
   eos::fst::CheckSum* GetBlockXS (const char*, unsigned long long maxfilesize);
-  bool ScanFileLoadAware (eos::fst::FileIo*, eos::common::Attr*, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror);
+  bool ScanFileLoadAware (const std::unique_ptr<eos::fst::FileIo>&, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror);
 
   std::string GetTimestamp ();
   std::string GetTimestampSmeared ();

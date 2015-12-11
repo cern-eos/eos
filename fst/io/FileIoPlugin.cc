@@ -32,12 +32,12 @@ EOSFSTNAMESPACE_BEGIN
 using eos::common::LayoutId;
 
 FileIo*
-FileIoPlugin::GetIoObject (int ioType,
+FileIoPlugin::GetIoObject (std::string path,
                            XrdFstOfsFile* file,
                            const XrdSecEntity* client)
 {
 
-  return FileIoPluginHelper::GetIoObject(ioType, file, client);
+  return FileIoPluginHelper::GetIoObject(path, file, client);
 }
 
 EOSFSTNAMESPACE_END

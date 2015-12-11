@@ -35,13 +35,13 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ReplicaParLayout::ReplicaParLayout (XrdFstOfsFile* file,
-                                    int lid,
-                                    const XrdSecEntity* client,
-                                    XrdOucErrInfo* outError,
-                                    eos::common::LayoutId::eIoType io,
-                                    uint16_t timeout) :
-Layout (file, lid, client, outError, io, timeout)
+ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
+                                   int lid,
+                                   const XrdSecEntity* client,
+                                   XrdOucErrInfo* outError,
+                                   const char* path,
+                                   uint16_t timeout) :
+Layout (file, lid, client, outError, path, timeout)
 {
   mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
   ioLocal = false;
@@ -53,10 +53,7 @@ Layout (file, lid, client, outError, io, timeout)
 //------------------------------------------------------------------------------
 
 int
-ReplicaParLayout::Open (const std::string& path,
-                        XrdSfsFileOpenMode flags,
-                        mode_t mode,
-                        const char* opaque)
+ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
   //............................................................................
   // No replica index definition indicates that this is gateway access just
@@ -238,13 +235,12 @@ ReplicaParLayout::Open (const std::string& path,
           eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
           eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
           eos::common::StringConversion::MaskTag(maskUrl, "authz");
-          FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(mReplicaUrl[i].c_str()),
-                                                   mOfsFile, mSecEntity);
+          FileIo* file = FileIoPlugin::GetIoObject(mReplicaUrl[i].c_str(), mOfsFile, mSecEntity);
 
           //....................................................................
           // Write case
           //....................................................................
-          if (file->Open(mReplicaUrl[i], flags, mode, opaque, mTimeout))
+          if (file->Open(flags, mode, opaque, mTimeout))
           {
             eos_err("Failed to open stripes - remote open failed on %s",
                     maskUrl.c_str());

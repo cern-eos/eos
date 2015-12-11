@@ -107,8 +107,9 @@ add_executable( eosdropboxd
 
 if (CLIENT)
 target_link_libraries( eos 
-		XrdPosix	        XrdCl
-		XrdUtils  	eosCommon
+		XrdPosix	       XrdCl
+		XrdUtils  	     eosCommon
+		EosFstIo
 		crypto           curses
 		dl               z
 		readline         ${CMAKE_THREAD_LIBS_INIT}
@@ -118,6 +119,7 @@ else (CLIENT)
 target_link_libraries( eos 
 		XrdPosix	         XrdCl 
 		XrdUtils 	 eosCommon-Static
+    EosFstIo-Static
 		readline          XrdMqClient-Static
 		crypto            curses
 		dl                z
@@ -128,13 +130,13 @@ endif(CLIENT)
 
 if (MacOSX)
 target_link_libraries( eosdropboxd
-		eosCommon XrdPosix 
+		eosCommon XrdPosix EosFstIo
 		XrdCl            XrdUtils 
 		${CMAKE_THREAD_LIBS_INIT} )
 
 else (MacOSX)
 target_link_libraries( eosdropboxd 
-		eosCommon-Static XrdPosix 
+		eosCommon-Static XrdPosix EosFstIo-Static
 		XrdCl            XrdUtils 
 		${CMAKE_THREAD_LIBS_INIT} )
 

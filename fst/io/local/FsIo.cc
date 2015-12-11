@@ -23,13 +23,17 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/io/FsIo.hh"
+#include "fst/io/local/FsIo.hh"
 /*----------------------------------------------------------------------------*/
 #ifndef __APPLE__
+
 #include <xfs/xfs.h>
+
 #endif
 #undef __USE_FILE_OFFSET64
+
 #include <fts.h>
+#include <attr/xattr.h>
 
 /*----------------------------------------------------------------------------*/
 
@@ -38,10 +42,14 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FsIo::FsIo () :
-FileIo (), mFd (-1)
+FsIo::FsIo(std::string path) :
+    FileIo(path, "FsIo"), mFd(-1)
 {
-  mType = "FsIo";
+}
+
+FsIo::FsIo(std::string path, std::string iotype) :
+  FileIo(path, iotype), mFd(-1)
+{
 }
 
 
@@ -49,7 +57,7 @@ FileIo (), mFd (-1)
 // Destructor
 //------------------------------------------------------------------------------
 
-FsIo::~FsIo ()
+FsIo::~FsIo()
 {
   //empty
 }
@@ -60,14 +68,12 @@ FsIo::~FsIo ()
 //------------------------------------------------------------------------------
 
 int
-FsIo::Open (const std::string& path,
-            XrdSfsFileOpenMode flags,
-            mode_t mode,
-            const std::string& opaque,
-            uint16_t timeout)
+FsIo::fileOpen(XrdSfsFileOpenMode flags,
+               mode_t mode,
+               const std::string& opaque,
+               uint16_t timeout)
 {
-  mFilePath = path;
-  mFd = ::open(path.c_str(), flags, mode);
+  mFd = ::open(mFilePath.c_str(), flags, mode);
   return mFd;
 }
 
@@ -77,10 +83,10 @@ FsIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 
 int64_t
-FsIo::Read (XrdSfsFileOffset offset,
-            char* buffer,
-            XrdSfsXferSize length,
-            uint16_t timeout)
+FsIo::fileRead(XrdSfsFileOffset offset,
+           char* buffer,
+           XrdSfsXferSize length,
+           uint16_t timeout)
 {
   return ::pread(mFd, buffer, length, offset);
 }
@@ -91,10 +97,10 @@ FsIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-FsIo::Write (XrdSfsFileOffset offset,
-             const char* buffer,
-             XrdSfsXferSize length,
-             uint16_t timeout)
+FsIo::fileWrite(XrdSfsFileOffset offset,
+            const char* buffer,
+            XrdSfsXferSize length,
+            uint16_t timeout)
 {
   return ::pwrite(mFd, buffer, length, offset);
 }
@@ -105,13 +111,13 @@ FsIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-FsIo::ReadAsync (XrdSfsFileOffset offset,
-                 char* buffer,
-                 XrdSfsXferSize length,
-                 bool readahead,
-                 uint16_t timeout)
+FsIo::fileReadAsync(XrdSfsFileOffset offset,
+                char* buffer,
+                XrdSfsXferSize length,
+                bool readahead,
+                uint16_t timeout)
 {
-  return Read(offset, buffer, length, timeout);
+  return fileRead(offset, buffer, length, timeout);
 }
 
 
@@ -120,12 +126,12 @@ FsIo::ReadAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-FsIo::WriteAsync (XrdSfsFileOffset offset,
-                  const char* buffer,
-                  XrdSfsXferSize length,
-                  uint16_t timeout)
+FsIo::fileWriteAsync(XrdSfsFileOffset offset,
+                 const char* buffer,
+                 XrdSfsXferSize length,
+                 uint16_t timeout)
 {
-  return Write(offset, buffer, length, timeout);
+  return fileWrite(offset, buffer, length, timeout);
 }
 
 
@@ -134,7 +140,7 @@ FsIo::WriteAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int
-FsIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
+FsIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 {
   return ::ftruncate(mFd, offset);
 }
@@ -145,7 +151,7 @@ FsIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-FsIo::Fallocate (XrdSfsFileOffset length)
+FsIo::fileFallocate(XrdSfsFileOffset length)
 {
   eos_debug("fallocate with length = %lli", length);
 
@@ -154,8 +160,7 @@ FsIo::Fallocate (XrdSfsFileOffset length)
   return 0;
 #else
 
-  if (platform_test_xfs_fd(mFd))
-  {
+  if (platform_test_xfs_fd(mFd)) {
     //..........................................................................
     // Select the fast XFS allocation function if available
     //..........................................................................
@@ -165,8 +170,7 @@ FsIo::Fallocate (XrdSfsFileOffset length)
     fl.l_len = (off64_t) length;
     return xfsctl(NULL, mFd, XFS_IOC_RESVSP64, &fl);
   }
-  else
-  {
+  else {
     return posix_fallocate(mFd, 0, length);
   }
 #endif
@@ -179,8 +183,8 @@ FsIo::Fallocate (XrdSfsFileOffset length)
 //------------------------------------------------------------------------------
 
 int
-FsIo::Fdeallocate (XrdSfsFileOffset fromOffset,
-                   XrdSfsFileOffset toOffset)
+FsIo::fileFdeallocate(XrdSfsFileOffset fromOffset,
+                  XrdSfsFileOffset toOffset)
 {
   eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
 
@@ -188,10 +192,8 @@ FsIo::Fdeallocate (XrdSfsFileOffset fromOffset,
   // no de-allocation
   return 0;
 #else
-  if (mFd > 0)
-  {
-    if (platform_test_xfs_fd(mFd))
-    {
+  if (mFd > 0) {
+    if (platform_test_xfs_fd(mFd)) {
       //........................................................................
       // Select the fast XFS deallocation function if available
       //........................................................................
@@ -201,8 +203,7 @@ FsIo::Fdeallocate (XrdSfsFileOffset fromOffset,
       fl.l_len = (off64_t) toOffset - fromOffset;
       return xfsctl(NULL, mFd, XFS_IOC_UNRESVSP64, &fl);
     }
-    else
-    {
+    else {
       return 0;
     }
   }
@@ -217,7 +218,7 @@ FsIo::Fdeallocate (XrdSfsFileOffset fromOffset,
 //------------------------------------------------------------------------------
 
 int
-FsIo::Sync (uint16_t timeout)
+FsIo::fileSync(uint16_t timeout)
 {
   return ::fsync(mFd);
 }
@@ -228,7 +229,7 @@ FsIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-FsIo::Stat (struct stat* buf, uint16_t timeout)
+FsIo::fileStat(struct stat* buf, uint16_t timeout)
 {
   return ::fstat(mFd, buf);
 }
@@ -238,7 +239,7 @@ FsIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-FsIo::Close (uint16_t timeout)
+FsIo::fileClose(uint16_t timeout)
 {
   return ::close(mFd);
 }
@@ -249,12 +250,11 @@ FsIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-FsIo::Remove (uint16_t timeout)
+FsIo::fileRemove(uint16_t timeout)
 {
   struct stat buf;
 
-  if (Stat(&buf))
-  {
+  if (fileStat(&buf)) {
     return ::unlink(mFilePath.c_str());
   }
   return SFS_OK;
@@ -265,22 +265,10 @@ FsIo::Remove (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-FsIo::Exists (const char* path)
+FsIo::fileExists()
 {
-
   struct stat buf;
-  return ::stat(path, &buf);
-}
-
-//------------------------------------------------------------------------------
-// Delete by path
-//------------------------------------------------------------------------------
-
-int
-FsIo::Delete (const char* path)
-{
-
-  return ::unlink(path);
+  return ::stat(mFilePath.c_str(), &buf);
 }
 
 
@@ -289,7 +277,7 @@ FsIo::Delete (const char* path)
 //------------------------------------------------------------------------------
 
 void*
-FsIo::GetAsyncHandler ()
+FsIo::fileGetAsyncHandler()
 {
 
   return NULL;
@@ -300,17 +288,16 @@ FsIo::GetAsyncHandler ()
 //--------------------------------------------------------------------------
 
 FileIo::FtsHandle*
-FsIo::ftsOpen (std::string subtree)
+FsIo::ftsOpen()
 {
-  FtsHandle* handle = (new FtsHandle(subtree.c_str()));
+  FtsHandle* handle = (new FtsHandle(mFilePath.c_str()));
 
-  handle->paths[0] = (char*) subtree.c_str();
+  handle->paths[0] = (char*) mFilePath.c_str();
   handle->paths[1] = 0;
 
   handle->tree = (void*) fts_open(handle->paths, FTS_NOCHDIR, 0);
 
-  if (!handle->tree)
-  {
+  if (!handle->tree) {
     delete handle;
     return NULL;
   }
@@ -323,23 +310,18 @@ FsIo::ftsOpen (std::string subtree)
 //--------------------------------------------------------------------------
 
 std::string
-FsIo::ftsRead (FileIo::FtsHandle* fts_handle)
+FsIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
-  FTSENT *node;
+  FTSENT* node;
   FtsHandle* handle = dynamic_cast<FtsHandle*> (fts_handle);
-  while ((node = fts_read((FTS*) handle->tree)))
-  {
-    if (node->fts_level > 0 && node->fts_name[0] == '.')
-    {
+  while ((node = fts_read((FTS*) handle->tree))) {
+    if (node->fts_level > 0 && node->fts_name[0] == '.') {
       fts_set((FTS*) handle->tree, node, FTS_SKIP);
     }
-    else
-    {
-      if (node->fts_info == FTS_F)
-      {
+    else {
+      if (node->fts_info == FTS_F) {
         XrdOucString filePath = node->fts_accpath;
-        if (!filePath.matches("*.xsmap"))
-        {
+        if (!filePath.matches("*.xsmap")) {
           return filePath.c_str();
         }
       }
@@ -355,11 +337,114 @@ FsIo::ftsRead (FileIo::FtsHandle* fts_handle)
 //--------------------------------------------------------------------------
 
 int
-FsIo::ftsClose (FileIo::FtsHandle* fts_handle)
+FsIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
   FtsHandle* handle = dynamic_cast<FtsHandle*> (fts_handle);
   int rc = fts_close((FTS*) handle->tree);
   return rc;
+}
+
+int
+FsIo::Statfs(struct statfs* statFs)
+{
+  return ::statfs(mFilePath.c_str(), statFs);
+}
+
+
+int FsIo::attrSet(const char* name, const char* value, size_t len)
+{
+  if ((!name) || (!value) || mFilePath.empty()) {
+    errno = EINVAL;
+    return SFS_ERROR;
+  }
+#ifdef __APPLE__
+  return setxattr(mFilePath.c_str(), name, value, len, 0, 0);
+#else
+  return lsetxattr(mFilePath.c_str(), name, value, len, 0);
+#endif
+}
+
+int FsIo::attrSet(string name, std::string value)
+{
+  return attrSet(name.c_str(), value.c_str(), value.length());
+}
+
+int FsIo::attrGet(const char* name, char* value, size_t& size)
+{
+  if ((!name) || (!value) || mFilePath.empty()) {
+    errno = EINVAL;
+    return SFS_ERROR;
+  }
+#ifdef __APPLE__
+  int retc = getxattr(mFilePath.c_str(), name, value, size, 0, 0);
+#else
+  int retc = lgetxattr(mFilePath.c_str(), name, value, size);
+#endif
+  if (retc != -1) {
+    size = retc;
+    return SFS_OK;
+  }
+  return SFS_ERROR;
+}
+
+int FsIo::attrGet(string name, std::string& value)
+{
+  char buffer[1024];
+  size_t size = sizeof(buffer);
+  if (!attrGet(name.c_str(), buffer, size)) {
+    value.assign(buffer, size);
+    return SFS_OK;
+  }
+  return SFS_ERROR;
+}
+
+int FsIo::attrDelete(const char* name)
+{
+  if ((!name) || mFilePath.empty()) {
+    errno = EINVAL;
+    return SFS_ERROR;
+  }
+#ifdef __APPLE__
+  return removexattr(mFilePath.c_str(), name, 0);
+#else
+  return lremovexattr(mFilePath.c_str(), name);
+#endif
+}
+
+int FsIo::attrList(std::vector<std::string>& list)
+{
+  if (mFilePath.empty()) {
+    errno = EINVAL;
+    return SFS_ERROR;
+  }
+
+  char* pointer = NULL;
+#ifdef __APPLE__
+  auto size = llistxattr(mFilePath.c_str(), pointer, 0, 0);
+#else
+  auto size = llistxattr(mFilePath.c_str(), pointer, 0);
+#endif
+  if (size <= 0) {
+    return size;
+  }
+
+  std::vector<char> buffer(size);
+
+#ifdef __APPLE__
+  size = llistxattr(mFilePath.c_str(), buffer.data(), buffer.size());
+#else
+  size = llistxattr(mFilePath.c_str(), buffer.data(), buffer.size());
+#endif
+  if (size <= 0) {
+    return size;
+  }
+
+  pointer = buffer.data();
+  while (pointer - buffer.data() < size) {
+    list.push_back(std::string(pointer));
+    pointer += list.back().length() + 2;
+  }
+  return SFS_OK;
 }
 
 EOSFSTNAMESPACE_END

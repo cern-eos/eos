@@ -53,15 +53,15 @@ public:
   //! @param bookingOpaque opaque information
   //!
   //----------------------------------------------------------------------------
-  ReedSLayout (XrdFstOfsFile* file,
-               int lid,
-               const XrdSecEntity* client,
-               XrdOucErrInfo* outError,
-               eos::common::LayoutId::eIoType io,
-               uint16_t timeout = 0,
-               bool storeRecovery = false,
-               off_t targetSize = 0,
-               std::string bookingOpaque = "oss.size");
+  ReedSLayout(XrdFstOfsFile* file,
+              int lid,
+              const XrdSecEntity* client,
+              XrdOucErrInfo* outError,
+              const char* path,
+              uint16_t timeout = 0,
+              bool storeRecovery = false,
+              off_t targetSize = 0,
+              std::string bookingOpaque = "oss.size");
 
 
   //----------------------------------------------------------------------------

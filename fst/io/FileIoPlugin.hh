@@ -27,9 +27,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
-#include "fst/io/LocalIo.hh"
-#include "fst/io/XrdIo.hh"
-#include "fst/io/RadosIo.hh"
+#include "fst/io/local/LocalIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
+#include "fst/io/rados/RadosIo.hh"
 #include "common/LayoutId.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -67,17 +67,6 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Get ATTR object from IO object
-  //!
-  //! @param url
-  //!
-  //! @return requested attribute object
-  //!
-  //--------------------------------------------------------------------------
-  static eos::common::Attr*
-  GetIoAttr (const char* url);
-
-  //--------------------------------------------------------------------------
   //! Get IO object
   //!
   //! @param file file handler
@@ -89,7 +78,7 @@ public:
   //--------------------------------------------------------------------------
 
   static FileIo*
-  GetIoObject (int ioType,
+  GetIoObject (std::string path,
                XrdFstOfsFile* file = 0,
                const XrdSecEntity* client = 0);
 };

@@ -47,20 +47,20 @@ Layout::Layout (XrdFstOfsFile* file,
                 int lid,
                 const XrdSecEntity* client,
                 XrdOucErrInfo* outError,
-                eos::common::LayoutId::eIoType io,
+                const char* path,
                 uint16_t timeout) :
 eos::common::LogId (),
 mLayoutId (lid),
 mOfsFile (file),
 mError (outError),
-mIoType (io),
 mTimeout (timeout)
 {
   mSecEntity = const_cast<XrdSecEntity*> (client);
+  mIoType = eos::common::LayoutId::GetIoType(path);
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
   mIsEntryServer = false;
   mLocalPath = "";
-  mFileIO = FileIoPlugin::GetIoObject(io, 0, 0);
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
 }
 
 

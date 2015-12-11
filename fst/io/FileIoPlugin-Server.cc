@@ -26,7 +26,7 @@
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #ifdef KINETICIO_FOUND
-#include "fst/io/KineticIo.hh"
+#include "fst/io/kinetic/KineticIo.hh"
 #endif
 #ifdef DAVIX_FOUND
 #include "fst/io/DavixIo.hh"
@@ -37,65 +37,27 @@ EOSFSTNAMESPACE_BEGIN
 
 using eos::common::LayoutId;
 
-eos::common::Attr*
-FileIoPlugin::GetIoAttr (const char* url)
-{
-  int ioType = eos::common::LayoutId::GetIoType(url);
-
-  if (ioType == LayoutId::kLocal)
-  {
-    return static_cast<eos::common::Attr*> (eos::common::Attr::OpenAttr(url));
-  }
-  else
-    if (ioType == LayoutId::kXrdCl)
-  {
-    return static_cast<eos::common::Attr*> (eos::fst::XrdIo::Attr::OpenAttr(url));
-  }
-  else
-    if (ioType == LayoutId::kKinetic)
-  {
-#ifdef KINETICIO_FOUND
-    return static_cast<eos::common::Attr*> (eos::fst::KineticIo::Attr::OpenAttr(url));
-#endif
-    eos_static_warning("EOS has been compiled without Kinetic support.");
-    return NULL;
-  }
-  else
-    if (ioType == LayoutId::kRados)
-  {
-    return static_cast<eos::common::Attr*> (eos::fst::RadosIo::Attr::OpenAttr(url));
-  }
-  else
-    if (ioType == LayoutId::kDavix)
-  {
-#ifdef DAVIX_FOUND
-    return static_cast<eos::common::Attr*> (eos::fst::DavixIo::Attr::OpenAttr(url));
-#endif
-    eos_static_warning("EOS has been compiled without DAVIX support.");
-    return NULL;
-  }
-  return NULL;
-}
-
 FileIo*
-FileIoPlugin::GetIoObject (int ioType,
+FileIoPlugin::GetIoObject (std::string path,
                            XrdFstOfsFile* file,
                            const XrdSecEntity* client)
 {
+  auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
+
   if (ioType == LayoutId::kLocal)
   {
-    return static_cast<FileIo*> (new LocalIo(file, client));
+    return static_cast<FileIo*> (new LocalIo(path, file, client));
   }
   else
     if (ioType == LayoutId::kXrdCl)
   {
-    return static_cast<FileIo*> (new XrdIo());
+    return static_cast<FileIo*> (new XrdIo(path));
   }
   else
     if (ioType == LayoutId::kKinetic)
   {
 #ifdef KINETICIO_FOUND
-    return static_cast<FileIo*> (new KineticIo());
+    return static_cast<FileIo*> ((FileIo*)new KineticIo(path));
 #endif
     eos_static_warning("EOS has been compiled without Kinetic support.");
     return NULL;
@@ -103,7 +65,7 @@ FileIoPlugin::GetIoObject (int ioType,
   else
     if (ioType == LayoutId::kRados)
   {
-    return static_cast<FileIo*> (new RadosIo(file, client));
+    return static_cast<FileIo*> (new RadosIo(path, file, client));
   }
   else
     if (ioType == LayoutId::kDavix)
@@ -115,7 +77,7 @@ FileIoPlugin::GetIoObject (int ioType,
     return NULL;
   }
   else
-    return FileIoPluginHelper::GetIoObject(ioType, file, client);
+    return FileIoPluginHelper::GetIoObject(path, file, client);
 }
 
 EOSFSTNAMESPACE_END

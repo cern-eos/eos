@@ -507,7 +507,7 @@ private:
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
 };
 
-EOSFSTNAMESPACE_END;
+EOSFSTNAMESPACE_END
 
 #endif
 

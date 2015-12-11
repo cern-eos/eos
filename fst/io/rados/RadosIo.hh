@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file FsIo.hh
+//! @file RadosIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
 //! @brief Class used for doing local IO operations
 //------------------------------------------------------------------------------
@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_FSFILEIO__HH__
-#define __EOSFST_FSFILEIO__HH__
+#ifndef __EOSFST_RADOSFILEIO__HH__
+#define __EOSFST_RADOSFILEIO__HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
@@ -31,44 +31,46 @@
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
+
 //------------------------------------------------------------------------------
 //! Class used for doing local IO operations
 //------------------------------------------------------------------------------
-
-class FsIo : public FileIo {
+class RadosIo : public FileIo {
 public:
   //--------------------------------------------------------------------------
   //! Constructor
   //!
+  //! @param handle to logical file
+  //! @param client security entity
   //!
   //--------------------------------------------------------------------------
-  FsIo ();
+  RadosIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client) :
+      FileIo(path, "RadosIO")
+  {};
 
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  virtual ~FsIo ();
-
+  virtual ~RadosIo ();
 
   //--------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path to local file
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
   //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode = 0,
-                    const std::string& opaque = "",
-                    uint16_t timeout = 0);
-
+  int fileOpen(XrdSfsFileOpenMode flags,
+               mode_t mode = 0,
+               const std::string& opaque = "",
+               uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -77,274 +79,333 @@ public:
   //! @param buffer where the data is read
   //! @param length read length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        uint16_t timeout = 0);
-
+  int64_t fileRead(XrdSfsFileOffset offset,
+                   char* buffer,
+                   XrdSfsXferSize length,
+                   uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Write to file - sync
-  //!
-  //! @param offset offset in file
-  //! @param buffer data to be written
-  //! @param length length
-  //! @param timeout timeout value
-  //!
-  //! @return number of bytes written or -1 if error
-  //!
-  //--------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length,
-                         uint16_t timeout = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Read from file async - falls back to synchrounous mode
-  //!
-  //! @param offset offset in file
-  //! @param buffer where the data is read
-  //! @param length read length
-  //! @param timeout timeout value
-  //!
-  //! @return number of bytes read or -1 if error
-  //!
-  //--------------------------------------------------------------------------
-  virtual int64_t ReadAsync (XrdSfsFileOffset offset,
-                             char* buffer,
-                             XrdSfsXferSize length,
-                             bool readahead = false,
-                             uint16_t timeout = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Write to file async - falls back to synchronous mode
   //!
   //! @param offset offset
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t WriteAsync (XrdSfsFileOffset offset,
-                              const char* buffer,
-                              XrdSfsXferSize length,
-                              uint16_t timeout = 0);
+  int64_t fileWrite(XrdSfsFileOffset offset,
+                    const char* buffer,
+                    XrdSfsXferSize length,
+                    uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
+  //--------------------------------------------------------------------------
+  //! Read from file - async
+  //!
+  //! @param offset offset in file
+  //! @param buffer where the data is read
+  //! @param length read length
+  //! @param readahead set if readahead is to be used
+  //! @param timeout timeout value
+  //! @return number of bytes read or -1 if error
+  //--------------------------------------------------------------------------
+  int64_t fileReadAsync(XrdSfsFileOffset offset,
+                        char* buffer,
+                        XrdSfsXferSize length,
+                        bool readahead = false,
+                        uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //! @param timeout timeout value
+  //! @return number of bytes written or -1 if error
+  //--------------------------------------------------------------------------
+  int64_t fileWriteAsync(XrdSfsFileOffset offset,
+                         const char* buffer,
+                         XrdSfsXferSize length,
+                         uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
   //! @param timeout timeout value
-  //!
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
-
+  int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset lenght);
-
+  int fileFallocate(XrdSfsFileOffset length)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
   //! @param toOffset offset end
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
-
+  int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Remove (uint16_t timeout = 0);
-
+  int fileRemove(uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Sync (uint16_t timeout = 0);
+  int fileSync(uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
+  //--------------------------------------------------------------------------
+  //! Get pointer to async meta handler object
+  //!
+  //! @return pointer to async handler, NULL otherwise
+  //--------------------------------------------------------------------------
+  void* fileGetAsyncHandler()
+  {
+    errno = ENOSYS;
+    return NULL;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Check for the existence of a file
+  //!
+  //! @param path to the file
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  int fileExists()
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Close (uint16_t timeout = 0);
-
+  int fileClose(uint16_t timeout = 0)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
-  //--------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf, uint16_t timeout = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Check for the existance of a file
-  //!
-  //! @param path to the file
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Exists (const char* path);
-
-  //--------------------------------------------------------------------------                                                                                                                                 //! Delete a file
-  //!
-  //! @param path to the file to be deleted
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
-  virtual int Delete (const char* path);
-
-  //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object
-  //!
-  //! @return pointer to async handler, NULL otherwise
-  //!
-  //--------------------------------------------------------------------------
-  virtual void* GetAsyncHandler ();
-
-  virtual int Statfs (const char* path, struct statfs* statFs)
+  int fileStat(struct stat* buf, uint16_t timeout = 0)
   {
-    return ::statfs(path, statFs);
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
+  //!
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @param len value length
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrSet(const char* name, const char* value, size_t len)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
+  //!
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrSet(string name, std::string value)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @param size the buffer size, after success the value size
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrGet(const char* name, char* value, size_t& size)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrGet(string name, std::string& value)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  // ------------------------------------------------------------------------
+  //! Delete a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrDelete(const char* name)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
+
+  // ------------------------------------------------------------------------
+  //! List all attributes for the associated path
+  //!
+  //! @param list contains all attribute names for the set path upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrList(std::vector<std::string>& list)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
   }
 
   //--------------------------------------------------------------------------
-  //! Class implementing extended attribute support
-  //--------------------------------------------------------------------------
-
-  class Attr : public eos::common::Attr {
-  public:
-    // -----------------------------------------------------------------------
-    // Constructor
-    // -----------------------------------------------------------------------
-
-    Attr () : eos::common::Attr (0)
-    {
-    }
-
-    Attr (const char* path) : eos::common::Attr (path)
-    {
-    }
-
-    // -----------------------------------------------------------------------
-    // Destructor
-    // -----------------------------------------------------------------------
-
-    virtual ~Attr ()
-    {
-    }
-  };
-
-  class FtsHandle : public FileIo::FtsHandle {
-    friend class FsIo;
-
-  protected:
-    char **paths;
-    void *tree;
-  public:
-
-    FtsHandle (const char* dirp) : FileIo::FtsHandle (dirp)
-    {
-      paths = (char**) calloc(2, sizeof (char*));
-      paths[0] = (char*) dirp;
-      paths[1] = 0;
-      tree = 0;
-    }
-
-    virtual ~FtsHandle ()
-    {
-      if (paths)
-        free(paths);
-      paths = 0;
-    }
-  };
-  //--------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
-  //! @param subtree where to start traversing
+  //!
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-
-  virtual FileIo::FtsHandle* ftsOpen (std::string subtree);
+  FileIo::FtsHandle* ftsOpen()
+  {
+    errno = ENOSYS;
+    return NULL;
+  }
 
   //--------------------------------------------------------------------------
   //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //!
   //! @param fts_handle cursor obtained by ftsOpen
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
-
-  virtual std::string ftsRead (FileIo::FtsHandle* fts_handle);
+  std::string ftsRead(FileIo::FtsHandle* handle)
+  {
+    return "";
+  }
 
   //--------------------------------------------------------------------------
   //! Close a traversal cursor
+  //!
   //! @param fts_handle cursor to close
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //--------------------------------------------------------------------------
+  int ftsClose(FileIo::FtsHandle* handle)
+  {
+    errno = ENOSYS;
+    return SFS_ERROR;
+  }
 
-  virtual int ftsClose (FileIo::FtsHandle* fts_handle);
+
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  int Statfs (struct statfs* statFs)
+  {
+    //! IMPLEMENT ME PROPERLY!
+    statFs->f_type = 0xceff;
+    statFs->f_bsize = 1 * 1024 * 1024;
+    statFs->f_blocks = 4 * 1024 * 1024;
+    statFs->f_bfree = 4 * 1024 * 1024;
+    statFs->f_bavail = 4 * 1024 * 1024;
+    statFs->f_files = 4 * 1024 * 1024;
+    statFs->f_ffree = 4 * 1024 * 1024;
+    return 0;
+  }
 
 private:
-
-  int mFd; //< file descriptor to filesystem file
-
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
-  FsIo (const FsIo&) = delete;
+  RadosIo (const RadosIo&) = delete;
 
 
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
-  FsIo& operator = (const FsIo&) = delete;
+  RadosIo& operator = (const RadosIo&) = delete;
 
 
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_FSFILEIO_HH__
+#endif  // __EOSFST_LOCALFILEIO_HH__
 
 

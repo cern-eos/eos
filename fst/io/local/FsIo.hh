@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-//! @file RadosIo.hh
+//! @file FsIo.hh
 //! @author Elvin-Alin Sindrilaru - CERN
 //! @brief Class used for doing local IO operations
 //------------------------------------------------------------------------------
@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_RADOSFILEIO__HH__
-#define __EOSFST_RADOSFILEIO__HH__
+#ifndef __EOSFST_FSFILEIO__HH__
+#define __EOSFST_FSFILEIO__HH__
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
@@ -31,47 +31,44 @@
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
-
 //------------------------------------------------------------------------------
 //! Class used for doing local IO operations
 //------------------------------------------------------------------------------
-class RadosIo : public FileIo {
+
+class FsIo : public FileIo {
 public:
   //--------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param handle to logical file
-  //! @param client security entity
   //!
   //--------------------------------------------------------------------------
-  RadosIo (XrdFstOfsFile* file,
-           const XrdSecEntity* client);
+  FsIo(std::string path);
 
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //!
+  //--------------------------------------------------------------------------
+  FsIo(std::string path, std::string iotype);
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  virtual ~RadosIo ();
-
+  virtual ~FsIo ();
 
   //--------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path to local file
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
   //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode = 0,
-                    const std::string& opaque = "",
-                    uint16_t timeout = 0);
-
+  virtual int fileOpen(XrdSfsFileOpenMode flags,
+               mode_t mode = 0,
+               const std::string& opaque = "",
+               uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -80,174 +77,184 @@ public:
   //! @param buffer where the data is read
   //! @param length read length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        uint16_t timeout = 0);
-
+  virtual int64_t fileRead(XrdSfsFileOffset offset,
+                   char* buffer,
+                   XrdSfsXferSize length,
+                   uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Write to file - sync
-  //!
-  //! @param offset offset in file
-  //! @param buffer data to be written
-  //! @param length length
-  //! @param timeout timeout value
-  //!
-  //! @return number of bytes written or -1 if error
-  //!
-  //--------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length,
-                         uint16_t timeout = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Read from file async - falls back to synchrounous mode
-  //!
-  //! @param offset offset in file
-  //! @param buffer where the data is read
-  //! @param length read length
-  //! @param timeout timeout value
-  //!
-  //! @return number of bytes read or -1 if error
-  //!
-  //--------------------------------------------------------------------------
-  virtual int64_t ReadAsync (XrdSfsFileOffset offset,
-                             char* buffer,
-                             XrdSfsXferSize length,
-                             bool readahead = false,
-                             uint16_t timeout = 0);
-
-
-  //--------------------------------------------------------------------------
-  //! Write to file async - falls back to synchronous mode
   //!
   //! @param offset offset
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t WriteAsync (XrdSfsFileOffset offset,
-                              const char* buffer,
-                              XrdSfsXferSize length,
-                              uint16_t timeout = 0);
+  virtual int64_t fileWrite(XrdSfsFileOffset offset,
+                    const char* buffer,
+                    XrdSfsXferSize length,
+                    uint16_t timeout = 0);
 
+  //--------------------------------------------------------------------------
+  //! Read from file - async
+  //!
+  //! @param offset offset in file
+  //! @param buffer where the data is read
+  //! @param length read length
+  //! @param readahead set if readahead is to be used
+  //! @param timeout timeout value
+  //! @return number of bytes read or -1 if error
+  //--------------------------------------------------------------------------
+  virtual int64_t fileReadAsync(XrdSfsFileOffset offset,
+                        char* buffer,
+                        XrdSfsXferSize length,
+                        bool readahead = false,
+                        uint16_t timeout = 0);
+
+  //--------------------------------------------------------------------------
+  //! Write to file - async
+  //!
+  //! @param offset offset
+  //! @param buffer data to be written
+  //! @param length length
+  //! @param timeout timeout value
+  //! @return number of bytes written or -1 if error
+  //--------------------------------------------------------------------------
+  virtual int64_t fileWriteAsync(XrdSfsFileOffset offset,
+                         const char* buffer,
+                         XrdSfsXferSize length,
+                         uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
   //! @param timeout timeout value
-  //!
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
-
+  virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset lenght);
-
+  virtual int fileFallocate(XrdSfsFileOffset length);
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
   //! @param toOffset offset end
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
-
+  virtual int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
 
   //--------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Remove (uint16_t timeout = 0);
-
+  virtual int fileRemove(uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Sync (uint16_t timeout = 0);
+  virtual int fileSync(uint16_t timeout = 0);
 
+  //--------------------------------------------------------------------------
+  //! Get pointer to async meta handler object
+  //!
+  //! @return pointer to async handler, NULL otherwise
+  //--------------------------------------------------------------------------
+  virtual void* fileGetAsyncHandler();
+
+  //--------------------------------------------------------------------------
+  //! Check for the existence of a file
+  //!
+  //! @param path to the file
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int fileExists();
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Close (uint16_t timeout = 0);
-
+  virtual int fileClose(uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
-  //--------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf, uint16_t timeout = 0);
-
-  //--------------------------------------------------------------------------
-  //! Check for the existance of a file
-  //!
-  //! @param path to the file
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Exists(const char* path) { return -1;}
+  virtual int fileStat(struct stat* buf, uint16_t timeout = 0);
 
-  //--------------------------------------------------------------------------
-  //! Delete a file
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
-  //! @param path to the file to be deleted
-  //!
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @param len value length
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------                                                                                                                               
-  virtual int Delete(const char* path) { return -1; }
+  // ------------------------------------------------------------------------
+  virtual int attrSet(const char* name, const char* value, size_t len);
 
-  //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
-  //! @return pointer to async handler, NULL otherwise
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrSet(string name, std::string value);
+
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
   //!
-  //--------------------------------------------------------------------------
-  virtual void* GetAsyncHandler ();
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @param size the buffer size, after success the value size
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrGet(const char* name, char* value, size_t& size);
+
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrGet(string name, std::string& value);
+
+  // ------------------------------------------------------------------------
+  //! Delete a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrDelete(const char* name);
+
+  // ------------------------------------------------------------------------
+  //! List all attributes for the associated path
+  //!
+  //! @param list contains all attribute names for the set path upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrList(std::vector<std::string>& list);
 
   //--------------------------------------------------------------------------
   //! Plug-in function to fill a statfs structure about the storage filling
@@ -256,103 +263,78 @@ public:
   //! @param statfs return struct
   //! @return 0 if successful otherwise errno
   //--------------------------------------------------------------------------
+  virtual int Statfs(struct statfs* statFs);
 
-  virtual int Statfs (const char* path, struct statfs* statFs)
-  {
-    //! IMPLEMENT ME PROPERLY!
-    eos_info("path=%s", path);
-    statFs->f_type = 0xceff;
-    statFs->f_bsize = 1 * 1024 * 1024;
-    statFs->f_blocks = 4 * 1024 * 1024;
-    statFs->f_bfree = 4 * 1024 * 1024;
-    statFs->f_bavail = 4 * 1024 * 1024;
-    statFs->f_files = 4 * 1024 * 1024;
-    statFs->f_ffree = 4 * 1024 * 1024;
-    return 0;
-  }
+  //--------------------------------------------------------------------------
+  //! Class implementing extended attribute support
+  //--------------------------------------------------------------------------
 
-  class Attr : public FileIo::Attr {
-    // ------------------------------------------------------------------------
-    //! Set a binary attribute
-    // ------------------------------------------------------------------------
+  class FtsHandle : public FileIo::FtsHandle {
+    friend class FsIo;
 
-    virtual bool Set (const char* name, const char* value, size_t len)
+  protected:
+    char **paths;
+    void *tree;
+  public:
+
+    FtsHandle (const char* dirp) : FileIo::FtsHandle (dirp)
     {
-      return false;
+      paths = (char**) calloc(2, sizeof (char*));
+      paths[0] = (char*) dirp;
+      paths[1] = 0;
+      tree = 0;
     }
 
-    // ------------------------------------------------------------------------
-    //! Set a string attribute
-    // ------------------------------------------------------------------------
-
-    virtual bool Set (std::string key, std::string value)
+    virtual ~FtsHandle ()
     {
-      return false;
+      if (paths)
+        free(paths);
+      paths = 0;
     }
-
-    // ------------------------------------------------------------------------
-    //! Get a binary attribute by name
-    // ------------------------------------------------------------------------
-
-    virtual bool Get (const char* name, char* value, size_t &size)
-    {
-      return false;
-    }
-
-
-    // ------------------------------------------------------------------------
-    //! Get a string attribute by name (name has to start with 'user.' !!!)
-    // ------------------------------------------------------------------------
-
-    virtual std::string Get (std::string name)
-    {
-      return "";
-    }
-
-    // ------------------------------------------------------------------------
-    //! Non-static Factory function to create an attribute object
-    // ------------------------------------------------------------------------
-
-    virtual Attr* OpenAttribute (const char* path)
-    {
-      return new Attr(path);
-    }
-
-    // ------------------------------------------------------------------------
-    // Constructor
-    // ------------------------------------------------------------------------
-
-    Attr (const char* path)
-    {
-    }
-
-    // ------------------------------------------------------------------------
-    // Destructor
-    // ------------------------------------------------------------------------
-    virtual ~Attr ();
   };
+  //--------------------------------------------------------------------------
+  //! Open a cursor to traverse a storage system
+  //! @param subtree where to start traversing
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  virtual FileIo::FtsHandle* ftsOpen ();
+
+  //--------------------------------------------------------------------------
+  //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //! @param fts_handle cursor obtained by ftsOpen
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+
+  virtual std::string ftsRead (FileIo::FtsHandle* fts_handle);
+
+  //--------------------------------------------------------------------------
+  //! Close a traversal cursor
+  //! @param fts_handle cursor to close
+  //! @return 0 if fts_handle was an open cursor, otherwise -1
+  //--------------------------------------------------------------------------
+
+  virtual int ftsClose (FileIo::FtsHandle* fts_handle);
 
 private:
 
-  XrdFstOfsFile* mLogicalFile; ///< handler to logical file
-  const XrdSecEntity* mSecEntity; ///< security entity
+  int mFd; //< file descriptor to filesystem file
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
-  RadosIo (const RadosIo&) = delete;
+  FsIo (const FsIo&) = delete;
 
 
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
-  RadosIo& operator = (const RadosIo&) = delete;
+  FsIo& operator = (const FsIo&) = delete;
 
 
 };
 
 EOSFSTNAMESPACE_END
 
-#endif  // __EOSFST_LOCALFILEIO_HH__
+#endif  // __EOSFST_FSFILEIO_HH__
 
 

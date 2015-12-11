@@ -22,8 +22,8 @@
 # ************************************************************************
 
 if(KINETICIO_FOUND)
-    set(KINETICIO_SRC "io/KineticIo.cc")
-    set(KINETICIO_HDR "io/KineticIo.hh")
+    set(KINETICIO_SRC "io/kinetic/KineticIo.cc")
+    set(KINETICIO_HDR "io/kinetic/KineticIo.hh")
 else()
     set(KINETICIO_SRC "")
     set(KINETICIO_HDR "")
@@ -31,8 +31,8 @@ endif()
 
 if(DAVIX_FOUND)
     add_definitions(-DDAVIX_FOUND)
-    set(DAVIX_SRC "io/DavixIo.cc")
-    set(DAVIX_HDR "io/DavixIo.hh")
+    set(DAVIX_SRC "io/davix/DavixIo.cc")
+    set(DAVIX_HDR "io/davix/DavixIo.hh")
 else()
     set(DAVIX_INCLUDE_DIR "")
     set(DAVIX_LIBRARIES "")
@@ -74,12 +74,12 @@ target_link_libraries( EosFstOss
 add_library(EosFstIo-Static STATIC
             io/FileIoPlugin.hh             io/FileIoPlugin.cc
             io/FileIo.hh
-            io/LocalIo.cc                  io/LocalIo.hh
-	    io/FsIo.cc                     io/FsIo.hh
+            io/local/LocalIo.cc						 io/local/LocalIo.hh
+						io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
-	    ${DAVIX_SRC}		   ${DAVIX_HDR}
-            io/RadosIo.cc                  io/RadosIo.hh
-            io/XrdIo.cc                    io/XrdIo.hh
+	          ${DAVIX_SRC}		               ${DAVIX_HDR}
+            io/rados/RadosIo.cc            io/rados/RadosIo.hh
+            io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
             io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -115,13 +115,13 @@ target_link_libraries(  EosFstIo-Static
 
 add_library( EosFstIo SHARED
                 io/FileIoPlugin.hh             io/FileIoPlugin.cc
-                io/FileIo.hh 
-                io/LocalIo.cc                  io/LocalIo.hh
-  	        io/FsIo.cc                     io/FsIo.hh
+                io/FileIo.hh
+                io/local/LocalIo.cc						 io/local/LocalIo.hh
+                io/local/FsIo.cc               io/local/FsIo.hh
                 ${KINETICIO_SRC}               ${KINETICIO_HDR}
-		${DAVIX_SRC}                   ${DAVIX_HDR}
-                io/RadosIo.cc                  io/RadosIo.hh
-                io/XrdIo.cc                    io/XrdIo.hh
+                ${DAVIX_SRC}		               ${DAVIX_HDR}
+                io/rados/RadosIo.cc            io/rados/RadosIo.hh
+                io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
                 io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
                 io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -180,13 +180,13 @@ add_library(XrdEosFst SHARED
             checksum/Adler.cc   	    checksum/Adler.hh
             checksum/crc32c.cc             checksum/crc32ctables.cc
             io/FileIoPlugin.hh
-            io/FileIo.hh 
-            io/LocalIo.cc                  io/LocalIo.hh
-	    io/FsIo.cc                     io/FsIo.hh
+            io/FileIo.hh
+            io/local/LocalIo.cc						 io/local/LocalIo.hh
+            io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
-	    ${DAVIX_SRC}                   ${DAVIX_HDR}
-            io/RadosIo.cc                  io/RadosIo.hh
-            io/XrdIo.cc                    io/XrdIo.hh
+            ${DAVIX_SRC}		               ${DAVIX_HDR}
+            io/rados/RadosIo.cc            io/rados/RadosIo.hh
+            io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
             io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -246,13 +246,13 @@ add_library(XrdEosFst MODULE
             checksum/Adler.cc   	    checksum/Adler.hh
             checksum/crc32c.cc             checksum/crc32ctables.cc
             io/FileIoPlugin.hh
-            io/FileIo.hh 
-            io/LocalIo.cc                  io/LocalIo.hh
-	    io/FsIo.cc                     io/FsIo.hh
+            io/FileIo.hh
+            io/local/LocalIo.cc						 io/local/LocalIo.hh
+            io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
-	    ${DAVIX_SRC}                 ${DAVIX_HDR}
-            io/RadosIo.cc                  io/RadosIo.hh
-            io/XrdIo.cc                    io/XrdIo.hh
+            ${DAVIX_SRC}		               ${DAVIX_HDR}
+            io/rados/RadosIo.cc            io/rados/RadosIo.hh
+            io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
             io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -345,15 +345,15 @@ set_target_properties(
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
 target_link_libraries( FstLoad XrdUtils dl ${RT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( eos-check-blockxs eosCommon EosFstIo-Static ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( eos-compute-blockxs eosCommon EosFstIo-Static ${CMAKE_THREAD_LIBS_INIT} )
 if (MacOSX)
 target_link_libraries( eos-scan-fs eosCommon EosFstIo XrdCl ${RT_LIBRARIES} ${KINETICIO_LIBRARIES} ${DAVIX_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 else (MacOSX)
 target_link_libraries( eos-scan-fs eosCommon EosFstIo-Static XrdCl ${RT_LIBRARIES} ${KINETICIO_LIBRARIES} ${DAVIX_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ) 
 endif (MacOSX)
 
-target_link_libraries( eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT} ) 
+target_link_libraries( eos-adler32 eosCommon EosFstIo-Static ${CMAKE_THREAD_LIBS_INIT} )
 
 if (MacOSX)
 target_link_libraries( eoscp XrdCl EosFstIo )

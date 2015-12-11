@@ -27,13 +27,14 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
-#include "fst/io/FsIo.hh"
-#include "fst/io/XrdIo.hh"
+#include "fst/io/local/FsIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
+#include "fst/io/rados/RadosIo.hh"
 #ifdef KINETICIO_FOUND
-#include "fst/io/KineticIo.hh"
+#include "fst/io/kinetic/KineticIo.hh"
 #endif
 #ifdef DAVIX_FOUND
-#include "fst/io/DavixIo.hh"
+#include "fst/io/davix/DavixIo.hh"
 #endif
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
@@ -57,7 +58,7 @@ public:
   //! Constructor
   //--------------------------------------------------------------------------
 
-  FileIoPluginHelper ()
+  FileIoPluginHelper()
   {
     //empty
   }
@@ -67,7 +68,7 @@ public:
   //! Destructor
   //--------------------------------------------------------------------------
 
-  ~FileIoPluginHelper ()
+  ~FileIoPluginHelper()
   {
     //empty
   }
@@ -86,88 +87,40 @@ public:
   //--------------------------------------------------------------------------
 
   static FileIo*
-  GetIoObject (int ioType,
-               XrdFstOfsFile* file = 0,
-               const XrdSecEntity* client = 0)
+  GetIoObject(std::string path,
+              XrdFstOfsFile* file = 0,
+              const XrdSecEntity* client = 0)
   {
-    if (ioType == LayoutId::kLocal)
-    {
-      return static_cast<FileIo*> (new FsIo());
+    auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
+
+    if (ioType == LayoutId::kLocal) {
+      return static_cast<FileIo*> (new FsIo(path));
     }
-    else
-      if (ioType == LayoutId::kXrdCl)
-    {
-      return static_cast<FileIo*> (new XrdIo());
+    else if (ioType == LayoutId::kXrdCl) {
+      return static_cast<FileIo*> (new XrdIo(path));
     }
-    else
-      if (ioType == LayoutId::kKinetic)
-    {
+    else if (ioType == LayoutId::kKinetic) {
 #ifdef KINETICIO_FOUND
-      return static_cast<FileIo*> (new KineticIo());
+      return static_cast<FileIo*> ((FileIo*) new KineticIo(path));
 #endif
       eos_static_warning("EOS has been compiled without Kinetic support.");
       return NULL;
     }
-    else
-      if (ioType == LayoutId::kRados)
-    {
-      return static_cast<FileIo*> (new RadosIo(file, client));
+    else if (ioType == LayoutId::kRados) {
+      return static_cast<FileIo*> (new RadosIo(path, file, client));
     }
-    else
-      if (ioType == LayoutId::kDavix)
-    {
+    else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND
-      return static_cast<FileIo*> (new DavixIo());
+      return static_cast<FileIo*> (new DavixIo(path));
 #endif
       eos_static_warning("EOS has been compiled without DAVIX support.");
       return NULL;
     }
-    if (ioType == LayoutId::kXrdCl)
-    {
-      return static_cast<FileIo*> (new XrdIo());
+    if (ioType == LayoutId::kXrdCl) {
+      return static_cast<FileIo*> (new XrdIo(path));
     }
 
     return 0;
-  }
-
-  static eos::common::Attr*
-  GetIoAttr (const char* url)
-  {
-    int ioType = eos::common::LayoutId::GetIoType(url);
-
-    if (ioType == LayoutId::kLocal)
-    {
-      return static_cast<eos::common::Attr*> (eos::common::Attr::OpenAttr(url));
-    }
-    else
-      if (ioType == LayoutId::kXrdCl)
-    {
-      return static_cast<eos::common::Attr*> (eos::fst::XrdIo::Attr::OpenAttr(url));
-    }
-    else
-      if (ioType == LayoutId::kKinetic)
-    {
-#ifdef KINETICIO_FOUND
-      return static_cast<eos::common::Attr*> (eos::fst::KineticIo::Attr::OpenAttr(url));
-#endif
-      eos_static_warning("EOS has been compiled without Kinetic support.");
-      return NULL;
-    }
-    else
-      if (ioType == LayoutId::kRados)
-    {
-      return static_cast<eos::common::Attr*> (eos::fst::RadosIo::Attr::OpenAttr(url));
-    }
-    else
-      if (ioType == LayoutId::kDavix)
-    {
-#ifdef DAVIX_FOUND
-      return static_cast<eos::common::Attr*> (eos::fst::DavixIo::Attr::OpenAttr(url));
-#endif
-      eos_static_warning("EOS has been compiled without DAVIX support.");
-      return NULL;
-    }
-    return NULL;
   }
 };
 

@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <cstdlib>
 /*----------------------------------------------------------------------------*/
-#include "fst/io/XrdIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/ChunkHandler.hh"
 #include "common/FileMap.hh"
 #include "common/Logging.hh"
@@ -44,8 +44,8 @@ const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 // Constructor
 //------------------------------------------------------------------------------
 
-XrdIo::XrdIo () :
-FileIo (),
+XrdIo::XrdIo(std::string path) :
+FileIo (path, "XrdIo"),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
 mXrdFile (NULL),
@@ -54,7 +54,6 @@ mMetaHandler (new AsyncMetaHandler ())
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("TimeoutResolution", 1);
-  mType = "XrdIo";
 }
 
 
@@ -87,12 +86,25 @@ XrdIo::~XrdIo ()
 }
 
 
+namespace{
+  std::string getAttrUrl(std::string path)
+  {
+    size_t rfind = path.rfind("/");
+    if (rfind != std::string::npos)
+    {
+      path.insert(rfind + 1, ".");
+    }
+    path += ".xattr";
+    return path;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Open (const std::string& path,
+XrdIo::fileOpen (const std::string& path,
              XrdSfsFileOpenMode flags,
              mode_t mode,
              const std::string& opaque,
@@ -120,6 +132,11 @@ XrdIo::Open (const std::string& path,
   }
 
   XrdOucEnv open_opaque(lOpaque.c_str());
+
+  //............................................................................
+  // Set url for xattr requests
+  //............................................................................
+  mUrl = getAttrUrl(path);
 
   //............................................................................
   // Decide if readahead is used and the block size
@@ -182,7 +199,7 @@ XrdIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::Read (XrdSfsFileOffset offset,
+XrdIo::fileRead (XrdSfsFileOffset offset,
              char* buffer,
              XrdSfsXferSize length,
              uint16_t timeout)
@@ -214,7 +231,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::Write (XrdSfsFileOffset offset,
+XrdIo::fileWrite (XrdSfsFileOffset offset,
               const char* buffer,
               XrdSfsXferSize length,
               uint16_t timeout)
@@ -244,7 +261,7 @@ XrdIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::ReadAsync (XrdSfsFileOffset offset,
+XrdIo::fileReadAsync (XrdSfsFileOffset offset,
                   char* buffer,
                   XrdSfsXferSize length,
                   bool readahead,
@@ -496,7 +513,7 @@ XrdIo::FindBlock (uint64_t offset)
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::WriteAsync (XrdSfsFileOffset offset,
+XrdIo::fileWriteAsync (XrdSfsFileOffset offset,
                    const char* buffer,
                    XrdSfsXferSize length,
                    uint16_t timeout)
@@ -530,7 +547,7 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
+XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
 
   if (mExternalStorage)
@@ -569,7 +586,7 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Sync (uint16_t timeout)
+XrdIo::fileSync (uint16_t timeout)
 {
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
@@ -590,7 +607,7 @@ XrdIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Stat (struct stat* buf, uint16_t timeout)
+XrdIo::fileStat (struct stat* buf, uint16_t timeout)
 {
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
@@ -626,7 +643,7 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Close (uint16_t timeout)
+XrdIo::fileClose (uint16_t timeout)
 {
   bool async_ok = true;
 
@@ -672,7 +689,7 @@ XrdIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Remove (uint16_t timeout)
+XrdIo::fileRemove (uint16_t timeout)
 {
   //............................................................................
   // Remove the file by truncating using the special value offset
@@ -695,7 +712,7 @@ XrdIo::Remove (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Exists (const char* url)
+XrdIo::fileExists ()
 {
   XrdCl::URL xUrl(url);
   XrdCl::FileSystem fs(xUrl);
@@ -736,15 +753,13 @@ XrdIo::Exists (const char* url)
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Delete (const char* url)
+XrdIo::fileDelete (const char* url)
 {
   XrdCl::URL xUrl(url);
   XrdCl::FileSystem fs(xUrl);
 
-  Attr xAttr(url);
-
   XrdCl::XRootDStatus status = fs.Rm(xUrl.GetPath());
-  XrdCl::XRootDStatus status_attr = fs.Rm(xAttr.GetUrl());
+  XrdCl::XRootDStatus status_attr = fs.Rm(getAttrUrl(url));
   errno = 0;
   if (!status.IsOK())
   {
@@ -923,12 +938,9 @@ XrdIo::Statfs (const char* path, struct statfs* sfs)
 //------------------------------------------------------------------------------
 
 
-//----------------------------------------------------------------
-//! Set a binary attribute (name has to start with 'user.' !!!)
-// ------------------------------------------------------------------------
 
-bool
-XrdIo::Attr::Set (const char* name, const char* value, size_t len)
+int
+XrdIo::xattrSet(const char* name, const char* value, size_t len)
 {
   std::string lBlob;
   // download
@@ -944,7 +956,7 @@ XrdIo::Attr::Set (const char* name, const char* value, size_t len)
       fprintf(stderr, "### %s", lMap.c_str());
       if (!XrdIo::Upload(mUrl, lMap))
       {
-        return true;
+        return SFS_OK;
       }
       else
       {
@@ -966,18 +978,17 @@ XrdIo::Attr::Set (const char* name, const char* value, size_t len)
                    mUrl.c_str());
   }
 
-  return false;
+  return SFS_ERROR;
 }
 
 // ------------------------------------------------------------------------
 //! Set a string attribute (name has to start with 'user.' !!!)
 // ------------------------------------------------------------------------
 
-bool
-XrdIo::Attr::Set (std::string key, std::string value)
+int
+XrdIo::xattrSet(string name, std::string value)
 {
-
-  return Set(key.c_str(), value.c_str(), value.length());
+  return xattrSet(name.c_str(), value.c_str(), value.length());
 }
 
 
@@ -985,8 +996,8 @@ XrdIo::Attr::Set (std::string key, std::string value)
 //! Get a binary attribute by name (name has to start with 'user.' !!!)
 // ------------------------------------------------------------------------
 
-bool
-XrdIo::Attr::Get (const char* name, char* value, size_t &size)
+int
+XrdIo::xattrGet(const char* name, char* value, size_t &size)
 {
   std::string lBlob;
   if (!XrdIo::Download(mUrl, lBlob))
@@ -999,79 +1010,41 @@ XrdIo::Attr::Get (const char* name, char* value, size_t &size)
         len = size;
       memcpy(value, val.c_str(), len);
       eos_static_info("key=%s value=%s", name, value);
-      return true;
+      return SFS_OK;
     }
   }
   else
   {
-
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
                    mUrl.c_str());
   }
-  return false;
+  return SFS_ERROR;
 }
 
 // ------------------------------------------------------------------------
 //! Get a string attribute by name (name has to start with 'user.' !!!)
 // ------------------------------------------------------------------------
 
-std::string
-XrdIo::Attr::Get (std::string name)
+int
+XrdIo::xattrGet(string name, std::string& value)
 {
   std::string lBlob;
   if (!XrdIo::Download(mUrl, lBlob))
   {
     if (mFileMap.Load(lBlob))
     {
-      return mFileMap.Get(name);
+      value = mFileMap.Get(name);
+      return SFS_OK;
     }
   }
   else
   {
-
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
                    mUrl.c_str());
   }
-  return "";
+  return SFS_ERROR;
 }
 
-// ------------------------------------------------------------------------
-//! Factory function to create an attribute object
-// ------------------------------------------------------------------------
-
-XrdIo::Attr*
-XrdIo::Attr::OpenAttr (const char* url)
-{
-
-  return new XrdIo::Attr(url);
-}
-
-// ------------------------------------------------------------------------
-//! Non static Factory function to create an attribute object
-// ------------------------------------------------------------------------
-
-XrdIo::Attr*
-XrdIo::Attr::OpenAttribute (const char* url)
-{
-
-  return OpenAttr(url);
-}
-
-// ------------------------------------------------------------------------
-// Constructor
-// ------------------------------------------------------------------------
-
-XrdIo::Attr::Attr (const char* url)
-{
-  mUrl = url;
-  size_t rfind = mUrl.rfind("/");
-  if (rfind != std::string::npos)
-  {
-
-    mUrl.insert(rfind + 1, ".");
-  }
-  mUrl += ".xattr";
-}
 
 
 //--------------------------------------------------------------------------
@@ -1226,7 +1199,7 @@ XrdIo::Download (std::string url, std::string& download)
 {
   errno = 0;
   static int s_blocksize = 65536;
-  XrdIo io;
+  XrdIo io((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
 
   off_t offset = 0;
   std::string opaque;
@@ -1265,7 +1238,7 @@ int
 XrdIo::Upload (std::string url, std::string& upload)
 {
   errno = 0;
-  XrdIo io;
+  XrdIo io((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
 
   std::string opaque;
   int rc = 0;

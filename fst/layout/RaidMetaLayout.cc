@@ -45,12 +45,12 @@ RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
                                 int lid,
                                 const XrdSecEntity* client,
                                 XrdOucErrInfo* outError,
-                                eos::common::LayoutId::eIoType io,
+                                const char* path,
                                 uint16_t timeout,
                                 bool storeRecovery,
                                 off_t targetSize,
                                 std::string bookingOpaque) :
-Layout (file, lid, client, outError, io, timeout),
+Layout (file, lid, client, outError, path, timeout),
 mIsRw (false),
 mIsOpen (false),
 mIsPio (false),
@@ -114,10 +114,7 @@ RaidMetaLayout::~RaidMetaLayout ()
 //------------------------------------------------------------------------------
 
 int
-RaidMetaLayout::Open (const std::string& path,
-                      XrdSfsFileOpenMode flags,
-                      mode_t mode,
-                      const char* opaque)
+RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
 {
   //............................................................................
@@ -188,13 +185,10 @@ RaidMetaLayout::Open (const std::string& path,
   //..........................................................................
   // Do open on local stripe - force it in RDWR mode if store recovery enabled
   //..........................................................................
-  mLocalPath = path;
-  FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(path.c_str()),
-                                           mOfsFile, mSecEntity);
 
   // evt. mark an IO module as talking to external storage
-  if ((file->GetIoType() != "LocalIo"))
-    file->SetExternalStorage();
+  if ((mFileIO->GetIoType() != "LocalIo"))
+    mFileIO->SetExternalStorage();
   //............................................................................
   // When recovery enabled we open the files in RDWR mode
   //............................................................................
@@ -213,14 +207,12 @@ RaidMetaLayout::Open (const std::string& path,
   eos_debug("open_mode=%x truncate=%d", flags, ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead)) ? 1 : 0));
 
   // the local stripe is expected to be reconstructed in a recovery on the gateway server, since it might exist it is truncated
-  if (file && file->Open(path, flags | ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead)) ? SFS_O_TRUNC : 0), mode, enhanced_opaque.c_str(), mTimeout))
+  if (mFileIO && mFileIO->fileOpen(flags | ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead)) ? SFS_O_TRUNC : 0), mode, enhanced_opaque.c_str(), mTimeout))
   {
-    if (file->Open(path, flags | SFS_O_CREAT, mode, enhanced_opaque.c_str(), mTimeout))
+    if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str(), mTimeout))
     {
-      eos_err("error=failed to open local ", path.c_str());
+      eos_err("error=failed to open local ", mFileIO->GetPath().c_str());
       errno = EIO;
-      delete file;
-      file = 0;
       return SFS_ERROR;
     }
   }
@@ -235,14 +227,13 @@ RaidMetaLayout::Open (const std::string& path,
     return SFS_ERROR;
   }
 
-  mStripeFiles.push_back(file);
+  mStripeFiles.push_back(mFileIO);
   mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
 
   // Read header information for the local file
   HeaderCRC* hd = mHdrInfo.back();
-  file = mStripeFiles.back();
 
-  if (file && !hd->ReadFromFile(file, mTimeout))
+  if (!hd->ReadFromFile(mFileIO, mTimeout))
     eos_warning("reading header failed for local stripe - will try to recover");
 
   //............................................................................
@@ -334,8 +325,7 @@ RaidMetaLayout::Open (const std::string& path,
 
         stripe_urls[i] += remoteOpenOpaque.c_str();
         int ret = -1;
-        FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(stripe_urls[i].c_str()),
-                                                 mOfsFile, mSecEntity);
+        FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i].c_str(), mOfsFile, mSecEntity);
 
         //.......................................................................
         // Set the correct open flags for the stripe
@@ -355,7 +345,7 @@ RaidMetaLayout::Open (const std::string& path,
         //........................................................................
         // Doing the actual open
         //........................................................................
-        ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str(), mTimeout);
+        ret = file->Open(flags, mode, enhanced_opaque.c_str(), mTimeout);
 
         if (ret == SFS_ERROR)
         {

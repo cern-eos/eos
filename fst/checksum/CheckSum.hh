@@ -28,7 +28,6 @@
 #include "fst/Namespace.hh"
 #include "fst/Load.hh"
 #include "common/LayoutId.hh"
-#include "common/Attr.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/

@@ -51,7 +51,7 @@ public:
                int lid,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
-               eos::common::LayoutId::eIoType io,
+               const char *path,
                uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
@@ -69,10 +69,7 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode,
-                    const char* opaque = "");
+  virtual int Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque);
 
   //--------------------------------------------------------------------------
   //! Read from file
@@ -165,7 +162,6 @@ public:
 private:
 
   uint64_t mFileSize; ///< file size
-  FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
   bool mDisableRdAhead; ///< if any write operations is done, disable rdahead
 
   //--------------------------------------------------------------------------

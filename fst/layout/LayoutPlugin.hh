@@ -73,7 +73,7 @@ public:
                                   unsigned int layoutId,
                                   const XrdSecEntity* client,
                                   XrdOucErrInfo* error,
-                                  eos::common::LayoutId::eIoType accessType,
+                                  const char *path,
                                   uint16_t timeout = 0,
                                   bool storeRecovery = false);
 };

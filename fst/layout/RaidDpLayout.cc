@@ -44,12 +44,12 @@ RaidDpLayout::RaidDpLayout (XrdFstOfsFile* file,
                             int lid,
                             const XrdSecEntity* client,
                             XrdOucErrInfo* outError,
-                            eos::common::LayoutId::eIoType io,
+                            const char *path,
                             uint16_t timeout, 
                             bool storeRecovery,
                             off_t targetSize,
                             std::string bookingOpaque) :
-  RaidMetaLayout (file, lid, client, outError, io, timeout,
+  RaidMetaLayout (file, lid, client, outError, path, timeout,
                   storeRecovery, targetSize, bookingOpaque)
 {
   mNbDataBlocks = static_cast<int> (pow((double) mNbDataFiles, 2));
@@ -241,7 +241,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   {
     if (mStripeFiles[i])
     {
-      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->fileGetAsyncHandler());
       if (ptr_handler)
         ptr_handler->Reset();
     }
@@ -262,7 +262,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
     if (mStripeFiles[physical_id])
     {
       // Enable readahead
-      nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
+      nread = mStripeFiles[physical_id]->fileReadAsync(offset_local, mDataBlocks[i],
                                                    mStripeWidth, true, mTimeout); 
 
       if (nread != mStripeWidth)
@@ -285,7 +285,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   {
     if (mStripeFiles[i])
     {
-      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+      ptr_handler  = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->fileGetAsyncHandler());
     
       if (ptr_handler)
       {
@@ -311,7 +311,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
           // If timeout error, then disable current file 
           if (error_type == XrdCl::errOperationExpired)
           {
-            mStripeFiles[i]->Close(mTimeout);
+            mStripeFiles[i]->fileClose(mTimeout);
             delete mStripeFiles[i];
             mStripeFiles[i] = NULL;
           }

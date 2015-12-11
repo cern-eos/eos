@@ -102,14 +102,12 @@ Storage::Verify ()
       }
     }
 
-    FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(eos::common::LayoutId::GetIoType(fstPath.c_str()));
-    eos::common::Attr *attr = dynamic_cast<eos::common::Attr*> (eos::fst::FileIoPluginHelper::GetIoAttr(fstPath.c_str()));
-
+    FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
 
     // get current size on disk
     struct stat statinfo;
     int open_rc = 0;
-    if (!io || (open_rc = io->Open(fstPath.c_str(), 0, 0)) || io->Stat(&statinfo))
+    if (!io || (open_rc = io->fileOpen(0, 0)) || io->fileStat(&statinfo))
     {
       eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
       // if there is no file, we should not commit anything to the MGM
@@ -213,13 +211,12 @@ Storage::Verify ()
             eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum());
           }
 
-          if (attr)
+          if (io)
           {
             // update the extended attributes
-            attr->Set("user.eos.checksum", checksummer->GetBinChecksum(checksumlen), checksumlen);
-            attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
-            attr->Set("user.eos.filecxerror", "0");
-            delete attr;
+            io->attrSet("user.eos.checksum", checksummer->GetBinChecksum(checksumlen), checksumlen);
+            io->attrSet("user.eos.checksumtype", checksummer->GetName(), strlen(checksummer->GetName()));
+            io->attrSet("user.eos.filecxerror", "0", 1);
           }
         }
 
