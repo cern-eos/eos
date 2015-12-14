@@ -59,19 +59,14 @@ public:
   virtual ~ContainerMD() {};
 
   //----------------------------------------------------------------------------
-  //! Virtual copy constructor
-  //----------------------------------------------------------------------------
-  virtual ContainerMD* clone() const;
-
-  //----------------------------------------------------------------------------
   //! Copy constructor
   //----------------------------------------------------------------------------
-  ContainerMD(const ContainerMD& other);
+  ContainerMD(const ContainerMD& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Assignment operator
   //----------------------------------------------------------------------------
-  ContainerMD& operator= (const ContainerMD& other);
+  ContainerMD& operator= (const ContainerMD& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Add container

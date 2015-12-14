@@ -45,46 +45,6 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 }
 
 //------------------------------------------------------------------------------
-// Virtual copy constructor
-//------------------------------------------------------------------------------
-ContainerMD*
-ContainerMD::clone() const
-{
-  return new ContainerMD(*this);
-}
-
-//------------------------------------------------------------------------------
-// Copy constructor
-//------------------------------------------------------------------------------
-ContainerMD::ContainerMD(const ContainerMD& other)
-{
-  *this = other;
-}
-
-//------------------------------------------------------------------------------
-// Asignment operator
-//------------------------------------------------------------------------------
-ContainerMD& ContainerMD::operator= (const ContainerMD& other)
-{
-  pId       = other.pId;
-  pParentId = other.pParentId;
-  pFlags    = other.pFlags;
-  pCTime    = other.pCTime;
-  pMTime    = other.pMTime;
-  pTMTime   = other.pTMTime;
-  pName     = other.pName;
-  pCUid     = other.pCUid;
-  pCGid     = other.pCGid;
-  pMode     = other.pMode;
-  pACLId    = other.pACLId;
-  pXAttrs   = other.pXAttrs;
-  pFlags    = other.pFlags;
-  pFileSvc  = other.pFileSvc;
-  pContSvc  = other.pContSvc;
-  return *this;
-}
-
-//------------------------------------------------------------------------------
 // Find subcontainer
 //------------------------------------------------------------------------------
 IContainerMD*

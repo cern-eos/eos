@@ -626,7 +626,7 @@ ProcCommand::DirInfo (const char* path)
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
   {
-    eos::IContainerMD* dmd = 0;
+    std::unique_ptr<eos::IContainerMD> dmd;
 
     if ((spath.beginswith("pid:") || (spath.beginswith("pxid:"))))
     {
@@ -647,8 +647,8 @@ ProcCommand::DirInfo (const char* path)
       gOFS->eosViewRWMutex.LockRead();
       try
       {
-        dmd = gOFS->eosDirectoryService->getContainerMD(fid);
-        std::string fullpath = gOFS->eosView->getUri(dmd);
+        dmd.reset(gOFS->eosDirectoryService->getContainerMD(fid));
+        std::string fullpath = gOFS->eosView->getUri(dmd.get());
         spath = fullpath.c_str();
       }
       catch (eos::MDException &e)
@@ -666,7 +666,7 @@ ProcCommand::DirInfo (const char* path)
       gOFS->eosViewRWMutex.LockRead();
       try
       {
-        dmd = gOFS->eosView->getContainer(spath.c_str());
+        dmd.reset(gOFS->eosView->getContainer(spath.c_str()));
       }
       catch (eos::MDException &e)
       {
@@ -687,11 +687,6 @@ ProcCommand::DirInfo (const char* path)
     {
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
-
-      // Make a copy of the meta data
-      std::unique_ptr<eos::IContainerMD> dmd_cpy{dmd->clone()};
-      dmd = (eos::IContainerMD*)(0);
-
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
 
@@ -700,8 +695,8 @@ ProcCommand::DirInfo (const char* path)
       XrdOucString hexpidstring;
       bool Monitoring = false;
 
-      eos::common::FileId::Fid2Hex(dmd_cpy->getId(), hexfidstring);
-      eos::common::FileId::Fid2Hex(dmd_cpy->getParentId(), hexpidstring);
+      eos::common::FileId::Fid2Hex(dmd->getId(), hexfidstring);
+      eos::common::FileId::Fid2Hex(dmd->getParentId(), hexpidstring);
 
       if ((option.find("-m")) != STR_NPOS)
       {
@@ -743,7 +738,7 @@ ProcCommand::DirInfo (const char* path)
       if ((option.find("-fid")) != STR_NPOS)
       {
         char fid[32];
-        snprintf(fid, 32, "%llu", (unsigned long long) dmd_cpy->getId());
+        snprintf(fid, 32, "%llu", (unsigned long long) dmd->getId());
         if (!Monitoring)
         {
           stdOut += "fid:    ";
@@ -782,9 +777,9 @@ ProcCommand::DirInfo (const char* path)
         eos::IContainerMD::ctime_t ctime;
         eos::IContainerMD::mtime_t mtime;
         eos::IContainerMD::tmtime_t tmtime;
-        dmd_cpy->getCTime(ctime);
-	dmd_cpy->getMTime(mtime);
-	dmd_cpy->getTMTime(tmtime);
+        dmd->getCTime(ctime);
+	dmd->getMTime(mtime);
+	dmd->getTMTime(tmtime);
 
 	fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
                 static_cast<long long int>(ctime.tv_sec),
@@ -798,13 +793,13 @@ ProcCommand::DirInfo (const char* path)
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
         char fid[32];
-        snprintf(fid, 32, "%llu", (unsigned long long) dmd_cpy->getId());
+        snprintf(fid, 32, "%llu", (unsigned long long) dmd->getId());
 
         std::string etag;
 
         // use inode + tmtime
         char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llx:%llu.%03lu", (unsigned long long)dmd_cpy->getId(), (unsigned long long)tmtime.tv_sec, (unsigned long)tmtime.tv_nsec/1000000);
+        snprintf(setag,sizeof(setag)-1,"%llx:%llu.%03lu", (unsigned long long)dmd->getId(), (unsigned long long)tmtime.tv_sec, (unsigned long)tmtime.tv_nsec/1000000);
         etag = setag;
 
         if (!Monitoring)
@@ -817,7 +812,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += "  Files: ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_files);
           stdOut += "  Flags: ";
-          stdOut +=  eos::common::StringConversion::IntToOctal( (int) dmd_cpy->getMode(), 4).c_str();
+          stdOut +=  eos::common::StringConversion::IntToOctal( (int) dmd->getMode(), 4).c_str();
           stdOut += "\n";
           stdOut += "Modify: ";
           stdOut += ctime_r(&filemtime, mtimestring);
@@ -844,9 +839,9 @@ ProcCommand::DirInfo (const char* path)
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) tmtime.tv_nsec);
           stdOut += "\n";
           stdOut += "  CUid: ";
-          stdOut += (int) dmd_cpy->getCUid();
+          stdOut += (int) dmd->getCUid();
           stdOut += " CGid: ";
-          stdOut += (int) dmd_cpy->getCGid();
+          stdOut += (int) dmd->getCGid();
           stdOut += "  Fxid: ";
           stdOut += hexfidstring;
           stdOut += " ";
@@ -854,7 +849,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += fid;
           stdOut += " ";
           stdOut += "   Pid: ";
-          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd_cpy->getParentId());
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd->getParentId());
           stdOut += "   Pxid: ";
           stdOut += hexpidstring;
           stdOut += "\n";
@@ -887,12 +882,12 @@ ProcCommand::DirInfo (const char* path)
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) ctime.tv_nsec);
           stdOut += " ";
           stdOut += "mode=";
-          stdOut +=  eos::common::StringConversion::IntToOctal( (int) dmd_cpy->getMode(), 4).c_str();
+          stdOut +=  eos::common::StringConversion::IntToOctal( (int) dmd->getMode(), 4).c_str();
           stdOut += " ";
           stdOut += "uid=";
-          stdOut += (int) dmd_cpy->getCUid();
+          stdOut += (int) dmd->getCUid();
           stdOut += " gid=";
-          stdOut += (int) dmd_cpy->getCGid();
+          stdOut += (int) dmd->getCGid();
           stdOut += " ";
           stdOut += "fxid=";
           stdOut += hexfidstring;
@@ -904,7 +899,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += fid;
           stdOut += " ";
           stdOut += "pid=";
-          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd_cpy->getParentId());
+          stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) dmd->getParentId());
           stdOut += " ";
           stdOut += "pxid=";
           stdOut += hexpidstring;
@@ -913,7 +908,7 @@ ProcCommand::DirInfo (const char* path)
           stdOut += etag.c_str();
           stdOut += " ";
 
-          for (auto it_attr = dmd_cpy->attributesBegin(); it_attr != dmd_cpy->attributesEnd(); ++it_attr)
+          for (auto it_attr = dmd->attributesBegin(); it_attr != dmd->attributesEnd(); ++it_attr)
           {
             stdOut += "xattrn=";    stdOut += it_attr->first.c_str();
             stdOut += " xattrv=";  stdOut += it_attr->second.c_str();
