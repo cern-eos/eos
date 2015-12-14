@@ -156,7 +156,7 @@ com_file (char* arg1)
   if (wants_help(savearg.c_str()))
     goto com_file_usage;
 
-  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") && (cmd != "symlink") && (cmd != "tag") )
+  if ((cmd != "drop") && (cmd != "move") && (cmd != "touch") && (cmd != "replicate") && (cmd != "check") && (cmd != "adjustreplica") && (cmd != "info") && (cmd != "layout") && (cmd != "verify") && (cmd != "rename") && (cmd != "copy") && (cmd != "convert") && (cmd != "share") && (cmd != "purge") && (cmd != "version") && (cmd != "versions") && (cmd != "symlink") && (cmd != "tag") && (cmd != "workflow"))
   {
     goto com_file_usage;
   }
@@ -164,7 +164,7 @@ com_file (char* arg1)
   // convenience function
   if (cmd == "info")
   {
-    arg.erase(0, arg.find(" ")+1);
+    arg.erase(0, arg.find(" ") + 1);
     return com_fileinfo((char*) arg.c_str());
   }
 
@@ -199,7 +199,7 @@ com_file (char* arg1)
 
   if (cmd == "share")
   {
-    if (!path.length() )
+    if (!path.length())
       goto com_file_usage;
 
     path = abspath(path.c_str());
@@ -207,14 +207,14 @@ com_file (char* arg1)
     in += path;
     in += "&mgm.subcmd=share";
     in += "&mgm.file.expires=";
-    unsigned long long expires= (time(NULL) + 28*86400);
+    unsigned long long expires = (time(NULL) + 28 * 86400);
 
-    if (fsid1.length()) 
+    if (fsid1.length())
     {
       expires = time(NULL) + eos::common::StringConversion::GetSizeFromString(fsid1);
     }
     char sexpires[1024];
-    snprintf(sexpires,sizeof(sexpires)-1,"%llu", expires);
+    snprintf(sexpires, sizeof (sexpires) - 1, "%llu", expires);
     in += sexpires;
   }
 
@@ -272,10 +272,10 @@ com_file (char* arg1)
     in += path;
     if (option.length())
     {
-      XrdOucString checkoption=option;
-      checkoption.replace("f","");
-      checkoption.replace("s","");
-      checkoption.replace("c","");
+      XrdOucString checkoption = option;
+      checkoption.replace("f", "");
+      checkoption.replace("s", "");
+      checkoption.replace("c", "");
       if (checkoption.length())
         goto com_file_usage;
 
@@ -311,11 +311,11 @@ com_file (char* arg1)
       fprintf(stderr, "error: --sync is currently not supported\n");
       goto com_file_usage;
     }
-    if (option == "rewrite") 
+    if (option == "rewrite")
     {
       in += "&mgm.option=rewrite";
-    } 
-    else 
+    }
+    else
     {
       if (option.length())
       {
@@ -337,7 +337,7 @@ com_file (char* arg1)
     in += fsid2;
   }
 
-  if ((cmd == "purge") || (cmd == "version") )
+  if ((cmd == "purge") || (cmd == "version"))
   {
     if (!path.length())
       goto com_file_usage;
@@ -408,6 +408,23 @@ com_file (char* arg1)
     }
   }
 
+  if (cmd == "workflow")
+  {
+    if (!path.length())
+      goto com_file_usage;
+    if (!fsid1.length())
+      goto com_file_usage;
+    if (!fsid2.length())
+      goto com_file_usage;
+    in += "&mgm.subcmd=workflow";
+    in += "&mgm.path=";
+    in += path;
+    in += "&mgm.workflow=";
+    in += fsid1;
+    in += "&mgm.event=";
+    in += fsid2;
+  }
+
   if (cmd == "tag")
   {
     if (!path.length())
@@ -416,9 +433,9 @@ com_file (char* arg1)
     in += "&mgm.subcmd=tag";
     in += "&mgm.path=";
     in += path;
-    if ( (!fsid1.beginswith("+")) &&
-	 (!fsid1.beginswith("-")) &&
-	 (!fsid1.beginswith("~")) )
+    if ((!fsid1.beginswith("+")) &&
+        (!fsid1.beginswith("-")) &&
+        (!fsid1.beginswith("~")))
     {
       goto com_file_usage;
     }
@@ -588,8 +605,8 @@ com_file (char* arg1)
           if (!url.IsValid())
           {
             fprintf(stderr, "error=URL is not valid: %s", address.c_str());
-	    global_retc = EINVAL;
-	    return (0);
+            global_retc = EINVAL;
+            return (0);
           }
 
           //.............................................................................
@@ -600,8 +617,8 @@ com_file (char* arg1)
           if (!fs)
           {
             fprintf(stderr, "error=failed to get new FS object");
-	    global_retc = ECOMM;
-	    return (0);
+            global_retc = ECOMM;
+            return (0);
           }
 
           XrdOucString bs = newresult->Get(repbootstat.c_str());
@@ -851,8 +868,8 @@ com_file_usage:
   fprintf(stdout, "file copy [-f] [-s] [-c] <src> <dst>                                   :  synchronous third party copy from <src> to <dst>\n");
   fprintf(stdout, "         <src>                                                         :  source can be a file or a directory\n");
   fprintf(stdout, "         <dst>                                                         :  destination can be a file (if source is a file) or a directory\n");
-  fprintf(stdout,"                                                                     -f :  force overwrite\n");
-  fprintf(stdout,"                                                                     -c :  clone the file (keep ctime,mtime)\n");
+  fprintf(stdout, "                                                                     -f :  force overwrite\n");
+  fprintf(stdout, "                                                                     -c :  clone the file (keep ctime,mtime)\n");
   fprintf(stdout, "file drop <path> <fsid> [-f] :\n");
   fprintf(stdout, "                                                  drop the file <path> from <fsid> - force removes replica without trigger/wait for deletion (used to retire a filesystem) \n");
   fprintf(stdout, "file info <path> :\n");
@@ -884,17 +901,22 @@ com_file_usage:
   fprintf(stdout, "       -commitsize     : commit the file size to the MGM\n");
   fprintf(stdout, "       -rate <rate>    : restrict the verification speed to <rate> per node\n");
   fprintf(stdout, "file version <path> [purge-version] :\n");
-  fprintf( stdout, "                                                 create a new version of a file by cloning\n");
+  fprintf(stdout, "                                                 create a new version of a file by cloning\n");
 
   fprintf(stdout, "file versions [grab-version] :\n");
-  fprintf(stdout, "                                                  list versions of a file\n");
-  fprintf(stdout, "                                                  grab a version of a file\n");
+  fprintf(stdout, "                                                 list versions of a file\n");
+  fprintf(stdout, "                                                 grab a version of a file\n");
   fprintf(stdout, "        <purge-version>: defines the max. number of versions to keep\n");
+  fprintf(stdout, "\n");
   fprintf(stdout, "                         if not specified it will add a new version without purging any previous version\n");
   fprintf(stdout, "file share <path> [lifetime] :\n");
   fprintf(stdout, "       <path>          : path to create a share link\n");
-  fprintf(stdout,"        <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");
+  fprintf(stdout, "        <lifetime>      : validity time of the share link like 1, 1s, 1d, 1w, 1mo, 1y, ... default is 28d\n");
   fprintf(stdout, "\n");
+  fprintf(stdout, " file workflow <path>|fid:<fid-dec>|fxid:<fid-hex> <workflow> <event> :\n");
+  fprintf(stdout, "                                                  trigger workflow <workflow> with event <event> on <path>\n");
+  fprintf(stdout, "\n");
+
 
   return (0);
 }

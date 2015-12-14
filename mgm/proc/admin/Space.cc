@@ -307,6 +307,7 @@ ProcCommand::Space ()
                 (key == "lru.interval") ||
                 (key == "wfe") ||
                 (key == "wfe.interval") ||
+                (key == "wfe.ntx") ||
                 (key == "converter.ntx") ||
                 (key == "autorepair") ||
                 (key == "groupbalancer") ||

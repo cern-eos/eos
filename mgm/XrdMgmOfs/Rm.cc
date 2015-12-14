@@ -83,8 +83,8 @@ XrdMgmOfs::_rem (const char *path,
                  eos::common::Mapping::VirtualIdentity &vid,
                  const char *ininfo,
                  bool simulate,
-                 bool keepversion, 
-		 bool lock_quota)
+                 bool keepversion,
+                 bool lock_quota)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -136,7 +136,7 @@ XrdMgmOfs::_rem (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  if (lock_quota) 
+  if (lock_quota)
     Quota::gQuotaMutex.LockRead();
 
   gOFS->eosViewRWMutex.LockWrite();
@@ -150,12 +150,14 @@ XrdMgmOfs::_rem (const char *path,
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
 
+  eos::common::FileId::fileid_t fid = 0;
+
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
   std::string aclpath;
 
   try
   {
-    fmd = gOFS->eosView->getFile(path,false);
+    fmd = gOFS->eosView->getFile(path, false);
   }
   catch (eos::MDException &e)
   {
@@ -168,6 +170,7 @@ XrdMgmOfs::_rem (const char *path,
   {
     owner_uid = fmd->getCUid();
     owner_gid = fmd->getCGid();
+    fid = fmd->getId();
 
     eos_info("got fmd=%lld", (unsigned long long) fmd);
     try
@@ -182,20 +185,20 @@ XrdMgmOfs::_rem (const char *path,
       container = 0;
     }
 
-    // ACL and permission check                                                                                                                                                                       
+    // ACL and permission check
     Acl acl(aclpath.c_str(),
-	    error,
-	    vid,
-	    attrmap,
-	    false);
+            error,
+            vid,
+            attrmap,
+            false);
 
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
     if (vid.uid && !acl.IsMutable())
     {
       errno = EPERM;
       gOFS->eosViewRWMutex.UnLockWrite();
-      if (lock_quota) 
-	Quota::gQuotaMutex.UnLockRead();
+      if (lock_quota)
+        Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
@@ -223,8 +226,8 @@ XrdMgmOfs::_rem (const char *path,
       {
         errno = EPERM;
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
+        if (lock_quota)
+          Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname, error, errno, "remove file", path);
       }
 
@@ -232,8 +235,8 @@ XrdMgmOfs::_rem (const char *path,
       if (acl.CanWriteOnce() && (fmd->getSize()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
+        if (lock_quota)
+          Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this is a write once user
         return Emsg(epname, error, EPERM, "remove existing file - you are write-once user");
@@ -245,8 +248,8 @@ XrdMgmOfs::_rem (const char *path,
 
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
+        if (lock_quota)
+          Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM, "remove existing file - ACL forbids file deletion");
@@ -255,8 +258,8 @@ XrdMgmOfs::_rem (const char *path,
       if ((!stdpermcheck) && (!acl.CanWrite()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
+        if (lock_quota)
+          Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this user is not allowed to write
         return Emsg(epname, error, EPERM, "remove existing file - you don't have write permissions");
@@ -315,10 +318,10 @@ XrdMgmOfs::_rem (const char *path,
         }
 
         if (container)
-        {        
-	  container->setMTimeNow();
-	  container->notifyMTimeChange( gOFS->eosDirectoryService );
-	  eosView->updateContainerStore(container);
+        {
+          container->setMTimeNow();
+          container->notifyMTimeChange(gOFS->eosDirectoryService);
+          eosView->updateContainerStore(container);
         }
       }
       errno = 0;
@@ -357,8 +360,8 @@ XrdMgmOfs::_rem (const char *path,
         // since the recycle space is full
         // ---------------------------------------------------------------------
         errno = ENOSPC;
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
+        if (lock_quota)
+          Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname,
                     error,
                     ENOSPC,
@@ -379,8 +382,8 @@ XrdMgmOfs::_rem (const char *path,
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {
-	  if (lock_quota) 
-	    Quota::gQuotaMutex.LockRead();
+          if (lock_quota)
+            Quota::gQuotaMutex.LockRead();
           return rc;
         }
       }
@@ -391,8 +394,8 @@ XrdMgmOfs::_rem (const char *path,
       // there is no quota defined on that recycle path
       // -----------------------------------------------------------------------
       errno = ENODEV;
-      if (lock_quota) 
-	Quota::gQuotaMutex.UnLockRead();
+      if (lock_quota)
+        Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname,
                   error,
                   ENODEV,
@@ -431,9 +434,9 @@ XrdMgmOfs::_rem (const char *path,
     }
   }
 
-  if (lock_quota) 
+  if (lock_quota)
     Quota::gQuotaMutex.UnLockRead();
-    
+
 
 
   EXEC_TIMING_END("Rm");
@@ -442,6 +445,20 @@ XrdMgmOfs::_rem (const char *path,
     return Emsg(epname, error, errno, "remove", path);
   else
   {
+    Workflow workflow;
+    // eventually trigger a workflow
+    workflow.Init(&attrmap);
+
+    workflow.SetFile(path, fid);
+    int ret_wfe = 0;
+    if ((ret_wfe = workflow.Trigger("delete", "default")) < 0)
+    {
+      eos_debug("msg=\"no workflow defined for delete\"");
+    }
+    else
+    {
+      eos_debug("msg=\"workflow trigger returned\" retc=%d", ret_wfe);
+    }
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
     return SFS_OK;
   }

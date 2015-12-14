@@ -95,6 +95,19 @@ Workflow::Trigger (std::string event, std::string workflow)
       return Create();
     }
   }
+
+  if ((event == "delete"))
+  {
+    std::string key = "sys.workflow.delete" + workflow;
+    if (mAttr && (*mAttr).count(key))
+    {
+
+      mEvent = event;
+      mWorkflow = workflow;
+      mAction = (*mAttr)[key];
+      return Create();
+    }
+  }
   // not defined
   return -1;
 }
@@ -145,7 +158,7 @@ Workflow::Create ()
   WFE::Job job(mFid);
 
   time_t t = time(0);
-  job.AddAction(mAction, mEvent, t, mWorkflow);
+  job.AddAction(mAction, mEvent, t, mWorkflow, "q");
   return job.Save("q");
 }
 

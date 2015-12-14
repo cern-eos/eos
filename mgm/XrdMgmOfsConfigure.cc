@@ -1142,6 +1142,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("LRU");
   lFanOutTags.push_back("WFE");
+  lFanOutTags.push_back("WFE::Job");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("GeoBalancer");
   lFanOutTags.push_back("#");
