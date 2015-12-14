@@ -380,14 +380,11 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 
       // get the file md object
       gOFS->eosViewRWMutex.LockRead();
-      eos::IFileMD* fmd = 0;
+      std::unique_ptr<eos::IFileMD> fmd;
 
       try
       {
-        fmd = gOFS->eosView->getFile(fullname.c_str());
-        std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
-
-        gOFS->eosViewRWMutex.UnLockRead();
+	gOFS->eosViewRWMutex.UnLockRead();
         //-------------------------------------------
 
         result += "<Contents>";
@@ -397,33 +394,33 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
         result += "<LastModified>";
 
         eos::IFileMD::ctime_t mtime;
-        fmd_cpy->getMTime(mtime);
+        fmd->getMTime(mtime);
 
         result += Timing::UnixTimstamp_to_ISO8601(mtime.tv_sec);
         result += "</LastModified>";
         result += "<ETag>";
-        for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd_cpy->getLayoutId()); i++)
+        for (unsigned int i = 0; i < LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
         {
           char hb[3];
-          sprintf(hb, "%02x", (unsigned char) (fmd_cpy->getChecksum().getDataPtr()[i]));
+          sprintf(hb, "%02x", (unsigned char) (fmd->getChecksum().getDataPtr()[i]));
           result += hb;
         }
         result += "</ETag>";
         result += "<Size>";
         std::string sconv;
         result += StringConversion::GetSizeString(sconv, (unsigned long long)
-                                                  fmd_cpy->getSize());
+                                                  fmd->getSize());
         result += "</Size>";
         result += "<StorageClass>STANDARD</StorageClass>";
         result += "<Owner>";
         result += "<ID>";
         int errc = 0;
-        result += Mapping::UidToUserName(fmd_cpy->getCUid(), errc);
+        result += Mapping::UidToUserName(fmd->getCUid(), errc);
         result += "</ID>";
         result += "<DisplayName>";
-        result += Mapping::UidToUserName(fmd_cpy->getCUid(), errc);
+        result += Mapping::UidToUserName(fmd->getCUid(), errc);
         result += ":";
-        result += Mapping::GidToGroupName(fmd_cpy->getCGid(), errc);
+        result += Mapping::GidToGroupName(fmd->getCGid(), errc);
         result += "</DisplayName>";
         result += "</Owner>";
         result += "</Contents>";

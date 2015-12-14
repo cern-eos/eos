@@ -113,7 +113,7 @@ ProcCommand::File ()
         // only root can do that
         if (pVid->uid == 0)
         {
-          eos::IFileMD* fmd = 0;
+	  std::unique_ptr<eos::IFileMD> fmd;
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
           {
             unsigned long long fid = 0;
@@ -185,7 +185,7 @@ ProcCommand::File ()
               stdOut += " for path=";
               stdOut += spath;
               // commit new layout
-              gOFS->eosView->updateFileStore(fmd);
+              gOFS->eosView->updateFileStore(fmd.get());
             }
             else
             {
@@ -258,7 +258,7 @@ ProcCommand::File ()
       // only root can do that
       if (pVid->uid == 0)
       {
-        eos::IFileMD* fmd = 0;
+	std::unique_ptr<eos::IFileMD> fmd;
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
         {
           unsigned long long fid = 0;
@@ -279,7 +279,7 @@ ProcCommand::File ()
           try
           {
             fmd = gOFS->eosFileService->getFileMD(fid);
-            std::string fullpath = gOFS->eosView->getUri(fmd);
+            std::string fullpath = gOFS->eosView->getUri(fmd.get());
             spath = fullpath.c_str();
           }
           catch (eos::MDException &e)
@@ -665,7 +665,7 @@ ProcCommand::File ()
       }
       else
       {
-	eos::IFileMD* fmd = 0;
+	std::unique_ptr<eos::IFileMD> fmd;
 	{
 	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 	  try
@@ -699,7 +699,7 @@ ProcCommand::File ()
 		  fmd->removeLocation(fsid);
 	      }
 
-	      gOFS->eosView->updateFileStore(fmd);
+	      gOFS->eosView->updateFileStore(fmd.get());
 
 	      if (do_add)
 	      {
@@ -1045,7 +1045,7 @@ ProcCommand::File ()
             else
             {
               // get the file meta data
-              eos::IFileMD* fmd = 0;
+	      std::unique_ptr<eos::IFileMD> fmd;
               int fsid = 0;
 
               eos::common::LayoutId::layoutid_t layoutid = 0;
@@ -1243,7 +1243,7 @@ ProcCommand::File ()
       // Only root can do this
       if (pVid->uid == 0)
       {
-        eos::IFileMD* fmd = 0;
+	std::unique_ptr<eos::IFileMD> fmd;
         bool nodrop = false;
 	XrdOucString file_option = pOpaque->Get("mgm.file.option");
 
@@ -1321,31 +1321,28 @@ ProcCommand::File ()
         if (fmd)
         {
           unsigned long long fid = fmd->getId();
-          std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
-          fmd = (eos::IFileMD*)(0);
-
           gOFS->eosViewRWMutex.UnLockRead();
           //-------------------------------------------
 
           // Check if that is a replica layout at all
-          if (eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+          if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
               eos::common::LayoutId::kReplica)
           {
             // Check the configured and available replicas
             XrdOucString sizestring;
             eos::IFileMD::LocationVector::const_iterator lociter;
-            int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd_cpy->getLayoutId()) + 1;
-            int nrep = (int) fmd_cpy->getNumLocation();
+            int nreplayout = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1;
+            int nrep = (int) fmd->getNumLocation();
             int nreponline = 0;
             int ngroupmix = 0;
-            eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
+            eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
             
             for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
             {
               // ignore filesystem id 0
               if (!(*lociter))
               {
-                eos_err("fsid 0 found fid=%lld", fmd_cpy->getId());
+                eos_err("fsid 0 found fid=%lld", fmd->getId());
                 continue;
               }
 
@@ -1423,7 +1420,7 @@ ProcCommand::File ()
               // Fill the existing locations
               std::vector<unsigned int> selectedfs;
               std::vector<unsigned int> unavailfs;
-              std::vector<unsigned int> sourcefs = fmd_cpy->getLocations();
+              std::vector<unsigned int> sourcefs = fmd->getLocations();
               std::string tried_cgi;
 
               // Now we just need to ask for <n> targets
@@ -1445,7 +1442,7 @@ ProcCommand::File ()
                                                  *pVid, 0, layoutId, sourcefs,
                                                  selectedfs, plctplcy, targetgeotag,
                                                  SFS_O_TRUNC, forcedsubgroup,
-                                                 fmd_cpy->getSize())))
+                                                 fmd->getSize())))
               {
                 // We got a new replication vector
                 for (unsigned int i = 0; i < selectedfs.size(); i++)
@@ -1454,7 +1451,7 @@ ProcCommand::File ()
                                                   (unsigned long) 0,
                                                   space.c_str(),
                                                   tried_cgi,
-                                                  (unsigned long) fmd_cpy->getLayoutId(),
+                                                  (unsigned long) fmd->getLayoutId(),
                                                   sourcefs,
                                                   fsIndex,
                                                   false,
@@ -1467,7 +1464,7 @@ ProcCommand::File ()
                     // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
                     // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
                     // Add replication here
-                    if (gOFS->_replicatestripe(fmd_cpy.get(), spath.c_str(),
+                    if (gOFS->_replicatestripe(fmd.get(), spath.c_str(),
                                                *mError, *pVid, sourcefsid,
                                                selectedfs[i], false, expressflag))
                     {
@@ -1527,13 +1524,13 @@ ProcCommand::File ()
                           n2delete, creationspace.c_str(), icreationsubgroup);
 
                 // Fill the views
-                eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
+                eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
                 for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
                 {
                   // ignore filesystem id 0
                   if (!(*lociter))
                   {
-                    eos_err("fsid 0 found fid=%lld", fmd_cpy->getId());
+                    eos_err("fsid 0 found fid=%lld", fmd->getId());
                     continue;
                   }
 
@@ -1684,7 +1681,7 @@ ProcCommand::File ()
 
                 for (unsigned int i = 0; i < fsid2delete.size(); i++)
                 {
-                  if (fmd_cpy->hasLocation(fsid2delete[i]))
+                  if (fmd->hasLocation(fsid2delete[i]))
                   {
                     //-------------------------------------------
                     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
@@ -1693,7 +1690,7 @@ ProcCommand::File ()
                       // we have to get again the original file meta data
                       fmd = gOFS->eosFileService->getFileMD(fid);
                       fmd->unlinkLocation(fsid2delete[i]);
-                      gOFS->eosView->updateFileStore(fmd);
+                      gOFS->eosView->updateFileStore(fmd.get());
                       eos_debug("removing location %u", fsid2delete[i]);
                       stdOut += "success: dropping replica on fs=";
                       stdOut += (int) fsid2delete[i];
@@ -1718,11 +1715,11 @@ ProcCommand::File ()
 	  else
 	  {
 	    // This is a rain layout, we try to rewrite the file using the converter
-	    if ((eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+	    if ((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
 		 eos::common::LayoutId::kRaidDP) ||
-		(eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+		(eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
 		 eos::common::LayoutId::kArchive) ||
-		(eos::common::LayoutId::GetLayoutType(fmd_cpy->getLayoutId()) ==
+		(eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
 		 eos::common::LayoutId::kRaid6))
 	    {
 	      ProcCommand Cmd;
@@ -1780,7 +1777,7 @@ ProcCommand::File ()
       }
       else
       {
-        eos::IFileMD* fmd = 0;
+	std::unique_ptr<eos::IFileMD> fmd;
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 

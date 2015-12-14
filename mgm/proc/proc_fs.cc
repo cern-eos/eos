@@ -89,10 +89,10 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     try
     {
-      eos::IFileMD* fmd = 0;
+      std::unique_ptr<eos::IFileMD> fmd;
       const eos::IFsView::FileList& filelist = gOFS->eosFsView->getFileList(fsid);
-      eos::IFsView::FileIterator it;
-      for (it = filelist.begin(); it != filelist.end(); ++it)
+
+      for (auto it = filelist.begin(); it != filelist.end(); ++it)
       {
         std::string env;
         fmd = gOFS->eosFileService->getFileMD(*it);
@@ -110,7 +110,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
             stdOut += senv.c_str();
             if (monitor)
             {
-              std::string fullpath = gOFS->eosView->getUri(fmd);
+              std::string fullpath = gOFS->eosView->getUri(fmd.get());
               eos::common::Path cPath(fullpath.c_str());
               stdOut += "&container=";
 	      XrdOucString safepath = cPath.GetParentPath();
@@ -123,7 +123,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           {
             if (dumppath)
             {
-              std::string fullpath = gOFS->eosView->getUri(fmd);
+              std::string fullpath = gOFS->eosView->getUri(fmd.get());
 	      XrdOucString safepath = fullpath.c_str();
 	      while (safepath.replace("&","#AND#")){}
               stdOut += "path=";

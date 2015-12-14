@@ -71,12 +71,12 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
-  virtual IFileMD* getFileMD(IFileMD::id_t id);
+  virtual std::unique_ptr<IFileMD> getFileMD(IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
-  virtual IFileMD* createFile();
+  virtual std::unique_ptr<IFileMD> createFile();
 
   //----------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the FileMD object

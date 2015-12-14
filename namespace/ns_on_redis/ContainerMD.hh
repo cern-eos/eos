@@ -81,7 +81,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find subcontainer
   //----------------------------------------------------------------------------
-  IContainerMD* findContainer(const std::string& name);
+  std::unique_ptr<IContainerMD> findContainer(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get number of containers
@@ -101,7 +101,7 @@ public:
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  IFileMD* findFile(const std::string& name);
+  std::unique_ptr<IFileMD> findFile(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get number of files

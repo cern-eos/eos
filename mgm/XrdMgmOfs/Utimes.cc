@@ -101,11 +101,8 @@ XrdMgmOfs::_utimes (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  bool done = false;
-  eos::IContainerMD* cmd = 0;
-
+  std::unique_ptr<eos::IContainerMD> cmd;
   EXEC_TIMING_BEGIN("Utimes");
-
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------
@@ -115,8 +112,7 @@ XrdMgmOfs::_utimes (const char *path,
     cmd = gOFS->eosView->getContainer(path, false);
     cmd->setMTime(tvp[1]);
     cmd->notifyMTimeChange( gOFS->eosDirectoryService );
-    eosView->updateContainerStore(cmd);
-    done = true;
+    eosView->updateContainerStore(cmd.get());
   }
   catch (eos::MDException &e)
   {
@@ -127,14 +123,13 @@ XrdMgmOfs::_utimes (const char *path,
 
   if (!cmd)
   {
-    eos::IFileMD* fmd = 0;
-    // try as a file
+    std::unique_ptr<eos::IFileMD> fmd;
+
     try
     {
       fmd = gOFS->eosView->getFile(path, false);
       fmd->setMTime(tvp[1]);
-      eosView->updateFileStore(fmd);
-      done = true;
+      eosView->updateFileStore(fmd.get());
     }
     catch (eos::MDException &e)
     {
@@ -145,13 +140,6 @@ XrdMgmOfs::_utimes (const char *path,
   }
 
   EXEC_TIMING_END("Utimes");
-
-  if (!done)
-  {
-
-
-  }
-
   return SFS_OK;
 }
 

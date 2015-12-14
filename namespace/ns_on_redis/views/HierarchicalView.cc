@@ -74,7 +74,7 @@ void HierarchicalView::initialize1()
     pRoot = pContainerSvc->createContainer();
     pRoot->setName("/");
     pRoot->setParentId(pRoot->getId());
-    pContainerSvc->updateStore(pRoot);
+    pContainerSvc->updateStore(pRoot.get());
   }
 }
 
@@ -107,8 +107,8 @@ void HierarchicalView::finalize()
 //------------------------------------------------------------------------------
 // Retrieve a file for given uri
 //------------------------------------------------------------------------------
-IFileMD* HierarchicalView::getFile(const std::string& uri, bool follow,
-				   size_t* link_depths)
+std::unique_ptr<IFileMD>
+HierarchicalView::getFile(const std::string& uri, bool follow, size_t* link_depths)
 {
   char uriBuffer[uri.length() + 1];
   strcpy(uriBuffer, uri.c_str());
@@ -124,8 +124,8 @@ IFileMD* HierarchicalView::getFile(const std::string& uri, bool follow,
 
   size_t position;
   eos::PathProcessor::splitPath(elements, uriBuffer);
-  IContainerMD* cont = findLastContainer(elements, elements.size() - 1,
-					 position, link_depths);
+  std::unique_ptr<IContainerMD> cont = findLastContainer(elements, elements.size() - 1,
+							 position, link_depths);
 
   if (position != elements.size() - 1)
   {
@@ -134,7 +134,7 @@ IFileMD* HierarchicalView::getFile(const std::string& uri, bool follow,
     throw e;
   }
 
-  IFileMD* file = cont->findFile(elements[position]);
+  std::unique_ptr<IFileMD> file {cont->findFile(elements[position])};
 
   if (!file)
   {
@@ -163,7 +163,7 @@ IFileMD* HierarchicalView::getFile(const std::string& uri, bool follow,
 
       if (link[0] != '/')
       {
-	link.insert(0, getUri(cont));
+	link.insert(0, getUri(cont.get()));
 	absPath(link);
       }
 
@@ -177,7 +177,7 @@ IFileMD* HierarchicalView::getFile(const std::string& uri, bool follow,
 //------------------------------------------------------------------------------
 // Create a file for given uri
 //------------------------------------------------------------------------------
-IFileMD*
+std::unique_ptr<IFileMD>
 HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
 {
   // Split the path and find the last container
@@ -186,8 +186,8 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
   std::vector<char*> elements;
   eos::PathProcessor::splitPath(elements, uriBuffer);
   size_t position;
-  IContainerMD* cont = findLastContainer(elements, elements.size() - 1,
-					 position);
+  std::unique_ptr<IContainerMD> cont = findLastContainer(elements, elements.size() - 1,
+							 position);
 
   if (position != elements.size() - 1)
   {
@@ -211,7 +211,7 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
     throw e;
   }
 
-  IFileMD* file = pFileSvc->createFile();
+  std::unique_ptr<IFileMD> file {pFileSvc->createFile()};
 
   if (!file)
   {
@@ -226,8 +226,8 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
   file->setCTimeNow();
   file->setMTimeNow();
   file->clearChecksum(0);
-  cont->addFile(file);
-  pFileSvc->updateStore(file);
+  cont->addFile(file.get());
+  pFileSvc->updateStore(file.get());
   return file;
 }
 
@@ -238,12 +238,12 @@ void HierarchicalView::createLink(const std::string& uri,
 				  const std::string& linkuri,
 				  uid_t uid, gid_t gid)
 {
-  IFileMD* file = createFile(uri, uid, gid);
+  std::unique_ptr<IFileMD> file = createFile(uri, uid, gid);
 
   if (file)
   {
     file->setLink(linkuri);
-    pFileSvc->updateStore(file);
+    pFileSvc->updateStore(file.get());
   }
 }
 
@@ -265,8 +265,8 @@ void HierarchicalView::unlinkFile(const std::string& uri)
   std::vector<char*> elements;
   eos::PathProcessor::splitPath(elements, uriBuffer);
   size_t position;
-  IContainerMD* cont = findLastContainer(elements, elements.size() - 1,
-					 position);
+  std::unique_ptr<IContainerMD> cont = findLastContainer(elements, elements.size() - 1,
+							 position);
 
   if (position != elements.size() - 1)
   {
@@ -275,7 +275,7 @@ void HierarchicalView::unlinkFile(const std::string& uri)
     throw e;
   }
 
-  IFileMD* file = cont->findFile(elements[position]);
+  std::unique_ptr<IFileMD> file {cont->findFile(elements[position])};
 
   if (!file)
   {
@@ -287,7 +287,7 @@ void HierarchicalView::unlinkFile(const std::string& uri)
   cont->removeFile(file->getName());
   file->setContainerId(0);
   file->unlinkAllLocations();
-  pFileSvc->updateStore(file);
+  pFileSvc->updateStore(file.get());
 }
 
 //------------------------------------------------------------------------------
@@ -306,7 +306,7 @@ void HierarchicalView::removeFile(IFileMD* file)
 
   if (file->getContainerId() != 0)
   {
-    IContainerMD* cont = pContainerSvc->getContainerMD(file->getContainerId());
+    std::unique_ptr<IContainerMD> cont = pContainerSvc->getContainerMD(file->getContainerId());
     cont->removeFile(file->getName());
   }
 
@@ -316,11 +316,14 @@ void HierarchicalView::removeFile(IFileMD* file)
 //------------------------------------------------------------------------------
 // Get a container (directory)
 //------------------------------------------------------------------------------
-IContainerMD* HierarchicalView::getContainer(const std::string& uri,
-					     bool follow, size_t* link_depths)
+std::unique_ptr<IContainerMD>
+HierarchicalView::getContainer(const std::string& uri,
+			       bool follow, size_t* link_depths)
 {
   if (uri == "/")
-    return pRoot;
+  {
+    return std::unique_ptr<IContainerMD>{pContainerSvc->getContainerMD(1)};
+  }
 
   size_t lLinkDepth = 0;
 
@@ -336,7 +339,7 @@ IContainerMD* HierarchicalView::getContainer(const std::string& uri,
   std::vector<char*> elements;
   eos::PathProcessor::splitPath(elements, uriBuffer);
   size_t position = 0;
-  IContainerMD* cont = 0;
+  std::unique_ptr<IContainerMD> cont;
 
   if (follow)
   {
@@ -366,8 +369,8 @@ IContainerMD* HierarchicalView::getContainer(const std::string& uri,
 //------------------------------------------------------------------------------
 // Create a container (directory)
 //------------------------------------------------------------------------------
-IContainerMD* HierarchicalView::createContainer(const std::string& uri,
-    bool createParents)
+std::unique_ptr<IContainerMD>
+HierarchicalView::createContainer(const std::string& uri, bool createParents)
 {
   // Split the path
   if (uri == "/")
@@ -391,8 +394,8 @@ IContainerMD* HierarchicalView::createContainer(const std::string& uri,
 
   // Look for the last existing container
   size_t position;
-  IContainerMD* lastContainer = findLastContainer(elements, elements.size(),
-						  position);
+  std::unique_ptr<IContainerMD> lastContainer =
+    findLastContainer(elements, elements.size(), position);
 
   if (position == elements.size())
   {
@@ -419,12 +422,12 @@ IContainerMD* HierarchicalView::createContainer(const std::string& uri,
   // Create the container with all missing parent's if requires
   for (size_t i = position; i < elements.size(); ++i)
   {
-    IContainerMD* newContainer = pContainerSvc->createContainer();
+    std::unique_ptr<IContainerMD> newContainer {pContainerSvc->createContainer()};
     newContainer->setName(elements[i]);
     newContainer->setCTimeNow();
-    lastContainer->addContainer(newContainer);
-    lastContainer = newContainer;
-    pContainerSvc->updateStore(lastContainer);
+    lastContainer->addContainer(newContainer.get());
+    lastContainer.swap(newContainer);
+    pContainerSvc->updateStore(lastContainer.get());
   }
 
   return lastContainer;
@@ -449,8 +452,8 @@ void HierarchicalView::removeContainer(const std::string& uri,
   std::vector<char*> elements;
   eos::PathProcessor::splitPath(elements, uriBuffer);
   size_t position;
-  IContainerMD* parent = findLastContainer(elements, elements.size() - 1,
-					   position);
+  std::unique_ptr<IContainerMD> parent =
+    findLastContainer(elements, elements.size() - 1, position);
 
   if ((position != (elements.size() - 1)))
   {
@@ -460,7 +463,7 @@ void HierarchicalView::removeContainer(const std::string& uri,
   }
 
   // Check if the container exist and remove it
-  IContainerMD* cont = parent->findContainer(elements[elements.size() - 1]);
+  std::unique_ptr<IContainerMD> cont {parent->findContainer(elements[elements.size() - 1])};
 
   if (!cont)
   {
@@ -480,21 +483,21 @@ void HierarchicalView::removeContainer(const std::string& uri,
   parent->removeContainer(cont->getName());
 
   if (recursive)
-    cleanUpContainer(cont);
+    cleanUpContainer(cont.get());
 
-  pContainerSvc->removeContainer(cont);
+  pContainerSvc->removeContainer(cont.get());
 }
 
 //------------------------------------------------------------------------------
 // Find the last existing container in the path
 //------------------------------------------------------------------------------
-IContainerMD* HierarchicalView::findLastContainer(std::vector<char*>& elements,
-						  size_t end, size_t& index,
-						  size_t* link_depths)
+std::unique_ptr<IContainerMD>
+HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
+				    size_t& index, size_t* link_depths)
 {
-  IContainerMD* current  = pRoot;
-  IContainerMD* found    = 0;
-  size_t       position = 0;
+  size_t position = 0;
+  std::unique_ptr<IContainerMD> found;
+  std::unique_ptr<IContainerMD> current {pContainerSvc->getContainerMD(1)};
 
   while (position < end)
   {
@@ -503,7 +506,7 @@ IContainerMD* HierarchicalView::findLastContainer(std::vector<char*>& elements,
     if (!found)
     {
       // check if link
-      IFileMD* flink = current->findFile(elements[position]);
+      std::unique_ptr<IFileMD> flink {current->findFile(elements[position])};
 
       if (flink)
       {
@@ -526,7 +529,7 @@ IContainerMD* HierarchicalView::findLastContainer(std::vector<char*>& elements,
 
 	  if (link[0] != '/')
 	  {
-	    link.insert(0, getUri(current));
+	    link.insert(0, getUri(current.get()));
 	    absPath(link);
 	  }
 
@@ -547,7 +550,7 @@ IContainerMD* HierarchicalView::findLastContainer(std::vector<char*>& elements,
       }
     }
 
-    current = found;
+    current.swap(found);
     ++position;
   }
 
@@ -571,7 +574,7 @@ void HierarchicalView::FileVisitor::visitFile(IFileMD* file)
   if (file->getContainerId() == 0)
     return;
 
-  IContainerMD* cont = 0;
+  std::unique_ptr<IContainerMD> cont;
 
   try
   {
@@ -583,7 +586,7 @@ void HierarchicalView::FileVisitor::visitFile(IFileMD* file)
     return;
 
   // Update quota stats
-  IQuotaNode* node = pView->getQuotaNode(cont);
+  IQuotaNode* node = pView->getQuotaNode(cont.get());
 
   if (node)
     node->addFile(file);
@@ -605,13 +608,22 @@ std::string HierarchicalView::getUri(const IContainerMD* container) const
   // Gather the uri elements
   std::vector<std::string> elements;
   elements.reserve(10);
-  const IContainerMD* cursor = container;
+  IContainerMD::id_t id;
+  std::unique_ptr<IContainerMD> cursor {const_cast<IContainerMD*>(container)};
 
   while (cursor->getId() != 1)
   {
     elements.push_back(cursor->getName());
-    cursor = pContainerSvc->getContainerMD(cursor->getParentId());
+    id = cursor->getParentId();
+
+    if (cursor.get() == container)
+      cursor.release();
+
+    cursor = pContainerSvc->getContainerMD(id);
   }
+
+  if (cursor.get() == container)
+    cursor.release();
 
   // Assemble the uri
   std::string path = "/";
@@ -640,8 +652,8 @@ std::string HierarchicalView::getUri(const IFileMD* file) const
   }
 
   // Get the uri
-  std::string path = getUri(pContainerSvc->getContainerMD(
-			      file->getContainerId()));
+  std::unique_ptr<IContainerMD> cont = pContainerSvc->getContainerMD(file->getContainerId());
+  std::string path = getUri(cont.get());
   return path + file->getName();
 }
 
@@ -649,7 +661,7 @@ std::string HierarchicalView::getUri(const IFileMD* file) const
 // Get quota node id concerning given container
 //------------------------------------------------------------------------------
 IQuotaNode* HierarchicalView::getQuotaNode(const IContainerMD* container,
-    bool search)
+					   bool search)
 {
   // Initial sanity check
   if (!container)
@@ -667,14 +679,20 @@ IQuotaNode* HierarchicalView::getQuotaNode(const IContainerMD* container,
   }
 
   // Search for the node
-  const IContainerMD* current = container;
+  IContainerMD::id_t id;
+  std::unique_ptr<IContainerMD> current {const_cast<IContainerMD*>(container)};
 
   if (search)
   {
     while (current->getName() != pRoot->getName() &&
 	   (current->getFlags() & QUOTA_NODE_FLAG) == 0)
     {
-      current = pContainerSvc->getContainerMD(current->getParentId());
+      id = current->getParentId();
+
+      if (current.get() == container)
+	current.release();
+
+      current = pContainerSvc->getContainerMD(id);
     }
   }
 
@@ -684,12 +702,17 @@ IQuotaNode* HierarchicalView::getQuotaNode(const IContainerMD* container,
   if ((current->getFlags() & QUOTA_NODE_FLAG) == 0)
     return 0;
 
-  IQuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
+  id = current->getId();
+
+  if (current.get() == container)
+    current.release();
+
+  IQuotaNode* node = pQuotaStats->getQuotaNode(id);
 
   if (node)
     return node;
 
-  return pQuotaStats->registerNewNode(current->getId());
+  return pQuotaStats->registerNewNode(id);
 }
 
 //------------------------------------------------------------------------------
@@ -756,9 +779,11 @@ void HierarchicalView::removeQuotaNode(IContainerMD* container)
   IQuotaNode* node   = getQuotaNode(container);
   IQuotaNode* parent = 0;
 
-  if (container != pRoot)
-    parent = getQuotaNode(pContainerSvc->getContainerMD(container->getParentId()),
+  if (container->getId() != 1)
+  {
+    parent = getQuotaNode(pContainerSvc->getContainerMD(container->getParentId()).get(),
 			  true);
+  }
 
   container->getFlags() &= ~QUOTA_NODE_FLAG;
   updateContainerStore(container);
@@ -803,7 +828,7 @@ void HierarchicalView::renameContainer(IContainerMD* container,
     throw ex;
   }
 
-  IContainerMD* parent = pContainerSvc->getContainerMD(container->getParentId());
+  std::unique_ptr<IContainerMD> parent {pContainerSvc->getContainerMD(container->getParentId())};
 
   if (parent->findContainer(newName))
   {
@@ -851,7 +876,7 @@ void HierarchicalView::renameFile(IFileMD* file, const std::string& newName)
     throw ex;
   }
 
-  IContainerMD* parent = pContainerSvc->getContainerMD(file->getContainerId());
+  std::unique_ptr<IContainerMD> parent {pContainerSvc->getContainerMD(file->getContainerId())};
 
   if (parent->findContainer(newName))
   {

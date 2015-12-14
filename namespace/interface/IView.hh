@@ -89,8 +89,9 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual IFileMD *getFile( const std::string &uri, bool follow = true,
-                                size_t* link_depths = 0 ) = 0;
+      virtual std::unique_ptr<IFileMD> getFile( const std::string &uri,
+						bool follow = true,
+						size_t* link_depths = 0 ) = 0;
 
       //------------------------------------------------------------------------
       //! Update file store
@@ -100,8 +101,9 @@ namespace eos
       //------------------------------------------------------------------------
       //! Create a file for given uri
       //------------------------------------------------------------------------
-      virtual IFileMD *createFile( const std::string &uri,
-                                 uid_t uid = 0, gid_t gid = 0 ) = 0;
+      virtual std::unique_ptr<IFileMD> createFile( const std::string &uri,
+						   uid_t uid = 0,
+						   gid_t gid = 0 ) = 0;
 
       //------------------------------------------------------------------------
       //! Create a link for given uri
@@ -133,15 +135,15 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual IContainerMD *getContainer( const std::string &uri,
-                                          bool follow = true,
-                                          size_t* link_depths = 0) = 0;
+      virtual std::unique_ptr<IContainerMD> getContainer( const std::string &uri,
+							  bool follow = true,
+							  size_t* link_depths = 0) = 0;
 
       //------------------------------------------------------------------------
       //! Create a container (directory)
       //------------------------------------------------------------------------
-      virtual IContainerMD *createContainer( const std::string &uri,
-                                            bool createParents = false ) = 0;
+      virtual std::unique_ptr<IContainerMD> createContainer( const std::string &uri,
+							     bool createParents = false ) = 0;
 
       //------------------------------------------------------------------------
       //! Update container store
@@ -149,10 +151,10 @@ namespace eos
       virtual void updateContainerStore( IContainerMD *container ) = 0;
 
       //------------------------------------------------------------------------
-      //! Remove a container (directory) 
+      //! Remove a container (directory)
       //------------------------------------------------------------------------
       virtual void removeContainer( const std::string &uri,
-                                    bool recursive = false ) = 0;
+				    bool recursive = false ) = 0;
 
       //------------------------------------------------------------------------
       //! Get uri for the container
@@ -168,7 +170,7 @@ namespace eos
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
       virtual IQuotaNode *getQuotaNode( const IContainerMD *container,
-                                        bool search=true ) = 0;
+					bool search=true ) = 0;
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
@@ -195,8 +197,8 @@ namespace eos
       //! Rename container
       //------------------------------------------------------------------------
       virtual void renameContainer( IContainerMD *container,
-                                    const std::string &newName ) = 0;
- 
+				    const std::string &newName ) = 0;
+
       //------------------------------------------------------------------------
       //! Rename file
       //------------------------------------------------------------------------

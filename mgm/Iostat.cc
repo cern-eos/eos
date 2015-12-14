@@ -1059,7 +1059,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
             }
             catch (eos::MDException &e)
             {
@@ -1079,7 +1079,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
             }
             catch (eos::MDException &e)
             {
@@ -1107,7 +1107,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
             }
             catch (eos::MDException &e)
             {
@@ -1133,7 +1133,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
             eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
             try
             {
-              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid));
+              path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(fid).get());
             }
             catch (eos::MDException &e)
             {

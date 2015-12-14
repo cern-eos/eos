@@ -51,7 +51,8 @@ void ContainerMDSvc::initialize()
 //----------------------------------------------------------------------------
 // Get the container metadata information
 //----------------------------------------------------------------------------
-IContainerMD* ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
+std::unique_ptr<IContainerMD>
+ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 {
   std::string blob;
   std::string key = std::to_string(id) + constants::sContKeySuffix;
@@ -67,22 +68,22 @@ IContainerMD* ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     throw e;
   }
 
-  ContainerMD* cont {new ContainerMD(0, pFileSvc,
+  std::unique_ptr<ContainerMD> cont {new ContainerMD(0, pFileSvc,
 				     static_cast<IContainerMDSvc*>(this))};
   cont->deserialize(blob);
-  return cont;
+  return std::move(cont);
 }
 
 //----------------------------------------------------------------------------
 // Create a new container metadata object
 //----------------------------------------------------------------------------
-IContainerMD* ContainerMDSvc::createContainer()
+std::unique_ptr<IContainerMD> ContainerMDSvc::createContainer()
 {
   // Get the first free container id
   uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				     constants::sFirstFreeCid, 1);
-  IContainerMD* cont = new ContainerMD(free_id, pFileSvc,
-				       static_cast<IContainerMDSvc*>(this));
+  std::unique_ptr<IContainerMD> cont {new ContainerMD(free_id, pFileSvc,
+				      static_cast<IContainerMDSvc*>(this))};
   // Increase total number of containers
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
   return cont;
@@ -122,35 +123,35 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Add change listener
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ContainerMDSvc::addChangeListener(IContainerMDChangeListener* listener)
 {
   pListeners.push_back(listener);
 }
 
-//------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Create container in parent
-//------------------------------------------------------------------------
-IContainerMD* ContainerMDSvc::createInParent(const std::string& name,
-					     IContainerMD* parent)
+//------------------------------------------------------------------------------
+std::unique_ptr<IContainerMD>
+ContainerMDSvc::createInParent(const std::string& name, IContainerMD* parent)
 {
-  IContainerMD* container = createContainer();
+  std::unique_ptr<IContainerMD> container = createContainer();
   container->setName(name);
-  parent->addContainer(container);
-  updateStore(container);
+  parent->addContainer(container.get());
+  updateStore(container.get());
   return container;
 }
 
 //----------------------------------------------------------------------------
 // Get the lost+found container, create if necessary
 //----------------------------------------------------------------------------
-IContainerMD* ContainerMDSvc::getLostFound()
+std::unique_ptr<IContainerMD> ContainerMDSvc::getLostFound()
 {
   // Get root
-  IContainerMD* root = 0;
+  std::unique_ptr<IContainerMD> root;
 
   try
   {
@@ -160,39 +161,38 @@ IContainerMD* ContainerMDSvc::getLostFound()
   {
     root = createContainer();
     root->setParentId(root->getId());
-    updateStore(root);
+    updateStore(root.get());
   }
 
   // Get or create lost+found if necessary
-  IContainerMD* lostFound = root->findContainer("lost+found");
+  std::unique_ptr<IContainerMD> lostFound = root->findContainer("lost+found");
 
   if (lostFound)
   {
-    delete root;
-    return lostFound;
+    return std::move(lostFound);
   }
 
-  lostFound = createInParent("lost+found", root);
-  delete root;
-  return lostFound;
+  lostFound = createInParent("lost+found", root.get());
+  return std::move(lostFound);
 }
 
 //----------------------------------------------------------------------------
 // Get the orphans container
 //----------------------------------------------------------------------------
-IContainerMD* ContainerMDSvc::getLostFoundContainer(const std::string& name)
+std::unique_ptr<IContainerMD>
+ContainerMDSvc::getLostFoundContainer(const std::string& name)
 {
-  IContainerMD* lostFound = getLostFound();
+  std::unique_ptr<IContainerMD> lostFound = getLostFound();
 
   if (name.empty())
-    return lostFound;
+    return std::move(lostFound);
 
-  IContainerMD* cont = lostFound->findContainer(name);
+  std::unique_ptr<IContainerMD> cont = lostFound->findContainer(name);
 
   if (cont)
-    return cont;
+    return std::move(cont);
 
-  return createInParent(name, lostFound);
+  return std::move(createInParent(name, lostFound.get()));
 }
 
 //------------------------------------------------------------------------------

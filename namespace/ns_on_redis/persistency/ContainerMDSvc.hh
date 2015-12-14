@@ -73,13 +73,13 @@ public:
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //----------------------------------------------------------------------------
-  virtual IContainerMD* getContainerMD(IContainerMD::id_t id);
+  virtual std::unique_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //----------------------------------------------------------------------------
-  virtual IContainerMD* createContainer();
+  virtual std::unique_ptr<IContainerMD> createContainer();
 
   //----------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
@@ -106,18 +106,18 @@ public:
   //----------------------------------------------------------------------------
   //! Create container in parent
   //----------------------------------------------------------------------------
-  IContainerMD* createInParent(const std::string& name,
-			       IContainerMD* parent);
+  std::unique_ptr<IContainerMD> createInParent(const std::string& name,
+					       IContainerMD* parent);
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
   //----------------------------------------------------------------------------
-  IContainerMD* getLostFound();
+  std::unique_ptr<IContainerMD> getLostFound();
 
   //----------------------------------------------------------------------------
   //! Get the orphans container
   //----------------------------------------------------------------------------
-  IContainerMD* getLostFoundContainer(const std::string& name);
+  std::unique_ptr<IContainerMD> getLostFoundContainer(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Set file metadata service

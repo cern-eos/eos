@@ -72,7 +72,7 @@ XrdMgmOfs::_find (const char *path,
   std::vector< std::vector<std::string> > found_dirs;
 
   // try if that is directory
-  eos::IContainerMD* cmd = 0;
+  std::unique_ptr<eos::IContainerMD> cmd;
   std::string Path = path;
   XrdOucString sPath = path;
   errno = 0;
@@ -136,7 +136,7 @@ XrdMgmOfs::_find (const char *path,
       catch (eos::MDException &e)
       {
         errno = e.getErrno();
-        cmd = 0;
+        cmd.reset(nullptr);
         eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                   e.getErrno(), e.getMessage().str().c_str());
       }

@@ -81,7 +81,8 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Find sub container
   //----------------------------------------------------------------------------
-  virtual IContainerMD* findContainer(const std::string& name) = 0;
+  virtual std::unique_ptr<IContainerMD>
+  findContainer(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
@@ -101,7 +102,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  virtual IFileMD* findFile(const std::string& name) = 0;
+  virtual std::unique_ptr<IFileMD> findFile(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files
@@ -262,7 +263,7 @@ class IContainerMD
   //! Add extended attribute
   //----------------------------------------------------------------------------
   virtual void setAttribute(const std::string& name,
-                            const std::string& value) = 0;
+			    const std::string& value) = 0;
 
   //----------------------------------------------------------------------------
   //! Remove attribute

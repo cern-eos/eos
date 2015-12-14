@@ -78,7 +78,7 @@ void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
 
   while ((iId > 1) && (deepness < 255))
   {
-    IContainerMD* iCont = 0;
+    std::unique_ptr<IContainerMD> iCont;
 
     try
     {

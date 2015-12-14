@@ -528,7 +528,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   eos::common::Mapping::VirtualIdentity_t root_ident;
   eos::common::Mapping::Root(root_ident);
   XrdOucErrInfo out_error;
-  XrdMgmOfsDirectory proc_dir = XrdMgmOfsDirectory();
+  XrdMgmOfsDirectory proc_dir;
   int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
                             root_ident, static_cast<const char*>(0));
 
@@ -550,7 +550,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
   proc_dir.close();
   std::istringstream iss;
-  eos::IContainerMD* cmd = 0;
+  std::unique_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::id_t id;
   std::vector<ArchDirStatus> dirs;
 
@@ -568,7 +568,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
       try
       {
         cmd = gOFS->eosDirectoryService->getContainerMD(id);
-        full_path = gOFS->eosView->getUri(cmd);
+        full_path = gOFS->eosView->getUri(cmd.get());
 
         // If archive directory is in the currently searched subtree
         if (full_path.find(root) == 0)

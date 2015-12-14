@@ -35,47 +35,6 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
 }
 
 //------------------------------------------------------------------------------
-// Virtual copy constructor
-//------------------------------------------------------------------------------
-FileMD*
-FileMD::clone() const
-{
-  return new FileMD(*this);
-}
-
-//------------------------------------------------------------------------------
-// Copy constructor
-//------------------------------------------------------------------------------
-FileMD::FileMD(const FileMD& other)
-{
-  *this = other;
-}
-
-//------------------------------------------------------------------------------
-// Asignment operator
-//------------------------------------------------------------------------------
-FileMD&
-FileMD::operator = (const FileMD& other)
-{
-  pName        = other.pName;
-  pId          = other.pId;
-  pSize        = other.pSize;
-  pContainerId = other.pContainerId;
-  pCUid        = other.pCUid;
-  pCGid        = other.pCGid;
-  pLayoutId    = other.pLayoutId;
-  pFlags       = other.pFlags;
-  pLinkName    = other.pLinkName;
-  pLocation    = other.pLocation;
-  pUnlinkedLocation = other.pUnlinkedLocation;
-  pCTime       = other.pCTime;
-  pMTime       = other.pMTime;
-  pChecksum    = other.pChecksum;
-  pFileMDSvc   = 0;
-  return *this;
-}
-
-//------------------------------------------------------------------------------
 // Add location
 //------------------------------------------------------------------------------
 void FileMD::addLocation(location_t location)

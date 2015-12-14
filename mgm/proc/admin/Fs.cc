@@ -392,7 +392,7 @@ ProcCommand::Fs ()
              eos::IFsView::FileIterator it;
              for (it = filelist.begin(); it != filelist.end(); ++it)
              {
-               eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(*it);
+	       std::unique_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(*it);
 
                if (fmd)
                {
@@ -434,7 +434,7 @@ ProcCommand::Fs ()
 		       if (listfile) 
                        {
 			 filelisting += "status=offline path=";
-			 filelisting += gOFS->eosView->getUri(fmd).c_str();
+			 filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
 			 filelisting += "\n";
 		       }
                      }
@@ -446,7 +446,7 @@ ProcCommand::Fs ()
 			 if (listfile)
 			 {
 			   filelisting += "status=atrisk  path=";
-			   filelisting += gOFS->eosView->getUri(fmd).c_str();
+			   filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
 			   filelisting += "\n";
 			 }
                        }
@@ -461,7 +461,7 @@ ProcCommand::Fs ()
 		     if (listfile) 
 		     {
 		       filelisting += "status=offline path=";
-		       filelisting += gOFS->eosView->getUri(fmd).c_str();
+		       filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
 		       filelisting += "\n";
 		     }
                    }

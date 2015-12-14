@@ -55,9 +55,8 @@ XrdMgmOfs::_touch (const char *path,
   gOFS->MgmStats.Add("Touch", vid.uid, vid.gid, 1);
 
   // Perform the actual deletion
-  //
   errno = 0;
-  eos::IFileMD* fmd = 0;
+  std::unique_ptr<eos::IFileMD> fmd;
 
   if (_access(path, W_OK, error, vid, ininfo))
   {
@@ -87,16 +86,16 @@ XrdMgmOfs::_touch (const char *path,
       fmd->setCTimeNow();
       fmd->setSize(0);
     }
-    fmd->setMTimeNow();
-    gOFS->eosView->updateFileStore(fmd);
 
+    fmd->setMTimeNow();
+    gOFS->eosView->updateFileStore(fmd.get());
     unsigned long long cid = fmd->getContainerId();
-    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+    std::unique_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);
     cmd->setMTime(mtime);
     cmd->notifyMTimeChange( gOFS->eosDirectoryService );
-    gOFS->eosView->updateContainerStore(cmd);
+    gOFS->eosView->updateContainerStore(cmd.get());
     errno = 0;
   }
   catch (eos::MDException &e)
@@ -105,10 +104,12 @@ XrdMgmOfs::_touch (const char *path,
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
+
   if (errno)
   {
     return Emsg("utimes", error, errno, "touch", path);
   }
+
   EXEC_TIMING_END("Touch");
   return SFS_OK;
 }

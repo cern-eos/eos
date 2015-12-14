@@ -125,7 +125,7 @@ XrdMgmOfs::_mkdir (const char *path,
     {
       try
       {
-	dir.reset(eosView->getContainer(cPath.GetParentPath()));
+	dir = eosView->getContainer(cPath.GetParentPath());
       }
       catch (eos::MDException &e)
       {
@@ -236,7 +236,7 @@ XrdMgmOfs::_mkdir (const char *path,
       // Only if the parent exists, can the full path exist!
       try
       {
-	fulldir.reset(eosView->getContainer(path));
+	fulldir = eosView->getContainer(path);
       }
       catch (eos::MDException &e)
       {
@@ -275,7 +275,7 @@ XrdMgmOfs::_mkdir (const char *path,
 
 	try
 	{
-	  dir.reset(eosView->getContainer(cPath.GetSubPath(i)));
+	  dir = eosView->getContainer(cPath.GetSubPath(i));
 	  existingdir = cPath.GetSubPath(i);
 	  d_uid = dir->getCUid();
 	  d_gid = dir->getCGid();

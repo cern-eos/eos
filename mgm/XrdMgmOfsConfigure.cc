@@ -130,12 +130,12 @@ XrdMgmOfs::InitializeFileView ()
 	XrdOucErrInfo error;
 	eos::common::Mapping::VirtualIdentity vid;
 	eos::common::Mapping::Root(vid);
-	eos::IFileMD* fmd = 0;
+	std::unique_ptr<eos::IFileMD> fmd;
 
 	try
 	{
 	  fmd = eosView->getFile(procpathwhoami.c_str());
-	  fmd = 0;
+	  fmd.reset(nullptr);
 	}
 	catch (eos::MDException &e)
 	{
@@ -145,13 +145,13 @@ XrdMgmOfs::InitializeFileView ()
 	if (fmd)
 	{
 	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd);
+	  eosView->updateFileStore(fmd.get());
 	}
 
 	try
 	{
 	  fmd = eosView->getFile(procpathwho.c_str());
-	  fmd = 0;
+	  fmd.reset(nullptr);
 	}
 	catch (eos::MDException &e)
 	{
@@ -161,13 +161,13 @@ XrdMgmOfs::InitializeFileView ()
 	if (fmd)
 	{
 	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd);
+	  eosView->updateFileStore(fmd.get());
 	}
 
 	try
 	{
 	  fmd = eosView->getFile(procpathquota.c_str());
-	  fmd = 0;
+	  fmd.reset(nullptr);
 	}
 	catch (eos::MDException &e)
 	{
@@ -177,13 +177,13 @@ XrdMgmOfs::InitializeFileView ()
 	if (fmd)
 	{
 	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd);
+	  eosView->updateFileStore(fmd.get());
 	}
 
 	try
 	{
 	  fmd = eosView->getFile(procpathreconnect.c_str());
-	  fmd = 0;
+	  fmd.reset(nullptr);
 	}
 	catch (eos::MDException &e)
 	{
@@ -193,13 +193,13 @@ XrdMgmOfs::InitializeFileView ()
 	if (fmd)
 	{
 	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd);
+	  eosView->updateFileStore(fmd.get());
 	}
 
 	try
 	{
 	  fmd = eosView->getFile(procpathmaster.c_str());
-	  fmd = 0;
+	  fmd.reset(nullptr);
 	}
 	catch (eos::MDException &e)
 	{
@@ -209,7 +209,7 @@ XrdMgmOfs::InitializeFileView ()
 	if (fmd)
 	{
 	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd);
+	  eosView->updateFileStore(fmd.get());
 	}
 
 	{
@@ -1595,7 +1595,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     return 1;
 
   // Check the '/' directory
-  eos::IContainerMD* rootmd;
+  std::unique_ptr<eos::IContainerMD> rootmd;
 
   try
   {
@@ -1639,7 +1639,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (MgmMaster.IsMaster())
   {
     // create /eos
-    eos::IContainerMD* eosmd = 0;
+    std::unique_ptr<eos::IContainerMD> eosmd;
     try
     {
       eosmd = eosView->getContainer("/eos/");
@@ -1647,7 +1647,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     catch (eos::MDException &e)
     {
       // nothing in this case
-      eosmd = 0;
+      eosmd.reset(nullptr);
     }
 
     if (!eosmd)
@@ -1660,7 +1660,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 		       S_IWGRP | S_IXGRP | S_ISGID);
 	// set default checksum 'adler'
 	eosmd->setAttribute("sys.forced.checksum", "adler");
-	eosView->updateContainerStore(eosmd);
+	eosView->updateContainerStore(eosmd.get());
 	eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
       }
       catch (eos::MDException &e)
@@ -1690,7 +1690,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 	// set attribute inheritance
 	eosmd->setMode(S_IFDIR | S_IRWXU);
 
-	eosView->updateContainerStore(eosmd);
+	eosView->updateContainerStore(eosmd.get());
 	eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
 		 eosmd->getMode());
       }
@@ -1719,7 +1719,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 	eosmd = eosView->createContainer(MgmProcPath.c_str(), true);
 	// set attribute inheritance
 	eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
-	eosView->updateContainerStore(eosmd);
+	eosView->updateContainerStore(eosmd.get());
       }
       catch (eos::MDException &e)
       {
@@ -1735,7 +1735,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eosmd = eosView->getContainer(MgmProcConversionPath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // conversion directory is owned by daemon
-      eosView->updateContainerStore(eosmd);
+      eosView->updateContainerStore(eosmd.get());
     }
     catch (eos::MDException &e)
     {
@@ -1749,7 +1749,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 	eosmd = eosView->createContainer(MgmProcConversionPath.c_str(), true);
 	// set attribute inheritance
 	eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-	eosView->updateContainerStore(eosmd);
+	eosView->updateContainerStore(eosmd.get());
       }
       catch (eos::MDException &e)
       {
@@ -1766,7 +1766,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eosmd = eosView->getContainer(MgmProcArchivePath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // archive directory is owned by daemon
-      eosView->updateContainerStore(eosmd);
+      eosView->updateContainerStore(eosmd.get());
     }
     catch (eos::MDException &e)
     {
@@ -1780,7 +1780,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 	eosmd = eosView->createContainer(MgmProcArchivePath.c_str(), true);
 	// Set attribute inheritance
 	eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-	eosView->updateContainerStore(eosmd);
+	eosView->updateContainerStore(eosmd.get());
       }
       catch (eos::MDException &e)
       {

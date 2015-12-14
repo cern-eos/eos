@@ -213,7 +213,7 @@
         }
         else
         {
-          eos::IFileMD* fmd = 0;
+	  std::unique_ptr<eos::IFileMD> fmd;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;
@@ -224,7 +224,7 @@
           try
           {
             fmd = gOFS->eosFileService->getFileMD(fid);
-            fullpath = gOFS->eosView->getUri(fmd);
+            fullpath = gOFS->eosView->getUri(fmd.get());
 	    XrdOucString savepath=fullpath.c_str();
 	    while (savepath.replace("&", "#AND#")){}
 	    fullpath = savepath.c_str();
@@ -237,7 +237,7 @@
           }
           catch (eos::MDException &e)
           {
-            fmd = 0;
+            fmd.reset(nullptr);
           }
 
           if (fmd)

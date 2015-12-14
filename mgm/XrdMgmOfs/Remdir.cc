@@ -108,8 +108,9 @@ XrdMgmOfs::_remdir (const char *path,
 
   gOFS->MgmStats.Add("RmDir", vid.uid, vid.gid, 1);
 
-  eos::IContainerMD* dhpar = 0;
-  eos::IContainerMD* dh = 0;
+  std::unique_ptr<eos::IContainerMD> dhpar;
+  std::unique_ptr<eos::IContainerMD> dh;
+  eos::IContainerMD::id_t dh_id = 0;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
 
@@ -128,19 +129,19 @@ XrdMgmOfs::_remdir (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-
   std::string aclpath;
+
   try
   {
     dh = gOFS->eosView->getContainer(path);
-    eos::common::Path pPath(gOFS->eosView->getUri(dh).c_str());
+    eos::common::Path pPath(gOFS->eosView->getUri(dh.get()).c_str());
     dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
     aclpath = pPath.GetParentPath();
   }
   catch (eos::MDException &e)
   {
-    dhpar = 0;
-    dh = 0;
+    dh.reset(nullptr);
+    dhpar.reset(nullptr);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 	      e.getErrno(), e.getMessage().str().c_str());
@@ -217,7 +218,7 @@ XrdMgmOfs::_remdir (const char *path,
       {
 	dhpar->setMTimeNow();
 	dhpar->notifyMTimeChange( gOFS->eosDirectoryService );
-	eosView->updateContainerStore(dhpar);
+	eosView->updateContainerStore(dhpar.get());
       }
       eosView->removeContainer(path);
     }

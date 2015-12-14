@@ -83,13 +83,14 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //------------------------------------------------------------------------
-  virtual IContainerMD* getContainerMD(IContainerMD::id_t id) = 0;
+  virtual std::unique_ptr<IContainerMD>
+  getContainerMD(IContainerMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual IContainerMD* createContainer() = 0;
+  virtual std::unique_ptr<IContainerMD> createContainer() = 0;
 
   //------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
@@ -124,18 +125,19 @@ class IContainerMDSvc
   //! Notify all subscribed listener
   //----------------------------------------------------------------------------
   virtual void notifyListeners( IContainerMD *obj,
-                                IContainerMDChangeListener::Action a  ) = 0;
+				IContainerMDChangeListener::Action a  ) = 0;
 
   //----------------------------------------------------------------------------
   //! Get the orphans container
   //----------------------------------------------------------------------------
-  virtual IContainerMD* getLostFoundContainer(const std::string &name) = 0;
+  virtual std::unique_ptr<IContainerMD>
+  getLostFoundContainer(const std::string &name) = 0;
 
   //------------------------------------------------------------------------
   // Create container in parent
   //------------------------------------------------------------------------
-  virtual IContainerMD* createInParent(const std::string& name,
-				       IContainerMD* parent) = 0;
+  virtual std::unique_ptr<IContainerMD>
+  createInParent(const std::string& name, IContainerMD* parent) = 0;
 
   //----------------------------------------------------------------------------
   //! Set file metadata service

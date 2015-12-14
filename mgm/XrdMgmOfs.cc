@@ -290,7 +290,7 @@ XrdMgmOfs::HasRedirect (const char* path,
   }
   else
     return false;
-  }
+}
 
 //------------------------------------------------------------------------------
 // Return the version of the MGM software

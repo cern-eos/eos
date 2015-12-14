@@ -108,11 +108,10 @@ XrdMgmOfs::_chmod (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::IContainerMD* cmd = 0;
-  eos::IContainerMD* pcmd = 0;
-  eos::IFileMD* fmd = 0;
+  std::unique_ptr<eos::IContainerMD> cmd;
+  std::unique_ptr<eos::IContainerMD> pcmd;
+  std::unique_ptr<eos::IFileMD> fmd;
   eos::IContainerMD::XAttrMap attrmap;
-
   errno = 0;
   gOFS->MgmStats.Add("Chmod", vid.uid, vid.gid, 1);
   eos_info("path=%s mode=%o", path, Mode);
@@ -130,9 +129,7 @@ XrdMgmOfs::_chmod (const char *path,
   if (!cmd)
   {
     errno = 0;
-    // ---------------------------------------------------------------------------
-    // try if this is a file
-    // ---------------------------------------------------------------------------
+    // Check if this is a file
     try
     {
       fmd = gOFS->eosView->getFile(path);
@@ -148,10 +145,15 @@ XrdMgmOfs::_chmod (const char *path,
     try
     {
       std::string uri;
+
       if (cmd)
-	uri = gOFS->eosView->getUri(cmd);
+      {
+	uri = gOFS->eosView->getUri(cmd.get());
+      }
       else
-	uri = gOFS->eosView->getUri(fmd);
+      {
+	uri = gOFS->eosView->getUri(fmd.get());
+      }
 
       eos::common::Path pPath(uri.c_str());
       pcmd =gOFS->eosView->getContainer(pPath.GetParentPath());
@@ -198,21 +200,22 @@ XrdMgmOfs::_chmod (const char *path,
 	    mask |= 0777000;
 	  }
 
-	  eosView->updateContainerStore(pcmd);
+	  eosView->updateContainerStore(pcmd.get());
+
           if (cmd)
           {
 	    Mode &= mask;
             cmd->setMode(Mode | S_IFDIR);
 	    cmd->setCTimeNow();
             // store the in-memory modification time for this directory
-            eosView->updateContainerStore(cmd);
+            eosView->updateContainerStore(cmd.get());
           }
           if (fmd)
           {
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
             fmd->setFlags(Mode);
-            eosView->updateFileStore(fmd);
+            eosView->updateFileStore(fmd.get());
           }
           errno = 0;
         }

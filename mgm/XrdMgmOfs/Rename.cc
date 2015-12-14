@@ -250,10 +250,10 @@ XrdMgmOfs::_rename (const char *old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
-  eos::IContainerMD* dir = 0;
-  eos::IContainerMD* newdir = 0;
-  eos::IContainerMD* rdir = 0;
-  eos::IFileMD* file = 0;
+  std::unique_ptr<eos::IContainerMD> dir = 0;
+  std::unique_ptr<eos::IContainerMD> newdir = 0;
+  std::unique_ptr<eos::IContainerMD> rdir = 0;
+  std::unique_ptr<eos::IFileMD> file = 0;
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;
@@ -336,6 +336,7 @@ XrdMgmOfs::_rename (const char *old_name,
 
   // List of source files if a directory is renamed
   std::map<std::string, std::set<std::string> > found;
+
   if (renameDir)
   {
     // For directory renaming which move into a different directory, we build
@@ -359,8 +360,8 @@ XrdMgmOfs::_rename (const char *old_name,
       dir = eosView->getContainer(oPath.GetParentPath());
       newdir = eosView->getContainer(nPath.GetParentPath());
       // Translate to paths without symlinks
-      std::string duri = eosView->getUri(dir);
-      std::string newduri = eosView->getUri(newdir);
+      std::string duri = eosView->getUri(dir.get());
+      std::string newduri = eosView->getUri(newdir.get());
       // Get symlink-free dir's
       dir = eosView->getContainer(duri);
       newdir = eosView->getContainer(newduri);
@@ -373,10 +374,10 @@ XrdMgmOfs::_rename (const char *old_name,
 
 	  if (file)
 	  {
-	    eosView->renameFile(file, nPath.GetName());
+            eosView->renameFile(file.get(), nPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange( gOFS->eosDirectoryService );
-            eosView->updateContainerStore(dir);
+            eosView->updateContainerStore(dir.get());
 	  }
 	}
 	else
@@ -399,17 +400,17 @@ XrdMgmOfs::_rename (const char *old_name,
 	    if (updateCTime)
 	      file->setCTimeNow();
 
-	    newdir->addFile(file);
-	    eosView->updateFileStore(file);
+	    newdir->addFile(file.get());
+	    eosView->updateFileStore(file.get());
 	    // Adjust the ns quota
-	    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir);
-	    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir);
+	    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir.get());
+	    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
 
 	    if (old_qnode)
-	      old_qnode->removeFile(file);
+	      old_qnode->removeFile(file.get());
 
 	    if (new_qnode)
-	      new_qnode->addFile(file);
+	      new_qnode->addFile(file.get());
 	  }
 	}
       }
@@ -440,7 +441,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		{
 		  std::string fspath = rfoundit->first;
 		  fspath += *fileit;
-		  eos::IFileMD* fmd = 0;
+		  std::unique_ptr<eos::IFileMD> fmd = 0;
 
 		  // Stat this file and add to the deletion maps
 		  try
@@ -509,14 +510,14 @@ XrdMgmOfs::_rename (const char *old_name,
 		if (file)
 		{
 		  // Get quota nodes from file path and target directory
-		  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir);
-		  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir);
+		  eos::IQuotaNode* old_qnode = eosView->getQuotaNode(rdir.get());
+		  eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
 
 		  if (old_qnode)
-		    old_qnode->removeFile(file);
+		    old_qnode->removeFile(file.get());
 
 		  if (new_qnode)
-		    new_qnode->addFile(file);
+		    new_qnode->addFile(file.get());
 		}
 	      }
 	    }
@@ -525,10 +526,10 @@ XrdMgmOfs::_rename (const char *old_name,
 	  if (nP == oP)
 	  {
 	    // Rename within a container
-	    eosView->renameContainer(rdir, nPath.GetName());
+            eosView->renameContainer(rdir.get(), nPath.GetName());
 	    dir->setMTimeNow();
 	    dir->notifyMTimeChange( gOFS->eosDirectoryService );
-	    eosView->updateContainerStore(dir);	     
+	    eosView->updateContainerStore(dir.get());	     
 	  }
 	  else
 	  {
@@ -570,31 +571,25 @@ XrdMgmOfs::_rename (const char *old_name,
 
 	      {
 		// update the target directory - add the directory
-		newdir->addContainer(rdir);
+		newdir->addContainer(rdir.get());
 		newdir->setMTimeNow();
 		if (gOFS->eosSyncTimeAccounting)
 		{
 		  newdir->addTreeSize(tree_size);
 		}
 		newdir->notifyMTimeChange( gOFS->eosDirectoryService );
-		eosView->updateContainerStore(newdir);
-	      }
-
-
-	      {
-		// update to recursive accounting if enabled
-		
-	      }
+		eosView->updateContainerStore(newdir.get());
+              }
 	  }
 	}
 
-	file = 0;
+	file.reset(nullptr);
       }
     }
     catch (eos::MDException& e)
     {
-      dir = 0;
-      file = 0;
+      dir.reset(nullptr);
+      file.reset(nullptr);
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		e.getErrno(), e.getMessage().str().c_str());

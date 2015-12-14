@@ -45,7 +45,8 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  HierarchicalView(): pContainerSvc(0), pFileSvc(0), pRoot(0)
+  HierarchicalView(): pContainerSvc(0), pFileSvc(0),
+		      pRoot(std::unique_ptr<IContainerMD>(nullptr))
   {
     pQuotaStats = new QuotaStats();
   }
@@ -113,14 +114,14 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri
   //----------------------------------------------------------------------------
-  virtual IFileMD* getFile(const std::string& uri, bool follow = true,
-			   size_t* link_depths = 0);
+  virtual std::unique_ptr<IFileMD>
+  getFile(const std::string& uri, bool follow = true, size_t* link_depths = 0);
 
   //----------------------------------------------------------------------------
   //! Create a file for given uri
   //----------------------------------------------------------------------------
-  virtual IFileMD* createFile(const std::string& uri,
-			      uid_t uid = 0, gid_t gid = 0);
+  virtual std::unique_ptr<IFileMD>
+  createFile(const std::string& uri, uid_t uid = 0, gid_t gid = 0);
 
   //----------------------------------------------------------------------------
   //! Create a link for given uri
@@ -155,15 +156,14 @@ public:
   //----------------------------------------------------------------------------
   //! Get a container (directory)
   //----------------------------------------------------------------------------
-  virtual IContainerMD* getContainer(const std::string& uri ,
-				     bool follow = true,
-				     size_t* link_depth = 0);
+  virtual std::unique_ptr<IContainerMD>
+  getContainer(const std::string& uri, bool follow = true, size_t* link_depth = 0);
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
   //----------------------------------------------------------------------------
-  virtual IContainerMD* createContainer(const std::string& uri,
-					bool createParents = false);
+  virtual std::unique_ptr<IContainerMD>
+  createContainer(const std::string& uri, bool createParents = false);
 
   //----------------------------------------------------------------------------
   //! Update container store
@@ -240,8 +240,10 @@ public:
 
 
 private:
-  IContainerMD* findLastContainer(std::vector<char*>& elements, size_t end,
-				  size_t& index, size_t* link_depths = 0);
+  std::unique_ptr<IContainerMD>
+  findLastContainer(std::vector<char*>& elements, size_t end,
+		    size_t& index, size_t* link_depths = 0);
+
   void cleanUpContainer(IContainerMD* cont);
 
   //----------------------------------------------------------------------------
@@ -269,7 +271,7 @@ private:
   IContainerMDSvc* pContainerSvc;
   IFileMDSvc*      pFileSvc;
   IQuotaStats*     pQuotaStats;
-  IContainerMD*    pRoot;
+  std::unique_ptr<IContainerMD> pRoot;
 };
 
 EOSNSNAMESPACE_END

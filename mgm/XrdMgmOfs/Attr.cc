@@ -248,12 +248,10 @@ XrdMgmOfs::_attr_ls (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_ls";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::unique_ptr<eos::IContainerMD> dh;
+  std::unique_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrLs");
-
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------
@@ -271,7 +269,7 @@ XrdMgmOfs::_attr_ls (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset(nullptr);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -282,15 +280,17 @@ XrdMgmOfs::_attr_ls (const char *path,
     {
       fmd = gOFS->eosView->getFile(path);
       eos::IFileMD::XAttrMap::const_iterator it;
+
       for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it)
       {
 	map[it->first] = it->second;
       }
+
       errno = 0;
     }
     catch (eos::MDException &e)
     {
-      fmd = 0;
+      fmd.reset(nullptr);
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }
@@ -315,7 +315,7 @@ XrdMgmOfs::_attr_ls (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh = 0;
+      dh.reset(nullptr);
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }
@@ -359,12 +359,10 @@ XrdMgmOfs::_attr_set (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_set";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::unique_ptr<eos::IContainerMD> dh;
+  std::unique_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrSet");
-
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
 
   if (!key || !value)
@@ -408,14 +406,14 @@ XrdMgmOfs::_attr_set (const char *path,
         dh->setAttribute(key, value);
 	dh->setMTimeNow();
 	dh->notifyMTimeChange( gOFS->eosDirectoryService );
-        eosView->updateContainerStore(dh);
+        eosView->updateContainerStore(dh.get());
         errno = 0;
       }
     }
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset(nullptr);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -427,8 +425,11 @@ XrdMgmOfs::_attr_set (const char *path,
     {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
+
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+      {
 	errno = EPERM;
+      }
       else
       {
 	// check permissions in case of user attributes
@@ -441,14 +442,14 @@ XrdMgmOfs::_attr_set (const char *path,
 	{
 	  fmd->setAttribute(key, value);
 	  fmd->setMTimeNow();
-	  eosView->updateFileStore(fmd);
+	  eosView->updateFileStore(fmd.get());
 	  errno = 0;
 	}
       }
     }
     catch (eos::MDException &e)
     {
-      fmd = 0;
+      fmd.reset(nullptr);
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		e.getErrno(), e.getMessage().str().c_str());
@@ -490,12 +491,10 @@ XrdMgmOfs::_attr_get (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_get";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::unique_ptr<eos::IContainerMD> dh;
+  std::unique_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrGet");
-
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
 
   if (!key)
@@ -531,7 +530,7 @@ XrdMgmOfs::_attr_get (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh = 0;
+      dh.reset(nullptr);
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
@@ -590,12 +589,10 @@ XrdMgmOfs::_attr_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_rm";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::unique_ptr<eos::IContainerMD> dh;
+  std::unique_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrRm");
-
   gOFS->MgmStats.Add("AttrRm", vid.uid, vid.gid, 1);
 
   if (!key)
@@ -607,8 +604,11 @@ XrdMgmOfs::_attr_rem (const char *path,
   {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
+
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+    {
       errno = EPERM;
+    }
     else
     {
       // TODO: REVIEW: check permissions
@@ -621,7 +621,7 @@ XrdMgmOfs::_attr_rem (const char *path,
 	if (dh->hasAttribute(key))
 	{
 	  dh->removeAttribute(key);
-	  eosView->updateContainerStore(dh);
+	  eosView->updateContainerStore(dh.get());
 	}
 	else
 	{
@@ -632,7 +632,7 @@ XrdMgmOfs::_attr_rem (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset(nullptr);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -643,8 +643,11 @@ XrdMgmOfs::_attr_rem (const char *path,
     {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
+
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+      {
 	errno = EPERM;
+      }
       else
       {
 	// check permissions
@@ -658,7 +661,7 @@ XrdMgmOfs::_attr_rem (const char *path,
 	  if (fmd->hasAttribute(key))
 	  {
 	    fmd->removeAttribute(key);
-	    eosView->updateFileStore(fmd);
+	    eosView->updateFileStore(fmd.get());
 	    errno = 0;
 	  }
 	  else
@@ -670,7 +673,7 @@ XrdMgmOfs::_attr_rem (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh = 0;
+      dh.reset(nullptr);
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }

@@ -46,8 +46,8 @@
 
     // ---------------------------------------------------------------------
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    eos::IFileMD* fmd = 0;
-    eos::IContainerMD* container = 0;
+    std::unique_ptr<eos::IFileMD> fmd;
+    std::unique_ptr<eos::IContainerMD> container;
     eos::IQuotaNode* ns_quota = 0;
 
     try
@@ -57,7 +57,7 @@
     catch (...)
     {
       eos_thread_warning("no meta record exists anymore for fid=%s", afid);
-      fmd = 0;
+      fmd.reset(nullptr);
     }
 
     if (fmd)
@@ -68,7 +68,7 @@
       }
       catch (eos::MDException &e)
       {
-        container = 0;
+        container.reset(nullptr);
       }
     }
 
@@ -76,10 +76,10 @@
     {
       try
       {
-        ns_quota = gOFS->eosView->getQuotaNode(container);
+        ns_quota = gOFS->eosView->getQuotaNode(container.get());
 
         if (ns_quota)
-          ns_quota->removeFile(fmd);
+          ns_quota->removeFile(fmd.get());
       }
       catch (eos::MDException &e)
       {
@@ -127,13 +127,13 @@
 
           if (updatestore)
           {
-            gOFS->eosView->updateFileStore(fmd);
+            gOFS->eosView->updateFileStore(fmd.get());
             // After update we have to get the new address - who knows ...
             fmd = eosFileService->getFileMD(eos::common::FileId::Hex2Fid(afid));
           }
 
           if (ns_quota)
-            ns_quota->addFile(fmd);
+            ns_quota->addFile(fmd.get());
         }
 
         // Finally delete the record if all replicas are dropped
@@ -143,10 +143,10 @@
           {
             // If we were still attached to a container, we can now detach
             // and count the file as removed
-            ns_quota->removeFile(fmd);
+            ns_quota->removeFile(fmd.get());
           }
 
-          gOFS->eosView->removeFile(fmd);
+          gOFS->eosView->removeFile(fmd.get());
         }
       }
       catch (...)
@@ -156,7 +156,6 @@
     }
 
     gOFS->MgmStats.Add("Drop", vid.uid, vid.gid, 1);
-
     const char* ok = "OK";
     error.setErrInfo(strlen(ok) + 1, ok);
     EXEC_TIMING_END("Drop");

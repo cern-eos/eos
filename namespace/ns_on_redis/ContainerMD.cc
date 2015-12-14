@@ -47,7 +47,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 // Find subcontainer
 //------------------------------------------------------------------------------
-IContainerMD*
+std::unique_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
   try
@@ -57,7 +57,7 @@ ContainerMD::findContainer(const std::string& name)
   }
   catch (std::runtime_error& e)
   {
-    return nullptr;
+    return std::unique_ptr<IContainerMD>(nullptr);
   }
 }
 
@@ -102,7 +102,7 @@ ContainerMD::addContainer(IContainerMD* container)
 //------------------------------------------------------------------------------
 // Find file
 //------------------------------------------------------------------------------
-IFileMD*
+std::unique_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
   try
@@ -112,7 +112,7 @@ ContainerMD::findFile(const std::string& name)
   }
   catch (std::runtime_error& e)
   {
-    return nullptr;
+    return std::unique_ptr<IFileMD>(nullptr);
   }
 }
 
@@ -151,7 +151,7 @@ ContainerMD::removeFile(const std::string& name)
   try
   {
     IFileMD::id_t fid = std::stoull(pRedox->hget(pFilesKey, name));
-    file.reset(pFileSvc->getFileMD(fid));
+    file = std::move(pFileSvc->getFileMD(fid));
   }
   catch (std::runtime_error& e)
   {
@@ -232,7 +232,8 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 
   for (auto itc = vect_cids.begin(); itc != vect_cids.end(); ++itc)
   {
-    std::unique_ptr<IContainerMD> cont {pContSvc->getContainerMD(std::stoull(*itc))};
+    std::unique_ptr<IContainerMD> cont =
+      std::move(pContSvc->getContainerMD(std::stoull(*itc)));
     cont->cleanUp(cont_svc, file_svc);
   }
 
@@ -263,8 +264,7 @@ ContainerMD::beginSubContainer()
   else
   {
     pIterSubCont = pSubCont.begin();
-    return std::unique_ptr<IContainerMD>
-    {pContSvc->getContainerMD(std::stoull(*pIterSubCont))};
+    return pContSvc->getContainerMD(std::stoull(*pIterSubCont));
   }
 }
 
@@ -281,8 +281,7 @@ ContainerMD::nextSubContainer()
   }
   else
   {
-    return std::unique_ptr<IContainerMD>
-      {pContSvc->getContainerMD(std::stoull(*pIterSubCont))};
+    return pContSvc->getContainerMD(std::stoull(*pIterSubCont));
   }
 }
 
@@ -303,10 +302,7 @@ ContainerMD::beginFile()
   else
   {
     pIterFile = pFiles.begin();
-    return std::unique_ptr<IFileMD>
-    {
-      pFileSvc->getFileMD(std::stoull(*pIterFile))
-    };
+    return pFileSvc->getFileMD(std::stoull(*pIterFile));
   }
 }
 
@@ -323,10 +319,7 @@ ContainerMD::nextFile()
   }
   else
   {
-    return std::unique_ptr<IFileMD>
-    {
-      pFileSvc->getFileMD(std::stoull(*pIterFile))
-    };
+    return pFileSvc->getFileMD(std::stoull(*pIterFile));
   }
 }
 
@@ -340,39 +333,27 @@ ContainerMD::nextFile()
 static char convertModetUser(mode_t mode)
 {
   char perms = 0;
-
   if (mode & S_IRUSR) perms |= CANREAD;
-
   if (mode & S_IWUSR) perms |= CANWRITE;
-
   if (mode & S_IXUSR) perms |= CANENTER;
-
   return perms;
 }
 
 static char convertModetGroup(mode_t mode)
 {
   char perms = 0;
-
   if (mode & S_IRGRP) perms |= CANREAD;
-
   if (mode & S_IWGRP) perms |= CANWRITE;
-
   if (mode & S_IXGRP) perms |= CANENTER;
-
   return perms;
 }
 
 static char convertModetOther(mode_t mode)
 {
   char perms = 0;
-
   if (mode & S_IROTH) perms |= CANREAD;
-
   if (mode & S_IWOTH) perms |= CANWRITE;
-
   if (mode & S_IXOTH) perms |= CANENTER;
-
   return perms;
 }
 
@@ -404,11 +385,8 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 
   // Convert the flags
   char convFlags = 0;
-
   if (flags & R_OK) convFlags |= CANREAD;
-
   if (flags & W_OK) convFlags |= CANWRITE;
-
   if (flags & X_OK) convFlags |= CANENTER;
 
   // Check the perms

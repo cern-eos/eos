@@ -43,7 +43,7 @@ void FileMDSvc::initialize()
 //------------------------------------------------------------------------------
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
-IFileMD*
+std::unique_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id)
 {
   std::string blob;
@@ -60,8 +60,8 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
     throw e;
   }
 
-  IFileMD* file {new FileMD(0, this)};
-  static_cast<FileMD*>(file)->deserialize(blob);
+  std::unique_ptr<IFileMD> file {new FileMD(0, this)};
+  static_cast<FileMD*>(file.get())->deserialize(blob);
   file->setFileMDSvc(this);
   return file;
 }
@@ -69,15 +69,15 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
-IFileMD* FileMDSvc::createFile()
+std::unique_ptr<IFileMD> FileMDSvc::createFile()
 {
   // Get first available file id
   uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				     constants::sFirstFreeFid, 1);
   // Increase total number of files
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
-  IFileMD* file {new FileMD(free_id, this)};
-  IFileMDChangeListener::Event e(file, IFileMDChangeListener::Created);
+  std::unique_ptr<IFileMD> file {new FileMD(free_id, this)};
+  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   return file;
 }
@@ -180,12 +180,12 @@ uint64_t FileMDSvc::getNumFiles()
 void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 {
   std::ostringstream s1, s2;
-  IContainerMD* parentCont = pContSvc->getLostFoundContainer(parent);
+  std::unique_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
   s1 << file->getContainerId();
-  IContainerMD* cont = parentCont->findContainer(s1.str());
+  std::unique_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
 
   if (!cont)
-    cont = pContSvc->createInParent(s1.str(), parentCont);
+    cont = pContSvc->createInParent(s1.str(), parentCont.get());
 
   s2 << file->getName() << "." << file->getId();
   file->setName(s2.str());

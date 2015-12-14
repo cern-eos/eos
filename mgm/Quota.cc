@@ -53,7 +53,7 @@ SpaceQuota::SpaceQuota(const char* path):
   mLayoutSizeFactor(1.0),
   mDirtyTarget(true)
 {
-  eos::IContainerMD* quotadir = 0;
+  std::unique_ptr<eos::IContainerMD> quotadir;
 
   try
   {
@@ -61,7 +61,7 @@ SpaceQuota::SpaceQuota(const char* path):
   }
   catch (eos::MDException& e)
   {
-    quotadir = 0;
+    quotadir = std::unique_ptr<eos::IContainerMD>(nullptr);
   }
 
   if (!quotadir)
@@ -70,7 +70,7 @@ SpaceQuota::SpaceQuota(const char* path):
     {
       quotadir = gOFS->eosView->createContainer(path, true);
       quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-      gOFS->eosView->updateContainerStore(quotadir);
+      gOFS->eosView->updateContainerStore(quotadir.get());
     }
     catch (eos::MDException& e)
     {
@@ -81,7 +81,7 @@ SpaceQuota::SpaceQuota(const char* path):
   {
     try
     {
-      mQuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
+      mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
       eos_static_info("Found ns quota node for path=%s", path);
     }
     catch (eos::MDException& e)
@@ -93,7 +93,7 @@ SpaceQuota::SpaceQuota(const char* path):
     {
       try
       {
-	mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir);
+	mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
       }
       catch (eos::MDException &e)
       {
@@ -158,8 +158,9 @@ SpaceQuota::UpdateQuotaNodeAddress()
 {
   try
   {
-    eos::IContainerMD* quotadir = gOFS->eosView->getContainer(pPath.c_str());
-    mQuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
+    std::unique_ptr<eos::IContainerMD> quotadir =
+      gOFS->eosView->getContainer(pPath.c_str());
+    mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
 
     if (!mQuotaNode)
       return false;
@@ -1509,8 +1510,8 @@ Quota::RmSpaceQuota(std::string& path, std::string& msg, int& retc)
     // Remove ns quota node
     try
     {
-      eos::IContainerMD* qcont = gOFS->eosView->getContainer(path);
-      gOFS->eosView->removeQuotaNode(qcont);
+      std::unique_ptr<eos::IContainerMD> qcont = gOFS->eosView->getContainer(path);
+      gOFS->eosView->removeQuotaNode(qcont.get());
       retc = 0;
     }
     catch (eos::MDException& e)
@@ -1579,7 +1580,7 @@ Quota::LoadNodes()
   // Load all known nodes
   {
     std::string quota_path;
-    eos::IContainerMD* container = 0;
+    std::unique_ptr<eos::IContainerMD> container;
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
     std::set<std::string> set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
 
@@ -1588,7 +1589,7 @@ Quota::LoadNodes()
       try
       {
 	container = gOFS->eosDirectoryService->getContainerMD(std::stoull(*it));
-	quota_path = gOFS->eosView->getUri(container);
+	quota_path = gOFS->eosView->getUri(container.get());
 
 	// Make sure directories are '/' terminated
 	if (quota_path[quota_path.length() - 1] != '/')

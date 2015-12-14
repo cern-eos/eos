@@ -139,8 +139,7 @@ ProcCommand::Fuse ()
       eos::common::Path cPath(statpath.c_str());
 
       // attach MD to get inode number
-      eos::IFileMD* fmd = 0;
-      eos::IContainerMD* dir = 0;
+      std::unique_ptr<eos::IFileMD> fmd;
       inode = 0;
 
       //-------------------------------------------
@@ -162,6 +161,7 @@ ProcCommand::Fuse ()
       // check if that is a directory in case
       if (!fmd)
       {
+	std::unique_ptr<eos::IContainerMD> dir;
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try

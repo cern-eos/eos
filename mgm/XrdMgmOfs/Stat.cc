@@ -152,14 +152,10 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   // try if that is a file
   errno = 0;
-  eos::IFileMD* fmd = 0;
+  std::unique_ptr<eos::IFileMD> fmd;
   eos::common::Path cPath(path);
 
-  // ---------------------------------------------------------------------------
-  // a stat on the master proc entry succeeds
-  // only, if this MGM is in RW master mode
-  // ---------------------------------------------------------------------------
-
+  // Stat on the master proc entry succeeds only if this MGM is in RW master mode
   if (cPath.GetFullPath() == gOFS->MgmProcMasterPath)
   {
     if (!gOFS->MgmMaster.IsMaster())
@@ -173,14 +169,18 @@ XrdMgmOfs::_stat (const char *path,
   try
   {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
+
     if (uri)
-      *uri = gOFS->eosView->getUri(fmd);
+    {
+      *uri = gOFS->eosView->getUri(fmd.get());
+    }
   }
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
-	      e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+	      e.getMessage().str().c_str());
+
     if (errno == ELOOP)
     {
       return Emsg(epname, error, errno, "stat", cPath.GetPath());
@@ -194,17 +194,14 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
 
-    // TODO: this is useless as we don't release the lock eosViewRWMutex
-    std::unique_ptr<eos::IFileMD> fmdCopy{fmd->clone()};
-
-    if (fmdCopy->isLink())
+    if (fmd->isLink())
       buf->st_mode = S_IFLNK;
     else
       buf->st_mode = S_IFREG;
 
     uint16_t flags = fmd->getFlags();
 
-    if (fmdCopy->isLink())
+    if (fmd->isLink())
     {
       buf->st_mode |= (S_IRWXU | S_IRWXG | S_IRWXO);
       buf->st_nlink = 1;
@@ -225,7 +222,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_rdev = 0; /* device type (if inode device) */
     buf->st_size = fmd->getSize();
     buf->st_blksize = 512;
-    buf->st_blocks = Quota::MapSizeCB(fmd) / 512; // including layout factor
+    buf->st_blocks = Quota::MapSizeCB(fmd.get()) / 512; // including layout factor
     eos::IFileMD::ctime_t atime;
 
     // adding also nanosecond to stat struct
@@ -284,7 +281,8 @@ XrdMgmOfs::_stat (const char *path,
       {
 	// use inode + mtime
 	char setag[256];
-	snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino, (unsigned long long) buf->st_mtime);
+	snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino,
+		 (unsigned long long) buf->st_mtime);
 	*etag = setag;
       }
     }
@@ -293,17 +291,18 @@ XrdMgmOfs::_stat (const char *path,
   }
 
   // try if that is directory
-  eos::IContainerMD* cmd = 0;
+  std::unique_ptr<eos::IContainerMD> cmd;
   errno = 0;
 
   // ---------------------------------------------------------------------------
   try
   {
     cmd = gOFS->eosView->getContainer(cPath.GetPath(), follow);
-    if (uri)
-      *uri = gOFS->eosView->getUri(cmd);
-    memset(buf, 0, sizeof (struct stat));
 
+    if (uri)
+      *uri = gOFS->eosView->getUri(cmd.get());
+
+    memset(buf, 0, sizeof (struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = cmd->getId();
     buf->st_mode = cmd->getMode();

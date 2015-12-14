@@ -108,10 +108,8 @@ XrdMgmOfs::_exists (const char *path,
 {
   // try if that is directory
   EXEC_TIMING_BEGIN("Exists");
-
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
-
-  eos::IContainerMD* cmd = 0;
+  std::unique_ptr<eos::IContainerMD> cmd;
 
   {
     // -------------------------------------------------------------------------
@@ -134,15 +132,15 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::IFileMD* fmd = 0;
+    std::unique_ptr<eos::IFileMD> fmd;
+
     try
     {
       fmd = gOFS->eosView->getFile(path, false);
     }
     catch (eos::MDException &e)
     {
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(),
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                 e.getMessage().str().c_str());
     }
     // -------------------------------------------------------------------------
@@ -164,7 +162,7 @@ XrdMgmOfs::_exists (const char *path,
   {
     // get the parent directory
     eos::common::Path cPath(path);
-    eos::IContainerMD* dir = 0;
+    std::unique_ptr<eos::IContainerMD> dir;
     eos::IContainerMD::XAttrMap attrmap;
 
     // -------------------------------------------------------------------------
@@ -179,7 +177,7 @@ XrdMgmOfs::_exists (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dir = 0;
+      dir.reset(nullptr);
     }
     // -------------------------------------------------------------------------
 
@@ -247,10 +245,8 @@ XrdMgmOfs::_exists (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   EXEC_TIMING_BEGIN("Exists");
-
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
-
-  eos::IContainerMD* cmd = 0;
+  std::unique_ptr<eos::IContainerMD> cmd;
 
   // try if that is directory
   {
@@ -262,7 +258,7 @@ XrdMgmOfs::_exists (const char *path,
     }
     catch (eos::MDException &e)
     {
-      cmd = 0;
+      cmd.reset(nullptr);
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
     };
@@ -274,7 +270,8 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::IFileMD* fmd = 0;
+    std::unique_ptr<eos::IFileMD> fmd;
+
     try
     {
       fmd = gOFS->eosView->getFile(path, false);

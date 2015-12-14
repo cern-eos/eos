@@ -307,7 +307,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
 /*----------------------------------------------------------------------------*/
 {
   char fileName[1024];
-  eos::IFileMD* fmd = 0;
+  std::unique_ptr<eos::IFileMD> fmd;
   eos::common::LayoutId::layoutid_t layoutid = 0;
   eos::common::FileId::fileid_t fileid = 0;
 
@@ -328,7 +328,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
       if (fmd->getNumLocation() == 0)
         return std::string("");
       
-      if (fileIsInDifferentLocations(fmd))
+      if (fileIsInDifferentLocations(fmd.get()))
       {
         eos_static_debug("filename=%s fid=%d is already in more than "
                          "one location", fmd->getName().c_str(), fileid);
@@ -345,7 +345,7 @@ GeoBalancer::getFileProcTransferNameAndSize (eos::common::FileId::fileid_t fid,
       return std::string("");
     }
 
-    XrdOucString fileURI = gOFS->eosView->getUri(fmd).c_str();
+    XrdOucString fileURI = gOFS->eosView->getUri(fmd.get()).c_str();
     if (fileURI.beginswith(gOFS->MgmProcPath.c_str()))
     {
       // don't touch files in any ../proc/ directory
