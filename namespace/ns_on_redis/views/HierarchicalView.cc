@@ -139,7 +139,7 @@ HierarchicalView::getFile(const std::string& uri, bool follow, size_t* link_dept
   if (!file)
   {
     MDException e(ENOENT);
-    e.getMessage() << "File " << uri << "does not exist";
+    e.getMessage() << "Container/file " << uri << " does not exist";
     throw e;
   }
   else
@@ -608,22 +608,13 @@ std::string HierarchicalView::getUri(const IContainerMD* container) const
   // Gather the uri elements
   std::vector<std::string> elements;
   elements.reserve(10);
-  IContainerMD::id_t id;
-  std::unique_ptr<IContainerMD> cursor {const_cast<IContainerMD*>(container)};
+  std::unique_ptr<IContainerMD> cursor = pContainerSvc->getContainerMD(container->getId());
 
   while (cursor->getId() != 1)
   {
     elements.push_back(cursor->getName());
-    id = cursor->getParentId();
-
-    if (cursor.get() == container)
-      cursor.release();
-
-    cursor = pContainerSvc->getContainerMD(id);
+    cursor = pContainerSvc->getContainerMD(cursor->getParentId());
   }
-
-  if (cursor.get() == container)
-    cursor.release();
 
   // Assemble the uri
   std::string path = "/";
@@ -679,20 +670,14 @@ IQuotaNode* HierarchicalView::getQuotaNode(const IContainerMD* container,
   }
 
   // Search for the node
-  IContainerMD::id_t id;
-  std::unique_ptr<IContainerMD> current {const_cast<IContainerMD*>(container)};
+  std::unique_ptr<IContainerMD> current = pContainerSvc->getContainerMD(container->getId());
 
   if (search)
   {
     while (current->getName() != pRoot->getName() &&
 	   (current->getFlags() & QUOTA_NODE_FLAG) == 0)
     {
-      id = current->getParentId();
-
-      if (current.get() == container)
-	current.release();
-
-      current = pContainerSvc->getContainerMD(id);
+      current = pContainerSvc->getContainerMD(current->getParentId());
     }
   }
 
@@ -702,17 +687,12 @@ IQuotaNode* HierarchicalView::getQuotaNode(const IContainerMD* container,
   if ((current->getFlags() & QUOTA_NODE_FLAG) == 0)
     return 0;
 
-  id = current->getId();
-
-  if (current.get() == container)
-    current.release();
-
-  IQuotaNode* node = pQuotaStats->getQuotaNode(id);
+  IQuotaNode* node = pQuotaStats->getQuotaNode(current->getId());
 
   if (node)
     return node;
 
-  return pQuotaStats->registerNewNode(id);
+  return pQuotaStats->registerNewNode(current->getId());
 }
 
 //------------------------------------------------------------------------------

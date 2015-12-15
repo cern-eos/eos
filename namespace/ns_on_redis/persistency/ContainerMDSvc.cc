@@ -68,10 +68,10 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     throw e;
   }
 
-  std::unique_ptr<ContainerMD> cont {new ContainerMD(0, pFileSvc,
+  std::unique_ptr<IContainerMD> cont {new ContainerMD(0, pFileSvc,
 				     static_cast<IContainerMDSvc*>(this))};
-  cont->deserialize(blob);
-  return std::move(cont);
+  static_cast<ContainerMD*>(cont.get())->deserialize(blob);
+  return cont;
 }
 
 //----------------------------------------------------------------------------
@@ -120,6 +120,8 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
+  // Increase total number of containers
+  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
 }
 
@@ -169,11 +171,11 @@ std::unique_ptr<IContainerMD> ContainerMDSvc::getLostFound()
 
   if (lostFound)
   {
-    return std::move(lostFound);
+    return lostFound;
   }
 
   lostFound = createInParent("lost+found", root.get());
-  return std::move(lostFound);
+  return lostFound;
 }
 
 //----------------------------------------------------------------------------
@@ -185,14 +187,14 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
   std::unique_ptr<IContainerMD> lostFound = getLostFound();
 
   if (name.empty())
-    return std::move(lostFound);
+    return lostFound;
 
   std::unique_ptr<IContainerMD> cont = lostFound->findContainer(name);
 
   if (cont)
-    return std::move(cont);
+    return cont;
 
-  return std::move(createInParent(name, lostFound.get()));
+  return createInParent(name, lostFound.get());
 }
 
 //------------------------------------------------------------------------------

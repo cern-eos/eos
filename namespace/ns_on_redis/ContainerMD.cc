@@ -151,12 +151,12 @@ ContainerMD::removeFile(const std::string& name)
   try
   {
     IFileMD::id_t fid = std::stoull(pRedox->hget(pFilesKey, name));
-    file = std::move(pFileSvc->getFileMD(fid));
+    file = pFileSvc->getFileMD(fid);
   }
   catch (std::runtime_error& e)
   {
     MDException e(ENOENT);
-    e.getMessage() << "Unknow file=" << name << " in container=" << pName;
+    e.getMessage() << "Unknown file " << name << " in container " << pName;
     throw e;
   }
 
@@ -233,7 +233,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
   for (auto itc = vect_cids.begin(); itc != vect_cids.end(); ++itc)
   {
     std::unique_ptr<IContainerMD> cont =
-      std::move(pContSvc->getContainerMD(std::stoull(*itc)));
+      pContSvc->getContainerMD(std::stoull(*itc));
     cont->cleanUp(cont_svc, file_svc);
   }
 
