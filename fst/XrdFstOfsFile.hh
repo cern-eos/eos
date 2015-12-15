@@ -351,6 +351,7 @@ protected:
   bool opened; //! indicator that file is opened
   bool haswrite; //! indicator that file was written/modified
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
+  bool hasWriteError; //! indicator for a write error 
   bool isRW; //! indicator that file is opened for rw
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer

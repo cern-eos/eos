@@ -94,24 +94,28 @@ Storage::ErrorReport ()
 
       eos_debug("broadcasting errorreport message: %s", report.c_str());
 
-
-      if (!XrdMqMessaging::gMessageClient.SendMessage(message, errorReceiver.c_str()))
+      // evt. exclude some messages from upstream reporting if the contain [NB]
+      if (report.find("[NB]") == STR_NPOS)
       {
-        // display communication error
-        eos_err("cannot send errorreport broadcast");
-        failure = true;
-        gOFS.ErrorReportQueueMutex.Lock();
-        break;
+        if (!XrdMqMessaging::gMessageClient.SendMessage(message, errorReceiver.c_str()))
+        {
+          // display communication error
+          eos_err("cannot send errorreport broadcast");
+          failure = true;
+          gOFS.ErrorReportQueueMutex.Lock();
+          break;
+        }
       }
       gOFS.ErrorReportQueueMutex.Lock();
       gOFS.ErrorReportQueue.pop();
     }
     gOFS.ErrorReportQueueMutex.UnLock();
 
+    XrdSysTimer sleeper;
     if (failure)
-      sleep(10);
+      sleeper.Snooze(10);
     else
-      sleep(1);
+      sleeper.Snooze(1);
   }
 }
 

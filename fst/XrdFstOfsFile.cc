@@ -93,6 +93,7 @@ mTpcThreadStatus (EINVAL)
   mForcedMtime = 0;
   mForcedMtime_ms = 0;
   isOCchunk = 0;
+  hasWriteError = false;
 }
 
 
@@ -2399,7 +2400,7 @@ XrdFstOfsFile::close ()
     capOpaqueFile += capOpaque->Env(envlen);
     capOpaqueFile += "&mgm.pcmd=event";
 
-    if (isRW) 
+    if (isRW)
     {
       capOpaqueFile += "&mgm.event=closew";
       eventType = "closew";
@@ -2425,7 +2426,7 @@ XrdFstOfsFile::close ()
                           capOpaque->Get("mgm.manager"), capOpaqueFile);
   }
   eos_info("Return code rc=%i.", rc);
-  
+
   return rc;
 }
 
@@ -2731,12 +2732,19 @@ XrdFstOfsFile::write (XrdSfsFileOffset fileOffset,
   if (rc < 0)
   {
     int envlen = 0;
-    eos_crit("block-write error=%d offset=%llu len=%llu file=%s",
+    std::string exclusiontag = "";
+    if (hasWriteError)
+      exclusiontag = " [NB]";
+
+    eos_crit("block-write error=%d offset=%llu len=%llu file=%s%s",
              error.getErrInfo(),
              static_cast<unsigned long long> (fileOffset),
              static_cast<unsigned long long> (buffer_size),
              FName(),
-             capOpaque ? capOpaque->Env(envlen) : FName());
+             capOpaque ? capOpaque->Env(envlen) : FName(),
+             exclusiontag.c_str());
+    hasWriteError = true;
+
   }
 
   if (rc < 0)

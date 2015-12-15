@@ -45,6 +45,7 @@ Layout (file, lid, client, outError, io, timeout)
 {
   mNumReplicas = eos::common::LayoutId::GetStripeNumber(lid) + 1; // this 1=0x0 16=0xf :-)
   ioLocal = false;
+  hasWriteError = false;
 }
 
 
@@ -350,8 +351,15 @@ ReplicaParLayout::Write (XrdSfsFileOffset offset,
 
       if (i != 0) errno = EREMOTEIO;
 
-      eos_err("Failed to write replica %i - write failed - %llu %s",
-              i, offset, maskUrl.c_str());
+      // show only the first write error as an error to broadcast upstream
+      if (hasWriteError)
+        eos_err("[NB] Failed to write replica %i - write failed -%llu %s",
+                i, offset, maskUrl.c_str());
+      else
+        eos_err("Failed to write replica %i - write failed - %llu %s",
+                i, offset, maskUrl.c_str());
+
+      hasWriteError = true;
       return gOFS.Emsg("ReplicaWrite", *mError, errno, "write replica failed",
                        maskUrl.c_str());
     }

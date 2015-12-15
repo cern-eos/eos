@@ -35,8 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class abstracting the physical layout of a file with replicas
 //------------------------------------------------------------------------------
-class ReplicaParLayout : public Layout
-{
+class ReplicaParLayout : public Layout {
 public:
 
   //--------------------------------------------------------------------------
@@ -194,7 +193,7 @@ private:
   //! replica file object, index 0 is the local file
   std::vector<FileIo*> mReplicaFile;
   std::vector<std::string> mReplicaUrl; ///< URLs of the replica files
-
+  bool hasWriteError;
 };
 
 EOSFSTNAMESPACE_END
