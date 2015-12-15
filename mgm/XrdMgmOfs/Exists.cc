@@ -259,8 +259,8 @@ XrdMgmOfs::_exists (const char *path,
     catch (eos::MDException &e)
     {
       cmd.reset(nullptr);
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+		e.getMessage().str().c_str());
     };
     // -------------------------------------------------------------------------
   }

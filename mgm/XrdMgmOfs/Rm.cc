@@ -149,13 +149,13 @@ XrdMgmOfs::_rem (const char *path,
 
   try
   {
-    fmd = gOFS->eosView->getFile(path,false);
+    fmd = gOFS->eosView->getFile(path, false);
   }
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+	      e.getMessage().str().c_str());
   }
 
   if (fmd)
@@ -283,6 +283,10 @@ XrdMgmOfs::_rem (const char *path,
       {
         eos_info("unlinking from view %s", path);
         gOFS->eosView->unlinkFile(path);
+	// TODO: this works but should be reviewed in order to simplify in
+	// general this code
+	// Reload file object that was modifed in the unlinkFile method
+	fmd = gOFS->eosFileService->getFileMD(fmd->getId());
 
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
         {
@@ -301,9 +305,9 @@ XrdMgmOfs::_rem (const char *path,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                 e.getErrno(), e.getMessage().str().c_str());
-    };
+    }
   }
 
   if (doRecycle && (!simulate))

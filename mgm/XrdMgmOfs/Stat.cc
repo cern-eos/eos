@@ -144,9 +144,7 @@ XrdMgmOfs::_stat (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "_stat";
-
   EXEC_TIMING_BEGIN("Stat");
-
   gOFS->MgmStats.Add("Stat", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------
@@ -300,7 +298,9 @@ XrdMgmOfs::_stat (const char *path,
     cmd = gOFS->eosView->getContainer(cPath.GetPath(), follow);
 
     if (uri)
+    {
       *uri = gOFS->eosView->getUri(cmd.get());
+    }
 
     memset(buf, 0, sizeof (struct stat));
     buf->st_dev = 0xcaff;
@@ -341,7 +341,6 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_atime = tmtime.tv_sec;
     buf->st_mtime = mtime.tv_sec;
     buf->st_ctime = ctime.tv_sec;
-
     buf->st_atim.tv_sec = tmtime.tv_sec;
     buf->st_mtim.tv_sec = mtime.tv_sec;
     buf->st_ctim.tv_sec = ctime.tv_sec;
@@ -357,7 +356,7 @@ XrdMgmOfs::_stat (const char *path,
       snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"", (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime, (unsigned long) buf->st_atim.tv_nsec/1000000);
       *etag = setag;
     }
-    // --|
+
     return SFS_OK;
   }
   catch (eos::MDException &e)

@@ -61,7 +61,7 @@ SpaceQuota::SpaceQuota(const char* path):
   }
   catch (eos::MDException& e)
   {
-    quotadir = std::unique_ptr<eos::IContainerMD>(nullptr);
+    quotadir.reset(nullptr);
   }
 
   if (!quotadir)
@@ -77,7 +77,8 @@ SpaceQuota::SpaceQuota(const char* path):
       eos_static_crit("Cannot create quota directory %s", path);
     }
   }
-  else
+
+  if (!quotadir)
   {
     try
     {
