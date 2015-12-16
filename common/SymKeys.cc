@@ -124,7 +124,7 @@ SymKey::Sha256 (const std::string& data,
 
   for (unsigned int i = 0; i < sz_result; ++i)
   {
-    oss << std::setw(2) << (unsigned int)*pResult;
+    oss << std::setw(2) << (unsigned int) *pResult;
     pResult++;
   }
 
@@ -257,6 +257,26 @@ SymKey::Base64Decode (XrdOucString &in, char* &out, unsigned int &outlen)
 }
 
 bool
+SymKey::Base64 (XrdOucString &in, XrdOucString &out)
+{
+  if (in.beginswith("base64:"))
+  {
+    out = in;
+    return false;
+  }
+  bool done = Base64Encode((char*) in.c_str(), in.length() + 1, out);
+  if (done)
+  {
+    out.insert("base64:", 0);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool
 SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
 {
   if (!in.beginswith("base64:"))
@@ -267,7 +287,7 @@ SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
 
   XrdOucString in64 = in;
 
-  in64.erase(0,7);
+  in64.erase(0, 7);
 
   char* valout = 0;
   unsigned int valout_len = 0;
@@ -275,7 +295,7 @@ SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
   eos::common::SymKey::Base64Decode(in64, valout, valout_len);
   if (valout)
   {
-    out.assign(valout, 0, valout_len-1);
+    out.assign(valout, 0, valout_len - 1);
     free(valout);
     return true;
   }
@@ -296,7 +316,8 @@ SymKeyStore::SymKeyStore ()
 // Destructor
 //------------------------------------------------------------------------------
 
-SymKeyStore::~SymKeyStore () {
+SymKeyStore::~SymKeyStore ()
+{
   // empty
 }
 
@@ -341,8 +362,8 @@ SymKeyStore::SetKey (const char* inkey, time_t invalidity)
 
   Mutex.Lock();
   SymKey* key = SymKey::Create(inkey, invalidity);
-  free((void*)inkey);
-  
+  free((void*) inkey);
+
   if (!key)
   {
     return 0;
