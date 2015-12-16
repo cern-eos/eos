@@ -157,7 +157,7 @@ exit_handler (int a)
 void
 jump_handler (int a)
 {
-  siglongjmp(sigjump_buf,1);
+  siglongjmp(sigjump_buf, 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -690,7 +690,16 @@ command_result_stdout_to_vector (std::vector<std::string> &string_vector)
   if (!rstdout.length())
     return;
 
-  XrdMqMessage::UnSeal(rstdout);
+  if (rstdout.beginswith("base64:"))
+  {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstdout, ub64out);
+    rstdout = ub64out;
+  }
+  else
+  {
+    XrdMqMessage::UnSeal(rstdout);
+  }
 
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
   const char* nextline = 0;
@@ -715,9 +724,36 @@ output_result (XrdOucEnv* result, bool highlighting)
   rstderr = result->Get("mgm.proc.stderr");
   rstdjson = result->Get("mgm.proc.json");
 
-  XrdMqMessage::UnSeal(rstdout);
-  XrdMqMessage::UnSeal(rstderr);
-  XrdMqMessage::UnSeal(rstdjson);
+  if (rstdout.beginswith("base64:"))
+  {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstdout, ub64out);
+    rstdout = ub64out;
+  }
+  else
+  {
+    XrdMqMessage::UnSeal(rstdout);
+  }
+  if (rstderr.beginswith("base64:"))
+  {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstderr, ub64out);
+    rstderr = ub64out;
+  }
+  else
+  {
+    XrdMqMessage::UnSeal(rstderr);
+  }
+  if (rstdjson.beginswith("base64:"))
+  {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstdjson, ub64out);
+    rstdjson = ub64out;
+  }
+  else
+  {
+    XrdMqMessage::UnSeal(rstdjson);
+  }
 
   if (highlighting && global_highlighting)
   {
@@ -790,8 +826,8 @@ output_result (XrdOucEnv* result, bool highlighting)
   return retc;
 }
 
-XrdOucEnv*
-client_admin_command (XrdOucString &in)
+XrdOucEnv *
+client_admin_command (XrdOucString & in)
 {
   if (user_role.length())
     in += "&eos.ruid=";
@@ -852,22 +888,24 @@ client_admin_command (XrdOucString &in)
       mytiming.Print();
     }
 
+
     CommandEnv = new XrdOucEnv(out.c_str());
+
     return CommandEnv;
   }
   else
   {
     std::string errmsg;
     errmsg = status.GetErrorMessage();
-    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
   }
 
   delete client;
   return 0;
 }
 
-XrdOucEnv*
-client_user_command (XrdOucString &in)
+XrdOucEnv *
+client_user_command (XrdOucString & in)
 {
   if (user_role.length())
     in += "&eos.ruid=";
@@ -922,14 +960,20 @@ client_user_command (XrdOucString &in)
       mytiming.Print();
     }
 
+    if (debug)
+    {
+      printf("out=%s\n", out.c_str());
+    }
+
     CommandEnv = new XrdOucEnv(out.c_str());
     return CommandEnv;
+
   }
   else
   {
     std::string errmsg;
     errmsg = status.GetErrorMessage();
-    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
   }
   return 0;
 }
@@ -959,7 +1003,7 @@ read_pwdfile ()
   eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(), lpwd);
   if (lpwd.length())
   {
-    // apply 
+    // apply
     com_cd((char*) lpwd.c_str());
   }
 }
@@ -1046,7 +1090,7 @@ main (int argc, char* argv[])
   if (getenv("EOS_ENABLE_PIPEMODE"))
   {
     runpipe = true;
-  } 
+  }
   else
   {
     runpipe = false;
@@ -1194,7 +1238,7 @@ main (int argc, char* argv[])
     if (in1.length())
     {
       // check if this is a file (workaournd for XrdOucString bug
-      if ((in1.length()>5) && (in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK)))
+      if ((in1.length() > 5) && (in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK)))
       {
         // this is a script file
         char str[16384];
@@ -1225,11 +1269,11 @@ main (int argc, char* argv[])
         // this are commands
         for (int i = argindex; i < argc; i++)
         {
-	  if (i!=argindex)
-	    cmdline += "\"";
+          if (i != argindex)
+            cmdline += "\"";
           cmdline += argv[i];
-	  if (i!=argindex)
-	    cmdline += "\"";
+          if (i != argindex)
+            cmdline += "\"";
           cmdline += " ";
         }
         if ((!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost")))
@@ -1413,21 +1457,22 @@ main (int argc, char* argv[])
       signal(SIGALRM, exit_handler);
       alarm(60);
     }
-    
-    
+
+
     signal(SIGINT, jump_handler);
-    
-    if ( sigsetjmp(sigjump_buf,1) ) {
+
+    if (sigsetjmp(sigjump_buf, 1))
+    {
       signal(SIGINT, jump_handler);
-      fprintf(stdout,"\n");
+      fprintf(stdout, "\n");
     }
-    
+
     line = readline(prompt);
     signal(SIGINT, exit_handler);
-    
+
     if (pipemode)
       alarm(0);
-    
+
     if (!line)
     {
       fprintf(stdout, "\n");

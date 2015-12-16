@@ -46,15 +46,18 @@ com_attr (char* arg1)
     option.erase(0, 1);
     optionstring += subcommand;
     optionstring += " ";
-    subcommand = subtokenizer.GetToken();
-    arg = subtokenizer.GetToken();
+    subcommand = subtokenizer.GetToken(false);
+    arg = subtokenizer.GetToken(false);
     in += "&mgm.option=";
     in += option;
   }
   else
   {
-    arg = subtokenizer.GetToken();
+    arg = subtokenizer.GetToken(false);
   }
+
+  // require base64 encoding of response
+  in += "&mgm.enc=b64";
 
   if ((!subcommand.length()) || (!arg.length()) ||
       ((subcommand != "ls") && (subcommand != "set") && (subcommand != "get") && (subcommand != "rm") && (subcommand != "link") && (subcommand != "unlink") && (subcommand != "fold")))
@@ -80,8 +83,11 @@ com_attr (char* arg1)
     int epos = key.find("=");
     if (epos != STR_NPOS)
     {
+      XrdOucString value64;
       value = key;
       value.erase(0, epos + 1);
+      eos::common::SymKey::Base64(value, value64);
+      value = value64;
       key.erase(epos);
     }
     else

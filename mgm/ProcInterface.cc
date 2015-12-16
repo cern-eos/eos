@@ -426,6 +426,7 @@ ProcCommand::open (const char* inpath,
   mFuseFormat = false;
   mJsonFormat = false;
   mHttpFormat = false;
+  mBase64Encoding = false;
 
   // ----------------------------------------------------------------------------
   // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line
@@ -453,6 +454,13 @@ ProcCommand::open (const char* inpath,
   mOffset = 0;
   mLen = 0;
   mDoSort = true;
+
+  XrdOucString encoding = pOpaque->Get("mgm.enc");
+
+  if (encoding == "b64")
+  {
+    mBase64Encoding = true;
+  }
 
   // ----------------------------------------------------------------------------
   // admin command section
@@ -780,6 +788,7 @@ void
 ProcCommand::MakeResult ()
 {
   mResultStream = "";
+
   if (!fstdout)
   {
     XrdMqMessage::Sort(stdOut, mDoSort);
@@ -789,9 +798,26 @@ ProcCommand::MakeResult ()
       // the default format
       // ------------------------------------------------------------------------
       mResultStream = "mgm.proc.stdout=";
-      mResultStream += XrdMqMessage::Seal(stdOut);
+      if (!mBase64Encoding)
+        mResultStream += XrdMqMessage::Seal(stdOut);
+      else
+      {
+        // on request do base64 encoding
+        XrdOucString l64;
+        eos::common::SymKey::Base64(stdOut, l64);
+        mResultStream += l64;
+      }
       mResultStream += "&mgm.proc.stderr=";
-      mResultStream += XrdMqMessage::Seal(stdErr);
+      if (!mBase64Encoding)
+        mResultStream += XrdMqMessage::Seal(stdErr);
+      else
+      {
+        // on request do base64 encoding
+        XrdOucString l64;
+        eos::common::SymKey::Base64(stdErr, l64);
+        mResultStream += l64;
+      }
+
       mResultStream += "&mgm.proc.retc=";
       mResultStream += retc;
     }
@@ -866,6 +892,7 @@ ProcCommand::MakeResult ()
     {
       eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
     }
+
     mLen = mResultStream.length();
     mOffset = 0;
   }
