@@ -21,34 +21,63 @@
 EOSNSNAMESPACE_BEGIN
 
 // Static variables
-redox::Redox* RedisClient::sInstance = nullptr;
-std::string RedisClient::sRedisHost = "localhost";
-int RedisClient::sRedisPort = 6382;
+std::atomic<redox::Redox*> sRedoxClient {nullptr};
+std::string RedisClient::sRedisHost {"localhost"};
+int RedisClient::sRedisPort {6382};
 
 //------------------------------------------------------------------------------
 // Get instance
 //------------------------------------------------------------------------------
 redox::Redox*
-RedisClient::getInstance()
+RedisClient::getInstance(const std::string& host, uint32_t port)
 {
-  // TODO: fix possible race condition
+  bool is_default {false};
+  std::string host_tmp {host};
+  redox::Redox* instance {nullptr};
 
-  if (!sInstance)
+  if (host_tmp.empty() || !port)
   {
-    sInstance = new redox::Redox();
+    // Try to be as efficient as possible in the default case
+    instance = sRedoxClient.load();
+
+    if (instance)
+      return instance;
+
+    host_tmp = sRedisHost;
+    port = sRedisPort;
+    is_default = true;
+  }
+
+  std::string redis_id = host_tmp + ":" + std::to_string(port);
+  std::lock_guard<std::mutex> lock(pMutexMap);
+
+  if (pMapClients.find(redis_id) == pMapClients.end())
+  {
+    instance = new redox::Redox();
 
     try
     {
-      sInstance->connect(sRedisHost, sRedisPort);
+      instance->connect(host_tmp, port);
     }
     catch (...)
     {
       std::cerr << "ERROR: Failed to connect to Redis instance" << std::endl;
       throw;
     }
+
+    pMapClients.insert(std::make_pair(redis_id, instance));
+
+    if (is_default)
+    {
+      sRedoxClient.store(instance);
+    }
+  }
+  else
+  {
+    instance = pMapClients[redis_id];
   }
 
-  return sInstance;
+  return instance;
 }
 
 EOSNSNAMESPACE_END

@@ -28,9 +28,8 @@ include_directories(${CPPUNIT_INCLUDE_DIRS})
 #-------------------------------------------------------------------------------
 add_library(
   EosNsOnRedisTests SHARED
-  ChangeLogContainerMDSvcTest.cc
-  ChangeLogFileMDSvcTest.cc
-  ChangeLogTest.cc
+  ContainerMDSvcTest.cc
+  FileMDSvcTest.cc
   FileSystemViewTest.cc
   HierarchicalViewTest.cc
   HierarchicalSlaveTest.cc

@@ -46,7 +46,7 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  FileMDSvc() {};
+  FileMDSvc();
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -137,10 +137,12 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   // Data
   //----------------------------------------------------------------------------
-  ListenerList     pListeners;
-  IQuotaStats*     pQuotaStats;
+  ListenerList pListeners;
+  IQuotaStats* pQuotaStats;
   IContainerMDSvc* pContSvc;
-  redox::Redox*    pRedox;
+  redox::Redox* pRedox;
+  std::string pRedisHost;
+  uint32_t pRedisPort;
 };
 
 EOSNSNAMESPACE_END

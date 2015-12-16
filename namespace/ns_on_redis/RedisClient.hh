@@ -26,6 +26,9 @@
 
 #include "namespace/Namespace.hh"
 #include "redox.hpp"
+#include <map>
+#include <mutex>
+#include <atomic>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -37,9 +40,14 @@ class RedisClient
 public:
 
   //----------------------------------------------------------------------------
-  //! Get instance
+  //! Get client for a particular Redis instance
+  //!
+  //! @param host Redis host
+  //! @param port Redis port
+  //!
+  //! @return Redis client object
   //----------------------------------------------------------------------------
-  static redox::Redox* getInstance();
+  static redox::Redox* getInstance(const std::string& host = "", uint32_t port = 0);
 
 private:
 
@@ -48,9 +56,12 @@ private:
   //----------------------------------------------------------------------------
   RedisClient() {};
 
-  static redox::Redox* sInstance; ///< Singleton RedisClient instance
+  static std::atomic<redox::Redox*> sRedoxClient; /// Redis client for the default case
   static std::string sRedisHost; ///< Redis instance host
   static int sRedisPort; ///< Redis instance port
+  //! Map between Redis instance and Redox client
+  static std::map<std::string, redox::Redox*> pMapClients;
+  static std::mutex pMutexMap; ///< Mutex to protect the access to the map
 };
 
 EOSNSNAMESPACE_END
