@@ -29,15 +29,31 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc():
-  pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr)
+  pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
+  pRedisPort(0)
 {}
+
+//------------------------------------------------------------------------------
+// Configure the container service
+//------------------------------------------------------------------------------
+void ContainerMDSvc::configure(std::map<std::string, std::string>& config)
+{
+  std::string key_host = "redis_host";
+  std::string key_port = "redis_port";
+
+  if (config.find(key_host) != config.end())
+    pRedisHost = config[key_host];
+
+  if (config.find(key_port) != config.end())
+    pRedisPort = std::stoul(config[key_port]);
+}
 
 //------------------------------------------------------------------------------
 // Initizlize the container service
 //------------------------------------------------------------------------------
 void ContainerMDSvc::initialize()
 {
-  pRedox = RedisClient::getInstance();
+  pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
 
   if (!pFileSvc)
   {
@@ -120,7 +136,9 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
-  // Increase total number of containers
+  // TODO: add protection in case the container is not empty !!!
+
+  // Decrease total number of containers
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
 }

@@ -22,13 +22,12 @@
 # ************************************************************************
 
 include_directories(
- ${CMAKE_SOURCE_DIR}
- ${CMAKE_SOURCE_DIR}/namespace/
+ ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/
  ${SPARSEHASH_INCLUDE_DIR}
  ${XROOTD_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
-#  add_subdirectory(tests)
+  add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
 #-----------------------------------------------------------------------------

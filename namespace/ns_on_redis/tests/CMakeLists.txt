@@ -27,26 +27,16 @@ include_directories(${CPPUNIT_INCLUDE_DIRS})
 # EosNsOnRedisTests library
 #-------------------------------------------------------------------------------
 add_library(
-  EosNsOnRedisTests SHARED
+  EosNsOnRedisTests MODULE
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
-  FileSystemViewTest.cc
-  HierarchicalViewTest.cc
-  HierarchicalSlaveTest.cc
-  OtherTests.cc
-  ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.hh
-  ${CMAKE_SOURCE_DIR}/namespace/utils/TestHelpers.cc)
+#  FileSystemViewTest.cc
+#  HierarchicalViewTest.cc
+#  OtherTests.cc
+)
 
 target_link_libraries(
   EosNsOnRedisTests
-  ${Z_LIBRARY}
-  ${CPPUNIT_LIBRARIES}
-  EosNsOnRedis-Static)
-
-set_target_properties(
-  EosNsOnRedisTests
-  PROPERTIES
-  VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES ""
-  POSITION_INDEPENDENT_CODE True)
+  EosNsOnRedis-Static
+#  ${Z_LIBRARY}
+  ${CPPUNIT_LIBRARIES})

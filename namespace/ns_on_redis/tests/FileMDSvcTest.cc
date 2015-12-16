@@ -22,11 +22,9 @@
 //------------------------------------------------------------------------------
 
 #include <cppunit/extensions/HelperMacros.h>
-#include <stdint.h>
-#include <unistd.h>
-#include "namespace/utils/TestHelpers.hh"
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include <memory>
 
 //------------------------------------------------------------------------------
 // FileMDSvcTest class
@@ -35,10 +33,10 @@ class FileMDSvcTest: public CppUnit::TestCase
 {
   public:
     CPPUNIT_TEST_SUITE(FileMDSvcTest);
-    CPPUNIT_TEST(reloadTest);
+    CPPUNIT_TEST(loadTest);
     CPPUNIT_TEST_SUITE_END();
 
-    void reloadTest();
+    void loadTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(FileMDSvcTest);
@@ -46,19 +44,23 @@ CPPUNIT_TEST_SUITE_REGISTRATION(FileMDSvcTest);
 //------------------------------------------------------------------------------
 // Tests implementation
 //------------------------------------------------------------------------------
-void FileMDSvcTest::reloadTest()
+void FileMDSvcTest::loadTest()
 {
-  eos::ContainerMDSvc* contSvc = new eos::ContainerMDSvc;
-  eos::FileMDSvc*      fileSvc = new eos::FileMDSvc;
-  fileSvc->setContainerService(contSvc);
-  std::map<std::string, std::string> config;
+  std::unique_ptr<eos::IContainerMDSvc> contSvc {new eos::ContainerMDSvc};
+  std::unique_ptr<eos::IFileMDSvc> fileSvc {new eos::FileMDSvc};
+  fileSvc->setContainerService(contSvc.get());
+  std::map<std::string, std::string> config = {
+    {"redis_host", "localhost"},
+    {"redis_port", "6380"}
+  };
+  fileSvc->configure(config);
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
 
-  eos::IFileMD* file1 = fileSvc->createFile();
-  eos::IFileMD* file2 = fileSvc->createFile();
-  eos::IFileMD* file3 = fileSvc->createFile();
-  eos::IFileMD* file4 = fileSvc->createFile();
-  eos::IFileMD* file5 = fileSvc->createFile();
+  std::unique_ptr<eos::IFileMD> file1 = fileSvc->createFile();
+  std::unique_ptr<eos::IFileMD> file2 = fileSvc->createFile();
+  std::unique_ptr<eos::IFileMD> file3 = fileSvc->createFile();
+  std::unique_ptr<eos::IFileMD> file4 = fileSvc->createFile();
+  std::unique_ptr<eos::IFileMD> file5 = fileSvc->createFile();
   CPPUNIT_ASSERT(file1 != 0);
   CPPUNIT_ASSERT(file2 != 0);
   CPPUNIT_ASSERT(file3 != 0);
@@ -75,19 +77,21 @@ void FileMDSvcTest::reloadTest()
   eos::IFileMD::id_t id3 = file3->getId();
   eos::IFileMD::id_t id4 = file4->getId();
   eos::IFileMD::id_t id5 = file5->getId();
-  fileSvc->updateStore(file1);
-  fileSvc->updateStore(file2);
-  fileSvc->updateStore(file3);
-  fileSvc->updateStore(file4);
-  fileSvc->updateStore(file5);
-  fileSvc->removeFile(file2);
-  fileSvc->removeFile(file4);
+  fileSvc->updateStore(file1.get());
+  fileSvc->updateStore(file2.get());
+  fileSvc->updateStore(file3.get());
+  fileSvc->updateStore(file4.get());
+  fileSvc->updateStore(file5.get());
+  CPPUNIT_ASSERT(fileSvc->getNumFiles() == 5);
+  fileSvc->removeFile(file2.get());
+  fileSvc->removeFile(file4.get());
+  CPPUNIT_ASSERT(fileSvc->getNumFiles() == 3);
   fileSvc->finalize();
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
 
-  eos::IFileMD* fileRec1 = fileSvc->getFileMD(id1);
-  eos::IFileMD* fileRec3 = fileSvc->getFileMD(id3);
-  eos::IFileMD* fileRec5 = fileSvc->getFileMD(id5);
+  std::unique_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
+  std::unique_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD(id3);
+  std::unique_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD(id5);
   CPPUNIT_ASSERT(fileRec1 != 0);
   CPPUNIT_ASSERT(fileRec3 != 0);
   CPPUNIT_ASSERT(fileRec5 != 0);
@@ -96,7 +100,9 @@ void FileMDSvcTest::reloadTest()
   CPPUNIT_ASSERT(fileRec5->getName() == "file5");
   CPPUNIT_ASSERT_THROW(fileSvc->getFileMD(id2), eos::MDException);
   CPPUNIT_ASSERT_THROW(fileSvc->getFileMD(id4), eos::MDException);
+  CPPUNIT_ASSERT_NO_THROW(fileSvc->removeFile(fileRec1.get()));
+  CPPUNIT_ASSERT_NO_THROW(fileSvc->removeFile(fileRec3.get()));
+  CPPUNIT_ASSERT_NO_THROW(fileSvc->removeFile(fileRec5.get()));
+  CPPUNIT_ASSERT(fileSvc->getNumFiles() == 0);
   fileSvc->finalize();
-  delete fileSvc;
-  unlink(fileName.c_str());
 }

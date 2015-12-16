@@ -39,11 +39,14 @@ namespace redox
 
 EOSNSNAMESPACE_BEGIN
 
+class ContainerMD;
+
 //------------------------------------------------------------------------------
 //! Container metadata servcie based on Redis
 //------------------------------------------------------------------------------
 class ContainerMDSvc: public IContainerMDSvc
 {
+  friend ContainerMD;
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -63,7 +66,7 @@ public:
   //----------------------------------------------------------------------------
   //! Configure the container service
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config) {};
+  virtual void configure(std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Finalize the container service
@@ -149,6 +152,8 @@ private:
   IQuotaStats* pQuotaStats; ///< Quota view
   IFileMDSvc*  pFileSvc; ///< File metadata service
   redox::Redox* pRedox; ///< Redis client
+  std::string pRedisHost; ///< Redis instance host
+  uint32_t pRedisPort; ///< Redis instance port
 };
 
 EOSNSNAMESPACE_END

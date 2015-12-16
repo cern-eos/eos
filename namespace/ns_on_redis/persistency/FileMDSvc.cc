@@ -25,13 +25,27 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//----------------------------------------------------------------------------
-//! Constructor
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc():
   pRedisHost(""), pRedisPort(0)
-{ }
+{}
 
+//------------------------------------------------------------------------------
+// Configure the file service
+//------------------------------------------------------------------------------
+void FileMDSvc::configure(std::map<std::string, std::string>& config)
+{
+  std::string key_host = "redis_host";
+  std::string key_port = "redis_port";
+
+  if (config.find(key_host) != config.end())
+    pRedisHost = config[key_host];
+
+  if (config.find(key_port) != config.end())
+    pRedisPort = std::stoul(config[key_port]);
+}
 
 //------------------------------------------------------------------------------
 // Initizlize the file service
@@ -70,7 +84,6 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 
   std::unique_ptr<IFileMD> file {new FileMD(0, this)};
   static_cast<FileMD*>(file.get())->deserialize(blob);
-  file->setFileMDSvc(this);
   return file;
 }
 

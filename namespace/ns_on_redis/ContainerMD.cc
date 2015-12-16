@@ -21,6 +21,7 @@
 #include "namespace/ns_on_redis/RedisClient.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include <sys/stat.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -41,7 +42,9 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pTMTime.tv_nsec = 0;
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
-  pRedox = RedisClient::getInstance();
+  // TODO: review this
+  //pRedox = RedisClient::getInstance();
+  pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
 }
 
 //------------------------------------------------------------------------------
@@ -680,6 +683,7 @@ ContainerMD::deserialize(const std::string& buffer)
     }
   }
 
+  // Rebuild the file and subcontainer keys
   pFilesKey = std::to_string(pId) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
 }

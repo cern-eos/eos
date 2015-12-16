@@ -51,11 +51,6 @@ public:
 
 private:
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  RedisClient() {};
-
   static std::atomic<redox::Redox*> sRedoxClient; /// Redis client for the default case
   static std::string sRedisHost; ///< Redis instance host
   static int sRedisPort; ///< Redis instance port

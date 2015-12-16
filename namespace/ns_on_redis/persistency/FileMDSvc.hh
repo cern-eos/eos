@@ -28,7 +28,7 @@
 #include <list>
 
 //! Forward declarations
-namespace Redox
+namespace redox
 {
   class Redox;
 }
@@ -60,8 +60,10 @@ class FileMDSvc: public IFileMDSvc
 
   //----------------------------------------------------------------------------
   //! Configure the file service
+  //!
+  //! @param config map holding configuration parameters
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config) {};
+  virtual void configure(std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Finalize the file service

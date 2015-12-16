@@ -54,15 +54,7 @@ set_target_properties(
   POSITION_INDEPENDENT_CODE True)
 
 #-------------------------------------------------------------------------------
-# text-runner and ns-benchmark executables
+# ns-benchmark executables
 #-------------------------------------------------------------------------------
-add_executable(text-runner TextRunner.cc)
-
-target_link_libraries(
-  text-runner
-  EosNsInMemoryTests
-  ${CPPUNIT_LIBRARIES}
-  ${GLIBC_DL_LIBRARY})
-
 add_executable(ns-benchmark NSBenchmark.cc)
 target_link_libraries(ns-benchmark EosNsInMemory-Static)

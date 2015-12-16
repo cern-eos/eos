@@ -21,9 +21,11 @@
 EOSNSNAMESPACE_BEGIN
 
 // Static variables
-std::atomic<redox::Redox*> sRedoxClient {nullptr};
+std::atomic<redox::Redox*> RedisClient::sRedoxClient {nullptr};
 std::string RedisClient::sRedisHost {"localhost"};
 int RedisClient::sRedisPort {6382};
+std::map<std::string, redox::Redox*> RedisClient::pMapClients;
+std::mutex RedisClient::pMutexMap;
 
 //------------------------------------------------------------------------------
 // Get instance

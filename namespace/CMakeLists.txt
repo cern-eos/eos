@@ -84,6 +84,18 @@ if (Linux)
     POSITION_INDEPENDENT_CODE True)
 endif ()
 
+#-------------------------------------------------------------------------------
+# text-runner used for running CPPUnit tests
+#-------------------------------------------------------------------------------
+add_executable(
+  text-runner
+  utils/TextRunner.cc)
 
-#add_subdirectory(ns_in_memory)
+target_link_libraries(
+  text-runner
+  ${CPPUNIT_LIBRARIES}
+  ${GLIBC_DL_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT})
+
 add_subdirectory(ns_on_redis)
+#add_subdirectory(ns_in_memory)
