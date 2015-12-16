@@ -804,9 +804,29 @@ ProcCommand::File ()
         eos::FileMD* fmd = 0;
         {
           eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
+
           try
           {
-            fmd = gOFS->eosView->getFile(spath.c_str());
+            if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+            {
+              unsigned long long fid = 0;
+              if (spath.beginswith("fid:"))
+              {
+                spath.replace("fid:", "");
+                fid = strtoull(spath.c_str(), 0, 10);
+              }
+              if (spath.beginswith("fxid:"))
+              {
+                spath.replace("fxid:", "");
+                fid = strtoull(spath.c_str(), 0, 16);
+              }
+
+              fmd = gOFS->eosFileService->getFileMD(fid);
+            }
+            else
+            {
+              fmd = gOFS->eosView->getFile(spath.c_str());
+            }
             if (do_add && fmd->hasLocation(fsid))
             {
               stdErr += "error: file '";
