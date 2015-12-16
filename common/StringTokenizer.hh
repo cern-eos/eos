@@ -75,7 +75,7 @@ public:
   ~StringTokenizer ();
 
   const char* GetLine (); // return the next parsed line seperated by \n
-  const char* GetToken (); // return the next token
+  const char* GetToken (bool escapeand=true); // return the next token
 };
 
 EOSCOMMONNAMESPACE_END

@@ -169,7 +169,7 @@ StringTokenizer::GetLine ()
  * @return char reference to the next argument token
  */
 const char*
-StringTokenizer::GetToken ()
+StringTokenizer::GetToken (bool escapeand)
 {
   fCurrentArg++;
   if (fCurrentArg < (int) fLineArgs.size())
@@ -187,11 +187,14 @@ StringTokenizer::GetToken ()
     int pos = 0;
     while ((pos = item.find("&",pos)) != STR_NPOS)
     {
-      if ((pos == 0) ||
-          (item[pos - 1] != '\\'))
+      if (escapeand)
       {
-        item.erase(pos, 1);
-        item.insert("#AND#", pos);
+	if ((pos == 0) ||
+	    (item[pos - 1] != '\\'))
+	{
+	  item.erase(pos, 1);
+	  item.insert("#AND#", pos);
+	}
       }
       pos++;
     }
