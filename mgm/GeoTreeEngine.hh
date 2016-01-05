@@ -358,10 +358,10 @@ class GeoTreeEngine : public eos::common::LogId
 	}
 	FastPlacementTree::FsData &fastState = backgroundFastStruct->placementTree->pNodes[*idx].fsData;
 	SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
-	slowState.dlScore = float(fastState.dlScore)/255;
-	slowState.ulScore = float(fastState.ulScore)/255;
+	slowState.dlScore = float(fastState.dlScore);
+	slowState.ulScore = float(fastState.ulScore);
 	slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-	slowState.fillRatio = float(fastState.fillRatio)/255;
+	slowState.fillRatio = float(fastState.fillRatio);
 	slowState.totalSpace = float(fastState.totalSpace);
       }
     }
