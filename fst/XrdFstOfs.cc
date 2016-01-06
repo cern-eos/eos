@@ -739,13 +739,16 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     // use the broadcasted manager name
     XrdSysMutexHelper lock(Config::gConfig.Mutex);
     lManager = Config::gConfig.Manager.c_str();
-    manager = lManager.c_str();
+    address += lManager.c_str();
   }
-
-  address += manager;
+  else
+  {
+    address += manager;
+  }
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 
+ again:
   if (!url.IsValid())
   {
     eos_err("error=URL is not valid: %s", address.c_str());
@@ -756,7 +759,6 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   // Get XrdCl::FileSystem object
   //.............................................................................
 
- again:
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
   if (!fs)
@@ -813,6 +815,19 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
 	  XrdSysTimer sleeper;
 	  sleeper.Snooze(1);
 	  eos_static_info("msg=\"retry query\" query=\"%s\"", capOpaqueFile.c_str());
+	  
+	  if (!manager)
+	  {
+	    // use the broadcasted manager name in the repeated try
+	    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+	    lManager = Config::gConfig.Manager.c_str();
+	    address = "root://";
+	    address += lManager.c_str();
+	    address += "//dummy";
+	    url.Clear();
+	    url.FromString((address.c_str()));
+	  }
+
 	  goto again;
 	}
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);

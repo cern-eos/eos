@@ -110,7 +110,7 @@ Storage::MgmSyncer ()
       if (!isopenforwrite)
       {
         // now do the consistency check
-        if (gFmdSqliteHandler.ResyncMgm(fmd.fsid, fmd.fid, manager.c_str()))
+        if (gFmdSqliteHandler.ResyncMgm(fmd.fsid, fmd.fid, 0))
         {
           eos_static_debug("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fmd.fsid, fmd.fid);
           gOFS.WrittenFilesQueueMutex.Lock();
