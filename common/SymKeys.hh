@@ -148,6 +148,39 @@ public:
   {
     key64 = "";
     memcpy(key, inkey, SHA_DIGEST_LENGTH);
+    
+    SymKey::Base64Encode(key, SHA_DIGEST_LENGTH, key64);
+    
+    validity = invalidity;
+    SHA_CTX sha1;
+    SHA1_Init(&sha1);
+    SHA1_Update(&sha1, (const char*) inkey, SHA_DIGEST_LENGTH);
+    SHA1_Final((unsigned char*) keydigest, &sha1);
+    XrdOucString skeydigest64 = "";
+    Base64Encode(keydigest, SHA_DIGEST_LENGTH, skeydigest64);
+    strncpy(keydigest64, skeydigest64.c_str(), (SHA_DIGEST_LENGTH * 2) - 1);
+  }
+
+
+ //----------------------------------------------------------------------------
+ //! Destructor
+ //----------------------------------------------------------------------------
+
+ ~SymKey () { }
+
+
+ //----------------------------------------------------------------------------
+ //! Output a key and it's digest to stderr
+ //----------------------------------------------------------------------------
+
+ void
+ Print ()
+ {
+  fprintf(stderr, "symkey: ");
+  for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
+  {
+    key64 = "";
+    memcpy(key, inkey, SHA_DIGEST_LENGTH);
 
     SymKey::Base64Encode(key, SHA_DIGEST_LENGTH, key64);
 

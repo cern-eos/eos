@@ -46,12 +46,12 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          int lid,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,
-                         eos::common::LayoutId::eIoType io,
+                         const char* path,
                          uint16_t timeout,
                          bool storeRecovery,
                          off_t targetSize,
                          std::string bookingOpaque) :
-  RaidMetaLayout(file, lid, client, outError, io, timeout,
+  RaidMetaLayout(file, lid, client, outError, path, timeout,
                  storeRecovery, targetSize, bookingOpaque),
   mDoneInitialisation(false)
 {
@@ -189,13 +189,13 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
     if (mStripeFiles[physical_id])
     {
       ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripeFiles[physical_id]->GetAsyncHandler());
+                    (mStripeFiles[physical_id]->fileGetAsyncHandler());
 
       if (ptr_handler)
         ptr_handler->Reset();
 
       // Enable readahead
-      nread = mStripeFiles[physical_id]->ReadAsync(offset_local, mDataBlocks[i],
+      nread = mStripeFiles[physical_id]->fileReadAsync(offset_local, mDataBlocks[i],
               mStripeWidth, true, mTimeout);
 
       if (nread != mStripeWidth)
@@ -223,7 +223,7 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
     if (mStripeFiles[physical_id])
     {
       ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripeFiles[physical_id]->GetAsyncHandler());
+                    (mStripeFiles[physical_id]->fileGetAsyncHandler());
 
       if (ptr_handler)
       {
@@ -237,7 +237,7 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
 
           if (error_type == XrdCl::errOperationExpired)
           {
-            mStripeFiles[physical_id]->Close(mTimeout);
+            mStripeFiles[physical_id]->fileClose(mTimeout);
             delete mStripeFiles[physical_id];
             mStripeFiles[physical_id] = NULL;
           }
@@ -311,12 +311,12 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
     if (mStoreRecovery && mStripeFiles[physical_id])
     {
       ptr_handler =
-        static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->GetAsyncHandler());
+        static_cast<AsyncMetaHandler*>(mStripeFiles[physical_id]->fileGetAsyncHandler());
 
       if (ptr_handler)
         ptr_handler->Reset();
 
-      nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+      nwrite = mStripeFiles[physical_id]->fileWriteAsync(offset_local,
                                                      mDataBlocks[stripe_id],
                                                      mStripeWidth,
                                                      mTimeout);
@@ -366,7 +366,7 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
     if (mStoreRecovery && mStripeFiles[physical_id])
     {
       ptr_handler = static_cast<AsyncMetaHandler*>
-                    (mStripeFiles[physical_id]->GetAsyncHandler());
+                    (mStripeFiles[physical_id]->fileGetAsyncHandler());
 
       if (ptr_handler)
       {
@@ -379,7 +379,7 @@ ReedSLayout::RecoverPiecesInGroup(off_t offsetInit,
 
           if (error_type == XrdCl::errOperationExpired)
           {
-            mStripeFiles[physical_id]->Close(mTimeout);
+            mStripeFiles[physical_id]->fileClose(mTimeout);
             delete mStripeFiles[physical_id];
             mStripeFiles[physical_id] = NULL;
           }
@@ -483,7 +483,7 @@ ReedSLayout::WriteParityToFiles(off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_id])
     {
-      nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local, mDataBlocks[i],
+      nwrite = mStripeFiles[physical_id]->fileWriteAsync(offset_local, mDataBlocks[i],
                mStripeWidth, mTimeout);
 
       if (nwrite != mStripeWidth)
@@ -519,7 +519,7 @@ ReedSLayout::Truncate(XrdSfsFileOffset offset)
             offset, truncate_offset);
 
   if (mStripeFiles[0])
-    mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
+    mStripeFiles[0]->fileTruncate(truncate_offset, mTimeout);
 
   if (mIsEntryServer)
   {
@@ -538,7 +538,7 @@ ReedSLayout::Truncate(XrdSfsFileOffset offset)
 
       if (mStripeFiles[i])
       {
-        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+        if (mStripeFiles[i]->fileTruncate(truncate_offset, mTimeout))
         {
           eos_err("error=error while truncating");
           return SFS_ERROR;
@@ -585,7 +585,7 @@ int
 ReedSLayout::Fallocate(XrdSfsFileOffset length)
 {
   int64_t size = ceil((1.0 * length) / mSizeGroup) * mStripeWidth + mSizeHeader;
-  return mStripeFiles[0]->Fallocate(size);
+  return mStripeFiles[0]->fileFallocate(size);
 }
 
 
@@ -600,7 +600,7 @@ ReedSLayout::Fdeallocate(XrdSfsFileOffset fromOffset,
                       mSizeHeader;
   int64_t to_size = ceil((1.0 * toOffset) / mSizeGroup) * mStripeWidth +
                     mSizeHeader;
-  return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+  return mStripeFiles[0]->fileFdeallocate(from_size, to_size);
 }
 
 

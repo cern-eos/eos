@@ -70,6 +70,8 @@ if (NOT PACKAGEONLY)
   find_package(leveldb REQUIRED)
   find_package(ZMQ REQUIRED)
   find_package(Kerberos5 REQUIRED)
+  find_package(kineticio)
+  find_package(davix)
 
   if (Linux)
     find_package(glibc REQUIRED)
@@ -94,7 +96,18 @@ else()
   endfunction()
 endif()
 
-#-------------------------------------------------------------------------------
+if (RELEASE)
+else (RELEASE)
+set(RELEASE "head")
+endif (RELEASE)
+
+EOS_defineOperatingSystem()
+
+if (DEFINED PACKAGEONLY AND PACKAGEONLY)
+   message(STATUS "Runing CMake in package only mode")
+endif (DEFINED PACKAGEONLY AND PACKAGEONLY)
+
+################################################################################
 # Check for Gcc >=4.4
 #-------------------------------------------------------------------------------
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -131,7 +144,7 @@ link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 #-------------------------------------------------------------------------------
 EOS_CheckOutOfSourceBuild()
 
-if (CLIENT)
+if(CLIENT)
   set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1" )
 else ()
   set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"" )

@@ -25,31 +25,35 @@
 #include <stdint.h>
 #include <cstdlib>
 /*----------------------------------------------------------------------------*/
-#include "fst/io/XrdIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/ChunkHandler.hh"
+#include "common/FileMap.hh"
+#include "common/Logging.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClBuffer.hh"
+#include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
-const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 *1024 * 1024; ///< 1MB default
+        const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 * 1024 * 1024; ///< 1MB default
 const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 
-XrdIo::XrdIo () :
-FileIo(),
+XrdIo::XrdIo(std::string path) :
+FileIo (path, "XrdIo"),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
 mXrdFile (NULL),
-mMetaHandler(new AsyncMetaHandler())
+mMetaHandler (new AsyncMetaHandler ())
 {
-  // Set the TimeoutResolution to 1 
+  // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
-  env->PutInt( "TimeoutResolution", 1 );
+  env->PutInt("TimeoutResolution", 1);
 }
 
 
@@ -75,19 +79,32 @@ XrdIo::~XrdIo ()
     }
   }
 
-  delete mMetaHandler;  
-  
+  delete mMetaHandler;
+
   if (mXrdFile)
     delete mXrdFile;
 }
 
+
+namespace{
+  std::string getAttrUrl(std::string path)
+  {
+    size_t rfind = path.rfind("/");
+    if (rfind != std::string::npos)
+    {
+      path.insert(rfind + 1, ".");
+    }
+    path += ".xattr";
+    return path;
+  }
+}
 
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Open (const std::string& path,
+XrdIo::fileOpen (const std::string& path,
              XrdSfsFileOpenMode flags,
              mode_t mode,
              const std::string& opaque,
@@ -102,18 +119,24 @@ XrdIo::Open (const std::string& path,
   mFilePath = path;
 
   //............................................................................
-  // Opaque info can be part of the 'path' 
+  // Opaque info can be part of the 'path'
   //............................................................................
-  if ( ( (qpos = path.find("?")) != std::string::npos) ) {
-    lOpaque = path.substr(qpos+1);
+  if (((qpos = path.find("?")) != std::string::npos))
+  {
+    lOpaque = path.substr(qpos + 1);
     mFilePath.erase(qpos);
-  } 
+  }
   else
   {
     lOpaque = opaque;
   }
 
   XrdOucEnv open_opaque(lOpaque.c_str());
+
+  //............................................................................
+  // Set url for xattr requests
+  //............................................................................
+  mUrl = getAttrUrl(path);
 
   //............................................................................
   // Decide if readahead is used and the block size
@@ -144,7 +167,7 @@ XrdIo::Open (const std::string& path,
   // Disable recovery on read and write
   mXrdFile->EnableReadRecovery(false);
   mXrdFile->EnableWriteRecovery(false);
-  
+
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl, timeout);
@@ -161,7 +184,7 @@ XrdIo::Open (const std::string& path,
     errno = 0;
   }
 
-  //............................................................................   
+  //............................................................................
   // store the last URL we are connected after open
   //............................................................................
 
@@ -176,7 +199,7 @@ XrdIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::Read (XrdSfsFileOffset offset,
+XrdIo::fileRead (XrdSfsFileOffset offset,
              char* buffer,
              XrdSfsXferSize length,
              uint16_t timeout)
@@ -208,7 +231,7 @@ XrdIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-XrdIo::Write (XrdSfsFileOffset offset,
+XrdIo::fileWrite (XrdSfsFileOffset offset,
               const char* buffer,
               XrdSfsXferSize length,
               uint16_t timeout)
@@ -236,8 +259,9 @@ XrdIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Read from file - async
 //------------------------------------------------------------------------------
+
 int64_t
-XrdIo::ReadAsync (XrdSfsFileOffset offset,
+XrdIo::fileReadAsync (XrdSfsFileOffset offset,
                   char* buffer,
                   XrdSfsXferSize length,
                   bool readahead,
@@ -267,9 +291,9 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
     // get a new handler and we return directly an error
     if (!handler)
     {
-      return SFS_ERROR;    
+      return SFS_ERROR;
     }
-    
+
     status = mXrdFile->Read(static_cast<uint64_t> (offset),
                             static_cast<uint32_t> (length),
                             buffer,
@@ -281,11 +305,10 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       // TODO: for the time being we call this ourselves but this should be
       // dropped once XrdCl will call the handler for a request as it knows it
-      // has already failed 
+      // has already failed
       //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       mMetaHandler->HandleResponse(&status, handler);
     }
-    
     nread = length;
   }
   else
@@ -301,7 +324,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
     while (length)
     {
       iter = FindBlock(offset);
-      
+
       if (iter != mMapBlocks.end())
       {
         // Block found in prefetched blocks
@@ -326,25 +349,25 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
             break;
           }
         }
-        
+
         if (sh->WaitOK())
         {
           eos_debug("block in cache, blk_off=%lld, req_off= %lld", iter->first, offset);
-          
+
           if (sh->GetRespLength() == 0)
           {
             // The request got a response but it read 0 bytes
             eos_warning("response contains 0 bytes");
-            break;           
+            break;
           }
 
           aligned_length = sh->GetRespLength() - shift;
-          read_length = ((uint32_t)length < aligned_length) ? length : aligned_length;
+          read_length = ((uint32_t) length < aligned_length) ? length : aligned_length;
 
           // If prefetch block smaller than mBlocksize and current offset at end
           // of the prefetch block then we reached the end of file
           if ((sh->GetRespLength() != mBlocksize) &&
-              ((uint64_t)offset >= iter->first + sh->GetRespLength()))
+              ((uint64_t) offset >= iter->first + sh->GetRespLength()))
           {
             done_read = true;
             break;
@@ -370,7 +393,8 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       }
       else
       {
-        // Remove all elements from map so that we can align with the new 
+        //......................................................................
+        // Remove all elements from map so that we can align with the new
         // requests and prefetch a new block. But first we need to collect any
         // responses which are in-flight as otherwise these response might
         // arrive later on, when we are expecting replies for other blocks since
@@ -378,13 +402,13 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         while (!mMapBlocks.empty())
         {
           SimpleHandler* sh = mMapBlocks.begin()->second->handler;
-          
+
           if (sh->HasRequest())
           {
-            // Not interested in the result - discard it 
+            // Not interested in the result - discard it
             sh->WaitOK();
           }
-          
+
           mQueueBlocks.push(mMapBlocks.begin()->second);
           mMapBlocks.erase(mMapBlocks.begin());
         }
@@ -392,7 +416,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         if (!mQueueBlocks.empty())
         {
           eos_debug("prefetch new block(1)");
-          
+
           if (!PrefetchBlock(offset, false, timeout))
           {
             eos_err("error=failed to send prefetch request(1)");
@@ -414,8 +438,10 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
       // If previous read requests failed then we won't get a new handler
       // and we return directly an error
       if (!handler)
-        return SFS_ERROR;    
-      
+      {
+        return SFS_ERROR;
+      }
+
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (length),
                               pBuff,
@@ -426,7 +452,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         // TODO: for the time being we call this ourselves but this should be
         // dropped once XrdCl will call the handler for a request as it knows it
-        // has already failed 
+        // has already failed
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         mMetaHandler->HandleResponse(&status, handler);
       }
@@ -442,14 +468,15 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Try to find a block in cache which contains the required offset
 //------------------------------------------------------------------------------
+
 PrefetchMap::iterator
-XrdIo::FindBlock(uint64_t offset)
+XrdIo::FindBlock (uint64_t offset)
 {
   if (mMapBlocks.empty())
   {
     return mMapBlocks.end();
   }
-  
+
   PrefetchMap::iterator iter = mMapBlocks.lower_bound(offset);
   if ((iter != mMapBlocks.end()) && (iter->first == offset))
   {
@@ -461,14 +488,14 @@ XrdIo::FindBlock(uint64_t offset)
     if (iter == mMapBlocks.begin())
     {
       // Only blocks with bigger offsets, return pointer to end of the map
-      return mMapBlocks.end();      
+      return mMapBlocks.end();
     }
-    else 
+    else
     {
       // Check if the previous block, we know the map is not empty
       iter--;
-      
-      if ((iter->first <= offset) && ( offset < (iter->first + mBlocksize)))
+
+      if ((iter->first <= offset) && (offset < (iter->first + mBlocksize)))
       {
         return iter;
       }
@@ -477,20 +504,21 @@ XrdIo::FindBlock(uint64_t offset)
         return mMapBlocks.end();
       }
     }
-  }  
+  }
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file - async
 //------------------------------------------------------------------------------
+
 int64_t
-XrdIo::WriteAsync (XrdSfsFileOffset offset,
+XrdIo::fileWriteAsync (XrdSfsFileOffset offset,
                    const char* buffer,
                    XrdSfsXferSize length,
                    uint16_t timeout)
 {
-  eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
+  eos_debug("offset=%llu length=%i", static_cast<uint64_t> (offset), length);
 
   ChunkHandler* handler;
   XrdCl::XRootDStatus status;
@@ -501,9 +529,9 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
   // and we return directly an error
   if (!handler)
   {
-    return SFS_ERROR;    
+    return SFS_ERROR;
   }
-  
+
   // Obs: Use the handler buffer for write requests
   status = mXrdFile->Write(static_cast<uint64_t> (offset),
                            static_cast<uint32_t> (length),
@@ -517,14 +545,33 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
+
 int
-XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
+XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
+
+  if (mExternalStorage)
+  {
+    if (offset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)
+    {
+      // if we have an external XRootD we cannot send this truncate
+      // we issue an 'rm' instead
+      return Delete(mFilePath.c_str());
+    }
+
+    if (offset == EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN)
+    {
+      // if we have an external XRootD we cannot send this truncate
+      // we can just ignore this message
+      return 0;
+    }
+  }
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
                                                   timeout);
-  
+
   if (!status.IsOK())
   {
+
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
@@ -537,13 +584,15 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
+
 int
-XrdIo::Sync (uint16_t timeout)
+XrdIo::fileSync (uint16_t timeout)
 {
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
   if (!status.IsOK())
   {
+
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
     return SFS_ERROR;
@@ -556,8 +605,9 @@ XrdIo::Sync (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
+
 int
-XrdIo::Stat (struct stat* buf, uint16_t timeout)
+XrdIo::fileStat (struct stat* buf, uint16_t timeout)
 {
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
@@ -580,6 +630,7 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 
   if (stat)
   {
+
     delete stat;
   }
 
@@ -590,8 +641,9 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
+
 int
-XrdIo::Close (uint16_t timeout)
+XrdIo::fileClose (uint16_t timeout)
 {
   bool async_ok = true;
 
@@ -611,7 +663,7 @@ XrdIo::Close (uint16_t timeout)
       mMapBlocks.erase(mMapBlocks.begin());
     }
   }
-  
+
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
   if (!status.IsOK())
@@ -624,6 +676,7 @@ XrdIo::Close (uint16_t timeout)
   // If any of the async requests failed then we have an error
   if (!async_ok)
   {
+
     return SFS_ERROR;
   }
 
@@ -634,8 +687,9 @@ XrdIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
+
 int
-XrdIo::Remove (uint16_t timeout)
+XrdIo::fileRemove (uint16_t timeout)
 {
   //............................................................................
   // Remove the file by truncating using the special value offset
@@ -644,6 +698,7 @@ XrdIo::Remove (uint16_t timeout)
 
   if (!status.IsOK())
   {
+
     eos_err("error=failed to truncate file with deletion offset - %s", mPath.c_str());
     mLastErrMsg = "failed to truncate file with deletion offset";
     return SFS_ERROR;
@@ -652,17 +707,82 @@ XrdIo::Remove (uint16_t timeout)
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Check for existance
+//------------------------------------------------------------------------------
+
+int
+XrdIo::fileExists ()
+{
+  XrdCl::URL xUrl(url);
+  XrdCl::FileSystem fs(xUrl);
+  XrdCl::StatInfo* stat;
+  ;
+  XrdCl::XRootDStatus status = fs.Stat(xUrl.GetPath(), stat);
+  errno = 0;
+  if (!status.IsOK())
+  {
+    if (status.errNo == kXR_NotFound)
+    {
+      errno = ENOENT;
+      mLastErrMsg = "no such file or directory";
+    }
+    else
+    {
+      errno = EIO;
+      mLastErrMsg = "failed to check for existance";
+    }
+
+    return SFS_ERROR;
+  }
+  if (stat)
+  {
+    delete stat;
+    return SFS_OK;
+  }
+  else
+  {
+
+    errno = ENODATA;
+    return SFS_ERROR;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Delete file by path
+//------------------------------------------------------------------------------
+
+int
+XrdIo::fileDelete (const char* url)
+{
+  XrdCl::URL xUrl(url);
+  XrdCl::FileSystem fs(xUrl);
+
+  XrdCl::XRootDStatus status = fs.Rm(xUrl.GetPath());
+  XrdCl::XRootDStatus status_attr = fs.Rm(getAttrUrl(url));
+  errno = 0;
+  if (!status.IsOK())
+  {
+
+    eos_err("error=failed to delete file - %s", url);
+    mLastErrMsg = "failed to delete file";
+    errno = EIO;
+    return SFS_ERROR;
+  }
+  return true;
+}
+
 
 //------------------------------------------------------------------------------
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
-bool 
+
+bool
 XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
   bool done = true;
   XrdCl::XRootDStatus status;
   ReadaheadBlock* block = NULL;
-  
   eos_debug("try to prefetch with offset: %lli, length: %4u",
             offset, mBlocksize);
 
@@ -694,6 +814,7 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
   }
   else
   {
+
     mMapBlocks.insert(std::make_pair(offset, block));
   }
 
@@ -702,12 +823,487 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 
 
 //------------------------------------------------------------------------------
-// Get pointer to async meta handler object 
+// Get pointer to async meta handler object
 //------------------------------------------------------------------------------
+
 void*
 XrdIo::GetAsyncHandler ()
 {
-  return static_cast<void*>(mMetaHandler);
+
+  return static_cast<void*> (mMetaHandler);
+}
+
+
+//------------------------------------------------------------------------------
+// Run a space query command as statfs
+//------------------------------------------------------------------------------
+
+int
+XrdIo::Statfs (const char* path, struct statfs* sfs)
+{
+  XrdCl::URL xUrl(path);
+  XrdCl::FileSystem fs(xUrl);
+
+  XrdCl::Buffer *response = 0;
+  XrdCl::Buffer arg(xUrl.GetPath().size());
+  arg.FromString(xUrl.GetPath());
+
+  XrdCl::XRootDStatus status = fs.Query(
+                                        XrdCl::QueryCode::Space,
+                                        arg,
+                                        response,
+                                        (uint16_t) 15);
+
+  errno = 0;
+
+  if (!status.IsOK())
+  {
+    eos_err("msg=\"failed to statfs remote XRootD\" url=\"%s\"", path);
+    mLastErrMsg = "failed to statfs remote XRootD";
+    errno = EREMOTEIO;
+    return errno;
+  }
+
+  if (response)
+  {
+    //  oss.cgroup=default&oss.space=469799256416256&oss.free=468894771826688&oss.maxf=68719476736&oss.used=904484589568&oss.quota=469799256416256
+    XrdOucEnv spaceEnv(response->ToString().c_str());
+
+    unsigned long long free_bytes = 0;
+    unsigned long long used_bytes = 0;
+    unsigned long long total_bytes = 0;
+    unsigned long long max_file = 0;
+
+    if (spaceEnv.Get("oss.free"))
+    {
+      free_bytes = strtoull(spaceEnv.Get("oss.free"), 0, 10);
+    }
+    else
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    if (spaceEnv.Get("oss.used"))
+    {
+      used_bytes = strtoull(spaceEnv.Get("oss.used"), 0, 10);
+    }
+    else
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    if (spaceEnv.Get("oss.maxf"))
+    {
+      max_file = strtoull(spaceEnv.Get("oss.maxf"), 0, 10);
+    }
+    else
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    if (spaceEnv.Get("oss.space"))
+    {
+      total_bytes = strtoull(spaceEnv.Get("oss.space"), 0, 10);
+    }
+    else
+    {
+      errno = EINVAL;
+      return errno;
+    }
+
+    sfs->f_frsize = 4096;
+    sfs->f_bsize = sfs->f_frsize;
+    sfs->f_blocks = (fsblkcnt_t) (total_bytes / sfs->f_frsize);
+    sfs->f_bavail = (fsblkcnt_t) (free_bytes / sfs->f_frsize);
+    sfs->f_bfree = sfs->f_bavail;
+    sfs->f_files = 1000000;
+    sfs->f_ffree = 1000000;
+    delete response;
+
+    return 0;
+  }
+  else
+  {
+
+    errno = EREMOTEIO;
+    return errno;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Attribute Interface
+//------------------------------------------------------------------------------
+
+
+
+int
+XrdIo::xattrSet(const char* name, const char* value, size_t len)
+{
+  std::string lBlob;
+  // download
+  if (!XrdIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      std::string key = name;
+      std::string val;
+      val.assign(value, len);
+      mFileMap.Set(key, val);
+      std::string lMap = mFileMap.Trim();
+      fprintf(stderr, "### %s", lMap.c_str());
+      if (!XrdIo::Upload(mUrl, lMap))
+      {
+        return SFS_OK;
+      }
+      else
+      {
+        eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+                       mUrl.c_str());
+      }
+    }
+    else
+    {
+      eos_static_err("msg=\"unable to parse remote file map\" url=\"%s\"",
+                     mUrl.c_str());
+      errno = EINVAL;
+    }
+  }
+  else
+  {
+
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+                   mUrl.c_str());
+  }
+
+  return SFS_ERROR;
+}
+
+// ------------------------------------------------------------------------
+//! Set a string attribute (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+XrdIo::xattrSet(string name, std::string value)
+{
+  return xattrSet(name.c_str(), value.c_str(), value.length());
+}
+
+
+// ------------------------------------------------------------------------
+//! Get a binary attribute by name (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+XrdIo::xattrGet(const char* name, char* value, size_t &size)
+{
+  std::string lBlob;
+  if (!XrdIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      std::string val = mFileMap.Get(name);
+      size_t len = val.length() + 1;
+      if (len > size)
+        len = size;
+      memcpy(value, val.c_str(), len);
+      eos_static_info("key=%s value=%s", name, value);
+      return SFS_OK;
+    }
+  }
+  else
+  {
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+                   mUrl.c_str());
+  }
+  return SFS_ERROR;
+}
+
+// ------------------------------------------------------------------------
+//! Get a string attribute by name (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+XrdIo::xattrGet(string name, std::string& value)
+{
+  std::string lBlob;
+  if (!XrdIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      value = mFileMap.Get(name);
+      return SFS_OK;
+    }
+  }
+  else
+  {
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+                   mUrl.c_str());
+  }
+  return SFS_ERROR;
+}
+
+
+
+//--------------------------------------------------------------------------
+//! traversing filesystem/storage routines
+//--------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------
+//! Open a curser to traverse a storage system
+//--------------------------------------------------------------------------
+
+FileIo::FtsHandle*
+XrdIo::ftsOpen (std::string subtree)
+{
+
+  XrdCl::URL url(subtree);
+  XrdCl::FileSystem fs(url);
+  std::vector<std::string> files;
+  std::vector<std::string> directories;
+
+  XrdCl::XRootDStatus status =
+          XrdIo::GetDirList(&fs,
+                            url,
+                            &files,
+                            &directories);
+
+  if (!status.IsOK())
+  {
+    eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
+    errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
+    return 0;
+  }
+
+
+  FtsHandle* handle = new FtsHandle(subtree.c_str());
+  if (!handle)
+    return 0;
+
+  for (auto it = files.begin(); it != files.end(); ++it)
+  {
+    XrdOucString fname = it->c_str();
+    // skip attribute files
+    if (fname.beginswith(".") && fname.endswith(".xattr"))
+      continue;
+    handle->found_files.push_back(subtree + *it);
+  }
+
+  for (auto it = directories.begin(); it != directories.end(); ++it)
+  {
+    eos_info("adding dir=%s deepness=%d", (subtree + *it + "/").c_str(), handle->deepness);
+    handle->found_dirs[0].push_back(subtree + *it + "/");
+  }
+
+  return (FileIo::FtsHandle*) (handle);
+}
+
+//--------------------------------------------------------------------------
+//! Return the next path related to a traversal cursor obtained with ftsOpen
+//--------------------------------------------------------------------------
+
+std::string
+XrdIo::ftsRead (FileIo::FtsHandle* fts_handle)
+{
+  FtsHandle* handle = (FtsHandle*) fts_handle;
+  if (!handle->found_files.size())
+  {
+    do
+    {
+      XrdCl::XRootDStatus status;
+      std::vector<std::string> files;
+      std::vector<std::string> directories;
+
+      auto dit = handle->found_dirs[handle->deepness].begin();
+      if (dit == handle->found_dirs[handle->deepness].end())
+      {
+        // move to next level
+        handle->deepness++;
+        handle->found_dirs.resize(handle->deepness + 1);
+        if (!handle->found_dirs[handle->deepness].size())
+          break;
+      }
+
+      eos_info("searching at deepness=%d directory=%s", handle->deepness, dit->c_str());
+      XrdCl::URL url(*dit);
+      XrdCl::FileSystem fs(url);
+
+      status = XrdIo::GetDirList(&fs,
+                                 url,
+                                 &files,
+                                 &directories);
+
+
+      if (!status.IsOK())
+      {
+        eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
+        errno = status.errNo;
+        mLastErrMsg = status.ToString().c_str();
+        return "";
+      }
+      else
+      {
+        handle->found_dirs[handle->deepness].erase(dit);
+      }
+
+      for (auto it = files.begin(); it != files.end(); ++it)
+      {
+        XrdOucString fname = it->c_str();
+        if (fname.beginswith(".") && fname.endswith(".xattr"))
+          continue;
+        eos_info("adding file=%s", (*dit + *it).c_str());
+        handle->found_files.push_back(*dit + *it);
+      }
+
+      for (auto it = directories.begin(); it != directories.end(); ++it)
+      {
+        eos_info("adding dir=%s deepness=%d", (*dit + *it + "/").c_str(), handle->deepness + 1);
+        handle->found_dirs[handle->deepness + 1].push_back(*dit + *it + "/");
+      }
+    }
+    while (!handle->found_files.size());
+  }
+  if (handle->found_files.size())
+  {
+    std::string new_path = handle->found_files.front();
+    handle->found_files.pop_front();
+    return new_path;
+  }
+  return "";
+}
+
+//--------------------------------------------------------------------------
+//! Close a traversal cursor
+//--------------------------------------------------------------------------
+
+int
+XrdIo::ftsClose (FileIo::FtsHandle* fts_handle)
+{
+  FtsHandle* handle = (FtsHandle*) fts_handle;
+  handle->found_files.clear();
+  handle->found_dirs.resize(1);
+  handle->found_dirs[0].resize(1);
+  handle->deepness = 0;
+  return 0;
+}
+
+//--------------------------------------------------------------------------
+//! Download a remote file into a string object
+//--------------------------------------------------------------------------
+
+int
+XrdIo::Download (std::string url, std::string& download)
+{
+  errno = 0;
+  static int s_blocksize = 65536;
+  XrdIo io((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
+
+  off_t offset = 0;
+  std::string opaque;
+  if (!io.Open(url.c_str(), 0, 0, opaque, 10))
+  {
+    ssize_t rbytes = 0;
+    download.resize(s_blocksize);
+    do
+    {
+      rbytes = io.Read(offset, (char*) download.c_str(), s_blocksize, 30);
+      if (rbytes == s_blocksize)
+      {
+        download.resize(download.size() + 65536);
+      }
+      if (rbytes > 0)
+      {
+        offset += rbytes;
+      }
+    }
+    while (rbytes == s_blocksize);
+    io.Close();
+    download.resize(offset);
+    return 0;
+  }
+
+  if (errno == 3011)
+    return 0;
+  return -1;
+}
+
+//--------------------------------------------------------------------------
+//! Upload a string object into a remote file
+//--------------------------------------------------------------------------
+
+int
+XrdIo::Upload (std::string url, std::string& upload)
+{
+  errno = 0;
+  XrdIo io((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
+
+  std::string opaque;
+  int rc = 0;
+
+  if (!io.Open(url.c_str(),
+               SFS_O_WRONLY | SFS_O_CREAT, S_IRWXU | S_IRGRP | SFS_O_MKPTH,
+               opaque,
+               10))
+  {
+    eos_static_info("opened %s", url.c_str());
+    if ((io.Write(0, upload.c_str(), upload.length(), 30)) != (ssize_t) upload.length())
+    {
+      eos_static_err("failed to write %d", upload.length());
+      rc = -1;
+    }
+    else
+    {
+      eos_static_info("uploaded %d\n", upload.length());
+    }
+    io.Close();
+  }
+  else
+  {
+
+    eos_static_err("failed to open %s", url.c_str());
+    rc = -1;
+  }
+  return rc;
+}
+
+
+//------------------------------------------------------------------------------
+// Get a list of files and a list of directories inside a remote directory
+//------------------------------------------------------------------------------
+
+XrdCl::XRootDStatus
+XrdIo::GetDirList (XrdCl::FileSystem *fs,
+                   const XrdCl::URL &url,
+                   std::vector<std::string> *files,
+                   std::vector<std::string> *directories)
+{
+  eos_info("url=%s", url.GetURL().c_str());
+  using namespace XrdCl;
+  DirectoryList *list;
+  XrdCl::XRootDStatus status;
+
+  status = fs->DirList(url.GetPath(), DirListFlags::Stat, list);
+  if (!status.IsOK())
+  {
+    return status;
+  }
+  for (DirectoryList::Iterator it = list->Begin(); it != list->End(); ++it)
+  {
+    if ((*it)->GetStatInfo()->TestFlags(StatInfo::IsDir))
+    {
+      std::string directory = (*it)->GetName();
+      directories->push_back(directory);
+    }
+    else
+    {
+      std::string file = (*it)->GetName();
+      files->push_back(file);
+    }
+  }
+  return XRootDStatus();
 }
 
 EOSFSTNAMESPACE_END

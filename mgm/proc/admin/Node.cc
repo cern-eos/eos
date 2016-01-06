@@ -73,8 +73,15 @@ ProcCommand::Node ()
      std::sort(keylist.begin(), keylist.end());
      for (size_t i = 0; i < keylist.size(); i++)
      {
-       char line[1024];
-       snprintf(line, sizeof (line) - 1, "%-32s := %s\n", keylist[i].c_str(), FsView::gFsView.mNodeView[node]->GetConfigMember(keylist[i].c_str()).c_str());
+       char line[2048];
+       std::string val;
+       val = FsView::gFsView.mNodeView[node]->GetConfigMember(keylist[i].c_str()).c_str();
+       if (val.substr(0,7) == "base64:")
+	 val = "base64:...";
+       if (val.length() > 1024)
+	 val = "...";
+
+       snprintf(line, sizeof (line) - 1, "%-32s := %s\n", keylist[i].c_str(), val.c_str());
        stdOut += line;
      }
    }

@@ -24,7 +24,8 @@
 include_directories( ${CMAKE_SOURCE_DIR}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
+		     ${SPARSEHASH_INCLUDE_DIR}
+         ${KINETICIO_INCLUDE_DIR} )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
@@ -42,7 +43,7 @@ add_executable( eos
 		../fst/checksum/crc32ctables.cc
 		commands/com_access.cc
 		commands/com_archive.cc
-	        commands/com_attr.cc
+	  commands/com_attr.cc
 		commands/com_backup.cc
 		commands/com_cd.cc
 		commands/com_chmod.cc 
@@ -62,6 +63,7 @@ add_executable( eos
 		commands/com_info.cc
 		commands/com_io.cc
 		commands/com_json.cc
+    commands/com_kinetic.cc
 		commands/com_license.cc 
 		commands/com_ln.cc 
 		commands/com_ls.cc 
@@ -105,33 +107,36 @@ add_executable( eosdropboxd
 
 if (CLIENT)
 target_link_libraries( eos 
-		XrdPosix	        XrdCl
-		XrdUtils  	eosCommon
+		XrdPosix	       XrdCl
+		XrdUtils  	     eosCommon
+		EosFstIo
 		crypto           curses
 		dl               z
 		readline         ${CMAKE_THREAD_LIBS_INIT}
-		${UUID_LIBRARIES} 			       
+		${UUID_LIBRARIES} ${KINETICIO_LIBRARIES} 			        
 )
 else (CLIENT)
 target_link_libraries( eos 
 		XrdPosix	         XrdCl 
 		XrdUtils 	 eosCommon-Static
+    EosFstIo-Static
 		readline          XrdMqClient-Static
 		crypto            curses
 		dl                z
-		${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
+		${UUID_LIBRARIES} ${KINETICIO_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
 )
 endif(CLIENT)
 
 if (MacOSX)
 target_link_libraries( eosdropboxd
-		eosCommon XrdPosix 
+		eosCommon XrdPosix EosFstIo
 		XrdCl            XrdUtils 
 		${CMAKE_THREAD_LIBS_INIT} )
 
 else (MacOSX)
 target_link_libraries( eosdropboxd 
-		eosCommon-Static XrdPosix 
+		eosCommon-Static XrdPosix EosFstIo-Static
 		XrdCl            XrdUtils 
 		${CMAKE_THREAD_LIBS_INIT} )
 

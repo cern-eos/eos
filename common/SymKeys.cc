@@ -216,7 +216,9 @@ SymKey::Base64Encode (char* in, unsigned int inlen, XrdOucString &out)
 
   if (bptr->data)
   {
-    out.assign((char*) bptr->data, 0, size - 1);
+    std::string sout;
+    sout.assign((char*) bptr->data, 0, size);
+    out = sout.c_str(); // XrdOucString assign can only assign portions of 0 terminated strings
   }
   BIO_free_all(b64);
   return true;

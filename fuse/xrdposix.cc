@@ -2345,7 +2345,7 @@ xrd_open (const char* path,
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
 
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
+      retc = file->Open(flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -2367,7 +2367,7 @@ xrd_open (const char* path,
                                                          eos::common::LayoutId::kXrdCl);
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
+      retc = file->Open(flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -2390,7 +2390,7 @@ xrd_open (const char* path,
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
+      retc = file->Open(flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -2538,7 +2538,7 @@ xrd_open (const char* path,
   }
 
   eos_static_debug("open_path=%s, open_cgi=%s", spath.c_str(), open_cgi.c_str());
-  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str());
+  retc = file->Open(flags_sfs, mode, open_cgi.c_str());
 
   if (retc)
   {

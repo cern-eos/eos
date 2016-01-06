@@ -30,7 +30,6 @@
 #include "common/FileSystem.hh"
 #include "common/Path.hh"
 #include "common/Statfs.hh"
-#include "common/Attr.hh"
 #include "common/SyncAll.hh"
 #include "common/StackTrace.hh"
 /*----------------------------------------------------------------------------*/
@@ -57,6 +56,7 @@
 #include <execinfo.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <attr/xattr.h>
 /*----------------------------------------------------------------------------*/
 
 
@@ -524,6 +524,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx = "gw.ntx";
   std::string watch_error_simulation = "error.simulation";
+  std::string watch_kinetic_reload = "kinetic.reload";
 
   ObjectManager.ModificationWatchKeys.insert(watch_id);
   ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
@@ -536,6 +537,7 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
   ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
   ObjectManager.ModificationWatchKeys.insert(watch_error_simulation);
+  ObjectManager.ModificationWatchKeys.insert(watch_kinetic_reload);
   ObjectManager.SubjectsMutex.UnLock();
 
 
@@ -1108,7 +1110,6 @@ XrdFstOfs::_rem (const char* path,
                  bool ignoreifnotexist)
 {
   EPNAME("rem");
-  int retc = SFS_OK;
   XrdOucString fstPath = "";
   const char* localprefix = 0;
   const char* hexfid = 0;
@@ -1143,36 +1144,19 @@ XrdFstOfs::_rem (const char* path,
     fstPath = fstpath;
   }
 
-  struct stat statinfo;
-
-  if ((retc = XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
-  {
-    if (!ignoreifnotexist)
-    {
-      eos_notice("unable to delete file - file does not exist (anymore): %s "
-                 "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
-      return gOFS.Emsg(epname, error, ENOENT, "delete file - file does not exist", fstPath.c_str());
-    }
-  }
-
   eos_info("fstpath=%s", fstPath.c_str());
   int rc = 0;
 
-  if (!retc)
-  {
-    // unlink file and possible blockxs file
-    errno = 0;
-    rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
+  // unlink file and possible blockxs file
+  errno = 0;
+  std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(fstPath.c_str()));
 
-    if (rc)
-      eos_info("rc=%d errno=%d", rc, errno);
-  }
-
-  if (ignoreifnotexist)
+  if (!io) 
   {
-    // hide error if a deleted file is deleted
-    rc = 0;
+    return gOFS.Emsg(epname, error, EINVAL, "open - no IO plug-in avaialble", fstPath.c_str());
   }
+  
+  rc = io->fileRemove();
 
   // cleanup eventual transactions
   if (!gOFS.Storage->CloseTransaction(fsid, fid))
@@ -1182,10 +1166,27 @@ XrdFstOfs::_rem (const char* path,
   }
 
   if (rc)
-  {
-    return rc;
-  }
+  { 
 
+    if (errno == ENOENT) 
+    {
+      if (ignoreifnotexist)
+      {
+	// hide error if a deleted file is deleted
+	rc = 0;
+      }
+      else 
+      {
+	eos_notice("unable to delete file - file does not exist (anymore): %s "
+		   "fstpath=%s fsid=%lu id=%llu", path, fstPath.c_str(), fsid, fid);
+      }
+    }
+    if (rc)
+    {
+      return gOFS.Emsg(epname, error, errno, "delete file", fstPath.c_str());
+    }
+  }
+    
   if (!gFmdSqliteHandler.DeleteFmd(fid, fsid))
   {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);

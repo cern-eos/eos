@@ -60,7 +60,7 @@ public:
                 int lid,
                 const XrdSecEntity* client,
                 XrdOucErrInfo* outError,
-                eos::common::LayoutId::eIoType io,
+                const char *path,
                 uint16_t timeout = 0,
                 bool storeRecovery = false,
                 off_t targetSize = 0,

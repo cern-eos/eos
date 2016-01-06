@@ -54,6 +54,7 @@ EOSFSTNAMESPACE_BEGIN;
 
 // Forward declaration
 class Layout;
+class CheckSum;
 
 //------------------------------------------------------------------------------
 //! Class
@@ -138,6 +139,11 @@ public:
             const XrdSecEntity* client,
             const char* opaque = 0);
 
+
+  //--------------------------------------------------------------------------
+  //!
+  //--------------------------------------------------------------------------
+  int modified ();
 
   //--------------------------------------------------------------------------
   //!
@@ -314,6 +320,10 @@ public:
   {
     return isOCchunk;
   }
+
+  //--------------------------------------------------------------------------
+  static int LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
+  static int FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
 protected:
   XrdOucEnv* openOpaque;
@@ -493,7 +503,7 @@ private:
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
 };
 
-EOSFSTNAMESPACE_END;
+EOSFSTNAMESPACE_END
 
 #endif
 

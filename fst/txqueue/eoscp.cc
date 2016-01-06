@@ -1841,7 +1841,7 @@ main (int argc, char* argv[])
                 dst_location[i].second.c_str());
       }
 
-      eos::fst::XrdIo* file = new eos::fst::XrdIo();
+      eos::fst::XrdIo* file = new eos::fst::XrdIo((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
       location = dst_location[i].first + dst_location[i].second;
 
       if (appendmode)
@@ -1860,7 +1860,7 @@ main (int argc, char* argv[])
 
         if (status.IsOK())
         {
-          //TODO: add timeout for all XrdIo operations 
+          //TODO: add timeout for all XrdIo operations
           status = file->Open(location, SFS_O_RDWR, st[i].st_mode, "");
 
         }

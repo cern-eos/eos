@@ -57,7 +57,6 @@ add_library (eosCommon SHARED
 	    Statfs.cc
 	    SymKeys.cc
 	    GlobalConfig.cc
-            Attr.cc
             Report.cc
 	    ZMQ.cc
 	    ShellExecutor.cc
@@ -77,7 +76,6 @@ add_library (eosCommon-Static STATIC
 	    Statfs.cc
 	    SymKeys.cc
 	    GlobalConfig.cc
-            Attr.cc
             Report.cc
 	    ShellExecutor.cc
 	    ShellCmd.cc
@@ -164,6 +162,7 @@ target_link_libraries ( eosCommon-Static
                         XrdUtils 
                         XrdCl 
                         crypto 
+                        rt
                         ${UUID_LIBRARIES} 
                         ${NCURSES_LIBRARIES}
                         ${CURL_LIBRARIES}

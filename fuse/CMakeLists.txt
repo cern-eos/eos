@@ -25,7 +25,8 @@ include_directories( ${CMAKE_SOURCE_DIR}
 		     ${XROOTD_INCLUDE_DIR} 
 		     ${XROOTD_PRIVATE_INCLUDE_DIR}	
 		     ${FUSE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
+		     ${SPARSEHASH_INCLUDE_DIR} 
+                     ${KINETIC_INCLUDE_DIR} )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )
@@ -57,6 +58,7 @@ target_link_libraries (
   FuseCache
   eosCommon
   ${FUSE_LIBRARY} 
+  ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries ( 
@@ -67,6 +69,8 @@ target_link_libraries (
   FuseCache
   eosCommon
   ${FUSE_LIBRARY}
+  ${JSONC_LIBRARIES}
+  ${KINETIC_LIBRARIES}
   ${UUID_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 else( MacOSX )
@@ -78,6 +82,8 @@ target_link_libraries (
   FuseCache-Static
   eosCommon-Static
   ${FUSE_LIBRARY} 
+  ${JSONC_LIBRARIES}
+  ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries ( 
@@ -89,6 +95,8 @@ target_link_libraries (
   eosCommon-Static
   ${FUSE_LIBRARY}
   ${UUID_LIBRARIES}
+  ${JSONC_LIBRARIES}
+  ${KINETIC_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT} )
 endif( MacOSX )
 

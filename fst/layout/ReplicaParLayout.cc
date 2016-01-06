@@ -54,10 +54,7 @@ Layout (file, lid, client, outError, io, timeout)
 //------------------------------------------------------------------------------
 
 int
-ReplicaParLayout::Open (const std::string& path,
-                        XrdSfsFileOpenMode flags,
-                        mode_t mode,
-                        const char* opaque)
+ReplicaParLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
   //............................................................................
   // No replica index definition indicates that this is gateway access just
@@ -203,8 +200,13 @@ ReplicaParLayout::Open (const std::string& path,
       //........................................................................
       mLocalPath = path;
       mReplicaUrl.push_back(mLocalPath);
-      FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
+      FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::GetIoType(path.c_str()),
                                                mOfsFile, mSecEntity);
+
+
+      // evt. mark an IO module as talking to external storage
+      if ((file->GetIoType() != "LocalIo"))
+        file->SetExternalStorage();
 
       if (file->Open(path, flags, mode, opaque, mTimeout))
       {
@@ -234,13 +236,13 @@ ReplicaParLayout::Open (const std::string& path,
           eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
           eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
           eos::common::StringConversion::MaskTag(maskUrl, "authz");
-          FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
-                                                   mOfsFile, mSecEntity);
+
+          FileIo* file = FileIoPlugin::GetIoObject(mReplicaUrl[i].c_str(), mOfsFile, mSecEntity);
 
           //....................................................................
           // Write case
           //....................................................................
-          if (file->Open(mReplicaUrl[i], flags, mode, opaque, mTimeout))
+          if (file->Open(flags, mode, opaque, mTimeout))
           {
             eos_err("Failed to open stripes - remote open failed on %s",
                     maskUrl.c_str());
@@ -310,7 +312,9 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset, char* buffer,
     }
     else
     {
+      //......................................................................
       // Read was scucessful no need to read from another replica
+      //......................................................................
       break;
     }
   }

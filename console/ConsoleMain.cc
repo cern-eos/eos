@@ -66,6 +66,7 @@ extern int com_help (char *);
 extern int com_info (char *);
 extern int com_io (char *);
 extern int com_json (char *);
+extern int com_kinetic (char *);
 extern int com_license (char*);
 extern int com_ln (char*);
 extern int com_ls (char*);
@@ -223,6 +224,7 @@ COMMAND commands[] = {
   { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
   { (char*) "io", com_io, (char*) "IO Interface"},
   { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
+  { (char*) "kinetic", com_kinetic, (char*) "Admin commands for kinetic clusters"},
   { (char*) "license", com_license, (char*) "Display Software License"},
   { (char*) "ls", com_ls, (char*) "List a directory"},
   { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
