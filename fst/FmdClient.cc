@@ -166,158 +166,6 @@ FmdClient::EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd)
 
 /*----------------------------------------------------------------------------*/
 
-/** 
- * Return Fmd from an mgm
- * 
- * @param manager host:port of the mgm to contact
- * @param fid file id
- * @param fmd reference to the Fmd struct to store Fmd
- * 
- * @return 
- */
-int
-FmdClient::GetMgmFmd (const char* manager,
-                      eos::common::FileId::fileid_t fid,
-                      struct Fmd& fmd)
-{
-  if (!fid)
-  {
-    return EINVAL;
-  }
-
-  int rc = 0;
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
-  XrdCl::XRootDStatus status;
-  char sfmd[1024];
-  snprintf(sfmd, sizeof (sfmd) - 1, "%llu", fid);
-  XrdOucString fmdquery = "/?mgm.pcmd=getfmd&mgm.getfmd.fid=";
-  fmdquery += sfmd;
-
-  XrdOucString address = "root://";
-  XrdOucString lManager;
-
-  if (!manager)
-  {
-    // use the broadcasted manager name in the repeated try                                                                                                                                      
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    lManager = Config::gConfig.Manager.c_str();
-    address += lManager.c_str();
-  }
-  else 
-  {
-    address += manager;
-  }
-  address += "//dummy";
-
-  XrdCl::URL url(address.c_str());
-
- again:
-
-  if (!url.IsValid())
-  {
-    eos_err("error=URL is not valid: %s", address.c_str());
-    return EINVAL;
-  }
-
-  //............................................................................
-  // Get XrdCl::FileSystem object
-  //............................................................................
-  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
-
-  if (!fs)
-  {
-    eos_err("error=failed to get new FS object");
-    return EINVAL;
-  }
-
-  arg.FromString(fmdquery.c_str());
-  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
-
-  if (status.IsOK())
-  {
-    rc = 0;
-    eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
-                     manager, fid);
-  }
-  else
-  {
-    eos_static_err("msg=\"query error\" status=%d code=%d", status.status, status.code);
-    if ( (status.code >= 100) &&
-	 (status.code <= 300) )
-    {
-      XrdSysTimer sleeper;
-      sleeper.Snooze(1);
-      eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
-
-      if (!manager)
-      {
-	// use the broadcasted manager name in the repeated try                                                                                                                                      
-	XrdSysMutexHelper lock(Config::gConfig.Mutex);
-	lManager = Config::gConfig.Manager.c_str();
-	address = "root://";
-	address += lManager.c_str();
-	address += "//dummy";
-	url.Clear();
-	url.FromString((address.c_str()));
-      }
-      goto again;
-    }
-
-    rc = ECOMM;
-    eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
-                   manager, fid);
-  }
-
-  delete fs;
-
-  if (rc)
-  {
-    delete response;
-    return EIO;
-  }
-
-  std::string sresult = response->GetBuffer();
-
-  if ((sresult.find("getfmd: retc=0 ")) == std::string::npos)
-  {
-    // remote side couldn't get the record
-    eos_static_info("Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s",
-                    manager, fid, response->GetBuffer());
-    delete response;
-    return ENODATA;
-  }
-  else
-  {
-    // truncate 'getfmd: retc=0 ' away
-    sresult.erase(0, 15);
-  }
-
-  // get the remote file meta data into an env hash
-  XrdOucEnv fmdenv(sresult.c_str());
-
-  if (!EnvMgmToFmdSqlite(fmdenv, fmd))
-  {
-    int envlen;
-    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
-    delete response;
-    return EIO;
-  }
-  // very simple check
-  if (fmd.fid != fid)
-  {
-    eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
-                   fmd.fid, fid);
-    delete response;
-    return EIO;
-  }
-
-  delete response;
-  return 0;
-}
-
-/*----------------------------------------------------------------------------*/
-
 /*----------------------------------------------------------------------------*/
 /** 
  * Return a remote file attribute
@@ -353,20 +201,7 @@ FmdClient::GetRemoteAttribute (const char* manager,
 
   XrdOucString address = "root://";
 
-  XrdOucString lManager;
-
-  if (!manager)
-  {
-    // use the broadcasted manager name in the repeated try                                                                                                                                      
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    lManager = Config::gConfig.Manager.c_str();
-    address += lManager.c_str();
-  }
-  else 
-  {
-    address += manager;
-  }
-
+  address += manager;
   address += "//dummy";
 
   XrdCl::URL url(address.c_str());
@@ -558,20 +393,7 @@ FmdClient::CallAutoRepair (const char* manager,
 
   XrdOucString address = "root://";
 
-  XrdOucString lManager;
-
-  if (!manager)
-  {
-    // use the broadcasted manager name in the repeated try                                                                                                                                      
-    XrdSysMutexHelper lock(Config::gConfig.Mutex);
-    lManager = Config::gConfig.Manager.c_str();
-    address += lManager.c_str();
-  }
-  else 
-  {
-    address += manager;
-  }
-
+  address += manager;
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 

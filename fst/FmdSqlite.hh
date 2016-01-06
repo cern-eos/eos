@@ -384,6 +384,13 @@ public:
   bool ResetDB (eos::common::FileSystem::fsid_t fsid);
 
   // ---------------------------------------------------------------------------
+  //! Return Fmd from an mgm
+  // ---------------------------------------------------------------------------
+  int GetMgmFmd (const char* manager,
+		 eos::common::FileId::fileid_t fid,
+		 struct Fmd& fmd);
+
+  // ---------------------------------------------------------------------------
   //! Comparison function for modification times
   // ---------------------------------------------------------------------------
   static int CompareMtime (const void* a, const void *b);
