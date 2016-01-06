@@ -42,16 +42,16 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-FmdSqliteHandler gFmdSqliteHandler; //< static 
+FmdSqliteHandler gFmdSqliteHandler; //< static
 /*----------------------------------------------------------------------------*/
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Callback function for SQLITE3 calls
- * 
+ *
  * @param see sqlite manual
- * 
+ *
  * @return fills qr_result vector
  */
 
@@ -72,11 +72,11 @@ FmdSqliteHandler::CallBack (void *object, int argc, char **argv, char **ColName)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
- * Specialized Callback function to fill the memory objects from the FST SQLITE3 select * 
- * 
+/**
+ * Specialized Callback function to fill the memory objects from the FST SQLITE3 select *
+ *
  * @param see sqlite manual
- * 
+ *
  * @return fills FmdSqliteMap for the referenced filesystem
  */
 
@@ -85,7 +85,7 @@ int
 FmdSqliteHandler::ReadDBCallBack (void *object, int argc, char **argv, char **ColName)
 {
   fs_callback_info_t* cbinfo = (fs_callback_info_t*) object;
-  // the object contains the particular map for the used <fsid> 
+  // the object contains the particular map for the used <fsid>
 
   eos::fst::FmdSqliteHandler::qr_result_t Qr; // local variable!
   Qr.resize(1);
@@ -123,9 +123,9 @@ FmdSqliteHandler::ReadDBCallBack (void *object, int argc, char **argv, char **Co
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Dump an Fmd record to stderr
- * 
+ *
  * @param fmd handle to the Fmd struct
  */
 
@@ -156,13 +156,13 @@ FmdSqlite::Dump (struct Fmd* fmd)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Set a new DB file for a filesystem id.
- * 
+ *
  * @param dbfilename path to the sqlite db file
  * @param fsid filesystem id identified by this file
  * @param option  - not used.
- * 
+ *
  * @return true if successfull false if failed
  */
 
@@ -271,11 +271,11 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Shutdown an open DB file
- * 
+ *
  * @param fsid filesystem id identifier
- * 
+ *
  * @return true if successfull false if failed
  */
 
@@ -310,12 +310,12 @@ FmdSqliteHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Comparison function for modification times
- * 
+ *
  * @param a pointer to a filestat struct
  * @param b pointer to a filestat struct
- * 
+ *
  * @return difference between the two modification times within the filestat struct
  */
 
@@ -334,12 +334,12 @@ FmdSqliteHandler::CompareMtime (const void* a, const void *b)
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Read the contents of the DB file into the memory hash
- * 
+ *
  * @param fsid filesystem id to read
  * @param option - not used
- * 
+ *
  * @return true if all records read and valid otherwise false
  */
 
@@ -378,16 +378,16 @@ FmdSqliteHandler::ReadDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return or Create an Fmd struct for the given file/filesystem id for user uid/gid and layout layoutid
- * 
+ *
  * @param fid file id
  * @param fsid filesystem id
  * @param uid user id of the caller
  * @param gid group id of the caller
  * @param layoutid layout id used to store during creation
- * @param isRW indicates if we create a not existing Fmd 
- * 
+ * @param isRW indicates if we create a not existing Fmd
+ *
  * @return pointer to Fmd struct if successfull otherwise 0
  */
 
@@ -449,7 +449,7 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
           // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
           if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
-                          (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize != fmd->fMd.size))))
+              (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize != fmd->fMd.size))))
           {
             eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
             delete fmd;
@@ -457,22 +457,22 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
             return 0;
           }
 
-	  // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
-	  // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
-	  if ((!isRW) && fmd->fMd.mgmsize &&
-	      ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
-	       (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
-	  {
-	    eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
-		     "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
-		     fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
-		     fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
-	    
-	    delete fmd;
-	    Mutex.UnLockRead();
-	    return 0;
-	  }
-	}
+          // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
+          // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
+          if ((!isRW) && fmd->fMd.mgmsize &&
+              ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
+              (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
+          {
+            eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
+                     "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
+                     fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
+                     fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
+
+            delete fmd;
+            Mutex.UnLockRead();
+            return 0;
+          }
+        }
       }
 
       // return the new entry
@@ -542,12 +542,12 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Delete a record associated with file id fid on filesystem fsid
- * 
+ *
  * @param fid file id
  * @param fsid filesystem id
- * 
+ *
  * @return true if deleted, false if it does not exist
  */
 
@@ -590,11 +590,11 @@ FmdSqliteHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::Fil
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Commit Fmd to the DB file
- * 
+ *
  * @param fmd pointer to Fmd
- * 
+ *
  * @return true if record has been commited
  */
 
@@ -646,11 +646,11 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Commit Fmd to the DB file without locking and modification time changes
- * 
+ *
  * @param fmd pointer to Fmd
- * 
+ *
  * @return true if record has been commited
  */
 
@@ -698,9 +698,9 @@ FmdSqliteHandler::CommitFromMemory (eos::common::FileId::fileid_t fid, eos::comm
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
- * Update disk metadata 
- * 
+/**
+ * Update disk metadata
+ *
  * @param fsid file system id
  * @param fid  file id to update
  * @param disksize size of the file on disk
@@ -708,7 +708,7 @@ FmdSqliteHandler::CommitFromMemory (eos::common::FileId::fileid_t fid, eos::comm
  * @param checktime time of the last check of that file
  * @param filecxerror indicator for file checksum error
  * @param blockcxerror inidicator for block checksum error
- * 
+ *
  * @return true if record has been commited
  */
 
@@ -756,16 +756,16 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
- * Update mgm metadata 
- * 
+/**
+ * Update mgm metadata
+ *
  * @param fsid file system id
  * @param fid  file id to update
  * @param cid  container id
  * @param lid  layout id
  * @param mgmsize size of the file in the mgm namespace
  * @param mgmchecksum checksum of the file in the mgm namespace
- * 
+ *
  * @return true if record has been commited
  */
 
@@ -823,11 +823,11 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Reset disk information
- * 
+ *
  * @param fsid file system id
- * 
+ *
  * @return true if information has been reset successfully
  */
 
@@ -871,11 +871,11 @@ FmdSqliteHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Reset mgm information
- * 
+ *
  * @param fsid file system id
- * 
+ *
  * @return true if information has been reset successfully
  */
 
@@ -917,12 +917,12 @@ FmdSqliteHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Resync a single entry from disk
- * 
+ *
  * @param path to the stored file on disk
  * @param fsid filesystem id
- * 
+ *
  * @return true if successfull
  */
 
@@ -1005,12 +1005,12 @@ FmdSqliteHandler::ResyncDisk (const char* path,
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Resync files under path into SQLITE DB
- * 
+ *
  * @param path path to scan
  * @param fsid file system id
- * 
+ *
  * @return true if successfull
  */
 
@@ -1086,12 +1086,12 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Resync meta data from MGM into SQLITE DB
- * 
+ *
  * @param fsid filesystem id
  * @param fid  file id
- * 
+ *
  * @return true if successfull
  */
 
@@ -1137,7 +1137,7 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
         }
         else
         {
-          // we proceed 
+          // we proceed
           delete fmd;
         }
       }
@@ -1206,11 +1206,11 @@ FmdSqliteHandler::ResyncMgm (eos::common::FileSystem::fsid_t fsid,
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Resync all meta data from MGM into SQLITE DB
- * 
+ *
  * @param fsid filesystem id
- * 
+ *
  * @return true if successfull
  */
 
@@ -1312,9 +1312,9 @@ FmdSqliteHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Query vector of fids
- * 
+ *
  * @param fsid file system id
  * @param query SLQ statement which is placed in a call like 'select fid from fst where <query>'
  * @param fidvector Vector where the matching fid's are filled in
@@ -1360,9 +1360,9 @@ FmdSqliteHandler::Query (eos::common::FileSystem::fsid_t fsid,
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * GetInconsistencyStatistics
- * 
+ *
  * @param fsid file system id
  * @param statistics output map with counters for each statistics field
  * @param fileset output map with sets for each statistics field
@@ -1382,7 +1382,7 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
 
   // query in-memory
   google::dense_hash_map<unsigned long long, struct Fmd>::const_iterator it;
-  statistics["mem_n"] = 0; // number of files in SQLITE DB 
+  statistics["mem_n"] = 0; // number of files in SQLITE DB
 
   statistics["d_sync_n"] = 0; // number of synced files from disk
   statistics["m_sync_n"] = 0; // number of synced files from MGM server
@@ -1442,10 +1442,10 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
       }
 
       eos::common::LayoutId::layoutid_t lid = it->second.lid;
-      
+
       if (((eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaidDP) &&
-           (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6) &&
-           (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive)))
+          (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6) &&
+          (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kArchive)))
       {
         // ---------------------------------------------------------------------
         // this checks make onLy sense for replica layouts
@@ -1500,11 +1500,11 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Reset(clear) the contents of the DB
- * 
+ *
  * @param fsid filesystem id
- * 
+ *
  * @return true if deleted, false if it does not exist
  */
 
@@ -1546,12 +1546,12 @@ FmdSqliteHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Trim the SQLITE DB for a given filesystem id
- * 
+ *
  * @param fsid file system id
  * @param option - not used
- * 
+ *
  * @return true if successful otherwise false
  */
 
@@ -1578,10 +1578,10 @@ FmdSqliteHandler::TrimDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Convert a Fmd struct into an env representation
- * 
- * 
+ *
+ *
  * @return env representation
  */
 
@@ -1599,6 +1599,157 @@ FmdSqlite::FmdSqliteToEnv ()
 
 /*----------------------------------------------------------------------------*/
 
+/*----------------------------------------------------------------------------*/
+
+/**
+ * Return Fmd from an mgm
+ *
+ * @param manager host:port of the mgm to contact
+ * @param fid file id
+ * @param fmd reference to the Fmd struct to store Fmd
+ *
+ * @return
+ */
+int
+FmdSqliteHandler::GetMgmFmd (const char* manager,
+                      eos::common::FileId::fileid_t fid,
+                      struct Fmd& fmd)
+{
+  if (!fid)
+  {
+    return EINVAL;
+  }
+
+  int rc = 0;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  char sfmd[1024];
+  snprintf(sfmd, sizeof (sfmd) - 1, "%llu", fid);
+  XrdOucString fmdquery = "/?mgm.pcmd=getfmd&mgm.getfmd.fid=";
+  fmdquery += sfmd;
+
+  XrdOucString address = "root://";
+  XrdOucString lManager;
+
+  if (!manager)
+  {
+    // use the broadcasted manager name in the repeated try
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    lManager = Config::gConfig.Manager.c_str();
+    address += lManager.c_str();
+  }
+  else
+  {
+    address += manager;
+  }
+  address += "//dummy";
+
+  XrdCl::URL url(address.c_str());
+
+again:
+
+  if (!url.IsValid())
+  {
+    eos_err("error=URL is not valid: %s", address.c_str());
+    return EINVAL;
+  }
+
+  //............................................................................
+  // Get XrdCl::FileSystem object
+  //............................................................................
+  XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
+
+  if (!fs)
+  {
+    eos_err("error=failed to get new FS object");
+    return EINVAL;
+  }
+
+  arg.FromString(fmdquery.c_str());
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  if (status.IsOK())
+  {
+    rc = 0;
+    eos_static_debug("got replica file meta data from mgm %s for fid=%08llx",
+                     manager, fid);
+  }
+  else
+  {
+    eos_static_err("msg=\"query error\" status=%d code=%d", status.status, status.code);
+    if ((status.code >= 100) &&
+        (status.code <= 300))
+    {
+      XrdSysTimer sleeper;
+      sleeper.Snooze(1);
+      eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
+
+      if (!manager)
+      {
+        // use the broadcasted manager name in the repeated try
+        XrdSysMutexHelper lock(Config::gConfig.Mutex);
+        lManager = Config::gConfig.Manager.c_str();
+        address = "root://";
+        address += lManager.c_str();
+        address += "//dummy";
+        url.Clear();
+        url.FromString((address.c_str()));
+      }
+      goto again;
+    }
+
+    rc = ECOMM;
+    eos_static_err("Unable to retrieve meta data from mgm %s for fid=%08llx",
+                   manager, fid);
+  }
+
+  delete fs;
+
+  if (rc)
+  {
+    delete response;
+    return EIO;
+  }
+
+  std::string sresult = response->GetBuffer();
+
+  if ((sresult.find("getfmd: retc=0 ")) == std::string::npos)
+  {
+    // remote side couldn't get the record
+    eos_static_info("Unable to retrieve meta data on remote mgm %s for fid=%08llx - result=%s",
+                    manager, fid, response->GetBuffer());
+    delete response;
+    return ENODATA;
+  }
+  else
+  {
+    // truncate 'getfmd: retc=0 ' away
+    sresult.erase(0, 15);
+  }
+
+  // get the remote file meta data into an env hash
+  XrdOucEnv fmdenv(sresult.c_str());
+
+  if (!EnvMgmToFmdSqlite(fmdenv, fmd))
+  {
+    int envlen;
+    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
+    delete response;
+    return EIO;
+  }
+  // very simple check
+  if (fmd.fid != fid)
+  {
+    eos_static_err("Uups! Received wrong meta data from remote server - fid is %lu instead of %lu !",
+                   fmd.fid, fid);
+    delete response;
+    return EIO;
+  }
+
+  delete response;
+  return 0;
+}
 
 
 EOSFSTNAMESPACE_END
