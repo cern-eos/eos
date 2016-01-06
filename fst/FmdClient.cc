@@ -37,6 +37,7 @@
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "fst/FmdClient.hh"
+#include "fst/Config.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -179,7 +180,7 @@ FmdClient::GetMgmFmd (const char* manager,
                       eos::common::FileId::fileid_t fid,
                       struct Fmd& fmd)
 {
-  if ((!manager) || (!fid))
+  if (!fid)
   {
     return EINVAL;
   }
@@ -194,18 +195,30 @@ FmdClient::GetMgmFmd (const char* manager,
   fmdquery += sfmd;
 
   XrdOucString address = "root://";
-  address += manager;
+  XrdOucString lManager;
+
+  if (!manager)
+  {
+    // use the broadcasted manager name in the repeated try                                                                                                                                      
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    lManager = Config::gConfig.Manager.c_str();
+    address += lManager.c_str();
+  }
+  else 
+  {
+    address += manager;
+  }
   address += "//dummy";
 
   XrdCl::URL url(address.c_str());
+
+ again:
 
   if (!url.IsValid())
   {
     eos_err("error=URL is not valid: %s", address.c_str());
     return EINVAL;
   }
-
- again:
 
   //............................................................................
   // Get XrdCl::FileSystem object
@@ -236,6 +249,18 @@ FmdClient::GetMgmFmd (const char* manager,
       XrdSysTimer sleeper;
       sleeper.Snooze(1);
       eos_static_info("msg=\"retry query\" query=\"%s\"", fmdquery.c_str());
+
+      if (!manager)
+      {
+	// use the broadcasted manager name in the repeated try                                                                                                                                      
+	XrdSysMutexHelper lock(Config::gConfig.Mutex);
+	lManager = Config::gConfig.Manager.c_str();
+	address = "root://";
+	address += lManager.c_str();
+	address += "//dummy";
+	url.Clear();
+	url.FromString((address.c_str()));
+      }
       goto again;
     }
 
@@ -312,7 +337,7 @@ FmdClient::GetRemoteAttribute (const char* manager,
                                const char* path,
                                XrdOucString& attribute)
 {
-  if ((!manager) || (!key) || (!path))
+  if ((!key) || (!path))
   {
     return EINVAL;
   }
@@ -327,7 +352,21 @@ FmdClient::GetRemoteAttribute (const char* manager,
   fmdquery += path;
 
   XrdOucString address = "root://";
-  address += manager;
+
+  XrdOucString lManager;
+
+  if (!manager)
+  {
+    // use the broadcasted manager name in the repeated try                                                                                                                                      
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    lManager = Config::gConfig.Manager.c_str();
+    address += lManager.c_str();
+  }
+  else 
+  {
+    address += manager;
+  }
+
   address += "//dummy";
 
   XrdCl::URL url(address.c_str());
@@ -503,7 +542,7 @@ int
 FmdClient::CallAutoRepair (const char* manager,
                            eos::common::FileId::fileid_t fid)
 {
-  if ((!manager) || (!fid))
+  if (!fid)
   {
     return EINVAL;
   }
@@ -518,7 +557,21 @@ FmdClient::CallAutoRepair (const char* manager,
   fmdquery += shexfid;
 
   XrdOucString address = "root://";
-  address += manager;
+
+  XrdOucString lManager;
+
+  if (!manager)
+  {
+    // use the broadcasted manager name in the repeated try                                                                                                                                      
+    XrdSysMutexHelper lock(Config::gConfig.Mutex);
+    lManager = Config::gConfig.Manager.c_str();
+    address += lManager.c_str();
+  }
+  else 
+  {
+    address += manager;
+  }
+
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 
