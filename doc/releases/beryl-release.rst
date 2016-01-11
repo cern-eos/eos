@@ -6,6 +6,10 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.140 Beryl_Aquamarine``
+- fix missing object in drain lock helper mutex
+- distinguish client and FST methods to prevent having FSTs calling a booting slave with namespace modifications
+
 ``Version V0.3.139 Beryl_Aquamarine``
 - automatically chown files on FST partitions once (to compensate to bug introduced in 0.3.137)
 - make the XRD stream timeout configurable and increase the default to 5 minutes
