@@ -858,6 +858,28 @@ XrdFstOfsFile::open (const char* path,
   }
 
   //............................................................................
+  // Check if the booking size violates the min/max-size criteria
+  //............................................................................
+
+  if (bookingsize && maxsize)
+  {
+    if (bookingsize > maxsize)
+    {
+      eos_err("invalid bookingsize specified - violates maximum file size criteria");
+      return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates maximum allowed filesize", Path.c_str());
+    }
+  }
+
+  if (bookingsize && minsize)
+  {
+    if (bookingsize < minsize)
+    {
+      eos_err("invalid bookingsize specified - violates minimum file size criteria");
+      return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates minimum allowed filesize", Path.c_str());
+    }
+  }
+
+  //............................................................................
   // Get the identity
   //............................................................................
   eos::common::Mapping::VirtualIdentity vid;
