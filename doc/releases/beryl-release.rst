@@ -9,6 +9,7 @@ Beryl Release Notes
 ``Version V0.3.140 Beryl_Aquamarine``
 - fix missing object in drain lock helper mutex
 - distinguish client and FST methods to prevent having FSTs calling a booting slave with namespace modifications
+- add min/maxfilesize check during the open function, to block too large uploads immedeatly
 
 ``Version V0.3.139 Beryl_Aquamarine``
 - automatically chown files on FST partitions once (to compensate to bug introduced in 0.3.137)
