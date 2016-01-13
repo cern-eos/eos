@@ -214,8 +214,8 @@ ProcCommand::Transfer ()
        setfsuid((uid_t)pVid->uid);
        setfsgid((gid_t)pVid->gid);
        eos::common::StringConversion::LoadFileIntoString(gsicred.c_str(), credential);
-       setfsuid(2);
-       setfsgid(2);
+       setfsuid(DAEMONUID);
+       setfsgid(DAEMONGID);
      }
      Credential = credential.c_str();
      if (eos::common::SymKey::Base64Encode((char*) Credential.c_str(), Credential.length() + 1, CredentialB64))

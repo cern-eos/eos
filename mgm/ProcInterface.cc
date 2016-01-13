@@ -199,7 +199,7 @@ ProcInterface::Authorize (const char* path,
     // hosts with 'sss' authentication can run 'admin' commands
     std::string protocol = entity ? entity->prot : "";
     // we allow sss only with the daemon login is admin
-    if ((protocol == "sss") && (eos::common::Mapping::HasUid(2, vid.uid_list)))
+    if ((protocol == "sss") && (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)))
     {
       return true;
     }
@@ -213,7 +213,7 @@ ProcInterface::Authorize (const char* path,
     // --------------------------------------------------------------------------
     // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
     // --------------------------------------------------------------------------
-    return ( (eos::common::Mapping::HasUid(2, vid.uid_list)) ||
+    return ( (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
             (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
             (eos::common::Mapping::HasGid(4, vid.gid_list)));
   }

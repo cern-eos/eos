@@ -583,6 +583,8 @@ private:
   TpcState_t mTpcState; ///< uses kTPCXYZ enums to tag the TPC state
   XrdSysMutex mTpcStateMutex; ///< mutex protecting the access to TPC state
   XrdOfsTPCInfo mTpcInfo; ///< TPC info object used for callback
+
+  uint16_t mTimeout; ///< timeout for layout operations
 };
 
 EOSFSTNAMESPACE_END;

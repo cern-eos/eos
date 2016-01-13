@@ -357,7 +357,7 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
     return true;
 
   // daemon can read everything
-  if ((uid == 2) && (!(flags & W_OK)))
+  if ((uid == DAEMONUID ) && (!(flags & W_OK)))
     return true;
 
   // Convert the flags

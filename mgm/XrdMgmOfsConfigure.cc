@@ -314,10 +314,6 @@ int
 XrdMgmOfs::Configure(XrdSysError& Eroute)
 {
   // the process run's as root, but acts on the filesystem as daemon
-  seteuid(0);
-  setegid(0);
-  setfsuid(2);
-  setfsgid(2);
 
   char *var;
   const char *val;
@@ -853,7 +849,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += MgmMetaLogDir;
             src = system(chownit.c_str());
 
@@ -891,7 +887,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += MgmTxDir;
             src = system(chownit.c_str());
 
@@ -929,7 +925,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += MgmAuthDir;
             src = system(chownit.c_str());
 
@@ -973,7 +969,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             if (src)
               eos_err("%s returned %d", makeit.c_str(), src);
 
-            XrdOucString chownit = "chown -R 2 ";
+            XrdOucString chownit = "chown -R daemon ";
             chownit += IoReportStorePath;
             src = system(chownit.c_str());
 
@@ -1376,7 +1372,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (src)
     eos_err("%s returned %d", makeit.c_str(), src);
 
-  XrdOucString chownit = "chown -R 2 ";
+  XrdOucString chownit = "chown -R daemon ";
   chownit += MgmConfigDir;
   src = system(chownit.c_str());
 
@@ -1859,13 +1855,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         eos_info("%s returned %d", errorlogline.c_str(), rrc);
     }
 
-    eos_info("starting file view loader thread");
-    
-    if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-                           static_cast<void *> (this), 0, "File View Loader")))
-    {
-      eos_crit("cannot start file view loader");
-      NoGo = 1;
+      eos_info("starting file view loader thread");
+
+      if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
+			     static_cast<void *> (this), 0, "File View Loader")))
+      {
+        eos_crit("cannot start file view loader");
+        NoGo = 1;
     }
   }
 
