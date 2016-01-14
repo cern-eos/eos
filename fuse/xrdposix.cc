@@ -1165,53 +1165,6 @@ protected:
   // only one thread per process will access this (protected by one mutex per process)
   std::vector<std::string> pid2StrongLogin;
 
-  std::string
-  symlinkCredentials (const std::string &authMethod, uid_t uid, std::string identity, const std::string &xrdlogin = "")
-  {
-    std::stringstream ss;
-    size_t i = 0;
-    // avoid characters that could mess up the link name
-    while ((i = identity.find_first_of ("/", i)) != std::string::npos)
-      identity[i] = '.';
-    ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
-    std::string linkname = ss.str ();
-    auto colidx = authMethod.find (':');
-
-    eos_static_debug("authmethod=%s",authMethod.c_str());
-
-    if (xrdlogin.empty ())
-    {
-      std::string filename = authMethod.substr (colidx + 1, std::string::npos);
-      if (filename.empty ()) return "";
-      if (linkname != filename)
-      {
-        unlink (linkname.c_str ()); // remove the previous link first if any
-        if (symlink (filename.c_str (), linkname.c_str ()))
-        {
-          eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
-          return "";
-        }
-      }
-      return authMethod.substr (0, colidx + 1) + linkname;
-    }
-    else
-    {
-      ss.str ("");
-      ss << "/var/run/eosd/credentials/xrd" << xrdlogin;
-      std::string newlinkname = ss.str ();
-      if (linkname != newlinkname)
-      {
-        unlink (newlinkname.c_str ()); // remove the previous link first if any
-        if (symlink (linkname.c_str (), newlinkname.c_str ()))
-        {
-          eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
-          return "";
-        }
-      }
-      return newlinkname;
-    }
-  }
-
   bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
   {
     if (!(use_user_gsiproxy || use_user_krb5cc)) return false;
@@ -1437,15 +1390,15 @@ protected:
     std::string newauthmeth;
     if(credinfo.type==krk5)
     {
-      // don't need to create any symlink in that case
+      // using directly the value of the pointed file (which is the text of the in memory credentials)
       sId.append(credinfo.fname);
       newauthmeth = sId;
     }
     else
     {
-      // binding (uid_identity to the latest credential file received)
+      // using the link created by the user
       sId.append(credinfo.lname);
-      newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
+      newauthmeth = sId;
     }
 
     if(newauthmeth.empty())
