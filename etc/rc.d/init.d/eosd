@@ -107,8 +107,9 @@ start() {
             echo -n "Starting $prog for instance: $i"
             mkdir -p /var/run/eosd/
             cd /var/run/eosd/
-            mkdir -p /var/run/eosd/credentials
+            mkdir -p /var/run/eosd/credentials/store
             chmod 607 /var/run/eosd/credentials
+            chmod 607 /var/run/eosd/credentials/store
             mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
             chmod -R 733 ${EOS_FUSE_MOUNTDIR-/eos/}
             unset KRB5CCNAME
