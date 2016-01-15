@@ -105,6 +105,7 @@ function UpdateCredIsFile
 
 function CheckArgs
 {
+  if [[ "$USER" = "root" && "$REQGLOBBIND" = "1" ]]; then echo "global user binding forbidden as root" >&2; exit 1; fi
   if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  echo "invalid authentication type $AUTHTYPE" >&2; exit 1; fi
   UpdateCredIsFile
   if [[ "$CREDISFILE" = "0" ]]; then
@@ -236,7 +237,7 @@ function ShowUserGlob
 {
   GetSymlinkBaseNameUser
   ShowHeaderGlob
-  FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
+  local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
   #echo "FILELIST=$FILELIST" 
   if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi  
   for LINK in `echo $FILELIST` ; do ShowGlob $LINK ; done
@@ -249,7 +250,7 @@ function ShowSession
   ShowUserGlob
   ShowHeader
   if [[ "X$SymlinkBaseNameSession" = "X" ]]; then return ; fi
-  FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
+  local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
   if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi  
   for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
   echo
@@ -261,7 +262,7 @@ function ShowUser
   GetActiveLinkedSessions
   ShowUserGlob
   ShowHeader
-  FILELIST=$(shopt -s nullglob; echo ${ActiveLinkedSessions})
+  local FILELIST=$(shopt -s nullglob; echo ${ActiveLinkedSessions})
   if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi              
   for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
   echo
@@ -308,11 +309,14 @@ function LinkUserGlob
     CFILE=`basename $CREDTAG`
     CFILE="/var/run/eosd/credentials/store/$CFILE"
   fi
-  UnlinkUserGlob 
+  PREVFILE=`readlink -e $SymlinkName`
   #echo "ln -sf $CFILE $SymlinkName"
   ln -sf $CFILE $SymlinkName
   if [ $? -ne 0 ]; then
     echo "Error creating credentials symlink." >&2
+  fi
+  if [[ "X$PREVFILE" != "X" && "$PREVFILE" != "$CFILE" && "`dirname $PREVFILE`" = "/var/run/eosd/credentials/store" ]]; then
+    rm -f "$PREVFILE"
   fi
 }
 
@@ -350,7 +354,7 @@ function UnlinkUnactiveSessions
 {
   GetSymlinkBaseNameSession
   GetActiveLinkedSessions
-  FILELIST=$(shopt -s nullglob; echo ${UnactiveLinkedSessions})
+  local FILELIST=$(shopt -s nullglob; echo ${UnactiveLinkedSessions})
   if [[ "X$FILELIST" = "X" ]]; then return ; fi
   #echo rm -f $FILELIST
   rm -f $FILELIST
@@ -368,7 +372,9 @@ elif [[ $REQLS = 1 ]]; then
 else
   CheckArgs $*
   UnlinkUnactiveSessions
-  UnlinkSession
+  if [[ "$REQGLOBBIND" = "0" ]]; then
+    UnlinkSession
+  fi
   if [ "X$CREDTAG" = "X" ]; then
     if [ "$AUTHTYPE" = "krb5" ]; then GetAutoKrb5CredFile; fi
     if [ "$AUTHTYPE" = "x509" ]; then GetAutoX509CredFile; fi
