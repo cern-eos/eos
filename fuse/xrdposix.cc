@@ -1172,7 +1172,8 @@ protected:
     bool ret = false;
     char buffer[1024];
     char buffer2[1024];
-    const char* format = "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s";
+    // first try the session binding if it fails, try the user binding
+    const char* formats[2] = { "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s" , "/var/run/eosd/credentials/uid%d.%s" };
     // krb5 -> kerberos 5 credential cache file
     // krk5 -> kerberos 5 credential cache not in a file (e.g. KeyRing)
     // x509 -> gsi authentication
@@ -1190,43 +1191,53 @@ protected:
       (sidx = 2) && (sn = 3);
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
-    for (int i = sidx; i < sidx + sn; i++)
+    bool brk = false;
+    for (int f = 0; f < 2; f++)
     {
-      snprintf (buffer, 1024, format, (int) uid, (int) sid, (int) sst, suffixes[i]);
-      //eos_static_debug("trying to stat %s", buffer);
-      if (!lstat (buffer, &linkstat))
+      for (int i = sidx; i < sidx + sn; i++)
       {
-        ret = true;
-        credinfo.lname = buffer;
-        credinfo.lmtime = linkstat.st_mtim.tv_sec;
-        credinfo.lctime = linkstat.st_ctim.tv_sec;
-        credinfo.type = credtypes[i];
-        size_t bsize = readlink (buffer, buffer2, 1024);
-        buffer2[bsize] = 0;
-        eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
-        if(credinfo.type==krk5)
-        {
-          credinfo.fname = buffer2;
-          break; // there is no file to stat in that case
-        }
-        if (!stat (buffer2, &filestat))
-        {
-          if (bsize > 0)
-          {
-            buffer2[bsize] = 0;
-            credinfo.fname = buffer2;
-            credinfo.fmtime = filestat.st_mtim.tv_sec;
-            credinfo.fctime = filestat.st_ctim.tv_sec;
-            eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
-          }
-        }
+        if(f==0)
+          snprintf (buffer, 1024, formats[f], (int) uid, (int) sid, (int) sst, suffixes[i]);
         else
+          snprintf (buffer, 1024, formats[f], (int) uid, suffixes[i]);
+
+        //eos_static_debug("trying to stat %s", buffer);
+        if (!lstat (buffer, &linkstat))
         {
-          eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+          ret = true;
+          credinfo.lname = buffer;
+          credinfo.lmtime = linkstat.st_mtim.tv_sec;
+          credinfo.lctime = linkstat.st_ctim.tv_sec;
+          credinfo.type = credtypes[i];
+          size_t bsize = readlink (buffer, buffer2, 1024);
+          buffer2[bsize] = 0;
+          eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
+          if (credinfo.type == krk5)
+          {
+            credinfo.fname = buffer2;
+            break; // there is no file to stat in that case
+          }
+          if (!stat (buffer2, &filestat))
+          {
+            if (bsize > 0)
+            {
+              buffer2[bsize] = 0;
+              credinfo.fname = buffer2;
+              credinfo.fmtime = filestat.st_mtim.tv_sec;
+              credinfo.fctime = filestat.st_ctim.tv_sec;
+              eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+            }
+          }
+          else
+          {
+            eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+          }
+          // we found some credential, we stop searching here
+          brk = true;
+          break;
         }
-        // we found some credential, we stop searching here
-        break;
       }
+      if (brk) break;
     }
 
     if (!ret)
