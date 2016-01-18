@@ -88,14 +88,16 @@ FileEos::Write(Result*& result)
   // Open the file for writing and get and XrdFileIo object
   mode_t mode_sfs = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH;
   XrdSfsFileOpenMode flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
-  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl, NULL, NULL);
   
   COMMONTIMING("OPEN", &wr_timing);
   std::string full_path = mBmkInstance;
   full_path += "/";
   full_path += mFilePath;
-  retc = file->Open(full_path, flags_sfs, mode_sfs, "");
+
+  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
+							       full_path.c_str());
+
+  retc = file->fileOpen(flags_sfs, mode_sfs, "");
 
   if (retc)
   {
@@ -114,7 +116,7 @@ FileEos::Write(Result*& result)
   while (file_size > 0)
   {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nwrite = file->WriteAsync(offset, buffer, length);
+    nwrite = file->fileWriteAsync(offset, buffer, length);
 
     if (nwrite != (int64_t)length)
     {
@@ -131,7 +133,7 @@ FileEos::Write(Result*& result)
 
   // Collect all the write responses
   eos::fst::AsyncMetaHandler* ptr_handler =
-      static_cast<eos::fst::AsyncMetaHandler*>(file->GetAsyncHandler());
+      static_cast<eos::fst::AsyncMetaHandler*>(file->fileGetAsyncHandler());
   
   if (ptr_handler && (!ptr_handler->WaitOK()))
   {
@@ -140,7 +142,7 @@ FileEos::Write(Result*& result)
   }
 
   COMMONTIMING("CLOSE", &wr_timing);
-  retc = file->Close();
+  retc = file->fileClose();
   COMMONTIMING("END", &wr_timing);
 
   // Collect statistics for this operation in the result object at job level
@@ -191,13 +193,15 @@ FileEos::ReadGw(Result*& result)
 
   // Open the file for reading and get and XrdFileIo object
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY;
-  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl, NULL, NULL);
+
   COMMONTIMING("OPEN", &rd_timing);
   std::string full_path = mBmkInstance;
   full_path += "/";
   full_path += mFilePath;
-  retc = file->Open(full_path, flags_sfs, 0, "fst.readahead=true");
+  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
+							       full_path.c_str());
+
+  retc = file->fileOpen(flags_sfs, 0, "fst.readahead=true");
 
   if (retc)
   {
@@ -217,7 +221,7 @@ FileEos::ReadGw(Result*& result)
   while (file_size > 0)
   {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nread = file->ReadAsync(offset, vect_buff[indx_buff], length, true);
+    nread = file->fileReadAsync(offset, vect_buff[indx_buff], length, true);
     offset += nread;
     file_size -= nread;
     indx_buff = (indx_buff + 1) % total_buffs;
@@ -227,7 +231,7 @@ FileEos::ReadGw(Result*& result)
 
   // Collect all the read responses
   eos::fst::AsyncMetaHandler* ptr_handler =
-      static_cast<eos::fst::AsyncMetaHandler*>(file->GetAsyncHandler());
+      static_cast<eos::fst::AsyncMetaHandler*>(file->fileGetAsyncHandler());
   
   if (ptr_handler && (!ptr_handler->WaitOK()))
   {
@@ -236,7 +240,7 @@ FileEos::ReadGw(Result*& result)
   }
 
   COMMONTIMING("CLOSE", &rd_timing);
-  retc = file->Close();
+  retc = file->fileClose();
   COMMONTIMING("END", &rd_timing);
 
   // Collect statistics for this operation in the result object at thread level
@@ -350,13 +354,13 @@ FileEos::ReadPio(Result*& result)
       if (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaidDP)
       {
         file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-                                          eos::common::LayoutId::kXrdCl);
+					  "");
       }
       else if ((eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaid6) ||
                (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive))
       {
         file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-                                         eos::common::LayoutId::kXrdCl);
+					 "");
       }
       else
       {

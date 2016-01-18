@@ -33,6 +33,7 @@ static LogFunctionInitializer kio_loginit;
 KineticIo::KineticIo(std::string path) :
     FileIo(path, "kinetic"),
     kio(kio::KineticIoFactory::makeFileIo()),
+    kattr(kio::KineticIoFactory::makeFileAttr(path.c_str())),
     opened(false)
 {
   eos_debug("");
@@ -276,7 +277,7 @@ KineticIo::attrGet(const char* name, char* value, size_t& size)
       kio->Open(mFilePath.c_str(), 0);
       opened = true;
     }
-    kio->xattrGet(name, value, size);
+    kattr->Get(name, value, size);
     return SFS_OK;
   }
   KIO_CATCH
@@ -292,7 +293,7 @@ KineticIo::attrGet(string name, std::string& value)
       kio->Open(mFilePath.c_str(), 0);
       opened = true;
     }
-    kio->xattrGet(name, value);
+    value = kattr->Get(name);
     return SFS_OK;
   }
   KIO_CATCH
@@ -308,7 +309,7 @@ KineticIo::attrSet(const char* name, const char* value, size_t len)
       kio->Open(mFilePath.c_str(), 0);
       opened = true;
     }
-    kio->xattrSet(name, value, len);
+    kattr->Set(name, value, len);
     return SFS_OK;
   }
   KIO_CATCH
@@ -324,7 +325,7 @@ KineticIo::attrSet(string name, std::string value)
       kio->Open(mFilePath.c_str(), 0);
       opened = true;
     }
-    kio->xattrSet(name, value);
+    kattr->Set(name, value);
     return SFS_OK;
   }
   KIO_CATCH
@@ -340,7 +341,7 @@ KineticIo::attrDelete(const char* name)
       kio->Open(mFilePath.c_str(), 0);
       opened = true;
     }
-    kio->xattrDelete(name);
+    //    kattr->Delete(name);
     return SFS_OK;
   }
   KIO_CATCH
@@ -356,7 +357,7 @@ KineticIo::attrList(std::vector<std::string>& list)
       kio->Open(mFilePath.c_str(), 0);
       opened = true;
     }
-    kio->xattrList(list);
+    //    kattr->List(list);
     return SFS_OK;
   }
   KIO_CATCH

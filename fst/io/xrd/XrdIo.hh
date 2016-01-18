@@ -206,7 +206,7 @@ public:
   //! @param length space to be allocated
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileFallocate(XrdSfsFileOffset length);
+  int fileFallocate(XrdSfsFileOffset length) { return 0;}
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
@@ -215,7 +215,7 @@ public:
   //! @param toOffset offset end
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset);
+  int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset) { return 0;}
 
   //--------------------------------------------------------------------------
   //! Remove file
@@ -224,6 +224,14 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
   int fileRemove(uint16_t timeout = 0);
+
+  //--------------------------------------------------------------------------
+  //! Delete not openedfile
+  //!
+  //! @param timeout timeout value
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  int fileDelete(const char* url);
 
   //--------------------------------------------------------------------------
   //! Sync file to disk

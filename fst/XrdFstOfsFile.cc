@@ -1511,7 +1511,7 @@ XrdFstOfsFile::LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* 
 int
 XrdFstOfsFile::FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd)
 {
-  return ((FileIo*) cbd->caller)->Read(cbd->offset, cbd->buffer, cbd->size);
+  return ((FileIo*) cbd->caller)->fileRead(cbd->offset, cbd->buffer, cbd->size);
 }
 
 //------------------------------------------------------------------------------
@@ -1670,12 +1670,12 @@ XrdFstOfsFile::verifychecksum ()
           // Don't put file checksum tags for complex layouts like raid6,readdp, archive
           //............................................................................
 
-          if (io->xattrSet(std::string("user.eos.checksumtype"), std::string(checkSum->GetName())))
+          if (io->attrSet(std::string("user.eos.checksumtype"), std::string(checkSum->GetName())))
           {
             eos_err("unable to set extended attribute <eos.checksumtype> errno=%d", errno);
           }
 
-          if (io->xattrSet("user.eos.checksum", checkSum->GetBinChecksum(checksumlen), checksumlen))
+          if (io->attrSet("user.eos.checksum", checkSum->GetBinChecksum(checksumlen), checksumlen))
           {
             eos_err("unable to set extended attribute <eos.checksum> errno=%d", errno);
           }
@@ -1683,12 +1683,12 @@ XrdFstOfsFile::verifychecksum ()
         //............................................................................
         // Reset any tagged error
         //............................................................................
-        if (io->xattrSet("user.eos.filecxerror", "0"))
+        if (io->attrSet("user.eos.filecxerror", "0"))
         {
           eos_err("unable to set extended attribute <eos.filecxerror> errno=%d", errno);
         }
 
-        if (io->xattrSet("user.eos.blockcxerror", "0"))
+        if (io->attrSet("user.eos.blockcxerror", "0"))
         {
           eos_err("unable to set extended attribute <eos.blockcxerror> errno=%d", errno);
         }
@@ -2240,11 +2240,7 @@ XrdFstOfsFile::close ()
       }
     }
 
-<<<<<<< HEAD
     if (deleteOnClose && (isInjection || isCreation || IsChunkedUpload()))
-=======
-    if (deleteOnClose && (isCreation || IsChunkedUpload()))
->>>>>>> 49071442e145f5def8c591daee2eff03f0a29a7d
     {
       eos_info("info=\"deleting on close\" fn=%s fstpath=%s",
                capOpaque->Get("mgm.path"), fstPath.c_str());
@@ -3024,10 +3020,11 @@ XrdFstOfsFile::DoTpcTransfer ()
     src_cgi += gOFS.TpcMap[isRW][TpcKey.c_str()].org;
   }
 
-  XrdIo tpcIO((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>())); // the remote IO object
+  XrdIo tpcIO(src_url.c_str());
+
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
-  if (tpcIO.Open(src_url.c_str(), 0, 0, src_cgi.c_str(), 10))
+  if (tpcIO.fileOpen(0, 0, src_cgi.c_str(), 10))
   {
     XrdOucString msg = "sync - TPC open failed for url=";
     msg += src_url.c_str();
@@ -3059,7 +3056,7 @@ XrdFstOfsFile::DoTpcTransfer ()
   {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    rbytes = tpcIO.Read(offset, &((*buffer)[0]), ReadaheadBlock::sDefaultBlocksize, 30);
+    rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), ReadaheadBlock::sDefaultBlocksize, 30);
     eos_debug("msg=\"tpc read\" rbytes=%llu request=%llu",
               rbytes, ReadaheadBlock::sDefaultBlocksize);
 
@@ -3104,7 +3101,7 @@ XrdFstOfsFile::DoTpcTransfer ()
 
   // Close the remote file
   eos_debug("Close remote file and exit");
-  XrdCl::XRootDStatus st = tpcIO.Close();
+  XrdCl::XRootDStatus st = tpcIO.fileClose();
   mTpcInfo.Reply(SFS_OK, 0, "");
   return 0;
 }

@@ -104,11 +104,10 @@ namespace{
 //------------------------------------------------------------------------------
 
 int
-XrdIo::fileOpen (const std::string& path,
-             XrdSfsFileOpenMode flags,
-             mode_t mode,
-             const std::string& opaque,
-             uint16_t timeout)
+XrdIo::fileOpen (XrdSfsFileOpenMode flags,
+		 mode_t mode,
+		 const std::string& opaque,
+		 uint16_t timeout)
 {
   const char* val = 0;
   std::string request;
@@ -116,15 +115,15 @@ XrdIo::fileOpen (const std::string& path,
   std::string lOpaque;
   size_t qpos = 0;
 
-  mFilePath = path;
+  std::string lFilePath = mFilePath;
 
   //............................................................................
   // Opaque info can be part of the 'path'
   //............................................................................
-  if (((qpos = path.find("?")) != std::string::npos))
+  if (((qpos = mFilePath.find("?")) != std::string::npos))
   {
-    lOpaque = path.substr(qpos + 1);
-    mFilePath.erase(qpos);
+    lOpaque = mFilePath.substr(qpos + 1);
+    lFilePath.erase(qpos);
   }
   else
   {
@@ -136,7 +135,7 @@ XrdIo::fileOpen (const std::string& path,
   //............................................................................
   // Set url for xattr requests
   //............................................................................
-  mUrl = getAttrUrl(path);
+  mUrl = getAttrUrl(lFilePath.c_str());
 
   //............................................................................
   // Decide if readahead is used and the block size
@@ -159,7 +158,7 @@ XrdIo::fileOpen (const std::string& path,
     }
   }
 
-  request = path;
+  request = lFilePath;
   request += "?";
   request += lOpaque;
   mXrdFile = new XrdCl::File();
@@ -556,7 +555,7 @@ XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
     {
       // if we have an external XRootD we cannot send this truncate
       // we issue an 'rm' instead
-      return Delete(mFilePath.c_str());
+      return fileDelete(mFilePath.c_str());
     }
 
     if (offset == EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN)
@@ -714,7 +713,7 @@ XrdIo::fileRemove (uint16_t timeout)
 int
 XrdIo::fileExists ()
 {
-  XrdCl::URL xUrl(url);
+  XrdCl::URL xUrl(mFilePath);
   XrdCl::FileSystem fs(xUrl);
   XrdCl::StatInfo* stat;
   ;
@@ -827,7 +826,7 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 void*
-XrdIo::GetAsyncHandler ()
+XrdIo::fileGetAsyncHandler ()
 {
 
   return static_cast<void*> (mMetaHandler);
@@ -839,9 +838,9 @@ XrdIo::GetAsyncHandler ()
 //------------------------------------------------------------------------------
 
 int
-XrdIo::Statfs (const char* path, struct statfs* sfs)
+XrdIo::Statfs( struct statfs* sfs)
 {
-  XrdCl::URL xUrl(path);
+  XrdCl::URL xUrl(mFilePath);
   XrdCl::FileSystem fs(xUrl);
 
   XrdCl::Buffer *response = 0;
@@ -858,7 +857,7 @@ XrdIo::Statfs (const char* path, struct statfs* sfs)
 
   if (!status.IsOK())
   {
-    eos_err("msg=\"failed to statfs remote XRootD\" url=\"%s\"", path);
+    eos_err("msg=\"failed to statfs remote XRootD\" url=\"%s\"", mFilePath.c_str());
     mLastErrMsg = "failed to statfs remote XRootD";
     errno = EREMOTEIO;
     return errno;
@@ -940,7 +939,7 @@ XrdIo::Statfs (const char* path, struct statfs* sfs)
 
 
 int
-XrdIo::xattrSet(const char* name, const char* value, size_t len)
+XrdIo::attrSet(const char* name, const char* value, size_t len)
 {
   std::string lBlob;
   // download
@@ -950,8 +949,15 @@ XrdIo::xattrSet(const char* name, const char* value, size_t len)
     {
       std::string key = name;
       std::string val;
-      val.assign(value, len);
-      mFileMap.Set(key, val);
+      if ( val == "#__DELETE_ATTR_#")
+      {
+	mFileMap.Remove(key);
+      }
+      else 
+      {
+	val.assign(value, len);
+	mFileMap.Set(key, val);
+      }
       std::string lMap = mFileMap.Trim();
       fprintf(stderr, "### %s", lMap.c_str());
       if (!XrdIo::Upload(mUrl, lMap))
@@ -986,9 +992,9 @@ XrdIo::xattrSet(const char* name, const char* value, size_t len)
 // ------------------------------------------------------------------------
 
 int
-XrdIo::xattrSet(string name, std::string value)
+XrdIo::attrSet(string name, std::string value)
 {
-  return xattrSet(name.c_str(), value.c_str(), value.length());
+  return attrSet(name.c_str(), value.c_str(), value.length());
 }
 
 
@@ -997,7 +1003,7 @@ XrdIo::xattrSet(string name, std::string value)
 // ------------------------------------------------------------------------
 
 int
-XrdIo::xattrGet(const char* name, char* value, size_t &size)
+XrdIo::attrGet(const char* name, char* value, size_t &size)
 {
   std::string lBlob;
   if (!XrdIo::Download(mUrl, lBlob))
@@ -1026,7 +1032,7 @@ XrdIo::xattrGet(const char* name, char* value, size_t &size)
 // ------------------------------------------------------------------------
 
 int
-XrdIo::xattrGet(string name, std::string& value)
+XrdIo::attrGet(string name, std::string& value)
 {
   std::string lBlob;
   if (!XrdIo::Download(mUrl, lBlob))
@@ -1045,6 +1051,32 @@ XrdIo::xattrGet(string name, std::string& value)
   return SFS_ERROR;
 }
 
+// ------------------------------------------------------------------------                                                                                                                            
+//! Delete a binary attribute by name                                                                                                                                                                  
+// ------------------------------------------------------------------------                                                                                                                            
+int 
+XrdIo::attrDelete(const char* name)
+{
+  if (attrSet(name,"#__DELETE_ATTR_#"))
+    return 0;
+  else
+    return SFS_ERROR;
+}
+
+// ------------------------------------------------------------------------                                                                                                                            
+//! List all attributes for the associated path                                                                                                                                                        
+// ------------------------------------------------------------------------                                                                                                                            
+int 
+XrdIo::attrList(std::vector<std::string>& list)
+{
+  std::map<std::string, std::string> kv = mFileMap.GetMap();
+  for ( auto it = kv.begin(); it != kv.end(); ++it)
+  {
+    list.push_back(it->first);
+  }
+  return 0;
+}
+
 
 
 //--------------------------------------------------------------------------
@@ -1056,10 +1088,10 @@ XrdIo::xattrGet(string name, std::string& value)
 //--------------------------------------------------------------------------
 
 FileIo::FtsHandle*
-XrdIo::ftsOpen (std::string subtree)
+XrdIo::ftsOpen ()
 {
 
-  XrdCl::URL url(subtree);
+  XrdCl::URL url(mFilePath.c_str());
   XrdCl::FileSystem fs(url);
   std::vector<std::string> files;
   std::vector<std::string> directories;
@@ -1079,7 +1111,7 @@ XrdIo::ftsOpen (std::string subtree)
   }
 
 
-  FtsHandle* handle = new FtsHandle(subtree.c_str());
+  FtsHandle* handle = new FtsHandle(mFilePath.c_str());
   if (!handle)
     return 0;
 
@@ -1089,13 +1121,13 @@ XrdIo::ftsOpen (std::string subtree)
     // skip attribute files
     if (fname.beginswith(".") && fname.endswith(".xattr"))
       continue;
-    handle->found_files.push_back(subtree + *it);
+    handle->found_files.push_back(mFilePath + *it);
   }
 
   for (auto it = directories.begin(); it != directories.end(); ++it)
   {
-    eos_info("adding dir=%s deepness=%d", (subtree + *it + "/").c_str(), handle->deepness);
-    handle->found_dirs[0].push_back(subtree + *it + "/");
+    eos_info("adding dir=%s deepness=%d", (mFilePath + *it + "/").c_str(), handle->deepness);
+    handle->found_dirs[0].push_back(mFilePath + *it + "/");
   }
 
   return (FileIo::FtsHandle*) (handle);
@@ -1199,17 +1231,17 @@ XrdIo::Download (std::string url, std::string& download)
 {
   errno = 0;
   static int s_blocksize = 65536;
-  XrdIo io((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
+  XrdIo io(url.c_str());
 
   off_t offset = 0;
   std::string opaque;
-  if (!io.Open(url.c_str(), 0, 0, opaque, 10))
+  if (!io.fileOpen(0, 0, opaque, 10))
   {
     ssize_t rbytes = 0;
     download.resize(s_blocksize);
     do
     {
-      rbytes = io.Read(offset, (char*) download.c_str(), s_blocksize, 30);
+      rbytes = io.fileRead(offset, (char*) download.c_str(), s_blocksize, 30);
       if (rbytes == s_blocksize)
       {
         download.resize(download.size() + 65536);
@@ -1220,7 +1252,7 @@ XrdIo::Download (std::string url, std::string& download)
       }
     }
     while (rbytes == s_blocksize);
-    io.Close();
+    io.fileClose();
     download.resize(offset);
     return 0;
   }
@@ -1238,18 +1270,17 @@ int
 XrdIo::Upload (std::string url, std::string& upload)
 {
   errno = 0;
-  XrdIo io((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
+  XrdIo io(url.c_str());
 
   std::string opaque;
   int rc = 0;
 
-  if (!io.Open(url.c_str(),
-               SFS_O_WRONLY | SFS_O_CREAT, S_IRWXU | S_IRGRP | SFS_O_MKPTH,
-               opaque,
-               10))
+  if (!io.fileOpen(SFS_O_WRONLY | SFS_O_CREAT, S_IRWXU | S_IRGRP | SFS_O_MKPTH,
+		   opaque,
+		   10))
   {
     eos_static_info("opened %s", url.c_str());
-    if ((io.Write(0, upload.c_str(), upload.length(), 30)) != (ssize_t) upload.length())
+    if ((io.fileWrite(0, upload.c_str(), upload.length(), 30)) != (ssize_t) upload.length())
     {
       eos_static_err("failed to write %d", upload.length());
       rc = -1;
@@ -1258,7 +1289,7 @@ XrdIo::Upload (std::string url, std::string& upload)
     {
       eos_static_info("uploaded %d\n", upload.length());
     }
-    io.Close();
+    io.fileClose();
   }
   else
   {

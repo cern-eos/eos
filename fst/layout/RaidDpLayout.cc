@@ -373,7 +373,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
 
       if (mStoreRecovery && mStripeFiles[physical_id])
       {
-        nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+        nwrite = mStripeFiles[physical_id]->fileWriteAsync(offset_local,
                                                        mDataBlocks[id_corrupted],
                                                        mStripeWidth,
                                                        mTimeout);
@@ -455,7 +455,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
 
         if (mStoreRecovery && mStripeFiles[physical_id])
         {
-          nwrite = mStripeFiles[physical_id]->WriteAsync(offset_local,
+          nwrite = mStripeFiles[physical_id]->fileWriteAsync(offset_local,
                                                          mDataBlocks[id_corrupted],
                                                          mStripeWidth,
                                                          mTimeout);
@@ -523,7 +523,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
   {
     if (mStoreRecovery && mStripeFiles[i])
     {
-      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->GetAsyncHandler());
+      ptr_handler = static_cast<AsyncMetaHandler*>(mStripeFiles[i]->fileGetAsyncHandler());
       
       if (ptr_handler)
       {
@@ -536,7 +536,7 @@ RaidDpLayout::RecoverPiecesInGroup (off_t offsetInit,
           
           if (error_type == XrdCl::errOperationExpired)
           {
-            mStripeFiles[i]->Close(mTimeout);
+            mStripeFiles[i]->fileClose(mTimeout);
             delete mStripeFiles[i];
             mStripeFiles[i] = NULL;
           }
@@ -645,7 +645,7 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_pindex])
     {
-      nwrite = mStripeFiles[physical_pindex]->WriteAsync(off_parity_local,
+      nwrite = mStripeFiles[physical_pindex]->fileWriteAsync(off_parity_local,
                                                          mDataBlocks[index_pblock],
                                                          mStripeWidth,
                                                          mTimeout);
@@ -668,7 +668,7 @@ RaidDpLayout::WriteParityToFiles (off_t offsetGroup)
     //..........................................................................
     if (mStripeFiles[physical_dpindex])
     {
-      nwrite = mStripeFiles[physical_dpindex]->WriteAsync(off_parity_local,
+      nwrite = mStripeFiles[physical_dpindex]->fileWriteAsync(off_parity_local,
                                                           mDataBlocks[index_dpblock],
                                                           mStripeWidth,
                                                           mTimeout);
@@ -989,7 +989,7 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
   truncate_offset += mSizeHeader;
   
   if (mStripeFiles[0])
-    mStripeFiles[0]->Truncate(truncate_offset, mTimeout);
+    mStripeFiles[0]->fileTruncate(truncate_offset, mTimeout);
       
   eos_debug("Truncate local stripe to file_offset = %lli, stripe_offset = %zu",
             offset, truncate_offset);
@@ -1011,7 +1011,7 @@ RaidDpLayout::Truncate (XrdSfsFileOffset offset)
       
       if (mStripeFiles[i])
       {
-        if (mStripeFiles[i]->Truncate(truncate_offset, mTimeout))
+        if (mStripeFiles[i]->fileTruncate(truncate_offset, mTimeout))
         {
           eos_err("error=error while truncating");
           return SFS_ERROR;
@@ -1039,7 +1039,7 @@ int
 RaidDpLayout::Fallocate (XrdSfsFileOffset length)
 {
   int64_t size = ceil( (1.0 * length) / mSizeGroup) * mSizeLine + mSizeHeader;
-  return mStripeFiles[0]->Fallocate(size);
+  return mStripeFiles[0]->fileFallocate(size);
 }
 
 
@@ -1052,7 +1052,7 @@ RaidDpLayout::Fdeallocate (XrdSfsFileOffset fromOffset,
 {
   int64_t from_size = ceil( (1.0 * fromOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
   int64_t to_size = ceil( (1.0 * toOffset) / mSizeGroup) * mSizeLine + mSizeHeader;
-  return mStripeFiles[0]->Fdeallocate(from_size, to_size);
+  return mStripeFiles[0]->fileFdeallocate(from_size, to_size);
 }
 
 EOSFSTNAMESPACE_END

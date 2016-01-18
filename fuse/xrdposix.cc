@@ -2340,7 +2340,7 @@ xrd_open (const char* path,
       spath.replace("/proc/whoami", "/proc/user/");
       spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl);
+                                                         spath.c_str());
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
@@ -2364,7 +2364,7 @@ xrd_open (const char* path,
       spath.replace("/proc/who", "/proc/user/");
       spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl);
+							 spath.c_str());
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
       retc = file->Open(flags_sfs, mode, open_cgi.c_str());
@@ -2386,7 +2386,7 @@ xrd_open (const char* path,
       spath.replace("/proc/quota", "/proc/user/");
       spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
       eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl);
+							 spath.c_str());
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
@@ -2467,13 +2467,13 @@ xrd_open (const char* path,
         if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP)
         {
           file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-                                            eos::common::LayoutId::kXrdCl);
+					    spath.c_str());
         }
         else if ((LayoutId::GetLayoutType(layout) == LayoutId::kRaid6) ||
                  (LayoutId::GetLayoutType(layout) == LayoutId::kArchive))
         {
           file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-                                           eos::common::LayoutId::kXrdCl);
+					   spath.c_str());
         }
         else
         {
@@ -2523,7 +2523,7 @@ xrd_open (const char* path,
   }
 
   eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                     eos::common::LayoutId::kXrdCl);
+						     spath.c_str());
   XrdOucString open_cgi = "eos.app=fuse";
 
   if (oflags & (O_RDWR | O_WRONLY))

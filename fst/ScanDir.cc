@@ -138,9 +138,8 @@ void
 ScanDir::ScanFiles ()
 {
 
-  int io_type = eos::common::LayoutId::GetIoType(dirPath.c_str());
-  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(io_type));
-  if (!io->Open(dirPath.c_str(), 0))
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(dirPath.c_str()));
+  if (!io)
   {
     if (bgThread)
     {
@@ -153,7 +152,7 @@ ScanDir::ScanFiles ()
     return;
   }
 
-  FileIo::FtsHandle* handle = io->ftsOpen(dirPath.c_str());
+  FileIo::FtsHandle* handle = io->ftsOpen();
 
   if (!handle)
   {
@@ -213,7 +212,7 @@ ScanDir::CheckFile (const char* filepath)
 
   filePath = filepath;
 
-  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(eos::common::LayoutId::GetIoType(filepath)));
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
 
   noTotalFiles++;
 
@@ -221,7 +220,7 @@ ScanDir::CheckFile (const char* filepath)
   struct stat buf1;
   struct stat buf2;
 
-  if ((io->Open(filePath, 0, 0)) || io->Stat(&buf1))
+  if ((io->fileOpen(0, 0)) || io->fileStat(&buf1))
   {
     if (bgThread)
     {
@@ -252,15 +251,15 @@ ScanDir::CheckFile (const char* filepath)
 #endif
 
 
-  io->xattrGet("user.eos.checksumtype", checksumType);
+  io->attrGet("user.eos.checksumtype", checksumType);
   memset(checksumVal, 0, sizeof (checksumVal));
   checksumLen = SHA_DIGEST_LENGTH;
-  if (io->xattrGet("user.eos.checksum", checksumVal, checksumLen))
+  if (io->attrGet("user.eos.checksum", checksumVal, checksumLen))
   {
     checksumLen = 0;
   }
-  io->xattrGet("user.eos.timestamp", checksumStamp);
-  io->xattrGet("user.eos.lfn", logicalFileName);
+  io->attrGet("user.eos.timestamp", checksumStamp);
+  io->attrGet("user.eos.lfn", logicalFileName);
 
   if (RescanFile(checksumStamp))
   {
@@ -277,7 +276,7 @@ ScanDir::CheckFile (const char* filepath)
       layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
       if (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid, logicalFileName.c_str(), filecxerror, blockcxerror))
       {
-        if ((!io->Stat(&buf2)) && (buf1.st_mtime == buf2.st_mtime))
+        if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime))
         {
           if (filecxerror)
           {
@@ -307,9 +306,9 @@ ScanDir::CheckFile (const char* filepath)
       totalScanSize += scansize;
 
 
-      if ((io->xattrSet("user.eos.timestamp", GetTimestampSmeared())) ||
-          (io->xattrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-          (io->xattrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0")))
+      if ((io->attrSet("user.eos.timestamp", GetTimestampSmeared())) ||
+          (io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+          (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0")))
       {
         if (bgThread)
         {
@@ -359,7 +358,7 @@ ScanDir::CheckFile (const char* filepath)
     SkippedFiles++;
   }
 
-  io->Close();
+  io->fileClose();
 }
 
 /*----------------------------------------------------------------------------*/
@@ -370,13 +369,12 @@ ScanDir::GetBlockXS (const char* filepath, unsigned long long maxfilesize)
   std::string checksumType, checksumSize, logicalFileName;
   XrdOucString fileXSPath = filepath;
 
-  auto io_type = eos::common::LayoutId::GetIoType(filepath);
-  std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(io_type));
-  if (!io->Open(filepath, 0))
+  std::unique_ptr<eos::fst::FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
+  if (!io->fileOpen(0))
   {
-    io->xattrGet("user.eos.blockchecksum", checksumType);
-    io->xattrGet("user.eos.blocksize", checksumSize);
-    io->xattrGet("user.eos.lfn", logicalFileName);
+    io->attrGet("user.eos.blockchecksum", checksumType);
+    io->attrGet("user.eos.blocksize", checksumSize);
+    io->attrGet("user.eos.lfn", logicalFileName);
 
     if (checksumType.compare(""))
     {
@@ -617,7 +615,7 @@ ScanDir::ScanFileLoadAware (const std::unique_ptr<eos::fst::FileIo>& io, unsigne
   gettimeofday(&opentime, &tz);
 
   struct stat current_stat;
-  if (io->Stat(&current_stat))
+  if (io->fileStat(&current_stat))
   {
     delete normalXS;
     return false;
@@ -639,7 +637,7 @@ ScanDir::ScanFileLoadAware (const std::unique_ptr<eos::fst::FileIo>& io, unsigne
   do
   {
     errno = 0;
-    nread = io->Read(offset, buffer, bufferSize);
+    nread = io->fileRead(offset, buffer, bufferSize);
     fprintf(stderr, "reading %d\n", nread);
     if (nread < 0)
     {
@@ -710,8 +708,8 @@ ScanDir::ScanFileLoadAware (const std::unique_ptr<eos::fst::FileIo>& io, unsigne
       {
         int checksumlen = 0;
         normalXS->GetBinChecksum(checksumlen);
-        if (io->xattrSet("user.eos.checksum", normalXS->GetBinChecksum(checksumlen), checksumlen) ||
-            io->xattrSet("user.eos.filecxerror", "0"))
+        if (io->attrSet("user.eos.checksum", normalXS->GetBinChecksum(checksumlen), checksumlen) ||
+            io->attrSet("user.eos.filecxerror", "0"))
         {
           fprintf(stderr, "error: failed to reset existing checksum \n");
         }

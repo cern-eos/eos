@@ -64,7 +64,7 @@ main (int argc, const char* argv[])
   std::string checksumtype;
   std::string blocksize;
 
-  if (io->xattrGet("user.eos.blockchecksum", checksumtype) || io->xattrGet("user.eos.blocksize", blocksize))
+  if (io->attrGet("user.eos.blockchecksum", checksumtype) || io->attrGet("user.eos.blocksize", blocksize))
   {
     fprintf(stderr, "error: the extended attributes are missing on the block checksum file!\n");
     exit(-1);

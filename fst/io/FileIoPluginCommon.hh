@@ -29,7 +29,9 @@
 #include "fst/io/FileIo.hh"
 #include "fst/io/local/FsIo.hh"
 #include "fst/io/xrd/XrdIo.hh"
+#ifdef RADOS_FOUND
 #include "fst/io/rados/RadosIo.hh"
+#endif
 #ifdef KINETICIO_FOUND
 #include "fst/io/kinetic/KineticIo.hh"
 #endif
@@ -91,6 +93,17 @@ public:
               XrdFstOfsFile* file = 0,
               const XrdSecEntity* client = 0)
   {
+    // TODO: remove me once kinetic understands URLs !!!
+    if (path.find("kinetic://") != std::string::npos)
+    {
+      path.replace(0,10,"kinetic:");
+      size_t dpos = path.find("//");
+      if (dpos != std::string::npos)
+      {
+	path.replace(dpos,2, ":");
+      }
+    }
+    
     auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
 
     if (ioType == LayoutId::kLocal) {
@@ -107,7 +120,11 @@ public:
       return NULL;
     }
     else if (ioType == LayoutId::kRados) {
+#ifdef RADOS_FOUND
       return static_cast<FileIo*> (new RadosIo(path, file, client));
+#endif
+      eos_static_warning("EOS has been compiled without RADOS support.");
+      return NULL;
     }
     else if (ioType == LayoutId::kDavix) {
 #ifdef DAVIX_FOUND

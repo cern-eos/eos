@@ -46,7 +46,9 @@
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/io/ChunkHandler.hh"
-#include "fst/io/XrdIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
+#include "fst/io/FileIo.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -63,18 +65,19 @@ enum AccessType
   LOCAL_ACCESS, ///< local access
   RAID_ACCESS, ///< xroot protocol but with raid layout
   XRD_ACCESS, ///< xroot protocol
+  RIO_ACCESS, ///< any File IO plug-in remote protocol
   CONSOLE_ACCESS ///< input/output to console
 };
 
-const char* protocols[] = {"file", "raid", "xroot", NULL};
+const char* protocols[] = {"file", "raid", "xroot", "rio", NULL};
 const char* xs[] = {"adler", "md5", "sha1", "crc32", "crc32c"};
 std::set<std::string> xsTypeSet (xs, xs + 5);
 
-///! vector of source file descriptors or xrd objects
-std::vector<std::pair<int, XrdCl::File*> > src_handler;
+///! vector of source file descriptors or IO objects
+std::vector<std::pair<int, void*> > src_handler;
 
-///! vector of destination file descriptors or xrd objects
-std::vector<std::pair<int, eos::fst::XrdIo*> > dst_handler;
+///! vector of destination file descriptors or IO objects
+std::vector<std::pair<int, void*> > dst_handler;
 
 ///! vector of source host address and path file
 VectLocationType src_location;
@@ -111,6 +114,7 @@ int replicamode = 0;
 float bandwidth = 0;
 XrdOucString cpname = "";
 XrdCl::XRootDStatus status;
+int retc = 0;
 uint32_t buffersize = DEFAULTBUFFERSIZE;
 
 double read_wait = 0; ///< statistics about total read time
@@ -1062,6 +1066,10 @@ main (int argc, char* argv[])
                 // The file is not suitable for PIO access, do normal XRD access
                 //.....................................................................
                 src_type.push_back(XRD_ACCESS);
+		if (verbose || debug)
+		{
+		  fprintf(stdout, "[eoscp] doing standard access...\n");
+		}
               }
             }
             else
@@ -1104,6 +1112,10 @@ main (int argc, char* argv[])
         exit(-EPERM);
       }
     }
+    else if (src_location[i].first.find (":/") != std::string::npos)
+    {
+      src_type.push_back(RIO_ACCESS);
+    }
     else
     {
       src_type.push_back(LOCAL_ACCESS);
@@ -1133,6 +1145,10 @@ main (int argc, char* argv[])
     else if (dst_location[i].second == "-")
     {
       dst_type.push_back(CONSOLE_ACCESS);
+    }
+    else if (dst_location[i].first.find(":/") != std::string::npos)
+    {
+      dst_type.push_back(RIO_ACCESS);
     }
     else
     {
@@ -1291,6 +1307,10 @@ main (int argc, char* argv[])
       case CONSOLE_ACCESS:
         stat_failed = 0;
         break;
+
+      case RIO_ACCESS:
+	stat_failed = 0;
+	break;
       }
 
       if (!isRaidTransfer && stat_failed)
@@ -1352,16 +1372,9 @@ main (int argc, char* argv[])
 
         case RAID_ACCESS:
         case XRD_ACCESS:
-          if (debug)
-          {
-            fprintf(stdout, "[eoscp]: doing XROOT readlink on %s\n",
-                    src_location[i].second.c_str());
-          }
-
-          //....................................................................
-          // Not implemented in xrootd posix
-          //....................................................................
+	case RIO_ACCESS:
           readlink_size = 1;
+	  break;
 
         case CONSOLE_ACCESS:
           readlink_size = 0;
@@ -1428,6 +1441,13 @@ main (int argc, char* argv[])
         if (debug)
         {
           fprintf(stdout, "[eoscp]: XROOT is transparent for staging - nothing to check\n");
+        }
+        break;
+
+      case RIO_ACCESS:
+        if (debug)
+        {
+          fprintf(stdout, "[eoscp]: RIO is transparent for staging - nothing to check\n");
         }
         break;
 
@@ -1543,6 +1563,9 @@ main (int argc, char* argv[])
         }
           break;
 
+	case RIO_ACCESS:
+	  break;
+
         case CONSOLE_ACCESS:
           break;
         }
@@ -1610,7 +1633,7 @@ main (int argc, char* argv[])
                                    0, nparitystripes);
 
           redundancyObj = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-                                                     eos::common::LayoutId::kXrdCl,
+                                                     location.c_str(),
                                                      0, doStoreRecovery);
         }
         else if (replicationType == "reeds")
@@ -1622,7 +1645,7 @@ main (int argc, char* argv[])
                                    0, nparitystripes);
 
           redundancyObj = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-                                                    eos::common::LayoutId::kXrdCl,
+						    location.c_str(),
                                                     0, doStoreRecovery);
         }
 
@@ -1673,9 +1696,42 @@ main (int argc, char* argv[])
         exit(-status.errNo);
       }
 
-      src_handler.push_back(std::make_pair(0, file));
+      src_handler.push_back(std::make_pair(0, (void*)file));
     }
       break;
+
+    case RIO_ACCESS:
+    {
+      if (debug)
+      {
+        fprintf(stdout, "[eoscp]: doing RIO open to read  %s\n",
+                src_location[i].second.c_str());
+      }
+
+      location = src_location[i].first + src_location[i].second;
+
+      if (location.substr(0,3) == "xrd")
+      {
+	location.replace(0,3,"root");
+      }
+
+      eos::fst::FileIo* file = eos::fst::FileIoPluginHelper::GetIoObject(location.c_str());
+      if (!file)
+      {
+	fprintf(stderr,"error: failed to get IO object for %s\n", location.c_str());
+	exit(-1);
+      }
+
+      retc = file->fileOpen(0);
+
+      if (retc)
+      {
+	fprintf(stderr,"error: failed to \n");
+      }
+      src_handler.push_back(std::make_pair(0, (void*)file));
+    }
+      break;
+
 
     case CONSOLE_ACCESS:
       src_handler.push_back(std::make_pair(fileno(stdin), static_cast<XrdCl::File*> (NULL)));
@@ -1735,6 +1791,11 @@ main (int argc, char* argv[])
       }
         break;
 
+      case RIO_ACCESS:
+	offsetXrd = startbyte;
+	offsetXS = startbyte;
+	break;
+
       case CONSOLE_ACCESS:
         break;
       }
@@ -1753,6 +1814,7 @@ main (int argc, char* argv[])
   //............................................................................
   for (int i = 0; i < ndst; i++)
   {
+    retc = 0;
     switch (dst_type[i])
     {
     case LOCAL_ACCESS:
@@ -1803,7 +1865,7 @@ main (int argc, char* argv[])
                                    0, nparitystripes);
 
           redundancyObj = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-                                                     eos::common::LayoutId::kXrdCl,
+                                                     location.c_str(),
                                                      0, doStoreRecovery, isStreamFile);
         }
         else if (replicationType == "reeds")
@@ -1815,7 +1877,7 @@ main (int argc, char* argv[])
                                    0, nparitystripes);
 
           redundancyObj = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-                                                    eos::common::LayoutId::kXrdCl,
+						    location.c_str(),
                                                     0, doStoreRecovery, isStreamFile);
         }
 
@@ -1841,8 +1903,9 @@ main (int argc, char* argv[])
                 dst_location[i].second.c_str());
       }
 
-      eos::fst::XrdIo* file = new eos::fst::XrdIo((std::basic_string<char, char_traits<_CharT>, allocator<_CharT>>()));
       location = dst_location[i].first + dst_location[i].second;
+
+      eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str());
 
       if (appendmode)
       {
@@ -1861,12 +1924,12 @@ main (int argc, char* argv[])
         if (status.IsOK())
         {
           //TODO: add timeout for all XrdIo operations
-          status = file->Open(location, SFS_O_RDWR, st[i].st_mode, "");
+          retc = file->fileOpen(SFS_O_RDWR, st[i].st_mode, "");
 
         }
         else
         {
-          status = file->Open(location, SFS_O_CREAT | SFS_O_RDWR,
+          retc = file->fileOpen(SFS_O_CREAT | SFS_O_RDWR,
                               st[i].st_mode, "");
         }
 
@@ -1874,19 +1937,57 @@ main (int argc, char* argv[])
       }
       else
       {
-        status = file->Open(location, SFS_O_CREAT | SFS_O_RDWR,
+        retc = file->fileOpen(SFS_O_CREAT | SFS_O_RDWR,
                             S_IRUSR | S_IWUSR | S_IRGRP, "");
       }
 
-      if (!status.IsOK())
+      if (retc)
       {
-        std::string errmsg;
-        errmsg = status.GetErrorMessage();
-        fprintf(stderr, "error: %s\n", status.ToStr().c_str());
-        exit(-status.errNo);
+        fprintf(stderr, "error: retc=%d\n", retc);
+	exit(-retc);
       }
 
       dst_handler.push_back(std::make_pair(0, file));
+    }
+      break;
+
+    case RIO_ACCESS:
+    {
+      if (debug)
+      {
+        fprintf(stdout, "[eoscp]: doing open to write  %s\n",
+                dst_location[i].second.c_str());
+      }
+
+      location = dst_location[i].first + dst_location[i].second;
+
+      if (location.substr(0,3) == "xrd")
+      {
+	location.replace(0,3,"root");
+      }
+
+      eos::fst::FileIo* file = eos::fst::FileIoPluginHelper::GetIoObject(location.c_str());
+      
+      location = src_location[i].first + src_location[i].second;
+
+      if (!file->fileExists())
+      {  
+	retc = file->fileOpen(SFS_O_RDWR, st[i].st_mode, "");
+      }
+      else
+      {
+	retc = file->fileOpen(SFS_O_CREAT | SFS_O_RDWR,
+                              st[i].st_mode, "");
+      }
+
+      if (retc)
+      {
+        fprintf(stderr, "error: retc=%d\n", retc);
+	exit(-retc);
+      }
+
+      dst_handler.push_back(std::make_pair(0, file));
+
     }
       break;
 
@@ -1930,9 +2031,10 @@ main (int argc, char* argv[])
         break;
 
       case XRD_ACCESS:
-        //TODO::
-        //startwritebyte = XrdPosixXrootd::Lseek( dstfd[i], ( long long )0, SEEK_END );
         break;
+
+      case RIO_ACCESS:
+	break;
 
       case CONSOLE_ACCESS:
         // Not supported
@@ -1986,6 +2088,7 @@ main (int argc, char* argv[])
 
     case RAID_ACCESS:
     case XRD_ACCESS:
+    case RIO_ACCESS:
     case CONSOLE_ACCESS:
       //........................................................................
       // Not supported, no such functionality in the standard xroot or console
@@ -2081,17 +2184,18 @@ main (int argc, char* argv[])
       offsetXrd += nread;
     }
       break;
-
+      
     case XRD_ACCESS:
     {
       eos::common::Timing::GetTimeSpec(start);
       uint32_t xnread = 0;
-      status = src_handler[0].second->Read(offsetXrd, buffersize, ptr_buffer, xnread);
+
+      status = static_cast<XrdCl::File*>(src_handler[0].second)->Read(offsetXrd, buffersize, ptr_buffer, xnread);
       nread = xnread;
       if (!status.IsOK())
       {
-        fprintf(stderr, "Error while doing reading. \n");
-        exit(-1);
+	fprintf(stderr, "Error while doing reading. \n");
+	exit(-1);
       }
 
       eos::common::Timing::GetTimeSpec(end);
@@ -2099,6 +2203,28 @@ main (int argc, char* argv[])
                                        (start.tv_sec * 1000 + start.tv_nsec / 1000000));
       read_wait += wait_time;
       offsetXrd += nread;
+      if (debug)
+	fprintf(stderr,"[eoscp] read=%d\n", nread);
+    }
+      break;
+      
+    case RIO_ACCESS:
+    {
+      eos::common::Timing::GetTimeSpec(start);
+      int64_t nread64;
+      nread64 = static_cast<eos::fst::FileIo*>(src_handler[0].second)->fileRead(offsetXrd, ptr_buffer, buffersize);
+      if (nread64<0)
+	nread=-1;
+      else
+	nread = (int) nread64;
+
+      eos::common::Timing::GetTimeSpec(end);
+      wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
+                                       (start.tv_sec * 1000 + start.tv_nsec / 1000000));
+      read_wait += wait_time;
+      offsetXrd += nread;
+      if (debug)
+	fprintf(stderr,"[eoscp] read=%d\n", nread);
     }
       break;
     }
@@ -2148,13 +2274,34 @@ main (int argc, char* argv[])
       {
         // Do writes in async mode
         eos::common::Timing::GetTimeSpec(start);
-        status = dst_handler[i].second->WriteAsync(stopwritebyte, ptr_buffer, nread);
+        status = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileWriteAsync(stopwritebyte, ptr_buffer, nread);
         nwrite = nread;
         eos::common::Timing::GetTimeSpec(end);
         wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
                                          (start.tv_sec * 1000 + start.tv_nsec / 1000000));
         write_wait += wait_time;
+	if (debug)
+	  fprintf(stderr,"[eoscp] write=%d\n", nwrite);
       }
+        break;
+      
+      case RIO_ACCESS:
+      {
+	eos::common::Timing::GetTimeSpec(start);
+	int64_t nwrite64;
+	nwrite64 = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileWrite(stopwritebyte, ptr_buffer, nread);
+	if (nwrite64<0)
+	  nwrite=-1;
+	else
+	  nwrite = (int) nwrite64;
+
+	eos::common::Timing::GetTimeSpec(end);
+	wait_time = static_cast<double> ((end.tv_sec * 1000 + end.tv_nsec / 1000000)-
+					 (start.tv_sec * 1000 + start.tv_nsec / 1000000));
+	write_wait += wait_time;
+	if (debug)
+	  fprintf(stderr,"[eoscp] write=%d\n", nwrite);
+      }  
         break;
       }
 
@@ -2183,7 +2330,7 @@ main (int argc, char* argv[])
       if (dst_handler[i].second)
       {
         ptr_handler = static_cast<eos::fst::AsyncMetaHandler*> (
-                                                                dst_handler[i].second->GetAsyncHandler());
+                                                                static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileGetAsyncHandler());
 
         if (ptr_handler)
         {
@@ -2256,12 +2403,24 @@ main (int argc, char* argv[])
       break;
 
     case XRD_ACCESS:
-      status = src_handler[i].second->Close();
-      if (!status.IsOK()) {
+      status = static_cast<XrdCl::File*>(src_handler[i].second)->Close();
+      if (!status.IsOK()) 
+      {
 	fprintf(stderr,"error: close failed on source - file modified during replication\n");
 	exit(-EIO);
       }
-      delete src_handler[i].second;
+      delete static_cast<XrdCl::File*>(src_handler[i].second);
+      break;
+
+    case RIO_ACCESS:
+      retc = static_cast<eos::fst::FileIo*>(src_handler[i].second)->fileClose();
+      if (retc)
+      {
+	fprintf(stderr,"error: close failed on source - file modified during replication\n");
+	exit(-EIO);
+      }
+      
+      delete static_cast<eos::fst::FileIo*>(src_handler[i].second);
       break;
 
     case CONSOLE_ACCESS:
@@ -2292,13 +2451,25 @@ main (int argc, char* argv[])
       break;
 
     case XRD_ACCESS:
-      status = dst_handler[i].second->Close();
+      status = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileClose();
       if (!status.IsOK()) {
 	fprintf(stderr,"error: %s\n",status.ToStr().c_str());
 	exit(-EIO);
       }
-      delete dst_handler[i].second;
+      delete static_cast<XrdCl::File*>(dst_handler[i].second);
       break;
+
+    case RIO_ACCESS:
+      retc = static_cast<eos::fst::FileIo*>(dst_handler[i].second)->fileClose();
+      if (retc)
+      {
+	fprintf(stderr,"error: close failed on target\n");
+	exit(-EIO);
+      }
+      
+      delete static_cast<eos::fst::FileIo*>(dst_handler[i].second);
+      break;
+
 
     case CONSOLE_ACCESS:
       //........................................................................
@@ -2341,6 +2512,7 @@ main (int argc, char* argv[])
 
     case RAID_ACCESS:
     case XRD_ACCESS:
+    case RIO_ACCESS:
     case CONSOLE_ACCESS:
       //........................................................................
       // Noting to do, xrootd has no symlink support in posix
@@ -2356,8 +2528,11 @@ main (int argc, char* argv[])
     }
   }
 
-  // fprintf(stderr, "Total read wait time is: %f miliseconds. \n", read_wait);
-  // fprintf(stderr, "Total write wait time is: %f miliseconds. \n", write_wait);
+  if (debug) 
+  {
+    fprintf(stderr, "[eoscp] # Total read wait time is: %f miliseconds. \n", read_wait);
+    fprintf(stderr, "[eoscp] # Total write wait time is: %f miliseconds. \n", write_wait);
+  }
 
   // Free memory
   delete[] buffer;

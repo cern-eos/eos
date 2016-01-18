@@ -291,7 +291,7 @@ Storage::Verify ()
     }
     if (!open_rc)
     {
-      io->Close();
+      io->fileClose();
     }
     runningVerify = 0;
     if (verifyfile) delete verifyfile;

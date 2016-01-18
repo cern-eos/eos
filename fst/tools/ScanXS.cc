@@ -23,7 +23,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/ScanDir.hh"
-#include "common/Attr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
@@ -40,7 +39,7 @@ main (int argc, char *argv[])
 {
   bool setxs = false;
   eos::common::Logging::Init();
-  eos::common::Logging::SetLogPriority(LOG_DEBUG);
+  eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit("Scandir");
   if ((argc < 2) || (argc > 3))
   {

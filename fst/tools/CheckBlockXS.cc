@@ -62,7 +62,7 @@ main (int argc, const char* argv[])
   std::string blocksize;
   std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(pathXS.c_str()));
 
-  if (io->xattrGet("user.eos.blockchecksum", checksumtype) || io->xattrGet("user.eos.blocksize", blocksize))
+  if (io->attrGet("user.eos.blockchecksum", checksumtype) || io->attrGet("user.eos.blocksize", blocksize))
   {
     fprintf(stderr, "error: the extended attributes are missing on the block checksum file!\n");
     exit(-1);

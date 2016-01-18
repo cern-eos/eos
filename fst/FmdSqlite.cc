@@ -940,12 +940,11 @@ FmdSqliteHandler::ResyncDisk (const char* path,
   if (fid)
   {
 
-    auto io_type = eos::common::LayoutId::GetIoType(path);
-    std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(io_type));
-    if (!io->Open(path, 0))
+    std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(path));
+    if (!io)
     {
       struct stat buf;
-      if ((!stat(path, &buf)) && S_ISREG(buf.st_mode))
+      if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode))
       {
         std::string checksumType, checksumStamp, filecxError, blockcxError;
         std::string diskchecksum = "";
@@ -957,14 +956,14 @@ FmdSqliteHandler::ResyncDisk (const char* path,
         disksize = buf.st_size;
         memset(checksumVal, 0, sizeof (checksumVal));
         checksumLen = SHA_DIGEST_LENGTH;
-        if (io->xattrGet("user.eos.checksum", checksumVal, checksumLen))
+        if (io->attrGet("user.eos.checksum", checksumVal, checksumLen))
         {
           checksumLen = 0;
         }
 
-        io->xattrGet("user.eos.checksumtype", checksumType);
-        io->xattrGet("user.eos.filecxerror", filecxError);
-        io->xattrGet("user.eos.blockcxerror", blockcxError);
+        io->attrGet("user.eos.checksumtype", checksumType);
+        io->attrGet("user.eos.filecxerror", filecxError);
+        io->attrGet("user.eos.blockcxerror", blockcxError);
 
         checktime = (strtoull(checksumStamp.c_str(), 0, 10) / 1000000);
         if (checksumLen)
