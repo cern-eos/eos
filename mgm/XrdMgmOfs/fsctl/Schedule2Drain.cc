@@ -216,6 +216,10 @@
     }
     source_fs->SnapShotFileSystem(source_snapshot);
 
+    // Lock namespace view here to avoid deadlock with the Commit.cc code on
+    // the ScheduledToDrainFidMutex
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
+
     eos::IFsView::FileList source_filelist;
     eos::IFsView::FileList target_filelist;
 
@@ -293,26 +297,22 @@
 	  std::string fullpath = "";
 	  std::unique_ptr<eos::IFileMD> fmd_cpy;
 
-	  {
-	    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-
-	    try
-	    {
-	      eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
-	      fullpath = gOFS->eosView->getUri(fmd);
-	      XrdOucString savepath = fullpath.c_str();
-	      while (savepath.replace("&", "#AND#")){}
-	      fullpath = savepath.c_str();
-	      fmd = gOFS->eosFileService->getFileMD(fid);
-	      fmd_cpy.reset(fmd->clone());
-	      fmd = (eos::IFileMD*)(0);
-	    }
-	    catch (eos::MDException &e)
-	    {
-	      fit++;
-	      continue;
-	    }
-	  }
+          try
+          {
+            eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
+            fullpath = gOFS->eosView->getUri(fmd);
+            XrdOucString savepath = fullpath.c_str();
+            while (savepath.replace("&", "#AND#")){}
+            fullpath = savepath.c_str();
+            fmd = gOFS->eosFileService->getFileMD(fid);
+            fmd_cpy.reset(fmd->clone());
+            fmd = (eos::IFileMD*)(0);
+          }
+          catch (eos::MDException &e)
+          {
+            fit++;
+            continue;
+          }
 
 	  if (fmd_cpy.get() == 0)
           {
