@@ -265,6 +265,19 @@ LocalIo::fileStat (struct stat* buf, uint16_t timeout)
   return pOfsFile->XrdOfsFile::stat(buf);
 }
 
+int
+LocalIo::fileExists ()
+{
+  XrdOfsFile* pOfsFile = mLogicalFile;
+  if (!pOfsFile)
+  {
+    errno = ENOENT;
+    return -1;
+  }
+  struct stat buf;
+  return pOfsFile->XrdOfsFile::stat(&buf);
+}
+
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------

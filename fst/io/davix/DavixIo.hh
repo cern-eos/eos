@@ -29,6 +29,8 @@
 #include <string>
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
+#include "common/FileMap.hh"
+
 #include <davix/davix.hpp>
 
 /*----------------------------------------------------------------------------*/
@@ -42,42 +44,34 @@ EOSFSTNAMESPACE_BEGIN
 class DavixIo : public FileIo {
 public:
 
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param file original OFS file
-  //! @param client security entity
+  //! @param url url to use
   //!
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  DavixIo(std::string url);
+  
 
-  DavixIo ();
-
-  //--------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  //--------------------------------------------------------------------------
-
-  virtual
-  ~DavixIo ();
+  //----------------------------------------------------------------------------
+  virtual ~DavixIo ();
 
 
   //--------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
   //! @param timeout timeout value
-  //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  int Open (const std::string& path,
-            XrdSfsFileOpenMode flags,
-            mode_t mode = 0,
-            const std::string& opaque = "",
-            uint16_t timeout = 0);
-
+  int fileOpen(XrdSfsFileOpenMode flags,
+               mode_t mode = 0,
+               const std::string& opaque = "",
+               uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -86,15 +80,12 @@ public:
   //! @param buffer where the data is read
   //! @param length read length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  int64_t Read (XrdSfsFileOffset offset,
-                char* buffer,
-                XrdSfsXferSize length,
-                uint16_t timeout = 0);
-
+  int64_t fileRead(XrdSfsFileOffset offset,
+                   char* buffer,
+                   XrdSfsXferSize length,
+                   uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Write to file - sync
@@ -103,16 +94,12 @@ public:
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  int64_t Write (XrdSfsFileOffset offset,
-                 const char* buffer,
-                 XrdSfsXferSize length,
-                 uint16_t timeout = 0);
-  ;
-
+  int64_t fileWrite(XrdSfsFileOffset offset,
+                    const char* buffer,
+                    XrdSfsXferSize length,
+                    uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - async
@@ -122,16 +109,13 @@ public:
   //! @param length read length
   //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
-  //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  int64_t ReadAsync (XrdSfsFileOffset offset,
-                     char* buffer,
-                     XrdSfsXferSize length,
-                     bool readahead = false,
-                     uint16_t timeout = 0);
-
+  int64_t fileReadAsync(XrdSfsFileOffset offset,
+                        char* buffer,
+                        XrdSfsXferSize length,
+                        bool readahead = false,
+                        uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Write to file - async
@@ -140,156 +124,158 @@ public:
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  int64_t WriteAsync (XrdSfsFileOffset offset,
-                      const char* buffer,
-                      XrdSfsXferSize length,
-                      uint16_t timeout = 0);
+  int64_t fileWriteAsync(XrdSfsFileOffset offset,
+                         const char* buffer,
+                         XrdSfsXferSize length,
+                         uint16_t timeout = 0);
 
+  //--------------------------------------------------------------------------
+  //! Sync file to disk
+  //!
+  //! @param timeout timeout value
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  int fileSync(uint16_t timeout = 0);
+
+  //--------------------------------------------------------------------------
+  //! Get pointer to async meta handler object
+  //!
+  //! @return pointer to async handler, NULL otherwise
+  //--------------------------------------------------------------------------
+  void* fileGetAsyncHandler();
 
   //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
   //! @param timeout timeout value
-  //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0);
-
+  int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
-  int
-  Fallocate (XrdSfsFileOffset length)
-  {
-    return 0;
-  }
-
+  int fileFallocate(XrdSfsFileOffset length) { return 0;}
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
   //! @param toOffset offset end
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
-  int
-  Fdeallocate (XrdSfsFileOffset fromOffset,
-               XrdSfsFileOffset toOffset)
-  {
-    return 0;
-  }
-
+  int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset) { return 0;}
 
   //--------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
-  int
-  Remove (uint16_t timeout = 0);
-
+  int fileRemove(uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
-  //! Sync file to disk
-  //!
-  //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
+  int fileDelete(const char* url);
+
   //--------------------------------------------------------------------------
+  int fileExists();
 
-  int Sync (uint16_t timeout = 0)
-  {
-    return 0;
-  }
-
+  //--------------------------------------------------------------------------
+  int Mkdir(const char* path, mode_t mode);
+  int Rmdir(const char* path);
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
-  //--------------------------------------------------------------------------
-
-  int Close (uint16_t timeout = 0);
+  //! @return 0 on success, -1 otherwise and error code is e is set
+  // ------------------------------------------------------------------------
+  int fileClose(uint16_t  timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
-  //!
-  //!
-  //! @return 0 on success, -1 otherwise and error code is set
-  //!
-  //--------------------------------------------------------------------------
-  int Stat (struct stat* buf, uint16_t timeout = 0);
-
-  //--------------------------------------------------------------------------
-  //! Check for the existance of a file
-  //!
-  //! @param path to the file
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  int Exists (const char* path);
+  int fileStat(struct stat* buf, uint16_t timeout = 0);
+  
+  //--------------------------------------------------------------------------
+  //! Download a remote file into a string object
+  //! @param url from where to download
+  //! @param download string where to place the contents
+  //! @return 0 success, otherwise -1 and errno
+  //--------------------------------------------------------------------------
+  static int Download (std::string url, std::string& download);
 
   //--------------------------------------------------------------------------
-  //! Delete a file
+  //! Upload a string object into a remote file
+  //! @param url from where to upload
+  //! @param upload string to store into remote file
+  //! @return 0 success, otherwise -1 and errno
+  //--------------------------------------------------------------------------
+  static int Upload (std::string url, std::string& upload);
+
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
-  //! @param path to the file to be deleted
-  //!
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @param len value length
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
-  int Delete (const char* path);
+  // ------------------------------------------------------------------------
+  int attrSet(const char* name, const char* value, size_t len);
 
-  //--------------------------------------------------------------------------
-  //! Create a directory
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
-  //! @param path to the directory to create
-  //!
+  //! @param name attribute name
+  //! @param value attribute value
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
-  int Mkdir (const char* path, mode_t mode = S_IRWXU);
+  // ------------------------------------------------------------------------
+  int attrSet(string name, std::string value);
 
-  //--------------------------------------------------------------------------
-  //! Delete a directory
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
   //!
-  //! @param path to the directory to delete
-  //! @param mode to be set
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @param size the buffer size, after success the value size
   //! @return 0 on success, -1 otherwise and error code is set
-  //--------------------------------------------------------------------------
-  int Rmdir (const char* path);
+  // ------------------------------------------------------------------------
+  int attrGet(const char* name, char* value, size_t& size);
 
-  //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
   //!
-  //! @return pointer to async handler, NULL otherwise
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrGet(string name, std::string& value);
+
+  // ------------------------------------------------------------------------
+  //! Delete a binary attribute by name
   //!
-  //--------------------------------------------------------------------------
-  void* GetAsyncHandler ();
+  //! @param name attribute name
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrDelete(const char* name);
+
+  // ------------------------------------------------------------------------
+  //! List all attributes for the associated path
+  //!
+  //! @param list contains all attribute names for the set path upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  int attrList(std::vector<std::string>& list);
 
   //--------------------------------------------------------------------------
   //! traversing filesystem/storage routines
@@ -307,11 +293,10 @@ public:
 
   //--------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
-  //! @param subtree where to start traversing
   //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
 
-  FileIo::FtsHandle* ftsOpen (std::string subtree)
+  FileIo::FtsHandle* ftsOpen ()
   {
     return 0;
   }
@@ -341,12 +326,11 @@ public:
   //--------------------------------------------------------------------------
   //! Plug-in function to fill a statfs structure about the storage filling
   //! state
-  //! @param path to statfs
   //! @param statfs return struct
   //! @return 0 if successful otherwise errno
   //--------------------------------------------------------------------------
 
-  int Statfs (const char* path, struct statfs* statFs);
+  int Statfs (struct statfs* statFs);
 
   static Davix::Context gContext;
 
@@ -359,6 +343,9 @@ private:
 
   Davix::DavPosix mDav;
   DAVIX_FD* mFd;
+
+  eos::common::FileMap mFileMap; ///< extended attribute file map
+
 };
 
 EOSFSTNAMESPACE_END

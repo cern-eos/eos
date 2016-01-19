@@ -44,7 +44,7 @@ public:
   //! @param client security entity
   //!
   //--------------------------------------------------------------------------
-  RadosIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client) :
+  RadosIo(std::string path) :
       FileIo(path, "RadosIO")
   {};
 
@@ -52,7 +52,7 @@ public:
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  virtual ~RadosIo ();
+  virtual ~RadosIo () {}
 
   //--------------------------------------------------------------------------
   //! Open file

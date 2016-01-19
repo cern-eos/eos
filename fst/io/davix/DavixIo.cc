@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/io/DavixIo.hh"
+#include "fst/io/davix/DavixIo.hh"
 #include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 #include <string>
@@ -38,12 +38,11 @@ Davix::Context DavixIo::gContext;
 // Constructor
 //------------------------------------------------------------------------------
 
-DavixIo::DavixIo () : mDav (&DavixIo::gContext)
+DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gContext)
 {
   //............................................................................
   // In this case the logical file is the same as the local physical file
   //............................................................................
-  mType = "DavixIo";
   seq_offset = 0;
   mCreated = true;
 }
@@ -114,7 +113,7 @@ DavixIo::SetErrno (int errcode, Davix::DavixError *err)
 //----------------------------------------------------------------------------
 
 int
-DavixIo::Open (const std::string& path,
+DavixIo::fileOpen (
                XrdSfsFileOpenMode flags,
                mode_t mode,
                const std::string& opaque,
@@ -124,8 +123,8 @@ DavixIo::Open (const std::string& path,
   Davix::DavixError* err = 0;
   Davix::RequestParams *params = 0;
 
-  mParent = path;
-  mParent.erase(path.rfind("/"));
+  mParent = mFilePath.c_str();
+  mParent.erase(mFilePath.rfind("/"));
 
   int pflags = 0;
   if (flags & SFS_O_CREAT)
@@ -133,17 +132,18 @@ DavixIo::Open (const std::string& path,
   if ((flags & SFS_O_RDWR) || (flags & SFS_O_WRONLY))
     pflags |= (O_RDWR);
 
+  DavixIo lParent(mParent.c_str());
   // create at least the direct parent path
-  if ((pflags & O_CREAT) && Exists(mParent.c_str()))
+  if ((pflags & O_CREAT) && fileExists())
   {
     eos_info("msg=\"creating parent directory\" parent=\"%s\"", mParent.c_str());
-    if (Mkdir(mParent.c_str()))
+    if (Mkdir(mParent.c_str(),mode))
     {
       eos_err("url=\"%s\" msg=\"failed to create parent directory\"", mParent.c_str());
       return -1;
     }
   }
-  mUrl = path;
+  mUrl = mFilePath;
   mUrl += "?";
   mUrl += opaque.c_str();
 
@@ -169,7 +169,7 @@ DavixIo::Open (const std::string& path,
 //------------------------------------------------------------------------------
 
 int64_t
-DavixIo::Read (XrdSfsFileOffset offset,
+DavixIo::fileRead (XrdSfsFileOffset offset,
                char* buffer,
                XrdSfsXferSize length,
                uint16_t timeout)
@@ -194,7 +194,7 @@ DavixIo::Read (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-DavixIo::Write (XrdSfsFileOffset offset,
+DavixIo::fileWrite (XrdSfsFileOffset offset,
                 const char* buffer,
                 XrdSfsXferSize length,
                 uint16_t timeout)
@@ -227,13 +227,13 @@ DavixIo::Write (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-DavixIo::ReadAsync (XrdSfsFileOffset offset,
+DavixIo::fileReadAsync (XrdSfsFileOffset offset,
                     char* buffer,
                     XrdSfsXferSize length,
                     bool readahead,
                     uint16_t timeout)
 {
-  return Read(offset, buffer, length, timeout);
+  return fileRead(offset, buffer, length, timeout);
 }
 
 
@@ -242,12 +242,12 @@ DavixIo::ReadAsync (XrdSfsFileOffset offset,
 //------------------------------------------------------------------------------
 
 int64_t
-DavixIo::WriteAsync (XrdSfsFileOffset offset,
+DavixIo::fileWriteAsync (XrdSfsFileOffset offset,
                      const char* buffer,
                      XrdSfsXferSize length,
                      uint16_t timeout)
 {
-  return Write(offset, buffer, length, timeout);
+  return fileWrite(offset, buffer, length, timeout);
 }
 
 //--------------------------------------------------------------------------
@@ -255,7 +255,7 @@ DavixIo::WriteAsync (XrdSfsFileOffset offset,
 //--------------------------------------------------------------------------
 
 int
-DavixIo::Close (uint16_t timeout)
+DavixIo::fileClose (uint16_t timeout)
 {
   mCreated = false;
   eos_debug("");
@@ -275,7 +275,7 @@ DavixIo::Close (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
+DavixIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
   eos_debug("offset = %lld",
             static_cast<int64_t> (offset));
@@ -290,7 +290,7 @@ DavixIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::Stat (struct stat* buf, uint16_t timeout)
+DavixIo::fileStat (struct stat* buf, uint16_t timeout)
 {
   eos_debug("");
   Davix::DavixError* err = 0;
@@ -316,7 +316,7 @@ DavixIo::Stat (struct stat* buf, uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::Remove (uint16_t timeout)
+DavixIo::fileRemove (uint16_t timeout)
 {
   Davix::DavixError *err = 0;
   Davix::RequestParams params;
@@ -329,11 +329,11 @@ DavixIo::Remove (uint16_t timeout)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::Exists (const char* path)
+DavixIo::fileExists ()
 {
   eos_debug("");
   Davix::DavixError* err = 0;
-  std::string url = path;
+  std::string url = mFilePath;
   struct stat st;
   int result = mDav.stat(0, url, &st, &err);
   if (-1 == result)
@@ -349,7 +349,7 @@ DavixIo::Exists (const char* path)
 //------------------------------------------------------------------------------
 
 int
-DavixIo::Delete (const char* path)
+DavixIo::fileDelete (const char* path)
 {
   eos_info("path=\"%s\"", path);
   Davix::DavixError *err = 0;
@@ -389,14 +389,290 @@ DavixIo::Rmdir (const char* path)
   return SetErrno(mDav.rmdir(&params, path, &err), err);
 }
 
+
+//------------------------------------------------------------------------------
+// Sync file - meaningless in HTTP PUT
+//------------------------------------------------------------------------------
+int 
+DavixIo::fileSync(uint16_t timeout)
+{
+  return 0;
+}
+
 //------------------------------------------------------------------------------
 // Get pointer to async meta handler object
 //------------------------------------------------------------------------------
 
 void*
-DavixIo::GetAsyncHandler ()
+DavixIo::fileGetAsyncHandler ()
 {
   return 0;
+}
+
+//--------------------------------------------------------------------------
+//! Download a remote file into a string object
+//--------------------------------------------------------------------------
+
+int
+DavixIo::Download (std::string url, std::string& download)
+{
+  errno = 0;
+  static int s_blocksize = 65536;
+  DavixIo io(url.c_str());
+
+  off_t offset = 0;
+  std::string opaque;
+  if (!io.fileOpen(0, 0, opaque, 10))
+  {
+    ssize_t rbytes = 0;
+    download.resize(s_blocksize);
+    do
+    {
+      rbytes = io.fileRead(offset, (char*) download.c_str(), s_blocksize, 30);
+      if (rbytes == s_blocksize)
+      {
+	download.resize(download.size() + 65536);
+      }
+      if (rbytes > 0)
+      {
+	offset += rbytes;
+      }
+    }
+    while (rbytes == s_blocksize);
+    io.fileClose();
+    download.resize(offset);
+    return 0;
+  }
+
+  if (errno == 3011)
+    return 0;
+  return -1;
+}
+
+//--------------------------------------------------------------------------
+//! Upload a string object into a remote file
+//--------------------------------------------------------------------------
+
+int
+DavixIo::Upload (std::string url, std::string& upload)
+{
+  errno = 0;
+  DavixIo io(url.c_str());
+
+  std::string opaque;
+  int rc = 0;
+
+  if (!io.fileOpen(SFS_O_WRONLY | SFS_O_CREAT, S_IRWXU | S_IRGRP | SFS_O_MKPTH,
+                   opaque,
+                   10))
+  {
+    eos_static_info("opened %s", url.c_str());
+    if ((io.fileWrite(0, upload.c_str(), upload.length(), 30)) != (ssize_t) upload.length())
+    {
+      eos_static_err("failed to write %d", upload.length());
+      rc = -1;
+    }
+    else
+    {
+      eos_static_info("uploaded %d\n", upload.length());
+    }
+    io.fileClose();
+  }
+  else
+  {
+    eos_static_err("failed to open %s", url.c_str());
+    rc = -1;
+  }
+  return rc;
+}
+
+//------------------------------------------------------------------------------
+// Attribute Interface
+//------------------------------------------------------------------------------
+
+
+//----------------------------------------------------------------
+//! Set a binary attribute (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+DavixIo::attrSet (const char* name, const char* value, size_t len)
+{
+  std::string lBlob;
+  // download
+  if (!DavixIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      std::string key = name;
+      std::string val;
+      val.assign(value, len);
+      mFileMap.Set(key, val);
+      std::string lMap = mFileMap.Trim();
+      fprintf(stderr, "### %s", lMap.c_str());
+      if (!DavixIo::Upload(mUrl, lMap))
+      {
+	return 0;
+      }
+      else
+      {
+	eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+		       mUrl.c_str());
+      }
+    }
+    else
+    {
+      eos_static_err("msg=\"unable to parse remote file map\" url=\"%s\"",
+		     mUrl.c_str());
+      errno = EINVAL;
+    }
+  }
+  else
+  {
+    
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+		   mUrl.c_str());
+  }
+
+  return -1;
+}
+
+// ------------------------------------------------------------------------
+//! Set a string attribute (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+DavixIo::attrSet (std::string key, std::string value)
+{
+  return attrSet(key.c_str(), value.c_str(), value.length());
+}
+
+
+// ------------------------------------------------------------------------
+//! Get a binary attribute by name (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+DavixIo::attrGet (const char* name, char* value, size_t &size)
+{
+  std::string lBlob;
+  if (!DavixIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      std::string val = mFileMap.Get(name);
+      size_t len = val.length() + 1;
+      if (len > size)
+	len = size;
+      memcpy(value, val.c_str(), len);
+      eos_static_info("key=%s value=%s", name, value);
+      return 0;
+    }
+  }
+  else
+  {    
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+		   mUrl.c_str());
+  }
+  return -1;
+}
+
+// ------------------------------------------------------------------------
+//! Get a string attribute by name (name has to start with 'user.' !!!)
+// ------------------------------------------------------------------------
+
+int
+DavixIo::attrGet (std::string name, std::string &value)
+{
+  std::string lBlob;
+  if (!DavixIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      value = mFileMap.Get(name);
+      return 0;
+    }
+  }
+  else
+  {
+    
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+		   mUrl.c_str());
+  }
+  return -1;
+}
+
+// ------------------------------------------------------------------------                                                                                                                               
+//! Delete a binary attribute by name                                                                                                                                                                     
+// ------------------------------------------------------------------------                                                                                                                               
+int 
+DavixIo::attrDelete(const char* name)
+{
+  bool removed;
+  std::string lBlob;
+  if (!DavixIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      removed = mFileMap.Remove(name);
+      if (removed)
+      {
+
+	std::string lMap = mFileMap.Trim();
+	if (!DavixIo::Upload(mUrl, lMap))
+	{
+	  eos_static_info("msg=\"removed\" key=%s", name);
+	  return 0;
+	}
+	else
+	{
+	  eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+			 mUrl.c_str());
+	  errno = EIO;
+	  return -1;
+	}
+      }
+      else 
+      {
+	eos_static_info("msg=\"no-key\" key=%s", name);
+	errno = ENOKEY;
+	return 0;
+      }
+    }
+  }
+  else
+  {    
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+		   mUrl.c_str());
+  }
+  return -1;
+}
+
+// ------------------------------------------------------------------------                                                                                                                               
+//! List all attributes for the associated path                                                                                                                                                           
+// ------------------------------------------------------------------------                                                                                                                               
+int 
+DavixIo::attrList(std::vector<std::string>& list)
+{
+  std::string lBlob;
+  if (!DavixIo::Download(mUrl, lBlob))
+  {
+    if (mFileMap.Load(lBlob))
+    {
+      std::map<std::string, std::string> lMap = mFileMap.GetMap();
+      for (auto it=lMap.begin(); it!=lMap.end(); ++it)
+      {
+	list.push_back(it->first);
+      }
+      return 0;
+    }
+  }
+  else
+  {    
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+		   mUrl.c_str());
+  }
+  return -1;
 }
 
 //------------------------------------------------------------------------------
@@ -404,17 +680,18 @@ DavixIo::GetAsyncHandler ()
 //------------------------------------------------------------------------------
 
 int
-DavixIo::Statfs (const char* path, struct statfs* sfs)
+DavixIo::Statfs (struct statfs* sfs)
 {
   eos_debug("msg=\"davixio class statfs called\"");
 
-  DavixIo io;
-  std::string url = path;
+  std::string url = mFilePath;;
   url += "/";
   url += DAVIX_QUOTA_FILE;
   std::string opaque;
 
-  int fd = io.Open(url, (XrdSfsFileOpenMode) 0, (mode_t) 0, opaque, (uint16_t) 0);
+  DavixIo io(url);;
+
+  int fd = io.fileOpen((XrdSfsFileOpenMode) 0, (mode_t) 0, opaque, (uint16_t) 0);
 
   if (fd < 0)
   {
@@ -424,7 +701,7 @@ DavixIo::Statfs (const char* path, struct statfs* sfs)
 
   char buffer[65536];
   memset(buffer, 0, sizeof (buffer));
-  if (io.Read(0, buffer, 65536) > 0)
+  if (io.fileRead(0, buffer, 65536) > 0)
   {
     eos_debug("quota-buffer=\"%s\"", buffer);
   }
@@ -470,6 +747,7 @@ DavixIo::Statfs (const char* path, struct statfs* sfs)
   sfs->f_ffree = free_files;
   return 0;
 }
+
 EOSFSTNAMESPACE_END
 
 

@@ -29,7 +29,7 @@
 #include "fst/io/kinetic/KineticIo.hh"
 #endif
 #ifdef DAVIX_FOUND
-#include "fst/io/DavixIo.hh"
+#include "fst/io/davix/DavixIo.hh"
 #endif
 /*----------------------------------------------------------------------------*/
 
@@ -72,13 +72,13 @@ FileIoPlugin::GetIoObject (std::string path,
   else
     if (ioType == LayoutId::kRados)
   {
-    return static_cast<FileIo*> (new RadosIo(path, file, client));
+    return static_cast<FileIo*> (new RadosIo(path));
   }
   else
     if (ioType == LayoutId::kDavix)
   {
 #ifdef DAVIX_FOUND
-    return static_cast<FileIo*> (new DavixIo());
+    return static_cast<FileIo*> (new DavixIo(path));
 #endif
     eos_static_warning("EOS has been compiled without DAVIX support.");
     return NULL;

@@ -128,7 +128,7 @@ public:
     }
     else if (ioType == LayoutId::kRados) {
 #ifdef RADOS_FOUND
-      return static_cast<FileIo*> (new RadosIo(path, file, client));
+      return static_cast<FileIo*> (new RadosIo(path));
 #endif
       eos_static_warning("EOS has been compiled without RADOS support.");
       return NULL;

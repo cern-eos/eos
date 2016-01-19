@@ -172,7 +172,7 @@ public:
   //!
   //! @return pointer to async handler, NULL otherwise
   //--------------------------------------------------------------------------
-  void* fileGetAsyncHandler();
+  void* fileGetAsyncHandler() { return 0;}
 
   //--------------------------------------------------------------------------
   //! Check for the existence of a file

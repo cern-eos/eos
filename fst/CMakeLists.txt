@@ -65,6 +65,7 @@ add_library( EosFstOss MODULE
 
 
 target_link_libraries( EosFstOss
+		       EosFstIo-Static
 		       eosCommon
 		       XrdServer
 		       ${UUID_LIBRARIES}
@@ -74,10 +75,11 @@ target_link_libraries( EosFstOss
 add_library(EosFstIo-Static STATIC
             io/FileIoPlugin.hh             io/FileIoPlugin.cc
             io/FileIo.hh
-            io/local/LocalIo.cc						 io/local/LocalIo.hh
-						io/local/FsIo.cc               io/local/FsIo.hh
+            io/local/LocalIo.cc	           io/local/LocalIo.hh
+            io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
-	          ${DAVIX_SRC}		               ${DAVIX_HDR}
+	    ${DAVIX_SRC}		   ${DAVIX_HDR}
+            io/rados/RadosIo.cc            io/rados/RadosIo.hh
             io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -118,7 +120,8 @@ add_library( EosFstIo SHARED
                 io/local/LocalIo.cc						 io/local/LocalIo.hh
                 io/local/FsIo.cc               io/local/FsIo.hh
                 ${KINETICIO_SRC}               ${KINETICIO_HDR}
-                ${DAVIX_SRC}		               ${DAVIX_HDR}
+                ${DAVIX_SRC}		       ${DAVIX_HDR}
+                io/rados/RadosIo.cc            io/rados/RadosIo.hh
                 io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
                 io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -182,7 +185,8 @@ add_library(XrdEosFst SHARED
             io/local/LocalIo.cc						 io/local/LocalIo.hh
             io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
-            ${DAVIX_SRC}		               ${DAVIX_HDR}
+            ${DAVIX_SRC}		   ${DAVIX_HDR}
+            io/rados/RadosIo.cc            io/rados/RadosIo.hh
             io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -247,7 +251,8 @@ add_library(XrdEosFst MODULE
             io/local/LocalIo.cc						 io/local/LocalIo.hh
             io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
-            ${DAVIX_SRC}		               ${DAVIX_HDR}
+            ${DAVIX_SRC}		   ${DAVIX_HDR}
+            io/rados/RadosIo.cc            io/rados/RadosIo.hh
             io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
