@@ -69,7 +69,7 @@ class FileSystemView: public IFsView
   //! Return reference to a list of unlinked files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  const FileList& getUnlinkedFileList(IFileMD::location_t location);
+  FileList& getUnlinkedFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Get number of file systems

@@ -48,8 +48,8 @@ namespace eos
   //----------------------------------------------------------------------------
   FileSystemView::FileSystemView()
   {
-    pNoReplicas.set_deleted_key( 0 );
     pNoReplicas.set_empty_key(0xffffffffffffffffll);
+    pNoReplicas.set_deleted_key( 0 );
   }
 
   //----------------------------------------------------------------------------
@@ -168,8 +168,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Return reference to a list of unlinked files
   //----------------------------------------------------------------------------
-  const FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
-                                              IFileMD::location_t location )
+  FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
+      IFileMD::location_t location )
   {
     if( pUnlinkedFiles.size() <= location )
     {
