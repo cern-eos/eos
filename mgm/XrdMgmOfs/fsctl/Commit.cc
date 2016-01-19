@@ -360,10 +360,22 @@
         {
 	  eos::common::Path eos_path {spath};
 	  std::string dir_path = eos_path.GetParentPath();
-	  eos::IContainerMD* dir = eosView->getContainer(dir_path);
-	  // Get symlink free dir
-	  dir_path = eosView->getUri(dir);
-	  dir = eosView->getContainer(dir_path);
+	  eos::IContainerMD* dir = 0;
+
+          try
+          {
+            dir = eosView->getContainer(dir_path);
+            // Get symlink free dir
+            dir_path = eosView->getUri(dir);
+            dir = eosView->getContainer(dir_path);
+          }
+          catch (eos::MDException& e)
+          {
+            eos_thread_err("parent=%s not found", dir_path.c_str());
+            gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
+            return Emsg(epname, error, EIDRM, "commit file, parent contrainer removed [EIDRM]", "");
+          }
+
           eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir);
 
 	  // Free previous quota
