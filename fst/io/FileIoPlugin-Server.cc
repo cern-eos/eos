@@ -57,7 +57,14 @@ FileIoPlugin::GetIoObject (std::string path,
     if (ioType == LayoutId::kKinetic)
   {
 #ifdef KINETICIO_FOUND
-    return static_cast<FileIo*> ((FileIo*)new KineticIo(path));
+      FileIo* kio = NULL;
+      try{
+        kio = static_cast<FileIo*> ((FileIo*)new KineticIo(path));
+      }
+      catch (const std::exception& e) {
+        eos_static_err("Failed constructing kinetic io object: %s", e.what());
+      }
+      return kio;
 #endif
     eos_static_warning("EOS has been compiled without Kinetic support.");
     return NULL;

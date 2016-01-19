@@ -78,7 +78,6 @@ add_library(EosFstIo-Static STATIC
 						io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
 	          ${DAVIX_SRC}		               ${DAVIX_HDR}
-            io/rados/RadosIo.cc            io/rados/RadosIo.hh
             io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -120,7 +119,6 @@ add_library( EosFstIo SHARED
                 io/local/FsIo.cc               io/local/FsIo.hh
                 ${KINETICIO_SRC}               ${KINETICIO_HDR}
                 ${DAVIX_SRC}		               ${DAVIX_HDR}
-                io/rados/RadosIo.cc            io/rados/RadosIo.hh
                 io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
                 io/HeaderCRC.cc                io/HeaderCRC.hh
                 io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -185,7 +183,6 @@ add_library(XrdEosFst SHARED
             io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
             ${DAVIX_SRC}		               ${DAVIX_HDR}
-            io/rados/RadosIo.cc            io/rados/RadosIo.hh
             io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -251,7 +248,6 @@ add_library(XrdEosFst MODULE
             io/local/FsIo.cc               io/local/FsIo.hh
             ${KINETICIO_SRC}               ${KINETICIO_HDR}
             ${DAVIX_SRC}		               ${DAVIX_HDR}
-            io/rados/RadosIo.cc            io/rados/RadosIo.hh
             io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
             io/HeaderCRC.cc                io/HeaderCRC.hh
             io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh

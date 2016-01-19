@@ -9,7 +9,6 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include <kio/FileIoInterface.hh>
-#include <kio/FileAttrInterface.hh>
 #include <memory>
 /*----------------------------------------------------------------------------*/
 
@@ -220,10 +219,14 @@ public:
 
   class FtsHandle : public FileIo::FtsHandle {
   public:
-    void* mHandle;
+    std::vector<std::string> cached;
+    std::size_t current_index;
 
     FtsHandle(const char* dirp) : FileIo::FtsHandle(dirp)
-    { }
+    {
+      cached.push_back(dirp);
+      current_index = 1;
+    }
 
     ~FtsHandle()
     { }
@@ -276,9 +279,6 @@ public:
 private:
   //! the actual implementation class
   std::unique_ptr<kio::FileIoInterface> kio;
-  std::unique_ptr<kio::FileAttrInterface> kattr;
-  //! keep track if file is currently opened
-  bool opened;
 
   //! No copy constructor
   KineticIo(const KineticIo&) = delete;

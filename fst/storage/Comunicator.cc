@@ -26,7 +26,6 @@
 #include "fst/XrdFstOfs.hh"
 #ifdef KINETICIO_FOUND
 #include <kio/KineticIoFactory.hh>
-#include <kio/LoggingException.hh>
 #endif
 
 /*----------------------------------------------------------------------------*/
@@ -362,7 +361,7 @@ Storage::Communicator ()
               {
                 kio::KineticIoFactory::reloadConfiguration();
               }
-              catch (kio::LoggingException &e)
+              catch (const std::exception& e)
               {
                 eos_static_crit("msg=\"reload of kinetic configuration failed\" exception=\"%s\"", e.what());
               }

@@ -1,15 +1,8 @@
 #include "KineticIo.hh"
 #include <kio/KineticIoFactory.hh>
-#include <kio/LoggingException.hh>
+#include <system_error>
 
 EOSFSTNAMESPACE_BEGIN
-
-/* Yes. Macros are evil. So is code duplication. */
-#define KIO_CATCH catch(const kio::LoggingException& ke){ \
-                    logmsg(ke.function(), ke.file(), ke.line(), (LOG_ERR), ke.what()); errno=ke.errnum(); \
-                  }catch(const std::exception& e){ \
-                    eos_err(e.what()); errno=ENOEXEC; \
-                  }
 
 static void
 logmsg(const char* func, const char* file, int line, int priority, const char* msg)
@@ -32,9 +25,7 @@ static LogFunctionInitializer kio_loginit;
 
 KineticIo::KineticIo(std::string path) :
     FileIo(path, "kinetic"),
-    kio(kio::KineticIoFactory::makeFileIo()),
-    kattr(kio::KineticIoFactory::makeFileAttr(path.c_str())),
-    opened(false)
+    kio(kio::KineticIoFactory::makeFileIo(path))
 {
   eos_debug("");
 }
@@ -48,21 +39,13 @@ int KineticIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string
 {
   eos_debug("path: %s, flags: %d, mode: %d, opaque: %s, timeout: %d",
             mFilePath.c_str(), flags, mode, opaque.c_str(), timeout);
-
-  if(opened){
-    if (flags & SFS_O_CREAT){
-      errno = EEXIST;
-      return SFS_ERROR;
-    }
-    return SFS_OK;
-  }
-
   try {
-    kio->Open(mFilePath.c_str(), flags, mode, opaque, timeout);
-    opened = true;
+    kio->Open(flags, mode, opaque, timeout);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -70,36 +53,41 @@ int64_t
 KineticIo::fileRead(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
                     uint16_t timeout)
 {
-  int64_t rv = SFS_ERROR;
+  eos_debug("offset: %lld, buffer: %p, length: %d, timeout: %d",
+            offset, buffer, length, timeout);
   try {
-    rv = kio->Read(offset, buffer, length, timeout);
+    auto rv = kio->Read(offset, buffer, length, timeout);
+    eos_debug("result: %lld", rv);
+    return rv;
   }
-  KIO_CATCH
-  eos_debug("offset: %lld, buffer: %p, length: %d, timeout: %d, result: %lld",
-            offset, buffer, length, timeout, rv);
-  return rv;
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
+  return SFS_ERROR;
 }
 
 int64_t
 KineticIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
                      XrdSfsXferSize length, uint16_t timeout)
 {
-  int64_t rv = SFS_ERROR;
+  eos_debug("offset: %lld, buffer: %p, length: %d, timeout: %d",
+            offset, buffer, length, timeout);
   try {
-    rv = kio->Write(offset, buffer, length, timeout);
+    auto rv = kio->Write(offset, buffer, length, timeout);
+    eos_debug("result: %lld", rv);
+    return rv;
   }
-  KIO_CATCH
-  eos_debug("offset: %lld, buffer: %p, length: %d, timeout: %d, result: %lld",
-            offset, buffer, length, timeout, rv);
-  return rv;
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
+  return SFS_ERROR;
 }
 
 int64_t
 KineticIo::fileReadAsync(XrdSfsFileOffset offset, char* buffer,
                          XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
-  eos_debug("offset: %lld, buffer: %p, length: %d, readahead: %d, timeout: %d",
-            offset, buffer, length, readahead, timeout);
+  eos_debug("forwarding to sync read");
   return fileRead(offset, buffer, length, timeout);
 }
 
@@ -107,8 +95,7 @@ int64_t
 KineticIo::fileWriteAsync(XrdSfsFileOffset offset, const char* buffer,
                           XrdSfsXferSize length, uint16_t timeout)
 {
-  eos_debug("offset: %lld, buffer: %p, length: %d, timeout: %d",
-            offset, buffer, length, timeout);
+  eos_debug("forwarding to sync write");
   return fileWrite(offset, buffer, length, timeout);
 }
 
@@ -120,7 +107,9 @@ KineticIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
     kio->Truncate(offset, timeout);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -146,7 +135,9 @@ KineticIo::fileRemove(uint16_t timeout)
     kio->Remove(timeout);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -158,7 +149,9 @@ KineticIo::fileSync(uint16_t timeout)
     kio->Sync(timeout);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -168,10 +161,11 @@ KineticIo::fileClose(uint16_t timeout)
   eos_debug("timeout %d", timeout);
   try {
     kio->Close(timeout);
-    opened = false;
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -180,14 +174,12 @@ KineticIo::fileStat(struct stat* buf, uint16_t timeout)
 {
   eos_debug("timeout %d", timeout);
   try {
-    if (!opened) {
-      kio->Open(mFilePath, 0);
-      opened = true;
-    }
     kio->Stat(buf, timeout);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -203,10 +195,12 @@ KineticIo::Statfs(struct statfs* statFs)
 {
   eos_debug("");
   try {
-    kio->Statfs(mFilePath.c_str(), statFs);
+    kio->Statfs(statFs);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return errno;
 }
 
@@ -215,57 +209,53 @@ KineticIo::fileExists()
 {
   eos_debug("");
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
+    kio->Open(0);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
 FileIo::FtsHandle*
 KineticIo::ftsOpen()
 {
-  KineticIo::FtsHandle* handle = new KineticIo::FtsHandle(mFilePath.c_str());
-
-  if (!handle) {
-    return NULL;
-  }
-
-  try {
-    handle->mHandle = kio->ftsOpen(mFilePath);
-    return dynamic_cast<FileIo::FtsHandle*> (handle);
-  }
-  KIO_CATCH
-  if (handle) {
-    delete handle;
-  }
-  return NULL;
+  eos_debug("");
+  return new KineticIo::FtsHandle(mFilePath.c_str());
 }
 
 std::string
 KineticIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
-  std::string rv = "";
-  try {
-    rv = kio->ftsRead(dynamic_cast<FtsHandle*> (fts_handle)->mHandle);
+  eos_debug("");
+
+  auto handle = dynamic_cast<FtsHandle*>(fts_handle);
+  if (handle->cached.size() > handle->current_index) {
+    return handle->cached.at(handle->current_index++);
   }
-  KIO_CATCH
-  eos_debug("fts_handle: %p, result: %s", dynamic_cast<FtsHandle*> (fts_handle)->mHandle, rv.c_str());
-  return rv;
+
+  if (handle->cached.size() != 100 && handle->cached.back() != mFilePath) {
+    return "";
+  }
+
+  try {
+    handle->cached = kio->ListFiles(handle->cached.back() + " ", 100);
+    handle->current_index = 0;
+    return ftsRead(handle);
+  }
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
+  return "";
 }
 
 int
 KineticIo::ftsClose(FileIo::FtsHandle* fts_handle)
 {
-  eos_debug("fts_handle: %p", fts_handle ? dynamic_cast<FtsHandle*> (fts_handle)->mHandle : 0);
-  try {
-    return kio->ftsClose(dynamic_cast<FtsHandle*> (fts_handle)->mHandle);
-  }
-  KIO_CATCH
-  return SFS_ERROR;
+  eos_debug("");
+  delete fts_handle;
+  return 0;
 }
 
 int
@@ -273,14 +263,15 @@ KineticIo::attrGet(const char* name, char* value, size_t& size)
 {
   eos_debug("name: %s", name);
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
-    kattr->Get(name, value, size);
+    auto val = kio->attrGet(name);
+    eos_debug("value: %s", val.c_str());
+    size = std::min(size, val.length());
+    strncpy(value, val.c_str(), size);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -289,14 +280,13 @@ KineticIo::attrGet(string name, std::string& value)
 {
   eos_debug("name: %s", name.c_str());
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
-    value = kattr->Get(name);
+    value = kio->attrGet(name);
+    eos_debug("value: %s", value.c_str());
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -305,14 +295,12 @@ KineticIo::attrSet(const char* name, const char* value, size_t len)
 {
   eos_debug("name: %s, value: %s, len: %ld", name, value, len);
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
-    kattr->Set(name, value, len);
+    kio->attrSet(name, std::string(value, len));
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -321,14 +309,12 @@ KineticIo::attrSet(string name, std::string value)
 {
   eos_debug("name: %s, value: %s", name.c_str(), value.c_str());
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
-    kattr->Set(name, value);
+    kio->attrSet(name, value);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -337,14 +323,12 @@ KineticIo::attrDelete(const char* name)
 {
   eos_debug("name: %s", name);
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
-    //    kattr->Delete(name);
+    kio->attrDelete(name);
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
@@ -353,14 +337,12 @@ KineticIo::attrList(std::vector<std::string>& list)
 {
   eos_debug("");
   try {
-    if(!opened){
-      kio->Open(mFilePath.c_str(), 0);
-      opened = true;
-    }
-    //    kattr->List(list);
+    list = kio->attrList();
     return SFS_OK;
   }
-  KIO_CATCH
+  catch (const std::system_error& e) {
+    errno = e.code().value();
+  }
   return SFS_ERROR;
 }
 
