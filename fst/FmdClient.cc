@@ -252,6 +252,15 @@ FmdClient::GetMgmFmd (const char* manager,
     return EIO;
   }
 
+  // Check if response contains any data
+  if (!response->GetBuffer())
+  {
+    eos_static_info("Unable to retrieve meta data from mgm %s for fid=%08llx, "
+                    "result data is empty", manager, fid);
+    delete response;
+    return ENODATA;
+  }
+
   std::string sresult = response->GetBuffer();
 
   if ((sresult.find("getfmd: retc=0 ")) == std::string::npos)
