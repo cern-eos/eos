@@ -2021,6 +2021,7 @@ Master::BootNamespace()
   try
   {
     gOFS->eosDirectoryService->setFileMDService(gOFS->eosFileService);
+    gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
     gOFS->eosFileService->configure(fileSettings);
     gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
