@@ -150,7 +150,7 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   // try if that is a file
   errno = 0;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::unique_ptr<eos::IFileMD> fmd {nullptr};
   eos::common::Path cPath(path);
 
   // Stat on the master proc entry succeeds only if this MGM is in RW master mode
@@ -161,7 +161,7 @@ XrdMgmOfs::_stat (const char *path,
       return Emsg(epname, error, ENODEV, "stat", cPath.GetPath());
     }
   }
-  // ---------------------------------------------------------------------------
+
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
   try
@@ -185,7 +185,6 @@ XrdMgmOfs::_stat (const char *path,
     }
   }
 
-  // ---------------------------------------------------------------------------
   if (fmd)
   {
     memset(buf, 0, sizeof (struct stat));
@@ -284,12 +283,13 @@ XrdMgmOfs::_stat (const char *path,
 	*etag = setag;
       }
     }
+
     EXEC_TIMING_END("Stat");
     return SFS_OK;
   }
 
-  // try if that is directory
-  std::unique_ptr<eos::IContainerMD> cmd;
+  // Check if it's a directory
+  std::unique_ptr<eos::IContainerMD> cmd {nullptr};
   errno = 0;
 
   // ---------------------------------------------------------------------------
@@ -306,10 +306,12 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_dev = 0xcaff;
     buf->st_ino = cmd->getId();
     buf->st_mode = cmd->getMode();
+
     if (cmd->attributesBegin() != cmd->attributesEnd())
     {
       buf->st_mode |= S_ISVTX;
     }
+
     buf->st_nlink = 1;
     buf->st_uid = cmd->getCUid();
     buf->st_gid = cmd->getCGid();
@@ -367,19 +369,16 @@ XrdMgmOfs::_stat (const char *path,
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Stat following links (not existing in EOS - behaves like stat)
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::lstat (const char *path,
 		  struct stat *buf,
 		  XrdOucErrInfo &error,
 		  const XrdSecEntity *client,
 		  const char *info)
-/*----------------------------------------------------------------------------*/
-/*
- * @brief stat following links (not existing in EOS - behaves like stat)
- */
-/*----------------------------------------------------------------------------*/
-{
 
+{
   return stat(path, buf, error, client, info);
 }

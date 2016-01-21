@@ -147,7 +147,7 @@ private:
   //!
   //! @warning Caller needs to hold a lock on mMutex
   //----------------------------------------------------------------------------
-  void  ResetQuota(unsigned long tag, unsigned long id);
+  void ResetQuota(unsigned long tag, unsigned long id);
 
   //----------------------------------------------------------------------------
   //! Add quota

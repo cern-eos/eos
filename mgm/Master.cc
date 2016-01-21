@@ -2044,7 +2044,7 @@ Master::BootNamespace()
 
     if (eos_chlog_filesvc && eos_chlog_dirsvc)
     {
-      gOFS->eosFileService->setContainerService(gOFS->eosDirectoryService);
+      gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
 
       if (!IsMaster())
       {

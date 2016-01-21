@@ -293,7 +293,6 @@ SpaceQuota::AddQuota(unsigned long tag, unsigned long id, long long value)
 
   eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id,
 		   mMapIdQuota[Index(tag, id)]);
-
 }
 
 //------------------------------------------------------------------------------

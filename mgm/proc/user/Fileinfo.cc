@@ -164,14 +164,11 @@ ProcCommand::FileInfo (const char* path)
       }
     }
 
-
-
     if (!fmd)
     {
       retc = errno;
       gOFS->eosViewRWMutex.UnLockRead();
       //-------------------------------------------
-
     }
     else
     {

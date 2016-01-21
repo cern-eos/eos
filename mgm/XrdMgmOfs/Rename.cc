@@ -387,6 +387,8 @@ XrdMgmOfs::_rename (const char *old_name,
 	  if (file)
 	  {
 	    // Move to a new directory
+	    // TODO: deal with conflicts and proper roll-back in case a file
+	    // with the same name already exists in the destination directory
 	    dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange( gOFS->eosDirectoryService );

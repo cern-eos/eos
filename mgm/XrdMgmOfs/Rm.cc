@@ -283,9 +283,9 @@ XrdMgmOfs::_rem (const char *path,
       {
         eos_info("unlinking from view %s", path);
         gOFS->eosView->unlinkFile(path);
-	// TODO: this works but should be reviewed in order to simplify in
-	// general this code
 	// Reload file object that was modifed in the unlinkFile method
+	// TODO: this can be dropped if you use the unlinkFile which takes
+	// as argument the IFileMD object
 	fmd = gOFS->eosFileService->getFileMD(fmd->getId());
 
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
