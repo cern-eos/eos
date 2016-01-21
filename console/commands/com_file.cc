@@ -677,7 +677,17 @@ com_file (char* arg1)
             //..................................................................
             uint64_t rsize;
 
-            status = fs->Stat(newresult->Get(repfstpath.c_str()), stat_info);
+	    XrdOucString statpath = newresult->Get(repfstpath.c_str());
+	    if (!statpath.beginswith("/"))
+	    {
+	      // base 64 encode this path
+	      XrdOucString statpath64;
+	      eos::common::SymKey::Base64(statpath,statpath64);
+	      statpath = "/#/";
+	      statpath += statpath64;
+	    }
+
+            status = fs->Stat(statpath.c_str(), stat_info);
 
             if (!status.IsOK())
             {

@@ -704,6 +704,33 @@ XrdFstOfs::stat (const char* path,
   EPNAME("stat");
   memset(buf, 0, sizeof ( struct stat));
 
+  XrdOucString url = path;
+  if (url.beginswith("/#/"))
+  {
+    url.replace("/#/","");
+    XrdOucString url64;
+    eos::common::SymKey::DeBase64(url,url64);
+    fprintf(stderr,"doing stat for %s\n", url64.c_str());
+    // use an IO object to stat this ...
+    std::unique_ptr<FileIo> io (eos::fst::FileIoPlugin::GetIoObject(url64.c_str()));
+    if (io)
+    {
+      if (io->fileStat(buf))
+      {
+	return gOFS.Emsg(epname, out_error, errno, "stat file", url64.c_str());
+      }
+      else
+      {
+	return SFS_OK;
+      }
+    }
+    else
+    {
+      return gOFS.Emsg(epname, out_error, EINVAL, "stat file - IO object not supported", url64.c_str());
+    }
+  }
+  
+
   if (!XrdOfsOss->Stat(path, buf))
   {
     return SFS_OK;
