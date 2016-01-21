@@ -34,6 +34,20 @@ EOSFSTNAMESPACE_BEGIN
 #define DAVIX_QUOTA_FILE ".dav.quota"
 
 Davix::Context DavixIo::gContext;
+
+namespace{
+  std::string getAttrUrl(std::string path)
+  {
+    size_t rfind = path.rfind("/");
+    if (rfind != std::string::npos)
+      {
+	path.insert(rfind + 1, ".");
+      }
+    path += ".xattr";
+    return path;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -45,6 +59,51 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
   //............................................................................
   seq_offset = 0;
   mCreated = true;
+
+  std::string lFilePath = mFilePath;
+
+  size_t qpos;
+  //............................................................................
+  // Opaque info can be part of the 'path'
+  //............................................................................
+  if (((qpos = mFilePath.find("?")) != std::string::npos))
+  {
+    mOpaque = mFilePath.substr(qpos + 1);
+    lFilePath.erase(qpos);
+  }
+  else
+  {
+    mOpaque = "";
+  }
+
+  //............................................................................
+  // Set url for xattr requests
+  //............................................................................                                                                                                                            
+  mAttrUrl = getAttrUrl(lFilePath.c_str());
+
+  //............................................................................
+  // Prepare Keys for S3 access
+  //............................................................................                                                                                                                            
+  if ( (path.substr(0,3)== "s3:") || (path.substr(0,4)== "s3s:") )
+  {
+    mIsS3=true;
+    std::string id = getenv("EOS_FST_S3_ACCESS_ID")?getenv("EOS_FST_S3_ACCESS_ID"):"";
+    std::string key = getenv("EOS_FST_S3_ACCESS_KEY")?getenv("EOS_FST_S3_ACCESS_KEY"):"";
+
+    if (!id.length() || !key.length()) 
+    {
+      eos_warning("msg=\"s3 configuration missing\" s3-id=\"%s\" s3-key=\"%s\"", id.c_str(), key.c_str());
+    }
+    else 
+    {
+      mParams.setAwsAuthorizationKeys(key.c_str(), id.c_str());
+      eos_debug("s3-id=\"%s\" s3-key=\"%s\"", id.c_str(), key.c_str());
+    }
+  }
+  else
+  {
+    mIsS3 = false;
+  }
 }
 
 
@@ -108,6 +167,7 @@ DavixIo::SetErrno (int errcode, Davix::DavixError *err)
   }
   return -1;
 }
+
 //----------------------------------------------------------------------------
 // Open file
 //----------------------------------------------------------------------------
@@ -121,7 +181,6 @@ DavixIo::fileOpen (
 {
   eos_info("flags=%x", flags);
   Davix::DavixError* err = 0;
-  Davix::RequestParams *params = 0;
 
   mParent = mFilePath.c_str();
   mParent.erase(mFilePath.rfind("/"));
@@ -132,24 +191,23 @@ DavixIo::fileOpen (
   if ((flags & SFS_O_RDWR) || (flags & SFS_O_WRONLY))
     pflags |= (O_RDWR);
 
-  DavixIo lParent(mParent.c_str());
-  // create at least the direct parent path
-  if ((pflags & O_CREAT) && fileExists())
+  if (!mIsS3) 
   {
-    eos_info("msg=\"creating parent directory\" parent=\"%s\"", mParent.c_str());
-    if (Mkdir(mParent.c_str(),mode))
+    DavixIo lParent(mParent.c_str());
+    // create at least the direct parent path
+    if ((pflags & O_CREAT) && lParent.fileExists())
     {
-      eos_err("url=\"%s\" msg=\"failed to create parent directory\"", mParent.c_str());
-      return -1;
+      eos_info("msg=\"creating parent directory\" parent=\"%s\"", mParent.c_str());
+      if (Mkdir(mParent.c_str(),mode))
+      {
+	eos_err("url=\"%s\" msg=\"failed to create parent directory\"", mParent.c_str());
+	return -1;
+      }
     }
   }
-  mUrl = mFilePath;
-  mUrl += "?";
-  mUrl += opaque.c_str();
 
-  eos::common::Path cPath();
-
-  mFd = mDav.open(params, mUrl, pflags, &err);
+  eos_info("open=%s flags=%x", mFilePath.c_str(),pflags);
+  mFd = mDav.open(&mParams, mFilePath, pflags, &err);
 
   if (pflags & O_CREAT)
     mCreated = true;
@@ -159,7 +217,7 @@ DavixIo::fileOpen (
     return 0;
   }
 
-  eos_err("url=\"%s\" msg=\"%s\" ", mUrl.c_str(), err->getErrMsg().c_str());
+  eos_err("url=\"%s\" msg=\"%s\" ", mFilePath.c_str(), err->getErrMsg().c_str());
   return SetErrno(-1, err);
 }
 
@@ -182,7 +240,7 @@ DavixIo::fileRead (XrdSfsFileOffset offset,
   int retval = mDav.pread(mFd, buffer, length, offset, &err);
   if (-1 == retval)
   {
-    eos_err("url=\"%s\" msg=\"%s\"", mUrl.c_str(), err->getErrMsg().c_str());
+    eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
     return SetErrno(-1, err);
   }
   return retval;
@@ -214,7 +272,7 @@ DavixIo::fileWrite (XrdSfsFileOffset offset,
   int retval = mDav.write(mFd, buffer, length, &err);
   if (-1 == retval)
   {
-    eos_err("url=\"%s\" msg=\"%s\"", mUrl.c_str(), err->getErrMsg().c_str());
+    eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
     return SetErrno(-1, err);
   }
   seq_offset += length;
@@ -264,7 +322,7 @@ DavixIo::fileClose (uint16_t timeout)
   int retval = mDav.close(mFd, &err);
   if (-1 == retval)
   {
-    eos_err("url=\"%s\" msg=\"%s\"", mUrl.c_str(), err->getErrMsg().c_str());
+    eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
     return SetErrno(-1, err);
   }
   return retval;
@@ -302,10 +360,10 @@ DavixIo::fileStat (struct stat* buf, uint16_t timeout)
     eos_debug("st-size=%llu", buf->st_size);
     return 0;
   }
-  int result = mDav.stat(0, mUrl, buf, &err);
+  int result = mDav.stat(0, mFilePath, buf, &err);
   if (-1 == result)
   {
-    eos_info("url=\"%s\" msg=\"%s\"", mUrl.c_str(), err->getErrMsg().c_str());
+    eos_info("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
     return SetErrno(-1, err);
   }
   return result;
@@ -319,8 +377,9 @@ int
 DavixIo::fileRemove (uint16_t timeout)
 {
   Davix::DavixError *err = 0;
-  Davix::RequestParams params;
-  int rc = mDav.unlink(&params, mUrl, &err);
+  int rc = mDav.unlink(&mParams, mFilePath, &err);
+  // ignore xattr errors
+  mDav.unlink(&mParams, mAttrUrl, &err);
   return SetErrno(rc, err);
 }
 
@@ -335,7 +394,7 @@ DavixIo::fileExists ()
   Davix::DavixError* err = 0;
   std::string url = mFilePath;
   struct stat st;
-  int result = mDav.stat(0, url, &st, &err);
+  int result = mDav.stat(&mParams, url, &st, &err);
   if (-1 == result)
   {
     eos_info("url=\"%s\" msg=\"%s\"", url.c_str(), err->getErrMsg().c_str());
@@ -354,9 +413,7 @@ DavixIo::fileDelete (const char* path)
   eos_info("path=\"%s\"", path);
   Davix::DavixError *err = 0;
   std::string davpath = path;
-  Davix::RequestParams params;
-  params.setProtocol(Davix::RequestProtocol::Http);
-  int rc = mDav.unlink(&params, davpath.c_str(), &err);
+  int rc = mDav.unlink(&mParams, davpath.c_str(), &err);
   return SetErrno(rc, err);
 }
 
@@ -370,10 +427,8 @@ DavixIo::Mkdir (const char* path, mode_t mode)
   eos_info("path=\"%s\"", path);
   Davix::DavixError *err = 0;
   XrdOucString davpath = path;
-  Davix::RequestParams params;
-  params.setProtocol(Davix::RequestProtocol::Http);
 
-  int rc = mDav.mkdir(&params, davpath.c_str(), mode, &err);
+  int rc = mDav.mkdir(&mParams, davpath.c_str(), mode, &err);
   return SetErrno(rc, err);
 }
 
@@ -385,8 +440,7 @@ int
 DavixIo::Rmdir (const char* path)
 {
   Davix::DavixError *err = 0;
-  Davix::RequestParams params;
-  return SetErrno(mDav.rmdir(&params, path, &err), err);
+  return SetErrno(mDav.rmdir(&mParams, path, &err), err);
 }
 
 
@@ -462,6 +516,8 @@ DavixIo::Upload (std::string url, std::string& upload)
   std::string opaque;
   int rc = 0;
 
+  io.fileRemove();
+
   if (!io.fileOpen(SFS_O_WRONLY | SFS_O_CREAT, S_IRWXU | S_IRGRP | SFS_O_MKPTH,
                    opaque,
                    10))
@@ -500,7 +556,7 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
 {
   std::string lBlob;
   // download
-  if (!DavixIo::Download(mUrl, lBlob))
+  if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     if (mFileMap.Load(lBlob))
     {
@@ -509,21 +565,20 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
       val.assign(value, len);
       mFileMap.Set(key, val);
       std::string lMap = mFileMap.Trim();
-      fprintf(stderr, "### %s", lMap.c_str());
-      if (!DavixIo::Upload(mUrl, lMap))
+      if (!DavixIo::Upload(mAttrUrl, lMap))
       {
 	return 0;
       }
       else
       {
 	eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
-		       mUrl.c_str());
+		       mAttrUrl.c_str());
       }
     }
     else
     {
       eos_static_err("msg=\"unable to parse remote file map\" url=\"%s\"",
-		     mUrl.c_str());
+		     mAttrUrl.c_str());
       errno = EINVAL;
     }
   }
@@ -531,7 +586,7 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
   {
     
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-		   mUrl.c_str());
+		   mAttrUrl.c_str());
   }
 
   return -1;
@@ -556,7 +611,7 @@ int
 DavixIo::attrGet (const char* name, char* value, size_t &size)
 {
   std::string lBlob;
-  if (!DavixIo::Download(mUrl, lBlob))
+  if (!DavixIo::Download(mAttrUrl, lBlob) )
   {
     if (mFileMap.Load(lBlob))
     {
@@ -572,7 +627,7 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
   else
   {    
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-		   mUrl.c_str());
+		   mAttrUrl.c_str());
   }
   return -1;
 }
@@ -585,7 +640,7 @@ int
 DavixIo::attrGet (std::string name, std::string &value)
 {
   std::string lBlob;
-  if (!DavixIo::Download(mUrl, lBlob))
+  if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     if (mFileMap.Load(lBlob))
     {
@@ -597,7 +652,7 @@ DavixIo::attrGet (std::string name, std::string &value)
   {
     
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-		   mUrl.c_str());
+		   mAttrUrl.c_str());
   }
   return -1;
 }
@@ -610,7 +665,7 @@ DavixIo::attrDelete(const char* name)
 {
   bool removed;
   std::string lBlob;
-  if (!DavixIo::Download(mUrl, lBlob))
+  if (!DavixIo::Download(mAttrUrl, lBlob))
   {
     if (mFileMap.Load(lBlob))
     {
@@ -619,7 +674,7 @@ DavixIo::attrDelete(const char* name)
       {
 
 	std::string lMap = mFileMap.Trim();
-	if (!DavixIo::Upload(mUrl, lMap))
+	if (!DavixIo::Upload(mAttrUrl, lMap))
 	{
 	  eos_static_info("msg=\"removed\" key=%s", name);
 	  return 0;
@@ -627,7 +682,7 @@ DavixIo::attrDelete(const char* name)
 	else
 	{
 	  eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
-			 mUrl.c_str());
+			 mAttrUrl.c_str());
 	  errno = EIO;
 	  return -1;
 	}
@@ -643,7 +698,7 @@ DavixIo::attrDelete(const char* name)
   else
   {    
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-		   mUrl.c_str());
+		   mAttrUrl.c_str());
   }
   return -1;
 }
@@ -655,7 +710,7 @@ int
 DavixIo::attrList(std::vector<std::string>& list)
 {
   std::string lBlob;
-  if (!DavixIo::Download(mUrl, lBlob))
+  if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     if (mFileMap.Load(lBlob))
     {
@@ -670,7 +725,7 @@ DavixIo::attrList(std::vector<std::string>& list)
   else
   {    
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-		   mUrl.c_str());
+		   mAttrUrl.c_str());
   }
   return -1;
 }
@@ -688,6 +743,19 @@ DavixIo::Statfs (struct statfs* sfs)
   url += "/";
   url += DAVIX_QUOTA_FILE;
   std::string opaque;
+
+  if (mFilePath.substr(0,2) == "s3")
+  {
+    sfs->f_frsize = 4096;
+    sfs->f_bsize = sfs->f_frsize;
+    sfs->f_blocks = (fsblkcnt_t) ( 1024*1024*1024*1024ll / sfs->f_frsize);
+    sfs->f_bavail = (fsblkcnt_t) ( 1024*1024*1024*1024ll / sfs->f_frsize);
+    sfs->f_bfree = sfs->f_bavail;
+    sfs->f_files = 1000000000ll;
+    sfs->f_ffree = 1000000000ll;
+    eos_info("msg=\"emulating s3 quota\"");
+    return 0;
+  }
 
   DavixIo io(url);;
 

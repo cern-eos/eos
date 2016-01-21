@@ -37,8 +37,23 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-        const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 * 1024 * 1024; ///< 1MB default
+
+const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 * 1024 * 1024; ///< 1MB default
 const uint32_t XrdIo::sNumRdAheadBlocks = 2;
+
+namespace{
+  std::string getAttrUrl(std::string path)
+  {
+    size_t qfind = path.rfind("?");
+    size_t rfind = path.rfind("/",qfind);
+    if (rfind != std::string::npos)
+    {
+      path.insert(rfind + 1, ".");
+    }
+    path += ".xattr";
+    return path;
+  }
+}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -49,11 +64,33 @@ FileIo (path, "XrdIo"),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
 mXrdFile (NULL),
-mMetaHandler (new AsyncMetaHandler ())
+mMetaHandler (new AsyncMetaHandler ()),
+mIsOpen (false)
 {
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("TimeoutResolution", 1);
+
+  std::string lFilePath = mFilePath;
+
+  size_t qpos;
+  //............................................................................
+  // Opaque info can be part of the 'path'
+  //............................................................................
+  if (((qpos = mFilePath.find("?")) != std::string::npos))
+  {
+    mOpaque = mFilePath.substr(qpos + 1);
+    lFilePath.erase(qpos);
+  }
+  else
+  {
+    mOpaque = "";
+  }
+
+  //............................................................................
+  // Set url for xattr requests
+  //............................................................................
+  mAttrUrl = getAttrUrl(mFilePath.c_str());
 }
 
 
@@ -85,20 +122,6 @@ XrdIo::~XrdIo ()
     delete mXrdFile;
 }
 
-
-namespace{
-  std::string getAttrUrl(std::string path)
-  {
-    size_t rfind = path.rfind("/");
-    if (rfind != std::string::npos)
-    {
-      path.insert(rfind + 1, ".");
-    }
-    path += ".xattr";
-    return path;
-  }
-}
-
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
@@ -113,29 +136,10 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   std::string request;
 
   std::string lOpaque;
-  size_t qpos = 0;
 
   std::string lFilePath = mFilePath;
 
-  //............................................................................
-  // Opaque info can be part of the 'path'
-  //............................................................................
-  if (((qpos = mFilePath.find("?")) != std::string::npos))
-  {
-    lOpaque = mFilePath.substr(qpos + 1);
-    lFilePath.erase(qpos);
-  }
-  else
-  {
-    lOpaque = opaque;
-  }
-
-  XrdOucEnv open_opaque(lOpaque.c_str());
-
-  //............................................................................
-  // Set url for xattr requests
-  //............................................................................
-  mUrl = getAttrUrl(lFilePath.c_str());
+  XrdOucEnv open_opaque(mOpaque.c_str());
 
   //............................................................................
   // Decide if readahead is used and the block size
@@ -158,9 +162,7 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
     }
   }
 
-  request = lFilePath;
-  request += "?";
-  request += lOpaque;
+  request = mFilePath;
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
@@ -181,6 +183,7 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   else
   {
     errno = 0;
+    mIsOpen = true;
   }
 
   //............................................................................
@@ -549,13 +552,14 @@ int
 XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
 
-  if (mExternalStorage)
+  if (mExternalStorage || !mIsOpen)
   {
     if (offset == EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN)
     {
       // if we have an external XRootD we cannot send this truncate
       // we issue an 'rm' instead
-      return fileDelete(mFilePath.c_str());
+      int rc = fileDelete(mFilePath.c_str());
+      return rc;
     }
 
     if (offset == EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN)
@@ -645,6 +649,7 @@ int
 XrdIo::fileClose (uint16_t timeout)
 {
   bool async_ok = true;
+  mIsOpen = false;
 
   if (mDoReadahead)
   {
@@ -690,20 +695,20 @@ XrdIo::fileClose (uint16_t timeout)
 int
 XrdIo::fileRemove (uint16_t timeout)
 {
+
   //............................................................................
   // Remove the file by truncating using the special value offset
   //............................................................................
-  XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
+  int retc = fileTruncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
 
-  if (!status.IsOK())
+  if (retc)
   {
 
-    eos_err("error=failed to truncate file with deletion offset - %s", mPath.c_str());
+    eos_err("error=failed to truncate file with deletion offset - %s", mFilePath.c_str());
     mLastErrMsg = "failed to truncate file with deletion offset";
-    return SFS_ERROR;
   }
 
-  return SFS_OK;
+  return retc;
 }
 
 //------------------------------------------------------------------------------
@@ -755,10 +760,12 @@ int
 XrdIo::fileDelete (const char* url)
 {
   XrdCl::URL xUrl(url);
+  std::string attrurl = getAttrUrl(url);
+  XrdCl::URL xAttrUrl(attrurl);
   XrdCl::FileSystem fs(xUrl);
 
   XrdCl::XRootDStatus status = fs.Rm(xUrl.GetPath());
-  XrdCl::XRootDStatus status_attr = fs.Rm(getAttrUrl(url));
+  XrdCl::XRootDStatus status_attr = fs.Rm(xAttrUrl.GetPath());
   errno = 0;
   if (!status.IsOK())
   {
@@ -943,7 +950,7 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
 {
   std::string lBlob;
   // download
-  if (!XrdIo::Download(mUrl, lBlob))
+  if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     if (mFileMap.Load(lBlob))
     {
@@ -959,21 +966,20 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
 	mFileMap.Set(key, val);
       }
       std::string lMap = mFileMap.Trim();
-      fprintf(stderr, "### %s", lMap.c_str());
-      if (!XrdIo::Upload(mUrl, lMap))
+      if (!XrdIo::Upload(mAttrUrl, lMap))
       {
         return SFS_OK;
       }
       else
       {
         eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
-                       mUrl.c_str());
+                       mAttrUrl.c_str());
       }
     }
     else
     {
       eos_static_err("msg=\"unable to parse remote file map\" url=\"%s\"",
-                     mUrl.c_str());
+                     mAttrUrl.c_str());
       errno = EINVAL;
     }
   }
@@ -981,7 +987,7 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
   {
 
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-                   mUrl.c_str());
+                   mAttrUrl.c_str());
   }
 
   return SFS_ERROR;
@@ -1006,7 +1012,7 @@ int
 XrdIo::attrGet(const char* name, char* value, size_t &size)
 {
   std::string lBlob;
-  if (!XrdIo::Download(mUrl, lBlob))
+  if (!XrdIo::Download(mAttrUrl, lBlob))
   {
     if (mFileMap.Load(lBlob))
     {
@@ -1022,7 +1028,7 @@ XrdIo::attrGet(const char* name, char* value, size_t &size)
   else
   {
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-                   mUrl.c_str());
+                   mAttrUrl.c_str());
   }
   return SFS_ERROR;
 }
@@ -1035,7 +1041,7 @@ int
 XrdIo::attrGet(string name, std::string& value)
 {
   std::string lBlob;
-  if (!XrdIo::Download(mUrl, lBlob))
+  if (!XrdIo::Download(mAttrUrl, lBlob))
   {
     if (mFileMap.Load(lBlob))
     {
@@ -1046,7 +1052,7 @@ XrdIo::attrGet(string name, std::string& value)
   else
   {
     eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-                   mUrl.c_str());
+                   mAttrUrl.c_str());
   }
   return SFS_ERROR;
 }
@@ -1069,12 +1075,25 @@ XrdIo::attrDelete(const char* name)
 int 
 XrdIo::attrList(std::vector<std::string>& list)
 {
-  std::map<std::string, std::string> kv = mFileMap.GetMap();
-  for ( auto it = kv.begin(); it != kv.end(); ++it)
+  std::string lBlob;
+  if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
-    list.push_back(it->first);
+    if (mFileMap.Load(lBlob))
+    {
+      std::map<std::string, std::string> lMap = mFileMap.GetMap();
+      for (auto it=lMap.begin(); it!=lMap.end(); ++it)
+      {
+	list.push_back(it->first);
+      }
+      return 0;
+    }
   }
-  return 0;
+  else
+  {
+    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
+		   mAttrUrl.c_str());
+  }
+  return -1;
 }
 
 

@@ -388,15 +388,15 @@ private:
 
   bool mDoReadahead; ///< mark if readahead is enabled
   uint32_t mBlocksize; ///< block size for rd/wr opertations
-  std::string mPath; ///< path to file
   XrdCl::File* mXrdFile; ///< handler to xrd file
   AsyncMetaHandler* mMetaHandler; ///< async requests meta handler
   PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
   XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
   eos::common::FileMap mFileMap; ///< extended attribute file map
-  std::string mUrl; ///< extended attribute url
-
+  std::string mAttrUrl; ///< extended attribute url
+  std::string mOpaque; ///< opaque tags in original url
+  bool mIsOpen; ///< indicates the open state of a file
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
   //!

@@ -337,15 +337,18 @@ public:
 private:
   int SetErrno (int errcode, Davix::DavixError *err);
   bool mCreated;
-  std::string mUrl;
+  std::string mAttrUrl;
+  std::string mOpaque;
   std::string mParent;
   off_t seq_offset;
 
   Davix::DavPosix mDav;
   DAVIX_FD* mFd;
+  
+  Davix::RequestParams mParams;;
 
   eos::common::FileMap mFileMap; ///< extended attribute file map
-
+  bool mIsS3; ///< indicates an s3 protocol flavour
 };
 
 EOSFSTNAMESPACE_END
