@@ -30,9 +30,9 @@ add_library(
   EosNsOnRedisTests MODULE
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
-#  FileSystemViewTest.cc
-#  HierarchicalViewTest.cc
-#  OtherTests.cc
+  HierarchicalViewTest.cc
+  FileSystemViewTest.cc
+  OtherTests.cc
 )
 
 target_link_libraries(

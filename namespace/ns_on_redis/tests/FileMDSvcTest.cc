@@ -48,7 +48,7 @@ void FileMDSvcTest::loadTest()
 {
   std::unique_ptr<eos::IContainerMDSvc> contSvc {new eos::ContainerMDSvc};
   std::unique_ptr<eos::IFileMDSvc> fileSvc {new eos::FileMDSvc};
-  fileSvc->setContainerService(contSvc.get());
+  fileSvc->setContMDService(contSvc.get());
   std::map<std::string, std::string> config = {
     {"redis_host", "localhost"},
     {"redis_port", "6380"}
