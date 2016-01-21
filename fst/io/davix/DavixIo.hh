@@ -277,6 +277,14 @@ public:
   // ------------------------------------------------------------------------
   int attrList(std::vector<std::string>& list);
 
+  // ------------------------------------------------------------------------
+  //! Set attribute synchronization mode
+  //!
+  //! @param on if true - every set attributes runs 'pull-modify-push', otherwise the destructor finished a 'pull-modify-modify-....-push' sequence
+  //! @return nothing
+  // ------------------------------------------------------------------------
+  void setAttrSync(bool mode=false) { mAttrSync = mode; }
+  
   //--------------------------------------------------------------------------
   //! traversing filesystem/storage routines
   //--------------------------------------------------------------------------
@@ -344,7 +352,10 @@ private:
 
   Davix::DavPosix mDav;
   DAVIX_FD* mFd;
-  
+  bool mAttrLoaded;
+  bool mAttrDirty;
+  bool mAttrSync;
+ 
   Davix::RequestParams mParams;;
 
   eos::common::FileMap mFileMap; ///< extended attribute file map

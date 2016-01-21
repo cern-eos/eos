@@ -58,7 +58,7 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
   // In this case the logical file is the same as the local physical file
   //............................................................................
   seq_offset = 0;
-  mCreated = true;
+  mCreated = false;
 
   std::string lFilePath = mFilePath;
 
@@ -104,6 +104,10 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
   {
     mIsS3 = false;
   }
+
+  setAttrSync();// by default sync attributes lazyly
+  mAttrLoaded = false;
+  mAttrDirty = false;
 }
 
 
@@ -113,7 +117,20 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
 
 DavixIo::~DavixIo ()
 {
-  //empty
+  // deal with asynchrnous dirty attributes
+  if (mAttrSync && mAttrDirty)
+  {
+    std::string lMap = mFileMap.Trim();
+    if (!DavixIo::Upload(mAttrUrl, lMap))
+    {
+      mAttrDirty = false;
+    }
+    else
+    {
+      eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+		     mAttrUrl.c_str());
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -260,6 +277,7 @@ DavixIo::fileWrite (XrdSfsFileOffset offset,
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t> (offset),
             static_cast<int64_t> (length));
+  errno = 0;
 
   if (offset != seq_offset)
   {
@@ -350,7 +368,7 @@ DavixIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 int
 DavixIo::fileStat (struct stat* buf, uint16_t timeout)
 {
-  eos_debug("");
+  eos_debug("url=%s",mFilePath.c_str());
   Davix::DavixError* err = 0;
 
   if (mCreated)
@@ -360,7 +378,7 @@ DavixIo::fileStat (struct stat* buf, uint16_t timeout)
     eos_debug("st-size=%llu", buf->st_size);
     return 0;
   }
-  int result = mDav.stat(0, mFilePath, buf, &err);
+  int result = mDav.stat(&mParams, mFilePath, buf, &err);
   if (-1 == result)
   {
     eos_info("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
@@ -555,24 +573,42 @@ int
 DavixIo::attrSet (const char* name, const char* value, size_t len)
 {
   std::string lBlob;
+  errno = 0;
+
+  if (!mAttrSync && mAttrLoaded)
+  {
+    std::string key = name;
+    std::string val;
+    val.assign(value, len);
+    // just modify
+    mFileMap.Set(key,val);
+    mAttrDirty = true;
+    return 0;
+  }
+
   // download
   if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     if (mFileMap.Load(lBlob))
     {
+      mAttrLoaded = true;
       std::string key = name;
       std::string val;
       val.assign(value, len);
       mFileMap.Set(key, val);
-      std::string lMap = mFileMap.Trim();
-      if (!DavixIo::Upload(mAttrUrl, lMap))
+      if (mAttrSync)
       {
-	return 0;
-      }
-      else
-      {
-	eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
-		       mAttrUrl.c_str());
+	std::string lMap = mFileMap.Trim();
+	if (!DavixIo::Upload(mAttrUrl, lMap))
+	{
+	  mAttrDirty = false;
+	  return 0;
+	}
+	else
+	{
+	  eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+			 mAttrUrl.c_str());
+	}
       }
     }
     else
@@ -610,11 +646,24 @@ DavixIo::attrSet (std::string key, std::string value)
 int
 DavixIo::attrGet (const char* name, char* value, size_t &size)
 {
+  errno = 0;
+  if (!mAttrSync && mAttrLoaded)
+  {
+    std::string val = mFileMap.Get(name);
+    size_t len = val.length() + 1;
+    if (len > size)
+      len = size;
+    memcpy(value, val.c_str(), len);
+    eos_static_info("key=%s value=%s", name, value);
+    return 0;
+  }
+
   std::string lBlob;
   if (!DavixIo::Download(mAttrUrl, lBlob) )
   {
     if (mFileMap.Load(lBlob))
     {
+      mAttrLoaded = true;
       std::string val = mFileMap.Get(name);
       size_t len = val.length() + 1;
       if (len > size)
@@ -639,9 +688,17 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
 int
 DavixIo::attrGet (std::string name, std::string &value)
 {
+  errno = 0;
+  if (!mAttrSync && mAttrLoaded)
+  {
+    value = mFileMap.Get(name);
+    return 0;
+  }
+
   std::string lBlob;
   if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       value = mFileMap.Get(name);
@@ -664,9 +721,27 @@ int
 DavixIo::attrDelete(const char* name)
 {
   bool removed;
+  errno = 0;
+
+  if (!mAttrSync && mAttrLoaded)
+  {
+    removed = mFileMap.Remove(name);
+    if (removed)
+    {
+      mAttrDirty = true;
+      return 0;
+    }
+    else
+    {
+      errno = ENOKEY;
+      return 0;
+    }
+  }
+
   std::string lBlob;
   if (!DavixIo::Download(mAttrUrl, lBlob))
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       removed = mFileMap.Remove(name);
@@ -676,6 +751,7 @@ DavixIo::attrDelete(const char* name)
 	std::string lMap = mFileMap.Trim();
 	if (!DavixIo::Upload(mAttrUrl, lMap))
 	{
+	  mAttrDirty = false;
 	  eos_static_info("msg=\"removed\" key=%s", name);
 	  return 0;
 	}
@@ -709,9 +785,20 @@ DavixIo::attrDelete(const char* name)
 int 
 DavixIo::attrList(std::vector<std::string>& list)
 {
+  if (!mAttrSync && mAttrLoaded)
+  {
+    std::map<std::string, std::string> lMap = mFileMap.GetMap();
+    for (auto it=lMap.begin(); it!=lMap.end(); ++it)
+    {
+      list.push_back(it->first);
+    }
+    return 0;
+  }
+
   std::string lBlob;
   if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       std::map<std::string, std::string> lMap = mFileMap.GetMap();
