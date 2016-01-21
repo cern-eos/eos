@@ -220,29 +220,8 @@
     // the ScheduledToDrainFidMutex
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
-    eos::IFsView::FileList source_filelist;
-    eos::IFsView::FileList target_filelist;
-
-    try
-    {
-      source_filelist = gOFS->eosFsView->getFileList(source_fsid);
-    }
-    catch (eos::MDException &e)
-    {
-      source_filelist.set_deleted_key(0);
-      source_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
-    try
-    {
-      target_filelist = gOFS->eosFsView->getFileList(target_fsid);
-    }
-    catch (eos::MDException &e)
-    {
-      target_filelist.set_deleted_key(0);
-      target_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
+    eos::IFsView::FileList source_filelist = gOFS->eosFsView->getFileList(source_fsid);
+    eos::IFsView::FileList target_filelist = gOFS->eosFsView->getFileList(target_fsid);
     unsigned long long nfids = (unsigned long long) source_filelist.size();
 
     eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u n_source_fids=%llu",

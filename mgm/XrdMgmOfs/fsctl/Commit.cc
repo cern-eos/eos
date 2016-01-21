@@ -354,13 +354,13 @@
         {
 	  eos::common::Path eos_path {spath};
 	  std::string dir_path = eos_path.GetParentPath();
-	  eos::IContainerMD* dir = 0;
+	  std::unique_ptr<eos::IContainerMD> dir {nullptr};
 
           try
           {
             dir = eosView->getContainer(dir_path);
             // Get symlink free dir
-            dir_path = eosView->getUri(dir);
+            dir_path = eosView->getUri(dir.get());
             dir = eosView->getContainer(dir_path);
           }
           catch (eos::MDException& e)
@@ -370,7 +370,7 @@
             return Emsg(epname, error, EIDRM, "commit file, parent contrainer removed [EIDRM]", "");
           }
 
-          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir);
+          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir.get());
 
 	  // Free previous quota
           if (ns_quota)

@@ -365,7 +365,7 @@ Fsck::Check (void)
           {
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
 	    std::unique_ptr<eos::IFileMD> fmd;
-            eos::IFsView::FileList& filelist = gOFS->eosFsView->getFileList(fsid);
+            eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
             eos::IFsView::FileIterator it;
             for (it = filelist.begin(); it != filelist.end(); ++it)
             {

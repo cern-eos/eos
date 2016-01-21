@@ -153,7 +153,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
       {
         // also add files which have still to be unlinked
         const eos::IFsView::FileList& unlinkedfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
-        for (it = unlinkedfilelist.begin(); it != unlinkedfilelist.end(); ++it)
+        for (auto it = unlinkedfilelist.begin(); it != unlinkedfilelist.end(); ++it)
         {
           std::string env;
           fmd = gOFS->eosFileService->getFileMD(*it);
@@ -953,9 +953,6 @@ proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdEr
 
       if (gOFS->eosFsView->clearUnlinkedFileList(fsid))
       {
-        eos::IFsView::FileList& unlinklist = gOFS->eosFsView->getUnlinkedFileList(fsid);
-        unlinklist.clear();
-        unlinklist.resize(0);
         stdOut += "success: dropped deletions on fsid=";
         stdOut += id.c_str();
       }
