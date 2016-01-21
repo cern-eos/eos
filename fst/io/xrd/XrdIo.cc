@@ -91,6 +91,10 @@ mIsOpen (false)
   // Set url for xattr requests
   //............................................................................
   mAttrUrl = getAttrUrl(mFilePath.c_str());
+
+  setAttrSync();// by default sync attributes lazyly
+  mAttrLoaded = false;
+  mAttrDirty = false;
 }
 
 
@@ -118,6 +122,21 @@ XrdIo::~XrdIo ()
 
   delete mMetaHandler;
 
+  // deal with asynchrnous dirty attributes
+  if (mAttrSync && mAttrDirty)
+  {
+    std::string lMap = mFileMap.Trim();
+    if (!XrdIo::Upload(mAttrUrl, lMap))
+    {
+      mAttrDirty = false;
+    }
+    else
+    {
+      eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+		     mAttrUrl.c_str());
+    }
+  }
+  
   if (mXrdFile)
     delete mXrdFile;
 }
@@ -948,10 +967,30 @@ XrdIo::Statfs( struct statfs* sfs)
 int
 XrdIo::attrSet(const char* name, const char* value, size_t len)
 {
+  if (!mAttrSync && mAttrLoaded)
+  {
+    std::string key = name;
+    std::string val;
+
+    if ( val == "#__DELETE_ATTR_#")
+    {
+      mFileMap.Remove(key);
+    }
+    else
+    {
+      val.assign(value, len);
+      // just modify
+      mFileMap.Set(key,val);
+    }
+    mAttrDirty = true;
+    return 0;
+  }
+
   std::string lBlob;
   // download
   if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       std::string key = name;
@@ -965,15 +1004,18 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
 	val.assign(value, len);
 	mFileMap.Set(key, val);
       }
-      std::string lMap = mFileMap.Trim();
-      if (!XrdIo::Upload(mAttrUrl, lMap))
+      if (mAttrSync)
       {
-        return SFS_OK;
-      }
-      else
-      {
-        eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
-                       mAttrUrl.c_str());
+	std::string lMap = mFileMap.Trim();
+	if (!XrdIo::Upload(mAttrUrl, lMap))
+	{
+	  return SFS_OK;
+	}
+	else
+	{
+	  eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
+			 mAttrUrl.c_str());
+	}
       }
     }
     else
@@ -1011,9 +1053,22 @@ XrdIo::attrSet(string name, std::string value)
 int
 XrdIo::attrGet(const char* name, char* value, size_t &size)
 {
+  errno = 0;
+  if (!mAttrSync && mAttrLoaded)
+  {
+    std::string val = mFileMap.Get(name);
+    size_t len = val.length() + 1;
+    if (len > size)
+      len = size;
+    memcpy(value, val.c_str(), len);
+    eos_static_info("key=%s value=%s", name, value);
+    return 0;
+  }
+
   std::string lBlob;
   if (!XrdIo::Download(mAttrUrl, lBlob))
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       std::string val = mFileMap.Get(name);
@@ -1040,6 +1095,13 @@ XrdIo::attrGet(const char* name, char* value, size_t &size)
 int
 XrdIo::attrGet(string name, std::string& value)
 {
+  errno = 0;
+  if (!mAttrSync && mAttrLoaded)
+  {
+    value = mFileMap.Get(name);
+    return SFS_OK;
+  }
+  
   std::string lBlob;
   if (!XrdIo::Download(mAttrUrl, lBlob))
   {
@@ -1063,10 +1125,8 @@ XrdIo::attrGet(string name, std::string& value)
 int 
 XrdIo::attrDelete(const char* name)
 {
-  if (attrSet(name,"#__DELETE_ATTR_#"))
-    return 0;
-  else
-    return SFS_ERROR;
+  errno = 0;
+  return attrSet(name,"#__DELETE_ATTR_#");
 }
 
 // ------------------------------------------------------------------------                                                                                                                            

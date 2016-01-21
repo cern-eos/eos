@@ -327,6 +327,15 @@ public:
   // ------------------------------------------------------------------------
   int attrList(std::vector<std::string>& list);
 
+  // ------------------------------------------------------------------------
+  //! Set attribute synchronization mode
+  //!
+  //! @param on if true - every set attributes runs 'pull-modify-push', otherwise the destructor finished a 'pull-modify-modify-....-push' sequence
+  //! @return nothing
+  // ------------------------------------------------------------------------
+  void setAttrSync(bool mode=false) { mAttrSync = mode; }
+
+
   //--------------------------------------------------------------------------
   //! Plug-in function to fill a statfs structure about the storage filling
   //! state
@@ -397,6 +406,11 @@ private:
   std::string mAttrUrl; ///< extended attribute url
   std::string mOpaque; ///< opaque tags in original url
   bool mIsOpen; ///< indicates the open state of a file
+  
+  bool mAttrLoaded; ///< indicates if remote attributes have been loaded
+  bool mAttrDirty; ///< indicdates if local attributes have been modified and not committed
+  bool mAttrSync; ///< indicates if attributes are updated synchronous
+								       
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
   //!
