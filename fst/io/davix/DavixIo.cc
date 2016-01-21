@@ -579,9 +579,16 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
   {
     std::string key = name;
     std::string val;
-    val.assign(value, len);
-    // just modify
-    mFileMap.Set(key,val);
+    if ( val == "#__DELETE_ATTR_#")
+    {
+      mFileMap.Remove(key);
+    }
+    else
+    {
+      val.assign(value, len);
+      // just modify
+      mFileMap.Set(key,val);
+    }
     mAttrDirty = true;
     return 0;
   }
@@ -594,8 +601,15 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
       mAttrLoaded = true;
       std::string key = name;
       std::string val;
-      val.assign(value, len);
-      mFileMap.Set(key, val);
+      if ( val == "#__DELETE_ATTR_#")
+      {
+	mFileMap.Remove(key);
+      }
+      else
+      {
+	val.assign(value, len);
+	mFileMap.Set(key, val);
+      }
       if (mAttrSync)
       {
 	std::string lMap = mFileMap.Trim();
@@ -720,63 +734,8 @@ DavixIo::attrGet (std::string name, std::string &value)
 int 
 DavixIo::attrDelete(const char* name)
 {
-  bool removed;
   errno = 0;
-
-  if (!mAttrSync && mAttrLoaded)
-  {
-    removed = mFileMap.Remove(name);
-    if (removed)
-    {
-      mAttrDirty = true;
-      return 0;
-    }
-    else
-    {
-      errno = ENOKEY;
-      return 0;
-    }
-  }
-
-  std::string lBlob;
-  if (!DavixIo::Download(mAttrUrl, lBlob))
-  {
-    mAttrLoaded = true;
-    if (mFileMap.Load(lBlob))
-    {
-      removed = mFileMap.Remove(name);
-      if (removed)
-      {
-
-	std::string lMap = mFileMap.Trim();
-	if (!DavixIo::Upload(mAttrUrl, lMap))
-	{
-	  mAttrDirty = false;
-	  eos_static_info("msg=\"removed\" key=%s", name);
-	  return 0;
-	}
-	else
-	{
-	  eos_static_err("msg=\"unable to upload to remote file map\" url=\"%s\"",
-			 mAttrUrl.c_str());
-	  errno = EIO;
-	  return -1;
-	}
-      }
-      else 
-      {
-	eos_static_info("msg=\"no-key\" key=%s", name);
-	errno = ENOKEY;
-	return 0;
-      }
-    }
-  }
-  else
-  {    
-    eos_static_err("msg=\"unable to download remote file map\" url=\"%s\"",
-		   mAttrUrl.c_str());
-  }
-  return -1;
+  return attrSet(name,"#__DELETE_ATTR_#");
 }
 
 // ------------------------------------------------------------------------                                                                                                                               
