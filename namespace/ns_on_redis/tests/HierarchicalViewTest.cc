@@ -180,6 +180,8 @@ void HierarchicalViewTest::loadTest()
     CPPUNIT_ASSERT_NO_THROW(view->removeFile(view->getFileMDSvc()->getFileMD(fileR->getId()).get()));
     // Remove all containers
     CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
+    // Remove the root container
+    CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
     view->finalize();
   }
   catch (eos::MDException& e)
@@ -434,6 +436,9 @@ void HierarchicalViewTest::quotaTest()
 
   // Remove all containers
   CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
+  // Remove the root container
+  std::unique_ptr<eos::IContainerMD> root {view->getContainer("/")};
+  CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
   CPPUNIT_ASSERT_NO_THROW(view->finalize());
 }
 
@@ -541,5 +546,8 @@ void HierarchicalViewTest::lostContainerTest()
 
   // Remove all containers
   CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
+    // Remove the root container
+  std::unique_ptr<eos::IContainerMD> root {view->getContainer("/")};
+  CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
   CPPUNIT_ASSERT_NO_THROW(view->finalize());
 }

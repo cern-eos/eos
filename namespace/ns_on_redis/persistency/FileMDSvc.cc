@@ -191,8 +191,16 @@ FileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
 //------------------------------------------------------------------------------
 uint64_t FileMDSvc::getNumFiles()
 {
-  return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-				  constants::sNumFiles));
+  uint64_t num_files = 0;
+
+  try
+  {
+    num_files = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+					 constants::sNumFiles));
+  }
+  catch (std::runtime_error& e) {}
+
+  return num_files;
 }
 
 //------------------------------------------------------------------------------

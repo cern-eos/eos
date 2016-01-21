@@ -262,6 +262,9 @@ void FileSystemViewTest::fileSystemViewTest()
 
     // Remove all containers
     CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
+    // Remove the root container
+    std::unique_ptr<eos::IContainerMD> root {view->getContainer("/")};
+    CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
     view->finalize();
   }
   catch (eos::MDException& e)

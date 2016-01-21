@@ -146,8 +146,17 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
-  // Decrease total number of containers
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
+  // If this was the root container i.e. id=1 then drop the meta map
+  if (obj->getId() == 1)
+  {
+    (void) pRedox->del(constants::sMapMetaInfoKey);
+  }
+  else
+  {
+    // Decrease total number of containers
+    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
+  }
+
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
 }
 
@@ -228,8 +237,16 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 //------------------------------------------------------------------------------
 uint64_t ContainerMDSvc::getNumContainers()
 {
-  return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-				  constants::sNumConts));
+  uint64_t num_conts = 0;
+
+  try
+  {
+    num_conts = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+					 constants::sNumConts));
+  }
+  catch (std::runtime_error& e) { }
+
+  return num_conts;
 }
 
 //------------------------------------------------------------------------------
