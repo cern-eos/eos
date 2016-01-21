@@ -176,6 +176,7 @@ private:
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id_t:gid
   std::string pQuotaGidKey;
+  redox::Redox* pRedox; ///< Redis client
 
   static const std::string sSpaceTag; ///< Tag for space quota
   static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
@@ -192,11 +193,13 @@ private:
 //----------------------------------------------------------------------------
 class QuotaStats: public IQuotaStats
 {
+  friend class QuotaNode;
+
  public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaStats();
+  QuotaStats(const std::map<std::string, std::string>& map);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -226,12 +229,11 @@ class QuotaStats: public IQuotaStats
   //----------------------------------------------------------------------------
   std::set<std::string> getAllIds();
 
+private:
+
   static const std::string sSetQuotaIds; ///< Set of quota node ids
   static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
   static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
-
-private:
-
   redox::Redox* pRedox; ///< Redix client
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
 };

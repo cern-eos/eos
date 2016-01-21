@@ -18,11 +18,11 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin Sindrilaru <esindril@cern.ch>
-//! @brief The filesystem view which is stored in Redis
+//! @brief The filesystem view stored in Redis
 //------------------------------------------------------------------------------
 
-#ifndef EOS_NS_FILESYSTEM_VIEW_HH
-#define EOS_NS_FILESYSTEM_VIEW_HH
+#ifndef __EOS_NS_FILESYSTEM_VIEW_HH__
+#define __EOS_NS_FILESYSTEM_VIEW_HH__
 
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
@@ -123,6 +123,12 @@ class FileSystemView: public IFsView
   void initialize();
 
   //----------------------------------------------------------------------------
+  //! Initizalie for testing purposes
+  //----------------------------------------------------------------------------
+  void initialize(const std::map<std::string, std::string>& config);
+
+
+  //----------------------------------------------------------------------------
   //! Finalize
   //----------------------------------------------------------------------------
   void finalize();
@@ -142,4 +148,4 @@ class FileSystemView: public IFsView
 
 EOSNSNAMESPACE_END
 
-#endif // EOS_NS_FILESYSTEM_VIEW_HH
+#endif // __EOS_NS_FILESYSTEM_VIEW_HH__

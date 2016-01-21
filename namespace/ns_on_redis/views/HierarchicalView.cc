@@ -48,6 +48,9 @@ void HierarchicalView::configure(std::map<std::string, std::string>& config)
     e.getMessage() << "File MD Service was not set";
     throw e;
   }
+
+  delete pQuotaStats;
+  pQuotaStats = new QuotaStats(config);
 }
 
 //------------------------------------------------------------------------------
@@ -101,7 +104,8 @@ void HierarchicalView::finalize()
   pContainerSvc->finalize();
   pFileSvc->finalize();
   delete pQuotaStats;
-  pQuotaStats = new QuotaStats();
+  std::map<std::string, std::string> config;
+  pQuotaStats = new QuotaStats(config);
 }
 
 //------------------------------------------------------------------------------
@@ -291,6 +295,19 @@ void HierarchicalView::unlinkFile(const std::string& uri)
 }
 
 //------------------------------------------------------------------------------
+// Unlink the file
+//------------------------------------------------------------------------------
+void HierarchicalView::unlinkFile(eos::IFileMD* file)
+{
+  std::unique_ptr<IContainerMD> cont =
+    pContainerSvc->getContainerMD(file->getContainerId());
+  cont->removeFile(file->getName());
+  file->setContainerId(0);
+  file->unlinkAllLocations();
+  pFileSvc->updateStore(file);
+}
+
+//------------------------------------------------------------------------------
 // Remove the file
 //------------------------------------------------------------------------------
 void HierarchicalView::removeFile(IFileMD* file)
@@ -299,7 +316,7 @@ void HierarchicalView::removeFile(IFileMD* file)
   if (file->getNumLocation() != 0 || file->getNumUnlinkedLocation() != 0)
   {
     MDException ex(EBADFD);
-    ex.getMessage() << "Cannot remove the record. Unlinked replicas still ";
+    ex.getMessage() << "Cannot remove the record. Unlinked replicas ";
     ex.getMessage() << "still exist";
     throw ex;
   }
@@ -339,7 +356,7 @@ HierarchicalView::getContainer(const std::string& uri,
   std::vector<char*> elements;
   eos::PathProcessor::splitPath(elements, uriBuffer);
   size_t position = 0;
-  std::unique_ptr<IContainerMD> cont;
+  std::unique_ptr<IContainerMD> cont {nullptr};
 
   if (follow)
   {
@@ -376,7 +393,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   if (uri == "/")
   {
     MDException e(EEXIST);
-    e.getMessage() << uri << ": File exist" << std::endl;
+    e.getMessage() << uri << ": Container exist" << std::endl;
     throw e;
   }
 
@@ -400,7 +417,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   if (position == elements.size())
   {
     MDException e(EEXIST);
-    e.getMessage() << uri << ": File exist" << std::endl;
+    e.getMessage() << uri << ": Container exist" << std::endl;
     throw e;
   }
 
@@ -415,7 +432,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   if (lastContainer->findFile(elements[position]))
   {
     MDException e(EEXIST);
-    e.getMessage() << "File exists" << std::endl;
+    e.getMessage() << "Container exists" << std::endl;
     throw e;
   }
 
@@ -496,7 +513,7 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 				    size_t& index, size_t* link_depths)
 {
   size_t position = 0;
-  std::unique_ptr<IContainerMD> found;
+  std::unique_ptr<IContainerMD> found {nullptr};
   std::unique_ptr<IContainerMD> current {pContainerSvc->getContainerMD(1)};
 
   while (position < end)

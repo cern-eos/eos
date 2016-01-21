@@ -172,7 +172,7 @@ void FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 // Set container service
 //------------------------------------------------------------------------------
 void
-FileMDSvc::setContainerService(IContainerMDSvc* cont_svc)
+FileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
   pContSvc = dynamic_cast<eos::ContainerMDSvc*>(cont_svc);
 }

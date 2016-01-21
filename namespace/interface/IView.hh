@@ -129,8 +129,20 @@ namespace eos
       //! by path anymore and unlink all of it's replicas. The file needs
       //! to be manually removed (ie. using removeFile method) once it has
       //! no valid replicas.
+      //!
+      //! @param uri full path to file to be unlinked
       //------------------------------------------------------------------------
       virtual void unlinkFile( const std::string &uri ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Remove the file from the hierarchy so that it won't be accessible
+      //! by path anymore and unlink all of it's replicas. The file needs
+      //! to be manually removed (ie. using removeFile method) once it has
+      //! no valid replicas.
+      //!
+      //! @param file IFileMD object to be removed
+      //------------------------------------------------------------------------
+      virtual void unlinkFile(eos::IFileMD* file) = 0;
 
       //------------------------------------------------------------------------
       //! Get a container (directory)

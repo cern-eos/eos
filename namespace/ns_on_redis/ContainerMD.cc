@@ -238,9 +238,10 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
     std::unique_ptr<IContainerMD> cont =
       pContSvc->getContainerMD(std::stoull(*itc));
     cont->cleanUp(cont_svc, file_svc);
+    pContSvc->removeContainer(cont.get());
   }
 
-  if (pRedox->del(pDirsKey))
+  if (!pRedox->del(pDirsKey))
   {
     MDException e(EINVAL);
     e.getMessage() << "Failed to remove subcontainers in container " << pName;
@@ -407,6 +408,28 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 
   char other = convertModetOther(pMode);
   return checkPerms(other, convFlags);
+}
+
+//------------------------------------------------------------------------------
+// Set name
+//------------------------------------------------------------------------------
+void
+ContainerMD::setName(const std::string& name)
+{
+  // Check that there is no clash with other subcontainers having the same name
+  if (pParentId)
+  {
+    std::unique_ptr<eos::IContainerMD> parent = pContSvc->getContainerMD(pParentId);
+
+    if (parent->findContainer(name))
+    {
+      eos::MDException e(EINVAL);
+      e.getMessage() << "Container with name \"" << name << "\" already exists";
+      throw e;
+    }
+  }
+
+  pName = name;
 }
 
 //------------------------------------------------------------------------------

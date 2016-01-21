@@ -117,7 +117,7 @@ class FileMDSvc: public IFileMDSvc
   //!
   //! @param cont_svc container service
   //----------------------------------------------------------------------------
-  void setContainerService(IContainerMDSvc* cont_svc);
+  void setContMDService(IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower

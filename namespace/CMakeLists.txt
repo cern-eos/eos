@@ -44,6 +44,7 @@ set(
   utils/DataHelper.cc
   utils/Descriptor.cc
   utils/ThreadUtils.cc
+  utils/TestHelpers.cc
   utils/Buffer.hh)
 
 add_library(

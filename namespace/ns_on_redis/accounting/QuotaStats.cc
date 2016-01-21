@@ -47,6 +47,7 @@ QuotaNode::QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id):
 {
   pQuotaUidKey = std::to_string(node_id) + QuotaStats::sQuotaUidsSuffix;
   pQuotaGidKey = std::to_string(node_id) + QuotaStats::sQuotaGidsSuffix;
+  pRedox = static_cast<QuotaStats*>(quotaStats)->pRedox;
 }
 
 //------------------------------------------------------------------------------
@@ -58,18 +59,17 @@ void QuotaNode::addFile(const IFileMD* file)
   const std::string sgid = std::to_string(file->getCGid());
   const int64_t size = pQuotaStats->getPhysicalSize(file);
   std::string field = suid + sPhysicalSpaceTag;
-  redox::Redox* redox = RedisClient::getInstance();
-  (void) redox->hincrby(pQuotaUidKey, field, size);
+  (void) pRedox->hincrby(pQuotaUidKey, field, size);
   field = sgid + sPhysicalSpaceTag;
-  (void) redox->hincrby(pQuotaGidKey, field, size);
+  (void) pRedox->hincrby(pQuotaGidKey, field, size);
   field = suid + sSpaceTag;
-  (void) redox->hincrby(pQuotaUidKey, field, file->getSize());
+  (void) pRedox->hincrby(pQuotaUidKey, field, file->getSize());
   field = sgid + sSpaceTag;
-  (void) redox->hincrby(pQuotaGidKey, field, file->getSize());
+  (void) pRedox->hincrby(pQuotaGidKey, field, file->getSize());
   field = suid + sFilesTag;
-  (void) redox->hincrby(pQuotaUidKey, field, 1);
+  (void) pRedox->hincrby(pQuotaUidKey, field, 1);
   field = sgid + sFilesTag;
-  (void) redox->hincrby(pQuotaGidKey, field, 1);
+  (void) pRedox->hincrby(pQuotaGidKey, field, 1);
 }
 
 //------------------------------------------------------------------------------
@@ -80,20 +80,19 @@ void QuotaNode::removeFile(const IFileMD* file)
   const std::string suid = std::to_string(file->getCUid());
   const std::string sgid = std::to_string(file->getCGid());
   int64_t size = pQuotaStats->getPhysicalSize(file);
-  redox::Redox* redox = RedisClient::getInstance();
   std::string field = suid + sPhysicalSpaceTag;
-  (void) redox->hincrby(pQuotaUidKey, field, -size);
+  (void) pRedox->hincrby(pQuotaUidKey, field, -size);
   field = sgid + sPhysicalSpaceTag;
-  (void) redox->hincrby(pQuotaGidKey, field, -size);
+  (void) pRedox->hincrby(pQuotaGidKey, field, -size);
   field = suid + sSpaceTag;
   size = static_cast<int64_t>(file->getSize());
-  (void) redox->hincrby(pQuotaUidKey, field, -size);
+  (void) pRedox->hincrby(pQuotaUidKey, field, -size);
   field = sgid + sSpaceTag;
-  (void) redox->hincrby(pQuotaGidKey, field, -size);
+  (void) pRedox->hincrby(pQuotaGidKey, field, -size);
   field = suid + sFilesTag;
-  (void) redox->hincrby(pQuotaUidKey, field, -1);
+  (void) pRedox->hincrby(pQuotaUidKey, field, -1);
   field = sgid + sFilesTag;
-  (void) redox->hincrby(pQuotaGidKey, field, -1);
+  (void) pRedox->hincrby(pQuotaGidKey, field, -1);
 }
 
 //------------------------------------------------------------------------------
@@ -102,23 +101,22 @@ void QuotaNode::removeFile(const IFileMD* file)
 void QuotaNode::meld(const IQuotaNode* node)
 {
   std::string field;
-  redox::Redox* redox = RedisClient::getInstance();
-  std::vector<std::string> elems = redox->hgetall(node->getUidKey());
+  std::vector<std::string> elems = pRedox->hgetall(node->getUidKey());
 
   for (auto it = elems.begin(); it != elems.end(); ++it)
   {
     field = *it;
     ++it;
-    (void) redox->hincrby(pQuotaUidKey, field, *it);
+    (void) pRedox->hincrby(pQuotaUidKey, field, *it);
   }
 
-  elems = redox->hgetall(node->getGidKey());
+  elems = pRedox->hgetall(node->getGidKey());
 
   for (auto it = elems.begin(); it != elems.end(); ++it)
   {
     field = *it;
     ++it;
-    (void) redox->hincrby(pQuotaGidKey, field, *it);
+    (void) pRedox->hincrby(pQuotaGidKey, field, *it);
   }
 }
 
@@ -133,7 +131,7 @@ QuotaNode::getUsedSpaceByUser(uid_t uid)
 
   try
   {
-    val = RedisClient::getInstance()->hget(pQuotaUidKey, field);
+    val = pRedox->hget(pQuotaUidKey, field);
   }
   catch (std::runtime_error& e) {};
   return std::stoull(val);
@@ -150,7 +148,7 @@ QuotaNode::getUsedSpaceByGroup(gid_t gid)
 
   try
   {
-    val = RedisClient::getInstance()->hget(pQuotaGidKey, field);
+    val = pRedox->hget(pQuotaGidKey, field);
   }
   catch (std::runtime_error& e) {};
   return std::stoull(val);
@@ -167,7 +165,7 @@ QuotaNode::getPhysicalSpaceByUser(uid_t uid)
 
   try
   {
-    val = RedisClient::getInstance()->hget(pQuotaUidKey, field);
+    val = pRedox->hget(pQuotaUidKey, field);
   }
   catch (std::runtime_error& e) {};
   return std::stoull(val);
@@ -184,7 +182,7 @@ QuotaNode::getPhysicalSpaceByGroup(gid_t gid)
 
   try
   {
-    val = RedisClient::getInstance()->hget(pQuotaGidKey, field);
+    val = pRedox->hget(pQuotaGidKey, field);
   }
   catch (std::runtime_error& e) {};
   return std::stoull(val);
@@ -201,7 +199,7 @@ QuotaNode::getNumFilesByUser(uid_t uid)
 
   try
   {
-    val = RedisClient::getInstance()->hget(pQuotaUidKey, field);
+    val = pRedox->hget(pQuotaUidKey, field);
   }
   catch (std::runtime_error& e) {};
   return std::stoull(val);
@@ -218,7 +216,7 @@ QuotaNode::getNumFilesByGroup(gid_t gid)
 
   try
   {
-    val = RedisClient::getInstance()->hget(pQuotaGidKey, field);
+    val = pRedox->hget(pQuotaGidKey, field);
   }
   catch (std::runtime_error& e) {};
   return std::stoull(val);
@@ -232,13 +230,13 @@ std::vector<unsigned long>
 QuotaNode::getUids()
 {
   std::string suid;
-  std::vector<std::string> keys = RedisClient::getInstance()->hkeys(pQuotaUidKey);
+  std::vector<std::string> keys = pRedox->hkeys(pQuotaUidKey);
   std::vector<unsigned long> uids;
   uids.resize(keys.size() / 3);
 
   // The keys have to following format: uid1:space, uid1:physical_space,
   // uid1:files ... uidn:files.
-  for (auto elem: keys)
+  for (auto&& elem: keys)
   {
     suid = elem.substr(0, elem.find(':'));
     uids.push_back(std::stoul(suid));
@@ -255,7 +253,7 @@ std::vector<unsigned long>
 QuotaNode::getGids()
 {
   std::string sgid;
-  std::vector<std::string> keys = RedisClient::getInstance()->hkeys(pQuotaGidKey);
+  std::vector<std::string> keys = pRedox->hkeys(pQuotaGidKey);
   std::vector<unsigned long> gids;
   gids.resize(keys.size() / 3);
 
@@ -278,9 +276,20 @@ QuotaNode::getGids()
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-QuotaStats::QuotaStats()
+QuotaStats::QuotaStats(const std::map<std::string, std::string>& config)
 {
-  pRedox = RedisClient::getInstance();
+  std::string key_host = "redis_host";
+  std::string key_port = "redis_port";
+  std::string host {""};
+  uint32_t port {0};
+
+  if (config.find(key_host) != config.end())
+    host = config.find(key_host)->second;
+
+  if (config.find(key_port) != config.end())
+    port = std::stoul(config.find(key_port)->second);
+
+  pRedox = RedisClient::getInstance(host, port);
 }
 
 //------------------------------------------------------------------------------
@@ -351,7 +360,7 @@ void QuotaStats::removeNode(IContainerMD::id_t node_id)
   if (!pRedox->srem(sSetQuotaIds, snode_id))
   {
     MDException e;
-    e.getMessage() << "Quota node " << node_id << "does not exist in set";
+    e.getMessage() << "Quota node " << node_id << " does not exist in set";
     throw e;
   }
 

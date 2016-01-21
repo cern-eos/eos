@@ -85,7 +85,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
   }
 
   std::unique_ptr<IContainerMD> cont {new ContainerMD(0, pFileSvc,
-				     static_cast<IContainerMDSvc*>(this))};
+				      static_cast<IContainerMDSvc*>(this))};
   static_cast<ContainerMD*>(cont.get())->deserialize(blob);
   return cont;
 }
@@ -122,6 +122,16 @@ void ContainerMDSvc::updateStore(IContainerMD* obj)
 //----------------------------------------------------------------------------
 void ContainerMDSvc::removeContainer(IContainerMD* obj)
 {
+  // Protection in case the container is not empty i.e check that it doesn't
+  // hold any files or subcontainers
+  if ((obj->getNumFiles() != 0) || (obj->getNumContainers() != 0))
+  {
+    MDException e(EINVAL);
+    e.getMessage() << "Failed to remove container #" << obj->getId()
+		   << " since it's not empty";
+    throw e;
+  }
+
   std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
 
   try
@@ -135,8 +145,6 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     e.getMessage() << "The object was not created in this store!";
     throw e;
   }
-
-  // TODO: add protection in case the container is not empty !!!
 
   // Decrease total number of containers
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);

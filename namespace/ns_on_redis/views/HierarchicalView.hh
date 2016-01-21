@@ -48,7 +48,8 @@ public:
   HierarchicalView(): pContainerSvc(0), pFileSvc(0),
 		      pRoot(std::unique_ptr<IContainerMD>(nullptr))
   {
-    pQuotaStats = new QuotaStats();
+    std::map<std::string, std::string> config;
+    pQuotaStats = new QuotaStats(config);
   }
 
   //----------------------------------------------------------------------------
@@ -145,8 +146,17 @@ public:
 
   //----------------------------------------------------------------------------
   //! Unlink the file
+  //!
+  //! @param uri full path to file to be unlinked
   //----------------------------------------------------------------------------
   virtual void unlinkFile(const std::string& uri);
+
+  //----------------------------------------------------------------------------
+  //! Unlink the file
+  //!
+  //! @param file IFileMD object
+  //----------------------------------------------------------------------------
+  virtual void unlinkFile(eos::IFileMD* file);
 
   //----------------------------------------------------------------------------
   //! Remove the file
@@ -219,6 +229,9 @@ public:
   //----------------------------------------------------------------------------
   virtual void setQuotaStats(IQuotaStats* quotaStats)
   {
+    if (pQuotaStats)
+      delete pQuotaStats;
+
     pQuotaStats = quotaStats;
   }
 

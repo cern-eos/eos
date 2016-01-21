@@ -17,7 +17,6 @@
  ************************************************************************/
 
 #include "namespace/ns_on_redis/accounting/FileSystemView.hh"
-
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
@@ -65,7 +64,7 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
       key = sFilesPrefix + val;
       val = std::to_string(e->file->getId());
       pRedox->sadd(key, val);
-      pRedox->sadd(sNoReplicaPrefix, val);
+      pRedox->srem(sNoReplicaPrefix, val);
       break;
 
     // Replace location
@@ -92,7 +91,22 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
       pRedox->srem(key, val);
 
       if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
-	pRedox->srem(sNoReplicaPrefix, val);
+	pRedox->sadd(sNoReplicaPrefix, val);
+
+      // Cleanup fsid if it doesn't hold any files anymore
+      key = sFilesPrefix + std::to_string(e->location);
+
+      if (!pRedox->exists(key))
+      {
+	key = sUnlinkedPrefix + std::to_string(e->location);
+
+	if (!pRedox->exists(key))
+	{
+	  // Fs does not hold any file replicas or unlinked ones, remove it
+	  key = std::to_string(e->location);
+	  pRedox->srem(sSetFsIds, key);
+	}
+      }
 
       break;
 
@@ -160,7 +174,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
   if (!pRedox->exists(key))
   {
     MDException e( ENOENT );
-    e.getMessage() << "Location does not exist" << std::endl;
+    e.getMessage() << "Location " << key  << " does not exist" << std::endl;
     throw( e );
   }
 
@@ -234,6 +248,26 @@ void FileSystemView::initialize()
 //------------------------------------------------------------------------------
 void FileSystemView::finalize()
 {
+}
+
+//------------------------------------------------------------------------------
+// Initialize for testing purposes
+//------------------------------------------------------------------------------
+void
+FileSystemView::initialize(const std::map<std::string, std::string>& config)
+{
+  std::string key_host = "redis_host";
+  std::string key_port = "redis_port";
+  std::string host {""};
+  uint32_t port {0};
+
+  if (config.find(key_host) != config.end())
+    host = config.find(key_host)->second;
+
+  if (config.find(key_port) != config.end())
+    port = std::stoul(config.find(key_port)->second);
+
+  pRedox = RedisClient::getInstance(host, port);
 }
 
 EOSNSNAMESPACE_END
