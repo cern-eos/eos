@@ -98,6 +98,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 #export EOS_FST_S3_ACCESS_ID=""
 #export EOS_FST_S3_ACCESS+KEY=""
 
+# Set S3 theoretical storage size 
+#export EOS_FST_S3_STORAGE_SIZE=1000000000000000
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------

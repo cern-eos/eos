@@ -792,10 +792,16 @@ DavixIo::Statfs (struct statfs* sfs)
 
   if (mFilePath.substr(0,2) == "s3")
   {
+    unsigned long long s3_size = 4000ll*1000ll*1000ll*1000ll;
+    s3_size *= 1000ll;
+    if (getenv("EOS_FST_S3_STORAGE_SIZE"))
+    {
+      s3_size = strtoull(getenv("EOS_FST_S3_STORAGE_SIZE"), 0, 10);
+    }
     sfs->f_frsize = 4096;
     sfs->f_bsize = sfs->f_frsize;
-    sfs->f_blocks = (fsblkcnt_t) ( 1024*1024*1024*1024ll / sfs->f_frsize);
-    sfs->f_bavail = (fsblkcnt_t) ( 1024*1024*1024*1024ll / sfs->f_frsize);
+    sfs->f_blocks = (fsblkcnt_t) ( s3_size / sfs->f_frsize);
+    sfs->f_bavail = (fsblkcnt_t) ( s3_size / sfs->f_frsize);
     sfs->f_bfree = sfs->f_bavail;
     sfs->f_files = 1000000000ll;
     sfs->f_ffree = 1000000000ll;
