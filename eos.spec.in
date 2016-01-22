@@ -234,8 +234,8 @@ The EOS fuse client.
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
-%if %{?fedora:1}%{!?fedora:0}
-%{_sysconfdir}/fuse.conf.eos
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+%{_sysconfdir}/fuse.conf.eos 
 %else
 %config(noreplace) %{_sysconfdir}/fuse.conf
 %{_sysconfdir}/fuse.conf.eos
