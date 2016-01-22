@@ -314,10 +314,7 @@ com_kinetic (char *arg)
     }
 
     setEnvironmentVariables(config);
-    auto ac = kio::KineticIoFactory::makeAdminCluster(
-        config.id.c_str(),
-        config.target == OperationTarget::DATA ? kio::RedundancyType::ERASURE_CODING : kio::RedundancyType::REPLICATION
-    );
+    auto ac = kio::KineticIoFactory::makeAdminCluster(config.id);
 
     std::function<void(int)> callback;
     if(!config.monitoring)
