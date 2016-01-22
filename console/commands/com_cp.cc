@@ -510,7 +510,7 @@ com_cp (char* argin)
 	      target+= "/";
 	}
       }
-      fprintf(stderr,"target %s\n", target.c_str());
+
       if (target.endswith("/"))
       {
         XrdOucString mktarget = "mkdir --mode 755 -p ";
@@ -741,7 +741,6 @@ com_cp (char* argin)
       // local file
       // ------------------------------------------
       struct stat buf;
-      fprintf(stderr,"doing stat of %s\n", source_list[nfile].c_str());
       if (!stat(source_list[nfile].c_str(), &buf))
       {
         if (S_ISDIR(buf.st_mode))
@@ -869,7 +868,11 @@ com_cp (char* argin)
       {
         // append the source directory structure
         XrdOucString targetname = source_list[nfile];
-        targetname.replace(source_base_list[nfile], "");
+	std::string prefix = source_base_list[nfile].c_str();
+	prefix.erase(prefix.rfind("/", prefix.length()-2));
+        targetname.replace(prefix.c_str(), "");
+	if (targetname[0] == '/')
+	  targetname.erase(0,1);
         arg2.append(targetname.c_str());
       }
       else
@@ -993,6 +996,7 @@ com_cp (char* argin)
         if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
         {
           fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+	  continue;
         }
       }
       else
@@ -1002,6 +1006,7 @@ com_cp (char* argin)
           if (!stat(targetfile.c_str(), &buf))
           {
             fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
+	    continue;
           }
         }
       }
