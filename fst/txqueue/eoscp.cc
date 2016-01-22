@@ -121,6 +121,7 @@ double read_wait = 0; ///< statistics about total read time
 double write_wait = 0; ///< statistics about total write time
 char* buffer = NULL; ///< used for doing the reading
 bool first_time = true; ///< first time prefetch two blocks
+bool nooverwrite = false; ///< buy default we overwrite the target files
 
 //..............................................................................
 // RAID related variables
@@ -169,7 +170,7 @@ char *destination[MAXSRCDST];
 void
 usage ()
 {
-  fprintf(stderr, "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-v] [-V] [-d] [-l] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n", PROGRAM);
+  fprintf(stderr, "Usage: %s [-5] [-0] [-X <type>] [-t <mb/s>] [-h] [-x] [-v] [-V] [-d] [-l] [-b <size>] [-T <size>] [-Y] [-n] [-s] [-u <id>] [-g <id>] [-S <#>] [-D <#>] [-O <filename>] [-N <name>]<src1> [src2...] <dst1> [dst2...]\n", PROGRAM);
   fprintf(stderr, "       -h           : help\n");
   fprintf(stderr, "       -d           : debug mode\n");
   fprintf(stderr, "       -v           : verbose mode\n");
@@ -203,6 +204,7 @@ usage ()
   fprintf(stderr, "       -c           : RAID layouts - force check and recover any corruptions in any stripe\n");
   fprintf(stderr, "       -Y           : RAID layouts - streaming file\n");
   fprintf(stderr, "       -0           : RAID layouts - don't use parallel IO mode\n");
+  fprintf(stderr, "       -x           : don't overwrite an existing file\n");
 
   exit(-1);
 }
@@ -508,7 +510,7 @@ main (int argc, char* argv[])
   extern char* optarg;
   extern int optind;
 
-  while ((c = getopt(argc, argv, "nshdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:V0")) != -1)
+  while ((c = getopt(argc, argv, "nshxdvlipfce:P:X:b:m:u:g:t:S:D:5ar:N:L:RT:O:V0")) != -1)
   {
     switch (c)
     {
@@ -555,6 +557,10 @@ main (int argc, char* argv[])
 
     case 'f':
       doStoreRecovery = true;
+      break;
+
+    case 'x':
+      nooverwrite = true;
       break;
 
     case 'e':
@@ -1824,7 +1830,18 @@ main (int argc, char* argv[])
         fprintf(stdout, "[eoscp]: doing POSIX open to write  %s\n",
                 dst_location[i].second.c_str());
       }
+      
+      if (nooverwrite)
+      {
+	struct stat buf;
+	if (!stat(dst_location[i].second.c_str(), &buf))
+        {
+	  fprintf(stderr,"error: target file exists already!\n");
+	  exit(-EEXIST);
+	}
+      }
 
+      
       if (appendmode)
       {
         dst_handler.push_back(std::make_pair(open(dst_location[i].second.c_str(),
@@ -1907,7 +1924,7 @@ main (int argc, char* argv[])
 
       eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str());
 
-      if (appendmode)
+      if (appendmode || nooverwrite)
       {
         XrdCl::URL url(dst_location[i].first);
 
@@ -1923,6 +1940,11 @@ main (int argc, char* argv[])
 
         if (status.IsOK())
         {
+	  if (nooverwrite)
+	  {
+	    fprintf(stderr,"error: target file exists already!\n");
+	    exit(-EEXIST);
+	  }
           //TODO: add timeout for all XrdIo operations
           retc = file->fileOpen(SFS_O_RDWR, st[i].st_mode, "");
 
@@ -1930,7 +1952,7 @@ main (int argc, char* argv[])
         else
         {
           retc = file->fileOpen(SFS_O_CREAT | SFS_O_RDWR,
-                              st[i].st_mode, "");
+                              S_IRUSR | S_IWUSR | S_IRGRP, "");
         }
 
         delete response;
@@ -1943,7 +1965,7 @@ main (int argc, char* argv[])
 
       if (retc)
       {
-        fprintf(stderr, "error: retc=%d\n", retc);
+        fprintf(stderr, "error: target file open failed - retc=%d\n", retc);
 	exit(-retc);
       }
 
@@ -1972,6 +1994,11 @@ main (int argc, char* argv[])
 
       if (!file->fileExists())
       {  
+	if (nooverwrite)
+	{
+	  fprintf(stderr," error; target file exists already!\n");
+	  exit(-EEXIST);
+	}
 	retc = file->fileOpen(SFS_O_RDWR, st[i].st_mode, "");
       }
       else
@@ -1982,7 +2009,7 @@ main (int argc, char* argv[])
 
       if (retc)
       {
-        fprintf(stderr, "error: retc=%d\n", retc);
+        fprintf(stderr, "error: target file open failed - retc=%d\n", retc);
 	exit(-retc);
       }
 

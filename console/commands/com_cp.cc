@@ -873,7 +873,8 @@ com_cp (char* argin)
       }
       else
       {
-	fprintf(stderr,"append: %s %s\n", cPath.GetPath(),cPath.GetName());
+	if (debug)
+	fprintf(stderr,"[eos-cp] appending %s %s\n", cPath.GetPath(),cPath.GetName());
         arg2.append(cPath.GetName());
       }
     }
@@ -967,34 +968,8 @@ com_cp (char* argin)
       // check if target exists
       if (targetfile.beginswith("/eos/"))
       {
-        XrdOucString url = serveruri.c_str();
-        url += "/";
-        url += targetfile;
-
-	if ((url.find("?") == STR_NPOS))
-        {
-	  url += "?";
-	}
-	else
-	  {
-            url += "&";
-        }
-	url += "eos.app=eoscp";
-
-        // add the 'role' switches to the URL
-        if (user_role.length() && group_role.length())
-        {
-          url += "&eos.ruid=";
-          url += user_role;
-          url += "&eos.rgid=";
-          url += group_role;
-        }
-        if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
-        {
-          fprintf(stderr, "warning: target file %s exists and you specified no overwrite!\n", targetfile.c_str());
-	    retc |= EEXIST;
-	    continue;
-        }
+	// do nothing, will add the -x to eoscp later
+	;
       }
       else
       {
@@ -1101,6 +1076,8 @@ com_cp (char* argin)
     if (append) cmdline += "-a ";
     if (!summary) cmdline += "-s ";
     if (noprogress) cmdline += "-n ";
+    if (nooverwrite) cmdline += "-x ";
+
     if (transfersize.length()) cmdline += "-T ";
     cmdline += transfersize;
     cmdline += " ";
@@ -1182,7 +1159,7 @@ com_cp (char* argin)
         url += group_role;
       }
 
-      if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
+      if ((!WEXITSTATUS(lrc)) && (!XrdPosixXrootd::Stat(url.c_str(), &buf)))
       {
         if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile]))
         {
