@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: eos
 # Author: Andreas-Joachim Peters - CERN
@@ -86,6 +86,12 @@ mkdir -p /var/eos/report/
 chmod 755 /var/eos/report/
 #
 EOS_CONFIGDIR=${EOS_CONFIGDIR-`cat /etc/xrd.cf.mgm | grep -v "^#" | grep mgmofs.configdir | awk '{print \$2}' 2>/dev/null`/`hostname -f`};
+
+
+# allow to start with the role configured via an environment variable EOS_ROLE (needed for systemd sub service )
+if [ -n "$2" ]; then
+    EOS_ROLE=$2
+fi
 
 start() {
 	# Start xrootd daemons
@@ -411,14 +417,14 @@ slave() {
 }
 
 # Determine the role
-if [ -n "$2" ]; then
-     	if [[ "$XRD_ROLES" =~ "$2" ]];  then
-	     XRD_ROLES=$2
+if [ -n "$EOS_ROLE" ]; then
+     	if [[ "$XRD_ROLES" =~ "$EOS_ROLE" ]];  then
+	     XRD_ROLES=$EOS_ROLE
 	     if [ "$XRD_ROLES" = "mgm" ]; then
    	     	XRD_ROLEFLAG="-m "
              fi
 	else 
-	     echo $"service $2 is not configured here"
+	     echo $"service $EOS_ROLE is not configured here"
 	     exit 0
         fi	     
 
@@ -482,25 +488,25 @@ export EOS_VST_BROKER_DISABLE=${EOS_VST_BROKER_DISABLE-"0"}
 case "$1" in
 
         start)
-                start $2
+                start $EOS_ROLE
                 ;;
         stop)
-                stop $2
+                stop $EOS_ROLE
                 ;;
         status)
                 getstatus
                 ;;
         restart)
-                restart $2
+                restart $EOS_ROLE
                 ;;
         condrestart)
-                condrestart $2
+                condrestart $EOS_ROLE
                 ;;
 	master)
-                master $2
+                master $EOS_ROLE
                 ;;
         slave)
-                slave $2
+                slave $EOS_ROLE
                 ;;
 
         *)

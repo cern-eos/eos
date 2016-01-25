@@ -1,3 +1,4 @@
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: eossync
 # Author: Andreas-Joachim Peters - CERN
@@ -20,8 +21,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-#! /bin/bash
 #
 #****************************************************************************
 #                      eossync.init
@@ -328,22 +327,22 @@ restart() {
 case "$1" in
 
         start)
-                start $2
+                start
                 ;;
         stop)
-                stop $2
+                stop
                 ;;
         status)
                 status
                 ;;
         restart)
-                restart $2
+                restart
                 ;;
         condrestart)
                 [ -f "/var/lock/subsys/$sysprog" ] && restart 
                 ;;
         *)
-                echo $"Usage: $0 {start|stop|status|restart|condrestart} [role]"
+                echo $"Usage: $0 {start|stop|status|restart|condrestart}"
                 exit 1
 esac
 

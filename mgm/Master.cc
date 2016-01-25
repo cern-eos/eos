@@ -217,7 +217,7 @@ Master::Init ()
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
 
   // get sync up if it is not up
-  eos::common::ShellCmd scmd1("service eos status sync || service eos start sync");
+  eos::common::ShellCmd scmd1("env EOS_ROLE=sync service eos status || env EOS_ROLE=sync service eos start");
   eos::common::cmd_status rc = scmd1.wait(30);
   if (rc.exit_code)
   {
@@ -1392,7 +1392,7 @@ Master::Slave2Master ()
   // -----------------------------------------------------------
   // take the sync service down
   // -----------------------------------------------------------
-  eos::common::ShellCmd scmd1("service eos status sync && service eos stop sync");
+  eos::common::ShellCmd scmd1("env EOS_ROLE=sync service eos status && env EOS_ROLE=sync service eos stop");
   eos::common::cmd_status rc = scmd1.wait(30);
 
   if (rc.exit_code)
@@ -1412,7 +1412,7 @@ Master::Slave2Master ()
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = kIsNothing;
 
-    eos::common::ShellCmd scmd2("service eos start sync");
+    eos::common::ShellCmd scmd2("env EOS_ROLE=sync service eos start");
     rc = scmd2.wait(30);
     if (rc.exit_code)
     {
@@ -1586,7 +1586,7 @@ Master::Slave2Master ()
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s", e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = kIsNothing;
 
-    eos::common::ShellCmd scmd3("service eos start sync");
+    eos::common::ShellCmd scmd3("env EOS_ROLE=sync service eos start");
     rc = scmd3.wait(30);
     if (rc.exit_code)
     {
@@ -1596,7 +1596,7 @@ Master::Slave2Master ()
   };
   fRunningState = kIsRunningMaster;
 
-  eos::common::ShellCmd scmd3("service eos start sync");
+  eos::common::ShellCmd scmd3("env EOS_ROLE=sync service eos start");
   rc = scmd3.wait(30);
   if (rc.exit_code)
   {

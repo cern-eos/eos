@@ -248,13 +248,13 @@ reload() {
 
 case "$1" in
     start)
-    start $2
+    start
     ;;
     stop)
-    stop $2
+    stop
     ;;
     reload|restart)
-    restart $2
+    restart
     ;;
     condrestart)
     
@@ -264,7 +264,7 @@ case "$1" in
     ;;
     status)
     
-    getstatus $2
+    getstatus
     RETVAL=$?
     ;;
     *)
