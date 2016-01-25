@@ -50,6 +50,12 @@ class LayoutWrapper
   timespec mLocalUtime[2];
   bool mDebugWasReopen; // debug purpose only
 
+  //--------------------------------------------------------------------------
+  //! do the open on the mgm but not on the fst yet
+  //--------------------------------------------------------------------------
+  int LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
+
+
 public:
   //--------------------------------------------------------------------------
   //! Constructor
@@ -103,7 +109,7 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
+  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class

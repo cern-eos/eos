@@ -106,6 +106,8 @@ int connectionId = 0;
 bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
 bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
 bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
+bool lazy_open_ro = false; ///< indicated if lazy openning of the file should be used for files open in RO
+bool lazy_open_rw = false; ///< indicated if lazy openning of the file should be used for files open in RW
 bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
 bool do_rdahead = false; ///< true if readahead is to be enabled, otherwise false
 std::string rdahead_window = "131072"; ///< size of the readahead window
@@ -2987,6 +2989,7 @@ xrd_open (const char* path,
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
   struct stat buf;
   bool exists = true;
+  bool lazy_open = (flags_sfs==SFS_O_RDONLY)?lazy_open_ro:lazy_open_rw;
 
   eos::common::Timing opentiming("xrd_open");
   COMMONTIMING("START", &opentiming);
@@ -3049,7 +3052,7 @@ xrd_open (const char* path,
       if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
         exists = false;
 
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
 
       if (retc)
       {
@@ -3078,7 +3081,7 @@ xrd_open (const char* path,
 
       if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
         exists = false;
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
 
       if (retc)
       {
@@ -3108,7 +3111,7 @@ xrd_open (const char* path,
 
       if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
         exists = false;
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
 
       if (retc)
       {
@@ -3268,8 +3271,8 @@ xrd_open (const char* path,
   // check if the file already exist
   if(xrd_stat(path,&buf,uid,gid,pid,0))
     exists = false;
-  eos_static_debug("open_path=%s, open_cgi=%s, exists=%d", spath.c_str(), open_cgi.c_str(), (int)exists);
-  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+  eos_static_debug("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str(), open_cgi.c_str(), (int)exists, (int)flags_sfs);
+  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,!lazy_open);
 
   if (retc)
   {
@@ -4186,6 +4189,16 @@ xrd_init ()
   if (getenv("EOS_FUSE_LOCALTIMECONSISTENT") && (!strcmp(getenv("EOS_FUSE_LOCALTIMECONSISTENT"), "1")))
   {
     use_localtime_consistency = 1;
+  }
+
+  if (getenv("EOS_FUSE_LAZYOPENRO") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRO"), "1")))
+  {
+    lazy_open_ro = true;
+  }
+
+  if (getenv("EOS_FUSE_LAZYOPENRW") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRW"), "1")))
+  {
+    lazy_open_rw = true;
   }
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
