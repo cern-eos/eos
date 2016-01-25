@@ -6,6 +6,13 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.142 Beryl_Aquamarine``
+- circumvent systemd limitation to use eos startup scripts passing EOS component via environment variable
+
+``Version V0.3.141 Beryl_Aquamarine``
+- don't ship fuse.conf on EL7 in eos-fuse RPM
+- fix reporting of subtree copying in 'eos cp'
+
 ``Version V0.3.140 Beryl_Aquamarine``
 - fix missing object in drain lock helper mutex
 - distinguish client and FST methods to prevent having FSTs calling a booting slave with namespace modifications
