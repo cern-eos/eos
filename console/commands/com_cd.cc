@@ -39,7 +39,7 @@ com_cd (char *arg1)
   subtokenizer.GetLine();
   XrdOucString arg = subtokenizer.GetToken();
 
-  if ( (arg.find("--help")!=STR_NPOS) || (arg.find("-h")!=STR_NPOS) )
+  if ( (arg.beginswith("--help")) || (arg.beginswith("-h")))
     goto com_cd_usage;
 
 
