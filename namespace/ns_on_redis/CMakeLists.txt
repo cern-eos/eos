@@ -83,6 +83,7 @@ if (Linux)
     EosNsCommon-Static
     ${UUID_LIBRARIES}
     ${REDOX_LIBRARIES}
+    ${LIBEV_LIBRARIES}
     ${Z_LIBRARY_STATIC}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})

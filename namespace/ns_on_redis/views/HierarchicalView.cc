@@ -436,7 +436,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
     throw e;
   }
 
-  // Create the container with all missing parent's if requires
+  // Create the container with all missing parents if required
   for (size_t i = position; i < elements.size(); ++i)
   {
     std::unique_ptr<IContainerMD> newContainer {pContainerSvc->createContainer()};
@@ -512,6 +512,8 @@ std::unique_ptr<IContainerMD>
 HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 				    size_t& index, size_t* link_depths)
 {
+  // TODO: optimize this function to not build the ContainerMD object and only
+  // use the map to get to the last existing container
   size_t position = 0;
   std::unique_ptr<IContainerMD> found {nullptr};
   std::unique_ptr<IContainerMD> current {pContainerSvc->getContainerMD(1)};

@@ -56,6 +56,7 @@ RedisClient::getInstance(const std::string& host, uint32_t port)
   if (pMapClients.find(redis_id) == pMapClients.end())
   {
     instance = new redox::Redox();
+    instance->logger_.level(redox::log::Error);
 
     try
     {
