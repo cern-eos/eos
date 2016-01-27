@@ -55,7 +55,16 @@ in /etc/xrd.cf.mgm change security setting as you need
    #sec.protocol krb5
    #sec.protocol gsi
    sec.protbind * only sss unix
-   
+
+If you are using systemd (el-7) you have to add these lines (e.g. at the end) to the sysconfig file:
+
+.. code-block:: text
+
+   which systemctl >& /dev/null
+   if [ $? -eq 0 ]; then
+     alias service="service --skip-redirect"
+   fi
+
 Let's start eos
 
 .. code-block:: text
