@@ -7,7 +7,7 @@
 Beryl Release Notes
 ===================
 ``Version V0.3.142 Beryl_Aquamarine``
-- circumvent systemd limitation to use eos startup scripts passing EOS component via environment variable
+- add service alias example in eos.example how to run with systemd
 
 ``Version V0.3.141 Beryl_Aquamarine``
 - don't ship fuse.conf on EL7 in eos-fuse RPM
