@@ -219,3 +219,13 @@ export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
 
 # define the log file regex you want to broad cast to all consoles
 export EOS_TTY_BROACAST_EGREP="CRIT,ALERT,EMERG"
+
+
+# ------------------------------------------------------------------
+# Service Script aliasing for EL7 machines
+# ------------------------------------------------------------------
+
+which systemctl >& /dev/null
+if [ $? -eq 0 ]; then
+   alias service="service --skip-redirect"
+fi
