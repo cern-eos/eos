@@ -93,17 +93,6 @@ public:
               XrdFstOfsFile* file = 0,
               const XrdSecEntity* client = 0)
   {
-    // TODO: remove me once kinetic understands URLs !!!
-    if (path.find("kinetic://") != std::string::npos)
-    {
-      path.replace(0,10,"kinetic:");
-      size_t dpos = path.find("//");
-      if (dpos != std::string::npos)
-      {
-	path.replace(dpos,2, ":");
-      }
-    }
-    
     auto ioType = eos::common::LayoutId::GetIoType(path.c_str());
 
     if (ioType == LayoutId::kLocal) {
