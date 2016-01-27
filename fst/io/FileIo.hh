@@ -321,7 +321,7 @@ public:
   //--------------------------------------------------------------------------
   static int StatfsCB(eos::common::Statfs::Callback::callback_data* data)
   {
-    if (data) {
+    if (data && data->caller) {
       data->retc = ((FileIo*) (data->caller))->Statfs(data->statfs);
       return data->retc;
     }
