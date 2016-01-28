@@ -163,6 +163,12 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
 
    # Configure FUSE read-ahead window (default 128k)
    # export EOS_FUSE_RDAHEAD_WINDOW=131072
+
+   # Enable lazy open on read-only files (default off)
+   # export EOS_FUSE_LAZYOPENRO=1
+
+   # Enable lazy open on read-write files (default off)
+   # export EOS_FUSE_LAZYOPENRW=1   
  
    # Configure a log-file prefix - useful for several FUSE instances
    # export EOS_FUSE_LOG_PREFIX=dev
