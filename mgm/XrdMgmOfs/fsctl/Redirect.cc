@@ -42,8 +42,7 @@
     if(env.Get("eos.client.openflags"))
     {
       std::string openflags=env.Get("eos.client.openflags");
-      oflags = 0;
-      if(openflags.find("ro")!=std::string::npos) oflags |= SFS_O_RDONLY;
+      oflags = SFS_O_RDONLY;
       if(openflags.find("wo")!=std::string::npos) oflags |= SFS_O_WRONLY;
       if(openflags.find("rw")!=std::string::npos) oflags |= SFS_O_RDWR;
       if(openflags.find("cr")!=std::string::npos) oflags |= SFS_O_CREAT;
@@ -51,18 +50,15 @@
       std::string openmode=env.Get("eos.client.openmode");
       omode = (mode_t) strtol(openmode.c_str(),NULL,8);
     }
-
     int rc = file->open(spath.c_str(), oflags, omode, client, opaque.c_str());
     std::string ei = file->error.getErrText();
     if (rc == SFS_REDIRECT)
     {
       char buf[1024];
-      snprintf(buf,1024,":%d//%s?",file->error.getErrInfo(),spath.c_str());
+      snprintf(buf,1024,":%d/%s?",file->error.getErrInfo(),spath.c_str());
       ei.replace(ei.find("?"),1,buf);
-
       error.setErrInfo(ei.size() + 1, ei.c_str());
       delete file;
-
       eos_static_debug("sucess redirect=%s",error.getErrText());
       return SFS_DATA;
     }
