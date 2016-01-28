@@ -83,6 +83,12 @@ public:
   GetName ();
 
   //--------------------------------------------------------------------------
+  //! return the path of the file
+  //--------------------------------------------------------------------------
+  inline const char*
+  GetPath () { return mPath.c_str(); }
+
+  //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
   const char*
@@ -175,6 +181,16 @@ public:
   //! Open Flags accessors
   //--------------------------------------------------------------------------
   inline const XrdSfsFileOpenMode & GetOpenFlags() const {return mFlags;}
+
+  //--------------------------------------------------------------------------
+  //! Utility function to import (key,value) from a cgi string to a map
+  //--------------------------------------------------------------------------
+  static bool ImportCGI(std::map<std::string,std::string> &m, const std::string &cgi);
+
+  //--------------------------------------------------------------------------
+  //! Utility function to write the content of a(key,value) map to a cgi string
+  //--------------------------------------------------------------------------
+  static bool ToCGI(const std::map<std::string,std::string> &m , std::string &cgi);
 };
 
 #endif

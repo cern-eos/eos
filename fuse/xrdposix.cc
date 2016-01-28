@@ -747,12 +747,11 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
                  uid_t uid, gid_t gid, pid_t pid ,
                  const char* path="")
 {
-  eos_static_debug("file raw ptr=%p, inode=%lu, uid=%lu",
-                   raw_file, inode, (unsigned long) uid);
   int fd = -1;
   std::ostringstream sstr;
   sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-
+  eos_static_debug("file raw ptr=%p, name=%s,  inode:xrdlogin=%s",
+                   raw_file, raw_file?raw_file->GetPath():"",sstr.str().c_str() );
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
   auto iter_fd = inodexrdlogin2fd.find(sstr.str());
 
