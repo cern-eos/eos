@@ -100,12 +100,15 @@ function UpdateCredIsFile
   # get rid of the 'FILE:' if it's specified
   if [[ "$CREDISFILE" = "0" && `echo $CREDTAG | cut -c1-5` = "FILE:" ]]; then
   CREDTAG=$(echo ${CREDTAG} | tail -c+6)
+  # if the mentioned file does not exit, discard its name
+  stat $CREDTAG  >/dev/null 2>&1
+  [[ "$?" == "1" ]] && CREDTAG="";
   fi;
 }
 
 function CheckArgs
 {
-  if [[ "$USER" = "root" && "$REQGLOBBIND" = "1" ]]; then echo "global user binding forbidden as root" >&2; exit 1; fi
+  if [[ "$EUID" = "0" && "$REQGLOBBIND" = "1" ]]; then echo "global user binding forbidden as root" >&2; exit 1; fi
   if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  echo "invalid authentication type $AUTHTYPE" >&2; exit 1; fi
   UpdateCredIsFile
   if [[ "$CREDISFILE" = "0" ]]; then
@@ -121,6 +124,10 @@ function GetEnvKrb5CredFile
 function GetDefaultKrb5CredFile
 {
   # if there is more than one credential, cannot chose a 'default'
+  klist -s
+  if [[ "$?"="1" ]] ; then
+    return; # there is not ticket to grab there
+  fi
   NCRED=$(klist -l | tail -n +3 | wc -l)
   if [[ "$NCRED" != "1" ]]; then
   return; 
@@ -247,13 +254,21 @@ function ShowUserGlob
 function ShowSession
 {
   GetSymlinkBaseNameSession
-  ShowUserGlob
-  ShowHeader
   if [[ "X$SymlinkBaseNameSession" = "X" ]]; then return ; fi
   local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
-  if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi  
-  for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
-  echo
+  if [[ "X$FILELIST" != "X" ]]; then 
+    ShowHeader
+    for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
+    echo
+    return
+  fi
+  GetSymlinkBaseNameUser
+  FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
+  if [[ "X$FILELIST" = "X" ]]; then
+    echo "The current session is not bound to any credentials"
+    return 
+  fi
+  ShowUserGlob
 }
 
 function ShowUser
@@ -359,6 +374,12 @@ function UnlinkUnactiveSessions
   #echo rm -f $FILELIST
   rm -f $FILELIST
 }
+
+# if this a pan call, re-issue the command as the right user
+if [[ ( "$#" = 1 )   &&  (  "$1" = "--pam" ) && (  "$EUID" = "0" ) && (  "$PAM_USER" != "0" ) && (  "$PAM_USER" != "root" ) ]]; then
+  su -c "$0 $*" $PAM_USER
+  exit $?
+fi
 
 ParseArgs $*
 CheckCredDir
