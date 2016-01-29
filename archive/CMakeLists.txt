@@ -22,13 +22,6 @@
 # ************************************************************************
 
 if(PYTHONINTERP_FOUND)
-    set(PY_CMD "from distutils.sysconfig import get_python_lib; print get_python_lib()")
-    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "${PY_CMD}"
-		    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
-		    OUTPUT_STRIP_TRAILING_WHITESPACE)
-    message(STATUS "The python site-packages dir: ${PYTHON_SITE_PACKAGES}")
-
-
     install(PROGRAMS eosarchived.py eosarch_run.py eosarch_reconstruct.py
 	    DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
 	    PERMISSIONS OWNER_READ OWNER_EXECUTE
@@ -36,7 +29,7 @@ if(PYTHONINTERP_FOUND)
 			WORLD_READ WORLD_EXECUTE)
 
     install(DIRECTORY eosarch
-	    DESTINATION ${PYTHON_SITE_PACKAGES}
+	    DESTINATION ${PYTHONSITEPKG_PATH}
 	    PATTERN "tests" EXCLUDE
 	    PATTERN "*~" EXCLUDE
 	    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
