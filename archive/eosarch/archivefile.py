@@ -532,28 +532,27 @@ class ArchiveFile(object):
                 excl_xattr = list()
 
             if is_dir and excl_xattr:
-                # For directories and configuration containing excluded xattrs
-                # we refine the checks
-                ref_dict = dict(zip(tags, entry[2:]))
-                new_dict = dict(zip(tags, meta_info[2:]))
+                # For directories and configurations containing excluded xattrs
+                # we refine the checks. If "*" in excl_xattr then no check is done.
+                if "*" not in excl_xattr:
+                    ref_dict = dict(zip(tags, entry[2:]))
+                    new_dict = dict(zip(tags, meta_info[2:]))
 
-                for key, val in ref_dict.iteritems():
-                    if not isinstance(val, dict):
-                        if new_dict[key] != val:
-                            err_msg = ("Verify failed for entry={0} expect={1} got={2}"
-                                       " at key={3}").format(dst, entry, meta_info, key)
-                            self.logger.error(err_msg)
-                            raise CheckEntryException("failed metainfo match")
-                    else:
-                        for kxattr, vxattr in val.iteritems():
-                            if kxattr not in excl_xattr:
-                                if vxattr != new_dict[key][kxattr]:
-                                    err_msg = ("Verify failed for entry={0} expect={1} got={2}"
-                                               " at xattr key={3}").format(dst, entry,
-                                                                           meta_info,
-                                                                           kxattr)
-                                    self.logger.error(err_msg)
-                                    raise CheckEntryException("failed metainfo match")
+                    for key, val in ref_dict.iteritems():
+                        if not isinstance(val, dict):
+                            if new_dict[key] != val:
+                                err_msg = ("Verify failed for entry={0} expect={1} got={2}"
+                                           " at key={3}").format(dst, entry, meta_info, key)
+                                self.logger.error(err_msg)
+                                raise CheckEntryException("failed metainfo match")
+                        else:
+                            for kxattr, vxattr in val.iteritems():
+                                if kxattr not in excl_xattr:
+                                    if vxattr != new_dict[key][kxattr]:
+                                        err_msg = ("Verify failed for entry={0} expect={1} got={2}"
+                                                   " at xattr key={3}").format(dst, entry, meta_info, kxattr)
+                                        self.logger.error(err_msg)
+                                        raise CheckEntryException("failed metainfo match")
             else:
                 # For files with tx_check_only verification, we refine the checks
                 if tx_check_only and not is_dir:
