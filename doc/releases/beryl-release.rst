@@ -6,6 +6,9 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.144 Beryl_Aquamarine``
+- source sysconfig file inside MGM before running service scripts
+
 ``Version V0.3.142 Beryl_Aquamarine``
 - add service alias example in eos.example how to run with systemd
 
