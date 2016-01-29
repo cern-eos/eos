@@ -21,7 +21,7 @@ else()
   if((PYTHON_VERSION_MAJOR VERSION_EQUAL "3") OR (PYTHON_VERSION_MAJOR VERSION_GREATER "3"))
     set(PY_CMD "from distutils import sysconfig; print(sysconfig.get_python_lib());")
   else()
-    set(PY_CMD "from __future__ import print_function; from distutils import sysconfig; print(sysconfig.get_python_lib());")
+    set(PY_CMD "from distutils import sysconfig; print sysconfig.get_python_lib();")
   endif()
 
   execute_process(
