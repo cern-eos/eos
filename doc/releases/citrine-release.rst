@@ -9,6 +9,12 @@
 Citrine Release Notes
 ======================
 
+``Version V4.0.10 Citrine``
+- bring in all the updates from the beryl_aquamarine branch
+- drop sqlite support since leveldb is now used for the FSTs
+- fuse improvements regarding PAM integration and lazy open feature
+- fix some merge issues in the MGM and lock ordering
+
 ``Version V4.0.0 Citrine``
 
 Introduction
