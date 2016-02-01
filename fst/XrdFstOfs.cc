@@ -720,13 +720,16 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     // use the broadcasted manager name
     XrdSysMutexHelper lock(Config::gConfig.Mutex);
     lManager = Config::gConfig.Manager.c_str();
-    manager = lManager.c_str();
+    address += lManager.c_str();
   }
-
-  address += manager;
+  else
+  {
+    address += manager;
+  }
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 
+ again:
   if (!url.IsValid())
   {
     eos_err("error=URL is not valid: %s", address.c_str());
@@ -793,7 +796,7 @@ again:
           goto again;
         }
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
-  }
+    }
   }
 
   if ( response && return_result )

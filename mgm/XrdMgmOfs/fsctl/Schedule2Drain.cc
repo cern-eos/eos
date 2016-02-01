@@ -55,7 +55,7 @@
   bool has_zero_mv_files = false;
   // deal with the 0-size files
   {
-    XrdSysMutexHelper sZeroMoveMutex;
+    XrdSysMutexHelper zLock(sZeroMoveMutex);
     if (sZeroMove.size())
     {
       has_zero_mv_files = true;
@@ -71,7 +71,7 @@
     // ---------------------------------------------------------------------
     // lock the ZeroMove;
     // ---------------------------------------------------------------------
-    XrdSysMutexHelper sZeroMoveMutex;
+    XrdSysMutexHelper sLock(sZeroMoveMutex);
     auto it = sZeroMove.begin();
     while (it != sZeroMove.end())
     {

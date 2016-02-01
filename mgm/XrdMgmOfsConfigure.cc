@@ -1545,8 +1545,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   XrdOucString instancepath = "/eos/";
   MgmProcPath = "/eos/";
   XrdOucString subpath = MgmOfsInstanceName;
+
+  // Remove leading "eos" from the instance name when building the proc path for
+  // "aesthetic" reasons.
   if (subpath.beginswith("eos"))
-    subpath.replace("eos", "");
+  {
+    subpath.erase(0, 3);
+  }
+
   MgmProcPath += subpath;
   MgmProcPath += "/proc";
   // This path is used for temporary output files for layout conversions
