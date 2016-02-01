@@ -110,10 +110,7 @@ XrdMgmOfs::_remdir (const char *path,
 
   eos::IContainerMD* dhpar = 0;
   eos::IContainerMD* dh = 0;
-
   eos::IContainerMD::id_t dh_id = 0;
-  eos::IContainerMD::id_t dhpar_id = 0;
-
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
 
@@ -140,8 +137,6 @@ XrdMgmOfs::_remdir (const char *path,
     eos::common::Path pPath(gOFS->eosView->getUri(dh).c_str());
     dhpar = gOFS->eosView->getContainer(pPath.GetParentPath());
     aclpath = pPath.GetParentPath();
-    dhpar_id = dhpar->getId();
-
     dh_id = dh->getId();
   }
   catch (eos::MDException &e)
