@@ -23,6 +23,42 @@
 
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
+#include "common/Logging.hh"
+
+//--------------------------------------------------------------------------
+//! Utility function to import (key,value) from a cgi string to a map
+//--------------------------------------------------------------------------
+bool LayoutWrapper::ImportCGI(std::map<std::string,std::string> &m, const std::string &cgi)
+{
+  std::string::size_type eqidx=0,ampidx=(cgi[0]=='&'?0:-1);
+  eos_static_info("START");
+  do
+  {
+    //eos_static_info("ampidx=%d  cgi=%s",(int)ampidx,cgi.c_str());
+    if( (eqidx=cgi.find('=',ampidx+1)) == std::string::npos)
+      break;
+    std::string key=cgi.substr(ampidx+1,eqidx-ampidx-1);
+    ampidx=cgi.find('&',eqidx);
+    std::string val=cgi.substr(eqidx+1,ampidx==std::string::npos?ampidx:ampidx-eqidx-1);
+    m[key]= val;
+  } while(ampidx!=std::string::npos);
+  return true;
+}
+
+//--------------------------------------------------------------------------
+//! Utility function to write the content of a(key,value) map to a cgi string
+//--------------------------------------------------------------------------
+bool LayoutWrapper::ToCGI(const std::map<std::string,std::string> &m , std::string &cgi)
+{
+  for(auto it=m.begin();it!=m.end();it++)
+  {
+    if(cgi.size()) cgi+="&";
+    cgi+=it->first;
+    cgi+="=";
+    cgi+=it->second;
+  }
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -123,11 +159,96 @@ bool LayoutWrapper::IsEntryServer ()
 }
 
 //--------------------------------------------------------------------------
+//! do the open on the mgm but not on the fst yet
+//--------------------------------------------------------------------------
+int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf)
+{
+  // get path and url prefix
+  XrdCl::URL u(path);
+  std::string file_path = u.GetPath();
+  u.SetPath("");
+  u.SetParams("");
+  std::string user_url = u.GetURL();
+
+  // build request to send to mgm to get redirection url
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  std::string request = file_path;
+  std::string openflags;
+  if (flags != SFS_O_RDONLY)
+  {
+    if ((flags & SFS_O_WRONLY) && !(flags & SFS_O_RDWR)) openflags += "wo";
+    if (flags & SFS_O_RDWR) openflags += "rw";
+    if (flags & SFS_O_CREAT) openflags += "cr";
+    if (flags & SFS_O_TRUNC) openflags += "tr";
+  }
+  else
+    openflags += "ro";
+
+  char openmode[32];
+  snprintf(openmode,32,"%o",mode);
+
+  request += "?eos.app=fuse&mgm.pcmd=redirect";
+  request += (std::string("&")+opaque);
+  request += ("&eos.client.openflags="+openflags);
+  request += "&eos.client.openmode=";
+  request += openmode;
+  arg.FromString(request);
+
+  // add the authentication parameters back if they exist
+  XrdOucEnv env(opaque);
+  if(env.Get("xrd.wantprot"))
+  {
+    user_url += '?';
+    if(env.Get("xrd.gsiusrpxy"))
+    {
+      user_url+="xrd.gsiusrpxy=";
+      user_url+=env.Get("xrd.gsiusrpxy");
+    }
+    if(env.Get("xrd.k5ccname"))
+    {
+      user_url+="xrd.k5ccname=";
+      user_url+=env.Get("xrd.k5ccname");
+    }
+  }
+
+  // send the request for FsCtl
+  u=XrdCl::URL(user_url);
+  XrdCl::FileSystem fs(u);
+  status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  if (!status.IsOK())
+  {
+    eos_static_err("failed to lazy open request %s at url %s",request.c_str(),user_url.c_str());
+    return -1;
+  }
+
+  // split the reponse
+  XrdOucString origResponse = response->GetBuffer();
+  origResponse += "&eos.app=fuse";
+  auto qmidx = origResponse.find("?");
+
+  // insert back the cgi params that are not given back by the mgm
+  std::map<std::string,std::string> m;
+  ImportCGI(m,opaque);
+  ImportCGI(m,origResponse.c_str()+qmidx+1);
+  // drop authentication params as they would fail on the fst
+  m.erase("xrd.wantprot"); m.erase("xrd.k5ccname"); m.erase("xrd.gsiusrpxy");
+  mOpaque="";
+  ToCGI(m,mOpaque);
+
+  mPath.assign(origResponse.c_str(),qmidx);
+
+  return 0;
+}
+
+//--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
-int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf)
+int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen)
 {
-  eos_static_debug("opening file %s", path.c_str ());
+  eos_static_debug("opening file %s, lazy open is %d", path.c_str (), (int)!doOpen);
   if (mOpen)
   {
     eos_static_debug("already open");
@@ -135,17 +256,22 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   }
 
   mPath = path;
-  mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT); // we don't want to truncate the file in case we reopen it
+  mFlags = flags;
   mMode = mode;
   mOpaque = opaque;
+
+  if(!doOpen)
+    return LazyOpen (path, flags, mode, opaque, buf);
+
   if (mFile->Open (path, flags, mode, opaque))
   {
-    eos_static_debug("error while openning");
+    eos_static_err("error while openning");
     return -1;
   }
   else
   {
-    eos_static_debug("successfully opened");
+    eos_static_debug("successfully opened. LASTURL %s",mFile->GetLastUrl().c_str());
+    mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);  // we don't want to truncate the file in case we reopen it
     mOpen = true;
     struct stat s;
     mFile->Stat (&s);

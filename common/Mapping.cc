@@ -79,9 +79,34 @@ Mapping::ip_cache Mapping::gIpCache (300);
 void
 Mapping::Init ()
 {
-  ActiveTidents.set_empty_key("");
+  ActiveTidents.set_empty_key("#__EMPTY__#");
   ActiveTidents.set_deleted_key("#__DELETED__#");
 }
+
+//------------------------------------------------------------------------------
+// Reset
+//------------------------------------------------------------------------------
+void
+Mapping::Reset()
+{
+  {
+    XrdSysMutexHelper mLock(gPhysicalIdMutex);
+    gPhysicalUidCache.Purge();
+    gPhysicalGidCache.Purge();
+  }
+  {
+    XrdSysMutexHelper mLock(gPhysicalNameCacheMutex);
+    gPhysicalGroupNameCache.clear();
+    gPhysicalUserNameCache.clear();
+    gPhysicalGroupIdCache.clear();
+    gPhysicalUserIdCache.clear();
+  }
+  {
+    XrdSysMutexHelper mLock(ActiveLock);
+    ActiveTidents.clear();
+  }
+}
+
 
 /*----------------------------------------------------------------------------*/
 /**

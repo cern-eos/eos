@@ -50,6 +50,12 @@ class LayoutWrapper
   timespec mLocalUtime[2];
   bool mDebugWasReopen; // debug purpose only
 
+  //--------------------------------------------------------------------------
+  //! do the open on the mgm but not on the fst yet
+  //--------------------------------------------------------------------------
+  int LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
+
+
 public:
   //--------------------------------------------------------------------------
   //! Constructor
@@ -75,6 +81,12 @@ public:
   //--------------------------------------------------------------------------
   const char*
   GetName ();
+
+  //--------------------------------------------------------------------------
+  //! return the path of the file
+  //--------------------------------------------------------------------------
+  inline const char*
+  GetPath () { return mPath.c_str(); }
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -103,7 +115,7 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
+  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -169,6 +181,16 @@ public:
   //! Open Flags accessors
   //--------------------------------------------------------------------------
   inline const XrdSfsFileOpenMode & GetOpenFlags() const {return mFlags;}
+
+  //--------------------------------------------------------------------------
+  //! Utility function to import (key,value) from a cgi string to a map
+  //--------------------------------------------------------------------------
+  static bool ImportCGI(std::map<std::string,std::string> &m, const std::string &cgi);
+
+  //--------------------------------------------------------------------------
+  //! Utility function to write the content of a(key,value) map to a cgi string
+  //--------------------------------------------------------------------------
+  static bool ToCGI(const std::map<std::string,std::string> &m , std::string &cgi);
 };
 
 #endif

@@ -166,7 +166,7 @@ Master::Init()
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
 
   // get sync up if it is not up
-  eos::common::ShellCmd scmd1("service eos status sync || service eos start sync");
+  eos::common::ShellCmd scmd1(". /etc/sysconfig/eos; service eos status sync || service eos start sync");
   eos::common::cmd_status rc = scmd1.wait(30);
 
   if (rc.exit_code)
@@ -176,7 +176,7 @@ Master::Init()
   }
 
   // get eossync up if it is not up
-  eos::common::ShellCmd scmd2("service eossync status || service eossync start ");
+  eos::common::ShellCmd scmd2(". /etc/sysconfig/eos; service eossync status || service eossync start ");
   rc = scmd2.wait(30);
 
   if (rc.exit_code)
@@ -760,17 +760,17 @@ Master::Compacting()
 	if (!rc)
 	{
 	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(file) unlinked\""));
-        }
+	}
       }
-      
+
       if (CompactDirectories)
       {
 	rc = unlink(ocdir.c_str());
 
 	if (!rc)
 	{
-          MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
-        }
+	  MasterLog(eos_info("oc=%s msg=\"old online compacting file(dir) unlinked\""));
+	}
       }
 
       bool compacted = false;
@@ -1400,7 +1400,7 @@ Master::Slave2Master()
   // -----------------------------------------------------------
   // take the sync service down
   // -----------------------------------------------------------
-  eos::common::ShellCmd scmd1("service eos status sync && service eos stop sync");
+  eos::common::ShellCmd scmd1(". /etc/sysconfig/eos; service eos status sync && service eos stop sync");
   eos::common::cmd_status rc = scmd1.wait(30);
 
   if (rc.exit_code)
@@ -1408,7 +1408,7 @@ Master::Slave2Master()
     if ( (rc.exit_code == -1 ) )
     {
       MasterLog(eos_warning("system command failed due to memory pressure - cannot check the sync service"));
-    }     
+    }
     if (rc.exit_code == 2)
     {
       MasterLog(eos_warning("sync service was already stopped"));
@@ -1421,9 +1421,9 @@ Master::Slave2Master()
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = Run::State::kIsNothing;
 
-    eos::common::ShellCmd scmd2("service eos start sync");
+    eos::common::ShellCmd scmd2(". /etc/sysconfig/eos; service eos start sync");
     rc = scmd2.wait(30);
-    
+
     if (rc.exit_code)
     {
       MasterLog(eos_warning("failed to start sync service"));
@@ -1607,9 +1607,9 @@ Master::Slave2Master()
   {
     errno = e.getErrno();
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s",
-                       e.getErrno(), e.getMessage().str().c_str()));
+		       e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = Run::State::kIsNothing;
-    eos::common::ShellCmd scmd3("service eos start sync");
+    eos::common::ShellCmd scmd3(". /etc/sysconfig/eos; service eos start sync");
     rc = scmd3.wait(30);
 
     if (rc.exit_code)
@@ -1621,7 +1621,8 @@ Master::Slave2Master()
   }
 
   fRunningState = Run::State::kIsRunningMaster;
-  eos::common::ShellCmd scmd3("service eos start sync");
+  eos::common::ShellCmd scmd3(". /etc/sysconfig/eos; service eos start sync");
+
   rc = scmd3.wait(30);
   if (rc.exit_code)
   {
@@ -1744,13 +1745,13 @@ Master::MasterRO2Slave()
       }
       if (gOFS->eosContainerAccounting)
       {
-        delete gOFS->eosContainerAccounting;
-        gOFS->eosContainerAccounting = 0;
+	delete gOFS->eosContainerAccounting;
+	gOFS->eosContainerAccounting = 0;
       }
       if (gOFS->eosSyncTimeAccounting)
       {
-        delete gOFS->eosSyncTimeAccounting;
-        gOFS->eosSyncTimeAccounting = 0;
+	delete gOFS->eosSyncTimeAccounting;
+	gOFS->eosSyncTimeAccounting = 0;
       }
       if (gOFS->eosView)
       {
@@ -1947,28 +1948,28 @@ Master::BootNamespace()
   {
     eos_alert("msg=\"enabling recursive size accounting ...\n\"");
     gOFS->eosContainerAccounting = static_cast<IFileMDChangeListener*>(
-        pm.CreateObject("ContainerAccounting"));
+	pm.CreateObject("ContainerAccounting"));
 
     if (!gOFS->eosContainerAccounting)
     {
       eos_err("msg=\"namespace implemetation does not provide ContainerAccounting"
-              "class\"");
+	      "class\"");
       return false;
     }
   }
-  
+
   if (getenv("EOS_SYNCTIME_ACCOUNTING") &&
       ((std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "1") ||
        (std::string(getenv("EOS_SYNCTIME_ACCOUNTING")) == "yes")) )
   {
     eos_alert("msg=\"enabling sync time propagation ...\n\"");
     gOFS->eosSyncTimeAccounting = static_cast<IContainerMDChangeListener*>(
-        pm.CreateObject("SyncTimeAccounting"));
+	pm.CreateObject("SyncTimeAccounting"));
 
     if (!gOFS->eosSyncTimeAccounting)
     {
       eos_err("msg=\"namespace implemetation does not provide SyncTimeAccounting"
-              "class\"");
+	      "class\"");
       return false;
     }
   }
@@ -2042,7 +2043,7 @@ Master::BootNamespace()
 
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
-    
+
     if (gOFS->eosSyncTimeAccounting)
       gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
 
@@ -2074,23 +2075,23 @@ Master::BootNamespace()
     {
       // add the boot errors to the master changelog
       eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
-          dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+	  dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
       eos::IChLogFileMDSvc* eos_chlog_filesvc =
-          dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+	  dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
       if (eos_chlog_filesvc && eos_chlog_dirsvc)
       {
-        std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
-        std::vector<std::string> directory_warn = eos_chlog_dirsvc->getWarningMessages();
+	std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
+	std::vector<std::string> directory_warn = eos_chlog_dirsvc->getWarningMessages();
 
-        for (size_t i=0; i< file_warn.size(); ++i)
-          MasterLog(eos_crit(file_warn[i].c_str()));
+	for (size_t i=0; i< file_warn.size(); ++i)
+	  MasterLog(eos_crit(file_warn[i].c_str()));
 
-        for (size_t i=0; i< directory_warn.size(); ++i)
-          MasterLog(eos_crit(directory_warn[i].c_str()));
+	for (size_t i=0; i< directory_warn.size(); ++i)
+	  MasterLog(eos_crit(directory_warn[i].c_str()));
 
-        eos_chlog_filesvc->clearWarningMessages();
-        eos_chlog_dirsvc->clearWarningMessages();
+	eos_chlog_filesvc->clearWarningMessages();
+	eos_chlog_dirsvc->clearWarningMessages();
       }
     }
 
@@ -2437,7 +2438,7 @@ bool
 Master::RebootSlaveNamespace()
 {
   fRunningState = Run::State::kIsTransition;
-  
+
   {
     {
       XrdSysMutexHelper lock(gOFS->InitializationMutex);
@@ -2458,13 +2459,13 @@ Master::RebootSlaveNamespace()
       }
       if (gOFS->eosContainerAccounting)
       {
-        delete gOFS->eosContainerAccounting;
-        gOFS->eosContainerAccounting = 0;
+	delete gOFS->eosContainerAccounting;
+	gOFS->eosContainerAccounting = 0;
       }
       if (gOFS->eosSyncTimeAccounting)
       {
-        delete gOFS->eosSyncTimeAccounting;
-        gOFS->eosSyncTimeAccounting = 0;
+	delete gOFS->eosSyncTimeAccounting;
+	gOFS->eosSyncTimeAccounting = 0;
       }
       if (gOFS->eosView)
       {
@@ -2613,12 +2614,12 @@ Master::GetLog (XrdOucString &stdOut)
       dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
   eos::IChLogFileMDSvc* eos_chlog_filesvc =
       dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
-  
+
   if (eos_chlog_filesvc && eos_chlog_dirsvc)
   {
     std::vector<std::string> file_warn = eos_chlog_filesvc->getWarningMessages();
     std::vector<std::string> directory_warn = eos_chlog_dirsvc->getWarningMessages();
-    
+
     for (size_t i=0; i< file_warn.size(); ++i)
       MasterLog(eos_err(file_warn[i].c_str()));
 
@@ -2628,7 +2629,7 @@ Master::GetLog (XrdOucString &stdOut)
     eos_chlog_filesvc->clearWarningMessages();
     eos_chlog_dirsvc->clearWarningMessages();
   }
-  
+
   stdOut = fMasterLog;
 }
 

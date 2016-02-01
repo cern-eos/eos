@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Open.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: Redirect.cc
+// Author: Geoffray Adde - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -32,21 +32,41 @@
   MAYSTALL;
   MAYREDIRECT;
 
-  gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("OpenRedirect", vid.uid, vid.gid, 1);
   XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
 
   if (file)
   {
-    opaque += "&eos.cli.access=pio";
-    int rc = file->open(spath.c_str(), SFS_O_RDONLY, 0, client, opaque.c_str());
-    error.setErrInfo(strlen(file->error.getErrText()) + 1, file->error.getErrText());
+    XrdSfsFileOpenMode oflags = SFS_O_RDONLY;
+    mode_t omode = 0;
+    if(env.Get("eos.client.openflags"))
+    {
+      std::string openflags=env.Get("eos.client.openflags");
+      oflags = SFS_O_RDONLY;
+      if(openflags.find("wo")!=std::string::npos) oflags |= SFS_O_WRONLY;
+      if(openflags.find("rw")!=std::string::npos) oflags |= SFS_O_RDWR;
+      if(openflags.find("cr")!=std::string::npos) oflags |= SFS_O_CREAT;
+      if(openflags.find("tr")!=std::string::npos) oflags |= SFS_O_TRUNC;
+      std::string openmode=env.Get("eos.client.openmode");
+      omode = (mode_t) strtol(openmode.c_str(),NULL,8);
+    }
+    int rc = file->open(spath.c_str(), oflags, omode, client, opaque.c_str());
+    std::string ei = file->error.getErrText();
     if (rc == SFS_REDIRECT)
     {
+      char buf[1024];
+      snprintf(buf,1024,":%d/%s?",file->error.getErrInfo(),spath.c_str());
+      ei.replace(ei.find("?"),1,buf);
+      error.setErrInfo(ei.size() + 1, ei.c_str());
       delete file;
+      eos_static_debug("sucess redirect=%s",error.getErrText());
       return SFS_DATA;
     }
     else
     {
+      error.setErrInfo(ei.size() + 1, ei.c_str());
+      eos_static_debug("fail redirect=%s",error.getErrText());
+
       error.setErrCode(file->error.getErrInfo());
       delete file;
       return SFS_ERROR;

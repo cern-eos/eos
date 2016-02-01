@@ -7,6 +7,21 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.144 Beryl_Aquamarine``
+- source sysconfig file inside MGM before running service scripts
+
+``Version V0.3.142 Beryl_Aquamarine``
+- add service alias example in eos.example how to run with systemd
+
+``Version V0.3.141 Beryl_Aquamarine``
+- don't ship fuse.conf on EL7 in eos-fuse RPM
+- fix reporting of subtree copying in 'eos cp'
+
+``Version V0.3.140 Beryl_Aquamarine``
+- fix missing object in drain lock helper mutex
+- distinguish client and FST methods to prevent having FSTs calling a booting slave with namespace modifications
+- add min/maxfilesize check during the open function, to block too large uploads immedeatly
+
 ``Version V0.3.139 Beryl_Aquamarine``
 - automatically chown files on FST partitions once (to compensate to bug introduced in 0.3.137)
 - make the XRD stream timeout configurable and increase the default to 5 minutes

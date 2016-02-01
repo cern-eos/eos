@@ -23,10 +23,10 @@
 
 /**
  * @file   FmdClient.hh
- * 
+ *
  * @brief  Classes for FST File Meta Data Request from a client
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSFST_FMDCLIENT_HH__
@@ -68,8 +68,7 @@ EOSFSTNAMESPACE_BEGIN
 //! Class handling Request to Fmd
 // ---------------------------------------------------------------------------
 
-class FmdClient : public eos::common::LogId
-{
+class FmdClient : public eos::common::LogId {
 public:
 
 
@@ -96,11 +95,11 @@ public:
    *
    * @return true if successful otherwise false
    */
-
   /*----------------------------------------------------------------------------*/
   bool
   EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd);
 
+  /*----------------------------------------------------------------------------*/
   /**
    * Return Fmd from an mgm
    *
@@ -110,10 +109,9 @@ public:
    *
    * @return
    */
-  int
-  GetMgmFmd (const char* manager,
-      eos::common::FileId::fileid_t fid,
-      struct Fmd& fmd);
+  /*----------------------------------------------------------------------------*/
+  int GetMgmFmd (const char* manager, eos::common::FileId::fileid_t fid,
+		 struct Fmd& fmd);
 
   /*----------------------------------------------------------------------------*/
   /**
@@ -129,9 +127,9 @@ public:
 
   /*----------------------------------------------------------------------------*/
   int GetRemoteAttribute (const char* manager,
-      const char* key,
-      const char* path,
-      XrdOucString& attribute);
+                          const char* key,
+                          const char* path,
+                          XrdOucString& attribute);
 
   /**
    * Return Fmd from a remote filesystem
@@ -144,21 +142,21 @@ public:
    * @return
    */
   int GetRemoteFmdSqlite (const char* manager,
-      const char* shexfid,
-      const char* sfsid,
-      struct Fmd& fmd);
+                          const char* shexfid,
+                          const char* sfsid,
+                          struct Fmd& fmd);
 
-  
+
   /**
    * @brief call the 'auto repair' function e.g. 'file convert --rewrite'
-   * 
+   *
    * @param manager host:port of the server to contact
    * @param fid file id to auto-repair
-   * 
-   * @return 
+   *
+   * @return
    */
-  int CallAutoRepair ( const char* manager,
-                       eos::common::FileId::fileid_t fid);
+  int CallAutoRepair (const char* manager,
+                      eos::common::FileId::fileid_t fid);
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------

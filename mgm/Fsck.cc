@@ -365,11 +365,13 @@ Fsck::Check (void)
           {
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
             eos::IFileMD* fmd = 0;
-            eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-            eos::IFsView::FileIterator it;
-            for (it = filelist.begin(); it != filelist.end(); ++it)
+            const eos::IFsView::FileList& filelist = gOFS->eosFsView->getFileList(fsid);
+
+            for (eos::IFsView::FileIterator it = filelist.begin();
+                 it != filelist.end(); ++it)
             {
               fmd = gOFS->eosFileService->getFileMD(*it);
+
               if (fmd)
               {
                 XrdSysMutexHelper lock(eMutex);
@@ -399,20 +401,18 @@ Fsck::Check (void)
       {
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
         eos::IFileMD* fmd = 0;
-        eos::IFsView::FileList filelist =
-                gOFS->eosFsView->getNoReplicasFileList();
+        const eos::IFsView::FileList& filelist = gOFS->eosFsView->getNoReplicasFileList();
 
-        eos::IFsView::FileIterator it;
-        for (it = filelist.begin(); it != filelist.end(); ++it)
+        for (eos::IFsView::FileIterator it = filelist.begin();
+             it != filelist.end(); ++it)
         {
           fmd = gOFS->eosFileService->getFileMD(*it);
           std::string path = gOFS->eosView->getUri(fmd);
           XrdOucString fullpath = path.c_str();
+
           if (fullpath.beginswith(gOFS->MgmProcPath))
           {
-            // -----------------------------------------------------------------
             // don't report eos /proc files
-            // -----------------------------------------------------------------
             continue;
           }
 
@@ -566,21 +566,16 @@ Fsck::Check (void)
       {
         try
         {
-          eos::IFsView::FileList filelist =
-                  gOFS->eosFsView->getFileList(nfsid);
+          const eos::IFsView::FileList& filelist =  gOFS->eosFsView->getFileList(nfsid);
 
           if (filelist.size())
           {
-            // -----------------------------------------------------------------
-            // check if this exists in the gFsView
-            // -----------------------------------------------------------------
+            // Check if this exists in the gFsView
             if (!FsView::gFsView.mIdView.count(nfsid))
             {
               XrdSysMutexHelper lock(eMutex);
               eFsDark[nfsid] += filelist.size();
-              Log(false,
-                  "shadow fsid=%lu shadow_entries=%llu ",
-                  nfsid,
+              Log(false, "shadow fsid=%lu shadow_entries=%llu ", nfsid,
                   filelist.size());
             }
           }

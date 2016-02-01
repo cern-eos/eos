@@ -106,6 +106,8 @@ int connectionId = 0;
 bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
 bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
 bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
+bool lazy_open_ro = false; ///< indicated if lazy openning of the file should be used for files open in RO
+bool lazy_open_rw = false; ///< indicated if lazy openning of the file should be used for files open in RW
 bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
 bool do_rdahead = false; ///< true if readahead is to be enabled, otherwise false
 std::string rdahead_window = "131072"; ///< size of the readahead window
@@ -745,12 +747,11 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
                  uid_t uid, gid_t gid, pid_t pid ,
                  const char* path="")
 {
-  eos_static_debug("file raw ptr=%p, inode=%lu, uid=%lu",
-                   raw_file, inode, (unsigned long) uid);
   int fd = -1;
   std::ostringstream sstr;
   sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-
+  eos_static_debug("file raw ptr=%p, name=%s,  inode:xrdlogin=%s",
+                   raw_file, raw_file?raw_file->GetPath():"",sstr.str().c_str() );
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
   auto iter_fd = inodexrdlogin2fd.find(sstr.str());
 
@@ -1165,53 +1166,6 @@ protected:
   // only one thread per process will access this (protected by one mutex per process)
   std::vector<std::string> pid2StrongLogin;
 
-  std::string
-  symlinkCredentials (const std::string &authMethod, uid_t uid, std::string identity, const std::string &xrdlogin = "")
-  {
-    std::stringstream ss;
-    size_t i = 0;
-    // avoid characters that could mess up the link name
-    while ((i = identity.find_first_of ("/", i)) != std::string::npos)
-      identity[i] = '.';
-    ss << "/var/run/eosd/credentials/u" << uid << "_" << identity;
-    std::string linkname = ss.str ();
-    auto colidx = authMethod.find (':');
-
-    eos_static_debug("authmethod=%s",authMethod.c_str());
-
-    if (xrdlogin.empty ())
-    {
-      std::string filename = authMethod.substr (colidx + 1, std::string::npos);
-      if (filename.empty ()) return "";
-      if (linkname != filename)
-      {
-        unlink (linkname.c_str ()); // remove the previous link first if any
-        if (symlink (filename.c_str (), linkname.c_str ()))
-        {
-          eos_static_err("could not create symlink from %s to %s", filename.c_str (), linkname.c_str ());
-          return "";
-        }
-      }
-      return authMethod.substr (0, colidx + 1) + linkname;
-    }
-    else
-    {
-      ss.str ("");
-      ss << "/var/run/eosd/credentials/xrd" << xrdlogin;
-      std::string newlinkname = ss.str ();
-      if (linkname != newlinkname)
-      {
-        unlink (newlinkname.c_str ()); // remove the previous link first if any
-        if (symlink (linkname.c_str (), newlinkname.c_str ()))
-        {
-          eos_static_err("could not create new symlink from %s to %s", linkname.c_str (), newlinkname.c_str ());
-          return "";
-        }
-      }
-      return newlinkname;
-    }
-  }
-
   bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
   {
     if (!(use_user_gsiproxy || use_user_krb5cc)) return false;
@@ -1219,7 +1173,8 @@ protected:
     bool ret = false;
     char buffer[1024];
     char buffer2[1024];
-    const char* format = "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s";
+    // first try the session binding if it fails, try the user binding
+    const char* formats[2] = { "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s" , "/var/run/eosd/credentials/uid%d.%s" };
     // krb5 -> kerberos 5 credential cache file
     // krk5 -> kerberos 5 credential cache not in a file (e.g. KeyRing)
     // x509 -> gsi authentication
@@ -1237,43 +1192,53 @@ protected:
       (sidx = 2) && (sn = 3);
 
     // try all the credential types according to settings and stop as soon as a credetnial is found
-    for (int i = sidx; i < sidx + sn; i++)
+    bool brk = false;
+    for (int f = 0; f < 2; f++)
     {
-      snprintf (buffer, 1024, format, (int) uid, (int) sid, (int) sst, suffixes[i]);
-      //eos_static_debug("trying to stat %s", buffer);
-      if (!lstat (buffer, &linkstat))
+      for (int i = sidx; i < sidx + sn; i++)
       {
-        ret = true;
-        credinfo.lname = buffer;
-        credinfo.lmtime = linkstat.st_mtim.tv_sec;
-        credinfo.lctime = linkstat.st_ctim.tv_sec;
-        credinfo.type = credtypes[i];
-        size_t bsize = readlink (buffer, buffer2, 1024);
-        buffer2[bsize] = 0;
-        eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
-        if(credinfo.type==krk5)
-        {
-          credinfo.fname = buffer2;
-          break; // there is no file to stat in that case
-        }
-        if (!stat (buffer2, &filestat))
-        {
-          if (bsize > 0)
-          {
-            buffer2[bsize] = 0;
-            credinfo.fname = buffer2;
-            credinfo.fmtime = filestat.st_mtim.tv_sec;
-            credinfo.fctime = filestat.st_ctim.tv_sec;
-            eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
-          }
-        }
+        if(f==0)
+          snprintf (buffer, 1024, formats[f], (int) uid, (int) sid, (int) sst, suffixes[i]);
         else
+          snprintf (buffer, 1024, formats[f], (int) uid, suffixes[i]);
+
+        //eos_static_debug("trying to stat %s", buffer);
+        if (!lstat (buffer, &linkstat))
         {
-          eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+          ret = true;
+          credinfo.lname = buffer;
+          credinfo.lmtime = linkstat.st_mtim.tv_sec;
+          credinfo.lctime = linkstat.st_ctim.tv_sec;
+          credinfo.type = credtypes[i];
+          size_t bsize = readlink (buffer, buffer2, 1024);
+          buffer2[bsize] = 0;
+          eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
+          if (credinfo.type == krk5)
+          {
+            credinfo.fname = buffer2;
+            break; // there is no file to stat in that case
+          }
+          if (!stat (buffer2, &filestat))
+          {
+            if (bsize > 0)
+            {
+              buffer2[bsize] = 0;
+              credinfo.fname = buffer2;
+              credinfo.fmtime = filestat.st_mtim.tv_sec;
+              credinfo.fctime = filestat.st_ctim.tv_sec;
+              eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+            }
+          }
+          else
+          {
+            eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
+          }
+          // we found some credential, we stop searching here
+          brk = true;
+          break;
         }
-        // we found some credential, we stop searching here
-        break;
       }
+      if (brk) break;
     }
 
     if (!ret)
@@ -1437,15 +1402,15 @@ protected:
     std::string newauthmeth;
     if(credinfo.type==krk5)
     {
-      // don't need to create any symlink in that case
+      // using directly the value of the pointed file (which is the text of the in memory credentials)
       sId.append(credinfo.fname);
       newauthmeth = sId;
     }
     else
     {
-      // binding (uid_identity to the latest credential file received)
+      // using the link created by the user
       sId.append(credinfo.lname);
-      newauthmeth = symlinkCredentials(sId, uid,credinfo.identity);
+      newauthmeth = sId;
     }
 
     if(newauthmeth.empty())
@@ -3023,6 +2988,7 @@ xrd_open (const char* path,
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
   struct stat buf;
   bool exists = true;
+  bool lazy_open = (flags_sfs==SFS_O_RDONLY)?lazy_open_ro:lazy_open_rw;
 
   eos::common::Timing opentiming("xrd_open");
   COMMONTIMING("START", &opentiming);
@@ -3085,7 +3051,7 @@ xrd_open (const char* path,
       if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
         exists = false;
 
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
 
       if (retc)
       {
@@ -3114,7 +3080,7 @@ xrd_open (const char* path,
 
       if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
         exists = false;
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
 
       if (retc)
       {
@@ -3144,7 +3110,7 @@ xrd_open (const char* path,
 
       if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
         exists = false;
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
 
       if (retc)
       {
@@ -3304,8 +3270,8 @@ xrd_open (const char* path,
   // check if the file already exist
   if(xrd_stat(path,&buf,uid,gid,pid,0))
     exists = false;
-  eos_static_debug("open_path=%s, open_cgi=%s, exists=%d", spath.c_str(), open_cgi.c_str(), (int)exists);
-  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL);
+  eos_static_debug("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str(), open_cgi.c_str(), (int)exists, (int)flags_sfs);
+  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,!lazy_open);
 
   if (retc)
   {
@@ -4222,6 +4188,16 @@ xrd_init ()
   if (getenv("EOS_FUSE_LOCALTIMECONSISTENT") && (!strcmp(getenv("EOS_FUSE_LOCALTIMECONSISTENT"), "1")))
   {
     use_localtime_consistency = 1;
+  }
+
+  if (getenv("EOS_FUSE_LAZYOPENRO") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRO"), "1")))
+  {
+    lazy_open_ro = true;
+  }
+
+  if (getenv("EOS_FUSE_LAZYOPENRW") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRW"), "1")))
+  {
+    lazy_open_rw = true;
   }
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))

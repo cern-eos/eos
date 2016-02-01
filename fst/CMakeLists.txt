@@ -192,7 +192,6 @@ set(
   #-----------------------------------------------------------------------------
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
-  FmdSqlite.cc         FmdSqlite.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
@@ -260,7 +259,7 @@ add_executable(
   eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdHandler.cc
-  FmdSqlite.cc           FmdDbMap.cc
+  FmdDbMap.cc
   FmdClient.cc           tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
   checksum/crc32c.cc     checksum/crc32ctables.cc

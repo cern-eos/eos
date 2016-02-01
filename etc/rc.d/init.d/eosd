@@ -93,6 +93,8 @@ start() {
         export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
+        export EOS_FUSE_LAZYOPENRO=${EOS_FUSE_LAZYOPENRO-0}
+        export EOS_FUSE_LAZYOPENRW=${EOS_FUSE_LAZYOPENRW-0}
         export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
         export EOS_FUSE_LOCALTIMECONSISTENT=${EOS_FUSE_LOCALTIMECONSISTENT-0}
         # make sure that FUSE_OPT keeps the same default value
@@ -107,8 +109,9 @@ start() {
             echo -n "Starting $prog for instance: $i"
             mkdir -p /var/run/eosd/
             cd /var/run/eosd/
-            mkdir -p /var/run/eosd/credentials
+            mkdir -p /var/run/eosd/credentials/store
             chmod 607 /var/run/eosd/credentials
+            chmod 607 /var/run/eosd/credentials/store
             mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
             chmod -R 733 ${EOS_FUSE_MOUNTDIR-/eos/}
             unset KRB5CCNAME
@@ -147,6 +150,8 @@ start() {
             echo "EOS_FUSE_RMLVL_PROTECT       : ${EOS_FUSE_RMLVL_PROTECT}"
             echo "EOS_FUSE_RDAHEAD             : ${EOS_FUSE_RDAHEAD}"
             echo "EOS_FUSE_RDAHEAD_WINDOW      : ${EOS_FUSE_RDAHEAD_WINDOW}"
+            echo "EOS_FUSE_LAZYOPENRO          : ${EOS_FUSE_LAZYOPENRO}"
+            echo "EOS_FUSE_LAZYOPENRW          : ${EOS_FUSE_LAZYOPENRW}"
             echo "EOS_FUSE_LOG_PREFIX          : ${EOS_FUSE_LOG_PREFIX}"
             echo "EOS_FUSE_LOCALTIMECONSISTENT : ${EOS_FUSE_LOCALTIMECONSISTENT}"
         else 
