@@ -6,6 +6,13 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.145 Beryl_Aquamarine``
+- add option to exclude all xattrs from being applied on the destination dirs
+  by using the wildcard "*".
+- clean-up the python cmake modules and simplify the use of Python related
+  variables
+- remove only the leading "eos" string when building the proc path for the MGM
+
 ``Version V0.3.144 Beryl_Aquamarine``
 - source sysconfig file inside MGM before running service scripts
 
