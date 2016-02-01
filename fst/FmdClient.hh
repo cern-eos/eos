@@ -95,11 +95,23 @@ public:
    *
    * @return true if successful otherwise false
    */
-
   /*----------------------------------------------------------------------------*/
   bool
   EnvMgmToFmdSqlite (XrdOucEnv &env, struct Fmd &fmd);
 
+  /*----------------------------------------------------------------------------*/
+  /**
+   * Return Fmd from an mgm
+   *
+   * @param manager host:port of the mgm to contact
+   * @param fid file id
+   * @param fmd reference to the Fmd struct to store Fmd
+   *
+   * @return
+   */
+  /*----------------------------------------------------------------------------*/
+  int GetMgmFmd (const char* manager, eos::common::FileId::fileid_t fid,
+		 struct Fmd& fmd);
 
   /*----------------------------------------------------------------------------*/
   /**

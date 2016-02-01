@@ -729,7 +729,6 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 
- again:
   if (!url.IsValid())
   {
     eos_err("error=URL is not valid: %s", address.c_str());

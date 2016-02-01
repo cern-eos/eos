@@ -1602,7 +1602,7 @@ Master::Slave2Master()
     errno = e.getErrno();
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s",
 		       e.getErrno(), e.getMessage().str().c_str()));
-    fRunningState = kIsNothing;
+    fRunningState = Run::State::kIsNothing;
     eos::common::ShellCmd scmd3(". /etc/sysconfig/eos; service eos start sync");
     rc = scmd3.wait(30);
 
