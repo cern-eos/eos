@@ -143,7 +143,7 @@ HttpServer::Run ()
     } else 
     if (thread_model == "epoll") 
     {
-      eos_static_notice("msg=\"starting http server\" mode=\"epool\" threads=%d", nthreads);
+      eos_static_notice("msg=\"starting http server\" mode=\"epoll\" threads=%d", nthreads);
       mDaemon = MHD_start_daemon(MHD_USE_DEBUG |  MHD_USE_SELECT_INTERNALLY | MHD_USE_EPOLL_LINUX_ONLY,
                                  mPort,
                                  NULL,
