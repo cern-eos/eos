@@ -1003,28 +1003,28 @@ protected:
   }
   bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
   bool applyBranchDisablings(const TreeMapEntry& entry);
-  bool setSkipSaturatedPlct(bool value);
-  bool setSkipSaturatedAccess(bool value);
-  bool setSkipSaturatedDrnAccess(bool value);
-  bool setSkipSaturatedBlcAccess(bool value);
-  bool setSkipSaturatedDrnPlct(bool value);
-  bool setSkipSaturatedBlcPlct(bool value);
+  bool setSkipSaturatedPlct(bool value, bool setconfig=false);
+  bool setSkipSaturatedAccess(bool value, bool setconfig=false);
+  bool setSkipSaturatedDrnAccess(bool value, bool setconfig=false);
+  bool setSkipSaturatedBlcAccess(bool value, bool setconfig=false);
+  bool setSkipSaturatedDrnPlct(bool value, bool setconfig=false);
+  bool setSkipSaturatedBlcPlct(bool value, bool setconfig=false);
   bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &value, const std::string &configentry);
   bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const char* vvalue, const std::string &configentry);
   bool setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, char value, int netSpeedClass, const std::string &configentry);
-  bool setPlctDlScorePenalty(char value, int netSpeedClass);
-  bool setPlctUlScorePenalty(char value, int netSpeedClass);
-  bool setAccessDlScorePenalty(char value, int netSpeedClass);
-  bool setAccessUlScorePenalty(char value, int netSpeedClass);
-  bool setPlctDlScorePenalty(const char *value);
-  bool setPlctUlScorePenalty(const char *value);
-  bool setAccessDlScorePenalty(const char *value);
-  bool setAccessUlScorePenalty(const char *value);
-  bool setFillRatioLimit(char value);
-  bool setFillRatioCompTol(char value);
-  bool setSaturationThres(char value);
-  bool setTimeFrameDurationMs(int value);
-  bool setPenaltyUpdateRate(float value);
+  bool setPlctDlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
+  bool setPlctUlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
+  bool setAccessDlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
+  bool setAccessUlScorePenalty(char value, int netSpeedClass, bool setconfig=false);
+  bool setPlctDlScorePenalty(const char *value, bool setconfig=false);
+  bool setPlctUlScorePenalty(const char *value, bool setconfig=false);
+  bool setAccessDlScorePenalty(const char *value, bool setconfig=false);
+  bool setAccessUlScorePenalty(const char *value, bool setconfig=false);
+  bool setFillRatioLimit(char value, bool setconfig=false);
+  bool setFillRatioCompTol(char value, bool setconfig=false);
+  bool setSaturationThres(char value, bool setconfig=false);
+  bool setTimeFrameDurationMs(int value, bool setconfig=false);
+  bool setPenaltyUpdateRate(float value, bool setconfig=false);
 public:
   GeoTreeEngine () :
   pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
@@ -1325,7 +1325,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool setParameter( std::string param, const std::string &value,int iparamidx);
+  bool setParameter( std::string param, const std::string &value,int iparamidx, bool setconfig=false);
 
   // ---------------------------------------------------------------------------
   //! Add a branch disabling rule
@@ -1340,7 +1340,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool addDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL, bool toConfig=true);
+  bool addDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL, bool toConfig=false);
 
   // ---------------------------------------------------------------------------
   //! Rm a branch disabling rule
@@ -1355,7 +1355,7 @@ public:
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL);
+  bool rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output=NULL, bool toConfig=false);
 
   // ---------------------------------------------------------------------------
   //! Rm a branch disabling rule
