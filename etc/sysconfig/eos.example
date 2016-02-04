@@ -124,7 +124,7 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #export EOS_FUSE_RDAHEAD=0
 
 # Configure FUSE read-ahead window (default 128k)
-#export EOS_FUSE_RDAHEAD_WINDOW=131072
+# export EOS_FUSE_RDAHEAD_WINDOW=131072
 # Disable using access for access permission check (default on)
 # export EOS_FUSE_NOACCESS=0
 
@@ -163,6 +163,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
 #    (default 0)
 # EOS_FUSE_USER_KRB5FIRST=0
+
+# If a connection fails using strong authentication, this is the timeout before actully retrying
+#    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
+#    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
+#    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
+#    (default is XRD_STREAMERRORWINDOW default value)
+# EOS_FUSE_STREAMERRORWINDOW=1
 
 # Enable the fuse local host time consistency model
 #   this allows a more precise handling of mtime. Time reference is then the localhost time

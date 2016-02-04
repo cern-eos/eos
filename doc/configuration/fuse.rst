@@ -153,6 +153,13 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    #   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
    # EOS_FUSE_LOCALTIMECONSISTENT=0
    
+   # If a connection fails using strong authentication, this is the timeout before actully retrying
+   #    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
+   #    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
+   #    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
+   #    (default is XRD_STREAMERRORWINDOW default value)
+   # EOS_FUSE_STREAMERRORWINDOW=1
+   
    # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
    #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
    #    (default 0)
