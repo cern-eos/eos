@@ -110,11 +110,11 @@ public:
 
     if (subindex)
     {
-      sprintf(sfullpath, "%s%08llx/%s.%u", localprefix, fid / 10000, hexstring, subindex);
+      sprintf(sfullpath, "%s%08llx/%s.%u", slocalprefix.c_str(), fid / 10000, hexstring, subindex);
     }
     else
     {
-      sprintf(sfullpath, "%s%08llx/%s", localprefix, fid / 10000, hexstring);
+      sprintf(sfullpath, "%s%08llx/%s", slocalprefix.c_str(), fid / 10000, hexstring);
     }
     fullpath = sfullpath;
   }
