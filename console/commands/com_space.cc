@@ -117,6 +117,7 @@ com_space (char* arg1)
 
     if (option.length() && 
 	(option != "egroup") &&
+	(option != "mapping") &&
 	(option != "drain") &&
 	(option != "scheduledrain") && 
 	(option != "schedulebalance") ) 
@@ -319,7 +320,7 @@ com_space_usage:
   fprintf(stdout, "                                                                       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n");
   fprintf(stdout, "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance] \n");
+  fprintf(stdout, "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance] \n");
   fprintf(stdout, "                                                                     : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout, "       space status <space-name>                                     : print's all defined variables for space\n");
   fprintf(stdout, "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");

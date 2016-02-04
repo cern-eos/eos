@@ -173,6 +173,10 @@ ProcCommand::Space ()
     {
       Egroup::Reset();
       stdOut += "\ninfo: clear cached EGroup information ...";
+    }
+
+    if ((!option.length()) || (option == "mapping")) 
+    {
       eos::common::Mapping::Reset();
       stdOut += "\ninfo: clear all user/group uid/gid caches ...\n";
     }
