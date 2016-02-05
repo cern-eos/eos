@@ -93,7 +93,7 @@ LRU::LRUr ()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief LRU method doing the actual policy scrubbing
- * 
+ *
  * This thread method loops in regular intervals over all directories which have
  * a LRU policy attribute set (sys.lru.*) and applies the defined policy.
  */
@@ -145,17 +145,17 @@ LRU::LRUr ()
     {
       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
       if (FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on"))
-	IsEnabledLRU = true;
+        IsEnabledLRU = true;
       else
-	IsEnabledLRU = false;
-      if (FsView::gFsView.mSpaceView.count("default")) 
+        IsEnabledLRU = false;
+      if (FsView::gFsView.mSpaceView.count("default"))
       {
-	lLRUInterval =
-	  atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval").c_str());
-      } 
+        lLRUInterval =
+          atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru.interval").c_str());
+      }
       else
       {
-	lLRUInterval = 0;
+        lLRUInterval = 0;
       }
     }
 
@@ -227,12 +227,12 @@ LRU::LRUr ()
               )
           {
             // -------------------------------------------------------------------
-            // sort out the individual LRU policies 
+            // sort out the individual LRU policies
             // -------------------------------------------------------------------
 
             if (map.count("sys.lru.expire.empty") && !it->second.size())
             {
-              // ----------------------------------------------------------------- 
+              // -----------------------------------------------------------------
               // remove empty directories older than <age>
               // -----------------------------------------------------------------
               AgeExpireEmpty(it->first.c_str(), map["sys.lru.expire.empty"]);
@@ -278,7 +278,7 @@ LRU::LRUr ()
 
     lStopTime = time(NULL);
 
-    if ( (lStopTime-lStartTime) < lLRUInterval) 
+    if ( (lStopTime-lStartTime) < lLRUInterval)
     {
       snoozetime = lLRUInterval - (lStopTime-lStartTime);
     }
@@ -288,22 +288,22 @@ LRU::LRUr ()
     XrdSysTimer sleeper;
     time_t snoozeinterval = 60;
     size_t snoozeloop = snoozetime/60;
-    for (size_t i=0 ; i<snoozeloop; i++) 
+    for (size_t i=0 ; i<snoozeloop; i++)
     {
       sleeper.Snooze(snoozeinterval);
       {
-	// check if the setting changes
-	eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-	if ( FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on"))
-	{
-	  if (!IsEnabledLRU)
-	    break;
-	}
-	else
-	{
-	  if (IsEnabledLRU)
-	    break;
-	}
+        // check if the setting changes
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        if ( FsView::gFsView.mSpaceView.count("default") && (FsView::gFsView.mSpaceView["default"]->GetConfigMember("lru") == "on"))
+        {
+          if (!IsEnabledLRU)
+            break;
+        }
+        else
+        {
+          if (IsEnabledLRU)
+            break;
+        }
       }
     }
   };
@@ -411,9 +411,12 @@ LRU::AgeExpire (const char* dir,
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
+      eos::IFileMD* fmd = 0;
+      std::set<std::string> fnames = cmd->getNameFiles();
 
-      for (auto fmd = cmd->beginFile(); fmd; fmd = cmd->nextFile())
+      for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
       {
+        fmd = cmd->findFile(*fit);
         std::string fullpath = dir;
         fullpath += fmd->getName();
         eos_static_debug("%s", fullpath.c_str());
@@ -592,7 +595,7 @@ LRU::CacheExpire (const char* dir,
             while (lru_map.size() &&
                    ((lru_size - (--lru_map.end())->size) > bytes_to_free))
             {
-              // remove the last element  of the map 
+              // remove the last element  of the map
               auto it = lru_map.end();
               it--;
               // substract the size
@@ -699,9 +702,12 @@ LRU::ConvertMatch (const char* dir,
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
+      eos::IFileMD* fmd = 0;
+      std::set<std::string> fnames = cmd->getNameFiles();
 
-      for (auto fmd = cmd->beginFile(); fmd; fmd = cmd->nextFile())
+      for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
       {
+        fmd = cmd->findFile(*fit);
         std::string fullpath = dir;
         fullpath += fmd->getName();
         eos_static_debug("%s", fullpath.c_str());
