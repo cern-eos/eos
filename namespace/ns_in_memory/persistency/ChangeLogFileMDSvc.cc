@@ -212,7 +212,7 @@ class FileMDFollower: public eos::ILogRecordScanner
           // We have the file already but it might have changed the parent
           // container or might have been unlinked, so we need to check it up
           // in its original container
-          IFileMD*     originalFile      = it->second.ptr;
+          IFileMD*      originalFile      = it->second.ptr;
           IContainerMD* originalContainer = 0;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
           itP = contIdMap->find(originalFile->getContainerId());
@@ -251,7 +251,7 @@ class FileMDFollower: public eos::ILogRecordScanner
             }
 
             handleReplicas(originalFile, currentFile);
-            *originalFile = *currentFile;
+            *dynamic_cast<eos::FileMD*>(originalFile) = *dynamic_cast<eos::FileMD*>(currentFile);
             originalFile->setFileMDSvc(pFileSvc);
             it->second.logOffset = currentOffset;
             processed.push_back(currentFile->getId());
@@ -292,7 +292,8 @@ class FileMDFollower: public eos::ILogRecordScanner
 
             // Update the file and handle the replicas
             handleReplicas(originalFile, currentFile);
-            *originalFile = *currentFile;
+            // Cast to derived class implementation to avoid "slicing" of info
+            *dynamic_cast<eos::FileMD*>(originalFile) = *dynamic_cast<eos::FileMD*>(currentFile);
             originalFile->setFileMDSvc(pFileSvc);
             it->second.logOffset = currentOffset;
             delete currentFile;
@@ -312,7 +313,7 @@ class FileMDFollower: public eos::ILogRecordScanner
               // the container, if it does, we have a name conflict in which
               // case we attach the new file and remove the old one
               IContainerMD* newContainer = itPN->second.ptr;
-              IQuotaNode* node            = getQuotaNode(newContainer);
+              IQuotaNode* node           = getQuotaNode(newContainer);
               IFileMD* existingFile = newContainer->findFile(originalFile->getName());
 
               if (existingFile)

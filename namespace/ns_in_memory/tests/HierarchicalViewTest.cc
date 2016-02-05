@@ -650,9 +650,13 @@ void CheckOnlineComp(eos::IView* view,
   eos::IContainerMD* cont = 0;
   CPPUNIT_ASSERT_NO_THROW(cont = view->getContainer("/test/"));
   uint32_t changedFound = 0;
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
 
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
+
     if (fmd->getSize() == 99999)
       ++changedFound;
   }
@@ -740,11 +744,14 @@ void HierarchicalViewTest::onlineCompactingTest()
   }
 
   int changed = 0;
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
 
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
     if (random() % 100 < 70)
     {
+      fmd = cont->findFile(*fit);
       fmd->setSize(99999);
       CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd));
       changed++;
@@ -763,8 +770,12 @@ void HierarchicalViewTest::onlineCompactingTest()
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
   }
 
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+  fnames = cont->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
+
     if (fmd->getSize() == 0)
     {
       if (random() % 100 < 10)
@@ -774,6 +785,7 @@ void HierarchicalViewTest::onlineCompactingTest()
         changed++;
       }
     }
+
   }
 
   CPPUNIT_ASSERT_NO_THROW(clFileSvc->compactCommit(compData));
@@ -788,8 +800,12 @@ void HierarchicalViewTest::onlineCompactingTest()
     CPPUNIT_ASSERT_NO_THROW(view->createFile(s.str()));
   }
 
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+  fnames = cont->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
+
     if (fmd->getSize() == 0)
     {
       if (random() % 100 < 10)

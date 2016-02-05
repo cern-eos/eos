@@ -105,8 +105,13 @@ class RWLock: public eos::LockHandler
 //------------------------------------------------------------------------------
 void addReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
+
     for (int i = 0; i < random() % 10; ++i)
       fmd->addLocation(random() % 10);
 
@@ -119,13 +124,17 @@ void addReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  for (auto file = cont->beginFile(); file; file = cont->nextFile())
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toUnlink;
     int n = random() % 3;
     int i = 0;
-    eos::IFileMD::LocationVector loc_vect = file->getLocations();
+    eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
 
     for (itL = loc_vect.begin(); itL != loc_vect.end() && i < n; ++itL, ++i)
     {
@@ -133,9 +142,9 @@ void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
     }
 
     for (itL = toUnlink.begin(); itL != toUnlink.end(); ++itL)
-      file->unlinkLocation(*itL);
+      fmd->unlinkLocation(*itL);
 
-    view->updateFileStore(file);
+    view->updateFileStore(fmd);
   }
 }
 
@@ -145,12 +154,19 @@ void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
 void cleanUpQuotaRec(eos::IView* view, eos::IContainerMD* cont)
 {
   eos::IQuotaNode* qn = view->getQuotaNode(cont);
+  std::set<std::string> fnames = cont->getNameFiles();
 
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
-    qn->removeFile(fmd);
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
+  {
+    qn->removeFile(cont->findFile(*fit));
+  }
 
-  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
-    unlinkReplicas(view, dmd);
+  std::set<std::string> dnames = cont->getNameContainers();
+
+  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit)
+  {
+    unlinkReplicas(view, cont->findContainer(*dit));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -158,21 +174,25 @@ void cleanUpQuotaRec(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void deleteReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  for (auto file = cont->beginFile(); file; file = cont->nextFile())
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
     eos::IFileMD::LocationVector::const_iterator itL;
     eos::IFileMD::LocationVector toDelete;
     int n = random() % 3;
     int i = 0;
-    eos::IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
+    eos::IFileMD::LocationVector unlink_vect = fmd->getUnlinkedLocations();
 
     for (itL = unlink_vect.begin(); itL != unlink_vect.end() && i < n; ++itL, ++i)
       toDelete.push_back(*itL);
 
     for (itL = toDelete.begin(); itL != toDelete.end(); ++itL)
-      file->removeLocation(*itL);
+      fmd->removeLocation(*itL);
 
-    view->updateFileStore(file);
+    view->updateFileStore(fmd);
   }
 }
 
@@ -181,20 +201,24 @@ void deleteReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void deleteAllReplicas(eos::IView* view, eos::IContainerMD* cont)
 {
-  for (auto file = cont->beginFile(); file; file = cont->nextFile())
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = cont->findFile(*fit);
     eos::IFileMD::LocationVector::const_iterator itL;
-    eos::IFileMD::LocationVector toDelete = file->getLocations();
+    eos::IFileMD::LocationVector toDelete = fmd->getLocations();
 
     for (itL = toDelete.begin(); itL != toDelete.end(); ++itL)
-      file->unlinkLocation(*itL);
+      fmd->unlinkLocation(*itL);
 
-    view->updateFileStore(file);
+    view->updateFileStore(fmd);
 
     for (itL = toDelete.begin(); itL != toDelete.end(); ++itL)
-      file->removeLocation(*itL);
+      fmd->removeLocation(*itL);
 
-    view->updateFileStore(file);
+    view->updateFileStore(fmd);
   }
 }
 
@@ -204,9 +228,14 @@ void deleteAllReplicas(eos::IView* view, eos::IContainerMD* cont)
 void deleteAllReplicasRec(eos::IView* view, eos::IContainerMD* cont)
 {
   deleteAllReplicas(view, cont);
+  eos::IContainerMD* dmd = 0;
+  std::set<std::string> dnames = cont->getNameContainers();
 
-  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit)
+  {
+    dmd = cont->findContainer(*dit);
     deleteAllReplicasRec(view, dmd);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -238,7 +267,7 @@ void createSubTree(eos::IView*        view,
   }
 
   eos::IContainerMD* container = view->getContainer(prefix);
-  eos::IQuotaNode*   qn         = view->getQuotaNode(container);
+  eos::IQuotaNode*   qn        = view->getQuotaNode(container);
 
   for (int i = 0; i < numFiles; ++i)
   {
@@ -265,16 +294,20 @@ void modifySubTree(eos::IView* view, const std::string& root)
     eos::IQuotaNode* qn = view->getQuotaNode(cont);
     std::vector<eos::IFileMD*> toDel;
     std::vector<eos::IFileMD*>::iterator itD;
+    std::set<std::string>::iterator fit;
     eos::IFileMD* fmd = 0;
+    std::set<std::string> fnames = cont->getNameFiles();
+    int j;
 
-    for (i = 1, fmd = cont->beginFile(); fmd; fmd = cont->nextFile(), ++i)
+    for (j = 1, fit = fnames.begin() ; fit != fnames.end(); ++fit, ++j)
     {
+      fmd = cont->findFile(*fit);
       if (qn) qn->removeFile(fmd);
       fmd->setSize(random() % 1000000);
       if (qn) qn->addFile(fmd);
       view->updateFileStore(fmd);
 
-      if (i % 4 == 0)
+      if (j % 4 == 0)
         toDel.push_back(fmd);
     }
 
@@ -292,11 +325,14 @@ void modifySubTree(eos::IView* view, const std::string& root)
         if (fmd->getNumUnlinkedLocation() == 0)
           continue;
 
-        // Remove all replicas
-        eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+        // Remove just one location at a time
+        eos::IFileMD::LocationVector loc_vect = fmd->getUnlinkedLocations();
 
         for (auto it = loc_vect.begin(); it != loc_vect.end(); ++it)
+        {
           fmd->removeLocation(*it);
+          break;
+        }
 
         view->updateFileStore(fmd);
 
@@ -325,12 +361,23 @@ void modifySubTree(eos::IView* view, const std::string& root)
 uint64_t calcSize(eos::IContainerMD* cont)
 {
   uint64_t size = 0;
+  eos::IFileMD* fmd = 0;
+  eos::IContainerMD* dmd = 0;
+  std::set<std::string> fnames = cont->getNameFiles();
 
-  for (auto fmd = cont->beginFile(); fmd; fmd = cont->nextFile())
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
+  {
+    fmd = cont->findFile(*fit);
     size += fmd->getSize();
+  }
 
-  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+  std::set<std::string> dnames = cont->getNameContainers();
+
+  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit)
+  {
+    dmd = cont->findContainer(*dit);
     size += calcSize(dmd);
+  }
 
   return size;
 }
@@ -340,10 +387,15 @@ uint64_t calcSize(eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 uint64_t calcFiles(eos::IContainerMD* cont)
 {
+  eos::IContainerMD* dmd = 0;
   uint64_t files = cont->getNumFiles();
+  std::set<std::string> dnames = cont->getNameContainers();
 
-  for (auto dmd = cont->beginSubContainer(); dmd; dmd = cont->nextSubContainer())
+  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit)
+  {
+    dmd = cont->findContainer(*dit);
     files += calcFiles(dmd);
+  }
 
   return files;
 }
@@ -369,8 +421,12 @@ bool compareTrees(eos::IView*        view1, eos::IView*       view2,
   CPPUNIT_ASSERT_MESSAGE(treeMsg + o4.str(),
                          tree1->getNumContainers() == tree2->getNumContainers());
 
-  for (auto fmd = tree1->beginFile(); fmd; fmd = tree1->nextFile())
+  eos::IFileMD* fmd = 0;
+  std::set<std::string> fnames = tree1->getNameFiles();
+
+  for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
   {
+    fmd = tree1->findFile(*fit);
     eos::IFileMD* file = tree2->findFile(fmd->getName());
     std::string fileMsg = treeMsg + " file " + fmd->getName();
     CPPUNIT_ASSERT_MESSAGE(fileMsg + " missing", file);
@@ -382,8 +438,12 @@ bool compareTrees(eos::IView*        view1, eos::IView*       view2,
     CPPUNIT_ASSERT_MESSAGE(fileMsg, fmd->getFileMDSvc());
   }
 
-  for (auto dmd = tree1->beginSubContainer(); dmd; dmd = tree1->nextSubContainer())
+  eos::IContainerMD* dmd = 0;
+  std::set<std::string> dnames = tree1->getNameContainers();
+
+  for (auto dit = dnames.begin(); dit != dnames.end(); ++dit)
   {
+    dmd = tree1->findContainer(*dit);
     eos::IContainerMD* container = tree2->findContainer(dmd->getName());
     std::string contMsg = treeMsg + " container: " + dmd->getName();
     CPPUNIT_ASSERT_MESSAGE(contMsg, container);
