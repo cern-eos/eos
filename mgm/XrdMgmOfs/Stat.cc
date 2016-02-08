@@ -195,7 +195,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
 
     // TODO: this is useless as we don't release the lock eosViewRWMutex
-    eos::IFileMD* fmdCopy = fmd->clone();
+    std::unique_ptr<eos::IFileMD> fmdCopy{fmd->clone()};
 
     if (fmdCopy->isLink())
       buf->st_mode = S_IFLNK;
