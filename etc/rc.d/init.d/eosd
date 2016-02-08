@@ -97,6 +97,7 @@ start() {
         export EOS_FUSE_LAZYOPENRW=${EOS_FUSE_LAZYOPENRW-0}
         export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
         export EOS_FUSE_LOCALTIMECONSISTENT=${EOS_FUSE_LOCALTIMECONSISTENT-0}
+        [[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
         # make sure that FUSE_OPT keeps the same default value
         export FUSE_OPT=${FUSE_OPT-"${FUSE_OPT_SAVE}"}
 
@@ -154,6 +155,7 @@ start() {
             echo "EOS_FUSE_LAZYOPENRW          : ${EOS_FUSE_LAZYOPENRW}"
             echo "EOS_FUSE_LOG_PREFIX          : ${EOS_FUSE_LOG_PREFIX}"
             echo "EOS_FUSE_LOCALTIMECONSISTENT : ${EOS_FUSE_LOCALTIMECONSISTENT}"
+            [[ "x$XRD_STREAMERRORWINDOW" != "x" ]] && echo "XRD_STREAMERRORWINDOW        : ${XRD_STREAMERRORWINDOW}"
         else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'

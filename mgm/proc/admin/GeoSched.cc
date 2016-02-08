@@ -61,7 +61,7 @@ ProcCommand::GeoSched ()
       sscanf(value.c_str(),"%lf",&dval);
       int iparamidx = paramidx.atoi();
       bool ok = false;
-      ok = gGeoTreeEngine.setParameter(param.c_str(),value.c_str(),iparamidx);
+      ok = gGeoTreeEngine.setParameter(param.c_str(),value.c_str(),iparamidx,true); // -> save it to the config
       retc = ok?SFS_OK:SFS_ERROR;
     }
     if(mSubCmd == "updtpause")
@@ -89,12 +89,12 @@ ProcCommand::GeoSched ()
       XrdOucString optype = pOpaque->Get("mgm.optype");
       if(mSubCmd == "disabledadd")
       {
-        gGeoTreeEngine.addDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut);
+        gGeoTreeEngine.addDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut,true); // -> save it to the config
         retc = SFS_OK;
       }
       if(mSubCmd == "disabledrm")
       {
-        gGeoTreeEngine.rmDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut);
+        gGeoTreeEngine.rmDisabledBranch(group.c_str(),optype.c_str(),geotag.c_str(),&stdOut,true); // -> save it to the config
         retc = SFS_OK;
       }
       if(mSubCmd == "disabledshow")

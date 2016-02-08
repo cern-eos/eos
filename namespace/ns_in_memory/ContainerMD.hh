@@ -456,36 +456,18 @@ class ContainerMD: public IContainerMD
   void cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc);
 
   //----------------------------------------------------------------------------
-  //! Get pointer to first subcontainer. Must be used in conjunction with
-  //! nextContainer to iterate over the list of subcontainers.
+  //! Get set of file names contained in the current object
   //!
-  //! @return pointer to first subcontainer or 0 if no subcontainers
+  //! @return set of file names
   //----------------------------------------------------------------------------
-  IContainerMD* beginSubContainer();
+  std::set<std::string> getNameFiles() const;
 
   //----------------------------------------------------------------------------
-  //! Get pointer to the next subcontainer object. Must be used in conjunction
-  //! with beginContainers to iterate over the list of subcontainers.
+  //! Get set of subcontainer names contained in the current object
   //!
-  //! @return pointer to next subcontainer or 0 if no subcontainers
+  //! @return set of subcontainer names
   //----------------------------------------------------------------------------
-  IContainerMD* nextSubContainer();
-
-  //----------------------------------------------------------------------------
-  //! Get pointer to first file in the container. Must be used in conjunction
-  //! with nextFile to iterate over the list of files.
-  //!
-  //! @return pointer to the first file or 0 if no files
-  //----------------------------------------------------------------------------
-  IFileMD* beginFile();
-
-  //----------------------------------------------------------------------------
-  //! Get pointer to the next file object. Must be used in conjunction
-  //! with beginFiles to iterate over the list of files.
-  //!
-  //! @return pointer to next file or 0 if no files
-  //----------------------------------------------------------------------------
-  IFileMD* nextFile();
+  std::set<std::string> getNameContainers() const;
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
@@ -512,9 +494,6 @@ class ContainerMD: public IContainerMD
   FileMap      pFiles;
 
  private:
-  ContainerMap::iterator pIterContainer; ///< subcontainers iterator
-  FileMap::iterator pIterFile;           ///< files iterator
-
   // Non-presistent data members
   mtime_t      pMTime;
   tmtime_t     pTMTime;

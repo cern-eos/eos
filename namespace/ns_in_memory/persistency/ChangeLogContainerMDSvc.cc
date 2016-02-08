@@ -157,10 +157,10 @@ namespace eos
               ChangeLogContainerMDSvc::DataInfo( 0, currentCont );
             itP = idMap->find( currentCont->getParentId() );
             if( itP != idMap->end() )
-	    {
+            {
               itP->second.ptr->addContainer( currentCont );
-	      pContSvc->notifyListeners( currentCont , IContainerMDChangeListener::MTimeChange );
-	    }
+              pContSvc->notifyListeners( currentCont , IContainerMDChangeListener::MTimeChange );
+            }
           }
           else
           {
@@ -174,8 +174,9 @@ namespace eos
                 // -------------------------------------------------------------
                 // meta data change - keeping directory name
                 // -------------------------------------------------------------
-                (*it->second.ptr) = *currentCont;
-		pContSvc->notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
+                *dynamic_cast<eos::ContainerMD*>(it->second.ptr) =
+                    *dynamic_cast<eos::ContainerMD*>(currentCont);
+                pContSvc->notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
                 delete currentCont;
               }
               else
@@ -195,7 +196,7 @@ namespace eos
                   // add container with new name
                   // -----------------------------------------------------------
                   itP->second.ptr->addContainer(currentCont);
-		  pContSvc->notifyListeners( itP->second.ptr , IContainerMDChangeListener::MTimeChange );
+                  pContSvc->notifyListeners( itP->second.ptr , IContainerMDChangeListener::MTimeChange );
                   // -----------------------------------------------------------
                   // update idmap pointer to the container
                   // -----------------------------------------------------------
@@ -220,11 +221,10 @@ namespace eos
                 // substract all the files in the old tree from their quota node
                 // -------------------------------------------------------------
                 size_t deepness = 0;
-                ContainerMD::ContainerMap::iterator cIt;
-                ContainerMD::FileMap::iterator fIt;
                 std::vector<std::set<IContainerMD*> > dirTree;
                 dirTree.resize(1);
                 dirTree[0].insert(it->second.ptr);
+
                 do
                 {
                   // -----------------------------------------------------------
@@ -233,34 +233,39 @@ namespace eos
                   // -----------------------------------------------------------
                   dirTree.resize(deepness + 2);
 
+                  IFileMD* fmd;
+                  IContainerMD* dmd;
                   std::set<IContainerMD*>::const_iterator dIt;
-                  // -----------------------------------------------------------
-                  // loop over all attached directories in that deepness
-                  // -----------------------------------------------------------
+                  std::set<std::string> dnames, fnames;
+
+                  // Loop over all attached directories in that deepness
                   for (dIt = dirTree[deepness].begin();
-                       dIt != dirTree[deepness].end();
-                       dIt++)
+                       dIt != dirTree[deepness].end(); dIt++)
                   {
-                    // ---------------------------------------------------------
-                    // attach the sub-container at the next deepness level
-                    // ---------------------------------------------------------
-                    for (auto dmd = (*dIt)->beginSubContainer(); dmd;
-                         dmd = (*dIt)->nextSubContainer())
+                    // Attach the sub-container at the next deepness level
+                    dnames = (*dIt)->getNameContainers();
+
+                    for (auto it = dnames.begin(); it != dnames.begin(); ++it)
                     {
+                      dmd = (*dIt)->findContainer(*it);
                       dirTree[deepness + 1].insert(dmd);
                     }
-                    // ---------------------------------------------------------
-                    // remove every file from it's quota node
-                    // ---------------------------------------------------------
 
-                    for (auto fmd = (*dIt)->beginFile(); fmd; fmd = (*dIt)->nextFile())
+                    // Remove every file from it's quota node
+                    fnames = (*dIt)->getNameFiles();
+
+                    for (auto it = fnames.begin(); it != fnames.end(); ++it)
                     {
                       IQuotaNode *node = getQuotaNode(*dIt);
 
                       if (node)
+                      {
+                        fmd = (*dIt)->findFile(*it);
                         node->removeFile(fmd);
+                      }
                     }
                   }
+
                   deepness++;
                 }
                 while (dirTree[deepness].size());
@@ -275,7 +280,8 @@ namespace eos
                 // -------------------------------------------------------------
                 // copy the meta data
                 // -------------------------------------------------------------
-                (*it->second.ptr) = *currentCont;
+                *dynamic_cast<eos::ContainerMD*>(it->second.ptr) =
+                    *dynamic_cast<eos::ContainerMD*>(currentCont);
                 // -------------------------------------------------------------
                 // add to the new parent container
                 // -------------------------------------------------------------
@@ -292,24 +298,26 @@ namespace eos
                 // -------------------------------------------------------------
                 while (dirTree[deepness].size())
                 {
+                  IFileMD* fmd;
                   std::set<IContainerMD*>::const_iterator dIt;
+                  std::set<std::string> fnames;
 
-                  // -----------------------------------------------------------
-                  // loop over all attached directories in that deepness
-                  // -----------------------------------------------------------
+                  // Loop over all attached directories in that deepness
                   for (dIt = dirTree[deepness].begin();
-                       dIt != dirTree[deepness].end();
-                       dIt++)
+                       dIt != dirTree[deepness].end(); dIt++)
                   {
-                    // ---------------------------------------------------------
-                    // remove every file from it's quota node
-                    // --------------------------------------------------------
-                    for (auto fmd = (*dIt)->beginFile(); fmd; fmd = (*dIt)->nextFile())
+                    // Remove every file from it's quota node
+                    fnames = (*dIt)->getNameFiles();
+
+                    for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
                     {
                       IQuotaNode *node = getQuotaNode(*dIt);
 
                       if (node)
+                      {
+                        fmd = (*dIt)->findFile(*fit);
                         node->addFile(fmd);
+                      }
                     }
                   }
                   deepness++;
@@ -545,7 +553,7 @@ namespace eos
         if( it->second.ptr )
           continue;
         recreateContainer( it, orphans, nameConflicts );
-	notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
+        notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
       }
 
       // Deal with broken containers if we're not in the slave mode

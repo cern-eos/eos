@@ -152,10 +152,12 @@ XrdMgmOfs::_find (const char *path,
         }
 
         // Add all children into the 2D vectors
-        for (auto dmd = cmd->beginSubContainer(); dmd; dmd = cmd->nextSubContainer())
+	std::set<std::string> dnames = cmd->getNameContainers();
+
+        for (auto dit = dnames.begin(); dit != dnames.end(); ++dit)
         {
           std::string fpath = Path.c_str();
-          fpath += dmd->getName();
+          fpath += *dit;
           fpath += "/";
           // check if we select by tag
           if (key)
@@ -222,12 +224,20 @@ XrdMgmOfs::_find (const char *path,
 
         if (!nofiles)
         {
-          for (auto fit = cmd->beginFile(); fit; fit = cmd->nextFile())
+          eos::IFileMD* fmd = 0;
+	  std::string link;
+	  std::set<std::string> fnames = cmd->getNameFiles();
+
+          for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
           {
-	    std::string link;
+	    fmd = cmd->findFile(*fit);
+
 	    // skip symbolic links
-	    if (fit->isLink())
-	      link = fit->getLink();
+	    if (fmd->isLink())
+	      link = fmd->getLink();
+	    else
+	      link.clear();
+
             if (limitresult)
             {
               // apply the user limits for non root/admin/sudoers
@@ -243,14 +253,14 @@ XrdMgmOfs::_find (const char *path,
 
 	    if (link.length()) 
 	    {
-	      std::string ip = fit->getName();
+	      std::string ip = fmd->getName();
 	      ip += " -> ";
 	      ip += link;
               found[Path].insert(ip);
 	    } 
 	    else 
 	    {
-              found[Path].insert(fit->getName());
+              found[Path].insert(fmd->getName());
 	    }
 
             filesfound++;

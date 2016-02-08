@@ -52,6 +52,11 @@ class IFileMD
   typedef std::map<std::string, std::string> XAttrMap;
 
   //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  IFileMD() {};
+
+  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~IFileMD() {};
@@ -346,7 +351,15 @@ class IFileMD
   //----------------------------------------------------------------------------
   virtual XAttrMap::iterator attributesEnd() = 0;
 
+ private:
 
+  //----------------------------------------------------------------------------
+  //! Make copy constructor and assignment operator private to avoid "slicing"
+  //! when dealing with derived classes.
+  //----------------------------------------------------------------------------
+  IFileMD(const IFileMD& other);
+
+  IFileMD& operator=(const IFileMD& other);
 };
 
 EOSNSNAMESPACE_END
