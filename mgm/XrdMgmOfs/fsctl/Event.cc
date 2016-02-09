@@ -68,6 +68,15 @@
   eos::ContainerMD* dh = 0;
   Workflow workflow;
   eos::ContainerMD::XAttrMap attr;
+  
+  XrdOucString lWorkflow = aworkflow;
+
+  if (lWorkflow.beginswith("eos."))
+  {
+    // this is a templated workflow defined on the workflow proc directory
+    fid = 0;
+    spath = (char*)gOFS->MgmProcWorkflowPath.c_str();
+  }
 
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
