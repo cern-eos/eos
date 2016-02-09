@@ -125,7 +125,9 @@ public:
   std::string Get (std::string key)
   {
     XrdSysMutexHelper mLock(mMutex);
-    return mMap[key];
+    if (mMap.count(key))
+      return mMap[key];
+    return "";
   }
 
   // ---------------------------------------------------------------------------
