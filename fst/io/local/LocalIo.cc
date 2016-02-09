@@ -262,7 +262,11 @@ int
 LocalIo::fileStat (struct stat* buf, uint16_t timeout)
 {
   XrdOfsFile* pOfsFile = mLogicalFile;
-  return pOfsFile->XrdOfsFile::stat(buf);
+
+  if (pOfsFile)
+    return pOfsFile->XrdOfsFile::stat(buf);
+  else
+    return ::stat(mFilePath.c_str(), buf);
 }
 
 int
@@ -303,7 +307,10 @@ LocalIo::fileRemove (uint16_t timeout)
     //..........................................................................
     // Only try to delete if there is something to delete!
     //..........................................................................
-    return unlink(mLogicalFile->GetFstPath().c_str());
+    if (mLogicalFile)
+      return unlink(mLogicalFile->GetFstPath().c_str());
+    else
+      return ::unlink(mFilePath.c_str());
   }
 
   return SFS_OK;

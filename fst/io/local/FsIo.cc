@@ -231,7 +231,10 @@ FsIo::fileSync(uint16_t timeout)
 int
 FsIo::fileStat(struct stat* buf, uint16_t timeout)
 {
-  return ::fstat(mFd, buf);
+  if (mFd>0)
+    return ::fstat(mFd, buf);
+  else
+    return ::stat(mFilePath.c_str(), buf);
 }
 
 //------------------------------------------------------------------------------

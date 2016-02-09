@@ -45,7 +45,7 @@ public:
   //! @param client security entity
   //!
   //--------------------------------------------------------------------------
-  LocalIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client);
+  LocalIo(std::string path, XrdFstOfsFile* file = 0, const XrdSecEntity* client = 0);
 
 
   //--------------------------------------------------------------------------
