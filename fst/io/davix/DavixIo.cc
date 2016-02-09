@@ -105,7 +105,8 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
     mIsS3 = false;
   }
 
-  setAttrSync();// by default sync attributes lazyly
+  mParams.setOperationRetry(0);
+  setAttrSync(false);// by default sync attributes lazyly
   mAttrLoaded = false;
   mAttrDirty = false;
 }
@@ -118,7 +119,7 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
 DavixIo::~DavixIo ()
 {
   // deal with asynchrnous dirty attributes
-  if (mAttrSync && mAttrDirty)
+  if (!mAttrSync && mAttrDirty)
   {
     std::string lMap = mFileMap.Trim();
     if (!DavixIo::Upload(mAttrUrl, lMap))
@@ -234,8 +235,11 @@ DavixIo::fileOpen (
     return 0;
   }
 
-  eos_err("url=\"%s\" msg=\"%s\" ", mFilePath.c_str(), err->getErrMsg().c_str());
-  return SetErrno(-1, err);
+  int rc = SetErrno(-1, err);
+
+  if (errno != ENOENT)
+    eos_err("url=\"%s\" msg=\"%s\" errno=%d ", mFilePath.c_str(), err->getErrMsg().c_str(),errno);
+  return rc;
 }
 
 
@@ -516,8 +520,9 @@ DavixIo::Download (std::string url, std::string& download)
     return 0;
   }
 
-  if (errno == 3011)
+  if (errno == ENOENT)
     return 0;
+
   return -1;
 }
 
@@ -579,13 +584,14 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
   {
     std::string key = name;
     std::string val;
+    val.assign(value, len);
+
     if ( val == "#__DELETE_ATTR_#")
     {
       mFileMap.Remove(key);
     }
     else
     {
-      val.assign(value, len);
       // just modify
       mFileMap.Set(key,val);
     }
@@ -596,20 +602,24 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
   // download
   if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
+
     if (mFileMap.Load(lBlob))
     {
-      mAttrLoaded = true;
       std::string key = name;
       std::string val;
+      val.assign(value, len);
+	
       if ( val == "#__DELETE_ATTR_#")
       {
 	mFileMap.Remove(key);
       }
       else
       {
-	val.assign(value, len);
 	mFileMap.Set(key, val);
       }
+      mAttrDirty = true;
+
       if (mAttrSync)
       {
 	std::string lMap = mFileMap.Trim();
@@ -624,6 +634,7 @@ DavixIo::attrSet (const char* name, const char* value, size_t len)
 			 mAttrUrl.c_str());
 	}
       }
+      return 0;
     }
     else
     {
@@ -673,11 +684,12 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
   }
 
   std::string lBlob;
-  if (!DavixIo::Download(mAttrUrl, lBlob) )
+  if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
+
     if (mFileMap.Load(lBlob))
     {
-      mAttrLoaded = true;
       std::string val = mFileMap.Get(name);
       size_t len = val.length() + 1;
       if (len > size)
@@ -706,6 +718,7 @@ DavixIo::attrGet (std::string name, std::string &value)
   if (!mAttrSync && mAttrLoaded)
   {
     value = mFileMap.Get(name);
+
     return 0;
   }
 
@@ -713,6 +726,7 @@ DavixIo::attrGet (std::string name, std::string &value)
   if (!DavixIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     mAttrLoaded = true;
+
     if (mFileMap.Load(lBlob))
     {
       value = mFileMap.Get(name);

@@ -92,7 +92,7 @@ mIsOpen (false)
   //............................................................................
   mAttrUrl = getAttrUrl(mFilePath.c_str());
 
-  setAttrSync();// by default sync attributes lazyly
+  setAttrSync(false);// by default sync attributes lazyly
   mAttrLoaded = false;
   mAttrDirty = false;
 }
@@ -123,7 +123,7 @@ XrdIo::~XrdIo ()
   delete mMetaHandler;
 
   // deal with asynchrnous dirty attributes
-  if (mAttrSync && mAttrDirty)
+  if (!mAttrSync && mAttrDirty)
   {
     std::string lMap = mFileMap.Trim();
     if (!XrdIo::Upload(mAttrUrl, lMap))
@@ -971,6 +971,7 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
   {
     std::string key = name;
     std::string val;
+    val.assign(value, len);
 
     if ( val == "#__DELETE_ATTR_#")
     {
@@ -978,7 +979,6 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
     }
     else
     {
-      val.assign(value, len);
       // just modify
       mFileMap.Set(key,val);
     }
@@ -991,6 +991,7 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
   if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     mAttrLoaded = true;
+
     if (mFileMap.Load(lBlob))
     {
       std::string key = name;
@@ -1004,11 +1005,15 @@ XrdIo::attrSet(const char* name, const char* value, size_t len)
 	val.assign(value, len);
 	mFileMap.Set(key, val);
       }
+
+      mAttrDirty = true;
+
       if (mAttrSync)
       {
 	std::string lMap = mFileMap.Trim();
 	if (!XrdIo::Upload(mAttrUrl, lMap))
 	{
+	  mAttrDirty=false;
 	  return SFS_OK;
 	}
 	else
@@ -1066,9 +1071,10 @@ XrdIo::attrGet(const char* name, char* value, size_t &size)
   }
 
   std::string lBlob;
-  if (!XrdIo::Download(mAttrUrl, lBlob))
+  if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
     mAttrLoaded = true;
+
     if (mFileMap.Load(lBlob))
     {
       std::string val = mFileMap.Get(name);
@@ -1103,8 +1109,9 @@ XrdIo::attrGet(string name, std::string& value)
   }
   
   std::string lBlob;
-  if (!XrdIo::Download(mAttrUrl, lBlob))
+  if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       value = mFileMap.Get(name);
@@ -1135,9 +1142,20 @@ XrdIo::attrDelete(const char* name)
 int 
 XrdIo::attrList(std::vector<std::string>& list)
 {
+  if (!mAttrSync && mAttrLoaded)
+  {
+    std::map<std::string, std::string> lMap = mFileMap.GetMap();
+    for (auto it=lMap.begin(); it!=lMap.end(); ++it)
+    {
+      list.push_back(it->first);
+    }
+    return 0;
+  }
+
   std::string lBlob;
   if (!XrdIo::Download(mAttrUrl, lBlob) || errno == ENOENT)
   {
+    mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
       std::map<std::string, std::string> lMap = mFileMap.GetMap();
