@@ -1421,7 +1421,10 @@ Mapping::UserNameToUid (std::string &username, int &errc)
 
     uid = atoi(username.c_str());
     if ((uid != 0) && (is_number))
+    {
       errc = 0;
+      return uid;
+    }
     else
     {
       errc = EINVAL;
@@ -1430,14 +1433,16 @@ Mapping::UserNameToUid (std::string &username, int &errc)
   }
   else
   {
-
     uid = pwbuf.pw_uid;
     errc = 0;
   }
 
-  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-  gPhysicalUserIdCache[username] = uid;
-  gPhysicalUserNameCache[uid] = username;
+  if (!errc)
+  {
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    gPhysicalUserIdCache[username] = uid;
+    gPhysicalUserNameCache[uid] = username;
+  }
   return uid;
 }
 
@@ -1473,10 +1478,22 @@ Mapping::GroupNameToGid (std::string &groupname, int &errc)
   getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
   if (!grbufp)
   {
-    // cannot translate this name
+    bool is_number = true;
+    for (size_t i = 0; i < groupname.length(); i++)
+    {
+      if (!isdigit(groupname[i]))
+      {
+        is_number = false;
+        break;
+      }
+    }
+
     gid = atoi(groupname.c_str());
-    if (gid != 0)
+    if ((gid != 0) && (is_number))
+    {
       errc = 0;
+      return gid;
+    }
     else
     {
       errc = EINVAL;
@@ -1489,9 +1506,12 @@ Mapping::GroupNameToGid (std::string &groupname, int &errc)
     errc = 0;
   }
 
-  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-  gPhysicalGroupIdCache[groupname] = gid;
-  gPhysicalGroupNameCache[gid] = groupname;
+  if (!errc)
+  {
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    gPhysicalGroupIdCache[groupname] = gid;
+    gPhysicalGroupNameCache[gid] = groupname;
+  }
   return gid;
 }
 
