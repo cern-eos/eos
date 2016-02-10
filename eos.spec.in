@@ -251,7 +251,6 @@ Summary: The EOS fuse client
 Group: Applications/File
 
 Requires: xrootd-client
-Requires: eos-client
 Requires: fuse
 
 %description -n eos-fuse
