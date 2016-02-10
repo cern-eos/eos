@@ -1257,11 +1257,13 @@ xrd_stat (const char* path,
 
       if (iter_file != fd2fabst.end())
       {
+	off_t cache_size=0;
         // Force flush so that we get the real current size through the file obj.
         if (XFC && fuse_cache_write) 
 	{
 	  iter_file->second->mMutexRW.WriteLock();
           XFC->ForceAllWrites(iter_file->second);
+	  cache_size = iter_file->second->GetMaxWriteOffset();
 	  iter_file->second->mMutexRW.UnLock();
 	}
 
@@ -1271,6 +1273,10 @@ xrd_stat (const char* path,
         if (!file->Stat(&tmp))
         {
           file_size = tmp.st_size;
+	  if (cache_size > file_size)
+	  {
+	    file_size = cache_size;
+	  }
           eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p",
                           iter_fd->second, file_size, file);
         }
@@ -2693,6 +2699,7 @@ xrd_truncate (int fildes, off_t offset)
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
     ret = file->Truncate(offset);
+    fabst->SetMaxWriteOffset(offset);
     fabst->mMutexRW.UnLock();
   }
   else

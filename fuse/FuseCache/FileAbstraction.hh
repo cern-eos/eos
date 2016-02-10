@@ -204,6 +204,21 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     const char* GetUtimes(struct timespec* utime);
 
+    //--------------------------------------------------------------------------
+    //! Conditionally increase the max write offset if offset is bigger
+    //--------------------------------------------------------------------------
+    void TestMaxWriteOffset(off_t offset);
+
+    //--------------------------------------------------------------------------
+    //! Set the max write offset to offset
+    //--------------------------------------------------------------------------
+    void SetMaxWriteOffset(off_t offset);
+
+    //--------------------------------------------------------------------------
+    //! Get the max write offset
+    //--------------------------------------------------------------------------
+    off_t GetMaxWriteOffset();
+
   private:
 
     int mFd; ///< file descriptor used for the block key range
@@ -216,6 +231,8 @@ class FileAbstraction
     XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
     struct timespec mUtime[2]; ///< cond variable tracking last set utime while file is still open
     std::string mPath; ///< valid path to this file
+    XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
+    off_t mMaxWriteOffset; ///< maximum written offset
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__
