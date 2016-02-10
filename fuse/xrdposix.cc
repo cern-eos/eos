@@ -1261,10 +1261,7 @@ xrd_stat (const char* path,
         // Force flush so that we get the real current size through the file obj.
         if (XFC && fuse_cache_write) 
 	{
-	  iter_file->second->mMutexRW.WriteLock();
-          XFC->ForceAllWrites(iter_file->second);
 	  cache_size = iter_file->second->GetMaxWriteOffset();
-	  iter_file->second->mMutexRW.UnLock();
 	}
 
         struct stat tmp;
