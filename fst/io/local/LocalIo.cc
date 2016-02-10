@@ -272,14 +272,8 @@ LocalIo::fileStat (struct stat* buf, uint16_t timeout)
 int
 LocalIo::fileExists ()
 {
-  XrdOfsFile* pOfsFile = mLogicalFile;
-  if (!pOfsFile)
-  {
-    errno = ENOENT;
-    return -1;
-  }
   struct stat buf;
-  return pOfsFile->XrdOfsFile::stat(&buf);
+  return fileStat(&buf);
 }
 
 //------------------------------------------------------------------------------
