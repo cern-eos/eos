@@ -648,6 +648,11 @@ XrdMgmOfsFile::Emsg (const char *pfx,
   // Get the reason for the error
   // ---------------------------------------------------------------------------
   if (ecode < 0) ecode = -ecode;
+
+  // we rewrite this errno, because xrd client translates this into IO error
+  if (ecode == EDQUOT)
+    ecode = ENOSPC;
+
   if (!(etext = strerror(ecode)))
   {
 
