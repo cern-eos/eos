@@ -1745,7 +1745,7 @@ main (int argc, char* argv[])
     }
 
     if ((!isRaidTransfer) &&
-        (src_handler[i].first <= 0) &&
+        (src_handler[i].first < 0) &&
         (src_handler[i].second == NULL))
     {
       std::string errmsg;
@@ -1759,7 +1759,6 @@ main (int argc, char* argv[])
       break;
     }
   }
-
   //............................................................................
   // Seek the required start position
   //............................................................................
