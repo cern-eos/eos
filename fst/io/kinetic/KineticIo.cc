@@ -116,7 +116,7 @@ KineticIo::fileTruncate(XrdSfsFileOffset offset, uint16_t timeout)
 int
 KineticIo::fileFallocate(XrdSfsFileOffset length)
 {
-  eos_debug("path: %s, length: %d", length, mFilePath.c_str());
+  eos_debug("path: %s, length: %d",  mFilePath.c_str(), length);
   return 0;
 }
 
