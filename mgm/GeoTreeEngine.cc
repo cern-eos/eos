@@ -656,7 +656,7 @@ void GeoTreeEngine::printInfo(std::string &info,
       }
       if(optype.empty() || (optype == "plctblc") )
       {
-	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Placement\' :" << std::endl;
 	it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
     }
@@ -1635,6 +1635,18 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
       {
 	stn->pNodeState.mStatus &= ~SchedTreeBase::Readable;
 	stn->pNodeState.mStatus &= ~SchedTreeBase::Writable;
+      }
+      // For Drain Access, the file system can be scheduled if it's draining
+      if(status==FileSystem::kDrain)
+      {
+        if(ftIdx)
+        {
+          entry->backgroundFastStruct->drnAccessTree->pNodes[ftIdx].fsData.mStatus |= SchedTreeBase::Readable;
+        }
+        if(stn)
+        {
+          stn->pNodeState.mStatus |= SchedTreeBase::Readable;
+        }
       }
     }
   }
