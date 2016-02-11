@@ -307,7 +307,7 @@ public:
 
   template<typename T>
   inline static signed char
-  compareAccess(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
+  compareAccessRO(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
       const TreeNodeSlots* const &rightp)
   {
     // this function compares the scheduling priority of two branches
@@ -330,6 +330,46 @@ public:
     return -1;
 
     mask = Available|Readable;
+    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return -1;
+
+    // 0 - Having at least one free slot
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
+    return 1;
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
+    return -1;
+
+    // we might add a notion of depth to minimize latency
+    return 0;
+  }
+
+  template<typename T>
+  inline static signed char
+  compareAccessRW(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
+      const TreeNodeSlots* const &rightp)
+  {
+    // this function compares the scheduling priority of two branches
+    // inside a FastTree branches are in a vector which is kept sorted.
+    // if after a replica is placed, the scheduling priority doesn't get higher
+    // than the next priority level being present in the array,
+    // a single swap is enough to keep the order
+    // return value
+    // -1 if left  > right
+    //  0 if left == right
+    //  1 if right > left
+
+    // lexicographic order
+
+    // -2 - Should not be disabled
+    int16_t mask = Disabled;
+    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return -1;
+
+    mask = Available|Readable|Writable;
     if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
     if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )

@@ -598,7 +598,7 @@ public:
   operator()(const SchedTreeBase::TreeNodeStateChar* const &lefts, const SchedTreeBase::TreeNodeSlots* const &leftp,
       const SchedTreeBase::TreeNodeStateChar* const &rights, const SchedTreeBase::TreeNodeSlots* const &rightp) const
   {
-    return SchedTreeBase::compareAccess<char>(lefts, leftp, rights, rightp);
+    return SchedTreeBase::compareAccessRO<char>(lefts, leftp, rights, rightp);
   }
 
   inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
@@ -631,7 +631,7 @@ public:
   operator()(const SchedTreeBase::TreeNodeStateChar* const &lefts, const SchedTreeBase::TreeNodeSlots* const &leftp,
       const SchedTreeBase::TreeNodeStateChar* const &rights, const SchedTreeBase::TreeNodeSlots* const &rightp) const
   {
-    return SchedTreeBase::compareAccess<char>(lefts, leftp, rights, rightp);
+    return SchedTreeBase::compareAccessRW<char>(lefts, leftp, rights, rightp);
   }
 
   inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
