@@ -400,7 +400,9 @@
 	      std::string tried_cgi;
 	      if (Quota::FileAccess(h_vid, (long unsigned int) 0, (const char*) 0,
 				    tried_cgi, lid, locationfs, fsindex,
-				    false, (long long unsigned) 0, unavailfs))
+				    false, (long long unsigned) 0, unavailfs,
+	                            eos::common::FileSystem::kDrain,
+	                            "",false,eos::mgm::Scheduler::draining))
               {
 		// inaccessible files we retry after 60 seconds
 		eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);

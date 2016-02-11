@@ -563,7 +563,8 @@ public:
 		    const std::string& plctTrgGeotag,
 		    bool truncate = false,
 		    int forced_scheduling_group_index = -1,
-		    unsigned long long bookingsize = 1024 * 1024 * 1024ll);
+		    unsigned long long bookingsize = 1024 * 1024 * 1024ll,
+		    eos::mgm::Scheduler::tSchedType schedtype=eos::mgm::Scheduler::regular);
 
   //----------------------------------------------------------------------------
   //! Take the decision from where to access a file. The core of the
@@ -600,7 +601,8 @@ public:
 			eos::common::FileSystem::fsstatus_t min_fsstatus =
 			eos::common::FileSystem::kDrain,
 			std::string overridegeoloc = "",
-			bool noIO = false);
+			bool noIO = false,
+			eos::mgm::Scheduler::tSchedType schedtype=eos::mgm::Scheduler::regular);
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota

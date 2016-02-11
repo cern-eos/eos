@@ -58,7 +58,8 @@ Scheduler::FilePlacement(const std::string& spacename,
                          const std::string& plctTrgGeotag,
                          bool truncate,
                          int forced_scheduling_group_index,
-                         unsigned long long bookingsize)
+                         unsigned long long bookingsize,
+                         tSchedType schedtype)
 {
   eos_static_debug("requesting file placement from geolocation %s", vid.geolocation.c_str());
   // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
@@ -252,15 +253,26 @@ Scheduler::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
                       std::vector<unsigned int>& unavailfs,
                       eos::common::FileSystem::fsstatus_t min_fsstatus,
                       std::string overridegeoloc,
-                      bool noIO)
+                      bool noIO,
+                      tSchedType schedtype)
 {
   size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid) :
                        eos::common::LayoutId::GetMinOnlineReplica(lid);
   eos_static_debug("requesting file access from geolocation %s",
                    vid.geolocation.c_str());
+
+  GeoTreeEngine::SchedType st=GeoTreeEngine::regularRO;
+  if(schedtype==regular)
+  {
+    if(isRW) st = GeoTreeEngine::regularRW;
+    else     st = GeoTreeEngine::regularRO;
+  }
+  if(schedtype==draining) st = GeoTreeEngine::draining;
+  if(schedtype==balancing) st = GeoTreeEngine::balancing;
+
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes, fsindex,
          &locationsfs,
-         isRW ? GeoTreeEngine::regularRW : GeoTreeEngine::regularRO,
+         st,
          overridegeoloc.empty() ? vid.geolocation : overridegeoloc,
          forcedfsid, &unavailfs, noIO);
 }
