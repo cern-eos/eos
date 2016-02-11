@@ -42,7 +42,8 @@ EOSFSTNAMESPACE_BEGIN
 LocalIo::LocalIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client) :
 FsIo (path, "LocalIo"),
 mLogicalFile (file),
-mSecEntity (client)
+mSecEntity (client),
+mIsOpen(false)
 {
 }
 
@@ -81,6 +82,8 @@ LocalIo::fileOpen (               XrdSfsFileOpenMode flags,
                                    opaque.c_str());
   if (retc != SFS_OK)
     eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
+  else
+    mIsOpen = true;
   return retc;
 }
 
@@ -263,7 +266,7 @@ LocalIo::fileStat (struct stat* buf, uint16_t timeout)
 {
   XrdOfsFile* pOfsFile = mLogicalFile;
 
-  if (pOfsFile)
+  if (pOfsFile && mIsOpen)
     return pOfsFile->XrdOfsFile::stat(buf);
   else
     return ::stat(mFilePath.c_str(), buf);
@@ -283,6 +286,7 @@ LocalIo::fileExists ()
 int
 LocalIo::fileClose (uint16_t timeout)
 {
+  mIsOpen = false;
   return mLogicalFile->closeofs();
 }
 

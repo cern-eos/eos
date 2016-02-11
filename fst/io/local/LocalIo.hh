@@ -215,8 +215,8 @@ private:
   //! Disable assign operator
   //--------------------------------------------------------------------------
   LocalIo& operator = (const LocalIo&) = delete;
-
-
+  
+  bool mIsOpen;
 };
 
 EOSFSTNAMESPACE_END
