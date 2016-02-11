@@ -139,11 +139,16 @@ DavixIo::~DavixIo ()
 //------------------------------------------------------------------------------
 
 int
-DavixIo::SetErrno (int errcode, Davix::DavixError *err)
+DavixIo::SetErrno (int errcode, Davix::DavixError *err, bool free_error)
 {
+  eos_debug("");
   if (errcode == 0)
   {
     errno = 0;
+
+    if (free_error && err)
+      Davix::DavixError::clearError(&err);
+
     return 0;
   }
   if (!err)
@@ -183,6 +188,10 @@ DavixIo::SetErrno (int errcode, Davix::DavixError *err)
       errno = EIO;
 
   }
+
+  if (free_error && err)
+    Davix::DavixError::clearError(&err);
+
   return -1;
 }
 
@@ -197,6 +206,7 @@ DavixIo::fileOpen (
                const std::string& opaque,
                uint16_t timeout)
 {
+  eos_debug("");
   eos_info("flags=%x", flags);
   Davix::DavixError* err = 0;
 
@@ -230,15 +240,19 @@ DavixIo::fileOpen (
   if (pflags & O_CREAT)
     mCreated = true;
 
-  if (mFd)
+  if (mFd>0)
   {
     return 0;
   }
 
-  int rc = SetErrno(-1, err);
+  int rc = SetErrno(-1, err, false);
 
   if (errno != ENOENT)
     eos_err("url=\"%s\" msg=\"%s\" errno=%d ", mFilePath.c_str(), err->getErrMsg().c_str(),errno);
+
+  if (err)
+    delete err;
+
   return rc;
 }
 
@@ -264,6 +278,7 @@ DavixIo::fileRead (XrdSfsFileOffset offset,
     eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
     return SetErrno(-1, err);
   }
+
   return retval;
 }
 
@@ -398,11 +413,14 @@ DavixIo::fileStat (struct stat* buf, uint16_t timeout)
 int
 DavixIo::fileRemove (uint16_t timeout)
 {
-  Davix::DavixError *err = 0;
-  int rc = mDav.unlink(&mParams, mFilePath, &err);
+  eos_debug("");
+  Davix::DavixError *err1 = 0;
+  Davix::DavixError *err2 = 0;
+  int rc = mDav.unlink(&mParams, mFilePath, &err1);
+  SetErrno(rc, err1);
   // ignore xattr errors
-  mDav.unlink(&mParams, mAttrUrl, &err);
-  return SetErrno(rc, err);
+  mDav.unlink(&mParams, mAttrUrl, &err2);
+  return SetErrno(rc, err2);
 }
 
 //------------------------------------------------------------------------------
@@ -432,6 +450,7 @@ DavixIo::fileExists ()
 int
 DavixIo::fileDelete (const char* path)
 {
+  eos_debug("");
   eos_info("path=\"%s\"", path);
   Davix::DavixError *err = 0;
   std::string davpath = path;
@@ -446,6 +465,7 @@ DavixIo::fileDelete (const char* path)
 int
 DavixIo::Mkdir (const char* path, mode_t mode)
 {
+  eos_debug("");
   eos_info("path=\"%s\"", path);
   Davix::DavixError *err = 0;
   XrdOucString davpath = path;
@@ -461,6 +481,7 @@ DavixIo::Mkdir (const char* path, mode_t mode)
 int
 DavixIo::Rmdir (const char* path)
 {
+  eos_debug("");
   Davix::DavixError *err = 0;
   return SetErrno(mDav.rmdir(&mParams, path, &err), err);
 }
@@ -472,6 +493,7 @@ DavixIo::Rmdir (const char* path)
 int 
 DavixIo::fileSync(uint16_t timeout)
 {
+  eos_debug("");
   return 0;
 }
 
@@ -482,6 +504,7 @@ DavixIo::fileSync(uint16_t timeout)
 void*
 DavixIo::fileGetAsyncHandler ()
 {
+  eos_debug("");
   return 0;
 }
 
@@ -492,6 +515,7 @@ DavixIo::fileGetAsyncHandler ()
 int
 DavixIo::Download (std::string url, std::string& download)
 {
+  eos_static_debug("");
   errno = 0;
   static int s_blocksize = 65536;
   DavixIo io(url.c_str());
@@ -533,6 +557,7 @@ DavixIo::Download (std::string url, std::string& download)
 int
 DavixIo::Upload (std::string url, std::string& upload)
 {
+  eos_static_debug("");
   errno = 0;
   DavixIo io(url.c_str());
 
@@ -577,6 +602,7 @@ DavixIo::Upload (std::string url, std::string& upload)
 int
 DavixIo::attrSet (const char* name, const char* value, size_t len)
 {
+  eos_debug("");
   std::string lBlob;
   errno = 0;
 
@@ -671,6 +697,7 @@ DavixIo::attrSet (std::string key, std::string value)
 int
 DavixIo::attrGet (const char* name, char* value, size_t &size)
 {
+  eos_debug("");
   errno = 0;
   if (!mAttrSync && mAttrLoaded)
   {
@@ -714,6 +741,7 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
 int
 DavixIo::attrGet (std::string name, std::string &value)
 {
+  eos_debug("");
   errno = 0;
   if (!mAttrSync && mAttrLoaded)
   {
@@ -748,6 +776,7 @@ DavixIo::attrGet (std::string name, std::string &value)
 int 
 DavixIo::attrDelete(const char* name)
 {
+  eos_debug("");
   errno = 0;
   return attrSet(name,"#__DELETE_ATTR_#");
 }
@@ -758,6 +787,7 @@ DavixIo::attrDelete(const char* name)
 int 
 DavixIo::attrList(std::vector<std::string>& list)
 {
+  eos_debug("");
   if (!mAttrSync && mAttrLoaded)
   {
     std::map<std::string, std::string> lMap = mFileMap.GetMap();

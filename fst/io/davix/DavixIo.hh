@@ -343,7 +343,7 @@ public:
   static Davix::Context gContext;
 
 private:
-  int SetErrno (int errcode, Davix::DavixError *err);
+  int SetErrno (int errcode, Davix::DavixError *err, bool free_error=true);
   bool mCreated;
   std::string mAttrUrl;
   std::string mOpaque;
