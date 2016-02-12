@@ -156,6 +156,7 @@ public:
     else if (method == "UNLOCK")    return Methods::UNLOCK;
     else return -1;
   }
+
 };
 
 /*----------------------------------------------------------------------------*/

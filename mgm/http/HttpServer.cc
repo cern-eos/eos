@@ -130,10 +130,10 @@ HttpServer::Handler (void *cls,
   eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) * ptr;
 
   // For requests which have a body (i.e. uploadDataSize != 0) we must handle
-  // the body data on the second reentrant call to this function. We must
+  // the body data on the last call to this function. We must
   // create the response and store it inside the protocol handler, but we must
   // NOT queue the response until the third call.
-  if (!protocolHandler->GetResponse())
+  if (!protocolHandler->GetResponse() && (!*uploadDataSize))
   {
     // Get the request headers again
     MHD_get_connection_values(connection, MHD_HEADER_KIND,
@@ -149,15 +149,16 @@ HttpServer::Handler (void *cls,
     MHD_get_connection_values(connection, MHD_COOKIE_KIND,
                               &HttpServer::BuildHeaderMap, (void*) &cookies);
 
+    size_t bodySize = protocolHandler->GetBody().size();
+
     // Make a request object
-    std::string body(uploadData, *uploadDataSize);
     eos::common::HttpRequest *request = new eos::common::HttpRequest(
                                                                      headers, method, url,
                                                                      query.c_str() ? query : "",
-                                                                     body, uploadDataSize, cookies);
+                                                                     protocolHandler->GetBody(), &bodySize, cookies);
     eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(), request->GetBody().c_str());
     
-    // Handle the request and build a response based on the specific protocol
+    // Handle the request and build a response based on the specific protocol unless the body is not complete ...
     protocolHandler->HandleRequest(request);
     delete request;
   }
@@ -167,6 +168,8 @@ HttpServer::Handler (void *cls,
   // do that on the next (third) call.
   if (*uploadDataSize != 0)
   {
+    // we store the partial body into the handler
+    protocolHandler->AddToBody(uploadData, *uploadDataSize);
     *uploadDataSize = 0;
     return MHD_YES;
   }
