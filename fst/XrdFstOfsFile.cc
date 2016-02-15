@@ -219,6 +219,7 @@ XrdFstOfsFile::open (const char* path,
   gettimeofday(&openTime, &tz);
   XrdOucString stringOpaque = opaque;
   XrdOucString opaqueCheckSum = "";
+  XrdOucString opaqueBlockCheckSum = "";
   std::string sec_protocol = client->prot;
 
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
@@ -484,6 +485,11 @@ XrdFstOfsFile::open (const char* path,
   if ((val = openOpaque->Get("mgm.checksum")))
   {
     opaqueCheckSum = val;
+  }
+
+  if ((val = openOpaque->Get("mgm.blockchecksum")))
+  {
+    opaqueBlockCheckSum = val;
   }
 
   if ((val = openOpaque->Get("eos.injection")))
@@ -1006,7 +1012,8 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
-    hasBlockXs = true;
+    if (opaqueBlockCheckSum != "ignore")
+      hasBlockXs = true;
   }
 
   XrdOucString oss_opaque = "";
@@ -3112,7 +3119,7 @@ XrdFstOfsFile::stat (struct stat * buf)
   if (!rc)
     buf->st_ino = fileid << 28;
 
-  eos_notice("path=%s inode=%lu", Path.c_str(), fileid);
+  eos_info("path=%s inode=%lu size=%lu", Path.c_str(), fileid, (unsigned long) buf->st_size);
   return rc;
 }
 
