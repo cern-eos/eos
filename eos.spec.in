@@ -35,7 +35,7 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
-BuildRequires: libmicrohttpd, libmicrohttpd-devel
+BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 
 %if %{distribution} == 5
@@ -66,7 +66,7 @@ Group: Applications/File
 Requires: xrootd >= 3.3.4
 Requires: xrootd-client
 Requires: eos-client
-Requires: libmicrohttpd
+Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
 Requires: zeromq
@@ -130,22 +130,22 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/eos-iobw
 %{_sbindir}/eos-iops
 %{_libdir}/libeosCommonServer.so.%{version}
-%{_libdir}/libeosCommonServer.so.3
+%{_libdir}/libeosCommonServer.so.%{major_version}
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libXrdEosAuth.so.%{version}
-%{_libdir}/libXrdEosAuth.so.3
+%{_libdir}/libXrdEosAuth.so.%{major_version}
 %{_libdir}/libXrdEosAuth.so
 %{_libdir}/libXrdEosFst.so.%{version}
-%{_libdir}/libXrdEosFst.so.3
+%{_libdir}/libXrdEosFst.so.%{major_version}
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosFstOss.so.%{version}
-%{_libdir}/libEosFstOss.so.3
+%{_libdir}/libEosFstOss.so.%{major_version}
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libXrdEosMgm.so.%{version}
-%{_libdir}/libXrdEosMgm.so.3
+%{_libdir}/libXrdEosMgm.so.%{major_version}
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so.%{version}
-%{_libdir}/libXrdMqOfs.so.3
+%{_libdir}/libXrdMqOfs.so.%{major_version}
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
@@ -204,10 +204,10 @@ The EOS shell client.
 %{_bindir}/eosdropboxd
 %{_bindir}/eoscp
 %{_libdir}/libXrdMqClient.so.%{version}
-%{_libdir}/libXrdMqClient.so.3
+%{_libdir}/libXrdMqClient.so.%{major_version}
 %{_libdir}/libXrdMqClient.so
 %{_libdir}/libeosCommon.so.%{version}
-%{_libdir}/libeosCommon.so.3
+%{_libdir}/libeosCommon.so.%{major_version}
 %{_libdir}/libeosCommon.so
 
 # Documentation
