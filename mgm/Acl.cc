@@ -281,9 +281,9 @@ Acl::Set (std::string sysacl,
         // -----------------------------------------------------------------------
         // 'c' defines owner change permission (for directories)
         // -----------------------------------------------------------------------
-        if ((!useracl.length()) && ((entry[2].find("c")) != std::string::npos))
+        if ((sysacl.find(*it)!= std::string::npos) && ((entry[2].find("c")) != std::string::npos))
         {
-          // this is only valid if only a sysacl is present
+          // this is only valid if it is specified as a sysacl
           canChown = true;
           hasAcl = true;
         }
@@ -354,9 +354,9 @@ Acl::Set (std::string sysacl,
         // -----------------------------------------------------------------------
         // 'q' defines quota set permission
         // -----------------------------------------------------------------------
-        if ((!useracl.length()) && ((entry[2].find("q")) != std::string::npos))
+        if (((sysacl.find(*it)!= std::string::npos)) && ((entry[2].find("q")) != std::string::npos))
         {
-          // this is only valid if only a sys acl is present
+          // this is only valid if it is specified as a sysacl
           canSetQuota = true;
           hasAcl = true;
         }
