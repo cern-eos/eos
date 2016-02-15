@@ -154,8 +154,8 @@ public:
   static std::string fsStatusToStr(int16_t s)
   {
     std::string out="";
-    if(s&Disabled) out = +"DIS";
-    if(!(s&Available)) out = +"Unv";
+    if(s&Disabled) out = out + "DIS";
+    if(!(s&Available)) out = out + "Unv";
     if(s&Balancer) out = out + "Bin";
     if(s&Balancing) out = out + "Bout";
     if(s&Drainer) out = out + "Din";
@@ -255,16 +255,16 @@ public:
 
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     // -1 - Should be a drainer
     mask = Available|Writable;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // 0 - Having at least one free slot
@@ -324,15 +324,65 @@ public:
 
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     mask = Available|Readable;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return -1;
+
+    // 0 - Having at least one free slot
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
+    return 1;
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
+    return -1;
+
+    // we might add a notion of depth to minimize latency
+    return 0;
+  }
+
+  template<typename T>
+  inline static signed char
+  compareAccessDrain(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
+      const TreeNodeSlots* const &rightp)
+  {
+    // this function compares the scheduling priority of two branches
+    // inside a FastTree branches are in a vector which is kept sorted.
+    // if after a replica is placed, the scheduling priority doesn't get higher
+    // than the next priority level being present in the array,
+    // a single swap is enough to keep the order
+    // return value
+    // -1 if left  > right
+    //  0 if left == right
+    //  1 if right > left
+
+    // lexicographic order
+
+    // -2 - Should not be disabled
+    int16_t mask = Disabled;
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return -1;
+
+    // should be readable or draining
+    int16_t mask2 = Available|Draining;
+    mask = Available|Readable;
+    if (
+        ( (mask!=(lefts->mStatus&mask)) && (mask2!=(lefts->mStatus&mask2)) )
+        &&
+        ( (mask==(rights->mStatus&mask)) || (mask2==(rights->mStatus&mask2)) )
+        )
+    return 1;
+    if (
+        ( (mask==(lefts->mStatus&mask)) || (mask2==(lefts->mStatus&mask2)) )
+        &&
+        ( (mask!=(rights->mStatus&mask)) && (mask2!=(rights->mStatus&mask2)) )
+        )
     return -1;
 
     // 0 - Having at least one free slot
@@ -364,15 +414,15 @@ public:
 
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     mask = Available|Readable|Writable;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // 0 - Having at least one free slot
@@ -392,16 +442,16 @@ public:
   {
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     // -1 - Should be a drainer
     mask = Available|Writable|Drainer;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // 0 - Having at least one free slot
@@ -449,17 +499,17 @@ public:
   {
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     // lexicographic order
     // -1 - Should be a draining
     mask = Available|Readable;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // 0 - Having at least one free slot
@@ -480,16 +530,16 @@ public:
     // lexicographic order
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     // -1 - Should be a balancer
     mask = Available|Writable|Balancer;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // 0 - Having at least one free slot
@@ -537,17 +587,17 @@ public:
   {
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return 1;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
     // lexicographic order
     // -1 - Should be a balancing
     mask = Available|Readable;
-    if ( (mask!=(mask&lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
-    if ( (mask==(mask&lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // 0 - Having at least one free slot

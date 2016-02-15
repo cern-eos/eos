@@ -133,7 +133,8 @@ public:
     fsstatus_t mConfigStatus;
     fsstatus_t mDrainStatus;
     fsactive_t mActiveStatus;
-    bool mBalRunning;
+    bool mBalancing;
+    bool mBalancerOn;
     long long mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;
@@ -167,6 +168,7 @@ public:
     time_t mScanInterval;
     time_t mGracePeriod;
     time_t mDrainPeriod;
+    bool mDrainerOn;
   } fs_snapshot_t;
 
   // ------------------------------------------------------------------------

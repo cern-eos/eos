@@ -616,6 +616,42 @@ public:
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Functor Class to define relative priorities of branches in
+ *        the fast tree for file access in draining.
+ *
+ */
+/*----------------------------------------------------------------------------*/
+class DrainingAccessPriorityComparator
+{
+public:
+  SchedTreeBase::tFastTreeIdx saturationThresh;
+  DrainingAccessPriorityComparator() : saturationThresh(0)
+  {
+  }
+  inline signed char
+  operator()(const SchedTreeBase::TreeNodeStateChar* const &lefts, const SchedTreeBase::TreeNodeSlots* const &leftp,
+      const SchedTreeBase::TreeNodeStateChar* const &rights, const SchedTreeBase::TreeNodeSlots* const &rightp) const
+  {
+    return SchedTreeBase::compareAccessDrain<char>(lefts, leftp, rights, rightp);
+  }
+
+  inline bool isValidSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
+  {
+    const int16_t mask = SchedTreeBase::Available|SchedTreeBase::Readable;
+    const int16_t mask2 = SchedTreeBase::Available|SchedTreeBase::Draining;
+    return !(SchedTreeBase::Disabled&s->mStatus)
+        && ( (mask==(s->mStatus&mask)) || (mask2==(s->mStatus&mask2)) )
+        && (p->freeSlotsCount>0);
+  }
+
+  inline bool isSaturatedSlot(const SchedTreeBase::TreeNodeStateChar* const &s, const SchedTreeBase::TreeNodeSlots* const &p) const
+  {
+    return s->ulScore < saturationThresh;
+  }
+};
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Functor Class to define relative priorities of branches in
  *        the fast tree for Read-Write file access.
  *
  */
@@ -666,16 +702,6 @@ public:
     return plct.maxUlScore;
   }
 };
-
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Functor Class to define relative priorities of branches in
- *        the fast tree for file access in draining.
- *        It's the same as the general file access case
- *
- */
-/*----------------------------------------------------------------------------*/
-typedef ROAccessPriorityComparator DrainingAccessPriorityComparator;
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -1610,6 +1636,15 @@ public:
       bool isAvailable = (pNodes[node].fsData.mStatus & Available);
       bool isDraining = (pNodes[node].fsData.mStatus & Draining);
       bool isFs = ((*pTreeInfo)[node].nodeType) == TreeNodeInfo::fs;
+      bool isValid = false;
+      if(isFs)
+      {
+        // we fake to have one slot available to see if the fs is really a valid slot
+        eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
+        freeSlot.freeSlotsCount=1;
+        isValid = pBranchComp.isValidSlot(&pNodes[node].fsData,&freeSlot);
+      }
+
       consoleEscapeCode = "\033[";
       consoleReset = "\033[0m";
 
@@ -1623,7 +1658,7 @@ public:
         consoleEscapeCode = consoleEscapeCode + ("1;39;");
 
         if( !isAvailable
-            || (isFs && (!(isReadable || isWritable))) ) // UNAVAILABLE OR NOIO
+            || (isFs && (!isValid)) ) // UNAVAILABLE OR NOIO
         consoleEscapeCode = consoleEscapeCode + ("41");
         else if(isFs)
         {

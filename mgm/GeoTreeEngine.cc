@@ -1592,13 +1592,13 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
   }
   if(keys&sfgConfigstatus)
   {
-    FileSystem::fsstatus_t status = fs->mConfigStatus;
-    if(status==FileSystem::kRW)
+    FileSystem::fsstatus_t configstatus = fs->mConfigStatus;
+    if(configstatus==FileSystem::kRW)
     {
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable|SchedTreeBase::Writable);
       if(stn) stn->pNodeState.mStatus |= (SchedTreeBase::Readable|SchedTreeBase::Writable);
     }
-    else if(status==FileSystem::kRO)
+    else if(configstatus==FileSystem::kRO)
     {
       if(ftIdx)
       {
@@ -1611,7 +1611,7 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 	stn->pNodeState.mStatus &= ~SchedTreeBase::Writable;
       }
     }
-    else if(status==FileSystem::kWO)
+    else if(configstatus==FileSystem::kWO)
     {
       if(ftIdx)
       {
@@ -1636,46 +1636,48 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 	stn->pNodeState.mStatus &= ~SchedTreeBase::Readable;
 	stn->pNodeState.mStatus &= ~SchedTreeBase::Writable;
       }
-      // For Drain Access, the file system can be scheduled if it's draining
-      if(status==FileSystem::kDrain)
-      {
-        if(ftIdx)
-        {
-          entry->backgroundFastStruct->drnAccessTree->pNodes[ftIdx].fsData.mStatus |= SchedTreeBase::Readable;
-        }
-        if(stn)
-        {
-          stn->pNodeState.mStatus |= SchedTreeBase::Readable;
-        }
-      }
     }
   }
   if(keys&sfgDrain)
   {
     FileSystem::fsstatus_t drainStatus = fs->mDrainStatus;
-    switch(drainStatus)
+    if(fs->mConfigStatus==FileSystem::kDrain && drainStatus==FileSystem::kDraining)
     {
-      case FileSystem::kNoDrain:
-      case FileSystem::kDrainPrepare:
-      case FileSystem::kDrainWait:
-      case FileSystem::kDrainStalling:
-      case FileSystem::kDrained:
-      case FileSystem::kDrainExpired:
-      case FileSystem::kDrainLostFiles:
-      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
-      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Draining;
-      // mark as unavailable for read/write
-      break;
-      case FileSystem::kDraining:
       // mark as draining
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
       if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Draining;
-      break;
+    }
+    else
+    {
+      // this covers the following cases
+      // case FileSystem::kNoDrain:
+      // case FileSystem::kDrainPrepare:
+      // case FileSystem::kDrainWait:
+      // case FileSystem::kDrainStalling:
+      // case FileSystem::kDrained:
+      // case FileSystem::kDrainExpired:
+      // case FileSystem::kDrainLostFiles:
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Draining;
     }
   }
-  if(keys&sfgBalthres)
+  if(keys&sfgDrainer)
   {
-    if(fs->mBalRunning)
+    if(fs->mDrainerOn)
+    {
+      if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
+      if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Drainer;
+    }
+    else
+    {
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Drainer;
+    }
+  }
+
+  if(keys&sfgBlcingrun)
+  {
+    if(fs->mBalancing)
     {
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancing);
       if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Balancing;
@@ -1686,6 +1688,20 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
       if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancing;
     }
   }
+  if(keys&sfgBlcerrun)
+  {
+    if(fs->mBalancerOn)
+    {
+      if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
+      if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Balancer;
+    }
+    else
+    {
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancer;
+    }
+  }
+
   //	if(keys&sfgFsfilled)
   //	{
   //		//half fr = half(fs->mNominalFilled);
