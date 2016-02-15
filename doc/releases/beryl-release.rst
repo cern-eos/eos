@@ -6,6 +6,14 @@
 
 Beryl Release Notes
 ===================
+
+``Version V0.3.146 Beryl_Aquamarine``
+- fix http upload implementation for large body uploads
+- allow to disable block checksumming via opaque tag
+- use aggregation size in the WebDAV quota response and not the quota accounting
+- track file size to avoid FUSE write-cache flushing on stat and listing
+- merge no-quota-error in xrootd errors response into e-nospace to avoid the client reporting an io error
+
 ``Version V0.3.145 Beryl_Aquamarine``
 - add option to exclude all xattrs from being applied on the destination dirs
   by using the wildcard "*".
