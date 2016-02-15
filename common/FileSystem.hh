@@ -133,8 +133,7 @@ public:
     fsstatus_t mConfigStatus;
     fsstatus_t mDrainStatus;
     fsactive_t mActiveStatus;
-    bool mBalancing;
-    bool mBalancerOn;
+    double mBalThresh;
     long long mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;

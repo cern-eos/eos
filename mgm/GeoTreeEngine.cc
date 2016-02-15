@@ -1675,9 +1675,18 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
     }
   }
 
-  if(keys&sfgBlcingrun)
+  if(keys&(sfgBalthres|sfgFsfilled|sfgNomfilled))
   {
-    if(fs->mBalancing)
+    auto nominal = fs->mNominalFilled;
+    auto filled = fs->mDiskFilled;
+    auto threshold = fs->mBalThresh;
+    bool balancing = false, balancer = false;
+    if ( nominal && ( (filled - threshold) >= nominal) )
+          balancing = true;
+    if ( nominal && ( (filled + threshold) <= nominal) )
+          balancer = true;
+
+    if(balancing)
     {
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancing);
       if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Balancing;
@@ -1687,10 +1696,8 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
       if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancing);
       if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancing;
     }
-  }
-  if(keys&sfgBlcerrun)
-  {
-    if(fs->mBalancerOn)
+
+    if(balancer)
     {
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
       if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Balancer;
@@ -1700,16 +1707,8 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
       if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
       if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancer;
     }
+
   }
-
-  //	if(keys&sfgFsfilled)
-  //	{
-  //		//half fr = half(fs->mNominalFilled);
-  //		float fr = float(fs->mNominalFilled);
-  //		if(ftIdx) setOneStateVarInAllFastTrees(fillRatio,fr);
-  //		if(stn) stn->pNodeState.fillRatio = fr;
-  //	}
-
   if(keys&sfgBlkavailb)
   {
     float ts = float(fs->mDiskBfree * (double)fs->mDiskBsize );
