@@ -74,7 +74,10 @@ FsIo::fileOpen(XrdSfsFileOpenMode flags,
                uint16_t timeout)
 {
   mFd = ::open(mFilePath.c_str(), flags, mode);
-  return mFd;
+  if (mFd>0)
+    return 0;
+  else
+    return -1;
 }
 
 
