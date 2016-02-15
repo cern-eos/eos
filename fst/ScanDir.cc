@@ -224,11 +224,11 @@ ScanDir::CheckFile (const char* filepath)
   {
     if (bgThread)
     {
-      eos_err("cannot stat %s", filePath.c_str());
+      eos_err("cannot open/stat %s", filePath.c_str());
     }
     else
     {
-      fprintf(stderr, "error: cannot stat %s\n", filePath.c_str());
+      fprintf(stderr, "error: cannot open/stat %s\n", filePath.c_str());
     }
     return;
   }
@@ -638,7 +638,6 @@ ScanDir::ScanFileLoadAware (const std::unique_ptr<eos::fst::FileIo>& io, unsigne
   {
     errno = 0;
     nread = io->fileRead(offset, buffer, bufferSize);
-    fprintf(stderr, "reading %d\n", nread);
     if (nread < 0)
     {
       if (blockXS)

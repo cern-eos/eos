@@ -88,8 +88,8 @@ public:
     buffer = 0;
     bgThread = bgthread;
 
-    if (dirpath[0] != '/')
-      alignment = pathconf((dirpath[0] != '/') ? "/" : dirPath.c_str(), _PC_REC_XFER_ALIGN);
+    alignment = pathconf((dirpath[0] != '/') ? "/" : dirPath.c_str(), _PC_REC_XFER_ALIGN);
+    
     size_t palignment = alignment;
 
     if (alignment > 0)
@@ -109,6 +109,8 @@ public:
     else
     {
       fprintf(stderr, "error: OS does not provide alignment\n");
+      if (!bgthread)
+	exit(-1);
       return;
     }
 
