@@ -59,6 +59,7 @@ DavixIo::DavixIo (std::string path) : FileIo(path,"DavixIo"),  mDav(&DavixIo::gC
   //............................................................................
   seq_offset = 0;
   mCreated = false;
+  mShortRead = false;
 
   std::string lFilePath = mFilePath;
 
@@ -272,13 +273,29 @@ DavixIo::fileRead (XrdSfsFileOffset offset,
             static_cast<int64_t> (length));
 
   Davix::DavixError* err = 0;
+
+  if (mShortRead)
+  {
+    if (offset >= short_read_offset)
+    {
+      // return an EOF read;
+      return 0;
+    }
+  }
+
   int retval = mDav.pread(mFd, buffer, length, offset, &err);
   if (-1 == retval)
   {
     eos_err("url=\"%s\" msg=\"%s\"", mFilePath.c_str(), err->getErrMsg().c_str());
     return SetErrno(-1, err);
   }
-
+  
+  if (retval != length)
+  {
+    // mark the offset when a short read happened ...
+    short_read_offset = offset + retval;
+    mShortRead = true;
+  }
   return retval;
 }
 

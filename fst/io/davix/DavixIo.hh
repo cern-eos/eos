@@ -349,6 +349,8 @@ private:
   std::string mOpaque;
   std::string mParent;
   off_t seq_offset;
+  off_t short_read_offset;
+  bool mShortRead;
 
   Davix::DavPosix mDav;
   DAVIX_FD* mFd;
