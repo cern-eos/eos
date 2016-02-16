@@ -797,7 +797,7 @@ XrdFstOfsFile::open (const char* path,
 
   layOut->SetLogId(logId, vid, tident);
 
-  if ((retc = layOut->GetFileIo()->fileExists()))
+  if ((retc = layOut->GetFileIo()->fileExists()) && (errno == ENOENT))
   {
     //..........................................................................
     // We have to distinguish if an Exists call fails or return ENOENT, otherwise
