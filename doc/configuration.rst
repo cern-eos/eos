@@ -19,6 +19,7 @@ Configuration
    configuration/groupbalancer   
    configuration/geobalancer
    configuration/http
+   configuration/kinetic
    configuration/lru
    configuration/master
    configuration/permission
