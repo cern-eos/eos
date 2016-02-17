@@ -199,13 +199,6 @@ parseArguments(char* arg, Configuration& config)
   return config.id.length() && (config.op == Operation::STATUS || config.target != OperationTarget::INVALID);
 }
 
-void
-printincremental(int value)
-{
-  fprintf(stdout, "\r\t %d", value);
-  fflush(stdout);
-}
-
 XrdOucString
 resultToString(XrdOucEnv* result)
 {
@@ -305,6 +298,28 @@ doConfig(Configuration& config)
   return;
 }
 
+namespace{
+
+static bool continue_execution = true;
+
+bool
+callbackfunction(bool do_print, int value)
+{
+  if (do_print) {
+    fprintf(stdout, "\t %d\r", value);
+    fflush(stdout);
+  }
+  return continue_execution;
+}
+
+void
+sigint_handler(int s)
+{
+  fprintf(stdout, "Caught SIGINT, initializing clean shutdown...\n");
+  continue_execution = false;
+}
+}
+
 int
 com_kinetic(char* arg)
 {
@@ -320,7 +335,6 @@ com_kinetic(char* arg)
   }
 
   try {
-
     switch (config.op) {
       case Operation::CONFIG_SHOW:
       case Operation::CONFIG_PUBLISH:
@@ -330,13 +344,16 @@ com_kinetic(char* arg)
         break;
     }
 
+    /* Register SIGINT to enable clean shutdown */
+    struct sigaction sigIntHandler;
+    sigIntHandler.sa_handler = sigint_handler;
+    sigemptyset(&sigIntHandler.sa_mask);
+    sigIntHandler.sa_flags = 0;
+    sigaction(SIGINT, &sigIntHandler, NULL);
+
     setEnvironmentVariables(config);
     auto ac = kio::KineticIoFactory::makeAdminCluster(config.id);
-
-    std::function<void(int)> callback;
-    if (!config.monitoring) {
-      callback = printincremental;
-    }
+    auto callback = std::bind(callbackfunction, !config.monitoring, std::placeholders::_1);
 
     switch (config.op) {
       case Operation::STATUS: {
