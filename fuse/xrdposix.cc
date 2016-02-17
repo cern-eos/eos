@@ -1409,29 +1409,50 @@ xrd_stat (const char* path,
 int
 xrd_statfs (const char* path, struct statvfs* stbuf)
 {
-  eos_static_info("path=%s", path);
   static unsigned long long a1 = 0;
   static unsigned long long a2 = 0;
   static unsigned long long a3 = 0;
   static unsigned long long a4 = 0;
+
+  unsigned long long b1 = 0;
+  unsigned long long b2 = 0;
+  unsigned long long b3 = 0;
+  unsigned long long b4 = 0;
   static XrdSysMutex statmutex;
   static time_t laststat = 0;
   statmutex.Lock();
   errno = 0;
 
-  if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX)))
-  {
-    stbuf->f_bsize = 4096;
-    stbuf->f_frsize = 4096;
-    stbuf->f_blocks = a3 / 4096;
-    stbuf->f_bfree = a1 / 4096;
-    stbuf->f_bavail = a1 / 4096;
-    stbuf->f_files = a4;
-    stbuf->f_ffree = a2;
-    stbuf->f_fsid = 0xcafe;
-    stbuf->f_namemax = 256;
-    statmutex.UnLock();
-    return errno;
+  XrdOucString space = path;
+  if (!space.endswith("/"))
+    space += "/";
+
+  eos_static_info("path=%s", space.c_str());
+
+
+  int spos=0;
+  int deepness=0;
+  while ( (spos = space.find("/", spos)) != STR_NPOS)
+    {
+      deepness++;
+      spos++;
+    }
+
+  if (deepness <4) {
+    if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX)))
+    {
+      stbuf->f_bsize = 4096;
+      stbuf->f_frsize = 4096;
+      stbuf->f_blocks = a3 / 4096;
+      stbuf->f_bfree = a1 / 4096;
+      stbuf->f_bavail = a1 / 4096;
+      stbuf->f_files = a4;
+      stbuf->f_ffree = a2;
+      stbuf->f_fsid = 0xcafe;
+      stbuf->f_namemax = 256;
+      statmutex.UnLock();
+      return errno;
+    }
   }
 
   eos::common::Timing statfstiming("xrd_statfs");
@@ -1440,11 +1461,11 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
   std::string request;
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-  request = path;
+  request = space.c_str();
   request += "?";
   request += "mgm.pcmd=statvfs&eos.app=fuse&";
   request += "path=";
-  request += path;
+  request += space.c_str();
   arg.FromString(request);
   XrdCl::URL Url(xrd_user_url(2, 2, 0));
   XrdCl::FileSystem fs(Url);
@@ -1469,7 +1490,7 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
     int items = sscanf(response->GetBuffer(),
                        "%s retc=%d f_avail_bytes=%llu f_avail_files=%llu "
                        "f_max_bytes=%llu f_max_files=%llu",
-                       tag, &retc, &a1, &a2, &a3, &a4);
+                       tag, &retc, &b1, &b2, &b3, &b4);
 
     if ((items != 6) || (strcmp(tag, "statvfs:")))
     {
@@ -1480,15 +1501,21 @@ xrd_statfs (const char* path, struct statvfs* stbuf)
     }
 
     errno = retc;
-    laststat = time(NULL);
+    if (deepness <4) {
+      laststat = time(NULL);
+      a1 = b1;
+      a2 = b2;
+      a3 = b3;
+      a4 = b4;
+    }
     statmutex.UnLock();
     stbuf->f_bsize = 4096;
     stbuf->f_frsize = 4096;
-    stbuf->f_blocks = a3 / 4096;
-    stbuf->f_bfree = a1 / 4096;
-    stbuf->f_bavail = a1 / 4096;
-    stbuf->f_files = a4;
-    stbuf->f_ffree = a2;
+    stbuf->f_blocks = b3 / 4096;
+    stbuf->f_bfree = b1 / 4096;
+    stbuf->f_bavail = b1 / 4096;
+    stbuf->f_files = b4;
+    stbuf->f_ffree = b2;
   }
   else
   {

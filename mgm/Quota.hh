@@ -638,7 +638,7 @@ public:
   // builds a list with the names of all spaces
   static int GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg);
 
-  static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes);
+  static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes, long long &maxfiles, long long &freefiles);
 
   static void PrintOut (const char* space, XrdOucString &output, long uid_sel = -1, long gid_sel = -1, bool monitoring = false, bool translateids = false);
 

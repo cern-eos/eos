@@ -457,7 +457,9 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
 
     long long maxbytes = 0;
     long long freebytes = 0;
-    Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes);
+    long long maxfiles = 0;
+    long long freefiles = 0;
+    Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes, maxfiles, freefiles);
 
     if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL)
     {
