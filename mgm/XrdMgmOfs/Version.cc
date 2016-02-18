@@ -64,14 +64,12 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   eos::common::Mapping::VirtualIdentity fidvid;
   eos::common::Mapping::Copy(vid, fidvid);
   time_t filectime = 0;
-  unsigned long long cid=0;
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       fmd = gOFS->eosFileService->getFileMD(fid);
-      cid = fmd->getContainerId();
       path = gOFS->eosView->getUri(fmd).c_str();
       eos::common::Path cPath(path.c_str());
       bool noversion;
