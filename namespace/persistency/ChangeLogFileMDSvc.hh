@@ -52,11 +52,10 @@ namespace eos
       ChangeLogFileMDSvc():
         pFirstFreeId( 1 ), pChangeLog( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0)
+        pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
-        pIdMap.resize(1000000);
         pChangeLog = new ChangeLogFile;
 	pthread_mutex_init(&pFollowStartMutex,0);
       }
@@ -274,6 +273,14 @@ namespace eos
         pQuotaStats = quotaStats;
       }
 
+      //------------------------------------------------------------------------
+      //! Get id map reservation size                                                                                                                            
+      //------------------------------------------------------------------------
+      uint64_t getResSize() const
+      {
+        return pResSize;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -339,6 +346,7 @@ namespace eos
       ChangeLogContainerMDSvc *pContSvc;
       QuotaStats        *pQuotaStats;
       bool               pAutoRepair;
+      uint64_t           pResSize;
   };
 }
 

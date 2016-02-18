@@ -53,11 +53,10 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 )
+        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pResSize( 1000000 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( 0xffffffffffffffffll );
-        pIdMap.resize(1000000);
         pChangeLog = new ChangeLogFile;
       }
 
@@ -274,6 +273,14 @@ namespace eos
         pQuotaStats = quotaStats;
       }
 
+      //------------------------------------------------------------------------
+      //! Get id map reservation size
+      //------------------------------------------------------------------------
+      uint64_t getResSize() const 
+      {
+	return pResSize;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -355,6 +362,7 @@ namespace eos
       uint64_t           pFollowStart;
       QuotaStats        *pQuotaStats;
       bool               pAutoRepair;
+      uint64_t           pResSize;
   };
 }
 

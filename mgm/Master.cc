@@ -1894,10 +1894,31 @@ Master::BootNamespace ()
     gOFS->eosSyncTimeAccounting = new eos::SyncTimeAccounting ( gOFS->eosDirectoryService ) ;
   }
 
-
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
+
+  bool ns_preset=false;
+  if (getenv("EOS_NS_DIR_SIZE"))
+  {
+    contSettings["ns_size"] = getenv("EOS_NS_DIR_SIZE");
+    ns_preset=true;
+  }
+
+  if (getenv("EOS_NS_FILE_SIZE"))
+  {
+    contSettings["ns_size"] = getenv("EOS_NS_FILE_SIZE");
+    ns_preset=true;
+  }
+
+  if (ns_preset)
+  {
+    eos_alert("msg=\"namespace size optimization\" nfiles=%s ndirs=%s", getenv("EOS_NS_DIR_SIZE"), getenv("EOS_NS_FILE_SIZE"));
+  }
+  else
+  {
+    eos_alert("msg=\"preset the expected namespace size to optimize RAM usage via EOS_NS_DIR_SIZE && EOS_NS_FILE_SIZE in /etc/sysconfig/eos\"");
+  }
 
   contSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
   fileSettings["changelog_path"] = gOFS->MgmMetaLogDir.c_str();
