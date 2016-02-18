@@ -26,10 +26,15 @@ tail -f $1 | while read line || [[ -n "$line" ]];do
   if [ -n "$msg" ]; then 
     for name in `ls /dev/pts/[0-9]*`; do 
     alrt=`echo $line | egrep ALERT`;
+    progress=`echo $line | egrep PROGRESS`;
     if [ -n "$alrt" ]; then 
 	echo -n -e "\n\033[47;34m\e[5m" "$msg" "\033[0m " > $name
     else
-	echo -n -e "\n\033[47;31m\e[5m" "$msg" "\033[0m " > $name
+	if [ -n "$progress" ]; then
+	  echo -n -e "\n\033[47;32m\e[5m" "$msg" "\033[0m " > $name
+	else
+	  echo -n -e "\n\033[47;31m\e[5m" "$msg" "\033[0m " > $name
+	fi 
     fi
 
     done
