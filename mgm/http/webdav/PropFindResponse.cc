@@ -470,8 +470,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     {
       std::string sQuotaUsed;
       quotaUsed = AllocateNode("d:quota-used-bytes");
-      if (quotaUsed)
-        SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) maxbytes - freebytes));
+      SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) statInfo.st_size));
     }
   }
 

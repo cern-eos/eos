@@ -40,7 +40,8 @@ FileAbstraction::FileAbstraction(int fd, LayoutWrapper* file, const char* path) 
   mNoReferences(0),
   mNumOpen(1),
   mSizeWrites(0),
-  mPath(path)
+  mPath(path),
+  mMaxWriteOffset(0)
 {
   // Max file size we can deal with is ~ 90TB
   mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
@@ -73,6 +74,37 @@ FileAbstraction::GetSizeWrites()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   return mSizeWrites;
+}
+
+//------------------------------------------------------------------------------
+// Get size of maximum write offset
+//------------------------------------------------------------------------------
+off_t
+FileAbstraction::GetMaxWriteOffset()
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  return mMaxWriteOffset;
+}
+
+//------------------------------------------------------------------------------
+// TestMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::TestMaxWriteOffset(off_t offset)
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  if (offset > mMaxWriteOffset)
+    mMaxWriteOffset = offset;
+}
+
+//------------------------------------------------------------------------------
+// SetMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::SetMaxWriteOffset(off_t offset)
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  mMaxWriteOffset = offset;
 }
 
 
