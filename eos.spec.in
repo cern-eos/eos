@@ -273,9 +273,6 @@ The EOS fuse client.
 
 %post -n eos-fuse
 /sbin/chkconfig --add eosd
-echo "Starting conditional EOS FUSE services"
-sleep 2
-/sbin/service eosd condrestart > /dev/null 2>&1 || :
 
 %preun -n eos-fuse
 if [ $1 = 0 ]; then
