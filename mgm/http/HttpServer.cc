@@ -284,47 +284,65 @@ HttpServer::Authenticate (std::map<std::string, std::string> &headers)
 	  mGridMapFileLastModTime = info.st_mtim;
 	  in.close();
 	}
-	
-	// Process each mapping
-	std::vector<std::string> mappings;
-	eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
-	
-	for (auto it = mappings.begin(); it != mappings.end(); ++it)
-	{
-	  eos_static_debug("grid mapping: %s", (*it).c_str());
-	  
-	  // Split off the last whitespace-separated token (i.e. username)
-	  pos = (*it).find_last_of(" \t");
-	  if (pos == string::npos)
-	  {
-	    eos_static_err("msg=malformed gridmap file");
-	    return NULL;
-	  }
-	  
-	  dn = (*it).substr(1, pos - 2); // Remove quotes around DN
-	  username = (*it).substr(pos + 1);
-	  
-	  // for proxies clientDN as appended a ../CN=... which has to be removed
-	  std::string clientDNproxy = clientDN;
-	  if (!clientDN.empty())
-	    clientDNproxy.erase(clientDN.rfind("/CN="));
-	  // Try to match with SSL header
-	  if (dn == clientDN)
-	  {
-	    eos_static_info("msg=\"mapped client certificate successfully\" "
-			    "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
-	    break;
-	  }
-	  
-	  if (dn == clientDNproxy)
-	  {
-	    eos_static_info("msg=\"mapped client proxy certificate successfully\" "
-			    "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
-	    break;
-	  }
-	  
-	  username = "";
-	}
+
+        // For proxy certificates clientDN can have multiple ../CN=... appended
+        size_t pos = 0;
+        int num_cns = 0;
+
+        while ((pos = clientDN.find("/CN=", pos)))
+        {
+          ++num_cns;
+        }
+
+        // Remove the CNs from the end one by one to check if the remaining
+        // DN is in the map
+        std::set<std::string> proxy_dns;
+        std::string clientDNproxy = clientDN;
+
+        while (num_cns >= 2)
+        {
+          clientDNproxy.erase(clientDNproxy.rfind("/CN="));
+          proxy_dns.insert(clientDNproxy);
+          --num_cns;
+        }
+
+        // Process each mapping
+        std::vector<std::string> mappings;
+        eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
+
+        for (auto it = mappings.begin(); it != mappings.end(); ++it)
+        {
+          eos_static_debug("grid mapping: %s", (*it).c_str());
+
+          // Split off the last whitespace-separated token (i.e. username)
+          pos = (*it).find_last_of(" \t");
+          if (pos == string::npos)
+          {
+            eos_static_err("msg=malformed gridmap file");
+            return NULL;
+          }
+
+          dn = (*it).substr(1, pos - 2); // Remove quotes around DN
+          username = (*it).substr(pos + 1);
+
+          // Try to match with SSL header
+          if (dn == clientDN)
+          {
+            eos_static_info("msg=\"mapped client certificate successfully\" "
+                            "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
+            break;
+          }
+
+          // Check if any of the proxy dns matches
+          if (proxy_dns.find(dn) != proxy_dns.end())
+          {
+            eos_static_info("msg=\"mapped client proxy certificate successfully\" "
+                            "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
+            break;
+          }
+
+          username = "";
+        }
       }
     }
 
