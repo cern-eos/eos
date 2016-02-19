@@ -152,6 +152,12 @@ else (CLIENT)
   set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
 endif (CLIENT)
 
+if(NOT MICROHTTPD_FOUND)
+ message("  Warning: MicroHttpd not found, no httpd access available")
+else()
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
+endif()
+
 #-------------------------------------------------------------------------------
 # Generate documentation
 #-------------------------------------------------------------------------------
