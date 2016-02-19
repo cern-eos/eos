@@ -43,6 +43,7 @@ add_executable(
   eosfsd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
+  NegStatCache.cc NegStatCache.hh
   eosfs.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
@@ -51,6 +52,7 @@ add_executable(
   eosd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
+  NegStatCache.cc NegStatCache.hh
   eosd.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)

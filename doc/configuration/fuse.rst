@@ -123,6 +123,15 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    # Set the write-back cache size (default 300M) 
    # export EOS_FUSE_CACHE_SIZE=0
 
+   # Disable the negative-stat cache (default on)
+   # export EOS_FUSE_NEGSTATCACHE=0
+  
+   # Set the negative-stat cache maximum size (default 100000) 
+   # export EOS_FUSE_NEGSTATCACHE_SIZE=0
+
+   # Set the negative-stat cache entries lifetime in nanosecond (default 600000000000 (1min)) 
+   # export EOS_FUSE_NEGSTATCACHE_LIFETIMENS=0
+
    # Use the FUSE big write feature ( FUSE >=2.8 ) (default off)
    # export EOS_FUSE_BIGWRITES=1
 

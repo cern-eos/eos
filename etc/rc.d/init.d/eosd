@@ -82,6 +82,9 @@ start() {
         export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
         export EOS_FUSE_CACHE_SIZE=${EOS_FUSE_CACHE_SIZE-300000000}
         export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
+        export EOS_FUSE_NEGSTATCACHE=${EOS_FUSE_NEGSTATCACHE-1}
+        export EOS_FUSE_NEGSTATCACHE_SIZE=${EOS_FUSE_NEGSTATCACHE_SIZE-100000}
+        export EOS_FUSE_NEGSTATCACHE_LIFETIMENS=${EOS_FUSE_NEGSTATCACHE_LIFETIMENS-60000000000}
         export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}    
         export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
         export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
@@ -133,28 +136,31 @@ start() {
                 RETVAL=$SRETVAL;
             fi
             echo
-            echo "EOS_FUSE_DEBUG               : ${EOS_FUSE_DEBUG}"
-            echo "EOS_FUSE_NOACCESS            : ${EOS_FUSE_NOACCESS}"
-            echo "EOS_FUSE_KERNELCACHE         : ${EOS_FUSE_KERNELCACHE}"
-            echo "EOS_FUSE_DIRECTIO            : ${EOS_FUSE_DIRECTIO}"
-            echo "EOS_FUSE_CACHE               : ${EOS_FUSE_CACHE}"
-            echo "EOS_FUSE_CACHE_SIZE          : ${EOS_FUSE_CACHE_SIZE}"
-            echo "EOS_FUSE_CACHE_WRITE         : ${EOS_FUSE_CACHE_WRITE}"
-            echo "EOS_FUSE_BIGWRITES           : ${EOS_FUSE_BIGWRITES}"
-            echo "EOS_FUSE_EXEC                : ${EOS_FUSE_EXEC}"
-            echo "EOS_FUSE_LOCK_ENVIRONMENT    : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
-            echo "EOS_FUSE_NO_MT               : ${EOS_FUSE_NO_MT}"
-            echo "EOS_FUSE_USER_KRB5CC         : ${EOS_FUSE_USER_KRB5CC}"
-            echo "EOS_FUSE_USER_GSIPROXY       : ${EOS_FUSE_USER_GSIPROXY}"
-            echo "EOS_FUSE_USER_KRB5FIRST      : ${EOS_FUSE_USER_KRB5FIRST}"
-            echo "EOS_FUSE_PIDMAP              : ${EOS_FUSE_PIDMAP}"
-            echo "EOS_FUSE_RMLVL_PROTECT       : ${EOS_FUSE_RMLVL_PROTECT}"
-            echo "EOS_FUSE_RDAHEAD             : ${EOS_FUSE_RDAHEAD}"
-            echo "EOS_FUSE_RDAHEAD_WINDOW      : ${EOS_FUSE_RDAHEAD_WINDOW}"
-            echo "EOS_FUSE_LAZYOPENRO          : ${EOS_FUSE_LAZYOPENRO}"
-            echo "EOS_FUSE_LAZYOPENRW          : ${EOS_FUSE_LAZYOPENRW}"
-            echo "EOS_FUSE_LOG_PREFIX          : ${EOS_FUSE_LOG_PREFIX}"
-            echo "EOS_FUSE_LOCALTIMECONSISTENT : ${EOS_FUSE_LOCALTIMECONSISTENT}"
+            echo "EOS_FUSE_DEBUG                   : ${EOS_FUSE_DEBUG}"
+            echo "EOS_FUSE_NOACCESS                : ${EOS_FUSE_NOACCESS}"
+            echo "EOS_FUSE_KERNELCACHE             : ${EOS_FUSE_KERNELCACHE}"
+            echo "EOS_FUSE_DIRECTIO                : ${EOS_FUSE_DIRECTIO}"
+            echo "EOS_FUSE_CACHE                   : ${EOS_FUSE_CACHE}"
+            echo "EOS_FUSE_CACHE_SIZE              : ${EOS_FUSE_CACHE_SIZE}"
+            echo "EOS_FUSE_CACHE_WRITE             : ${EOS_FUSE_CACHE_WRITE}"
+            echo "EOS_FUSE_NEGSTATCACHE            : ${EOS_FUSE_NEGSTATCACHE}"
+            echo "EOS_FUSE_NEGSTATCACHE_SIZE       : ${EOS_FUSE_NEGSTATCACHE_SIZE}"
+            echo "EOS_FUSE_NEGSTATCACHE_LIFETIMENS : ${EOS_FUSE_NEGSTATCACHE_LIFETIMENS}"
+            echo "EOS_FUSE_BIGWRITES               : ${EOS_FUSE_BIGWRITES}"
+            echo "EOS_FUSE_EXEC                    : ${EOS_FUSE_EXEC}"
+            echo "EOS_FUSE_LOCK_ENVIRONMENT        : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
+            echo "EOS_FUSE_NO_MT                   : ${EOS_FUSE_NO_MT}"
+            echo "EOS_FUSE_USER_KRB5CC             : ${EOS_FUSE_USER_KRB5CC}"
+            echo "EOS_FUSE_USER_GSIPROXY           : ${EOS_FUSE_USER_GSIPROXY}"
+            echo "EOS_FUSE_USER_KRB5FIRST          : ${EOS_FUSE_USER_KRB5FIRST}"
+            echo "EOS_FUSE_PIDMAP                  : ${EOS_FUSE_PIDMAP}"
+            echo "EOS_FUSE_RMLVL_PROTECT           : ${EOS_FUSE_RMLVL_PROTECT}"
+            echo "EOS_FUSE_RDAHEAD                 : ${EOS_FUSE_RDAHEAD}"
+            echo "EOS_FUSE_RDAHEAD_WINDOW          : ${EOS_FUSE_RDAHEAD_WINDOW}"
+            echo "EOS_FUSE_LAZYOPENRO              : ${EOS_FUSE_LAZYOPENRO}"
+            echo "EOS_FUSE_LAZYOPENRW              : ${EOS_FUSE_LAZYOPENRW}"
+            echo "EOS_FUSE_LOG_PREFIX              : ${EOS_FUSE_LOG_PREFIX}"
+            echo "EOS_FUSE_LOCALTIMECONSISTENT     : ${EOS_FUSE_LOCALTIMECONSISTENT}"
             [[ "x$XRD_STREAMERRORWINDOW" != "x" ]] && echo "XRD_STREAMERRORWINDOW        : ${XRD_STREAMERRORWINDOW}"
         else 
             echo eosd already running. Pid is $eosdpid 

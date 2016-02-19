@@ -39,6 +39,7 @@
 #include "xrdposix.hh"
 #include "FuseCacheEntry.hh"
 #include "ProcCacheC.h"
+#include "NegStatCache.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
@@ -91,6 +92,7 @@
 #endif
 
 static FuseWriteCache* XFC;
+static NegStatCache *NSC;
 static XrdOucHash<XrdOucString>* passwdstore;
 static XrdOucHash<XrdOucString>* stringstore;
 
@@ -115,6 +117,7 @@ int rm_level_protect; ///< number of levels in hierarchy protected against rm -r
 std::string rm_command; ///< full path of the system rm command (e.g. "/bin/rm" )
 bool rm_watch_relpath; ///< indicated if the system rm command changes it CWD making relative path expansion impossible
 int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
+int fuse_cache_negstat; ///< 0 if fuse negstat cache disabled, otherwise 1
 bool fuse_exec = false; ///< indicates if files should be make exectuble
 bool fuse_shared = false; ///< indicated if this is eosd = true or eosfsd = false
 int use_localtime_consistency = 0; ///< indicated if this stat and get attr shou
@@ -1893,6 +1896,17 @@ xrd_stat (const char* path,
       eos_static_debug("path=%s not open", path);
   }
 
+  // check if the file is a negative stat cache match
+  {
+    int erno = 0;
+    if (NSC && (erno = NSC->GetNoExist (path)))
+    {
+      eos_static_debug("found entry in the negstatcache for file %s\n",path);
+      errno=erno;
+      return errno;
+    }
+  }
+
   // Do stat using the Fils System object
   std::string request;
   XrdCl::Buffer arg;
@@ -1952,6 +1966,8 @@ xrd_stat (const char* path,
 	errno = EFAULT;
       delete response;
       eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
+      if(NSC)
+        NSC->UpdateNoExist(path,errno);
       return errno;
     }
     else
@@ -1998,6 +2014,7 @@ xrd_stat (const char* path,
   {
     eos_static_err("status is NOT ok : %s",status.ToString().c_str());
     errno = (status.code==XrdCl::errAuthFailed)?EPERM:EFAULT;
+    // we do not cache such errors in the negstatcache NSC
   }
 
   // If got size using opened file then return this value
@@ -2025,6 +2042,8 @@ xrd_stat (const char* path,
 
   if (EOS_LOGS_DEBUG)
     stattiming.Print();
+
+  if(NSC && !errno) NSC->Forget(path);
 
   eos_static_info("path=%s st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
   delete response;
@@ -2372,6 +2391,8 @@ xrd_symlink(const char* path,
   }
 
   delete response;
+  if(NSC) NSC->Forget(link);
+  
   return errno;
 }
 
@@ -2855,6 +2876,7 @@ xrd_mkdir (const char* path,
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
       errno = 0;
+      if(NSC) NSC->Forget(path);
     }
   }
   else
@@ -2896,7 +2918,10 @@ xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
     return errno;
   }
   else
+  {
+    if(NSC) NSC->UpdateNoExist(path,ENOENT);
     return 0;
+  }
 }
 
 
@@ -3316,7 +3341,9 @@ xrd_open (const char* path,
       }
 
       *return_inode = new_ino;
-      
+
+      if(!exists && NSC) NSC->Forget(path);
+
       eos_static_debug("path=%s opened ino=%lu", path, (unsigned long)*return_inode);
     }
 
@@ -3671,7 +3698,10 @@ xrd_unlink (const char* path,
   if (xrd_error_retc_map(status.errNo))
     return errno;
   else
+  {
+    if(NSC) NSC->UpdateNoExist(path,ENOENT);
     return 0;
+  }
 }
 
 
@@ -3703,7 +3733,14 @@ xrd_rename (const char* oldpath,
   if (xrd_error_retc_map(status.errNo))
     return errno;
   else
+  {
+    if(NSC) {
+      NSC->UpdateNoExist(oldpath,ENOENT);
+      NSC->Forget(newpath);
+    }
+
     return 0;
+  }
 }
 
 const char* xrd_strongauth_cgi (pid_t pid)
@@ -4238,6 +4275,32 @@ xrd_init ()
 
     if (getenv("EOS_FUSE_CACHE_WRITE") && atoi(getenv("EOS_FUSE_CACHE_WRITE")))
       fuse_cache_write = true;
+  }
+
+  // Initialise the NegStatCache
+  fuse_cache_negstat = false;
+
+  if ((!(getenv("EOS_FUSE_NEGSTATCACHE"))) ||
+      (getenv("EOS_FUSE_NEGSTATCACHE") && (!strcmp(getenv("EOS_FUSE_NEGSTATCACHE"), "0"))))
+  {
+    eos_static_notice("negstatcache=false");
+    NSC = NULL;
+  }
+  else
+  {
+    if (!getenv("EOS_FUSE_NEGSTATCACHE_SIZE"))
+      setenv("EOS_FUSE_NEGSTATCACHE_SIZE", "100000", 1); // 100k entries
+    if (!getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS"))
+      setenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS", "60000000000", 1); // 1 minute
+
+    eos_static_notice("negstatcache=true size=%s lifetime(nsec)=%s",
+                      getenv("EOS_FUSE_NEGSTATCACHE_SIZE"),
+                      getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS"));
+
+    NSC = new NegStatCache(
+        static_cast<size_t>(atol(getenv("EOS_FUSE_NEGSTATCACHE_SIZE"))) ,
+        static_cast<size_t>(atol(getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS")))
+        );
   }
 
   // Get the number of levels in the top hierarchy protected agains deletions
