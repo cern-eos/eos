@@ -6,6 +6,9 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.147 Beryl_Aquamarine``
+- shorten hostnames (remove domain) in all view functions besides monitoring format
+- add support for multi-delegated proxy certificates
 
 ``Version V0.3.146 Beryl_Aquamarine``
 - fix http upload implementation for large body uploads
