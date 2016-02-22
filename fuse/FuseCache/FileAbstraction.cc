@@ -32,8 +32,9 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file, const char* path) :
+FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file, bool isRW, const char* path) :
   mMutexRW(),
+  mRW(isRW),
   mFd(fd),
   mFile(file),
   mNoReferences(0),
