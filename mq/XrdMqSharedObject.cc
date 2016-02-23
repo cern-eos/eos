@@ -2657,6 +2657,7 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
   // "headeronly=1"                                             -> only prints the header and nothnig else
   // the formats are:
   // 's' : print as string
+  // 'S' : print as short string (truncated after .)
   // 'l' : print as long long
   // 'f' : print as double
   // 'o' : print as <key>=<val>
@@ -2782,6 +2783,14 @@ XrdMqSharedHash::Print (std::string &out, std::string format)
       {
         if ((formattags["format"].find("s")) != std::string::npos)
           snprintf(tmpline, sizeof (tmpline) - 1, lformat, Get(formattags["key"].c_str()).c_str());
+
+        if ((formattags["format"].find("S")) != std::string::npos)
+	{
+	  std::string shortstring = Get(formattags["key"].c_str());
+	  shortstring.erase(shortstring.find("."));
+          snprintf(tmpline, sizeof (tmpline) - 1, lformat, shortstring.c_str());
+	}
+
         if ((formattags["format"].find("l")) != std::string::npos)
         {
           if (((formattags["format"].find("+")) != std::string::npos))

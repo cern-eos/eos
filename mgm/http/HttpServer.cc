@@ -287,9 +287,10 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
         size_t pos = 0;
         int num_cns = 0;
 
-        while ((pos = clientDN.find("/CN=", pos)))
+        while ((pos = clientDN.find("/CN=", pos)) != std::string::npos)
         {
           ++num_cns;
+          ++pos;
         }
 
         // Remove the CNs from the end one by one to check if the remaining

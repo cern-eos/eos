@@ -66,7 +66,7 @@ class FileAbstraction
     //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    FileAbstraction(int fd, LayoutWrapper* file, const char* path="");
+    FileAbstraction(const char* path="");
 
 
     //--------------------------------------------------------------------------
@@ -86,13 +86,24 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     long long int GetNoWriteBlocks();
 
-
     //--------------------------------------------------------------------------
     //! Get fd value
     //--------------------------------------------------------------------------
     inline int GetFd() const
     {
       return mFd;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set fd value
+    //--------------------------------------------------------------------------
+    inline void SetFd( const int& fd)
+    {
+      mFd=fd;
+      mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
+      mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
+      eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
+                        this, mFirstPossibleKey, mLastPossibleKey);
     };
 
 
@@ -104,6 +115,29 @@ class FileAbstraction
       return mFile;
     };
 
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFile(LayoutWrapper* file)
+    {
+      mFile=file;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Get undelying raw file object for RO
+    //--------------------------------------------------------------------------
+    inline LayoutWrapper* GetRawFileRO() const
+    {
+      return mFileRO;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFileRO(LayoutWrapper* file)
+    {
+      mFileRO=file;
+    };
 
     //--------------------------------------------------------------------------
     //! Get first possible key value
@@ -112,7 +146,6 @@ class FileAbstraction
     {
       return mFirstPossibleKey;
     };
-
 
     //--------------------------------------------------------------------------
     //! Get last possible key value
@@ -222,9 +255,9 @@ class FileAbstraction
     off_t GetMaxWriteOffset();
 
   private:
-
     int mFd; ///< file descriptor used for the block key range
     LayoutWrapper* mFile; ///< raw file object
+    LayoutWrapper* mFileRO; ///< raw file object for RO access
     int mNoReferences; ///< number of held referencess to this file
     int mNumOpen; ///< number of open request without a matching close
     size_t mSizeWrites; ///< the size of write blocks in cache

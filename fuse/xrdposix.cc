@@ -702,9 +702,13 @@ xrd_dir_cache_add_entry (unsigned long long inode,
 // Map used for associating file descriptors with XrdCl::File objects
 eos::common::RWMutex rwmutex_fd2fabst;
 google::dense_hash_map<int, FileAbstraction*> fd2fabst;
+// the count is >0 for RW and <0 for RO
+google::dense_hash_map<int, int>             fd2count;
 
-// Map <inode, user> to a file descriptor
-google::dense_hash_map<std::string, int> inodexrdlogin2fd;
+
+// Map <inode, user> to a set of file descriptors - used only in the xrd_stat method
+// note : the set of file descriptors for one key point to the same fabst
+google::dense_hash_map<std::string, std::set<int> > inodexrdlogin2fds;
 // Helper function to construct a key in the previous map
 std::string get_xrd_login(uid_t uid, gid_t gid, pid_t pid);
 
@@ -748,51 +752,86 @@ int
 xrd_add_fd2file (LayoutWrapper* raw_file,
                  unsigned long inode,
                  uid_t uid, gid_t gid, pid_t pid ,
+                 bool isROfd,
                  const char* path="")
 {
+  eos_static_debug("file raw ptr=%p, inode=%lu, uid=%lu",
+                   raw_file, inode, (unsigned long) uid);
   int fd = -1;
   std::ostringstream sstr;
   sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-  eos_static_debug("file raw ptr=%p, name=%s,  inode:xrdlogin=%s",
-                   raw_file, raw_file?raw_file->GetPath():"",sstr.str().c_str() );
+
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-  auto iter_fd = inodexrdlogin2fd.find(sstr.str());
+  auto iter_fd = inodexrdlogin2fds.find(sstr.str());
+  FileAbstraction* fabst=NULL;
 
   // If there is already an entry for the current user and the current inode
   // then we return the old fd
-  while (!raw_file)
+  if (!raw_file)
   {
-    if (iter_fd != inodexrdlogin2fd.end())
+    if (iter_fd != inodexrdlogin2fds.end())
     {
-      eos_static_warning("inodeuid mapping exists, just return old fd=%i",
-                         iter_fd->second);
-      fd = iter_fd->second;
-      auto iter_file = fd2fabst.find(fd);
+      fd = *iter_fd->second.begin();
+      auto iter_file = fd2fabst.find(fd); //all the fd ti a same file share the same fabst
 
       if (iter_file != fd2fabst.end())
-        iter_file->second->IncNumOpen();
-      else
       {
-        eos_static_err("fd=%i not found in fd2fobj map", fd);
-        FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
-	fd2fabst[fd] = fabst;
+        fabst = iter_file->second;
+        iter_file->second->IncNumOpen();
+      }
+//    gadde: weird this else, that would create a FileAbstraction with a null pointer
+//    I comment it out
+//      else
+//      {
+//        eos_static_err("fd=%i not found in fd2fobj map", fd);
+//	fabst = new FileAbstraction(fd, raw_file, path);
+//	fd2fabst[fd] = fabst;
+//      }
+      for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
+      {
+        if (isROfd == (fd2count[*fdit] < 0) )
+        {
+          fd2count[*fdit] += isROfd ? -1 : 1;
+          eos_static_debug("existing fdesc : path=%s  isRO=%d  =>  fdesc=%d", path, (int )isROfd, (int )*fdit);
+          return *fdit;
+        }
       }
     }
-    return fd;
+
+    return -1;
   }
 
   fd = xrd_generate_fd();
   
   if (fd > 0)
   {
-    FileAbstraction* fabst = new FileAbstraction(fd, raw_file, path);
+    if (iter_fd != inodexrdlogin2fds.end())
+      fabst = fd2fabst[ *iter_fd->second.begin() ];
+
+    if(fabst)
+      eos_static_debug("new fdesc existing fabst : path=%s  isRO=%d  =>  fdesc=%d",path,(int)isROfd,(int)fd);
+    else
+      eos_static_debug("new fdesc new fabst: path=%s  isRO=%d  =>  fdesc=%d",path,(int)isROfd,(int)fd);
+
+    if(!fabst)
+      fabst = new FileAbstraction(path);
+
+    if(isROfd)
+      fabst->SetRawFileRO(raw_file);
+    else
+    {
+      fabst->SetRawFile(raw_file);
+      fabst->SetFd(fd);
+    }
     fd2fabst[fd] = fabst;
-    inodexrdlogin2fd[sstr.str()] = fd;
+    fd2count[fd] = isROfd?-1:1;
+    inodexrdlogin2fds[sstr.str()].insert( fd );
   }
   else
   {
     eos_static_err("error while getting file descriptor");
-    delete raw_file;
+    if(raw_file)
+      delete raw_file;
   }
 
   return fd;
@@ -803,7 +842,7 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
 // Get the file abstraction object corresponding to the fd
 //------------------------------------------------------------------------------
 FileAbstraction*
-xrd_get_file (int fd)
+xrd_get_file (int fd,bool *isRW=NULL)
 {
   eos_static_debug("fd=%i", fd);
   eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
@@ -815,6 +854,7 @@ xrd_get_file (int fd)
     return 0;
   }
 
+  if(isRW) *isRW=fd2count[fd]>0;
   iter->second->IncNumRef();
   return iter->second;
 }
@@ -828,21 +868,51 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
 {
   int retc = -1;
   eos_static_debug("fd=%i, inode=%lu", fd, inode);
-  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-  auto iter = fd2fabst.find(fd);
+  eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
+  auto iter = fd2fabst.find (fd);
 
-  if (iter != fd2fabst.end())
+  if (iter != fd2fabst.end ())
   {
     FileAbstraction* fabst = iter->second;
-
-    if (!fabst->IsInUse())
+    bool isRW = (fd2count[fd]>0);
+    fd2count[fd] -= (fd2count[fd] < 0 ? -1 : 1);
+    // there is no more reference to that fd
+    if (!fd2count[fd])
     {
-      eos_static_debug("fd=%i is not in use, remove it", fd);
-      LayoutWrapper* raw_file = fabst->GetRawFile();
+      eos_static_debug("remove fd=%d", fd);
+      fd2count.erase (fd);
+      fd2fabst.erase (fd);
 
-      if(raw_file->IsOpen())
+      std::ostringstream sstr;
+      sstr << inode << ":" << get_xrd_login(uid,gid,pid);
+      auto iter1 = inodexrdlogin2fds.find (sstr.str ());
+      if (iter1 != inodexrdlogin2fds.end ())
+        iter1->second.erase(fd);
+      else
       {
+        // if a file is repaired during an RW open, the inode can change and we find the fd in a different inode
+        // search the map for the filedescriptor and remove it
+        for (iter1 = inodexrdlogin2fds.begin (); iter1 != inodexrdlogin2fds.end (); ++iter1)
+        {
+          if (iter1->second.count(fd))
+          {
+            iter1->second.erase(fd);
+            break;
+          }
+        }
+      }
+      if(iter1->second.empty())
+        inodexrdlogin2fds.erase(iter1);
+
+      // Return fd to the pool
+      pool_fd.push (fd);
+
+      if(isRW)
+      {
+        eos_static_debug("fabst=%p, rwfile is not in use, close it", fabst);
+        LayoutWrapper* raw_file = fabst->GetRawFile ();
         retc = raw_file->Close ();
+
         struct timespec utimes[2];
         const char* path = 0;
         if ((path = fabst->GetUtimes (utimes)))
@@ -850,41 +920,31 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
           // run the utimes command now after the close
           xrd_utimes (path, utimes, uid, gid, pid);
         }
+        fabst->SetRawFile(NULL);
+        fabst->SetFd(-1);
       }
-      delete fabst;
-      fabst = 0;
-      fd2fabst.erase(iter);
-
-      // Remove entry also from the inodeuser2fd
-      std::ostringstream sstr;
-      sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-      auto iter1 = inodexrdlogin2fd.find(sstr.str());
-
-      if (iter1 != inodexrdlogin2fd.end())
-        inodexrdlogin2fd.erase(iter1);
       else
       {
-	// if a file is repaired during an RW open, the inode can change and we find the fd in a different inode
-	// search the map for the filedescriptor and remove it
-	for (iter1 = inodexrdlogin2fd.begin(); iter1 != inodexrdlogin2fd.end(); ++iter1)
-	{
-	  if (iter1->second == fd)
-	  {
-	    inodexrdlogin2fd.erase(iter1);
-	    break;
-	  }
-	}
+        eos_static_debug("fabst=%p, rofile is not in use, close it", fabst);
+        LayoutWrapper* raw_file = fabst->GetRawFileRO ();
+        retc = raw_file->Close ();
+        fabst->SetRawFileRO(NULL);
       }
-      // Return fd to the pool
-      pool_fd.push(fd);
+    }
+
+    if (!fabst->IsInUse ())
+    {
+      eos_static_debug("fabst=%p is not in use, remove it", fabst);
+      delete fabst;
+      fabst = 0;
     }
     else
     {
-      eos_static_debug("fd=%i is still in use, cannot remove", fd);
+      eos_static_debug("fabst=%p is still in use, cannot remove", fabst);
       // Decrement number of references - so that the last process can
       // properly close the file
-      fabst->DecNumRef();
-      fabst->DecNumOpen();
+      fabst->DecNumRef ();
+      fabst->DecNumOpen ();
     }
   }
   else
@@ -1857,13 +1917,13 @@ xrd_stat (const char* path,
     eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
     std::ostringstream sstr;
     sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-    google::dense_hash_map<std::string, int>::iterator
-      iter_fd = inodexrdlogin2fd.find(sstr.str());
+    google::dense_hash_map<std::string, std::set<int> >::iterator
+      iter_fd = inodexrdlogin2fds.find(sstr.str());
 
-    if (iter_fd != inodexrdlogin2fd.end())
+    if (iter_fd != inodexrdlogin2fds.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
-        iter_file = fd2fabst.find(iter_fd->second);
+        iter_file = fd2fabst.find(*iter_fd->second.begin());
 
       if (iter_file != fd2fabst.end())
       {
@@ -1875,7 +1935,9 @@ xrd_stat (const char* path,
 	}
 
         struct stat tmp;
+        // try to stat wi th RO file if opened
         LayoutWrapper* file = iter_file->second->GetRawFile();
+        if(!file) file = iter_file->second->GetRawFileRO();
 
         if (!file->Stat(&tmp))
         {
@@ -1889,13 +1951,13 @@ xrd_stat (const char* path,
 	  }
 
           eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p",
-                          iter_fd->second, file_size, file);
+                           *iter_fd->second.begin(), file_size, file);
         }
         else
-          eos_static_err("fd=%i stat failed on open file", iter_fd->second);
+          eos_static_err("fd=%i stat failed on open file", *iter_fd->second.begin());
       }
       else
-        eos_static_err("fd=%i not found in file obj map", iter_fd->second);
+        eos_static_err("fd=%i not found in file obj map", *iter_fd->second.begin());
     }
     else
       eos_static_debug("path=%s not open", path);
@@ -2246,11 +2308,11 @@ xrd_set_utimes_close(unsigned long long inode,
   sstr << inode << ":" << get_xrd_login(uid,gid,pid);
   {
     eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-    auto iter_fd = inodexrdlogin2fd.find(sstr.str());
-    if (iter_fd != inodexrdlogin2fd.end())
+    auto iter_fd = inodexrdlogin2fds.find(sstr.str());
+    if (iter_fd != inodexrdlogin2fds.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
-        iter_file = fd2fabst.find(iter_fd->second);
+        iter_file = fd2fabst.find(*iter_fd->second.begin());
 
       if (iter_file != fd2fabst.end())
       {
@@ -3019,14 +3081,14 @@ xrd_open (const char* path,
   struct stat buf;
   bool exists = true;
   bool lazy_open = (flags_sfs==SFS_O_RDONLY)?lazy_open_ro:lazy_open_rw;
-
+  bool isRO = (flags_sfs == SFS_O_RDONLY);
   eos::common::Timing opentiming("xrd_open");
   COMMONTIMING("START", &opentiming);
 
   spath += path;
   errno = 0;
   int t0;
-  int retc = xrd_add_fd2file(0, *return_inode, uid, gid, pid, path);
+  int retc = xrd_add_fd2file(0, *return_inode, uid, gid, pid, isRO, path);
 
   if (retc != -1)
   {
@@ -3090,7 +3152,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid, gid, pid);
+        retc = xrd_add_fd2file(file, *return_inode, uid, gid, pid, isRO);
         return retc;
       }
     }
@@ -3119,7 +3181,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid);
+        retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid, isRO);
         return retc;
       }
     }
@@ -3149,7 +3211,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid,gid,pid);
+        retc = xrd_add_fd2file(file, *return_inode, uid,gid,pid, isRO);
         return retc;
       }
     }
@@ -3263,7 +3325,7 @@ xrd_open (const char* path,
                                (unsigned long)*return_inode);
             }
 
-            retc = xrd_add_fd2file(new LayoutWrapper( file , use_localtime_consistency), *return_inode, uid,gid,pid);
+            retc = xrd_add_fd2file(new LayoutWrapper( file , use_localtime_consistency), *return_inode, uid,gid,pid, isRO);
             return retc;
           }
         }
@@ -3301,6 +3363,13 @@ xrd_open (const char* path,
   if(xrd_stat(path,&buf,uid,gid,pid,0))
     exists = false;
   eos_static_debug("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str(), open_cgi.c_str(), (int)exists, (int)flags_sfs);
+  retc = 1;
+  // upgrade the WRONLY open to RW
+  if(flags_sfs | SFS_O_WRONLY)
+  {
+    flags_sfs &= ~SFS_O_WRONLY;
+    flags_sfs |= SFS_O_RDWR;
+  }
   retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,!lazy_open);
 
   if (retc)
@@ -3328,10 +3397,10 @@ xrd_open (const char* path,
 	sstr_new << new_ino << ":" << get_xrd_login(uid,gid,pid);
 	{
 	  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-	  if (inodexrdlogin2fd.count(sstr_old.str()))
+	  if (inodexrdlogin2fds.count(sstr_old.str()))
 	  {
-	    inodexrdlogin2fd[sstr_new.str()] = inodexrdlogin2fd[sstr_old.str()];
-	    inodexrdlogin2fd.erase(sstr_old.str());
+	    inodexrdlogin2fds[sstr_new.str()] = inodexrdlogin2fds[sstr_old.str()];
+	    inodexrdlogin2fds.erase(sstr_old.str());
 	  }
 	}
 
@@ -3352,7 +3421,7 @@ xrd_open (const char* path,
       eos_static_debug("path=%s opened ino=%lu", path, (unsigned long)*return_inode);
     }
 
-    retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid,path);
+    retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid, isRO,path);
 
     COMMONTIMING("end", &opentiming);
     
@@ -3461,8 +3530,16 @@ xrd_truncate (int fildes, off_t offset)
 {
   int ret = -1;
   eos_static_info("fd=%d offset=%llu", fildes, (unsigned long long) offset);
-  FileAbstraction* fabst = xrd_get_file(fildes);
+  bool isRW=false;
+  FileAbstraction* fabst = xrd_get_file(fildes,&isRW);
   errno = 0;
+
+// note: we don't check if the file is open in RO because fuse truncation is tricky 
+//  if (!isRW)
+//  {
+//    errno = EPERM;
+//    return ret;
+//  }
 
   if (!fabst)
   {
@@ -3471,6 +3548,11 @@ xrd_truncate (int fildes, off_t offset)
   }
 
   LayoutWrapper* file = fabst->GetRawFile();
+  if(!file)
+  {
+    errno = ENOENT;
+    return ret;
+  }
 
   if (XFC && fuse_cache_write)
   {
@@ -3508,15 +3590,16 @@ xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsiz
     eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
     std::ostringstream sstr;
     sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-    google::dense_hash_map<std::string, int>::iterator
-      iter_fd = inodexrdlogin2fd.find(sstr.str());
+    google::dense_hash_map<std::string, std::set<int>>::iterator
+      iter_fd = inodexrdlogin2fds.find(sstr.str());
 
-    if (iter_fd != inodexrdlogin2fd.end())
+    if (iter_fd != inodexrdlogin2fds.end ())
     {
-      return xrd_truncate(iter_fd->second,truncsize);
+      for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
+        if (fd2count[*fdit] > 0) return xrd_truncate (*fdit, truncsize);
     }
     else
-      eos_static_debug("path=%s not open", fullpath);
+      eos_static_debug("path=%s not open in rw", fullpath);
   }
 
   int fd, retc = -1;
@@ -3552,7 +3635,8 @@ xrd_pread (int fildes,
                    fildes, (unsigned long) nbyte,
                    (unsigned long long) offset);
   ssize_t ret = -1;
-  FileAbstraction* fabst = xrd_get_file(fildes);
+  bool isRW=false;
+  FileAbstraction* fabst = xrd_get_file(fildes,&isRW);
 
   if (!fabst)
   {
@@ -3560,17 +3644,17 @@ xrd_pread (int fildes,
     return ret;
   }
 
+  LayoutWrapper* file = isRW?fabst->GetRawFile():fabst->GetRawFileRO();
+
   if (XFC && fuse_cache_write)
   {
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
-    LayoutWrapper* file = fabst->GetRawFile();
     ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
     fabst->mMutexRW.UnLock();
   }
   else
   {
-    LayoutWrapper* file = fabst->GetRawFile();
     ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
   }
 
@@ -3610,7 +3694,14 @@ xrd_pwrite (int fildes,
                    fildes, (unsigned long) nbyte, XFC ? 1 : 0,
                    fuse_cache_write);
   int64_t ret = -1;
-  FileAbstraction* fabst = xrd_get_file(fildes);
+  bool isRW=false;
+  FileAbstraction* fabst = xrd_get_file(fildes,&isRW);
+
+  if(!isRW)
+  {
+    errno = EPERM;
+    return ret;
+  }
 
   if (!fabst)
   {
@@ -3656,7 +3747,7 @@ int
 xrd_fsync (int fildes)
 {
   eos_static_info("fd=%d", fildes);
-  int ret = -1;
+  int ret = 0;
   FileAbstraction* fabst = xrd_get_file(fildes);
 
   if (!fabst)
@@ -3673,7 +3764,8 @@ xrd_fsync (int fildes)
   }
 
   LayoutWrapper* file = fabst->GetRawFile();
-  ret = file->Sync();
+  if(file)
+    ret = file->Sync();
 
   if (ret)
     errno = EIO;
@@ -4188,11 +4280,14 @@ xrd_init ()
   inode2cache.set_empty_key(0);
   inode2cache.set_deleted_key(0xffffffffll);
 
-  inodexrdlogin2fd.set_empty_key("");
-  inodexrdlogin2fd.set_deleted_key("#__deleted__#");
+  inodexrdlogin2fds.set_empty_key("");
+  inodexrdlogin2fds.set_deleted_key("#__deleted__#");
 
   fd2fabst.set_empty_key(-1);
   fd2fabst.set_deleted_key(-2);
+
+  fd2count.set_empty_key(-1);
+  fd2count.set_deleted_key(-2);
 
   // Create the root entry
   path2inode["/"] = 1;
