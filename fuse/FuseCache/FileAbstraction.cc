@@ -32,22 +32,18 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileAbstraction::FileAbstraction(int fd, eos::fst::Layout* file, bool isRW, const char* path) :
+FileAbstraction::FileAbstraction(const char* path) :
   mMutexRW(),
-  mRW(isRW),
-  mFd(fd),
-  mFile(file),
+  mFd(-1),
+  mFile(NULL),
+  mFileRO(NULL),
   mNoReferences(0),
   mNumOpen(1),
   mSizeWrites(0),
   mPath(path),
   mMaxWriteOffset(0)
 {
-  // Max file size we can deal with is ~ 90TB
-  mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
-  mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
-  eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
-                   this, mFirstPossibleKey, mLastPossibleKey);
+  mFirstPossibleKey = mLastPossibleKey = 0;
   errorsQueue = new eos::common::ConcurrentQueue<error_type > ();
   mCondUpdate = XrdSysCondVar(0);
 

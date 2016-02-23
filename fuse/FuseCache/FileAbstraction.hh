@@ -64,7 +64,7 @@ class FileAbstraction
     //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    FileAbstraction(int fd, eos::fst::Layout* file, bool isRW, const char* path="");
+    FileAbstraction(const char* path="");
 
 
     //--------------------------------------------------------------------------
@@ -83,14 +83,6 @@ class FileAbstraction
     //! Get number of write blocks in cache for the file
     //--------------------------------------------------------------------------
     long long int GetNoWriteBlocks();
-
-    //--------------------------------------------------------------------------
-    //! Get fd value
-    //--------------------------------------------------------------------------
-    inline bool GetRW() const
-    {
-      return mRW;
-    };
 
     //--------------------------------------------------------------------------
     //! Get fd value
@@ -121,6 +113,29 @@ class FileAbstraction
       return mFile;
     };
 
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFile(eos::fst::Layout* file)
+    {
+      mFile=file;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Get undelying raw file object for RO
+    //--------------------------------------------------------------------------
+    inline eos::fst::Layout* GetRawFileRO() const
+    {
+      return mFileRO;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFileRO(eos::fst::Layout* file)
+    {
+      mFileRO=file;
+    };
 
     //--------------------------------------------------------------------------
     //! Get first possible key value
@@ -129,7 +144,6 @@ class FileAbstraction
     {
       return mFirstPossibleKey;
     };
-
 
     //--------------------------------------------------------------------------
     //! Get last possible key value
@@ -239,9 +253,9 @@ class FileAbstraction
     off_t GetMaxWriteOffset();
 
   private:
-    bool mRW; ///< true if the file was open for RW
     int mFd; ///< file descriptor used for the block key range
     eos::fst::Layout* mFile; ///< raw file object
+    eos::fst::Layout* mFileRO; ///< raw file object for RO access
     int mNoReferences; ///< number of held referencess to this file
     int mNumOpen; ///< number of open request without a matching close
     size_t mSizeWrites; ///< the size of write blocks in cache
