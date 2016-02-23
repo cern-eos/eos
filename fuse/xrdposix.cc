@@ -684,7 +684,6 @@ xrd_generate_fd ()
 //------------------------------------------------------------------------------
 int
 xrd_add_fd2file (eos::fst::Layout* raw_file,
-                 bool isRWraw,
                  unsigned long inode,
                  uid_t uid,
                  bool isROfd,
@@ -732,37 +731,35 @@ xrd_add_fd2file (eos::fst::Layout* raw_file,
         }
       }
     }
-    else
-      return fd;
-  }
 
-  // if the file could be open only in RO and was not closed
-  // it cannot be upgraded to a RW file
-  if(!raw_file && fabst && !fabst->GetRW() && !isROfd)
-    return -2;
+    return -1;
+  }
 
   fd = xrd_generate_fd();
   
   if (fd > 0)
   {
+    if (iter_fd != inodeuser2fds.end())
+      fabst = fd2fabst[ *iter_fd->second.begin() ];
+
     if(fabst)
       eos_static_debug("new fdesc existing fabst : path=%s  isRO=%d  =>  fdesc=%d",path,(int)isROfd,(int)fd);
     else
       eos_static_debug("new fdesc new fabst: path=%s  isRO=%d  =>  fdesc=%d",path,(int)isROfd,(int)fd);
 
     if(!fabst)
-      fabst = new FileAbstraction(fd, raw_file, isRWraw, path);
+      fabst = new FileAbstraction(path);
+
+    if(isROfd)
+      fabst->SetRawFileRO(raw_file);
+    else
+    {
+      fabst->SetRawFile(raw_file);
+      fabst->SetFd(fd);
+    }
     fd2fabst[fd] = fabst;
     fd2count[fd] = isROfd?-1:1;
     inodeuser2fds[sstr.str()].insert( fd );
-    // if it's a rw open, overwrite the fd in the fabst that was previously open for RO
-    if(!isROfd)
-    {
-      if(fabst->GetRW())
-      fabst->SetFd(fd);
-      else
-        ;
-    }
   }
   else
   {
@@ -810,7 +807,7 @@ int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
   if (iter != fd2fabst.end ())
   {
     FileAbstraction* fabst = iter->second;
-
+    bool isRW = (fd2count[fd]>0);
     fd2count[fd] -= (fd2count[fd] < 0 ? -1 : 1);
     // there is no more reference to that fd
     if (!fd2count[fd])
@@ -842,21 +839,35 @@ int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
 
       // Return fd to the pool
       pool_fd.push (fd);
+
+      if(isRW)
+      {
+        eos_static_debug("fabst=%p, rwfile is not in use, close it", fabst);
+        eos::fst::Layout* raw_file = fabst->GetRawFile ();
+        retc = raw_file->Close ();
+
+        struct timespec utimes[2];
+        const char* path = 0;
+        if ((path = fabst->GetUtimes (utimes)))
+        {
+          // run the utimes command now after the close
+          xrd_utimes (path, utimes, uid, 0, 0);
+        }
+        fabst->SetRawFile(NULL);
+        fabst->SetFd(-1);
+      }
+      else
+      {
+        eos_static_debug("fabst=%p, rofile is not in use, close it", fabst);
+        eos::fst::Layout* raw_file = fabst->GetRawFileRO ();
+        retc = raw_file->Close ();
+        fabst->SetRawFileRO(NULL);
+      }
     }
 
     if (!fabst->IsInUse ())
     {
       eos_static_debug("fabst=%p is not in use, remove it", fabst);
-      eos::fst::Layout* raw_file = fabst->GetRawFile ();
-      retc = raw_file->Close ();
-
-      struct timespec utimes[2];
-      const char* path = 0;
-      if ((path = fabst->GetUtimes (utimes)))
-      {
-        // run the utimes command now after the close
-        xrd_utimes (path, utimes, uid, 0, 0);
-      }
       delete fabst;
       fabst = 0;
     }
@@ -1315,7 +1326,9 @@ xrd_stat (const char* path,
 	}
 
         struct stat tmp;
+        // try to stat wi th RO file if opened
         eos::fst::Layout* file = iter_file->second->GetRawFile();
+        if(!file) file = iter_file->second->GetRawFileRO();
 
         if (!file->Stat(&tmp))
         {
@@ -2359,21 +2372,13 @@ xrd_open (const char* path,
   spath += path;
   errno = 0;
   int t0;
-  int retc = xrd_add_fd2file(0, true, *return_inode, uid, isRO,  path);
+  int retc = xrd_add_fd2file(0, *return_inode, uid, isRO,  path);
 
   if (retc != -1)
   {
     eos_static_debug("file already opened, return fd=%i", retc);
     return retc;
   }
-
-  if (retc == -2)
-  {
-    eos_static_err("fabst already opened in RO for path %s, cannot be upgraded to RW. close all fds.", path, retc);
-    errno = EPERM;
-    return xrd_error_retc_map (errno);
-  }
-
 
   if ((t0 = spath.find("/proc/")) != STR_NPOS)
   {
@@ -2414,7 +2419,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, isRO, *return_inode, uid, isRO);
+        retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
         return retc;
       }
     }
@@ -2436,7 +2441,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, isRO, *return_inode, uid, isRO);
+        retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
         return retc;
       }
     }
@@ -2459,7 +2464,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, isRO, *return_inode, uid, isRO);
+        retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
         return retc;
       }
     }
@@ -2570,7 +2575,7 @@ xrd_open (const char* path,
                                (unsigned long)*return_inode);
             }
 
-            retc = xrd_add_fd2file(file, isRO, *return_inode, uid, isRO);
+            retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
             return retc;
           }
         }
@@ -2599,24 +2604,13 @@ xrd_open (const char* path,
 
   eos_static_debug("open_path=%s, open_cgi=%s", spath.c_str(), open_cgi.c_str());
   retc = 1;
-  bool rawRW = false;
-  if(flags_sfs == SFS_O_RDONLY) // try to open first in RW
+  // upgrade the WRONLY open to RW
+  if(flags_sfs | SFS_O_WRONLY)
   {
-    retc = file->Open(spath.c_str(), SFS_O_RDWR, mode, open_cgi.c_str());
-    if(!retc) rawRW = true;
+    flags_sfs &= ~SFS_O_WRONLY;
+    flags_sfs |= SFS_O_RDWR;
   }
-  else if(flags_sfs | SFS_O_WRONLY)
-  {
-    retc = file->Open(spath.c_str(), (flags_sfs & ~SFS_O_WRONLY) | SFS_O_RDWR, mode, open_cgi.c_str());
-    if(!retc) rawRW = true;
-  }
-  else if(flags_sfs | SFS_O_RDWR)
-  {
-    retc = file->Open(spath.c_str(), flags_sfs , mode, open_cgi.c_str());
-    if(!retc) rawRW = true;
-  }
-  if(retc)
-   retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str());
+  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str());
 
   if (retc)
   {
@@ -2665,7 +2659,7 @@ xrd_open (const char* path,
       eos_static_debug("path=%s opened ino=%lu", path, (unsigned long)*return_inode);
     }
 
-    retc = xrd_add_fd2file(file, rawRW, *return_inode, uid, isRO, path);
+    retc = xrd_add_fd2file(file, *return_inode, uid, isRO, path);
 
     COMMONTIMING("end", &opentiming);
     
@@ -2773,6 +2767,11 @@ xrd_truncate (int fildes, off_t offset)
   }
 
   eos::fst::Layout* file = fabst->GetRawFile();
+  if(!file)
+  {
+    errno = ENOENT;
+    return ret;
+  }
 
   if (XFC && fuse_cache_write)
   {
@@ -2811,7 +2810,8 @@ xrd_pread (int fildes,
                    fildes, (unsigned long) nbyte,
                    (unsigned long long) offset);
   ssize_t ret = -1;
-  FileAbstraction* fabst = xrd_get_file(fildes);
+  bool isRW=false;
+  FileAbstraction* fabst = xrd_get_file(fildes,&isRW);
 
   if (!fabst)
   {
@@ -2819,17 +2819,17 @@ xrd_pread (int fildes,
     return ret;
   }
 
+  eos::fst::Layout* file = isRW?fabst->GetRawFile():fabst->GetRawFileRO();
+
   if (XFC && fuse_cache_write)
   {
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
-    eos::fst::Layout* file = fabst->GetRawFile();
     ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
     fabst->mMutexRW.UnLock();
   }
   else
   {
-    eos::fst::Layout* file = fabst->GetRawFile();
     ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
   }
 
@@ -2884,7 +2884,6 @@ xrd_pwrite (int fildes,
     return ret;
   }
 
-
   if (XFC && fuse_cache_write)
   {
     fabst->mMutexRW.ReadLock();
@@ -2919,7 +2918,7 @@ int
 xrd_fsync (int fildes)
 {
   eos_static_info("fd=%d", fildes);
-  int ret = -1;
+  int ret = 0;
   FileAbstraction* fabst = xrd_get_file(fildes);
 
   if (!fabst)
@@ -2936,7 +2935,8 @@ xrd_fsync (int fildes)
   }
 
   eos::fst::Layout* file = fabst->GetRawFile();
-  ret = file->Sync();
+  if(file)
+    ret = file->Sync();
 
   if (ret)
     errno = EIO;
