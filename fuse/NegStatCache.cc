@@ -198,7 +198,7 @@ void NegStatCache::rmNode (stat_negcache_node *node, bool uproot, bool entirebra
         node->mProbedErrno = 0;
     }
 
-    if (node->mChildren.empty ())
+    if (node->mChildren.empty () && node->mParent) // we don't want to erase the root of the tree
     {
       node->mParent->mChildren.erase (node->mName);
       delete (node);
