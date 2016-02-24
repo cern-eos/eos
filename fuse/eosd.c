@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
+#include <signal.h>
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 #include <fuse/fuse_lowlevel.h>
@@ -1688,7 +1689,6 @@ static struct fuse_lowlevel_ops eosfs_ll_oper = {
 int
 main (int argc, char* argv[])
 {
-  struct fuse_args args = FUSE_ARGS_INIT (argc, argv);
   struct fuse_chan* ch;
   time_t xcfsatime;
 
@@ -1696,15 +1696,8 @@ main (int argc, char* argv[])
   char* mountpoint;
   char* epos;
   char* spos;
-  char* rdr;
 
   int i;
-
-  for (i = 0; i < argc; i++)
-  {
-    if (!strcmp (argv[i], "-d"))
-      isdebug = 1;
-  }
 
   if (getenv ("EOS_SOCKS4_HOST") && getenv ("EOS_SOCKS4_PORT"))
   {
@@ -1713,27 +1706,29 @@ main (int argc, char* argv[])
   }
 
   xcfsatime = time (NULL);
-
+  
+  char rdr[4096];
+  rdr[0]=0;
+  if (getenv("EOS_RDRURL"))
+    snprintf(rdr,4096,"%s",getenv("EOS_RDRURL"));
+  
   for (i = 0; i < argc; i++)
   {
     if ((spos = strstr (argv[i], "url=root://")))
     {
+      size_t os=spos-argv[i];
+      argv[i] = strdup(argv[i]);
+      argv[i][os-1]=0;
+      snprintf(rdr,4096,"%s", spos+4);
       if ((epos = strstr (spos + 11, "//")))
       {
-        //*(epos+2) = 0;
-        *(spos) = 0;
-
-        if (*(spos - 1) == ',')
-          *(spos - 1) = 0;
-
-        setenv ("EOS_RDRURL", spos + 4, 1);
+	if ( (epos-spos) < 4096 )
+	  rdr[epos+2-spos]=0;
       }
     }
   }
 
-  rdr = getenv ("EOS_RDRURL");
-
-  if (!rdr)
+  if (!rdr[0])
   {
     fprintf (stderr, "error: EOS_RDRURL is not defined or add "
              "root://<host>// to the options argument\n");
@@ -1747,12 +1742,14 @@ main (int argc, char* argv[])
     exit (-1);
   }
 
+  struct fuse_args args = FUSE_ARGS_INIT (argc, argv);
+
   // Move the mounthostport starting with the host name
   char* pmounthostport = 0;
   char* smountprefix = 0;
-
+  
   pmounthostport = strstr (rdr, "root://");
-
+  
 #ifndef __APPLE__
   if (access("/bin/fusermount",X_OK))
   {
@@ -1768,7 +1765,7 @@ main (int argc, char* argv[])
   }
 
   pmounthostport += 7;
-
+  
   if (!(smountprefix = strstr (pmounthostport, "//")))
   {
     fprintf (stderr, "error: EOS_RDRURL or url option is not valid\n");
@@ -1786,52 +1783,20 @@ main (int argc, char* argv[])
       mountprefix[strlen (mountprefix) - 1] = '\0';
   }
 
-  if (!isdebug)
-  {
-    pid_t m_pid = fork ();
-
-    if (m_pid < 0)
-    {
-      fprintf (stderr, "ERROR: Failed to fork daemon process\n");
-      exit (-1);
-    }
-
-    //..........................................................................
-    // Kill the parent
-    //..........................................................................
-    if (m_pid > 0)
-      exit (0);
-
-    umask (0);
-    pid_t sid;
-
-    if ((sid = setsid ()) < 0)
-    {
-      fprintf (stderr, "ERROR: failed to create new session (setsid())\n");
-      exit (-1);
-    }
-
-    if ((chdir ("/")) < 0)
-    {
-      // Log any failure here
-      exit (-1);
-    }
-
-    close (STDIN_FILENO);
-    close (STDOUT_FILENO);
-    //..........................................................................
-    // = > don't close STDERR because we redirect that to a file!
-    //..........................................................................
-  }
-
-  xrd_init ();
-
   unsetenv ("KRB5CCNAME");
   unsetenv ("X509_USER_PROXY");
 
-  if (fuse_parse_cmdline (&args, &mountpoint, NULL, NULL) != -1 &&
-      (ch = fuse_mount (mountpoint, &args)) != NULL)
+  setenv("EOS_RDRURL",rdr,1);
+
+  if ( (fuse_parse_cmdline (&args, &mountpoint, NULL, &isdebug) != -1) &&
+       ((ch = fuse_mount (mountpoint, &args)) != NULL)  &&
+       (fuse_daemonize(0) != -1 ) )
   {
+    if (getenv("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp(getenv("EOS_FUSE_LOWLEVEL_DEBUG"),"1")))
+      isdebug = 1;
+
+    xrd_init();
+
     struct fuse_session* se;
     se = fuse_lowlevel_new (&args, &eosfs_ll_oper, sizeof ( eosfs_ll_oper), NULL);
 
@@ -1839,27 +1804,32 @@ main (int argc, char* argv[])
     {
       if (fuse_set_signal_handlers (se) != -1)
       {
-        fuse_session_add_chan (se, ch);
-        if (getenv ("EOS_FUSE_NO_MT") &&
-            (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1")))
-        {
-          err = fuse_session_loop (se);
-        }
-        else
-        {
-          err = fuse_session_loop_mt (se);
-        }
+	fuse_session_add_chan (se, ch);
 
-        fuse_remove_signal_handlers (se);
-        fuse_session_remove_chan (ch);
+	if (getenv ("EOS_FUSE_NO_MT") &&
+	    (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1")))
+	{
+	  kill(getppid(), SIGQUIT);
+	  err = fuse_session_loop (se);
+	}
+	else
+	{
+	  kill(getppid(), SIGQUIT);
+	  err = fuse_session_loop_mt (se);
+	}
+	
+	fuse_remove_signal_handlers (se);
+	fuse_session_remove_chan (ch);
       }
-
       fuse_session_destroy (se);
     }
 
     fuse_unmount (mountpoint, ch);
   }
-
+  else 
+  {
+    kill(getppid(), SIGQUIT);
+  }
   fuse_opt_free_args (&args);
 
   return err ? 1 : 0;
