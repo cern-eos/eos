@@ -37,6 +37,7 @@ std::string Recycle::gRecyclingPrefix = "/recycle/"; // MgmOfsConfigure prepends
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
 std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
+std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
 std::string Recycle::gRecyclingPostFix = ".d";
 int Recycle::gRecyclingPollTime = 30;
 
@@ -564,6 +565,8 @@ Recycle::ToGarbage (const char* epname, XrdOucErrInfo & error)
                       "rename file/directory",
                       srecyclepath);
   }
+  // store the recycle path in the error object
+  error.setErrInfo(0,srecyclepath);
   return SFS_OK;
 }
 
@@ -935,7 +938,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   // check if original path is existing
   if (!gOFS->_stat(oPath.GetPath(), &buf, lError, rootvid, ""))
   {
-    if ((option != "--force-original-name") && (option != "-f"))
+    if ( (option.find("--force-original-name")==STR_NPOS) && (option.find("-f")==STR_NPOS))
     {
       stdErr += "error: the original path is already existing - use '--force-original-name' or '-f' to put the deleted file/tree back and rename the file/tree in place to <name>.<inode>\n";
       return EEXIST;
@@ -979,8 +982,30 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   {
     stdOut += "success: restored path=";
     stdOut += oPath.GetPath();
+    stdOut += "\n";
+  }
+
+  if ( (option.find("--restore-versions")==STR_NPOS) && (option.find("-r")==STR_NPOS))
+  {
+    // don't restore old versions
     return 0;
   }
+
+  XrdOucString vkey;
+  if (gOFS->_attr_get(oPath.GetPath(), lError, rootvid, "", Recycle::gRecyclingVersionKey.c_str(), vkey))
+  {
+    // no version directory to restore
+    return 0;
+  }
+
+  int retc =  Restore(stdOut, stdErr, vid, vkey.c_str(), option);
+  
+  // mask an non existant version reference
+  if (retc == ENOENT)
+    return 0;
+
+  return retc;
+
 }
 
 /*----------------------------------------------------------------------------*/

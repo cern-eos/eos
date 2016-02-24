@@ -150,17 +150,26 @@ ProcCommand::Rm ()
       else
       {
 	XrdOucString recyclingAttribute;
-	
-	// check if this path has a recycle attribute
-	gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+
+	int rpos;
+	if ( (rpos = spath.find("/.sys.v#.")) == STR_NPOS)
+	{
+	  // check if this path has a recycle attribute
+	  gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	}
+	else
+	{
+	  XrdOucString ppath = spath;
+	  ppath.erase(rpos);
+	  // get it from the parent directory for version directories
+	  gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	}
 
         //.......................................................................
-        // see if we have a recycle policy set and if avoid to recycle inside
-        // the recycle bin
+        // see if we have a recycle policy set 
         //.......................................................................
 	if (recyclingAttribute.length() &&
-	    (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) &&
-	    (spath.find("/.sys.v#.") == STR_NPOS))
+	    (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) )
 	{
           //.....................................................................
           // two step deletion via recycle bin

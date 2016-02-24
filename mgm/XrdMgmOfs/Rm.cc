@@ -340,6 +340,8 @@ XrdMgmOfs::_rem (const char *path,
     // two-step deletion re-cycle logic
     // -------------------------------------------------------------------------
 
+    XrdOucString recyclePath;
+
     // copy the meta data to be able to unlock
     eos::FileMD fmdCopy(*fmd);
     fmd = &fmdCopy;
@@ -386,6 +388,10 @@ XrdMgmOfs::_rem (const char *path,
             Quota::gQuotaMutex.LockRead();
           return rc;
         }
+	else
+	{
+	  recyclePath = error.getErrText();
+	}
       }
     }
     else
@@ -410,9 +416,33 @@ XrdMgmOfs::_rem (const char *path,
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
 
-      gOFS->PurgeVersion(vdir.c_str(), error, 0);
+      // tag the version directory key on the garbage file
+      if (recyclePath.length())
+      {
+        eos::common::Mapping::VirtualIdentity rootvid;
+        eos::common::Mapping::Root(rootvid);
+	struct stat buf;
+	if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0))
+	{
+	  char sp[256];
+	  snprintf(sp, sizeof (sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
+	  
+	  if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "", Recycle::gRecyclingVersionKey.c_str(),sp))
+	  {
+	    eos_err("msg=\"failed to set attribute on recycle path\" path=%s", recyclePath.c_str());
+	  
+	  }
+	}
+	else
+	{
+	  eos_err("msg\"failed to stat recycle path\" path=%s", recyclePath.c_str());
+	}
+      }
 
+      gOFS->PurgeVersion(vdir.c_str(), error, 0);
       error.clear();
+      
+
       errno = 0; // purge might return ENOENT if there was no version
     }
   }
