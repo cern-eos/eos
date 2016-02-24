@@ -108,6 +108,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE debugging mode (default off)
 #export EOS_FUSE_DEBUG=1
 
+# Enable FUSE low-level debugging mode (default off)
+#export EOS_FUSE_LOWLEVEL_DEBUG=1
+
 # Specify the FUSE logging level (default=6 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
 # EOS_FUSE_DEBUG=1 overwrites these settings
 #export EOS_FUSE_LOGLEVEL=6
