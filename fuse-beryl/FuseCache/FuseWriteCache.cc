@@ -158,6 +158,9 @@ FuseWriteCache::SubmitWrite(FileAbstraction*& fabst,
     key = fabst->GenerateBlockKey(off);
     AddWrite(fabst, key, pBuf + written_off, off, len);
   }
+
+  // track the current size
+  fabst->TestMaxWriteOffset(off+len);
 }
 
 
@@ -285,8 +288,8 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
     error = std::make_pair(retc, pEntry->GetOffsetStart());
     pEntry->GetParentFile()->errorsQueue->push(error);
   }
-  else
-    pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
+
+  pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
 
   mRecycleQueue->push(pEntry);
 }

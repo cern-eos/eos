@@ -71,20 +71,17 @@ struct dirbuf
   size_t size;
 };
 
+
 #ifdef __cplusplus
 
 extern "C"
 {
 #endif
 
-  void xrd_logdebug(const char *msg);
-
   typedef struct fd_user_info
   {
     unsigned long long fd;
     uid_t uid;
-    gid_t gid;
-    gid_t pid;
     long long ino;
   } fd_user_info;
 
@@ -138,27 +135,6 @@ extern "C"
     pthread_mutex_t lock;
     int got_destroy;
   };
-
-  //------------------------------------------------------------------------------
-  // Lock
-  //------------------------------------------------------------------------------
-
-  void
-  xrd_lock_r_pcache (pid_t pid);
-
-  void
-  xrd_lock_w_pcache (pid_t pid);
-
-
-  //------------------------------------------------------------------------------
-  // Unlock
-  //------------------------------------------------------------------------------
-
-  void
-  xrd_unlock_r_pcache (pid_t pid);
-
-  void
-  xrd_unlock_w_pcache (pid_t pid);
 
   //----------------------------------------------------------------------------
   //                ******* Path translation *******
@@ -326,13 +302,13 @@ extern "C"
   //! @param fd file descriptor
   //!
   //----------------------------------------------------------------------------
-  void xrd_add_inodeuser_fd(unsigned long inode,  uid_t uid, gid_t gid, pid_t pid, int fd);
+  void xrd_add_inodeuser_fd(unsigned long inode, uid_t uid, int fd);
 
 
   //----------------------------------------------------------------------------
   //! Remove file descriptor from mapping
   //----------------------------------------------------------------------------
-  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+  int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid);
 
   //----------------------------------------------------------------------------
   //              ******* FUSE Directory Cache *******
@@ -422,17 +398,13 @@ extern "C"
                 struct stat* buf,
                 uid_t uid,
                 gid_t gid,
-                pid_t pid,
                 unsigned long inode);
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
   int xrd_statfs (const char* path,
-                  struct statvfs* stbuf,
-                  uid_t uid,
-                  gid_t gid,
-                  pid_t pid
+                  struct statvfs* stbuf
                   );
 
   //----------------------------------------------------------------------------
@@ -531,7 +503,6 @@ extern "C"
   //!
   //----------------------------------------------------------------------------
   int xrd_truncate (int fildes, off_t offset);
-  int xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid);
 
 
   //----------------------------------------------------------------------------
@@ -545,13 +516,13 @@ extern "C"
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+  int xrd_close (int fd, unsigned long inode, uid_t uid);
 
 
   //----------------------------------------------------------------------------
   //!
   //----------------------------------------------------------------------------
-  int xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid);
+  int xrd_flush (int fd);
 
   //----------------------------------------------------------------------------
   //!
@@ -634,7 +605,7 @@ extern "C"
   int
   xrd_set_utimes_close(unsigned long long ino,
                        struct timespec* tvp,
-                       uid_t uid, gid_t gid, pid_t pid
+                       uid_t uid
                        );
 
   //----------------------------------------------------------------------------
@@ -659,26 +630,10 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Do user mapping
   //----------------------------------------------------------------------------
-  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid);
+  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid);
 
   //----------------------------------------------------------------------------
-  //! updates the proccache entry for the given pid (only if needed)
-  //! the proccache entry contains the environment, the command line
-  //! the fsuid, the fsgid amd if kerberos is used the krb5ccname and the krb5login
-  //! used in it
-  //----------------------------------------------------------------------------
-  int update_proc_cache(uid_t uid, gid_t gid, pid_t pid);
-
-  //----------------------------------------------------------------------------
-  //! Create the cgi argument to be added to the url to use the kerberos cc file
-  //!   for the given pid. e.g. xrd.k5ccname=<krb5login>
-  //----------------------------------------------------------------------------
-  const char* xrd_strongauth_cgi (pid_t pid);
-
-  //----------------------------------------------------------------------------
-  //! Create an URL
-  //! - with a user private physical channel e.g. root://<uid-gid>@<host> if krb5 is not used
-  //! - with kerberos authentication if used e.g. root://<krb5login>@<host>
+  //! Create an URL with a user private physical channel e.g. root://<uid-gid>@<host
   //----------------------------------------------------------------------------
   const char* xrd_user_url (uid_t uid, gid_t gid, pid_t pid);
 

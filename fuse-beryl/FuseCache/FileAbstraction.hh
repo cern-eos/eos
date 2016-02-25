@@ -29,7 +29,6 @@
 #include <sys/types.h>
 //------------------------------------------------------------------------------
 #include <XrdSys/XrdSysPthread.hh>
-#include "fst/layout/Layout.hh"
 //------------------------------------------------------------------------------
 #include "common/ConcurrentQueue.hh"
 //------------------------------------------------------------------------------
@@ -46,7 +45,6 @@ namespace eos
 //! Definition of an error occurring in a write operation
 typedef std::pair<int, off_t> error_type;
 
-class LayoutWrapper;
 
 //------------------------------------------------------------------------------
 //! Class that keeps track of the operations done at file level
@@ -66,7 +64,7 @@ class FileAbstraction
     //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    FileAbstraction(int fd, LayoutWrapper* file, const char* path="");
+    FileAbstraction(const char* path="");
 
 
     //--------------------------------------------------------------------------
@@ -86,7 +84,6 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     long long int GetNoWriteBlocks();
 
-
     //--------------------------------------------------------------------------
     //! Get fd value
     //--------------------------------------------------------------------------
@@ -95,15 +92,50 @@ class FileAbstraction
       return mFd;
     };
 
+    //--------------------------------------------------------------------------
+    //! Set fd value
+    //--------------------------------------------------------------------------
+    inline void SetFd( const int& fd)
+    {
+      mFd=fd;
+      mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
+      mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
+      eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
+                        this, mFirstPossibleKey, mLastPossibleKey);
+    };
+
 
     //--------------------------------------------------------------------------
     //! Get undelying raw file object
     //--------------------------------------------------------------------------
-    inline LayoutWrapper* GetRawFile() const
+    inline eos::fst::Layout* GetRawFile() const
     {
       return mFile;
     };
 
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFile(eos::fst::Layout* file)
+    {
+      mFile=file;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Get undelying raw file object for RO
+    //--------------------------------------------------------------------------
+    inline eos::fst::Layout* GetRawFileRO() const
+    {
+      return mFileRO;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFileRO(eos::fst::Layout* file)
+    {
+      mFileRO=file;
+    };
 
     //--------------------------------------------------------------------------
     //! Get first possible key value
@@ -112,7 +144,6 @@ class FileAbstraction
     {
       return mFirstPossibleKey;
     };
-
 
     //--------------------------------------------------------------------------
     //! Get last possible key value
@@ -206,10 +237,25 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     const char* GetUtimes(struct timespec* utime);
 
-  private:
+    //--------------------------------------------------------------------------
+    //! Conditionally increase the max write offset if offset is bigger
+    //--------------------------------------------------------------------------
+    void TestMaxWriteOffset(off_t offset);
 
+    //--------------------------------------------------------------------------
+    //! Set the max write offset to offset
+    //--------------------------------------------------------------------------
+    void SetMaxWriteOffset(off_t offset);
+
+    //--------------------------------------------------------------------------
+    //! Get the max write offset
+    //--------------------------------------------------------------------------
+    off_t GetMaxWriteOffset();
+
+  private:
     int mFd; ///< file descriptor used for the block key range
-    LayoutWrapper* mFile; ///< raw file object
+    eos::fst::Layout* mFile; ///< raw file object
+    eos::fst::Layout* mFileRO; ///< raw file object for RO access
     int mNoReferences; ///< number of held referencess to this file
     int mNumOpen; ///< number of open request without a matching close
     size_t mSizeWrites; ///< the size of write blocks in cache
@@ -218,6 +264,8 @@ class FileAbstraction
     XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
     struct timespec mUtime[2]; ///< cond variable tracking last set utime while file is still open
     std::string mPath; ///< valid path to this file
+    XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
+    off_t mMaxWriteOffset; ///< maximum written offset
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__

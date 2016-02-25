@@ -83,9 +83,8 @@ start() {
         export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
         export EOS_FUSE_CACHE_SIZE=${EOS_FUSE_CACHE_SIZE-300000000}
         export EOS_FUSE_CACHE_WRITE=${EOS_FUSE_CACHE_WRITE-1}
-        export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-0}    
+        export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-1}    
         export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
-        export EOS_FUSE_LOCK_ENVIRONMENT=${EOS_FUSE_LOCK_ENVIRONMENT-0}
         export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
         export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
         export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
@@ -94,7 +93,11 @@ start() {
         export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
         export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
         export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
+	export EOS_FUSE_LAZYOPENRO=${EOS_FUSE_LAZYOPENRO-0}
+        export EOS_FUSE_LAZYOPENRW=${EOS_FUSE_LAZYOPENRW-0}
         export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
+        export EOS_FUSE_LOCALTIMECONSISTENT=${EOS_FUSE_LOCALTIMECONSISTENT-1}
+         [[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
         # make sure that FUSE_OPT keeps the same default value
         export FUSE_OPT=${FUSE_OPT-"${FUSE_OPT_SAVE}"}
 
@@ -138,7 +141,6 @@ start() {
             echo "EOS_FUSE_CACHE_WRITE      : ${EOS_FUSE_CACHE_WRITE}"
             echo "EOS_FUSE_BIGWRITES        : ${EOS_FUSE_BIGWRITES}"
             echo "EOS_FUSE_EXEC             : ${EOS_FUSE_EXEC}"
-            echo "EOS_FUSE_LOCK_ENVIRONMENT : ${EOS_FUSE_LOCK_ENVIRONMENT}" 
             echo "EOS_FUSE_NO_MT            : ${EOS_FUSE_NO_MT}"
             echo "EOS_FUSE_USER_KRB5CC      : ${EOS_FUSE_USER_KRB5CC}"
             echo "EOS_FUSE_USER_GSIPROXY    : ${EOS_FUSE_USER_GSIPROXY}"
@@ -147,7 +149,11 @@ start() {
             echo "EOS_FUSE_RMLVL_PROTECT    : ${EOS_FUSE_RMLVL_PROTECT}"
             echo "EOS_FUSE_RDAHEAD          : ${EOS_FUSE_RDAHEAD}"
             echo "EOS_FUSE_RDAHEAD_WINDOW   : ${EOS_FUSE_RDAHEAD_WINDOW}"
+	    echo "EOS_FUSE_LAZYOPENRO       : ${EOS_FUSE_LAZYOPENRO}"
+            echo "EOS_FUSE_LAZYOPENRW       : ${EOS_FUSE_LAZYOPENRW}"
             echo "EOS_FUSE_LOG_PREFIX       : ${EOS_FUSE_LOG_PREFIX}"
+	    echo "EOS_FUSE_LOCALTIMECONSISTENT : ${EOS_FUSE_LOCALTIMECONSISTENT}"
+            [[ "x$XRD_STREAMERRORWINDOW" != "x" ]] && echo "XRD_STREAMERRORWINDOW        : ${XRD_STREAMERRORWINDOW}"
         else 
             echo eosd already running. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'

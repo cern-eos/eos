@@ -21,14 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR}	
-		     ${FUSE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR} )
-
-link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
-		  ${XROOTD_LIB_DIR} )
+include_directories(
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_BINARY_DIR}
+  ${XROOTD_INCLUDE_DIRS}	
+  ${XROOTD_PRIVATE_INCLUDE_DIR}
+  ${FUSE_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${KRB5_INCLUDE_DIR}
+  ${OPENSSL_INCLUDE_DIR} )
 
 if(CPPUNIT_FOUND)
   add_subdirectory(tests)
@@ -36,78 +37,94 @@ endif(CPPUNIT_FOUND)
 
 add_subdirectory(FuseCache)
 
-add_executable ( 
- eosfsd
- eosfs.c
- xrdposix.cc        xrdposix.hh
- FuseCacheEntry.cc  FuseCacheEntry.hh )
+#-------------------------------------------------------------------------------
+# eosfsd and eosd executables
+#-------------------------------------------------------------------------------
+add_executable(
+  eosfsd
+  ProcCache.cc ProcCache.hh
+  ProcCacheC.cc ProcCacheC.h
+  eosfs.c
+  xrdposix.cc        xrdposix.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh)
 
-add_executable ( 
+add_executable(
   eosd
+  ProcCache.cc ProcCache.hh
+  ProcCacheC.cc ProcCacheC.h
   eosd.c
   xrdposix.cc        xrdposix.hh
-  FuseCacheEntry.cc  FuseCacheEntry.hh )
+  FuseCacheEntry.cc  FuseCacheEntry.hh)
 
-if( MacOSX )
-target_link_libraries ( 
-  eosfsd 
-  XrdCl
-  XrdUtils 
-  EosFstIo
-  FuseCache
-  eosCommon
-  ${FUSE_LIBRARY} 
-  ${CMAKE_THREAD_LIBS_INIT} )
+if(MacOSX)
+  target_link_libraries(
+    eosfsd
+    FuseCache
+    EosFstIo
+    ${FUSE_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY} )
 
-target_link_libraries ( 
-  eosd 
-  XrdCl
-  XrdUtils 
-  EosFstIo
-  FuseCache
-  eosCommon
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT} )
-else( MacOSX )
-target_link_libraries ( 
-  eosfsd 
-  XrdCl
-  XrdUtils 
-  EosFstIo-Static
-  FuseCache-Static
-  eosCommon-Static
-  ${FUSE_LIBRARY} 
-  ${CMAKE_THREAD_LIBS_INIT} )
+  target_link_libraries(
+    eosd
+    FuseCache
+    EosFstIo
+    ${UUID_LIBRARIES}
+    ${FUSE_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UNTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY} )
 
-target_link_libraries ( 
-  eosd 
-  XrdCl
-  XrdUtils 
-  EosFstIo-Static
-  FuseCache-Static
-  eosCommon-Static
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT} )
-endif( MacOSX )
-
-if( MacOSX )
   set_target_properties(
     eosd eosfsd
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
     COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
-else( MacOSX )
-  set_target_properties ( 
-    eosd eosfsd 
-    PROPERTIES 
-    COMPILE_FLAGS -D_FILE_OFFSET_BITS=64 )
-endif( MacOSX )
+else()
+  target_link_libraries(
+    eosfsd
+    FuseCache-Static
+    EosFstIo-Static
+    ${FUSE_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-install_programs( ${CMAKE_INSTALL_SBINDIR} FILES eosd )
+  target_link_libraries(
+    eosd
+    FuseCache-Static
+    EosFstIo-Static
+    ${FUSE_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY})
 
-install ( TARGETS eosfsd
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR} )
+  set_target_properties(
+    eosd eosfsd
+    PROPERTIES
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+endif()
+
+install(
+  TARGETS eosd
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
+install(
+  TARGETS eosfsd
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
+install(
+  FILES eosfusebind
+  DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+	      GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )

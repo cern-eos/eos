@@ -23,7 +23,6 @@
 
 //------------------------------------------------------------------------------
 #include "FileAbstraction.hh"
-#include "LayoutWrapper.hh"
 #include "CacheEntry.hh"
 #include "common/Logging.hh"
 #include "fst/layout/Layout.hh"
@@ -33,26 +32,23 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileAbstraction::FileAbstraction(int fd, LayoutWrapper* file, const char* path) :
+FileAbstraction::FileAbstraction(const char* path) :
   mMutexRW(),
-  mFd(fd),
-  mFile(file),
+  mFd(-1),
+  mFile(NULL),
+  mFileRO(NULL),
   mNoReferences(0),
   mNumOpen(1),
   mSizeWrites(0),
-  mPath(path)
+  mPath(path),
+  mMaxWriteOffset(0)
 {
-  // Max file size we can deal with is ~ 90TB
-  mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
-  mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
-  eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
-                   this, mFirstPossibleKey, mLastPossibleKey);
+  mFirstPossibleKey = mLastPossibleKey = 0;
   errorsQueue = new eos::common::ConcurrentQueue<error_type > ();
   mCondUpdate = XrdSysCondVar(0);
 
-  mFile->mFabs = this;
-  mUtime[0] = mFile->mLocalUtime[0];
-  mUtime[1] = mFile->mLocalUtime[1];
+  mUtime[0].tv_sec = mUtime[1].tv_sec = 0;
+  mUtime[0].tv_nsec = mUtime[1].tv_nsec = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -73,6 +69,37 @@ FileAbstraction::GetSizeWrites()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   return mSizeWrites;
+}
+
+//------------------------------------------------------------------------------
+// Get size of maximum write offset
+//------------------------------------------------------------------------------
+off_t
+FileAbstraction::GetMaxWriteOffset()
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  return mMaxWriteOffset;
+}
+
+//------------------------------------------------------------------------------
+// TestMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::TestMaxWriteOffset(off_t offset)
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  if (offset > mMaxWriteOffset)
+    mMaxWriteOffset = offset;
+}
+
+//------------------------------------------------------------------------------
+// SetMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::SetMaxWriteOffset(off_t offset)
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  mMaxWriteOffset = offset;
 }
 
 

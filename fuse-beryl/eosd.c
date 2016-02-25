@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
-//! @file eosd.c                                                       
-//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN      
+//! @file eosd.c
+//! @author Elvin-Alin Sindrilaru / Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -49,7 +49,6 @@
 #include <signal.h>
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
-#include "ProcCacheC.h"
 #include <fuse/fuse_lowlevel.h>
 /*----------------------------------------------------------------------------*/
 
@@ -58,7 +57,6 @@
 
 int isdebug = 0; ///< set debug on/off
 
-char *local_mount_dir;
 char mounthostport[1024]; ///< mount hostport of the form: hostname:port
 char mountprefix[1024]; ///< mount prefix of the form: dir1/dir2/dir3
 
@@ -66,7 +64,6 @@ double entrycachetime = 5.0;
 double attrcachetime = 5.0;
 double readopentime = 5.0;
 
-extern int use_localtime_consistency;
 
 //------------------------------------------------------------------------------
 // Convenience macros to build strings in C ...
@@ -86,18 +83,6 @@ extern int use_localtime_consistency;
                  snprintf ( (_url) , sizeof( (_url)) -1, "root://%s@%s//%s%s", (_user), \
                            (_hostport), (_prefix), (_parent) )
 
-#define UPDATEPROCCACHE \
-  do { \
-    int errCode; \
-    xrd_lock_w_pcache (req->ctx.pid); \
-    if( (errCode=update_proc_cache(req->ctx.uid,req->ctx.gid,req->ctx.pid)) )\
-    { \
-      xrd_unlock_w_pcache (req->ctx.pid); \
-      fuse_reply_err (req, errCode); \
-      return; \
-    } \
-    xrd_unlock_w_pcache (req->ctx.pid); \
-  } while (0)
 
 //------------------------------------------------------------------------------
 // Get file attributes
@@ -110,8 +95,6 @@ eosfs_ll_getattr (fuse_req_t req,
   struct stat stbuf;
   memset (&stbuf, 0, sizeof ( struct stat));
   char fullpath[16384];
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
@@ -133,7 +116,7 @@ eosfs_ll_getattr (fuse_req_t req,
              __FUNCTION__, (long long) ino, fullpath);
   }
 
-  int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino);
+  int retc = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, ino);
 
   if (!retc)
   {
@@ -161,8 +144,6 @@ eosfs_ll_setattr (fuse_req_t req,
   char fullpath[16384];
   char url[1024];
   unsigned long rinode = 0;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* name = xrd_path ((unsigned long long) ino);
@@ -199,16 +180,70 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (to_set & FUSE_SET_ATTR_SIZE)
   {
-    retc = xrd_truncate2 (fullpath, ino, attr->st_size, req->ctx.uid, req->ctx.gid, req->ctx.pid);
+    if (fi)
+    {
+      if (isdebug) fprintf (stderr, "[%s]: truncate\n", __FUNCTION__);
+
+      if (fi->fh)
+      {
+        struct fd_user_info* info = (struct fd_user_info*) fi->fh;
+        retc = xrd_truncate ((unsigned long long) info->fd, attr->st_size);
+      }
+      else
+      {
+        int fd;
+
+        if (isdebug)
+        {
+          fprintf (stderr, "[%s]: set attr size=%lld ino=%lld\n",
+                   __FUNCTION__, (long long) attr->st_size, (long long) ino);
+        }
+
+        if ((fd = xrd_open (fullpath, O_WRONLY,
+                            S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, req->ctx.uid,
+                            req->ctx.gid,
+                            req->ctx.pid,
+                            &rinode)) > 0)
+        {
+          retc = xrd_truncate (fd, attr->st_size);
+          xrd_close (fd, ino, req->ctx.uid);
+        }
+        else
+        {
+          retc = -1;
+        }
+      }
+    }
+    else
+    {
+      int fd;
+
+      if (isdebug)
+      {
+        fprintf (stderr, "[%s]: set attr size=%lld ino=%lld\n",
+                 __FUNCTION__, (long long) attr->st_size, (long long) ino);
+      }
+
+      if ((fd = xrd_open (fullpath, O_WRONLY,
+                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
+                          req->ctx.uid,
+                          req->ctx.gid,
+                          req->ctx.pid,
+                          &rinode)) > 0)
+      {
+        retc = xrd_truncate (fd, attr->st_size);
+        xrd_close (fd, ino, req->ctx.uid);
+      }
+    }
   }
 
   if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
   {
     struct timespec tvp[2];
-    tvp[0].tv_sec = attr->st_atim.tv_sec;
-    tvp[0].tv_nsec = attr->st_atim.tv_nsec;
-    tvp[1].tv_sec = attr->st_mtim.tv_sec;
-    tvp[1].tv_nsec = attr->st_mtim.tv_nsec;
+    tvp[0].tv_sec = attr->st_atime;
+    tvp[0].tv_nsec = 0;
+    tvp[1].tv_sec = attr->st_mtime;
+    tvp[1].tv_nsec = 0;
 
     if (isdebug)
     {
@@ -216,7 +251,7 @@ eosfs_ll_setattr (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
 
-    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid, req->ctx.gid, req->ctx.pid)) ) {
+    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid)) ) {
       retc = xrd_utimes (fullpath, tvp,
 			 req->ctx.uid,
 			 req->ctx.gid,
@@ -231,16 +266,16 @@ eosfs_ll_setattr (fuse_req_t req,
 
   if (!retc)
   {
-    retc = xrd_stat (fullpath, &newattr, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino);
+    retc = xrd_stat (fullpath, &newattr, req->ctx.uid, req->ctx.gid, ino);
 
     if (!retc)
       fuse_reply_attr (req, &newattr, attrcachetime);
     else
       fuse_reply_err (req, errno);
-    }
+  }
   else
     fuse_reply_err (req, errno);
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -257,8 +292,6 @@ eosfs_ll_lookup (fuse_req_t req,
   const char* parentpath = NULL;
   char fullpath[16384];
   char ifullpath[16384];
-
-  UPDATEPROCCACHE;
 
   if (isdebug)
   {
@@ -284,7 +317,7 @@ eosfs_ll_lookup (fuse_req_t req,
       sprintf (ifullpath, "/%s", name);
     else
       sprintf (ifullpath, "%s/%s", parentpath, name);
-    }
+  }
 
   FULLPATH (fullpath, mountprefix, ifullpath);
 
@@ -305,17 +338,17 @@ eosfs_ll_lookup (fuse_req_t req,
 
     if (isdebug)
       fprintf (stderr, "[%s] subentry_found = %i \n", __FUNCTION__, entry_found);
-    }
+  }
 
   if (!entry_found)
   {
     struct fuse_entry_param e;
-    memset (&e, 0, sizeof ( e));
+    memset (&e, 0, sizeof (e));
 
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
     int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid,
-                         req->ctx.gid, req->ctx.pid, entry_inode);
+                         req->ctx.gid, entry_inode);
 
     if (!retc)
     {
@@ -341,9 +374,9 @@ eosfs_ll_lookup (fuse_req_t req,
       }
       else
         fuse_reply_err (req, errno);
-      }
     }
   }
+}
 
 
 //------------------------------------------------------------------------------
@@ -380,7 +413,7 @@ reply_buf_limited (fuse_req_t req,
     return fuse_reply_buf (req, buf + off, min (bufsize - off, maxsize));
   else
     return fuse_reply_buf (req, NULL, 0);
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -402,8 +435,6 @@ eosfs_ll_readdir (fuse_req_t req,
   struct dirbuf* b;
   struct dirbuf* tmp_buf;
   struct stat attr;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* tmpname = xrd_path ((unsigned long long) ino);
@@ -429,7 +460,7 @@ eosfs_ll_readdir (fuse_req_t req,
              (long long) ino, dirfullpath, (long long) size, (long long) off);
   }
 
-  if (((!getenv ("EOS_FUSE_NOACCESS")) ||
+  if ((req->ctx.uid) && ((!getenv ("EOS_FUSE_NOACCESS")) ||
                          (!strcmp (getenv ("EOS_FUSE_NOACCESS"), "1"))))
   {
     // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
@@ -451,7 +482,7 @@ eosfs_ll_readdir (fuse_req_t req,
   if (!(b = xrd_dirview_getbuffer (ino, 1)))
   {
     // No dirview entry, try to use the directory cache
-    if( (retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, req->ctx.pid, ino)) )
+    if( (retc = xrd_stat (dirfullpath, &attr, req->ctx.uid, req->ctx.gid, ino)) )
     {
       fprintf (stderr, "could not stat %s\n", dirfullpath);
       fuse_reply_err (req, errno);
@@ -581,8 +612,6 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
   char rootpath[16384];
   struct statvfs svfs, svfs2;
 
-  UPDATEPROCCACHE;
-
   xrd_lock_r_p2i (); // =>
   const char* tmppath = xrd_path ((unsigned long long) ino);
 
@@ -606,7 +635,7 @@ eosfs_ll_statfs (fuse_req_t req, fuse_ino_t ino)
 
   sprintf (rootpath, "/%s", mountprefix);
   strcat (rootpath, path);
-  res = xrd_statfs (rootpath, &svfs2,req->ctx.uid,req->ctx.gid,req->ctx.pid);
+  res = xrd_statfs (rootpath, &svfs2);
   free (path);
 
   if (res)
@@ -637,8 +666,6 @@ eosfs_ll_mkdir (fuse_req_t req,
 {
   char parentpath[16384];
   char fullpath[16384];
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   const char* tmp = xrd_path ((unsigned long long) parent);
@@ -703,12 +730,12 @@ eosfs_ll_mkdir (fuse_req_t req,
             strncpy(gparent, parentpath, num);
             parentpath[num] = '\0';
             strcpy(gparent, parentpath);
-    }
-  }
-  else
-  {
+          }
+        }
+        else
+        {
           strcpy(gparent, "/\0");
-  }
+        }
 
         //fprintf(stderr, "[%s] final gparent=%s\n", __FUNCTION__, gparent);
         unsigned long long ino_gparent = xrd_inode(gparent);
@@ -731,14 +758,6 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
 {
   const char* parentpath = NULL;
   char fullpath[16384];
-
-  UPDATEPROCCACHE;
-
-  if (is_toplevel_rm(req->ctx.pid, local_mount_dir) == 1)
-  {
-    fuse_reply_err (req, EPERM);
-    return;
-  }
 
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
@@ -774,14 +793,6 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
   const char* parentpath = NULL;
   char fullpath[16384];
 
-  UPDATEPROCCACHE;
-
-  if (is_toplevel_rm(req->ctx.pid, local_mount_dir) == 1)
-  {
-    fuse_reply_err (req, EPERM);
-    return;
-  }
-
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
 
@@ -812,8 +823,8 @@ eosfs_ll_rmdir (fuse_req_t req, fuse_ino_t parent, const char* name)
       fuse_reply_err (req, ENOTEMPTY);
     else
       fuse_reply_err (req, errno);
-    }
   }
+}
 
 //------------------------------------------------------------------------------
 // Rename the file, directory, or other object
@@ -830,8 +841,6 @@ eosfs_ll_rename (fuse_req_t req,
   char fullpath[16384];
   char newfullpath[16384];
   char iparentpath[16384];
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
@@ -852,6 +861,7 @@ eosfs_ll_rename (fuse_req_t req,
     return;
   }
 
+  const char* user = xrd_mapuser (req->ctx.uid, req->ctx.gid, req->ctx.pid);
   FULLPARENTPATH (fullpath, mountprefix, parentpath, name);
   FULLPARENTPATH (newfullpath, mountprefix, newparentpath, newname);
   sprintf (iparentpath, "%s/%s", newparentpath, newname);
@@ -859,7 +869,7 @@ eosfs_ll_rename (fuse_req_t req,
   xrd_unlock_r_p2i (); // <=
 
   struct stat stbuf;
-  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, req->ctx.pid, 0);
+  int retcold = xrd_stat (fullpath, &stbuf, req->ctx.uid, req->ctx.gid, 0);
 
   if (isdebug)
   {
@@ -887,13 +897,13 @@ eosfs_ll_rename (fuse_req_t req,
 
       if (parent != newparent)
         xrd_dir_cache_forget ((unsigned long long) newparent);
-      }
+    }
 
     fuse_reply_err (req, 0);
   }
   else
     fuse_reply_err (req, errno);
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -906,8 +916,6 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
 {
   char fullpath[16384];
   const char* name = NULL;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -935,20 +943,14 @@ eosfs_ll_access (fuse_req_t req, fuse_ino_t ino, int mask)
     return;
   }
 
-  // this is useful only if krb5 is not enabled
-  uid_t fsuid = req->ctx.uid;
-  gid_t fsgid = req->ctx.gid;
-
-  proccache_GetFsUidGid (req->ctx.pid , &fsuid, &fsgid);
-
-  int retc = xrd_access (fullpath, mask, fsuid,
-                         fsgid, req->ctx.pid);
+  int retc = xrd_access (fullpath, mask, req->ctx.uid,
+                         req->ctx.gid, req->ctx.pid);
 
   if (!retc)
     fuse_reply_err (req, 0);
   else
     fuse_reply_err (req, errno);
-  }
+}
 
 //------------------------------------------------------------------------------
 // Read a symbolic link
@@ -960,8 +962,6 @@ static void eosfs_ll_readlink(fuse_req_t req, fuse_ino_t ino)
 
   char fullpath[16384];
   const char* name = NULL;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1003,8 +1003,6 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
   char partialpath[16384];
   char fullpath[16384];
   char ifullpath[16384];
-
-  UPDATEPROCCACHE;
     
   xrd_lock_r_p2i (); // =>
   parentpath = xrd_path ((unsigned long long) parent);
@@ -1046,7 +1044,7 @@ static void eosfs_ll_symlink(fuse_req_t req, const char *link, fuse_ino_t parent
     memset(&e, 0, sizeof(e));
     e.attr_timeout = attrcachetime;
     e.entry_timeout = entrycachetime;
-    int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid, req->ctx.gid, req->ctx.pid, 0);
+    int retc = xrd_stat (fullpath, &e.attr, req->ctx.uid, req->ctx.gid, 0);
     if (!retc) 
     {
       if (isdebug) fprintf(stderr,"[%s]: storeinode=%lld path=%s\n", __FUNCTION__,(long long)e.attr.st_ino,ifullpath);
@@ -1080,8 +1078,6 @@ eosfs_ll_open (fuse_req_t req,
   mode_t mode = 0;
   char fullpath[16384];
   const char* name = NULL;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1118,8 +1114,6 @@ eosfs_ll_open (fuse_req_t req,
   fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
   info->fd = res;
   info->uid = req->ctx.uid;
-  info->gid = req->ctx.gid;
-  info->pid = req->ctx.pid;
   fi->fh = (uint64_t) info;
 
   if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
@@ -1129,8 +1123,8 @@ eosfs_ll_open (fuse_req_t req,
     if (strstr (fullpath, "/proc/"))
       fi->keep_cache = 0;
     else
-      fi->keep_cache = 1;
-    }
+        fi->keep_cache = 1;
+  }
   else
     fi->keep_cache = 0;
 
@@ -1157,16 +1151,14 @@ eosfs_ll_read (fuse_req_t req,
   if (isdebug)
   {
     fprintf (stderr, "[%s]: inode=%li size=%li off=%lli \n",
-	     __FUNCTION__, ino, size, off);  
+	     __FUNCTION__, ino, size, off);
+    
   }
-  
   if (fi && fi->fh)
   {
-    //UPDATEPROCCACHE;
-
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     char* buf = xrd_attach_rd_buff (pthread_self(), size);
-    
+
     if (isdebug)
     {
       fprintf (stderr, "[%s]: inode=%lld size=%lld off=%lld buf=%lld fh=%lld\n",
@@ -1190,7 +1182,7 @@ eosfs_ll_read (fuse_req_t req,
   }
   else
     fuse_reply_err (req, ENXIO);
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -1206,8 +1198,6 @@ eosfs_ll_write (fuse_req_t req,
 {
   if (fi && fi->fh)
   {
-    //UPDATEPROCCACHE;
-
     struct fd_user_info* info = (fd_user_info*) fi->fh;
 
     if (isdebug)
@@ -1233,7 +1223,7 @@ eosfs_ll_write (fuse_req_t req,
   }
   else
     fuse_reply_err (req, ENXIO);
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -1249,8 +1239,6 @@ eosfs_ll_release (fuse_req_t req,
 
   if (fi && fi->fh)
   {
-    //UPDATEPROCCACHE; -> this one is not called bythe usr process
-
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     int fd = info->fd;
 
@@ -1261,12 +1249,12 @@ eosfs_ll_release (fuse_req_t req,
     }
 
     if (isdebug) fprintf (stderr, "[%s]: Try to close file fd=%llu\n", __FUNCTION__, info->fd);
-    int res = xrd_close (info->fd, ino, info->uid, info->gid, info->pid);
+    int res = xrd_close (info->fd, ino, info->uid);
     xrd_release_rd_buff (pthread_self());
 
-      // Free memory
-      free (info);
-      fi->fh = 0;
+    // Free memory
+    free (info);
+    fi->fh = 0;
   }
 
   fuse_reply_err (req, errno);
@@ -1284,8 +1272,6 @@ eosfs_ll_fsync (fuse_req_t req,
 {
   if (fi && fi->fh)
   {
-    //UPDATEPROCCACHE;
-
     struct fd_user_info* info = (fd_user_info*) fi->fh;
     if (isdebug)
     {
@@ -1329,14 +1315,12 @@ eosfs_ll_flush (fuse_req_t req,
 
   if (fi && fi->fh)
   {
-    //UPDATEPROCCACHE;
-
     struct fd_user_info* info = (fd_user_info*) fi->fh;
-    int err_flush = xrd_flush (info->fd, req->ctx.uid, req->ctx.gid, req->ctx.pid);
+    int err_flush = xrd_flush (info->fd);
 
     if (err_flush)
       errno = EIO;
-    }
+  }
 
   fuse_reply_err (req, errno);
 }
@@ -1364,8 +1348,6 @@ eosfs_ll_getxattr (fuse_req_t req,
   size_t init_size = size;
   char fullpath[16384];
   const char* name = NULL;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1422,8 +1404,6 @@ eosfs_ll_listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
   size_t init_size = size;
   char fullpath[16384];
   const char* name = NULL;
-
-  UPDATEPROCCACHE;
 
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
@@ -1482,8 +1462,6 @@ eosfs_ll_removexattr (fuse_req_t req,
   char fullpath[16384];
   const char* name = NULL;
 
-  UPDATEPROCCACHE;
-
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
 
@@ -1526,8 +1504,6 @@ eosfs_ll_setxattr (fuse_req_t req,
   char fullpath[16384];
   const char* name = NULL;
 
-  UPDATEPROCCACHE;
-
   xrd_lock_r_p2i (); // =>
   name = xrd_path ((unsigned long long) ino);
 
@@ -1550,18 +1526,18 @@ eosfs_ll_setxattr (fuse_req_t req,
   retc = xrd_setxattr (fullpath, xattr_name, xattr_value, size,
                        req->ctx.uid, req->ctx.gid, req->ctx.pid);
   fprintf (stderr, "[%s]: setxattr_retc=%i\n", __FUNCTION__, retc);
-  fuse_reply_err (req, retc);
+  fuse_reply_err(req, retc);
 }
 
 
 //------------------------------------------------------------------------------
-// Create a new file 
+// Create a new file
 //------------------------------------------------------------------------------
 static void
-eosfs_ll_create(fuse_req_t req, 
-                fuse_ino_t parent, 
-                const char *name, 
-                mode_t mode, 
+eosfs_ll_create(fuse_req_t req,
+                fuse_ino_t parent,
+                const char *name,
+                mode_t mode,
                 struct fuse_file_info *fi)
 {
   int res;
@@ -1573,8 +1549,6 @@ eosfs_ll_create(fuse_req_t req,
     char partialpath[16384];
     char fullpath[16384];
     char ifullpath[16384];
-
-    UPDATEPROCCACHE;
 
     xrd_lock_r_p2i (); // =>
     parentpath = xrd_path ((unsigned long long) parent);
@@ -1619,8 +1593,6 @@ eosfs_ll_create(fuse_req_t req,
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof (struct fd_user_info));
     info->fd = res;
     info->uid = req->ctx.uid;
-    info->gid = req->ctx.gid;
-    info->pid = req->ctx.pid;
     fi->fh = (uint64_t) info;
 
     // Update the entry parameters
@@ -1630,34 +1602,17 @@ eosfs_ll_create(fuse_req_t req,
     e.entry_timeout = 0;
     e.ino = rinode;
     e.attr.st_mode = S_IFREG;
+    e.attr.st_atime = time(NULL);
+    e.attr.st_mtime = time(NULL);
+    e.attr.st_ctime = time(NULL);
     e.attr.st_uid = req->ctx.uid;
     e.attr.st_gid = req->ctx.gid;
     e.attr.st_dev = 0;
-    struct stat s;
-    if (use_localtime_consistency && !xrd_stat (fullpath, &s, req->ctx.uid, req->ctx.gid, req->ctx.pid, rinode))
-    {
-      e.attr.st_atime = s.st_mtime;
-      e.attr.st_mtime = s.st_mtime;
-      e.attr.st_ctime = s.st_mtime;
-      e.attr.st_atim = s.st_mtim;
-      e.attr.st_mtim = s.st_mtim;
-      e.attr.st_ctim = s.st_mtim;
-    }
-    else
-    {
-      if(use_localtime_consistency)
-        fprintf (stderr,"[%s]: error stating created file. time stamping with local time without ns",__FUNCTION__);
-
-      e.attr.st_atime = time (NULL);
-      e.attr.st_mtime = time (NULL);
-      e.attr.st_ctime = time (NULL);
-    }
-
     if (isdebug) fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
     if (!rinode)
     {
-      xrd_close(res, 0, req->ctx.uid, req->ctx.gid, req->ctx.pid);
+      xrd_close(res, 0, req->ctx.uid);
       fuse_reply_err (req, -res);
       return;
     }
@@ -1679,7 +1634,7 @@ eosfs_ll_create(fuse_req_t req,
           fi->keep_cache = 0;
         else
           fi->keep_cache = 1;
-        }
+      }
       else
         fi->keep_cache = 0;
 
@@ -1688,7 +1643,7 @@ eosfs_ll_create(fuse_req_t req,
         fi->direct_io = 1;
       else
         fi->direct_io = 0;
-      
+
       fuse_reply_create (req, &e, fi);
       return;
     }

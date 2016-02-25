@@ -62,31 +62,9 @@
 #ifdef HAVE_SETXATTR
 #include <sys/xattr.h>
 #endif
-#include "fuse/ProcCacheC.h"
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 /*----------------------------------------------------------------------------*/
-
-//#define UPDATEPROCCACHE \
-//  do { \
-//    int errCode; \
-//    if( (errCode=update_proc_cache(fuse_ctx->pid)) )\
-//    { \
-//      return -errCode; \
-//    } \
-//  } while (0)
-
-#define UPDATEPROCCACHE \
-  do { \
-    int errCode; \
-    xrd_lock_w_pcache (fuse_ctx->pid); \
-    if( (errCode=update_proc_cache(fuse_ctx->uid,fuse_ctx->gid,fuse_ctx->pid)) )\
-    { \
-      xrd_unlock_w_pcache (fuse_ctx->pid); \
-      return -errCode; \
-    } \
-    xrd_unlock_w_pcache (fuse_ctx->pid); \
-  } while (0)
 
 //! Mount hostport;
 char mounthostport[1024];
@@ -120,7 +98,7 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
-  res = xrd_stat(rootpath, stbuf, uid, gid, pid,xrd_inode(rootpath));
+  res = xrd_stat(rootpath, stbuf, uid, gid, xrd_inode(rootpath));
 
   if (res == 0)
   {
@@ -145,8 +123,8 @@ eosdfs_getattr (const char* path, struct stat* stbuf)
       return 0;
     else
       return -EIO;
-    }
-    else
+  }
+  else
     return -errno;
 }
 
@@ -169,8 +147,8 @@ eosdfs_fgetattr (const char* path,
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
   struct fd_user_info* info = (fd_user_info*) fi->fh;
-  int res = xrd_stat(rootpath, stbuf, uid, gid, pid,info->ino);
-  
+  int res = xrd_stat(rootpath, stbuf, uid, gid, info->ino);
+
   if (res == 0)
   {
     if (S_ISREG (stbuf->st_mode))
@@ -189,15 +167,15 @@ eosdfs_fgetattr (const char* path,
 
       if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] Return 0 for directory. \n", __FUNCTION__);
       return 0;
-  }
+    }
     else if (S_ISLNK (stbuf->st_mode))
       return 0;
-  else
+    else
       return -EIO;
   }
   else
     return -errno;
-  }
+}
 
 
 //------------------------------------------------------------------------------
@@ -314,13 +292,13 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     xrd_store_p2i ((unsigned long long) return_inode, rootpath);
     if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s]: update inode=%lld \n", __FUNCTION__, (long long) return_inode);
 
-    // This memory  has to be freed once we're done with the file, usually in
+    // This memory has to be freed once we're done with the file, usually in
     // the close/release method
     fd_user_info* info = (struct fd_user_info*) calloc (1, sizeof(struct fd_user_info));
     info->fd = res;
     info->uid = uid;
     info->ino = return_inode;
-    fi->fh = (uint64_t) info;  
+    fi->fh = (uint64_t) info;
   }
 
   return 0;
@@ -337,8 +315,8 @@ eosdfs_mkdir (const char* path, mode_t mode)
   char rootpath[4096];
   eosatime = time (0);
   rootpath[0] = '\0';
-  strcat (rootpath, mountprefix);
-  strcat (rootpath, path);
+  strcat(rootpath, mountprefix);
+  strcat(rootpath, path);
   struct stat buf;
   int res = xrd_mkdir(rootpath, mode, uid, gid, pid, &buf);
 
@@ -365,8 +343,6 @@ eosdfs_unlink (const char* path)
   // Check and prevent top level deletions
   struct fuse_context* fuse_ctx = fuse_get_context();
 
-  UPDATEPROCCACHE;
-
   if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
     return -EPERM;
 
@@ -375,7 +351,7 @@ eosdfs_unlink (const char* path)
   if (res)
     return -errno;
 
-  xrd_forget_p2i (xrd_inode (path));
+  xrd_forget_p2i(xrd_inode(path));
   return 0;
 }
 
@@ -395,8 +371,6 @@ eosdfs_rmdir (const char* path)
 
   // Check and prevent top level deletions
   struct fuse_context* fuse_ctx = fuse_get_context();
-
-  UPDATEPROCCACHE;
 
   if (is_toplevel_rm(fuse_ctx->pid, local_mount_dir) == 1)
     return -EPERM;
@@ -508,7 +482,7 @@ eosdfs_truncate (const char* path, off_t size)
 
   // Xrootd doesn't provide truncate(), So we use open() to truncate file to 0
   int fd = xrd_open(path,
-                  O_WRONLY | O_TRUNC,
+                    O_WRONLY | O_TRUNC,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     uid, gid, pid, &rinode);
 
@@ -516,7 +490,7 @@ eosdfs_truncate (const char* path, off_t size)
     return -errno;
 
   xrd_truncate (fd, size);
-  xrd_close (fd, rinode, uid,gid,pid);
+  xrd_close (fd, rinode, uid);
   return 0;
 }
 
@@ -560,9 +534,9 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
   eosatime = time (0);
-  int res = xrd_open (path, 
-                  fi->flags, 
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
+  int res = xrd_open (path,
+                  fi->flags,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                   uid, gid, pid, &rinode);
 
   if (res == -1)
@@ -649,7 +623,7 @@ eosdfs_statfs (const char* path, struct statvfs* stbuf)
   strcat (rootpath, mountprefix);
   strcat (rootpath, "/");
   strcat (rootpath, path);
-  int res = xrd_statfs (rootpath, stbuf, uid, gid, pid);
+  int res = xrd_statfs (rootpath, stbuf);
 
   if (res)
     return -errno;
@@ -669,7 +643,7 @@ eosdfs_release (const char* path, struct fuse_file_info* fi)
   char rootpath[4096];
   eosatime = time (0);
   struct fd_user_info* info = (struct fd_user_info*) fi->fh;
-  xrd_close(info->fd, info->ino, info->uid,gid,pid);
+  xrd_close(info->fd, info->ino, info->uid);
   xrd_release_rd_buff(pthread_self());
 
   // Free memory allocated in eosdfs_open or eosdfs_create
@@ -699,11 +673,11 @@ eosdfs_fsync (const char* path,
 
 
 //------------------------------------------------------------------------------
-// Truncate an opened file 
+// Truncate an opened file
 //------------------------------------------------------------------------------
-static int 
-eosdfs_ftruncate(const char* path, 
-                 off_t size, 
+static int
+eosdfs_ftruncate(const char* path,
+                 off_t size,
                  struct fuse_file_info* fi)
 {
   if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] path=%s, size=%lli\n", __FUNCTION__, path, size);
@@ -1007,16 +981,13 @@ main (int argc, char* argv[])
   xrd_init ();
   umask (0);
 
-  //  fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
+  //  if ( getenv("EOS_FUSE_DEBUG") ) fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
   //  for ( i = 0; i < margc; i++ ) {
-  //    fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
+  //    if ( getenv("EOS_FUSE_DEBUG") ) fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
   //  }
 
   uid = getuid();
   gid = getgid();
-  pid = getpid(); 
+  pid = getpid();
   return fuse_main (margc, argv, &eosdfs_oper, NULL);
 }
-
-
-
