@@ -195,8 +195,8 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
 
   if (!FmdSqliteMap.count(fsid))
   {
-    FmdSqliteMap[fsid].set_empty_key(0xffffffffeULL);
-    FmdSqliteMap[fsid].set_deleted_key(0xffffffffULL);
+    FmdSqliteMap[fsid].set_empty_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max()-1);
+    FmdSqliteMap[fsid].set_deleted_key(std::numeric_limits<eos::common::FileSystem::fsid_t>::max());
   }
 
   char fsDBFileName[1024];

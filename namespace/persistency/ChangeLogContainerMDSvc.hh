@@ -35,6 +35,7 @@
 #include <list>
 #include <map>
 #include <pthread.h>
+#include <limits>
 
 namespace eos
 {
@@ -56,7 +57,7 @@ namespace eos
         pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pResSize( 1000000 )
       {
         pIdMap.set_deleted_key( 0 );
-        pIdMap.set_empty_key( 0xffffffffffffffffll );
+        pIdMap.set_empty_key( std::numeric_limits<ContainerMD::id_t>::max() );
         pChangeLog = new ChangeLogFile;
       }
 
