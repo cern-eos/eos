@@ -3376,16 +3376,16 @@ xrd_init ()
   path2inode.set_deleted_key("#__deleted__#");
 
   inode2path.set_empty_key(0);
-  inode2path.set_deleted_key(0xffffffffll);
+  inode2path.set_deleted_key(0xffffffffffffffffll);
 
   dir2inodelist.set_empty_key(0);
-  dir2inodelist.set_deleted_key(0xffffffffll);
+  dir2inodelist.set_deleted_key(0xffffffffffffffffll);
 
   dir2dirbuf.set_empty_key(0);
-  dir2dirbuf.set_deleted_key(0xffffffffll);
+  dir2dirbuf.set_deleted_key(0xffffffffffffffffll);
 
   inode2cache.set_empty_key(0);
-  inode2cache.set_deleted_key(0xffffffffll);
+  inode2cache.set_deleted_key(0xffffffffffffffffll);
 
   inodeuser2fds.set_empty_key("");
   inodeuser2fds.set_deleted_key("#__deleted__#");
