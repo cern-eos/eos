@@ -1752,6 +1752,8 @@ main (int argc, char* argv[])
   xcfsatime = time (NULL);
   
   char rdr[4096];
+  char url[4096];
+
   rdr[0]=0;
   if (getenv("EOS_RDRURL"))
     snprintf(rdr,4096,"%s",getenv("EOS_RDRURL"));
@@ -1764,10 +1766,11 @@ main (int argc, char* argv[])
       argv[i] = strdup(argv[i]);
       argv[i][os-1]=0;
       snprintf(rdr,4096,"%s", spos+4);
-      if ((epos = strstr (spos + 11, "//")))
+      snprintf(url,4096,"%s", spos+4);
+      if ((epos = strstr (rdr + 7, "//")))
       {
-	if ( (epos-spos) < 4096 )
-	  rdr[epos+2-spos]=0;
+	if ( (epos+2-rdr) < 4096 )
+	  rdr[epos+2-rdr]=0;
       }
     }
   }
@@ -1786,13 +1789,15 @@ main (int argc, char* argv[])
     exit (-1);
   }
 
+  setenv("EOS_RDRURL",rdr,1);
+
   struct fuse_args args = FUSE_ARGS_INIT (argc, argv);
 
   // Move the mounthostport starting with the host name
   char* pmounthostport = 0;
   char* smountprefix = 0;
   
-  pmounthostport = strstr (rdr, "root://");
+  pmounthostport = strstr (url, "root://");
   
 #ifndef __APPLE__
   if (access("/bin/fusermount",X_OK))
@@ -1829,9 +1834,7 @@ main (int argc, char* argv[])
 
   unsetenv ("KRB5CCNAME");
   unsetenv ("X509_USER_PROXY");
-
-  setenv("EOS_RDRURL",rdr,1);
-
+  
   if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &isdebug) != -1) &&
        ((ch = fuse_mount (local_mount_dir, &args)) != NULL)  &&
        (fuse_daemonize(0) != -1 ) )
