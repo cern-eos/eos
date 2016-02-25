@@ -1738,7 +1738,6 @@ main (int argc, char* argv[])
   time_t xcfsatime;
 
   int err = -1;
-  char* mountpoint;
   char* epos;
   char* spos;
 
@@ -1833,8 +1832,8 @@ main (int argc, char* argv[])
 
   setenv("EOS_RDRURL",rdr,1);
 
-  if ( (fuse_parse_cmdline (&args, &mountpoint, NULL, &isdebug) != -1) &&
-       ((ch = fuse_mount (mountpoint, &args)) != NULL)  &&
+  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &isdebug) != -1) &&
+       ((ch = fuse_mount (local_mount_dir, &args)) != NULL)  &&
        (fuse_daemonize(0) != -1 ) )
   {
     if (getenv("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp(getenv("EOS_FUSE_LOWLEVEL_DEBUG"),"1")))
@@ -1869,7 +1868,7 @@ main (int argc, char* argv[])
       fuse_session_destroy (se);
     }
 
-    fuse_unmount (mountpoint, ch);
+    fuse_unmount (local_mount_dir, ch);
   }
   else 
   {

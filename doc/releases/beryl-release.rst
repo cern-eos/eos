@@ -6,6 +6,10 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.149 Beryl_Aquamarine``
+- import the CITRINE FUSE implementation and build this one
+- making big writes and local mtime consistency the default behaviour in FUSE
+
 ``Version V0.3.148 Beryl_Aquamarine``
 - add progress report on TTY console for all boot steps and estimate of boot time
 - fix FUSE daemonize to work properly with autofs
