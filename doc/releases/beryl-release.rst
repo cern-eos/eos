@@ -6,6 +6,9 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.150 Beryl_Aquamarine``
+- fix wrong mount-prefix handling for deepness>1
+
 ``Version V0.3.149 Beryl_Aquamarine``
 - import the CITRINE FUSE implementation and build this one
 - making big writes and local mtime consistency the default behaviour in FUSE
