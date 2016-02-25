@@ -6,6 +6,11 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.148 Beryl_Aquamarine``
+- add progress report on TTY console for all boot steps and estimate of boot time
+- fix FUSE daemonize to work properly with autofs
+- automatically store version in the recyle bin and allow to recall using 'recycle restore -r <key>'
+
 ``Version V0.3.147 Beryl_Aquamarine``
 - shorten hostnames (remove domain) in all view functions besides monitoring format
 - add support for multi-delegated proxy certificates

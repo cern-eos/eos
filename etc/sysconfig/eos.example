@@ -108,6 +108,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE debugging mode (default off)
 #export EOS_FUSE_DEBUG=1
 
+# Enable FUSE low-level debugging mode (default off)
+#export EOS_FUSE_LOWLEVEL_DEBUG=1
+
 # Specify the FUSE logging level (default=6 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
 # EOS_FUSE_DEBUG=1 overwrites these settings
 #export EOS_FUSE_LOGLEVEL=6
@@ -218,8 +221,7 @@ export EOS_TEST_TESTTIMESLICE=300;
 export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
 
 # define the log file regex you want to broad cast to all consoles
-export EOS_TTY_BROACAST_EGREP="CRIT,ALERT,EMERG"
-
+export EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 
 # ------------------------------------------------------------------
 # Service Script aliasing for EL7 machines
@@ -229,3 +231,10 @@ which systemctl >& /dev/null
 if [ $? -eq 0 ]; then
    alias service="service --skip-redirect"
 fi
+
+# ------------------------------------------------------------------
+# MGM Namespace Preset Size - this can safe memory for large namespaces if you know an upper limit for the namespace size
+# ------------------------------------------------------------------
+# export EOS_NS_DIR_SIZE=1000000
+# export EOS_NS_FILE_SIZE=1000000
+>>>>>>> 6c35244... MGM/NAMESPACE: add progress reports to all boot steps - make the expected hash size of container/files configurable via /etc/sysconfig/eos

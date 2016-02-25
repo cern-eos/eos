@@ -3478,4 +3478,5 @@ xrd_init ()
 
   passwdstore = new XrdOucHash<XrdOucString > ();
   stringstore = new XrdOucHash<XrdOucString > ();
+  eos_static_notice("msg=\"fuse initalized\" url=%s", getenv("EOS_RDRURL"));
 }
