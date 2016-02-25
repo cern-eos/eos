@@ -2655,11 +2655,16 @@ xrd_inodirlist (unsigned long long dirinode,
         return errno;
       }
 
-      XrdOucString whitespacedirpath = dirpath;
-      whitespacedirpath.replace("%20", " ");
-      whitespacedirpath.replace("%0A", "\n");
-      xrd_store_child_p2i(dirinode, inode, whitespacedirpath.c_str());
-      dir2inodelist[dirinode].push_back(inode);
+      if (inode && dirinode)
+      {
+        XrdOucString whitespacedirpath = dirpath;
+        whitespacedirpath.replace ("%20", " ");
+        whitespacedirpath.replace ("%0A", "\n");
+        xrd_store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+        dir2inodelist[dirinode].push_back (inode);
+      }
+      else
+        eos_static_warning("got a nul inode inode=%llu dirinode=%llu path=%s", inode, dirinode, path);
 
       // to the next entries
       if (ptr) ptr = strchr(ptr + 1, ' ');
@@ -3292,28 +3297,38 @@ xrd_open (const char* path,
       ino_t new_ino = sino? (eos::common::FileId::Hex2Fid(sino) << 28): 0;
       if (old_ino && (old_ino != new_ino))
       {
-	// an inode of an existing file can be changed during the process of an open due to an auto-repair
-	std::ostringstream sstr_old;
-	std::ostringstream sstr_new;
-	sstr_old << old_ino << ":" << get_xrd_login(uid,gid,pid);
-	sstr_new << new_ino << ":" << get_xrd_login(uid,gid,pid);
-	{
-	  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-	  if (inodexrdlogin2fd.count(sstr_old.str()))
-	  {
-	    inodexrdlogin2fd[sstr_new.str()] = inodexrdlogin2fd[sstr_old.str()];
-	    inodexrdlogin2fd.erase(sstr_old.str());
-	  }
-	}
+        if (new_ino)
+        {
 
-	{
-	  eos::common::RWMutexWriteLock wr_lock(mutex_inode_path);
-	  path2inode.erase(path);
-	  inode2path.erase(old_ino);
-	  path2inode[path] = new_ino;
-	  inode2path[new_ino] = path;
-	  eos_static_info("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
-	}
+          // an inode of an existing file can be changed during the process of an open due to an auto-repair
+          std::ostringstream sstr_old;
+          std::ostringstream sstr_new;
+          sstr_old << old_ino << ":" << get_xrd_login (uid, gid, pid);
+          sstr_new << new_ino << ":" << get_xrd_login (uid, gid, pid);
+          {
+            eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
+            if (inodexrdlogin2fd.count (sstr_old.str ()))
+            {
+              inodexrdlogin2fd[sstr_new.str ()] = inodexrdlogin2fd[sstr_old.str ()];
+              inodexrdlogin2fd.erase (sstr_old.str ());
+            }
+          }
+
+          {
+            eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
+            path2inode.erase (path);
+            inode2path.erase (old_ino);
+            path2inode[path] = new_ino;
+            inode2path[new_ino] = path;
+            eos_static_info("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+          }
+        }
+        else
+        {
+          eos_static_crit("new inode is null: cannot move old inode to new inode!");
+          errno = EBADR;
+          return errno;
+        }
       }
 
       *return_inode = new_ino;
