@@ -66,7 +66,7 @@ class FileAbstraction
     //! @param file raw file object
     //!
     //--------------------------------------------------------------------------
-    FileAbstraction(int fd, LayoutWrapper* file, const char* path="");
+    FileAbstraction(const char* path="");
 
 
     //--------------------------------------------------------------------------
@@ -86,7 +86,6 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     long long int GetNoWriteBlocks();
 
-
     //--------------------------------------------------------------------------
     //! Get fd value
     //--------------------------------------------------------------------------
@@ -95,15 +94,52 @@ class FileAbstraction
       return mFd;
     };
 
+    //--------------------------------------------------------------------------
+    //! Set fd value
+    //--------------------------------------------------------------------------
+    inline void SetFd( const int& fd)
+    {
+      mFd=fd;
+      mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
+      mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
+      eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
+                        this, mFirstPossibleKey, mLastPossibleKey);
+    };
+
 
     //--------------------------------------------------------------------------
     //! Get undelying raw file object
     //--------------------------------------------------------------------------
-    inline LayoutWrapper* GetRawFile() const
+    inline LayoutWrapper* GetRawFileRW() const
     {
-      return mFile;
+      return mFileRW;
     };
 
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFileRW(LayoutWrapper* file)
+    {
+      mFileRW=file;
+      mNumOpenRW=1;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Get undelying raw file object for RO
+    //--------------------------------------------------------------------------
+    inline LayoutWrapper* GetRawFileRO() const
+    {
+      return mFileRO;
+    };
+
+    //--------------------------------------------------------------------------
+    //! Set undelying raw file object
+    //--------------------------------------------------------------------------
+    inline void SetRawFileRO(LayoutWrapper* file)
+    {
+      mFileRO=file;
+      mNumOpenRO=1;
+    };
 
     //--------------------------------------------------------------------------
     //! Get first possible key value
@@ -112,7 +148,6 @@ class FileAbstraction
     {
       return mFirstPossibleKey;
     };
-
 
     //--------------------------------------------------------------------------
     //! Get last possible key value
@@ -144,34 +179,68 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     //! Increment the number of open requests
     //--------------------------------------------------------------------------
-    void IncNumOpen();
+    void IncNumOpenRW();
 
 
     //--------------------------------------------------------------------------
     //! Decrement the number of open requests
     //--------------------------------------------------------------------------
-    void DecNumOpen();
+    void DecNumOpenRW();
 
+    //--------------------------------------------------------------------------
+    //! Increment the number of open requests ni RO
+    //--------------------------------------------------------------------------
+    void IncNumOpenRO();
+
+    //--------------------------------------------------------------------------
+    //! Decrement the number of open requests in RO
+    //--------------------------------------------------------------------------
+    void DecNumOpenRO();
 
     //--------------------------------------------------------------------------
     //! Increment the number of references
     //--------------------------------------------------------------------------
-    void IncNumRef();
+    void IncNumRefRW();
 
 
     //--------------------------------------------------------------------------
     //! Decrement the number of references
     //--------------------------------------------------------------------------
-    void DecNumRef();
-
+    void DecNumRefRW();
 
     //--------------------------------------------------------------------------
-    //! Decide if the file is still in use
+    //! Increment the number of references in RO
+    //--------------------------------------------------------------------------
+    void IncNumRefRO();
+
+    //--------------------------------------------------------------------------
+    //! Decrement the number of references in RO
+    //--------------------------------------------------------------------------
+    void DecNumRefRO();
+
+    //--------------------------------------------------------------------------
+    //! Decide if the file is still in use for RW access
     //!
     //! @return true if file is in use, otherwise false
     //!
     //--------------------------------------------------------------------------
-    bool IsInUse();
+    bool IsInUseRW();
+
+    //--------------------------------------------------------------------------
+    //! Decide if the file is still in use for RO access
+    //!
+    //! @return true if file is in use, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool IsInUseRO();
+
+    //--------------------------------------------------------------------------
+    //! Decide if the file is still in use at all (RO or RW)
+    //!
+    //! @return true if file is in use, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    inline bool IsInUse() { return IsInUseRO() || IsInUseRW(); }
 
 
     //--------------------------------------------------------------------------
@@ -206,18 +275,37 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     const char* GetUtimes(struct timespec* utime);
 
-  private:
+    //--------------------------------------------------------------------------
+    //! Conditionally increase the max write offset if offset is bigger
+    //--------------------------------------------------------------------------
+    void TestMaxWriteOffset(off_t offset);
 
+    //--------------------------------------------------------------------------
+    //! Set the max write offset to offset
+    //--------------------------------------------------------------------------
+    void SetMaxWriteOffset(off_t offset);
+
+    //--------------------------------------------------------------------------
+    //! Get the max write offset
+    //--------------------------------------------------------------------------
+    off_t GetMaxWriteOffset();
+
+  private:
     int mFd; ///< file descriptor used for the block key range
-    LayoutWrapper* mFile; ///< raw file object
-    int mNoReferences; ///< number of held referencess to this file
-    int mNumOpen; ///< number of open request without a matching close
+    LayoutWrapper* mFileRW; ///< raw file object for RW access
+    LayoutWrapper* mFileRO; ///< raw file object for RO access
+    int mNoReferencesRW; ///< number of held referencess to this file in RW
+    int mNoReferencesRO; ///< number of held referencess to this file in RO
+    int mNumOpenRW; ///< number of open request without a matching close in RW
+    int mNumOpenRO; ///< number of open request without a matching close in RO
     size_t mSizeWrites; ///< the size of write blocks in cache
     long long mLastPossibleKey; ///< last possible offset in file
     long long mFirstPossibleKey; ///< first possible offset in file
     XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
     struct timespec mUtime[2]; ///< cond variable tracking last set utime while file is still open
     std::string mPath; ///< valid path to this file
+    XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
+    off_t mMaxWriteOffset; ///< maximum written offset
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__

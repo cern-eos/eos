@@ -24,8 +24,7 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
-  ${XROOTD_INCLUDE_DIRS}	
-  ${XROOTD_PRIVATE_INCLUDE_DIR}
+  ${XROOTD_INCLUDE_DIRS}
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${KRB5_INCLUDE_DIR}
@@ -44,6 +43,7 @@ add_executable(
   eosfsd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
+  NegStatCache.cc NegStatCache.hh
   eosfs.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
@@ -52,6 +52,7 @@ add_executable(
   eosd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
+  NegStatCache.cc NegStatCache.hh
   eosd.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)

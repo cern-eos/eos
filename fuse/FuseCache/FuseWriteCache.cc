@@ -285,8 +285,8 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
     error = std::make_pair(retc, pEntry->GetOffsetStart());
     pEntry->GetParentFile()->errorsQueue->push(error);
   }
-  else
-    pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
+
+  pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
 
   mRecycleQueue->push(pEntry);
 }
