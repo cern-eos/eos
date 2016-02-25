@@ -33,6 +33,7 @@
 #include "common/Statfs.hh"
 #include "common/FileSystem.hh"
 #include "common/RWMutex.hh"
+#include "common/StringConversion.hh"
 
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
@@ -198,6 +199,16 @@ public:
   int getIOPS ()
   {
     return IOPS;
+  }
+
+  bool getFileIOStats(std::map<std::string,std::string> &map)
+  {
+    std::string iostats;
+    mFileIO->attrGet("sys.iostats",iostats);
+    return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(), 
+							 map,
+							 "=",
+							 ",");
   }
 };
 
