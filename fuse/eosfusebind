@@ -1,0 +1,408 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+# File eoslog
+# Futhor Geoffray Adde - CERN 2013
+#------------------------------------------------------------------------------
+
+#/************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2013 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************/
+
+#------------------------------------------------------------------------------
+# Description: Script used to bind credentials to the shared eos fuse mount
+#------------------------------------------------------------------------------
+
+function CheckCredDir
+{
+  if [[ `stat -c "%a" /var/run/eosd/credentials` != "607" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
+  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "607" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
+}
+
+function ExitUsage
+{
+  local exename=`basename $0`
+  local nl=${#exename}
+  local f="%${nl}.${nl}s"
+  echo
+  printf "$f %s\\n" $exename "[-g|--global] [krb5|x509] [credfile]"
+  printf "$f %s\\n\n" "" "bind the current session to given credentials"
+  printf "$f %s\\n\n" "" "[-g] makes a global binding : bind the user instead of the session"
+  printf "$f %s\\n" $exename "-u|--unbind-session"
+  printf "$f %s\\n\n" "" "unbind current session from any previsouly bound credentials"
+  printf "$f %s\\n" $exename "-U|--unbind-user"
+  printf "$f %s\\n\n" "" "unbind all sessions of the current user from any previously bound credentials"
+  printf "$f %s\\n" $exename "-ug|--unbind-global"
+  printf "$f %s\\n" $exename "-s|--show-session"
+  printf "$f %s\\n\n" "" "show current session binding"
+  printf "$f %s\\n" $exename "-S|--show-user"
+  printf "$f %s\\n" "" "show bindings of all sessions of current user"
+  printf "$f %s\\n" $exename "--pam"
+  printf "$f %s\\n" "" "PAM module mode using environment variable PAM_TYPE. Recognized values for this variable are open_session and close_session"
+  echo
+  exit 1
+}
+
+function ParseArgs
+{
+  REQULNKGLB=0
+  REQULNKUSR=0
+  REQULNKSES=0
+  REQLSUSR=0
+  REQLSSES=0
+  REQGLOBBIND=0
+  AUTHTYPE="krb5"
+  CREDTAG=""
+  CREDISFILE=""
+  if [[ $# = 1   &&  (  $1 = "--pam" ) ]]; then
+    if [[ "$PAM_TYPE" = "close_session" ]]; then
+      CURRENTSID=`ps -q $$ o sid=`
+      # we unbind the global binding if there is no other running session than the current one
+      if [[ "`ps o sid= | grep -v $CURRENTSID | wc -l`" = "0" ]]; then
+        REQULNKGLB=1; REQULNK=1;
+      fi
+      return
+    elif [[ "$PAM_TYPE" = "open_session" ]]; then
+      REQGLOBBIND=1;
+      return
+    else
+      echo "PAM mode: Unknown PAM_TYPE='$PAM_TYPE'" >&2; exit 1
+    fi
+  fi
+  if [[ $# = 1   &&  (  $1 = "-h" || $1 = "--help" ) ]]; then ExitUsage; fi
+  if [[ $# = 1   &&  (  $1 = "-u" || $1 = "--unbind-session" ) ]]; then REQULNKSES=1; REQULNK=1; return; fi
+  if [[ $# = 1   &&  (  $1 = "-U" || $1 = "--unbind-user" ) ]]; then REQULNKUSR=1; REQULNK=1; return; fi
+  if [[ $# = 1   &&  (  $1 = "-ug" || $1 = "--unbind-global" ) ]]; then REQULNKGLB=1; REQULNK=1; return; fi
+  if [[ $# = 1   &&  (  $1 = "-s" || $1 = "--show-session" ) ]]; then REQLSSES=1; REQLS=1; return; fi
+  if [[ $# = 1   &&  (  $1 = "-S" || $1 = "--show-user" ) ]]; then REQLSUSR=1; REQLS=1; return; fi
+  if [[ $1 = "-g" || $1 = "--global" ]]; then REQGLOBBIND=1; shift; fi
+  if [[ $# > 1 ]]; then CREDTAG=$2; fi
+  if [[ $# > 0 ]]; then AUTHTYPE=$1; fi
+}
+
+function UpdateCredIsFile
+{
+  [[ "$AUTHTYPE" == "x509" ]] || [[ `echo $CREDTAG | grep -c ':'` = "0" || `echo $CREDTAG | cut -c1-5` = "FILE:" ]]
+  CREDISFILE=$?
+  # get rid of the 'FILE:' if it's specified
+  if [[ "$CREDISFILE" = "0" && `echo $CREDTAG | cut -c1-5` = "FILE:" ]]; then
+  CREDTAG=$(echo ${CREDTAG} | tail -c+6)
+  # if the mentioned file does not exit, discard its name
+  stat $CREDTAG  >/dev/null 2>&1
+  [[ "$?" == "1" ]] && CREDTAG="";
+  fi;
+}
+
+function CheckArgs
+{
+  if [[ "$EUID" = "0" && "$REQGLOBBIND" = "1" ]]; then echo "global user binding forbidden as root" >&2; exit 1; fi
+  if [[ "$AUTHTYPE" != "krb5" && "$AUTHTYPE" != "x509" ]]; then  echo "invalid authentication type $AUTHTYPE" >&2; exit 1; fi
+  UpdateCredIsFile
+  if [[ "$CREDISFILE" = "0" ]]; then
+    if [[ "X$CREDTAG" != "X" && `stat -c "%a" $CREDTAG` != "600" ]]; then  echo "credential file $CREDTAG does not exist or has bad permissions" >&2; exit 1; fi
+  fi
+}
+
+function GetEnvKrb5CredFile
+{
+  CREDTAG=$KRB5CCNAME
+}
+
+function GetDefaultKrb5CredFile
+{
+  # if there is more than one credential, cannot chose a 'default'
+  klist -s
+  if [[ "$?"="1" ]] ; then
+    return; # there is not ticket to grab there
+  fi
+  NCRED=$(klist -l | tail -n +3 | wc -l)
+  if [[ "$NCRED" != "1" ]]; then
+  return; 
+  fi
+  CREDTAG=$(klist -l | tail -1 | awk '{print $2}')
+}
+
+function GetAutoKrb5CredFile
+{
+  GetEnvKrb5CredFile
+  UpdateCredIsFile
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  GetDefaultKrb5CredFile; fi
+  UpdateCredIsFile
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  echo "could not find automatically a credential file"; exit 1; fi
+  #echo "using krb5 cache credential file $CREDTAG"
+}
+
+function GetEnvX509CredFile
+{
+  CREDTAG=$X509_USER_PROXY
+}
+
+function GetDefaultX509CredFile
+{
+  CREDTAG=/tmp/x509up_u$UID
+}
+
+function GetAutoX509CredFile
+{
+  GetEnvX509CredFile
+  if [[ "X$CREDTAG" = "X" || `stat -c "%a" $CREDTAG` != "600" ]]; then GetDefaultX509CredFile; fi
+  if [[ "X$CREDTAG" = "X" || `stat -c "%a" $CREDTAG` != "600" ]]; then echo "could not find automatically a credential file" >&2; exit 1; fi
+  #echo "using x509 user proxy file $CREDTAG"
+}
+
+function GetSymlinkBaseNameUser
+{
+  if test ! -n SymlinkBaseNameUser ; then return; fi
+  SymlinkBaseNameUser="/var/run/eosd/credentials/uid${UID}"
+}
+
+function GetSymlinkBaseNameSession
+{
+  if test ! -n SymlinkBaseNameSession ; then return; fi
+  GetSymlinkBaseNameUser
+  PID=$$
+  PROCPIDSTATCONTENT=`cat /proc/$PID/stat`
+  PROCPIDSTATCONTENT=`echo $PROCPIDSTATCONTENT | sed 's/([^)]*)/execname/'`
+  SID=`echo $PROCPIDSTATCONTENT | awk '{ print $6 }'`
+  PROCPIDSTATCONTENT=`cat /proc/$SID/stat`
+  PROCPIDSTATCONTENT=`echo $PROCPIDSTATCONTENT | sed 's/([^)]*)/execname/'`
+  SUT=`echo $PROCPIDSTATCONTENT | awk '{ print $22 }'`
+  let "SUT/=`getconf CLK_TCK`"
+  SymlinkBaseNameSession="${SymlinkBaseNameUser}_sid${SID}_sst${SUT}"
+}
+
+function ShowLink
+{
+  local LINK="$1"
+  local SID=`ls $LINK | grep -oh "sid[0-9]*" | cut -c 4-`
+  local AUTHMET="${LINK##*.}"
+  local FILE=`readlink -s $LINK`
+  printf "%5d  %4s  %s\\n" $SID $AUTHMET $FILE
+}
+
+function ShowGlob
+{
+  local LINK="$1"
+  local AUTHMET="${LINK##*.}"
+  local FILE=`readlink -s $LINK`
+  printf "%4s  %s\\n" $AUTHMET $FILE
+}
+
+function ShowHeader
+{
+  echo
+  echo "current session id is $SID"
+  echo "   session credentials are:"
+  printf "%5s  %4s  %s\\n" sid type credfile
+}
+
+function ShowHeaderGlob
+{
+  echo
+  echo "current user is $USER"
+  echo "   user-global credentials are:"
+  printf "%4s  %s\\n" type credfile
+}
+
+function GetActiveLinkedSessions
+{
+  if test ! -n ActiveLinkedSessions ; then return; fi
+  ActiveLinkedSessions=""
+  UnactiveLinkedSessions=""
+  local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}_*)
+  if [[ "X$FILELIST" = "X" ]]; then return ; fi              
+  for LINK in `echo $FILELIST` ; 
+  do
+    local lSID=`ls $LINK | grep -oh "sid[0-9]*" | cut -c 4-`
+    local lSUT=`ls $LINK | grep -oh "sst[0-9]*" | cut -c 4-`
+    # check if the process is active
+    if test ! -d "/proc/$lSID/"; then UnactiveLinkedSessions="${UnactiveLinkedSessions} $LINK"; continue; fi
+    local lPROCPIDSTATCONTENT=`cat /proc/$lSID/stat`
+    local lPROCPIDSTATCONTENT=`echo $lPROCPIDSTATCONTENT | sed 's/([^)]*)/execname/'`
+    local lPROCSUT=`echo $lPROCPIDSTATCONTENT | awk '{ print $22 }'`
+    let "lPROCSUT/=`getconf CLK_TCK`"
+    # check the process has the same starting time
+    if [  $lPROCSUT != $lSUT  ]; then UnactiveLinkedSessions="${UnactiveLinkedSessions} $LINK"; continue; fi
+    ActiveLinkedSessions="${ActiveLinkedSessions} $LINK"
+  done
+}
+
+function ShowUserGlob
+{
+  GetSymlinkBaseNameUser
+  ShowHeaderGlob
+  local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
+  #echo "FILELIST=$FILELIST" 
+  if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi  
+  for LINK in `echo $FILELIST` ; do ShowGlob $LINK ; done
+  echo
+}
+
+function ShowSession
+{
+  GetSymlinkBaseNameSession
+  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then return ; fi
+  local FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameSession}*)
+  if [[ "X$FILELIST" != "X" ]]; then 
+    ShowHeader
+    for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
+    echo
+    return
+  fi
+  GetSymlinkBaseNameUser
+  FILELIST=$(shopt -s nullglob; echo ${SymlinkBaseNameUser}.*)
+  if [[ "X$FILELIST" = "X" ]]; then
+    echo "The current session is not bound to any credentials"
+    return 
+  fi
+  ShowUserGlob
+}
+
+function ShowUser
+{
+  GetSymlinkBaseNameSession
+  GetActiveLinkedSessions
+  ShowUserGlob
+  ShowHeader
+  local FILELIST=$(shopt -s nullglob; echo ${ActiveLinkedSessions})
+  if [[ "X$FILELIST" = "X" ]]; then echo "[none]"; return ; fi              
+  for LINK in `echo $FILELIST` ; do ShowLink $LINK ; done
+  echo
+}
+
+function LinkSession
+{
+  GetSymlinkBaseNameSession
+  local EXTENSION="${AUTHTYPE}"
+  if [[ "$AUTHTYPE" == "krb5" && "${CREDISFILE}" != "0" ]]; then
+  local EXTENSION="krk5"
+  fi
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  
+  echo "could not find automatically a credential file" 
+  exit 1
+  fi
+  SymlinkName="${SymlinkBaseNameSession}.${EXTENSION}"
+  #echo "ln -sf $CREDTAG $SymlinkName"
+  ln -sf $CREDTAG $SymlinkName
+  if [ $? -ne 0 ]; then
+    echo "Error creating credentials symlink." >&2
+  fi
+}
+
+function LinkUserGlob
+{
+  GetSymlinkBaseNameSession
+  local EXTENSION="${AUTHTYPE}"
+  local CFILE="$CREDTAG"
+  if [[ "$AUTHTYPE" == "krb5" && "${CREDISFILE}" != "0" ]]; then
+  local EXTENSION="krk5"
+  fi
+  if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  
+  echo "could not find automatically a credential file" 
+  exit 1
+  fi
+  SymlinkName="${SymlinkBaseNameUser}.${EXTENSION}"
+  if [[ "${CREDISFILE}" = "0" ]]; then
+    # if we are linking a file as user-global credentials, copy it to the store first
+    cp -f $CREDTAG /var/run/eosd/credentials/store/ 
+    if [ $? -ne 0 ]; then
+      echo "Error copying credentials" >&2
+    fi
+    CFILE=`basename $CREDTAG`
+    CFILE="/var/run/eosd/credentials/store/$CFILE"
+  fi
+  PREVFILE=`readlink -e $SymlinkName`
+  #echo "ln -sf $CFILE $SymlinkName"
+  ln -sf $CFILE $SymlinkName
+  if [ $? -ne 0 ]; then
+    echo "Error creating credentials symlink." >&2
+  fi
+  if [[ "X$PREVFILE" != "X" && "$PREVFILE" != "$CFILE" && "`dirname $PREVFILE`" = "/var/run/eosd/credentials/store" ]]; then
+    rm -f "$PREVFILE"
+  fi
+}
+
+function UnlinkUserGlob
+{
+  GetSymlinkBaseNameUser
+  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unbinding user"; exit 1; fi
+  for symlink in ${SymlinkBaseNameUser}.*; do
+    # remove the file from the store
+    local file=$(readlink -f "$symlink")
+    rm -f "$file"
+    rm -f "$symlink"
+  done;
+  #echo rm -f ${SymlinkBaseNameUser}.*
+  rm -f ${SymlinkBaseNameUser}.*
+}
+
+function UnlinkUserSessions
+{
+  GetSymlinkBaseNameUser
+  if [[ "X$SymlinkBaseNameUser" = "X" ]]; then "error unbinding user"; exit 1; fi
+  #echo rm -f ${SymlinkBaseNameUser}_*
+  rm -f ${SymlinkBaseNameUser}_*
+}
+
+function UnlinkSession
+{
+  GetSymlinkBaseNameSession
+  if [[ "X$SymlinkBaseNameSession" = "X" ]]; then "error unbinding session"; exit 1; fi
+  #echo rm -f ${SymlinkBaseNameSession}*
+  rm -f ${SymlinkBaseNameSession}*
+}
+
+function UnlinkUnactiveSessions
+{
+  GetSymlinkBaseNameSession
+  GetActiveLinkedSessions
+  local FILELIST=$(shopt -s nullglob; echo ${UnactiveLinkedSessions})
+  if [[ "X$FILELIST" = "X" ]]; then return ; fi
+  #echo rm -f $FILELIST
+  rm -f $FILELIST
+}
+
+# if this a pan call, re-issue the command as the right user
+if [[ ( "$#" = 1 )   &&  (  "$1" = "--pam" ) && (  "$EUID" = "0" ) && (  "$PAM_USER" != "0" ) && (  "$PAM_USER" != "root" ) ]]; then
+  su -c "$0 $*" $PAM_USER
+  exit $?
+fi
+
+ParseArgs $*
+CheckCredDir
+if [[ $REQULNK = 1 ]]; then
+  if [[ $REQULNKSES = 1 ]]; then UnlinkSession; fi
+  if [[ $REQULNKUSR = 1 ]]; then UnlinkUserSessions; fi
+  if [[ $REQULNKGLB = 1 ]]; then UnlinkUserGlob; fi
+elif [[ $REQLS = 1 ]]; then
+  if [[ $REQLSSES = 1 ]]; then ShowSession; fi
+  if [[ $REQLSUSR = 1 ]]; then ShowUser; fi
+else
+  CheckArgs $*
+  UnlinkUnactiveSessions
+  if [[ "$REQGLOBBIND" = "0" ]]; then
+    UnlinkSession
+  fi
+  if [ "X$CREDTAG" = "X" ]; then
+    if [ "$AUTHTYPE" = "krb5" ]; then GetAutoKrb5CredFile; fi
+    if [ "$AUTHTYPE" = "x509" ]; then GetAutoX509CredFile; fi
+  fi
+  if [[ "$REQGLOBBIND" = "1" ]]; then
+    LinkUserGlob
+  else
+    LinkSession
+  fi
+fi
