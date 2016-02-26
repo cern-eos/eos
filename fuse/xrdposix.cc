@@ -1947,22 +1947,24 @@ xrd_stat (const char* path,
 
         // if we do lazy open, the file should be open on the fst to stat
         // otherwise, the file will be opened on the fst, just for a stat
-        if ( (!lazy_open || file->IsOpen())  && (!file->Stat(&tmp)) )
+        if (file->IsOpen ())
         {
-          file_size = tmp.st_size;
-          mtime = tmp.st_mtim;
-          atime = tmp.st_atim;
+          if ((!file->Stat (&tmp)))
+          {
+            file_size = tmp.st_size;
+            mtime = tmp.st_mtim;
+            atime = tmp.st_atim;
 
-	  if (cache_size > file_size)
-	  {
-	    file_size = cache_size;
-	  }
+            if (cache_size > file_size)
+            {
+              file_size = cache_size;
+            }
 
-          eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p",
-                           *iter_fd->second.begin(), file_size, file);
+            eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p", *iter_fd->second.begin (), file_size, file);
+          }
+          else
+            eos_static_err("fd=%i stat failed on open file", *iter_fd->second.begin ());
         }
-        else
-          eos_static_err("fd=%i stat failed on open file", *iter_fd->second.begin());
       }
       else
         eos_static_err("fd=%i not found in file obj map", *iter_fd->second.begin());
@@ -3514,7 +3516,7 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
     }
 
     auto raw_file = fabst->GetRawFile();
-    if(raw_file->IsOpen())
+    if(raw_file && raw_file->IsOpen())
     {
       int retc2 = raw_file->Close ();
       eos_static_debug("temporarily closing file %s  returned  %d",raw_file->GetLastPath().c_str(),retc2);
