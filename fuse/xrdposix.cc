@@ -1936,10 +1936,17 @@ xrd_stat (const char* path,
 
         struct stat tmp;
         // try to stat wi th RO file if opened
+        bool lazy_open = lazy_open_rw;
         LayoutWrapper* file = iter_file->second->GetRawFile();
-        if(!file) file = iter_file->second->GetRawFileRO();
+        if(!file)
+        {
+          file = iter_file->second->GetRawFileRO();
+          lazy_open = lazy_open_ro;
+        }
 
-        if (!file->Stat(&tmp))
+        // if we do lazy open, the file should be open on the fst to stat
+        // otherwise, the file will be opened on the fst, just for a stat
+        if ( (!lazy_open || file->IsOpen())  && (!file->Stat(&tmp)) )
         {
           file_size = tmp.st_size;
           mtime = tmp.st_mtim;
