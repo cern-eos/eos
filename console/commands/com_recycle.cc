@@ -45,6 +45,7 @@ com_recycle (char* arg1)
   if (wants_help(arg1))
     goto com_recycle_usage;
 
+
   if ((subcmd != "") &&
       (subcmd != "config") &&
       (subcmd != "ls") &&
@@ -119,10 +120,18 @@ com_recycle (char* arg1)
   if ((subcmd == "config") && (options.size() > 1))
     goto com_recycle_usage;
 
-  if ((subcmd == "restore") && (options.size() > 0) &&
-      (options[0] != "--force-original-name") &&
-      (options[0] != "-f"))
-    goto com_recycle_usage;
+  if ((subcmd == "restore"))
+  {
+    for (size_t i=0; i< options.size(); i++)
+    {
+      if ( (options[i] != "--force-original-name") &&
+	   (options[i] != "-f") &&
+	   (options[i] != "--restore-versions") &&
+	   (options[i] != "-r") )
+       
+	goto com_recycle_usage;
+    }
+  }
 
   if ((subcmd == "restore") && (args.size() != 1))
     goto com_recycle_usage;
@@ -177,9 +186,10 @@ com_recycle_usage:
   fprintf(stdout, "                                                  list files in the recycle bin\n");
   fprintf(stdout, "recycle purge :\n");
   fprintf(stdout, "                                                  purge files in the recycle bin\n");
-  fprintf(stdout, "recycle restore [--force-original-name|-f] <recycle-key> :\n");
+  fprintf(stdout, "recycle restore [--force-original-name|-f] [--restore-versions|-r] <recycle-key> :\n");
   fprintf(stdout, "                                                  undo the deletion identified by <recycle-key>\n");
   fprintf(stdout, "       --force-original-name : move's deleted files/dirs back to the original location (otherwise the key entry will have a <.inode> suffix\n");
+  fprintf(stdout, "       --restore-versions    : restore all previous versions of a file\n");
   fprintf(stdout, "recycle config --add-bin <sub-tree>:\n");
   fprintf(stdout, "                                                  configures to use the recycle bin for deletions in <sub-tree>\n");
   fprintf(stdout, "recycle config --remove-bin <sub-tree> :\n");

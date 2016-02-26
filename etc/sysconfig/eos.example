@@ -110,6 +110,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE debugging mode (default off)
 #export EOS_FUSE_DEBUG=1
 
+# Enable FUSE low-level debugging mode (default off)
+#export EOS_FUSE_LOWLEVEL_DEBUG=1
+
 # Specify the FUSE logging level (default=6 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
 # EOS_FUSE_DEBUG=1 overwrites these settings
 #export EOS_FUSE_LOGLEVEL=6
@@ -182,6 +185,68 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
 #    (default 0)
 # EOS_FUSE_PIDMAP=0
+
+# Disable using access for access permission check (default on)
+# export EOS_FUSE_NOACCESS=0
+
+# Disable to use the kernel cache (default on)
+# export EOS_FUSE_KERNELCACHE=0
+
+# Bypass the buffercache for write - avoids 4k chopping of IO (default off)
+# (this is not what people understand under O_DIRECT !!!!
+# export EOS_FUSE_DIRECTIO=1
+
+# Disable the write-back cache (default on)
+# export EOS_FUSE_CACHE=0
+
+# Set the write-back cache size (default 300M)
+# export EOS_FUSE_CACHE_SIZE=0
+
+# Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
+# export EOS_FUSE_BIGWRITES=1
+
+# Mount all files with 'x' bit to be able to run as an executable (default off)
+# export EOS_FUSE_EXEC=1
+
+# Enable protection against recursive deletion (rm -r command) 
+#    starting from the root of the mount (if 1)
+#    or from any of its sub directories at a maximum depth (if >1) (default 1)
+# EOS_FUSE_RMLVL_PROTECT=1
+
+# ---------------------------------------------------------------------------------
+# this options are not available since AQUAMARINE is compiled with XROOTD3 
+# --------------------------------------------------------------------------------- 
+# Enable Kerberos authentication. This avoid need to set gateways on the mgm. 
+#    file cache credential should be used. (default 0)
+# EOS_FUSE_USER_KRB5CC=0
+# ---------------------------------------------------------------------------------
+# Enable X509 GSI authentication. This avoid need to set gateways on the mgm. 
+#    file user proxy should be used. (default 0)
+# EOS_FUSE_USER_GSIPROXY=0
+# ---------------------------------------------------------------------------------
+# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
+#    (default 0)
+# EOS_FUSE_USER_KRB5FIRST=0
+# ---------------------------------------------------------------------------------
+# If a connection fails using strong authentication, this is the timeout before actully retrying
+#    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
+#    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
+#    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
+#    (default is XRD_STREAMERRORWINDOW default value)
+# EOS_FUSE_STREAMERRORWINDOW=1
+# ---------------------------------------------------------------------------------
+# If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
+#    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
+#    (default 0)
+# EOS_FUSE_PIDMAP=
+# ---------------------------------------------------------------------------------
+
+# Enable the fuse local host time consistency model
+#   this allows a more precise handling of mtime. Time reference is then the localhost time
+#   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
+#   this only affects the shared fuse mount (default 1)
+#   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
+# EOS_FUSE_LOCALTIMECONSISTENT=1
 
 # Configure a log-file prefix - useful for several FUSE instances
 #export EOS_FUSE_LOG_PREFIX=dev
@@ -277,8 +342,7 @@ export EOS_TEST_TESTTIMESLICE=300;
 export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
 
 # define the log file regex you want to broad cast to all consoles
-export EOS_TTY_BROACAST_EGREP="CRIT,ALERT,EMERG"
-
+export EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 
 # ------------------------------------------------------------------
 # Service Script aliasing for EL7 machines
@@ -288,3 +352,10 @@ which systemctl >& /dev/null
 if [ $? -eq 0 ]; then
    alias service="service --skip-redirect"
 fi
+
+# ------------------------------------------------------------------
+# MGM Namespace Preset Size - this can safe memory for large namespaces if you know an upper limit for the namespace size
+# ------------------------------------------------------------------
+# export EOS_NS_DIR_SIZE=1000000
+# export EOS_NS_FILE_SIZE=1000000
+>>>>>>> 6c35244... MGM/NAMESPACE: add progress reports to all boot steps - make the expected hash size of container/files configurable via /etc/sysconfig/eos

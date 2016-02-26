@@ -38,16 +38,12 @@
 /*----------------------------------------------------------------------------*/
 #include "xrdposix.hh"
 #include "FuseCacheEntry.hh"
-#include "ProcCacheC.h"
-#include "NegStatCache.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 #include <climits>
-#include <cstdlib>
-#include <limits>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -57,12 +53,10 @@
 #include <pwd.h>
 #include <string.h>
 #include <pthread.h>
-#include <algorithm>
-#include <limits>
+#include <stdint.h>
 /*----------------------------------------------------------------------------*/
 #include "FuseCache/FuseWriteCache.hh"
 #include "FuseCache/FileAbstraction.hh"
-#include "FuseCache/LayoutWrapper.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -93,7 +87,6 @@
 #endif
 
 static FuseWriteCache* XFC;
-static NegStatCache *NSC;
 static XrdOucHash<XrdOucString>* passwdstore;
 static XrdOucHash<XrdOucString>* stringstore;
 
@@ -101,39 +94,17 @@ XrdSysMutex passwdstoremutex;
 XrdSysMutex stringstoremutex;
 XrdSysMutex environmentmutex;
 XrdSysMutex connectionIdMutex;
-std::vector<RWMutex> proccachemutexes;
-uint64_t pid_max;
-uint64_t uid_max;
 int connectionId = 0;
 
-bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
-bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
-bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
-bool lazy_open_ro = false; ///< indicated if lazy openning of the file should be used for files open in RO
-bool lazy_open_rw = false; ///< indicated if lazy openning of the file should be used for files open in RW
-bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
 bool do_rdahead = false; ///< true if readahead is to be enabled, otherwise false
 std::string rdahead_window = "131072"; ///< size of the readahead window
 int rm_level_protect; ///< number of levels in hierarchy protected against rm -rf
-std::string rm_command; ///< full path of the system rm command (e.g. "/bin/rm" )
-bool rm_watch_relpath; ///< indicated if the system rm command changes it CWD making relative path expansion impossible
 int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
-int fuse_cache_negstat; ///< 0 if fuse negstat cache disabled, otherwise 1
 bool fuse_exec = false; ///< indicates if files should be make exectuble
-bool fuse_shared = false; ///< indicated if this is eosd = true or eosfsd = false
-int use_localtime_consistency = 0; ///< indicated if this stat and get attr shou
-extern "C" char* local_mount_dir;
+bool fuse_shared = false; ///< inidicated if this is eosd = true or eosfsd = false
 XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
 using eos::common::LayoutId;
-
-void xrd_logdebug(const char *msg)
-{
-  eos_static_debug(msg);
-}
-
-char *
-myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
 
 //------------------------------------------------------------------------------
 // String store
@@ -160,8 +131,6 @@ STRINGSTORE (const char* __charptr__)
   }
 }
 
-const char* xrd_user_url (uid_t uid, gid_t gid, pid_t pid);
-const char* xrd_strongauth_cgi (pid_t pid);
 
 //------------------------------------------------------------------------------
 //             ******* Implementation Translations *******
@@ -196,40 +165,6 @@ xrd_unlock_r_p2i ()
 {
   mutex_inode_path.UnLockRead();
 }
-
-//------------------------------------------------------------------------------
-// Lock
-//------------------------------------------------------------------------------
-
-void
-xrd_lock_r_pcache (pid_t pid)
-{
-  proccachemutexes[pid].LockRead();
-}
-
-void
-xrd_lock_w_pcache (pid_t pid)
-{
-  proccachemutexes[pid].LockWrite();
-}
-
-
-//------------------------------------------------------------------------------
-// Unlock
-//------------------------------------------------------------------------------
-
-void
-xrd_unlock_r_pcache (pid_t pid)
-{
-  proccachemutexes[pid].UnLockRead();
-}
-
-void
-xrd_unlock_w_pcache (pid_t pid)
-{
-  proccachemutexes[pid].UnLockWrite();
-}
-
 
 
 //------------------------------------------------------------------------------
@@ -709,9 +644,7 @@ google::dense_hash_map<int, int>             fd2count;
 
 // Map <inode, user> to a set of file descriptors - used only in the xrd_stat method
 // note : the set of file descriptors for one key point to the same fabst
-google::dense_hash_map<std::string, std::set<int> > inodexrdlogin2fds;
-// Helper function to construct a key in the previous map
-std::string get_xrd_login(uid_t uid, gid_t gid, pid_t pid);
+google::dense_hash_map<std::string, std::set<int> > inodeuser2fds;
 
 // Pool of available file descriptors
 int base_fd = 1;
@@ -750,9 +683,9 @@ xrd_generate_fd ()
 // Add new mapping between fd and raw file object
 //------------------------------------------------------------------------------
 int
-xrd_add_fd2file (LayoutWrapper* raw_file,
+xrd_add_fd2file (eos::fst::Layout* raw_file,
                  unsigned long inode,
-                 uid_t uid, gid_t gid, pid_t pid ,
+                 uid_t uid,
                  bool isROfd,
                  const char* path="")
 {
@@ -760,17 +693,17 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
                    raw_file, inode, (unsigned long) uid);
   int fd = -1;
   std::ostringstream sstr;
-  sstr << inode << ":" << get_xrd_login(uid,gid,pid);
+  sstr << inode << ":" << (unsigned long)uid;
 
   eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-  auto iter_fd = inodexrdlogin2fds.find(sstr.str());
+  auto iter_fd = inodeuser2fds.find(sstr.str());
   FileAbstraction* fabst=NULL;
 
   // If there is already an entry for the current user and the current inode
   // then we return the old fd
   if (!raw_file)
   {
-    if (iter_fd != inodexrdlogin2fds.end())
+    if (iter_fd != inodeuser2fds.end())
     {
       fd = *iter_fd->second.begin();
       auto iter_file = fd2fabst.find(fd); //all the fd ti a same file share the same fabst
@@ -806,7 +739,7 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
   
   if (fd > 0)
   {
-    if (iter_fd != inodexrdlogin2fds.end())
+    if (iter_fd != inodeuser2fds.end())
       fabst = fd2fabst[ *iter_fd->second.begin() ];
 
     if(fabst)
@@ -826,7 +759,7 @@ xrd_add_fd2file (LayoutWrapper* raw_file,
     }
     fd2fabst[fd] = fabst;
     fd2count[fd] = isROfd?-1:1;
-    inodexrdlogin2fds[sstr.str()].insert( fd );
+    inodeuser2fds[sstr.str()].insert( fd );
   }
   else
   {
@@ -864,8 +797,7 @@ xrd_get_file (int fd,bool *isRW=NULL)
 //------------------------------------------------------------------------------
 // Remove entry from mapping
 //------------------------------------------------------------------------------
-int
-xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
+int xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid)
 {
   int retc = -1;
   eos_static_debug("fd=%i, inode=%lu", fd, inode);
@@ -885,15 +817,15 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
       fd2fabst.erase (fd);
 
       std::ostringstream sstr;
-      sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-      auto iter1 = inodexrdlogin2fds.find (sstr.str ());
-      if (iter1 != inodexrdlogin2fds.end ())
+      sstr << inode << ":" << (unsigned long) uid;
+      auto iter1 = inodeuser2fds.find (sstr.str ());
+      if (iter1 != inodeuser2fds.end ())
         iter1->second.erase(fd);
       else
       {
         // if a file is repaired during an RW open, the inode can change and we find the fd in a different inode
         // search the map for the filedescriptor and remove it
-        for (iter1 = inodexrdlogin2fds.begin (); iter1 != inodexrdlogin2fds.end (); ++iter1)
+        for (iter1 = inodeuser2fds.begin (); iter1 != inodeuser2fds.end (); ++iter1)
         {
           if (iter1->second.count(fd))
           {
@@ -903,7 +835,7 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
         }
       }
       if(iter1->second.empty())
-        inodexrdlogin2fds.erase(iter1);
+        inodeuser2fds.erase(iter1);
 
       // Return fd to the pool
       pool_fd.push (fd);
@@ -911,7 +843,7 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
       if(isRW)
       {
         eos_static_debug("fabst=%p, rwfile is not in use, close it", fabst);
-        LayoutWrapper* raw_file = fabst->GetRawFile ();
+        eos::fst::Layout* raw_file = fabst->GetRawFile ();
         retc = raw_file->Close ();
 
         struct timespec utimes[2];
@@ -919,7 +851,7 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
         if ((path = fabst->GetUtimes (utimes)))
         {
           // run the utimes command now after the close
-          xrd_utimes (path, utimes, uid, gid, pid);
+          xrd_utimes (path, utimes, uid, 0, 0);
         }
         fabst->SetRawFile(NULL);
         fabst->SetFd(-1);
@@ -927,7 +859,7 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
       else
       {
         eos_static_debug("fabst=%p, rofile is not in use, close it", fabst);
-        LayoutWrapper* raw_file = fabst->GetRawFileRO ();
+        eos::fst::Layout* raw_file = fabst->GetRawFileRO ();
         retc = raw_file->Close ();
         fabst->SetRawFileRO(NULL);
       }
@@ -1059,517 +991,6 @@ xrd_release_rd_buff (pthread_t tid)
 
 
 //------------------------------------------------------------------------------
-//             ******* XROOTD connection/authentication functions *******
-//------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-// Get user name from the uid and change the effective user ID of the thread
-//------------------------------------------------------------------------------
-const char*
-xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid)
-{
-  eos_static_debug("uid=%lu gid=%lu pid=%lu",
-                   (unsigned long) uid,
-                   (unsigned long) gid,
-                   (unsigned long) pid);
-
-  XrdOucString sid = "";
-
-  if (uid == 0)
-  {
-    uid = gid = DAEMONUID;
-  }
-
-  unsigned long long bituser=0;
-
-  // Emergency mapping of too high user ids to nob
-  if ( uid > 0xfffff)
-  {
-    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
-                   "nobody\" uid=%u", uid);
-    uid = 99;
-  }
-  if ( gid > 0xffff)
-  {
-    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
-                   "nobody\" gid=%u", gid);
-    gid = 99;
-  }
-
-  bituser = (uid & 0xfffff);
-  bituser <<= 16;
-  bituser |= (gid & 0xffff);
-  bituser <<= 6;
-  if(use_user_gsiproxy || use_user_krb5cc)
-  {
-    // if using strong authentication, the 6 bits are used to map different strong ids to the same uid
-    // if recoonection is needed, it goes through the authidmanager
-    bituser |= (authid & 0x3f);
-  }
-  else
-  {
-    // if using the gateway node, the purpose of the reamining 6 bits is just a connection counter to be able to reconnect
-    XrdSysMutexHelper cLock(connectionIdMutex);
-    if (connectionId)
-      bituser |= (connectionId & 0x3f);
-  }
-
-  bituser = h_tonll(bituser);
-
-  XrdOucString sb64;
-  // WARNING: we support only one endianess flavour by doing this
-  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
-  size_t len = sb64.length();
-  // Remove the non-informative '=' in the end
-  if (len >2)
-  {
-    sb64.erase(len-1);
-    len--;
-  }
-
-  // Reduce to 7 b64 letters
-  if (len > 7)
-    sb64.erase(0, len - 7);
-
-  sid = "*";
-  sid += sb64;
-
-  // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
-  // if necessary.
-  sid.replace('/', '_');
-  sid.replace('+', '-');
-  eos_static_debug("user-ident=%s", sid.c_str());
-  return STRINGSTORE(sid.c_str());
-}
-
-//------------------------------------------------------------------------------
-// Helper structure to get the xrootd login from uid, gid and authid when using secured authentication
-// each user can use up to 64 different ids simultaneously (krb5 and gsi cummulated)
-//------------------------------------------------------------------------------
-struct map_user
-{
-  uid_t uid;
-  gid_t gid;
-  uint8_t authid;
-  // first 20 bits for user id
-  // 16 following bites for authid
-  // 6 following bits for auth id (identity)
-  char base64buf[9];
-  bool base64computed;
-  static const uint16_t sMaxAuthId;
-  map_user (uid_t _uid, gid_t _gid, uint8_t _authid) :
-      uid (_uid), gid(_gid), authid(_authid), base64computed(false)
-  {
-  }
-
-  char*
-  base64 ()
-  {
-    if (!base64computed)
-    {
-      // pid is actually meaningless
-      strncpy(base64buf, xrd_mapuser (uid, gid, 0,authid),8);
-      base64buf[8]=0;
-      base64computed = true;
-    }
-    return base64buf;
-  }
-};
-
-const uint16_t map_user::sMaxAuthId = 2^6;
-
-//------------------------------------------------------------------------------
-// Class in charge of managing the xroot login (i.e. xroot connection)
-// logins are 8 characters long : ABgE73AA23@myrootserver
-// it's base 64 , first 6 are userid and 2 lasts are authid
-// authid is an idx a pool of identities for the specified user
-// if the user comes with a new identity, it's added the pool
-// if the identity is already in the pool, the connection is reused
-// identity are NEVER removed from the pool
-// for a given identity, the SAME conneciton is ALWAYS reused
-//------------------------------------------------------------------------------
-class AuthIdManager
-{
-public:
-  enum CredType {krb5,krk5,x509};
-  struct CredInfo
-  {
-    CredType type;     // krb5 , krk5 or x509
-    std::string lname; // link to credential file
-    std::string fname; // credential file
-    time_t fmtime;     // credential file mtime
-    time_t fctime;     // credential file ctime
-    time_t lmtime;     // link to credential file mtime
-    time_t lctime;     // link to credential file mtime
-    std::string identity; // identity in the credential file
-    std::string cachedStrongLogin;
-  };
-
-protected:
-  friend void xrd_init (); // to allow the sizing of pid2StrongLogin
-  // mutex protecting the maps
-  RWMutex pMutex;
-  // maps (userid,sessionid) -> ( credinfo )
-  // several threads (each from different process) might concurrently access this
-  std::map< std::pair<uid_t,pid_t> , CredInfo > uidsid2credinfo;
-  struct IdenAuthIdEntry {
-    std::map<std::string, uint32_t> strongid2authid;
-    std::list<uint8_t> freeAuthIdPool;
-
-    IdenAuthIdEntry()
-    {
-      // initialize the free authentication id pool with all the number from 0 to sMaxAuthId-1
-      for(uint8_t i=0;i<map_user::sMaxAuthId;i++) freeAuthIdPool.push_back(i);
-    }
-  };
-  // maps userid -> strongid2authid  : ( identity -> authid ) , identity being krb5:<some_identity> or krk5:<some_fileless_param> or gsi:<some_identity>
-  //                freeAuthIdPool   : a list with all the available authid
-  // several threads (each from different process) might concurrently access this
-  std::map<uid_t, IdenAuthIdEntry > uid2IdenAuthid;
-  // maps procid -> xrootd_login
-  // only one thread per process will access this (protected by one mutex per process)
-  std::vector<std::string> pid2StrongLogin;
-
-  bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
-  {
-    if (!(use_user_gsiproxy || use_user_krb5cc)) return false;
-
-    bool ret = false;
-    char buffer[1024];
-    char buffer2[1024];
-    // first try the session binding if it fails, try the user binding
-    const char* formats[2] = { "/var/run/eosd/credentials/uid%d_sid%d_sst%d.%s" , "/var/run/eosd/credentials/uid%d.%s" };
-    // krb5 -> kerberos 5 credential cache file
-    // krk5 -> kerberos 5 credential cache not in a file (e.g. KeyRing)
-    // x509 -> gsi authentication
-    const char* suffixes[5] =
-    { "krb5", "krk5", "x509", "krb5", "krk5" };
-    CredType credtypes[5] = {krb5, krk5,x509,krb5,krk5};
-    int sidx = 1, sn = 2;
-    if (!use_user_krb5cc && use_user_gsiproxy)
-      (sidx = 2) && (sn = 1);
-    else if (use_user_krb5cc && !use_user_gsiproxy)
-      (sidx = 0) && (sn = 2);
-    else if (tryKrb5First)
-      (sidx = 0) && (sn = 3);
-    else
-      (sidx = 2) && (sn = 3);
-
-    // try all the credential types according to settings and stop as soon as a credetnial is found
-    bool brk = false;
-    for (int f = 0; f < 2; f++)
-    {
-      for (int i = sidx; i < sidx + sn; i++)
-      {
-        if(f==0)
-          snprintf (buffer, 1024, formats[f], (int) uid, (int) sid, (int) sst, suffixes[i]);
-        else
-          snprintf (buffer, 1024, formats[f], (int) uid, suffixes[i]);
-
-        //eos_static_debug("trying to stat %s", buffer);
-        if (!lstat (buffer, &linkstat))
-        {
-          ret = true;
-          credinfo.lname = buffer;
-          credinfo.lmtime = linkstat.st_mtim.tv_sec;
-          credinfo.lctime = linkstat.st_ctim.tv_sec;
-          credinfo.type = credtypes[i];
-          size_t bsize = readlink (buffer, buffer2, 1024);
-          buffer2[bsize] = 0;
-          eos_static_debug("found credential link %s for uid %d and sid %d", credinfo.lname.c_str (), (int )uid, (int )sid);
-          if (credinfo.type == krk5)
-          {
-            credinfo.fname = buffer2;
-            break; // there is no file to stat in that case
-          }
-          if (!stat (buffer2, &filestat))
-          {
-            if (bsize > 0)
-            {
-              buffer2[bsize] = 0;
-              credinfo.fname = buffer2;
-              credinfo.fmtime = filestat.st_mtim.tv_sec;
-              credinfo.fctime = filestat.st_ctim.tv_sec;
-              eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
-            }
-          }
-          else
-          {
-            eos_static_debug("could not stat file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
-          }
-          // we found some credential, we stop searching here
-          brk = true;
-          break;
-        }
-      }
-      if (brk) break;
-    }
-
-    if (!ret)
-    eos_static_debug("could not find any credential for uid %d and sid %d", (int )uid, (int )sid);
-
-    return ret;
-  }
-
-  bool readCred(CredInfo &credinfo)
-  {
-    bool ret = false;
-    eos_static_debug("reading %s credential file %s",credinfo.type==krb5?"krb5":(credinfo.type==krb5?"krk5":"x509"),credinfo.fname.c_str());
-    if(credinfo.type==krk5)
-    {
-      // fileless authentication cannot rely on symlinks to be able to change the cache credential file
-      // instead of the identity, we use the keyring information and each has a different xrd login
-      credinfo.identity = credinfo.fname;
-      ret = true;
-    }
-    if(credinfo.type==krb5)
-    {
-      ProcReaderKrb5UserName reader(credinfo.fname);
-      if(!reader.ReadUserName(credinfo.identity))
-        eos_static_debug("could not read principal in krb5 cc file %s",credinfo.fname.c_str());
-      else
-        ret = true;
-    }
-    if(credinfo.type==x509)
-    {
-      ProcReaderGsiIdentity reader(credinfo.fname);
-      if(!reader.ReadIdentity(credinfo.identity))
-        eos_static_debug("could not read identity in x509 proxy file %s",credinfo.fname.c_str());
-      else
-        ret = true;
-    }
-    return ret;
-  }
-
-  bool checkCredSecurity(const struct stat &linkstat, const struct stat &filestat, uid_t uid, CredType credtype)
-  {
-    //eos_static_debug("linkstat.st_uid=%d  filestat.st_uid=%d  filestat.st_mode=%o  requiredmode=%o",(int)linkstat.st_uid,(int)filestat.st_uid,filestat.st_mode & 0777,reqMode);
-    if (
-    // check owner ship
-    linkstat.st_uid == uid)
-    {
-      if (credtype == krk5)
-        return true;
-      else if (filestat.st_uid == uid && (filestat.st_mode & 0077) == 0 // no access to other users/groups
-      && (filestat.st_mode & 0400) != 0 // read allowed for the user
-          ) return true;
-    }
-
-    return false;
-  }
-
-  int
-  updateProcCache (uid_t uid, gid_t gid, pid_t pid, bool reconnect)
-  {
-    // when entering this function proccachemutexes[pid] must be write locked
-    int errCode;
-    char buffer[1024];
-
-    // this is useful even in gateway mode because of the recursive deletion protection
-    if ((errCode = proccache_InsertEntry (pid)))
-    {
-      eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
-      return errCode;
-    }
-
-    // check if we are using strong authentication
-    if(!(use_user_krb5cc || use_user_gsiproxy))
-      return 0;
-
-    // get the startuptime of the process
-    time_t processSut;
-    proccache_GetStartupTime(pid,&processSut);
-    // get the session id
-    pid_t sid;
-    proccache_GetSid(pid,&sid);
-    bool isSessionLeader = (sid==pid);
-    // update the proccache of the session leader
-    if (!isSessionLeader)
-    {
-      xrd_lock_w_pcache (sid);
-      if ((errCode = proccache_InsertEntry (sid)))
-      {
-        eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
-        xrd_unlock_w_pcache (sid);
-        return errCode;
-      }
-      xrd_unlock_w_pcache (sid);
-    }
-
-    // get the startuptime of the leader of the session
-    time_t sessionSut;
-    proccache_GetStartupTime(sid,&sessionSut);
-
-    // find the credentials
-    CredInfo credinfo;
-    struct stat filestat,linkstat;
-    if(!findCred(credinfo,linkstat,filestat,uid,sid,sessionSut))
-    {
-      eos_static_notice("could not find any credential");
-      return EACCES;
-    }
-
-    // check if the credentials in the credential cache cache are up to date
-    // TODO: should we implement a TTL , my guess is NO
-    bool sessionInCache = false;
-    pMutex.LockRead();
-    auto cacheEntry = uidsid2credinfo.find(std::make_pair(uid,sid));
-    // skip the cache if reconnecting
-    sessionInCache = !reconnect && (cacheEntry!=uidsid2credinfo.end());
-    if(sessionInCache)
-    {
-      sessionInCache = false;
-      const CredInfo &ci = cacheEntry->second;
-      // we also check ctime to be sure that permission/ownership has not changed
-      if(ci.lmtime == credinfo.lmtime
-          && ci.lctime == credinfo.lctime )
-      {
-        if(credinfo.type==krk5) // if this is fileless credential cache, no target file to check
-          sessionInCache = true;
-        else if(ci.fmtime == credinfo.fmtime
-            && ci.fctime == credinfo.fctime
-            && ci.fname == credinfo.fname)
-          sessionInCache = true;
-      }
-    }
-    pMutex.UnLockRead();
-
-    if(sessionInCache)
-    {
-      // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
-      //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
-      // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
-      eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",(int)uid,(int)sid,(int)pid,cacheEntry->second.cachedStrongLogin.c_str());
-      pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
-      proccache_GetAuthMethod(sid,buffer,1024);
-      proccache_SetAuthMethod(pid,buffer);
-      return 0;
-    }
-
-    // refresh the credentials in the cache
-    // check the credential security
-    if(!checkCredSecurity(linkstat,filestat,uid,credinfo.type))
-    {
-      eos_static_alert("credentials are not safe");
-      return EACCES;
-    }
-    // check the credential security
-    if(!readCred(credinfo))
-      return EACCES;
-    // update authmethods for session leader and current pid
-    uint8_t authid;
-    std::string sId;
-    if(credinfo.type==krb5) sId = "krb5:";
-    else if(credinfo.type==krk5) sId = "krk5:";
-    else sId = "x509:";
-
-    std::string newauthmeth;
-    if(credinfo.type==krk5)
-    {
-      // using directly the value of the pointed file (which is the text of the in memory credentials)
-      sId.append(credinfo.fname);
-      newauthmeth = sId;
-    }
-    else
-    {
-      // using the link created by the user
-      sId.append(credinfo.lname);
-      newauthmeth = sId;
-    }
-
-    if(newauthmeth.empty())
-    {
-      eos_static_err("error symlinking credential file ");
-      return EACCES;
-    }
-    proccache_SetAuthMethod(pid,newauthmeth.c_str());
-    proccache_SetAuthMethod(sid,newauthmeth.c_str());
-    // update uid2IdenAuthid
-    {
-      eos::common::RWMutexWriteLock lock (pMutex);
-      // this will create the entry in uid2IdenAuthid if it does not exist already
-      auto &uidEntry = uid2IdenAuthid[uid];
-      if(credinfo.type==krb5) sId = "krb5:";
-      else if(credinfo.type==krk5) sId = "krk5:";
-      else sId = "x509:";
-      sId.append(credinfo.identity);
-      if (!reconnect && uidEntry.strongid2authid.count (sId))
-        authid = uidEntry.strongid2authid[sId]; // if this identity already has an authid , use it
-      else
-      {
-        if(uidEntry.freeAuthIdPool.empty())
-        {
-          eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
-              ,(int)uid,sId.c_str());
-          return EACCES;
-        }
-        // get the new connection id
-        uint8_t newauthid = uidEntry.freeAuthIdPool.front();
-        // remove the new connection from the connections available to be used
-        uidEntry.freeAuthIdPool.pop_front();
-        // recycle the previsous connection number if reconnecting
-        if(reconnect)
-        {
-          eos_static_debug("dropping authid %d",(int)uidEntry.strongid2authid[sId]);
-          uidEntry.freeAuthIdPool.push_back(uidEntry.strongid2authid[sId]);
-        }
-        // store the new authid
-        eos_static_debug("using newauthid %d",(int)newauthid);
-        authid = (uidEntry.strongid2authid[sId] = newauthid); // create a new authid if this id is not registered yet
-      }
-    }
-    // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-    map_user xrdlogin (uid, gid, authid);
-    pid2StrongLogin[pid] = std::string (xrdlogin.base64 ());
-    // update uidsid2credinfo
-    credinfo.cachedStrongLogin = pid2StrongLogin[pid];
-    eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",(int)uid,(int)sid,(int)pid,credinfo.cachedStrongLogin.c_str());
-    pMutex.LockWrite();
-    uidsid2credinfo[std::make_pair(uid,sid)] = credinfo;
-    pMutex.UnLockWrite();
-
-    eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
-                     pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
-
-    return errCode;
-  }
-
-public:
-
-  inline int
-  updateProcCache (uid_t uid, gid_t gid, pid_t pid)
-  {
-    return updateProcCache (uid, gid, pid,false);
-  }
-
-  inline int
-  reconnectProcCache (uid_t uid, gid_t gid, pid_t pid)
-  {
-    return updateProcCache (uid, gid, pid,true);
-  }
-
-  std::string
-  getXrdLogin (pid_t pid)
-  {
-    eos::common::RWMutexReadLock lock (proccachemutexes[pid]);
-    return pid2StrongLogin[pid];
-  }
-
-};
-
-AuthIdManager authidmanager;
-
-int update_proc_cache (uid_t uid, gid_t gid, pid_t pid)
-{
-  return authidmanager.updateProcCache(uid,gid,pid);
-}
-
-std::string get_xrd_login(uid_t uid, gid_t gid, pid_t pid)
-{
-  return (use_user_krb5cc||use_user_gsiproxy)?authidmanager.getXrdLogin(pid):xrd_mapuser (uid, gid, pid,0);
-}
-
-//------------------------------------------------------------------------------
 //             ******* XROOTD interface functions *******
 //------------------------------------------------------------------------------
 
@@ -1597,11 +1018,7 @@ xrd_rmxattr (const char* path,
   request += xattr_name;
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-
-  XrdCl::URL Url(surl.c_str());
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -1623,10 +1040,7 @@ xrd_rmxattr (const char* path,
       errno = retc;
   }
   else
-  {
-    eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-    errno = ((status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT);
-  }
+    errno = EIO;
 
   COMMONTIMING("END", &rmxattrtiming);
 
@@ -1677,11 +1091,7 @@ xrd_setxattr (const char* path,
   request += std::string(xattr_value, size);
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-
-  XrdCl::URL Url(surl.c_str());
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1702,10 +1112,7 @@ xrd_setxattr (const char* path,
       errno = retc;
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+    errno = EFAULT;
 
   COMMONTIMING("END", &setxattrtiming);
 
@@ -1752,10 +1159,7 @@ xrd_getxattr (const char* path,
   request += xattr_name;
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1793,11 +1197,7 @@ xrd_getxattr (const char* path,
     }
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
-
+    errno = EFAULT;
 
   COMMONTIMING("END", &getxattrtiming);
 
@@ -1832,10 +1232,7 @@ xrd_listxattr (const char* path,
   request += "mgm.subcmd=ls";
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -1870,11 +1267,7 @@ xrd_listxattr (const char* path,
     }
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
-
+    errno = EFAULT;
 
   COMMONTIMING("END", &listxattrtiming);
 
@@ -1895,15 +1288,12 @@ xrd_stat (const char* path,
           struct stat* buf,
           uid_t uid,
           gid_t gid,
-          pid_t pid,
           unsigned long inode)
 {
   eos_static_info("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int)uid, (int)gid, inode);
   eos::common::Timing stattiming("xrd_stat");
   off_t file_size = -1;
-  struct timespec atime,mtime;
-  atime.tv_sec = atime.tv_nsec = mtime.tv_sec= mtime.tv_nsec = 0;
   errno = 0;
   COMMONTIMING("START", &stattiming);
 
@@ -1917,11 +1307,11 @@ xrd_stat (const char* path,
                      path, (unsigned long) uid, inode);
     eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
     std::ostringstream sstr;
-    sstr << inode << ":" << get_xrd_login(uid,gid,pid);
+    sstr << inode << ":" << (unsigned long)uid;
     google::dense_hash_map<std::string, std::set<int> >::iterator
-      iter_fd = inodexrdlogin2fds.find(sstr.str());
+      iter_fd = inodeuser2fds.find(sstr.str());
 
-    if (iter_fd != inodexrdlogin2fds.end())
+    if (iter_fd != inodeuser2fds.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
         iter_file = fd2fabst.find(*iter_fd->second.begin());
@@ -1937,29 +1327,18 @@ xrd_stat (const char* path,
 
         struct stat tmp;
         // try to stat wi th RO file if opened
-        bool lazy_open = lazy_open_rw;
-        LayoutWrapper* file = iter_file->second->GetRawFile();
-        if(!file)
-        {
-          file = iter_file->second->GetRawFileRO();
-          lazy_open = lazy_open_ro;
-        }
+        eos::fst::Layout* file = iter_file->second->GetRawFile();
+        if(!file) file = iter_file->second->GetRawFileRO();
 
-        // if we do lazy open, the file should be open on the fst to stat
-        // otherwise, the file will be opened on the fst, just for a stat
-        if ( (!lazy_open || file->IsOpen())  && (!file->Stat(&tmp)) )
+        if (!file->Stat(&tmp))
         {
           file_size = tmp.st_size;
-          mtime = tmp.st_mtim;
-          atime = tmp.st_atim;
-
 	  if (cache_size > file_size)
 	  {
 	    file_size = cache_size;
 	  }
-
           eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p",
-                           *iter_fd->second.begin(), file_size, file);
+                          *iter_fd->second.begin(), file_size, file);
         }
         else
           eos_static_err("fd=%i stat failed on open file", *iter_fd->second.begin());
@@ -1971,17 +1350,6 @@ xrd_stat (const char* path,
       eos_static_debug("path=%s not open", path);
   }
 
-  // check if the file is a negative stat cache match
-  {
-    int erno = 0;
-    if (NSC && (erno = NSC->GetNoExist (path)))
-    {
-      eos_static_debug("found entry in the negstatcache for file %s\n",path);
-      errno=erno;
-      return errno;
-    }
-  }
-
   // Do stat using the Fils System object
   std::string request;
   XrdCl::Buffer arg;
@@ -1991,15 +1359,9 @@ xrd_stat (const char* path,
   request += "mgm.pcmd=stat&eos.app=fuse";
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-
-  eos_static_debug("stat url is %s",surl.c_str());
-  XrdCl::URL Url(surl.c_str());
+  XrdCl::URL Url(xrd_user_url(uid, gid, 0));
   XrdCl::FileSystem fs(Url);
 
-  eos_static_debug("arg = %s",arg.ToString().c_str());
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
   COMMONTIMING("GETPLUGIN", &stattiming);
@@ -2041,8 +1403,6 @@ xrd_stat (const char* path,
 	errno = EFAULT;
       delete response;
       eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
-      if(NSC)
-        NSC->UpdateNoExist(path,errno);
       return errno;
     }
     else
@@ -2087,40 +1447,20 @@ xrd_stat (const char* path,
   }
   else
   {
-    eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-    errno = (status.code==XrdCl::errAuthFailed)?EPERM:EFAULT;
-    // we do not cache such errors in the negstatcache NSC
+    eos_static_err("status is NOT ok");
+    errno = EFAULT;
   }
 
   // If got size using opened file then return this value
-  if ((file_size != -1) && use_localtime_consistency)
-  {
+  if (file_size != -1)
     buf->st_size = file_size;
-    // if using local time consistency model
-    // overwrite mgm mtime only if local mtime is newer
-    // WARNING : this is VALID ONLY if
-    // - the file is being accessed only from fuse mounts that are synchronized between together
-    // OR
-    // - the file is being accessed from all types of protocol if they are all synchronized with the eos instance
-    if (buf->st_mtim.tv_sec < mtime.tv_sec || ((buf->st_mtim.tv_sec == mtime.tv_sec) && (buf->st_mtim.tv_nsec <= mtime.tv_nsec)))
-    {
-      buf->st_atim = atime;
-      buf->st_mtim = mtime;
-      buf->st_atime = buf->st_atim.tv_sec;
-      buf->st_mtime = buf->st_mtim.tv_sec;
-    }
-    else
-      eos_static_debug("ALERT: last update on the mgm %lu.%.9lu is more recent that my local update %lu.%.9lu",buf->st_mtim.tv_sec,buf->st_mtim.tv_nsec,mtime.tv_sec,mtime.tv_nsec);
-  }
 
   COMMONTIMING("END", &stattiming);
 
   if (EOS_LOGS_DEBUG)
     stattiming.Print();
 
-  if(NSC && !errno) NSC->Forget(path);
-
-  eos_static_info("path=%s st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
+  eos_static_info("path=%s st-size=%llu errno=%i", path, buf->st_size, errno);
   delete response;
   return errno;
 }
@@ -2130,10 +1470,7 @@ xrd_stat (const char* path,
 // Return statistics about the filesystem
 //------------------------------------------------------------------------------
 int
-xrd_statfs (const char* path, struct statvfs* stbuf,
-            uid_t uid,
-            gid_t gid,
-            pid_t pid)
+xrd_statfs (const char* path, struct statvfs* stbuf)
 {
   eos_static_info("path=%s", path);
   static unsigned long long a1 = 0;
@@ -2172,11 +1509,7 @@ xrd_statfs (const char* path, struct statvfs* stbuf,
   request += "path=";
   request += path;
   arg.FromString(request);
-
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(2, 2, 0));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -2223,8 +1556,7 @@ xrd_statfs (const char* path, struct statvfs* stbuf,
   else
   {
     statmutex.UnLock();
-    eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+    errno = EFAULT;
   }
 
   COMMONTIMING("END", &statfstiming);
@@ -2261,10 +1593,7 @@ xrd_chmod (const char* path,
   request += smode.c_str();
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -2294,10 +1623,7 @@ xrd_chmod (const char* path,
       errno = retc;
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+    errno = EFAULT;
 
   delete response;
   return errno;
@@ -2309,15 +1635,15 @@ xrd_chmod (const char* path,
 int
 xrd_set_utimes_close(unsigned long long inode,
                     struct timespec* tvp,
-                    uid_t uid, gid_t gid, pid_t pid)
+                    uid_t uid)
 {
   // try to attach the utimes call until a referenced filedescriptor on that path is closed
   std::ostringstream sstr;
-  sstr << inode << ":" << get_xrd_login(uid,gid,pid);
+  sstr << inode << ":" << (unsigned long)uid;
   {
     eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-    auto iter_fd = inodexrdlogin2fds.find(sstr.str());
-    if (iter_fd != inodexrdlogin2fds.end())
+    auto iter_fd = inodeuser2fds.find(sstr.str());
+    if (iter_fd != inodeuser2fds.end())
     {
       google::dense_hash_map<int, FileAbstraction*>::iterator
         iter_file = fd2fabst.find(*iter_fd->second.begin());
@@ -2365,13 +1691,9 @@ xrd_utimes (const char* path,
   request += "&tv2_nsec=";
   sprintf(lltime, "%llu", (unsigned long long) tvp[1].tv_nsec);
   request += lltime;
-  eos_static_debug("request: %s",request.c_str());
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -2394,10 +1716,7 @@ xrd_utimes (const char* path,
       errno = retc;
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+    errno = EFAULT;
 
   delete response;
   return errno;
@@ -2430,10 +1749,7 @@ xrd_symlink(const char* path,
   while (savelink.replace("&", "#AND#")){}
   request += savelink.c_str();
   arg.FromString(request);
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -2460,14 +1776,9 @@ xrd_symlink(const char* path,
       errno = retc;
   }
   else
-  {
-	eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+    errno = EFAULT;
 
   delete response;
-  if(NSC) NSC->Forget(link);
-  
   return errno;
 }
 
@@ -2495,10 +1806,7 @@ xrd_readlink(const char* path,
   request += "mgm.pcmd=readlink&eos.app=fuse";
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -2551,10 +1859,7 @@ xrd_readlink(const char* path,
     }
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+    errno = EFAULT;
 
   delete response;
   return errno;
@@ -2588,11 +1893,7 @@ xrd_access (const char* path,
   request += "mgm.pcmd=access&eos.app=fuse&mode=";
   request += smode;
   arg.FromString(request);
-
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
@@ -2619,10 +1920,7 @@ xrd_access (const char* path,
       errno = retc;
   }
   else
-  {
-	eos_static_err("status is NOT ok : %s",status.ToString().c_str());
-	errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
-  }
+    errno = EFAULT;
 
   delete response;
   return errno;
@@ -2660,10 +1958,6 @@ xrd_inodirlist (unsigned long long dirinode,
     a_pos+=4;
   }
 
-  // add the kerberos token
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) request += '&';
-  request += xrd_strongauth_cgi(pid);
-
   COMMONTIMING("GETSTSTREAM", &inodirtiming);
   request.insert(0, xrd_user_url(uid, gid, pid));
   XrdCl::File* file = new XrdCl::File();
@@ -2675,8 +1969,7 @@ xrd_inodirlist (unsigned long long dirinode,
   {
     eos_static_err("got an error to request.");
     delete file;
-    eos_static_err("error=status is NOT ok : %s",status.ToString().c_str());
-    errno = status.code == XrdCl::errAuthFailed ? EPERM : EFAULT;
+    errno = ENOENT;
     return errno;
   }
 
@@ -2790,10 +2083,7 @@ xrd_readdir (const char* path_dir, size_t *size,
   XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
   string path_str = path_dir;
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.DirList(path_str, flags, response);
 
@@ -2855,16 +2145,13 @@ xrd_mkdir (const char* path,
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
   request = path;
-  request += '?';
+  request += "?";
   request += "mgm.pcmd=mkdir";
   request += "&eos.app=fuse&mode=";
   request += (int) mode;
   arg.FromString(request);
 
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, 0));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile,
                                         arg, response);
@@ -2951,7 +2238,6 @@ xrd_mkdir (const char* path,
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
       errno = 0;
-      if(NSC) NSC->Forget(path);
     }
   }
   else
@@ -2978,11 +2264,7 @@ int
 xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
 {
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
-
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.RmDir(path);
 
@@ -2993,10 +2275,7 @@ xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
     return errno;
   }
   else
-  {
-    if(NSC) NSC->UpdateNoExist(path,ENOENT);
     return 0;
-  }
 }
 
 
@@ -3038,7 +2317,7 @@ xrd_error_retc_map (int retc)
     errno = EIO;
 
   if (retc == kXR_NotAuthorized)
-    errno = EACCES;
+    errno = EPERM;
 
   if (retc == kXR_NotFound)
     errno = ENOENT;
@@ -3086,9 +2365,6 @@ xrd_open (const char* path,
                   path, oflags, mode, uid, pid);
   XrdOucString spath = xrd_user_url(uid, gid, pid);
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs(oflags);
-  struct stat buf;
-  bool exists = true;
-  bool lazy_open = (flags_sfs==SFS_O_RDONLY)?lazy_open_ro:lazy_open_rw;
   bool isRO = (flags_sfs == SFS_O_RDONLY);
   eos::common::Timing opentiming("xrd_open");
   COMMONTIMING("START", &opentiming);
@@ -3096,14 +2372,13 @@ xrd_open (const char* path,
   spath += path;
   errno = 0;
   int t0;
-  int retc = xrd_add_fd2file(0, *return_inode, uid, gid, pid, isRO, path);
+  int retc = xrd_add_fd2file(0, *return_inode, uid, isRO,  path);
 
   if (retc != -1)
   {
     eos_static_debug("file already opened, return fd=%i", retc);
     return retc;
   }
-
 
   if ((t0 = spath.find("/proc/")) != STR_NPOS)
   {
@@ -3118,17 +2393,8 @@ xrd_open (const char* path,
     // Force a reauthentication to the head node
     if (spath.endswith("/proc/reconnect"))
     {
-      if(use_user_gsiproxy || use_user_krb5cc)
-      {
-        xrd_lock_w_pcache (pid);
-        authidmanager.reconnectProcCache(uid,gid,pid);
-        xrd_unlock_w_pcache (pid);
-      }
-      else
-      {
-        XrdSysMutexHelper cLock(connectionIdMutex);
-        connectionId++;
-      }
+      XrdSysMutexHelper cLock(connectionIdMutex);
+      connectionId++;
       errno = ECONNABORTED;
       return -1;
     }
@@ -3137,30 +2403,23 @@ xrd_open (const char* path,
     if (spath.endswith("/proc/whoami"))
     {
       spath.replace("/proc/whoami", "/proc/user/");
-      //spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
-      spath += '?';
-      spath += xrd_strongauth_cgi(pid);
-      if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
-      spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
-      LayoutWrapper* file = new LayoutWrapper( new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl) , use_localtime_consistency);
+      spath += "?mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
+      eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl);
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
 
-      if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
-        exists = false;
-
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
-        eos_static_err("open failed for %s : error code is %d", spath.c_str(),(int)errno);
+        eos_static_err("open failed for %s", spath.c_str());
         return xrd_error_retc_map(errno);
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid, gid, pid, isRO);
+        retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
         return retc;
       }
     }
@@ -3168,19 +2427,12 @@ xrd_open (const char* path,
     if (spath.endswith("/proc/who"))
     {
       spath.replace("/proc/who", "/proc/user/");
-      //spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
-      spath += '?';
-      spath += xrd_strongauth_cgi(pid);
-      if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
-      spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
-      LayoutWrapper* file = new LayoutWrapper( new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl) , use_localtime_consistency);
+      spath += "?mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
+      eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl);
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
-
-      if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
-        exists = false;
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -3189,7 +2441,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid, isRO);
+        retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
         return retc;
       }
     }
@@ -3197,20 +2449,13 @@ xrd_open (const char* path,
     if (spath.endswith("/proc/quota"))
     {
       spath.replace("/proc/quota", "/proc/user/");
-      //spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
-      spath += '?';
-      spath += xrd_strongauth_cgi(pid);
-      if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) spath += '&';
-      spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
-      LayoutWrapper* file = new LayoutWrapper( new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                         eos::common::LayoutId::kXrdCl) , use_localtime_consistency);
+      spath += "?mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
+      eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                         eos::common::LayoutId::kXrdCl);
 
       XrdOucString open_path = get_url_nocgi(spath.c_str());
       XrdOucString open_cgi = get_cgi(spath.c_str());
-
-      if(xrd_stat(open_path.c_str(),&buf,uid,gid,pid,0))
-        exists = false;
-      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,true);
+      retc = file->Open(open_path.c_str(), flags_sfs, mode, open_cgi.c_str());
 
       if (retc)
       {
@@ -3219,7 +2464,7 @@ xrd_open (const char* path,
       }
       else
       {
-        retc = xrd_add_fd2file(file, *return_inode, uid,gid,pid, isRO);
+        retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
         return retc;
       }
     }
@@ -3242,10 +2487,7 @@ xrd_open (const char* path,
     request += "?eos.app=fuse&mgm.pcmd=open";
     arg.FromString(request);
 
-    std::string surl=xrd_user_url(uid, gid, pid);
-    if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-    surl += xrd_strongauth_cgi(pid);
-    XrdCl::URL Url(surl);
+    XrdCl::URL Url(xrd_user_url(uid, gid, pid));
     XrdCl::FileSystem fs(Url);
     status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
@@ -3333,7 +2575,7 @@ xrd_open (const char* path,
                                (unsigned long)*return_inode);
             }
 
-            retc = xrd_add_fd2file(new LayoutWrapper( file , use_localtime_consistency), *return_inode, uid,gid,pid, isRO);
+            retc = xrd_add_fd2file(file, *return_inode, uid, isRO);
             return retc;
           }
         }
@@ -3342,12 +2584,11 @@ xrd_open (const char* path,
         eos_static_debug("opaque info not what we expected");
     }
     else
-      eos_static_err("failed get request for pio read. query was   %s  ,  response was   %s    and   error was    %s",arg.ToString().c_str(),response->ToString().c_str(),status.ToStr().c_str());
+      eos_static_err("failed get request for pio read");
   }
 
-  eos_static_debug("the spath is:%s", spath.c_str());
-  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
-                                                     eos::common::LayoutId::kXrdCl) , use_localtime_consistency);
+  eos::fst::Layout* file = new eos::fst::PlainLayout(NULL, 0, NULL, NULL,
+                                                     eos::common::LayoutId::kXrdCl);
   XrdOucString open_cgi = "eos.app=fuse";
 
   if (oflags & (O_RDWR | O_WRONLY))
@@ -3361,16 +2602,7 @@ xrd_open (const char* path,
     open_cgi += rdahead_window.c_str();
   }
 
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared)
-  {
-    open_cgi += "&";
-    open_cgi += xrd_strongauth_cgi(pid);
-  }
-
-  // check if the file already exist
-  if(xrd_stat(path,&buf,uid,gid,pid,0))
-    exists = false;
-  eos_static_debug("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str(), open_cgi.c_str(), (int)exists, (int)flags_sfs);
+  eos_static_debug("open_path=%s, open_cgi=%s", spath.c_str(), open_cgi.c_str());
   retc = 1;
   // upgrade the WRONLY open to RW
   if(flags_sfs | SFS_O_WRONLY)
@@ -3378,11 +2610,11 @@ xrd_open (const char* path,
     flags_sfs &= ~SFS_O_WRONLY;
     flags_sfs |= SFS_O_RDWR;
   }
-  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str(),exists?&buf:NULL,!lazy_open);
+  retc = file->Open(spath.c_str(), flags_sfs, mode, open_cgi.c_str());
 
   if (retc)
   {
-    eos_static_err("open failed for %s : error code is %d.", spath.c_str(),(int)errno);
+    eos_static_err("open failed for %s.", spath.c_str());
     delete file;
     return xrd_error_retc_map(errno);
   }
@@ -3398,19 +2630,17 @@ xrd_open (const char* path,
       ino_t new_ino = sino? (eos::common::FileId::Hex2Fid(sino) << 28): 0;
       if (old_ino && (old_ino != new_ino))
       {
-        if (new_ino)
-        {
 	// an inode of an existing file can be changed during the process of an open due to an auto-repair
 	std::ostringstream sstr_old;
 	std::ostringstream sstr_new;
-	sstr_old << old_ino << ":" << get_xrd_login(uid,gid,pid);
-	sstr_new << new_ino << ":" << get_xrd_login(uid,gid,pid);
+	sstr_old << old_ino << ":" << (unsigned long)uid;
+	sstr_new << new_ino << ":" << (unsigned long)gid;
 	{
 	  eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-	  if (inodexrdlogin2fds.count(sstr_old.str()))
+	  if (inodeuser2fds.count(sstr_old.str()))
 	  {
-	    inodexrdlogin2fds[sstr_new.str()] = inodexrdlogin2fds[sstr_old.str()];
-	    inodexrdlogin2fds.erase(sstr_old.str());
+	    inodeuser2fds[sstr_new.str()] = inodeuser2fds[sstr_old.str()];
+	    inodeuser2fds.erase(sstr_old.str());
 	  }
 	}
 
@@ -3423,22 +2653,13 @@ xrd_open (const char* path,
 	  eos_static_info("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
 	}
       }
-        else
-        {
-          eos_static_crit("new inode is null: cannot move old inode to new inode!");
-          errno = EBADR;
-          return errno;
-        }
-      }
 
       *return_inode = new_ino;
-
-      if(!exists && NSC) NSC->Forget(path);
-
+      
       eos_static_debug("path=%s opened ino=%lu", path, (unsigned long)*return_inode);
     }
 
-    retc = xrd_add_fd2file(file, *return_inode, uid, gid,pid, isRO,path);
+    retc = xrd_add_fd2file(file, *return_inode, uid, isRO, path);
 
     COMMONTIMING("end", &opentiming);
     
@@ -3455,9 +2676,9 @@ xrd_open (const char* path,
 // you can free up any temporarily allocated data structures.
 //------------------------------------------------------------------------------
 int
-xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
+xrd_close (int fildes, unsigned long inode, uid_t uid)
 {
-  eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode, uid, gid, pid);
+  eos_static_info("fd=%d inode=%lu, uid=%i", fildes, inode, uid);
   int ret = -1;
   FileAbstraction* fabst = xrd_get_file(fildes);
 
@@ -3475,7 +2696,7 @@ xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
   }
 
   // Close file and remove it from all mappings
-  ret = xrd_remove_fd2file(fildes, inode, uid, gid, pid);
+  ret = xrd_remove_fd2file(fildes, inode, uid);
 
   if (ret)
     errno = EIO;
@@ -3488,7 +2709,7 @@ xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
 // Flush file data to disk
 //------------------------------------------------------------------------------
 int
-xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
+xrd_flush (int fd)
 {
   int retc = 0;
   eos_static_info("fd=%d ", fd);
@@ -3504,6 +2725,7 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
   {
     fabst->mMutexRW.WriteLock();
     XFC->ForceAllWrites(fabst);
+    fabst->mMutexRW.UnLock();
     eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
     error_type error;
 
@@ -3512,26 +2734,6 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
       eos_static_info("Extract error from queue");
       retc = error.first;
     }
-
-    auto raw_file = fabst->GetRawFile();
-    if(raw_file->IsOpen())
-    {
-      int retc2 = raw_file->Close ();
-      eos_static_debug("temporarily closing file %s  returned  %d",raw_file->GetLastPath().c_str(),retc2);
-      if(retc2) retc=retc2;
-      struct timespec utimes[2];
-      const char* path = 0;
-      if ((path = fabst->GetUtimes (utimes)))
-      {
-        eos_static_debug("CLOSEDEBUG closing file %s open with flag %d and utiming",raw_file->GetOpenPath().c_str(),(int)raw_file->GetOpenFlags());
-        // run the utimes command now after the close
-        xrd_utimes (path, utimes, uid, gid, pid);
-      }
-      else
-        eos_static_debug("CLOSEDEBUG closing file %s open with flag %d and NOT utiming",raw_file->GetOpenPath().c_str(),(int)raw_file->GetOpenFlags());
-    }
-    fabst->mMutexRW.UnLock();
-
   }
 
   fabst->DecNumRef();
@@ -3564,7 +2766,7 @@ xrd_truncate (int fildes, off_t offset)
     return ret;
   }
 
-  LayoutWrapper* file = fabst->GetRawFile();
+  eos::fst::Layout* file = fabst->GetRawFile();
   if(!file)
   {
     errno = ENOENT;
@@ -3590,50 +2792,6 @@ xrd_truncate (int fildes, off_t offset)
   return ret;
 }
 
-//------------------------------------------------------------------------------
-// Truncate file
-//------------------------------------------------------------------------------
-int
-xrd_truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid)
-{
-  if (inode)
-  {
-    // Try to truncate via an open file - first find the file descriptor using the
-    // inodeuser2fd map and then find the file object using the fd2fabst map.
-    // Meanwhile keep the mutex locked for read so that no other thread can
-    // delete the file object
-    eos_static_debug("path=%s, uid=%lu, inode=%lu",
-                     fullpath, (unsigned long) uid, inode);
-    eos::common::RWMutexReadLock rd_lock(rwmutex_fd2fabst);
-    std::ostringstream sstr;
-    sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-    google::dense_hash_map<std::string, std::set<int>>::iterator
-      iter_fd = inodexrdlogin2fds.find(sstr.str());
-
-    if (iter_fd != inodexrdlogin2fds.end ())
-    {
-      for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
-        if (fd2count[*fdit] > 0) return xrd_truncate (*fdit, truncsize);
-    }
-    else
-      eos_static_debug("path=%s not open in rw", fullpath);
-  }
-
-  int fd, retc = -1;
-  unsigned long rinode;
-
-  if ((fd = xrd_open (fullpath, O_WRONLY,
-  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
-                      uid, gid, pid, &rinode)) > 0)
-  {
-    retc = xrd_truncate (fd, truncsize);
-    xrd_close (fd, rinode, uid, gid, pid);
-  }
-  else
-    retc = errno;
-
-  return retc;
-}
 
 //------------------------------------------------------------------------------
 // Read from file. Returns the number of bytes transferred, or 0 if offset
@@ -3661,7 +2819,7 @@ xrd_pread (int fildes,
     return ret;
   }
 
-  LayoutWrapper* file = isRW?fabst->GetRawFile():fabst->GetRawFileRO();
+  eos::fst::Layout* file = isRW?fabst->GetRawFile():fabst->GetRawFileRO();
 
   if (XFC && fuse_cache_write)
   {
@@ -3726,20 +2884,16 @@ xrd_pwrite (int fildes,
     return ret;
   }
 
-
   if (XFC && fuse_cache_write)
   {
     fabst->mMutexRW.ReadLock();
     XFC->SubmitWrite(fabst, const_cast<void*> (buf), offset, nbyte);
     fabst->mMutexRW.UnLock();
-    // to modify the timestamp
-    if(use_localtime_consistency)
-      fabst->GetRawFile()->Write(0, NULL, -1);
     ret = nbyte;
   }
   else
   {
-    LayoutWrapper* file = fabst->GetRawFile();
+    eos::fst::Layout* file = fabst->GetRawFile();
     ret = file->Write(offset, static_cast<const char*> (buf), nbyte);
 
     if (ret == -1)
@@ -3780,7 +2934,7 @@ xrd_fsync (int fildes)
     fabst->mMutexRW.UnLock();
   }
 
-  LayoutWrapper* file = fabst->GetRawFile();
+  eos::fst::Layout* file = fabst->GetRawFile();
   if(file)
     ret = file->Sync();
 
@@ -3803,20 +2957,14 @@ xrd_unlink (const char* path,
             pid_t pid)
 {
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Rm(path);
 
   if (xrd_error_retc_map(status.errNo))
     return errno;
   else
-  {
-    if(NSC) NSC->UpdateNoExist(path,ENOENT);
     return 0;
-  }
 }
 
 
@@ -3837,10 +2985,7 @@ xrd_rename (const char* oldpath,
   // XRootd move cannot deal with space in the path names
   sOldPath.replace(" ","#space#");
   sNewPath.replace(" ","#space#");
-  std::string surl=xrd_user_url(uid, gid, pid);
-  if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
-  surl += xrd_strongauth_cgi(pid);
-  XrdCl::URL Url(surl);
+  XrdCl::URL Url(xrd_user_url(uid, gid, pid));
   XrdCl::FileSystem fs(Url);
 
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
@@ -3848,54 +2993,80 @@ xrd_rename (const char* oldpath,
   if (xrd_error_retc_map(status.errNo))
     return errno;
   else
-  {
-    if(NSC) {
-      NSC->UpdateNoExist(oldpath,ENOENT);
-      NSC->Forget(newpath);
-    }
-
     return 0;
-  }
 }
 
-const char* xrd_strongauth_cgi (pid_t pid)
-{
-  XrdOucString str = "";
 
-  if (fuse_shared && (use_user_krb5cc || use_user_gsiproxy))
+//------------------------------------------------------------------------------
+// Get user name from the uid and change the effective user ID of the thread
+//------------------------------------------------------------------------------
+const char*
+xrd_mapuser (uid_t uid, gid_t gid, pid_t pid)
+{
+  eos_static_debug("uid=%lu gid=%lu pid=%lu",
+                   (unsigned long) uid,
+                   (unsigned long) gid,
+                   (unsigned long) pid);
+
+  XrdOucString sid = "";
+
+  if (uid == 0)
   {
-    char buffer[256];
-    buffer[0]=(char)0;
-    proccache_GetAuthMethod(pid,buffer,256);
-    std::string authmet(buffer);
-    if (authmet.compare (0, 5, "krb5:") == 0)
-    {
-      str += "xrd.k5ccname=";
-      str += (authmet.c_str()+5);
-      str += "&xrd.wantprot=krb5";
-    }
-    else if (authmet.compare (0, 5, "krk5:") == 0)
-    {
-      str += "xrd.k5ccname=";
-      str += (authmet.c_str()+5);
-      str += "&xrd.wantprot=krb5";
-    }
-    else if (authmet.compare (0, 5, "x509:") == 0)
-    {
-      str += "xrd.gsiusrpxy=";
-      str += authmet.c_str()+5;
-      str += "&xrd.wantprot=gsi";
-    }
-    else
-    {
-      eos_static_err("don't know what to do with qualifiedid [%s]", authmet.c_str ());
-      goto bye;
-    }
+    uid = gid = DAEMONUID;
   }
 
-  bye:
-  eos_static_debug("pid=%lu sep=%s", (unsigned long ) pid, str.c_str ());
-  return STRINGSTORE(str.c_str());
+  unsigned long long bituser=0;
+
+  // Emergency mapping of too high user ids to nob
+  if ( uid > 0xfffff) 
+  {
+    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                   "nobody\" uid=%u", uid);
+    uid = 99;
+  }
+  if ( gid > 0xffff)
+  {
+    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                   "nobody\" gid=%u", gid);
+    gid = 99;
+  }
+
+  bituser = (uid & 0xfffff);
+  bituser <<= 16;
+  bituser |= (gid & 0xffff);
+  bituser <<= 6;
+  {
+    XrdSysMutexHelper cLock(connectionIdMutex);
+    if (connectionId)
+      bituser |= (connectionId & 0x3f);
+  }
+
+  bituser = h_tonll(bituser);
+
+  XrdOucString sb64;
+  // WARNING: we support only one endianess flavour by doing this
+  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
+  size_t len = sb64.length();
+  // Remove the non-informative '=' in the end
+  if (len >2) 
+  {
+    sb64.erase(len-1);
+    len--;
+  }
+
+  // Reduce to 7 b64 letters
+  if (len > 7)
+    sb64.erase(0, len - 7);
+
+  sid = "*";
+  sid += sb64;
+
+  // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
+  // if necessary.
+  sid.replace('/', '_');
+  sid.replace('+', '-');
+  eos_static_debug("user-ident=%s", sid.c_str());
+  return STRINGSTORE(sid.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -3903,22 +3074,16 @@ const char* xrd_strongauth_cgi (pid_t pid)
 // - if we are a user private mount we don't need to specify that
 //------------------------------------------------------------------------------
 const char*
-xrd_user_url (uid_t uid, gid_t gid, pid_t pid)
+xrd_user_url (uid_t uid,
+              gid_t gid,
+              pid_t pid)
 {
-  std::string url = "root://";
+  XrdOucString url = "root://";
 
   if (fuse_shared)
   {
-    if (use_user_krb5cc || use_user_gsiproxy)
-    {
-      url += authidmanager.getXrdLogin(pid);
-        url += "@";
-    }
-    else
-    {
-      url += xrd_mapuser (uid, gid, pid,0);
-      url += "@";
-    }
+    url += xrd_mapuser(uid, gid, pid);
+    url += "@";
   }
 
   url += gMgmHost.c_str();
@@ -3933,14 +3098,12 @@ xrd_user_url (uid_t uid, gid_t gid, pid_t pid)
 
 
 //------------------------------------------------------------------------------
-// Cache that holds the mapping from a pid to a time stamp (to see if the cache needs
-// to be refreshed and bool to check if the operation needs to be denied.
+// Cache that holds just one element namely the mapping from a pid to a bool
 // variable which is true if this is a top level rm operation and false other-
 // wise. It is used by recursive rm commands which belong to the same pid in
 // order to decide if his operation is denied or not.
 //------------------------------------------------------------------------------
-eos::common::RWMutex mMapPidDenyRmMutex;
-std::map<pid_t, std::pair<time_t,bool> > mMapPidDenyRm;
+std::map<pid_t, bool> mMapPidDenyRm;
 
 //------------------------------------------------------------------------------
 // Decide if this is an 'rm -rf' command issued on the toplevel directory or
@@ -3948,64 +3111,37 @@ std::map<pid_t, std::pair<time_t,bool> > mMapPidDenyRm;
 //------------------------------------------------------------------------------
 int is_toplevel_rm(int pid, char* local_dir)
 {
-  eos_static_debug("is_toplevel_rm for pid %d and mountpoint %s",pid,local_dir);
-  if(rm_level_protect==0)
-    return 0;
-
-  time_t psstime;
-  if(proccache_GetPsStartTime(pid,&psstime))
-    eos_static_err("could not get process start time");
-
   // Check the cache
-  {
-    eos::common::RWMutexReadLock rlock (mMapPidDenyRmMutex);
-    auto it_map = mMapPidDenyRm.find (pid);
+  std::map<pid_t, bool>::iterator it_map = mMapPidDenyRm.find(pid);
 
-    if (it_map != mMapPidDenyRm.end ())
-    {
-      eos_static_debug("found an entry in the cache");
-      // if the cached denial is up to date, return it
-      if (psstime <= it_map->second.first)
-      {
-        eos_static_debug("found in cache pid=%i, rm_deny=%i", it_map->first, it_map->second.second);
-        if (it_map->second.second)
-        {
-          std::string cmd = gProcCache.GetEntry (pid)->GetArgsStr ();
-          eos_static_notice("rejected toplevel recursive deletion command %s", cmd.c_str ());
-        }
-        return (it_map->second.second ? 1 : 0);
-      }
-      eos_static_debug("the entry is oudated in cache %d, current %d", (int )it_map->second.first, (int )psstime);
-    }
+  if (it_map != mMapPidDenyRm.end())
+  {
+    eos_static_debug("found in cache pid=%i, rm_deny=%i", it_map->first,
+                    it_map->second);
+    return (it_map->second ? 1 : 0);
   }
 
-  // create an entry if it does not exist or if it's outdated
-  eos_static_debug("no entry found or outdated entry, creating entry with psstime %d",(int)psstime);
-  auto entry = std::make_pair(psstime,false);
+  mMapPidDenyRm.clear();
 
   // Try to print the command triggering the unlink
-  std::ostringstream oss;
-  const auto &cmdv = gProcCache.GetEntry(pid)->GetArgsVec();
-  std::string cmd = gProcCache.GetEntry(pid)->GetArgsStr();
-  std::set<std::string> rm_entries;
+  std::string token, rm_cmd;
+  std::set<std::string> rm_entries; // rm command argument entries
   std::set<std::string> rm_opt; // rm command options (long and short)
-  char exe[PATH_MAX];
-  oss.str("");
-  oss.clear();
-  oss << "/proc/" << pid << "/exe";
-  ssize_t len = readlink(oss.str().c_str(), exe, sizeof(exe) - 1);
-  if (len == -1)
+  std::ostringstream oss;
+  oss << "/proc/" << pid << "/cmdline";
+  std::ifstream infile(oss.str(), std::ios_base::binary | std::ios_base::in);
+  int count = 0;
+
+  while (std::getline(infile, token, '\0'))
   {
-    eos_static_err("error while reading cwd for path=%s", oss.str().c_str());
-    return 0;
-  }
-  exe[len] = '\0';
-  //std::string rm_cmd = *cmdv.begin();
-  std::string rm_cmd = exe;
-  std::string token;
-  for(auto it=cmdv.begin()+1; it!=cmdv.end();it++)
-  {
-    token = *it;
+    count ++;
+
+    if (count == 1)
+    {
+      rm_cmd = token;
+      continue;
+    }
+
     // Long option
     if (token.find("--") == 0)
     {
@@ -4026,6 +3162,9 @@ int is_toplevel_rm(int pid, char* local_dir)
       rm_entries.insert(token);
   }
 
+  infile.close();
+  eos_static_debug("command=%s", rm_cmd.c_str());
+
   for (std::set<std::string>::iterator it = rm_opt.begin();
        it != rm_opt.end(); ++it)
   {
@@ -4033,76 +3172,31 @@ int is_toplevel_rm(int pid, char* local_dir)
   }
 
   // Exit if this is not a recursive removal
-  auto fname  = rm_cmd.length()<2?rm_cmd:rm_cmd.substr(rm_cmd.length()-2,2);
-  bool isrm = rm_cmd.length()<=2?(fname=="rm"):( fname=="rm" && rm_cmd[rm_cmd.length()-3]=='/');
-  if ( !isrm ||
-      ( isrm &&
+  if ((rm_cmd != "rm") ||
+      (rm_cmd == "rm" &&
        rm_opt.find("r") == rm_opt.end() &&
        rm_opt.find("recursive") == rm_opt.end()))
   {
-    eos_static_debug("%s is not an rm command",rm_cmd.c_str());
-    mMapPidDenyRmMutex.LockWrite();
-    mMapPidDenyRm[pid] = entry;
-    mMapPidDenyRmMutex.UnLockWrite();
     return 0;
   }
 
-  // check that we dealing with the system rm command
-  bool skip_relpath = !rm_watch_relpath;
-  if( (!skip_relpath) && (rm_cmd!=rm_command) )
-  {
-    eos_static_warning("using rm command %s different from the system rm command %s : cannot watch recursive deletion on relative paths"
-        ,rm_cmd.c_str(),rm_command.c_str());
-    skip_relpath = true;
-  }
-
-  // get the current working directory
+  // Get mountpoint on the localhost
   oss.str("");
   oss.clear();
   oss << "/proc/" << pid << "/cwd";
-  char cwd[PATH_MAX];
-  len = readlink(oss.str().c_str(), cwd, sizeof(cwd) - 1);
+  size_t cwd_sz = 2056;
+  char cwd[cwd_sz];
+  ssize_t len = readlink(oss.str().c_str(), cwd, sizeof(cwd) - 1);
+
   if (len == -1)
   {
     eos_static_err("error while reading cwd for path=%s", oss.str().c_str());
+    mMapPidDenyRm[pid] = false;
     return 0;
   }
 
   cwd[len] = '\0';
   std::string scwd (cwd);
-
-  if (*scwd.rbegin() != '/')
-      scwd += '/';
-
-  // we are dealing with an rm command
-  {
-    std::set<std::string> rm_entries2;
-    for (auto it = rm_entries.begin (); it != rm_entries.end (); it++)
-    {
-      char resolved_path[PATH_MAX];
-      auto path2resolve = *it;
-      eos_static_debug("path2resolve %s", path2resolve.c_str());
-      if(path2resolve[0] != '/')
-      {
-        if(skip_relpath)
-          {
-          eos_static_debug("skipping recusive deletion check on command %s on relative path %s because rm command used is likely to chdir"
-              ,cmd.c_str(),path2resolve.c_str());
-          continue;
-          }
-        path2resolve = scwd + path2resolve;
-      }
-      if (myrealpath (path2resolve.c_str(), resolved_path,pid))
-      {
-        rm_entries2.insert (resolved_path);
-        eos_static_debug("path %s resolves to realpath %s", path2resolve.c_str (), resolved_path);
-      }
-      else
-        eos_static_warning("could not resolve path %s for top level recursive deletion protection", path2resolve.c_str ());
-
-    }
-    std::swap(rm_entries, rm_entries2);
-  }
 
   // Make sure both the cwd and local mount dir ends with '/'
   std::string mount_dir(local_dir);
@@ -4110,14 +3204,17 @@ int is_toplevel_rm(int pid, char* local_dir)
   if (*mount_dir.rbegin() != '/')
     mount_dir += '/';
 
+  if (*scwd.rbegin() != '/')
+    scwd += '/';
+
   // First check if the command was launched from a location inside the hierarchy
   // of the local mount point
-  eos_static_debug("cwd=%s, mount_dir=%s, skip_relpath=%d", scwd.c_str(), mount_dir.c_str(),skip_relpath?1:0);
+  eos_static_debug("cwd=%s, mount_dir=%s", scwd.c_str(), mount_dir.c_str());
   std::string rel_path;
   int level;
 
   // Detect remove from inside the mount point hierarchy
-  if (!skip_relpath && scwd.find(mount_dir) == 0)
+  if (scwd.find(mount_dir) == 0)
   {
     rel_path = scwd.substr(mount_dir.length());
     level = std::count(rel_path.begin(), rel_path.end(), '/') + 1;
@@ -4125,21 +3222,24 @@ int is_toplevel_rm(int pid, char* local_dir)
 
     if (level <= rm_level_protect)
     {
-      entry.second = true;
-      mMapPidDenyRmMutex.LockWrite();
-      mMapPidDenyRm[pid] = entry;
-      mMapPidDenyRmMutex.UnLockWrite();
-      eos_static_notice("rejected toplevel recursive deletion command %s",cmd.c_str());
+      mMapPidDenyRm[pid] = true;
       return 1;
     }
   }
 
-  // At this point, absolute path are used.
-  // Get the deepness level it reaches inside the EOS
+  // Check if the removal is done using full or relative paths and in either case
+  // construct the full path and get the deepness level it reaches inside the EOS
   // mount point so that we can take the right decision
   for (std::set<std::string>::iterator it = rm_entries.begin();
        it != rm_entries.end(); ++it)
   {
+    // Construct full path if relative path provided
+    if (it->at(0) != '/')
+    {
+      token = scwd;
+      token += *it;
+    }
+    else
       token = *it;
 
     if (token.find(mount_dir) == 0)
@@ -4151,11 +3251,7 @@ int is_toplevel_rm(int pid, char* local_dir)
 
       if (level <= rm_level_protect)
       {
-        entry.second = true;
-        mMapPidDenyRmMutex.LockWrite();
-        mMapPidDenyRm[pid] = entry;
-        mMapPidDenyRmMutex.UnLockWrite();
-        eos_static_notice("rejected toplevel recursive deletion command %s",cmd.c_str());
+        mMapPidDenyRm[pid] = true;
         return 1;
       }
     }
@@ -4168,19 +3264,13 @@ int is_toplevel_rm(int pid, char* local_dir)
 
       if (level <= rm_level_protect)
       {
-        entry.second = true;
-        mMapPidDenyRmMutex.LockWrite();
-        mMapPidDenyRm[pid] = entry;
-        mMapPidDenyRmMutex.UnLockWrite();
-        eos_static_notice("rejected toplevel recursive deletion command %s",cmd.c_str());
+        mMapPidDenyRm[pid] = true;
         return 1;
       }
     }
   }
 
-  mMapPidDenyRmMutex.LockWrite();
-  mMapPidDenyRm[pid] = entry;
-  mMapPidDenyRmMutex.UnLockWrite();
+  mMapPidDenyRm[pid] = false;
   return 0;
 }
 
@@ -4239,11 +3329,11 @@ xrd_init ()
   {
     fuse_shared = false; //eosfsd
     char logfile[1024];
-    if (getenv("EOS_FUSE_LOGFILE")) 
+    if (getenv("EOS_FUSE_LOGFILE"))
     {
       snprintf(logfile, sizeof ( logfile) - 1, "%s", getenv("EOS_FUSE_LOGFILE"));
     }
-    else 
+    else
     {
       snprintf(logfile, sizeof ( logfile) - 1, "/tmp/eos-fuse.%d.log", getuid());
     }
@@ -4286,19 +3376,19 @@ xrd_init ()
   path2inode.set_deleted_key("#__deleted__#");
 
   inode2path.set_empty_key(0);
-  inode2path.set_deleted_key(std::numeric_limits<unsigned long long>::max());
+  inode2path.set_deleted_key(0xffffffffll);
 
   dir2inodelist.set_empty_key(0);
-  dir2inodelist.set_deleted_key(std::numeric_limits<unsigned long long>::max());
+  dir2inodelist.set_deleted_key(0xffffffffll);
 
   dir2dirbuf.set_empty_key(0);
-  dir2dirbuf.set_deleted_key(std::numeric_limits<unsigned long long>::max());
+  dir2dirbuf.set_deleted_key(0xffffffffll);
 
   inode2cache.set_empty_key(0);
-  inode2cache.set_deleted_key(std::numeric_limits<unsigned long long>::max());
+  inode2cache.set_deleted_key(0xffffffffll);
 
-  inodexrdlogin2fds.set_empty_key("");
-  inodexrdlogin2fds.set_deleted_key("#__deleted__#");
+  inodeuser2fds.set_empty_key("");
+  inodeuser2fds.set_deleted_key("#__deleted__#");
 
   fd2fabst.set_empty_key(-1);
   fd2fabst.set_deleted_key(-2);
@@ -4338,21 +3428,6 @@ xrd_init ()
         rdahead_window = "131072"; // default 128
       }
     }
-  }
-
-  if (getenv("EOS_FUSE_LOCALTIMECONSISTENT") && (!strcmp(getenv("EOS_FUSE_LOCALTIMECONSISTENT"), "1")))
-  {
-    use_localtime_consistency = 1;
-  }
-
-  if (getenv("EOS_FUSE_LAZYOPENRO") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRO"), "1")))
-  {
-    lazy_open_ro = true;
-  }
-
-  if (getenv("EOS_FUSE_LAZYOPENRW") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRW"), "1")))
-  {
-    lazy_open_rw = true;
   }
 
   if ((getenv("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
@@ -4395,430 +3470,13 @@ xrd_init ()
       fuse_cache_write = true;
   }
 
-  // Initialise the NegStatCache
-  fuse_cache_negstat = false;
-
-  if ((!(getenv("EOS_FUSE_NEGSTATCACHE"))) ||
-      (getenv("EOS_FUSE_NEGSTATCACHE") && (!strcmp(getenv("EOS_FUSE_NEGSTATCACHE"), "0"))))
-  {
-    eos_static_notice("negstatcache=false");
-    NSC = NULL;
-  }
-  else
-  {
-    if (!getenv("EOS_FUSE_NEGSTATCACHE_SIZE"))
-      setenv("EOS_FUSE_NEGSTATCACHE_SIZE", "100000", 1); // 100k entries
-    if (!getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS"))
-      setenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS", "60000000000", 1); // 1 minute
-
-    eos_static_notice("negstatcache=true size=%s lifetime(nsec)=%s",
-                      getenv("EOS_FUSE_NEGSTATCACHE_SIZE"),
-                      getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS"));
-
-    NSC = new NegStatCache(
-        static_cast<size_t>(atol(getenv("EOS_FUSE_NEGSTATCACHE_SIZE"))) ,
-        static_cast<size_t>(atol(getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS")))
-        );
-  }
-
   // Get the number of levels in the top hierarchy protected agains deletions
   if (!getenv("EOS_FUSE_RMLVL_PROTECT"))
     rm_level_protect = 1;
   else
     rm_level_protect = atoi(getenv("EOS_FUSE_RMLVL_PROTECT"));
-  if(rm_level_protect)
-  {
-    rm_watch_relpath = false;
-    char rm_cmd[PATH_MAX];
-    FILE *f = popen("`which which` --skip-alias --skip-functions --skip-dot rm","r");
-    if(!f)
-    {
-      eos_static_err("could not run the system wide rm command procedure");
-    }
-    else if(!fscanf(f,"%s",rm_cmd))
-    {
-      pclose (f);
-      eos_static_err("cannot get rm command to watch");
-    }
-    else
-    {
-      pclose (f);
-      eos_static_notice("rm command to watch is %s", rm_cmd);
-      rm_command = rm_cmd;
-      char cmd[PATH_MAX+16];
-      sprintf(cmd,"%s --version",rm_cmd);
-      f = popen (cmd, "r");
-      if(!f)
-        eos_static_err("could not run the rm command to watch");
-      char *line = NULL;
-      size_t len = 0;
-      if ( f && getline (&line, &len, f)==-1)
-      {
-        pclose(f);
-        if(f) eos_static_err("could not read rm command version to watch");
-      }
-      else if (line)
-      {
-        pclose(f);
-        char *lasttoken = strrchr (line, ' ');
-        if (lasttoken)
-        {
-          float rmver;
-          if(!sscanf(lasttoken,"%f",&rmver))
-            eos_static_err("could not interpret rm command version to watch %s",lasttoken);
-          else
-          {
-            int rmmajv=floor(rmver);
-            eos_static_notice("top level recursive deletion command to watch is %s, version is %f, major version is %d",rm_cmd,rmver,rmmajv);
-            if(rmmajv>=8)
-            {
-              rm_watch_relpath = true;
-              eos_static_notice("top level recursive deletion CAN watch relative path removals");
-            }
-            else
-              eos_static_warning("top level recursive deletion CANNOT watch relative path removals");
-          }
-        }
-        free (line);
-      }
-    }
-  }
-
-  // Get parameters about strong authentication
-  if (getenv("EOS_FUSE_USER_KRB5CC") && (atoi(getenv("EOS_FUSE_USER_KRB5CC"))==1) )
-    use_user_krb5cc = true;
-  else
-    use_user_krb5cc = false;
-  if (getenv("EOS_FUSE_USER_GSIPROXY") && (atoi(getenv("EOS_FUSE_USER_GSIPROXY"))==1) )
-    use_user_gsiproxy = true;
-  else
-    use_user_gsiproxy = false;
-  if (getenv("EOS_FUSE_USER_KRB5FIRST") && (atoi(getenv("EOS_FUSE_USER_KRB5FIRST"))==1) )
-    tryKrb5First= true;
-  else
-    tryKrb5First = false;
-
-  // get uid and pid specificities of the system
-  {
-    FILE *f = fopen ("/proc/sys/kernel/pid_max", "r");
-    if (f && fscanf (f, "%lu", &pid_max))
-      eos_static_notice("pid_max is %llu", pid_max);
-    else
-    {
-      eos_static_err("could not read pid_max in /proc/sys/kernel/pid_max. defaulting to 32767");
-      pid_max = 32767;
-    }
-    if(f) fclose (f);
-    f = fopen ("/etc/login.defs", "r");
-    char line[4096];
-    line[0]='\0';
-    uid_max = 0;
-    while (f && fgets (line, sizeof(line), f))
-    {
-      if(line[0]=='#') continue; //commented line on the first character
-      auto keyword = strstr(line,"UID_MAX");
-      if(!keyword) continue;
-      auto comment_tag = strstr(line,"#");
-      if(comment_tag && comment_tag<keyword) continue; // commented line with the keyword
-      char buffer[4096];
-      if(sscanf(line,"%s %lu",buffer,&uid_max)!=2)
-      {
-	eos_static_err("could not parse line %s in /etc/login.defs",line);
-	uid_max = 0;
-	continue;
-      }
-      else
-	break;
-    }
-    if(uid_max)
-    {
-      eos_static_notice("uid_max is %llu",uid_max);
-    }
-    else
-    {
-      eos_static_err("could not read uid_max value in /etc/login.defs. defaulting to 65535");
-      uid_max = 65535;
-    }
-    if (f) fclose (f);
-  }
-  proccachemutexes.resize(pid_max+1);
-  authidmanager.pid2StrongLogin.resize(pid_max+1);
-
-  // Get parameters about strong authentication
-  if (getenv("EOS_FUSE_PIDMAP") && (atoi(getenv("EOS_FUSE_PIDMAP"))==1) )
-    link_pidmap = true;
-  else
-    link_pidmap = false;
-
-
-  eos_static_notice("krb5=%d",use_user_krb5cc?1:0);
 
   passwdstore = new XrdOucHash<XrdOucString > ();
   stringstore = new XrdOucHash<XrdOucString > ();
+  eos_static_notice("msg=\"fuse initalized\" url=%s", getenv("EOS_RDRURL"));
 }
-
-//------------------------------------------------------------------------------
-// this function is just to make it possible to use BSD realpath implementation
-//------------------------------------------------------------------------------
-size_t strlcat (char *dst, const char *src, size_t siz)
-{
-  register char *d = dst;
-  register const char *s = src;
-  register size_t n = siz;
-  size_t dlen;
-
-  /* Find the end of dst and adjust bytes left but don't go past end */
-  while (n-- != 0 && *d != '\0')
-    d++;
-  dlen = d - dst;
-  n = siz - dlen;
-
-  if (n == 0) return (dlen + strlen (s));
-  while (*s != '\0')
-  {
-    if (n != 1)
-    {
-      *d++ = *s;
-      n--;
-    }
-    s++;
-  }
-  *d = '\0';
-
-  return (dlen + (s - src)); /* count does not include NUL */
-}
-
-//------------------------------------------------------------------------------
-// this function is a workaround to avoid that
-// fuse calls itself while using realpath
-// that would require to trace back the user process which made the first call
-// to fuse. That would involve keeping track of fuse self call to stat
-// especially in is_toplevel_rm
-//------------------------------------------------------------------------------
-int mylstat (const char *__restrict name, struct stat *__restrict __buf, pid_t pid)
-{
-  std::string path (name);
-  if (path.find (local_mount_dir) == 0)
-  {
-    eos_static_debug("name=%%s\n", name);
-
-    uid_t uid;
-    gid_t gid;
-    if (proccache_GetFsUidGid (pid, &uid, &gid)) return ESRCH;
-
-    mutex_inode_path.LockRead ();
-    unsigned long long ino = path2inode.count (name) ? path2inode[name] : 0;
-    mutex_inode_path.UnLockRead ();
-    return xrd_stat (name, __buf, uid, gid, pid, ino);
-  }
-  else
-    return lstat (name, __buf);
-}
-
-//------------------------------------------------------------------------------
-// this is code from taken from BSD implementation
-// it was just made ok for C++ compatibility
-// and regular lstat was replaced with the above mylstat
-//------------------------------------------------------------------------------
-char *
-myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid)
-{
-  struct stat sb;
-  char *p, *q, *s;
-  size_t left_len, resolved_len;
-  unsigned symlinks;
-  int m, serrno, slen;
-  char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
-
-  if (path == NULL)
-  {
-    errno = EINVAL;
-    return (NULL);
-  }
-  if (path[0] == '\0')
-  {
-    errno = ENOENT;
-    return (NULL);
-  }
-  serrno = errno;
-  if (resolved == NULL)
-  {
-    resolved = (char*) malloc (PATH_MAX);
-    if (resolved == NULL) return (NULL);
-    m = 1;
-  }
-  else
-    m = 0;
-  symlinks = 0;
-  if (path[0] == '/')
-  {
-    resolved[0] = '/';
-    resolved[1] = '\0';
-    if (path[1] == '\0') return (resolved);
-    resolved_len = 1;
-    left_len = strlcpy (left, path + 1, sizeof(left));
-  }
-  else
-  {
-    if (getcwd (resolved, PATH_MAX) == NULL)
-    {
-      if (m)
-        free (resolved);
-      else
-      {
-        resolved[0] = '.';
-        resolved[1] = '\0';
-      }
-      return (NULL);
-    }
-    resolved_len = strlen (resolved);
-    left_len = strlcpy (left, path, sizeof(left));
-  }
-  if (left_len >= sizeof(left) || resolved_len >= PATH_MAX)
-  {
-    if (m) free (resolved);
-    errno = ENAMETOOLONG;
-    return (NULL);
-  }
-
-  /*
-   * Iterate over path components in `left'.
-   */
-  while (left_len != 0)
-  {
-    /*
-     * Extract the next path component and adjust `left'
-     * and its length.
-     */
-    p = strchr (left, '/');
-    s = p ? p : left + left_len;
-    if (s - left >= (int) sizeof(next_token))
-    {
-      if (m) free (resolved);
-      errno = ENAMETOOLONG;
-      return (NULL);
-    }
-    memcpy (next_token, left, s - left);
-    next_token[s - left] = '\0';
-    left_len -= s - left;
-    if (p != NULL) memmove (left, s + 1, left_len + 1);
-    if (resolved[resolved_len - 1] != '/')
-    {
-      if (resolved_len + 1 >= PATH_MAX)
-      {
-        if (m) free (resolved);
-        errno = ENAMETOOLONG;
-        return (NULL);
-      }
-      resolved[resolved_len++] = '/';
-      resolved[resolved_len] = '\0';
-    }
-    if (next_token[0] == '\0')
-      continue;
-    else if (strcmp (next_token, ".") == 0)
-      continue;
-    else if (strcmp (next_token, "..") == 0)
-    {
-      /*
-       * Strip the last path component except when we have
-       * single "/"
-       */
-      if (resolved_len > 1)
-      {
-        resolved[resolved_len - 1] = '\0';
-        q = strrchr (resolved, '/') + 1;
-        *q = '\0';
-        resolved_len = q - resolved;
-      }
-      continue;
-    }
-
-    /*
-     * Append the next path component and lstat() it. If
-     * lstat() fails we still can return successfully if
-     * there are no more path components left.
-     */
-    resolved_len = strlcat (resolved, next_token, PATH_MAX);
-    if (resolved_len >= PATH_MAX)
-    {
-      if (m) free (resolved);
-      errno = ENAMETOOLONG;
-      return (NULL);
-    }
-    if (mylstat (resolved, &sb, pid) != 0)
-    {
-      if (errno == ENOENT && p == NULL)
-      {
-        errno = serrno;
-        return (resolved);
-      }
-      if (m) free (resolved);
-      return (NULL);
-    }
-    if (S_ISLNK(sb.st_mode))
-    {
-      if (symlinks++ > MAXSYMLINKS)
-      {
-        if (m) free (resolved);
-        errno = ELOOP;
-        return (NULL);
-      }
-      slen = readlink (resolved, symlink, sizeof(symlink) - 1);
-      if (slen < 0)
-      {
-        if (m) free (resolved);
-        return (NULL);
-      }
-      symlink[slen] = '\0';
-      if (symlink[0] == '/')
-      {
-        resolved[1] = 0;
-        resolved_len = 1;
-      }
-      else if (resolved_len > 1)
-      {
-        /* Strip the last path component. */
-        resolved[resolved_len - 1] = '\0';
-        q = strrchr (resolved, '/') + 1;
-        *q = '\0';
-        resolved_len = q - resolved;
-      }
-
-      /*
-       * If there are any path components left, then
-       * append them to symlink. The result is placed
-       * in `left'.
-       */
-      if (p != NULL)
-      {
-        if (symlink[slen - 1] != '/')
-        {
-          if (slen + 1 >= (int) sizeof(symlink))
-          {
-            if (m) free (resolved);
-            errno = ENAMETOOLONG;
-            return (NULL);
-          }
-          symlink[slen] = '/';
-          symlink[slen + 1] = 0;
-        }
-        left_len = strlcat (symlink, left, sizeof(left));
-        if (left_len >= sizeof(left))
-        {
-          if (m) free (resolved);
-          errno = ENAMETOOLONG;
-          return (NULL);
-        }
-      }
-      left_len = strlcpy (left, symlink, sizeof(left));
-    }
-  }
-
-  /*
-   * Remove trailing slash except when the resolved pathname
-   * is a single "/".
-   */
-  if (resolved_len > 1 && resolved[resolved_len - 1] == '/') resolved[resolved_len - 1] = '\0';
-  return (resolved);
-}
-

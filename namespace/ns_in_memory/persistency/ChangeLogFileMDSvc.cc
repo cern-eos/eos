@@ -644,6 +644,8 @@ namespace eos
 //------------------------------------------------------------------------
 void ChangeLogFileMDSvc::initialize()
 {
+  pIdMap.resize(pResSize);
+
   if (!pContSvc)
   {
     MDException e(EINVAL);
@@ -857,6 +859,12 @@ void ChangeLogFileMDSvc::configure(
       if (pollInterval == 0) pollInterval = 1000;
     }
   }
+
+  it = config.find( "ns_size");
+  if ( it != config.end() )
+  {
+    pResSize = strtoull(it->second.c_str(), 0, 10);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -978,8 +986,31 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
 {
   IdMap::iterator it;
 
+  time_t start_time = time(0);
+  time_t now = start_time;
+  uint64_t cnt = 0;
+  uint64_t end = pIdMap.size();
+  size_t progress = 0;
+
+
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
-    visitor->visitFile(it->second.ptr);
+  {
+    cnt++;
+    visitor->visitFile( it->second.ptr );
+    if ( (100.0 * cnt / end ) > progress)
+      {
+        now = time(NULL);
+        double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));
+        if (progress==0)
+          fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate none \n", "file-visit",(unsigned int)progress);
+        else
+          fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.02fs\n", "file-visit", (unsigned int)progress, estimate);
+        progress += 10;
+      }
+  }
+  now = time(NULL);
+
+  fprintf(stderr,"ALERT    [ %-64s ] finnished in %ds\n", "file-visit", (int)(now-start_time));
 }
 
 //------------------------------------------------------------------------------
@@ -1008,6 +1039,7 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
   else if (type == DELETE_RECORD_MAGIC)
   {
     IFileMD::id_t id;
+
     buffer.grabData(0, &id, sizeof(IFileMD::id_t));
     IdMap::iterator it = pIdMap.find(id);
 

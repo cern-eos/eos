@@ -103,10 +103,15 @@ XrdMgmOfs::InitializeFileView ()
 
   try
   {
+    time_t t1 = time(0);
     eosView->initialize2();
+    time_t t2 = time(0);
     {
       eos::common::RWMutexWriteLock view_lock(eosViewRWMutex);
       eosView->initialize3();
+      time_t t3 = time(0);
+      eos_notice("eos file view initialize2: %d seconds", t2-t1);
+      eos_notice("eos file view initialize3: %d seconds", t3-t2);
 
       if (MgmMaster.IsMaster())
       {

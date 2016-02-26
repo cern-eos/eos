@@ -27,6 +27,7 @@
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 #include <iomanip>
+#include <limits>
 
 namespace
 {
@@ -139,7 +140,7 @@ namespace eos
     time_t            startTime = time( 0 );
     CompactingScanner scanner( map, feedback, stats, startTime );
     map.set_deleted_key( 0 );
-    map.set_empty_key( 0xffffffffffffffffll );
+    map.set_empty_key( std::numeric_limits<uint64_t>::max() );
     map.resize(10000000);
     inputFile.scanAllRecords( &scanner );
     stats.recordsKept = map.size();

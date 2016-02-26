@@ -514,6 +514,7 @@ namespace eos
   void ChangeLogContainerMDSvc::initialize()
   {
     // Decide on how to open the change log
+    pIdMap.resize(pResSize);
     int logOpenFlags = 0;
 
     if( pSlaveMode )
@@ -548,14 +549,33 @@ namespace eos
       IdMap::iterator it;
       ContainerList   orphans;
       ContainerList   nameConflicts;
+
+      time_t start_time = time(0);
+      time_t now = start_time;
+      size_t progress = 0;
+      uint64_t end = pIdMap.size();
+      uint64_t cnt=0;
       for( it = pIdMap.begin(); it != pIdMap.end(); ++it )
       {
         if( it->second.ptr )
           continue;
         recreateContainer( it, orphans, nameConflicts );
         notifyListeners( it->second.ptr , IContainerMDChangeListener::MTimeChange );
-      }
 
+	if ( (100.0 * cnt / end ) > progress) 
+	{
+	  now = time(0);
+	  double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));
+	  if (progress==0)
+	    fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate none \n", "container-attach",(unsigned int)progress);
+	  else
+	    fprintf(stderr,"PROGRESS [ %-64s ] %02u%% estimate %3.02fs\n", "container-attach", (unsigned int)progress, estimate);
+	  progress += 10;
+	}
+      }
+      now = time(0);
+      
+      fprintf(stderr,"ALERT    [ %-64s ] finnished in %ds\n", "container-attach", (int)(now-start_time));        
       // Deal with broken containers if we're not in the slave mode
       if( !pSlaveMode )
       {
@@ -681,6 +701,12 @@ namespace eos
         pollInterval = strtol( it->second.c_str(), 0, 0 );
         if( pollInterval == 0 ) pollInterval = 1000;
       }
+    }
+    
+    it = config.find( "ns_size" );
+    if ( it != config.end() )
+    {
+      pResSize = strtoull(it->second.c_str(), 0, 10);
     }
 
     pAutoRepair = false;

@@ -158,6 +158,9 @@ FuseWriteCache::SubmitWrite(FileAbstraction*& fabst,
     key = fabst->GenerateBlockKey(off);
     AddWrite(fabst, key, pBuf + written_off, off, len);
   }
+
+  // track the current size
+  fabst->TestMaxWriteOffset(off+len);
 }
 
 

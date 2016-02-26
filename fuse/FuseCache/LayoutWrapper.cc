@@ -302,11 +302,14 @@ int64_t LayoutWrapper::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSi
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
+
+#ifdef XROOTD4
 int64_t LayoutWrapper::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 {
   MakeOpen ();
   return mFile->ReadV (chunkList, len);
 }
+#endif
 
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class

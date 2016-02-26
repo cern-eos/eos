@@ -356,8 +356,8 @@ public:
   // ---------------------------------------------------------------------------
   FmdHandler() {
     SetLogId("CommonFmdHandler"); isOpen=false;
-    FmdSize.set_empty_key(0xfffffffe);
-    FmdSize.set_deleted_key(0xffffffff);
+    FmdSize.set_empty_key(std::numeric_limits<long long>::max()-1);
+    FmdSize.set_deleted_key(std::numeric_limits<long long>::max());
     ChangeLogFileName="";
     ChangeLogDir="";
   }

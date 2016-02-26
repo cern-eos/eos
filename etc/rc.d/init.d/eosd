@@ -55,6 +55,7 @@ start() {
         EOS_FUSE_MOUNTS="$1";
     fi  
     for i in ${EOS_FUSE_MOUNTS}; do
+        (
         # in any case, we make sure that there is no leftover in the environment from the previous iteration
         unset EOS_FUSE_DEBUG EOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_CACHE_WRITE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_LOCK_ENVIRONMENT EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LOG_PREFIX FUSE_OPT
         # then we use the values from the main /etc/sysconfig/eos config file (if any) as default values
@@ -99,8 +100,8 @@ start() {
         export EOS_FUSE_LAZYOPENRO=${EOS_FUSE_LAZYOPENRO-0}
         export EOS_FUSE_LAZYOPENRW=${EOS_FUSE_LAZYOPENRW-0}
         export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$i}
-        export EOS_FUSE_LOCALTIMECONSISTENT=${EOS_FUSE_LOCALTIMECONSISTENT-0}
-        [[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
+        export EOS_FUSE_LOCALTIMECONSISTENT=${EOS_FUSE_LOCALTIMECONSISTENT-1}
+         [[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
         # make sure that FUSE_OPT keeps the same default value
         export FUSE_OPT=${FUSE_OPT-"${FUSE_OPT_SAVE}"}
 
@@ -169,6 +170,7 @@ start() {
             RETVAL=1
             echo_warning
         fi
+        )
     done
 }
 

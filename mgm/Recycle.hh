@@ -189,6 +189,7 @@ public:
   static std::string gRecyclingTimeAttribute; //< attribute key defining the max. time a file stays in the garbage directory
   static std::string gRecyclingKeepRatio; //<  ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet cleaned even if files have expired their lifetime attribute 
   static std::string gRecyclingPostFix; //<  postfix which identifies a name in the garbage bin as a bulk deletion of a directory
+  static std::string gRecyclingVersionKey; //<  attribute key storing the recycling key of the version directory belonging to a given file
   static int gRecyclingPollTime; //< poll interval inside the garbage bin
 };
 

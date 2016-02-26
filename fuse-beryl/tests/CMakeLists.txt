@@ -1,12 +1,11 @@
-#!/bin/bash
-# ----------------------------------------------------------------------
-# File: eos-tty-broadcast
-# Author: Andreas-Joachim Peters - CERN
-# ----------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# File: CMakeLists.txt
+# Author: Elvin-Alin Sindrilaru <esindril@cern.ch> CERN
+# ------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2011 CERN/Switzerland                                  *
+# * Copyright (C) 2014 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -21,22 +20,36 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-tail -f $1 | while read line || [[ -n "$line" ]];do 
-  msg=`echo $line | egrep "$2"`   
-  if [ -n "$msg" ]; then 
-    for name in `ls /dev/pts/[0-9]*`; do 
-    alrt=`echo $line | egrep ALERT`;
-    progress=`echo $line | egrep PROGRESS`;
-    if [ -n "$alrt" ]; then 
-	echo -n -e "\n\033[47;34m\e[5m" "$msg" "\033[0m " > $name
-    else
-	if [ -n "$progress" ]; then
-	  echo -n -e "\n\033[47;32m\e[5m" "$msg" "\033[0m " > $name
-	else
-	  echo -n -e "\n\033[47;31m\e[5m" "$msg" "\033[0m " > $name
-	fi 
-    fi
 
-    done
-  fi
-done
+include_directories( ${CMAKE_SOURCE_DIR}
+	             ${CMAKE_CURRENT_SOURCE_DIR}
+                     ${CPPUNIT_INCLUDE_DIRS} )
+
+link_directories( ${CPPUNIT_LIBRARY} )
+
+add_library(
+  EosFuseTests MODULE
+  Namespace.hh
+  FuseFsTest.cc
+  FuseFileTest.cc
+  TestEnv.cc       TestEnv.hh )
+
+target_link_libraries(
+ EosFuseTests 
+ FuseCache-Static
+ ${CPPUNIT_LIBRARIES} )
+
+if ( Linux )
+  set_target_properties (
+    EosFuseTests 
+    PROPERTIES
+    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
+    SOVERSION ${VERSION_MAJOR}
+    CLEAN_DIRECT_OUTPUT 1 )
+endif( Linux )
+
+install( TARGETS EosFuseTests
+         LIBRARY DESTINATION ${LIB_INSTALL_DIR}
+         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+         ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+	  

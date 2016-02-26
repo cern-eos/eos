@@ -34,6 +34,7 @@
 #include <google/sparse_hash_map>
 #include <google/dense_hash_map>
 #include <list>
+#include <limits>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -53,11 +54,10 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   ChangeLogFileMDSvc():
       pFirstFreeId(1), pChangeLog(0), pSlaveLock(0),
       pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-      pFollowStart(0), pContSvc(0), pQuotaStats(0), pAutoRepair(0)
+      pFollowStart( 0 ), pContSvc( 0 ), pQuotaStats(0), pAutoRepair(0), pResSize(1000000)
   {
     pIdMap.set_deleted_key(0);
-    pIdMap.set_empty_key(0xffffffffffffffffll);
-    pIdMap.resize(1000000);
+    pIdMap.set_empty_key( std::numeric_limits<IFileMD::id_t>::max() );
     pChangeLog = new ChangeLogFile;
     pthread_mutex_init(&pFollowStartMutex, 0);
   }
@@ -265,6 +265,14 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   void setQuotaStats(IQuotaStats* quota_stats);
 
+  //------------------------------------------------------------------------
+  //! Get id map reservation size                                                                                                                            
+  //------------------------------------------------------------------------
+  uint64_t getResSize() const
+  {
+    return pResSize;
+  }
+
   //----------------------------------------------------------------------------
   //! Get changelog warning messages
   //!
@@ -343,6 +351,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   ChangeLogContainerMDSvc* pContSvc;
   IQuotaStats*       pQuotaStats;
   bool               pAutoRepair;
+  uint64_t           pResSize;
 };
 
 EOSNSNAMESPACE_END

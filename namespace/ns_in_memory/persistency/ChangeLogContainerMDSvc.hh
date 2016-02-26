@@ -37,6 +37,7 @@
 #include <list>
 #include <map>
 #include <pthread.h>
+#include <limits>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -57,11 +58,10 @@ class ChangeLogContainerMDSvc:
   //--------------------------------------------------------------------------
   ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
                              pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-                             pFollowStart(0), pQuotaStats(0), pAutoRepair(0)
+                             pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pResSize( 1000000 )
   {
     pIdMap.set_deleted_key(0);
-    pIdMap.set_empty_key(0xffffffffffffffffll);
-    pIdMap.resize(1000000);
+    pIdMap.set_empty_key( std::numeric_limits<IContainerMD::id_t>::max() );
     pChangeLog = new ChangeLogFile;
   }
 
@@ -265,6 +265,14 @@ class ChangeLogContainerMDSvc:
     pQuotaStats = quotaStats;
   }
 
+  //------------------------------------------------------------------------
+  //! Get id map reservation size
+  //------------------------------------------------------------------------
+  uint64_t getResSize() const 
+  {
+    return pResSize;
+  }
+
   //--------------------------------------------------------------------------
   //! Get changelog warning messages
   //!
@@ -353,6 +361,7 @@ class ChangeLogContainerMDSvc:
   uint64_t           pFollowStart;
   IQuotaStats*       pQuotaStats;
   bool               pAutoRepair;
+  uint64_t           pResSize;
 };
 
 EOSNSNAMESPACE_END
