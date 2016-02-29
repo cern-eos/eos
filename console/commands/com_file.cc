@@ -408,6 +408,26 @@ com_file (char* arg1)
     }
   }
 
+  if (cmd == "layout")
+  {
+    if (!path.length())
+      goto com_file_usage;
+    
+    in += "&mgm.subcmd=layout";
+    in += "&mgm.path=";
+    in += path;
+    if ( (fsid1 != "-stripes") && (fsid1 != "-checksum") )
+      goto com_file_usage;
+    if (!fsid2.length())
+      goto com_file_usage;
+    
+    if (fsid1 == "-stripes")
+      in += "&mgm.file.layout.stripes=";
+    if (fsid1 == "-checksum")
+      in += "&mgm.file.layout.ckecksum=";
+    in += fsid2;
+  }
+
   if (cmd == "workflow")
   {
     if (!path.length())
@@ -886,6 +906,9 @@ com_file_usage:
   fprintf(stdout, "                                                  convenience function aliasing to 'fileinfo' command\n");
   fprintf(stdout, "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -stripes <n> :\n");
   fprintf(stdout, "                                                  change the number of stripes of a file with replica layout to <n>\n");
+  fprintf(stdout, "file layout <path>|fid:<fid-dec>|fxid:<fid-hex>  -checksum <checksum-type> :\n");
+  fprintf(stdout, "                                                  change the checksum-type of a file to <checksum-type>\n");
+
   fprintf(stdout, "file move <path> <fsid1> <fsid2> :\n");
   fprintf(stdout, "                                                  move the file <path> from  <fsid1> to <fsid2>\n");
   fprintf(stdout, "file purge <path> [purge-version] :\n");

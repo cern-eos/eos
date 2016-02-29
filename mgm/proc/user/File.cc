@@ -97,9 +97,24 @@ ProcCommand::File ()
     if (mSubCmd == "layout")
     {
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
+      XrdOucString cksum = pOpaque->Get("mgm.file.layout.ckecksum");
+      int checksum_type = eos::common::LayoutId::kNone;
+
+      XrdOucString ne = "eos.layout.checksum=";
+      ne += cksum;
+      XrdOucEnv env(ne.c_str());
+
       int newstripenumber = 0;
       if (stripes.length()) newstripenumber = atoi(stripes.c_str());
-      if (!stripes.length() ||
+
+      if (!stripes.length() && !cksum.length())
+      {
+	stdErr = "error: you have to give a valid number of stripes"
+	  " as an argument to call 'file layout' or a valid checksum";
+	retc = EINVAL;
+      }
+      else
+      if (stripes.length() &&
           ((newstripenumber < (eos::common::LayoutId::kOneStripe + 1)) ||
           (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
       {
@@ -107,6 +122,14 @@ ProcCommand::File ()
                 " as an argument to call 'file layout'";
         retc = EINVAL;
       }
+      else 
+      if (cksum.length() && 
+	  ( ( checksum_type = eos::common::LayoutId::GetChecksumFromEnv(env)) == eos::common::LayoutId::kNone) )
+      {
+        stdErr = "error: you have to give a valid checksum typ0e"
+                " as an argument to call 'file layout'";
+        retc = EINVAL;	
+      }  
       else
       {
         // only root can do that
@@ -170,17 +193,24 @@ ProcCommand::File ()
                 eos::common::LayoutId::kReplica) ||
                 (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
                 eos::common::LayoutId::kPlain))
-            {
+	    {
+	      if (!cksum.length())
+		checksum_type = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
+	      if (!newstripenumber)
+		newstripenumber = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId());
+		  
               unsigned long newlayout =
                       eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
-                                                   eos::common::LayoutId::GetChecksum(fmd->getLayoutId()),
+                                                   checksum_type,
                                                    newstripenumber,
-                                                   eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())
+                                                   eos::common::LayoutId::GetBlocksizeType(fmd->getLayoutId())
                                                    );
 
               fmd->setLayoutId(newlayout);
-              stdOut += "success: setting new stripe number to ";
-              stdOut += newstripenumber;
+              stdOut += "success: setting layoutstripe number to ";
+              stdOut += (newstripenumber+1);
+	      stdOut += " and checksum-type to ";
+	      stdOut += cksum.c_str();
               stdOut += " for path=";
               stdOut += spath;
               // commit new layout
