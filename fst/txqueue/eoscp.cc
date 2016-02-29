@@ -556,7 +556,6 @@ main (int argc, char* argv[])
       break;
 
     case 'f':
-      doStoreRecovery = true;
       break;
 
     case 'x':
