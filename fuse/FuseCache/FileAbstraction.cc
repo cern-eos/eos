@@ -36,10 +36,12 @@
 FileAbstraction::FileAbstraction(const char* path) :
   mMutexRW(),
   mFd(-1),
-  mFile(NULL),
+  mFileRW(NULL),
   mFileRO(NULL),
-  mNoReferences(0),
-  mNumOpen(1),
+  mNoReferencesRW(0),
+  mNoReferencesRO(0),
+  mNumOpenRW(0),
+  mNumOpenRO(0),
   mSizeWrites(0),
   mPath(path),
   mMaxWriteOffset(0)
@@ -58,7 +60,7 @@ FileAbstraction::FileAbstraction(const char* path) :
 FileAbstraction::~FileAbstraction()
 {
   delete errorsQueue;
-  delete mFile;
+  delete mFileRW;
 }
 
 
@@ -159,10 +161,10 @@ FileAbstraction::GenerateBlockKey(off_t offset)
 // Increment the number of open requests
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncNumOpen()
+FileAbstraction::IncNumOpenRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNumOpen++;
+  mNumOpenRW++;
 }
 
 
@@ -170,21 +172,42 @@ FileAbstraction::IncNumOpen()
 // Decrement the number of open requests
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecNumOpen()
+FileAbstraction::DecNumOpenRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNumOpen--;
+  mNumOpenRW--;
 }
 
+
+//------------------------------------------------------------------------------
+// Increment the number of open requests
+//------------------------------------------------------------------------------
+void
+FileAbstraction::IncNumOpenRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNumOpenRO++;
+}
+
+
+//------------------------------------------------------------------------------
+// Decrement the number of open requests
+//------------------------------------------------------------------------------
+void
+FileAbstraction::DecNumOpenRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNumOpenRO--;
+}
 
 //------------------------------------------------------------------------------
 // Increment the number of references
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncNumRef()
+FileAbstraction::IncNumRefRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNoReferences++;
+  mNoReferencesRW++;
 }
 
 
@@ -192,23 +215,57 @@ FileAbstraction::IncNumRef()
 // Decrement the number of references
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecNumRef()
+FileAbstraction::DecNumRefRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNoReferences--;
+  mNoReferencesRW--;
+}
+
+//------------------------------------------------------------------------------
+// Increment the number of references
+//------------------------------------------------------------------------------
+void
+FileAbstraction::IncNumRefRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNoReferencesRO++;
 }
 
 
 //------------------------------------------------------------------------------
-// Test if file is in use
+// Decrement the number of references
+//------------------------------------------------------------------------------
+void
+FileAbstraction::DecNumRefRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNoReferencesRO--;
+}
+
+
+//------------------------------------------------------------------------------
+// Test if file is in use in RW
 //------------------------------------------------------------------------------
 bool
-FileAbstraction::IsInUse()
+FileAbstraction::IsInUseRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
-                   mSizeWrites, mNoReferences, mNumOpen);
-  return ((mNumOpen > 1) || (mSizeWrites) || (mNoReferences > 1));
+                   mSizeWrites, mNoReferencesRW, mNumOpenRW);
+  return ((mNumOpenRW > 1) || (mSizeWrites) || (mNoReferencesRW > 1));
+}
+
+
+//------------------------------------------------------------------------------
+// Test if file is in use in RW
+//------------------------------------------------------------------------------
+bool
+FileAbstraction::IsInUseRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
+                   mSizeWrites, mNoReferencesRO, mNumOpenRO);
+  return ((mNumOpenRO > 1) || (mNoReferencesRO > 1));
 }
 
 
