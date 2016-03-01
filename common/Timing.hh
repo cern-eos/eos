@@ -243,7 +243,11 @@ public:
     ts.tv_nsec = tv.tv_usec * 1000;
 #else
     if(coarse)
+#ifdef CLOCK_REALTIME_COARSE
       clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+#else
+      clock_gettime(CLOCK_REALTIME, &ts);
+#endif
     else
       clock_gettime(CLOCK_REALTIME, &ts);
 #endif
