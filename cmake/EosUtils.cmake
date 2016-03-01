@@ -38,6 +38,19 @@ function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
     list(GET VERSION_LIST 0 MAJOR)
     list(GET VERSION_LIST 1 MINOR)
     list(GET VERSION_LIST 2 PATCH)
+
+    # The patch could also contain the RELEASE value if this is a snapshot
+    string(FIND "${PATCH}" "-" POS)
+
+    if (NOT "${POS}" EQUAL "-1")
+      string(REPLACE "-" ";" PR_LIST ${PATCH})
+      list(GET PR_LIST 0 PATCH)
+
+      # Set RELEASE on if not already set
+      if ("${RELEASE}" STREQUAL "")
+        list(GET PR_LIST 1 RELEASE)
+      endif()
+    endif()
   endif()
 
   set(VERSION_MAJOR ${MAJOR} PARENT_SCOPE)

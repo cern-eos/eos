@@ -23,7 +23,8 @@ function getVersionFromLog()
     AWK=awk
   fi
 
-  VERSION="$(echo $@ | $AWK '{ gsub("-","",$1); print 0"."$1"."$4; }')"
+  TAG=$1
+  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); print tag"-dev"$1"git"$4; }')"
 
   if test $? -ne 0; then
     echo "unknown";
@@ -85,29 +86,41 @@ else
       exit 1
     fi
   else
-    # Can we match the exact tag?
-    git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
+   # Can we match the exact tag?
+   git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
 
-    if [[ ${?} -eq 0 ]]; then
-      TAG="$(git describe --tags --abbrev=0 --exact-match)"
-      EXP="[0-9]+\.[0-9]+\.[0-9]+$"
+   if [[ ${?} -eq 0 ]]; then
+     TAG="$(git describe --tags --abbrev=0 --exact-match)"
+     EXP="[0-9]+\.[0-9]+\.[0-9]+$"
 
-      # Check if tag respects the regular expression
-      VERSION="$(echo "${TAG}" | grep -E "${EXP}")"
+     # Check if tag respects the regular expression
+     VERSION="$(echo "${TAG}" | grep -E "${EXP}")"
+
+     if [[ ${?} -ne 0 ]]; then
+       echo "[!] Git tag \"${TAG}\" does not match the regex"
+       VERSION=""
+       exit 1
+     fi
+
+    else
+      # Get last tag to extract the major version number
+      LAST_TAG="$(git describe --tags --abbrev=0)"
 
       if [[ ${?} -ne 0 ]]; then
-	echo "[!] Git tag \"${TAG}\" does not match the regex"
+	echo "[!] Can not find last tag to build the commit version"
 	VERSION=""
 	exit 1
       fi
 
-    else
+      # Get last commit date and hash used to build the rest of the version
       LOGINFO="$(git log -1 --format='%ai %h')"
 
-      if [[ ${?} -eq 0 ]]; then
-	VERSION="$(getVersionFromLog $LOGINFO)"
+      if [[ ${?} -ne 0 ]]; then
+	echo "[!] Can not get info about last commit"
+	exit 1
       fi
 
+      VERSION="$(getVersionFromLog "$LAST_TAG" "$LOGINFO")"
     fi
   fi
 
