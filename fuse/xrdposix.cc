@@ -3465,9 +3465,6 @@ xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
   eos_static_info("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode, uid, gid, pid);
   int ret = -1;
 
-  eos::common::RWMutex *myOpenMutex = openmutexes + (inode&(n_open_mutexes-1));
-  eos::common::RWMutexWriteLock lock(*myOpenMutex);
-
   FileAbstraction* fabst = xrd_get_file(fildes);
 
   if (!fabst)
@@ -3483,8 +3480,13 @@ xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
     fabst->mMutexRW.UnLock();
   }
 
-  // Close file and remove it from all mappings
-  ret = xrd_remove_fd2file(fildes, inode, uid, gid, pid);
+  {
+    eos::common::RWMutex *myOpenMutex = openmutexes + (inode & (n_open_mutexes - 1));
+    eos::common::RWMutexWriteLock lock (*myOpenMutex);
+
+    // Close file and remove it from all mappings
+    ret = xrd_remove_fd2file (fildes, inode, uid, gid, pid);
+  }
 
   if (ret)
     errno = EIO;
