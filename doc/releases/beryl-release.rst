@@ -6,6 +6,9 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.151 Beryl_Aquamarine``
+- synchronize with CITRINE FUSE implementation 
+
 ``Version V0.3.150 Beryl_Aquamarine``
 - fix wrong mount-prefix handling for deepness>1
 
