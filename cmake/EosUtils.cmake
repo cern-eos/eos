@@ -46,7 +46,7 @@ function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
   set(VERSION "${MAJOR}.${MINOR}.${PATCH}" PARENT_SCOPE)
 
   if("${RELEASE}" STREQUAL "")
-    set(RELEASE "head")
+    set(RELEASE "1")
   endif()
 
   set(RELEASE ${RELEASE} PARENT_SCOPE)
