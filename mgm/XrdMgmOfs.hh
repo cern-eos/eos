@@ -1015,6 +1015,7 @@ public:
   ConfigEngine* ConfEngine; //< storing/restoring configuration
 
   XrdCapability* CapabilityEngine; //< authorization module for token encryption/decryption
+  uint64_t mCapabilityValidity; ///< Time in seconds the capability is valid
 
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject

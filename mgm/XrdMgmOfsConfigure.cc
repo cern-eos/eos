@@ -604,6 +604,22 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
           }
         }
 
+        if (!strcmp("capability_validity", var))
+        {
+          if ((val = Config.GetWord()))
+          {
+            Eroute.Say("=====> mgmofs.capability_validity: ", val, "");
+            try
+            {
+              mCapabilityValidity = std::stoi(std::string(val));
+            }
+            catch (std::exception& e)
+            {
+              mCapabilityValidity = 3600; // default 1 hour
+            }
+          }
+        }
+
         if (!strcmp("broker", var))
         {
           if (!(val = Config.GetWord()))

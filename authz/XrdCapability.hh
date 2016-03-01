@@ -95,9 +95,10 @@ public:
 
   XrdCapability(){}
 
-  static int                 Create(XrdOucEnv *inenv, XrdOucEnv* &outenv, eos::common::SymKey* symkey);
+  static int Create(XrdOucEnv *inenv, XrdOucEnv* &outenv,
+                    eos::common::SymKey* symkey, uint64_t cap_validity);
 
-  static int                 Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv);
+  static int Extract(XrdOucEnv *inenv, XrdOucEnv* &outenv);
 
   virtual                  ~XrdCapability();
 

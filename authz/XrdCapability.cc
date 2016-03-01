@@ -100,7 +100,8 @@ XrdCapability::Init()
 int
 XrdCapability::Create(XrdOucEnv *inenv, 
                       XrdOucEnv* &outenv, 
-                      eos::common::SymKey* key) 
+                      eos::common::SymKey* key,
+                      uint64_t cap_validity)
 {
   outenv = 0;
 
@@ -113,12 +114,10 @@ XrdCapability::Create(XrdOucEnv *inenv,
   int envlen;
   XrdOucString toencrypt = inenv->Env(envlen);
   
-  // ---------------------------------------------------------------------------
-  // add the validity time (1 hour)
-  // ---------------------------------------------------------------------------
+  // Add the validity time - default 1 hour
   toencrypt += "&cap.valid=";
   char validity[32];
-  snprintf(validity,32,"%u", (unsigned int) time(NULL) + 3600); 
+  snprintf(validity,32,"%lu", (unsigned int) time(NULL) + cap_validity);
   toencrypt += validity;
   XrdOucString encrypted="";
   

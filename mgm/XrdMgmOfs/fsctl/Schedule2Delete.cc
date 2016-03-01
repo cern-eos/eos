@@ -162,7 +162,8 @@
 	eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
 	int caprc = 0;
-	if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey)))
+	if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+                                              mCapabilityValidity)))
 	{
 	  eos_static_err("unable to create capability - errno=%u", caprc);
 	}
@@ -196,7 +197,8 @@
       eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
       int caprc = 0;
-      if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey)))
+      if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+                                            mCapabilityValidity)))
       {
 	eos_static_err("unable to create capability - errno=%u", caprc);
       }
