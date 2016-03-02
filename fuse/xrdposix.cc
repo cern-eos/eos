@@ -105,7 +105,8 @@ uint64_t pid_max;
 uint64_t uid_max;
 int connectionId = 0;
 
-const int n_open_mutexes = 4096;
+const int n_open_mutexes_nbits = 12;
+const int n_open_mutexes = 1<<n_open_mutexes_nbits;
 bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
 bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
 bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
@@ -3083,6 +3084,20 @@ xrd_error_retc_map (int retc)
 
   return 0;
 }
+//------------------------------------------------------------------------------
+// Open a file
+//------------------------------------------------------------------------------
+inline int get_open_idx ( const unsigned long long &inode)
+{
+  unsigned long long idx=0;
+  for(auto i=0; i<(int)sizeof(unsigned long long)*8; i+=n_open_mutexes_nbits)
+  {
+    idx^=((n_open_mutexes-1)&(inode>>i));
+  }
+  //eos_static_debug("inode=%lu  inode|=%lu  >>28|=%lu  xor=%lu",inode,inode&(n_open_mutexes-1),(inode>>28)&(n_open_mutexes-1),idx);
+
+  return (int)idx;
+}
 
 //------------------------------------------------------------------------------
 // Open a file
@@ -3105,7 +3120,7 @@ xrd_open (const char* path,
   bool isRO = (flags_sfs == SFS_O_RDONLY);
   eos::common::Timing opentiming ("xrd_open");
   COMMONTIMING("START", &opentiming);
-  eos::common::RWMutex *myOpenMutex = openmutexes +((*return_inode)&(n_open_mutexes-1));
+  eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx(*return_inode);
   eos::common::RWMutexWriteLock olock(*myOpenMutex);
 
   spath += path;
@@ -3485,7 +3500,7 @@ xrd_close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
   }
 
   {
-    eos::common::RWMutex *myOpenMutex = openmutexes + (inode & (n_open_mutexes - 1));
+    eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx(inode);
     eos::common::RWMutexWriteLock lock (*myOpenMutex);
 
     // Close file and remove it from all mappings
