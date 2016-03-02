@@ -792,13 +792,11 @@ public:
   //------------------------------------------------------------------------
   //! Snapshot filesystem.
   //------------------------------------------------------------------------
-
   bool SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock = true);
 
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.
   //------------------------------------------------------------------------
-
   void
   Print (std::string &out, std::string listformat)
   {

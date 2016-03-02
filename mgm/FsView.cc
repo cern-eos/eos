@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: FsView.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,21 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+#include <math.h>
 #include "mgm/FsView.hh"
+#include "common/StringConversion.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #ifndef EOSMGMFSVIEWTEST
 #include "mgm/GeoTreeEngine.hh"
 #endif
-#include "common/StringConversion.hh"
-#include "XrdSys/XrdSysTimer.hh"
-
-/*----------------------------------------------------------------------------*/
-#include <math.h>
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
 FsView FsView::gFsView;
 std::string FsSpace::gConfigQueuePrefix;
 std::string FsGroup::gConfigQueuePrefix;
@@ -48,27 +43,18 @@ bool FsSpace::gDisableDefaults = false;
 ConfigEngine* FsView::ConfEngine = 0;
 #endif
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Destructor
- *
- * This destructor destructs all the branches starting at this node
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor - destructs all the branches starting at this node
+//------------------------------------------------------------------------------
 GeoTreeElement::~GeoTreeElement()
 {
-  for(auto it=mSons.begin();it!=mSons.end();it++)
-  {
+  for (auto it = mSons.begin(); it != mSons.end(); it++)
     delete it->second;
-  }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Constructor
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
 GeoTree::GeoTree() : pLevels(8)
 {
   pLevels.resize(1);
@@ -79,163 +65,188 @@ GeoTree::GeoTree() : pLevels(8)
   pRoot->mFather = NULL;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Destructor
- *
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 GeoTree::~GeoTree()
 {
   delete pRoot;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Insert a FileSystem into the tree
- * @param fs the fsid of the FileSystem
- * @return true if success, false if failure
- */
-// ---------------------------------------------------------------------------
-bool GeoTree::insert(const fsid_t &fs)
+//------------------------------------------------------------------------------
+// @brief Insert a FileSystem into the tree
+// @param fs the fsid of the FileSystem
+// @return true if success, false if failure
+//------------------------------------------------------------------------------
+bool GeoTree::insert(const fsid_t& fs)
 {
-  if(pLeaves.count(fs))
-  return false;
+  if (pLeaves.count(fs))
+    return false;
 
   std::string geotag = getGeoTag(fs);
-
-  //tokenize the geotag (geo tag is like adas::acsd::csdw::fee)
+  // Tokenize the geotag (geo tag is like adas::acsd::csdw::fee)
   std::vector<std::string> geotokens;
   eos::common::StringConversion::EmptyTokenize(geotag, geotokens, ":");
   size_t s;
   s = geotokens.size();
-  for(size_t i=0; i<s; i++)
-  if(geotokens[i].size())
-  geotokens.push_back(geotokens[i]);
-  geotokens.erase(geotokens.begin(),geotokens.begin()+s);
-  if(geotokens.empty()) geotokens.push_back("");// geotag is not provided
 
-  tElement *father = pRoot;
-  std::string fulltag=pRoot->mFullTag;
-
-  // insert all the geotokens in the tree
-  tElement *currentnode=pRoot;
-  tElement *currentleaf=NULL;
-  for(int i = 0; i<(int)geotokens.size()-1; i++)
+  for (size_t i = 0; i < s; i++)
   {
-    const std::string & geotoken = geotokens[i];
-    if(currentnode->mSons.count(geotoken))
+    if (geotokens[i].size())
+      geotokens.push_back(geotokens[i]);
+  }
+
+  geotokens.erase(geotokens.begin(), geotokens.begin() + s);
+
+  if (geotokens.empty())
+    geotokens.push_back(""); // geotag is not provided
+
+  tElement* father = pRoot;
+  std::string fulltag = pRoot->mFullTag;
+  // Insert all the geotokens in the tree
+  tElement* currentnode = pRoot;
+  tElement* currentleaf = NULL;
+
+  for (int i = 0; i < (int)geotokens.size() - 1; i++)
+  {
+    const std::string& geotoken = geotokens[i];
+
+    if (currentnode->mSons.count(geotoken))
     {
       currentnode = father->mSons[geotoken];
-      if(!fulltag.empty()) fulltag += "::";
+
+      if (!fulltag.empty()) fulltag += "::";
+
       fulltag += geotoken;
     }
     else
     {
       currentnode = new tElement;
       currentnode->mTagToken = geotoken;
-      if(!fulltag.empty()) fulltag += "::";
+
+      if (!fulltag.empty()) fulltag += "::";
+
       fulltag += geotoken;
       currentnode->mFullTag = fulltag;
       currentnode->mFather = father;
       father->mSons[geotoken] = currentnode;
-      if((int)pLevels.size()<i+2) pLevels.resize(i+2);
-      pLevels[i+1].insert(currentnode);
+
+      if ((int)pLevels.size() < i + 2) pLevels.resize(i + 2);
+
+      pLevels[i + 1].insert(currentnode);
     }
+
     father = currentnode;
   }
 
-  // finally, insert the fs
-  if(!father->mSons.count(geotokens.back()))
+  // Finally, insert the fs
+  if (!father->mSons.count(geotokens.back()))
   {
     currentleaf = new tElement;
     currentleaf->mFather = father;
     currentleaf->mTagToken = geotokens.back();
-    if(!fulltag.empty()) fulltag += "::";
+
+    if (!fulltag.empty()) fulltag += "::";
+
     fulltag += geotokens.back();
     currentleaf->mFullTag = fulltag;
-    father->mSons[geotokens.back()]=currentleaf;
-    if(pLevels.size()<geotokens.size()+1) pLevels.resize(geotokens.size()+1);
+    father->mSons[geotokens.back()] = currentleaf;
+
+    if (pLevels.size() < geotokens.size() + 1) pLevels.resize(geotokens.size() + 1);
+
     pLevels[geotokens.size()].insert(currentleaf);
   }
   else
   {
-    //assert(father->mSons[geotokens.back()]->mIsLeaf);
+    // assert(father->mSons[geotokens.back()]->mIsLeaf);
     currentleaf = father->mSons[geotokens.back()];
   }
-  if(!currentleaf->mFsIds.count(fs))
+
+  if (!currentleaf->mFsIds.count(fs))
   {
     currentleaf->mFsIds.insert(fs);
     pLeaves[fs] = currentleaf;
   }
   else
-  return false;
+  {
+    return false;
+  }
+
   return true;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Number of FileSystems in the tree
- * @return the number of FileSystems in the tree
- */
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// @brief Number of FileSystems in the tree
+// @return the number of FileSystems in the tree
+//------------------------------------------------------------------------------
 size_t GeoTree::size() const
 {
   return pLeaves.size();
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Remove a FileSystem from the tree
- * @param fs the fsid of the FileSystem
- * @return true if success, false if failure
- */
-// ---------------------------------------------------------------------------
-bool GeoTree::erase(const fsid_t &fs)
+//------------------------------------------------------------------------------
+// @brief Remove a FileSystem from the tree
+// @param fs the fsid of the FileSystem
+// @return true if success, false if failure
+//------------------------------------------------------------------------------
+bool GeoTree::erase(const fsid_t& fs)
 {
-  tElement *leaf;
-  if(!pLeaves.count(fs))
-  return false;
-  else
-  leaf = pLeaves[fs];
-  pLeaves.erase(fs);
+  tElement* leaf;
 
+  if (!pLeaves.count(fs))
+    return false;
+  else
+    leaf = pLeaves[fs];
+
+  pLeaves.erase(fs);
   leaf->mFsIds.erase(fs);
-  tElement *father = leaf;
-  if(leaf->mFsIds.empty() && leaf->mSons.empty())
+  tElement* father = leaf;
+
+  if (leaf->mFsIds.empty() && leaf->mSons.empty())
   {
-    // compute the depth for the current father
-    int i,depth=-1;
-    for(i=(int)pLevels.size()-1;i>=0;i--)
-    if(pLevels[i].count(father))
+    // Compute the depth for the current father
+    int i, depth = -1;
+
+    for (i = (int)pLevels.size() - 1; i >= 0; i--)
     {
-      depth = i;
-      break;
+      if (pLevels[i].count(father))
+      {
+        depth = i;
+        break;
+      }
     }
-    assert(depth>=0); // consistency check
-    // go uproot until there is more than one branch
-    while(father->mFather && father->mFather->mSons.size()==1 && father->mFather->mFsIds.empty())
+
+    assert(depth >= 0); // consistency check
+
+    // Go uproot until there is more than one branch
+    while (father->mFather && father->mFather->mSons.size() == 1 &&
+           father->mFather->mFsIds.empty())
     {
-      if(father->mFather==pRoot) break;
+      if (father->mFather == pRoot) break;
+
       pLevels[depth--].erase(father);
-      // we don't update the father's sons list on purpose in order to keep the reference for the destruction
+      // We don't update the father's sons list on purpose in order to keep
+      // the reference for the destruction
       father = father->mFather;
     }
-    // erase the full branch
-    if(father->mFather)
-    father->mFather->mSons.erase(father->mTagToken);
+
+    // Erase the full branch
+    if (father->mFather)
+      father->mFather->mSons.erase(father->mTagToken);
+
     pLevels[depth].erase(father);
     delete father;
-
-    // update the pLevels size if needed
+    // Update the pLevels size if needed
     int count = 0;
-    for(auto it = pLevels.rbegin(); it != pLevels.rend(); it++)
+
+    for (auto it = pLevels.rbegin(); it != pLevels.rend(); it++)
     {
-      if(!it->empty())
+      if (!it->empty())
       {
-	if(count) pLevels.resize(pLevels.size()-count);
-	break;
+        if (count) pLevels.resize(pLevels.size() - count);
+        break;
       }
+
       count++;
     }
   }
@@ -243,38 +254,35 @@ bool GeoTree::erase(const fsid_t &fs)
   return true;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the geotag at which a file system is stored in the tree
- * @param fs the fsid of the FileSystem
- * @param geoTag returns the geotag if fs was found in the tree
- * @return true if success, false if failure
- */
-// ---------------------------------------------------------------------------
-bool GeoTree::getGeoTagInTree( const fsid_t &fs , std::string &geoTag )
+//------------------------------------------------------------------------------
+// @brief Get the geotag at which a file system is stored in the tree
+// @param fs the fsid of the FileSystem
+// @param geoTag returns the geotag if fs was found in the tree
+// @return true if success, false if failure
+//------------------------------------------------------------------------------
+bool GeoTree::getGeoTagInTree(const fsid_t& fs , std::string& geoTag)
 {
-
-  if(!pLeaves.count(fs))
-  return false;
+  if (!pLeaves.count(fs))
+    return false;
   else
-  geoTag = pLeaves[fs]->mFullTag;
+    geoTag = pLeaves[fs]->mFullTag;
 
   return true;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the geotag of FileSystem
- * @param fs the fsid of the FileSystem
- * @return return the geotag if found
- */
-// ---------------------------------------------------------------------------
-std::string GeoTree::getGeoTag(const fsid_t &fs) const
+//------------------------------------------------------------------------------
+// @brief Get the geotag of FileSystem
+// @param fs the fsid of the FileSystem
+// @return return the geotag if found
+//------------------------------------------------------------------------------
+std::string GeoTree::getGeoTag(const fsid_t& fs) const
 {
   return FsView::gFsView.mIdView[fs]->GetString("stat.geotag");
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// ++ operator
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
 {
   const_iterator it;
@@ -283,7 +291,9 @@ GeoTree::const_iterator GeoTree::const_iterator::operator++(int)
   return it;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// -- operator
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
 {
   const_iterator it;
@@ -292,7 +302,9 @@ GeoTree::const_iterator GeoTree::const_iterator::operator--(int)
   return it;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// ++ operator
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator++()
 {
   const_iterator it;
@@ -301,7 +313,9 @@ GeoTree::const_iterator GeoTree::const_iterator::operator++()
   return *this;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// -- operator
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::const_iterator::operator--()
 {
   const_iterator it;
@@ -310,26 +324,37 @@ GeoTree::const_iterator GeoTree::const_iterator::operator--()
   return *this;
 }
 
-// ---------------------------------------------------------------------------
-const eos::common::FileSystem::fsid_t & GeoTree::const_iterator::operator*() const
+//------------------------------------------------------------------------------
+// Pointer operator
+//------------------------------------------------------------------------------
+const eos::common::FileSystem::fsid_t&
+GeoTree::const_iterator::operator*() const
 {
   return mIt->first;
 }
 
-// ---------------------------------------------------------------------------
-GeoTree::const_iterator::operator const eos::common::FileSystem::fsid_t*() const
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+GeoTree::const_iterator::operator
+const eos::common::FileSystem::fsid_t* () const
 {
   return &mIt->first;
 }
 
-// ---------------------------------------------------------------------------
-const GeoTree::const_iterator & GeoTree::const_iterator::operator= (const const_iterator &it)
+//------------------------------------------------------------------------------
+// = operator
+//------------------------------------------------------------------------------
+const GeoTree::const_iterator&
+GeoTree::const_iterator::operator= (const const_iterator& it)
 {
   mIt = it.mIt;
   return *this;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// begin
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::begin() const
 {
   const_iterator it;
@@ -337,13 +362,17 @@ GeoTree::const_iterator GeoTree::begin() const
   return it;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// cbegin
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::cbegin() const
 {
   return begin();
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// end
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::end() const
 {
   const_iterator it;
@@ -351,284 +380,292 @@ GeoTree::const_iterator GeoTree::end() const
   return it;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// cend
+//------------------------------------------------------------------------------
 GeoTree::const_iterator GeoTree::cend() const
 {
   return end();
 }
 
-// ---------------------------------------------------------------------------
-GeoTree::const_iterator GeoTree::find(const fsid_t &fsid) const
+//------------------------------------------------------------------------------
+// Find
+//------------------------------------------------------------------------------
+GeoTree::const_iterator GeoTree::find(const fsid_t& fsid) const
 {
   const_iterator it;
   it.mIt = pLeaves.find(fsid);
   return it;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Run an aggregator through the tree
- * @param aggregator the aggregator to be run
- * @return true if success, false if failure
- *
- * At any depth level, the aggregator is fed ONLY with the data
- * of the ONE deeper level in the tree
- */
-// ---------------------------------------------------------------------------
-bool GeoTree::runAggregator( GeoTreeAggregator *aggregator ) const
+//------------------------------------------------------------------------------
+// @brief Run an aggregator through the tree
+// @param aggregator the aggregator to be run
+// @return true if success, false if failure
+//
+// At any depth level, the aggregator is fed ONLY with the data
+// of the ONE deeper level in the tree
+//------------------------------------------------------------------------------
+bool GeoTree::runAggregator(GeoTreeAggregator* aggregator) const
 {
-  if(pLevels.empty()) return false;
-  // build the GeoTags and the depth indexes
+  if (pLevels.empty())
+    return false;
+
+  // Build the GeoTags and the depth indexes
   size_t elemCount = 0;
   std::vector<std::string> geotags;
   std::vector<size_t> depthlevelsendindexes;
-  for(auto itl = pLevels.begin(); itl!=pLevels.end();itl++)
+
+  for (auto itl = pLevels.begin(); itl != pLevels.end(); itl++)
   {
-    geotags.resize(geotags.size()+itl->size());
-    for(auto ite = itl->rbegin(); ite!=itl->rend(); ite++)
+    geotags.resize(geotags.size() + itl->size());
+
+    for (auto ite = itl->rbegin(); ite != itl->rend(); ite++)
     {
       // could be made faster and more complex but probably not necessary for the moment
       geotags[elemCount] = (*ite)->mTagToken;
-      GeoTreeElement *element = *ite;
-      while(element->mFather)
+      GeoTreeElement* element = *ite;
+
+      while (element->mFather)
       {
         element = element->mFather;
-        geotags[elemCount] = element->mTagToken+"::"+geotags[elemCount];
+        geotags[elemCount] = element->mTagToken + "::" + geotags[elemCount];
       }
+
       elemCount++;
     }
+
     depthlevelsendindexes.push_back(elemCount);
   }
 
-  aggregator->init(geotags,depthlevelsendindexes);
-
+  aggregator->init(geotags, depthlevelsendindexes);
   elemCount--;
 
-  for(auto itl = pLevels.rbegin(); itl!=pLevels.rend();itl++)
+  for (auto itl = pLevels.rbegin(); itl != pLevels.rend(); itl++)
   {
-    for(auto ite = itl->begin(); ite!=itl->end(); ite++)
+    for (auto ite = itl->begin(); ite != itl->end(); ite++)
     {
       (*ite)->mId = elemCount;
-      if(!aggregator->aggregateLeavesAndNodes((*ite)->mFsIds,(*ite)->mSons,elemCount--))
-      return false;
+
+      if (!aggregator->aggregateLeavesAndNodes((*ite)->mFsIds, (*ite)->mSons,
+                                               elemCount--))
+        return false;
     }
   }
 
   return true;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Recursive debug helper function to display the tree
- * @param el the tree element to start the display from
- * @param fullgeotag the full geotag of the element
- */
-// ---------------------------------------------------------------------------
-char* GeoTree::dumpTree(char *buffer, GeoTreeElement*el, std::string fullgeotag) const
+//------------------------------------------------------------------------------
+// @brief Recursive debug helper function to display the tree
+// @param el the tree element to start the display from
+// @param fullgeotag the full geotag of the element
+//------------------------------------------------------------------------------
+char* GeoTree::dumpTree(char* buffer, GeoTreeElement* el,
+                        std::string fullgeotag) const
 {
-  if(!el->mFsIds.empty())
+  if (!el->mFsIds.empty())
   {
-    auto &fsids = el->mFsIds;
-    buffer+=sprintf(buffer,"%s%s\n",fullgeotag.c_str(),el->mTagToken.c_str());
-    buffer+=sprintf(buffer,"mFsIds\n");
-    for(auto fsit=fsids.begin(); fsit!=fsids.end(); fsit++)
+    auto& fsids = el->mFsIds;
+    buffer += sprintf(buffer, "%s%s\n", fullgeotag.c_str(), el->mTagToken.c_str());
+    buffer += sprintf(buffer, "mFsIds\n");
+
+    for (auto fsit = fsids.begin(); fsit != fsids.end(); fsit++)
     {
-      buffer+=sprintf(buffer,"%d  ",*fsit);
+      buffer += sprintf(buffer, "%d  ", *fsit);
     }
-    if(fsids.begin()!=fsids.end()) buffer+=sprintf(buffer,"\n");
+
+    if (fsids.begin() != fsids.end())
+      buffer += sprintf(buffer, "\n");
   }
   else
   {
     fullgeotag += el->mTagToken;
     fullgeotag += "   ";
-    auto &sons = el->mSons;
-    for(auto it=sons.cbegin();it!=sons.cend();it++)
-    buffer=dumpTree(buffer,it->second, fullgeotag);
+    auto& sons = el->mSons;
+
+    for (auto it = sons.cbegin(); it != sons.cend(); it++)
+      buffer = dumpTree(buffer, it->second, fullgeotag);
   }
+
   return buffer;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Debug helper function to display the leaves in the tree
- */
-// ---------------------------------------------------------------------------
-char* GeoTree::dumpLeaves(char*buffer) const
+//------------------------------------------------------------------------------
+// Debug helper function to display the leaves in the tree
+//------------------------------------------------------------------------------
+char* GeoTree::dumpLeaves(char* buffer) const
 {
-  for(auto it=pLeaves.begin(); it!=pLeaves.end(); it++ )
+  for (auto it = pLeaves.begin(); it != pLeaves.end(); it++)
   {
-    buffer+=sprintf(buffer,"%d %s\n",it->first,it->second->mFullTag.c_str());
-    buffer+=sprintf(buffer,"@mLeaves@mFsIds\n");
+    buffer += sprintf(buffer, "%d %s\n", it->first, it->second->mFullTag.c_str());
+    buffer += sprintf(buffer, "@mLeaves@mFsIds\n");
   }
+
   return buffer;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Debug helper function to display the elements of the tree sorted by levels
- */
-// ---------------------------------------------------------------------------
-char* GeoTree::dumpLevels(char *buffer) const
+//------------------------------------------------------------------------------
+// Debug helper function to display the elements of the tree sorted by levels
+//------------------------------------------------------------------------------
+char* GeoTree::dumpLevels(char* buffer) const
 {
   int level = 0;
-  for(auto it=pLevels.begin(); it!=pLevels.end(); it++)
+
+  for (auto it = pLevels.begin(); it != pLevels.end(); it++)
   {
-    buffer+=sprintf(buffer,"level %d (%lu)\n",level++,it->size());
-    for(auto it2=it->begin();it2!=it->end();it2++)
+    buffer += sprintf(buffer, "level %d (%lu)\n", level++, it->size());
+
+    for (auto it2 = it->begin(); it2 != it->end(); it2++)
     {
-      buffer+=sprintf(buffer,"%s\t",(*it2)->mFullTag.c_str());
+      buffer += sprintf(buffer, "%s\t", (*it2)->mFullTag.c_str());
     }
-    buffer+=sprintf(buffer,"\n");
+
+    buffer += sprintf(buffer, "\n");
   }
+
   return buffer;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Debug helper function to display all the content of the tree
- */
-// ---------------------------------------------------------------------------
-char* GeoTree::dump(char *buffer) const
+//------------------------------------------------------------------------------
+// @brief Debug helper function to display all the content of the tree
+//------------------------------------------------------------------------------
+char* GeoTree::dump(char* buffer) const
 {
-  buffer+=sprintf(buffer,"@mRoot\n");
-  buffer=dumpTree(buffer,pRoot);
-  buffer+=sprintf(buffer,"@mLeaves\n");
-  buffer=dumpLeaves(buffer);
-  buffer+=sprintf(buffer,"@mLevels\n");
-  buffer=dumpLevels(buffer);
+  buffer += sprintf(buffer, "@mRoot\n");
+  buffer = dumpTree(buffer, pRoot);
+  buffer += sprintf(buffer, "@mLeaves\n");
+  buffer = dumpLeaves(buffer);
+  buffer += sprintf(buffer, "@mLevels\n");
+  buffer = dumpLevels(buffer);
   return buffer;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the sums at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<double> * DoubleAggregator::getSums() const
+//------------------------------------------------------------------------------
+// @brief Get the sums at each tree element
+//------------------------------------------------------------------------------
+const std::vector<double>* DoubleAggregator::getSums() const
 {
   return &pSums;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the averages at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<double> * DoubleAggregator::getMeans() const
+//------------------------------------------------------------------------------
+// @brief Get the averages at each tree element
+//------------------------------------------------------------------------------
+const std::vector<double>* DoubleAggregator::getMeans() const
 {
   return &pMeans;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the maximum deviations at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<double> * DoubleAggregator::getMaxAbsDevs() const
+//------------------------------------------------------------------------------
+// @brief Get the maximum deviations at each tree element
+//------------------------------------------------------------------------------
+const std::vector<double>* DoubleAggregator::getMaxAbsDevs() const
 {
   return &pMaxAbsDevs;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the standard deviations at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<double> * DoubleAggregator::getStdDevs() const
+//------------------------------------------------------------------------------
+// @brief Get the standard deviations at each tree element
+//------------------------------------------------------------------------------
+const std::vector<double>* DoubleAggregator::getStdDevs() const
 {
   return &pStdDevs;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the geotags at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<std::string> * DoubleAggregator::getGeoTags() const
+//------------------------------------------------------------------------------
+// Get the geotags at each tree element
+//------------------------------------------------------------------------------
+const std::vector<std::string>* DoubleAggregator::getGeoTags() const
 {
   return &pGeoTags;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the end index (excluded) for a given depth level
- * @param depth the maximum depth to be reached (-1 for unlimited)
- * @return the index of the first element in the vectors being deeper that depth
- *
- */
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// @brief Get the end index (excluded) for a given depth level
+// @param depth the maximum depth to be reached (-1 for unlimited)
+// @return the index of the first element in the vectors being deeper that depth
+//------------------------------------------------------------------------------
 size_t DoubleAggregator::getEndIndex(int depth) const
 {
-  if(depth<0 || depth>(int)pDepthLevelsIndexes.size()-1)
-  depth=pDepthLevelsIndexes.size()-1;
+  if (depth < 0 || depth > (int)pDepthLevelsIndexes.size() - 1)
+    depth = pDepthLevelsIndexes.size() - 1;
+
   return pDepthLevelsIndexes[depth];
 };
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Constructor
- * @param param Name of the parameter statistics have to be computed for
- *
- */
-// ---------------------------------------------------------------------------
-DoubleAggregator::DoubleAggregator(const char *param) : pParam(param), pView(NULL)
+//------------------------------------------------------------------------------
+// @brief Constructor
+// @param param Name of the parameter statistics have to be computed for
+//------------------------------------------------------------------------------
+DoubleAggregator::DoubleAggregator(const char* param):
+    pParam(param), pView(NULL)
 {}
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Destructor
- *
- */
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 DoubleAggregator::~DoubleAggregator()
 {}
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Set the view ordering the statistics. Needs to be set before running the aggregator
- * @param view Pointer to the view ordering the statistics
- *
- */
-// ---------------------------------------------------------------------------
-void DoubleAggregator::setView(BaseView *view)
+//------------------------------------------------------------------------------
+// @brief Set the view ordering the statistics. Needs to be set before running
+// the aggregator.
+// @param view Pointer to the view ordering the statistics
+//------------------------------------------------------------------------------
+void DoubleAggregator::setView(BaseView* view)
 {
   pView = view;
 }
 
-// --------------------------------------------------------
-bool DoubleAggregator::init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes)
+//------------------------------------------------------------------------------
+// Initialize
+//------------------------------------------------------------------------------
+bool
+DoubleAggregator::init(const std::vector<std::string>& geotags,
+                       const std::vector<size_t>& depthLevelsIndexes)
 {
-  // check that the view is defined. It's necessary for the subsequent calls to AggregateXXX
+  // Check that the view is defined, this is necessary for the subsequent calls
+  // to AggregateXXX.
   assert(pView);
   pGeoTags = geotags;
   pDepthLevelsIndexes = depthLevelsIndexes;
   return true;
 }
 
-// --------------------------------------------------------
-bool DoubleAggregator::aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)
+//------------------------------------------------------------------------------
+// Aggregate leaves
+//------------------------------------------------------------------------------
+bool
+DoubleAggregator::aggregateLeaves(
+    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx)
 {
-  // the following should happen only at the first call
-  if((int)idx>(int)pMeans.size()-1)
+  // The following should happen only at the first call
+  if ((int)idx > (int)pMeans.size() - 1)
   {
-    pSums.resize(idx+1);
-    pMeans.resize(idx+1);
-    pMaxDevs.resize(idx+1);
-    pMinDevs.resize(idx+1);
-    pMaxAbsDevs.resize(idx+1);
-    pStdDevs.resize(idx+1);
-    pNb.resize(idx+1);
+    pSums.resize(idx + 1);
+    pMeans.resize(idx + 1);
+    pMaxDevs.resize(idx + 1);
+    pMinDevs.resize(idx + 1);
+    pMaxAbsDevs.resize(idx + 1);
+    pStdDevs.resize(idx + 1);
+    pNb.resize(idx + 1);
   }
 
-  pNb[idx] = pView->ConsiderCount(false,&leaves);
-  if(pNb[idx])
+  pNb[idx] = pView->ConsiderCount(false, &leaves);
+
+  if (pNb[idx])
   {
-  pSums[idx] = pView->SumDouble(pParam.c_str(),false,&leaves);
-  pMeans[idx] = pView->AverageDouble(pParam.c_str(),false,&leaves);
-    pMaxDevs[idx] = (pNb[idx]==1)?0:pView->MaxDeviation(pParam.c_str(),false,&leaves);
-    pMinDevs[idx] = (pNb[idx]==1)?0:pView->MinDeviation(pParam.c_str(),false,&leaves);
-    pStdDevs[idx] = (pNb[idx]==1)?0:pView->SigmaDouble(pParam.c_str(),false,&leaves);
-    pMaxAbsDevs[idx] = (pNb[idx]==1)?0:std::max(abs(pMaxDevs[idx]),abs(pMinDevs[idx]));
+    pSums[idx] = pView->SumDouble(pParam.c_str(), false, &leaves);
+    pMeans[idx] = pView->AverageDouble(pParam.c_str(), false, &leaves);
+    pMaxDevs[idx] = (pNb[idx] == 1) ? 0 : pView->MaxDeviation(pParam.c_str(), false,
+                                                              &leaves);
+    pMinDevs[idx] = (pNb[idx] == 1) ? 0 : pView->MinDeviation(pParam.c_str(), false,
+                                                              &leaves);
+    pStdDevs[idx] = (pNb[idx] == 1) ? 0 : pView->SigmaDouble(pParam.c_str(), false,
+                                                             &leaves);
+    pMaxAbsDevs[idx] = (pNb[idx] == 1) ? 0 : std::max(abs(pMaxDevs[idx]),
+                                                      abs(pMinDevs[idx]));
   }
   else
   {
@@ -639,65 +676,72 @@ bool DoubleAggregator::aggregateLeaves(const std::set<eos::common::FileSystem::f
     pStdDevs[idx] = 0;
     pMaxAbsDevs[idx] = 0;
   }
-  return true;
-};
 
-// --------------------------------------------------------
-bool DoubleAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf)
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Aggregate nodes
+//------------------------------------------------------------------------------
+bool
+DoubleAggregator::aggregateNodes(
+    const std::map<std::string , GeoTreeElement*>& nodes,
+    const size_t& idx, bool includeSelf)
 {
-  double pS,pM,pMAD,pSD,pMiD,pMaD;
+  double pS, pM, pMAD, pSD, pMiD, pMaD;
   pS = pM = pMAD = pSD = 0;
   pMiD = DBL_MAX;
   pMaD = -DBL_MAX;
   long long pN = 0;
-  for(auto it = nodes.begin(); it!=nodes.end(); it++)
+
+  for (auto it = nodes.begin(); it != nodes.end(); it++)
   {
     size_t i = it->second->mId;
     pS += pSums[i];
     pN += pNb[i];
   }
-  if(pN) pM = pS / pN;
-  for(auto it = nodes.begin(); it!=nodes.end(); it++)
+
+  if (pN) pM = pS / pN;
+
+  for (auto it = nodes.begin(); it != nodes.end(); it++)
   {
     size_t i = it->second->mId;
-    if(pNb[i]) // consider this only if there is something there
+
+    if (pNb[i]) // consider this only if there is something there
     {
-      pMiD =std::min(
-	  pMiD,
-	  std::min( (pMinDevs[i]+pMeans[i])-pM , (pMaxDevs[i]+pMeans[i])-pM )
-    );
-      pMaD =std::max(
-	  pMaD,
-	  std::max( (pMinDevs[i]+pMeans[i])-pM , (pMaxDevs[i]+pMeans[i])-pM )
-    );
-      pSD += pNb[i]*(pStdDevs[i]*pStdDevs[i] + pMeans[i]*pMeans[i]);
-  }
-  }
-  if(pN)
-  {
-    pSD = sqrt(pSD / pN - pM*pM);
-    pMAD = std::max( fabs(pMaD) , fabs(pMiD));
+      pMiD = std::min(pMiD,
+                      std::min((pMinDevs[i] + pMeans[i]) - pM , (pMaxDevs[i] + pMeans[i]) - pM));
+      pMaD = std::max(pMaD,
+                      std::max((pMinDevs[i] + pMeans[i]) - pM , (pMaxDevs[i] + pMeans[i]) - pM));
+      pSD += pNb[i] * (pStdDevs[i] * pStdDevs[i] + pMeans[i] * pMeans[i]);
+    }
   }
 
-  if(includeSelf)
+  if (pN)
+  {
+    pSD = sqrt(pSD / pN - pM * pM);
+    pMAD = std::max(fabs(pMaD) , fabs(pMiD));
+  }
+
+  if (includeSelf)
   {
     pS += pSums[idx];
     pN += pNb[idx];
-    if(pN) pM = pS / pN;
 
-    pMiD =std::min(
-	pMiD,
-	std::min( (pMinDevs[idx]+pMeans[idx])-pM , (pMaxDevs[idx]+pMeans[idx])-pM )
-    );
-    pMaD =std::max(
-	pMaD,
-	std::max( (pMinDevs[idx]+pMeans[idx])-pM , (pMaxDevs[idx]+pMeans[idx])-pM )
-    );
-    pSD += pNb[idx]*(pStdDevs[idx]*pStdDevs[idx] + pMeans[idx]*pMeans[idx]);
-    if(pN)
+    if (pN) pM = pS / pN;
+
+    pMiD = std::min(pMiD,
+                    std::min((pMinDevs[idx] + pMeans[idx]) - pM ,
+                             (pMaxDevs[idx] + pMeans[idx]) - pM));
+    pMaD = std::max(pMaD,
+                    std::max((pMinDevs[idx] + pMeans[idx]) - pM ,
+                             (pMaxDevs[idx] + pMeans[idx]) - pM));
+    pSD += pNb[idx] * (pStdDevs[idx] * pStdDevs[idx] + pMeans[idx] * pMeans[idx]);
+
+    if (pN)
     {
-      pSD = sqrt(pSD / pN - pM*pM);
-      pMAD = std::max( fabs(pMaD) , fabs(pMiD));
+      pSD = sqrt(pSD / pN - pM * pM);
+      pMAD = std::max(fabs(pMaD) , fabs(pMiD));
     }
   }
 
@@ -708,51 +752,51 @@ bool DoubleAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement
   pMinDevs[idx] = pMiD;
   pMaxDevs[idx] = pMaD;
   pNb[idx] = pN;
-
   return true;
-};
+}
 
-// --------------------------------------------------------
-bool DoubleAggregator::deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)
+//------------------------------------------------------------------------------
+// DeepAggregate
+//------------------------------------------------------------------------------
+bool DoubleAggregator::deepAggregate(
+    const std::set<eos::common::FileSystem::fsid_t>& leaves,
+    const size_t& idx)
 {
-  // not necessary for the statistics
-  // might be usefull for some more advanced statistics requiring using the whole distribution at each depth
+  // Not necessary for the statistics. Might be usefull for some more advanced
+  // statistics requiring using the whole distribution at each depth.
   return false;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Constructor
- * @param param Name of the parameter statistics have to be computed for
- *
- */
-// ---------------------------------------------------------------------------
-LongLongAggregator::LongLongAggregator(const char *param) : pParam(param), pView(NULL)
+//------------------------------------------------------------------------------
+// @brief Constructor
+// @param param Name of the parameter statistics have to be computed for
+//------------------------------------------------------------------------------
+LongLongAggregator::LongLongAggregator(const char* param):
+    pParam(param), pView(NULL)
 {}
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Destructor
- *
- */
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// @brief Destructor
+//------------------------------------------------------------------------------
 LongLongAggregator::~LongLongAggregator()
 {}
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Set the view ordering the statistics. Needs to be set before running the aggregator
- * @param view Pointer to the view ordering the statistics
- *
- */
-// ---------------------------------------------------------------------------
-void LongLongAggregator::setView(BaseView *view)
+//------------------------------------------------------------------------------
+// @brief Set the view ordering the statistics. Needs to be set before running
+//        the aggregator
+// @param view Pointer to the view ordering the statistics
+//------------------------------------------------------------------------------
+void LongLongAggregator::setView(BaseView* view)
 {
   pView = view;
 }
 
-// ---------------------------------------------------------------------------
-bool LongLongAggregator::init(const std::vector<std::string> & geotags, const std::vector<size_t> &depthLevelsIndexes)
+//------------------------------------------------------------------------------
+// Initialize
+//------------------------------------------------------------------------------
+bool
+LongLongAggregator::init(const std::vector<std::string>& geotags,
+                         const std::vector<size_t>& depthLevelsIndexes)
 {
   assert(pView);
   pGeoTags = geotags;
@@ -760,81 +804,90 @@ bool LongLongAggregator::init(const std::vector<std::string> & geotags, const st
   return true;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the sums at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<long long> * LongLongAggregator::getSums() const
+//------------------------------------------------------------------------------
+//@brief Get the sums at each tree element
+//------------------------------------------------------------------------------
+const std::vector<long long>* LongLongAggregator::getSums() const
 {
   return &pSums;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the geotags at each tree element
- */
-// ---------------------------------------------------------------------------
-const std::vector<std::string> * LongLongAggregator::getGeoTags() const
+//------------------------------------------------------------------------------
+// @brief Get the geotags at each tree element
+//------------------------------------------------------------------------------
+const std::vector<std::string>* LongLongAggregator::getGeoTags() const
 {
   return &pGeoTags;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * @brief Get the end index (excluded) for a given depth level
- * @param depth the maximum depth to be reached (-1 for unlimited)
- * @return the index of the first element in the vectors being deeper that depth
- *
- */
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// @brief Get the end index (excluded) for a given depth level
+// @param depth the maximum depth to be reached (-1 for unlimited)
+// @return the index of the first element in the vectors being deeper that depth
+//------------------------------------------------------------------------------
 size_t LongLongAggregator::getEndIndex(int depth) const
 {
-  if(depth<0 || depth>(int)pDepthLevelsIndexes.size()-1)
-  depth=pDepthLevelsIndexes.size()-1;
+  if (depth < 0 || depth > (int)pDepthLevelsIndexes.size() - 1)
+    depth = pDepthLevelsIndexes.size() - 1;
+
   return pDepthLevelsIndexes[depth];
 };
 
-// ---------------------------------------------------------------------------
-bool LongLongAggregator::aggregateLeaves(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)
+//------------------------------------------------------------------------------
+// Aggregate leaves
+//------------------------------------------------------------------------------
+bool
+LongLongAggregator::aggregateLeaves(
+    const std::set<eos::common::FileSystem::fsid_t>& leaves,
+    const size_t& idx)
 {
-  // the following should happen only at the first call
-  if((int)idx>(int)pSums.size()-1)
+  // The following should happen only at the first call
+  if ((int)idx > (int)pSums.size() - 1)
   {
-    pSums.resize(idx+1);
+    pSums.resize(idx + 1);
   }
-  pSums[idx] = 0;
-  pSums[idx] = pView->SumLongLong(pParam.c_str(),false,&leaves);
-  return true;
-};
 
-// ---------------------------------------------------------------------------
-bool LongLongAggregator::aggregateNodes(const std::map<std::string ,GeoTreeElement*> &nodes, const size_t &idx, bool includeSelf)
+  pSums[idx] = 0;
+  pSums[idx] = pView->SumLongLong(pParam.c_str(), false, &leaves);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Aggregate nodes
+//------------------------------------------------------------------------------
+bool
+LongLongAggregator::aggregateNodes(
+    const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
+    bool includeSelf)
 {
   long long pS = 0;
 
-  for(auto it = nodes.begin(); it!=nodes.end(); it++)
+  for (auto it = nodes.begin(); it != nodes.end(); it++)
   {
     size_t i = it->second->mId;
     pS += pSums[i];
   }
 
-  if(includeSelf)
+  if (includeSelf)
   {
     pS += pSums[idx];
   }
 
   pSums[idx] = pS;
-
   return true;
 };
 
-// ---------------------------------------------------------------------------
-bool LongLongAggregator::deepAggregate(const std::set<eos::common::FileSystem::fsid_t> &leaves, const size_t &idx)
+//------------------------------------------------------------------------------
+// Deep aggregate
+//------------------------------------------------------------------------------
+bool
+LongLongAggregator::deepAggregate(
+    const std::set<eos::common::FileSystem::fsid_t>& leaves,
+    const size_t& idx)
 {
-  // not necessary for the statistics
-  // might be usefull for some more advanced statistics requiring using the whole distribution at each depth
-  // e.g median
+  // Not necessary for the statistics
+  // might be usefull for some more advanced statistics requiring using the
+  // whole distribution at each depth e.g median
   return false;
 }
 
@@ -855,18 +908,14 @@ bool FsView::IsQuotaEnabled(const std::string& space)
   return is_enabled;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief return's the printout format for a given option
+// @param option see the implementation for valid options
+// @return std;:string with format line passed to the printout routine
+//------------------------------------------------------------------------------
 std::string
-/*----------------------------------------------------------------------------*/
-/**
- * @brief return's the printout format for a given option
- * @param option see the implementation for valid options
- * @return std;:string with format line passed to the printout routine
- */
-/*----------------------------------------------------------------------------*/
-FsView::GetNodeFormat (std::string option)
+FsView::GetNodeFormat(std::string option)
 {
-
   if (option == "m")
   {
     // monitoring format
@@ -896,22 +945,19 @@ FsView::GetNodeFormat (std::string option)
     // long format
     return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s|sep= |sum=stat.balancer.running:width=10:format=l:tag=balan-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd|sep= |member=inqueue:width=10:format=s:tag=gw-queue";
   }
+
   // default format
   return "header=1:member=type:width=10:format=-s|sep= |member=hostport:width=32:format=s|sep= |member=cfg.stat.geotag:width=16:format=s|sep= |member=status:width=10:format=s|sep= |member=cfg.status:width=12:format=s|sep= |member=cfg.txgw:width=6:format=s|sep= |member=inqueue:width=10:format=s:tag=gw-queued|sep= |member=cfg.gw.ntx:width=8:format=s:tag=gw-ntx|sep= |member=cfg.gw.rate:width=8:format=s:tag=gw-rate|sep= |member=heartbeatdelta:width=16:format=s|sep= |member=nofs:width=5:format=s";
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief return's the printout format for a given option
+// @param option see the implementation for valid options
+// @return std;:string with format line passed to the printout routine
+//------------------------------------------------------------------------------
 std::string
-FsView::GetFileSystemFormat (std::string option)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief return's the printout format for a given option
- * @param option see the implementation for valid options
- * @return std;:string with format line passed to the printout routine
- */
-/*----------------------------------------------------------------------------*/
+FsView::GetFileSystemFormat(std::string option)
 {
-
   if (option == "m")
   {
     // monitoring format
@@ -934,8 +980,8 @@ FsView::GetFileSystemFormat (std::string option)
   {
     // drain format
     return "header=1:key=host:width=24:format=S:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:tag=files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=6:format=l:tag=retry|sep= |key=stat.wopen:width=6:format=l:tag=wopen";
-
   }
+
   if (option == "l")
   {
     // long format
@@ -947,20 +993,18 @@ FsView::GetFileSystemFormat (std::string option)
     // error format
     return "header=1:key=host:width=24:format=S:condition=stat.errc=!0|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
   }
+
   // default format
   return "header=1:key=host:width=24:format=S|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief return's the printout format for a given option
+// @param option see the implementation for valid options
+// @return std;:string with format line passed to the printout routine
+//------------------------------------------------------------------------------
 std::string
-FsView::GetSpaceFormat (std::string option)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief return's the printout format for a given option
- * @param option see the implementation for valid options
- * @return std;:string with format line passed to the printout routine
- */
-/*----------------------------------------------------------------------------*/
+FsView::GetSpaceFormat(std::string option)
 {
   if (option == "m")
   {
@@ -987,16 +1031,13 @@ FsView::GetSpaceFormat (std::string option)
   return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |member=cfg.groupsize:width=12:format=s|sep= |member=cfg.groupmod:width=12:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |sum=<n>?configstatus@rw:width=9:format=l:tag=N(fs-rw)|sep= |sum=stat.statfs.usedbytes:width=15:format=+l|sep= |sum=stat.statfs.capacity:width=14:format=+l|sep= |sum=stat.statfs.capacity?configstatus@rw:width=13:format=+l:tag=capacity(rw)|sep= |member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity|sep= |member=cfg.quota:width=6:format=s|sep= |member=cfg.balancer:width=10:format=s:tag=balancing|sep= |member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|sep= |member=cfg.converter:width=11:format=s:tag=converter|sep= |member=cfg.converter.ntx:width=6:format=+l:tag=ntx|sep= |member=cfg.stat.converter.active:width=8:format=+l:tag=active|sep= |member=cfg.groupbalancer:width=11:format=s:tag=intergroup|";
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief return's the printout format for a given option
+// @param option see the implementation for valid options
+// @return std;:string with format line passed to the printout routine
+//------------------------------------------------------------------------------
 std::string
-FsView::GetGroupFormat (std::string option)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief return's the printout format for a given option
- * @param option see the implementation for valid options
- * @return std;:string with format line passed to the printout routine
- */
-/*----------------------------------------------------------------------------*/
+FsView::GetGroupFormat(std::string option)
 {
   if (option == "m")
   {
@@ -1015,63 +1056,57 @@ FsView::GetGroupFormat (std::string option)
     // long format
     return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=s|sep= |member=cfg.status:width=12:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)";
   }
+
   // default format
   return "header=1:member=type:width=10:format=-s|sep= |member=name:width=16:format=-s|sep= |member=cfg.status:width=12:format=s|sep= |avg=stat.geotag:width=32:format=s|sep= |sum=<n>?*@*:width=6:format=l:tag=N(fs)|sep= |maxdev=stat.statfs.filled:width=12:format=f:unit=p|sep= |avg=stat.statfs.filled:width=12:format=f:unit=p|sep= |sig=stat.statfs.filled:width=12:format=f:unit=p|sep= |member=cfg.stat.balancing:width=10:format=-s|sep= |sum=stat.balancer.running:width=10:format=l:tag=bal-shd|sep= |sum=stat.drainer.running:width=10:format=l:tag=drain-shd";
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief register a filesystem object in the filesystem view
+// @param fs filesystem to register
+// @return true if done, otherwise false
+//------------------------------------------------------------------------------
 bool
-FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief register a filesystem object in the filesystem view
- * @param fs filesystem to register
- * @return true if done, otherwise false
- */
-/*----------------------------------------------------------------------------*/
+FsView::Register(FileSystem* fs, bool registerInGeoTreeEngine)
 {
   if (!fs)
-  return false;
+    return false;
 
-  // create a snapshot of the current variables of the fs
+  // Create a snapshot of the current variables of the fs
   eos::common::FileSystem::fs_snapshot snapshot;
 
   if (fs->SnapShotFileSystem(snapshot))
   {
-    //--------------------------------------------------------------------------
-    // align view by filesystem object and filesystem id
-    //--------------------------------------------------------------------------
-
-    // check if there is already a filesystem with the same path on the same node
-
+    // Align view by filesystem object and filesystem id
+    // Check if there is already a filesystem with the same path on the same node
     if (mNodeView.count(snapshot.mQueue))
     {
-      // loop over all attached filesystems and compare the queue path
-      BaseView::const_iterator it;
-      for (it = mNodeView[snapshot.mQueue]->begin(); it != mNodeView[snapshot.mQueue]->end(); it++)
+      // Loop over all attached filesystems and compare the queue path
+      for (auto it = mNodeView[snapshot.mQueue]->begin();
+           it != mNodeView[snapshot.mQueue]->end(); it++)
       {
-	if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath)
-	{
-	  // this queue path was already existing, we cannot register
-	  return false;
-	}
+        if (FsView::gFsView.mIdView[*it]->GetQueuePath() == snapshot.mQueuePath)
+        {
+          // This queuepath already exists, we cannot register
+          return false;
+        }
       }
     }
 
-    // check if this is already in the view
+    // Check if this is already in the view
     if (mFileSystemView.count(fs))
     {
-      // this filesystem is already there, this might be an update
-      eos::common::FileSystem::fsid_t fsid;
-      fsid = mFileSystemView[fs];
+      // This filesystem is already there, this might be an update
+      eos::common::FileSystem::fsid_t fsid = mFileSystemView[fs];
+
       if (fsid != snapshot.mId)
       {
-	// remove previous mapping
-	mIdView.erase(fsid);
-	// setup new two way mapping
-	mFileSystemView[fs] = snapshot.mId;
-	mIdView[snapshot.mId] = fs;
-	eos_debug("updating mapping %u<=>%lld", snapshot.mId, fs);
+        // Remove previous mapping
+        mIdView.erase(fsid);
+        // Setup new two way mapping
+        mFileSystemView[fs] = snapshot.mId;
+        mIdView[snapshot.mId] = fs;
+        eos_debug("updating mapping %u<=>%lld", snapshot.mId, fs);
       }
     }
     else
@@ -1081,15 +1116,13 @@ FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
       eos_debug("registering mapping %u<=>%lld", snapshot.mId, fs);
     }
 
-    //--------------------------------------------------------------------------
-    // align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
-    //--------------------------------------------------------------------------
-
-    // check if we have already a node view
+    // Align view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
+    // Check if we have already a node view
     if (mNodeView.count(snapshot.mQueue))
     {
       mNodeView[snapshot.mQueue]->insert(snapshot.mId);
-      eos_debug("inserting into node view %s<=>%u", snapshot.mQueue.c_str(), snapshot.mId, fs);
+      eos_debug("inserting into node view %s<=>%u", snapshot.mQueue.c_str(),
+                snapshot.mId, fs);
     }
     else
     {
@@ -1097,18 +1130,17 @@ FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
       mNodeView[snapshot.mQueue] = node;
       node->insert(snapshot.mId);
       node->SetNodeConfigDefault();
-      eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(), snapshot.mId, fs);
+      eos_debug("creating/inserting into node view %s<=>%u", snapshot.mQueue.c_str(),
+                snapshot.mId, fs);
     }
 
-    //--------------------------------------------------------------------------
-    // align view by groupname
-    //--------------------------------------------------------------------------
-
-    // check if we have already a group view
+    // Align view by groupname
+    // Check if we have already a group view
     if (mGroupView.count(snapshot.mGroup))
     {
       mGroupView[snapshot.mGroup]->insert(snapshot.mId);
-      eos_debug("inserting into group view %s<=>%u", snapshot.mGroup.c_str(), snapshot.mId, fs);
+      eos_debug("inserting into group view %s<=>%u", snapshot.mGroup.c_str(),
+                snapshot.mId, fs);
     }
     else
     {
@@ -1116,241 +1148,269 @@ FsView::Register (FileSystem* fs, bool registerInGeoTreeEngine)
       mGroupView[snapshot.mGroup] = group;
       group->insert(snapshot.mId);
       group->mIndex = snapshot.mGroupIndex;
-      eos_debug("creating/inserting into group view %s<=>%u", snapshot.mGroup.c_str(), snapshot.mId, fs);
+      eos_debug("creating/inserting into group view %s<=>%u", snapshot.mGroup.c_str(),
+                snapshot.mId, fs);
     }
 
 #ifndef EOSMGMFSVIEWTEST
-    if(registerInGeoTreeEngine && !gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[snapshot.mGroup],false) )
+
+    if (registerInGeoTreeEngine &&
+        !gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[snapshot.mGroup], false))
     {
-      // roll back the changes
-      if(UnRegister(fs,false))
-        eos_err("could not insert insert fs %u into GeoTreeEngine : fs was unregistered and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId);
+      // Roll back the changes
+      if (UnRegister(fs, false))
+      {
+        eos_err("could not insert insert fs %u into GeoTreeEngine : fs was "
+                "unregistered and consistency is KEPT between FsView and "
+                "GeoTreeEngine", snapshot.mId);
+      }
       else
-        eos_crit("could not insert insert fs %u into GeoTreeEngine : fs could not be unregistered and consistency is BROKEN between FsView and GeoTreeEngine",snapshot.mId);
+      {
+        eos_crit("could not insert insert fs %u into GeoTreeEngine : fs could "
+                 "not be unregistered and consistency is BROKEN between FsView "
+                 "and GeoTreeEngine", snapshot.mId);
+      }
+
       return false;
     }
+
 #endif
     mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
-    //--------------------------------------------------------------------------
-    // align view by spacename
-    //--------------------------------------------------------------------------
-
-    // check if we have already a space view
+    // Align view by spacename
+    // Check if we have already a space view
     if (mSpaceView.count(snapshot.mSpace))
     {
       mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
-      eos_debug("inserting into space view %s<=>%u %x", snapshot.mSpace.c_str(), snapshot.mId, fs);
+      eos_debug("inserting into space view %s<=>%u %x", snapshot.mSpace.c_str(),
+                snapshot.mId, fs);
     }
     else
     {
       FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
       mSpaceView[snapshot.mSpace] = space;
       space->insert(snapshot.mId);
-      eos_debug("creating/inserting into space view %s<=>%u %x", snapshot.mSpace.c_str(), snapshot.mId, fs);
+      eos_debug("creating/inserting into space view %s<=>%u %x",
+                snapshot.mSpace.c_str(),
+                snapshot.mId, fs);
     }
   }
 
   StoreFsConfig(fs);
-
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief Store the filesystem configuration in the configuration engine
+// @param fs filesystem object to store
+//------------------------------------------------------------------------------
 void
-FsView::StoreFsConfig (FileSystem* fs)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Store the filesystem configuration in the configuration engine
- * @param fs filesystem object to store
- */
-/*----------------------------------------------------------------------------*/
+FsView::StoreFsConfig(FileSystem* fs)
 {
 #ifndef EOSMGMFSVIEWTEST
+
   if (fs)
   {
-    // -------------------------------------------------------------------------
-    // register in the configuration engine
-    // -------------------------------------------------------------------------
-    std::string key;
-    std::string val;
+    std::string key, val;
     fs->CreateConfig(key, val);
+
     if (FsView::ConfEngine)
-    FsView::ConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
+      FsView::ConfEngine->SetConfigValue("fs", key.c_str(), val.c_str());
   }
+
 #endif
   return;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Move a filesystem in to a target group
- * @param fs filesystem object to move
- * @param group target group 
- * @return true if moved otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// @brief Move a filesystem in to a target group
+// @param fs filesystem object to move
+// @param group target group
+// @return true if moved otherwise false
+//------------------------------------------------------------------------------
 bool
-FsView::MoveGroup (FileSystem* fs, std::string group)
+FsView::MoveGroup(FileSystem* fs, std::string group)
 {
   if (!fs)
-  return false;
+    return false;
 
   eos::common::FileSystem::fs_snapshot snapshot1;
   eos::common::FileSystem::fs_snapshot snapshot;
+
   if (fs->SnapShotFileSystem(snapshot1))
   {
 #ifndef EOSMGMFSVIEWTEST
     fs->SetString("schedgroup", group.c_str());
-    FsGroup *oldgroup = mGroupView.count(snapshot1.mGroup)?mGroupView[snapshot1.mGroup]:NULL;
+    FsGroup* oldgroup = mGroupView.count(snapshot1.mGroup) ?
+        mGroupView[snapshot1.mGroup] : NULL;
 #endif
+
     if (fs->SnapShotFileSystem(snapshot))
     {
-      // remove from the original space
+      // Remove from the original space
       if (mSpaceView.count(snapshot1.mSpace))
       {
-	FsSpace* space = mSpaceView[snapshot1.mSpace];
-	space->erase(snapshot1.mId);
-	eos_debug("unregister space %s from space view",
-	    space->GetMember("name").c_str());
-	if (!space->size())
-	{
-	  mSpaceView.erase(snapshot1.mSpace);
-	  delete space;
-	}
+        FsSpace* space = mSpaceView[snapshot1.mSpace];
+        space->erase(snapshot1.mId);
+        eos_debug("unregister space %s from space view",
+                  space->GetMember("name").c_str());
+
+        if (!space->size())
+        {
+          mSpaceView.erase(snapshot1.mSpace);
+          delete space;
+        }
       }
 
-      // remove from the original group
+      // Remove from the original group
       if (mGroupView.count(snapshot1.mGroup))
       {
-	FsGroup* group = mGroupView[snapshot1.mGroup];
+        FsGroup* group = mGroupView[snapshot1.mGroup];
 #ifndef EOSMGMFSVIEWTEST
-	if(!gGeoTreeEngine.removeFsFromGroup(fs,group,false))
-	{
+
+        if (!gGeoTreeEngine.removeFsFromGroup(fs, group, false))
+        {
           // roll-back
           if (mSpaceView.count(snapshot1.mSpace))
           {
             mSpaceView[snapshot1.mSpace]->insert(snapshot1.mId);
-            eos_debug("inserting into space view %s<=>%u %x", snapshot1.mSpace.c_str(), snapshot1.mId, fs);
+            eos_debug("inserting into space view %s<=>%u %x",
+                      snapshot1.mSpace.c_str(), snapshot1.mId, fs);
           }
           else
           {
             FsSpace* space = new FsSpace(snapshot1.mSpace.c_str());
             mSpaceView[snapshot1.mSpace] = space;
             space->insert(snapshot1.mId);
-            eos_debug("creating/inserting into space view %s<=>%u %x", snapshot1.mSpace.c_str(), snapshot1.mId, fs);
+            eos_debug("creating/inserting into space view %s<=>%u %x",
+                      snapshot1.mSpace.c_str(), snapshot1.mId, fs);
           }
-	  eos_err("could not remove fs %u from GeoTreeEngine : fs was registered back and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId);
-	  return false;
-	}
+
+          eos_err("could not remove fs %u from GeoTreeEngine : fs was "
+                  "registered back and consistency is KEPT between FsView"
+                  " and GeoTreeEngine", snapshot.mId);
+          return false;
+        }
+
 #endif
-	group->erase(snapshot1.mId);
-	eos_debug("unregister group %s from group view",
-	    group->GetMember("name").c_str());
-	if (!group->size())
-	{
-	  if (mSpaceGroupView.count(snapshot1.mSpace))
-	  {
-	    mSpaceGroupView[snapshot1.mSpace].erase(mGroupView[snapshot1.mGroup]);
-	  }
-	  mGroupView.erase(snapshot1.mGroup);
-	  delete group;
-	}
+        group->erase(snapshot1.mId);
+        eos_debug("unregister group %s from group view",
+                  group->GetMember("name").c_str());
+
+        if (!group->size())
+        {
+          if (mSpaceGroupView.count(snapshot1.mSpace))
+          {
+            mSpaceGroupView[snapshot1.mSpace].erase(mGroupView[snapshot1.mGroup]);
+          }
+
+          mGroupView.erase(snapshot1.mGroup);
+          delete group;
+        }
       }
 
-      // check if we have already a group view
+      // Check if we have already a group view
       if (mGroupView.count(snapshot.mGroup))
       {
-	mGroupView[snapshot.mGroup]->insert(snapshot.mId);
-	eos_debug("inserting into group view %s<=>%u",
-	    snapshot.mGroup.c_str(), snapshot.mId, fs);
+        mGroupView[snapshot.mGroup]->insert(snapshot.mId);
+        eos_debug("inserting into group view %s<=>%u",
+                  snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
       else
       {
-	FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
-	mGroupView[snapshot.mGroup] = group;
-	group->insert(snapshot.mId);
-	group->mIndex = snapshot.mGroupIndex;
-	eos_debug("creating/inserting into group view %s<=>%u",
-	    snapshot.mGroup.c_str(), snapshot.mId, fs);
+        FsGroup* group = new FsGroup(snapshot.mGroup.c_str());
+        mGroupView[snapshot.mGroup] = group;
+        group->insert(snapshot.mId);
+        group->mIndex = snapshot.mGroupIndex;
+        eos_debug("creating/inserting into group view %s<=>%u",
+                  snapshot.mGroup.c_str(), snapshot.mId, fs);
       }
+
 #ifndef EOSMGMFSVIEWTEST
-      if(!gGeoTreeEngine.insertFsIntoGroup(fs,mGroupView[group],false))
+
+      if (!gGeoTreeEngine.insertFsIntoGroup(fs, mGroupView[group], false))
       {
-        if(fs->SetString("schedgroup", group.c_str()) && UnRegister(fs,false))
+        if (fs->SetString("schedgroup", group.c_str()) && UnRegister(fs, false))
         {
-          if(oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str()) && Register(fs))
-            eos_err("while moving fs, could not insert fs %u in group %s. fs was registered back to group %s and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId,mGroupView[group]->mName.c_str(),oldgroup->mName.c_str());
+          if (oldgroup && fs->SetString("schedgroup", oldgroup->mName.c_str())
+              && Register(fs))
+          {
+            eos_err("while moving fs, could not insert fs %u in group %s. fs "
+                    "was registered back to group %s and consistency is KEPT "
+                    "between FsView and GeoTreeEngine",
+                    snapshot.mId, mGroupView[group]->mName.c_str(),
+                    oldgroup->mName.c_str());
+          }
           else
-            eos_err("while moving fs, could not insert fs %u in group %s. fs was unregistered and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId,mGroupView[group]->mName.c_str());
+          {
+            eos_err("while moving fs, could not insert fs %u in group %s. fs "
+                    "was unregistered and consistency is KEPT between FsView "
+                    "and GeoTreeEngine", snapshot.mId, mGroupView[group]->mName.c_str());
+          }
         }
         else
         {
-          eos_crit("while moving fs, could not insert fs %u in group %s. fs could not be unregistered and consistency is BROKEN between FsView and GeoTreeEngine",snapshot.mId,mGroupView[group]->mName.c_str());
+          eos_crit("while moving fs, could not insert fs %u in group %s. fs "
+                   "could not be unregistered and consistency is BROKEN between "
+                   "FsView and GeoTreeEngine", snapshot.mId, mGroupView[group]->mName.c_str());
         }
+
         return false;
       }
-#endif
 
+#endif
       mSpaceGroupView[snapshot.mSpace].insert(mGroupView[snapshot.mGroup]);
 
-      // check if we have already a space view
+      // Check if we have already a space view
       if (mSpaceView.count(snapshot.mSpace))
       {
-	mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
-	eos_debug("inserting into space view %s<=>%u %x",
-	    snapshot.mSpace.c_str(), snapshot.mId, fs);
+        mSpaceView[snapshot.mSpace]->insert(snapshot.mId);
+        eos_debug("inserting into space view %s<=>%u %x",
+                  snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
       else
       {
-	FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
-	mSpaceView[snapshot.mSpace] = space;
-	space->insert(snapshot.mId);
-	eos_debug("creating/inserting into space view %s<=>%u %x",
-	    snapshot.mSpace.c_str(), snapshot.mId, fs);
+        FsSpace* space = new FsSpace(snapshot.mSpace.c_str());
+        mSpaceView[snapshot.mSpace] = space;
+        space->insert(snapshot.mId);
+        eos_debug("creating/inserting into space view %s<=>%u %x",
+                  snapshot.mSpace.c_str(), snapshot.mId, fs);
       }
 
       StoreFsConfig(fs);
-
       return true;
     }
   }
+
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Unregister a filesystem in the filesystem view
- * @param fs filesystem to unregister
- * @return true if done otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Unregister a filesystem from the filesystem view
+// @param fs filesystem to unregister
+// @return true if done otherwise false
+//------------------------------------------------------------------------------
 bool
-FsView::UnRegister (FileSystem* fs, bool unregisterInGeoTreeEngine)
+FsView::UnRegister(FileSystem* fs, bool unregisterInGeoTreeEngine)
 {
   if (!fs)
-  return false;
+    return false;
 
 #ifndef EOSMGMFSVIEWTEST
-  // delete in the configuration engine
+  // Delete in the configuration engine
   std::string key = fs->GetQueuePath();
 
   if (FsView::ConfEngine)
-  FsView::ConfEngine->DeleteConfigValue("fs", key.c_str());
-#endif
+    FsView::ConfEngine->DeleteConfigValue("fs", key.c_str());
 
-  // create a snapshot of the current variables of the fs
+#endif
+  // Create a snapshot of the current variables of the fs
   eos::common::FileSystem::fs_snapshot snapshot;
 
   if (fs->SnapShotFileSystem(snapshot))
   {
-    //--------------------------------------------------------------------------
-    // remove view by filesystem object and filesystem id
-    //--------------------------------------------------------------------------
-
-    // check if this is in the view
+    // Remove view by filesystem object and filesystem id
+    // Check if this is in the view
     if (mFileSystemView.count(fs))
     {
       mFileSystemView.erase(fs);
@@ -1358,113 +1418,108 @@ FsView::UnRegister (FileSystem* fs, bool unregisterInGeoTreeEngine)
       eos_debug("unregister %lld from filesystem view", fs);
     }
 
-    //----------------------------------------------------------------
-    // remove fs from node view & evt. remove node view
-    //----------------------------------------------------------------
+    // Remove fs from node view & evt. remove node view
     if (mNodeView.count(snapshot.mQueue))
     {
       FsNode* node = mNodeView[snapshot.mQueue];
       node->erase(snapshot.mId);
       eos_debug("unregister node %s from node view", node->GetMember("name").c_str());
+
       if (!node->size())
       {
-	mNodeView.erase(snapshot.mQueue);
-	delete node;
+        mNodeView.erase(snapshot.mQueue);
+        delete node;
       }
     }
 
-    //----------------------------------------------------------------
-    //! remove fs from group view & evt. remove group view
-    //----------------------------------------------------------------
+    // Remove fs from group view & evt. remove group view
     if (mGroupView.count(snapshot.mGroup))
     {
       FsGroup* group = mGroupView[snapshot.mGroup];
 #ifndef EOSMGMFSVIEWTEST
-      if(unregisterInGeoTreeEngine && !gGeoTreeEngine.removeFsFromGroup(fs,group,false))
+
+      if (unregisterInGeoTreeEngine
+          && !gGeoTreeEngine.removeFsFromGroup(fs, group, false))
       {
-        if(Register(fs,false))
-          eos_err("could not remove fs %u from GeoTreeEngine : fs was registered back and consistency is KEPT between FsView and GeoTreeEngine",snapshot.mId);
+        if (Register(fs, false))
+          eos_err("could not remove fs %u from GeoTreeEngine : fs was "
+                  "registered back and consistency is KEPT between FsView "
+                  "and GeoTreeEngine", snapshot.mId);
         else
-          eos_crit("could not remove fs %u from GeoTreeEngine : fs could not be registered back and consistency is BROKEN between FsView and GeoTreeEngine",snapshot.mId);
+          eos_crit("could not remove fs %u from GeoTreeEngine : fs could not "
+                   "be registered back and consistency is BROKEN between "
+                   "FsView and GeoTreeEngine", snapshot.mId);
+
         return false;
       }
+
 #endif
       group->erase(snapshot.mId);
-      eos_debug("unregister group %s from group view", group->GetMember("name").c_str());
+      eos_debug("unregister group %s from group view",
+                group->GetMember("name").c_str());
+
       if (!group->size())
       {
-	mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
-	mGroupView.erase(snapshot.mGroup);
-	delete group;
+        mSpaceGroupView[snapshot.mSpace].erase(mGroupView[snapshot.mGroup]);
+        mGroupView.erase(snapshot.mGroup);
+        delete group;
       }
     }
 
-    //----------------------------------------------------------------
-    //! remove fs from space view & evt. remove space view
-    //----------------------------------------------------------------
+    // Remove fs from space view & evt. remove space view
     if (mSpaceView.count(snapshot.mSpace))
     {
       FsSpace* space = mSpaceView[snapshot.mSpace];
       space->erase(snapshot.mId);
-      eos_debug("unregister space %s from space view", space->GetMember("name").c_str());
+      eos_debug("unregister space %s from space view",
+                space->GetMember("name").c_str());
+
       if (!space->size())
       {
-	mSpaceView.erase(snapshot.mSpace);
-	delete space;
+        mSpaceView.erase(snapshot.mSpace);
+        delete space;
       }
     }
 
-    //----------------------------------------------------------------
-    //! remove mapping
-    //----------------------------------------------------------------
+    // Remove mapping
     RemoveMapping(snapshot.mId, snapshot.mUuid);
-
-    //----------------------------------------------------------------
-    //! delete fs object
-    //----------------------------------------------------------------
     delete fs;
-
     return true;
   }
 
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Checks if a node has already a filesystem registered
+//------------------------------------------------------------------------------
 bool
-FsView::ExistsQueue (std::string queue, std::string queuepath)
+FsView::ExistsQueue(std::string queue, std::string queuepath)
 {
-  //----------------------------------------------------------------
-  //! checks if a node has already a filesystem registered 
-  //----------------------------------------------------------------
-
   if (mNodeView.count(queue))
   {
-    // loop over all attached filesystems and compare the queue path
-    BaseView::const_iterator it;
-    for (it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); it++)
+    // Loop over all attached filesystems and compare the queue path
+    for (auto it = mNodeView[queue]->begin(); it != mNodeView[queue]->end(); it++)
     {
       if (FsView::gFsView.mIdView[*it]->GetQueuePath() == queuepath)
       {
-	// this queue path was already existing, we cannot register
-	return true;
+        // This queupath exists already, we cannot register
+        return true;
       }
     }
   }
+
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
+//------------------------------------------------------------------------------
 bool
-FsView::RegisterNode (const char* nodename)
+FsView::RegisterNode(const char* nodename)
 {
-  //----------------------------------------------------------------
-  //! add view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
-  //----------------------------------------------------------------
-
   std::string nodequeue = nodename;
 
-  // check if we have already a node view
   if (mNodeView.count(nodequeue))
   {
     eos_debug("node is existing");
@@ -1480,48 +1535,48 @@ FsView::RegisterNode (const char* nodename)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove all nodes
+//------------------------------------------------------------------------------
 void
-FsView::UnRegisterNodes ()
+FsView::UnRegisterNodes()
 {
-  //----------------------------------------------------------------
-  //! remove all nodes
-  //----------------------------------------------------------------
-  std::map<std::string, FsNode* >::iterator it;
-  for (it = mNodeView.begin(); it != mNodeView.end(); it++)
-  {
-    delete (it->second);
-  }
+  for (auto it = mNodeView.begin(); it != mNodeView.end(); it++)
+    delete(it->second);
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
+//------------------------------------------------------------------------------
 bool
-FsView::UnRegisterNode (const char* nodename)
+FsView::UnRegisterNode(const char* nodename)
 {
-  //----------------------------------------------------------------
-  //! remove view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
-  //----------------------------------------------------------------
-
-  // we have to remove all the connected filesystems via UnRegister(fs) to keep space, group, node view in sync
-  std::map<std::string, FsNode* >::iterator it;
+  // We have to remove all the connected filesystems via UnRegister(fs) to keep
+  // space, group, node view in sync
   bool retc = true;
   bool hasfs = false;
+
   if (mNodeView.count(nodename))
   {
-    while (mNodeView.count(nodename) && (mNodeView[nodename]->begin() != mNodeView[nodename]->end()))
+    while (mNodeView.count(nodename) &&
+           (mNodeView[nodename]->begin() != mNodeView[nodename]->end()))
     {
       eos::common::FileSystem::fsid_t fsid = *(mNodeView[nodename]->begin());
       FileSystem* fs = mIdView[fsid];
+
       if (fs)
       {
-	hasfs = true;
-	eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s", (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
-	retc |= UnRegister(fs);
+        hasfs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu node=%s queue=%s",
+                         (unsigned long long) fsid, nodename, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
+
     if (!hasfs)
     {
-      // we have to explicitly remove the node from the view here because no fs was removed
+      // We have to explicitly remove the node from the view here because no fs
+      // was removed
       delete mNodeView[nodename];
       retc = (mNodeView.erase(nodename) ? true : false);
     }
@@ -1530,17 +1585,14 @@ FsView::UnRegisterNode (const char* nodename)
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add view by spacename (= MQ queue) e.g. /eos/<host>:<port>/fst
+//------------------------------------------------------------------------------
 bool
-FsView::RegisterSpace (const char* spacename)
+FsView::RegisterSpace(const char* spacename)
 {
-  //----------------------------------------------------------------
-  //! add view by spacename (= MQ queue) e.g. /eos/<host>:<port>/fst
-  //----------------------------------------------------------------
-
   std::string spacequeue = spacename;
 
-  // check if we have already a space view
   if (mSpaceView.count(spacequeue))
   {
     eos_debug("space is existing");
@@ -1555,35 +1607,38 @@ FsView::RegisterSpace (const char* spacename)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove view by spacename (= MQ queue) e.g. /eos/<host>:<port>/fst
+//------------------------------------------------------------------------------
 bool
-FsView::UnRegisterSpace (const char* spacename)
+FsView::UnRegisterSpace(const char* spacename)
 {
-  //----------------------------------------------------------------
-  //! remove view by spacename (= MQ queue) e.g. /eos/<host>:<port>/fst
-  //----------------------------------------------------------------
-
-  // we have to remove all the connected filesystems via UnRegister(fs) to keep space, group, space view in sync
-  std::map<std::string, FsSpace* >::iterator it;
+  // We have to remove all the connected filesystems via UnRegister(fs) to keep
+  // space, group, space view in sync
   bool retc = true;
   bool hasfs = false;
+
   if (mSpaceView.count(spacename))
   {
-    while (mSpaceView.count(spacename) && (mSpaceView[spacename]->begin() != mSpaceView[spacename]->end()))
+    while (mSpaceView.count(spacename) &&
+           (mSpaceView[spacename]->begin() != mSpaceView[spacename]->end()))
     {
-      std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
       eos::common::FileSystem::fsid_t fsid = *(mSpaceView[spacename]->begin());
       FileSystem* fs = mIdView[fsid];
+
       if (fs)
       {
-	hasfs = true;
-	eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s", (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
-	retc |= UnRegister(fs);
+        hasfs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu space=%s queue=%s",
+                         (unsigned long long) fsid, spacename, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
+
     if (!hasfs)
     {
-      // we have to explicitly remove the space from the view here because no fs was removed
+      // We have to explicitly remove the space from the view here because no
+      // fs was removed
       delete mSpaceView[spacename];
       retc = (mSpaceView.erase(spacename) ? true : false);
     }
@@ -1592,17 +1647,14 @@ FsView::UnRegisterSpace (const char* spacename)
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Add view by groupname  e.g. default or default.0
+//------------------------------------------------------------------------------
 bool
-FsView::RegisterGroup (const char* groupname)
+FsView::RegisterGroup(const char* groupname)
 {
-  //----------------------------------------------------------------
-  //! add view by groupname  e.g. default or default.0
-  //----------------------------------------------------------------
-
   std::string groupqueue = groupname;
 
-  // check if we have already a group view
   if (mGroupView.count(groupqueue))
   {
     eos_debug("group is existing");
@@ -1617,31 +1669,35 @@ FsView::RegisterGroup (const char* groupname)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove view by groupname e.g. default or default.0
+//------------------------------------------------------------------------------
 bool
-FsView::UnRegisterGroup (const char* groupname)
+FsView::UnRegisterGroup(const char* groupname)
 {
-  //----------------------------------------------------------------
-  //! remove view by groupname e.g. default or default.0
-  //----------------------------------------------------------------
-
-  // we have to remove all the connected filesystems via UnRegister(fs) to keep group, group, group view in sync
-  std::map<std::string, FsGroup* >::iterator it;
+  // We have to remove all the connected filesystems via UnRegister(fs) to keep
+  // the group view in sync.
   bool retc = true;
   bool hasfs = false;
+
   if (mGroupView.count(groupname))
   {
-    while (mGroupView.count(groupname) && (mGroupView[groupname]->begin() != mGroupView[groupname]->end()))
+    while (mGroupView.count(groupname) &&
+           (mGroupView[groupname]->begin() != mGroupView[groupname]->end()))
     {
       eos::common::FileSystem::fsid_t fsid = *(mGroupView[groupname]->begin());
+      // TODO: this looks wrong
       FileSystem* fs = mIdView[fsid];
+
       if (fs)
       {
-	hasfs = true;
-	eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s", (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
-	retc |= UnRegister(fs);
+        hasfs = true;
+        eos_static_debug("Unregister filesystem fsid=%llu group=%s queue=%s",
+                         (unsigned long long) fsid, groupname, fs->GetQueue().c_str());
+        retc |= UnRegister(fs);
       }
     }
+
     if (!hasfs)
     {
       std::string sgroupname = groupname;
@@ -1651,9 +1707,11 @@ FsView::UnRegisterGroup (const char* groupname)
       // remove the direct group reference here
       if (mSpaceGroupView.count(spacename))
       {
-	mSpaceGroupView[spacename].erase(mGroupView[groupname]);
+        mSpaceGroupView[spacename].erase(mGroupView[groupname]);
       }
-      // we have to explicitly remove the group from the view here because no fs was removed
+
+      // We have to explicitly remove the group from the view here because no
+      // fs was removed
       delete mGroupView[groupname];
       retc = (mGroupView.erase(groupname) ? true : false);
       eos::common::StringConversion::SplitByPoint(groupname, spacename, index);
@@ -1663,40 +1721,33 @@ FsView::UnRegisterGroup (const char* groupname)
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Remove all filesystems by erasing all spaces
+//------------------------------------------------------------------------------
 void
-FsView::Reset ()
+FsView::Reset()
 {
-  //----------------------------------------------------------------
-  //! remove all filesystems by erasing all spaces
-  //----------------------------------------------------------------
-
-  std::map<std::string, FsSpace* >::iterator it;
-
   {
     eos::common::RWMutexReadLock viewlock(ViewMutex);
-    // stop all the threads having only a read-lock
-    for (auto it=mSpaceView.begin();it!=mSpaceView.end(); it++)
-    it->second->Stop();
-  }
 
+    // stop all the threads having only a read-lock
+    for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++)
+      it->second->Stop();
+  }
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
+
   while (mSpaceView.size())
   {
     UnRegisterSpace(mSpaceView.begin()->first.c_str());
   }
 
   //  UnRegisterNodes();
-
   eos::common::RWMutexWriteLock maplock(MapMutex);
-
-  // remove all mappins
+  // Remove all mappins
   Fs2UuidMap.clear();
   Uuid2FsMap.clear();
-
   SetNextFsId(0);
-
-  // although this shouldn't be necessary, better run an additional cleanup
+  // Although this shouldn't be necessary, better run an additional cleanup
   mSpaceView.clear();
   mGroupView.clear();
   mNodeView.clear();
@@ -1708,59 +1759,61 @@ FsView::Reset ()
   mFileSystemView.clear();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Stores the next fsid into the global config
+//------------------------------------------------------------------------------
 void
-FsView::SetNextFsId (eos::common::FileSystem::fsid_t fsid)
+FsView::SetNextFsId(eos::common::FileSystem::fsid_t fsid)
 {
-  //----------------------------------------------------------------
-  //! stores the next fsid into the global config
-  //----------------------------------------------------------------
   NextFsId = fsid;
-
   std::string key = "nextfsid";
   char value[1024];
-  snprintf(value, sizeof (value) - 1, "%llu", (unsigned long long) fsid);
+  snprintf(value, sizeof(value) - 1, "%llu", (unsigned long long) fsid);
   std::string svalue = value;
-
 #ifndef EOSMGMFSVIEWTEST
+
   if (!SetGlobalConfig(key, value))
   {
     eos_static_err("unable to set nextfsid in global config");
   }
+
 #endif
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Find a filesystem specifying a queuepath
+//------------------------------------------------------------------------------
 FileSystem*
-FsView::FindByQueuePath (std::string &queuepath)
+FsView::FindByQueuePath(std::string& queuepath)
 {
-  //----------------------------------------------------------------
-  //! find a filesystem specifying a queuepath
-  //----------------------------------------------------------------
-
-  // needs an external ViewMutex lock !!!!
-  std::map<eos::common::FileSystem::fsid_t, FileSystem*>::iterator it;
-  for (it = mIdView.begin(); it != mIdView.end(); it++)
+  // Needs an external ViewMutex lock !!!!
+  for (auto it = mIdView.begin(); it != mIdView.end(); it++)
   {
     if (it->second->GetQueuePath() == queuepath)
-    return it->second;
+      return it->second;
   }
+
   return 0;
 }
 
 #ifndef EOSMGMFSVIEWTEST
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// SetGlobalConfig
+//------------------------------------------------------------------------------
 bool
-FsView::SetGlobalConfig (std::string key, std::string value)
+FsView::SetGlobalConfig(std::string key, std::string value)
 {
-  // we need to store this in the shared hash between MGMs
+  // We need to store this in the shared hash between MGMs
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+      MgmConfigQueueName.c_str());
+
   if (hash)
   {
     hash->Set(key, value);
   }
+
 #ifndef EOSMGMFSVIEWTEST
   // register in the configuration engine
   std::string ckey = MgmConfigQueueName.c_str();
@@ -1768,85 +1821,91 @@ FsView::SetGlobalConfig (std::string key, std::string value)
   ckey += key;
 
   if (FsView::ConfEngine)
-  FsView::ConfEngine->SetConfigValue("global", ckey.c_str(), value.c_str());
+    FsView::ConfEngine->SetConfigValue("global", ckey.c_str(), value.c_str());
+
 #endif
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// GetGlobalConfig
+//------------------------------------------------------------------------------
 std::string
-FsView::GetGlobalConfig (std::string key)
+FsView::GetGlobalConfig(std::string key)
 {
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(MgmConfigQueueName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+      MgmConfigQueueName.c_str());
 
   if (hash)
   {
     return hash->Get(key);
   }
+
   return "";
 }
 
 #endif
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Static thread startup function calling HeartBeatCheck
+//------------------------------------------------------------------------------
 void*
-FsView::StaticHeartBeatCheck (void* arg)
+FsView::StaticHeartBeatCheck(void* arg)
 {
-  //----------------------------------------------------------------
-  //! static thread startup function calling HeartBeatCheck
-  //----------------------------------------------------------------
-  return reinterpret_cast<FsView*> (arg)->HeartBeatCheck();
+  return reinterpret_cast<FsView*>(arg)->HeartBeatCheck();
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Heart beat checker set's filesystem to down if the heart beat is missing
+//------------------------------------------------------------------------------
 void*
-FsView::HeartBeatCheck ()
+FsView::HeartBeatCheck()
 {
-  //----------------------------------------------------------------
-  //! heart beat checker set's filesystem to down if the heart beat is missing
-  //----------------------------------------------------------------
-
   XrdSysThread::SetCancelOn();
+
   while (1)
   {
     {
-      // quickly go through all heartbeats
+      // Quickly go through all heartbeats
       eos::common::RWMutexReadLock lock(ViewMutex);
       std::map<eos::common::FileSystem::fsid_t, FileSystem*>::const_iterator it;
-      // iterator over all filesystems
+
+      // Iterator over all filesystems
       for (it = mIdView.begin(); it != mIdView.end(); it++)
       {
-	if (!it->second)
-	continue;
-	eos::common::FileSystem::fs_snapshot_t snapshot;
-	snapshot.mHeartBeatTime = (time_t) it->second->GetLongLong("stat.heartbeattime");
+        if (!it->second)
+          continue;
 
-	if (!it->second->HasHeartBeat(snapshot))
-	{
-	  // mark as offline
-	  if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
-	  it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-	}
-	else
-	{
-	  std::string queue = it->second->GetString("queue");
-	  std::string group = it->second->GetString("schedgroup");
+        eos::common::FileSystem::fs_snapshot_t snapshot;
+        snapshot.mHeartBeatTime = (time_t)
+            it->second->GetLongLong("stat.heartbeattime");
 
-	  if ((FsView::gFsView.mNodeView.count(queue)) &&
-	      (FsView::gFsView.mGroupView.count(group)) &&
-	      (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") &&
-	      (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on"))
-	  {
-	    if (it->second->GetActiveStatus() != eos::common::FileSystem::kOnline)
-	    it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
-	  }
-	  else
-	  {
-	    if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
-	    it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
-	  }
-	}
+        if (!it->second->HasHeartBeat(snapshot))
+        {
+          // Mark as offline
+          if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
+            it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+        }
+        else
+        {
+          std::string queue = it->second->GetString("queue");
+          std::string group = it->second->GetString("schedgroup");
+
+          if ((FsView::gFsView.mNodeView.count(queue)) &&
+              (FsView::gFsView.mGroupView.count(group)) &&
+              (FsView::gFsView.mNodeView[queue]->GetConfigMember("status") == "on") &&
+              (FsView::gFsView.mGroupView[group]->GetConfigMember("status") == "on"))
+          {
+            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOnline)
+              it->second->SetActiveStatus(eos::common::FileSystem::kOnline);
+          }
+          else
+          {
+            if (it->second->GetActiveStatus() != eos::common::FileSystem::kOffline)
+              it->second->SetActiveStatus(eos::common::FileSystem::kOffline);
+          }
+        }
       }
     }
     XrdSysTimer sleeper;
@@ -1857,22 +1916,20 @@ FsView::HeartBeatCheck ()
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Return a view member variable
+//------------------------------------------------------------------------------
 std::string
-BaseView::GetMember (std::string member)
+BaseView::GetMember(std::string member)
 {
-  //----------------------------------------------------------------
-  //! return a view member variable
-  //----------------------------------------------------------------
+  if (member == "name") return mName;
 
-  if (member == "name")
-  return mName;
-  if (member == "type")
-  return mType;
+  if (member == "type") return mType;
+
   if (member == "nofs")
   {
     char line[1024];
-    snprintf(line, sizeof (line) - 1, "%llu", (unsigned long long) size());
+    snprintf(line, sizeof(line) - 1, "%llu", (unsigned long long) size());
     mSize = line;
     return mSize;
   }
@@ -1887,7 +1944,7 @@ BaseView::GetMember (std::string member)
   if (member == "heartbeat")
   {
     char line[1024];
-    snprintf(line, sizeof (line) - 1, "%llu", (unsigned long long) mHeartBeat);
+    snprintf(line, sizeof(line) - 1, "%llu", (unsigned long long) mHeartBeat);
     mHeartBeatString = line;
     return mHeartBeatString;
   }
@@ -1895,37 +1952,42 @@ BaseView::GetMember (std::string member)
   if (member == "heartbeatdelta")
   {
     char line[1024];
+
     if (labs(time(NULL) - mHeartBeat) > 86400)
     {
-      snprintf(line, sizeof (line) - 1, "~");
+      snprintf(line, sizeof(line) - 1, "~");
     }
     else
     {
-      snprintf(line, sizeof (line) - 1, "%llu", (unsigned long long) (time(NULL) - mHeartBeat));
+      snprintf(line, sizeof(line) - 1, "%llu",
+               (unsigned long long)(time(NULL) - mHeartBeat));
     }
+
     mHeartBeatDeltaString = line;
     return mHeartBeatDeltaString;
   }
 
-  if (member == "status")
-  {
-    return mStatus;
-  }
+  if (member == "status") return mStatus;
 
-  // return global config value
+  // Return global config value
   std::string prefix = member;
   prefix.erase(4);
+
   if (prefix == "cfg.")
   {
     std::string val = "???";
     member.erase(0, 4);
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
-    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+        GetConfigQueuePrefix(), mName.c_str());
+    XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+        nodeconfigname.c_str());
+
     if (hash)
     {
       val = hash->Get(member.c_str());
     }
+
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
     // it's otherwise hard to get the default into place
@@ -1940,20 +2002,26 @@ BaseView::GetMember (std::string member)
   return "";
 }
 
-/*----------------------------------------------------------------------------*/
-FsNode::~FsNode ()
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+FsNode::~FsNode()
 {
   if (mGwQueue) delete mGwQueue;
-  FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
-};
 
-/*----------------------------------------------------------------------------*/
+  FsView::gFsView.mGwNodes.erase(mName); // unregister evt. gateway node
+}
+
+//------------------------------------------------------------------------------
+// GetMember
+//------------------------------------------------------------------------------
 std::string
-FsNode::GetMember (std::string member)
+FsNode::GetMember(std::string member)
 {
   if (member == "hostport")
   {
-    std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mName.c_str());
+    std::string hostport =
+        eos::common::StringConversion::GetStringHostPortFromQueue(mName.c_str());
     return hostport;
   }
   else
@@ -1962,28 +2030,34 @@ FsNode::GetMember (std::string member)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Set a configuration member variable (stored in the config engine)
+// If 'isstatus'=true we just store the value in the shared hash but don't flush
+// it into the configuration engine.
+//   => is used to set status variables on config queues (baseview queues)
+//------------------------------------------------------------------------------
 bool
-BaseView::SetConfigMember (std::string key, std::string value, bool create, std::string broadcastqueue, bool isstatus)
+BaseView::SetConfigMember(std::string key, std::string value, bool create,
+                          std::string broadcastqueue, bool isstatus)
 {
-  //----------------------------------------------------------------
-  //! set a configuration member variable (stored in the config engine)
-  //! - if 'isstatus'=true we just store the value in the shared hash but don't flush it into the configuration engine 
-  //!   => is used to set status variables on config queues (baseview queues)
-  //----------------------------------------------------------------
-
   bool success = false;
 #ifndef EOSMGMFSVIEWTEST
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+      GetConfigQueuePrefix(), mName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+      nodeconfigname.c_str());
+
   if (!hash && create)
   {
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
-    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(), broadcastqueue.c_str()))
+
+    if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(nodeconfigname.c_str(),
+                                                           broadcastqueue.c_str()))
     {
       success = false;
     }
+
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
     hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
   }
@@ -1991,93 +2065,101 @@ BaseView::SetConfigMember (std::string key, std::string value, bool create, std:
   if (hash)
   {
     success = hash->Set(key, value);
+
     if (key == "txgw")
     {
       eos::common::RWMutexWriteLock gwlock(FsView::gFsView.GwMutex);
+
       if (value == "on")
       {
-	// we have to register this queue into the gw set for fast lookups
-	FsView::gFsView.mGwNodes.insert(broadcastqueue);
-	// clear the queue if a machine is enabled
-	FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
+        // we have to register this queue into the gw set for fast lookups
+        FsView::gFsView.mGwNodes.insert(broadcastqueue);
+        // clear the queue if a machine is enabled
+        FsView::gFsView.mNodeView[broadcastqueue]->mGwQueue->Clear();
       }
       else
       {
-	FsView::gFsView.mGwNodes.erase(broadcastqueue);
+        FsView::gFsView.mGwNodes.erase(broadcastqueue);
       }
     }
   }
+
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
-  // register in the configuration engine
+  // Register in the configuration engine
   if ((!isstatus) && (FsView::ConfEngine))
   {
     nodeconfigname += "#";
     nodeconfigname += key;
     std::string confval = value;
-    FsView::ConfEngine->SetConfigValue("global", nodeconfigname.c_str(), confval.c_str());
+    FsView::ConfEngine->SetConfigValue("global", nodeconfigname.c_str(),
+                                       confval.c_str());
   }
-#endif
 
+#endif
   return success;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get a configuration member variable (stored in the config engine)
+//------------------------------------------------------------------------------
 std::string
-BaseView::GetConfigMember (std::string key)
+BaseView::GetConfigMember(std::string key)
 {
 #ifndef EOSMGMFSVIEWTEST
-  //----------------------------------------------------------------
-  //! get a configuration member variable (stored in the config engine)
-  //----------------------------------------------------------------
-
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
-
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+      GetConfigQueuePrefix(), mName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+      nodeconfigname.c_str());
 
   if (hash)
   {
     return hash->Get(key);
   }
+
 #endif
   return "";
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// GetConfigKeys
+//------------------------------------------------------------------------------
 bool
-BaseView::GetConfigKeys (std::vector<std::string> &keys)
+BaseView::GetConfigKeys(std::vector<std::string>& keys)
 {
 #ifndef EOSMGMFSVIEWTEST
   XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
-  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(GetConfigQueuePrefix(), mName.c_str());
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(nodeconfigname.c_str());
+  std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+      GetConfigQueuePrefix(), mName.c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+      nodeconfigname.c_str());
+
   if (hash)
   {
     hash->GetKeys(keys);
     return true;
   }
+
 #endif
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Creates a new filesystem id based on a uuid
+//------------------------------------------------------------------------------
 eos::common::FileSystem::fsid_t
-FsView::CreateMapping (std::string fsuuid)
+FsView::CreateMapping(std::string fsuuid)
 {
-  //----------------------------------------------------------------
-  //! creates a new filesystem id based on a uuid
-  //----------------------------------------------------------------
-
   eos::common::RWMutexWriteLock lock(MapMutex);
+
   if (Uuid2FsMap.count(fsuuid))
   {
     return Uuid2FsMap[fsuuid];
   }
   else
   {
-    if (!NextFsId)
-    SetNextFsId(1);
+    if (!NextFsId) SetNextFsId(1);
 
     std::map<eos::common::FileSystem::fsid_t, std::string>::const_iterator it;
 
@@ -2086,50 +2168,49 @@ FsView::CreateMapping (std::string fsuuid)
     {
       if (it->first > NextFsId)
       {
-	NextFsId = it->first;
+        NextFsId = it->first;
       }
     }
 
     if (NextFsId > 64000)
     {
-      // we don't support more than 64.000 filesystems
+      // We don't support more than 64.000 filesystems
       NextFsId = 1;
     }
 
     while (Fs2UuidMap.count(NextFsId))
     {
       NextFsId++;
+
       if (NextFsId > 640000)
       {
-	// if all filesystem id's are exhausted we better abort the program to avoid a mess!
-	eos_static_crit("all filesystem id's exhausted (64.000) - aborting the program");
-	exit(-1);
+        // If all filesystem id's are exhausted we better abort the program to avoid a mess!
+        eos_static_crit("all filesystem id's exhausted (64.000) - aborting the program");
+        exit(-1);
       }
     }
 
     SetNextFsId(NextFsId);
-
     Uuid2FsMap[fsuuid] = NextFsId;
     Fs2UuidMap[NextFsId] = fsuuid;
     return NextFsId;
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Adds a fsid=uuid pair to the mapping
+//------------------------------------------------------------------------------
 bool
-FsView::ProvideMapping (std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
+FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
 {
-  //----------------------------------------------------------------
-  //! adds a fsid=uuid pair to the mapping
-  //----------------------------------------------------------------
-
   eos::common::RWMutexWriteLock lock(MapMutex);
+
   if (Uuid2FsMap.count(fsuuid))
   {
     if (Uuid2FsMap[fsuuid] == fsid)
-    return true; // we accept if it is consistent with the existing mapping
+      return true; // we accept if it is consistent with the existing mapping
     else
-    return false;// we reject if it is in contradiction to an existing mapping
+      return false;// we reject if it is in contradiction to an existing mapping
   }
   else
   {
@@ -2141,13 +2222,13 @@ FsView::ProvideMapping (std::string fsuuid, eos::common::FileSystem::fsid_t fsid
 
 /*----------------------------------------------------------------------------*/
 eos::common::FileSystem::fsid_t
-FsView::GetMapping (std::string fsuuid)
+FsView::GetMapping(std::string fsuuid)
 {
   //----------------------------------------------------------------
   //! returns an fsid for a uuid
   //----------------------------------------------------------------
-
   eos::common::RWMutexReadLock lock(MapMutex);
+
   if (Uuid2FsMap.count(fsuuid))
   {
     return Uuid2FsMap[fsuuid];
@@ -2158,16 +2239,17 @@ FsView::GetMapping (std::string fsuuid)
   }
 }
 
-bool
-FsView::RemoveMapping (eos::common::FileSystem::fsid_t fsid)
-{
-  //----------------------------------------------------------------
-  //! removes a mapping entry by fsid
-  //----------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Removes a mapping entry by fsid
+//------------------------------------------------------------------------------
+bool
+FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid)
+{
   eos::common::RWMutexWriteLock lock(MapMutex);
   bool removed = false;
   std::string fsuuid;
+
   if (Fs2UuidMap.count(fsid))
   {
     fsuuid = Fs2UuidMap[fsid];
@@ -2180,71 +2262,83 @@ FsView::RemoveMapping (eos::common::FileSystem::fsid_t fsid)
     Uuid2FsMap.erase(fsuuid);
     removed = true;
   }
+
   return removed;
 }
 
+//------------------------------------------------------------------------------
+// Removes a mapping entry by providing fsid + uuid
+//------------------------------------------------------------------------------
 bool
-FsView::RemoveMapping (eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
+FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
 {
-  //----------------------------------------------------------------
-  //! removes a mapping entry by providing fsid + uuid
-  //----------------------------------------------------------------
-
   eos::common::RWMutexWriteLock lock(MapMutex);
   bool removed = false;
+
   if (Uuid2FsMap.count(fsuuid))
   {
     Uuid2FsMap.erase(fsuuid);
     removed = true;
   }
+
   if (Fs2UuidMap.count(fsid))
   {
     Fs2UuidMap.erase(fsid);
     removed = true;
   }
+
   return removed;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Print space information to out
+//------------------------------------------------------------------------------
 void
-FsView::PrintSpaces (std::string &out, std::string headerformat, std::string listformat, unsigned int outdepth, const char* selection)
+FsView::PrintSpaces(std::string& out, std::string headerformat,
+                    std::string listformat, unsigned int outdepth,
+                    const char* selection)
 {
-  //----------------------------------------------------------------
-  //! print space information to out
-  //----------------------------------------------------------------
-
   std::map<std::string, FsSpace* >::iterator it;
-
   std::vector<std::string> selections;
-  std::string selected = selection?selection:"";
+  std::string selected = selection ? selection : "";
+
   if (selection)
-  eos::common::StringConversion::Tokenize(selected, selections ,",");
+  {
+    eos::common::StringConversion::Tokenize(selected, selections , ",");
+  }
 
   for (it = mSpaceView.begin(); it != mSpaceView.end(); it++)
   {
     if (selection)
     {
-      bool found=false;
-      bool spacefound=false;
-      for (size_t i=0; i<selections.size(); i++)
-      {
-	std::string sel = selections[i];
-	// only apply space:... selections
-	if (sel.substr(0,6) == "space:")
-	{
-	  spacefound=true;
-	  sel.erase(0,6);
-	}
-	if ((it->second->mName.find(sel) != std::string::npos))
-	found=true;
-      }
-      if (selections.size() && (!spacefound))
-      found=true;
+      bool found = false;
+      bool spacefound = false;
 
-      if (!found)
-      continue;
+      for (size_t i = 0; i < selections.size(); i++)
+      {
+        std::string sel = selections[i];
+
+        // only apply space:... selections
+        if (sel.substr(0, 6) == "space:")
+        {
+          spacefound = true;
+          sel.erase(0, 6);
+        }
+
+        if ((it->second->mName.find(sel) != std::string::npos))
+          found = true;
+      }
+
+      if (selections.size() && (!spacefound))
+      {
+        found = true;
+      }
+
+      if (!found) continue;
     }
-    it->second->Print(out, headerformat, listformat, outdepth,selections);
+
+    it->second->Print(out, headerformat, listformat, outdepth, selections);
+
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
     {
       headerformat.erase(0, 9);
@@ -2252,36 +2346,41 @@ FsView::PrintSpaces (std::string &out, std::string headerformat, std::string lis
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//----------------------------------------------------------------------------
+// Print group information to out
+//----------------------------------------------------------------------------
 void
-FsView::PrintGroups (std::string &out, std::string headerformat, std::string listformat, unsigned int outdepth, const char* selection)
+FsView::PrintGroups(std::string& out, std::string headerformat,
+                    std::string listformat, unsigned int outdepth,
+                    const char* selection)
 {
-  //----------------------------------------------------------------
-  //! print group information to out
-  //----------------------------------------------------------------
-
   std::map<std::string, FsGroup* >::iterator it;
-
   std::vector<std::string> selections;
-  std::string selected = selection?selection:"";
+  std::string selected = selection ? selection : "";
+
   if (selection)
-  eos::common::StringConversion::Tokenize(selected, selections ,",");
+  {
+    eos::common::StringConversion::Tokenize(selected, selections , ",");
+  }
 
   for (it = mGroupView.begin(); it != mGroupView.end(); it++)
   {
     if (selection)
     {
-      bool found=false;
-      for (size_t i=0; i<selections.size(); i++)
+      bool found = false;
+
+      for (size_t i = 0; i < selections.size(); i++)
       {
-	if ((it->second->mName.find(selections[i])) != std::string::npos)
-	found=true;
+        if ((it->second->mName.find(selections[i])) != std::string::npos)
+          found = true;
       }
-      if (!found)
-      continue;
+
+      if (!found)  continue;
     }
+
     selections.clear();
     it->second->Print(out, headerformat, listformat, outdepth, selections);
+
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
     {
       headerformat.erase(0, 9);
@@ -2289,35 +2388,41 @@ FsView::PrintGroups (std::string &out, std::string headerformat, std::string lis
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Print node information to out
+//------------------------------------------------------------------------------
 void
-FsView::PrintNodes (std::string &out, std::string headerformat, std::string listformat, unsigned int outdepth, const char* selection)
+FsView::PrintNodes(std::string& out, std::string headerformat,
+                   std::string listformat, unsigned int outdepth,
+                   const char* selection)
 {
-  //----------------------------------------------------------------
-  //! print node information to out
-  //----------------------------------------------------------------
   std::map<std::string, FsNode* >::iterator it;
-
   std::vector<std::string> selections;
-  std::string selected = selection?selection:"";
+  std::string selected = selection ? selection : "";
+
   if (selection)
-  eos::common::StringConversion::Tokenize(selected, selections ,",");
+  {
+    eos::common::StringConversion::Tokenize(selected, selections , ",");
+  }
 
   for (it = mNodeView.begin(); it != mNodeView.end(); it++)
   {
     if (selection)
     {
-      bool found=false;
-      for (size_t i=0; i<selections.size(); i++)
+      bool found = false;
+
+      for (size_t i = 0; i < selections.size(); i++)
       {
-	if ((it->second->mName.find(selections[i])) != std::string::npos)
-	found=true;
+        if ((it->second->mName.find(selections[i])) != std::string::npos)
+          found = true;
       }
-      if (!found)
-      continue;
+
+      if (!found) continue;
     }
+
     selections.clear();
     it->second->Print(out, headerformat, listformat, outdepth, selections);
+
     if (!listformat.length() && ((headerformat.find("header=1:")) == 0))
     {
       headerformat.erase(0, 9);
@@ -2327,22 +2432,21 @@ FsView::PrintNodes (std::string &out, std::string headerformat, std::string list
 
 #ifndef EOSMGMFSVIEWTEST
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Converts a config engine definition for a filesystem into the FsView
+// representation.
+//------------------------------------------------------------------------------
 bool
-FsView::ApplyFsConfig (const char* inkey, std::string &val)
+FsView::ApplyFsConfig(const char* inkey, std::string& val)
 {
-  //----------------------------------------------------------------
-  //! converts a config engine definition for a filesystem into the FsView representation
-  //----------------------------------------------------------------
+  if (!inkey) return false;
 
-  if (!inkey)
-  return false;
-
-  // convert to map
+  // Convert to map
   std::string key = inkey;
   std::map<std::string, std::string> configmap;
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(val, tokens);
+
   for (size_t i = 0; i < tokens.size(); i++)
   {
     std::vector<std::string> keyval;
@@ -2351,7 +2455,8 @@ FsView::ApplyFsConfig (const char* inkey, std::string &val)
     configmap[keyval[0]] = keyval[1];
   }
 
-  if ((!configmap.count("queuepath")) || (!configmap.count("queue")) || (!configmap.count("id")))
+  if ((!configmap.count("queuepath")) || (!configmap.count("queue"))
+      || (!configmap.count("id")))
   {
     eos_static_err("config definitions missing ...");
     return false;
@@ -2359,12 +2464,13 @@ FsView::ApplyFsConfig (const char* inkey, std::string &val)
 
   eos::common::RWMutexWriteLock viewlock(ViewMutex);
   eos::common::FileSystem::fsid_t fsid = atoi(configmap["id"].c_str());
-
   FileSystem* fs = 0;
-  // apply only the registration fo a new filesystem if it does not exist
+
+  // Apply only the registration fo a new filesystem if it does not exist
   if (!FsView::gFsView.mIdView.count(fsid))
   {
-    fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(), eos::common::GlobalConfig::gConfig.SOM());
+    fs = new FileSystem(configmap["queuepath"].c_str(), configmap["queue"].c_str(),
+                        eos::common::GlobalConfig::gConfig.SOM());
   }
   else
   {
@@ -2377,32 +2483,37 @@ FsView::ApplyFsConfig (const char* inkey, std::string &val)
     fs->SetId(fsid);
     fs->SetString("uuid", configmap["uuid"].c_str());
     std::map<std::string, std::string>::iterator it;
+
     for (it = configmap.begin(); it != configmap.end(); it++)
     {
       // set config parameters
       fs->SetString(it->first.c_str(), it->second.c_str());
     }
+
     fs->CloseTransaction();
+
     if (!FsView::gFsView.Register(fs))
     {
-      eos_static_err("cannot register filesystem name=%s from configuration", configmap["queuepath"].c_str());
+      eos_static_err("cannot register filesystem name=%s from configuration",
+                     configmap["queuepath"].c_str());
       return false;
     }
+
     // insert into the mapping
     FsView::gFsView.ProvideMapping(configmap["uuid"], fsid);
     return true;
   }
+
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Converts a config engine definition of a global variable into the FsView
+// representation.
+//------------------------------------------------------------------------------
 bool
-FsView::ApplyGlobalConfig (const char* key, std::string &val)
+FsView::ApplyGlobalConfig(const char* key, std::string& val)
 {
-  //----------------------------------------------------------------
-  //! converts a config engine definition of a global variable into the FsView representation
-  //----------------------------------------------------------------
-
   // global variables are stored like key='<queuename>:<variable>' val='<val>'
   std::string configqueue = key;
   std::vector<std::string> tokens;
@@ -2426,7 +2537,9 @@ FsView::ApplyGlobalConfig (const char* key, std::string &val)
   }
 
   eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
-  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(tokens[0].c_str());
+  XrdMqSharedHash* hash = eos::common::GlobalConfig::gConfig.Get(
+      tokens[0].c_str());
+
   if (!hash)
   {
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
@@ -2437,84 +2550,88 @@ FsView::ApplyGlobalConfig (const char* key, std::string &val)
       std::string broadcast = "/eos/";
       broadcast += paths[paths.size() - 1];
       size_t dashpos = 0;
-      // remote the #<variable> 
+
+      // remote the #<variable>
       if ((dashpos = broadcast.find("#")) != std::string::npos)
       {
-	broadcast.erase(dashpos);
+        broadcast.erase(dashpos);
       }
+
       broadcast += "/fst";
 
-      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(), broadcast.c_str()))
+      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),
+                                                             broadcast.c_str()))
       {
-	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
+        eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
       }
     }
     else
     {
-      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(), "/eos/*/mgm"))
+      if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(tokens[0].c_str(),
+                                                             "/eos/*/mgm"))
       {
-	eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
+        eos_static_err("cannot create config queue <%s>", tokens[0].c_str());
       }
     }
+
     eos::common::GlobalConfig::gConfig.SOM()->HashMutex.LockRead();
     hash = eos::common::GlobalConfig::gConfig.Get(tokens[0].c_str());
   }
+
   if (hash)
   {
     success = hash->Set(tokens[1].c_str(), val.c_str());
 
-    // ---------------------------------------------------------------------------
-    // here we build a set with the gw nodes for fast lookup in the TransferEngine
-    // ---------------------------------------------------------------------------
+    // Here we build a set with the gw nodes for fast lookup in the TransferEngine
     if ((tokens[0].find("/node/")) != std::string::npos)
     {
       if (tokens[1] == "txgw")
       {
-	std::string broadcast = "/eos/";
-	broadcast += paths[paths.size() - 1];
-	size_t dashpos = 0;
-	// remote the #<variable>
-	if ((dashpos = broadcast.find("#")) != std::string::npos)
-	{
-	  broadcast.erase(dashpos);
-	}
-	broadcast += "/fst";
+        std::string broadcast = "/eos/";
+        broadcast += paths[paths.size() - 1];
+        size_t dashpos = 0;
 
-	FsView::gFsView.RegisterNode(broadcast.c_str()); // the node might not yet exist!
+        // Remote the #<variable>
+        if ((dashpos = broadcast.find("#")) != std::string::npos)
+        {
+          broadcast.erase(dashpos);
+        }
 
-	eos::common::RWMutexWriteLock gwlock(GwMutex);
-	if (val == "on")
-	{
-	  // we have to register this queue into the gw set for fast lookups
-	  FsView::gFsView.mGwNodes.insert(broadcast.c_str());
-	}
-	else
-	{
-	  FsView::gFsView.mGwNodes.erase(broadcast.c_str());
-	}
+        broadcast += "/fst";
+        FsView::gFsView.RegisterNode(
+            broadcast.c_str()); // the node might not yet exist!
+        eos::common::RWMutexWriteLock gwlock(GwMutex);
+
+        if (val == "on")
+        {
+          // we have to register this queue into the gw set for fast lookups
+          FsView::gFsView.mGwNodes.insert(broadcast.c_str());
+        }
+        else
+        {
+          FsView::gFsView.mGwNodes.erase(broadcast.c_str());
+        }
       }
     }
-
   }
   else
   {
     eos_static_err("there is no global config for queue <%s>", tokens[0].c_str());
   }
-  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
 
+  eos::common::GlobalConfig::gConfig.SOM()->HashMutex.UnLockRead();
   return success;
 }
 #endif
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the sum for <param> as long
+// param="<param>[?<key>=<value] allows to select with matches
+//------------------------------------------------------------------------------
 long long
-BaseView::SumLongLong (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::SumLongLong(const char* param, bool lock,
+                      const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the sum for <param> as long
-  //! param="<param>[?<key>=<value] allows to select with matches
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
@@ -2540,64 +2657,81 @@ BaseView::SumLongLong (const char* param, bool lock, const std::set<eos::common:
     isquery = true;
   }
 
-  if(isquery && key=="*" && value=="*")
+  if (isquery && key == "*" && value == "*")
   {
     // we just count the number of entries
-    if(subset)
+    if (subset)
       return subset->size();
     else
       return size();
   }
 
-  if(subset)
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       eos::common::FileSystem::fs_snapshot snapshot;
 
       // for query sum's we always fold in that a group and host has to be enabled
-      if ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value))
+      if ((!key.length())
+          || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value))
       {
-	if (isquery && ((!eos::common::FileSystem::GetActiveStatusFromString(FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
-		(eos::common::FileSystem::GetStatusFromString(FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) != eos::common::FileSystem::kBooted)))
-	continue;
+        if (isquery &&
+            ((!eos::common::FileSystem::GetActiveStatusFromString(
+                  FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
+             (eos::common::FileSystem::GetStatusFromString(
+                 FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
+              eos::common::FileSystem::kBooted)))
+        {
+          continue;
+        }
 
-	long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
-	if (isquery && v && (sparam == "stat.statfs.capacity"))
-	{
-	  // correct the capacity(rw) value for headroom
-	  v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
-	}
-	sum += v;
+        long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
+
+        if (isquery && v && (sparam == "stat.statfs.capacity"))
+        {
+          // Correct the capacity(rw) value for headroom
+          v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
+        }
+
+        sum += v;
       }
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       eos::common::FileSystem::fs_snapshot snapshot;
 
       // for query sum's we always fold in that a group and host has to be enabled
-      if ((!key.length()) || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value))
+      if ((!key.length())
+          || (FsView::gFsView.mIdView[*it]->GetString(key.c_str()) == value))
       {
-	if (isquery && ((!eos::common::FileSystem::GetActiveStatusFromString(FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
-		(eos::common::FileSystem::GetStatusFromString(FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) != eos::common::FileSystem::kBooted)))
-	continue;
+        if (isquery &&
+            ((!eos::common::FileSystem::GetActiveStatusFromString(
+                  FsView::gFsView.mIdView[*it]->GetString("stat.active").c_str())) ||
+             (eos::common::FileSystem::GetStatusFromString(
+                 FsView::gFsView.mIdView[*it]->GetString("stat.boot").c_str()) !=
+              eos::common::FileSystem::kBooted)))
+        {
+          continue;
+        }
 
-	long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
-	if (isquery && v && (sparam == "stat.statfs.capacity"))
-	{
-	  // correct the capacity(rw) value for headroom
-	  v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
-	}
-	sum += v;
+        long long v = FsView::gFsView.mIdView[*it]->GetLongLong(sparam.c_str());
+
+        if (isquery && v && (sparam == "stat.statfs.capacity"))
+        {
+          // correct the capacity(rw) value for headroom
+          v -= FsView::gFsView.mIdView[*it]->GetLongLong("headroom");
+        }
+
+        sum += v;
       }
     }
   }
 
-  // we have to rescale the stat.net parameters because they arrive for each filesystem
+  // We have to rescale the stat.net parameters because they arrive for each filesystem
   if (!sparam.compare(0, 8, "stat.net"))
   {
     if (mType == "spaceview")
@@ -2606,46 +2740,50 @@ BaseView::SumLongLong (const char* param, bool lock, const std::set<eos::common:
       std::string gsize = "";
       long long groupmod = 1;
       gsize = GetMember("cfg.groupmod");
+
       if (gsize.length())
       {
-	groupmod = strtoll(gsize.c_str(), 0, 10);
+        groupmod = strtoll(gsize.c_str(), 0, 10);
       }
+
       if (groupmod)
       {
-	sum /= groupmod;
+        sum /= groupmod;
       }
     }
+
     if ((mType == "nodesview"))
     {
       // divide by the number of entries we have summed
       if (size())
-      sum /= size();
+        sum /= size();
     }
   }
+
   if (lock)
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
+
   return sum;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the sum for <param> as double
+//------------------------------------------------------------------------------
 double
-BaseView::SumDouble (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::SumDouble(const char* param, bool lock,
+                    const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the sum for <param> as double
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   double sum = 0;
-  if(subset)
+
+  if (subset)
   {
-    BaseView::const_iterator it;
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
@@ -2653,27 +2791,27 @@ BaseView::SumDouble (const char* param, bool lock, const std::set<eos::common::F
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
     }
   }
+
   if (lock)
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
+
   return sum;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the average for <param>
+//------------------------------------------------------------------------------
 double
-BaseView::AverageDouble (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::AverageDouble(const char* param, bool lock,
+                        const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the average for <param>
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
@@ -2682,314 +2820,380 @@ BaseView::AverageDouble (const char* param, bool lock, const std::set<eos::commo
   double sum = 0;
   int cnt = 0;
 
-  if(subset)
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
 
       if (consider)
       {
-	cnt++;
-	sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+        cnt++;
+        sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
       }
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
 
       if (consider)
       {
-	cnt++;
-	sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
+        cnt++;
+        sum += FsView::gFsView.mIdView[*it]->GetDouble(param);
       }
     }
   }
+
   if (lock)
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
-  return (cnt) ? (double) (1.0 * sum / cnt) : 0;
+
+  return (cnt) ? (double)(1.0 * sum / cnt) : 0;
 }
 
+//------------------------------------------------------------------------------
+// Computes the maximum absolute deviation of <param> from the avg of <param>
+//------------------------------------------------------------------------------
 double
-BaseView::MaxAbsDeviation (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::MaxAbsDeviation(const char* param, bool lock,
+                          const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the maximum absolute deviation of <param> from the avg of <param>
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   double avg = AverageDouble(param, false);
-
   double maxabsdev = 0;
   double dev = 0;
 
-  if(subset)
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+          consider = false;
       }
+
       dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+
       if (consider)
       {
-	if (dev > maxabsdev)
-	maxabsdev = dev;
+        if (dev > maxabsdev)
+          maxabsdev = dev;
       }
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
+
       dev = fabs(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+
       if (consider)
       {
-	if (dev > maxabsdev)
-	maxabsdev = dev;
+        if (dev > maxabsdev)
+          maxabsdev = dev;
       }
     }
   }
+
   if (lock)
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
+
   return maxabsdev;
 }
 
-double
-BaseView::MaxDeviation (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
-{
-  //----------------------------------------------------------------
-  //! computes the maximum deviation of <param> from the avg of <param>
-  //----------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Computes the maximum deviation of <param> from the avg of <param>
+//------------------------------------------------------------------------------
+double
+BaseView::MaxDeviation(const char* param, bool lock,
+                       const std::set<eos::common::FileSystem::fsid_t>* subset)
+{
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   double avg = AverageDouble(param, false);
-
   double maxdev = -DBL_MAX;
   double dev = 0;
 
-  if(subset)
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+          consider = false;
       }
+
       dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+
       if (consider)
       {
-	if (dev > maxdev)
-	maxdev = dev;
+        if (dev > maxdev)
+          maxdev = dev;
       }
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
+
       dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+
       if (consider)
       {
-	if (dev > maxdev)
-	maxdev = dev;
+        if (dev > maxdev)
+          maxdev = dev;
       }
     }
   }
+
   if (lock)
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
+
   return maxdev;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the maximum deviation of <param> from the avg of <param>
+//------------------------------------------------------------------------------
 double
-BaseView::MinDeviation (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::MinDeviation(const char* param, bool lock,
+                       const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the maximum deviation of <param> from the avg of <param>
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   double avg = AverageDouble(param, false);
-
   double mindev = DBL_MAX;
   double dev = 0;
 
-  if(subset)
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
+
       dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+
       if (consider)
       {
-	if (dev < mindev)
-	mindev = dev;
+        if (dev < mindev)
+          mindev = dev;
       }
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
+
       dev = -(avg - FsView::gFsView.mIdView[*it]->GetDouble(param));
+
       if (consider)
       {
-	if (dev < mindev)
-	mindev = dev;
+        if (dev < mindev)
+          mindev = dev;
       }
     }
   }
+
   if (lock)
   {
     FsView::gFsView.ViewMutex.UnLockRead();
   }
+
   return mindev;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the sigma for <param>
+//------------------------------------------------------------------------------
 double
-BaseView::SigmaDouble (const char* param, bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::SigmaDouble(const char* param, bool lock,
+                      const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the sigma for <param>
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   double avg = AverageDouble(param, false);
-
   double sumsquare = 0;
   int cnt = 0;
 
-  if(subset)
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+          consider = false;
       }
+
       if (consider)
       {
-	cnt++;
-	sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
+        cnt++;
+        sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
       }
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+        {
+          consider = false;
+        }
       }
+
       if (consider)
       {
-	cnt++;
-	sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
+        cnt++;
+        sumsquare += pow((avg - FsView::gFsView.mIdView[*it]->GetDouble(param)), 2);
       }
     }
   }
@@ -3004,51 +3208,60 @@ BaseView::SigmaDouble (const char* param, bool lock, const std::set<eos::common:
   return sumsquare;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the considered count
+//------------------------------------------------------------------------------
 long long
-BaseView::ConsiderCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::ConsiderCount(bool lock,
+                        const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the considered count
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   long long cnt = 0;
-  if(subset)
+
+  if (subset)
   {
     for (auto it = subset->begin(); it != subset->end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+          consider = false;
       }
-      if(consider) cnt++;
+
+      if (consider) cnt++;
     }
   }
   else
   {
-    BaseView::const_iterator it;
-    for (it = begin(); it != end(); it++)
+    for (auto it = begin(); it != end(); it++)
     {
       bool consider = true;
+
       if (mType == "groupview")
       {
-	// we only count filesystem which are >=kRO and booted for averages in the group view
-	if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() < eos::common::FileSystem::kRO) ||
-	    (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted) ||
-	    (FsView::gFsView.mIdView[*it]->GetActiveStatus() == eos::common::FileSystem::kOffline))
-	consider = false;
+        // we only count filesystem which are >=kRO and booted for averages in the group view
+        if ((FsView::gFsView.mIdView[*it]->GetConfigStatus() <
+             eos::common::FileSystem::kRO) ||
+            (FsView::gFsView.mIdView[*it]->GetStatus() != eos::common::FileSystem::kBooted)
+            ||
+            (FsView::gFsView.mIdView[*it]->GetActiveStatus() ==
+             eos::common::FileSystem::kOffline))
+          consider = false;
       }
-      if(consider) cnt++;
+
+      if (consider) cnt++;
     }
   }
 
@@ -3060,21 +3273,21 @@ BaseView::ConsiderCount (bool lock, const std::set<eos::common::FileSystem::fsid
   return cnt;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Computes the considered count
+//------------------------------------------------------------------------------
 long long
-BaseView::TotalCount (bool lock, const std::set<eos::common::FileSystem::fsid_t> *subset)
+BaseView::TotalCount(bool lock,
+                     const std::set<eos::common::FileSystem::fsid_t>* subset)
 {
-  //----------------------------------------------------------------
-  //! computes the considered count
-  //----------------------------------------------------------------
-
   if (lock)
   {
     FsView::gFsView.ViewMutex.LockRead();
   }
 
   long long cnt = 0;
-  if(subset)
+
+  if (subset)
   {
     cnt = subset->size();
   }
@@ -3091,33 +3304,37 @@ BaseView::TotalCount (bool lock, const std::set<eos::common::FileSystem::fsid_t>
   return cnt;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Print user defined format to out
+//------------------------------------------------------------------------------
 void
-BaseView::Print (std::string &out, std::string headerformat, std::string listformat, unsigned outdepth, std::vector<std::string> &selections)
+BaseView::Print(std::string& out, std::string headerformat,
+                std::string listformat, unsigned outdepth,
+                std::vector<std::string>& selections)
 {
-  //----------------------------------------------------------------
-  //! print userdefined format to out
-  //----------------------------------------------------------------
-
   //-------------------------------------------------------------------------------
   // headerformat
   //-------------------------------------------------------------------------------
   // format has to be provided as a chain (separated by "|" ) of the following tags
-  // "member=<key>:width=<width>:format=[+][-][so]:unit=<unit>:tag=<tag>" -> to print a member variable of the view
-  // "avg=<key>:width=<width>:format=[fo]"                      -> to print the average 
-  // "sum=<key>:width=<width>:format=[lo]                       -> to print a sum
-  // "sig=<key>:width=<width>:format=[lo]                       -> to print the standard deviation
-  // "maxdev=<key>:width=<width>;format=[lo]                       -> to print the maxdeviation
-  // "sep=<seperator>"                                          -> to put a seperator
-  // "tag=<tag>"                                                -> use tag as header not the variable name
-  // "header=1"                                                 -> put a header with description on top! This must be the first format tag!!!
+  // "member=<key>:width=<width>:format=[+][-][so]:unit=<unit>:tag=<tag>"
+  //  -> to print a member variable of the view
+  // "avg=<key>:width=<width>:format=[fo]"   -> to print the average
+  // "sum=<key>:width=<width>:format=[lo]    -> to print a sum
+  // "sig=<key>:width=<width>:format=[lo]    -> to print the standard deviation
+  // "maxdev=<key>:width=<width>;format=[lo] -> to print the maxdeviation
+  // "sep=<seperator>"                       -> to put a seperator
+  // "tag=<tag>"                             -> use tag as header not the variable name
+  // "header=1" -> put a header with description on top!
+  //               This must be the first format tag!!!
   //-------------------------------------------------------------------------------
   // listformat
   //-------------------------------------------------------------------------------
   // format has to be provided as a chain (separated by "|" ) of the following tags
-  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>"  -> to print a key of the attached children
-  // "sep=<seperator>"                        -> to put a seperator
-  // "header=1"                                                 -> put a header with description on top! This must be the first format tag!!!
+  // "key=<key>:width=<width>:format=[+][-][slfo]:unit=<unit>:tag=<tag>"
+  //  -> to print a key of the attached children
+  // "sep=<seperator>" -> to put a seperator
+  // "header=1" -> put a header with description on top
+  //               This must be the first format tag!!!
   // the formats are:
   // 's' : print as string
   // 'S' : print as short string
@@ -3129,578 +3346,709 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
   // the unit is appended to every number:
   // e.g. 1500 with unit=B would end up as '1.5 kB'
   // the command only appends to <out> and DOES NOT initialize it
-  // "tag=<tag>"                                                -> use tag as header not the variable name
+  // "tag=<tag>" -> use tag as header not the variable name
 
-  // because we don't display the members with geodepth option
-  // we proceed with the non geodepth display first
-  if(outdepth>0)
+  // Since we don't display the members with geodepth option, we proceed with
+  // the non geodepth display first.
+  if (outdepth > 0)
   {
     Print(out, headerformat, listformat, 0, selections);
-    // we force-print the header
-    if(headerformat.find("header=1")==std::string::npos)
+
+    // We force-print the header
+    if (headerformat.find("header=1") == std::string::npos)
     {
-      if(headerformat.find("header=0")!=std::string::npos)
+      if (headerformat.find("header=0") != std::string::npos)
       {
         headerformat.replace(headerformat.find("header=0"), 8, "header=1");
       }
+
       headerformat = "header=1:" + headerformat;
     }
   }
 
   std::vector<std::string> formattoken;
   bool buildheader = false;
-
   std::string header = "";
   std::string body = "";
 
-  class DoubleAggregatedStats : public std::map<std::string,DoubleAggregator*>
+  class DoubleAggregatedStats : public std::map<std::string, DoubleAggregator*>
   {
-    BaseView *pThis;
-  public:
-    DoubleAggregatedStats(BaseView *This) : pThis(This)
-    {}
-    DoubleAggregator* operator[] (const char *param)
+    BaseView* pThis;
+
+   public:
+    DoubleAggregatedStats(BaseView* This) : pThis(This) {}
+    DoubleAggregator* operator[](const char* param)
     {
-      if(!count(param))
+      if (!count(param))
       {
-	DoubleAggregator* aggreg = new DoubleAggregator(param);
-	aggreg->setView(pThis);
-	pThis->runAggregator(aggreg);
-	insert(std::make_pair(param,aggreg));
+        DoubleAggregator* aggreg = new DoubleAggregator(param);
+        aggreg->setView(pThis);
+        pThis->runAggregator(aggreg);
+        insert(std::make_pair(param, aggreg));
       }
+
       return find(param)->second;
     }
 
     ~DoubleAggregatedStats()
     {
-      for(auto it=begin(); it!=end(); it++)
-      delete it->second;
+      for (auto it = begin(); it != end(); it++)
+        delete it->second;
     }
   };
 
-  class LongLongAggregatedStats : public std::map<std::string,LongLongAggregator*>
+  class LongLongAggregatedStats : public std::map<std::string, LongLongAggregator*>
   {
-    BaseView *pThis;
-  public:
-    LongLongAggregatedStats(BaseView *This) : pThis(This)
-    {}
-    LongLongAggregator* operator[] (const char *param)
+    BaseView* pThis;
+   public:
+    LongLongAggregatedStats(BaseView* This) : pThis(This) {}
+
+    LongLongAggregator* operator[](const char* param)
     {
-      if(!count(param))
+      if (!count(param))
       {
-	LongLongAggregator* aggreg = new LongLongAggregator(param);
-	aggreg->setView(pThis);
-	pThis->runAggregator(aggreg);
-	insert(std::make_pair(param,aggreg));
+        LongLongAggregator* aggreg = new LongLongAggregator(param);
+        aggreg->setView(pThis);
+        pThis->runAggregator(aggreg);
+        insert(std::make_pair(param, aggreg));
       }
+
       return find(param)->second;
     }
+
     ~LongLongAggregatedStats()
     {
-      for(auto it=begin(); it!=end(); it++)
-      delete it->second;
+      for (auto it = begin(); it != end(); it++)
+        delete it->second;
     }
   };
 
   LongLongAggregatedStats longStats(this);
   DoubleAggregatedStats doubleStats(this);
-
   unsigned int nLines = 0;
 
-  if(outdepth>0)
+  if (outdepth > 0)
   {
     nLines = longStats["lastHeartBeat"]->getGeoTags()->size();
     nLines = longStats["lastHeartBeat"]->getEndIndex(outdepth);
   }
   else
-  nLines = 1;
+  {
+    nLines = 1;
+  }
 
   eos::common::StringConversion::Tokenize(headerformat, formattoken, "|");
 
-  for(unsigned int l=0; l<nLines; l++ )
+  for (unsigned int l = 0; l < nLines; l++)
   {
     buildheader = false;
+
     for (unsigned int i = 0; i < formattoken.size(); i++)
     {
       std::vector<std::string> tagtoken;
       std::map<std::string, std::string> formattags;
-
       eos::common::StringConversion::Tokenize(formattoken[i], tagtoken, ":");
+
       for (unsigned int j = 0; j < tagtoken.size(); j++)
       {
-	std::vector<std::string> keyval;
-	eos::common::StringConversion::Tokenize(tagtoken[j], keyval, "=");
-	formattags[keyval[0]] = keyval[1];
+        std::vector<std::string> keyval;
+        eos::common::StringConversion::Tokenize(tagtoken[j], keyval, "=");
+        formattags[keyval[0]] = keyval[1];
       }
 
-      //---------------------------------------------------------------------------------------
       // "key=<key>:width=<width>:format=[slfo]"
-
       bool alignleft = false;
-      if (formattags.count("format") && (formattags["format"].find("-") != std::string::npos))
+
+      if (formattags.count("format") &&
+          (formattags["format"].find("-") != std::string::npos))
       {
-	alignleft = true;
+        alignleft = true;
       }
 
       if (formattags.count("header"))
       {
-	// add the desired seperator
-	if (formattags.count("header") == 1 && l == 0)
-	{
-	  buildheader = true;
-	}
+        // Add the desired seperator
+        if (formattags.count("header") == 1 && l == 0)
+        {
+          buildheader = true;
+        }
       }
 
-      // to save some display space, we don't print out members with geodepth option
-      if(outdepth>0 && formattags.count("member"))
+      // To save display space, we don't print out members with geodepth option
+      if (outdepth > 0 && formattags.count("member"))
         continue;
 
       if (formattags.count("width") && formattags.count("format"))
       {
-	unsigned int width = atoi(formattags["width"].c_str());
-	// string
-	char line[1024];
-	char tmpline[1024];
-	char lformat[1024];
-	char lenformat[1024];
-	line[0] = 0;
-	lformat[0] = 0;
+        unsigned int width = atoi(formattags["width"].c_str());
+        // string
+        char line[1024];
+        char tmpline[1024];
+        char lformat[1024];
+        char lenformat[1024];
+        line[0] = 0;
+        lformat[0] = 0;
 
-	if ((formattags["format"].find("s")) != std::string::npos)
-	snprintf(lformat, sizeof (lformat) - 1, "%%s");
+        if ((formattags["format"].find("s")) != std::string::npos)
+          snprintf(lformat, sizeof(lformat) - 1, "%%s");
 
-	if ((formattags["format"].find("l")) != std::string::npos)
-	snprintf(lformat, sizeof (lformat) - 1, "%%lld");
+        if ((formattags["format"].find("l")) != std::string::npos)
+          snprintf(lformat, sizeof(lformat) - 1, "%%lld");
 
-	if ((formattags["format"].find("f")) != std::string::npos)
-	snprintf(lformat, sizeof (lformat) - 1, "%%.02f");
+        if ((formattags["format"].find("f")) != std::string::npos)
+          snprintf(lformat, sizeof(lformat) - 1, "%%.02f");
 
-	// protect against missing format types
-	if (lformat[0] == 0)
-	continue;
+        // Protect against missing format types
+        if (lformat[0] == 0)
+          continue;
 
-	if (alignleft)
-	{
-	  snprintf(lenformat, sizeof (lenformat) - 1, "%%-%ds", width);
-	}
-	else
-	{
-	  snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width);
-	}
+        if (alignleft)
+        {
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%-%ds", width);
+        }
+        else
+        {
+          snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width);
+        }
 
-	// normal member printout
-	if (formattags.count("member"))
-	{
-
-	  if (((formattags["format"].find("+")) != std::string::npos) && (formattags["format"].find("s") == std::string::npos))
-	  {
-	    std::string ssize;
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) (strtoll(GetMember(formattags["member"]).c_str(), 0, 10)), formattags["unit"].c_str());
-	    snprintf(line, sizeof (line) - 1, lenformat, ssize.c_str());
-	  }
-	  else
-	  {
-	  std::string member = GetMember(formattags["member"]).c_str();
-
-          if (((formattags["format"].find("S")) != std::string::npos)) 
-	  {
-	    size_t colon = member.find(":");
-	    size_t dot = member.find(".");
-	    if (dot != std::string::npos)
-	      member.erase(dot, (colon!=std::string::npos)?colon-dot:colon);
-	  }
-
-          if (((formattags["format"].find("l")) != std::string::npos))
-            snprintf(tmpline, sizeof (tmpline) - 1, lformat, strtoll(member.c_str(),0,10));
+        // Normal member printout
+        if (formattags.count("member"))
+        {
+          if ((formattags["format"].find("+") != std::string::npos) &&
+              (formattags["format"].find("s") == std::string::npos))
+          {
+            std::string ssize;
+            eos::common::StringConversion::GetReadableSizeString(
+                ssize, (unsigned long long)(strtoll(
+                GetMember(formattags["member"]).c_str(), 0, 10)),
+                formattags["unit"].c_str());
+            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
+          }
           else
-            snprintf(tmpline, sizeof (tmpline) - 1, lformat, member.c_str());
-          snprintf(line, sizeof (line) - 1, lenformat, tmpline);
-	  }
+          {
+            std::string member = GetMember(formattags["member"]).c_str();
 
-	  if (buildheader)
-	  {
-	    char headline[1024];
-	    char lenformat[1024];
-	    XrdOucString pkey = formattags["member"].c_str();
-	    pkey.replace("stat.statfs.", "");
-	    pkey.replace("stat.", "");
-	    pkey.replace("cfg.", "");
-	    if (formattags.count("tag"))
-	    {
-	      pkey = formattags["tag"].c_str();
-	    }
+            if ((formattags["format"].find("S") != std::string::npos))
+            {
+              size_t colon = member.find(":");
+              size_t dot = member.find(".");
 
-	    snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width - 1);
-	    snprintf(headline, sizeof (headline) - 1, lenformat, pkey.c_str());
-	    std::string sline = headline;
-	    if (sline.length() != (width - 1))
-	    {
-	      sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ? (sline.length() - width + 1 + 3) : 0);
-	      sline.insert(0, "...");
-	    }
-	    header += "#";
-	    header += sline;
-	  }
-	}
+              if (dot != std::string::npos)
+                member.erase(dot, (colon != std::string::npos) ? colon - dot : colon);
+            }
 
-	// sum printout
-	if (formattags.count("sum"))
-	{
-	  if(!outdepth)
-	  snprintf(tmpline, sizeof (tmpline) - 1, lformat, SumLongLong(formattags["sum"].c_str(), false));
-	  else
-	  snprintf(tmpline, sizeof (tmpline) - 1, lformat, (*longStats[formattags["sum"].c_str()]->getSums())[l] );
+            if ((formattags["format"].find("l") != std::string::npos))
+            {
+              snprintf(tmpline, sizeof(tmpline) - 1, lformat, strtoll(member.c_str(), 0, 10));
+            }
+            else
+            {
+              snprintf(tmpline, sizeof(tmpline) - 1, lformat, member.c_str());
+            }
 
-	  if (((formattags["format"].find("+")) != std::string::npos))
-	  {
-	    std::string ssize;
-	    if(!outdepth)
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) SumLongLong(formattags["sum"].c_str(), false), formattags["unit"].c_str());
-	    else
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) (*longStats[formattags["sum"].c_str()]->getSums())[l], formattags["unit"].c_str());
-	    snprintf(line, sizeof (line) - 1, lenformat, ssize.c_str());
-	  }
-	  else
-	  {
-	    snprintf(line, sizeof (line) - 1, lenformat, tmpline);
-	  }
+            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+          }
 
-	  if (buildheader)
-	  {
-	    char headline[1024];
-	    char lenformat[1024];
-	    XrdOucString pkey = formattags["sum"].c_str();
-	    pkey.replace("stat.statfs.", "");
-	    pkey.replace("stat.", "");
-	    pkey.replace("cfg.", "");
-	    if (formattags.count("tag"))
-	    {
-	      pkey = formattags["tag"].c_str();
-	      width += 5;
-	    }
+          if (buildheader)
+          {
+            char headline[1024];
+            char lenformat[1024];
+            XrdOucString pkey = formattags["member"].c_str();
+            pkey.replace("stat.statfs.", "");
+            pkey.replace("stat.", "");
+            pkey.replace("cfg.", "");
 
-	    snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width - 6);
-	    snprintf(headline, sizeof (headline) - 1, lenformat, pkey.c_str());
-	    std::string sline = headline;
-	    if (sline.length() != (width - 6))
-	    {
-	      sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ? (sline.length() - width + 6 + 3) : 0);
-	      sline.insert(0, "...");
-	    }
-	    if (!formattags.count("tag"))
-	    {
-	      header += "#";
-	      header += "sum(";
-	      header += sline;
-	      header += ")";
-	    }
-	    else
-	    {
-	      header += "#";
-	      header += sline;
-	    }
-	  }
-	}
+            if (formattags.count("tag"))
+            {
+              pkey = formattags["tag"].c_str();
+            }
 
-	if (formattags.count("avg"))
-	{
-	  if(formattags["avg"]=="stat.geotag")
-	  {
-	    if(outdepth)
-	    { // this average means anything only when displaying along the topology tree
-	      snprintf(tmpline, sizeof (tmpline) - 1, lformat, (*longStats["lastHeartBeat"]->getGeoTags())[l].c_str());
-	      snprintf(line, sizeof (line) - 1, lenformat, tmpline);
-	      if(buildheader)
-	      {
-		char headline[1024];
-		char lenformat[1024];
-		snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width - 1);
-		snprintf(headline, sizeof (headline) - 1, lenformat, "geotag");
-		std::string sline = headline;
-		if (sline.length() != (width - 1))
-		{
-		  sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ? (sline.length() - width + 1 + 3) : 0);
-		  sline.insert(0, "...");
-		}
-		header += "#";
-		header += sline;
-	      }
-	    }
-	  }
-	  else // if not geotag special case
-	  {
-	    if(!outdepth)
-	    snprintf(tmpline, sizeof (tmpline) - 1, lformat, AverageDouble(formattags["avg"].c_str(), false));
-	    else
-	    snprintf(tmpline, sizeof (tmpline) - 1, lformat, (*doubleStats[formattags["avg"].c_str()]->getMeans())[l]);
+            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
+            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
+            std::string sline = headline;
 
-	    if ((formattags["format"].find("+") != std::string::npos))
-	    {
-	      std::string ssize;
-	      if(!outdepth)
-	      eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) AverageDouble(formattags["avg"].c_str(), false), formattags["unit"].c_str());
-	      else
-	      eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) (*doubleStats[formattags["avg"].c_str()]->getMeans())[l], formattags["unit"].c_str());
-	      snprintf(line, sizeof (line) - 1, lenformat, ssize.c_str());
-	    }
-	    else
-	    {
-	      snprintf(line, sizeof (line) - 1, lenformat, tmpline);
-	    }
+            if (sline.length() != (width - 1))
+            {
+              sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
+                          (sline.length() - width + 1 + 3) : 0);
+              sline.insert(0, "...");
+            }
 
-	    if (buildheader)
-	    {
-	      char headline[1024];
-	      char lenformat[1024];
-	      XrdOucString pkey = formattags["avg"].c_str();
-	      pkey.replace("stat.statfs.", "");
-	      pkey.replace("stat.", "");
-	      pkey.replace("cfg.", "");
-	      if (formattags.count("tag"))
-	      {
-		pkey = formattags["tag"].c_str();
-		width += 5;
-	      }
+            header += "#";
+            header += sline;
+          }
+        }
 
-	      snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width - 6);
-	      snprintf(headline, sizeof (headline) - 1, lenformat, pkey.c_str());
-	      std::string sline = headline;
-	      if (sline.length() != (width - 6))
-	      {
-		sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ? (sline.length() - width + 6 + 3) : 0);
-		sline.insert(0, "...");
-	      }
-	      if (!formattags.count("tag"))
-	      {
-		header += "#";
-		header += "avg(";
-		header += sline;
-		header += ")";
-	      }
-	      else
-	      {
-		header += "#";
-		header += sline;
-	      }
-	    }
-	  } // end not geotag case
-	}
+        // Sum printout
+        if (formattags.count("sum"))
+        {
+          if (!outdepth)
+          {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     SumLongLong(formattags["sum"].c_str(), false));
+          }
+          else
+          {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     (*longStats[formattags["sum"].c_str()]->getSums())[l]);
+          }
 
-	if (formattags.count("sig"))
-	{
-	  if(!outdepth)
-	  snprintf(tmpline, sizeof (tmpline) - 1, lformat, SigmaDouble(formattags["sig"].c_str(), false));
-	  else
-	  snprintf(tmpline, sizeof (tmpline) - 1, lformat, (*doubleStats[formattags["sig"].c_str()]->getStdDevs())[l] );
+          if ((formattags["format"].find("+") != std::string::npos))
+          {
+            std::string ssize;
 
-	  if ((formattags["format"].find("+") != std::string::npos))
-	  {
-	    std::string ssize;
-	    if(!outdepth)
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) SigmaDouble(formattags["sig"].c_str(), false), formattags["unit"].c_str());
-	    else
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) (*doubleStats[formattags["sig"].c_str()]->getStdDevs())[l], formattags["unit"].c_str());
+            if (!outdepth)
+            {
+              eos::common::StringConversion::GetReadableSizeString(
+                  ssize, (unsigned long long) SumLongLong(formattags["sum"].c_str(), false),
+                  formattags["unit"].c_str());
+            }
+            else
+            {
+              eos::common::StringConversion::GetReadableSizeString(
+                  ssize, (unsigned long long)(
+                      *longStats[formattags["sum"].c_str()]->getSums())[l],
+                  formattags["unit"].c_str());
+            }
 
-	    snprintf(line, sizeof (line) - 1, lenformat, ssize.c_str());
-	  }
-	  else
-	  {
-	    snprintf(line, sizeof (line) - 1, lenformat, tmpline);
-	  }
-	  if (buildheader)
-	  {
-	    char headline[1024];
-	    char lenformat[1024];
-	    XrdOucString pkey = formattags["sig"].c_str();
-	    pkey.replace("stat.statfs.", "");
-	    pkey.replace("stat.", "");
-	    pkey.replace("cfg.", "");
-	    if (formattags.count("tag"))
-	    {
-	      pkey = formattags["tag"].c_str();
-	      width += 5;
-	    }
+            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
+          }
+          else
+          {
+            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+          }
 
-	    snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width - 6);
-	    snprintf(headline, sizeof (headline) - 1, lenformat, pkey.c_str());
-	    std::string sline = headline;
-	    if (sline.length() != (width - 6))
-	    {
-	      sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ? (sline.length() - width + 6 + 3) : 0);
-	      sline.insert(0, "...");
-	    }
-	    if (!formattags.count("tag"))
-	    {
-	      header += "#";
-	      header += "sig(";
-	      header += sline;
-	      header += ")";
-	    }
-	    else
-	    {
-	      header += "#";
-	      header += sline;
-	    }
-	  }
-	}
+          if (buildheader)
+          {
+            char headline[1024];
+            char lenformat[1024];
+            XrdOucString pkey = formattags["sum"].c_str();
+            pkey.replace("stat.statfs.", "");
+            pkey.replace("stat.", "");
+            pkey.replace("cfg.", "");
 
-	if (formattags.count("maxdev"))
-	{
-	  if(!outdepth)
-	  snprintf(tmpline, sizeof (tmpline) - 1, lformat, MaxAbsDeviation(formattags["maxdev"].c_str(), false));
-	  else
-	  snprintf(tmpline, sizeof (tmpline) - 1, lformat, (*doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l] );
+            if (formattags.count("tag"))
+            {
+              pkey = formattags["tag"].c_str();
+              width += 5;
+            }
 
-	  if ((formattags["format"].find("+") != std::string::npos))
-	  {
-	    std::string ssize;
-	    if(!outdepth)
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) MaxAbsDeviation(formattags["maxdev"].c_str(), false), formattags["unit"].c_str());
-	    else
-	    eos::common::StringConversion::GetReadableSizeString(ssize, (unsigned long long) (*doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l], formattags["unit"].c_str());
-	    snprintf(line, sizeof (line) - 1, lenformat, ssize.c_str());
-	  }
-	  else
-	  {
-	    snprintf(line, sizeof (line) - 1, lenformat, tmpline);
-	  }
-	  if (buildheader)
-	  {
-	    char headline[1024];
-	    char lenformat[1024];
-	    XrdOucString pkey = formattags["maxdev"].c_str();
-	    pkey.replace("stat.statfs.", "");
-	    pkey.replace("stat.", "");
-	    pkey.replace("cfg.", "");
-	    if (formattags.count("tag"))
-	    {
-	      pkey = formattags["tag"].c_str();
-	      width += 5;
-	    }
+            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
+            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
+            std::string sline = headline;
 
-	    snprintf(lenformat, sizeof (lenformat) - 1, "%%%ds", width - 6);
-	    snprintf(headline, sizeof (headline) - 1, lenformat, pkey.c_str());
-	    std::string sline = headline;
-	    if (sline.length() != (width - 6))
-	    {
-	      sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ? (sline.length() - width + 6 + 3) : 0);
-	      sline.insert(0, "...");
-	    }
-	    if (!formattags.count("tag"))
-	    {
-	      header += "#";
-	      header += "dev(";
-	      header += sline;
-	      header += ")";
-	    }
-	    else
-	    {
-	      header += "#";
-	      header += sline;
-	    }
-	  }
-	}
+            if (sline.length() != (width - 6))
+            {
+              sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
+                          (sline.length() - width + 6 + 3) : 0);
+              sline.insert(0, "...");
+            }
 
-	if ((formattags["format"].find("o") != std::string::npos))
-	{
-	  char keyval[4096];
-	  buildheader = false; // auto disable header
-	  if (formattags.count("member"))
-	  {
-	    snprintf(keyval, sizeof (keyval) - 1, "%s=%s", formattags["member"].c_str(), line);
-	  }
-	  if (formattags.count("sum"))
-	  {
-	    snprintf(keyval, sizeof (keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(), line);
-	  }
-	  if (formattags.count("avg"))
-	  {
-	    snprintf(keyval, sizeof (keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(), line);
-	  }
-	  if (formattags.count("sig"))
-	  {
-	    snprintf(keyval, sizeof (keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(), line);
-	  }
-	  if (formattags.count("maxdev"))
-	  {
-	    snprintf(keyval, sizeof (keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(), line);
-	  }
-	  body += keyval;
-	}
-	else
-	{
-	  std::string sline = line;
-	  if (sline.length() > width)
-	  {
-	    sline.erase(0, ((sline.length() - width + 3) > 0) ? (sline.length() - width + 3) : 0);
-	    sline.insert(0, "...");
-	  }
-	  body += sline;
-	}
+            if (!formattags.count("tag"))
+            {
+              header += "#";
+              header += "sum(";
+              header += sline;
+              header += ")";
+            }
+            else
+            {
+              header += "#";
+              header += sline;
+            }
+          }
+        }
+
+        if (formattags.count("avg"))
+        {
+          if (formattags["avg"] == "stat.geotag")
+          {
+            if (outdepth)
+            {
+              // This average means anything only when displaying along the topology tree
+              snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                       (*longStats["lastHeartBeat"]->getGeoTags())[l].c_str());
+              snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+
+              if (buildheader)
+              {
+                char headline[1024];
+                char lenformat[1024];
+                snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 1);
+                snprintf(headline, sizeof(headline) - 1, lenformat, "geotag");
+                std::string sline = headline;
+
+                if (sline.length() != (width - 1))
+                {
+                  sline.erase(0, ((sline.length() - width + 1 + 3) > 0) ?
+                              (sline.length() - width + 1 + 3) : 0);
+                  sline.insert(0, "...");
+                }
+
+                header += "#";
+                header += sline;
+              }
+            }
+          }
+          else // If not geotag special case
+          {
+            if (!outdepth)
+            {
+              snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                       AverageDouble(formattags["avg"].c_str(), false));
+            }
+            else
+            {
+              snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                       (*doubleStats[formattags["avg"].c_str()]->getMeans())[l]);
+            }
+
+            if ((formattags["format"].find("+") != std::string::npos))
+            {
+              std::string ssize;
+
+              if (!outdepth)
+              {
+                eos::common::StringConversion::GetReadableSizeString(
+                    ssize, (unsigned long long) AverageDouble(formattags["avg"].c_str(), false),
+                    formattags["unit"].c_str());
+              }
+              else
+              {
+                eos::common::StringConversion::GetReadableSizeString(
+                    ssize, (unsigned long long)(
+                        *doubleStats[formattags["avg"].c_str()]->getMeans())[l],
+                    formattags["unit"].c_str());
+              }
+
+              snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
+            }
+            else
+            {
+              snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+            }
+
+            if (buildheader)
+            {
+              char headline[1024];
+              char lenformat[1024];
+              XrdOucString pkey = formattags["avg"].c_str();
+              pkey.replace("stat.statfs.", "");
+              pkey.replace("stat.", "");
+              pkey.replace("cfg.", "");
+
+              if (formattags.count("tag"))
+              {
+                pkey = formattags["tag"].c_str();
+                width += 5;
+              }
+
+              snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
+              snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
+              std::string sline = headline;
+
+              if (sline.length() != (width - 6))
+              {
+                sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
+                            (sline.length() - width + 6 + 3) : 0);
+                sline.insert(0, "...");
+              }
+
+              if (!formattags.count("tag"))
+              {
+                header += "#";
+                header += "avg(";
+                header += sline;
+                header += ")";
+              }
+              else
+              {
+                header += "#";
+                header += sline;
+              }
+            }
+          } // end not geotag case
+        }
+
+        if (formattags.count("sig"))
+        {
+          if (!outdepth)
+          {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     SigmaDouble(formattags["sig"].c_str(), false));
+          }
+          else
+          {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     (*doubleStats[formattags["sig"].c_str()]->getStdDevs())[l]);
+          }
+
+          if ((formattags["format"].find("+") != std::string::npos))
+          {
+            std::string ssize;
+
+            if (!outdepth)
+            {
+              eos::common::StringConversion::GetReadableSizeString(
+                  ssize, (unsigned long long) SigmaDouble(formattags["sig"].c_str(), false),
+                  formattags["unit"].c_str());
+            }
+            else
+            {
+              eos::common::StringConversion::GetReadableSizeString(
+                  ssize, (unsigned long long)(
+                      *doubleStats[formattags["sig"].c_str()]->getStdDevs())[l],
+                  formattags["unit"].c_str());
+            }
+
+            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
+          }
+          else
+          {
+            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+          }
+
+          if (buildheader)
+          {
+            char headline[1024];
+            char lenformat[1024];
+            XrdOucString pkey = formattags["sig"].c_str();
+            pkey.replace("stat.statfs.", "");
+            pkey.replace("stat.", "");
+            pkey.replace("cfg.", "");
+
+            if (formattags.count("tag"))
+            {
+              pkey = formattags["tag"].c_str();
+              width += 5;
+            }
+
+            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
+            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
+            std::string sline = headline;
+
+            if (sline.length() != (width - 6))
+            {
+              sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
+                          (sline.length() - width + 6 + 3) : 0);
+              sline.insert(0, "...");
+            }
+
+            if (!formattags.count("tag"))
+            {
+              header += "#";
+              header += "sig(";
+              header += sline;
+              header += ")";
+            }
+            else
+            {
+              header += "#";
+              header += sline;
+            }
+          }
+        }
+
+        if (formattags.count("maxdev"))
+        {
+          if (!outdepth)
+          {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     MaxAbsDeviation(formattags["maxdev"].c_str(), false));
+          }
+          else
+          {
+            snprintf(tmpline, sizeof(tmpline) - 1, lformat,
+                     (*doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l]);
+          }
+
+          if ((formattags["format"].find("+") != std::string::npos))
+          {
+            std::string ssize;
+
+            if (!outdepth)
+            {
+              eos::common::StringConversion::GetReadableSizeString(
+                  ssize, (unsigned long long) MaxAbsDeviation(formattags["maxdev"].c_str(),
+                                                              false),
+                  formattags["unit"].c_str());
+            }
+            else
+            {
+              eos::common::StringConversion::GetReadableSizeString(
+                  ssize, (unsigned long long)(
+                      *doubleStats[formattags["maxdev"].c_str()]->getMaxAbsDevs())[l],
+                  formattags["unit"].c_str());
+            }
+
+            snprintf(line, sizeof(line) - 1, lenformat, ssize.c_str());
+          }
+          else
+          {
+            snprintf(line, sizeof(line) - 1, lenformat, tmpline);
+          }
+
+          if (buildheader)
+          {
+            char headline[1024];
+            char lenformat[1024];
+            XrdOucString pkey = formattags["maxdev"].c_str();
+            pkey.replace("stat.statfs.", "");
+            pkey.replace("stat.", "");
+            pkey.replace("cfg.", "");
+
+            if (formattags.count("tag"))
+            {
+              pkey = formattags["tag"].c_str();
+              width += 5;
+            }
+
+            snprintf(lenformat, sizeof(lenformat) - 1, "%%%ds", width - 6);
+            snprintf(headline, sizeof(headline) - 1, lenformat, pkey.c_str());
+            std::string sline = headline;
+
+            if (sline.length() != (width - 6))
+            {
+              sline.erase(0, ((sline.length() - width + 6 + 3) > 0) ?
+                          (sline.length() - width + 6 + 3) : 0);
+              sline.insert(0, "...");
+            }
+
+            if (!formattags.count("tag"))
+            {
+              header += "#";
+              header += "dev(";
+              header += sline;
+              header += ")";
+            }
+            else
+            {
+              header += "#";
+              header += sline;
+            }
+          }
+        }
+
+        if ((formattags["format"].find("o") != std::string::npos))
+        {
+          char keyval[4096];
+          buildheader = false; // auto disable header
+
+          if (formattags.count("member"))
+          {
+            snprintf(keyval, sizeof(keyval) - 1, "%s=%s", formattags["member"].c_str(),
+                     line);
+          }
+
+          if (formattags.count("sum"))
+          {
+            snprintf(keyval, sizeof(keyval) - 1, "sum.%s=%s", formattags["sum"].c_str(),
+                     line);
+          }
+
+          if (formattags.count("avg"))
+          {
+            snprintf(keyval, sizeof(keyval) - 1, "avg.%s=%s", formattags["avg"].c_str(),
+                     line);
+          }
+
+          if (formattags.count("sig"))
+          {
+            snprintf(keyval, sizeof(keyval) - 1, "sig.%s=%s", formattags["sig"].c_str(),
+                     line);
+          }
+
+          if (formattags.count("maxdev"))
+          {
+            snprintf(keyval, sizeof(keyval) - 1, "dev.%s=%s", formattags["maxdev"].c_str(),
+                     line);
+          }
+
+          body += keyval;
+        }
+        else
+        {
+          std::string sline = line;
+
+          if (sline.length() > width)
+          {
+            sline.erase(0, ((sline.length() - width + 3) > 0) ? (sline.length() - width + 3)
+                        : 0);
+            sline.insert(0, "...");
+          }
+
+          body += sline;
+        }
       }
 
-      if (formattags.count("sep") && body.size() && ((*body.rbegin())!='\n'))
+      if (formattags.count("sep") && body.size() && ((*body.rbegin()) != '\n'))
       {
         // don't add the separator if there is nothing in the line before
-	// add the desired seperator
-	body += formattags["sep"];
-	if (buildheader)
-	{
-	  header += formattags["sep"];
-	}
+        // add the desired seperator
+        body += formattags["sep"];
+
+        if (buildheader)
+        {
+          header += formattags["sep"];
+        }
       }
     }
+
     body += "\n";
   } // l from 0 to nLines
 
-    //---------------------------------------------------------------------------------------
+  //---------------------------------------------------------------------------------------
   if (listformat.length())
   {
     bool first = true;
-    BaseView::const_iterator it;
-    // if a format was given for the filesystem children, forward the print to the filesystems
-    for (it = begin(); it != end(); it++)
+
+    // If a format was given for the filesystem children, forward the print to
+    // the filesystems
+    for (auto it = begin(); it != end(); it++)
     {
       std::string lbody;
-      bool matches=true;
-
+      bool matches = true;
       FsView::gFsView.mIdView[*it]->Print(lbody, listformat);
-      // apply each selection as a find match in the string
+
+      // Apply each selection as a find match in the string
       if (selections.size())
       {
-	for (size_t i=0; i< selections.size(); i++)
-	{
-	  if (selections[i].substr(0,6) == "space:")
-	  continue;
-	  if (lbody.find(selections[i]) == std::string::npos)
-	  matches=false;
-	}
+        for (size_t i = 0; i < selections.size(); i++)
+        {
+          if (selections[i].substr(0, 6) == "space:")
+            continue;
+
+          if (lbody.find(selections[i]) == std::string::npos)
+            matches = false;
+        }
       }
 
       if (matches)
-      body+=lbody;
+        body += lbody;
 
       if (first)
       {
-	// put the header format only in the first node printout
-	first = false;
-	if ((listformat.find("header=1:")) == 0)
-	{
-	  listformat.erase(0, 9);
-	}
+        // Put the header format only in the first node printout
+        first = false;
+
+        if ((listformat.find("header=1:")) == 0)
+        {
+          listformat.erase(0, 9);
+        }
       }
     }
   }
 
-  //if (buildheader)
   if (header.size())
   {
     std::string line = "";
     line += "#";
+
     for (unsigned int i = 0; i < (header.length() - 1); i++)
     {
       line += "-";
     }
+
     line += "\n";
     out += line;
     out += header;
@@ -3716,25 +4064,27 @@ BaseView::Print (std::string &out, std::string headerformat, std::string listfor
 
 #ifndef EOSMGMFSVIEWTEST
 
-/*----------------------------------------------------------------------------*/
-FsGroup::~FsGroup ()
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+FsGroup::~FsGroup()
 {}
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// If a filesystem has not yet these parameters defined, we inherit them from
+// the space configuration. This function has to be called with the a read lock
+// on the View Mutex! It return true if the fs was modified and the caller should
+// evt. store the modification to the config
+//------------------------------------------------------------------------------
 bool
-FsSpace::ApplySpaceDefaultParameters (eos::mgm::FileSystem* fs, bool force)
+FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
 {
-  // -----------------------------------------
-  // ! if a filesystem has not yet these parameters defined, we inherit them from the space configuration
-  // ! this function has to be called with the a read lock on the View Mutex !
-  // ! return's true if the fs was modified and the caller should evt. store the modification to the config
-  // -----------------------------------------
-
   if (!fs)
-  return false;
+    return false;
 
   bool modified = false;
   eos::common::FileSystem::fs_snapshot_t snapshot;
+
   if (fs->SnapShotFileSystem(snapshot, false))
   {
     if (force || (!snapshot.mScanInterval))
@@ -3742,106 +4092,114 @@ FsSpace::ApplySpaceDefaultParameters (eos::mgm::FileSystem* fs, bool force)
       // try to apply the default
       if (GetConfigMember("scaninterval").length())
       {
-	fs->SetString("scaninterval", GetConfigMember("scaninterval").c_str());
-	modified = true;
+        fs->SetString("scaninterval", GetConfigMember("scaninterval").c_str());
+        modified = true;
       }
     }
+
     if (force || (!snapshot.mGracePeriod))
     {
       // try to apply the default
       if (GetConfigMember("graceperiod").length())
       {
-	fs->SetString("graceperiod", GetConfigMember("graceperiod").c_str());
-	modified = true;
+        fs->SetString("graceperiod", GetConfigMember("graceperiod").c_str());
+        modified = true;
       }
     }
+
     if (force || (!snapshot.mDrainPeriod))
     {
       // try to apply the default
       if (GetConfigMember("drainperiod").length())
       {
-	fs->SetString("drainperiod", GetConfigMember("drainperiod").c_str());
-	modified = true;
+        fs->SetString("drainperiod", GetConfigMember("drainperiod").c_str());
+        modified = true;
       }
     }
+
     if (force || (!snapshot.mHeadRoom))
     {
       // try to apply the default
       if (GetConfigMember("headroom").length())
       {
-	fs->SetString("headroom", GetConfigMember("headroom").c_str())
-	;
-	modified = true;
+        fs->SetString("headroom", GetConfigMember("headroom").c_str())
+            ;
+        modified = true;
       }
     }
   }
+
   return modified;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Re-evaluates the drainnig states in all groups and resets the state
+//------------------------------------------------------------------------------
 void
-FsSpace::ResetDraining ()
+FsSpace::ResetDraining()
 {
-  // ---------------------------------------------------------------------------
-  //! re-evaluates the drainnig states in all groups and resets the state
-  // ------------------- -------------------------------------------------------
   eos_static_info("msg=\"reset drain state\" space=\"%s\"", mName.c_str());
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  // iterate over all groups in this space
+
+  // Iterate over all groups in this space
   for (auto sgit = FsView::gFsView.mSpaceGroupView[mName].begin();
-      sgit != FsView::gFsView.mSpaceGroupView[mName].end();
-      sgit++)
+       sgit != FsView::gFsView.mSpaceGroupView[mName].end();
+       sgit++)
   {
     bool setactive = false;
     std::string lGroup = (*sgit)->mName;
-
     FsGroup::const_iterator git;
 
     for (git = (*sgit)->begin();
-	git != (*sgit)->end(); git++)
+         git != (*sgit)->end(); git++)
     {
       if (FsView::gFsView.mIdView.count(*git))
       {
-	int drainstatus =
-	(eos::common::FileSystem::GetDrainStatusFromString(
-		FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
-	);
+        int drainstatus =
+            (eos::common::FileSystem::GetDrainStatusFromString(
+                FsView::gFsView.mIdView[*git]->GetString("stat.drain").c_str())
+             );
 
-	if ((drainstatus == eos::common::FileSystem::kDraining) ||
-	    (drainstatus == eos::common::FileSystem::kDrainStalling))
-	{
-	  // if any mGroup filesystem is draining, all the others have
-	  // to enable the pull for draining!
-	  setactive = true;
-	}
+        if ((drainstatus == eos::common::FileSystem::kDraining) ||
+            (drainstatus == eos::common::FileSystem::kDrainStalling))
+        {
+          // if any mGroup filesystem is draining, all the others have
+          // to enable the pull for draining!
+          setactive = true;
+        }
       }
     }
+
     // if the mGroup get's disabled we stop the draining
     if (FsView::gFsView.mGroupView[lGroup]->GetConfigMember("status") != "on")
     {
       setactive = false;
     }
+
     for (git = (*sgit)->begin();
-	git != (*sgit)->end(); git++)
+         git != (*sgit)->end(); git++)
     {
       eos::mgm::FileSystem* fs = FsView::gFsView.mIdView[*git];
+
       if (fs)
       {
-	if (setactive)
-	{
-	  if (fs->GetString("stat.drainer") != "on")
-	  {
-	    fs->SetString("stat.drainer", "on");
-	  }
-	}
-	else
-	{
-	  if (fs->GetString("stat.drainer") != "off")
-	  {
-	    fs->SetString("stat.drainer", "off");
-	  }
-	}
-	eos_static_info("fsid=%05d state=%s",fs->GetId(), fs->GetString("stat.drainer").c_str());
+        if (setactive)
+        {
+          if (fs->GetString("stat.drainer") != "on")
+          {
+            fs->SetString("stat.drainer", "on");
+          }
+        }
+        else
+        {
+          if (fs->GetString("stat.drainer") != "off")
+          {
+            fs->SetString("stat.drainer", "off");
+          }
+        }
+
+        eos_static_info("fsid=%05d state=%s", fs->GetId(),
+                        fs->GetString("stat.drainer").c_str());
       }
     }
   }

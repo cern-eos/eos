@@ -38,9 +38,7 @@ ProcCommand::Fs ()
    std::string output = "";
    std::string format = "";
    std::string mListFormat = "";
-
    mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
-
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
    FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection);
    stdOut += output.c_str();
