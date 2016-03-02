@@ -224,21 +224,30 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
     return -1;
   }
 
-  // split the reponse
-  XrdOucString origResponse = response->GetBuffer();
-  origResponse += "&eos.app=fuse";
-  auto qmidx = origResponse.find("?");
+  // ==================================================================
+  // ! we don't do this anymore :
+  // there is now a split between RO and RW files in the FileAbstraction
+  // to keep the consistency, we always go back to the mgm
+  // the lazy open call is then just used than the open can happen
+  // and possibly add the entry in the namespace if the file is being created
+  // I guess we could uncomment that for RW open
+  //  // split the reponse
+  //  XrdOucString origResponse = response->GetBuffer();
+  //  origResponse += "&eos.app=fuse";
+  //  auto qmidx = origResponse.find("?");
+  //
+  //  // insert back the cgi params that are not given back by the mgm
+  //  std::map<std::string,std::string> m;
+  //  ImportCGI(m,opaque);
+  //  ImportCGI(m,origResponse.c_str()+qmidx+1);
+  //  // drop authentication params as they would fail on the fst
+  //  m.erase("xrd.wantprot"); m.erase("xrd.k5ccname"); m.erase("xrd.gsiusrpxy");
+  //  mOpaque="";
+  //  ToCGI(m,mOpaque);
+  //
+  //  mPath.assign(origResponse.c_str(),qmidx);
+  // ==================================================================
 
-  // insert back the cgi params that are not given back by the mgm
-  std::map<std::string,std::string> m;
-  ImportCGI(m,opaque);
-  ImportCGI(m,origResponse.c_str()+qmidx+1);
-  // drop authentication params as they would fail on the fst
-  m.erase("xrd.wantprot"); m.erase("xrd.k5ccname"); m.erase("xrd.gsiusrpxy");
-  mOpaque="";
-  ToCGI(m,mOpaque);
-
-  mPath.assign(origResponse.c_str(),qmidx);
 
   return 0;
 }
