@@ -442,8 +442,11 @@ XrdMgmOfs::_attr_set (const char *path,
           errno = EPERM;
         }
         else
-        {
-          fmd->setAttribute(key, value);
+	{
+	  XrdOucString val64 = value;
+	  XrdOucString val;
+	  eos::common::SymKey::DeBase64(val64, val);
+          fmd->setAttribute(key, val.c_str());
           fmd->setMTimeNow();
           eosView->updateFileStore(fmd);
           errno = 0;
