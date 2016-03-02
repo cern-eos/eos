@@ -2008,7 +2008,8 @@ XrdMgmOfsFile::open (const char *inpath,
 
   eos_debug("capability=%s\n", capability.c_str());
   int caprc = 0;
-  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey)))
+  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+                                        gOFS->mCapabilityValidity)))
   {
     return Emsg(epname, error, caprc, "sign capability", path);
   }

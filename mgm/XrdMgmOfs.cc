@@ -142,8 +142,9 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
-mFstGwHost(""),
-mFstGwPort(0)
+    mCapabilityValidity(3600),
+    mFstGwHost(""),
+    mFstGwPort(0)
 {
   eDest = ep;
   ConfigFN = 0;

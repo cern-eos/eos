@@ -365,8 +365,10 @@
               eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
               int caprc = 0;
-              if ((caprc = gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
-                  (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey)))
+              if ((caprc = gCapabilityEngine.Create(&insource_capability, source_capabilityenv,
+                                                    symkey, mCapabilityValidity)) ||
+                  (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv,
+                                                    symkey, mCapabilityValidity)))
               {
                 eos_thread_err("unable to create source/target capability - errno=%u", caprc);
                 gOFS->MgmStats.Add("SchedulingFailedBalance", 0, 0, 1);

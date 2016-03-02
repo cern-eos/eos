@@ -23,8 +23,8 @@ function getVersionFromLog()
     AWK=awk
   fi
 
-  MAJOR="$(echo $1 | $AWK -F "." '{print $1;}')"
-  VERSION="$(echo $2 | $AWK -v major="${MAJOR}" '{ gsub("-","",$1); print major"."$1"."$4; }')"
+  TAG=$1
+  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); print tag"-dev"$1"git"$4; }')"
 
   if test $? -ne 0; then
     echo "unknown";
