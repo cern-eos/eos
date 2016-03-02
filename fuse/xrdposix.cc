@@ -2475,7 +2475,7 @@ xrd_symlink(const char* path,
   }
 
   delete response;
-  if(NSC) NSC->Forget(link);
+  if(NSC) NSC->Forget(path);
   
   return errno;
 }
