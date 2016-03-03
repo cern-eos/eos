@@ -179,7 +179,7 @@ XrdMgmOfs::_stat (const char *path,
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
               e.getErrno(), e.getMessage().str().c_str());
     if (errno == ELOOP)
     {
