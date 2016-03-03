@@ -919,7 +919,7 @@ Master::Compacting ()
         if (fRemoteMasterOk && (fThisHost != fRemoteHost))
         {
           // if we have a remote master we have to signal it to bounce to us
-          SignalRemoteReload();
+          SignalRemoteReload(CompactFiles, CompactDirectories);
         }
 
         // ----------------------------------------------------------------------
@@ -2098,7 +2098,7 @@ Master::SignalRemoteBounceToMaster ()
 
 /* -------------------------------------------------------------------------- */
 void
-Master::SignalRemoteReload ()
+Master::SignalRemoteReload (bool compact_files, bool compact_directories)
 {
   //------------------------------------------------------------------------
   // Signal the remote master to reload its namespace
@@ -2116,6 +2116,16 @@ Master::SignalRemoteReload ()
   // --------------------------------------------------
 
   std::string signalreload = "/?mgm.pcmd=mastersignalreload";
+
+  if (compact_files)
+  {
+    signalreload+="&compact.files=1";
+  }
+  else
+  if (compact_directories)
+  {
+    signalreload+="&compact.directories=1";
+  }
 
   XrdCl::URL remoteMgmUrl(remoteMgmUrlString.c_str());
 
@@ -2167,7 +2177,7 @@ Master::TagNamespaceInodes ()
 
 /* -------------------------------------------------------------------------- */
 bool
-Master::WaitNamespaceFilesInSync (unsigned int timeout)
+Master::WaitNamespaceFilesInSync (bool wait_files, bool wait_directories, unsigned int timeout)
 {
   //------------------------------------------------------------------------
   // Wait that local/remote namespace files are synced.
@@ -2190,6 +2200,7 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
   off_t size_remote_dir_changelog = 0;
 
   unsigned long long lFileNamespaceInode = 0;
+  unsigned long long lDirNamespaceInode = 0;
 
   struct stat buf;
 
@@ -2303,6 +2314,7 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
       if (!stat(gOFS->MgmNsDirChangeLogFile.c_str(), &buf))
       {
         size_local_dir_changelog = buf.st_size;
+	lDirNamespaceInode = buf.st_ino;
       }
       else
       {
@@ -2310,7 +2322,7 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
         return false;
       }
 
-      if (lFileNamespaceInode == fFileNamespaceInode)
+      if ((wait_directories) && (lDirNamespaceInode == fDirNamespaceInode))
       {
         // the inode didn't change yet
         if (time(NULL) > (starttime + timeout))
@@ -2318,7 +2330,21 @@ Master::WaitNamespaceFilesInSync (unsigned int timeout)
           MasterLog(eos_warning("timeout occured after %u seconds", timeout));
           return false;
         }
-        MasterLog(eos_info("waiting for inode change %llu=>%llu ", fFileNamespaceInode, lFileNamespaceInode));
+        MasterLog(eos_info("waiting for 'directories' inode change %llu=>%llu ", fDirNamespaceInode, lDirNamespaceInode));
+        XrdSysTimer sleeper;
+        sleeper.Wait(10000);
+        continue;
+      }
+
+      if ((wait_files) && (lFileNamespaceInode == fFileNamespaceInode))
+      {
+        // the inode didn't change yet
+        if (time(NULL) > (starttime + timeout))
+        {
+          MasterLog(eos_warning("timeout occured after %u seconds", timeout));
+          return false;
+        }
+        MasterLog(eos_info("waiting for 'files' inode change %llu=>%llu ", fFileNamespaceInode, lFileNamespaceInode));
         XrdSysTimer sleeper;
         sleeper.Wait(10000);
         continue;
