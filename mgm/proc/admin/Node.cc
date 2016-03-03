@@ -39,11 +39,12 @@ ProcCommand::Node ()
      std::string format = "";
      std::string mListFormat = "";
      format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
-     if ((mOutFormat == "l"))
+
+     if (mOutFormat == "l")
        mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintNodes(output, format, mListFormat,mOutDepth, mSelection);
+     FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
      stdOut += output.c_str();
    }
  }
