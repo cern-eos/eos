@@ -44,6 +44,8 @@ ProcCommand::Rm ()
   const char* inpath = spath.c_str();
   eos::common::Path cPath(inpath);
 
+  bool force = (option.find("f") != STR_NPOS);
+
   XrdOucString filter = "";
   std::set<std::string> rmList;
 
@@ -92,7 +94,7 @@ ProcCommand::Rm ()
     if (file_exists == XrdSfsFileExistIsFile)
     {
       // if we have rm -r <file> we remove the -r flag
-      option = "";
+      option.replace("r","");
     }
 
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length())
@@ -120,7 +122,7 @@ ProcCommand::Rm ()
         }
       }
       // if we have rm * (whatever wildcard) we remove the -r flag
-      option = "";
+      option.replace("r","");
     }
     else
     {
@@ -128,7 +130,7 @@ ProcCommand::Rm ()
     }
 
     // find everything to be deleted
-    if (option == "r")
+    if (option.find("r") != STR_NPOS)
     {
       std::map<std::string, std::set<std::string> > found;
       std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
@@ -151,18 +153,22 @@ ProcCommand::Rm ()
       {
 	XrdOucString recyclingAttribute;
 
-	int rpos;
-	if ( (rpos = spath.find("/.sys.v#.")) == STR_NPOS)
+	if (!force)
 	{
-	  // check if this path has a recycle attribute
-	  gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
-	}
-	else
-	{
-	  XrdOucString ppath = spath;
-	  ppath.erase(rpos);
-	  // get it from the parent directory for version directories
-	  gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	  // only recycle if there is no '-f' flag
+	  int rpos;
+	  if ( (rpos = spath.find("/.sys.v#.")) == STR_NPOS)
+	  {
+	    // check if this path has a recycle attribute
+	    gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	  }
+	  else
+	  {
+	    XrdOucString ppath = spath;
+	    ppath.erase(rpos);
+	    // get it from the parent directory for version directories
+	    gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	  }
 	}
 
         //.......................................................................
@@ -264,9 +270,10 @@ ProcCommand::Rm ()
 		entry.erase(l_pos);
 
               fspath += entry;
-              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0))
+              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, false, false, true, force))
               {
-                stdErr += "error: unable to remove file\n";
+                stdErr += "error: unable to remove file : \n";
+		stdErr += fspath.c_str();
                 retc = errno;
               }
             }
@@ -281,7 +288,8 @@ ProcCommand::Rm ()
             if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0))
             {
 	      if (errno != ENOENT) {
-		stdErr += "error: unable to remove directory";
+		stdErr += "error: unable to remove directory :";
+		stdErr += rfoundit->first.c_str();
 		retc = errno;
 	      }
             }
@@ -293,7 +301,7 @@ ProcCommand::Rm ()
     {
       for (auto it = rmList.begin(); it != rmList.end(); ++it)
       {
-        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0) && (errno != ENOENT))
+        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0, false, false, true, force) && (errno != ENOENT))
         {
           stdErr += "error: unable to remove file/directory '";
           stdErr += it->c_str();

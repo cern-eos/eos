@@ -335,7 +335,8 @@ public:
             const char *opaque = 0,
             bool simulate = false,
             bool keepversion = false,
-            bool lock_quota = true);
+            bool lock_quota = true, 
+	    bool no_recycling = false);
 
   // ---------------------------------------------------------------------------
   // find files internal function
