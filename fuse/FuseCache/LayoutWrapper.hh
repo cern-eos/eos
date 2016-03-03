@@ -45,6 +45,7 @@ class LayoutWrapper
   XrdSfsFileOpenMode mFlags;
   mode_t mMode;
   std::string mOpaque;
+  std::string mLazyUrl;
   FileAbstraction *mFabs;
   bool mLocalTimeConsistent;
   timespec mLocalUtime[2];

@@ -145,7 +145,9 @@ unsigned int LayoutWrapper::GetLayoutId ()
 const std::string&
 LayoutWrapper::GetLastUrl ()
 {
-  MakeOpen ();
+  if(!mOpen)
+    return mLazyUrl;
+
   return mFile->GetLastUrl ();
 }
 
@@ -225,29 +227,33 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
   }
 
   // ==================================================================
-  // ! we don't do this anymore :
+  // ! we don't use the redirect on the actual open from a lazy open anynore.
   // there is now a split between RO and RW files in the FileAbstraction
   // to keep the consistency, we always go back to the mgm
   // the lazy open call is then just used than the open can happen
   // and possibly add the entry in the namespace if the file is being created
-  // I guess we could uncomment that for RW open
-  //  // split the reponse
-  //  XrdOucString origResponse = response->GetBuffer();
-  //  origResponse += "&eos.app=fuse";
-  //  auto qmidx = origResponse.find("?");
-  //
-  //  // insert back the cgi params that are not given back by the mgm
-  //  std::map<std::string,std::string> m;
-  //  ImportCGI(m,opaque);
-  //  ImportCGI(m,origResponse.c_str()+qmidx+1);
-  //  // drop authentication params as they would fail on the fst
-  //  m.erase("xrd.wantprot"); m.erase("xrd.k5ccname"); m.erase("xrd.gsiusrpxy");
-  //  mOpaque="";
-  //  ToCGI(m,mOpaque);
-  //
-  //  mPath.assign(origResponse.c_str(),qmidx);
-  // ==================================================================
+  // I guess we could still do safely that for rw open
 
+  // split the reponse
+  XrdOucString origResponse = response->GetBuffer ();
+  origResponse += "&eos.app=fuse";
+  auto qmidx = origResponse.find ("?");
+
+  // insert back the cgi params that are not given back by the mgm
+  std::map<std::string, std::string> m;
+  ImportCGI (m, opaque);
+  ImportCGI (m, origResponse.c_str () + qmidx + 1);
+  // drop authentication params as they would fail on the fst
+  m.erase ("xrd.wantprot");
+  m.erase ("xrd.k5ccname");
+  m.erase ("xrd.gsiusrpxy");
+  std::string LazyOpaque;
+  ToCGI (m, LazyOpaque);
+
+  mLazyUrl.assign (origResponse.c_str (), qmidx);
+  mLazyUrl.append ("?");
+  mLazyUrl.append (LazyOpaque);
+  // ==================================================================
 
   return 0;
 }
@@ -279,7 +285,6 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   }
   else
   {
-    eos_static_debug("successfully opened. LASTURL %s",mFile->GetLastUrl().c_str());
     mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);  // we don't want to truncate the file in case we reopen it
     mOpen = true;
     struct stat s;
