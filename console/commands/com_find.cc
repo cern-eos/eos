@@ -49,7 +49,6 @@ com_find (char* arg1)
   XrdOucString versions = "";
 
   XrdOucString in = "mgm.cmd=find&";
-
   bool valid = false;
 
   if ( wants_help(arg1))
@@ -57,6 +56,8 @@ com_find (char* arg1)
 
   while ((s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")))
   {
+    valid = false;
+
     if (s1 == "-s")
     {
       option += "s";
