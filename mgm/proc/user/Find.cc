@@ -796,7 +796,6 @@ ProcCommand::Find ()
       gOFS->MgmStats.Add("FindEntries", pVid->uid, pVid->gid, cnt);
     }
 
-    eos_debug("Listing directories");
     if ((option.find("d")) != STR_NPOS)
     {
       for (foundit = (*found).begin(); foundit != (*found).end(); foundit++)
