@@ -35,8 +35,8 @@ ProcCommand::AdminQuota ()
 {
  if (mSubCmd == "rmnode")
  {
-   eos_notice("quota rm");
-   if ( (pVid->prot != "sss") && (eos::common::Mapping::IsLocalhost(*pVid) ) )
+   eos_notice("quota rmnode");
+   if ( (pVid->uid == 0) )
    {
      XrdOucString space = pOpaque->Get("mgm.quota.space");
      XrdOucString msg = "";
@@ -52,7 +52,7 @@ ProcCommand::AdminQuota ()
    else
    {
      retc = EPERM;
-     stdErr = "error: you cannot remove quota nodes from storage node with 'sss' authentication!";
+     stdErr = "error: you cannot remove quota nodes without having the root role!";
    }
  }
  else
