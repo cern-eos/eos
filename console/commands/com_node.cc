@@ -90,6 +90,11 @@ com_node (char* arg1)
           silent = true;
           ok = true;
         }
+	if ( (option == "--brief") || (option == "-b") )
+	{
+	  in += "&mgm.outhost=brief";
+	  ok = true;
+	}
         if (!option.beginswith("-"))
         {
           in += "&mgm.selection=";
@@ -306,8 +311,9 @@ com_node (char* arg1)
 
 com_node_usage:
 
-  fprintf(stdout, "usage: node ls [-s] [-m|-l|--sys|--io|--fsck] [<node>]                     : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout, "usage: node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>]  : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
+  fprintf(stdout, "                                                          -b,--brief : display host names without domain names\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each node\n");
   fprintf(stdout, "                                                                --io : print IO statistics\n");

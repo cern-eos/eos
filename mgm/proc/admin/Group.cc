@@ -36,9 +36,11 @@ ProcCommand::Group ()
  if (mSubCmd == "ls")
  {
    {
-     std::string output = "";
-     std::string format = "";
-     std::string mListFormat = "";
+     std::string output;
+     std::string format;
+     std::string mListFormat;
+     std::string fqdn;
+
      format = FsView::GetGroupFormat(std::string(mOutFormat.c_str()));
      if ((mOutFormat == "l"))
        mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
@@ -48,6 +50,15 @@ ProcCommand::Group ()
        mListFormat = FsView::GetFileSystemFormat(std::string("io"));
        mOutFormat = "io";
      }
+
+     if ( pOpaque->Get("mgm.outhost") )
+       fqdn = pOpaque->Get("mgm.outhost");
+
+     if (fqdn != "brief")
+       {
+	 if (format.find("S")!=std::string::npos) format.replace(format.find("S"), 1, "s");
+	 if (mListFormat.find("S")!=std::string::npos) mListFormat.replace(mListFormat.find("S"), 1, "s");
+       }
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
      FsView::gFsView.PrintGroups(output, format, mListFormat, mSelection);

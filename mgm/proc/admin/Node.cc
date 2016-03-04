@@ -35,12 +35,23 @@ ProcCommand::Node ()
  if (mSubCmd == "ls")
  {
    {
-     std::string output = "";
-     std::string format = "";
+     std::string output;
+     std::string format;
+     std::string fqdn;
+     
+     if ( pOpaque->Get("mgm.outhost") )
+       fqdn = pOpaque->Get("mgm.outhost");
+
      std::string mListFormat = "";
      format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
      if ((mOutFormat == "l"))
        mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
+
+     if (fqdn != "brief")
+     {
+       if (format.find("S")!=std::string::npos) format.replace(format.find("S"), 1, "s");
+       if (mListFormat.find("S")!=std::string::npos) mListFormat.replace(mListFormat.find("S"), 1, "s");
+     }
 
      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
      FsView::gFsView.PrintNodes(output, format, mListFormat, mSelection);
