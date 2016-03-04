@@ -35,10 +35,23 @@ ProcCommand::Fs ()
 {
  if (mSubCmd == "ls")
  {
-   std::string output = "";
-   std::string format = "";
-   std::string mListFormat = "";
+   std::string output;
+   std::string format;
+   std::string mListFormat;
+   std::string fqdn;
+
+   if ( pOpaque->Get("mgm.outhost") )
+   fqdn = pOpaque->Get("mgm.outhost");
+
    mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
+
+   if (fqdn != "brief")
+   {
+     if (format.find("S")!=std::string::npos) format.replace(format.find("S"), 1, "s");
+     if (mListFormat.find("S")!=std::string::npos) mListFormat.replace(mListFormat.find("S"), 1, "s");
+   }
+
+
    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
    FsView::gFsView.PrintSpaces(output, format, mListFormat, mOutDepth, mSelection);
    stdOut += output.c_str();

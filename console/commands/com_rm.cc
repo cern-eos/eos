@@ -53,7 +53,7 @@ com_rm (char* arg1)
     option = "r";
     path = s2;
   }
-  else if (s1 == "-rf")
+  else if ( (s1 == "-rF") || (s1 == "-Fr") )
   {
     option = "rf";
     path = s2;
@@ -139,8 +139,8 @@ com_rm (char* arg1)
   }
 
 com_rm_usage:
-  fprintf(stdout, "usage: rm [-rf] <path>                                                 :  remove file <path>\n");
+  fprintf(stdout, "usage: rm [-rF] <path>                                                 :  remove file <path>\n");
   fprintf(stdout, "                                                                    -r :  remove recursivly\n");
-  fprintf(stdout, "                                                                    -f :  remove bypassing recycling policies\n");
+  fprintf(stdout, "                                                                    -F :  remove bypassing recycling policies (you have to take the root role to use this flag!)\n");
   return (0);
 }

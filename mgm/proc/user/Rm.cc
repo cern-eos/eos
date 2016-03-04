@@ -57,6 +57,12 @@ ProcCommand::Rm ()
 
   spath = path;
 
+  if (force && (vid.uid))
+  {
+    stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";
+    force = false;
+  }
+
   if (!spath.length())
   {
     stdErr = "error: you have to give a path name to call 'rm'";
