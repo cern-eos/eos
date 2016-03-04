@@ -137,12 +137,30 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
 
    # Mount all files with 'x' bit to be able to run as an executable (default off)  
    # export EOS_FUSE_EXEC=1
+    
+   # Enable protection against recursive deletion (rm -r command) 
+   #    starting from the root of the mount (if 1)
+   #    or from any of its sub directories at a maximum depth (if >1) (default 1)
+   # EOS_FUSE_RMLVL_PROTECT=1
+
+   # Enable the fuse local host time consistency model
+   #   this allows a more precise handling of mtime. Time reference is then the localhost time
+   #   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
+   #   this only affects the shared fuse mount (default 0)
+   #   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
+   # EOS_FUSE_LOCALTIMECONSISTENT=0
 
    # Enable FUSE read-ahead (default off)
    # export EOS_FUSE_RDAHEAD=0
 
    # Configure FUSE read-ahead window (default 128k)
    # export EOS_FUSE_RDAHEAD_WINDOW=131072
+
+   # Enable lazy open on read-only files (default off)
+   # export EOS_FUSE_LAZYOPENRO=1
+
+   # Enable lazy open on read-write files (default off)
+   # export EOS_FUSE_LAZYOPENRW=1   
  
    # Configure a log-file prefix - useful for several FUSE instances
    # export EOS_FUSE_LOG_PREFIX=dev

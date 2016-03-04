@@ -6,6 +6,11 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.152 Beryl_Aquamarine``
+- reenable FUSE concurrent opens and close
+- fix FUSE lazy open and negative stat cache broken in the previous release
+- fix wrong timestamping of symlinks
+
 ``Version V0.3.151 Beryl_Aquamarine``
 - synchronize with CITRINE FUSE implementation 
 
