@@ -6,6 +6,10 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.153 Beryl_Aquamarine``
+- console add 'rm -rF' allow only root to use the bypass of the recycling policy
+- console revert to use by default host+domain names and add a '-b,--brief' option to all fs,node,group commands to get short hostnames
+
 ``Version V0.3.152 Beryl_Aquamarine``
 - reenable FUSE concurrent opens and close
 - fix FUSE lazy open and negative stat cache broken in the previous release
