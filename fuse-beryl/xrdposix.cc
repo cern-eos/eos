@@ -44,6 +44,7 @@
 #include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
 #include <climits>
+#include <limits>
 #include <queue>
 #include <sstream>
 #include <string>
@@ -3376,16 +3377,16 @@ xrd_init ()
   path2inode.set_deleted_key("#__deleted__#");
 
   inode2path.set_empty_key(0);
-  inode2path.set_deleted_key(0xffffffffll);
+  inode2path.set_deleted_key(std::numeric_limits<unsigned long long>::max());
 
   dir2inodelist.set_empty_key(0);
-  dir2inodelist.set_deleted_key(0xffffffffll);
+  dir2inodelist.set_deleted_key(std::numeric_limits<unsigned long long>::max());
 
   dir2dirbuf.set_empty_key(0);
-  dir2dirbuf.set_deleted_key(0xffffffffll);
+  dir2dirbuf.set_deleted_key(std::numeric_limits<unsigned long long>::max());
 
   inode2cache.set_empty_key(0);
-  inode2cache.set_deleted_key(0xffffffffll);
+  inode2cache.set_deleted_key(std::numeric_limits<unsigned long long>::max());
 
   inodeuser2fds.set_empty_key("");
   inodeuser2fds.set_deleted_key("#__deleted__#");

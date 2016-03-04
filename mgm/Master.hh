@@ -237,7 +237,7 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Wait that local/remote namespace files are synced (called by slave)
   //----------------------------------------------------------------------------
-  bool WaitNamespaceFilesInSync(unsigned int timeout = 600);
+  bool WaitNamespaceFilesInSync (bool wait_files, bool wait_directories, unsigned int timeout=900);
 
   //----------------------------------------------------------------------------
   //! Store the file inodes of the namespace file to see when a file has
@@ -362,7 +362,7 @@ class Master : public eos::common::LogId
   //----------------------------------------------------------------------------
   //! Signal the remote master to reload its namespace (issued by master)
   //----------------------------------------------------------------------------
-  void SignalRemoteReload();
+  void SignalRemoteReload (bool wait_files, bool wait_directories);
 
   //----------------------------------------------------------------------------
   //! Signal the remote master to bounce all requests to us (issued by master)

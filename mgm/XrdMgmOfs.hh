@@ -343,7 +343,8 @@ public:
             eos::common::Mapping::VirtualIdentity &vid,
             const char *opaque = 0,
             bool simulate = false,
-            bool keepversion = false);
+            bool keepversion = false,
+	    bool no_recycling = false);
 
   // ---------------------------------------------------------------------------
   // find files internal function

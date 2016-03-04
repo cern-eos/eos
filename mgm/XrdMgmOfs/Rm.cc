@@ -83,7 +83,8 @@ XrdMgmOfs::_rem (const char *path,
                  eos::common::Mapping::VirtualIdentity &vid,
                  const char *ininfo,
                  bool simulate,
-                 bool keepversion)
+                 bool keepversion,
+		 bool no_recycling)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -247,7 +248,7 @@ XrdMgmOfs::_rem (const char *path,
       // already recycled files/dirs
       // -----------------------------------------------------------------------
       XrdOucString sPath = path;
-      if (attrmap.count(Recycle::gRecyclingAttribute) &&
+      if (!(no_recycling) && attrmap.count(Recycle::gRecyclingAttribute) &&
           (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str())))
       {
         // ---------------------------------------------------------------------

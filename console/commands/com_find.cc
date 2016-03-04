@@ -49,7 +49,6 @@ com_find (char* arg1)
   XrdOucString versions = "";
 
   XrdOucString in = "mgm.cmd=find&";
-
   bool valid = false;
 
   if ( wants_help(arg1))
@@ -57,6 +56,8 @@ com_find (char* arg1)
 
   while ((s1 = subtokenizer.GetToken()).length() && (s1.beginswith("-")))
   {
+    valid = false;
+
     if (s1 == "-s")
     {
       option += "s";
@@ -779,9 +780,12 @@ com_find_usage:
   fprintf(stdout, "                                                                      --count :  just print global counters for files/dirs found\n");
   fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout, "                                                                  --purge <n> | atomic\n");
-  fprintf(stdout, "                                                                              :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To apply the settings of the extended attribute definition use <n>=-1! To remove all atomic upload left-overs older than a day user --purge atomic\n"); 
+  fprintf(stdout, "                                                                              :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To \n"
+                  "                                                                                 apply the settings of the extended attribute definition use <n>=-1! To remove all atomic upload\n"
+                  "                                                                                 left-overs older than a day user --purge atomic\n");
   fprintf(stdout, "                                                                      default :  find files and directories\n");
-  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>   :  find files and print out the requested meta data as key value pairs\n");
+  fprintf(stdout, "       find [--nrep] [--nunlink] [--size] [--fileinfo] [--online] [--hosts] [--partition] [--fid] [--fs] [--checksum] [--ctime] [--mtime] [--uid] [--gid] <path>\n"
+                  "                                                                              :  find files and print out the requested meta data as key value pairs\n");
   fprintf(stdout, "                                                               path=file:...  :  do a find in the local file system (options ignored) - 'file:' is the current working directory \n");
   fprintf(stdout, "                                                               path=root:...  :  do a find on a plain XRootD server (options ignored) - does not work on native XRootD clusters\n");
   fprintf(stdout, "                                                               path=as3:...   :  do a find on an S3 bucket\n");

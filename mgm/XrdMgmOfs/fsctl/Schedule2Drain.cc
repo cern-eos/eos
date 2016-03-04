@@ -138,7 +138,7 @@
   eos_thread_info("cmd=schedule2drain fsid=%d freebytes=%llu logid=%s", target_fsid, freebytes, alogid ? alogid : "");
 
   while (1)
-    // lock the view and get the filesystem information for the target where be balance to
+    // lock the view and get the filesystem information for the target where be drain to
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     target_fs = FsView::gFsView.mIdView[target_fsid];
@@ -412,6 +412,13 @@
 		continue;
 	      }
 	    }
+            else
+	    {
+               // point to the stripe which is accessible but should be drained
+               locationfs.clear();	       
+               locationfs.push_back(source_fsid);
+               fsindex=0;
+	     }
 
 	    if (size < freebytes)
             {

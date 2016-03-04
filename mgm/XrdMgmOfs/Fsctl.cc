@@ -456,7 +456,17 @@ XrdMgmOfs::FSctl (const int cmd,
 
       REQUIRE_SSS_OR_LOCAL_AUTH;
 
-      gOFS->MgmMaster.WaitNamespaceFilesInSync();
+      const char* sf = env.Get("compact_files");
+      const char* sd = env.Get("compact_dirs");
+      bool compact_files=false;
+      bool compact_directories=false;
+      
+      if (sf)
+	compact_files=true;
+      if (sd)
+	compact_directories=true;
+
+      gOFS->MgmMaster.WaitNamespaceFilesInSync(compact_files, compact_directories);
       gOFS->MgmMaster.RebootSlaveNamespace();
 
       const char* ok = "OK";

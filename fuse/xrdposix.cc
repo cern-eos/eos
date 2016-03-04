@@ -2761,11 +2761,16 @@ xrd_inodirlist (unsigned long long dirinode,
         return errno;
       }
 
-      XrdOucString whitespacedirpath = dirpath;
-      whitespacedirpath.replace("%20", " ");
-      whitespacedirpath.replace("%0A", "\n");
-      xrd_store_child_p2i(dirinode, inode, whitespacedirpath.c_str());
-      dir2inodelist[dirinode].push_back(inode);
+      if (inode && dirinode)
+      {
+        XrdOucString whitespacedirpath = dirpath;
+        whitespacedirpath.replace ("%20", " ");
+        whitespacedirpath.replace ("%0A", "\n");
+        xrd_store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+        dir2inodelist[dirinode].push_back (inode);
+      }
+      else
+        eos_static_warning("got a nul inode inode=%llu dirinode=%llu path=%s", inode, dirinode, path);
 
       // to the next entries
       if (ptr) ptr = strchr(ptr + 1, ' ');
