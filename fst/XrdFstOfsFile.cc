@@ -89,7 +89,7 @@ mTpcThreadStatus(EINVAL)
   tpcFlag = kTpcNone;
   mTpcState = kTpcIdle;
   ETag = "";
-  mForcedMtime = 0;
+  mForcedMtime = 1;
   mForcedMtime_ms = 0;
   isOCchunk = 0;
   mTimeout = getenv("EOS_FST_STREAM_TIMEOUT")?strtoul(getenv("EOS_FST_STREAM_TIMEOUT"),0,10):msDefaultTimeout;
@@ -1985,9 +1985,9 @@ XrdFstOfsFile::close ()
             }
 
 	    capOpaqueFile += "&mgm.mtime=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime : (unsigned long long) fMd->fMd.mtime);
 	    capOpaqueFile += "&mgm.mtime_ns=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns);
 
 	    if (haswrite) 
 	    {
