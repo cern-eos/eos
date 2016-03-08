@@ -203,6 +203,11 @@ public:
 
   bool getFileIOStats(std::map<std::string,std::string> &map)
   {
+    if(!mFileIO)
+    {
+      return false;
+    }
+
     std::string iostats;
     mFileIO->attrGet("sys.iostats",iostats);
     return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(), 
