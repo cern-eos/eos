@@ -280,6 +280,13 @@ XrdFstOfsFile::open (const char* path,
     ETag = val;
   }
 
+  if ((val = tmpOpaque.Get("mgm.mtime")))
+  {
+    // mgm.mtime=0 we set the external mtime=0 and indicated during commit, that it should not update the mtime as in case of a FUSE client which will call utimes
+    mForcedMtime = 0;
+    mForcedMtime_ms = 0;
+  }
+
   if (eos::common::OwnCloud::isChunkUpload(tmpOpaque))
   {
     // tag as an OC chunk upload

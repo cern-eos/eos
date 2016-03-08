@@ -2119,6 +2119,11 @@ XrdMgmOfsFile::open (const char *inpath,
   redirectionhost += "&mgm.id=";
   redirectionhost += hexfid;
 
+  if (isFuse)
+  {
+    redirectionhost += "&mgm.mtime=0";
+  }
+
   // Always redirect
   ecode = targetport;
   rcode = SFS_REDIRECT;
