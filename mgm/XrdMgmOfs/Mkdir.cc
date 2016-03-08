@@ -409,6 +409,7 @@ XrdMgmOfs::_mkdir (const char *path,
         try
         {
           eos_debug("creating path %s", cPath.GetSubPath(j));
+	  dir = eosView->getContainer(cPath.GetParentPath());
           newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
@@ -473,6 +474,7 @@ XrdMgmOfs::_mkdir (const char *path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
+    dir = eosView->getContainer(cPath.GetParentPath());
     newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
