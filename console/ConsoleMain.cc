@@ -178,22 +178,23 @@ abspath (const char* in)
 }
 
 // ----------------------------------------------------------------------------
-// - 'help' filter
+// Help flag filter
 // ----------------------------------------------------------------------------
-
 int
-wants_help (const char* arg1)
+wants_help(const char* arg1)
 {
   XrdOucString allargs = " ";
   allargs += arg1;
   allargs += " ";
   if ((allargs.find(" help ") != STR_NPOS) ||
+      (allargs.find(" \"help\" ") != STR_NPOS) ||
       (allargs.find(" -h ") != STR_NPOS) ||
-      (allargs.find(" --help ") != STR_NPOS))
+      (allargs.find(" \"-h\" ") != STR_NPOS) ||
+      (allargs.find(" --help ") != STR_NPOS) ||
+      (allargs.find(" \"--help\" ") != STR_NPOS))
     return 1;
   return 0;
 }
-
 
 // ----------------------------------------------------------------------------
 // - Command Mapping Array
