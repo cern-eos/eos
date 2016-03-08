@@ -443,9 +443,9 @@
         mt.tv_sec = mtime;
         mt.tv_nsec = mtimens;
 
-        if (isUpdate)
+        if (isUpdate && mtime)
         {
-          // update the modification time only if the file contents changed
+          // update the modification time only if the file contents changed and mtime != 0 (FUSE clients will commit mtime=0 to indicated that they call utimes anyway
           fmd->setMTime(mt);
         }
 
