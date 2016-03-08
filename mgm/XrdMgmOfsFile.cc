@@ -548,6 +548,8 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     if (!dmd)
     {
+      int save_errno = errno;
+
       MAYREDIRECT_ENOENT;
 
       if (cPath.GetSubPath(2))
@@ -606,6 +608,9 @@ XrdMgmOfsFile::open (const char *inpath,
           return rcode;
         }
       }
+      // put back original errno
+      errno = save_errno;
+
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
