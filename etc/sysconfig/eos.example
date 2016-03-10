@@ -299,4 +299,3 @@ fi
 # ------------------------------------------------------------------
 # export EOS_NS_DIR_SIZE=1000000
 # export EOS_NS_FILE_SIZE=1000000
->>>>>>> 6c35244... MGM/NAMESPACE: add progress reports to all boot steps - make the expected hash size of container/files configurable via /etc/sysconfig/eos
