@@ -50,8 +50,10 @@ XrdMgmOfs::FsConfigListener ()
   bool ok = true;
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_geotag,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to notify the FsView when a geotag changes to keep the tree structure up-to-date
   ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,XrdMqSharedObjectChangeNotifier::kMqSubjectModification); // we need to take action an filesystem errors
+  // this one would be necessary to be equivalent to beryl but it's probably not needed => ok &= ObjectNotifier.SubscribesToKey("fsconfiglistener",watch_errc,XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion); // we need to take action an filesystem errors
   ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",MgmConfigQueue.c_str(),XrdMqSharedObjectChangeNotifier::kMqSubjectModification);  // we need to apply remote configuration changes
-  ok &= ObjectNotifier.SubscribesToSubjectRegex("fsconfiglistener",".*",XrdMqSharedObjectChangeNotifier::kMqSubjectKeyDeletion);  // we need to apply remote configuration changes
+  ok &= ObjectNotifier.SubscribesToSubject("fsconfiglistener",MgmConfigQueue.c_str(),XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);  // we need to apply remote configuration changes
+
   if(!ok)
     eos_crit("error subscribing to shared objects change notifications");
 
