@@ -39,7 +39,6 @@
 #include "xrdposix.hh"
 #include "FuseCacheEntry.hh"
 #include "ProcCacheC.h"
-#include "NegStatCache.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/PlainLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
@@ -92,7 +91,6 @@
 #endif
 
 static FuseWriteCache* XFC;
-static NegStatCache *NSC;
 static XrdOucHash<XrdOucString>* passwdstore;
 static XrdOucHash<XrdOucString>* stringstore;
 
@@ -122,16 +120,79 @@ int fuse_cache_write; ///< 0 if fuse cache write disabled, otherwise 1
 int fuse_cache_negstat; ///< 0 if fuse negstat cache disabled, otherwise 1
 bool fuse_exec = false; ///< indicates if files should be make exectuble
 bool fuse_shared = false; ///< indicated if this is eosd = true or eosfsd = false
-int use_localtime_consistency = 0; ///< indicated if this stat and get attr shou
+int creator_cap_lifetime = 30; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
+int file_write_back_cache_size = 64*1024*1024; ///< max temporary write-back cache per file size in bytes
+
 extern "C" char* local_mount_dir;
 XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
 using eos::common::LayoutId;
 
-void xrd_logdebug(const char *msg)
+void xrd_log(const char* _level, const char *msg)
 {
-  eos_static_debug(msg);
+  std::string level=_level;
+  if (level == "NOTICE")
+    eos_static_notice(msg);
+  else
+  if (level == "INFO")
+    eos_static_info(msg);
+  else
+  if (level == "WARNING")
+    eos_static_warning(msg);
+  else
+  if (level == "ALERT")
+    eos_static_alert(msg);
+  else
+    eos_static_debug(msg);
 }
+
+void xrd_log_settings()
+{
+  std::string s = "lazy-open-ro           := ";
+  s += lazy_open_ro?"true":"false";
+  xrd_log("WARNING",s.c_str());
+
+  s = "lazy-open-rw           := ";
+  s += lazy_open_rw?"true":"false";
+  xrd_log("WARNING",s.c_str());
+
+  s = "rm-level-protect       := ";
+  XrdOucString rml; rml += rm_level_protect;
+  s += rml.c_str();
+  xrd_log("WARMNING",s.c_str());
+
+  s = "local-mount-dir        := ";
+  s += local_mount_dir;
+  xrd_log("WARNING", s.c_str());
+  
+  s = "write-cache            := ";
+  std::string efc = getenv("EOS_FUSE_CACHE")?getenv("EOS_FUSE_CACHE"):"0";
+  s += efc;
+  xrd_log("WARNING", s.c_str());
+
+  s = "write-cache-size       := ";
+  std::string efcs = getenv("EOS_FUSE_CACHE_SIZE")?getenv("EOS_FUSE_CACHE_SIZE"):"0";
+  s += efcs;
+  xrd_log("WARNING", s.c_str());
+
+  s = "big-writes             := ";
+  std::string bw = getenv("EOS_FUSE_BIGWRITES")?getenv("EOS_FUSE_BIGWRITES"):"0";
+  s += bw;
+  xrd_log("WARNING", s.c_str());
+
+  s = "create-cap-lifetime    := ";
+  XrdOucString cc; cc += (int) creator_cap_lifetime;
+  s += cc.c_str();
+  s += " seconds";
+  xrd_log("WARNING", s.c_str());
+  
+  s = "file-wb-cache-size     := ";
+  XrdOucString fbcs; fbcs += (int) (file_write_back_cache_size/1024*1024);
+  s += fbcs.c_str();
+  s += " MB";
+  xrd_log("WARNING", s.c_str());
+}
+
 
 char *
 myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
@@ -230,8 +291,6 @@ xrd_unlock_w_pcache (pid_t pid)
 {
   proccachemutexes[pid].UnLockWrite();
 }
-
-
 
 //------------------------------------------------------------------------------
 // Drop the basename and return only the last level path name
@@ -399,8 +458,10 @@ xrd_forget_p2i (unsigned long long inode)
   if (inode2path.count(inode))
   {
     std::string path = inode2path[inode];
-
-    path2inode.erase(path);
+    
+    // only delete the reverse lookup if it points to the originating inode
+    if (path2inode[path] == inode)
+      path2inode.erase(path);
     inode2path.erase(inode);
   }
 }
@@ -916,15 +977,32 @@ xrd_remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, pid_t pid
       {
         eos_static_debug("fabst=%p, rwfile is not in use, close it", fabst);
         LayoutWrapper* raw_file = fabst->GetRawFileRW ();
-        retc = raw_file->Close ();
+	if (raw_file->IsOpen())
+	{
+	  struct timespec utimes[2];
+	  const char* path = 0;
+	  struct stat buf;
 
-        struct timespec utimes[2];
-        const char* path = 0;
-        if ((path = fabst->GetUtimes (utimes)))
-        {
-          // run the utimes command now after the close
-          xrd_utimes (path, utimes, uid, gid, pid);
-        }
+	  // retrieve the last modification time from the open file
+	  raw_file->Stat(&buf);
+	  eos_static_debug("stat gave mtime=%llu", buf.st_mtime);
+	  utimes[0].tv_sec = buf.st_mtime;
+	  utimes[0].tv_nsec = 0;
+	  utimes[1].tv_sec = buf.st_mtime;
+	  utimes[1].tv_nsec = 0;
+
+	  fabst->SetUtimes(utimes);
+
+	  if ((path = fabst->GetUtimes (utimes)))
+	  {
+	    eos_static_debug("CLOSEDEBUG closing file %s open with flag %d and utiming",raw_file->GetOpenPath().c_str(),(int)raw_file->GetOpenFlags());
+	    // run the utimes command now after the close
+	    xrd_utimes (path, utimes, uid, gid, pid);
+	  }
+	}
+
+        retc = raw_file->Close ();
+	
         fabst->SetRawFileRW (NULL);
         fabst->SetFd (-1);
       }
@@ -1914,8 +1992,8 @@ xrd_stat (const char* path,
                   path, (int)uid, (int)gid, inode);
   eos::common::Timing stattiming("xrd_stat");
   off_t file_size = -1;
-  struct timespec atime,mtime;
-  atime.tv_sec = atime.tv_nsec = mtime.tv_sec= mtime.tv_nsec = 0;
+  struct timespec atim,mtim;
+  atim.tv_sec = atim.tv_nsec = mtim.tv_sec= mtim.tv_nsec = 0;
   errno = 0;
   COMMONTIMING("START", &stattiming);
 
@@ -1941,55 +2019,66 @@ xrd_stat (const char* path,
       if (iter_file != fd2fabst.end())
       {
 	off_t cache_size=0;
-        // Force flush so that we get the real current size through the file obj.
         if (XFC && fuse_cache_write) 
 	{
 	  cache_size = iter_file->second->GetMaxWriteOffset();
+	  eos_static_debug("path=%s ino=%llu cache size %lu\n", path?path:"-undef-", inode,cache_size);
 	}
 
         struct stat tmp;
+	bool isrw=true;
+
         // try to stat wi th RO file if opened
         LayoutWrapper* file = iter_file->second->GetRawFileRW();
         if(!file)
+	{
           file = iter_file->second->GetRawFileRO();
-
+	  isrw = false;
+	}  
+	
         // if we do lazy open, the file should be open on the fst to stat
         // otherwise, the file will be opened on the fst, just for a stat
-        if (file->IsOpen ())
-        {
-          if ((!file->Stat (&tmp)))
-          {
-            file_size = tmp.st_size;
-            mtime = tmp.st_mtim;
-            atime = tmp.st_atim;
-
-            if (cache_size > file_size)
-            {
-              file_size = cache_size;
-            }
-
-            eos_static_debug("fd=%i, size-fd=%lld, raw_file=%p", *iter_fd->second.begin (), file_size, file);
-          }
-          else
-            eos_static_err("fd=%i stat failed on open file", *iter_fd->second.begin ());
-        }
+	if (isrw) 
+	{
+	  // only stat via open files if we have a writer
+	  if (file->IsOpen ())
+	  {
+	    if ((!file->Stat (&tmp)))
+	    {
+	      file_size = tmp.st_size;
+	      mtim.tv_sec = tmp.st_mtime;
+	      atim.tv_sec = tmp.st_atime;
+	      
+	      if (tmp.st_dev & 0x80000000)
+	      {
+		// this server delivers ns resolution in std_dev
+		mtim.tv_nsec = tmp.st_dev & 0x7fffffff;
+	      }
+	      
+	      if (cache_size > file_size)
+	      {
+		file_size = cache_size;
+	      }
+	      
+	      eos_static_debug("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.st_mtim, tmp.st_atim, file);
+	    }
+	    else
+	    {
+	      eos_static_err("fd=%i stat failed on open file", *iter_fd->second.begin ());
+	    }
+	  }
+	  else
+	  {
+	    file_size = cache_size;
+	  iter_file->second->GetUtimes(&mtim);
+	  }
+	}
       }
       else
         eos_static_err("fd=%i not found in file obj map", *iter_fd->second.begin());
     }
     else
       eos_static_debug("path=%s not open", path);
-  }
-
-  // check if the file is a negative stat cache match
-  {
-    int erno = 0;
-    if (NSC && (erno = NSC->GetNoExist (path)))
-    {
-      eos_static_debug("found entry in the negstatcache for file %s\n",path);
-      errno=erno;
-      return errno;
-    }
   }
 
   // Do stat using the Fils System object
@@ -2051,8 +2140,6 @@ xrd_stat (const char* path,
 	errno = EFAULT;
       delete response;
       eos_static_info("path=%s errno=%i tag=%s", path, errno, tag);
-      if(NSC)
-        NSC->UpdateNoExist(path,errno);
       return errno;
     }
     else
@@ -2099,28 +2186,19 @@ xrd_stat (const char* path,
   {
     eos_static_err("status is NOT ok : %s",status.ToString().c_str());
     errno = (status.code==XrdCl::errAuthFailed)?EPERM:EFAULT;
-    // we do not cache such errors in the negstatcache NSC
   }
 
-  // If got size using opened file then return this value
-  if ((file_size != -1) && use_localtime_consistency)
+  // If got size using the opened file then return size and mtime from the opened file
+  if (file_size != -1)
   {
     buf->st_size = file_size;
-    // if using local time consistency model
-    // overwrite mgm mtime only if local mtime is newer
-    // WARNING : this is VALID ONLY if
-    // - the file is being accessed only from fuse mounts that are synchronized between together
-    // OR
-    // - the file is being accessed from all types of protocol if they are all synchronized with the eos instance
-    if (buf->st_mtim.tv_sec < mtime.tv_sec || ((buf->st_mtim.tv_sec == mtime.tv_sec) && (buf->st_mtim.tv_nsec <= mtime.tv_nsec)))
+    if (mtim.tv_sec)
     {
-      buf->st_atim = atime;
-      buf->st_mtim = mtime;
+      buf->st_mtim = mtim;
+      buf->st_atim = mtim;
       buf->st_atime = buf->st_atim.tv_sec;
       buf->st_mtime = buf->st_mtim.tv_sec;
     }
-    else
-      eos_static_debug("ALERT: last update on the mgm %lu.%.9lu is more recent that my local update %lu.%.9lu",buf->st_mtim.tv_sec,buf->st_mtim.tv_nsec,mtime.tv_sec,mtime.tv_nsec);
   }
 
   COMMONTIMING("END", &stattiming);
@@ -2128,9 +2206,7 @@ xrd_stat (const char* path,
   if (EOS_LOGS_DEBUG)
     stattiming.Print();
 
-  if(NSC && !errno) NSC->Forget(path);
-
-  eos_static_info("path=%s st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
+  eos_static_info("path=%s st-ino =%llu st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_ino, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
   delete response;
   return errno;
 }
@@ -2314,36 +2390,6 @@ xrd_chmod (const char* path,
 }
 
 //------------------------------------------------------------------------------
-// Postpone utimes to a file close if still open
-//------------------------------------------------------------------------------
-int
-xrd_set_utimes_close(unsigned long long inode,
-                    struct timespec* tvp,
-                    uid_t uid, gid_t gid, pid_t pid)
-{
-  // try to attach the utimes call until a referenced filedescriptor on that path is closed
-  std::ostringstream sstr;
-  sstr << inode << ":" << get_xrd_login(uid,gid,pid);
-  {
-    eos::common::RWMutexWriteLock wr_lock(rwmutex_fd2fabst);
-    auto iter_fd = inodexrdlogin2fds.find(sstr.str());
-    if (iter_fd != inodexrdlogin2fds.end())
-    {
-      google::dense_hash_map<int, FileAbstraction*>::iterator
-        iter_file = fd2fabst.find(*iter_fd->second.begin());
-
-      if (iter_file != fd2fabst.end())
-      {
-        iter_file->second->SetUtimes(tvp);
-        return 0;
-      }
-    }
-  }
-  return 1;
-}
-
-
-//------------------------------------------------------------------------------
 // Update the last access time and last modification time
 //------------------------------------------------------------------------------
 int
@@ -2476,7 +2522,6 @@ xrd_symlink(const char* path,
   }
 
   delete response;
-  if(NSC) NSC->Forget(path);
   
   return errno;
 }
@@ -2966,7 +3011,6 @@ xrd_mkdir (const char* path,
       buf->st_mode &= (~S_ISUID); // clear suid
       buf->st_mode &= (~S_ISGID); // clear sgid
       errno = 0;
-      if(NSC) NSC->Forget(path);
     }
   }
   else
@@ -2992,6 +3036,9 @@ xrd_mkdir (const char* path,
 int
 xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
 {
+  eos::common::Timing rmdirtiming("xrd_rmdir");
+  COMMONTIMING("START", &rmdirtiming);
+
   eos_static_info("path=%s uid=%u pid=%u", path, uid, pid);
 
   std::string surl=xrd_user_url(uid, gid, pid);
@@ -3005,13 +3052,18 @@ xrd_rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
   {
     if(status.GetErrorMessage().find("Directory not empty")!=std::string::npos)
       errno = ENOTEMPTY;
-    return errno;
   }
   else
   {
-    if(NSC) NSC->UpdateNoExist(path,ENOENT);
-    return 0;
+    errno = 0;
   }
+
+  COMMONTIMING("END", &rmdirtiming);
+
+  if (EOS_LOGS_DEBUG)
+    rmdirtiming.Print();
+
+  return errno;
 }
 
 
@@ -3114,6 +3166,7 @@ xrd_open (const char* path,
   eos_static_info("path=%s flags=%08x mode=%d uid=%u pid=%u", path, oflags, mode, uid, pid);
   XrdOucString spath = xrd_user_url (uid, gid, pid);
   XrdSfsFileOpenMode flags_sfs = eos::common::LayoutId::MapFlagsPosix2Sfs (oflags);
+  eos_static_debug("flags=%x", flags_sfs);
   struct stat buf;
   bool exists = true;
   bool lazy_open = (flags_sfs == SFS_O_RDONLY) ? lazy_open_ro : lazy_open_rw;
@@ -3173,8 +3226,7 @@ xrd_open (const char* path,
       spath += xrd_strongauth_cgi (pid);
       if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
-      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl),
-                                               use_localtime_consistency);
+      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
       XrdOucString open_path = get_url_nocgi (spath.c_str ());
       XrdOucString open_cgi = get_cgi (spath.c_str ());
@@ -3203,8 +3255,7 @@ xrd_open (const char* path,
       spath += xrd_strongauth_cgi (pid);
       if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
-      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl),
-                                               use_localtime_consistency);
+      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
       XrdOucString open_path = get_url_nocgi (spath.c_str ());
       XrdOucString open_cgi = get_cgi (spath.c_str ());
 
@@ -3231,8 +3282,7 @@ xrd_open (const char* path,
       spath += xrd_strongauth_cgi (pid);
       if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
       spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
-      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl),
-                                               use_localtime_consistency);
+      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
       XrdOucString open_path = get_url_nocgi (spath.c_str ());
       XrdOucString open_cgi = get_cgi (spath.c_str ());
@@ -3357,7 +3407,7 @@ xrd_open (const char* path,
               eos_static_debug("path=%s created inode=%lu", path, (unsigned long )*return_inode);
             }
 
-            retc = xrd_add_fd2file (new LayoutWrapper (file, use_localtime_consistency), *return_inode, uid, gid, pid, isRO);
+            retc = xrd_add_fd2file (new LayoutWrapper (file), *return_inode, uid, gid, pid, isRO);
             return retc;
           }
         }
@@ -3371,8 +3421,7 @@ xrd_open (const char* path,
   }
 
   eos_static_debug("the spath is:%s", spath.c_str ());
-  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl),
-                                           use_localtime_consistency);
+  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
   XrdOucString open_cgi = "eos.app=fuse";
 
   if (oflags & (O_RDWR | O_WRONLY))
@@ -3397,12 +3446,12 @@ xrd_open (const char* path,
   eos_static_debug("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str (), open_cgi.c_str (), (int )exists, (int )flags_sfs);
   retc = 1;
   // upgrade the WRONLY open to RW
-  if (flags_sfs | SFS_O_WRONLY)
+  if (flags_sfs & SFS_O_WRONLY)
   {
     flags_sfs &= ~SFS_O_WRONLY;
     flags_sfs |= SFS_O_RDWR;
   }
-  retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open);
+  retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime);
 
   if (retc)
   {
@@ -3415,7 +3464,9 @@ xrd_open (const char* path,
     if (return_inode)
     {
       // Try to extract the inode from the opaque redirection
+      std::string url = file->GetLastUrl().c_str();
       XrdOucEnv RedEnv = file->GetLastUrl ().c_str ();
+
       const char* sino = RedEnv.Get ("mgm.id");
 
       ino_t old_ino = return_inode ? *return_inode : 0;
@@ -3457,14 +3508,12 @@ xrd_open (const char* path,
 
       *return_inode = new_ino;
 
-      if (!exists && NSC) NSC->Forget (path);
-
       eos_static_debug("path=%s opened ino=%lu", path, (unsigned long )*return_inode);
     }
 
     retc = xrd_add_fd2file (file, *return_inode, uid, gid, pid, isRO, path);
 
-    COMMONTIMING("end", &opentiming);
+    COMMONTIMING("END", &opentiming);
 
     if (EOS_LOGS_DEBUG)
     opentiming.Print();
@@ -3540,7 +3589,6 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
   if (XFC && fuse_cache_write)
   {
     fabst->mMutexRW.WriteLock();
-    XFC->ForceAllWrites(fabst);
     eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
     error_type error;
 
@@ -3549,24 +3597,7 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
       eos_static_info("Extract error from queue");
       retc = error.first;
     }
-
-    auto raw_file = fabst->GetRawFileRW();
-    if(raw_file && raw_file->IsOpen())
-    {
-      int retc2 = raw_file->Close ();
-      eos_static_debug("temporarily closing file %s  returned  %d",raw_file->GetLastPath().c_str(),retc2);
-      if(retc2) retc=retc2;
-      struct timespec utimes[2];
-      const char* path = 0;
-      if ((path = fabst->GetUtimes (utimes)))
-      {
-        eos_static_debug("CLOSEDEBUG closing file %s open with flag %d and utiming",raw_file->GetOpenPath().c_str(),(int)raw_file->GetOpenFlags());
-        // run the utimes command now after the close
-        xrd_utimes (path, utimes, uid, gid, pid);
-      }
-      else
-        eos_static_debug("CLOSEDEBUG closing file %s open with flag %d and NOT utiming",raw_file->GetOpenPath().c_str(),(int)raw_file->GetOpenFlags());
-    }
+    
     fabst->mMutexRW.UnLock();
 
   }
@@ -3581,6 +3612,10 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
 int
 xrd_truncate (int fildes, off_t offset)
 {
+
+  eos::common::Timing truncatetiming("xrd_runcate");
+  COMMONTIMING("START", &truncatetiming);
+
   int ret = -1;
   eos_static_info("fd=%d offset=%llu", fildes, (unsigned long long) offset);
   bool isRW=false;
@@ -3622,6 +3657,12 @@ xrd_truncate (int fildes, off_t offset)
 
   if (ret == -1)
     errno = EIO;
+
+  COMMONTIMING("END", &truncatetiming);
+
+  if (EOS_LOGS_DEBUG)
+    truncatetiming.Print();
+
 
   return ret;
 }
@@ -3691,6 +3732,9 @@ xrd_pread (int fildes,
   bool isRW=false;
   FileAbstraction* fabst = xrd_get_file(fildes,&isRW);
 
+  std::string origin="remote-ro";
+  if (isRW)
+    origin="remote-rw";
   if (!fabst)
   {
     errno = ENOENT;
@@ -3701,19 +3745,40 @@ xrd_pread (int fildes,
 
   if (XFC && fuse_cache_write)
   {
-    fabst->mMutexRW.WriteLock();
-    XFC->ForceAllWrites(fabst);
-    ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
-    fabst->mMutexRW.UnLock();
+    ret = file->ReadCache(offset, static_cast<char*> (buf), nbyte, file_write_back_cache_size);
+    if (ret != (int)nbyte)
+    {
+      if (ret == -1)
+      {
+	if (isRW) {
+	  origin = "flush";
+	  // cache miss
+	  fabst->mMutexRW.WriteLock();
+	  XFC->ForceAllWrites(fabst);
+	  ret = file->Read(offset, static_cast<char*> (buf), nbyte, isRW?false:do_rdahead);
+	  fabst->mMutexRW.UnLock();
+	} 
+	else
+	{
+	  ret = file->Read(offset, static_cast<char*> (buf), nbyte, isRW?false:do_rdahead);
+	}
+      } else {
+	origin = "cache-short";
+      }
+    }    
+    else
+    {
+      origin = "cache";
+    }
   }
   else
   {
-    ret = file->Read(offset, static_cast<char*> (buf), nbyte, do_rdahead);
+    ret = file->Read(offset, static_cast<char*> (buf), nbyte, isRW?false:do_rdahead);
   }
 
   // Release file reference
   isRW?fabst->DecNumRefRW():fabst->DecNumRefRO();
-  COMMONTIMING("end", &xpr);
+  COMMONTIMING("END", &xpr);
 
   if (ret == -1)
   {
@@ -3722,7 +3787,7 @@ xrd_pread (int fildes,
   }
   else if ((size_t)ret != nbyte)
   {
-    eos_static_warning("read size=%u, returned=%u", nbyte, ret);
+    eos_static_info("read size=%u, returned=%u origin=%s", nbyte, ret, origin.c_str());
   }
 
   if (EOS_LOGS_DEBUG)
@@ -3765,17 +3830,20 @@ xrd_pwrite (int fildes,
 
   if (XFC && fuse_cache_write)
   {
+    // store in cache
+    fabst->GetRawFileRW()->WriteCache(offset, static_cast<const char*>(buf), nbyte, file_write_back_cache_size);
+
     fabst->mMutexRW.ReadLock();
+    fabst->TestMaxWriteOffset(offset + nbyte);
     XFC->SubmitWrite(fabst, const_cast<void*> (buf), offset, nbyte);
     fabst->mMutexRW.UnLock();
-    // to modify the timestamp
-    if(use_localtime_consistency)
-      fabst->GetRawFileRW()->Write(0, NULL, -1);
+
     ret = nbyte;
   }
   else
   {
     LayoutWrapper* file = fabst->GetRawFileRW();
+    fabst->TestMaxWriteOffset(offset + nbyte);
     ret = file->Write(offset, static_cast<const char*> (buf), nbyte);
 
     if (ret == -1)
@@ -3784,7 +3852,7 @@ xrd_pwrite (int fildes,
 
   // Release file reference
   fabst->DecNumRefRW();
-  COMMONTIMING("end", &xpw);
+  COMMONTIMING("END", &xpw);
 
   if (EOS_LOGS_DEBUG)
     xpw.Print();
@@ -3799,6 +3867,9 @@ xrd_pwrite (int fildes,
 int
 xrd_fsync (int fildes)
 {
+  eos::common::Timing xps("xrd_fsync");
+  COMMONTIMING("start", &xps);
+
   eos_static_info("fd=%d", fildes);
   int ret = 0;
   bool isRW;
@@ -3832,6 +3903,12 @@ xrd_fsync (int fildes)
 
   // Release file reference
   fabst->DecNumRefRW();
+
+  COMMONTIMING("END", &xps);
+
+  if (EOS_LOGS_DEBUG)
+    xps.Print();
+
   return ret;
 }
 
@@ -3845,6 +3922,9 @@ xrd_unlink (const char* path,
             gid_t gid,
             pid_t pid)
 {
+  eos::common::Timing xpu("xrd_unlink");
+  COMMONTIMING("start", &xpu);
+
   eos_static_info("path=%s uid=%u, pid=%u", path, uid, pid);
   std::string surl=xrd_user_url(uid, gid, pid);
   if((use_user_krb5cc||use_user_gsiproxy) && fuse_shared) surl += '?';
@@ -3853,13 +3933,18 @@ xrd_unlink (const char* path,
   XrdCl::FileSystem fs(Url);
   XrdCl::XRootDStatus status = fs.Rm(path);
 
-  if (xrd_error_retc_map(status.errNo))
-    return errno;
-  else
+  if (!xrd_error_retc_map(status.errNo))
   {
-    if(NSC) NSC->UpdateNoExist(path,ENOENT);
-    return 0;
+    errno = 0;
   }
+
+  COMMONTIMING("END", &xpu);
+
+  if (EOS_LOGS_DEBUG)
+    xpu.Print();
+
+  return errno;
+
 }
 
 
@@ -3873,6 +3958,9 @@ xrd_rename (const char* oldpath,
             gid_t gid,
             pid_t pid)
 {
+  eos::common::Timing xpr("xrd_rename");
+  COMMONTIMING("start", &xpr);
+
   eos_static_info("oldpath=%s newpath=%s", oldpath, newpath, uid, pid);
   XrdOucString sOldPath = oldpath;
   XrdOucString sNewPath = newpath;
@@ -3888,17 +3976,18 @@ xrd_rename (const char* oldpath,
 
   XrdCl::XRootDStatus status = fs.Mv(sOldPath.c_str(), sNewPath.c_str());
 
-  if (xrd_error_retc_map(status.errNo))
-    return errno;
-  else
+  if (!xrd_error_retc_map(status.errNo))
   {
-    if(NSC) {
-      NSC->UpdateNoExist(oldpath,ENOENT);
-      NSC->Forget(newpath);
-    }
-
+    errno = 0;
     return 0;
   }
+
+  COMMONTIMING("END", &xpr);
+
+  if (EOS_LOGS_DEBUG)
+    xpr.Print();
+
+  return errno;
 }
 
 const char* xrd_strongauth_cgi (pid_t pid)
@@ -4383,11 +4472,6 @@ xrd_init ()
     }
   }
 
-  if (getenv("EOS_FUSE_LOCALTIMECONSISTENT") && (!strcmp(getenv("EOS_FUSE_LOCALTIMECONSISTENT"), "1")))
-  {
-    use_localtime_consistency = 1;
-  }
-
   if (getenv("EOS_FUSE_LAZYOPENRO") && (!strcmp(getenv("EOS_FUSE_LAZYOPENRO"), "1")))
   {
     lazy_open_ro = true;
@@ -4410,6 +4494,16 @@ xrd_init ()
       eos::common::Logging::SetLogPriority(LOG_INFO);
   }
 
+  if (getenv("EOS_FUSE_CREATOR_CAP_LIFETIME")) 
+  {
+    creator_cap_lifetime = (int)strtol(getenv("EOS_FUSE_CREATOR_CAP_LIFETIME"),0,10);
+  }
+
+  if (getenv("EOS_FUSE_FILE_WB_CACHE_SIZE"))
+  {
+    file_write_back_cache_size = (int)strtol(getenv("EOS_FUSE_FILE_WB_CACHE_SIZE"),0,10);
+  }
+
   // Check if we should set files executable
   if (getenv("EOS_FUSE_EXEC") && (!strcmp(getenv("EOS_FUSE_EXEC"), "1")))
     fuse_exec = true;
@@ -4420,7 +4514,6 @@ xrd_init ()
   if ((!(getenv("EOS_FUSE_CACHE"))) ||
       (getenv("EOS_FUSE_CACHE") && (!strcmp(getenv("EOS_FUSE_CACHE"), "0"))))
   {
-    eos_static_notice("cache=false");
     XFC = NULL;
   }
   else
@@ -4428,40 +4521,9 @@ xrd_init ()
     if (!getenv("EOS_FUSE_CACHE_SIZE"))
       setenv("EOS_FUSE_CACHE_SIZE", "30000000", 1); // ~300MB
 
-    eos_static_notice("cache=true size=%s cache-write=%s exec=%d",
-                      getenv("EOS_FUSE_CACHE_SIZE"),
-                      getenv("EOS_FUSE_CACHE_WRITE"), fuse_exec);
-
     XFC = FuseWriteCache::GetInstance(static_cast<size_t>(atol(getenv("EOS_FUSE_CACHE_SIZE"))));
 
-    if (getenv("EOS_FUSE_CACHE_WRITE") && atoi(getenv("EOS_FUSE_CACHE_WRITE")))
-      fuse_cache_write = true;
-  }
-
-  // Initialise the NegStatCache
-  fuse_cache_negstat = false;
-
-  if ((!(getenv("EOS_FUSE_NEGSTATCACHE"))) ||
-      (getenv("EOS_FUSE_NEGSTATCACHE") && (!strcmp(getenv("EOS_FUSE_NEGSTATCACHE"), "0"))))
-  {
-    eos_static_notice("negstatcache=false");
-    NSC = NULL;
-  }
-  else
-  {
-    if (!getenv("EOS_FUSE_NEGSTATCACHE_SIZE"))
-      setenv("EOS_FUSE_NEGSTATCACHE_SIZE", "100000", 1); // 100k entries
-    if (!getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS"))
-      setenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS", "60000000000", 1); // 1 minute
-
-    eos_static_notice("negstatcache=true size=%s lifetime(nsec)=%s",
-                      getenv("EOS_FUSE_NEGSTATCACHE_SIZE"),
-                      getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS"));
-
-    NSC = new NegStatCache(
-        static_cast<size_t>(atol(getenv("EOS_FUSE_NEGSTATCACHE_SIZE"))) ,
-        static_cast<size_t>(atol(getenv("EOS_FUSE_NEGSTATCACHE_LIFETIMENS")))
-        );
+    fuse_cache_write = true;
   }
 
   // Get the number of levels in the top hierarchy protected agains deletions

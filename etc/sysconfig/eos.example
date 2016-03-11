@@ -111,9 +111,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE low-level debugging mode (default off)
 #export EOS_FUSE_LOWLEVEL_DEBUG=1
 
-# Specify the FUSE logging level (default=6 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
+# Specify the FUSE logging level (default=4 is LOG_WARNING ... see /usr/include/sys/syslog.h LOG_XXX definitions)
 # EOS_FUSE_DEBUG=1 overwrites these settings
-#export EOS_FUSE_LOGLEVEL=6
+#export EOS_FUSE_LOGLEVEL=4
 
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
@@ -154,6 +154,38 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    or from any of its sub directories at a maximum depth (if >1) (default 1)
 # EOS_FUSE_RMLVL_PROTECT=1
 
+
+# Enable lazy-open of files for reading e.g. files are only opened on an FST if a read is done
+#    by default this option is disabled because most ro files want to read and 
+#    there is a penalty in the two-step process
+# export EOS_FUSE_LAZYOPENRO=0
+
+# Enable lazy-open of files for writing 
+#    applications get a visible performance boost by using this option and the latency in synchronous replication
+#    on the FSTs is completely hidden. By default this option is enabled
+# export EOS_FUSE_LAZYOPENRW=1
+
+# Set FUSE kernel cache time for directory entries (readdir cache) - default 10 seconds	
+# export EOS_FUSE_ENTRY_CACHE_TIME=10
+
+# Set FUSE kernel attribute cache time (stat cache) - default 10 seconds
+# export EOS_FUSE_ATTR_CACHE_TIME=10
+
+# Set FUSE kernel negative stat cache time - default 30 seconds
+# export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
+
+# Set FUSE client creator CAP liftime
+#    During this time window all reads done on the client where a file has been created
+#    can be served from a local file write-back cache.
+#    this improves significantly compilation. Remote changes are not visible inside
+#    files after creation during the specified time period. Default is 30 seconds.
+# export EOS_FUSE_CREATOR_CAP_LIFETIME=30
+
+# Set FUSE client max. write-back cache size per file
+#    This is required until kernel 3.15. where the write-back cache of the kernel can be used
+#    via a mount option. The default is 64 MB.
+# export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
+
 # ---------------------------------------------------------------------------------
 # this options are not available since AQUAMARINE is compiled with XROOTD3 
 # --------------------------------------------------------------------------------- 
@@ -181,13 +213,6 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    (default 0)
 # EOS_FUSE_PIDMAP=
 # ---------------------------------------------------------------------------------
-
-# Enable the fuse local host time consistency model
-#   this allows a more precise handling of mtime. Time reference is then the localhost time
-#   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
-#   this only affects the shared fuse mount (default 1)
-#   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
-# EOS_FUSE_LOCALTIMECONSISTENT=1
 
 # Configure a log-file prefix - useful for several FUSE instances
 #export EOS_FUSE_LOG_PREFIX=dev

@@ -77,7 +77,8 @@ extern "C"
 {
 #endif
 
-  void xrd_logdebug(const char *msg);
+  void xrd_log(const char* level, const char *msg);
+  void xrd_log_settings();
 
   typedef struct fd_user_info
   {
@@ -159,6 +160,7 @@ extern "C"
 
   void
   xrd_unlock_w_pcache (pid_t pid);
+
 
   //----------------------------------------------------------------------------
   //                ******* Path translation *******

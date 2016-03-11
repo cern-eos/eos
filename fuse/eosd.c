@@ -62,11 +62,15 @@ char *local_mount_dir;
 char mounthostport[1024]; ///< mount hostport of the form: hostname:port
 char mountprefix[1024]; ///< mount prefix of the form: dir1/dir2/dir3
 
-double entrycachetime = 5.0;
-double attrcachetime = 5.0;
+double entrycachetime = 10.0;
+double attrcachetime = 10.0;
+double neg_entrycachetime = 30.0;
 double readopentime = 5.0;
+double cap_creator_lifetime = 30;
 
-extern int use_localtime_consistency;
+int kernel_cache = 0;
+int direct_io = 0;
+int no_access = 0;
 
 //------------------------------------------------------------------------------
 // Convenience macros to build strings in C ...
@@ -216,12 +220,10 @@ eosfs_ll_setattr (fuse_req_t req,
                __FUNCTION__, (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
     }
 
-    if ( (retc=xrd_set_utimes_close(ino, tvp, req->ctx.uid, req->ctx.gid, req->ctx.pid)) ) {
-      retc = xrd_utimes (fullpath, tvp,
-			 req->ctx.uid,
-			 req->ctx.gid,
-			 req->ctx.pid);
-    }
+    retc = xrd_utimes (fullpath, tvp,
+		       req->ctx.uid,
+		       req->ctx.gid,
+		       req->ctx.pid);
   }
 
   if (isdebug) fprintf (stderr, "[%s]: return code =%d\n", __FUNCTION__, retc);
@@ -298,6 +300,9 @@ eosfs_ll_lookup (fuse_req_t req,
 
   entry_inode = xrd_inode (ifullpath);
 
+  if (isdebug)
+    fprintf (stderr, "[%s] entry_found = %i %s\n", __FUNCTION__, entry_inode, ifullpath);
+
   if (entry_inode)
   {
     // Try to get entry from cache
@@ -334,16 +339,14 @@ eosfs_ll_lookup (fuse_req_t req,
     }
     else
     {
-      if (errno == EFAULT)
-      {
-        e.ino = 0;
-        fuse_reply_entry (req, &e);
-      }
-      else
-        fuse_reply_err (req, errno);
-      }
+      // Add entry as a negative stat cache entry
+      e.ino = 0;
+      e.attr_timeout = neg_entrycachetime;
+      e.entry_timeout = neg_entrycachetime;
+      fuse_reply_entry(req, &e);
     }
   }
+}
 
 
 //------------------------------------------------------------------------------
@@ -429,8 +432,7 @@ eosfs_ll_readdir (fuse_req_t req,
              (long long) ino, dirfullpath, (long long) size, (long long) off);
   }
 
-  if (((!getenv ("EOS_FUSE_NOACCESS")) ||
-                         (!strcmp (getenv ("EOS_FUSE_NOACCESS"), "1"))))
+  if (no_access)
   {
     // if ACCESS is disabled we have to make sure that we can actually read this directory if we are not 'root'
 
@@ -863,8 +865,8 @@ eosfs_ll_rename (fuse_req_t req,
 
   if (isdebug)
   {
-    fprintf (stderr, "[%s]: path=%s newpath=%s inode=%llu [%d]\n",
-             __FUNCTION__, fullpath, newfullpath, (unsigned long long) stbuf.st_ino, retcold);
+    fprintf (stderr, "[%s]: path=%s newpath=%s inode=%llu op=%i np=%i [%d]\n",
+             __FUNCTION__, fullpath, newfullpath, (unsigned long long) stbuf.st_ino, parent, newparent, retcold);
   }
 
   int retc = xrd_rename (fullpath, newfullpath, req->ctx.uid,
@@ -877,23 +879,25 @@ eosfs_ll_rename (fuse_req_t req,
     {
       if (isdebug)
       {
-        fprintf (stderr, "[%s]: forgetting inode=%llu \n",
-                 __FUNCTION__, (unsigned long long) stbuf.st_ino);
+        fprintf (stderr, "[%s]: forgetting inode=%llu storing as %s\n",
+                 __FUNCTION__, (unsigned long long) stbuf.st_ino, iparentpath);
       }
 
-      xrd_forget_p2i ((unsigned long long) stbuf.st_ino);
-      xrd_store_p2i ((unsigned long long) stbuf.st_ino, iparentpath);
-      xrd_dir_cache_forget ((unsigned long long) parent);
-
-      if (parent != newparent)
+      if (parent != newparent) 
+       {
+	xrd_dir_cache_forget ((unsigned long long) parent);
         xrd_dir_cache_forget ((unsigned long long) newparent);
       }
+      xrd_forget_p2i ((unsigned long long) stbuf.st_ino);
+      xrd_store_p2i ((unsigned long long) stbuf.st_ino, iparentpath);
+    }
 
     fuse_reply_err (req, 0);
   }
   else
     fuse_reply_err (req, errno);
-  }
+
+}
 
 
 //------------------------------------------------------------------------------
@@ -1122,8 +1126,7 @@ eosfs_ll_open (fuse_req_t req,
   info->pid = req->ctx.pid;
   fi->fh = (uint64_t) info;
 
-  if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
-      (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
+  if (kernel_cache)
   {
     // TODO: this should be improved
     if (strstr (fullpath, "/proc/"))
@@ -1134,7 +1137,7 @@ eosfs_ll_open (fuse_req_t req,
   else
     fi->keep_cache = 0;
 
-  if ((getenv ("EOS_FUSE_DIRECTIO")) && (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
+  if (direct_io)
     fi->direct_io = 1;
   else
     fi->direct_io = 0;
@@ -1310,6 +1313,12 @@ eosfs_ll_fsync (fuse_req_t req,
 static void
 eosfs_ll_forget (fuse_req_t req, fuse_ino_t ino, unsigned long nlookup)
 {
+  if (isdebug)
+  {
+    fprintf (stderr, "[%s]: inode=%lld\n",
+	     __FUNCTION__, (long long) ino);
+  }
+
   xrd_forget_p2i ((unsigned long long) ino);
   fuse_reply_none (req);
 }
@@ -1633,25 +1642,8 @@ eosfs_ll_create(fuse_req_t req,
     e.attr.st_uid = req->ctx.uid;
     e.attr.st_gid = req->ctx.gid;
     e.attr.st_dev = 0;
-    struct stat s;
-    if (use_localtime_consistency && !xrd_stat (fullpath, &s, req->ctx.uid, req->ctx.gid, req->ctx.pid, rinode))
-    {
-      e.attr.st_atime = s.st_mtime;
-      e.attr.st_mtime = s.st_mtime;
-      e.attr.st_ctime = s.st_mtime;
-      e.attr.st_atim = s.st_mtim;
-      e.attr.st_mtim = s.st_mtim;
-      e.attr.st_ctim = s.st_mtim;
-    }
-    else
-    {
-      if(use_localtime_consistency)
-        fprintf (stderr,"[%s]: error stating created file. time stamping with local time without ns",__FUNCTION__);
 
-      e.attr.st_atime = time (NULL);
-      e.attr.st_mtime = time (NULL);
-      e.attr.st_ctime = time (NULL);
-    }
+    e.attr.st_atime = e.attr.st_mtime = e.attr.st_ctime = time (NULL);
 
     if (isdebug) fprintf (stderr, "[%s]: update inode=%llu\n", __FUNCTION__, (unsigned long long) e.ino);
 
@@ -1671,8 +1663,7 @@ eosfs_ll_create(fuse_req_t req,
                  __FUNCTION__, (long long) e.ino, ifullpath);
       }
 
-      if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
-          (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
+      if (kernel_cache)
       {
         // TODO: this should be improved
         if (strstr (fullpath, "/proc/"))
@@ -1683,8 +1674,7 @@ eosfs_ll_create(fuse_req_t req,
       else
         fi->keep_cache = 0;
 
-      if ((getenv ("EOS_FUSE_DIRECTIO")) &&
-          (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
+      if (direct_io)
         fi->direct_io = 1;
       else
         fi->direct_io = 0;
@@ -1747,6 +1737,36 @@ main (int argc, char* argv[])
   {
     fprintf (stderr, "EOS_SOCKS4_HOST=%s\n", getenv ("EOS_SOCKS4_HOST"));
     fprintf (stderr, "EOS_SOCKS4_PORT=%s\n", getenv ("EOS_SOCKS4_PORT"));
+  }
+
+  if (getenv ("EOS_FUSE_ENTRY_CACHE_TIME"))
+  {
+    entrycachetime = strtod(getenv("EOS_FUSE_ENTRY_CACHE_TIME"),0);
+  }
+  if (getenv ("EOS_FUSE_ATTR_CACHE_TIME"))
+  {
+    attrcachetime = strtod(getenv("EOS_FUSE_ATTR_CACHE_TIME"),0);
+  }
+  if (getenv("EOS_FUSE_NEG_ENTRY_CACHE_TIME"))
+  {
+    neg_entrycachetime = strtod(getenv("EOS_FUSE_NEG_ENTRY_CACHE_TIME"),0);
+  }
+
+  if ((getenv ("EOS_FUSE_KERNELCACHE")) &&
+      (!strcmp (getenv ("EOS_FUSE_KERNELCACHE"), "1")))
+  {
+    kernel_cache = 1;
+  }
+
+  if (((!getenv ("EOS_FUSE_NOACCESS")) ||
+                         (!strcmp (getenv ("EOS_FUSE_NOACCESS"), "1"))))
+  {
+    no_access = 1;
+  }
+
+  if ((getenv ("EOS_FUSE_DIRECTIO")) && (!strcmp (getenv ("EOS_FUSE_DIRECTIO"), "1")))
+  {
+    direct_io = 1;
   }
 
   xcfsatime = time (NULL);
@@ -1843,6 +1863,28 @@ main (int argc, char* argv[])
       isdebug = 1;
 
     xrd_init();
+
+    char line[4096];
+    xrd_log("WARNING","********************************************************************************");
+    snprintf(line, sizeof(line),"eosd started version %s - FUSE protocol version %d",VERSION,FUSE_USE_VERSION);
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"eos-instance-url       := %s", getenv("EOS_RDRURL"));
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"multi-threading        := %s", (getenv("EOS_FUSE_NO_MT") && (!strcmp(getenv("EOS_FUSE_NO_MT"),"1")))?"false":"true");
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"kernel-cache           := %s", kernel_cache?"true":"false");
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"direct-io              := %s", direct_io?"true":"false");
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"no-access              := %s", no_access?"true":"false");
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"attr-cache-timeout     := %.02f seconds", attrcachetime);
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"entry-cache-timeout    := %.02f seconds", entrycachetime);
+    xrd_log("WARNING",line);
+    snprintf(line, sizeof(line),"negative-entry-timeout := %.02f seconds", neg_entrycachetime);
+    xrd_log("WARNING",line);
+    xrd_log_settings();
 
     struct fuse_session* se;
     se = fuse_lowlevel_new (&args, &eosfs_ll_oper, sizeof ( eosfs_ll_oper), NULL);

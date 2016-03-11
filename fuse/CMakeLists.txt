@@ -44,7 +44,6 @@ add_executable(
   eosfsd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
-  NegStatCache.cc NegStatCache.hh
   eosfs.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
@@ -53,7 +52,6 @@ add_executable(
   eosd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
-  NegStatCache.cc NegStatCache.hh
   eosd.c
   xrdposix.cc        xrdposix.hh
   FuseCacheEntry.cc  FuseCacheEntry.hh)
@@ -85,8 +83,8 @@ if(MacOSX)
   set_target_properties(
     eosd eosfsd
     PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
-    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
+    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE -DVERSION=\\\"${VERSION}\\\"")
 else()
   target_link_libraries(
     eosfsd
@@ -114,7 +112,7 @@ else()
   set_target_properties(
     eosd eosfsd
     PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
 endif()
 
 install(

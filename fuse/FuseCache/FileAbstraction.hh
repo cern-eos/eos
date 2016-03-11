@@ -118,11 +118,7 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     //! Set undelying raw file object
     //--------------------------------------------------------------------------
-    inline void SetRawFileRW(LayoutWrapper* file)
-    {
-      mFileRW=file;
-      mNumOpenRW=1;
-    };
+    void SetRawFileRW(LayoutWrapper* file);
 
     //--------------------------------------------------------------------------
     //! Get undelying raw file object for RO
@@ -135,11 +131,8 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     //! Set undelying raw file object
     //--------------------------------------------------------------------------
-    inline void SetRawFileRO(LayoutWrapper* file)
-    {
-      mFileRO=file;
-      mNumOpenRO=1;
-    };
+    void SetRawFileRO(LayoutWrapper* file);
+    
 
     //--------------------------------------------------------------------------
     //! Get first possible key value
@@ -240,7 +233,7 @@ class FileAbstraction
     //! @return true if file is in use, otherwise false
     //!
     //--------------------------------------------------------------------------
-    inline bool IsInUse() { return IsInUseRO() || IsInUseRW(); }
+    bool IsInUse();
 
 
     //--------------------------------------------------------------------------

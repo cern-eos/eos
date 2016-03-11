@@ -25,6 +25,11 @@
 #include "FileAbstraction.hh"
 #include "common/Logging.hh"
 
+
+XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
+std::map<unsigned long long, LayoutWrapper::CacheEntry> LayoutWrapper::gCacheAuthority;
+
+
 //--------------------------------------------------------------------------
 //! Utility function to import (key,value) from a cgi string to a map
 //--------------------------------------------------------------------------
@@ -63,11 +68,15 @@ bool LayoutWrapper::ToCGI(const std::map<std::string,std::string> &m , std::stri
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-LayoutWrapper::LayoutWrapper (eos::fst::Layout* file, bool localtimesoncistent) :
-    mFile (file), mOpen (false), mDebugSize(0), mDebugHasWrite (false), mFabs(NULL),  mLocalTimeConsistent(localtimesoncistent), mDebugWasReopen(false)
+LayoutWrapper::LayoutWrapper (eos::fst::Layout* file) :
+  mFile (file), mOpen (false), mFabs(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
   mLocalUtime[0].tv_nsec = mLocalUtime[1].tv_nsec = 0;
+  mCanCache = false;
+  mCacheCreator = false;
+  mInode = 0;
+  mMaxOffset = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -75,6 +84,8 @@ LayoutWrapper::LayoutWrapper (eos::fst::Layout* file, bool localtimesoncistent) 
 //----------------------------------------------------------------------------
 LayoutWrapper::~LayoutWrapper ()
 {
+  if (mCacheCreator)
+    (*mCache).resize(mMaxOffset);
   delete mFile;
 }
 
@@ -98,7 +109,6 @@ int LayoutWrapper::MakeOpen ()
       {
         eos_static_debug("successfully opened");
         mOpen = true;
-        mDebugWasReopen = true;
         return 0;
       }
     }
@@ -145,10 +155,10 @@ unsigned int LayoutWrapper::GetLayoutId ()
 const std::string&
 LayoutWrapper::GetLastUrl ()
 {
-  if(!mOpen)
+  if (!mOpen)
     return mLazyUrl;
-
-  return mFile->GetLastUrl ();
+  
+  return mFile->GetLastUrl();
 }
 
 //--------------------------------------------------------------------------
@@ -226,6 +236,24 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
     return -1;
   }
 
+  /*
+  // split the reponse
+  XrdOucString origResponse = response->GetBuffer();
+  origResponse += "&eos.app=fuse";
+  auto qmidx = origResponse.find("?");
+  
+  // insert back the cgi params that are not given back by the mgm
+  std::map<std::string,std::string> m;
+  ImportCGI(m,opaque);
+  ImportCGI(m,origResponse.c_str()+qmidx+1);
+  // drop authentication params as they would fail on the fst
+  m.erase("xrd.wantprot"); m.erase("xrd.k5ccname"); m.erase("xrd.gsiusrpxy");
+  mOpaque="";
+  ToCGI(m,mOpaque);
+  
+  mPath.assign(origResponse.c_str(),qmidx);
+  */
+  
   // ==================================================================
   // ! we don't use the redirect on the actual open from a lazy open anynore.
   // there is now a split between RO and RW files in the FileAbstraction
@@ -247,6 +275,14 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
   m.erase ("xrd.wantprot");
   m.erase ("xrd.k5ccname");
   m.erase ("xrd.gsiusrpxy");
+
+  // let the lazy open use an open by inode
+  std::string fxid = m["mgm.id"];
+  mOpaque += "&eos.lfn=fxid:";
+  mOpaque += fxid;
+
+  mInode = strtoull(fxid.c_str(), 0, 16);
+
   std::string LazyOpaque;
   ToCGI (m, LazyOpaque);
 
@@ -255,15 +291,19 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
   mLazyUrl.append (LazyOpaque);
   // ==================================================================
 
+  mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);  // we don't want to truncate the file in case we reopen it
+
   return 0;
 }
 
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
-int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen)
+int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen, size_t owner_lifetime)
 {
-  eos_static_debug("opening file %s, lazy open is %d", path.c_str (), (int)!doOpen);
+  int retc = 0;
+
+  eos_static_debug("opening file %s, lazy open is %d flags=%x", path.c_str (), (int)!doOpen, flags);
   if (mOpen)
   {
     eos_static_debug("already open");
@@ -275,33 +315,86 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   mMode = mode;
   mOpaque = opaque;
 
+
   if(!doOpen)
-    return LazyOpen (path, flags, mode, opaque, buf);
-
-  if (mFile->Open (path, flags, mode, opaque))
   {
-    eos_static_err("error while openning");
-    return -1;
+    retc =  LazyOpen (path, flags, mode, opaque, buf);
+    if (retc)
+      return retc;
   }
-  else
+  else 
   {
-    mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);  // we don't want to truncate the file in case we reopen it
-    mOpen = true;
-    struct stat s;
-    mFile->Stat (&s);
-    mDebugSize = s.st_size;
-
-    if(mLocalTimeConsistent)
+    if ( (retc = mFile->Open (path, flags, mode, opaque)) )
     {
-    // if the file is newly created or truncated, update and commit the mtime to now
-    if ((flags & SFS_O_TRUNC) || (!buf && (flags & SFS_O_CREAT)))
-      UtimesToCommitNow ();
-    // else we keep the timestamp of the existing file
-    else if (buf) Utimes (buf);
+      eos_static_err("error while openning");
+      return -1;
+    }
+    else
+    {
+      mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);  // we don't want to truncate the file in case we reopen it
+      mOpen = true;
+
+      std::string lasturl = mFile->GetLastUrl();
+
+      auto qmidx = lasturl.find ("?");
+      lasturl.erase(0,qmidx);
+
+      std::map<std::string, std::string> m;
+      ImportCGI (m, lasturl);
+
+      std::string fxid = m["mgm.id"];
+      mInode = strtoull(fxid.c_str(), 0, 16);
+
+      if (buf) Utimes (buf);
     }
 
-    return 0;
   }
+
+  if (!mCanCache)
+  {
+    static int sCleanupTime=0;
+    if (flags & SFS_O_CREAT)
+    {
+      XrdSysMutexHelper l(gCacheAuthorityMutex);
+      time_t lt = time(0) + owner_lifetime;
+      gCacheAuthority[mInode].mLifeTime = lt;
+      gCacheAuthority[mInode].mCache = std::make_shared<Bufferll>();
+      mCache = gCacheAuthority[mInode].mCache;
+      mCanCache = true;
+      mCacheCreator = true;
+      eos_static_notice("acquired cap owner-authority for file %s until tst=%lu size=%d", path.c_str(), lt, (*mCache).size());
+    }
+    else
+    {
+      XrdSysMutexHelper l(gCacheAuthorityMutex);
+      time_t now = time(0);
+      if (gCacheAuthority.count(mInode) && (now < gCacheAuthority[mInode].mLifeTime ) )
+      {
+	mCanCache = true;
+	mCache = gCacheAuthority[mInode].mCache;
+	mMaxOffset = (*mCache).size();
+	eos_static_notice("reusing cap owner-authority for file %s until tst=%lu size=%d", path.c_str(), gCacheAuthority[mInode].mLifeTime, (*mCache).size());
+      }
+      if (now > sCleanupTime)
+      {
+	for (auto it = gCacheAuthority.begin(); it != gCacheAuthority.end();)
+	{
+	  if ( it->second.mLifeTime < now)
+	  {
+	    auto d = it;
+	    it++;
+	    eos_static_notice("released cap owner-authority for file inode=%lu", d->first);
+
+	    gCacheAuthority.erase(d);
+	  }
+	  it++;
+	}
+	sCleanupTime = time(0) + 20;
+      }
+    }
+    eos_static_info("####### %s cache=%d flags=%x\n", path.c_str(), mCanCache, flags);
+  }
+  return retc;
 }
 
 //--------------------------------------------------------------------------
@@ -325,6 +418,44 @@ int64_t LayoutWrapper::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 }
 #endif
 
+int64_t LayoutWrapper::ReadCache (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, off_t maxcache)
+{
+  if (!mCanCache)
+    return -1;
+
+  // this is not fully cached
+  if ( (offset + length) > (off_t) maxcache )
+    return -1;
+
+  return (*mCache).readData(buffer, offset, length);
+}
+
+int64_t LayoutWrapper::WriteCache (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, off_t maxcache)
+{
+  if (!mCanCache)
+    return 0;
+
+  
+  if ((*mCache).capacity() < (1*1024*1024))
+  {
+    // helps to speed up 
+    (*mCache).resize(1*1024*1024);
+  } 
+  else
+  {
+    // don't exceed the maximum cachesize per file
+    if ( (offset+length) > (off_t) maxcache)
+      return 0;
+  }
+
+  if ( (offset+length) > mMaxOffset)
+    mMaxOffset = offset + length;
+
+  // store in cache
+  return (*mCache).writeData(buffer, offset, length);
+}
+
+
 //--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
@@ -333,20 +464,14 @@ int64_t LayoutWrapper::Write (XrdSfsFileOffset offset, const char* buffer, XrdSf
   int retc = 0;
   MakeOpen ();
 
-  if (length >= 0)
+  if (length > 0)
   {
     if ((retc = mFile->Write (offset, buffer, length)) < 0)
     {
-      eos_static_err("Error writng from wrapper : file %s  opaque %s", mPath.c_str (), mOpaque.c_str ());
+      eos_static_err("Error writing from wrapper : file %s  opaque %s", mPath.c_str (), mOpaque.c_str ());
       return -1;
     }
   }
-
-  mDebugHasWrite = true;
-
-  if (mLocalTimeConsistent && touchMtime) UtimesToCommitNow ();
-
-  if (offset + length > mDebugSize) mDebugSize = offset + length + 1;
 
   return retc;
 }
@@ -361,12 +486,6 @@ int LayoutWrapper::Truncate (XrdSfsFileOffset offset, bool touchMtime)
   if(mFile->Truncate (offset))
     return -1;
 
-  mDebugHasWrite = true;
-
-  if(mLocalTimeConsistent && touchMtime)
-    UtimesToCommitNow();
-
-  mDebugSize = offset;
   return 0;
 }
 
@@ -384,7 +503,7 @@ int LayoutWrapper::Sync ()
 //--------------------------------------------------------------------------
 int LayoutWrapper::Close ()
 {
-  eos_static_debug("closing file %s  WASREOPEN %d", mPath.c_str (), (int)mDebugWasReopen);
+  eos_static_debug("closing file %s ", mPath.c_str ());;
   if (!mOpen)
   {
     eos_static_debug("already closed");
@@ -398,7 +517,6 @@ int LayoutWrapper::Close ()
   else
   {
     mOpen = false;
-    mDebugHasWrite = false;
     eos_static_debug("successfully closed");
     return 0;
   }
@@ -412,32 +530,8 @@ int LayoutWrapper::Stat (struct stat* buf)
   MakeOpen ();
   if (mFile->Stat (buf)) return -1;
 
-  // if we use the localtime consistency, replace the mtime on the fst by the mtime we keep in memory
-  if (mLocalTimeConsistent)
-  {
-    buf->st_atim = mLocalUtime[0];
-    buf->st_mtim = mLocalUtime[1];
-    buf->st_atime = buf->st_atim.tv_sec;
-    buf->st_mtime = buf->st_mtim.tv_sec;
-  }
-
   return 0;
 }
-
-//--------------------------------------------------------------------------
-// Set atime and mtime at current time
-//--------------------------------------------------------------------------
-void LayoutWrapper::UtimesToCommitNow ()
-{
-  clock_gettime (CLOCK_REALTIME, mLocalUtime);
-  // set local Utimes
-  mLocalUtime[1] = mLocalUtime[0];
-  eos_static_debug("setting timespec  atime:%lu.%.9lu      mtime:%lu.%.9lu",mLocalUtime[0].tv_sec,mLocalUtime[0].tv_nsec,mLocalUtime[1].tv_sec,mLocalUtime[1].tv_nsec);
-  // if using local time consistency, commit this time when the file closes
-  if(mLocalTimeConsistent && mFabs)
-    mFabs->SetUtimes (mLocalUtime);
-}
-
 
 //--------------------------------------------------------------------------
 // Set atime and mtime at current time
