@@ -3126,7 +3126,16 @@ XrdFstOfsFile::stat (struct stat * buf)
   if (!rc)
     buf->st_ino = fileid << 28;
 
-  eos_info("path=%s inode=%lu size=%lu", Path.c_str(), fileid, (unsigned long) buf->st_size);
+  // we store the mtime.ns time in st_dev ... sigh@Xrootd ...                                                                                                                                 
+  unsigned long nsec = buf->st_mtim.tv_nsec;
+  // mask for 10^9                                                                                                                                                                            
+  nsec &= 0x7fffffff;
+  // enable bit 32 as indicator                                                                                                                                                               
+  nsec |= 0x80000000;
+  // overwrite st_dev                                                                                                                                                                         
+  buf->st_dev = nsec;
+
+  eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", Path.c_str(), fileid, (unsigned long) buf->st_size, buf->st_mtim.tv_sec, buf->st_dev&0x7ffffff);
   return rc;
 }
 
