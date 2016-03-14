@@ -3589,6 +3589,7 @@ xrd_flush (int fd, uid_t uid, gid_t gid, pid_t pid)
   if (XFC && fuse_cache_write)
   {
     fabst->mMutexRW.WriteLock();
+    XFC->ForceAllWrites(fabst, false);
     eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
     error_type error;
 
