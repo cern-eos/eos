@@ -9,6 +9,7 @@ Beryl Release Notes
 ``Version V0.3.155 Beryl_Aquamarine``
 - fix FUSE memory leak
 - fix esod start-script typo
+- fix HTTP PropFind requests for owncloud - unencoded paths in PropFind request to check quota & access permissions
 
 ``Version V0.3.154 Beryl_Aquamarine``
 - disintiguish OC propfind and 'normal' propfind requests to report sync time or modification time of a directory
