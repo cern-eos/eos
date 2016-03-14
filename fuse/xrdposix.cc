@@ -236,7 +236,7 @@ eos::common::RWMutex mutex_inode_path;
 google::dense_hash_map<std::string, unsigned long long> path2inode;
 
 // Mapping inode to path name
-google::dense_hash_map<unsigned long long, std::string> inode2path;
+std::map<unsigned long long, std::string> inode2path;
 
 //------------------------------------------------------------------------------
 // Lock read
@@ -476,8 +476,8 @@ xrd_forget_p2i (unsigned long long inode)
 eos::common::RWMutex mutex_dir2inodelist;
 
 // Dir listing map
-google::dense_hash_map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
-google::dense_hash_map<unsigned long long, struct dirbuf> dir2dirbuf;
+std::map<unsigned long long, std::vector<unsigned long long> > dir2inodelist;
+std::map<unsigned long long, struct dirbuf> dir2dirbuf;
 
 
 //------------------------------------------------------------------------------
@@ -616,7 +616,7 @@ GetMaxCacheSize ()
 eos::common::RWMutex mutex_fuse_cache;
 
 // Directory cache
-google::dense_hash_map<unsigned long long, FuseCacheEntry*> inode2cache;
+std::map<unsigned long long, FuseCacheEntry*> inode2cache;
 
 
 //------------------------------------------------------------------------------
@@ -690,7 +690,7 @@ xrd_dir_cache_sync (unsigned long long inode,
       unsigned long long indx = 0;
       unsigned long long entries_del =
         static_cast<unsigned long long> (0.25 * GetMaxCacheSize());
-      google::dense_hash_map<unsigned long long, FuseCacheEntry*>::iterator iter;
+      std::map<unsigned long long, FuseCacheEntry*>::iterator iter;
       iter = inode2cache.begin();
 
       while ((indx <= entries_del) && (iter != inode2cache.end()))
@@ -4416,18 +4416,6 @@ xrd_init ()
   // Initialize hashes
   path2inode.set_empty_key("");
   path2inode.set_deleted_key("#__deleted__#");
-
-  inode2path.set_empty_key(0);
-  inode2path.set_deleted_key(std::numeric_limits<unsigned long long>::max());
-
-  dir2inodelist.set_empty_key(0);
-  dir2inodelist.set_deleted_key(std::numeric_limits<unsigned long long>::max());
-
-  dir2dirbuf.set_empty_key(0);
-  dir2dirbuf.set_deleted_key(std::numeric_limits<unsigned long long>::max());
-
-  inode2cache.set_empty_key(0);
-  inode2cache.set_deleted_key(std::numeric_limits<unsigned long long>::max());
 
   inodexrdlogin2fds.set_empty_key("");
   inodexrdlogin2fds.set_deleted_key("#__deleted__#");
