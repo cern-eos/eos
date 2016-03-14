@@ -498,6 +498,65 @@ public:
     return std::string(octal);
   }
 
+  static void InitLookupTables()
+  {
+    for(int i=0;i<10;i++)
+    {
+      pAscii2HexLkup['0'+i]=i;
+      pHex2AsciiLkup[i]='0'+i;
+    }
+    for(int i=0;i<6;i++)
+    {
+      pAscii2HexLkup['a'+i]=10+i;
+      pHex2AsciiLkup[10+i]='a'+i;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  /**
+   * @param templated unsigned number to be converted in hexadecmal
+   * @param the buffer to write the result to.
+   *
+   * @return the address of the last character written in the buffer+1
+   */
+  // ---------------------------------------------------------------------------
+  template <typename UnsignedType> static char*
+  FastUnsignedToAsciiHex(UnsignedType u, char*s)
+  {
+    if(!u)
+    {
+      *s='0';
+      return s+1;
+    }
+    int nchar=0;
+    const int size = 2*sizeof(UnsignedType);
+    for(int j=1;j<=size;j++)
+    {
+     int digit=(u>>((size-j)<<2))&15;
+     if(!nchar && !digit) continue;
+     s[nchar++]=pHex2AsciiLkup[digit];
+    }
+    return s+nchar;
+  }
+
+  // ---------------------------------------------------------------------------
+  /**
+   * @param the buffer to read the ascii representation from.
+   * @param templated unsigned pointer to write the result to
+   * @param templated len to parse in the buffer (go until null character)
+   */
+  // ---------------------------------------------------------------------------
+  template <typename UnsignedType> static void
+  FastAsciiHexToUnsigned(char*s, UnsignedType *u, int len=-1)
+  {
+    *u=0;
+    for(int j=0;s[j]!=0 && j!=len;j++)
+    {
+      (*u)<<=4;
+      (*u)+=pAscii2HexLkup[static_cast<int>(s[j])];
+    }
+  }
+
   // ---------------------------------------------------------------------------
   /**
    * Return an unescaped URI
@@ -529,6 +588,14 @@ public:
   //! Destructor
   // ---------------------------------------------------------------------------
   ~StringConversion ();
+
+private:
+  // ---------------------------------------------------------------------------
+  //! Lookup Table for Hex Ascii Conversion
+  // ---------------------------------------------------------------------------
+  static char pAscii2HexLkup[256];
+  static char pHex2AsciiLkup[16];
+
 };
 
 /*----------------------------------------------------------------------------*/

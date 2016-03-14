@@ -311,7 +311,6 @@ int
 XrdMgmOfs::Configure (XrdSysError &Eroute)
 {
   // the process run's as root, but acts on the filesystem as daemon
-
   char *var;
   const char *val;
   int cfgFD, retc, NoGo = 0;
@@ -360,6 +359,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
+
+  eos::common::StringConversion::InitLookupTables();
 
   if (getenv("EOS_VST_BROKER_URL"))
     MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
