@@ -6,6 +6,10 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.155 Beryl_Aquamarine``
+- fix FUSE memory leak
+- fix esod start-script typo
+
 ``Version V0.3.154 Beryl_Aquamarine``
 - disintiguish OC propfind and 'normal' propfind requests to report sync time or modification time of a directory
 - fix 409 ERROR for HTTP PUT on non-existant path
