@@ -356,13 +356,14 @@ static void
 dirbuf_add (fuse_req_t req,
             struct dirbuf* b,
             const char* name,
-            fuse_ino_t ino)
+            fuse_ino_t ino,
+            const struct stat *s)
 {
   struct stat stbuf;
   size_t oldsize = b->size;
   memset (&stbuf, 0, sizeof ( stbuf));
   stbuf.st_ino = ino;
-  b->size += fuse_add_direntry (req, NULL, 0, name, NULL, 0);
+  b->size += fuse_add_direntry (req, NULL, 0, name, s, 0);
   b->p = (char*) realloc (b->p, b->size);
   fuse_add_direntry (req, b->p + oldsize, b->size - oldsize, name,
                      &stbuf, b->size);
@@ -424,7 +425,7 @@ eosfs_ll_readdir (fuse_req_t req,
 
   FULLPATH (dirfullpath, mountprefix, name);
   sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
-           "mgm.subcmd=inodirlist&mgm.path=/%s%s", mountprefix, name);
+           "mgm.subcmd=inodirlist&mgm.statentries=1&mgm.path=/%s%s", mountprefix, name);
 
   if (isdebug)
   {
@@ -470,9 +471,9 @@ eosfs_ll_readdir (fuse_req_t req,
     if (!dir_status)
     {
       // Dir not in cache or invalid, fall-back to normal reading
-
+      struct fuse_entry_param *entriesstats=NULL;
       xrd_inodirlist ((unsigned long long) ino, fullpath,
-                      req->ctx.uid, req->ctx.gid, req->ctx.pid);
+                      req->ctx.uid, req->ctx.gid, req->ctx.pid,&entriesstats);
 
       xrd_lock_r_dirview (); // =>
       b = xrd_dirview_getbuffer ((unsigned long long) ino, 0);
@@ -493,20 +494,26 @@ eosfs_ll_readdir (fuse_req_t req,
 
       while ((in = xrd_dirview_entry (ino, cnt, 0)))
       {
-        if ((namep = xrd_basename (in)))
+        if (cnt == 0)
         {
-          if (cnt == 0)
-          {
-            // this is the '.' directory
-            namep = ".";
-          }
-          else if (cnt == 1)
-          {
-            // this is the '..' directory
-            namep = "..";
-          }
+          // this is the '.' directory
+          namep = ".";
+          cnt++;
+          continue;
+        }
+        else if (cnt == 1)
+        {
+          // this is the '..' directory
+          namep = "..";
+          cnt++;
+          continue;
+        }
+        else if ((namep = xrd_basename (in)))
+        {
+          struct stat *buf = NULL;
+          if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
 
-          dirbuf_add (req, b, namep, (fuse_ino_t) in);
+          dirbuf_add (req, b, namep, (fuse_ino_t) in, buf);
           cnt++;
         }
         else
@@ -525,6 +532,24 @@ eosfs_ll_readdir (fuse_req_t req,
       xrd_dir_cache_sync (ino, cnt, attr.st_mtim, b);
 #endif
       xrd_unlock_r_dirview (); // <=
+
+      //........................................................................
+      // Add the stat to the cache
+      //........................................................................
+      int i;
+      for (i = 2; i < cnt; i++) // tht two first ones are . and ..
+      {
+        entriesstats[i].attr_timeout = attrcachetime;
+        entriesstats[i].entry_timeout = entrycachetime;
+
+        xrd_dir_cache_add_entry (ino, entriesstats[i].attr.st_ino, entriesstats + i);
+        if (isdebug)
+        {
+          fprintf (stderr, "add_entry  %lu  %lu\n", entriesstats[i].ino, entriesstats[i].attr.st_ino);
+        }
+      }
+
+      free(entriesstats);
     }
     else
     {

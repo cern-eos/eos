@@ -2692,7 +2692,8 @@ xrd_inodirlist (unsigned long long dirinode,
                 const char* path,
                 uid_t uid,
                 gid_t gid,
-                pid_t pid)
+                pid_t pid,
+                struct fuse_entry_param **stats)
 {
   eos_static_info("inode=%llu path=%s", dirinode, path);
   eos::common::Timing inodirtiming("xrd_inodirlist");
@@ -2755,15 +2756,15 @@ xrd_inodirlist (unsigned long long dirinode,
   if (status.IsOK()) offset += nbytes;
 
   value[offset] = 0;
+  //eos_static_info("request reply is %s",value);
   delete file;
   xrd_dirview_create((unsigned long long) dirinode);
   COMMONTIMING("PARSESTSTREAM", &inodirtiming);
   xrd_lock_w_dirview(); // =>
 
+  std::vector<struct stat> statvec;
   if (status.IsOK())
   {
-    char dirpath[4096];
-    unsigned long long inode;
     char tag[128];
     // Parse output
     int items = sscanf(value, "%s retc=%d", tag, &retc);
@@ -2791,44 +2792,167 @@ xrd_inodirlist (unsigned long long dirinode,
     if (ptr) ptr = strchr(ptr + 1, ' ');
     char* endptr = value + strlen(value) - 1;
 
+    COMMONTIMING("PARSESTSTREAM1", &inodirtiming);
+
+
+    bool parseerror = true;
     while ((ptr) && (ptr < endptr))
     {
-      int items = sscanf(ptr, "%s %llu", dirpath, &inode);
+      parseerror = true;
+      bool hasstat = false;
+      // parse the entry name
+      char* dirpathptr = ptr;
+      while(dirpathptr<endptr && *dirpathptr==' ') dirpathptr++;
+      ptr = dirpathptr;
+      if(ptr>=endptr) break;
 
-      if (items != 2)
+      // go next field and set null character
+      ptr = strchr(ptr + 1, ' ');
+      if(ptr==0 || ptr>=endptr) break;
+      *ptr=0;
+
+      // parse the inode
+      char* inodeptr = ptr+1;
+      while(inodeptr<endptr && *inodeptr==' ') inodeptr++;
+      ptr = inodeptr;
+      if(ptr>=endptr) break;
+
+      // go next field and set null character
+      ptr = strchr(ptr + 1, ' ');
+      if (!(ptr == 0 || ptr >= endptr))
       {
-        eos_static_err("got an error(2).");
-        free(value);
-        xrd_unlock_w_dirview(); // <=
-        xrd_dirview_delete((unsigned long long) dirinode);
-        errno = EFAULT;
-        return errno;
+        hasstat = true;
+        *ptr = 0;
+      }
+      parseerror = false;
+
+      char* statptr=NULL;
+      if (hasstat)
+      {
+        // parse the stat
+        statptr = ptr + 1;
+        while (statptr < endptr && *statptr == ' ')
+          statptr++;
+        ptr = statptr;
+        hasstat = (ptr < endptr); // we have a third token
+
+        // check if there is actually a stat
+        if (hasstat)
+        {
+          hasstat = (*statptr == '{'); // check if then token is a stat information
+          if (!hasstat)
+            ptr = statptr;
+          else
+          {
+            ptr = strchr (ptr + 1, ' ');
+            if (ptr<endptr) *ptr = 0;
+          }
+        }
+        if(hasstat) ptr++;
       }
 
-      if (inode && dirinode)
+      // process the entry
+      XrdOucString whitespacedirpath = dirpathptr;
+      whitespacedirpath.replace("%20", " ");
+      whitespacedirpath.replace("%0A", "\n");
+      ino_t inode = strtouq(inodeptr,0,10);
+      struct stat buf;
+      if(stats)
       {
-        XrdOucString whitespacedirpath = dirpath;
-        whitespacedirpath.replace ("%20", " ");
-        whitespacedirpath.replace ("%0A", "\n");
-        xrd_store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-        dir2inodelist[dirinode].push_back (inode);
-      }
-      else
-        eos_static_warning("got a nul inode inode=%llu dirinode=%llu path=%s", inode, dirinode, path);
 
-      // to the next entries
-      if (ptr) ptr = strchr(ptr + 1, ' ');
-      if (ptr) ptr = strchr(ptr + 1, ' ');
+        if(hasstat)
+        {
+          char *statptr2;
+          statptr++; // skip '{'
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_atim.tv_nsec,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_atim.tv_sec,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_blksize,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_blocks,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_ctim.tv_nsec,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_ctim.tv_sec,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_dev,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_gid,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_ino,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_mode,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_mtim.tv_nsec,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_mtim.tv_sec,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_nlink,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_rdev,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_size,statptr2-statptr);
+          statptr=statptr2+1; // skip ','
+          for(statptr2=statptr; *statptr2 && *statptr2!=',' && *statptr2!='}'; statptr2++) ;
+          eos::common::StringConversion::FastAsciiHexToUnsigned(statptr,&buf.st_uid,statptr2-statptr);
+        }
+        else
+          buf.st_ino = 0;
+        statvec.push_back(buf);
+      }
+      xrd_store_child_p2i(dirinode, inode, whitespacedirpath.c_str());
+      dir2inodelist[dirinode].push_back(inode);
     }
+    if (parseerror)
+    {
+      eos_static_err("got an error(2).");
+      free(value);
+      xrd_unlock_w_dirview(); // <=
+      xrd_dirview_delete((unsigned long long) dirinode);
+      errno = EFAULT;
+      return errno;
+    }
+
 
     doinodirlist = 0;
   }
+  xrd_unlock_w_dirview (); // <=
+  COMMONTIMING("PARSESTSTREAM2", &inodirtiming);
 
-  xrd_unlock_w_dirview(); // <=
+  if (stats)
+  {
+    *stats = (struct fuse_entry_param*) malloc (sizeof(struct fuse_entry_param) * statvec.size ());
+
+    for (auto i = 0; i < (int) statvec.size (); i++)
+    {
+        struct fuse_entry_param &e = (*stats)[i];
+        e.attr = statvec[i];
+        e.attr_timeout = 0;
+        e.entry_timeout = 0;
+        e.ino = e.attr.st_ino;
+    }
+  }
+
   COMMONTIMING("END", &inodirtiming);
 
-  if (EOS_LOGS_DEBUG)
-    //inodirtiming.Print();
+  //if (EOS_LOGS_DEBUG)
+  //inodirtiming.Print();
 
   free(value);
   return doinodirlist;
@@ -4426,6 +4550,9 @@ xrd_init ()
 
   fd2count.set_empty_key(-1);
   fd2count.set_deleted_key(-2);
+
+  // initialize unsigned to hex ascii conversion
+  eos::common::StringConversion::InitLookupTables();
 
   // Create the root entry
   path2inode["/"] = 1;

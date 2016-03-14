@@ -656,7 +656,8 @@ extern "C"
                       const char* path,
                       uid_t uid,
                       gid_t gid,
-                      pid_t pid);
+                      pid_t pid,
+                      struct fuse_entry_param **stats);
 
   //----------------------------------------------------------------------------
   //! Do user mapping
