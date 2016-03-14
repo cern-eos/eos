@@ -1438,7 +1438,7 @@ ConfigEngine::DeleteConfigValue (const char* prefix,
 
   if (configBroadcast && gOFS->MgmMaster.IsMaster() )
   {
-    eos_static_info("Deleting %s\n", configname.c_str());
+    eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
