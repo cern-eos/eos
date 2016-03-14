@@ -302,6 +302,7 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
 int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen, size_t owner_lifetime)
 {
   int retc = 0;
+  static int sCleanupTime=0;
 
   eos_static_debug("opening file %s, lazy open is %d flags=%x", path.c_str (), (int)!doOpen, flags);
   if (mOpen)
@@ -350,12 +351,13 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
 
   }
 
+  time_t now = time(0);
+
+  XrdSysMutexHelper l(gCacheAuthorityMutex);
   if (!mCanCache)
   {
-    static int sCleanupTime=0;
     if (flags & SFS_O_CREAT)
     {
-      XrdSysMutexHelper l(gCacheAuthorityMutex);
       time_t lt = time(0) + owner_lifetime;
       gCacheAuthority[mInode].mLifeTime = lt;
       gCacheAuthority[mInode].mCache = std::make_shared<Bufferll>();
@@ -366,8 +368,6 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
     }
     else
     {
-      XrdSysMutexHelper l(gCacheAuthorityMutex);
-      time_t now = time(0);
       if (gCacheAuthority.count(mInode) && (now < gCacheAuthority[mInode].mLifeTime ) )
       {
 	mCanCache = true;
@@ -375,25 +375,28 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
 	mMaxOffset = (*mCache).size();
 	eos_static_notice("reusing cap owner-authority for file %s until tst=%lu size=%d", path.c_str(), gCacheAuthority[mInode].mLifeTime, (*mCache).size());
       }
-      if (now > sCleanupTime)
-      {
-	for (auto it = gCacheAuthority.begin(); it != gCacheAuthority.end();)
-	{
-	  if ( it->second.mLifeTime < now)
-	  {
-	    auto d = it;
-	    it++;
-	    eos_static_notice("released cap owner-authority for file inode=%lu", d->first);
-
-	    gCacheAuthority.erase(d);
-	  }
-	  it++;
-	}
-	sCleanupTime = time(0) + 20;
-      }
     }
     eos_static_info("####### %s cache=%d flags=%x\n", path.c_str(), mCanCache, flags);
   }
+
+  if (now > sCleanupTime)
+  {
+    for (auto it = gCacheAuthority.begin(); it != gCacheAuthority.end();)
+    {
+      if ( it->second.mLifeTime < now)
+      {
+	auto d = it;
+	it++;
+	eos_static_notice("released cap owner-authority for file inode=%lu", d->first);
+	
+	gCacheAuthority.erase(d);
+      }
+      else
+	it++;
+    }
+    sCleanupTime = time(0) + 5;
+  }
+
   return retc;
 }
 
@@ -435,7 +438,6 @@ int64_t LayoutWrapper::WriteCache (XrdSfsFileOffset offset, const char* buffer, 
   if (!mCanCache)
     return 0;
 
-  
   if ((*mCache).capacity() < (1*1024*1024))
   {
     // helps to speed up 
