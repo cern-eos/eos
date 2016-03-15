@@ -77,7 +77,8 @@ extern "C"
 {
 #endif
 
-  void xrd_logdebug(const char *msg);
+  void xrd_log(const char* level, const char *msg);
+  void xrd_log_settings();
 
   typedef struct fd_user_info
   {
@@ -159,6 +160,7 @@ extern "C"
 
   void
   xrd_unlock_w_pcache (pid_t pid);
+
 
   //----------------------------------------------------------------------------
   //                ******* Path translation *******
@@ -654,7 +656,8 @@ extern "C"
                       const char* path,
                       uid_t uid,
                       gid_t gid,
-                      pid_t pid);
+                      pid_t pid,
+                      struct fuse_entry_param **stats);
 
   //----------------------------------------------------------------------------
   //! Do user mapping

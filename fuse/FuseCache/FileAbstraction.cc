@@ -59,8 +59,9 @@ FileAbstraction::FileAbstraction(const char* path) :
 //------------------------------------------------------------------------------
 FileAbstraction::~FileAbstraction()
 {
-  delete errorsQueue;
-  delete mFileRW;
+  if(errorsQueue) delete errorsQueue;
+  if(mFileRW) delete mFileRW;
+  if(mFileRO) delete mFileRO;
 }
 
 
@@ -268,6 +269,17 @@ FileAbstraction::IsInUseRO()
   return ((mNumOpenRO > 1) || (mNoReferencesRO > 1));
 }
 
+//------------------------------------------------------------------------------
+// Test if file is in use in RW or RO
+//------------------------------------------------------------------------------
+bool
+FileAbstraction::IsInUse()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
+                   mSizeWrites, mNoReferencesRW, mNumOpenRW);
+  return (( (mNumOpenRW + mNumOpenRO) > 1) || (mSizeWrites) || (mNoReferencesRW+mNoReferencesRO > 1) );
+}
 
 //------------------------------------------------------------------------------
 // Get handler to the queue of errors
@@ -311,3 +323,29 @@ FileAbstraction::GetUtimes(struct timespec *utime)
   }
   return 0;
 }
+
+
+//--------------------------------------------------------------------------                                                                                                                            
+//! Set undelying raw file object                                                                                                                                                                       
+//--------------------------------------------------------------------------                                                                                                                            
+void 
+FileAbstraction::SetRawFileRW(LayoutWrapper* file)
+{
+  if (mFileRW)
+    delete mFileRW;
+  mFileRW=file;
+  mNumOpenRW=1;
+};
+
+//--------------------------------------------------------------------------                                                                                                                            
+// Set undelying raw file object                                                                                                                                                                       
+//--------------------------------------------------------------------------                                                                                                                            
+void 
+FileAbstraction::SetRawFileRO(LayoutWrapper* file)
+{
+  if (mFileRO)
+    delete mFileRO;
+  mFileRO=file;
+  mNumOpenRO=1;
+};
+

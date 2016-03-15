@@ -319,7 +319,7 @@ FuseWriteCache::ForceWrite()
 // wait for their completion
 //------------------------------------------------------------------------------
 void
-FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
+FuseWriteCache::ForceAllWrites(FileAbstraction* fabst, bool wait)
 {
   eos_debug("fabst_ptr=%p force all writes", fabst);
 
@@ -339,5 +339,8 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
     eos_debug("map entries size=%ji", mKeyEntryMap.size());
   }
 
-  fabst->WaitFinishWrites();
+  if (wait)
+  {
+    fabst->WaitFinishWrites();
+  }
 }

@@ -112,7 +112,7 @@ XrdMgmOfs::_utimes (const char *path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
-    cmd = gOFS->eosView->getContainer(path);
+    cmd = gOFS->eosView->getContainer(path, false);
     cmd->setMTime(tvp[1]);
     cmd->notifyMTimeChange( gOFS->eosDirectoryService );
     eosView->updateContainerStore(cmd);
@@ -131,7 +131,7 @@ XrdMgmOfs::_utimes (const char *path,
     // try as a file
     try
     {
-      fmd = gOFS->eosView->getFile(path);
+      fmd = gOFS->eosView->getFile(path, false);
       fmd->setMTime(tvp[1]);
       eosView->updateFileStore(fmd);
       done = true;

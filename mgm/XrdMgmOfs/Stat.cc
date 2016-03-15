@@ -324,7 +324,12 @@ XrdMgmOfs::_stat (const char *path,
     eos::IContainerMD::ctime_t tmtime;
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
-    cmd->getTMTime(tmtime);
+
+    if (gOFS->eosSyncTimeAccounting)
+      cmd->getTMTime(tmtime);
+    else
+      // if there is no sync time accounting we just use the normal modification time
+      tmtime = mtime;
 
 #ifdef __APPLE__
     buf->st_atimespec.tv_sec = tmtime.tv_sec;

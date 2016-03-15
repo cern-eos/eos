@@ -449,7 +449,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     // -----------------------------------------------------------
     // retrieve the current quota
     // -----------------------------------------------------------
-    std::string path = urlp.c_str();
+    std::string path = url.c_str();
     if (path.substr(path.length() - 1, 1) != "/")
     {
       path += "/";
@@ -478,8 +478,15 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   // common to all resources
   if (lastModified)
   {
+    time_t tmtime;
+    // for directories the sync time is stored in the atime field
+    if (S_ISDIR(statInfo.st_mode) && ocid)
+      tmtime = statInfo.st_atim.tv_sec;
+    else
+      tmtime = statInfo.st_mtim.tv_sec;
+
     std::string lm = eos::common::Timing::utctime(
-                                                  statInfo.st_mtim.tv_sec);
+                                                  tmtime);
     SetValue(lastModified, lm.c_str());
     propFound->append_node(lastModified);
   }
@@ -514,7 +521,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   {
     // test access permissions
     std::string oc_perm = "";
-    gOFS->acc_access(urlp.c_str(), error, *mVirtualIdentity, oc_perm);
+    gOFS->acc_access(url.c_str(), error, *mVirtualIdentity, oc_perm);
     SetValue(ocperm, oc_perm.c_str());
     propFound->append_node(ocperm);
   }

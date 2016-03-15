@@ -189,15 +189,11 @@ XrdMgmOfs::_chmod (const char *path,
             }
           }
 
-          // store the in-memory modification time for parent
-	  pcmd->setMTimeNow();
-	  pcmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	  eosView->updateContainerStore(pcmd);
           if (cmd)
           {
             cmd->setMode(Mode | S_IFDIR);
-	    cmd->setMTimeNow();
-	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	    cmd->setCTimeNow();
             // store the in-memory modification time for this directory
             eosView->updateContainerStore(cmd);
           }

@@ -36,7 +36,8 @@ ProcCommand::Fuse ()
 {
   gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
-  
+  bool statentries = pOpaque->GetInt("mgm.statentries")==-999999999?false:(bool)pOpaque->GetInt("mgm.statentries");
+
   const char* inpath = spath.c_str();
 
   NAMESPACEMAP;
@@ -127,6 +128,7 @@ ProcCommand::Fuse ()
 
       // attach MD to get inode number
       eos::IFileMD* fmd = 0;
+      eos::IContainerMD* dir = 0;
       inode = 0;
 
       //-------------------------------------------
@@ -148,7 +150,6 @@ ProcCommand::Fuse ()
       // check if that is a directory in case
       if (!fmd)
       {
-        eos::IContainerMD* dir = 0;
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
@@ -164,10 +165,56 @@ ProcCommand::Fuse ()
         //-------------------------------------------
       }
       sprintf(inodestr, "%lld", inode);
-      if ((!isdot) && (!isdotdot))
+      if ((!isdot) && (!isdotdot) && inode)
       {
         mResultStream += inodestr;
         mResultStream += " ";
+        if(statentries && (fmd || dir))
+        {
+          struct stat buf;
+          std::string uri;
+          if(!gOFS->_stat(cPath.GetPath(), &buf, *mError, *pVid, (const char*) 0, 0, false, &uri))
+          {
+            char cbuf[1024];
+            char* ss=cbuf;
+            (*(ss++))='{';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_atim.tv_nsec,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_atim.tv_sec,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_blksize,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_blocks,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ctim.tv_nsec,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ctim.tv_sec,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_dev,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_gid,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_ino,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mode,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mtim.tv_nsec,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_mtim.tv_sec,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_nlink,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_rdev,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_size,ss);
+            (*(ss++))=',';
+            ss = eos::common::StringConversion::FastUnsignedToAsciiHex(buf.st_uid,ss);
+            (*ss++)='}';
+            (*ss++)=' ';
+            (*ss++)=0;
+            mResultStream+=cbuf;
+          }
+        }
       }
       else
       {
@@ -177,10 +224,14 @@ ProcCommand::Fuse ()
           mResultStream.insert(" ", dotstart + 2 + strlen(inodestr));
           dotend = dotstart + 2 + strlen(inodestr) + 1;
         }
-        else
+        else if(isdotdot)
         {
           mResultStream.insert(inodestr, dotend + 3);
           mResultStream.insert(" ", dotend + strlen(inodestr) + 3);
+        }
+        else
+        {
+          eos_debug("null inode and not . or ..");
         }
       }
     }

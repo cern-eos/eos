@@ -689,7 +689,17 @@ XrdFstOfs::stat (const char* path,
   memset(buf, 0, sizeof ( struct stat));
 
   if (!XrdOfsOss->Stat(path, buf))
+  {
+    // we store the mtime.ns time in st_dev ... sigh@Xrootd ... 
+    unsigned long nsec = buf->st_mtim.tv_nsec;
+    // mask for 10^9
+    nsec &= 0x7fffffff;
+    // enable bit 32 as indicator
+    nsec |= 0x80000000;
+    // overwrite st_dev
+    buf->st_dev = nsec;
     return SFS_OK;
+  }
   else
     return gOFS.Emsg(epname, out_error, errno, "stat file", path);
 }

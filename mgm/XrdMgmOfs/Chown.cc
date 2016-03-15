@@ -101,6 +101,7 @@ XrdMgmOfs::_chown (const char *path,
         // change the group
         cmd->setCGid(gid);
       }
+      cmd->setCTimeNow();
       eosView->updateContainerStore(cmd);
       errno = 0;
     }
@@ -147,6 +148,7 @@ XrdMgmOfs::_chown (const char *path,
         if (ns_quota)
           ns_quota->addFile(fmd);
 
+        fmd->setCTimeNow();
         eosView->updateFileStore(fmd);
       }
     }

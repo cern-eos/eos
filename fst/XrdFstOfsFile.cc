@@ -95,7 +95,7 @@ mTpcThreadStatus(EINVAL)
   tpcFlag = kTpcNone;
   mTpcState = kTpcIdle;
   ETag = "";
-  mForcedMtime = 0;
+  mForcedMtime = 1;
   mForcedMtime_ms = 0;
   isOCchunk = 0;
   mTimeout = getenv("EOS_FST_STREAM_TIMEOUT")?strtoul(getenv("EOS_FST_STREAM_TIMEOUT"),0,10):msDefaultTimeout;
@@ -283,6 +283,13 @@ XrdFstOfsFile::open (const char* path,
   {
     // extract our ETag from the redirection URL if available
     ETag = val;
+  }
+
+  if ((val = tmpOpaque.Get("mgm.mtime")))
+  {
+    // mgm.mtime=0 we set the external mtime=0 and indicated during commit, that it should not update the mtime as in case of a FUSE client which will call utimes
+    mForcedMtime = 0;
+    mForcedMtime_ms = 0;
   }
 
   if (eos::common::OwnCloud::isChunkUpload(tmpOpaque))
@@ -1934,9 +1941,9 @@ XrdFstOfsFile::close ()
             }
 
 	    capOpaqueFile += "&mgm.mtime=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime());
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime : (unsigned long long) fMd->fMd.mtime());
 	    capOpaqueFile += "&mgm.mtime_ns=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns());
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns());
 
 	    if (haswrite) 
 	    {
@@ -3135,7 +3142,16 @@ XrdFstOfsFile::stat (struct stat * buf)
   if (!rc)
     buf->st_ino = fileid << 28;
 
-  eos_info("path=%s inode=%lu size=%lu", Path.c_str(), fileid, (unsigned long) buf->st_size);
+  // we store the mtime.ns time in st_dev ... sigh@Xrootd ...                                                                                                                                 
+  unsigned long nsec = buf->st_mtim.tv_nsec;
+  // mask for 10^9                                                                                                                                                                            
+  nsec &= 0x7fffffff;
+  // enable bit 32 as indicator                                                                                                                                                               
+  nsec |= 0x80000000;
+  // overwrite st_dev                                                                                                                                                                         
+  buf->st_dev = nsec;
+
+  eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", Path.c_str(), fileid, (unsigned long) buf->st_size, buf->st_mtim.tv_sec, buf->st_dev&0x7ffffff);
   return rc;
 }
 

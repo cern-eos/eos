@@ -80,10 +80,9 @@ class FuseWriteCache: public eos::common::LogId
   //! Force the execution of all writes corresponding to a particular file
   //!
   //! @param fabst file abstraction object
-  //!
+  //! @param wait if true wait for the writes to be executed
   //----------------------------------------------------------------------------
-  void ForceAllWrites(FileAbstraction* fabst);
-
+  void ForceAllWrites(FileAbstraction* fabst, bool wait = true);
 
  private:
 

@@ -29,6 +29,9 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+char StringConversion::pAscii2HexLkup[256];
+char StringConversion::pHex2AsciiLkup[16];
+
 
 // ---------------------------------------------------------------------------
 /** 

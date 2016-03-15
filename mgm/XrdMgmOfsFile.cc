@@ -540,6 +540,8 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     if (!dmd)
     {
+      int save_errno = errno;
+
       MAYREDIRECT_ENOENT;
 
       if (cPath.GetSubPath(2))
@@ -598,6 +600,9 @@ XrdMgmOfsFile::open (const char *inpath,
           return rcode;
         }
       }
+      // put back original errno
+      errno = save_errno;
+
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
@@ -2078,6 +2083,11 @@ XrdMgmOfsFile::open (const char *inpath,
   // add the MGM hex id for this file
   redirectionhost += "&mgm.id=";
   redirectionhost += hexfid;
+
+  if (isFuse)
+  {
+    redirectionhost += "&mgm.mtime=0";
+  }
 
   // Always redirect
   ecode = targetport;

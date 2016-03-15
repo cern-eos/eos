@@ -7,6 +7,32 @@
 
 Beryl Release Notes
 ===================
+``Version V0.3.155 Beryl_Aquamarine``
+- fix FUSE memory leak
+- fix esod start-script typo
+- fix HTTP PropFind requests for owncloud - unencoded paths in PropFind request to check quota & access permissions
+
+``Version V0.3.154 Beryl_Aquamarine``
+- disintiguish OC propfind and 'normal' propfind requests to report sync time or modification time of a directory
+- fix 409 ERROR for HTTP PUT on non-existant path
+- don't commit anymore mtime from FSTs for FUSE clients - let the FUSE client execute utime during close
+- encode mtime.tv_nsec in the XRootD stat responses (inside device id) to track mtime with ns precision on open files
+- protect plain-layout read-ahead mechamism with respect to size changing files
+- FUSE: implementation refactoring (will break mtime consistency when used against old instances)
+- => use negative stat cache of the kernel
+- => add temporary and size limited in-memory rw cache per file to avoid waiting for flush of not written out pieces
+- => add creator capability mechanism to assign local cache capability of a newly created file for a limited time to the local FUSE cache
+- => retrieve mtime in ns precision for wopen files from the FST. commit last mtime on FST to MGM in asynchronous close operation
+- => hide write latency completely in asynchronous write chain where open(MGM)=sync, open(FST1..X)=async, write(FST1)=async,flush=async,close=async
+- => print FUSE settings on startup into log file
+- => remove deprecated FUSE options, add new FUSE options to example files and verbose output on startup
+- => point an unconfigured FUSE target url to localhost instead of eosdev
+- => modify default values of FUSE configuration (enable lazy-open-w)
+
+``Version V0.3.153 Beryl_Aquamarine``
+- console add 'rm -rF' allow only root to use the bypass of the recycling policy
+- console revert to use by default host+domain names and add a '-b,--brief' option to all fs,node,group commands to get short hostnames
+
 ``Version V0.3.152 Beryl_Aquamarine``
 - reenable FUSE concurrent opens and close
 - fix FUSE lazy open and negative stat cache broken in the previous release

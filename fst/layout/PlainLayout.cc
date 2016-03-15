@@ -102,8 +102,12 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
     if (mIoType == eos::common::LayoutId::eIoType::kXrdCl)
     {
       if ((uint64_t)(offset + length) > mFileSize)
-        length = mFileSize - offset;
+	length = mFileSize - offset;
 
+      if (length<0)
+	length = 0;
+
+      eos_static_info("read offset=%llu length=%lu", offset, length);
       int64_t nread = mPlainFile->ReadAsync(offset, buffer, length, readahead);
 
       // Wait for any async requests
@@ -117,6 +121,12 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
         if (error_type != XrdCl::errNone)
           return SFS_ERROR;
       }
+
+      if ( (nread+offset) > (off_t)mFileSize)
+	mFileSize = nread+offset;
+
+      if ( (nread != length) && ( (nread+offset) < (int64_t)mFileSize) )
+	mFileSize = nread+offset;
 
       return nread;
     }

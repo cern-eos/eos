@@ -25,6 +25,7 @@
 #define __EOS_FUSE_LAYOUTWRAPPER_HH__
 
 #include "FileAbstraction.hh"
+#include "Bufferll.hh"
 
 //------------------------------------------------------------------------------
 //! Class that wraps a FileLayout to keep track of change times and to
@@ -39,17 +40,28 @@ class LayoutWrapper
 
   eos::fst::Layout* mFile;
   bool mOpen;
-  XrdSfsXferSize mDebugSize; // file size, debug purpose only
-  bool mDebugHasWrite; // debug purpose only
   std::string mPath;
+  unsigned long long mInode;
   XrdSfsFileOpenMode mFlags;
   mode_t mMode;
   std::string mOpaque;
   std::string mLazyUrl;
   FileAbstraction *mFabs;
-  bool mLocalTimeConsistent;
   timespec mLocalUtime[2];
-  bool mDebugWasReopen; // debug purpose only
+
+  std::shared_ptr<Bufferll> mCache;
+
+  struct CacheEntry {
+    std::shared_ptr<Bufferll> mCache;
+    time_t mLifeTime;
+  };
+
+  static XrdSysMutex gCacheAuthorityMutex;
+  static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
+
+  bool mCanCache;
+  bool mCacheCreator;
+  off_t mMaxOffset;
 
   //--------------------------------------------------------------------------
   //! do the open on the mgm but not on the fst yet
@@ -64,7 +76,7 @@ public:
   //! @param file layout to be wrapped
   //!
   //--------------------------------------------------------------------------
-  LayoutWrapper (eos::fst::Layout* file, bool localtimeconsistent);
+  LayoutWrapper (eos::fst::Layout* file);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -116,12 +128,13 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true);
+  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true, size_t creator_lifetime=30);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
   int64_t Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead = false);
+  int64_t ReadCache (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, off_t maxcache=(64*1024*1024));
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -132,6 +145,7 @@ public:
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
   int64_t Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, bool touchMtime=true);
+  int64_t WriteCache (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, off_t maxcache=(64*1024*1024));
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -152,11 +166,6 @@ public:
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
   int Stat (struct stat* buf);
-
-  //--------------------------------------------------------------------------
-  //! Set atime and mtime at current time and commit them at file closure
-  //--------------------------------------------------------------------------
-  void UtimesToCommitNow ();
 
   //--------------------------------------------------------------------------
   //! Set atime and mtime according to argument without commit at file closure
