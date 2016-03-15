@@ -322,7 +322,7 @@ ProcCommand::FileInfo (const char* path)
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
           char fid[32];
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
+          snprintf(fid, 32, "%llx", (unsigned long long) fmd->getId());
 
           std::string etag;
           // if there is a checksum we use the checksum, otherwise we return inode+mtime
@@ -331,7 +331,7 @@ ProcCommand::FileInfo (const char* path)
           {
             // use inode + checksum
             char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd->getId()<<28);
+	    snprintf(setag,sizeof(setag)-1,"%llx:", (unsigned long long)fmd->getId());
             etag = setag;
             for (unsigned int i = 0; i < cxlen; i++)
             {
@@ -347,7 +347,7 @@ ProcCommand::FileInfo (const char* path)
             eos::FileMD::ctime_t mtime;
             fmd->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
-	    snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId()<<28, (unsigned long long)filemtime);
+	    snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"", (unsigned long long) fmd->getId(), (unsigned long long) filemtime, (unsigned long) mtime.tv_nsec/1000000);
             etag = setag;
           }
 
@@ -810,7 +810,7 @@ ProcCommand::DirInfo (const char* path)
 
         // use inode + tmtime
         char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd->getId(), (unsigned long long)filetmtime);
+        snprintf(setag,sizeof(setag)-1,"%llx:%llu.%03lu", (unsigned long long)fmd->getId(), (unsigned long long)tmtime.tv_sec, (unsigned long)tmtime.tv_nsec/1000000);
         etag = setag;
 
         if (!Monitoring)

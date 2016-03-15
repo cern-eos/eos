@@ -227,10 +227,6 @@ XrdMgmOfs::_remdir (const char *path,
   {
     try
     {
-      // remove the in-memory modification time of the deleted directory
-      gOFS->MgmDirectoryModificationTimeMutex.Lock();
-      gOFS->MgmDirectoryModificationTime.erase(dh_id);
-      gOFS->MgmDirectoryModificationTimeMutex.UnLock();
       // update the in-memory modification time of the parent directory
       if (dhpar)
       {

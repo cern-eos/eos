@@ -869,17 +869,6 @@ public:
                     int &port);
 
   // ---------------------------------------------------------------------------
-  // Update emulated in-memory directory modification time with the current time
-  // ---------------------------------------------------------------------------
-  void UpdateNowInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id);
-
-  // ---------------------------------------------------------------------------
-  // Update emulated in-memory directory modification time with a given time
-  // ---------------------------------------------------------------------------
-  void UpdateInmemoryDirectoryModificationTime (eos::ContainerMD::id_t id,
-                                                eos::ContainerMD::ctime_t &ctime);
-
-  // ---------------------------------------------------------------------------
   // Retrieve a mapping for a given path
   // ---------------------------------------------------------------------------
   void PathRemap (const char* inpath, XrdOucString &outpath); // global namespace remapping
@@ -1058,11 +1047,6 @@ public:
   std::map<std::string, std::string> PathMap; //< containing global path remapping
 
   XrdMqSharedObjectManager ObjectManager; //< Shared Hash/Queue ObjectManager
-
-  // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
-  XrdSysMutex MgmDirectoryModificationTimeMutex; //<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime
-
-  google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;
 
   HttpServer Httpd; //<  Http daemon if available
 
