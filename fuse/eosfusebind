@@ -28,8 +28,8 @@
 
 function CheckCredDir
 {
-  if [[ `stat -c "%a" /var/run/eosd/credentials` != "607" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
-  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "607" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
+  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
+  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "1777" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
 }
 
 function ExitUsage
