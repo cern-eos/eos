@@ -171,17 +171,6 @@ com_fuse (char* arg1)
       env += " EOS_FUSE_READCACHESIZE=393216";
     }
 
-    if (getenv("EOS_FUSE_CACHE_WRITE"))
-    {
-      env += " EOS_FUSE_CACHE_WRITE=";
-      env += getenv("EOS_FUSE_CACHE_WRITE");
-    }
-    else
-    {
-      setenv("EOS_FUSE_CACHE_WRITE", "1", 1);
-      env += " EOS_FUSE_CACHE_WRITE=1";
-    }
-
     if (getenv("EOS_FUSE_CACHE_SIZE"))
     {
       env += " EOS_FUSE_CACHE_SIZE=";
@@ -229,7 +218,7 @@ com_fuse (char* arg1)
     fprintf(stderr, "===> xrootd ra             : %s\n", getenv("EOS_FUSE_READAHEADSIZE"));
     fprintf(stderr, "===> xrootd cache          : %s\n", getenv("EOS_FUSE_READCACHESIZE"));
     fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
-    fprintf(stderr, "===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE_WRITE"));
+    fprintf(stderr, "===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE"));
     fprintf(stderr, "===> fuse write-cache-size : %s\n", getenv("EOS_FUSE_CACHE_SIZE"));
     fprintf(stderr, "===> fuse rm level protect : %s\n", getenv("EOS_FUSE_RMLVL_PROTECT"));
 
