@@ -765,6 +765,11 @@ xrd_dir_cache_add_entry (unsigned long long inode,
 // Map used for associating file descriptors with XrdCl::File objects
 eos::common::RWMutex rwmutex_fd2fabst;
 google::dense_hash_map<int, FileAbstraction*> fd2fabst;
+
+// Counting write open of inodes
+eos::common::RWMutex rwmutex_inodeopenw;
+std::map<unsigned long long, int> inodeopenw;
+
 // the count is >0 for RW and <0 for RO
 google::dense_hash_map<int, int>             fd2count;
 eos::common::RWMutex openmutexes[n_open_mutexes];
@@ -918,6 +923,33 @@ xrd_get_file (int fd,bool *isRW=NULL,bool forceRWtoo=false)
   fd2count[fd]>0?iter->second->IncNumRefRW():iter->second->IncNumRefRO();
   if(forceRWtoo && fd2count[fd]<0) iter->second->IncNumRefRW();
   return iter->second;
+}
+
+
+//----------------------------------------------------------------------------
+//! Check if inode is currently open
+//----------------------------------------------------------------------------
+int xrd_is_wopen(unsigned long inode)
+{
+  eos::common::RWMutexReadLock rd_lock(rwmutex_inodeopenw);
+  auto iter = inodeopenw.find(inode);
+  if (iter == inodeopenw.end())
+    return 0;
+  return 1;
+}
+
+void xrd_inc_wopen(unsigned long inode)
+{
+  eos::common::RWMutexWriteLock rw_lock(rwmutex_inodeopenw);
+  inodeopenw[inode]++;
+}
+
+void xrd_dec_wopen(unsigned long inode)
+{
+  eos::common::RWMutexWriteLock rw_lock(rwmutex_inodeopenw);
+  inodeopenw[inode]--;
+  if (!inodeopenw[inode])
+    inodeopenw.erase(inode);
 }
 
 
@@ -2041,7 +2073,7 @@ xrd_stat (const char* path,
 	if (isrw) 
 	{
 	  // only stat via open files if we have a writer
-	  if (file->IsOpen ())
+	  if (file->IsOpen () || !file->CanCache())
 	  {
 	    if ((!file->Stat (&tmp)))
 	    {
@@ -2070,7 +2102,7 @@ xrd_stat (const char* path,
 	  else
 	  {
 	    file_size = cache_size;
-	  iter_file->second->GetUtimes(&mtim);
+	    iter_file->second->GetUtimes(&mtim);
 	  }
 	}
       }
@@ -3307,7 +3339,7 @@ xrd_open (const char* path,
 
   if (retc != -1)
   {
-    eos_static_debug("file already opened, return fd=%i", retc);
+    eos_static_debug("file already opened, return fd=%i path=%s", retc, path);
     return retc;
   }
 
@@ -3961,9 +3993,17 @@ xrd_pwrite (int fildes,
     fabst->mMutexRW.ReadLock();
     fabst->TestMaxWriteOffset(offset + nbyte);
     XFC->SubmitWrite(fabst, const_cast<void*> (buf), offset, nbyte);
-    fabst->mMutexRW.UnLock();
-
     ret = nbyte;
+
+    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue();
+    error_type error;
+
+    if (err_queue.try_pop(error))
+    {
+      eos_static_info("Extract error from queue");
+      ret = error.first;
+    }
+    fabst->mMutexRW.UnLock();
   }
   else
   {
