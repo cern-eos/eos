@@ -918,12 +918,6 @@ main (int argc, char* argv[])
     }
   }
 
-  if (getenv ("EOS_SOCKS4_HOST") && getenv ("EOS_SOCKS4_PORT"))
-  {
-    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stdout, "EOS_SOCKS4_HOST=%s\n", getenv ("EOS_SOCKS4_HOST"));
-    if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stdout, "EOS_SOCKS4_PORT=%s\n", getenv ("EOS_SOCKS4_PORT"));
-  }
-
   //............................................................................
   // Parse input into mount host and port and mount prefix
   //............................................................................
