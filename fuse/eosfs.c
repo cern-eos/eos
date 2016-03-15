@@ -302,7 +302,7 @@ eosdfs_create (const char* path, mode_t mode, struct fuse_file_info* fi)
     strcat (rootpath, mountprefix);
     strcat (rootpath, path);
     if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] rootpath=%s\n", __FUNCTION__, rootpath);
-    int res = xrd_open(path,
+    int res = xrd_open(rootpath,
                        O_CREAT | O_EXCL | O_RDWR,
                        mode,
                        uid, gid, 0, &return_inode);
@@ -507,7 +507,7 @@ eosdfs_truncate (const char* path, off_t size)
   strcat (rootpath, path);
 
   // Xrootd doesn't provide truncate(), So we use open() to truncate file to 0
-  int fd = xrd_open(path,
+  int fd = xrd_open(rootpath,
                   O_WRONLY | O_TRUNC,
                     S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH,
                     uid, gid, pid, &rinode);
@@ -559,8 +559,9 @@ eosdfs_open (const char* path, struct fuse_file_info* fi)
   rootpath[0] = '\0';
   strcat (rootpath, mountprefix);
   strcat (rootpath, path);
+  if ( getenv("EOS_FUSE_DEBUG") ) fprintf (stderr, "[%s] root-path=%s\n", __FUNCTION__, rootpath);
   eosatime = time (0);
-  int res = xrd_open (path, 
+  int res = xrd_open (rootpath, 
                   fi->flags, 
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH, 
                   uid, gid, pid, &rinode);
@@ -929,7 +930,6 @@ main (int argc, char* argv[])
   char* pmounthostport = 0;
   char* smountprefix = 0;
 
-  (void) setenv("EOS_RDRURL", rdrurl, 1);
 
   pmounthostport = strstr (rdrurl, "root://");
 
@@ -950,6 +950,7 @@ main (int argc, char* argv[])
   else
   {
     smountprefix++;
+
     strcpy (mountprefix, smountprefix);
     *smountprefix = 0;
 
@@ -963,6 +964,9 @@ main (int argc, char* argv[])
       mountprefix[strlen (mountprefix) - 1] = 0;
     }
   }
+
+  (void) setenv("EOS_RDRURL", rdrurl, 1);
+
 
   pid_t m_pid = fork ();
 
@@ -1006,11 +1010,6 @@ main (int argc, char* argv[])
   //............................................................................
   xrd_init ();
   umask (0);
-
-  //  fprintf ( stderr, "Call fuse_main with the following parameters: \n" );
-  //  for ( i = 0; i < margc; i++ ) {
-  //    fprintf( stderr, "argv[%i] = %s \n", i, argv[i] );
-  //  }
 
   uid = getuid();
   gid = getgid();

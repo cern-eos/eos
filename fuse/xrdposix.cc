@@ -4179,7 +4179,7 @@ xrd_user_url (uid_t uid, gid_t gid, pid_t pid)
   }
 
   url += gMgmHost.c_str();
-  url += "/";
+  url += "//";
 
   eos_static_debug("uid=%lu gid=%lu pid=%lu url=%s",
                    (unsigned long) uid,
@@ -4478,8 +4478,18 @@ int xrd_check_mgm()
     return 0;
   }
 
+  // make sure the host has not '/' in the end and no prefix anymore 
   gMgmHost = address.c_str();
   gMgmHost.replace("root://", "");
+  int pos;
+  if ((pos = gMgmHost.find("//")) != STR_NPOS)
+  {
+    gMgmHost.erase(pos);
+  }
+  
+  if (gMgmHost.endswith("/"))
+    gMgmHost.erase(gMgmHost.length()-1);
+
   return 1;
 }
 
