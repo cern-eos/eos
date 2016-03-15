@@ -88,7 +88,7 @@ else
     fi
   else
     # Can we match the exact tag?
-    LASTCOMMITONBRANCH=$(git log --first-parent --no-merges --pretty=format:'%h' -n 1)
+    LASTCOMMITONBRANCH=$(git log --first-parent --pretty=format:'%h' -n 1)
     git describe --tags --abbrev=0 --exact-match ${LASTCOMMITONBRANCH} >/dev/null 2>&1
 
     if [[ ${?} -eq 0 ]]; then
@@ -106,7 +106,7 @@ else
 
     else
       # Get last tag to extract the major version number
-      LAST_TAG="$(git describe --tags --abbrev=0 ${LASTCOMMITONBRANCH})"
+      LAST_TAG="$(git describe --tags --abbrev=0 --candidates=50 ${LASTCOMMITONBRANCH})"
 
       if [[ ${?} -ne 0 ]]; then
 	echo "[!] Can not find last tag to build the commit version"
