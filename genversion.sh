@@ -7,9 +7,9 @@
 # If the last commit is not tagged then the version is built using the date of
 # the last commit and its hash value. Therefore, we have the following
 # convention:
-# MAJOR = YYYYMMDD of the last commit
-# MINOR = hash 7 characters long
-# PATCH = 0
+# MAJOR = major value of the last tag in the current branch
+# MINOR = YYYYMMDD of the last commit
+# PATCH = hash 7 characters long of the last commit
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
@@ -30,6 +30,7 @@ function getVersionFromLog()
     echo "unknown";
     return 1
   fi
+
   echo $VERSION
 }
 
@@ -77,34 +78,35 @@ else
 
   if [[  ${?} -ne 0 ]]; then
     # Check if we have a spec file and try to extract the version. This happens
-    # in the rpmbuild step. We don't have a git repo bu the version was already
-    # set.
+    # in the rpmbuild step. We don't have a git repo but the version was already
+    # set in the eos.spec file.
     if [[ -e "eos.spec" ]]; then
        VERSION="$(grep "Version:" eos.spec | awk '{print $2;}')"
     else
-      echo "[!] Unable to get version from git or spec file . " 1>&2
+      echo "[!] Unable to get version from git or spec file." 1>&2
       exit 1
     fi
   else
-   # Can we match the exact tag?
-   git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
+    # Can we match the exact tag?
+    LASTCOMMITONBRANCH=$(git log --first-parent --no-merges --pretty=format:'%h' -n 1)
+    git describe --tags --abbrev=0 --exact-match ${LASTCOMMITONBRANCH} >/dev/null 2>&1
 
-   if [[ ${?} -eq 0 ]]; then
-     TAG="$(git describe --tags --abbrev=0 --exact-match)"
-     EXP="[0-9]+\.[0-9]+\.[0-9]+$"
+    if [[ ${?} -eq 0 ]]; then
+      TAG="$(git describe --tags --abbrev=0 --exact-match ${LASTCOMMITONBRANCH})"
+      EXP="[0-9]+\.[0-9]+\.[0-9]+$"
 
-     # Check if tag respects the regular expression
-     VERSION="$(echo "${TAG}" | grep -E "${EXP}")"
+      # Check if tag respects the regular expression
+      VERSION="$(echo "${TAG}" | grep -E "${EXP}")"
 
-     if [[ ${?} -ne 0 ]]; then
-       echo "[!] Git tag \"${TAG}\" does not match the regex"
-       VERSION=""
-       exit 1
-     fi
+      if [[ ${?} -ne 0 ]]; then
+	echo "[!] Git tag \"${TAG}\" does not match the regex"
+	VERSION=""
+	exit 1
+      fi
 
     else
       # Get last tag to extract the major version number
-      LAST_TAG="$(git describe --tags --abbrev=0)"
+      LAST_TAG="$(git describe --tags --abbrev=0 ${LASTCOMMITONBRANCH})"
 
       if [[ ${?} -ne 0 ]]; then
 	echo "[!] Can not find last tag to build the commit version"
@@ -126,6 +128,6 @@ else
 
   cd $CURRENTDIR
 
-  # The version has the following fomat: major minor patch
+  # The version has the following fomat: major.minor.patch
   echo $VERSION
 fi
