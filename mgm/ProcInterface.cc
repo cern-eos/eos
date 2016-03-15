@@ -779,14 +779,17 @@ void
 ProcCommand::MakeResult ()
 {
   mResultStream = "";
+
   if (!fstdout)
   {
-    XrdMqMessage::Sort(stdOut, mDoSort);
+    if (mDoSort)
+    {
+      eos::common::StringConversion::SortLines(stdOut);
+    }
+
     if ((!mFuseFormat && !mJsonFormat && !mHttpFormat))
     {
-      // ------------------------------------------------------------------------
-      // the default format
-      // ------------------------------------------------------------------------
+      // The default format
       mResultStream = "mgm.proc.stdout=";
       mResultStream += XrdMqMessage::Seal(stdOut);
       mResultStream += "&mgm.proc.stderr=";

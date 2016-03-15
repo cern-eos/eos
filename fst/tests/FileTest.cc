@@ -28,6 +28,7 @@
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/checksum/CRC32C.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
 CPPUNIT_TEST_SUITE_REGISTRATION(FileTest);

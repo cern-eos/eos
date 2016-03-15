@@ -466,10 +466,7 @@ ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
     }
 
     DumpConfig(config, env);
-
-    // sort the config file
-    XrdMqMessage::Sort(config, true);
-
+    eos::common::StringConversion::SortLines(config);
     outfile << config.c_str();
     outfile.close();
   }
