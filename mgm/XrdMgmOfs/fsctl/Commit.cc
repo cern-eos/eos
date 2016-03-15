@@ -170,6 +170,7 @@
 
     // get the file meta data if exists
     eos::IFileMD *fmd = 0;
+    eos::IContainerMD *cmd = 0;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
 
@@ -225,13 +226,6 @@
           eos_thread_warning("commit for fid=%lu but file is disconnected from any container", fmd->getId());
           gOFS->MgmStats.Add("CommitFailedUnlinked", 0, 0, 1);
           return Emsg(epname, error, EIDRM, "commit filesize change - file is already removed [EIDRM]", "");
-        }
-        else
-        {
-          // store the in-memory modification time
-          // we get the current time, but we don't update the creation time
-          UpdateNowInmemoryDirectoryModificationTime(cid);
-          // -----------------------------------------------------------------
         }
 
         // check if this commit comes from a transfer and if the size/checksum is ok
@@ -463,6 +457,14 @@
         try
         {
           gOFS->eosView->updateFileStore(fmd);
+	  cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	  
+	  if (isUpdate)
+	  {
+	    // update parent mtime
+	    cmd->setMTimeNow();
+	    gOFS->eosView->updateContainerStore(cmd);
+	  }
         }
         catch (eos::MDException &e)
         {
@@ -546,10 +548,10 @@
                 // rename the existing path to the version path
                 versionfmd = gOFS->eosView->getFile(dname + atomic_path.GetPath());
                 dir->removeFile(atomic_path.GetName());
-                UpdateNowInmemoryDirectoryModificationTime(versiondir->getId());
                 versionfmd->setName(version_path.GetName());
                 versionfmd->setContainerId(versiondir->getId());
                 versiondir->addFile(versionfmd);
+		versiondir->setMTimeNow();
                 eosView->updateFileStore(versionfmd);
               }
               catch (eos::MDException &e)
@@ -577,7 +579,6 @@
               eos_thread_info("msg=\"didn't find path\" %s", atomic_path.GetName());
             }
             eosView->renameFile(fmd, atomic_path.GetName());
-            UpdateNowInmemoryDirectoryModificationTime(dir->getId());
             eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s final-name=%s", fmd->getId(), fmd->getName().c_str(), atomic_path.GetName());
           }
           catch (eos::MDException &e)

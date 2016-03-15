@@ -361,7 +361,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmArchiveDir = "";
 
   MgmHealMap.set_deleted_key(0);
-  MgmDirectoryModificationTime.set_deleted_key(0);
 
   IoReportStorePath = "/var/tmp/eos/report";
   MgmOfsVstBrokerUrl = "";

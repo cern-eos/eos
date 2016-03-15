@@ -101,8 +101,11 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # FUSE Configuration
 # ------------------------------------------------------------------
 
-# The mount directory for 'eosd' 
+# The local mount directory for 'eosd' 
 export EOS_FUSE_MOUNTDIR=/eos/
+
+# The optional remote directory visiable unter the mount dir
+export EOS_FUSE_REMOTEDIR=/eos/
 
 # The MGM host from where to do the inital mount
 export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch

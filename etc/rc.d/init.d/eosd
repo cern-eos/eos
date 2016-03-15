@@ -57,7 +57,7 @@ start() {
     for i in ${EOS_FUSE_MOUNTS}; do
         (
         # in any case, we make sure that there is no leftover in the environment from the previous iteration
-        unset EOS_FUSE_DEBUG EOS_FUSE_LOWLEVEL_DEBUGEOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LAZYOPENRO EOS_FUSE_LAZYOPENRW EOS_FUSE_LOG_PREFIX EOS_FUSE_STREAMERRORWINDOW FUSE_OPT EOS_FUSE_ATTR_CACHE_TIME EOS_FUSE_ENTRY_CACHE_TIME EOS_FUSE_NEG_ENTRY_CACHE_TIME EOS_FUSE_FILE_WB_CACHE_SIZE EOS_FUSE_CREATOR_CAP_LIFETIME
+        unset EOS_FUSE_DEBUG EOS_FUSE_LOWLEVEL_DEBUGEOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LAZYOPENRO EOS_FUSE_LAZYOPENRW EOS_FUSE_LOG_PREFIX EOS_FUSE_STREAMERRORWINDOW FUSE_OPT EOS_FUSE_ATTR_CACHE_TIME EOS_FUSE_ENTRY_CACHE_TIME EOS_FUSE_NEG_ENTRY_CACHE_TIME EOS_FUSE_FILE_WB_CACHE_SIZE EOS_FUSE_CREATOR_CAP_LIFETIME EOS_FUSE_REMOTEDIR
         # then we use the values from the main /etc/sysconfig/eos config file (if any) as default values
         [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
         if [ "$i" != "main" ]; then
@@ -101,6 +101,7 @@ start() {
 	export EOS_FUSE_NEG_ENTRY_CACHE_TIME=${EOS_FUSE_NEG_ENTRY_CACHE_TIME-30}
 	export EOS_FUSE_CREATOR_CAP_LIFETIME=${EOS_FUSE_CREATOR_CAP_LIFETIME-30}
 	export EOS_FUSE_FILE_WB_CACHE_SIZE=${EOS_FUSE_FILE_WB_CACHE_SIZE-67108864}
+	export EOS_FUSE_REMOTEDIR=${EOS_FUSE_REMOTEDIR-${EOS_FUSE_MOUNTDIR}}
 
          [[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
         # make sure that FUSE_OPT keeps the same default value
@@ -126,7 +127,7 @@ start() {
             ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
             ulimit -n 65000
             test -c /dev/fuse || modprobe fuse
-            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_MOUNTDIR-/eos/}  >& /dev/null 
+            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR-/eos/}  >& /dev/null 
             pid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
             SRETVAL=$?
             if [ $SRETVAL -eq 0 ]; then
@@ -164,6 +165,9 @@ start() {
 	    echo "EOS_FUSE_CREATOR_CAP_LIFETIME    : ${EOS_FUSE_CREATOR_CAP_LIFETIME}"
             echo "EOS_FUSE_FILE_WB_CACHE_SIZE      : ${EOS_FUSE_FILE_WB_CACHE_SIZE}"
             echo "EOS_FUSE_LOG_PREFIX              : ${EOS_FUSE_LOG_PREFIX}"
+	    echo "EOS_FUSE_MOUNTDIR                : ${EOS_FUSE_MOUNTDIR}"
+	    echo "EOS_FUSE_REMOTEDIR               : ${EOS_FUSE_REMOTEDIR}"
+
             [[ "x$XRD_STREAMERRORWINDOW" != "x" ]] && echo "XRD_STREAMERRORWINDOW        : ${XRD_STREAMERRORWINDOW}"
         else 
             echo eosd already running. Pid is $eosdpid 

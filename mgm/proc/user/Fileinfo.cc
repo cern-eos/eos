@@ -332,7 +332,7 @@ ProcCommand::FileInfo (const char* path)
           {
             // use inode + checksum
             char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd_cpy->getId()<<28);
+        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd_cpy->getId());
             etag = setag;
             for (unsigned int i = 0; i < cxlen; i++)
             {
@@ -348,8 +348,7 @@ ProcCommand::FileInfo (const char* path)
             eos::IFileMD::ctime_t mtime;
             fmd_cpy->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
-            snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd_cpy->getId()<<28,
-                     (unsigned long long)filemtime);
+	    snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"", (unsigned long long) fmd_cpy->getId(), (unsigned long long) filemtime, (unsigned long) mtime.tv_nsec/1000000);
             etag = setag;
           }
 
@@ -817,8 +816,7 @@ ProcCommand::DirInfo (const char* path)
 
         // use inode + tmtime
         char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)dmd_cpy->getId(),
-                 (unsigned long long)filemtime);
+        snprintf(setag,sizeof(setag)-1,"%llx:%llu.%03lu", (unsigned long long)dmd_cpy->getId(), (unsigned long long)tmtime.tv_sec, (unsigned long)tmtime.tv_nsec/1000000);
         etag = setag;
 
         if (!Monitoring)

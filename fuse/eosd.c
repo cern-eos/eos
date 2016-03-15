@@ -1758,12 +1758,6 @@ main (int argc, char* argv[])
 
   int i;
 
-  if (getenv ("EOS_SOCKS4_HOST") && getenv ("EOS_SOCKS4_PORT"))
-  {
-    fprintf (stderr, "EOS_SOCKS4_HOST=%s\n", getenv ("EOS_SOCKS4_HOST"));
-    fprintf (stderr, "EOS_SOCKS4_PORT=%s\n", getenv ("EOS_SOCKS4_PORT"));
-  }
-
   if (getenv ("EOS_FUSE_ENTRY_CACHE_TIME"))
   {
     entrycachetime = strtod(getenv("EOS_FUSE_ENTRY_CACHE_TIME"),0);

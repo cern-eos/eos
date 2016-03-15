@@ -908,35 +908,6 @@ public:
                     XrdOucString &host,
                     int &port);
 
-  //----------------------------------------------------------------------------
-  //! Update the modification time for a directory to the current time
-  //!
-  //! @param id container id in the namespace
-  //!
-  //! We don't store directory modification times persistent in the namespace for
-  //! performance reasonse. But to give (FUSE) clients the possiblity to do
-  //! caching and see when there was a modification we keep an inmemory table
-  //! with this modification times.
-  //----------------------------------------------------------------------------
-  void UpdateNowInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id);
-
-  //----------------------------------------------------------------------------
-  //! Update the modification time for a directory to the given time
-  //!
-  //! @param id container id in the namespace
-  //! @param mtime modification time to store
-  //!
-  //! We don't store directory modification times persistent in the namespace for
-  //! performance reasonse. But to give (FUSE+Sync) clients the possiblity to do
-  //! caching and see when there was a modification we keep an inmemory table
-  //! with this modification times. We support upstream propagation of mtims for
-  //! sync clients to discover changes in a subtree if sys.mtime.propagation was
-  //! set as a directory attribute.
-  //----------------------------------------------------------------------------
-  void UpdateInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id,
-                                                eos::IContainerMD::ctime_t &ctime);
-  
-  // ---------------------------------------------------------------------------
   // Retrieve a mapping for a given path
   // ---------------------------------------------------------------------------
   void PathRemap (const char* inpath, XrdOucString &outpath); // global namespace remapping
