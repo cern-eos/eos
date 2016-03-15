@@ -31,7 +31,10 @@ include_directories(
   ${Z_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS})
 
-if (CPPUNIT_FOUND)
+#-------------------------------------------------------------------------------
+# Add CppUnit tests if possible
+#-------------------------------------------------------------------------------
+if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
