@@ -21,8 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//         $Id: XrdMqClient.hh,v 1.00 2007/10/04 01:34:19 abh Exp $
-
 #ifndef __XMQCLIENT_H__
 #define __XMQCLIENT_H__
 
@@ -35,8 +33,180 @@
 #include <XrdClient/XrdClientEnv.hh>
 #include <mq/XrdMqMessage.hh>
 
-class XrdMqClient {
-private:
+//------------------------------------------------------------------------------
+//! Class XrdMqClient
+//------------------------------------------------------------------------------
+class XrdMqClient
+{
+ public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqClient(const char* clientid = 0, const char* brokerurl = 0,
+              const char* defaultreceiverid = 0);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~XrdMqClient();
+
+  //----------------------------------------------------------------------------
+  //! Subscribe to a particular queue
+  //!
+  //! @param queue queue name
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Subscribe(const char* queue = 0);
+
+  //----------------------------------------------------------------------------
+  //! Unsubscribe from a particular queue
+  //!
+  //! @param queue queue name
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Unsubscribe(const char* queue = 0);
+
+  //----------------------------------------------------------------------------
+  //! Send message
+  //!
+  //! @param msg
+  //! @param receiverid
+  //! @param sign
+  //! @param encrypt
+  //! @param asynchronous
+  //!
+  //! @return true if message sent, otherwise false
+  //----------------------------------------------------------------------------
+  bool SendMessage(XrdMqMessage& msg, const char* receiverid = 0,
+                   bool sign = false, bool encrypt = false,
+                   bool asynchronous = false);
+
+  //----------------------------------------------------------------------------
+  //! Reply to a particular message
+  //!
+  //! @param replymsg
+  //! @param inmsg
+  //! @param sign
+  //! @param encrypt
+  //!
+  //! @return true if message sent, otherwise false
+  //----------------------------------------------------------------------------
+  bool ReplyMessage(XrdMqMessage& replymsg, XrdMqMessage& inmsg,
+                    bool sign = false, bool encrypt = false);
+
+
+  //----------------------------------------------------------------------------
+  //! Set the default receiver queue
+  //!
+  //! @param defqueue queue name
+  //----------------------------------------------------------------------------
+  inline void SetDefaultReceiverQueue(const char* defqueue)
+  {
+    kDefaultReceiverQueue = defqueue;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get default receiver queue
+  //----------------------------------------------------------------------------
+  inline XrdOucString GetDefaultReceiverQueue()
+  {
+    return kDefaultReceiverQueue;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set client id
+  //!
+  //! @param clientid client id to set
+  //----------------------------------------------------------------------------
+  inline void SetClientId(const char* clientid)
+  {
+    kClientId = clientid;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get client id
+  //----------------------------------------------------------------------------
+  inline const char* GetClientId()
+  {
+    return kClientId.c_str();
+  }
+
+  XrdMqMessage* RecvFromInternalBuffer();
+
+  XrdMqMessage* RecvMessage();
+
+  XrdOucString* GetBrokerUrl(int i, XrdOucString& rhostport);
+
+  XrdOucString GetBrokerId(int i);
+
+  XrdCl::File* GetBrokerXrdClientReceiver(int i);
+
+  XrdCl::FileSystem* GetBrokerXrdClientSender(int i);
+
+  void ReNewBrokerXrdClientReceiver(int i);
+
+  void CheckBrokerXrdClientReceiver(int i);
+
+  bool AddBroker(const char* brokerurl, bool advisorystatus = false,
+                 bool advisoryquery = false, bool advisoryflushbacklog = false);
+
+  void Disconnect();
+
+
+  bool operator << (XrdMqMessage& msg)
+  {
+    return (*this).SendMessage(msg);
+  }
+
+  XrdMqMessage* operator >> (XrdMqMessage* msg)
+  {
+    msg = (*this).RecvMessage();
+    return msg;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Response handler class to clean-up asynchronous callbacks which are
+  //! ignored.
+  //----------------------------------------------------------------------------
+  class DiscardResponseHandler : public XrdCl::ResponseHandler
+  {
+   public:
+
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    DiscardResponseHandler() { }
+
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
+    virtual ~DiscardResponseHandler() { }
+
+    //--------------------------------------------------------------------------
+    //! Handle response method. See XrdClFile.hh class for signature.
+    //--------------------------------------------------------------------------
+    virtual void HandleResponse(XrdCl::XRootDStatus* status,
+                                XrdCl::AnyObject* response)
+    {
+      XrdSysMutexHelper vLock(Lock);
+
+      if (status)
+        delete status;
+
+      if (response)
+        delete response;
+    }
+
+   private:
+    XrdSysMutex Lock;
+  };
+
+  static DiscardResponseHandler gDiscardResponseHandler;
+
+ private:
   static XrdSysMutex Mutex;
   XrdOucHash <XrdOucString> kBrokerUrls;
   XrdOucHash <XrdCl::File> kBrokerXrdClientReceiver;
@@ -49,98 +219,6 @@ private:
   char* kRecvBuffer;
   int kRecvBufferAlloc;
   size_t kInternalBufferPosition;
-public:
-
-  // response handler class to clean-up asynchronous call-backs which are
-  // ignored ...)
-
-  class DiscardResponseHandler : public XrdCl::ResponseHandler {
-  public:
-    XrdSysMutex Lock;
-
-    DiscardResponseHandler ()
-    {
-    }
-
-    virtual ~DiscardResponseHandler ()
-    {
-    }
-
-    virtual void HandleResponse (XrdCl::XRootDStatus *status,
-                                 XrdCl::AnyObject *response)
-    {
-      XrdSysMutexHelper vLock(Lock);
-      if (status)
-        delete status;
-      if (response)
-        delete response;
-    }
-  };
-
-  static DiscardResponseHandler gDiscardResponseHandler;
-
-  bool Subscribe (const char* queue = 0);
-  bool Unsubscribe (const char* queue = 0);
-
-  bool SendMessage (XrdMqMessage& msg, const char* receiverid = 0, bool sign = false, bool encrypt = false, bool asynchronous = false);
-
-  bool ReplyMessage (XrdMqMessage& replymsg, XrdMqMessage& inmsg, bool sign = false, bool encrypt = false)
-  {
-    replymsg.SetReply(inmsg);
-    return SendMessage(replymsg, inmsg.kMessageHeader.kSenderId.c_str(), sign, encrypt);
-  }
-
-  void SetDefaultReceiverQueue (const char* defqueue)
-  {
-    kDefaultReceiverQueue = defqueue;
-  }
-
-  XrdOucString GetDefaultReceiverQueue ()
-  {
-    return kDefaultReceiverQueue;
-  }
-
-  void SetClientId (const char* clientid)
-  {
-    kClientId = clientid;
-  }
-
-  XrdMqMessage* RecvFromInternalBuffer ();
-  XrdMqMessage* RecvMessage ();
-
-  bool RegisterRecvCallback (void ( *callback_func)(void* arg));
-  XrdOucString* GetBrokerUrl (int i, XrdOucString &rhostport);
-  XrdOucString GetBrokerId (int i);
-  XrdCl::File* GetBrokerXrdClientReceiver (int i);
-  XrdCl::FileSystem* GetBrokerXrdClientSender (int i);
-
-  const char* GetClientId ()
-  {
-    return kClientId.c_str();
-  }
-
-  void ReNewBrokerXrdClientReceiver (int i);
-
-  void CheckBrokerXrdClientReceiver (int i);
-
-  bool AddBroker (const char* brokerurl, bool advisorystatus = false, bool advisoryquery = false, bool advisoryflushbacklog = false);
-
-  void Disconnect ();
-
-  XrdMqClient (const char* clientid = 0, const char* brokerurl = 0, const char* defaultreceiverid = 0);
-
-  ~XrdMqClient ();
-
-  bool operator << (XrdMqMessage& msg)
-  {
-    return ( *this).SendMessage(msg);
-  }
-
-  XrdMqMessage* operator >> (XrdMqMessage* msg)
-  {
-    msg = (*this).RecvMessage();
-    return msg;
-  }
 };
 
 
