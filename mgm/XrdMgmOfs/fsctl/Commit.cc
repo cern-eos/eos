@@ -454,6 +454,7 @@
 	    // update parent mtime
 	    cmd->setMTimeNow();
 	    gOFS->eosView->updateContainerStore(cmd);
+	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	  }
         }
         catch (eos::MDException &e)
