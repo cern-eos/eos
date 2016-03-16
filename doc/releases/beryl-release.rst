@@ -6,12 +6,44 @@
 
 Beryl Release Notes
 ===================
+
+
+``Version V0.3.156 Beryl_Aquamarine``
+
+New Features
+------------
+
+- high speed directory listing in FUSE (enhanded protocol returning stat information with readdir - backward compatible)
+- changing ETAG definition for directories to ino(hex):mtime(s).mtime(ms)
+- allowing arbitrary remote path to local path mounting (no matching prefixes needed)
+- allow to give a mount directory to 'mount -e eos <instance> <local-dir>'
+- documentation for geotags and new fuse features added
+
+Bug Fixes
+---------
+
+- fix single user mount 'eos fuse mount' prefix
+- removing deprecated env variables in FUSE
+- track open inodes to prevent publishing stall size information from directory/stat cache
+- fix 'mkdir -p' in CLI
+- fix sync time propagation in Commit call
+- fix '-h' behaviour of all shell commands
+- protect against namespace crash with 'file touch /'
+
 ``Version V0.3.155 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - fix FUSE memory leak
 - fix esod start-script typo
 - fix HTTP PropFind requests for owncloud - unencoded paths in PropFind request to check quota & access permissions
 
 ``Version V0.3.154 Beryl_Aquamarine``
+
+New Features
+------------
+
 - disintiguish OC propfind and 'normal' propfind requests to report sync time or modification time of a directory
 - fix 409 ERROR for HTTP PUT on non-existant path
 - don't commit anymore mtime from FSTs for FUSE clients - let the FUSE client execute utime during close
@@ -29,34 +61,71 @@ Beryl Release Notes
 - => modify default values of FUSE configuration (enable lazy-open-w)
 
 ``Version V0.3.153 Beryl_Aquamarine``
+
+New Features
+------------
+
 - console add 'rm -rF' allow only root to use the bypass of the recycling policy
 - console revert to use by default host+domain names and add a '-b,--brief' option to all fs,node,group commands to get short hostnames
 
 ``Version V0.3.152 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - reenable FUSE concurrent opens and close
 - fix FUSE lazy open and negative stat cache broken in the previous release
 - fix wrong timestamping of symlinks
 
 ``Version V0.3.151 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - synchronize with CITRINE FUSE implementation 
 
 ``Version V0.3.150 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - fix wrong mount-prefix handling for deepness>1
 
 ``Version V0.3.149 Beryl_Aquamarine``
+
+New Features
+------------
+
 - import the CITRINE FUSE implementation and build this one
 - making big writes and local mtime consistency the default behaviour in FUSE
 
 ``Version V0.3.148 Beryl_Aquamarine``
+
+New Features
+------------
+
 - add progress report on TTY console for all boot steps and estimate of boot time
-- fix FUSE daemonize to work properly with autofs
 - automatically store version in the recyle bin and allow to recall using 'recycle restore -r <key>'
 
+Bug Fixes
+---------
+
+- fix FUSE daemonize to work properly with autofs
+
+
 ``Version V0.3.147 Beryl_Aquamarine``
+
+New Features
+------------
+
 - shorten hostnames (remove domain) in all view functions besides monitoring format
 - add support for multi-delegated proxy certificates
 
 ``Version V0.3.146 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - fix http upload implementation for large body uploads
 - allow to disable block checksumming via opaque tag
 - use aggregation size in the WebDAV quota response and not the quota accounting
@@ -64,34 +133,61 @@ Beryl Release Notes
 - merge no-quota-error in xrootd errors response into e-nospace to avoid the client reporting an io error
 
 ``Version V0.3.145 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - add option to exclude all xattrs from being applied on the destination dirs by using the wildcard "*".
 - clean-up the python cmake modules and simplify the use of Python related variables
 - remove only the leading "eos" string when building the proc path for the MGM
 
 ``Version V0.3.144 Beryl_Aquamarine``
+
+Bug Fixes
+---------
+
 - source sysconfig file inside MGM before running service scripts
 
 ``Version V0.3.142 Beryl_Aquamarine``
+
+New Features
+------------
+
 - add service alias example in eos.example how to run with systemd
 
 ``Version V0.3.141 Beryl_Aquamarine``
+
+Bug Fixes
+---------
 - don't ship fuse.conf on EL7 in eos-fuse RPM
 - fix reporting of subtree copying in 'eos cp'
 
 ``Version V0.3.140 Beryl_Aquamarine``
+
+Bug Fixes
+---------
 - fix missing object in drain lock helper mutex
 - distinguish client and FST methods to prevent having FSTs calling a booting slave with namespace modifications
 - add min/maxfilesize check during the open function, to block too large uploads immedeatly
 
 ``Version V0.3.139 Beryl_Aquamarine``
+
+Bug Fixes
+---------
 - automatically chown files on FST partitions once (to compensate to bug introduced in 0.3.137)
 - make the XRD stream timeout configurable and increase the default to 5 minutes
 
 ``Version V0.3.138 Beryl_Aquamarine``
+
+New Features
+------------
 - allow to specify the network interface to monitor on the FST via environment variable
 - run the FST and MGM again as daemon/daemon and switch only the monitoring thread in ShellCmd to enable ptrace for all spawned sub commands
 
 ``Version V0.3.137 Beryl_Aquamarine``
+
+Bug Fixes
+---------
 - don't scan partial read files when also if no blockchecksums are configured
 - fix recursive copy command allowing spaces in path names
 
