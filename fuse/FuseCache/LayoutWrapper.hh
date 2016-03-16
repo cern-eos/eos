@@ -49,6 +49,8 @@ class LayoutWrapper
   FileAbstraction *mFabs;
   timespec mLocalUtime[2];
 
+  XrdSysMutex mMakeOpenMutex;
+
   std::shared_ptr<Bufferll> mCache;
 
   struct CacheEntry {
@@ -201,6 +203,11 @@ public:
   //! Utility function to write the content of a(key,value) map to a cgi string
   //--------------------------------------------------------------------------
   static bool ToCGI(const std::map<std::string,std::string> &m , std::string &cgi);
+
+  //--------------------------------------------------------------------------
+  //! Check if we can cache ..
+  //--------------------------------------------------------------------------
+  bool CanCache() const {return mCanCache;}
 };
 
 #endif

@@ -95,6 +95,8 @@ LayoutWrapper::~LayoutWrapper ()
 //--------------------------------------------------------------------------
 int LayoutWrapper::MakeOpen ()
 {
+  XrdSysMutexHelper mLock(mMakeOpenMutex);
+
   eos_static_debug("makeopening file %s", mPath.c_str ());
   if (!mOpen)
   {
