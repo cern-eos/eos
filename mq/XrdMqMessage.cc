@@ -90,20 +90,27 @@ XrdMqMessageHeader::GetTime(time_t& sec, long& nsec)
 void
 XrdMqMessageHeader::Encode()
 {
+  char buff[1024];
   char sep = '^';
   std::ostringstream oss;
 
   // TODO: check that none of this strings contains a : !
   oss << XMQHEADER << "=" << kMessageId << sep << kReplyId  << sep
       << kSenderId  << sep << kBrokerId << sep << kReceiverId << sep
-      << kReceiverQueue << sep << kDescription << sep
-      << std::to_string((long long int)kSenderTime_sec).c_str() << sep
-      << std::to_string((long long int)kSenderTime_nsec).c_str() << sep
-      << std::to_string((long long int)kBrokerTime_sec).c_str() << sep
-      << std::to_string((long long int)kBrokerTime_nsec).c_str() << sep
-      << std::to_string((long long int)kReceiverTime_sec).c_str() << sep
-      << std::to_string((long long int)kReceiverTime_nsec).c_str() << sep
-      << kCertificateHash << sep << kMessageSignature << sep
+      << kReceiverQueue << sep << kDescription << sep;
+  sprintf(buff, "%ld", kSenderTime_sec);
+  oss << buff << sep;
+  sprintf(buff, "%ld", kSenderTime_nsec);
+  oss << buff << sep;
+  sprintf(buff, "%ld", kBrokerTime_sec);
+  oss << buff << sep;
+  sprintf(buff, "%ld", kBrokerTime_nsec);
+  oss << buff << sep;
+  sprintf(buff, "%ld", kReceiverTime_sec);
+  oss << buff << sep;
+  sprintf(buff, "%ld", kReceiverTime_nsec);
+  oss << buff << sep;
+  oss << kCertificateHash << sep << kMessageSignature << sep
       << kMessageDigest << sep << kEncrypted << sep << kType << sep;
   mMsgHdrBuffer = oss.str().c_str();
 }
