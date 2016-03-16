@@ -141,9 +141,6 @@ eosfs_ll_getattr (fuse_req_t req,
 
   if (!retc)
   {
-    //fprintf(stderr, "[%s] ino=%llu, stbuf.st_ino=%llu\n", __FUNCTION__,
-    //        (unsigned long long) ino, (unsigned long long) stbuf.st_ino);
-    //stbuf.st_ino = ino;
     fuse_reply_attr (req, &stbuf, attrcachetime);
   }
   else
@@ -303,9 +300,9 @@ eosfs_ll_lookup (fuse_req_t req,
   if (isdebug)
     fprintf (stderr, "[%s] entry_found = %i %s\n", __FUNCTION__, entry_inode, ifullpath);
 
-  if (entry_inode)
+  if (entry_inode && (!xrd_is_wopen(entry_inode)))
   {
-    // Try to get entry from cache
+    // Try to get entry from cache if this inode is not currently opened 
     entry_found = xrd_dir_cache_get_entry (req, parent, entry_inode, ifullpath);
 
     if (isdebug)
@@ -1167,6 +1164,8 @@ eosfs_ll_open (fuse_req_t req,
   else
     fi->direct_io = 0;
 
+  xrd_inc_wopen(ino);
+
   fuse_reply_open (req, fi);
 }
 
@@ -1292,9 +1291,10 @@ eosfs_ll_release (fuse_req_t req,
     int res = xrd_close (info->fd, ino, info->uid, info->gid, info->pid);
     xrd_release_rd_buff (pthread_self());
 
-      // Free memory
-      free (info);
-      fi->fh = 0;
+    xrd_dec_wopen(ino);
+    // Free memory
+    free (info);
+    fi->fh = 0;
   }
 
   fuse_reply_err (req, errno);
