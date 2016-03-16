@@ -131,6 +131,7 @@ Storage::Verify ()
           (fMd->fMd.disksize != (unsigned long long) statinfo.st_size) )
       {
         eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
+        fMd->fMd.disksize = statinfo.st_size;
         localUpdate = true;
       }
 
