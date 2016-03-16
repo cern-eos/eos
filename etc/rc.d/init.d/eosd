@@ -73,6 +73,11 @@ start() {
             fi
         fi
 
+	# If we are called from mount.eos we can get the local mount dir passed and overwrite the sysconfig setting	
+	if [ -n "${EOS_FUSE_WRAPPER_MOUNTDIR}" ]; then 
+	    export EOS_FUSE_MOUNTDIR=${EOS_FUSE_WRAPPER_MOUNTDIR}
+	fi
+
         # Check if eosd is already running
         echo
         eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`

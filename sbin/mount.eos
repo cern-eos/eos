@@ -45,4 +45,8 @@ if [ $restricted -eq 1 ]; then
   exit -1;
 fi
 
-/etc/rc.d/init.d/eosd start $@
+if [ -n "$2" ]; then
+    export EOS_FUSE_WRAPPER_MOUNTDIR="$2"
+fi
+
+/etc/rc.d/init.d/eosd start $1
