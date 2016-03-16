@@ -505,29 +505,34 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
-   * @param templated unsigned number to be converted in hexadecmal
-   * @param the buffer to write the result to.
+   * @param u templated unsigned number to be converted in hexadecimal
+   * @param s buffer to write the result to
    *
-   * @return the address of the last character written in the buffer+1
+   * @return the address of the last character written in the buffer + 1
    */
   // ---------------------------------------------------------------------------
   template <typename UnsignedType> static char*
-  FastUnsignedToAsciiHex(UnsignedType u, char*s)
+  FastUnsignedToAsciiHex(UnsignedType u, char* s)
   {
-    if(!u)
+    if (!u)
     {
-      *s='0';
-      return s+1;
+      *s = '0';
+      return s + 1;
     }
-    int nchar=0;
-    const int size = 2*sizeof(UnsignedType);
-    for(int j=1;j<=size;j++)
+
+    int nchar = 0;
+    const int size = 2 * sizeof(UnsignedType);
+
+    for (int j = 1; j <= size; j++)
     {
-     int digit=(u>>((size-j)<<2))&15;
-     if(!nchar && !digit) continue;
-     s[nchar++]=pHex2AsciiLkup[digit];
+      int digit = (u >> ((size - j) << 2)) & 15;
+
+      if (!nchar && !digit) continue;
+
+      s[nchar++] = pHex2AsciiLkup[digit];
     }
-    return s+nchar;
+
+    return s + nchar;
   }
 
   // ---------------------------------------------------------------------------
@@ -538,13 +543,14 @@ public:
    */
   // ---------------------------------------------------------------------------
   template <typename UnsignedType> static void
-  FastAsciiHexToUnsigned(char*s, UnsignedType *u, int len=-1)
+  FastAsciiHexToUnsigned(char* s, UnsignedType* u, int len = -1)
   {
-    *u=0;
-    for(int j=0;s[j]!=0 && j!=len;j++)
+    *u = 0;
+
+    for (int j = 0; s[j] != 0 && j != len; j++)
     {
-      (*u)<<=4;
-      (*u)+=pAscii2HexLkup[static_cast<int>(s[j])];
+      (*u) <<= 4;
+      (*u) += pAscii2HexLkup[static_cast<int>(s[j])];
     }
   }
 
