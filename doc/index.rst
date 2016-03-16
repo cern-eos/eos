@@ -25,10 +25,6 @@ EOS - Storage
    *EOS Version BERYLL* supports also flexible erasure encoding of files with two or three redundancy stripes optimizing disk space usage. Files can be accessed via native XRootD protocol, a POSIX-like *FUSE* client or *HTTP(S) & WebDav* protocol. 
 
 
-.. image:: http://eos.cern.ch/images/stories/ScreenShots/Screen_shot_2011-03-15_at_4.28.24_PM.png
-     :width: 450px 
-     :align: center
-
 
 
 
