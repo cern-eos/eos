@@ -4,8 +4,8 @@
    pair: Storage and Client geo tagging; GEOTAG
 
 
-GeoTag Configuration for client and storage server
-==================================================
+GeoTag Configuration 
+====================
 
 In a geographically distributed storage system it is important to tag each storage server with a geographical location.
 You should group servers into LAN groups e.g. all servers which are close in term of network latency shared a GeoTag.
