@@ -304,9 +304,9 @@ target_link_libraries(
 if(MacOSX)
   set_target_properties(
     EosFstIo
+    PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
-    PROPERTIES
     MACOSX_RPATH TRUE)
   target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
 else()

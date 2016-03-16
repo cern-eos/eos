@@ -58,6 +58,33 @@ if(NOT (CMAKE_VERSION VERSION_LESS "2.8.12"))
 endif()
 
 #-------------------------------------------------------------------------------
+# Platform Specific
+#-------------------------------------------------------------------------------
+if(MacOSX)
+  message(STATUS "This is an Apple machine")
+  # On MAC we don't link static objects at all
+  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
+  set(CMAKE_MACOSX_RPATH ON)
+  set(CMAKE_SKIP_BUILD_RPATH FALSE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+  set(LIBRARY_PATH_PREFIX lib)
+  List(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+
+  if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  endif()
+else()
+  # On Linux we use static objects
+  set(LIB_INSTALL_DIR lib64)
+  set(RT_LIBS rt)
+endif()
+
+include_directories(/usr/include/xrootd/ /usr/include/)
+link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
+
+#-------------------------------------------------------------------------------
 # Search for dependencies
 #-------------------------------------------------------------------------------
 set(PACKAGEONLY CACHE BOOL false)
@@ -117,19 +144,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     message(FATAL_ERROR "Error: you need atleast gcc 4.4.x to compile EOS!")
   endif()
 endif()
-
-#-------------------------------------------------------------------------------
-# Platform Specific
-#-------------------------------------------------------------------------------
-if(MacOSX)
-  # On MAC we don't link static objects at all
-  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
-else()
-  set(LIB_INSTALL_DIR lib64)
-endif()
-
-include_directories(/usr/include/xrootd/ /usr/include/)
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
 
 #-------------------------------------------------------------------------------
 # Check for out of source build
