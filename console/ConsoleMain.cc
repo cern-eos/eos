@@ -187,6 +187,8 @@ wants_help (const char* arg1)
   allargs += arg1;
   allargs += " ";
   if ((allargs.find(" help ") != STR_NPOS) ||
+      (allargs.find("\"-h\"") != STR_NPOS) ||
+      (allargs.find("\"--help\"") != STR_NPOS) ||
       (allargs.find(" -h ") != STR_NPOS) ||
       (allargs.find(" --help ") != STR_NPOS))
     return 1;
