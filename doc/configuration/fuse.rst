@@ -100,8 +100,9 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    # MGM URL from where to mount FUSE
    export EOS_FUSE_MGM_ALIAS=eosnode.foo.bar
 
-   # If the remote directory path does not match the local, you can define the remote path to be different
-   # export EOS_FUSE_REMOTEDIR=/eos/testinstance/2015/
+   # If the remote directory path does not match the local, you can define the remote path to be different -
+   # if not defined EOS_FUSE_REMOTEDIR=EOS_FUSE_MOUNTDIR is assumed e.g. local and remote tree have the same prefix
+   # export EOS_FUSE_REMOTEDIR=/eos/testinstance/subtree/
 
    # Enable FUSE debugging mode (default off)
    # export EOS_FUSE_DEBUG=1
@@ -152,7 +153,22 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    #    this option hides a lot of latency and is recommend to be used
    #    it requires how-ever that it is supported by EOS MGM version
    # export EOS_FUSE_LAZYOPENRW=1   
- 
+
+   # Set the kernel attribute cache time - this is the timewindow before you can see changes done on other clients
+   # export EOS_FUSE_ATTR_CACHE_TIME=10
+
+   # Set the kernel entry timeout - this is the time a directory listing is cached
+   # export EOS_FUSE_ENTRY_CACHE_TIME=10
+
+   # Set the timeout for the kernel negative stat cache 
+   # export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
+
+   # Set the liftime for a file creation ownership - withint this time each file re-open for update will be considered as cached locally and will not see remote changes
+   # export EOS_FUSE_CREATOR_CAP_LIFETIME=30
+   
+   # Set the individual max. cache size per write-opened file where we have a creator capability
+   # export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
+
    # Configure a log-file prefix - useful for several FUSE instances
    # export EOS_FUSE_LOG_PREFIX=dev
    # => will create /var/log/eos/fuse.dev.log
@@ -253,6 +269,18 @@ If you want to use **autofs**, you have to create a file ``/etc/auto.eos`` :
 .. code-block:: bash
 
    myinstance -fstype=eos :myinstance
+
+Add to the file ``/etc/auto.master`` at the bottom:
+
+.. code-block:: bash
+
+   /eos /etc/auto.eos
+
+For convenience make sure that you enable browsing in ``/etc/autofst.conf``:
+
+   browse_mode = yes  # this lets you see the mountdir myinstance in ``/eos/`` as ``/eos/myinstance/``. Once you acces this directory it will be automatically mounted.
+
+
 
 .. note::
 
