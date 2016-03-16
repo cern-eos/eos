@@ -526,22 +526,22 @@ ProcCommand::Find ()
                         if (printsize)
                         {
                           if (!printcounter)
-                            fprintf(fstdout, " size=%llu", (unsigned long long) fmd->getSize());
+                            fprintf(fstdout, " size=%llu", (unsigned long long) fmd_cpy->getSize());
                         }
                         if (printfid)
                         {
                           if (!printcounter)
-                            fprintf(fstdout, " fid=%llu", (unsigned long long) fmd->getId());
+                            fprintf(fstdout, " fid=%llu", (unsigned long long) fmd_cpy->getId());
                         }
 			if (printuid)
 			{
 			  if (!printcounter)
-                            fprintf(fstdout, " uid=%u", (unsigned int) fmd->getCUid());
+                            fprintf(fstdout, " uid=%u", (unsigned int) fmd_cpy->getCUid());
 			}
 			if (printgid)
 			{
 			  if (!printcounter)
-                            fprintf(fstdout, " gid=%u", (unsigned int) fmd->getCGid());
+                            fprintf(fstdout, " gid=%u", (unsigned int) fmd_cpy->getCGid());
 			}
                         if (printfs)
                         {
@@ -644,7 +644,7 @@ ProcCommand::Find ()
                           for (unsigned int i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId()); i++)
                           {
                             if (!printcounter)
-                              fprintf(fstdout, "%02x", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
+                              fprintf(fstdout, "%02x", (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)));
                           }
                         }
 
@@ -673,7 +673,7 @@ ProcCommand::Find ()
                         if (printunlink)
                         {
                           if (!printcounter)
-                            fprintf(fstdout, " nunlink=%d", (int) fmd->getNumUnlinkedLocation());
+                            fprintf(fstdout, " nunlink=%d", (int) fmd_cpy->getNumUnlinkedLocation());
                         }
                       }
                       else
