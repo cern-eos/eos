@@ -666,6 +666,7 @@ XrdMqMessage::CipherEncrypt(const char* data, ssize_t data_length,
   }
 
   uint_fast8_t* fast_ptr = (uint_fast8_t*)encrypt_buff;
+  encrypted_length = 0;
   EVP_CIPHER_CTX ctx;
   EVP_CIPHER_CTX_init(&ctx);
   EVP_EncryptInit_ex(&ctx, cipher, 0, 0, 0);
@@ -746,6 +747,7 @@ XrdMqMessage::CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
   }
 
   uint_fast8_t* fast_ptr = (uint_fast8_t*)data;
+  data_length = 0;
   EVP_CIPHER_CTX ctx;
   EVP_CIPHER_CTX_init(&ctx);
   EVP_DecryptInit_ex(&ctx, cipher, 0, 0, 0);
@@ -949,8 +951,8 @@ bool XrdMqMessage::Sign(bool encrypt)
   kMessageHeader.kMessageDigest = sdigest;
 
   // Encrypt the message with the plain digest
-  char* encryptptr;
-  ssize_t encryptlen;
+  char* encryptptr = 0;
+  ssize_t encryptlen = 0;
 
   if ((!CipherEncrypt(kMessageBody.c_str(), kMessageBody.length(),
                       encryptptr, encryptlen, (char*)md_ctx.md_data)))
@@ -1156,7 +1158,7 @@ XrdMqMessage::SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
                                      char* key)
 {
   char* tmpbuf = 0;
-  ssize_t tmpbuflen;
+  ssize_t tmpbuflen = 0;
 
   if (!CipherEncrypt(in.c_str(), in.length(), tmpbuf, tmpbuflen, key))
   {
