@@ -151,7 +151,7 @@ XrdMgmOfs::_mkdir (const char *path,
       catch (eos::MDException &e)
       {
         dir = 0;
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                   e.getErrno(), e.getMessage().str().c_str());
         noParent = true;
       }
@@ -266,7 +266,7 @@ XrdMgmOfs::_mkdir (const char *path,
       catch (eos::MDException &e)
       {
         fulldir = 0;
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                   e.getErrno(), e.getMessage().str().c_str());
       }
       if (fulldir)
@@ -402,6 +402,7 @@ XrdMgmOfs::_mkdir (const char *path,
                     cPath.GetParentPath());
       }
 
+      eos::common::Path tmp_path("");
 
       for (j = i + 1; j < (int) cPath.GetSubPathSize(); j++)
       {
@@ -409,11 +410,13 @@ XrdMgmOfs::_mkdir (const char *path,
         try
         {
           eos_debug("creating path %s", cPath.GetSubPath(j));
-	  dir = eosView->getContainer(cPath.GetParentPath());
+          tmp_path.Init(cPath.GetSubPath(j));
+	  dir = eosView->getContainer(tmp_path.GetParentPath());
           newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
           newdir->setCUid(vid.uid);
           newdir->setCGid(vid.gid);
           newdir->setMode(dir->getMode());
+
           if (dir->getMode() & S_ISGID)
           {
             // inherit the attributes
@@ -438,7 +441,7 @@ XrdMgmOfs::_mkdir (const char *path,
         catch (eos::MDException &e)
         {
           errno = e.getErrno();
-          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                     e.getErrno(), e.getMessage().str().c_str());
         }
 
@@ -453,7 +456,7 @@ XrdMgmOfs::_mkdir (const char *path,
         if (!newdir)
         {
           if (copydir) delete copydir;
-          return Emsg(epname, error, errno, "mkdir", path);
+          return Emsg(epname, error, errno, "mkdir - newdir is 0", path);
         }
       }
     }
@@ -510,7 +513,7 @@ XrdMgmOfs::_mkdir (const char *path,
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
