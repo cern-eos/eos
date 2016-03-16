@@ -220,7 +220,7 @@ VstMessaging::Process (XrdMqMessage* newmessage)
         {
           XrdOucString rt;
           VstView::gVstView.mView[newmessage->kMessageHeader.kSenderId.c_str()]["timestamp"] =
-                  XrdMqMessageHeader::ToString(rt, (long) newmessage->kMessageHeader.kReceiverTime_sec);
+              std::to_string((long long int) newmessage->kMessageHeader.kReceiverTime_sec);
           eos_static_info("msg=\"received new VST report\" sender=\"%s\"",
                           newmessage->kMessageHeader.kSenderId.c_str());
         }
@@ -357,8 +357,7 @@ VstMessaging::PublishVst ()
     XrdSysMutexHelper vLock(VstView::gVstView.ViewMutex);
     XrdOucString rt;
     std::map<std::string, std::string>& mymap = VstView::gVstView.mView[mMessageClient.GetDefaultReceiverQueue().c_str()];
-    mymap["timestamp"] =
-            XrdMqMessageHeader::ToString(rt, (long) time(NULL));
+    mymap["timestamp"] = std::to_string((long long int) time(NULL)).c_str();
     mymap["instance"] = gOFS->MgmOfsInstanceName.c_str();
     mymap["host"] = gOFS->HostName;
     mymap["version"] = VERSION;
