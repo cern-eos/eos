@@ -51,7 +51,6 @@ int main (int argc, char* argv[]) {
   XrdMqMessage message("TestMessage");
    
   message.Print();
-  printf("Encode %d \n",message.Encode());
   message.Print();
   printf("Decode %d \n",message.Decode());
   message.Print();
