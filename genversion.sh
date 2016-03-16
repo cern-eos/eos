@@ -24,7 +24,7 @@ function getVersionFromLog()
   fi
 
   TAG=$1
-  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); print tag"-dev"$1"git"$4; }')"
+  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); print tag"-"$1"git"$4; }')"
 
   if test $? -ne 0; then
     echo "unknown";
