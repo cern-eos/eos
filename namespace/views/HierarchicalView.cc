@@ -187,6 +187,14 @@ namespace eos
                                         uid_t uid, gid_t gid )
     throw( MDException )
   {
+
+    if (uri == "/")
+    {
+      MDException e( EISDIR );
+      e.getMessage() << "/ is a directory";
+      throw e;
+    }
+
     //--------------------------------------------------------------------------
     // Split the path and find the last container
     //--------------------------------------------------------------------------
