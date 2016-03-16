@@ -56,7 +56,7 @@ You can unmount an EOS instance using:
 
 .. warning::
 
-   The mount point has to be non-existing or an **empty** directory!
+   The mount point has to be a non-existing or an **empty** directory!
 
 Authentication
 ++++++++++++++
@@ -79,24 +79,29 @@ If the filesystem is mounted you can validate the same information using:
 Log File
 ++++++++
 
-In case of troubles you can find a log file for private mounts under ``/tmp/eos-fuse-<uid>.log``.
+In case of troubles you can find a log file for private mounts under ``/tmp/eos-fuse-<uid>.log``. If you run the single user
+mount as root, you find the log file in ``/var/log/eos/fuse/fuse.log``
 
 **eosd** Shared mount
 ---------------------
 If you have machines shared by many users like batch nodes it makes sense to use 
-the shared FUSE mount.
+the shared FUSE mount. The shared FUSE mount includes several high-performance add-ons.
 
 Configuration
 +++++++++++++
 
-You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to be defined**):
+You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables **have to be defined**):
 
 .. code-block:: bash
 
    # Directory where to mount FUSE
    export EOS_FUSE_MOUNTDIR=/eos/
+
    # MGM URL from where to mount FUSE
    export EOS_FUSE_MGM_ALIAS=eosnode.foo.bar
+
+   # If the remote directory path does not match the local, you can define the remote path to be different
+   # export EOS_FUSE_REMOTEDIR=/eos/testinstance/2015/
 
    # Enable FUSE debugging mode (default off)
    # export EOS_FUSE_DEBUG=1
@@ -123,16 +128,7 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    # Set the write-back cache size (default 300M) 
    # export EOS_FUSE_CACHE_SIZE=0
 
-   # Disable the negative-stat cache (default on)
-   # export EOS_FUSE_NEGSTATCACHE=0
-  
-   # Set the negative-stat cache maximum size (default 100000) 
-   # export EOS_FUSE_NEGSTATCACHE_SIZE=0
-
-   # Set the negative-stat cache entries lifetime in nanosecond (default 600000000000 (1min)) 
-   # export EOS_FUSE_NEGSTATCACHE_LIFETIMENS=0
-
-   # Use the FUSE big write feature ( FUSE >=2.8 ) (default off)
+   # Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
    # export EOS_FUSE_BIGWRITES=1
 
    # Mount all files with 'x' bit to be able to run as an executable (default off)  
@@ -143,13 +139,6 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    #    or from any of its sub directories at a maximum depth (if >1) (default 1)
    # EOS_FUSE_RMLVL_PROTECT=1
 
-   # Enable the fuse local host time consistency model
-   #   this allows a more precise handling of mtime. Time reference is then the localhost time
-   #   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
-   #   this only affects the shared fuse mount (default 0)
-   #   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
-   # EOS_FUSE_LOCALTIMECONSISTENT=0
-
    # Enable FUSE read-ahead (default off)
    # export EOS_FUSE_RDAHEAD=0
 
@@ -159,7 +148,9 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    # Enable lazy open on read-only files (default off)
    # export EOS_FUSE_LAZYOPENRO=1
 
-   # Enable lazy open on read-write files (default off)
+   # Enable lazy open on read-write files (default on
+   #    this option hides a lot of latency and is recommend to be used
+   #    it requires how-ever that it is supported by EOS MGM version
    # export EOS_FUSE_LAZYOPENRW=1   
  
    # Configure a log-file prefix - useful for several FUSE instances
@@ -170,17 +161,43 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    #export EOS_FUSE_MOUNTS="a b"
 
 
-In most cases one should enable the read-ahead feature with a read-ahead window of 1M and if available enable the big writes feature!
-These features are off by default! If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files 
+In most cases one should enable the read-ahead feature with a read-ahead window of 1M on LAN and larger for WAN RTTs and if available use the big writes feature!
+If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files 
 with their name as suffix e.g. mount **dev** will be defined in ``/etc/sysconfig/eos.dev``. In case of a list of mounts the log file names have the name automatically inserted like ``fuse.dev.log``.
+
+Starting the Service
+++++++++++++++++++++
+Once you configured the FUSE mountpoint(s) you can use standard service mechanism to start, stop and check your shared mounts:
+
+.. code-block:: bash
+
+   # start all eosd instances
+   service eosd start
+
+   # start a particular eosd instance 
+   service eosd start myinstance
+
+   # stop all eosd instances
+   service eosd stop 
+
+   # stop a particular eosd instance
+   service eosd stop myinstance
+
+   # check the status of all instances
+   service eosd status
+   
+   # check the status of a particular instance
+   service eosd status myinstance
+
+   # if instances are up restart them conditional
+   service eosd condrestart [myinstance]
     
 Authentication
 --------------
-The shared FUSE mount currently does not support (anymore) strong authentication 
-methods like **KRB5** or **X509**. This is available only in the Citrine branch.
+The shared FUSE mount supports strong authentication like **KRB5** or **X509**.
 
-Each machine running a shared FUSE mount has to be
-configured as a gateway machine in the MGM:
+Each machine running a shared FUSE mount can be
+configured as a gateway machine in the MGM if strong authentication is not desired on client side:
 
 Add a FUSE host
 +++++++++++++++
@@ -206,4 +223,41 @@ To improve security you can require **sss** (shared secret authentication) inste
 of **unix** (authentication) in the above commands 
 and distribute the **sss** keytab file to all FUSE hosts ``/etc/eos.keytab``.
 
+**mount** and autofs support
+++++++++++++++++++++++++++++
+If you have a defined FUSE instances and can manage them with the eosd service scripts, you use a mount wrapper to define mounts in /etc/fstab or mount manually. 
 
+.. note::
+
+   You should make sure that you don't have **eosd** as a persistent service:
+   /sbin/chkconfig --del eos
+
+To mount **myinstance** to the local directory ``/eos/myinstance`` you can write:
+
+.. code-block:: bash
+
+   # mount
+   mount -t eos myinstance /eos/myinstance
+
+   # umount
+   umount /eos/myinstance
+
+To define a FUSE mount in ``/etc/fstab`` you add for example:
+
+.. code-block:: bash
+
+   myinstance  /eos/myinstance defaults 0 0 
+
+If you want to use **autofs**, you have to create a file ``/etc/auto.eos`` :
+
+.. code-block:: bash
+
+   myinstance -fstype=eos :myinstance
+
+.. note::
+
+   Enable **autofs** with ``service autofs start``   
+
+
+
+ 
