@@ -3573,7 +3573,7 @@ xrd_open (const char* path,
     }
     else
       eos_static_err("failed get request for pio read. query was   %s  ,  response was   %s    and   error was    %s",
-                     arg.ToString ().c_str (), response->ToString ().c_str (), status.ToStr ().c_str ());
+                     arg.ToString ().c_str (), response?response->ToString ().c_str ():"no-response", status.ToStr ().c_str ());
   }
 
   eos_static_debug("the spath is:%s", spath.c_str ());
@@ -4869,7 +4869,8 @@ size_t strlcat (char *dst, const char *src, size_t siz)
 int mylstat (const char *__restrict name, struct stat *__restrict __buf, pid_t pid)
 {
   std::string path (name);
-  if (path.find (local_mount_dir) == 0)
+  if ( (path.length() >= strlen(local_mount_dir)) &&
+       (path.find (local_mount_dir) == 0) )
   {
     eos_static_debug("name=%%s\n", name);
 
