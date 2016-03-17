@@ -787,18 +787,6 @@ ProcCommand::DirInfo (const char* path)
                 (unsigned long long)ctime.tv_nsec, (unsigned long long)mtime.tv_sec,
                 (unsigned long long)mtime.tv_nsec, (unsigned long long)tmtime.tv_sec,
                 (unsigned long long)tmtime.tv_sec);
-        {
-          if (!mtime.tv_sec)
-          {
-            mtime.tv_sec = ctime.tv_sec;
-            mtime.tv_nsec = ctime.tv_nsec;
-          }
-          if (!tmtime.tv_sec)
-          {
-            tmtime.tv_sec = mtime.tv_sec;
-            tmtime.tv_nsec = mtime.tv_nsec;
-          }
-        }
 
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
