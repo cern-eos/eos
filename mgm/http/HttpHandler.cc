@@ -59,6 +59,10 @@ HttpHandler::HandleRequest (eos::common::HttpRequest *request)
 
   request->AddEosApp();
 
+  for (auto it =request->GetHeaders().begin(); it != request->GetHeaders().end(); ++it)
+    eos_static_info("header:%s => %s", it->first.c_str(), it->second.c_str());
+
+
   int meth = ParseMethodString(request->GetMethod());
   switch (meth)
   {

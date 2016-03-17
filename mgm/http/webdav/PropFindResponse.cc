@@ -478,15 +478,8 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   // common to all resources
   if (lastModified)
   {
-    time_t tmtime;
-    // for directories the sync time is stored in the atime field
-    if (S_ISDIR(statInfo.st_mode) && ocid)
-      tmtime = statInfo.st_atim.tv_sec;
-    else
-      tmtime = statInfo.st_mtim.tv_sec;
-
     std::string lm = eos::common::Timing::utctime(
-                                                  tmtime);
+                                                  statInfo.st_mtim.tv_sec);
     SetValue(lastModified, lm.c_str());
     propFound->append_node(lastModified);
   }
