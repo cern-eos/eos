@@ -173,6 +173,9 @@ abspath (const char* in)
     return inpath.c_str();
   inpath = pwd;
   inpath += in;
+
+  eos::common::Path cPath(inpath.c_str());
+  inpath = cPath.GetPath();
   return inpath.c_str();
 }
 
