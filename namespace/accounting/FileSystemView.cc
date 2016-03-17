@@ -71,8 +71,7 @@ namespace eos
       // File has been deleted
       //------------------------------------------------------------------------
       case IFileMDChangeListener::Deleted:
-	if (!e->file->isLink())
-	  pNoReplicas.erase( e->fileId );
+	pNoReplicas.erase( e->fileId );
         break;
 
       //------------------------------------------------------------------------
