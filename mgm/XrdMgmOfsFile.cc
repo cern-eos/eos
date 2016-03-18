@@ -1170,7 +1170,6 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         gOFS->eosView->updateFileStore(fmd);
 	eos::ContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	eos::FileMD::ctime_t mtime;
 	cmd->setMTimeNow();
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd);
@@ -2111,11 +2110,15 @@ XrdMgmOfsFile::open (const char *inpath,
     eos::common::Mapping::VirtualIdentity rootvid;
     eos::common::Mapping::Root(rootvid);
 
-    if (!isAtomicUpload)
+    // get the current ETAG
+    gOFS->_stat(path, &buf, error, rootvid, "", &etag);
+    redirectionhost += "&mgm.etag=";
+    if (!etag.length())
     {
-      // get the current ETAG
-      gOFS->_stat(path, &buf, error, rootvid, "", &etag);
-      redirectionhost += "&mgm.etag=";
+      redirectionhost += "undef";
+    }
+    else 
+    {
       redirectionhost += etag.c_str();
     }
   }
