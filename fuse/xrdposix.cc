@@ -123,7 +123,7 @@ bool fuse_shared = false; ///< indicated if this is eosd = true or eosfsd = fals
 int creator_cap_lifetime = 30; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
 int file_write_back_cache_size = 64*1024*1024; ///< max temporary write-back cache per file size in bytes
 
-extern "C" char* local_mount_dir;
+extern "C" char local_mount_dir[1024];
 XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
 using eos::common::LayoutId;
@@ -195,7 +195,7 @@ void xrd_log_settings()
 
 
 char *
-myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
+myrealpath (const char * path, char * resolved, pid_t pid);
 
 //------------------------------------------------------------------------------
 // String store
@@ -4866,7 +4866,7 @@ size_t strlcat (char *dst, const char *src, size_t siz)
 // to fuse. That would involve keeping track of fuse self call to stat
 // especially in is_toplevel_rm
 //------------------------------------------------------------------------------
-int mylstat (const char *__restrict name, struct stat *__restrict __buf, pid_t pid)
+int mylstat (const char * name, struct stat *__buf, pid_t pid)
 {
   std::string path (name);
   if ( (path.length() >= strlen(local_mount_dir)) &&
@@ -4893,7 +4893,7 @@ int mylstat (const char *__restrict name, struct stat *__restrict __buf, pid_t p
 // and regular lstat was replaced with the above mylstat
 //------------------------------------------------------------------------------
 char *
-myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid)
+myrealpath (const char *  path, char *  resolved, pid_t pid)
 {
   struct stat sb;
   char *p, *q, *s;
