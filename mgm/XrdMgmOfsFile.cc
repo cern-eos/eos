@@ -918,9 +918,7 @@ XrdMgmOfsFile::open (const char *inpath,
             cid = fmd->getContainerId();
 
 	    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	    eos::IFileMD::ctime_t mtime;
-	    fmd->getMTime(mtime);
-	    cmd->setMTime(mtime);
+	    cmd->setMTimeNow();
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	    gOFS->eosView->updateContainerStore(cmd);
           }
@@ -1153,9 +1151,7 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         gOFS->eosView->updateFileStore(fmd);
 	eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	eos::IFileMD::ctime_t mtime;
-	fmd->getMTime(mtime);
-	cmd->setMTime(mtime);
+	cmd->setMTimeNow();
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd);
 
@@ -2077,7 +2073,14 @@ XrdMgmOfsFile::open (const char *inpath,
     // get the current ETAG
     gOFS->_stat(path, &buf, error, rootvid, "", &etag);
     redirectionhost += "&mgm.etag=";
-    redirectionhost += etag.c_str();
+    if (!etag.length())
+    {
+      redirectionhost += "undef";
+    }
+    else 
+    {
+      redirectionhost += etag.c_str();
+    }
   }
 
   // add the MGM hex id for this file

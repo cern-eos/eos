@@ -531,21 +531,31 @@ XrdMgmOfs::_rename (const char *old_name,
 	  else
 	  {
 	    // Remove from one container to another one
-	    dir->removeContainer(oPath.GetName());
-	    dir->setMTimeNow();
-	    dir->notifyMTimeChange( gOFS->eosDirectoryService );
-	    eosView->updateContainerStore(dir);	     
+              {
+			// rename the moved directory
+		rdir->setName(nPath.GetName());
+		if (updateCTime)
+		{
+		  rdir->setCTimeNow();
+		}
+		eosView->updateContainerStore(rdir);
+	      }
 
-	    rdir->setName(nPath.GetName());
+	      {
+		// update the source directory - remove the directory
+		dir->removeContainer(oPath.GetName());
+		dir->setMTimeNow();
+		dir->notifyMTimeChange( gOFS->eosDirectoryService );
+		eosView->updateContainerStore(dir);	     
+	      }
 
-	    if (updateCTime)
-	      rdir->setCTimeNow();
-
-	    newdir->addContainer(rdir);
-	    newdir->setMTimeNow();
-	    newdir->notifyMTimeChange( gOFS->eosDirectoryService );
-	    eosView->updateContainerStore(newdir);
-	    eosView->updateContainerStore(rdir);
+	      {
+		// update the target directory - add the directory
+		newdir->addContainer(rdir);
+		newdir->setMTimeNow();
+		newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+		eosView->updateContainerStore(newdir);
+              }
 	  }
 	}
 

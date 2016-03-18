@@ -56,7 +56,7 @@ You can unmount an EOS instance using:
 
 .. warning::
 
-   The mount point has to be non-existing or an **empty** directory!
+   The mount point has to be a non-existing or an **empty** directory!
 
 Authentication
 ++++++++++++++
@@ -79,24 +79,30 @@ If the filesystem is mounted you can validate the same information using:
 Log File
 ++++++++
 
-In case of troubles you can find a log file for private mounts under ``/tmp/eos-fuse-<uid>.log``.
+In case of troubles you can find a log file for private mounts under ``/tmp/eos-fuse-<uid>.log``. If you run the single user
+mount as root, you find the log file in ``/var/log/eos/fuse/fuse.log``
 
 **eosd** Shared mount
 ---------------------
 If you have machines shared by many users like batch nodes it makes sense to use 
-the shared FUSE mount.
+the shared FUSE mount. The shared FUSE mount includes several high-performance add-ons.
 
 Configuration
 +++++++++++++
 
-You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to be defined**):
+You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables **have to be defined**):
 
 .. code-block:: bash
 
    # Directory where to mount FUSE
    export EOS_FUSE_MOUNTDIR=/eos/
+
    # MGM URL from where to mount FUSE
    export EOS_FUSE_MGM_ALIAS=eosnode.foo.bar
+
+   # If the remote directory path does not match the local, you can define the remote path to be different -
+   # if not defined EOS_FUSE_REMOTEDIR=EOS_FUSE_MOUNTDIR is assumed e.g. local and remote tree have the same prefix
+   # export EOS_FUSE_REMOTEDIR=/eos/testinstance/subtree/
 
    # Enable FUSE debugging mode (default off)
    # export EOS_FUSE_DEBUG=1
@@ -123,16 +129,7 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    # Set the write-back cache size (default 300M) 
    # export EOS_FUSE_CACHE_SIZE=0
 
-   # Disable the negative-stat cache (default on)
-   # export EOS_FUSE_NEGSTATCACHE=0
-  
-   # Set the negative-stat cache maximum size (default 100000) 
-   # export EOS_FUSE_NEGSTATCACHE_SIZE=0
-
-   # Set the negative-stat cache entries lifetime in nanosecond (default 600000000000 (1min)) 
-   # export EOS_FUSE_NEGSTATCACHE_LIFETIMENS=0
-
-   # Use the FUSE big write feature ( FUSE >=2.8 ) (default off)
+   # Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
    # export EOS_FUSE_BIGWRITES=1
 
    # Mount all files with 'x' bit to be able to run as an executable (default off)  
@@ -151,17 +148,6 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    #    file user proxy should be used. (default 0)
    # EOS_FUSE_USER_GSIPROXY=0
 
-   # If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
-   #    (default 0)
-   # EOS_FUSE_USER_KRB5FIRST=0
-
-   # Enable the fuse local host time consistency model
-   #   this allows a more precise handling of mtime. Time reference is then the localhost time
-   #   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
-   #   this only affects the shared fuse mount (default 0)
-   #   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
-   # EOS_FUSE_LOCALTIMECONSISTENT=0
-   
    # If a connection fails using strong authentication, this is the timeout before actully retrying
    #    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
    #    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
@@ -183,9 +169,26 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    # Enable lazy open on read-only files (default off)
    # export EOS_FUSE_LAZYOPENRO=1
 
-   # Enable lazy open on read-write files (default off)
+   # Enable lazy open on read-write files (default on
+   #    this option hides a lot of latency and is recommend to be used
+   #    it requires how-ever that it is supported by EOS MGM version
    # export EOS_FUSE_LAZYOPENRW=1   
- 
+
+   # Set the kernel attribute cache time - this is the timewindow before you can see changes done on other clients
+   # export EOS_FUSE_ATTR_CACHE_TIME=10
+
+   # Set the kernel entry timeout - this is the time a directory listing is cached
+   # export EOS_FUSE_ENTRY_CACHE_TIME=10
+
+   # Set the timeout for the kernel negative stat cache 
+   # export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
+
+   # Set the liftime for a file creation ownership - withint this time each file re-open for update will be considered as cached locally and will not see remote changes
+   # export EOS_FUSE_CREATOR_CAP_LIFETIME=30
+   
+   # Set the individual max. cache size per write-opened file where we have a creator capability
+   # export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
+
    # Configure a log-file prefix - useful for several FUSE instances
    # export EOS_FUSE_LOG_PREFIX=dev
    # => will create /var/log/eos/fuse.dev.log
@@ -194,9 +197,36 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two ** have to
    #export EOS_FUSE_MOUNTS="a b"
 
 
-In most cases one should enable the read-ahead feature with a read-ahead window of 1M and if available enable the big writes feature!
-These features are off by default! If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files 
+In most cases one should enable the read-ahead feature with a read-ahead window of 1M on LAN and larger for WAN RTTs and if available use the big writes feature!
+If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files 
 with their name as suffix e.g. mount **dev** will be defined in ``/etc/sysconfig/eos.dev``. In case of a list of mounts the log file names have the name automatically inserted like ``fuse.dev.log``.
+
+Starting the Service
+++++++++++++++++++++
+Once you configured the FUSE mountpoint(s) you can use standard service mechanism to start, stop and check your shared mounts:
+
+.. code-block:: bash
+
+   # start all eosd instances
+   service eosd start
+
+   # start a particular eosd instance 
+   service eosd start myinstance
+
+   # stop all eosd instances
+   service eosd stop 
+
+   # stop a particular eosd instance
+   service eosd stop myinstance
+
+   # check the status of all instances
+   service eosd status
+   
+   # check the status of a particular instance
+   service eosd status myinstance
+
+   # if instances are up restart them conditional
+   service eosd condrestart [myinstance]
     
 Authentication
 --------------
@@ -310,3 +340,53 @@ The rule currently implemented is the following one:
 The fuse mount will deny any removal coming from a command named ``rm`` with one of the short option(s) being ``r`` or one of the long option(s) being ``recursive`` 
 if one of the non optional arguments is a path located under the mountpoint at a depth lower than the value specifed by ``EOS_FUSE_RMLVL_PROTECT``.
 
+**mount** and autofs support
+++++++++++++++++++++++++++++
+If you have a defined FUSE instances and can manage them with the eosd service scripts, you use a mount wrapper to define mounts in /etc/fstab or mount manually. 
+
+.. note::
+
+   You should make sure that you don't have **eosd** as a persistent service:
+   /sbin/chkconfig --del eos
+
+To mount **myinstance** to the local directory ``/eos/myinstance`` you can write:
+
+.. code-block:: bash
+
+   # mount
+   mount -t eos myinstance /eos/myinstance
+
+   # umount
+   umount /eos/myinstance
+
+To define a FUSE mount in ``/etc/fstab`` you add for example:
+
+.. code-block:: bash
+
+   myinstance  /eos/myinstance defaults 0 0 
+
+If you want to use **autofs**, you have to create a file ``/etc/auto.eos`` :
+
+.. code-block:: bash
+
+   myinstance -fstype=eos :myinstance
+
+Add to the file ``/etc/auto.master`` at the bottom:
+
+.. code-block:: bash
+
+   /eos /etc/auto.eos
+
+For convenience make sure that you enable browsing in ``/etc/autofst.conf``:
+
+   browse_mode = yes  # this lets you see the mountdir myinstance in ``/eos/`` as ``/eos/myinstance/``. Once you acces this directory it will be automatically mounted.
+
+
+
+.. note::
+
+   Enable **autofs** with ``service autofs start``   
+
+
+
+ 

@@ -624,7 +624,7 @@ namespace eos
       }      
     }
     now = time(0);
-    fprintf(stderr,"ALERT    [ %-64s ] finnished in %ds\n", fname.c_str(), (int)(now - start_time));
+    fprintf(stderr,"ALERT    [ %-64s ] finished in %ds\n", fname.c_str(), (int)(now - start_time));
 
     return offset;
   }

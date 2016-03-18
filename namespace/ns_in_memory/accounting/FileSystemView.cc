@@ -63,14 +63,15 @@ namespace eos
       // New file has been created
       //------------------------------------------------------------------------
       case IFileMDChangeListener::Created:
-        pNoReplicas.insert( e->file->getId() );
+	if (!e->file->isLink())
+	  pNoReplicas.insert( e->file->getId() );
         break;
 
       //------------------------------------------------------------------------
       // File has been deleted
       //------------------------------------------------------------------------
       case IFileMDChangeListener::Deleted:
-        pNoReplicas.erase( e->fileId );
+	pNoReplicas.erase( e->fileId );
         break;
 
       //------------------------------------------------------------------------

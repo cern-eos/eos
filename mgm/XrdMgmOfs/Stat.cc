@@ -265,7 +265,7 @@ XrdMgmOfs::_stat (const char *path,
       {
         // use inode + checksum
         char setag[256];
-        snprintf(setag, sizeof (setag) - 1, "\"%llx:", (unsigned long long) fmd->getId());
+        snprintf(setag, sizeof (setag) - 1, "\"%llu:", (unsigned long long) buf->st_ino);
         // if MD5 checksums are used we omit the inode number in the ETag (S3 wants that)
         if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) != eos::common::LayoutId::kMD5)
           *etag = setag;
@@ -284,7 +284,7 @@ XrdMgmOfs::_stat (const char *path,
       {
         // use inode + mtime
         char setag[256];
-        snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"", (unsigned long long) fmd->getId(), (unsigned long long) buf->st_mtim.tv_sec, (unsigned long) buf->st_mtim.tv_nsec/1000000);
+        snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino, (unsigned long long) buf->st_mtime);
         *etag = setag;
       }
     }

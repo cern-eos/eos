@@ -198,6 +198,12 @@ com_find (char* arg1)
       valid = true;
     }
 
+    if (s1 == "--xurl")
+    {
+      option += "x";
+      valid = true;
+    }
+
     if (s1 == "-1")
     {
       option += "1";
@@ -761,7 +767,7 @@ com_find (char* arg1)
   return (0);
 
 com_find_usage:
-  fprintf(stdout, "usage: find [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  fprintf(stdout, "usage: find [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
   fprintf(stdout, "                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
   fprintf(stdout, "                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   fprintf(stdout, "                                                                           -0 :  find 0-size files \n");
@@ -778,6 +784,7 @@ com_find_usage:
   fprintf(stdout, "                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
   fprintf(stdout, "                                                                  --faultyacl :  find directories with illegal ACLs\n");
   fprintf(stdout, "                                                                      --count :  just print global counters for files/dirs found\n");
+  fprintf(stdout, "                                                                       --xurl :  print the XRootD URL instead of the path name\n");
   fprintf(stdout, "                                                                 --childcount :  print the number of children in each directory\n");
   fprintf(stdout, "                                                                  --purge <n> | atomic\n");
   fprintf(stdout, "                                                                              :  remove versioned files keeping <n> versions - to remove all old versions use --purge 0 ! To \n"

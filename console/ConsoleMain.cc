@@ -174,6 +174,9 @@ abspath (const char* in)
     return inpath.c_str();
   inpath = pwd;
   inpath += in;
+
+  eos::common::Path cPath(inpath.c_str());
+  inpath = cPath.GetPath();
   return inpath.c_str();
 }
 
@@ -187,7 +190,8 @@ wants_help(const char* arg1)
   allargs += arg1;
   allargs += " ";
   if ((allargs.find(" help ") != STR_NPOS) ||
-      (allargs.find(" \"help\" ") != STR_NPOS) ||
+      (allargs.find("\"-h\"") != STR_NPOS) ||
+      (allargs.find("\"--help\"") != STR_NPOS) ||
       (allargs.find(" -h ") != STR_NPOS) ||
       (allargs.find(" \"-h\" ") != STR_NPOS) ||
       (allargs.find(" --help ") != STR_NPOS) ||

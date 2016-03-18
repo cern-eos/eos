@@ -33,15 +33,15 @@ chunkedupload () {
   dd if=/dev/zero of=$DIR/$NAME bs=1M count=32
   split -b 10485760 -a 1 -d $DIR/$NAME $DIR/$NAME-chunking-`uuidgen | sed s/-//g`-$CHUNK_NUMBER-
   echo "# about to upload $DIR/$NAME"
-  DEST_URL=https://localhost$2
+  DEST_URL=http://localhost:8000$2
   echo "# to $DEST_URL"
   let LAST_CHUNK_NUMBER=$CHUNK_NUMBER-1
   let i=0
-
+  UUID=`echo $RANDOM`
   ok=0
   for f in `ls $DIR/$NAME-chunking*`; do
     echo $f
-    curl --verbose -k --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL 2> $f.log
+    curl -L --verbose -k --header "Oc-Chunk-Uuid:$UUID" --header "Oc-Chunk-n:$i" --header "Oc-Chunk-Max:4" --header "OC-Chunked:1" --header "X-OC-Mtime:1402061782" --header "OC-Total-Length:33554432" -T $f $DEST_URL-$UUID-4-$i 2> $f.log
   
     if (( i < $LAST_CHUNK_NUMBER )); then
       grep -q 'X-OC-Mtime: accepted' $f.log && echo "redundant reply header: 'X-OC-Mtime: accepted" 
@@ -54,6 +54,11 @@ chunkedupload () {
     let i=$i+1
 
   done
+  
+  if [ $ok -eq 0 ]; then
+    curl -v -i HEAD $DEST_URL >& $DIR/$NAME.log
+    ok=$?
+  fi
 
   return $ok;
 }

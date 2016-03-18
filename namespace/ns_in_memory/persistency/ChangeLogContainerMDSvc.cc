@@ -575,7 +575,7 @@ namespace eos
       }
       now = time(0);
       
-      fprintf(stderr,"ALERT    [ %-64s ] finnished in %ds\n", "container-attach", (int)(now-start_time));        
+      fprintf(stderr,"ALERT    [ %-64s ] finished in %ds\n", "container-attach", (int)(now-start_time));        
       // Deal with broken containers if we're not in the slave mode
       if( !pSlaveMode )
       {

@@ -11,8 +11,8 @@ The first release has been put into production in June 2010.
 
 Software Versions
 -----------------
-The stable but phaseing-out production version is called **Amber** v0.2.46 and 
-the new production version called **Beryl** is currently at v0.3.2. 
+The stable production version is called **Beryl/Aquamarine** v0.3.X
+The upcoming production version called **Citrine** is v4.0.X
 
 License
 -------
@@ -20,8 +20,5 @@ Since release version 0.1.1 EOS is now available under GPL v3 license.
 
 Production Systems
 ------------------
-We run currently five EOS instances at CERN and one at FERMILAB based on 
-**Amber** and **Beryl** releases managing more than 20k harddisks.
-
-.. image:: http://eos.cern.ch/images/stories/Screen_Shot_2013-05-31_at_11.10.25_AM_copy.png
-     :align: center
+We run currently six EOS instances at CERN and ten's of instances outside CERN at various institutes. 
+**Beryl** releases managing more than 30k harddisks and 140 PB of disk space at CERN.

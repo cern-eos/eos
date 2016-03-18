@@ -126,6 +126,12 @@ ProcCommand::Find ()
   bool selectfaultyacl = false;
   bool purge = false;
   bool purge_atomic = false;
+  bool printxurl = false;
+
+  XrdOucString url = "root://";
+  url += gOFS->MgmOfsAlias;
+  url += "/";
+
   int  max_version = 999999;
   int  finddepth = 0;
 
@@ -225,6 +231,11 @@ ProcCommand::Find ()
   if (option.find("l") != STR_NPOS)
   {
     printchildcount = true;
+  }
+
+  if (option.find("x") != STR_NPOS)
+  {
+    printxurl = true;
   }
 
   if (option.find("H") != STR_NPOS)
@@ -365,7 +376,12 @@ ProcCommand::Find ()
         {
           if (option.find("f") == STR_NPOS)
           {
-            if (!printcounter) fprintf(fstdout, "%s\n", foundit->first.c_str());
+            if (!printcounter) 
+	    {
+	      if (printxurl)
+		fprintf(fstdout,"%s", url.c_str());
+	      fprintf(fstdout, "%s\n", foundit->first.c_str());
+	    }
             dircounter++;
           }
         }
@@ -434,7 +450,12 @@ ProcCommand::Find ()
                   {
                     if (!(filesize = fmd_cpy->getSize()))
                     {
-                      if (!printcounter) fprintf(fstdout, "%s\n", fspath.c_str());
+                      if (!printcounter) 
+		      {
+			if (printxurl)
+			  fprintf(fstdout,"%s", url.c_str());
+			fprintf(fstdout, "%s\n", fspath.c_str());
+		      }
                     }
                   }
 
@@ -486,7 +507,12 @@ ProcCommand::Find ()
                     }
                     if (mixed)
                     {
-                      if (!printcounter)fprintf(fstdout, "%s\n", fspath.c_str());
+                      if (!printcounter)
+		      {
+			if (printxurl)
+			  fprintf(fstdout,"%s", url.c_str());
+			fprintf(fstdout, "%s\n", fspath.c_str());
+		      }
                     }
                   }
                 }
@@ -521,7 +547,11 @@ ProcCommand::Find ()
                       if (!printfileinfo)
                       {
                         if (!printcounter)
+			{
+			  if (printxurl)
+			    fprintf(fstdout,"%s", url.c_str());
                           fprintf(fstdout, "path=%s", fspath.c_str());
+			}
 
                         if (printsize)
                         {
@@ -732,7 +762,11 @@ ProcCommand::Find ()
             else
             {
               if ((!printcounter) && (!purge_atomic))
+	      {
+		if (printxurl)
+		  fprintf(fstdout,"%s", url.c_str());
                 fprintf(fstdout, "%s\n", fspath.c_str());
+	      }
 
               filecounter++;
             }
@@ -898,6 +932,8 @@ ProcCommand::Find ()
           {
             if (!printfileinfo)
             {
+	      if (printxurl)
+		fprintf(fstdout,"%s", url.c_str());
               fprintf(fstdout, "%s", foundit->first.c_str());
 
               if (printuid || printgid)

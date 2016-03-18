@@ -218,9 +218,9 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   bool setTMTime(tmtime_t tmtime)
   {
-    if ( (tmtime.tv_sec > pMTime.tv_sec ) ||
-         ( (tmtime.tv_sec == pMTime.tv_sec) &&
-           (tmtime.tv_nsec > pMTime.tv_nsec) ) )
+    if ( (tmtime.tv_sec > pTMTime.tv_sec ) || 
+       ( (tmtime.tv_sec == pTMTime.tv_sec) && 
+       (tmtime.tv_nsec > pTMTime.tv_nsec) ) )
     {
       pTMTime.tv_sec = tmtime.tv_sec;
       pTMTime.tv_nsec = tmtime.tv_nsec;

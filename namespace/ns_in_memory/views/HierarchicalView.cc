@@ -187,6 +187,14 @@ namespace eos
   IFileMD*
   HierarchicalView::createFile( const std::string &uri, uid_t uid, gid_t gid )
   {
+
+    if (uri == "/")
+    {
+      MDException e( EISDIR );
+      e.getMessage() << "/ is a directory";
+      throw e;
+    }
+
     // Split the path and find the last container
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );

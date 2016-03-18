@@ -204,6 +204,17 @@ com_fuse (char* arg1)
       env += " EOS_FUSE_DEBUG=0";
     }
 
+    if (getenv("EOS_FUSE_LOWLEVEL_DEBUG"))
+    {
+      env += " EOS_FUSE_LOWOEVEL_DEBUG=";
+      env += getenv("EOS_FUSE_LOWLEVEL_DEBUG");
+    }
+    else
+    {
+      setenv("EOS_FUSE_LOWLEVEL_DEBUG", "0", 1);
+      env += " EOS_FUSE_LOWLEVEL_DEBUG=0";
+    }
+
     if (getenv("EOS_FUSE_RMLVL_PROTECT"))
     {
       env += " EOS_FUSE_RMLVL_PROTECT=";
@@ -211,13 +222,14 @@ com_fuse (char* arg1)
     }
     else
     {
-      setenv("EOS_FUSE_RMLVL_PROTECT", "1", 1);
-      env += " EOS_FUSE_RMLVL_PROTECT=1";
+      setenv("EOS_FUSE_RMLVL_PROTECT", "0", 1);
+      env += " EOS_FUSE_RMLVL_PROTECT=0";
     }
 
     fprintf(stderr, "===> xrootd ra             : %s\n", getenv("EOS_FUSE_READAHEADSIZE"));
     fprintf(stderr, "===> xrootd cache          : %s\n", getenv("EOS_FUSE_READCACHESIZE"));
     fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
+    fprintf(stderr, "===> fuse low-level debug  : %s\n", getenv("EOS_FUSE_LOWLEVEL_DEBUG"));
     fprintf(stderr, "===> fuse write-cache      : %s\n", getenv("EOS_FUSE_CACHE"));
     fprintf(stderr, "===> fuse write-cache-size : %s\n", getenv("EOS_FUSE_CACHE_SIZE"));
     fprintf(stderr, "===> fuse rm level protect : %s\n", getenv("EOS_FUSE_RMLVL_PROTECT"));
