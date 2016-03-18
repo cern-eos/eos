@@ -756,6 +756,8 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
   const char* parentpath = NULL;
   char fullpath[16384];
 
+  long long ino;
+
   UPDATEPROCCACHE;
 
   if (is_toplevel_rm(req->ctx.pid, local_mount_dir) == 1)
@@ -775,11 +777,15 @@ eosfs_ll_unlink (fuse_req_t req, fuse_ino_t parent, const char* name)
   }
 
   sprintf (fullpath, "/%s%s/%s", mountprefix, parentpath, name);
+  ino = xrd_inode(fullpath);
+
   xrd_unlock_r_p2i (); // <=
 
   if (isdebug)
     fprintf (stderr, "[%s]: path=%s\n", __FUNCTION__, fullpath);
 
+  xrd_dir_cache_forget(parent);
+  xrd_forget_p2i ((unsigned long long) ino);
   int retc = xrd_unlink (fullpath, req->ctx.uid, req->ctx.gid, req->ctx.pid);
 
   if (!retc)
