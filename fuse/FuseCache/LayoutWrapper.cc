@@ -28,6 +28,7 @@
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry> LayoutWrapper::gCacheAuthority;
+bool LayoutWrapper::mFailedLazyOpen=false;
 
 
 //--------------------------------------------------------------------------
@@ -235,7 +236,14 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
 
   if (!status.IsOK())
   {
-    eos_static_err("failed to lazy open request %s at url %s",request.c_str(),user_url.c_str());
+    if ( (status.code == XrdCl::errErrorResponse) &&
+        (status.errNo == kXR_FSError) )
+    {
+      mFailedLazyOpen = true;
+      eos_static_warning("disabling lazy open - instance seems not to support it");
+      return 0;
+    }
+    eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d",request.c_str(),user_url.c_str(), status.code, status.errNo);
     return -1;
   }
 
@@ -320,13 +328,14 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   mOpaque = opaque;
 
 
-  if(!doOpen)
+  if(!doOpen && !mFailedLazyOpen)
   {
     retc =  LazyOpen (path, flags, mode, opaque, buf);
-    if (retc)
+    if (retc < 0)
       return retc;
   }
-  else 
+  
+  if (doOpen || mFailedLazyOpen)
   {
     if ( (retc = mFile->Open (path, flags, mode, opaque)) )
     {

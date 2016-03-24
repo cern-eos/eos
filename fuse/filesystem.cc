@@ -1388,7 +1388,7 @@ filesystem::stat (const char* path,
 
              if (tmp.st_dev & 0x80000000)
              {
-               // this server delivers ns resolution in std_dev
+               // this server delivers ns resolution in st_dev
                mtim.tv_nsec = tmp.st_dev & 0x7fffffff;
              }
 

@@ -248,8 +248,8 @@ com_fuse (char* arg1)
    }
    else
    {
-     setenv("EOS_FUSE_LAZYOPENRW", "0", 1);
-     env += " EOS_FUSE_LAZYOPENRW=0";
+     setenv("EOS_FUSE_LAZYOPENRW", "1", 1);
+     env += " EOS_FUSE_LAZYOPENRW=1";
    }
 
    bool mt=false;
@@ -335,9 +335,15 @@ com_fuse (char* arg1)
    struct stat buf2;
 
 #ifndef __APPLE__
-   struct stat buf;
-
-   if ((stat(mountpoint.c_str(), &buf) || (buf.st_dev != 19)))
+   struct stat buf1;
+   XrdOucString pmount=mountpoint;
+   if (pmount.endswith("/"))
+     pmount.erase(pmount.length()-1);
+   pmount.erase(pmount.rfind('/'));
+   int r1 = stat(mountpoint.c_str(), &buf1);
+   int r2 = stat(pmount.c_str(), &buf2);
+   
+   if ( ( r1 || r2) || (buf1.st_dev == buf2.st_dev) )
    {
      fprintf(stderr, "error: there is no eos mount at %s\n", mountpoint.c_str());
      exit(-1);
@@ -361,12 +367,12 @@ com_fuse (char* arg1)
    }
    if ((stat(mountpoint.c_str(), &buf2)))
    {
-     fprintf(stderr, "error: mount directoy disappeared from %s\n", mountpoint.c_str());
+     fprintf(stderr, "error: mount directory disappeared from %s\n", mountpoint.c_str());
      exit(-1);
    }
 
 #ifndef __APPLE__
-   if (buf.st_ino == buf2.st_ino)
+   if (buf1.st_ino == buf2.st_ino)
    {
      fprintf(stderr, "error: umount didn't work\n");
      exit(-1);
