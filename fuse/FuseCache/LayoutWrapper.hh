@@ -56,6 +56,8 @@ class LayoutWrapper
   struct CacheEntry {
     std::shared_ptr<Bufferll> mCache;
     time_t mLifeTime;
+    time_t mOwnerLifeTime;
+    int64_t  mSize;
   };
 
   static XrdSysMutex gCacheAuthorityMutex;
@@ -64,6 +66,7 @@ class LayoutWrapper
   bool mCanCache;
   bool mCacheCreator;
   off_t mMaxOffset;
+  int64_t mSize;
 
   //--------------------------------------------------------------------------
   //! do the open on the mgm but not on the fst yet
@@ -135,6 +138,7 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
+  int64_t CacheSize();
   int64_t Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead = false);
   int64_t ReadCache (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, off_t maxcache=(64*1024*1024));
 
@@ -149,6 +153,12 @@ public:
   int64_t Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, bool touchMtime=true);
   int64_t WriteCache (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, off_t maxcache=(64*1024*1024));
 
+  // size known after open if this file was created here
+  int64_t Size()
+  {
+    return mSize;
+  }
+  
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------

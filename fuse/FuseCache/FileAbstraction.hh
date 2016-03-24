@@ -32,6 +32,7 @@
 #include "fst/layout/Layout.hh"
 //------------------------------------------------------------------------------
 #include "common/ConcurrentQueue.hh"
+#include "common/RWMutex.hh"
 //------------------------------------------------------------------------------
 
 //! Forward declaration
@@ -272,6 +273,7 @@ class FileAbstraction
     //! Conditionally increase the max write offset if offset is bigger
     //--------------------------------------------------------------------------
     void TestMaxWriteOffset(off_t offset);
+    void GrabMaxWriteOffset();
 
     //--------------------------------------------------------------------------
     //! Set the max write offset to offset
@@ -283,6 +285,8 @@ class FileAbstraction
     //--------------------------------------------------------------------------
     off_t GetMaxWriteOffset();
 
+    eos::common::RWMutex mInUse; ///< we use this look to indicate that someone has a reference to it 
+    
   private:
     int mFd; ///< file descriptor used for the block key range
     LayoutWrapper* mFileRW; ///< raw file object for RW access
@@ -299,6 +303,7 @@ class FileAbstraction
     std::string mPath; ///< valid path to this file
     XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
     off_t mMaxWriteOffset; ///< maximum written offset
+    
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__
