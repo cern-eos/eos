@@ -3385,6 +3385,11 @@ filesystem::pwrite (int fildes,
    if (ret == -1)
      errno = EIO;
  }
+ 
+ // update modification time
+ struct timespec ts;
+ eos::common::Timing::GetTimeSpec (ts, true);
+ fabst->SetUtimes(&ts);
 
  // Release file reference
  fabst->DecNumRefRW ();
