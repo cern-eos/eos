@@ -311,6 +311,7 @@ FileAbstraction::GetErrorQueue() const
 void 
 FileAbstraction::SetUtimes(struct timespec* utime)
 {
+  XrdSysMutexHelper v(mUtimeMutex);
   for(size_t i=0; i< 2; i++) 
   {   
     mUtime[i].tv_sec = utime[i].tv_sec;
@@ -324,6 +325,7 @@ FileAbstraction::SetUtimes(struct timespec* utime)
 const char*
 FileAbstraction::GetUtimes(struct timespec *utime)
 {
+  XrdSysMutexHelper v(mUtimeMutex);
   if (mUtime[0].tv_sec ||
       mUtime[0].tv_nsec ||
       mUtime[1].tv_sec ||

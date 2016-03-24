@@ -299,6 +299,7 @@ class FileAbstraction
     long long mLastPossibleKey; ///< last possible offset in file
     long long mFirstPossibleKey; ///< first possible offset in file
     XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
+    XrdSysMutex mUtimeMutex;///<protect utime changes
     struct timespec mUtime[2]; ///< cond variable tracking last set utime while file is still open
     std::string mPath; ///< valid path to this file
     XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset

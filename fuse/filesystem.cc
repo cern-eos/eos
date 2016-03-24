@@ -3162,6 +3162,12 @@ filesystem::truncate (int fildes, off_t offset)
    return ret;
  }
 
+ // update modification time
+ struct timespec ts[2];
+ eos::common::Timing::GetTimeSpec (ts[1], true);
+ ts[0] = ts[1];
+ fabst->SetUtimes(ts);
+
  if (XFC && fuse_cache_write)
  {
    fabst->mMutexRW.WriteLock ();
@@ -3387,9 +3393,10 @@ filesystem::pwrite (int fildes,
  }
  
  // update modification time
- struct timespec ts;
- eos::common::Timing::GetTimeSpec (ts, true);
- fabst->SetUtimes(&ts);
+ struct timespec ts[2];
+ eos::common::Timing::GetTimeSpec (ts[1], true);
+ ts[0] = ts[1];
+ fabst->SetUtimes(ts);
 
  // Release file reference
  fabst->DecNumRefRW ();
