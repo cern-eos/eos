@@ -29,6 +29,9 @@
  * 
  */
 
+#ifndef __EOSCOMMON_MACROS_HH__
+#define __EOSCOMMON_MACROS_HH__
+
 #include <arpa/inet.h>
 
 unsigned long long h_tonll(unsigned long long n)
@@ -48,3 +51,5 @@ unsigned long long n_tohll(unsigned long long n)
   return (((unsigned long long)ntohl(n)) << 32) + ntohl(n >> 32);
 #endif
 }
+
+#endif // #ifndef __EOSCOMMON_MACROS_HH__
