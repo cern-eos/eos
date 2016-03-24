@@ -229,8 +229,7 @@ The EOS fuse client.
 
 %files -n eos-fuse
 %defattr(-, root, root, -)
-%{_bindir}/eosfsd
-%{_sbindir}/eosd
+%{_bindir}/eosd
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
@@ -242,17 +241,24 @@ The EOS fuse client.
 %endif
 
 %post -n eos-fuse
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+echo "Skipping chkconfig for eosd"
+%else
 /sbin/chkconfig --add eosd
 echo "Starting conditional EOS FUSE services"
 sleep 2
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
-
+%endif
 %preun -n eos-fuse
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+echo "Skipping chkconfig for eosd"
+%else
 if [ $1 = 0 ]; then
 	echo "Stopping EOS FUSE services"
 	/sbin/service eosd stop > /dev/null 2>&1 || :
 	/sbin/chkconfig --del eosd
 fi
+%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-srm
