@@ -262,7 +262,6 @@ filesystem::inode (const char* path)
  return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Store an inode <-> path mapping
 //------------------------------------------------------------------------------
@@ -270,9 +269,43 @@ filesystem::inode (const char* path)
 void
 filesystem::store_p2i (unsigned long long inode, const char* path)
 {
+  eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
+  path2inode[path] = inode;
+  inode2path[inode] = path;
+}
+
+//------------------------------------------------------------------------------
+// Replace a prefix when directories are renamed
+//------------------------------------------------------------------------------
+
+void
+filesystem::replace_prefix (const char* oldprefix, const char*newprefix)
+{
  eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
- path2inode[path] = inode;
- inode2path[inode] = path;
+ std::string sprefix = oldprefix;
+ std::string nprefix = newprefix;
+
+ for (auto it= path2inode.begin(); it!=path2inode.end();)
+ {
+   auto dit=it;
+   if (it->first.substr(0,sprefix.length()) == sprefix)
+   {
+     std::string path = it->first;
+     path.erase(0, sprefix.length());
+     path.insert(0,nprefix);
+     eos_static_info("prefix-replace %s %s %llu",it->first.c_str(), path.c_str(), (unsigned long long)it->second);
+     dit++;
+     unsigned long long ino = it->second;
+     inode2path[ino] = path;
+     path2inode.erase(it);
+     path2inode[path] = ino;
+     it = dit;
+   }
+   else
+   {
+     it++;
+   }
+ }
 }
 
 
