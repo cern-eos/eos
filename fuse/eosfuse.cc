@@ -207,8 +207,8 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
 
 
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
-     ((ch = fuse_mount (local_mount_dir, &args)) != NULL)  &&
-     (fuse_daemonize (0) != -1 ) )
+      ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
+      (fuse_daemonize (0) != -1 ) )
  {
    if (getenv ("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp (getenv ("EOS_FUSE_LOWLEVEL_DEBUG"), "1")))
      me.config.isdebug = 1;
@@ -242,7 +242,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
                            &(get_operations ()),
                            sizeof (operations), NULL);
 
-   if (se != NULL)
+   if ( (se != NULL) )
    {
      if (fuse_set_signal_handlers (se) != -1)
      {
@@ -251,12 +251,10 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
        if (getenv ("EOS_FUSE_NO_MT") &&
            (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1")))
        {
-         kill (getppid (), SIGQUIT);
          err = fuse_session_loop (se);
        }
        else
        {
-         kill (getppid (), SIGQUIT);
          err = fuse_session_loop_mt (se);
        }
 
@@ -268,13 +266,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
 
    fuse_unmount (local_mount_dir, ch);
  }
- else
- {
-   // kill (getppid (), SIGQUIT);
- }
-
- fuse_opt_free_args (&args);
-
  return err ? 1 : 0;
 }
 
