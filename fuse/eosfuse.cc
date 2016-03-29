@@ -1069,7 +1069,7 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
 {
  eos::common::Timing timing (__func__);
  COMMONTIMING ("_start_", &timing);
- eos_static_debug ("");
+ eos_static_debug ("oldparent=%llu newparent=%llu oldname=%s newname=%s", (unsigned long long)parent, (unsigned long long)newparent, name, newname);
 
  EosFuse& me = instance ();
 
@@ -1083,6 +1083,7 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
  std::string newfullpath;
 
  char iparentpath[16384];
+ char ipath[16384];
 
  UPDATEPROCCACHE;
 
@@ -1106,8 +1107,9 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
  }
 
  me.fs ().getPPath (fullpath, me.config.mountprefix, parentpath, name);
- me.fs ().getPPath (newfullpath, me.config.mountprefix, parentpath, newname);
+ me.fs ().getPPath (newfullpath, me.config.mountprefix, newparentpath, newname);
 
+ sprintf (ipath,"%s/%s", parentpath, name);
  sprintf (iparentpath, "%s/%s", newparentpath, newname);
 
  me.fs ().unlock_r_p2i (); // <=
@@ -1121,12 +1123,10 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
 
  int retc = 0;
 
- {
-   filesystem::Track::Monitor mone (__func__, me.fs ().iTrack, stbuf.st_ino, true);
-
-   retc = me.fs ().rename (fullpath.c_str (), newfullpath.c_str (), fuse_req_ctx (req)->uid,
-			   fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
- }
+ filesystem::Track::Monitor mone (__func__, me.fs ().iTrack, stbuf.st_ino, true);
+ 
+ retc = me.fs ().rename (fullpath.c_str (), newfullpath.c_str (), fuse_req_ctx (req)->uid,
+			 fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
  if (!retc)
  {
@@ -1143,12 +1143,20 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
      }
      me.fs ().forget_p2i ((unsigned long long) stbuf.st_ino);
      me.fs ().store_p2i ((unsigned long long) stbuf.st_ino, iparentpath);
+
+     if (S_ISDIR(stbuf.st_mode))
+     {
+       // if a directory is renamed we have to replace the whole map by prefix
+       me.fs ().replace_prefix(ipath, iparentpath);
+     }
    }
 
    fuse_reply_err (req, 0);
  }
  else
    fuse_reply_err (req, errno);
+
+
 
  COMMONTIMING ("_stop_", &timing);
 
