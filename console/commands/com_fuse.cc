@@ -226,7 +226,7 @@ com_fuse (char* arg1)
    }
    else
    {
-     setenv("EOS_FUSE_RMLVL_PROTECT", "0", 1);
+     setenv("EOS_FUSE_RMLVL_PROTECT", "1", 1);
      env += " EOS_FUSE_RMLVL_PROTECT=0";
    }
 
