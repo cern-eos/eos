@@ -225,6 +225,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    me.config.mountprefix = mountprefix;
    me.config.mounthostport = mounthostport;
    me.fs ().setMountPoint (me.config.mount_point);
+   me.fs ().setPrefix(me.config.mountprefix);
 
    me.fs ().init (argc, argv, userdata);
 

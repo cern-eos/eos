@@ -874,6 +874,8 @@ public:
 
  Track iTrack;
 
+ void setPrefix(std::string &prefix) { mPrefix = prefix; }
+
 protected:
 private:
 
@@ -912,6 +914,9 @@ private:
 
  // Mapping inode to path name
  std::map<unsigned long long, std::string> inode2path;
+
+ // Prefix (duplicated from upstream object)
+ std::string mPrefix;
 
  //------------------------------------------------------------------------------
  //      ******* Implementation of the directory listing table *******

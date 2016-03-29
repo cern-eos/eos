@@ -874,9 +874,43 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 
          if ((path = fabst->GetUtimes (ut)))
          {
-           eos_static_debug ("CLOSEDEBUG closing file %s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), (int) raw_file->GetOpenFlags ());
+	   const char* nowpath=0;
+	   std::string npath;
+	   {
+	     // a file might have been renamed in the meanwhile
+	     lock_r_p2i();
+	     nowpath = this->path((unsigned long long)inode);
+	     unlock_r_p2i();
+	     // get it prefixed again
+	     getPath(npath, mPrefix, nowpath);
+	     nowpath = npath.c_str();
+	   }
+	   if (strcmp(path,nowpath))
+	   {
+	     eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+	     path = nowpath;
+	   }
+           eos_static_debug ("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
            // run the utimes command now after the close
-           this->utimes (path, ut, uid, gid, pid);
+           if (this->utimes (path, ut, uid, gid, pid))
+	   {
+	     // a file might have been renamed in the meanwhile
+	     lock_r_p2i();
+	     nowpath = this->path((unsigned long long)inode);
+	     unlock_r_p2i();
+	     // get it prefixed again
+	     getPath(npath, mPrefix, nowpath);
+	     nowpath = npath.c_str();
+	     if (strcmp(nowpath, path))
+	     {
+	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+	       path = nowpath;
+	       if (this->utimes (path, ut, uid, gid, pid))
+	       {
+		 eos_static_err("file utime setting failed permanently for %s", path);
+	       }
+	     }
+	   }
          }
          else
          {
@@ -889,11 +923,47 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
          struct timespec ut[2];
          ut[0].tv_sec = ut[1].tv_sec = 0;
          const char* path = fabst->GetUtimes (ut);
+	 const char* nowpath=0;
+	 std::string npath;
+	 {
+	   // a file might have been renamed in the meanwhile
+	   lock_r_p2i();
+	   nowpath = this->path((unsigned long long)inode);
+	   unlock_r_p2i();
+	   // get it prefixed again
+	   getPath(npath, mPrefix, nowpath);
+	   nowpath = npath.c_str();
+	 }
+	 if (strcmp(path,nowpath))
+	 {
+	   eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+	   path = nowpath;
+	 }
+
          if (ut[0].tv_sec || ut[1].tv_sec)
          {
-           eos_static_debug ("CLOSEDEBUG closing touched file %s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), (int) raw_file->GetOpenFlags ());
+	   // this still allows to jump in for a rename, but we neglect this possiblity for now
+           eos_static_debug ("CLOSEDEBUG closing touched file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
            // run the utimes command now after the close
-           this->utimes (path, ut, uid, gid, pid);
+	   if (this->utimes (path, ut, uid, gid, pid))
+	   {
+	     // a file might have been renamed in the meanwhile
+	     lock_r_p2i();
+	     nowpath = this->path((unsigned long long)inode);
+	     unlock_r_p2i();
+	     // get it prefixed again
+	     getPath(npath, mPrefix, nowpath);
+	     nowpath = npath.c_str();
+	     if (strcmp(nowpath, path))
+	     {
+	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+	       path = nowpath;
+	       if (this->utimes (path, ut, uid, gid, pid))
+	       {
+		 eos_static_err("file utime setting failed permanently for %s", path);
+	       }
+	     }
+	   }
          }
        }
 
