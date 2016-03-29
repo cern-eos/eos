@@ -17,7 +17,7 @@ New Features
 - high speed directory listing in FUSE (enhanded protocol returning stat information with readdir - backward compatible)
 - changing ETAG definition for directories to ino(hex):mtime(s).mtime(ms)
 - allowing arbitrary remote path to local path mounting (no matching prefixes needed)
-- allow to give a mount directory to 'mount -e eos <instance> <local-dir>'
+- allow to give a mount directory to 'mount -t eos <instance> <local-dir>'
 - documentation for geotags and new fuse features added
 - add 'find --xurl' to get XROotD urls as output
 - refactor FUSE in pure C++
@@ -45,6 +45,8 @@ Bug Fixes
 
 ``V0.3.155 Aquamarine``
 -----------------------
+
+.. warning:: The FUSE implementation in this release is broken in various places. The sync time propagation in this release is broken. Don't use this version in production on client and server side!
 
 Bug Fixes
 +++++++++
