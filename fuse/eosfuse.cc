@@ -42,6 +42,8 @@
 
 #include "common/Timing.hh"
 
+#include <XrdCl/XrdClDefaultEnv.hh>
+
 #define _FILE_OFFSET_BITS 64 
 
 #define UPDATEPROCCACHE \
@@ -215,6 +217,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
 
    if (me.config.isdebug)
    {
+     XrdCl::DefaultEnv::SetLogLevel("Dump");
      setenv("XRD_LOGLEVEL","Dump",1);
    }
 
