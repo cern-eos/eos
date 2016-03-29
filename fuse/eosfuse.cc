@@ -1118,8 +1118,14 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
                    fullpath.c_str (), newfullpath.c_str (), (unsigned long long) stbuf.st_ino, (unsigned long long) parent, (unsigned long long) newparent, retcold);
 
 
- int retc = me.fs ().rename (fullpath.c_str (), newfullpath.c_str (), fuse_req_ctx (req)->uid,
-                             fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
+ int retc = 0;
+
+ {
+   filesystem::Track::Monitor mone (__func__, me.fs ().iTrack, stbuf.st_ino, true);
+
+   retc = me.fs ().rename (fullpath.c_str (), newfullpath.c_str (), fuse_req_ctx (req)->uid,
+			   fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
+ }
 
  if (!retc)
  {
