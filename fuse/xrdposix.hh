@@ -670,7 +670,7 @@ extern "C"
   //----------------------------------------------------------------------------
   //! Do user mapping
   //----------------------------------------------------------------------------
-  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid);
+  const char* xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint64_t authid);
 
   //----------------------------------------------------------------------------
   //! updates the proccache entry for the given pid (only if needed)

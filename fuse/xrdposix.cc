@@ -68,6 +68,7 @@
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
@@ -1186,82 +1187,83 @@ xrd_release_rd_buff (pthread_t tid)
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
 const char*
-xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid)
+xrd_mapuser (uid_t uid, gid_t gid, pid_t pid, uint64_t conid)
 {
   eos_static_debug("uid=%lu gid=%lu pid=%lu",
                    (unsigned long) uid,
                    (unsigned long) gid,
                    (unsigned long) pid);
 
-  XrdOucString sid = "";
-
-  if (uid == 0)
+  XrdOucString sid ="";
+  if ((use_user_krb5cc || use_user_gsiproxy))
   {
-    uid = gid = DAEMONUID;
-  }
-
-  unsigned long long bituser=0;
-
-  // Emergency mapping of too high user ids to nob
-  if ( uid > 0xfffff)
-  {
-    eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
-                   "nobody\" uid=%u", uid);
-    uid = 99;
-  }
-  if ( gid > 0xffff)
-  {
-    eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
-                   "nobody\" gid=%u", gid);
-    gid = 99;
-  }
-
-  bituser = (uid & 0xfffff);
-  bituser <<= 16;
-  bituser |= (gid & 0xffff);
-  bituser <<= 6;
-  if(use_user_gsiproxy || use_user_krb5cc)
-  {
-    // if using strong authentication, the 6 bits are used to map different strong ids to the same uid
-    // if recoonection is needed, it goes through the authidmanager
-    bituser |= (authid & 0x3f);
+    eos_static_debug("conid = %llu",conid);
+    // endianess foes not matter in that case
+    eos::common::SymKey::Base64Encode ((char*) &conid, 8, sid);
   }
   else
   {
-    // if using the gateway node, the purpose of the reamining 6 bits is just a connection counter to be able to reconnect
-    XrdSysMutexHelper cLock(connectionIdMutex);
-    if (connectionId)
-      bituser |= (connectionId & 0x3f);
+    if (uid == 0)
+    {
+      uid = gid = DAEMONUID;
+    }
+
+    unsigned long long bituser = 0;
+
+    // Emergency mapping of too high user ids to nob
+    if (uid > 0xfffff)
+    {
+      eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                     "nobody\" uid=%u",
+                     uid);
+      uid = 99;
+    }
+    if (gid > 0xffff)
+    {
+      eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                     "nobody\" gid=%u",
+                     gid);
+      gid = 99;
+    }
+
+    bituser = (uid & 0xfffff);
+    bituser <<= 16;
+    bituser |= (gid & 0xffff);
+    bituser <<= 6;
+    {
+      // if using the gateway node, the purpose of the reamining 6 bits is just a connection counter to be able to reconnect
+      XrdSysMutexHelper cLock (connectionIdMutex);
+      if (connectionId) bituser |= (connectionId & 0x3f);
+    }
+
+    bituser = h_tonll (bituser);
+
+    XrdOucString sb64;
+    // WARNING: we support only one endianess flavour by doing this
+    eos::common::SymKey::Base64Encode ((char*) &bituser, 8, sb64);
+    size_t len = sb64.length ();
+    // Remove the non-informative '=' in the end
+    if (len > 2)
+    {
+      sb64.erase (len - 1);
+      len--;
+    }
+
+    // Reduce to 7 b64 letters
+    if (len > 7) sb64.erase (0, len - 7);
+
+    sid = "*";
+    sid += sb64;
   }
-
-  bituser = h_tonll(bituser);
-
-  XrdOucString sb64;
-  // WARNING: we support only one endianess flavour by doing this
-  eos::common::SymKey::Base64Encode ( (char*) &bituser, 8 , sb64);
-  size_t len = sb64.length();
-  // Remove the non-informative '=' in the end
-  if (len >2)
-  {
-    sb64.erase(len-1);
-    len--;
-  }
-
-  // Reduce to 7 b64 letters
-  if (len > 7)
-    sb64.erase(0, len - 7);
-
-  sid = "*";
-  sid += sb64;
 
   // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
   // if necessary.
-  sid.replace('/', '_');
-  sid.replace('+', '-');
-  eos_static_debug("user-ident=%s", sid.c_str());
+  sid.replace ('/', '_');
+  sid.replace ('+', '-');
+  eos_static_debug("user-ident=%s", sid.c_str ());
+
   return STRINGSTORE(sid.c_str());
 }
 
@@ -1273,15 +1275,15 @@ struct map_user
 {
   uid_t uid;
   gid_t gid;
-  uint8_t authid;
+  uint64_t conid;
   // first 20 bits for user id
   // 16 following bites for authid
   // 6 following bits for auth id (identity)
   char base64buf[9];
   bool base64computed;
   static const uint16_t sMaxAuthId;
-  map_user (uid_t _uid, gid_t _gid, uint8_t _authid) :
-      uid (_uid), gid(_gid), authid(_authid), base64computed(false)
+  map_user (uid_t _uid, gid_t _gid, uint64_t _authid) :
+      uid (_uid), gid(_gid), conid(_authid), base64computed(false)
   {
   }
 
@@ -1291,15 +1293,13 @@ struct map_user
     if (!base64computed)
     {
       // pid is actually meaningless
-      strncpy(base64buf, xrd_mapuser (uid, gid, 0,authid),8);
+      strncpy(base64buf, xrd_mapuser (uid, gid, 0,conid),8);
       base64buf[8]=0;
       base64computed = true;
     }
     return base64buf;
   }
 };
-
-const uint16_t map_user::sMaxAuthId = 2^6;
 
 //------------------------------------------------------------------------------
 // Class in charge of managing the xroot login (i.e. xroot connection)
@@ -1320,8 +1320,6 @@ public:
     CredType type;     // krb5 , krk5 or x509
     std::string lname; // link to credential file
     std::string fname; // credential file
-    time_t fmtime;     // credential file mtime
-    time_t fctime;     // credential file ctime
     time_t lmtime;     // link to credential file mtime
     time_t lctime;     // link to credential file mtime
     std::string identity; // identity in the credential file
@@ -1335,23 +1333,10 @@ protected:
   // maps (userid,sessionid) -> ( credinfo )
   // several threads (each from different process) might concurrently access this
   std::map< std::pair<uid_t,pid_t> , CredInfo > uidsid2credinfo;
-  struct IdenAuthIdEntry {
-    std::map<std::string, uint32_t> strongid2authid;
-    std::list<uint8_t> freeAuthIdPool;
-
-    IdenAuthIdEntry()
-    {
-      // initialize the free authentication id pool with all the number from 0 to sMaxAuthId-1
-      for(uint8_t i=0;i<map_user::sMaxAuthId;i++) freeAuthIdPool.push_back(i);
-    }
-  };
-  // maps userid -> strongid2authid  : ( identity -> authid ) , identity being krb5:<some_identity> or krk5:<some_fileless_param> or gsi:<some_identity>
-  //                freeAuthIdPool   : a list with all the available authid
-  // several threads (each from different process) might concurrently access this
-  std::map<uid_t, IdenAuthIdEntry > uid2IdenAuthid;
   // maps procid -> xrootd_login
   // only one thread per process will access this (protected by one mutex per process)
   std::vector<std::string> pid2StrongLogin;
+  static uint64_t sConIdCount;
 
   bool findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
   {
@@ -1411,8 +1396,6 @@ protected:
             {
               buffer2[bsize] = 0;
               credinfo.fname = buffer2;
-              credinfo.fmtime = filestat.st_mtim.tv_sec;
-              credinfo.fctime = filestat.st_ctim.tv_sec;
               eos_static_debug("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int )uid, (int )sid);
             }
           }
@@ -1481,6 +1464,21 @@ protected:
     return false;
   }
 
+  inline uint64_t getNewConId(uid_t uid, gid_t gid, pid_t pid)
+  {
+    //NOTE: we have (2^6)^8 ~= 3e14 connections which is basically infinite
+    //      fot the moment, we don't reuse connections at all, we leave them behind
+    //TODO: implement conid pooling when disconnect is implementend in XRootD
+    if(sConIdCount==std::numeric_limits<uint64_t>::max())
+      return 0;
+    return AtomicInc(sConIdCount)+1;
+  }
+
+  inline void releaseConId(uint64_t conid)
+  {
+    //TODO: implement channel disconnection when implementend in XRootD
+  }
+
   int
   updateProcCache (uid_t uid, gid_t gid, pid_t pid, bool reconnect)
   {
@@ -1547,12 +1545,8 @@ protected:
       if(ci.lmtime == credinfo.lmtime
           && ci.lctime == credinfo.lctime )
       {
-        if(credinfo.type==krk5) // if this is fileless credential cache, no target file to check
-          sessionInCache = true;
-        else if(ci.fmtime == credinfo.fmtime
-            && ci.fctime == credinfo.fctime
-            && ci.fname == credinfo.fname)
-          sessionInCache = true;
+        sessionInCache = true;
+        // we don't check the credentials file for modification because it might be modified during authentication
       }
     }
     pMutex.UnLockRead();
@@ -1579,8 +1573,8 @@ protected:
     // check the credential security
     if(!readCred(credinfo))
       return EACCES;
+
     // update authmethods for session leader and current pid
-    uint8_t authid;
     std::string sId;
     if(credinfo.type==krb5) sId = "krb5:";
     else if(credinfo.type==krk5) sId = "krk5:";
@@ -1607,39 +1601,13 @@ protected:
     }
     proccache_SetAuthMethod(pid,newauthmeth.c_str());
     proccache_SetAuthMethod(sid,newauthmeth.c_str());
-    // update uid2IdenAuthid
+
+    auto authid = getNewConId(uid,gid,pid);
+    if(!authid)
     {
-      eos::common::RWMutexWriteLock lock (pMutex);
-      // this will create the entry in uid2IdenAuthid if it does not exist already
-      auto &uidEntry = uid2IdenAuthid[uid];
-      if(credinfo.type==krb5) sId = "krb5:";
-      else if(credinfo.type==krk5) sId = "krk5:";
-      else sId = "x509:";
-      sId.append(credinfo.identity);
-      if (!reconnect && uidEntry.strongid2authid.count (sId))
-        authid = uidEntry.strongid2authid[sId]; // if this identity already has an authid , use it
-      else
-      {
-        if(uidEntry.freeAuthIdPool.empty())
-        {
-          eos_static_err("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
-              ,(int)uid,sId.c_str());
-          return EACCES;
-        }
-        // get the new connection id
-        uint8_t newauthid = uidEntry.freeAuthIdPool.front();
-        // remove the new connection from the connections available to be used
-        uidEntry.freeAuthIdPool.pop_front();
-        // recycle the previsous connection number if reconnecting
-        if(reconnect)
-        {
-          eos_static_debug("dropping authid %d",(int)uidEntry.strongid2authid[sId]);
-          uidEntry.freeAuthIdPool.push_back(uidEntry.strongid2authid[sId]);
-        }
-        // store the new authid
-        eos_static_debug("using newauthid %d",(int)newauthid);
-        authid = (uidEntry.strongid2authid[sId] = newauthid); // create a new authid if this id is not registered yet
-      }
+      eos_static_alert("running out of XRootD connections");
+      errCode = EBUSY;
+      return errCode;
     }
     // update pid2StrongLogin (no lock needed as only one thread per process can access this)
     map_user xrdlogin (uid, gid, authid);
@@ -1651,7 +1619,7 @@ protected:
     uidsid2credinfo[std::make_pair(uid,sid)] = credinfo;
     pMutex.UnLockWrite();
 
-    eos_static_debug("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
+    eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
                      pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
 
     return errCode;
@@ -1679,6 +1647,8 @@ public:
   }
 
 };
+
+uint64_t AuthIdManager::sConIdCount=0;
 
 AuthIdManager authidmanager;
 
