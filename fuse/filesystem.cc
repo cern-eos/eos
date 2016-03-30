@@ -914,9 +914,16 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 	     lock_r_p2i();
 	     nowpath = this->path((unsigned long long)inode);
 	     unlock_r_p2i();
-	     // get it prefixed again
-	     getPath(npath, mPrefix, nowpath);
-	     nowpath = npath.c_str();
+	     if (nowpath)
+	     {
+	       // get it prefixed again
+	       getPath(npath, mPrefix, nowpath);
+	       nowpath = npath.c_str();
+	     }
+	     else
+	     {
+	       nowpath = path;
+	     }
 	   }
 	   if (strcmp(path,nowpath))
 	   {
@@ -931,9 +938,16 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 	     lock_r_p2i();
 	     nowpath = this->path((unsigned long long)inode);
 	     unlock_r_p2i();
-	     // get it prefixed again
-	     getPath(npath, mPrefix, nowpath);
-	     nowpath = npath.c_str();
+	     if (nowpath) 
+	     {
+	       // get it prefixed again
+	       getPath(npath, mPrefix, nowpath);
+	       nowpath = npath.c_str();
+	     }
+	     else
+	     {
+	       nowpath = path;
+	     }
 	     if (strcmp(nowpath, path))
 	     {
 	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
@@ -963,9 +977,16 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 	   lock_r_p2i();
 	   nowpath = this->path((unsigned long long)inode);
 	   unlock_r_p2i();
-	   // get it prefixed again
-	   getPath(npath, mPrefix, nowpath);
-	   nowpath = npath.c_str();
+	   if (nowpath)
+	   {
+	     // get it prefixed again
+	     getPath(npath, mPrefix, nowpath);
+	     nowpath = npath.c_str();
+	   }
+	   else
+	   {
+	     nowpath = path;
+	   }
 	 }
 	 if (strcmp(path,nowpath))
 	 {
@@ -984,9 +1005,16 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 	     lock_r_p2i();
 	     nowpath = this->path((unsigned long long)inode);
 	     unlock_r_p2i();
-	     // get it prefixed again
-	     getPath(npath, mPrefix, nowpath);
-	     nowpath = npath.c_str();
+	     if (nowpath)
+	     {
+	       // get it prefixed again
+	       getPath(npath, mPrefix, nowpath);
+	       nowpath = npath.c_str();
+	     }
+	     else
+	     {
+	       nowpath = path;
+	     }
 	     if (strcmp(nowpath, path))
 	     {
 	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
