@@ -8,6 +8,10 @@ Beryl Release Notes
 ===================
 
 
+``V0.3.158 Aquamarine``
+-----------------------
+- protect against failing inode reverse lookup
+
 ``V0.3.157 Aquamarine``
 -----------------------
 
