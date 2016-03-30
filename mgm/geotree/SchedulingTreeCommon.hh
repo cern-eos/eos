@@ -260,7 +260,7 @@ public:
     if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return -1;
 
-    // -1 - Should be a drainer
+    // -1 - Should be in the right state
     mask = Available|Writable;
     if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
     return 1;
