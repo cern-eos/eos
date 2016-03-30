@@ -29,6 +29,7 @@
 #include <iostream>
 #include <sstream>
 #include <memory>
+#include <algorithm>
 
 #include <dirent.h>
 #include <stdint.h>
@@ -314,7 +315,7 @@ EosFuse::reply_buf_limited (fuse_req_t req,
                             size_t maxsize)
 {
  if ((ssize_t) off < (ssize_t) bufsize)
-   return fuse_reply_buf (req, buf + off, min (bufsize - off, maxsize));
+   return fuse_reply_buf (req, buf + off, std::min((size_t)(bufsize - off), maxsize));
 
  else
    return fuse_reply_buf (req, NULL, 0);
