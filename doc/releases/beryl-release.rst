@@ -8,6 +8,11 @@ Beryl Release Notes
 ===================
 
 
+``V0.3.157 Aquamarine``
+-----------------------
+
+- add mount scripts to eos-fuse RPM
+
 ``V0.3.156 Aquamarine``
 -----------------------
 
