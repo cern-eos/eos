@@ -44,7 +44,6 @@
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 /*----------------------------------------------------------------------------*/
-#include <climits>
 #include <cstdlib>
 #include <limits>
 #include <queue>
@@ -57,7 +56,6 @@
 #include <string.h>
 #include <pthread.h>
 #include <algorithm>
-#include <limits>
 /*----------------------------------------------------------------------------*/
 #include "FuseCache/FuseWriteCache.hh"
 #include "FuseCache/FileAbstraction.hh"
@@ -1469,7 +1467,7 @@ protected:
     //NOTE: we have (2^6)^8 ~= 3e14 connections which is basically infinite
     //      fot the moment, we don't reuse connections at all, we leave them behind
     //TODO: implement conid pooling when disconnect is implementend in XRootD
-    if(sConIdCount==std::numeric_limits<uint64_t>::max())
+    if(sConIdCount==((1ull<<48)-1))
       return 0;
     return AtomicInc(sConIdCount)+1;
   }
