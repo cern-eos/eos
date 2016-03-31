@@ -1137,9 +1137,10 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
      eos_static_debug ("forgetting inode=%llu storing as %s",
                        (unsigned long long) stbuf.st_ino, iparentpath);
 
+     me.fs ().dir_cache_forget ((unsigned long long) parent);
+
      if (parent != newparent)
      {
-       me.fs ().dir_cache_forget ((unsigned long long) parent);
        me.fs ().dir_cache_forget ((unsigned long long) newparent);
      }
      me.fs ().forget_p2i ((unsigned long long) stbuf.st_ino);
