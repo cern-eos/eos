@@ -119,6 +119,7 @@ if (NOT PACKAGEONLY)
 
   # The server build also requires
   if (NOT CLIENT)
+    find_package(RAMCloud REQUIRED)
     find_package(SparseHash REQUIRED)
     find_package(rt REQUIRED)
     find_package(ldap REQUIRED)
