@@ -1,7 +1,8 @@
-// ----------------------------------------------------------------------
-// File: Macros.hh
-// Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+//! @file main.cc
+//! @author Andreas-Joachim Peters
+//! @brief EOS C++ Fuse eosd executable
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -20,36 +21,11 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#include "eosfuse.hh"
 
-/**
- * @file   Macros.hh
- * 
- * @brief  Convenience macros for 64-bit network byte order conversion
- * 
- * 
- */
-
-#ifndef __EOSCOMMON_MACROS_HH__
-#define __EOSCOMMON_MACROS_HH__
-
-#include <arpa/inet.h>
-
-unsigned long long h_tonll(unsigned long long n)
+int
+main (int argc, char *argv[])
 {
-#if __BYTE_ORDER == __BIG_ENDIAN
-  return n;
-#else
-  return (((unsigned long long)htonl(n)) << 32) + htonl(n >> 32);
-#endif
+  EosFuse& eosfuse = EosFuse::instance();
+  return eosfuse.run(argc, argv, NULL);
 }
-
-unsigned long long n_tohll(unsigned long long n)
-{
-#if __BYTE_ORDER == __BIG_ENDIAN
-  return n;
-#else
-  return (((unsigned long long)ntohl(n)) << 32) + ntohl(n >> 32);
-#endif
-}
-
-#endif // #ifndef __EOSCOMMON_MACROS_HH__

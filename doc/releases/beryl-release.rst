@@ -8,6 +8,15 @@ Beryl Release Notes
 ===================
 
 
+``V0.3.158 Aquamarine``
+-----------------------
+- protect against failing inode reverse lookup
+
+``V0.3.157 Aquamarine``
+-----------------------
+
+- add mount scripts to eos-fuse RPM
+
 ``V0.3.156 Aquamarine``
 -----------------------
 
@@ -17,9 +26,13 @@ New Features
 - high speed directory listing in FUSE (enhanded protocol returning stat information with readdir - backward compatible)
 - changing ETAG definition for directories to ino(hex):mtime(s).mtime(ms)
 - allowing arbitrary remote path to local path mounting (no matching prefixes needed)
-- allow to give a mount directory to 'mount -e eos <instance> <local-dir>'
+- allow to give a mount directory to 'mount -t eos <instance> <local-dir>'
 - documentation for geotags and new fuse features added
 - add 'find --xurl' to get XROotD urls as output
+- refactor FUSE in pure C++
+- use only eosd for single user mounts and shared mounts (fix eosfsd grep in any operation script)
+- generate mtime timestamps locally
+- auto-detect LAZY open capability of mounted server
 
 Bug Fixes
 +++++++++
@@ -32,12 +45,17 @@ Bug Fixes
 - fix '-h' behaviour of all shell commands
 - protect against namespace crash with 'file touch /'
 - fix sync time propagation in mkdir and setTMTime
-- disable rm-level protection in single fuse client
+- fix rm level protection
 - don't report symbolic links a zero-replica files
 - fix SEGV in PIO mode when an error is returned in FUSE client
+- fix FUSE rename
+- fix FUSE utime/mtime behaviour
+- fix FUSE daemonize behaviour killing systemd on EL7
 
 ``V0.3.155 Aquamarine``
 -----------------------
+
+.. warning:: The FUSE implementation in this release is broken in various places. The sync time propagation in this release is broken. Don't use this version in production on client and server side!
 
 Bug Fixes
 +++++++++

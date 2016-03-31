@@ -106,6 +106,21 @@ FileAbstraction::SetMaxWriteOffset(off_t offset)
   mMaxWriteOffset = offset;
 }
 
+//------------------------------------------------------------------------------
+// SetMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::GrabMaxWriteOffset()
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  if (mFileRW)
+    mMaxWriteOffset = mFileRW->Size();
+  else
+    if (mFileRO)
+      mMaxWriteOffset = mFileRO->Size();
+
+  eos_static_info("grabbing %llx offset %lld", mFileRW, mMaxWriteOffset);
+}
 
 //------------------------------------------------------------------------------
 // Increment the value of accumulated writes size
@@ -296,6 +311,7 @@ FileAbstraction::GetErrorQueue() const
 void 
 FileAbstraction::SetUtimes(struct timespec* utime)
 {
+  XrdSysMutexHelper v(mUtimeMutex);
   for(size_t i=0; i< 2; i++) 
   {   
     mUtime[i].tv_sec = utime[i].tv_sec;
@@ -304,11 +320,12 @@ FileAbstraction::SetUtimes(struct timespec* utime)
 }
 
 //--------------------------------------------------------------------------
-// Get last utime setting of a file
+// Get last external utime setting of a file
 //--------------------------------------------------------------------------
 const char*
 FileAbstraction::GetUtimes(struct timespec *utime)
 {
+  XrdSysMutexHelper v(mUtimeMutex);
   if (mUtime[0].tv_sec ||
       mUtime[0].tv_nsec ||
       mUtime[1].tv_sec ||
@@ -319,9 +336,9 @@ FileAbstraction::GetUtimes(struct timespec *utime)
       utime[i].tv_sec = mUtime[i].tv_sec;
       utime[i].tv_nsec = mUtime[i].tv_nsec;
     }
-    return mPath.c_str();
+    
   }
-  return 0;
+  return mPath.c_str();
 }
 
 

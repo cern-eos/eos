@@ -38,36 +38,18 @@ endif(CPPUNIT_FOUND)
 add_subdirectory(FuseCache)
 
 #-------------------------------------------------------------------------------
-# eosfsd and eosd executables
+# eosd executables
 #-------------------------------------------------------------------------------
-add_executable(
-  eosfsd
-  ProcCache.cc ProcCache.hh
-  ProcCacheC.cc ProcCacheC.h
-  eosfs.c
-  xrdposix.cc        xrdposix.hh
-  FuseCacheEntry.cc  FuseCacheEntry.hh)
-
 add_executable(
   eosd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
-  eosd.c
-  xrdposix.cc        xrdposix.hh
-  FuseCacheEntry.cc  FuseCacheEntry.hh)
+  main.cc eosfuse.cc eosfuse.hh
+  filesystem.cc      filesystem.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh
+  AuthIdManager.cc)
 
 if(MacOSX)
-  target_link_libraries(
-    eosfsd
-    FuseCache
-    EosFstIo
-    ${FUSE_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY} )
-
   target_link_libraries(
     eosd
     FuseCache
@@ -81,21 +63,11 @@ if(MacOSX)
     ${OPENSSL_CRYPTO_LIBRARY} )
 
   set_target_properties(
-    eosd eosfsd
+    eosd
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
     COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE -DVERSION=\\\"${VERSION}\\\"")
 else()
-  target_link_libraries(
-    eosfsd
-    FuseCache-Static
-    EosFstIo-Static
-    ${FUSE_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY})
 
   target_link_libraries(
     eosd
@@ -110,18 +82,15 @@ else()
     ${OPENSSL_CRYPTO_LIBRARY})
 
   set_target_properties(
-    eosd eosfsd
+    eosd 
     PROPERTIES
     COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
 endif()
 
 install(
   TARGETS eosd
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-install(
-  TARGETS eosfsd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
 
 install(
   FILES eosfusebind

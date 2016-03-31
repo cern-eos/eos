@@ -36,8 +36,8 @@ export EOS_ROOT=/usr
 
 . /etc/init.d/functions
 
-if test ! -x ${EOS_ROOT}/sbin/eosd ; then
-  echo Error: ${EOS_ROOT}/sbin/eosd does not exist!
+if test ! -x ${EOS_ROOT}/bin/eosd ; then
+  echo Error: ${EOS_ROOT}/bin/eosd does not exist!
   exit 0
 fi
 
@@ -80,7 +80,7 @@ start() {
 
         # Check if eosd is already running
         echo
-        eosdpid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
+        eosdpid=`pgrep -f "${EOS_ROOT}/bin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
         export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
         export EOS_FUSE_LOWLEVEL_DEBUG=${EOS_FUSE_LOWLEVEL_DEBUG-0}
         export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
@@ -132,8 +132,8 @@ start() {
             ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
             ulimit -n 65000
             test -c /dev/fuse || modprobe fuse
-            ${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR-/eos/}  >& /dev/null 
-            pid=`pgrep -f "${EOS_ROOT}/sbin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
+            ${EOS_ROOT}/bin/eosd ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR-/eos/}  >& /dev/null 
+            pid=`pgrep -f "${EOS_ROOT}/bin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
             SRETVAL=$?
             if [ $SRETVAL -eq 0 ]; then
                 touch /var/lock/subsys/$prog.$i
@@ -205,17 +205,17 @@ stop() {
         fi
         echo -n "Stopping $prog for instance: $i"
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"    >& /dev/null
+        pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
         existed=$?
         umount -f -l $umdir >& /dev/null
-        pkill -f "${EOS_ROOT}/sbin/eosd $umdir"    
-        pgrep -f "${EOS_ROOT}/sbin/eosd $umdir"    >& /dev/null
+        pkill -f "${EOS_ROOT}/bin/eosd $umdir"    
+        pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
         killed=$?
         while [ $killed -eq 0 ]; 
         do     
-            pkill -9 -f "${EOS_ROOT}/sbin/eosd $umdir"
+            pkill -9 -f "${EOS_ROOT}/bin/eosd $umdir"
             usleep 100000
-            pgrep -f "${EOS_ROOT}/sbin/eosd $umdir" >& /dev/null
+            pgrep -f "${EOS_ROOT}/bin/eosd $umdir" >& /dev/null
             killed=$?
         done
         rm -f /var/lock/subsys/$prog.$i

@@ -28,6 +28,7 @@
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry> LayoutWrapper::gCacheAuthority;
+bool LayoutWrapper::mFailedLazyOpen=false;
 
 
 //--------------------------------------------------------------------------
@@ -77,6 +78,7 @@ LayoutWrapper::LayoutWrapper (eos::fst::Layout* file) :
   mCacheCreator = false;
   mInode = 0;
   mMaxOffset = 0;
+  mSize = -1;
 }
 
 //----------------------------------------------------------------------------
@@ -234,7 +236,14 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
 
   if (!status.IsOK())
   {
-    eos_static_err("failed to lazy open request %s at url %s",request.c_str(),user_url.c_str());
+    if ( (status.code == XrdCl::errErrorResponse) &&
+        (status.errNo == kXR_FSError) )
+    {
+      mFailedLazyOpen = true;
+      eos_static_warning("disabling lazy open - instance seems not to support it");
+      return 0;
+    }
+    eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d",request.c_str(),user_url.c_str(), status.code, status.errNo);
     return -1;
   }
 
@@ -319,13 +328,14 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   mOpaque = opaque;
 
 
-  if(!doOpen)
+  if(!doOpen && !mFailedLazyOpen)
   {
     retc =  LazyOpen (path, flags, mode, opaque, buf);
-    if (retc)
+    if (retc < 0)
       return retc;
   }
-  else 
+  
+  if (doOpen || mFailedLazyOpen)
   {
     if ( (retc = mFile->Open (path, flags, mode, opaque)) )
     {
@@ -360,22 +370,24 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   {
     if (flags & SFS_O_CREAT)
     {
-      time_t lt = time(0) + owner_lifetime;
-      gCacheAuthority[mInode].mLifeTime = lt;
+      gCacheAuthority[mInode].mLifeTime = 0;
+      gCacheAuthority[mInode].mOwnerLifeTime = owner_lifetime;
       gCacheAuthority[mInode].mCache = std::make_shared<Bufferll>();
       mCache = gCacheAuthority[mInode].mCache;
       mCanCache = true;
       mCacheCreator = true;
-      eos_static_notice("acquired cap owner-authority for file %s until tst=%lu size=%d", path.c_str(), lt, (*mCache).size());
+      mSize = gCacheAuthority[mInode].mSize;
+      eos_static_notice("acquired cap owner-authority for file %s size=%d", path.c_str(), (*mCache).size());
     }
     else
     {
-      if (gCacheAuthority.count(mInode) && (now < gCacheAuthority[mInode].mLifeTime ) )
+      if (gCacheAuthority.count(mInode) && ( (!gCacheAuthority[mInode].mLifeTime) || (now < gCacheAuthority[mInode].mLifeTime ) ) )
       {
 	mCanCache = true;
 	mCache = gCacheAuthority[mInode].mCache;
+	mSize = gCacheAuthority[mInode].mSize;
 	mMaxOffset = (*mCache).size();
-	eos_static_notice("reusing cap owner-authority for file %s until tst=%lu size=%d", path.c_str(), gCacheAuthority[mInode].mLifeTime, (*mCache).size());
+	eos_static_notice("reusing cap owner-authority for file %s cache-size=%d file-size=%lu", path.c_str(), (*mCache).size(), mSize);
       }
     }
     eos_static_info("####### %s cache=%d flags=%x\n", path.c_str(), mCanCache, flags);
@@ -385,7 +397,7 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   {
     for (auto it = gCacheAuthority.begin(); it != gCacheAuthority.end();)
     {
-      if ( it->second.mLifeTime < now)
+      if ( (it->second.mLifeTime) && (it->second.mLifeTime < now))
       {
 	auto d = it;
 	it++;
@@ -440,6 +452,13 @@ int64_t LayoutWrapper::WriteCache (XrdSfsFileOffset offset, const char* buffer, 
   if (!mCanCache)
     return 0;
 
+  {
+    XrdSysMutexHelper l(gCacheAuthorityMutex);
+    if (gCacheAuthority.count(mInode))
+      if ((offset+length) >  gCacheAuthority[mInode].mSize)
+	gCacheAuthority[mInode].mSize = (offset + length);
+  }
+
   if ((*mCache).capacity() < (1*1024*1024))
   {
     // helps to speed up 
@@ -490,6 +509,12 @@ int LayoutWrapper::Truncate (XrdSfsFileOffset offset, bool touchMtime)
   if(mFile->Truncate (offset))
     return -1;
 
+  {
+    XrdSysMutexHelper l(gCacheAuthorityMutex);
+    if (gCacheAuthority.count(mInode))
+      gCacheAuthority[mInode].mSize = (int64_t) offset;
+  }
+
   return 0;
 }
 
@@ -513,6 +538,16 @@ int LayoutWrapper::Close ()
     eos_static_debug("already closed");
     return 0;
   }
+  if (mCanCache && ( (mFlags & O_RDWR) || (mFlags & O_WRONLY) ) )
+  {
+    // define expiration of owner lifetime from close on
+    XrdSysMutexHelper l(gCacheAuthorityMutex);
+    time_t now = time(0);
+    time_t expire = now + gCacheAuthority[mInode].mOwnerLifeTime;
+    gCacheAuthority[mInode].mLifeTime = expire;
+    eos_static_notice("define expiry of  cap owner-authority for file inode=%lu tst=%lu lifetime=%lu", mInode , expire, gCacheAuthority[mInode].mOwnerLifeTime);
+  }
+
   if (mFile->Close ())
   {
     eos_static_debug("error while closing");
@@ -536,6 +571,7 @@ int LayoutWrapper::Stat (struct stat* buf)
 
   return 0;
 }
+
 
 //--------------------------------------------------------------------------
 // Set atime and mtime at current time
