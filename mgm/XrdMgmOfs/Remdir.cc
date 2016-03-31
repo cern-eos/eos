@@ -110,7 +110,6 @@ XrdMgmOfs::_remdir (const char *path,
 
   std::unique_ptr<eos::IContainerMD> dhpar;
   std::unique_ptr<eos::IContainerMD> dh;
-  eos::IContainerMD::id_t dh_id = 0;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
 

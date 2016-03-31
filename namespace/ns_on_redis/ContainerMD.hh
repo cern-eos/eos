@@ -369,36 +369,18 @@ public:
   void cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc);
 
   //----------------------------------------------------------------------------
-  //! Get pointer to first subcontainer. Must be used in conjunction with
-  //! nextContainer to iterate over the list of subcontainers.
+  //! Get set of file names contained in the current object
   //!
-  //! @return pointer to first subcontainer or 0 if no subcontainers
+  //! @return set of file names
   //----------------------------------------------------------------------------
-  std::unique_ptr<IContainerMD> beginSubContainer();
+  virtual std::set<std::string> getNameFiles() const;
 
   //----------------------------------------------------------------------------
-  //! Get pointer to the next subcontainer object. Must be used in conjunction
-  //! with beginContainers to iterate over the list of subcontainers.
+  //! Get set of subcontainer names contained in the current object
   //!
-  //! @return pointer to next subcontainer or 0 if no subcontainers
+  //! @return set of subcontainer names
   //----------------------------------------------------------------------------
-  std::unique_ptr<IContainerMD> nextSubContainer();
-
-  //----------------------------------------------------------------------------
-  //! Get pointer to first file in the container. Must be used in conjunction
-  //! with nextFile to iterate over the list of files.
-  //!
-  //! @return pointer to the first file or 0 if no files
-  //----------------------------------------------------------------------------
-  std::unique_ptr<IFileMD> beginFile();
-
-  //----------------------------------------------------------------------------
-  //! Get pointer to the next file object. Must be used in conjunction
-  //! with beginFiles to iterate over the list of files.
-  //!
-  //! @return pointer to next file or 0 if no files
-  //----------------------------------------------------------------------------
-  std::unique_ptr<IFileMD> nextFile();
+  virtual std::set<std::string> getNameContainers() const;
 
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
@@ -423,10 +405,6 @@ protected:
   XAttrMap     pXAttrs;
 
 private:
-  std::vector<std::string> pFiles; ///< List of file ids
-  std::vector<std::string> pSubCont; ///< List of subcontainer ids
-  std::vector<std::string>::iterator pIterFile, pIterSubCont;
-
   // uint64_t pFileCursor; ///< File hmap cursor for scan operations
   // uint64_t pDirCursor; ///< Directory hmap cursor for scan operations
 

@@ -229,7 +229,7 @@ XrdMgmOfs::_find (const char *path,
 
         if (!nofiles)
         {
-          eos::IFileMD* fmd = 0;
+	  std::unique_ptr<eos::IFileMD> fmd;
 	  std::string link;
 	  std::set<std::string> fnames = cmd->getNameFiles();
 

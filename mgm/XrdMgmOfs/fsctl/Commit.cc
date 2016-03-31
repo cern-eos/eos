@@ -457,7 +457,7 @@
         try
         {
 	  gOFS->eosView->updateFileStore(fmd.get());
-	  cmd.reset(gOFS->eosDirectoryService->getContainerMD(cid));
+	  cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	  
 	  if (isUpdate)
 	  {

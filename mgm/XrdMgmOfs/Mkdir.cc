@@ -380,8 +380,8 @@ XrdMgmOfs::_mkdir (const char *path,
 	{
 	  eos_debug("creating path %s", cPath.GetSubPath(j));
 	  tmp_path.Init(cPath.GetSubPath(j));
-	  dir.reset(eosView->getContainer(tmp_path.GetParentPath()));
-	  newdir.reset(eosView->createContainer(cPath.GetSubPath(j), recurse));
+	  dir = eosView->getContainer(tmp_path.GetParentPath());
+	  newdir = eosView->createContainer(cPath.GetSubPath(j), recurse);
 	  newdir->setCUid(vid.uid);
 	  newdir->setCGid(vid.gid);
 	  newdir->setMode(dir->getMode());
@@ -437,8 +437,8 @@ XrdMgmOfs::_mkdir (const char *path,
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
   try
   {
-    dir.reset(eosView->getContainer(cPath.GetParentPath()));
-    newdir.reset(eosView->createContainer(path));
+    dir = eosView->getContainer(cPath.GetParentPath());
+    newdir = eosView->createContainer(path);
     newdir->setCUid(vid.uid);
     newdir->setCGid(vid.gid);
     newdir->setMode(acc_mode);

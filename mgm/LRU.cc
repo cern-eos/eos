@@ -409,7 +409,7 @@ LRU::AgeExpire (const char* dir,
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      eos::IFileMD* fmd = 0;
+      std::unique_ptr<eos::IFileMD> fmd;
       std::set<std::string> fnames = cmd->getNameFiles();
 
       for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -699,7 +699,7 @@ LRU::ConvertMatch (const char* dir,
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      eos::IFileMD* fmd = 0;
+      std::unique_ptr<eos::IFileMD> fmd;
       std::set<std::string> fnames = cmd->getNameFiles();
 
       for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)

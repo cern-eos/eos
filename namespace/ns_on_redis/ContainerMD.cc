@@ -250,81 +250,26 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 }
 
 //------------------------------------------------------------------------------
-// Get pointer to first subcontainer. Must be used in conjunction with
-// nextContainer to iterate over the list of subcontainers.
+// Get set of file names contained in the current object
 //------------------------------------------------------------------------------
-std::unique_ptr<IContainerMD>
-ContainerMD::beginSubContainer()
+std::set<std::string>
+ContainerMD::getNameFiles() const
 {
-  // TODO: review this to be more efficient in case there are many subcont
-  // i.e. use the hscan function and do the same also for files
-  pSubCont = pRedox->hvals(pDirsKey);
-
-  if (pSubCont.empty())
-  {
-    pIterSubCont = pSubCont.end();
-    return std::unique_ptr<IContainerMD> {nullptr};
-  }
-  else
-  {
-    pIterSubCont = pSubCont.begin();
-    return pContSvc->getContainerMD(std::stoull(*pIterSubCont));
-  }
+  std::vector<std::string> vect_files = pRedox->hvals(pFilesKey);
+  std::set<std::string> set_files(vect_files.begin(), vect_files.end());
+  return set_files;
 }
 
-//------------------------------------------------------------------------------
-// Get pointer to the next subcontainer object. Must be used in conjunction
-// with beginContainers to iterate over the list of subcontainers.
-//------------------------------------------------------------------------------
-std::unique_ptr<IContainerMD>
-ContainerMD::nextSubContainer()
-{
-  if ((pIterSubCont == pSubCont.end()) || (++pIterSubCont == pSubCont.end()))
-  {
-    return std::unique_ptr<IContainerMD> {nullptr};
-  }
-  else
-  {
-    return pContSvc->getContainerMD(std::stoull(*pIterSubCont));
-  }
-}
 
-//------------------------------------------------------------------------------
-// Get pointer to first file in the container. Must be used in conjunction
-// with nextFile to iterate over the list of files.
-//------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
-ContainerMD::beginFile()
+//----------------------------------------------------------------------------
+// Get set of subcontainer names contained in the current object
+//----------------------------------------------------------------------------
+std::set<std::string>
+ContainerMD::getNameContainers() const
 {
-  pFiles = pRedox->hvals(pFilesKey);
-
-  if (pFiles.empty())
-  {
-    pIterFile = pFiles.end();
-    return std::unique_ptr<IFileMD>(nullptr);
-  }
-  else
-  {
-    pIterFile = pFiles.begin();
-    return pFileSvc->getFileMD(std::stoull(*pIterFile));
-  }
-}
-
-//------------------------------------------------------------------------------
-// Get pointer to the next file object. Must be used in conjunction
-// with beginFiles to iterate over the list of files.
-//------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
-ContainerMD::nextFile()
-{
-  if ((pIterFile == pFiles.end()) || (++pIterFile == pFiles.end()))
-  {
-    return std::unique_ptr<IFileMD> {nullptr};
-  }
-  else
-  {
-    return pFileSvc->getFileMD(std::stoull(*pIterFile));
-  }
+  std::vector<std::string> vect_subcont = pRedox->hvals(pDirsKey);
+  std::set<std::string> set_subcont(vect_subcont.begin(), vect_subcont.end());
+  return set_subcont;
 }
 
 //------------------------------------------------------------------------------
