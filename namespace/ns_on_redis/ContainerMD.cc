@@ -58,7 +58,7 @@ ContainerMD::findContainer(const std::string& name)
     IFileMD::id_t cid = std::stoull(pRedox->hget(pDirsKey, name));
     return pContSvc->getContainerMD(cid);
   }
-  catch (std::runtime_error& e)
+  catch (std::exception& e)
   {
     return std::unique_ptr<IContainerMD>(nullptr);
   }
@@ -113,7 +113,7 @@ ContainerMD::findFile(const std::string& name)
     std::string fid = pRedox->hget(pFilesKey, name);
     return pFileSvc->getFileMD(std::stoull(fid));
   }
-  catch (std::runtime_error& e)
+  catch (std::exception& e)
   {
     return std::unique_ptr<IFileMD>(nullptr);
   }
@@ -156,7 +156,7 @@ ContainerMD::removeFile(const std::string& name)
     IFileMD::id_t fid = std::stoull(pRedox->hget(pFilesKey, name));
     file = pFileSvc->getFileMD(fid);
   }
-  catch (std::runtime_error& e)
+  catch (std::exception& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "Unknown file " << name << " in container " << pName;

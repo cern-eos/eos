@@ -198,7 +198,7 @@ uint64_t FileMDSvc::getNumFiles()
     num_files = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
 					 constants::sNumFiles));
   }
-  catch (std::runtime_error& e) {}
+  catch (std::exception& e) {}
 
   return num_files;
 }

@@ -244,7 +244,7 @@ uint64_t ContainerMDSvc::getNumContainers()
     num_conts = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
 					 constants::sNumConts));
   }
-  catch (std::runtime_error& e) { }
+  catch (std::exception& e) { }
 
   return num_conts;
 }
