@@ -285,6 +285,7 @@ filesystem::replace_prefix (const char* oldprefix, const char*newprefix)
  std::string sprefix = oldprefix;
  std::string nprefix = newprefix;
 
+ std::vector< std::pair<std::string, unsigned long long> > to_insert;
  for (auto it= path2inode.begin(); it!=path2inode.end();)
  {
    auto dit=it;
@@ -298,7 +299,8 @@ filesystem::replace_prefix (const char* oldprefix, const char*newprefix)
      unsigned long long ino = it->second;
      inode2path[ino] = path;
      path2inode.erase(it);
-     path2inode[path] = ino;
+     // we can't insert the new element here because it invalidates all the iterators
+     to_insert.push_back(std::make_pair(path,ino));
      it = dit;
    }
    else
@@ -306,6 +308,8 @@ filesystem::replace_prefix (const char* oldprefix, const char*newprefix)
      it++;
    }
  }
+ for(auto it = to_insert.begin(); it != to_insert.end(); it++)
+   path2inode.insert(*it);
 }
 
 
