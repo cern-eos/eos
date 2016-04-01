@@ -659,37 +659,29 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
 
      unsigned long long in;
 
-     while ((in = me.fs ().dirview_entry (ino, cnt, 0)))
-     {
-       if (cnt == 0)
-       {
-         // this is the '.' directory
-         cnt++;
-         continue;
-       }
-       else if (cnt == 1)
-       {
-         // this is the '..' directory
-         cnt++;
-         continue;
-       }
-       else
-       {
-         std::string bname = me.fs ().base_name (in);
-         if (bname.length ())
-         {
-           struct stat *buf = NULL;
-           if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
-           dirbuf_add (req, b, bname.c_str (), (fuse_ino_t) in, buf);
-           cnt++;
-         }
-         else
-         {
-           eos_static_err ("failed for inode=%llu", in);
-           cnt++;
-         }
-       }
-     }
+      while ((in = me.fs ().dirview_entry (ino, cnt, 0)))
+      {
+        std::string bname = me.fs ().base_name (in);
+        if (cnt == 0)
+        {
+          // this is the '.' directory
+          bname = ".";
+        }
+        else if (cnt == 1)
+        {
+          // this is the '..' directory
+          bname = "..";
+        }
+        if (bname.length ())
+        {
+          struct stat *buf = NULL;
+          if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
+          dirbuf_add (req, b, bname.c_str (), (fuse_ino_t) in, buf);
+        }
+        else
+          eos_static_err("failed for inode=%llu", in);
+        cnt++;
+      }
 
      //........................................................................
      // Add directory to cache or update it
