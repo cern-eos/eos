@@ -8,6 +8,20 @@ Beryl Release Notes
 ===================
 
 
+``V0.3.159 Aquamarine``
+
+Bug Fixes
++++++++++
+
+- fix SEGV in directory rename in FUSE
+- fix read-after-write short-read for not aligned read crossing local-cache/remote border in FUSE
+- make '.' and '..' visible in FUSE (again)
+
+New Features
+++++++++++++
+
+- find honours now also ACLs in all recursive directories
+
 ``V0.3.158 Aquamarine``
 -----------------------
 - protect against failing inode reverse lookup
