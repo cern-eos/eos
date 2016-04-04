@@ -12,9 +12,9 @@ if(RAMCLOUD_INCLUDE_DIRS AND RAMCLOUD_LIBRARIES)
 else()
   find_path(
     RAMCLOUD_INCLUDE_DIR
-    NAMES ramcloud/RamCloud.h
+    NAMES RamCloud.h
     HINTS ${RAMCLOUD_ROOT_DIR}
-    PATH_SUFFIXES include)
+    PATH_SUFFIXES include/ramcloud)
 
   find_library(
     RAMCLOUD_LIBRARY
@@ -23,6 +23,7 @@ else()
     PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
   set(RAMCLOUD_INCLUDE_DIRS ${RAMCLOUD_INCLUDE_DIR})
+  set(RAMCLOUD_LIBRARIES ${RAMCLOUD_LIBRARY})
 
   find_package_handle_standard_args(
     RAMCloud
