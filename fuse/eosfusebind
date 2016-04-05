@@ -80,6 +80,7 @@ function ParseArgs
       return
     else
       echo "PAM mode: Unknown PAM_TYPE='$PAM_TYPE'" >&2; exit 1
+      echo "PAM mode: Unknown PAM_TYPE='$PAM_TYPE'" > /tmp/err.txt; exit 1
     fi
   fi
   if [[ $# = 1   &&  (  $1 = "-h" || $1 = "--help" ) ]]; then ExitUsage; fi
@@ -324,15 +325,13 @@ function LinkUserGlob
     CFILE=`basename $CREDTAG`
     CFILE="/var/run/eosd/credentials/store/$CFILE"
   fi
-  PREVFILE=`readlink -e $SymlinkName`
   #echo "ln -sf $CFILE $SymlinkName"
   ln -sf $CFILE $SymlinkName
   if [ $? -ne 0 ]; then
     echo "Error creating credentials symlink." >&2
   fi
-  if [[ "X$PREVFILE" != "X" && "$PREVFILE" != "$CFILE" && "`dirname $PREVFILE`" = "/var/run/eosd/credentials/store" ]]; then
-    rm -f "$PREVFILE"
-  fi
+  # cleanup the other credentials in the store as only one global credential is required at a time
+  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \;
 }
 
 function UnlinkUserGlob
@@ -347,6 +346,8 @@ function UnlinkUserGlob
   done;
   #echo rm -f ${SymlinkBaseNameUser}.*
   rm -f ${SymlinkBaseNameUser}.*
+  # cleanup the other credentials in the store as no credentials is needed if there is no user global
+  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{} \;
 }
 
 function UnlinkUserSessions
