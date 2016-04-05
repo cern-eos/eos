@@ -1375,8 +1375,8 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
    // Update the entry parameters
    struct fuse_entry_param e;
    memset (&e, 0, sizeof ( e));
-   e.attr_timeout = 0;
-   e.entry_timeout = 0;
+   e.attr_timeout = me.config.attrcachetime;
+   e.entry_timeout = me.config.entrycachetime;
    e.ino = rinode;
    e.attr.st_mode = S_IFREG;
    e.attr.st_uid = fuse_req_ctx (req)->uid;

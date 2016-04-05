@@ -143,6 +143,11 @@ XrdMgmOfs::_find (const char *path,
 
       if (cmd)
       {
+	if (!permok)
+	{
+	  // check-out for ACLs
+	  permok = _access(Path.c_str(), R_OK|X_OK, out_error, vid, "")?false:true;
+	}
         if (!permok)
         {
           stdErr += "error: no permissions to read directory ";
