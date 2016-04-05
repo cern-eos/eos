@@ -21,4 +21,4 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-INSTALL ( FILES mount.eos umount.eos DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}/ PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES mount.eos umount.eos DESTINATION ${CMAKE_INSTALL_SBINDIR} PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
