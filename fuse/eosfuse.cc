@@ -78,14 +78,10 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
 {
  eos_static_debug ("");
  EosFuse& me = instance ();
-
  struct fuse_chan* ch;
- time_t xcfsatime;
-
  int err = -1;
  char* epos;
  char* spos;
-
  char* local_mount_dir;
  char mounthostport[4096];
  char mountprefix[4096];
@@ -121,8 +117,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  {
    me.config.direct_io = 1;
  }
-
- xcfsatime = time (NULL);
 
  char rdr[4096];
  char url[4096];
