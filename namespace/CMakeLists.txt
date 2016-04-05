@@ -100,12 +100,7 @@ target_link_libraries(
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-add_subdirectory(ns_in_memory)
-
-add_executable(ramcloud_test ns_on_ramcloud/RamcloudClient.cc)
-target_link_libraries(
-  ramcloud_test
-  ${RAMCLOUD_LIBRARIES})
-
+#add_subdirectory(ns_in_memory)
 add_subdirectory(ns_on_ramcloud)
+add_subdirectory(ns_on_redis)
 #add_subdirectory(ns_on_filesystem)

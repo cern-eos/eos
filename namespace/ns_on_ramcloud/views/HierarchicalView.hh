@@ -28,7 +28,7 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/ns_on_redis/accounting/QuotaStats.hh"
+#include "namespace/ns_on_ramcloud/accounting/QuotaStats.hh"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-private-field"

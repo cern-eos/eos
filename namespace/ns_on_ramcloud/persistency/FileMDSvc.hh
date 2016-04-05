@@ -136,10 +136,9 @@ class FileMDSvc: public IFileMDSvc
   ListenerList pListeners;
   IQuotaStats* pQuotaStats;
   IContainerMDSvc* pContSvc;
-  // TODO: review this for RAMCloud
-  // redox::Redox* pRedox;
-  // std::string pRedisHost;
-  // uint32_t pRedisPort;
+  std::string pFilesTableName; ///< Files table name
+  uint64_t pFilesTableId; ///< Files talbe id
+  uint64_t pMetaTableId; ///< Meta table id
 };
 
 EOSNSNAMESPACE_END

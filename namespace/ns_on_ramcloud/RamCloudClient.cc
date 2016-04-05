@@ -17,18 +17,19 @@
  ************************************************************************/
 
 #include "RamCloudClient.hh"
+#include "Context.h"
 
 EOSNSNAMESPACE_BEGIN
 
 using namespace RAMCloud;
 static std::string sRamCloudNamespace = "eosnamespace";
-static thread_local* sRamCloudContext = null_ptr;
-static thread_local RamCloud *sRamCloudClient = null_ptr;
+static thread_local Context* sRamCloudContext = nullptr;
+static thread_local RamCloud *sRamCloudClient = nullptr;
 
 //------------------------------------------------------------------------------
 // Function returning a thread local RamCloud client object
 //------------------------------------------------------------------------------
-static RAMCloud::RamCloud*
+RAMCloud::RamCloud*
 getRamCloudClient()
 {
   if (sRamCloudClient)
@@ -37,9 +38,23 @@ getRamCloudClient()
   // Creaate new object for the current thread
   // TODO: add configuration optinons to the client
   std::string locator = "lc:128.142.134.126:5254,188.184.150.109:5254,128.142.142.195:5254";
-  sRamcCloudContext = new Context(false);
-  sRamCloudClient = new RamCloud(&context, locator.c_str(), sRamCloudNamespace.c_str());
+  sRamCloudContext = new Context(false);
+  sRamCloudClient = new RamCloud(sRamCloudContext, locator.c_str(), sRamCloudNamespace.c_str());
   return sRamCloudClient;
+}
+
+//------------------------------------------------------------------------------
+// Test if RAMCloud table is empty
+//------------------------------------------------------------------------------
+bool isEmptyTable(uint64_t table_id)
+{
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  RAMCloud::TableEnumerator iter(*client, table_id, true);
+
+  if (iter.hasNext())
+    return false;
+  else
+    return true;
 }
 
 EOSNSNAMESPACE_END

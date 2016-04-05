@@ -18,17 +18,19 @@
 
 #include "namespace/ns_on_ramcloud/Constants.hh"
 #include "namespace/ns_on_ramcloud/FileMD.hh"
-#include "namespace/ns_on_ramcloud/RedisClient.hh"
+#include "namespace/ns_on_ramcloud/RamCloudClient.hh"
 #include "namespace/ns_on_ramcloud/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_ramcloud/accounting/QuotaStats.hh"
 #include "namespace/ns_on_ramcloud/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_on_ramcloud/RamCloudClient.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMDSvc::FileMDSvc()
+FileMDSvc::FileMDSvc():
+  pFilesTableName("eos_files"), pFilesTableId(), pMetaTableId()
 {}
 
 //------------------------------------------------------------------------------
@@ -36,7 +38,6 @@ FileMDSvc::FileMDSvc()
 //------------------------------------------------------------------------------
 void FileMDSvc::configure(std::map<std::string, std::string>& config)
 {
-
 }
 
 //------------------------------------------------------------------------------
@@ -51,8 +52,9 @@ void FileMDSvc::initialize()
     throw e;
   }
 
-  // TODO: review this
-  // pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  pFilesTableId = client->createTable(pFilesTableName.c_str());
+  pMetaTableId = client->createTable(constants::sMetaTableName.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -62,11 +64,16 @@ std::unique_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id)
 {
   std::string blob;
-  std::string key = std::to_string(id) + constants::sFileKeySuffix;
 
   try
   {
-    blob = pRedox->hget(key, "data");
+    RAMCloud::Buffer bval;
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    std::string key = std::to_string(id) + constants::sFileKeySuffix;
+    client->read(pFilesTableId, static_cast<const void*>(key.c_str()),
+		 key.length(), &bval);
+
+    blob.assign(bval.getOffset<char>(0));
   }
   catch (std::runtime_error& e)
   {
@@ -86,10 +93,16 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 std::unique_ptr<IFileMD> FileMDSvc::createFile()
 {
   // Get first available file id
-  uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				     constants::sFirstFreeFid, 1);
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  uint64_t free_id = client->incrementInt64(pMetaTableId,
+    static_cast<const void*>(constants::sFirstFreeFid.c_str()),
+    constants::sFirstFreeFid.length(), 1);
+
   // Increase total number of files
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
+  (void) client->incrementInt64(pMetaTableId,
+     static_cast<const void*>(constants::sNumFiles.c_str()),
+     constants::sNumFiles.length(), 1);
+
   std::unique_ptr<IFileMD> file {new FileMD(free_id, this)};
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
@@ -104,7 +117,9 @@ void FileMDSvc::updateStore(IFileMD* obj)
   std::string buffer;
   dynamic_cast<FileMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
-  pRedox->hset(key, "data", buffer);
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  client->write(pFilesTableId, static_cast<const void*>(key.c_str()),
+		key.length(), buffer.c_str());
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
   notifyListeners(&e);
 }
@@ -122,13 +137,15 @@ void FileMDSvc::removeFile(IFileMD* obj)
 //------------------------------------------------------------------------------
 void FileMDSvc::removeFile(FileMD::id_t fileId)
 {
+  RAMCloud::RamCloud* client = getRamCloudClient();
   std::string key = std::to_string(fileId) + constants::sFileKeySuffix;
 
   try
   {
-    pRedox->hdel(key, "data");
+    client->remove(pFilesTableId, static_cast<const void*>(key.c_str()),
+		   key.length());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "File #" << fileId << " not found. ";
@@ -136,8 +153,10 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
     throw e;
   }
 
-  // Derease total number of files
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
+  // Decrease total number of files
+  (void) client->incrementInt64(pMetaTableId,
+     static_cast<const void*>(constants::sNumFiles.c_str()),
+     constants::sNumFiles.length(), -1);
 
   // Notify the listeners
   IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
@@ -188,8 +207,11 @@ uint64_t FileMDSvc::getNumFiles()
 
   try
   {
-    num_files = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-					 constants::sNumFiles));
+    RAMCloud::Buffer bval;
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    client->read(pMetaTableId, static_cast<const void*>(constants::sNumFiles.c_str()),
+      constants::sNumFiles.length(), &bval);
+    num_files = strtoul(bval.getOffset<char>(0), NULL, 0);
   }
   catch (std::exception& e) {}
 

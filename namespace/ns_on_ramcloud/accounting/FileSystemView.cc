@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_on_redis/accounting/FileSystemView.hh"
+#include "namespace/ns_on_ramcloud/RamCloudClient.hh"
+#include "namespace/ns_on_ramcloud/accounting/FileSystemView.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
@@ -31,7 +32,6 @@ const std::string FileSystemView::sNoReplicaPrefix = "fsview_noreplicas";
 //------------------------------------------------------------------------------
 FileSystemView::FileSystemView()
 {
-  pRedox = RedisClient::getInstance();
 }
 
 //------------------------------------------------------------------------------
@@ -40,17 +40,38 @@ FileSystemView::FileSystemView()
 void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
 {
   std::string key, val;
+  uint64_t table_id;
+  bool table_exists = true;
+  RAMCloud::RamCloud* client = getRamCloudClient();
 
   switch( e->action )
   {
     // New file has been created
     case IFileMDChangeListener::Created:
-      pRedox->sadd(sNoReplicaPrefix, std::to_string(e->file->getId()));
+      try {
+	table_id = client->getTableId(sNoReplicaPrefix.c_str());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
+	table_id = client->createTable(sNoReplicaPrefix.c_str());
+      }
+
+      try {
+	std::string key = std::to_string(e->file->getId());
+	client->write(table_id, static_cast<const void*>(key.c_str()),
+		     key.length(), static_cast<const char*>(0));
+      }
+      catch (RAMCloud::ClientException& e) {}
       break;
 
     // File has been deleted
     case IFileMDChangeListener::Deleted:
-      pRedox->srem(sNoReplicaPrefix, std::to_string(e->fileId));
+      try {
+	table_id = client->getTableId(sNoReplicaPrefix.c_str());
+	key = std::to_string(e->fileId);
+	client->remove(table_id, static_cast<const void*>(key.c_str()),
+		       key.length());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {}
       break;
 
     // Add location
@@ -58,53 +79,174 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
       // Store fsid if it doesn't exist
       val = std::to_string(e->location);
 
-      if (!pRedox->sismember(sSetFsIds, val))
-	pRedox->sadd(sSetFsIds, val);
+      // Create table if it doesn't exist and add the fsid
+      try {
+	table_id = client->getTableId(sSetFsIds.c_str());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
+	table_id = client->createTable(sSetFsIds.c_str());
+      }
 
+      try {
+	RAMCloud::Buffer bval;
+	client->read(table_id, static_cast<const void*>(val.c_str()),
+		     val.length(), &bval);
+      }
+      catch (RAMCloud::ClientException& e) {
+	client->write(table_id, static_cast<const void*>(val.c_str()),
+		      val.length(), nullptr);
+      }
+
+      // Add file id to the fsid table holding all the files in the current
+      // filesystem
       key = sFilesPrefix + val;
       val = std::to_string(e->file->getId());
-      pRedox->sadd(key, val);
-      pRedox->srem(sNoReplicaPrefix, val);
+
+      // Get table_id for the curent fs
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::ClientException& e) {
+	table_id = client->createTable(key.c_str());
+      }
+
+      try {
+	client->write(table_id, static_cast<const void*>(val.c_str()),
+		      val.length(), nullptr);
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
+
+      // Remove file id from the no replicas table
+      try {
+	table_id = client->getTableId(sNoReplicaPrefix.c_str());
+	client->remove(table_id, static_cast<const void*>(val.c_str()),
+		      val.length());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
+	table_id = client->createTable(sNoReplicaPrefix.c_str());
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
+
       break;
 
     // Replace location
     case IFileMDChangeListener::LocationReplaced:
       key = sFilesPrefix + std::to_string(e->oldLocation);
 
-      if (!pRedox->exists(key))
-	return; // inconstency, we should probably crash here...
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::ClientException& e) {
+	return; // inconsistency, we should probably crash here
+      }
 
       val = std::to_string(e->file->getId());
-      pRedox->srem(key, val);
+      try {
+	client->remove(table_id, static_cast<const void*>(val.c_str()),
+		       val.length());
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
+
       key = sFilesPrefix + std::to_string(e->location);
-      pRedox->sadd(key, val);
+
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::ClientException& e) {
+	table_id = client->createTable(key.c_str());
+      }
+
+      try {
+	client->write(table_id, static_cast<const void*>(val.c_str()),
+		      val.length(), nullptr);
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
+
       break;
 
     // Remove location
     case IFileMDChangeListener::LocationRemoved:
       key = sUnlinkedPrefix + std::to_string(e->location);
 
-      if (!pRedox->exists(key))
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
 	return; // incostency, we should probably crash here...
+      }
 
       val = std::to_string(e->file->getId());
-      pRedox->srem(key, val);
+      try {
+	client->remove(table_id, static_cast<const char*>(val.c_str()),
+		       val.length());
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
 
       if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
-	pRedox->sadd(sNoReplicaPrefix, val);
+      {
+	try {
+	  table_id = client->getTableId(sNoReplicaPrefix.c_str());
+	}
+	catch (RAMCloud::TableDoesntExistException& e) {
+	  table_id = client->createTable(sNoReplicaPrefix.c_str());
+	}
+
+	try {
+	  client->write(table_id, static_cast<const void*>(val.c_str()),
+			val.length(), nullptr);
+	}
+	catch (RAMCloud::ClientException& e)  {
+	  // TODO: take some action in case it fails
+	}
+      }
 
       // Cleanup fsid if it doesn't hold any files anymore
       key = sFilesPrefix + std::to_string(e->location);
 
-      if (!pRedox->exists(key))
-      {
-	key = sUnlinkedPrefix + std::to_string(e->location);
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
+	table_exists = false;
+      }
 
-	if (!pRedox->exists(key))
+      if (!table_exists || isEmptyTable(table_id))
+      {
+	table_exists = true;
+
+	try {
+	  key = sUnlinkedPrefix + std::to_string(e->location);
+	  table_id = client->getTableId(key.c_str());
+	}
+	catch (RAMCloud::TableDoesntExistException& e) {
+	  table_exists = false;
+	}
+
+	if (!table_exists || isEmptyTable(table_id))
 	{
 	  // Fs does not hold any file replicas or unlinked ones, remove it
 	  key = std::to_string(e->location);
-	  pRedox->srem(sSetFsIds, key);
+	  try {
+	    table_id = client->getTableId(sSetFsIds.c_str());
+	    client->remove(table_id, static_cast<const void*>(key.c_str()),
+			   key.length());
+	  }
+	  catch (RAMCloud::TableDoesntExistException& e) {
+	    // Do nothing
+	  }
+	  catch (RAMCloud::ClientException& e) {
+	    // TODO: take some action in case it fails
+	  }
 	}
       }
 
@@ -114,13 +256,40 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
     case IFileMDChangeListener::LocationUnlinked:
       key = sFilesPrefix + std::to_string(e->location);
 
-      if (!pRedox->exists(key))
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
 	return; // incostency, we should probably crash here...
+      }
 
       val = std::to_string(e->file->getId());
-      pRedox->srem(key, val);
+
+      try {
+	client->remove(table_id, static_cast<const void*>(val.c_str()),
+		       val.length());
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
+
+      // Add file id to the list of unlinked ones
       key = sUnlinkedPrefix + std::to_string(e->location);
-      pRedox->sadd(key, val);
+
+      try {
+	table_id = client->getTableId(key.c_str());
+      }
+      catch (RAMCloud::TableDoesntExistException& e) {
+	table_id = client->createTable(key.c_str());
+      }
+
+      try {
+	client->write(table_id, static_cast<const void*>(val.c_str()),
+		      val.length(), nullptr);
+      }
+      catch (RAMCloud::ClientException& e) {
+	// TODO: take some action in case it fails
+      }
       break;
 
     default:
@@ -133,9 +302,11 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
 //------------------------------------------------------------------------------
 void FileSystemView::fileMDRead( IFileMD *obj )
 {
+  RAMCloud::RamCloud* client = getRamCloudClient();
   IFileMD::LocationVector::const_iterator it;
   IFileMD::LocationVector loc_vect = obj->getLocations();
   std::string key, val;
+  uint64_t table_id;
 
   for( it = loc_vect.begin(); it != loc_vect.end(); ++it )
   {
@@ -143,12 +314,40 @@ void FileSystemView::fileMDRead( IFileMD *obj )
     key = sSetFsIds;
     val = std::to_string(*it);
 
-    if (!pRedox->sismember(key, val))
-      pRedox->sadd(key, val);
+    // Get filesystem table holding the file ids
+    try {
+      table_id = client->getTableId(key.c_str());
+    }
+    catch (RAMCloud::TableDoesntExistException& e) {
+      table_id = client->createTable(key.c_str());
+    }
+
+    try {
+      client->write(table_id, static_cast<const void*>(val.c_str()), val.length(),
+		    nullptr);
+    }
+    catch (RAMCloud::ClientException& e) {
+      // TODO: take some action in case it fails
+    }
 
     // Add file to corresponding fs file set
     key = sFilesPrefix + val;
-    pRedox->sadd(key, std::to_string(obj->getId()));
+
+    try {
+      table_id = client->getTableId(key.c_str());
+    }
+    catch (RAMCloud::TableDoesntExistException& e) {
+      table_id = client->createTable(key.c_str());
+    }
+
+    try {
+      key = std::to_string(obj->getId());
+      client->write(table_id, static_cast<const void*>(key.c_str()),
+		    key.length(), nullptr);
+    }
+    catch (RAMCloud::ClientException& e) {
+      // TODO: take some action in case it fails
+    }
   }
 
   IFileMD::LocationVector unlink_vect = obj->getUnlinkedLocations();
@@ -156,11 +355,42 @@ void FileSystemView::fileMDRead( IFileMD *obj )
   for( it = unlink_vect.begin(); it != unlink_vect.end(); ++it )
   {
     key = sUnlinkedPrefix + std::to_string(*it);
-    pRedox->sadd(key, std::to_string(obj->getId()));
+
+    try {
+      table_id = client->getTableId(key.c_str());
+    }
+    catch (RAMCloud::TableDoesntExistException& e) {
+      table_id = client->createTable(key.c_str());
+    }
+
+    try {
+      key = std::to_string(obj->getId());
+      client->write(table_id, static_cast<const void*>(key.c_str()),
+		    key.length(), nullptr);
+    }
+    catch (RAMCloud::ClientException& e) {
+      // TODO: take some action in case it fails
+    }
   }
 
   if( obj->getNumLocation() == 0 && obj->getNumUnlinkedLocation() == 0 )
-    pRedox->sadd(sNoReplicaPrefix, std::to_string(obj->getId()));
+  {
+    try {
+      table_id = client->getTableId(sNoReplicaPrefix.c_str());
+    }
+    catch (RAMCloud::TableDoesntExistException& e) {
+      table_id = client->createTable(sNoReplicaPrefix.c_str());
+    }
+
+    try {
+      key = std::to_string(obj->getId());
+      client->write(table_id, static_cast<const void*>(key.c_str()),
+		    key.length(), nullptr);
+    }
+    catch (RAMCloud::ClientException& e) {
+      // TODO: take some action in case it fails
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -169,20 +399,36 @@ void FileSystemView::fileMDRead( IFileMD *obj )
 IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
+  uint64_t table_id;
+  RAMCloud::RamCloud* client = getRamCloudClient();
   std::string key = sFilesPrefix + std::to_string(location);
 
-  if (!pRedox->exists(key))
-  {
+  try {
+    table_id = client->getTableId(key.c_str());
+  }
+  catch (RAMCloud::TableDoesntExistException& e) {
     MDException e( ENOENT );
     e.getMessage() << "Location " << key  << " does not exist" << std::endl;
     throw( e );
   }
 
   IFsView::FileList set_files;
-  std::set<std::string> files = pRedox->smembers(key);
 
-  for (const auto& elem: files)
-    set_files.insert(std::stoul(elem));
+  try {
+    uint32_t size = 0;
+    const void* buffer = 0;
+    RAMCloud::TableEnumerator iter(*client, table_id, true);
+
+    while (iter.hasNext())
+    {
+      iter.next(&size, &buffer);
+      RAMCloud::Object object(buffer, size);
+      set_files.emplace(atol(static_cast<const char*>(object.getKey())));
+    }
+  }
+  catch (RAMCloud::ClientException& e) {
+    // TODO: take some action in case it fails
+  }
 
   return set_files;
 }
@@ -193,12 +439,33 @@ FileSystemView::getFileList(IFileMD::location_t location)
 IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = sUnlinkedPrefix + std::to_string(location);
-  std::set<std::string> unlinked = pRedox->smembers(key);
+  uint64_t table_id;
+  RAMCloud::RamCloud* client = getRamCloudClient();
   IFsView::FileList set_unlinked;
+  std::string key = sUnlinkedPrefix + std::to_string(location);
 
-  for (const auto& elem: unlinked)
-    set_unlinked.insert(std::stoul(elem));
+  try {
+    table_id = client->getTableId(key.c_str());
+  }
+  catch (RAMCloud::TableDoesntExistException& e) {
+    return set_unlinked;
+  }
+
+  try {
+    uint32_t size = 0;
+    const void* buffer = 0;
+    RAMCloud::TableEnumerator iter(*client, table_id, true);
+
+    while (iter.hasNext())
+    {
+      iter.next(&size, &buffer);
+      RAMCloud::Object object(buffer, size);
+      set_unlinked.emplace(atol(static_cast<const char*>(object.getKey())));
+    }
+  }
+  catch (RAMCloud::ClientException& e) {
+    // TODO: take some action in case it fails
+  }
 
   return set_unlinked;
 }
@@ -208,11 +475,32 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 //------------------------------------------------------------------------------
 IFsView::FileList FileSystemView::getNoReplicasFileList()
 {
+  uint64_t table_id;
   IFsView::FileList set_noreplicas;
-  std::set<std::string> noreplicas = pRedox->smembers(sNoReplicaPrefix);
+  RAMCloud::RamCloud* client = getRamCloudClient();
 
-  for (const auto&  elem: noreplicas)
-    set_noreplicas.insert(std::stoul(elem));
+  try {
+    table_id = client->getTableId(sNoReplicaPrefix.c_str());
+  }
+  catch (RAMCloud::TableDoesntExistException& e) {
+    return set_noreplicas;
+  }
+
+  try {
+    uint32_t size = 0;
+    const void* buffer = 0;
+    RAMCloud::TableEnumerator iter(*client, table_id, true);
+
+    while (iter.hasNext())
+    {
+      iter.next(&size, &buffer);
+      RAMCloud::Object object(buffer, size);
+      set_noreplicas.emplace(atol(static_cast<const char*>(object.getKey())));
+    }
+  }
+  catch (RAMCloud::ClientException& e) {
+    // TODO: take some action in case it fails
+  }
 
   return set_noreplicas;
 }
@@ -223,17 +511,47 @@ IFsView::FileList FileSystemView::getNoReplicasFileList()
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
+  RAMCloud::RamCloud* client = getRamCloudClient();
   std::string key = sUnlinkedPrefix + std::to_string(location);
-  return pRedox->del(key);
-}
 
+  try {
+    client->dropTable(key.c_str());
+  }
+  catch (RAMCloud::TableDoesntExistException& e) {
+    return true;
+  }
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Get number of file systems
 //------------------------------------------------------------------------------
 size_t FileSystemView::getNumFileSystems()
 {
-  return (size_t) pRedox->scard(sSetFsIds);
+  ssize_t num_fs = 0;
+  uint32_t table_id;
+  RAMCloud::RamCloud* client = getRamCloudClient();
+
+  try {
+    uint32_t size = 0;
+    const void* buffer = 0;
+    table_id = client->getTableId(sSetFsIds.c_str());
+    RAMCloud::TableEnumerator iter(*client, table_id, true);
+
+    while (iter.hasNext())
+    {
+      iter.next(&size, &buffer);
+      num_fs++;
+    }
+  }
+  catch (RAMCloud::TableDoesntExistException& e) {
+    return num_fs;
+  }
+  catch (RAMCloud::ClientException& e) {
+    // TODO: take some action in case it fails
+  }
+  return num_fs;
 }
 
 //------------------------------------------------------------------------------
@@ -256,18 +574,6 @@ void FileSystemView::finalize()
 void
 FileSystemView::initialize(const std::map<std::string, std::string>& config)
 {
-  std::string key_host = "redis_host";
-  std::string key_port = "redis_port";
-  std::string host {""};
-  uint32_t port {0};
-
-  if (config.find(key_host) != config.end())
-    host = config.find(key_host)->second;
-
-  if (config.find(key_port) != config.end())
-    port = std::stoul(config.find(key_port)->second);
-
-  pRedox = RedisClient::getInstance(host, port);
 }
 
 EOSNSNAMESPACE_END

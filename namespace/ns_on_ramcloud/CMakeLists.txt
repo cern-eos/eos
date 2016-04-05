@@ -35,21 +35,21 @@ endif(CPPUNIT_FOUND)
 # EosNsOnRamcloud library sources
 #-----------------------------------------------------------------------------
 set(EOS_NS_RAMCLOUD_SRCS
-#  NsOnRamcloudPlugin.cc  NsOnRamcloudPlugin.hh
+  NsOnRamcloudPlugin.cc  NsOnRamcloudPlugin.hh
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
   RamCloudClient.cc      RamCloudClient.hh
 
-#  persistency/ContainerMDSvc.hh
-#  persistency/ContainerMDSvc.cc
-#  persistency/FileMDSvc.hh
-#  persistency/FileMDSvc.cc
+  persistency/ContainerMDSvc.hh
+  persistency/ContainerMDSvc.cc
+  persistency/FileMDSvc.hh
+  persistency/FileMDSvc.cc
 
-#  views/HierarchicalView.cc          views/HierarchicalView.hh
-#  accounting/QuotaStats.cc           accounting/QuotaStats.hh
-#  accounting/FileSystemView.cc       accounting/FileSystemView.hh
-#  accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
-#  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
+  views/HierarchicalView.cc          views/HierarchicalView.hh
+  accounting/QuotaStats.cc           accounting/QuotaStats.hh
+  accounting/FileSystemView.cc       accounting/FileSystemView.hh
+  accounting/ContainerAccounting.cc  accounting/ContainerAccounting.hh
+  accounting/SyncTimeAccounting.cc   accounting/SyncTimeAccounting.hh
 
   ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
   ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)

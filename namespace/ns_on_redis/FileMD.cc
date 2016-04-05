@@ -311,19 +311,19 @@ void
 FileMD::deserialize(const std::string& buffer)
 {
   uint16_t offset = 0;
-  offset = Buffer::grabData(buffer, offset, sizeof(pId), &pId);
-  offset = Buffer::grabData(buffer, offset, sizeof(pCTime), &pCTime);
-  offset = Buffer::grabData(buffer, offset, sizeof(pMTime), &pMTime);
+  offset = Buffer::grabData(buffer, offset, &pId, sizeof(pId));
+  offset = Buffer::grabData(buffer, offset, &pCTime, sizeof(pCTime));
+  offset = Buffer::grabData(buffer, offset, &pMTime, sizeof(pMTime));
   uint64_t tmp;
-  offset = Buffer::grabData(buffer, offset, sizeof(tmp), &tmp);
+  offset = Buffer::grabData(buffer, offset, &tmp, sizeof(tmp));
   pSize = tmp & 0x0000ffffffffffff;
   tmp >>= 48;
   pFlags = tmp & 0x000000000000ffff;
-  offset = Buffer::grabData(buffer, offset, sizeof(pContainerId), &pContainerId);
+  offset = Buffer::grabData(buffer, offset, &pContainerId, sizeof(pContainerId));
   uint16_t len = 0;
-  offset = Buffer::grabData(buffer, offset, 2, &len);
+  offset = Buffer::grabData(buffer, offset, &len, 2);
   char strBuffer[len];
-  offset = Buffer::grabData(buffer, offset, len, strBuffer);
+  offset = Buffer::grabData(buffer, offset, strBuffer, len);
   pName = strBuffer;
 
   // Possibly extract symbolic link
@@ -335,31 +335,31 @@ FileMD::deserialize(const std::string& buffer)
     pName.erase(link_pos);
   }
 
-  offset = Buffer::grabData(buffer, offset, 2, &len);
+  offset = Buffer::grabData(buffer, offset, &len, 2);
 
   for (uint16_t i = 0; i < len; ++i)
   {
     location_t location;
-    offset = Buffer::grabData(buffer, offset, sizeof(location_t), &location);
+    offset = Buffer::grabData(buffer, offset, &location, sizeof(location_t));
     pLocation.push_back(location);
   }
 
-  offset = Buffer::grabData(buffer, offset, 2, &len);
+  offset = Buffer::grabData(buffer, offset, &len, 2);
 
   for (uint16_t i = 0; i < len; ++i)
   {
     location_t location;
-    offset = Buffer::grabData(buffer, offset, sizeof(location_t), &location);
+    offset = Buffer::grabData(buffer, offset, &location, sizeof(location_t));
     pUnlinkedLocation.push_back(location);
   }
 
-  offset = Buffer::grabData(buffer, offset, sizeof(pCUid), &pCUid);
-  offset = Buffer::grabData(buffer, offset, sizeof(pCGid), &pCGid);
-  offset = Buffer::grabData(buffer, offset, sizeof(pLayoutId), &pLayoutId);
+  offset = Buffer::grabData(buffer, offset, &pCUid, sizeof(pCUid));
+  offset = Buffer::grabData(buffer, offset, &pCGid, sizeof(pCGid));
+  offset = Buffer::grabData(buffer, offset, &pLayoutId, sizeof(pLayoutId));
   uint8_t size = 0;
-  offset = Buffer::grabData(buffer, offset, sizeof(size), &size);
+  offset = Buffer::grabData(buffer, offset, &size, sizeof(size));
   pChecksum.resize(size);
-  offset = Buffer::grabData(buffer, offset, size, pChecksum.getDataPtr());
+  offset = Buffer::grabData(buffer, offset, pChecksum.getDataPtr(), size);
 
   if ((buffer.size() - offset) >= 4)
   {
@@ -367,16 +367,16 @@ FileMD::deserialize(const std::string& buffer)
     uint16_t len1 = 0;
     uint16_t len2 = 0;
     uint16_t len = 0;
-    offset = Buffer::grabData(buffer, offset, sizeof(len), &len);
+    offset = Buffer::grabData(buffer, offset, &len, sizeof(len));
 
     for(uint16_t i = 0; i < len; ++i)
     {
-      offset = Buffer::grabData(buffer, offset, sizeof(len1), &len1);
+      offset = Buffer::grabData(buffer, offset, &len1, sizeof(len1));
       char strBuffer1[len1];
-      offset = Buffer::grabData(buffer, offset, len1, strBuffer1);
-      offset = Buffer::grabData(buffer, offset, sizeof(len2), &len2);
+      offset = Buffer::grabData(buffer, offset, strBuffer1, len1);
+      offset = Buffer::grabData(buffer, offset, &len2, sizeof(len2));
       char strBuffer2[len2];
-      offset = Buffer::grabData(buffer, offset, len2, strBuffer2);
+      offset = Buffer::grabData(buffer, offset, strBuffer2, len2);
       pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
     }
   }

@@ -31,12 +31,6 @@
 #include <list>
 #include <map>
 
-//! Forward declarations
-namespace redox
-{
-  class Redox;
-}
-
 EOSNSNAMESPACE_BEGIN
 
 class ContainerMD;
@@ -151,9 +145,9 @@ private:
   ListenerList pListeners; ///< List of listeners to be notified
   IQuotaStats* pQuotaStats; ///< Quota view
   IFileMDSvc*  pFileSvc; ///< File metadata service
-  redox::Redox* pRedox; ///< Redis client
-  std::string pRedisHost; ///< Redis instance host
-  uint32_t pRedisPort; ///< Redis instance port
+  std::string pDirsTableName; ///< Dirs table name
+  uint64_t pDirsTableId; ///< Dirs table id
+  uint64_t pMetaTableId; ///< Meta table id
 };
 
 EOSNSNAMESPACE_END

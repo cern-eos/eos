@@ -45,7 +45,7 @@ namespace constants
   //! Key for set of name conflicts
   static const std::string sSetConflicts {"cont_set_conflicts"};
   //! Key for map containing meta info
-  static const std::string sMapMetaInfoKey {"meta_hmap"};
+  static const std::string sMetaTableName {"eos_meta"};
   //! Field last used file id in meta info map
   static const std::string sFirstFreeFid {"first_free_fid"};
   //! Field last used container id in meta info map

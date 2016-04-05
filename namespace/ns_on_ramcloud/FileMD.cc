@@ -313,7 +313,7 @@ FileMD::deserialize(const std::string& buffer)
   uint16_t offset = 0;
   offset = Buffer::grabData(buffer, offset, &pId, sizeof(pId));
   offset = Buffer::grabData(buffer, offset, &pCTime, sizeof(pCTime));
-  offset = Buffer::grabData(buffer, offset, &pMTim, sizeof(pMTime));
+  offset = Buffer::grabData(buffer, offset, &pMTime, sizeof(pMTime));
   uint64_t tmp;
   offset = Buffer::grabData(buffer, offset, &tmp, sizeof(tmp));
   pSize = tmp & 0x0000ffffffffffff;

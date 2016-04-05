@@ -18,27 +18,33 @@
 
 //------------------------------------------------------------------------------
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief RAMCloud client what needs to be thread local
+//! @brief RAMCloud client that needs to be thread local
 //------------------------------------------------------------------------------
 
 #ifndef __EOS_NS_RAMCLOUDCLIENT_HH__
 #define __EOS_NS_RAMCLOUDCLIENT_HH__
 
 #include "RamCloud.h"
+#include "TableEnumerator.h"
 #include "namespace/Namespace.hh"
 
 EOSNSNAMESPACE_BEGIN
 
-static std::string sRamCloudNamespace;
-static thread_local RAMCloud::Context* sRamCloudContext;
-static thread_local RAMCloud::RamCloud* sRamCloudClient;
-
 //------------------------------------------------------------------------------
-//! Function returning a thread local RamCloud client object
+//! Function to get a RAMCloud client object which is thread local
 //!
 //! @return RAMCloud client object
 //------------------------------------------------------------------------------
-static RAMCloud::RamCloud* getRamCloudClient();
+RAMCloud::RamCloud* getRamCloudClient();
+
+//------------------------------------------------------------------------------
+//! Test if RAMCloud table is empty
+//!
+//! @param table_id table id value retuned by RAMCloud::getTableId method
+//!
+//! @return true if table empty, otherwise false
+//------------------------------------------------------------------------------
+bool isEmptyTable(uint64_t table_id);
 
 EOSNSNAMESPACE_END
 

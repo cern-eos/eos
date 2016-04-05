@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_on_redis/views/HierarchicalView.hh"
-#include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_on_ramcloud/views/HierarchicalView.hh"
+#include "namespace/ns_on_ramcloud/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"

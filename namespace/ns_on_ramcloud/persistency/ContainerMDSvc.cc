@@ -19,7 +19,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_on_ramcloud/FileMD.hh"
 #include "namespace/ns_on_ramcloud/ContainerMD.hh"
-#include "namespace/ns_on_ramcloud/RedisClient.hh"
+#include "namespace/ns_on_ramcloud/RamCloudClient.hh"
 #include "namespace/ns_on_ramcloud/persistency/ContainerMDSvc.hh"
 #include <memory>
 
@@ -29,8 +29,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc():
-  pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
-  pRedisPort(0)
+  pQuotaStats(nullptr), pFileSvc(nullptr), pDirsTableName("eos_containers"),
+  pDirsTableId(), pMetaTableId()
 {}
 
 //------------------------------------------------------------------------------
@@ -38,14 +38,6 @@ ContainerMDSvc::ContainerMDSvc():
 //------------------------------------------------------------------------------
 void ContainerMDSvc::configure(std::map<std::string, std::string>& config)
 {
-  std::string key_host = "redis_host";
-  std::string key_port = "redis_port";
-
-  if (config.find(key_host) != config.end())
-    pRedisHost = config[key_host];
-
-  if (config.find(key_port) != config.end())
-    pRedisPort = std::stoul(config[key_port]);
 }
 
 //------------------------------------------------------------------------------
@@ -53,8 +45,6 @@ void ContainerMDSvc::configure(std::map<std::string, std::string>& config)
 //------------------------------------------------------------------------------
 void ContainerMDSvc::initialize()
 {
-  pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
-
   if (!pFileSvc)
   {
     MDException e(EINVAL);
@@ -62,6 +52,10 @@ void ContainerMDSvc::initialize()
 		   << "metadata service";
     throw e;
   }
+
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  pDirsTableId = client->createTable(pDirsTableName.c_str());
+  pMetaTableId = client->createTable(constants::sMetaTableName.c_str());
 }
 
 //----------------------------------------------------------------------------
@@ -71,11 +65,15 @@ std::unique_ptr<IContainerMD>
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 {
   std::string blob;
-  std::string key = std::to_string(id) + constants::sContKeySuffix;
 
   try
   {
-    blob = pRedox->hget(key, "data");
+    RAMCloud::Buffer bval;
+    std::string key = std::to_string(id) + constants::sContKeySuffix;
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    client->read(pDirsTableId, static_cast<const void*>(key.c_str()),
+		 key.length(), &bval);
+    blob.assign(bval.getOffset<char>(0));
   }
   catch (std::runtime_error& e)
   {
@@ -96,12 +94,16 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 std::unique_ptr<IContainerMD> ContainerMDSvc::createContainer()
 {
   // Get the first free container id
-  uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				     constants::sFirstFreeCid, 1);
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  uint64_t free_id = client->incrementInt64(pMetaTableId,
+    static_cast<const void*>(constants::sFirstFreeCid.c_str()),
+    constants::sFirstFreeCid.length(), 1);
   std::unique_ptr<IContainerMD> cont {new ContainerMD(free_id, pFileSvc,
-				      static_cast<IContainerMDSvc*>(this))};
+    static_cast<IContainerMDSvc*>(this))};
   // Increase total number of containers
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
+  (void) client->incrementInt64(pMetaTableId,
+     static_cast<const void*>(constants::sNumConts.c_str()),
+     constants::sNumConts.length(), 1);
   return cont;
 }
 
@@ -113,7 +115,9 @@ void ContainerMDSvc::updateStore(IContainerMD* obj)
   std::string buffer;
   dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
-  pRedox->hset(key, "data", buffer);
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  client->write(pDirsTableId, static_cast<const void*>(key.c_str()),
+		key.length(),buffer.c_str());
   notifyListeners(obj, IContainerMDChangeListener::Updated);
 }
 
@@ -133,10 +137,12 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
+  RAMCloud::RamCloud* client = getRamCloudClient();
 
   try
   {
-    pRedox->hdel(key, "data");
+    client->remove(pDirsTableId, static_cast<const void*>(key.c_str()),
+		   key.length());
   }
   catch (std::runtime_error& e)
   {
@@ -149,12 +155,14 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   // If this was the root container i.e. id=1 then drop the meta map
   if (obj->getId() == 1)
   {
-    (void) pRedox->del(constants::sMapMetaInfoKey);
+    client->dropTable(constants::sMetaTableName.c_str());
   }
   else
   {
     // Decrease total number of containers
-    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
+    (void) client->incrementInt64(pMetaTableId,
+      static_cast<const void*>(constants::sNumConts.c_str()),
+      constants::sNumConts.length(), -1);
   }
 
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
@@ -241,8 +249,11 @@ uint64_t ContainerMDSvc::getNumContainers()
 
   try
   {
-    num_conts = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-					 constants::sNumConts));
+    RAMCloud::Buffer bval;
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    client->read(pMetaTableId, static_cast<const void*>(constants::sNumConts.c_str()),
+		 constants::sNumConts.length(), &bval);
+    num_conts = strtoul(bval.getOffset<char>(0), NULL, 0);
   }
   catch (std::exception& e) { }
 

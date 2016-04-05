@@ -27,7 +27,6 @@
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IFsView.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
 #include <utility>
 
 EOSNSNAMESPACE_BEGIN
@@ -135,8 +134,6 @@ class FileSystemView: public IFsView
 
  private:
 
-  // Redis related variables
-  redox::Redox* pRedox; ///< Redix C++ client
   //! Set prefix for file ids on a fs
   static const std::string sFilesPrefix;
   //! Set prefix for unlinked file ids on a fs

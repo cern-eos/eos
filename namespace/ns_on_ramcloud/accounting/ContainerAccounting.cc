@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "namespace/ns_on_redis/accounting/ContainerAccounting.hh"
+#include "namespace/ns_on_ramcloud/accounting/ContainerAccounting.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN

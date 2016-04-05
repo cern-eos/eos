@@ -141,7 +141,7 @@ namespace eos
     //! @return new offset in the original string
     //--------------------------------------------------------------------------
     static uint64_t
-    grabData(const std::string& buffer, uint64_t offset, uint64_t size, void* dest_ptr)
+    grabData(const std::string& buffer, uint64_t offset, void* dest_ptr, uint64_t size)
     {
       const char* src_ptr = buffer.data() + offset;
       (void*) memcpy(dest_ptr, src_ptr, size);

@@ -26,8 +26,8 @@
 
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "namespace/ns_on_redis/ContainerMD.hh"
-#include "namespace/ns_on_redis/FileMD.hh"
+#include "namespace/ns_on_ramcloud/ContainerMD.hh"
+#include "namespace/ns_on_ramcloud/FileMD.hh"
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
 #include <utility>

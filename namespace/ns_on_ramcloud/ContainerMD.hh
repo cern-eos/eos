@@ -409,8 +409,10 @@ private:
 
   IContainerMDSvc* pContSvc; ///< Container metadata service
   IFileMDSvc* pFileSvc; ///< File metadata service
-  std::string pFilesKey; ///< Key of hmap holding info about files
-  std::string pDirsKey; ///< Key of hmap holding info about subcontainers
+  std::string pFilesTableName; ///< Files table name
+  std::string pDirsTableName; ///< Dirs table name
+  uint64_t pFilesTableId; ///< Files table id
+  uint64_t pDirsTableId; ///< Dirs table id
 };
 
 EOSNSNAMESPACE_END

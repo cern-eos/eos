@@ -40,11 +40,18 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pMTime.tv_nsec = 0;
   pTMTime.tv_sec = 0;
   pTMTime.tv_nsec = 0;
-  pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
-  pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
-  // TODO: review this
-  //pRedox = RedisClient::getInstance();
-  pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
+  pFilesTableName = std::to_string(id) + constants::sMapFilesSuffix;
+  pDirsTableName = std::to_string(id) + constants::sMapDirsSuffix;
+  try
+  {
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    pFilesTableId = client->createTable(pFilesTableName.c_str());
+    pDirsTableId = client->createTable(pDirsTableName.c_str());
+  }
+  catch (RAMCloud::ClientException& e)
+  {
+    // TODO: take some action
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -55,10 +62,13 @@ ContainerMD::findContainer(const std::string& name)
 {
   try
   {
-    IFileMD::id_t cid = std::stoull(pRedox->hget(pDirsKey, name));
+    RAMCloud::Buffer bval;
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    client->read(pDirsTableId, name.c_str(), name.length(), &bval);
+    IFileMD::id_t cid = atol(bval.getOffset<char>(0));
     return pContSvc->getContainerMD(cid);
   }
-  catch (std::exception& e)
+  catch (RAMCloud::ClientException& e)
   {
     return std::unique_ptr<IContainerMD>(nullptr);
   }
@@ -72,9 +82,10 @@ ContainerMD::removeContainer(const std::string& name)
 {
   try
   {
-    pRedox->hdel(pDirsKey, name);
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    client->remove(pDirsTableId, name.c_str(), name.length());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container " << name << " not found";
@@ -92,9 +103,13 @@ ContainerMD::addContainer(IContainerMD* container)
 
   try
   {
-    pRedox->hset(pDirsKey, container->getName(), container->getId());
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    std::string bval = std::to_string(container->getId());
+    client->write(pDirsTableId,
+		  static_cast<const void*>(container->getName().c_str()),
+		  container->getName().length(), bval.c_str());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId();
@@ -110,10 +125,14 @@ ContainerMD::findFile(const std::string& name)
 {
   try
   {
-    std::string fid = pRedox->hget(pFilesKey, name);
-    return pFileSvc->getFileMD(std::stoull(fid));
+    RAMCloud::Buffer bval;
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    client->read(pFilesTableId, static_cast<const void*>(name.c_str()),
+		 name.length(), &bval);
+    uint64_t fid = atol(bval.getOffset<char>(0));
+    return pFileSvc->getFileMD(fid);
   }
-  catch (std::exception& e)
+  catch (RAMCloud::ClientException& e)
   {
     return std::unique_ptr<IFileMD>(nullptr);
   }
@@ -129,9 +148,12 @@ ContainerMD::addFile(IFileMD* file)
 
   try
   {
-    pRedox->hset(pFilesKey, file->getName(), file->getId());
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    std::string bval = std::to_string(file->getId());
+    client->write(pFilesTableId, static_cast<const char*>(file->getName().c_str()),
+		  file->getName().length(), bval.c_str());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add file #" << file->getId();
@@ -150,13 +172,17 @@ void
 ContainerMD::removeFile(const std::string& name)
 {
   std::unique_ptr<IFileMD> file;
+  RAMCloud::RamCloud* client = getRamCloudClient();
 
   try
   {
-    IFileMD::id_t fid = std::stoull(pRedox->hget(pFilesKey, name));
+    RAMCloud::Buffer bval;
+    client->read(pFilesTableId, static_cast<const void*>(name.c_str()),
+		 name.length(), &bval);
+    IFileMD::id_t fid = atol(bval.getOffset<char>(0));
     file = pFileSvc->getFileMD(fid);
   }
-  catch (std::exception& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "Unknown file " << name << " in container " << pName;
@@ -166,9 +192,10 @@ ContainerMD::removeFile(const std::string& name)
   try
   {
     // Remove from the list of files in current container
-    pRedox->hdel(pFilesKey, name);
+    client->remove(pFilesTableId, static_cast<const void*>(name.c_str()),
+		   name.length());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     // It was already deleted - don't do anything
   }
@@ -186,7 +213,8 @@ ContainerMD::getNumFiles()
 {
   try
   {
-    return pRedox->hlen(pFilesKey);
+    // TODO: get number of entries in the pFilesTableId table
+    return 0;
   }
   catch (std::runtime_error& e)
   {
@@ -202,9 +230,10 @@ ContainerMD::getNumContainers()
 {
   try
   {
-    return pRedox->hlen(pDirsKey);
+    // TODO: get the number of entries in the pDirsTableId table
+    return 0;
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     return 0;
   }
@@ -218,35 +247,37 @@ void
 ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 {
   // Remove all files
-  auto vect_fids = pRedox->hvals(pFilesKey);
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  RAMCloud::TableEnumerator iterf(*client, pFilesTableId, false);
+  uint32_t key_len = 0, data_len = 0;
+  const void* key_buff = 0, *data_buff = 0;
 
-  for (auto itf = vect_fids.begin(); itf != vect_fids.end(); ++itf)
-    file_svc->removeFile(std::stoull(*itf));
-
-  if (!pRedox->del(pFilesKey))
+  // Delete the individual files
+  while (iterf.hasNext())
   {
-    MDException e(EINVAL);
-    e.getMessage() << "Failed to remove files in container " << pName;
-    throw e;
+    iterf.nextKeyAndData(&key_len, &key_buff, &data_len, &data_buff);
+    file_svc->removeFile(atol(reinterpret_cast<const char*>(data_buff)));
   }
 
-  // Remove all subcontainers
-  auto vect_cids = pRedox->hvals(pDirsKey);
+  // Drop and recreate the files table
+  client->dropTable(pFilesTableName.c_str());
+  client->createTable(pFilesTableName.c_str());
 
-  for (auto itc = vect_cids.begin(); itc != vect_cids.end(); ++itc)
+  // Remove all subcontainers
+  RAMCloud::TableEnumerator iterd(*client, pDirsTableId, false);
+
+  while (iterd.hasNext())
   {
+    iterd.nextKeyAndData(&key_len, &key_buff, &data_len, &data_buff);
     std::unique_ptr<IContainerMD> cont =
-      pContSvc->getContainerMD(std::stoull(*itc));
+      pContSvc->getContainerMD(atol(reinterpret_cast<const char*>(data_buff)));
     cont->cleanUp(cont_svc, file_svc);
     pContSvc->removeContainer(cont.get());
   }
 
-  if (!pRedox->del(pDirsKey))
-  {
-    MDException e(EINVAL);
-    e.getMessage() << "Failed to remove subcontainers in container " << pName;
-    throw e;
-  }
+  // Drop and recreate the subcontainers table
+  client->dropTable(pDirsTableName.c_str());
+  client->createTable(pDirsTableName.c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -255,8 +286,20 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 std::set<std::string>
 ContainerMD::getNameFiles() const
 {
-  std::vector<std::string> vect_files = pRedox->hvals(pFilesKey);
-  std::set<std::string> set_files(vect_files.begin(), vect_files.end());
+  uint32_t key_len = 0;
+  const void* key_buff = 0;
+  uint32_t data_len = 0;
+  const void* data_buff = 0;
+  std::set<std::string> set_files;
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  RAMCloud::TableEnumerator iter(*client, pFilesTableId, false);
+
+  while (iter.hasNext())
+  {
+    iter.nextKeyAndData(&key_len, &key_buff, &data_len, &data_buff);
+    set_files.emplace(reinterpret_cast<const char*>(data_buff), data_len);
+  }
+
   return set_files;
 }
 
@@ -267,9 +310,21 @@ ContainerMD::getNameFiles() const
 std::set<std::string>
 ContainerMD::getNameContainers() const
 {
-  std::vector<std::string> vect_subcont = pRedox->hvals(pDirsKey);
-  std::set<std::string> set_subcont(vect_subcont.begin(), vect_subcont.end());
-  return set_subcont;
+  uint32_t key_len = 0;
+  const void* key_buff = 0;
+  uint32_t data_len = 0;
+  const void* data_buff = 0;
+  std::set<std::string> set_subconts;
+  RAMCloud::RamCloud* client = getRamCloudClient();
+  RAMCloud::TableEnumerator iter(*client, pDirsTableId, false);
+
+  while (iter.hasNext())
+  {
+    iter.nextKeyAndData(&key_len, &key_buff, &data_len, &data_buff);
+    set_subconts.emplace(reinterpret_cast<const char*>(data_buff), data_len);
+  }
+
+  return set_subconts;
 }
 
 //------------------------------------------------------------------------------
@@ -652,8 +707,8 @@ ContainerMD::deserialize(const std::string& buffer)
   }
 
   // Rebuild the file and subcontainer keys
-  pFilesKey = std::to_string(pId) + constants::sMapFilesSuffix;
-  pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
+  pFilesTableName = std::to_string(pId) + constants::sMapFilesSuffix;
+  pDirsTableName = std::to_string(pId) + constants::sMapDirsSuffix;
 }
 
 EOSNSNAMESPACE_END

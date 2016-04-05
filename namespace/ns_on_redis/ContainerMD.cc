@@ -604,32 +604,32 @@ void
 ContainerMD::deserialize(const std::string& buffer)
 {
   uint16_t offset = 0;
-  offset = Buffer::grabData(buffer, offset, sizeof(pId), &pId);
-  offset = Buffer::grabData(buffer, offset, sizeof(pParentId), &pParentId);
-  offset = Buffer::grabData(buffer, offset, sizeof(pFlags), &pFlags);
-  offset = Buffer::grabData(buffer, offset, sizeof(pCTime), &pCTime);
-  offset = Buffer::grabData(buffer, offset, sizeof(pCUid), &pCUid);
-  offset = Buffer::grabData(buffer, offset, sizeof(pCGid), &pCGid);
-  offset = Buffer::grabData(buffer, offset, sizeof(pMode), &pMode);
-  offset = Buffer::grabData(buffer, offset, sizeof(pACLId), &pACLId);
+  offset = Buffer::grabData(buffer, offset, &pId, sizeof(pId));
+  offset = Buffer::grabData(buffer, offset, &pParentId, sizeof(pParentId));
+  offset = Buffer::grabData(buffer, offset, &pFlags, sizeof(pFlags));
+  offset = Buffer::grabData(buffer, offset, &pCTime, sizeof(pCTime));
+  offset = Buffer::grabData(buffer, offset, &pCUid, sizeof(pCUid));
+  offset = Buffer::grabData(buffer, offset, &pCGid, sizeof(pCGid));
+  offset = Buffer::grabData(buffer, offset, &pMode, sizeof(pMode));
+  offset = Buffer::grabData(buffer, offset, &pACLId, sizeof(pACLId));
   uint16_t len;
-  offset = Buffer::grabData(buffer, offset, sizeof(len), &len);
+  offset = Buffer::grabData(buffer, offset, &len, sizeof(len));
   char strBuffer[len];
-  offset = Buffer::grabData(buffer, offset, len, strBuffer);
+  offset = Buffer::grabData(buffer, offset, strBuffer, len);
   pName = strBuffer;
   uint16_t len1 = 0;
   uint16_t len2 = 0;
   len = 0;
-  offset = Buffer::grabData(buffer, offset, sizeof(len), &len);
+  offset = Buffer::grabData(buffer, offset, &len, sizeof(len));
 
   for (uint16_t i = 0; i < len; ++i)
   {
-    offset = Buffer::grabData(buffer, offset, sizeof(len1), &len1);
+    offset = Buffer::grabData(buffer, offset, &len1, sizeof(len1));
     char strBuffer1[len1];
-    offset = Buffer::grabData(buffer, offset, len1, strBuffer1);
-    offset = Buffer::grabData(buffer, offset, sizeof(len2), &len2);
+    offset = Buffer::grabData(buffer, offset, strBuffer1, len1);
+    offset = Buffer::grabData(buffer, offset, &len2, sizeof(len2));
     char strBuffer2[len2];
-    offset = Buffer::grabData(buffer, offset, len2, strBuffer2);
+    offset = Buffer::grabData(buffer, offset, strBuffer2, len2);
     std::string key = strBuffer1;
 
     if (key == "sys.mtime.s")

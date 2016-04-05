@@ -26,7 +26,6 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
 #include <map>
 
 EOSNSNAMESPACE_BEGIN
@@ -176,7 +175,6 @@ private:
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id_t:gid
   std::string pQuotaGidKey;
-  redox::Redox* pRedox; ///< Redis client
 
   static const std::string sSpaceTag; ///< Tag for space quota
   static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
@@ -234,7 +232,6 @@ private:
   static const std::string sSetQuotaIds; ///< Set of quota node ids
   static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
   static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
-  redox::Redox* pRedox; ///< Redix client
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
 };
 
