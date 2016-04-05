@@ -122,7 +122,7 @@ start() {
 			if [ -n "$pid" ]; then
 			    passed
 			else
-			    daemon --user=${EOS_USER} "$progline >& ${EOS_LOGDIR}/xrdlog.file-$index-$fileindex-target-$targetindex.log &" 
+			    daemon --user=${EOS_USER} --pidfile=/var/run/eosfilesync-$index-file-$fileindex-target-$targetindex.pid "$progline >& ${EOS_LOGDIR}/xrdlog.file-$index-$fileindex-target-$targetindex.log &" 
 			    RETVAL=$?
 			    if [ $RETVAL -eq 0 ]; then 
 				pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosfilesync.*$progline\$" | awk '{print $1}'`
@@ -172,7 +172,7 @@ start() {
 		if [ -n "$pid" ]; then
 		    passed
 		else
-		    daemon --user=${EOS_USER} "$progline >& ${EOS_LOGDIR}/xrdlog.dir-$index-target-$targetindex.log &" 
+		    daemon --user=${EOS_USER} --pidfile=/var/run/eosdirsync-$index-target-$targetindex.pid  "$progline >& ${EOS_LOGDIR}/xrdlog.dir-$index-target-$targetindex.log &" 
 		    RETVAL=$?
 		    if [ $RETVAL -eq 0 ]; then 
 			pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "1 eosdirsync.*$progline\$" | awk '{print $1}'`
