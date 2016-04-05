@@ -230,8 +230,8 @@ The EOS fuse client.
 %files -n eos-fuse
 %defattr(-, root, root, -)
 %{_bindir}/eosd
-%{_sbindir}/mount.eos
-%{_sbindir}/umount.eos
+/sbin/mount.eos
+/sbin/umount.eos
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
