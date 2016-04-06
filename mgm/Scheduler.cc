@@ -281,7 +281,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
         // -----------------------------
         if ((availablefs.size() >= nfilesystems) && (availablefs.size() > ((*git)->size() / 2)))
         {
-          // we stop if we have found enough ... atleast half of the scheduling group
+	  // we stop if we have found enough ... atleast half of the scheduling group
           break;
         }
       }
@@ -332,9 +332,17 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	  }
 	  
 	  eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
-	  
-	  // remove it from the selection map
-	  availablefs.erase(*ait);
+
+	  if ( (nfilesystems==1) && exact_match && !geo_entry_fsid) 
+	  {
+	    ait++;
+	  }
+	  else
+	  {
+	    // remove it from the selection map
+	    availablefs.erase(*ait);
+	  }
+
 	  ait = availablevector.erase(ait);
 	  if (ait == availablevector.end())
 	    ait = availablevector.begin();
