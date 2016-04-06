@@ -124,7 +124,7 @@ start() {
             mkdir -p /var/run/eosd/credentials
             chmod 607 /var/run/eosd/credentials
             mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
-            chmod -R 733 ${EOS_FUSE_MOUNTDIR-/eos/}
+            chmod 733 ${EOS_FUSE_MOUNTDIR-/eos/}
             unset KRB5CCNAME
             unset X509_USER_CERT
             unset X509_USER_KEY
