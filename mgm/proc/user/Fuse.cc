@@ -37,6 +37,7 @@ ProcCommand::Fuse ()
   gOFS->MgmStats.Add("Fuse-Dirlist", pVid->uid, pVid->gid, 1);
   XrdOucString spath = pOpaque->Get("mgm.path");
   bool statentries = pOpaque->GetInt("mgm.statentries")==-999999999?false:(bool)pOpaque->GetInt("mgm.statentries");
+  bool encodepath  = pOpaque->Get("eos.encodepath");
 
   const char* inpath = spath.c_str();
 
@@ -48,7 +49,11 @@ ProcCommand::Fuse ()
 
   spath = path;
   
-  mResultStream = "inodirlist: retc=";
+  if(encodepath)
+    mResultStream = "inodirlist_pathencode: retc=";
+  else
+    mResultStream = "inodirlist: retc=";
+
   if (!spath.length())
   {
     mResultStream += EINVAL;
@@ -99,11 +104,18 @@ ProcCommand::Fuse ()
         isdotdot = true;
       }
 
-      // encode spaces
-      whitespaceentry.replace(" ", "%20");
+      if(encodepath)
+      {
+        whitespaceentry = eos::common::StringConversion::curl_escaped(whitespaceentry.c_str()).c_str();
+      }
+      else
+      {
+        // encode spaces
+        whitespaceentry.replace(" ", "%20");
 
-      // encode \n
-      whitespaceentry.replace("\n", "%0A");
+        // encode \n
+        whitespaceentry.replace("\n", "%0A");
+      }
 
       if ((!isdot) && (!isdotdot))
       {

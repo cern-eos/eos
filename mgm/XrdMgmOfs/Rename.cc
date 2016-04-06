@@ -78,8 +78,10 @@ XrdMgmOfs::rename (const char *old_name,
   oldn = old_name;
   newn = new_name;
 
-  oldn.replace("#space#"," ");
-  newn.replace("#space#"," ");
+  if(!renameo_Env.Get("eos.encodepath"))
+    oldn.replace("#space#"," ");
+  if(!renamen_Env.Get("eos.encodepath"))
+    newn.replace("#space#"," ");
 
   if ((oldn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS) ||
       (newn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS))
