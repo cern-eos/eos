@@ -208,7 +208,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  unsetenv ("KRB5CCNAME");
  unsetenv ("X509_USER_PROXY");
 
-
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
       (fuse_daemonize (0) != -1 ) )
@@ -228,11 +227,15 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    me.fs ().setMountPoint (me.config.mount_point);
    me.fs ().setPrefix(me.config.mountprefix);
 
-   me.fs ().init (argc, argv, userdata);
+   std::map<std::string,std::string> features;
+   me.fs ().init (argc, argv, userdata, & features);
+
+   me.config.encode_pathname = features.find("eos.encodepath")!=features.end();
 
    eos_static_warning ("********************************************************************************");
    eos_static_warning ("eosd started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
    eos_static_warning ("eos-instance-url       := %s", getenv ("EOS_RDRURL"));
+   eos_static_warning ("encode-pathname        := %s", me.config.encode_pathname ? "true" : "false");
    eos_static_warning ("multi-threading        := %s", (getenv ("EOS_FUSE_NO_MT") && (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1"))) ? "false" : "true");
    eos_static_warning ("kernel-cache           := %s", me.config.kernel_cache ? "true" : "false");
    eos_static_warning ("direct-io              := %s", me.config.direct_io ? "true" : "false");
@@ -599,7 +602,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
 
  me.fs ().getPath (dirfullpath, me.config.mountprefix, name);
  sprintf (fullpath, "/proc/user/?mgm.cmd=fuse&"
-          "mgm.subcmd=inodirlist&mgm.statentries=1&mgm.path=/%s%s", me.config.mountprefix.c_str (), name);
+          "mgm.subcmd=inodirlist&eos.encodepath=1&mgm.statentries=1&mgm.path=/%s%s", me.config.mountprefix.c_str (), name);
 
  eos_static_debug ("inode=%lld path=%s size=%lld off=%lld",
                    (long long) ino, dirfullpath.c_str (), (long long) size, (long long) off);

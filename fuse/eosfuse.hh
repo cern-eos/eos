@@ -138,6 +138,7 @@ private:
     bool kernel_cache;
     bool direct_io;
     bool no_access;
+    bool encode_pathname;
     std::string mount_point;
     std::string mounthostport; ///< mount hostport of the form: hostname:port
     std::string mountprefix; ///< mount prefix of the form: dir1/dir2/dir3

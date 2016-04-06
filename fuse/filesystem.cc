@@ -4057,6 +4057,72 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
  return 0;
 }
 
+//------------------------------------------------------------------------------
+// Get the list of the features available on the MGM
+//
+// @return true if feature listing is available and the map is updated
+//------------------------------------------------------------------------------
+
+bool filesystem::get_features(const std::string &url, std::map<std::string,std::string> *features)
+{
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+
+  std::string request = "/?mgm.pcmd=version&mgm.version.features=1&eos.app=fuse";
+  arg.FromString (request.c_str());
+
+  XrdCl::URL Url (url.c_str());
+  XrdCl::FileSystem fs (Url);
+  status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  if (!status.IsOK ())
+  {
+    eos_static_crit("cannot read eos version");
+    delete response;
+    return false;
+  }
+
+  std::string line;
+  std::stringstream ss;
+  bool infeatures = false;
+  ss.str(response->GetBuffer(0));
+  do
+  {
+    line.clear();
+    std::getline(ss,line);
+    if(line.empty())
+      break;
+    if(!infeatures)
+    {
+    if(line.find("EOS_SERVER_FEATURES")!=std::string::npos)
+      infeatures = true;
+    }
+    else
+    {
+      auto pos = line.find("  =>  ");
+      if(pos == std::string::npos)
+      {
+        eos_static_crit("error parsing instance features");
+        delete response;
+        return false; // there is something wrong here
+      }
+      string key   = line.substr(0,pos);
+      string value = line.substr(pos+6,std::string::npos);
+      if( (pos = value.rfind("&mgm.proc.stderr")) != std::string::npos)
+        value.resize(pos);
+      (*features)[key] = value;
+    }
+  } while(1);
+  if(!infeatures)
+  {
+    eos_static_warning("retrieving features is not supported on this eos instance");
+    delete response;
+    return false;
+  }
+  delete response;
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Extract the EOS MGM endpoint for connection and also check that the MGM
@@ -4066,7 +4132,7 @@ filesystem::is_toplevel_rm (int pid, const char* local_dir)
 //------------------------------------------------------------------------------
 
 int
-filesystem::check_mgm ()
+filesystem::check_mgm (std::map<std::string,std::string> *features)
 {
  std::string address = getenv ("EOS_RDRURL") ? getenv ("EOS_RDRURL") : "";
 
@@ -4097,6 +4163,8 @@ filesystem::check_mgm ()
    return 0;
  }
 
+ if(features)
+   get_features(address,features);
  // make sure the host has not '/' in the end and no prefix anymore 
  gMgmHost = address.c_str ();
  gMgmHost.replace ("root://", "");
@@ -4117,7 +4185,7 @@ filesystem::check_mgm ()
 //------------------------------------------------------------------------------
 
 void
-filesystem::init (int argc, char* argv[], void *userdata )
+filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features )
 {
  FILE* fstderr;
 
@@ -4195,7 +4263,7 @@ filesystem::init (int argc, char* argv[], void *userdata )
  XrdOucString fusedebug = getenv ("EOS_FUSE_DEBUG");
 
  // Extract MGM endpoint and check availability
- if (check_mgm () == 0)
+ if (check_mgm ( features ) == 0)
  {
    exit (-1);
  }
