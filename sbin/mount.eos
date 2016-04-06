@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: mount.eos
 # Author: Andreas-Joachim Peters - CERN
@@ -49,4 +49,4 @@ if [ -n "$2" ]; then
     export EOS_FUSE_WRAPPER_MOUNTDIR="$2"
 fi
 
-/etc/rc.d/init.d/eosd start $1
+source /etc/rc.d/init.d/eosd start $1
