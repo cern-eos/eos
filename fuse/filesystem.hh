@@ -381,7 +381,7 @@ public:
  //! Get the file abstraction object corresponding to the fd
  //----------------------------------------------------------------------------
 
- FileAbstraction*
+  std::shared_ptr<FileAbstraction>
  get_file (int fd, bool *isRW = NULL, bool forceRWtoo = false);
 
 
@@ -468,6 +468,16 @@ public:
                       int nentries,
                       struct timespec mtime,
                       struct dirbuf* b);
+
+
+ //----------------------------------------------------------------------------
+ //! Update stat information of an entry
+ //!
+ //! @param entry_inode
+ //! @param buf stat info
+ //----------------------------------------------------------------------------
+bool dir_cache_update_entry (unsigned long long entry_inode,
+			      struct stat* buf);
 
 
 
@@ -956,6 +966,9 @@ private:
 
  // Directory cache
  std::map<unsigned long long, FuseCacheEntry*> inode2cache;
+ 
+ // Parent cache
+ std::map<unsigned long long, unsigned long long> inode2parent;
 
  //------------------------------------------------------------------------------
  //      ******* Implementation of the open File Descriptor map *******
@@ -963,7 +976,7 @@ private:
 
  // Map used for associating file descriptors with XrdCl::File objects
  eos::common::RWMutex rwmutex_fd2fabst;
- google::dense_hash_map<int, FileAbstraction*> fd2fabst;
+ google::dense_hash_map<int, shared_ptr<FileAbstraction>> fd2fabst;
 
  // Counting write open of inodes
  eos::common::RWMutex rwmutex_inodeopenw;

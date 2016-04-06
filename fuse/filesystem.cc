@@ -555,6 +555,11 @@ filesystem::dir_cache_forget (unsigned long long inode)
 
  if (inode2cache.count (inode))
  {
+   std::set<unsigned long long> lset = inode2cache[inode]->GetEntryInodes();
+   for (auto it = lset.begin(); it!=lset.end(); ++it)
+   {
+     inode2parent.erase(*it);
+   }
    inode2cache.erase (inode);
    return true;
  }
@@ -593,6 +598,11 @@ filesystem::dir_cache_sync (unsigned long long inode,
      while ((indx <= entries_del) && (iter != inode2cache.end ()))
      {
        dir = (FuseCacheEntry*) iter->second;
+       std::set<unsigned long long> lset = iter->second->GetEntryInodes();
+       for (auto it = lset.begin(); it!=lset.end(); ++it)
+       {
+	 inode2parent.erase(*it);
+       }
        inode2cache.erase (iter++);
        delete dir;
        indx++;
@@ -652,12 +662,29 @@ filesystem::dir_cache_add_entry (unsigned long long inode,
  FuseCacheEntry* dir = 0;
 
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
+ {
+   inode2parent[entry_inode] = inode;
    dir->AddEntry (entry_inode, e);
+ }
 }
 
 
-
-
+bool
+filesystem::dir_cache_update_entry( unsigned long long entry_inode,
+				    struct stat* buf)
+{
+ eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
+ FuseCacheEntry* dir = 0;
+ unsigned long long parent;
+ eos_static_debug("ino=%lld size=%llu\n", entry_inode, buf->st_size);
+ if ((inode2parent.count(entry_inode)))
+ {
+   parent = inode2parent[entry_inode];
+   if ((inode2cache.count (parent)) && (dir = inode2cache[parent]))
+     return dir->UpdateEntry (entry_inode, buf);
+ }
+ return false;
+}
 
 
 //------------------------------------------------------------------------------
@@ -708,7 +735,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
 
  eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
  auto iter_fd = inodexrdlogin2fds.find (sstr.str ());
- FileAbstraction* fabst = NULL;
+ shared_ptr<FileAbstraction> fabst;
 
  // If there is already an entry for the current user and the current inode
  // then we return the old fd
@@ -729,7 +756,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
        {
          fd2count[*fdit] += isROfd ? -1 : 1;
          isROfd ? iter_file->second->IncNumOpenRO () : iter_file->second->IncNumOpenRW ();
-         eos_static_debug ("existing fdesc exisiting fabst : fabst=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst, path, (int) isROfd, (int) *fdit);
+         eos_static_debug ("existing fdesc exisiting fabst : fabst=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst.get(), path, (int) isROfd, (int) *fdit);
          return *fdit;
        }
      }
@@ -745,14 +772,14 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    if (iter_fd != inodexrdlogin2fds.end ())
      fabst = fd2fabst[ *iter_fd->second.begin () ];
 
-   if (!fabst)
+   if (!fabst.get())
    {
-     fabst = new FileAbstraction (path);
-     eos_static_debug ("new fdesc new fabst : fbast=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst, path, (int) isROfd, (int) fd);
+     fabst = std::make_shared<FileAbstraction> (path);
+     eos_static_debug ("new fdesc new fabst : fbast=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst.get(), path, (int) isROfd, (int) fd);
    }
    else
    {
-     eos_static_debug ("new fdesc existing fabst : fbast=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst, path, (int) isROfd, (int) fd);
+     eos_static_debug ("new fdesc existing fabst : fbast=%p  path=%s  isRO=%d  =>  fdesc=%d", fabst.get(), path, (int) isROfd, (int) fd);
    }
 
    if (isROfd)
@@ -768,7 +795,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
    inodexrdlogin2fds[sstr.str ()].insert (fd);
-   eos_static_debug ("inserting fd : fabst=%p  key=%s  =>  fdesc=%d", fabst, sstr.str ().c_str (), (int) fd);
+   eos_static_debug ("inserting fd : fabst=%p  key=%s  =>  fdesc=%d file-size=%llu", fabst.get(), sstr.str ().c_str (), (int) fd, fabst->GetMaxWriteOffset());
  }
  else
  {
@@ -785,9 +812,11 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
 // Get the file abstraction object corresponding to the fd
 //------------------------------------------------------------------------------
 
-FileAbstraction*
+std::shared_ptr<FileAbstraction>
 filesystem::get_file (int fd, bool *isRW, bool forceRWtoo)
 {
+ std::shared_ptr<FileAbstraction> fabst;
+
  eos_static_debug ("fd=%i", fd);
  eos::common::RWMutexReadLock rd_lock (rwmutex_fd2fabst);
  auto iter = fd2fabst.find (fd);
@@ -795,13 +824,15 @@ filesystem::get_file (int fd, bool *isRW, bool forceRWtoo)
  if (iter == fd2fabst.end ())
  {
    eos_static_err ("no file abst for fd=%i", fd);
-   return 0;
+   return fabst;
  }
+
+ fabst = iter->second;
 
  if (isRW) *isRW = fd2count[fd] > 0;
  fd2count[fd] > 0 ? iter->second->IncNumRefRW () : iter->second->IncNumRefRO ();
  if (forceRWtoo && fd2count[fd] < 0) iter->second->IncNumRefRW ();
- return iter->second;
+ return fabst;
 }
 
 
@@ -846,14 +877,15 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
  int retc = -1;
  eos_static_debug ("fd=%i, inode=%lu", fd, inode);
 
- 
- eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
+
+ rwmutex_fd2fabst.LockWrite();
+
  auto iter = fd2fabst.find (fd);
  auto iter1 = inodexrdlogin2fds.end ();
 
  if (iter != fd2fabst.end ())
  {
-   FileAbstraction* fabst = iter->second;
+   std::shared_ptr<FileAbstraction> fabst = iter->second;
    bool isRW = (fd2count[fd] > 0);
    fd2count[fd] -= (fd2count[fd] < 0 ? -1 : 1);
 
@@ -866,6 +898,8 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
        fd2count.erase (fd);
        fd2fabst.erase (fd);
 
+       rwmutex_fd2fabst.UnLockWrite();
+       
        std::ostringstream sstr;
        sstr << inode << ":" << get_login (uid, gid, pid);
        iter1 = inodexrdlogin2fds.find (sstr.str ());
@@ -883,17 +917,20 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
              break;
            }
          }
-       }
-
+       }      
        if (iter1->second.empty ()) inodexrdlogin2fds.erase (iter1);
 
        // Return fd to the pool
        pool_fd.push (fd);
      }
+     else
+     {
+       rwmutex_fd2fabst.UnLockWrite();
+     }
 
      if (isRW)
      {
-       eos_static_debug ("fabst=%p, rwfile is not in use, close it", fabst);
+       eos_static_debug ("fabst=%p, rwfile is not in use, close it", fabst.get());
        LayoutWrapper* raw_file = fabst->GetRawFileRW ();
        if (raw_file->IsOpen ())
        {
@@ -1031,31 +1068,26 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 	   }
          }
        }
-
-       retc = raw_file->Close ();
-
-       fabst->SetRawFileRW (NULL);
-       fabst->SetFd (-1);
+       retc = 0;
      }
      else
      {
-       eos_static_debug ("fabst=%p, rofile is not in use, close it", fabst);
-       LayoutWrapper* raw_file = fabst->GetRawFileRO ();
-       retc = raw_file->Close ();
-       fabst->SetRawFileRO (NULL);
+       eos_static_debug ("fabst=%p, rofile is not in use, close it", fabst.get());
+       retc = 0;
      }
-   }
-   
-
-   if (!fabst->IsInUse ())
-   {
-     eos_static_debug ("fabst=%p is not in use, remove it", fabst);
-     delete fabst;
-     fabst = 0;
    }
    else
    {
-     eos_static_debug ("fabst=%p is still in use, cannot remove", fabst);
+     rwmutex_fd2fabst.UnLockWrite();
+   }
+
+   if (!fabst->IsInUse ())
+   {
+     eos_static_debug ("fabst=%p is not in use anynmore", fabst.get());
+   }
+   else
+   {
+     eos_static_debug ("fabst=%p is still in use, cannot remove", fabst.get());
      // Decrement number of references - so that the last process can
      // properly close the file
      if (isRW)
@@ -1072,6 +1104,7 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
  }
  else
  {
+   rwmutex_fd2fabst.UnLockWrite();
    eos_static_warning ("fd=%i no long in map, maybe already closed ...", fd);
  }
  return retc;
@@ -1477,7 +1510,9 @@ filesystem::stat (const char* path,
    // delete the file object
    eos_static_debug ("path=%s, uid=%lu, inode=%lu",
                      path, (unsigned long) uid, inode);
-   eos::common::RWMutexReadLock rd_lock (rwmutex_fd2fabst);
+
+   rwmutex_fd2fabst.LockRead();
+
    std::ostringstream sstr;
    sstr << inode << ":" << get_login (uid, gid, pid);
    google::dense_hash_map<std::string, std::set<int> >::iterator
@@ -1485,35 +1520,39 @@ filesystem::stat (const char* path,
 
    if (iter_fd != inodexrdlogin2fds.end ())
    {
-     google::dense_hash_map<int, FileAbstraction*>::iterator
+     google::dense_hash_map<int, std::shared_ptr<FileAbstraction> >::iterator
      iter_file = fd2fabst.find (*iter_fd->second.begin ());
 
      if (iter_file != fd2fabst.end ())
      {
+       std::shared_ptr<FileAbstraction> fabst = iter_file->second;
+
        off_t cache_size = 0;
        struct stat tmp;
        bool isrw = true;
 
        if (XFC && fuse_cache_write)
        {
-         cache_size = iter_file->second->GetMaxWriteOffset ();
-         eos_static_debug ("path=%s ino=%llu cache size %lu\n", path ? path : "-undef-", inode, cache_size);
+         cache_size = fabst->GetMaxWriteOffset ();
+         eos_static_debug ("path=%s ino=%llu cache size %lu fabst=%p\n", path ? path : "-undef-", inode, cache_size, fabst.get());
        }
 
        // try to stat wih RO file if opened
-       LayoutWrapper* file = iter_file->second->GetRawFileRW ();
+       LayoutWrapper* file = fabst->GetRawFileRW ();
        if (!file)
        {
-         file = iter_file->second->GetRawFileRO ();
+         file = fabst->GetRawFileRO ();
          isrw = false;
        }
+
+       rwmutex_fd2fabst.UnLockRead();
 
        // if we do lazy open, the file should be open on the fst to stat
        // otherwise, the file will be opened on the fst, just for a stat
        if (isrw)
        {
-         // only stat via open files if we have a writer
-         if (file->IsOpen () || !file->CanCache ())
+         // only stat via open files if we are don't have cache capabilities
+         if (!file->CanCache ())
          {
            if ((!file->Stat (&tmp)))
            {
@@ -1531,7 +1570,7 @@ filesystem::stat (const char* path,
              {
                file_size = cache_size;
              }
-             iter_file->second->GetUtimes (&mtim);
+             fabst->GetUtimes (&mtim);
              eos_static_debug ("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.st_mtim, tmp.st_atim, file);
            }
            else
@@ -1542,15 +1581,29 @@ filesystem::stat (const char* path,
          else
          {
            file_size = cache_size;
-           iter_file->second->GetUtimes (&mtim);
+           fabst->GetUtimes (&mtim);
          }
+       }
+       else
+       {
+	 if (file->CanCache()) 
+	 {
+	   // we can use the cache value here
+	   file_size = cache_size;
+	 }
        }
      }
      else
+     {
+       rwmutex_fd2fabst.UnLockRead();
        eos_static_err ("fd=%i not found in file obj map", *iter_fd->second.begin ());
+     }
    }
    else
+   {
+     rwmutex_fd2fabst.UnLockRead();
      eos_static_debug ("path=%s not open", path);
+   }
  }
 
  // Do stat using the Fils System object
@@ -1873,7 +1926,7 @@ filesystem::utimes_if_open (unsigned long long inode,
                             struct timespec* utimes,
                             uid_t uid, gid_t gid, pid_t pid)
 {
- eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
+ rwmutex_fd2fabst.LockRead();
  std::ostringstream sstr;
  sstr << inode << ":" << get_login (uid, gid, pid);
  google::dense_hash_map<std::string, std::set<int> >::iterator
@@ -1881,15 +1934,18 @@ filesystem::utimes_if_open (unsigned long long inode,
 
  if (iter_fd != inodexrdlogin2fds.end ())
  {
-   google::dense_hash_map<int, FileAbstraction*>::iterator
+   google::dense_hash_map<int, std::shared_ptr<FileAbstraction> >::iterator
    iter_file = fd2fabst.find (*iter_fd->second.begin ());
-
    if (iter_file != fd2fabst.end ())
    {
+     std::shared_ptr<FileAbstraction> fabst = iter_file->second;
+     rwmutex_fd2fabst.UnLockRead();
+
      iter_file->second->SetUtimes (utimes);
      return 0;
    }
  }
+ rwmutex_fd2fabst.UnLockRead();
  return -1;
 }
 
@@ -2814,8 +2870,8 @@ filesystem::open (const char* path,
  bool isRO = (flags_sfs == SFS_O_RDONLY);
  eos::common::Timing opentiming ("open");
  COMMONTIMING ("START", &opentiming);
- eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (*return_inode);
- eos::common::RWMutexWriteLock olock (*myOpenMutex);
+ // eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (*return_inode);
+ // eos::common::RWMutexWriteLock olock (*myOpenMutex);
 
  spath += path;
  errno = 0;
@@ -3079,7 +3135,7 @@ filesystem::open (const char* path,
    open_cgi += strongauth_cgi (pid).c_str ();
  }
 
- // check if the file already exist
+ // check if the file already exists in case this is a write
  if (stat (path, &buf, uid, gid, pid, 0)) exists = false;
  eos_static_debug ("open_path=%s, open_cgi=%s, exists=%d, flags_sfs=%d", spath.c_str (), open_cgi.c_str (), (int) exists, (int) flags_sfs);
  retc = 1;
@@ -3172,9 +3228,9 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
  eos_static_info ("fd=%d inode=%lu, uid=%i, gid=%i, pid=%i", fildes, inode, uid, gid, pid);
  int ret = -1;
 
- FileAbstraction* fabst = get_file (fildes);
+ std::shared_ptr<FileAbstraction> fabst = get_file (fildes);
 
- if (!fabst)
+ if (!fabst.get())
  {
    errno = ENOENT;
    return ret;
@@ -3183,13 +3239,20 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
  if (XFC)
  {
    fabst->mMutexRW.WriteLock ();
-   XFC->ForceAllWrites (fabst);
+   XFC->ForceAllWrites (fabst.get());
    fabst->mMutexRW.UnLock ();
  }
 
  {
-   eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (inode);
-   eos::common::RWMutexWriteLock lock (*myOpenMutex);
+   // update our local stat cache
+   struct stat buf;
+   buf.st_size = fabst->GetMaxWriteOffset();
+   dir_cache_update_entry(inode, &buf);
+ }
+
+ {
+   //   eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (inode);
+   //   eos::common::RWMutexWriteLock lock (*myOpenMutex);
 
    // Close file and remove it from all mappings
    ret = remove_fd2file (fildes, inode, uid, gid, pid);
@@ -3212,9 +3275,9 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
  int retc = 0;
  eos_static_info ("fd=%d ", fd);
  bool isRW = false;
- FileAbstraction* fabst = get_file (fd, &isRW);
+ std::shared_ptr<FileAbstraction> fabst = get_file (fd, &isRW);
 
- if (!fabst)
+ if (!fabst.get())
  {
    errno = ENOENT;
    return -1;
@@ -3242,7 +3305,7 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
  if (XFC && fuse_cache_write)
  {
    fabst->mMutexRW.WriteLock ();
-   XFC->ForceAllWrites (fabst, false);
+   XFC->ForceAllWrites (fabst.get(), false);
    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
    error_type error;
 
@@ -3274,10 +3337,10 @@ filesystem::truncate (int fildes, off_t offset)
  int ret = -1;
  eos_static_info ("fd=%d offset=%llu", fildes, (unsigned long long) offset);
  bool isRW = false;
- FileAbstraction* fabst = get_file (fildes, &isRW);
+ std::shared_ptr<FileAbstraction> fabst = get_file (fildes, &isRW);
  errno = 0;
 
- if (!fabst)
+ if (!fabst.get())
  {
    errno = ENOENT;
    return ret;
@@ -3306,7 +3369,7 @@ filesystem::truncate (int fildes, off_t offset)
  if (XFC && fuse_cache_write)
  {
    fabst->mMutexRW.WriteLock ();
-   XFC->ForceAllWrites (fabst);
+   XFC->ForceAllWrites (fabst.get());
    ret = file->Truncate (offset);
    fabst->SetMaxWriteOffset (offset);
    fabst->mMutexRW.UnLock ();
@@ -3393,12 +3456,13 @@ filesystem::pread (int fildes,
                    (unsigned long long) offset);
  ssize_t ret = -1;
  bool isRW = false;
- FileAbstraction* fabst = get_file (fildes, &isRW);
+ std::shared_ptr<FileAbstraction> fabst = get_file (fildes, &isRW);
 
  std::string origin = "remote-ro";
  if (isRW)
    origin = "remote-rw";
- if (!fabst)
+
+ if (!fabst.get())
  {
    errno = ENOENT;
    return ret;
@@ -3420,7 +3484,7 @@ filesystem::pread (int fildes,
          origin = "flush";
          // cache miss
          fabst->mMutexRW.WriteLock ();
-         XFC->ForceAllWrites (fabst);
+         XFC->ForceAllWrites (fabst.get());
          ret = file->Read (offset, static_cast<char*> (buf), nbyte, isRW ? false : do_rdahead);
          fabst->mMutexRW.UnLock ();
        }
@@ -3484,9 +3548,9 @@ filesystem::pwrite (int fildes,
                    fuse_cache_write);
  int64_t ret = -1;
  bool isRW = false;
- FileAbstraction* fabst = get_file (fildes, &isRW);
+ std::shared_ptr<FileAbstraction> fabst = get_file (fildes, &isRW);
 
- if (!fabst)
+ if (!fabst.get())
  {
    errno = ENOENT;
    return ret;
@@ -3506,7 +3570,8 @@ filesystem::pwrite (int fildes,
 
    fabst->mMutexRW.ReadLock ();
    fabst->TestMaxWriteOffset (offset + nbyte);
-   XFC->SubmitWrite (fabst, const_cast<void*> (buf), offset, nbyte);
+   FileAbstraction* fab = fabst.get();
+   XFC->SubmitWrite (fab, const_cast<void*> (buf), offset, nbyte);
    ret = nbyte;
 
    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
@@ -3559,9 +3624,9 @@ filesystem::fsync (int fildes)
  eos_static_info ("fd=%d", fildes);
  int ret = 0;
  bool isRW;
- FileAbstraction* fabst = get_file (fildes, &isRW);
+ std::shared_ptr<FileAbstraction> fabst = get_file (fildes, &isRW);
 
- if (!fabst)
+ if (!fabst.get())
  {
    errno = ENOENT;
    return ret;
@@ -3576,7 +3641,7 @@ filesystem::fsync (int fildes)
  if (XFC && fuse_cache_write)
  {
    fabst->mMutexRW.WriteLock ();
-   XFC->ForceAllWrites (fabst);
+   XFC->ForceAllWrites (fabst.get());
    fabst->mMutexRW.UnLock ();
  }
 

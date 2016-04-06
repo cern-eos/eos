@@ -330,6 +330,8 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
  eos_static_debug ("");
  EosFuse& me = instance ();
 
+ // filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+
  struct stat stbuf;
  memset (&stbuf, 0, sizeof ( struct stat));
  std::string fullpath;
@@ -376,6 +378,8 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
  EosFuse& me = instance ();
+
+ // filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
 
  int retc = 0;
  std::string fullpath;
@@ -445,7 +449,6 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  if (!retc)
  {
    retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino);
-
    if (!retc)
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
    else
@@ -1417,16 +1420,15 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
        fi->direct_io = 0;
 
      fuse_reply_create (req, &e, fi);
+
+     COMMONTIMING ("_stop_", &timing);
+     eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
+
      return;
    }
  }
 
  fuse_reply_err (req, EINVAL);
-
- COMMONTIMING ("_stop_", &timing);
-
-
- eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
 
 void
