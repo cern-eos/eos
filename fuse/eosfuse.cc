@@ -1238,7 +1238,7 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
  EosFuse& me = instance ();
 
  // concurrency monitor
- filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+ filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
 
  int res;
 
