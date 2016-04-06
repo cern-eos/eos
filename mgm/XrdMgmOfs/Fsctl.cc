@@ -434,6 +434,14 @@ XrdMgmOfs::FSctl (const int cmd,
 #include "fsctl/Txstate.cc"
     }
 
+    // -------------------------------------------------------------------------
+    // Get the eos version (and the features)
+    // -------------------------------------------------------------------------
+    if (execmd == "version")
+    {
+#include "fsctl/Version.cc"
+    }
+
     if (execmd == "mastersignalbounce")
     {
       // -----------------------------------------------------------------------
