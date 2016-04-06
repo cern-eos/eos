@@ -22,3 +22,4 @@
 # ************************************************************************
 
 INSTALL_PROGRAMS( /sbin FILES eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall eos-tty-broadcast )
+INSTALL ( FILES eos-el6.repo eos-el6-dev.repo eos-el7.repo eos-el7-dev.repo DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/yum.repos.d PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ )
