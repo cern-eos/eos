@@ -28,8 +28,6 @@
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry> LayoutWrapper::gCacheAuthority;
-bool LayoutWrapper::mFailedLazyOpen=false;
-
 
 //--------------------------------------------------------------------------
 //! Utility function to import (key,value) from a cgi string to a map
@@ -240,13 +238,6 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
 
   if (!status.IsOK())
   {
-    if ( (status.code == XrdCl::errErrorResponse) &&
-        (status.errNo == kXR_FSError) )
-    {
-      mFailedLazyOpen = true;
-      eos_static_warning("disabling lazy open - instance seems not to support it");
-      return 0;
-    }
     eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d",request.c_str(),user_url.c_str(), status.code, status.errNo);
     return -1;
   }
@@ -331,14 +322,14 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   mMode = mode;
   mOpaque = opaque;
 
-  if(!doOpen && !mFailedLazyOpen)
+  if(!doOpen)
   {
     retc =  LazyOpen (path, flags, mode, opaque, buf);
     if (retc < 0)
       return retc;
   }
   
-  if (doOpen || mFailedLazyOpen)
+  if (doOpen)
   {
     if ( (retc = mFile->Open (path, flags, mode, opaque)) )
     {

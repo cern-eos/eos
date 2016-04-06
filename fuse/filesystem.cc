@@ -64,6 +64,7 @@ filesystem::filesystem ()
 {
  lazy_open_ro = false;
  lazy_open_rw = false;
+ lazy_open_disabled = false;
  do_rdahead = false;
  rdahead_window = "131072";
 
@@ -101,11 +102,17 @@ void
 filesystem::log_settings ()
 {
  std::string s = "lazy-open-ro           := ";
- s += lazy_open_ro ? "true" : "false";
+ if (lazy_open_disabled)
+   s += "disabled";
+ else
+   s += lazy_open_ro ? "true" : "false";
  log ("WARNING", s.c_str ());
 
  s = "lazy-open-rw           := ";
- s += lazy_open_rw ? "true" : "false";
+ if (lazy_open_disabled)
+   s+= "disabled";
+ else
+   s += lazy_open_rw ? "true" : "false";
  log ("WARNING", s.c_str ());
 
  s = "rm-level-protect       := ";
@@ -4297,6 +4304,14 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    lazy_open_rw = true;
  }
 
+ if (features && !features->count("eos.lazyopen"))
+ {
+   // disable lazy open, no server side support
+   lazy_open_ro = false;
+   lazy_open_rw = false;
+   lazy_open_disabled = true;
+ }
+ 
  if ((getenv ("EOS_FUSE_DEBUG")) && (fusedebug != "0"))
  {
    eos::common::Logging::SetLogPriority (LOG_DEBUG);
