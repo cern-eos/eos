@@ -1,3 +1,12 @@
+#!/bin/bash
+#
+#****************************************************************************
+#                      eossync.init
+#
+# chkconfig: 345 96 6
+# description: Xrootd Initialisation Script
+#****************************************************************************
+
 # ----------------------------------------------------------------------
 # File: eossync
 # Author: Andreas-Joachim Peters - CERN
@@ -21,14 +30,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-#! /bin/bash
-#
-#****************************************************************************
-#                      eossync.init
-#
-# chkconfig: 345 96 6
-# description: Xrootd Initialisation Script
-#****************************************************************************
 
 # Source function library
 . /etc/rc.d/init.d/functions
