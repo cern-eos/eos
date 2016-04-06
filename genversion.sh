@@ -81,7 +81,7 @@ else
     # in the rpmbuild step. We don't have a git repo but the version was already
     # set in the eos.spec file.
     if [[ -e "eos.spec" ]]; then
-       VERSION="$(grep "Version:" eos.spec | awk '{print $2;}')"
+       VERSION="$(grep "Version:" eos.spec | head -1 | awk '{print $2;}')"
     else
       echo "[!] Unable to get version from git or spec file." 1>&2
       exit 1
