@@ -116,6 +116,7 @@ add_library (XrdEosMgm MODULE
             Converter.cc
             GroupBalancer.cc
             GeoBalancer.cc
+            Features.cc
             )
 
 target_link_libraries( XrdEosMgm
