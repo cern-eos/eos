@@ -231,11 +231,12 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    me.fs ().init (argc, argv, userdata, & features);
 
    me.config.encode_pathname = features.find("eos.encodepath")!=features.end();
-
+   me.config.lazy_open = (features.find("eos.lazyopen")!=features.end())?true:false;
    eos_static_warning ("********************************************************************************");
    eos_static_warning ("eosd started version %s - FUSE protocol version %d", VERSION, FUSE_USE_VERSION);
    eos_static_warning ("eos-instance-url       := %s", getenv ("EOS_RDRURL"));
    eos_static_warning ("encode-pathname        := %s", me.config.encode_pathname ? "true" : "false");
+   eos_static_warning ("lazy-open@server       := %s", me.config.lazy_open ? "true" : "false");
    eos_static_warning ("multi-threading        := %s", (getenv ("EOS_FUSE_NO_MT") && (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1"))) ? "false" : "true");
    eos_static_warning ("kernel-cache           := %s", me.config.kernel_cache ? "true" : "false");
    eos_static_warning ("direct-io              := %s", me.config.direct_io ? "true" : "false");

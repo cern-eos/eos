@@ -31,7 +31,9 @@ EOSMGMNAMESPACE_BEGIN
 
 const std::map< const std::string, const std::string> Features::sMap =
 {
-{ "eos.encodepath", "curl" } };
+  { "eos.encodepath", "curl" },
+  { "eos.lazyopen",   "true" } 
+};
 
 EOSMGMNAMESPACE_END
 

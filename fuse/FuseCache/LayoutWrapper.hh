@@ -62,7 +62,6 @@ class LayoutWrapper
 
   static XrdSysMutex gCacheAuthorityMutex;
   static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
-  static bool mFailedLazyOpen;
 
   bool mCanCache;
   bool mCacheCreator;
