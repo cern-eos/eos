@@ -38,7 +38,11 @@
   if ((starget = env.Get("target")))
   {
     XrdOucString target = starget;
-    while (target.replace("#AND#","&")){}
+    if(env.Get("eos.encodepath"))
+      target = eos::common::StringConversion::curl_unescaped(starget).c_str();
+    else
+      while (target.replace("#AND#","&")){}
+
     int retc = 0;
     if (symlink(spath.c_str(), 
 		target.c_str(),
