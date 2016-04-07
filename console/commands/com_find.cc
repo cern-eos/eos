@@ -217,7 +217,6 @@ com_find (char* arg1)
 
     if (s1 == "-x")
     {
-      option += "x";
       valid = true;
 
       attribute = subtokenizer.GetToken();
@@ -231,7 +230,6 @@ com_find (char* arg1)
 
     if (s1 == "--maxdepth")
     {
-      option += "x";
       valid = true;
 
       maxdepth = subtokenizer.GetToken();
