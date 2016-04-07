@@ -1180,10 +1180,11 @@ filesystem::rmxattr (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
  request += "mgm.subcmd=rm&";
+ if(encode_pathname) request += "eos.encodepath=1&";
  request += "mgm.xattrname=";
  request += xattr_name;
  arg.FromString (request);
@@ -1249,10 +1250,11 @@ filesystem::setxattr (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
  request += "mgm.subcmd=set&";
+ if(encode_pathname) request += "eos.encodepath=1&";
  request += "mgm.xattrname=";
  request += xattr_name;
 
@@ -1329,10 +1331,11 @@ filesystem::getxattr (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
  request += "mgm.subcmd=get&";
+ if(encode_pathname) request += "eos.encodepath=1&";
  request += "mgm.xattrname=";
  std::string s_xattr_name = xattr_name;
  if (s_xattr_name.find ("&") != std::string::npos)
@@ -1420,9 +1423,10 @@ filesystem::listxattr (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
+ if(encode_pathname) request += "eos.encodepath=1&";
  request += "mgm.subcmd=ls";
  arg.FromString (request);
 
@@ -1610,9 +1614,10 @@ filesystem::stat (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=stat&eos.app=fuse";
+ if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -1778,11 +1783,12 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=statvfs&eos.app=fuse&";
+ if(encode_pathname) request += "eos.encodepath=1&";
  request += "path=";
- request += path;
+ request += safePath(path);
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -1868,10 +1874,11 @@ filesystem::chmod (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=chmod&eos.app=fuse&mode=";
  request += smode.c_str ();
+ if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -1967,7 +1974,7 @@ filesystem::utimes (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=utimes&eos.app=fuse&tv1_sec=";
  char lltime[1024];
@@ -1982,6 +1989,7 @@ filesystem::utimes (const char* path,
  request += "&tv2_nsec=";
  sprintf (lltime, "%llu", (unsigned long long) tvp[1].tv_nsec);
  request += lltime;
+ if(encode_pathname) request += "&eos.encodepath=1";
  eos_static_debug ("request: %s", request.c_str ());
  arg.FromString (request);
 
@@ -2040,14 +2048,22 @@ filesystem::symlink (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=symlink&eos.app=fuse&target=";
  XrdOucString savelink = link;
- while (savelink.replace ("&", "#AND#"))
- {
- }
+  if (encode_pathname)
+  {
+    savelink = safePath(savelink.c_str ()).c_str();
+  }
+  else
+  {
+    while (savelink.replace ("&", "#AND#"))
+    {
+    }
+  }
  request += savelink.c_str ();
+ if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
  std::string surl = user_url (uid, gid, pid);
  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) surl += '?';
@@ -2108,9 +2124,10 @@ filesystem::readlink (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=readlink&eos.app=fuse";
+ if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -2156,8 +2173,12 @@ filesystem::readlink (const char* path,
        const char* ss = strchr (rs, ' ');
        if (ss)
        {
-         snprintf (buf, bufsize, "%s", ss + 1);
-       }
+          snprintf (buf, bufsize, "%s", ss + 1);
+          if (encode_pathname)
+          {
+            strncpy (buf, eos::common::StringConversion::curl_unescaped (buf).c_str (), bufsize);
+          }
+        }
        else
        {
          errno = EBADE;
@@ -2203,10 +2224,11 @@ filesystem::access (const char* path,
  XrdCl::Buffer* response = 0;
  char smode[16];
  snprintf (smode, sizeof (smode) - 1, "%d", mode);
- request = path;
+ request = safePath(path);
  request += "?";
  request += "mgm.pcmd=access&eos.app=fuse&mode=";
  request += smode;
+ if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -2334,6 +2356,7 @@ filesystem::inodirlist (unsigned long long dirinode,
    char tag[128];
    // Parse output
    int items = sscanf (value, "%s retc=%d", tag, &retc);
+   bool encodepath = false;
 
    if (retc)
    {
@@ -2344,7 +2367,7 @@ filesystem::inodirlist (unsigned long long dirinode,
      return errno;
    }
 
-   if ((items != 2) || (strcmp (tag, "inodirlist:")))
+   if ((items != 2) || ( !(strcmp (tag, "inodirlist:") != strcmp (tag, "inodirlist_encodepath:") )  ))
    {
      eos_static_err ("got an error(1).");
      free (value);
@@ -2353,6 +2376,9 @@ filesystem::inodirlist (unsigned long long dirinode,
      errno = EFAULT;
      return errno;
    }
+
+   if(!strcmp (tag, "inodirlist_encodepath:"))
+     encodepath = true;
 
    ptr = strchr (value, ' ');
    if (ptr) ptr = strchr (ptr + 1, ' ');
@@ -2419,8 +2445,15 @@ filesystem::inodirlist (unsigned long long dirinode,
 
      // process the entry
      XrdOucString whitespacedirpath = dirpathptr;
-     whitespacedirpath.replace ("%20", " ");
-     whitespacedirpath.replace ("%0A", "\n");
+      if (encode_pathname)
+      {
+        whitespacedirpath = eos::common::StringConversion::curl_unescaped(whitespacedirpath.c_str()).c_str();
+      }
+      else
+      {
+        whitespacedirpath.replace ("%20", " ");
+        whitespacedirpath.replace ("%0A", "\n");
+      }
      ino_t inode = strtouq (inodeptr, 0, 10);
      struct stat buf;
      if (stats)
@@ -2482,8 +2515,15 @@ filesystem::inodirlist (unsigned long long dirinode,
          buf.st_ino = 0;
        statvec.push_back (buf);
      }
-     store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-     dir2inodelist[dirinode].push_back (inode);
+      if (!encode_pathname && !checkpathname (whitespacedirpath.c_str ()))
+      {
+        eos_static_err("unsupported name %s : not stored in the FsCache", whitespacedirpath.c_str ());
+      }
+      else
+      {
+        store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+        dir2inodelist[dirinode].push_back (inode);
+      }
    }
    if (parseerror)
    {
@@ -2539,7 +2579,9 @@ filesystem::readdir (const char* path_dir, size_t *size,
  struct dirent* dirs = NULL;
  XrdCl::DirectoryList* response = 0;
  XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
- string path_str = path_dir;
+ string path_str = safePath(path_dir);
+ if(encode_pathname)
+   path_str += "?eos.encodepath=1";
 
  std::string surl = user_url (uid, gid, pid);
  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) surl += '?';
@@ -2606,11 +2648,12 @@ filesystem::mkdir (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
- request = path;
+ request = safePath(path);
  request += '?';
  request += "mgm.pcmd=mkdir";
  request += "&eos.app=fuse&mode=";
  request += (int) mode;
+ if(encode_pathname) request += "&eos.encodepath=1";
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -2739,7 +2782,9 @@ filesystem::rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.RmDir (path);
+ std::string spath = safePath(path);
+ if(encode_pathname) spath+="?eos.encodepath=1";
+ XrdCl::XRootDStatus status = fs.RmDir (spath);
 
  if (error_retc_map (status.errNo))
  {
@@ -2873,7 +2918,7 @@ filesystem::open (const char* path,
  // eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (*return_inode);
  // eos::common::RWMutexWriteLock olock (*myOpenMutex);
 
- spath += path;
+ spath += safePath(path).c_str();
  errno = 0;
  int t0;
  int retc = add_fd2file (0, *return_inode, uid, gid, pid, isRO, path);
@@ -2920,6 +2965,8 @@ filesystem::open (const char* path,
      spath += strongauth_cgi (pid).c_str ();
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
+     if(encode_pathname) spath += "&eos.encodepath=1";
+
      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
@@ -2949,6 +2996,7 @@ filesystem::open (const char* path,
      spath += strongauth_cgi (pid).c_str ();
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
+     if(encode_pathname) spath += "&eos.encodepath=1";
      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
@@ -2976,6 +3024,7 @@ filesystem::open (const char* path,
      spath += strongauth_cgi (pid).c_str ();
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
+     if(encode_pathname) spath += "&eos.encodepath=1";
      LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
@@ -3009,8 +3058,9 @@ filesystem::open (const char* path,
 
    if (spos != std::string::npos) file_path.erase (0, spos + 1);
 
-   std::string request = file_path;
+   std::string request = safePath(file_path.c_str());
    request += "?eos.app=fuse&mgm.pcmd=open";
+   if(encode_pathname) request += "&eos.encodepath=1";
    arg.FromString (request);
 
    std::string surl = user_url (uid, gid, pid);
@@ -3115,8 +3165,10 @@ filesystem::open (const char* path,
  }
 
  eos_static_debug ("the spath is:%s", spath.c_str ());
+
  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
  XrdOucString open_cgi = "eos.app=fuse";
+ if(encode_pathname) open_cgi += "&eos.encodepath=1";
 
  if (oflags & (O_RDWR | O_WRONLY))
  {
@@ -3683,7 +3735,9 @@ filesystem::unlink (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Rm (path);
+ std::string spath = safePath(path);
+ if(encode_pathname) spath += "?eos.encodepath=1";
+ XrdCl::XRootDStatus status = fs.Rm (spath);
 
  if (!error_retc_map (status.errNo))
  {
@@ -3719,8 +3773,18 @@ filesystem::rename (const char* oldpath,
  XrdOucString sNewPath = newpath;
 
  // XRootd move cannot deal with space in the path names
- sOldPath.replace (" ", "#space#");
- sNewPath.replace (" ", "#space#");
+ if(encode_pathname)
+ {
+   sOldPath = safePath(sOldPath.c_str()).c_str();
+   sOldPath += "?eos.encodepath=1";
+   sNewPath = safePath(sNewPath.c_str()).c_str();
+   sNewPath += "?eos.encodepath=1";
+ }
+ else
+ {
+   sOldPath.replace (" ", "#space#");
+   sNewPath.replace (" ", "#space#");
+ }
  std::string surl = user_url (uid, gid, pid);
  if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) surl += '?';
  surl += strongauth_cgi (pid);
@@ -4286,6 +4350,8 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
      }
    }
  }
+
+ encode_pathname = (features && features->count("eos.encodepath"));
 
  if (getenv ("EOS_FUSE_LAZYOPENRO") && (!strcmp (getenv ("EOS_FUSE_LAZYOPENRO"), "1")))
  {

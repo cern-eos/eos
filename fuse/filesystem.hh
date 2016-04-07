@@ -254,6 +254,25 @@ public:
   out += parent;
  }
 
+ static inline bool checkpathname(const char* pathname)
+ {
+   static const std::vector<char> forbidden={'?'};
+   for(const char *c=pathname; *c!=0; c++)
+     for(size_t i=0; i<forbidden.size(); i++)
+       if(*c==forbidden[i])
+         return false;
+
+   return true;
+ }
+
+ inline std::string safePath(const char *unsafe)
+ {
+   if(encode_pathname)
+     return eos::common::StringConversion::curl_escaped(unsafe);
+   else
+     return unsafe;
+ }
+
  //----------------------------------------------------------------------------
  //                ******* IO buffers *******
  //----------------------------------------------------------------------------
@@ -916,6 +935,7 @@ private:
  bool fuse_shared; ///< indicated if this is eosd = true or eosfsd = false
  int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
+ bool encode_pathname; ///< indicated if filename should be encoded
 
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
