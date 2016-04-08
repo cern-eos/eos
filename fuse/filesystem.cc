@@ -2384,7 +2384,7 @@ filesystem::inodirlist (unsigned long long dirinode,
      return errno;
    }
 
-   if(!strcmp (tag, "inodirlist_encodepath:"))
+   if(!strcmp (tag, "inodirlist_pathencode:"))
      encodepath = true;
 
    ptr = strchr (value, ' ');
@@ -2452,7 +2452,7 @@ filesystem::inodirlist (unsigned long long dirinode,
 
      // process the entry
      XrdOucString whitespacedirpath = dirpathptr;
-      if (encode_pathname)
+      if (encode_pathname && encodepath)
       {
         whitespacedirpath = eos::common::StringConversion::curl_unescaped(whitespacedirpath.c_str()).c_str();
       }
