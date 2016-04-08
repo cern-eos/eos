@@ -20,6 +20,7 @@ Bug Fixes
 New Features
 ++++++++++++
 
+- add new encoding feature allowing full supoort of all characters via FUSE
 - remove global locks around XrdCl calls in FUSE for better parallelism and less lock contention
 - add version/fsctl call to discover available (FUSE) features of an MGM service
 - add convenience RPMs to configure EOS repositories for YUM installation
