@@ -2374,7 +2374,7 @@ filesystem::inodirlist (unsigned long long dirinode,
      return errno;
    }
 
-   if ((items != 2) || ( !(strcmp (tag, "inodirlist:") != strcmp (tag, "inodirlist_encodepath:") )  ))
+   if ((items != 2) || ( (strcmp (tag, "inodirlist:")) && (strcmp (tag, "inodirlist_pathencode:")) ))
    {
      eos_static_err ("got an error(1).");
      free (value);
