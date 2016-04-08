@@ -8,6 +8,7 @@ Beryl Release Notes
 ===================
 
 ``V0.3.160 Aquamarine``
+-----------------------
 
 Bug Fixes
 +++++++++
@@ -26,6 +27,7 @@ New Features
 - add convenience RPMs to configure EOS repositories for YUM installation
 
 ``V0.3.159 Aquamarine``
+-----------------------
 
 Bug Fixes
 +++++++++
@@ -41,6 +43,7 @@ New Features
 
 ``V0.3.158 Aquamarine``
 -----------------------
+
 - protect against failing inode reverse lookup
 
 ``V0.3.157 Aquamarine``
