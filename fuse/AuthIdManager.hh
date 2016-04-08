@@ -283,10 +283,10 @@ protected:
 
   inline uint64_t getNewConId(uid_t uid, gid_t gid, pid_t pid)
   {
-    //NOTE: we have (2^6)^8 ~= 3e14 connections which is basically infinite
+    //NOTE: we have (2^6)^7 ~= 5e12 connections which is basically infinite
     //      fot the moment, we don't reuse connections at all, we leave them behind
     //TODO: implement conid pooling when disconnect is implementend in XRootD
-    if(sConIdCount==((1ull<<48)-1))
+    if(sConIdCount==((1ull<<42)-1))
       return 0;
     return AtomicInc(sConIdCount)+1;
   }
