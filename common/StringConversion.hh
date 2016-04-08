@@ -32,6 +32,7 @@
 #include "common/Namespace.hh"
 #include "common/Timing.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "curl/curl.h"
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -598,7 +599,13 @@ private:
   // ---------------------------------------------------------------------------
   static char pAscii2HexLkup[256];
   static char pHex2AsciiLkup[16];
-
+  static __thread CURL *curl;
+  // thread-local storage management
+  static pthread_key_t sPthreadKey;
+  static pthread_once_t sTlInit;
+  static void tlCurlFree( void *arg);
+  static CURL* tlCurlInit();
+  static void tlInitThreadKey();
 };
 
 /*----------------------------------------------------------------------------*/

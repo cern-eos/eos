@@ -119,6 +119,7 @@ add_library(
   Converter.cc
   GroupBalancer.cc
   GeoBalancer.cc
+  Features.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)

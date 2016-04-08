@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Symlink.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: ZMQ.hh
+// Author: Geoffray Adde - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -20,50 +20,27 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+#ifndef __EOSMGM_FEATURES__HH__
+#define __EOSMGM_FEATURES__HH__
 
+/*----------------------------------------------------------------------------*/
+#include "mgm/Namespace.hh"
+#include <string>
+#include <map>
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 
-// -----------------------------------------------------------------------
-// This file is included source code in XrdMgmOfs.cc to make the code more
-// transparent without slowing down the compilation time.
-// -----------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 
+EOSMGMNAMESPACE_BEGIN
+
+class Features
 {
-  ACCESSMODE_W;
-  MAYSTALL;
-  MAYREDIRECT;
+public:
+  static const std::map< const std::string, const std::string> sMap;
+};
 
-  gOFS->MgmStats.Add("Fuse-Symlink", vid.uid, vid.gid, 1);
+EOSMGMNAMESPACE_END
 
-  char* starget;
-  if ((starget = env.Get("target")))
-  {
-    XrdOucString target = starget;
-    if(env.Get("eos.encodepath"))
-      target = eos::common::StringConversion::curl_unescaped(starget).c_str();
-    else
-      while (target.replace("#AND#","&")){}
+#endif
 
-    int retc = 0;
-    if (symlink(spath.c_str(), 
-		target.c_str(),
-		error, 
-		client,
-		0,
-		0))
-    {
-      retc = error.getErrInfo();
-    }
-
-    XrdOucString response = "symlink: retc=";
-    response += retc;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
-  else
-  {
-    XrdOucString response = "symlink: retc=";
-    response += EINVAL;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
-}

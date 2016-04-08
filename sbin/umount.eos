@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/bin/bash
 # ----------------------------------------------------------------------
 # File: umount.eos
 # Author: Andreas-Joachim Peters - CERN
@@ -45,4 +45,4 @@ if [ $restricted -eq 1 ]; then
   exit -1;
 fi
 
-/etc/rc.d/init.d/eosd stop $@
+source /etc/rc.d/init.d/eosd stop $@

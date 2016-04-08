@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Features.hh"
 
 /*----------------------------------------------------------------------------*/
 
@@ -40,6 +41,17 @@ ProcCommand::Version ()
   stdOut += VERSION;
   stdOut += " EOS_SERVER_RELEASE=";
   stdOut += RELEASE;
+  if(pOpaque->Get("mgm.option") && !strcmp(pOpaque->Get("mgm.option"),"f"))
+  {
+    stdOut += "\nEOS_SERVER_FEATURES=";
+    for(auto it = Features::sMap.begin(); it!=Features::sMap.end(); it++)
+    {
+      stdOut += "\n";
+      stdOut += it->first.c_str();
+      stdOut += "  =>  ";
+      stdOut += it->second.c_str();
+    }
+  }
   return SFS_OK;
 }
 

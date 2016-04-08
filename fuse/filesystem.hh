@@ -254,6 +254,25 @@ public:
   out += parent;
  }
 
+ static inline bool checkpathname(const char* pathname)
+ {
+   static const std::vector<char> forbidden={'?'};
+   for(const char *c=pathname; *c!=0; c++)
+     for(size_t i=0; i<forbidden.size(); i++)
+       if(*c==forbidden[i])
+         return false;
+
+   return true;
+ }
+
+ inline std::string safePath(const char *unsafe)
+ {
+   if(encode_pathname)
+     return eos::common::StringConversion::curl_escaped(unsafe);
+   else
+     return unsafe;
+ }
+
  //----------------------------------------------------------------------------
  //                ******* IO buffers *******
  //----------------------------------------------------------------------------
@@ -381,7 +400,7 @@ public:
  //! Get the file abstraction object corresponding to the fd
  //----------------------------------------------------------------------------
 
- FileAbstraction*
+  std::shared_ptr<FileAbstraction>
  get_file (int fd, bool *isRW = NULL, bool forceRWtoo = false);
 
 
@@ -468,6 +487,16 @@ public:
                       int nentries,
                       struct timespec mtime,
                       struct dirbuf* b);
+
+
+ //----------------------------------------------------------------------------
+ //! Update stat information of an entry
+ //!
+ //! @param entry_inode
+ //! @param buf stat info
+ //----------------------------------------------------------------------------
+bool dir_cache_update_entry (unsigned long long entry_inode,
+			      struct stat* buf);
 
 
 
@@ -767,7 +796,7 @@ public:
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------
- void init (int argc, char* argv[], void *userdata);
+ void init (int argc, char* argv[], void *userdata, std::map<std::string,std::string> *features);
 
  void log (const char* level, const char *msg);
  void
@@ -894,6 +923,7 @@ private:
  bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
  bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
  bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
+ bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
  bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
  bool do_rdahead; ///< true if readahead is to be enabled, otherwise false
  std::string rdahead_window; ///< size of the readahead window
@@ -906,6 +936,7 @@ private:
  bool fuse_shared; ///< indicated if this is eosd = true or eosfsd = false
  int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
+ bool encode_pathname; ///< indicated if filename should be encoded
 
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
@@ -956,6 +987,9 @@ private:
 
  // Directory cache
  std::map<unsigned long long, FuseCacheEntry*> inode2cache;
+ 
+ // Parent cache
+ std::map<unsigned long long, unsigned long long> inode2parent;
 
  //------------------------------------------------------------------------------
  //      ******* Implementation of the open File Descriptor map *******
@@ -963,7 +997,7 @@ private:
 
  // Map used for associating file descriptors with XrdCl::File objects
  eos::common::RWMutex rwmutex_fd2fabst;
- google::dense_hash_map<int, FileAbstraction*> fd2fabst;
+ google::dense_hash_map<int, shared_ptr<FileAbstraction>> fd2fabst;
 
  // Counting write open of inodes
  eos::common::RWMutex rwmutex_inodeopenw;
@@ -1094,7 +1128,8 @@ private:
  char *
  myrealpath (const char * __restrict path, char * __restrict resolved, pid_t pid);
 
- int check_mgm ();
+ bool get_features(const std::string &url, std::map<std::string,std::string> *features);
+ int check_mgm (std::map<std::string,std::string> *features);
 
  std::string mount_dir;
 };

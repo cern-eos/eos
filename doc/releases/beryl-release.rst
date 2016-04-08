@@ -7,8 +7,27 @@
 Beryl Release Notes
 ===================
 
+``V0.3.160 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix file magic in various startup scripts
+- place (u)mount.eos in /sbin
+- fix eosd script and mount script to be compatible with autofs on EL6/7 and systemd
+- fix geo placement for minimal geo case of two sites/two filesystems and 1 replica 
+
+New Features
+++++++++++++
+
+- add new encoding feature allowing full supoort of all characters via FUSE
+- remove global locks around XrdCl calls in FUSE for better parallelism and less lock contention
+- add version/fsctl call to discover available (FUSE) features of an MGM service
+- add convenience RPMs to configure EOS repositories for YUM installation
 
 ``V0.3.159 Aquamarine``
+-----------------------
 
 Bug Fixes
 +++++++++
@@ -24,6 +43,7 @@ New Features
 
 ``V0.3.158 Aquamarine``
 -----------------------
+
 - protect against failing inode reverse lookup
 
 ``V0.3.157 Aquamarine``

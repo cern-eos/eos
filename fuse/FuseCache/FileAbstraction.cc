@@ -59,6 +59,10 @@ FileAbstraction::FileAbstraction(const char* path) :
 //------------------------------------------------------------------------------
 FileAbstraction::~FileAbstraction()
 {
+  if (mFileRW)
+    mFileRW->Close();
+  if (mFileRO)
+    mFileRO->Close();
   if(errorsQueue) delete errorsQueue;
   if(mFileRW) delete mFileRW;
   if(mFileRO) delete mFileRO;
@@ -113,13 +117,22 @@ void
 FileAbstraction::GrabMaxWriteOffset()
 {
   XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
-  if (mFileRW)
-    mMaxWriteOffset = mFileRW->Size();
-  else
-    if (mFileRO)
-      mMaxWriteOffset = mFileRO->Size();
+  int64_t l1=-1;
+  int64_t l2=-1;
+  if (mFileRW) 
+  {
+    l1 = mFileRW->Size();
+    mMaxWriteOffset = l1;
+  }
+  
+  if (mFileRO)
+  {
+    l2 = mFileRO->Size();
+    if (l2>l1)
+      mMaxWriteOffset = l2;
+  }
 
-  eos_static_info("grabbing %llx offset %lld", mFileRW, mMaxWriteOffset);
+  eos_static_info("grabbing %llx l1=%lld l2=%lld offset %lld", mFileRW, l1, l2, mMaxWriteOffset);
 }
 
 //------------------------------------------------------------------------------

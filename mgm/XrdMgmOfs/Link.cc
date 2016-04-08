@@ -76,8 +76,10 @@ XrdMgmOfs::symlink (const char *source_name,
   sourcen = source_name;
   targetn = target_name;
 
-  sourcen.replace("#space#"," ");
-  targetn.replace("#space#"," ");
+  if(!symlinko_Env.Get("eos.encodepath"))
+    sourcen.replace("#space#"," ");
+  if(!symlinkn_Env.Get("eos.encodepath"))
+    targetn.replace("#space#"," ");
 
   {
     const char* inpath = sourcen.c_str();

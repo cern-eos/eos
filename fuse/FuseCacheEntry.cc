@@ -152,3 +152,35 @@ FuseCacheEntry::GetEntry (unsigned long long inode,
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Update subentry
+//------------------------------------------------------------------------------
+
+bool 
+FuseCacheEntry::UpdateEntry( unsigned long long inode, struct stat* buf )
+{
+  eos::common::RWMutexWriteLock wr_lock(mMutex);
+
+  if (!mSubEntries.count(inode))
+  {
+    mSubEntries[inode].attr.st_size = buf->st_size;
+    return true;
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Get Etnry indoe set
+//------------------------------------------------------------------------------
+
+std::set<unsigned long long> 
+FuseCacheEntry::GetEntryInodes()
+{
+  std::set<unsigned long long> lset;
+  eos::common::RWMutexReadLock rd_lock(mMutex);
+  for (auto it= mSubEntries.begin(); it!= mSubEntries.end(); ++it)
+  {
+    lset.insert(it->first);
+  }
+  return lset;
+}

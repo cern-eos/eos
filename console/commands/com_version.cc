@@ -30,8 +30,43 @@ int
 com_version (char *arg)
 {
   XrdOucString in = "mgm.cmd=version";
+  eos::common::StringTokenizer subtokenizer(arg);
+  XrdOucString option = "";
+  XrdOucString options = "";
+
+  subtokenizer.GetLine();
+
+  if (wants_help(arg))
+    goto com_version_usage;
+
+  do
+  {
+    option = subtokenizer.GetToken();
+    if (!option.length())
+      break;
+    if (option == "-f")
+    {
+      options += "f";
+    }
+    else
+    {
+      goto com_version_usage;
+    }
+  }
+  while (1);
+
+  if (options.length())
+  {
+    in += "&mgm.option=";
+    in += options;
+  }
   global_retc = output_result(client_user_command(in));
   fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION, RELEASE);
+  return (0);
+
+com_version_usage:
+  fprintf(stdout, "usage: version [-f]                                                  :  print EOS version number\n");
+  fprintf(stdout, "                -f                                                   -  print the list of supported features\n");
   return (0);
 }
 

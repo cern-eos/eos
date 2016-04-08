@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
-// File: Symlink.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: Version.cc
+// Author: Geoffray Adde - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -21,49 +21,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
-
 {
-  ACCESSMODE_W;
+  ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
 
-  gOFS->MgmStats.Add("Fuse-Symlink", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Version", 0, 0, 1);
 
-  char* starget;
-  if ((starget = env.Get("target")))
+  bool features = env.Get("mgm.version.features"); // decimal fid
+
+  XrdOucString response;
+
+  ProcCommand pc;
+  XrdOucErrInfo err;
+  if(pc.open ("/proc/user",
+          features?"mgm.cmd=version&mgm.option=f":"mgm.cmd=version",
+          vid,
+          &err))
   {
-    XrdOucString target = starget;
-    if(env.Get("eos.encodepath"))
-      target = eos::common::StringConversion::curl_unescaped(starget).c_str();
-    else
-      while (target.replace("#AND#","&")){}
-
-    int retc = 0;
-    if (symlink(spath.c_str(), 
-		target.c_str(),
-		error, 
-		client,
-		0,
-		0))
-    {
-      retc = error.getErrInfo();
-    }
-
-    XrdOucString response = "symlink: retc=";
-    response += retc;
-    error.setErrInfo(response.length() + 1, response.c_str());
-    return SFS_DATA;
-  }
-  else
-  {
-    XrdOucString response = "symlink: retc=";
+    response = "version: retc=";
     response += EINVAL;
     error.setErrInfo(response.length() + 1, response.c_str());
     return SFS_DATA;
   }
+
+  char buf[4096];
+  while(int nread=pc.read (0, buf, 4095))
+  {
+    buf[nread]='\0';
+    response += buf;
+    if(nread!=4095)
+    break;
+  }
+
+  response.insert("version: retc=0 ",0);
+  error.setErrInfo(response.length() + 1, response.c_str());
+  return SFS_DATA;
 }

@@ -28,8 +28,6 @@
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry> LayoutWrapper::gCacheAuthority;
-bool LayoutWrapper::mFailedLazyOpen=false;
-
 
 //--------------------------------------------------------------------------
 //! Utility function to import (key,value) from a cgi string to a map
@@ -78,7 +76,7 @@ LayoutWrapper::LayoutWrapper (eos::fst::Layout* file) :
   mCacheCreator = false;
   mInode = 0;
   mMaxOffset = 0;
-  mSize = -1;
+  mSize = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -131,6 +129,7 @@ const char*
 LayoutWrapper::GetName ()
 {
   MakeOpen ();
+
   return mFile->GetName ();
 }
 
@@ -141,6 +140,7 @@ const char*
 LayoutWrapper::GetLocalReplicaPath ()
 {
   MakeOpen ();
+
   return mFile->GetLocalReplicaPath ();
 }
 
@@ -150,6 +150,7 @@ LayoutWrapper::GetLocalReplicaPath ()
 unsigned int LayoutWrapper::GetLayoutId ()
 {
   MakeOpen ();
+
   return mFile->GetLayoutId ();
 }
 
@@ -171,6 +172,7 @@ LayoutWrapper::GetLastUrl ()
 bool LayoutWrapper::IsEntryServer ()
 {
   MakeOpen ();
+
   return mFile->IsEntryServer ();
 }
 
@@ -236,13 +238,6 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
 
   if (!status.IsOK())
   {
-    if ( (status.code == XrdCl::errErrorResponse) &&
-        (status.errNo == kXR_FSError) )
-    {
-      mFailedLazyOpen = true;
-      eos_static_warning("disabling lazy open - instance seems not to support it");
-      return 0;
-    }
     eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d",request.c_str(),user_url.c_str(), status.code, status.errNo);
     return -1;
   }
@@ -327,15 +322,14 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   mMode = mode;
   mOpaque = opaque;
 
-
-  if(!doOpen && !mFailedLazyOpen)
+  if(!doOpen)
   {
     retc =  LazyOpen (path, flags, mode, opaque, buf);
     if (retc < 0)
       return retc;
   }
   
-  if (doOpen || mFailedLazyOpen)
+  if (doOpen)
   {
     if ( (retc = mFile->Open (path, flags, mode, opaque)) )
     {
@@ -358,15 +352,16 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
       std::string fxid = m["mgm.id"];
       mInode = strtoull(fxid.c_str(), 0, 16);
 
-      if (buf) Utimes (buf);
+      if (flags && buf) Utimes (buf);
+      if (buf)
+	mSize = buf->st_size;
     }
-
   }
 
   time_t now = time(0);
 
   XrdSysMutexHelper l(gCacheAuthorityMutex);
-  if (!mCanCache)
+  if ( mInode && (!mCache.get()) )
   {
     if (flags & SFS_O_CREAT)
     {
@@ -386,6 +381,10 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
 	mCanCache = true;
 	mCache = gCacheAuthority[mInode].mCache;
 	mSize = gCacheAuthority[mInode].mSize;
+	// we try to lazy open if we have somethign cached!
+	if (doOpen && mSize)
+	  doOpen = false;
+
 	mMaxOffset = (*mCache).size();
 	eos_static_notice("reusing cap owner-authority for file %s cache-size=%d file-size=%lu", path.c_str(), (*mCache).size(), mSize);
       }
@@ -420,6 +419,7 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
 int64_t LayoutWrapper::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead)
 {
   MakeOpen ();
+
   return mFile->Read (offset, buffer, length, readahead);
 }
 
@@ -431,6 +431,7 @@ int64_t LayoutWrapper::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSi
 int64_t LayoutWrapper::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 {
   MakeOpen ();
+
   return mFile->ReadV (chunkList, len);
 }
 #endif
@@ -484,8 +485,9 @@ int64_t LayoutWrapper::WriteCache (XrdSfsFileOffset offset, const char* buffer, 
 //--------------------------------------------------------------------------
 int64_t LayoutWrapper::Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, bool touchMtime)
 {
-  int retc = 0;
   MakeOpen ();
+
+  int retc = 0;
 
   if (length > 0)
   {
@@ -510,7 +512,6 @@ int LayoutWrapper::Truncate (XrdSfsFileOffset offset, bool touchMtime)
     return -1;
 
   {
-    XrdSysMutexHelper l(gCacheAuthorityMutex);
     if (gCacheAuthority.count(mInode))
       gCacheAuthority[mInode].mSize = (int64_t) offset;
   }
@@ -524,6 +525,7 @@ int LayoutWrapper::Truncate (XrdSfsFileOffset offset, bool touchMtime)
 int LayoutWrapper::Sync ()
 {
   MakeOpen ();
+
   return mFile->Sync ();
 }
 
@@ -532,6 +534,8 @@ int LayoutWrapper::Sync ()
 //--------------------------------------------------------------------------
 int LayoutWrapper::Close ()
 {
+  XrdSysMutexHelper mLock(mMakeOpenMutex);
+
   eos_static_debug("closing file %s ", mPath.c_str ());;
   if (!mOpen)
   {
@@ -567,6 +571,7 @@ int LayoutWrapper::Close ()
 int LayoutWrapper::Stat (struct stat* buf)
 {
   MakeOpen ();
+
   if (mFile->Stat (buf)) return -1;
 
   return 0;
@@ -597,5 +602,7 @@ std::string LayoutWrapper::GetLastPath ()
 //--------------------------------------------------------------------------
 bool LayoutWrapper::IsOpen ()
 {
+  XrdSysMutexHelper mLock(mMakeOpenMutex);
+
   return mOpen;
 }

@@ -35,6 +35,9 @@
   gOFS->MgmStats.Add("Fuse-Statvfs", vid.uid, vid.gid, 1);
 
   XrdOucString space = env.Get("path");
+  if(env.Get("eos.encodepath"))
+    space = eos::common::StringConversion::curl_unescaped(space.c_str()).c_str();
+
   static XrdSysMutex statvfsmutex;
   static unsigned long long freebytes = 0;
   static unsigned long long freefiles = 0;

@@ -1,0 +1,9 @@
+[eos-aquamarine]
+name=EOS 0.3 Version
+baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/aquamarine/tag/el-6/$basearch//
+gpgcheck=0
+
+[eos-dep]
+name=EOS Aquamarine Dependencies
+baseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/aquamarine-depend/el-6-$basearch/
+gpgcheck=0

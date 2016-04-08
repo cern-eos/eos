@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "common/StringConversion.hh"
+#include "common/Logging.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
 
@@ -1088,14 +1089,45 @@ StringConversion::GetPrettySize (float size)
 
 
 // ---------------------------------------------------------------------------
+// CURL init/cleanup using local storage
+// ---------------------------------------------------------------------------
+void StringConversion::tlCurlFree( void *arg)
+{
+  eos_static_debug("destroying thread specific CURL session");
+  // delete the buffer
+  curl_easy_cleanup((CURL*)arg);
+}
+
+CURL* StringConversion::tlCurlInit()
+{
+  eos_static_debug("allocating thread specific CURL session");
+  CURL* buf = curl_easy_init();
+  if(!buf)
+    eos_static_crit("error initialising CURL easy session");
+  if(buf && pthread_setspecific(sPthreadKey, buf))
+    eos_static_crit("error registering thread-local buffer located at %p for cleaning up : memory will be leaked when thread is terminated",buf);
+  return buf;
+}
+void StringConversion::tlInitThreadKey()
+{
+  pthread_key_create(&sPthreadKey, StringConversion::tlCurlFree);
+}
+__thread CURL* StringConversion::curl=NULL;
+pthread_key_t  StringConversion::sPthreadKey;
+pthread_once_t StringConversion::sTlInit = PTHREAD_ONCE_INIT;
+// ---------------------------------------------------------------------------
+
+
+// ---------------------------------------------------------------------------
 // Escape string using CURL
 // ---------------------------------------------------------------------------
 std::string
 StringConversion::curl_escaped(const std::string &str)
 {
+  pthread_once(&sTlInit,tlInitThreadKey);
   std::string ret_str="<no-encoding>";
   // encode the key
-  CURL *curl = curl_easy_init();
+  if(!curl) curl = tlCurlInit();
   if(curl) {
     char *output = curl_easy_escape(curl, str.c_str(), str.length());
     if(output) {
@@ -1104,6 +1136,8 @@ StringConversion::curl_escaped(const std::string &str)
       // dont't escape '/'
       XrdOucString no_slash = ret_str.c_str();
       while (no_slash.replace("%2F","/")){}
+      // this is a hack to avoid decoding a pathname twice
+      no_slash.insert("/#curl#",0);
       ret_str = no_slash.c_str();
     }
   }
@@ -1117,11 +1151,17 @@ StringConversion::curl_escaped(const std::string &str)
 std::string
 StringConversion::curl_unescaped(const std::string &str)
 {
+  pthread_once(&sTlInit,tlInitThreadKey);
   std::string ret_str="<no-encoding>";
   // encode the key
-  CURL *curl = curl_easy_init();
+  if(!curl) curl = tlCurlInit();
   if(curl) {
-    char *output = curl_easy_unescape(curl, str.c_str(), str.length(), 0);
+    if(strncmp(str.c_str(),"/#curl#",7))
+    {
+      // the string has already been decoded
+      return str;
+    }
+    char *output = curl_easy_unescape(curl, str.c_str()+7, str.length()-7, 0);
     if(output) {
       ret_str = output;
       curl_free(output);

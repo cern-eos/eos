@@ -1,3 +1,9 @@
+#!/bin/bash
+#
+# chkconfig: 35 94 12
+# description: eosslave - configuration service making 'eos' services running in slave mode
+#
+
 # ----------------------------------------------------------------------
 # File: eosslave
 # Author: Andreas-Joachim Peters - CERN
@@ -20,11 +26,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # ************************************************************************
 
-#!/bin/bash
-#
-# chkconfig: 35 94 12
-# description: eosslave - configuration service making 'eos' services running in slave mode
-#
 
 # Get function from functions library
 . /etc/init.d/functions

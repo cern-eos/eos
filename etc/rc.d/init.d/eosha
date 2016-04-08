@@ -1,3 +1,9 @@
+#!/bin/bash
+#
+# chkconfig: 35 95 12
+# description: eosha - eos HA daemon
+#
+
 # ----------------------------------------------------------------------
 # File: eosha
 # Author: Andreas-Joachim Peters - CERN
@@ -19,12 +25,6 @@
 # * You should have received a copy of the GNU General Public License    *
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
-
-#!/bin/bash
-#
-# chkconfig: 35 95 12
-# description: eosha - eos HA daemon
-#
 
 # Get function from functions library
 . /etc/init.d/functions
