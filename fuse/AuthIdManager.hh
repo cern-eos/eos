@@ -34,6 +34,7 @@
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 #include <errno.h>
 #include <unistd.h>
@@ -97,13 +98,11 @@ public:
 
   struct CredInfo
   {
-    CredType type; // krb5 , krk5 or x509
+    CredType type;     // krb5 , krk5 or x509
     std::string lname; // link to credential file
     std::string fname; // credential file
-    time_t fmtime; // credential file mtime
-    time_t fctime; // credential file ctime
-    time_t lmtime; // link to credential file mtime
-    time_t lctime; // link to credential file mtime
+    time_t lmtime;     // link to credential file mtime
+    time_t lctime;     // link to credential file mtime
     std::string identity; // identity in the credential file
     std::string cachedStrongLogin;
   };
@@ -149,25 +148,10 @@ protected:
   // maps (userid,sessionid) -> ( credinfo )
   // several threads (each from different process) might concurrently access this
   std::map< std::pair<uid_t, pid_t>, CredInfo > uidsid2credinfo;
-
-  struct IdenAuthIdEntry
-  {
-    std::map<std::string, uint32_t> strongid2authid;
-    std::list<uint8_t> freeAuthIdPool;
-
-    IdenAuthIdEntry ()
-    {
-      // initialize the free authentication id pool with all the number from 0 to sMaxAuthId-1
-      for (uint8_t i = 0; i < sMaxAuthId; i++) freeAuthIdPool.push_back (i);
-    }
-  };
-  // maps userid -> strongid2authid  : ( identity -> authid ) , identity being krb5:<some_identity> or krk5:<some_fileless_param> or gsi:<some_identity>
-  //                freeAuthIdPool   : a list with all the available authid
-  // several threads (each from different process) might concurrently access this
-  std::map<uid_t, IdenAuthIdEntry > uid2IdenAuthid;
   // maps procid -> xrootd_login
   // only one thread per process will access this (protected by one mutex per process)
   std::vector<std::string> pid2StrongLogin;
+  static uint64_t sConIdCount;
 
   bool
   findCred (CredInfo &credinfo, struct stat &linkstat, struct stat &filestat, uid_t uid, pid_t sid, time_t & sst)
@@ -227,8 +211,6 @@ protected:
                       {
                         buffer2[bsize] = 0;
                         credinfo.fname = buffer2;
-                        credinfo.fmtime = filestat.st_mtim.tv_sec;
-                        credinfo.fctime = filestat.st_ctim.tv_sec;
                         eos_static_debug ("found credential file %s for uid %d and sid %d", credinfo.fname.c_str (), (int) uid, (int) sid);
                       }
                   }
@@ -299,6 +281,21 @@ protected:
     return false;
   }
 
+  inline uint64_t getNewConId(uid_t uid, gid_t gid, pid_t pid)
+  {
+    //NOTE: we have (2^6)^7 ~= 5e12 connections which is basically infinite
+    //      fot the moment, we don't reuse connections at all, we leave them behind
+    //TODO: implement conid pooling when disconnect is implementend in XRootD
+    if(sConIdCount==((1ull<<42)-1))
+      return 0;
+    return AtomicInc(sConIdCount)+1;
+  }
+
+  inline void releaseConId(uint64_t conid)
+  {
+    //TODO: implement channel disconnection when implementend in XRootD
+  }
+
   int
   updateProcCache (uid_t uid, gid_t gid, pid_t pid, bool reconnect)
   {
@@ -308,170 +305,140 @@ protected:
 
     // this is useful even in gateway mode because of the recursive deletion protection
     if ((errCode = proccache_InsertEntry (pid)))
-      {
-        eos_static_err ("updating proc cache information for process %d. Error code is %d", (int) pid, errCode);
-        return errCode;
-      }
+    {
+      eos_static_err("updating proc cache information for process %d. Error code is %d", (int )pid, errCode);
+      return errCode;
+    }
 
     // check if we are using strong authentication
-    if (!(use_user_krb5cc || use_user_gsiproxy))
+    if(!(use_user_krb5cc || use_user_gsiproxy))
       return 0;
 
     // get the startuptime of the process
     time_t processSut;
-    proccache_GetStartupTime (pid, &processSut);
+    proccache_GetStartupTime(pid,&processSut);
     // get the session id
     pid_t sid;
-    proccache_GetSid (pid, &sid);
-    bool isSessionLeader = (sid == pid);
+    proccache_GetSid(pid,&sid);
+    bool isSessionLeader = (sid==pid);
     // update the proccache of the session leader
     if (!isSessionLeader)
+    {
+      lock_w_pcache (sid);
+      if ((errCode = proccache_InsertEntry (sid)))
       {
-        lock_w_pcache (sid);
-        if ((errCode = proccache_InsertEntry (sid)))
-          {
-            eos_static_err ("updating proc cache information for session leader process %d. Error code is %d", (int) pid, errCode);
-            unlock_w_pcache (sid);
-            return errCode;
-          }
+        eos_static_err("updating proc cache information for session leader process %d. Error code is %d", (int )pid, errCode);
         unlock_w_pcache (sid);
+        return errCode;
       }
+      unlock_w_pcache (sid);
+    }
 
     // get the startuptime of the leader of the session
     time_t sessionSut;
-    proccache_GetStartupTime (sid, &sessionSut);
+    proccache_GetStartupTime(sid,&sessionSut);
 
     // find the credentials
     CredInfo credinfo;
-    struct stat filestat, linkstat;
-    if (!findCred (credinfo, linkstat, filestat, uid, sid, sessionSut))
-      {
-        eos_static_notice ("could not find any credential");
-        return EACCES;
-      }
+    struct stat filestat,linkstat;
+    if(!findCred(credinfo,linkstat,filestat,uid,sid,sessionSut))
+    {
+      eos_static_notice("could not find any credential");
+      return EACCES;
+    }
 
     // check if the credentials in the credential cache cache are up to date
     // TODO: should we implement a TTL , my guess is NO
     bool sessionInCache = false;
-    pMutex.LockRead ();
-    auto cacheEntry = uidsid2credinfo.find (std::make_pair (uid, sid));
+    pMutex.LockRead();
+    auto cacheEntry = uidsid2credinfo.find(std::make_pair(uid,sid));
     // skip the cache if reconnecting
-    sessionInCache = !reconnect && (cacheEntry != uidsid2credinfo.end ());
-    if (sessionInCache)
+    sessionInCache = !reconnect && (cacheEntry!=uidsid2credinfo.end());
+    if(sessionInCache)
+    {
+      sessionInCache = false;
+      const CredInfo &ci = cacheEntry->second;
+      // we also check ctime to be sure that permission/ownership has not changed
+      if(ci.lmtime == credinfo.lmtime
+          && ci.lctime == credinfo.lctime )
       {
-        sessionInCache = false;
-        const CredInfo &ci = cacheEntry->second;
-        // we also check ctime to be sure that permission/ownership has not changed
-        if (ci.lmtime == credinfo.lmtime
-            && ci.lctime == credinfo.lctime)
-          {
-            if (credinfo.type == krk5) // if this is fileless credential cache, no target file to check
-              sessionInCache = true;
-            else if (ci.fmtime == credinfo.fmtime
-                     && ci.fctime == credinfo.fctime
-                     && ci.fname == credinfo.fname)
-              sessionInCache = true;
-          }
+        sessionInCache = true;
+        // we don't check the credentials file for modification because it might be modified during authentication
       }
-    pMutex.UnLockRead ();
+    }
+    pMutex.UnLockRead();
 
-    if (sessionInCache)
-      {
-        // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
-        //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
-        // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
-        eos_static_debug ("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s", (int) uid, (int) sid, (int) pid, cacheEntry->second.cachedStrongLogin.c_str ());
-        pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
-        proccache_GetAuthMethod (sid, buffer, 1024);
-        proccache_SetAuthMethod (pid, buffer);
-        return 0;
-      }
+    if(sessionInCache)
+    {
+      // TODO: could detect from the call to ptoccahce_InsertEntry if the process was changed
+      //       then, it would be possible to bypass this part copy, which is probably not the main bottleneck anyway
+      // no lock needed as only one thread per process can access this (lock is supposed to be already taken -> beginning of the function)
+      eos_static_debug("uid=%d  sid=%d  pid=%d  found stronglogin in cache %s",(int)uid,(int)sid,(int)pid,cacheEntry->second.cachedStrongLogin.c_str());
+      pid2StrongLogin[pid] = cacheEntry->second.cachedStrongLogin;
+      proccache_GetAuthMethod(sid,buffer,1024);
+      proccache_SetAuthMethod(pid,buffer);
+      return 0;
+    }
 
     // refresh the credentials in the cache
     // check the credential security
-    if (!checkCredSecurity (linkstat, filestat, uid, credinfo.type))
-      {
-        eos_static_alert ("credentials are not safe");
-        return EACCES;
-      }
-    // check the credential security
-    if (!readCred (credinfo))
+    if(!checkCredSecurity(linkstat,filestat,uid,credinfo.type))
+    {
+      eos_static_alert("credentials are not safe");
       return EACCES;
+    }
+    // check the credential security
+    if(!readCred(credinfo))
+      return EACCES;
+
     // update authmethods for session leader and current pid
-    uint8_t authid;
     std::string sId;
-    if (credinfo.type == krb5) sId = "krb5:";
-    else if (credinfo.type == krk5) sId = "krk5:";
+    if(credinfo.type==krb5) sId = "krb5:";
+    else if(credinfo.type==krk5) sId = "krk5:";
     else sId = "x509:";
 
     std::string newauthmeth;
-    if (credinfo.type == krk5)
-      {
-        // using directly the value of the pointed file (which is the text of the in memory credentials)
-        sId.append (credinfo.fname);
-        newauthmeth = sId;
-      }
-    else
-      {
-        // using the link created by the user
-        sId.append (credinfo.lname);
-        newauthmeth = sId;
-      }
-
-    if (newauthmeth.empty ())
-      {
-        eos_static_err ("error symlinking credential file ");
-        return EACCES;
-      }
-    proccache_SetAuthMethod (pid, newauthmeth.c_str ());
-    proccache_SetAuthMethod (sid, newauthmeth.c_str ());
-    // update uid2IdenAuthid
+    if(credinfo.type==krk5)
     {
-      eos::common::RWMutexWriteLock lock (pMutex);
-      // this will create the entry in uid2IdenAuthid if it does not exist already
-      auto &uidEntry = uid2IdenAuthid[uid];
-      if (credinfo.type == krb5) sId = "krb5:";
-      else if (credinfo.type == krk5) sId = "krk5:";
-      else sId = "x509:";
-      sId.append (credinfo.identity);
-      if (!reconnect && uidEntry.strongid2authid.count (sId))
-        authid = uidEntry.strongid2authid[sId]; // if this identity already has an authid , use it
-      else
-        {
-          if (uidEntry.freeAuthIdPool.empty ())
-            {
-              eos_static_err ("reached maximum number of connections for uid %d. cannot bind identity [%s] to a new xrootd connection! "
-                              , (int) uid, sId.c_str ());
-              return EACCES;
-            }
-          // get the new connection id
-          uint8_t newauthid = uidEntry.freeAuthIdPool.front ();
-          // remove the new connection from the connections available to be used
-          uidEntry.freeAuthIdPool.pop_front ();
-          // recycle the previsous connection number if reconnecting
-          if (reconnect)
-            {
-              eos_static_debug ("dropping authid %d", (int) uidEntry.strongid2authid[sId]);
-              uidEntry.freeAuthIdPool.push_back (uidEntry.strongid2authid[sId]);
-            }
-          // store the new authid
-          eos_static_debug ("using newauthid %d", (int) newauthid);
-          authid = (uidEntry.strongid2authid[sId] = newauthid); // create a new authid if this id is not registered yet
-        }
+      // using directly the value of the pointed file (which is the text of the in memory credentials)
+      sId.append(credinfo.fname);
+      newauthmeth = sId;
+    }
+    else
+    {
+      // using the link created by the user
+      sId.append(credinfo.lname);
+      newauthmeth = sId;
+    }
+
+    if(newauthmeth.empty())
+    {
+      eos_static_err("error symlinking credential file ");
+      return EACCES;
+    }
+    proccache_SetAuthMethod(pid,newauthmeth.c_str());
+    proccache_SetAuthMethod(sid,newauthmeth.c_str());
+
+    auto authid = getNewConId(uid,gid,pid);
+    if(!authid)
+    {
+      eos_static_alert("running out of XRootD connections");
+      errCode = EBUSY;
+      return errCode;
     }
     // update pid2StrongLogin (no lock needed as only one thread per process can access this)
     map_user xrdlogin (uid, gid, authid);
-    std::string mapped = mapuser (uid, gid, 0, authid);
+    std::string mapped = mapUser (uid, gid, 0, authid);
     pid2StrongLogin[pid] = std::string (xrdlogin.base64 (mapped));
     // update uidsid2credinfo
     credinfo.cachedStrongLogin = pid2StrongLogin[pid];
-    eos_static_debug ("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s", (int) uid, (int) sid, (int) pid, credinfo.cachedStrongLogin.c_str ());
-    pMutex.LockWrite ();
-    uidsid2credinfo[std::make_pair (uid, sid)] = credinfo;
-    pMutex.UnLockWrite ();
+    eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",(int)uid,(int)sid,(int)pid,credinfo.cachedStrongLogin.c_str());
+    pMutex.LockWrite();
+    uidsid2credinfo[std::make_pair(uid,sid)] = credinfo;
+    pMutex.UnLockWrite();
 
-    eos_static_debug ("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int) pid,
-                      pid2StrongLogin[pid].c_str (), (int) uid, (int) authid);
+    eos_static_info("qualifiedidentity [%s] used for pid %d, xrdlogin is %s (%d/%d)", sId.c_str (), (int )pid,
+                     pid2StrongLogin[pid].c_str (), (int )uid, (int )authid);
 
     return errCode;
   }
@@ -480,15 +447,13 @@ protected:
   {
     uid_t uid;
     gid_t gid;
-    uint8_t authid;
-    // first 20 bits for user id
-    // 16 following bites for authid
-    // 6 following bits for auth id (identity)
+    uint64_t conid;
     char base64buf[9];
     bool base64computed;
-
-    map_user (uid_t _uid, gid_t _gid, uint8_t _authid) :
-    uid (_uid), gid (_gid), authid (_authid), base64computed (false) { }
+    map_user (uid_t _uid, gid_t _gid, uint64_t _authid) :
+        uid (_uid), gid(_gid), conid(_authid), base64computed(false)
+    {
+    }
 
     char*
     base64 (std::string& mapped)
@@ -509,7 +474,7 @@ protected:
   //------------------------------------------------------------------------------
 
   std::string
-  mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid);
+  mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t conid);
 
 public:
 
@@ -537,7 +502,7 @@ public:
   std::string
   getLogin (uid_t uid, gid_t gid, pid_t pid)
   {
-    return (use_user_krb5cc || use_user_gsiproxy) ? getXrdLogin (pid) : mapuser (uid, gid, pid, 0);
+    return (use_user_krb5cc || use_user_gsiproxy) ? getXrdLogin (pid) : mapUser (uid, gid, pid, 0);
   }
 
 };

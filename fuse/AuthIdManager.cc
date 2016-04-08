@@ -30,79 +30,81 @@
 // Get user name from the uid and change the effective user ID of the thread
 //------------------------------------------------------------------------------
 
-std::string
-AuthIdManager::mapuser (uid_t uid, gid_t gid, pid_t pid, uint8_t authid)
+std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t conid)
 {
-  eos_static_debug ("uid=%lu gid=%lu pid=%lu",
-                    (unsigned long) uid,
-                    (unsigned long) gid,
-                    (unsigned long) pid);
+  eos_static_debug("uid=%lu gid=%lu pid=%lu", (unsigned long ) uid, (unsigned long ) gid, (unsigned long ) pid);
 
   XrdOucString sid = "";
+  XrdOucString sb64;
+  unsigned long long bituser = 0;
 
-  if (uid == 0)
+  if ((use_user_krb5cc || use_user_gsiproxy))
+  {
+    sid = "F";
+    bituser=conid;
+    eos_static_debug("conid = %llu", conid);
+  }
+  else
+  {
+    sid = "*";
+
+    if (uid == 0)
     {
       uid = gid = DAEMONUID;
     }
 
-  unsigned long long bituser = 0;
-
-  // Emergency mapping of too high user ids to nob
-  if (uid > 0xfffff)
+    // Emergency mapping of too high user ids to nob
+    if (uid > 0xfffff)
     {
-      eos_static_err ("msg=\"unable to map uid - out of 20-bit range - mapping to "
-                      "nobody\" uid=%u", uid);
+      eos_static_err("msg=\"unable to map uid - out of 20-bit range - mapping to "
+                     "nobody\" uid=%u",
+                     uid);
       uid = 99;
     }
-  if (gid > 0xffff)
+    if (gid > 0xffff)
     {
-      eos_static_err ("msg=\"unable to map gid - out of 16-bit range - mapping to "
-                      "nobody\" gid=%u", gid);
+      eos_static_err("msg=\"unable to map gid - out of 16-bit range - mapping to "
+                     "nobody\" gid=%u",
+                     gid);
       gid = 99;
     }
 
-  bituser = (uid & 0xfffff);
-  bituser <<= 16;
-  bituser |= (gid & 0xffff);
-  bituser <<= 6;
-  if (use_user_gsiproxy || use_user_krb5cc)
-    {
-      // if using strong authentication, the 6 bits are used to map different strong ids to the same uid
-      // if recoonection is needed, it goes through the authidmanager
-      bituser |= (authid & 0x3f);
-    }
-  else
+    bituser = (uid & 0xfffff);
+    bituser <<= 16;
+    bituser |= (gid & 0xffff);
+    bituser <<= 6;
     {
       // if using the gateway node, the purpose of the reamining 6 bits is just a connection counter to be able to reconnect
       XrdSysMutexHelper cLock (connectionIdMutex);
-      if (connectionId)
-        bituser |= (connectionId & 0x3f);
+      if (connectionId) bituser |= (connectionId & 0x3f);
     }
+  }
 
   bituser = h_tonll (bituser);
 
-  XrdOucString sb64;
   // WARNING: we support only one endianess flavour by doing this
   eos::common::SymKey::Base64Encode ((char*) &bituser, 8, sb64);
+
   size_t len = sb64.length ();
   // Remove the non-informative '=' in the end
   if (len > 2)
-    {
-      sb64.erase (len - 1);
-      len--;
-    }
+  {
+    sb64.erase (len - 1);
+    len--;
+  }
 
   // Reduce to 7 b64 letters
-  if (len > 7)
-    sb64.erase (0, len - 7);
+  if (len > 7) sb64.erase (0, len - 7);
 
-  sid = "*";
   sid += sb64;
 
   // Encode '/' -> '_', '+' -> '-' to ensure the validity of the XRootD URL
   // if necessary.
   sid.replace ('/', '_');
   sid.replace ('+', '-');
-  eos_static_debug ("user-ident=%s", sid.c_str ());
+  eos_static_debug("user-ident=%s", sid.c_str ());
+
   return sid.c_str ();
 }
+
+uint64_t AuthIdManager::sConIdCount=0;
