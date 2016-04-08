@@ -3411,7 +3411,9 @@ filesystem::pread (int fildes,
    ret = file->ReadCache (offset, static_cast<char*> (buf), nbyte, file_write_back_cache_size);
    if (ret != (int) nbyte)
    {
-     if (ret == -1)
+     off_t cache_size = fabst->GetMaxWriteOffset ();
+     // either the data is not in the cache, the cache is empty or the cache request is not complete
+     if ( (ret == -1) || ( !cache_size ) || ( (off_t)(offset+nbyte) < cache_size) )
      {
        if (isRW)
        {

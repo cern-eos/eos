@@ -847,20 +847,20 @@ public:
 
    Monitor (const char* caller, Track& tracker, unsigned long long ino, bool exclusive = false)
    {
-    eos_static_info ("trylock caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
+    eos_static_debug ("trylock caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
 
     this->me = tracker.Attach (ino, exclusive);
     this->ino = ino;
     this->caller = caller;
     this->exclusive = exclusive;
-    eos_static_info ("locked  caller=%s self=%llx in=%llu exclusive=%d obj=%llx", caller, pthread_self (), ino, exclusive,
+    eos_static_debug ("locked  caller=%s self=%llx in=%llu exclusive=%d obj=%llx", caller, pthread_self (), ino, exclusive,
                      &(*(this->me)));
 
    }
 
    ~Monitor ()
    {
-    eos_static_info ("unlock  caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
+    eos_static_debug ("unlock  caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
 
     if (exclusive)
       me->mInUse.UnLockWrite ();
