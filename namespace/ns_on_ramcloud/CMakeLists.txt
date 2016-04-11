@@ -115,11 +115,3 @@ target_link_libraries(
   ramcloud_cli
   ${RAMCLOUD_LIBRARIES}
   /usr/lib64/libboost_program_options.so)
-
-add_executable(
-  ramcloud_test
-  RamcloudClient.cc)
-
-target_link_libraries(
-  ramcloud_test
-  ${RAMCLOUD_LIBRARIES})
