@@ -65,7 +65,7 @@ ContainerMD::findContainer(const std::string& name)
     RAMCloud::Buffer bval;
     RAMCloud::RamCloud* client = getRamCloudClient();
     client->read(pDirsTableId, name.c_str(), name.length(), &bval);
-    IFileMD::id_t cid = atol(bval.getOffset<char>(0));
+    IFileMD::id_t cid = static_cast<uint64_t>(*bval.getOffset<int64_t>(0));
     return pContSvc->getContainerMD(cid);
   }
   catch (RAMCloud::ClientException& e)
@@ -104,10 +104,11 @@ ContainerMD::addContainer(IContainerMD* container)
   try
   {
     RAMCloud::RamCloud* client = getRamCloudClient();
-    std::string bval = std::to_string(container->getId());
+    IContainerMD::id_t id = container->getId();
     client->write(pDirsTableId,
 		  static_cast<const void*>(container->getName().c_str()),
-		  container->getName().length(), bval.c_str());
+		  container->getName().length(),
+		  static_cast<const void*>(&id), sizeof(id));
   }
   catch (RAMCloud::ClientException& e)
   {
@@ -129,7 +130,7 @@ ContainerMD::findFile(const std::string& name)
     RAMCloud::RamCloud* client = getRamCloudClient();
     client->read(pFilesTableId, static_cast<const void*>(name.c_str()),
 		 name.length(), &bval);
-    uint64_t fid = atol(bval.getOffset<char>(0));
+    uint64_t fid = static_cast<uint64_t>(*bval.getOffset<int64_t>(0));
     return pFileSvc->getFileMD(fid);
   }
   catch (RAMCloud::ClientException& e)
@@ -149,9 +150,10 @@ ContainerMD::addFile(IFileMD* file)
   try
   {
     RAMCloud::RamCloud* client = getRamCloudClient();
-    std::string bval = std::to_string(file->getId());
-    client->write(pFilesTableId, static_cast<const char*>(file->getName().c_str()),
-		  file->getName().length(), bval.c_str());
+    IFileMD::id_t id = file->getId();
+    client->write(pFilesTableId, static_cast<const void*>(file->getName().c_str()),
+		  file->getName().length(), static_cast<const void*>(&id),
+		  sizeof(id));
   }
   catch (RAMCloud::ClientException& e)
   {
@@ -179,7 +181,7 @@ ContainerMD::removeFile(const std::string& name)
     RAMCloud::Buffer bval;
     client->read(pFilesTableId, static_cast<const void*>(name.c_str()),
 		 name.length(), &bval);
-    IFileMD::id_t fid = atol(bval.getOffset<char>(0));
+    IFileMD::id_t fid = static_cast<uint64_t>(*bval.getOffset<int64_t>(0));
     file = pFileSvc->getFileMD(fid);
   }
   catch (RAMCloud::ClientException& e)
@@ -211,14 +213,26 @@ ContainerMD::removeFile(const std::string& name)
 size_t
 ContainerMD::getNumFiles()
 {
+  size_t num_files = 0;
+
   try
   {
-    // TODO: get number of entries in the pFilesTableId table
-    return 0;
+    // TODO: find best way to count the number of entries in a table
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    RAMCloud::TableEnumerator iter(*client, pFilesTableId, true);
+    uint32_t size = 0;
+    const void* object = 0;
+
+    while (iter.hasNext())
+    {
+      num_files++;
+      iter.next(&size, &object);
+    }
+
+    return num_files;
   }
-  catch (std::runtime_error& e)
-  {
-    return 0;
+  catch (RAMCloud::TableDoesntExistException& e) {
+    return num_files;
   }
 }
 
@@ -228,14 +242,24 @@ ContainerMD::getNumFiles()
 size_t
 ContainerMD::getNumContainers()
 {
-  try
-  {
-    // TODO: get the number of entries in the pDirsTableId table
-    return 0;
+  size_t num_dirs = 0;
+
+  try {
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    RAMCloud::TableEnumerator iter(*client, pDirsTableId, true);
+    uint32_t size = 0;
+    const void* object = 0;
+
+    while (iter.hasNext())
+    {
+      num_dirs++;
+      iter.next(&size, &object);
+    }
+
+    return num_dirs;
   }
-  catch (RAMCloud::ClientException& e)
-  {
-    return 0;
+  catch (RAMCloud::TableDoesntExistException& e) {
+    return num_dirs;
   }
 }
 
@@ -601,30 +625,31 @@ void ContainerMD::removeAttribute(const std::string& name)
 // Serialize the object to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::serialize(std::string& buffer)
+ContainerMD::serialize(Buffer& buffer)
 {
-  buffer.append(reinterpret_cast<const char*>(&pId),       sizeof(pId));
-  buffer.append(reinterpret_cast<const char*>(&pParentId), sizeof(pParentId));
-  buffer.append(reinterpret_cast<const char*>(&pFlags),    sizeof(pFlags));
-  buffer.append(reinterpret_cast<const char*>(&pCTime),    sizeof(pCTime));
-  buffer.append(reinterpret_cast<const char*>(&pCUid),     sizeof(pCUid));
-  buffer.append(reinterpret_cast<const char*>(&pCGid),     sizeof(pCGid));
-  buffer.append(reinterpret_cast<const char*>(&pMode),     sizeof(pMode));
-  buffer.append(reinterpret_cast<const char*>(&pACLId),    sizeof(pACLId));
+  buffer.putData(&pId,       sizeof(pId));
+  buffer.putData(&pParentId, sizeof(pParentId));
+  buffer.putData(&pFlags,    sizeof(pFlags));
+  buffer.putData(&pCTime,    sizeof(pCTime));
+  buffer.putData(&pCUid,     sizeof(pCUid));
+  buffer.putData(&pCGid,     sizeof(pCGid));
+  buffer.putData(&pMode,     sizeof(pMode));
+  buffer.putData(&pACLId,    sizeof(pACLId));
   uint16_t len = pName.length() + 1;
-  buffer.append(reinterpret_cast<const char*>(&len), 2);
-  buffer.append(pName.c_str(), len);
+  buffer.putData(&len,          2);
+  buffer.putData(pName.c_str(), len);
   len = pXAttrs.size() + 2;
-  buffer.append(reinterpret_cast<const char*>(&len), sizeof(len));
+  buffer.putData(&len, sizeof(len));
+  XAttrMap::iterator it;
 
-  for (auto it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
+  for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
   {
     uint16_t strLen = it->first.length() + 1;
-    buffer.append(reinterpret_cast<const char*>(&strLen), sizeof(strLen));
-    buffer.append(it->first.c_str(), strLen);
+    buffer.putData(&strLen, sizeof(strLen));
+    buffer.putData(it->first.c_str(), strLen);
     strLen = it->second.length() + 1;
-    buffer.append(reinterpret_cast<const char*>(&strLen), sizeof(strLen));
-    buffer.append(it->second.c_str(), strLen);
+    buffer.putData(&strLen, sizeof(strLen));
+    buffer.putData(it->second.c_str(), strLen);
   }
 
   // Store mtime as ext. attributes
@@ -634,74 +659,76 @@ ContainerMD::serialize(std::string& buffer)
   uint16_t l2 = k2.length() + 1;
   uint16_t l3;
   char stime[64];
+
   snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_sec);
   l3 = strlen(stime) + 1;
   // key
-  buffer.append(reinterpret_cast<const char*>(&l1), sizeof(l1));
-  buffer.append(k1.c_str(), l1);
+  buffer.putData(&l1, sizeof(l1));
+  buffer.putData(k1.c_str(), l1);
   // value
-  buffer.append(reinterpret_cast<const char*>(&l3), sizeof(l3));
-  buffer.append(stime, l3);
+  buffer.putData(&l3, sizeof(l3));
+  buffer.putData(stime, l3);
   snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_nsec);
   l3 = strlen(stime) + 1;
+
   // key
-  buffer.append(reinterpret_cast<const char*>(&l2), sizeof(l2));
-  buffer.append(k2.c_str(), l2);
+  buffer.putData(&l2, sizeof(l2));
+  buffer.putData(k2.c_str(), l2);
   // value
-  buffer.append(reinterpret_cast<const char*>(&l3), sizeof(l3));
-  buffer.append(stime, l3);
+  buffer.putData(&l3, sizeof(l3));
+  buffer.putData(stime, l3);
 }
 
 //------------------------------------------------------------------------------
-// Deserialize the class from buffer
+// Deserialize the class to a buffer
 //------------------------------------------------------------------------------
 void
-ContainerMD::deserialize(const std::string& buffer)
+ContainerMD::deserialize(Buffer& buffer)
 {
   uint16_t offset = 0;
-  offset = Buffer::grabData(buffer, offset, &pId, sizeof(pId));
-  offset = Buffer::grabData(buffer, offset, &pParentId, sizeof(pParentId));
-  offset = Buffer::grabData(buffer, offset, &pFlags, sizeof(pFlags));
-  offset = Buffer::grabData(buffer, offset, &pCTime, sizeof(pCTime));
-  offset = Buffer::grabData(buffer, offset, &pCUid, sizeof(pCUid));
-  offset = Buffer::grabData(buffer, offset, &pCGid, sizeof(pCGid));
-  offset = Buffer::grabData(buffer, offset, &pMode, sizeof(pMode));
-  offset = Buffer::grabData(buffer, offset, &pACLId, sizeof(pACLId));
+  offset = buffer.grabData(offset, &pId,       sizeof(pId));
+  offset = buffer.grabData(offset, &pParentId, sizeof(pParentId));
+  offset = buffer.grabData(offset, &pFlags,    sizeof(pFlags));
+  offset = buffer.grabData(offset, &pCTime,    sizeof(pCTime));
+  offset = buffer.grabData(offset, &pCUid,     sizeof(pCUid));
+  offset = buffer.grabData(offset, &pCGid,     sizeof(pCGid));
+  offset = buffer.grabData(offset, &pMode,     sizeof(pMode));
+  offset = buffer.grabData(offset, &pACLId,    sizeof(pACLId));
   uint16_t len;
-  offset = Buffer::grabData(buffer, offset, &len, sizeof(len));
+  offset = buffer.grabData(offset, &len, 2);
   char strBuffer[len];
-  offset = Buffer::grabData(buffer, offset, strBuffer, len);
+  offset = buffer.grabData(offset, strBuffer, len);
   pName = strBuffer;
   uint16_t len1 = 0;
   uint16_t len2 = 0;
   len = 0;
-  offset = Buffer::grabData(buffer, offset, &len, sizeof(len));
+  offset = buffer.grabData(offset, &len, sizeof(len));
 
   for (uint16_t i = 0; i < len; ++i)
   {
-    offset = Buffer::grabData(buffer, offset, &len1, sizeof(len1));
+    offset = buffer.grabData(offset, &len1, sizeof(len1));
     char strBuffer1[len1];
-    offset = Buffer::grabData(buffer, offset, strBuffer1, len1);
-    offset = Buffer::grabData(buffer, offset, &len2, sizeof(len2));
+    offset = buffer.grabData(offset, strBuffer1, len1);
+    offset = buffer.grabData(offset, &len2, sizeof(len2));
     char strBuffer2[len2];
-    offset = Buffer::grabData(buffer, offset, strBuffer2, len2);
+    offset = buffer.grabData(offset, strBuffer2, len2);
     std::string key = strBuffer1;
 
-    if (key == "sys.mtime.s")
+    if (key=="sys.mtime.s")
     {
       // Stored modification time in s
-      pMTime.tv_sec = strtoull(strBuffer2, 0, 10);
+      pMTime.tv_sec = strtoull(strBuffer2,0,10);
     }
     else
     {
-      if (key == "sys.mtime.ns")
+      if (key== "sys.mtime.ns")
       {
 	// Stored modification time in ns
-	pMTime.tv_nsec = strtoull(strBuffer2, 0, 10);
+	pMTime.tv_nsec = strtoull(strBuffer2,0,10);
       }
       else
       {
-	pXAttrs.insert(std::make_pair<char*, char*>(strBuffer1, strBuffer2));
+	pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
       }
     }
   }

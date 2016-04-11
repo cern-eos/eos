@@ -28,7 +28,7 @@ include_directories(
  ${RAMCLOUD_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
-#  add_subdirectory(tests)
+  add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
 #-----------------------------------------------------------------------------
@@ -106,3 +106,20 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+add_executable(
+  ramcloud_cli
+  RamCloudCLI.cc)
+
+target_link_libraries(
+  ramcloud_cli
+  ${RAMCLOUD_LIBRARIES}
+  /usr/lib64/libboost_program_options.so)
+
+add_executable(
+  ramcloud_test
+  RamcloudClient.cc)
+
+target_link_libraries(
+  ramcloud_test
+  ${RAMCLOUD_LIBRARIES})

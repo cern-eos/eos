@@ -24,28 +24,30 @@
 include_directories(${CPPUNIT_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
-# EosNsOnRedisTests library
+# EosNsOnRamCloudTests library
 #-------------------------------------------------------------------------------
 add_library(
-  EosNsOnRedisTests MODULE
+  EosNsOnRamcloudTests MODULE
   ContainerMDSvcTest.cc
   FileMDSvcTest.cc
-  HierarchicalViewTest.cc
-  FileSystemViewTest.cc
-  OtherTests.cc)
+  ../RamCloudClient.cc
+#  HierarchicalViewTest.cc
+#  FileSystemViewTest.cc
+#  OtherTests.cc
+)
 
 target_link_libraries(
-  EosNsOnRedisTests
-  EosNsOnRedis-Static
+  EosNsOnRamcloudTests
+  EosNsOnRamcloud-Static
   ${CPPUNIT_LIBRARIES})
 
-add_executable(eosnsbench EosNamespaceBenchmark.cc)
-target_link_libraries(eosnsbench EosNsOnRedis eosCommon-Static)
-set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+#add_executable(eosnsbench EosNamespaceBenchmark.cc)
+#target_link_libraries(eosnsbench EosNsOnRedis eosCommon-Static)
+#set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 
-install(
-  TARGETS
-  eosnsbench
-  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+#install(
+#  TARGETS
+#  eosnsbench
+#  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+#  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+#  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

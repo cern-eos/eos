@@ -379,12 +379,13 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(std::string& buffer);
+  void serialize(Buffer& buffer);
 
   //----------------------------------------------------------------------------
   //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void deserialize(const std::string& buffer);
+  void deserialize(Buffer& buffer);
+
 
 protected:
   id_t         pId;

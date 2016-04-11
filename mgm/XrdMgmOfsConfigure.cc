@@ -1699,6 +1699,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 	Eroute.Emsg("Config", "cannot set the recycle directory mode to inital mode");
 	eos_crit("cannot set the %s directory mode to 700",
 		 Recycle::gRecyclingPrefix.c_str());
+	eos_crit("%s", e.what());
 	return 1;
       }
     }

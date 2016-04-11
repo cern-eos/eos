@@ -63,7 +63,7 @@ void FileMDSvc::initialize()
 std::unique_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id)
 {
-  std::string blob;
+  eos::Buffer blob;
 
   try
   {
@@ -73,9 +73,9 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
     client->read(pFilesTableId, static_cast<const void*>(key.c_str()),
 		 key.length(), &bval);
 
-    blob.assign(bval.getOffset<char>(0));
+    blob.putData(bval.getOffset<char>(0), bval.size());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found";
@@ -114,12 +114,13 @@ std::unique_ptr<IFileMD> FileMDSvc::createFile()
 //------------------------------------------------------------------------------
 void FileMDSvc::updateStore(IFileMD* obj)
 {
-  std::string buffer;
+  eos::Buffer buffer;
   dynamic_cast<FileMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
   RAMCloud::RamCloud* client = getRamCloudClient();
   client->write(pFilesTableId, static_cast<const void*>(key.c_str()),
-		key.length(), buffer.c_str());
+		key.length(), static_cast<const void*>(buffer.getDataPtr()),
+		buffer.getSize());
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
   notifyListeners(&e);
 }
@@ -211,7 +212,7 @@ uint64_t FileMDSvc::getNumFiles()
     RAMCloud::RamCloud* client = getRamCloudClient();
     client->read(pMetaTableId, static_cast<const void*>(constants::sNumFiles.c_str()),
       constants::sNumFiles.length(), &bval);
-    num_files = strtoul(bval.getOffset<char>(0), NULL, 0);
+    num_files = static_cast<uint64_t>(*bval.getOffset<int64_t>(0));
   }
   catch (std::exception& e) {}
 

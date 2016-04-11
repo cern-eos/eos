@@ -20,11 +20,15 @@
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief File metadata service class test
 //------------------------------------------------------------------------------
-
 #include <cppunit/extensions/HelperMacros.h>
-#include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
-#include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_on_ramcloud/persistency/FileMDSvc.hh"
+#include "namespace/ns_on_ramcloud/persistency/ContainerMDSvc.hh"
 #include <memory>
+
+namespace eos
+{
+  static std::string sRamCloudConfigFile = "/etc/ramcloud.client.config";
+}
 
 //------------------------------------------------------------------------------
 // FileMDSvcTest class
@@ -49,10 +53,7 @@ void FileMDSvcTest::loadTest()
   std::unique_ptr<eos::IContainerMDSvc> contSvc {new eos::ContainerMDSvc};
   std::unique_ptr<eos::IFileMDSvc> fileSvc {new eos::FileMDSvc};
   fileSvc->setContMDService(contSvc.get());
-  std::map<std::string, std::string> config = {
-    {"redis_host", "localhost"},
-    {"redis_port", "6380"}
-  };
+  std::map<std::string, std::string> config = {};
   fileSvc->configure(config);
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
 

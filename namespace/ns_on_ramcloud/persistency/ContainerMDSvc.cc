@@ -64,7 +64,7 @@ void ContainerMDSvc::initialize()
 std::unique_ptr<IContainerMD>
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 {
-  std::string blob;
+  eos::Buffer blob;
 
   try
   {
@@ -73,9 +73,9 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     RAMCloud::RamCloud* client = getRamCloudClient();
     client->read(pDirsTableId, static_cast<const void*>(key.c_str()),
 		 key.length(), &bval);
-    blob.assign(bval.getOffset<char>(0));
+    blob.putData(bval.getOffset<char>(0), bval.size());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";
@@ -85,6 +85,8 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
   std::unique_ptr<IContainerMD> cont {new ContainerMD(0, pFileSvc,
 				      static_cast<IContainerMDSvc*>(this))};
   static_cast<ContainerMD*>(cont.get())->deserialize(blob);
+  fprintf(stderr, "Container name: %s, id=%lu, requested_id=%lu\n",
+	  cont->getName().c_str(), cont->getId(), id);
   return cont;
 }
 
@@ -94,17 +96,24 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 std::unique_ptr<IContainerMD> ContainerMDSvc::createContainer()
 {
   // Get the first free container id
-  RAMCloud::RamCloud* client = getRamCloudClient();
-  uint64_t free_id = client->incrementInt64(pMetaTableId,
-    static_cast<const void*>(constants::sFirstFreeCid.c_str()),
-    constants::sFirstFreeCid.length(), 1);
-  std::unique_ptr<IContainerMD> cont {new ContainerMD(free_id, pFileSvc,
-    static_cast<IContainerMDSvc*>(this))};
-  // Increase total number of containers
-  (void) client->incrementInt64(pMetaTableId,
-     static_cast<const void*>(constants::sNumConts.c_str()),
-     constants::sNumConts.length(), 1);
-  return cont;
+  try {
+    RAMCloud::RamCloud* client = getRamCloudClient();
+    uint64_t free_id = client->incrementInt64(pMetaTableId,
+      static_cast<const void*>(constants::sFirstFreeCid.c_str()),
+      constants::sFirstFreeCid.length(), 1);
+    std::unique_ptr<IContainerMD> cont {new ContainerMD(free_id, pFileSvc,
+      static_cast<IContainerMDSvc*>(this))};
+    // Increase total number of containers
+    (void) client->incrementInt64(pMetaTableId,
+      static_cast<const void*>(constants::sNumConts.c_str()),
+      constants::sNumConts.length(), 1);
+    return cont;
+  }
+  catch (RAMCloud::ClientException& e) {
+    MDException e(ENOENT);
+    e.getMessage() << "Unable to create container";
+    throw e;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -112,12 +121,13 @@ std::unique_ptr<IContainerMD> ContainerMDSvc::createContainer()
 //----------------------------------------------------------------------------
 void ContainerMDSvc::updateStore(IContainerMD* obj)
 {
-  std::string buffer;
+  eos::Buffer buffer;
   dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
   RAMCloud::RamCloud* client = getRamCloudClient();
   client->write(pDirsTableId, static_cast<const void*>(key.c_str()),
-		key.length(),buffer.c_str());
+		key.length(), static_cast<const void*>(buffer.getDataPtr()),
+		buffer.getSize());
   notifyListeners(obj, IContainerMDChangeListener::Updated);
 }
 
@@ -144,7 +154,7 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     client->remove(pDirsTableId, static_cast<const void*>(key.c_str()),
 		   key.length());
   }
-  catch (std::runtime_error& e)
+  catch (RAMCloud::ClientException& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. ";
@@ -253,7 +263,7 @@ uint64_t ContainerMDSvc::getNumContainers()
     RAMCloud::RamCloud* client = getRamCloudClient();
     client->read(pMetaTableId, static_cast<const void*>(constants::sNumConts.c_str()),
 		 constants::sNumConts.length(), &bval);
-    num_conts = strtoul(bval.getOffset<char>(0), NULL, 0);
+    num_conts = static_cast<uint64_t>(*bval.getOffset<int64_t>(0));
   }
   catch (std::exception& e) { }
 

@@ -495,18 +495,14 @@ class FileMD: public IFileMD
   }
 
   //----------------------------------------------------------------------------
-  //! Serialize the object to a std::string buffer
-  //!
-  //! @param output buffer holding the binary representation of the object
+  //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(std::string& buffer);
+  void serialize(Buffer& buffer);
 
   //----------------------------------------------------------------------------
-  //! Deserialize the class from a std::string buffer
-  //!
-  //! @param input buffer holding the binary representation of the object
+  //! Deserialize the class to a buffer
   //----------------------------------------------------------------------------
-  void deserialize(const std::string& buffer);
+  void deserialize(const Buffer& buffer);
 
 protected:
   id_t                pId;

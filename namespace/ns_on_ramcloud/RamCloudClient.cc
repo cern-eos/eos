@@ -16,15 +16,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <fstream>
 #include "RamCloudClient.hh"
 #include "Context.h"
 
 EOSNSNAMESPACE_BEGIN
 
 using namespace RAMCloud;
-static std::string sRamCloudNamespace = "eosnamespace";
+static std::map<std::string, std::string> sRamCloudConfigMap;
+static std::string sRamCloudConfigFile;
 static thread_local Context* sRamCloudContext = nullptr;
 static thread_local RamCloud *sRamCloudClient = nullptr;
+
+//------------------------------------------------------------------------------
+// Function returning a thread local RamCloud client object
+//------------------------------------------------------------------------------
+std::map<std::string, std::string>
+parseClientConfigFile(const std::string& fn)
+{
+  std::string line;
+  std::map<std::string, std::string> map;
+  std::ifstream file(fn.c_str());
+
+  while (std::getline(file, line))
+  {
+    // Skip comment lines
+    if (line.find('#') == 0)
+      continue;
+
+    size_t pos = line.find('=');
+
+    // Skip lines which are not in <key>=<value> format
+    if (pos == std::string::npos)
+      continue;
+
+    map.emplace(line.substr(0, pos), line.substr(pos + 1));
+  }
+
+  return map;
+}
 
 //------------------------------------------------------------------------------
 // Function returning a thread local RamCloud client object
@@ -35,13 +65,33 @@ getRamCloudClient()
   if (sRamCloudClient)
     return sRamCloudClient;
 
-  // Creaate new object for the current thread
-  // TODO: add configuration optinons to the client
-  std::string locator = "lc:128.142.134.126:5254,188.184.150.109:5254,128.142.142.195:5254";
+  if (sRamCloudConfigMap.empty())
+  {
+    if (sRamCloudConfigFile.empty())
+    {
+      sRamCloudConfigFile =  "/etc/ramcloud.client.config";
+      fprintf(stderr, "Using default RAMCloud client config file: %s\n",
+	      sRamCloudConfigFile.c_str());
+    }
+
+    sRamCloudConfigMap = parseClientConfigFile(sRamCloudConfigFile);
+
+    if (sRamCloudConfigMap.size() != 3)
+    {
+      fprintf(stderr, "Incomplete RAMCloud configuration map\n");
+      return nullptr;
+    }
+  }
+
+  // Create new RAMCloud client object
   sRamCloudContext = new Context(false);
-  sRamCloudClient = new RamCloud(sRamCloudContext, locator.c_str(), sRamCloudNamespace.c_str());
+  sRamCloudContext->configFileExternalStorage =
+    sRamCloudConfigMap["configFileExternalStorage"];
+  sRamCloudClient = new RamCloud(sRamCloudContext,
+				 sRamCloudConfigMap["externalStorage"].c_str(),
+				 sRamCloudConfigMap["clusterNamespace"].c_str());
   return sRamCloudClient;
-}
+  }
 
 //------------------------------------------------------------------------------
 // Test if RAMCloud table is empty

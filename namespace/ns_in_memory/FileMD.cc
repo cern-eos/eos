@@ -413,7 +413,7 @@ void FileMD::deserialize(const Buffer& buffer)
       pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
     }
   }
-};
+}
 
 //------------------------------------------------------------------------------
 // Get vector with all the locations
