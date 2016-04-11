@@ -599,11 +599,16 @@ XrdMgmOfs::_rename (const char *old_name,
 		eosView->updateContainerStore(rdir);
 	      }
 
+	      unsigned long long tree_size = rdir->getTreeSize();
 	      {
 		// update the source directory - remove the directory
 		dir->removeContainer(oPath.GetName());
 		dir->setMTimeNow();
 		dir->notifyMTimeChange( gOFS->eosDirectoryService );
+		if (gOFS->eosSyncTimeAccounting)
+		{
+		  dir->removeTreeSize(tree_size);
+		}
 		eosView->updateContainerStore(dir);	     
 	      }
 
@@ -611,8 +616,18 @@ XrdMgmOfs::_rename (const char *old_name,
 		// update the target directory - add the directory
 		newdir->addContainer(rdir);
 		newdir->setMTimeNow();
+		if (gOFS->eosSyncTimeAccounting)
+		{
+		  newdir->addTreeSize(tree_size);
+		}
 		newdir->notifyMTimeChange( gOFS->eosDirectoryService );
 		eosView->updateContainerStore(newdir);
+	      }
+
+
+	      {
+		// update to recursive accounting if enabled
+		
 	      }
 	    }
 	  }
