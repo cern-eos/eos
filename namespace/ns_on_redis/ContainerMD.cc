@@ -43,7 +43,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
   // TODO: review this
-  //pRedox = RedisClient::getInstance();
+  pRedox = RedisClient::getInstance();
   pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
 }
 
@@ -255,9 +255,14 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 std::set<std::string>
 ContainerMD::getNameFiles() const
 {
-  std::vector<std::string> vect_files = pRedox->hvals(pFilesKey);
-  std::set<std::string> set_files(vect_files.begin(), vect_files.end());
-  return set_files;
+  try {
+    std::vector<std::string> vect_files = pRedox->hvals(pFilesKey);
+    std::set<std::string> set_files(vect_files.begin(), vect_files.end());
+    return set_files;
+  }
+  catch (std::runtime_error& e) {
+    return std::set<std::string> {};
+  }
 }
 
 
@@ -267,9 +272,14 @@ ContainerMD::getNameFiles() const
 std::set<std::string>
 ContainerMD::getNameContainers() const
 {
+  try {
   std::vector<std::string> vect_subcont = pRedox->hvals(pDirsKey);
   std::set<std::string> set_subcont(vect_subcont.begin(), vect_subcont.end());
   return set_subcont;
+  }
+  catch (std::runtime_error& e) {
+    return std::set<std::string> {};
+  }
 }
 
 //------------------------------------------------------------------------------

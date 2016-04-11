@@ -432,7 +432,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   if (lastContainer->findFile(elements[position]))
   {
     MDException e(EEXIST);
-    e.getMessage() << "Container exists" << std::endl;
+    e.getMessage() << "File exists" << std::endl;
     throw e;
   }
 
