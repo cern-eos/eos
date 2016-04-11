@@ -317,7 +317,14 @@ XrdFstOfsFile::open (const char* path,
   if (tpc_key.length())
   {
     time_t now = time(NULL);
-    if ((tpc_stage == "placement") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())))
+    bool new_entry = false;
+
+    {
+      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+      new_entry = !gOFS.TpcMap[isRW].count(tpc_key.c_str());
+    }
+
+    if ((tpc_stage == "placement") || (new_entry))
     {
       //.........................................................................
       // Create a TPC entry in the TpcMap
