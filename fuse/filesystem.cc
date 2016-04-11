@@ -1955,7 +1955,7 @@ filesystem::utimes_if_open (unsigned long long inode,
      std::shared_ptr<FileAbstraction> fabst = iter_file->second;
      rwmutex_fd2fabst.UnLockRead();
 
-     iter_file->second->SetUtimes (utimes);
+     fabst->SetUtimes (utimes);
      return 0;
    }
  }
