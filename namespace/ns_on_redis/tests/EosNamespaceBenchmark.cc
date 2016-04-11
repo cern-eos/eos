@@ -293,8 +293,6 @@ int main(int argc, char** argv)
     return 2;
   }
 
-  return 0;
-
   // Fill namespace with files
   try
   {

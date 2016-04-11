@@ -82,6 +82,13 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
     throw e;
   }
 
+  if (blob.empty())
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << id << " not found";
+    throw e;
+  }
+
   std::unique_ptr<IFileMD> file {new FileMD(0, this)};
   static_cast<FileMD*>(file.get())->deserialize(blob);
   return file;

@@ -45,20 +45,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  HierarchicalView(): pContainerSvc(0), pFileSvc(0),
-		      pRoot(std::unique_ptr<IContainerMD>(nullptr))
-  {
-    std::map<std::string, std::string> config;
-    pQuotaStats = new QuotaStats(config);
-  }
+  HierarchicalView();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~HierarchicalView()
-  {
-    delete pQuotaStats;
-  }
+  virtual ~HierarchicalView();
 
   //----------------------------------------------------------------------------
   //! Specify a pointer to the underlying container service
@@ -279,12 +271,38 @@ private:
   };
 
   //----------------------------------------------------------------------------
+  //! Find subcontainer id in the container
+  //!
+  //! @param parent_sid parent container id
+  //! @param name subcontainer name
+  //!
+  //! @return subcontainer id or 0 if not found
+  //----------------------------------------------------------------------------
+  std::string findSubContainerId(const std::string& parent_id,
+				 const std::string& name) const;
+
+  //----------------------------------------------------------------------------
+  //! Find file id in the container
+  //!
+  //! @param parent_sid parent container id
+  //! @param name file name
+  //!
+  //! @return file id or 0 if not found
+  //----------------------------------------------------------------------------
+  std::string findFileId(const std::string& parent_id,
+			 const std::string& name) const;
+
+  //----------------------------------------------------------------------------
   // Data members
   //----------------------------------------------------------------------------
   IContainerMDSvc* pContainerSvc;
   IFileMDSvc*      pFileSvc;
   IQuotaStats*     pQuotaStats;
   std::unique_ptr<IContainerMD> pRoot;
+  redox::Redox* pRedox; ///< RedisClient
+  std::string pRedisHost; ///< Redis instance host
+  uint32_t pRedisPort; ///< Redis instance port
+
 };
 
 EOSNSNAMESPACE_END

@@ -53,15 +53,12 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 std::unique_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
-  try
-  {
-    IFileMD::id_t cid = std::stoull(pRedox->hget(pDirsKey, name));
-    return pContSvc->getContainerMD(cid);
-  }
-  catch (std::exception& e)
-  {
+  std::string scid = pRedox->hget(pDirsKey, name);
+
+  if (scid.empty())
     return std::unique_ptr<IContainerMD>(nullptr);
-  }
+
+  return pContSvc->getContainerMD(std::stoull(scid));
 }
 
 //------------------------------------------------------------------------------
@@ -108,15 +105,12 @@ ContainerMD::addContainer(IContainerMD* container)
 std::unique_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
-  try
-  {
-    std::string fid = pRedox->hget(pFilesKey, name);
-    return pFileSvc->getFileMD(std::stoull(fid));
-  }
-  catch (std::exception& e)
-  {
+  std::string sfid = pRedox->hget(pFilesKey, name);
+
+  if (sfid.empty())
     return std::unique_ptr<IFileMD>(nullptr);
-  }
+
+  return pFileSvc->getFileMD(std::stoull(sfid));
 }
 
 //------------------------------------------------------------------------------
@@ -138,9 +132,12 @@ ContainerMD::addFile(IFileMD* file)
     throw e;
   }
 
-  IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
-				 0, 0, file->getSize());
-  pFileSvc->notifyListeners(&e);
+  if (file->getSize())
+  {
+    IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
+				   0, 0, file->getSize());
+    pFileSvc->notifyListeners(&e);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -149,14 +146,9 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  std::unique_ptr<IFileMD> file;
+  std::string sfid = pRedox->hget(pFilesKey, name);
 
-  try
-  {
-    IFileMD::id_t fid = std::stoull(pRedox->hget(pFilesKey, name));
-    file = pFileSvc->getFileMD(fid);
-  }
-  catch (std::exception& e)
+  if (sfid.empty())
   {
     MDException e(ENOENT);
     e.getMessage() << "Unknown file " << name << " in container " << pName;
@@ -173,6 +165,7 @@ ContainerMD::removeFile(const std::string& name)
     // It was already deleted - don't do anything
   }
 
+  std::unique_ptr<IFileMD> file = pFileSvc->getFileMD(std::stoull(sfid));
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
 				 0, 0, -file->getSize());
   pFileSvc->notifyListeners(&e);
@@ -264,7 +257,6 @@ ContainerMD::getNameFiles() const
     return std::set<std::string> {};
   }
 }
-
 
 //----------------------------------------------------------------------------
 // Get set of subcontainer names contained in the current object

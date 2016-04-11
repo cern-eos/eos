@@ -71,13 +71,20 @@ std::unique_ptr<IContainerMD>
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 {
   std::string blob;
-  std::string key = std::to_string(id) + constants::sContKeySuffix;
 
   try
   {
+    std::string key = std::to_string(id) + constants::sContKeySuffix;
     blob = pRedox->hget(key, "data");
   }
-  catch (std::runtime_error& e)
+  catch (std::exception& e)
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Container #" << id << " not found";
+    throw e;
+  }
+
+  if (blob.empty())
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";

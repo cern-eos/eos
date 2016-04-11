@@ -30,6 +30,26 @@
 #endif
 
 EOSNSNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+HierarchicalView::HierarchicalView():
+  pContainerSvc(0), pFileSvc(0), pRoot(std::unique_ptr<IContainerMD>(nullptr)),
+  pRedox(nullptr), pRedisHost(), pRedisPort(0)
+{
+  std::map<std::string, std::string> config;
+  pQuotaStats = new QuotaStats(config);
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+HierarchicalView::~HierarchicalView()
+{
+  delete pQuotaStats;
+}
+
 //------------------------------------------------------------------------------
 // Configure the view
 //------------------------------------------------------------------------------
@@ -51,6 +71,14 @@ void HierarchicalView::configure(std::map<std::string, std::string>& config)
 
   delete pQuotaStats;
   pQuotaStats = new QuotaStats(config);
+  std::string key_host = "redis_host";
+  std::string key_port = "redis_port";
+
+  if (config.find(key_host) != config.end())
+    pRedisHost = config[key_host];
+
+  if (config.find(key_port) != config.end())
+    pRedisPort = std::stoul(config[key_port]);
 }
 
 //------------------------------------------------------------------------------
@@ -58,6 +86,7 @@ void HierarchicalView::configure(std::map<std::string, std::string>& config)
 //------------------------------------------------------------------------------
 void HierarchicalView::initialize()
 {
+  pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
   initialize1();
   initialize2();
   initialize3();
@@ -512,23 +541,24 @@ std::unique_ptr<IContainerMD>
 HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 				    size_t& index, size_t* link_depths)
 {
-  // TODO: optimize this function to not build the ContainerMD object and only
-  // use the map to get to the last existing container
   size_t position = 0;
-  std::unique_ptr<IContainerMD> found {nullptr};
-  std::unique_ptr<IContainerMD> current {pContainerSvc->getContainerMD(1)};
+  std::string found_scid {""}, current_scid {"1"};
+  std::unique_ptr<IContainerMD> found {nullptr}, current {nullptr};
 
   while (position < end)
   {
-    found = current->findContainer(elements[position]);
+    found_scid = findSubContainerId(current_scid, elements[position]);
 
-    if (!found)
+    if (found_scid.empty())
     {
-      // check if link
-      std::unique_ptr<IFileMD> flink {current->findFile(elements[position])};
+      // Check if link
+      std::string flink_sid = findFileId(current_scid, elements[position]);
 
-      if (flink)
+      if (!flink_sid.empty())
       {
+	std::unique_ptr<IFileMD> flink =
+	  pFileSvc->getFileMD(std::stoull(flink_sid));
+
 	if (flink->isLink())
 	{
 	  if (link_depths)
@@ -548,6 +578,7 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 
 	  if (link[0] != '/')
 	  {
+	    current = pContainerSvc->getContainerMD(std::stoull(current_scid));
 	    link.insert(0, getUri(current.get()));
 	    absPath(link);
 	  }
@@ -557,6 +588,7 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 	  if (!found)
 	  {
 	    index = position;
+	    current = pContainerSvc->getContainerMD(std::stoull(current_scid));
 	    return current;
 	  }
 	}
@@ -565,16 +597,17 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
       if (!found)
       {
 	index = position;
+	current = pContainerSvc->getContainerMD(std::stoull(current_scid));
 	return current;
       }
     }
 
-    current.swap(found);
+    current_scid = found_scid;
     ++position;
   }
 
   index = position;
-  return current;
+  return pContainerSvc->getContainerMD(std::stoull(current_scid));
 }
 
 //------------------------------------------------------------------------------
@@ -934,6 +967,26 @@ void HierarchicalView::absPath(std::string& mypath)
 
   mypath = abspath;
   fprintf(stderr, "abspath: %s => %s\n", path.c_str(), mypath.c_str());
+}
+
+//------------------------------------------------------------------------------
+// Find subcontainer in the container
+//------------------------------------------------------------------------------
+std::string
+HierarchicalView::findSubContainerId(const std::string& parent_sid,
+				     const std::string& name) const
+{
+  return pRedox->hget(parent_sid + constants::sMapDirsSuffix, name);
+}
+
+//------------------------------------------------------------------------------
+// Find file id in the container
+//------------------------------------------------------------------------------
+std::string
+HierarchicalView::findFileId(const std::string& parent_id,
+			     const std::string& name) const
+{
+  return pRedox->hget(parent_id + constants::sMapFilesSuffix, name);
 }
 
 EOSNSNAMESPACE_END
