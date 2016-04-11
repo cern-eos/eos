@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.161 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix race condition originating in use of iterator outside locked section for setattr(utime)
+- fix check for encoding support in FUSE client 
+
 ``V0.3.160 Aquamarine``
 -----------------------
 
