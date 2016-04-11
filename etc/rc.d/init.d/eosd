@@ -239,20 +239,20 @@ getstatus() {
         pid=`pidofproc $prog.$i`
         type=""
         if [ -n "$pid" ]; then
-            echo $"$prog for instance: $i (pid $pid) is running $type ..."
+            [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i (pid $pid) is running $type ..."
             continue
         else
             # See if /var/lock/subsys/$prog.$i exists
             if [ -f /var/lock/subsys/$prog.$i ]; then
-                echo $"$prog for instance: $i dead but subsys locked"
+                [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i dead but subsys locked"
                 RETVAL=1
             else
                 pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i"| awk '{print $1}' | head -1`
                 if [ -n "$pid" ]; then
-                    echo $"$prog for instance: $i is starting (pid $pid) "
+                    [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i is starting (pid $pid) "
                     RETVAL=0
                 else
-                    echo $"$prog for instance: $i  is stopped"
+                    [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i  is stopped"
                     RETVAL=2
                 fi
             fi
@@ -281,11 +281,15 @@ case "$1" in
     reload|restart)
     restart $2
     ;;
-    condrestart)
-    
-    if [ -f /var/lock/subsys/eosd ]; then
-        restart 
-    fi
+    condrestart)   
+    export _NODISP_STATUS_=1 
+    for i in ${2-${EOS_FUSE_MOUNTS}}; do
+        getstatus $i
+        if [ $? = 0 ]; then
+            stop $i
+            start $i
+        fi
+    done
     ;;
     status)
     
