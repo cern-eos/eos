@@ -2517,6 +2517,13 @@ filesystem::inodirlist (unsigned long long dirinode,
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_uid, statptr2 - statptr);
+
+	 if (S_ISREG (buf.st_mode) && fuse_exec)
+	   buf.st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
+	 
+	 buf.st_mode &= (~S_ISVTX); // clear the vxt bit
+	 buf.st_mode &= (~S_ISUID); // clear suid
+	 buf.st_mode &= (~S_ISGID); // clear sgid
        }
        else
          buf.st_ino = 0;
