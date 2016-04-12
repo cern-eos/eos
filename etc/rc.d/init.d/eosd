@@ -214,6 +214,23 @@ start() {
     done
 }
 
+kill_eosd() {
+    umdir="$1"
+    pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
+    existed=$?
+    umount -f -l $umdir >& /dev/null
+    pkill -f "${EOS_ROOT}/bin/eosd $umdir"
+    pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
+    killed=$?
+    while [ $killed -eq 0 ]; 
+    do
+        pkill -9 -f "${EOS_ROOT}/bin/eosd $umdir"
+        usleep 100000
+        pgrep -f "${EOS_ROOT}/bin/eosd $umdir" >& /dev/null
+        killed=$?
+    done
+}
+
 stop() {
     if [ -n "$1" ]; then
         EOS_FUSE_MOUNTS="$1";
@@ -234,19 +251,7 @@ stop() {
         fi
         echo -n "Stopping $prog for instance: $i"
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-        pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
-        existed=$?
-        umount -f -l $umdir >& /dev/null
-        pkill -f "${EOS_ROOT}/bin/eosd $umdir"    
-        pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
-        killed=$?
-        while [ $killed -eq 0 ]; 
-        do     
-            pkill -9 -f "${EOS_ROOT}/bin/eosd $umdir"
-            usleep 100000
-            pgrep -f "${EOS_ROOT}/bin/eosd $umdir" >& /dev/null
-            killed=$?
-        done
+        kill_eosd "$umdir"
         rm -f /var/lock/subsys/$prog.$i
         rm -f /var/run/$prog.$i.pid
         echo
@@ -259,6 +264,17 @@ stop() {
         RETVAL=0;
     done
 }
+
+stop_force() {
+        PIDS=$( pgrep -f "^${EOS_ROOT}/bin/eosd " )
+        [ "A$PIDS" = "A" ] && return
+        for p in $PIDS; do 
+            cat /proc/$p/cmdline | tr '\0' '$' | xargs echo | { IFS="\$" read dumpit umdir dumpit ; echo -n "Force stopping $prog for mount point $umdir"; echo_warning;  echo; kill_eosd $umdir; } 
+        done
+        rm -rf /var/lock/subsys/$prog.* > /dev/null 2>&1
+        rm -f /var/run/$prog.*.pid > /dev/null 2>&1
+}
+
 
 getstatus() {
     if [ -n "$1" ]; then
@@ -309,6 +325,13 @@ case "$1" in
     ;;
     stop)
     stop $2
+    ;;
+    stop_force)
+    stop_force
+    ;;
+    killall)
+    stop
+    stop_force
     ;;
     reload|restart)
     restart $2
