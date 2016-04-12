@@ -81,6 +81,8 @@ start() {
         # Check if eosd is already running
         echo
         eosdpid=`pgrep -f "${EOS_ROOT}/bin/eosd ${EOS_FUSE_MOUNTDIR-/eos/}"`
+        getstatus $i
+        eosdstatus="$?"
         export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
         export EOS_FUSE_LOWLEVEL_DEBUG=${EOS_FUSE_LOWLEVEL_DEBUG-0}
         export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
@@ -117,7 +119,33 @@ start() {
         else
             test -n "${FUSE_OPT}" && FUSE_OPT=${FUSE_OPT}","
         fi
-        if [ "x$eosdpid" = "x" ]; then
+        if [ "$eosdstatus" -eq "1" ]; then
+            echo unmounting and cleaning mountpoint for dead but subsys locked instance $i
+            echo_warning
+            echo
+            umount ${EOS_FUSE_MOUNTDIR} > /dev/null 2>&1
+            nmounts=$( mount | grep -w fuse | awk '{ print $3 }' | grep ${EOS_FUSE_MOUNTDIR} | wc -l )
+            if [ "$nmounts" -ne "0" ]; then
+                echo cannot unmount dead but subsys locked instance $i
+                echo_error
+                echo
+                RETVAL=1;
+                continue
+            fi
+            rmdir ${EOS_FUSE_MOUNTDIR} > /dev/null 2>&1
+            if [ -d ${EOS_FUSE_MOUNTDIR} ]; then
+                echo mount point ${EOS_FUSE_MOUNTDIR} for instance $i is not empty and cannot be cleaned.
+                echo_error
+                echo
+                RETVAL=1;
+                continue
+            fi
+            rm -f /var/lock/subsys/$prog.$i > /dev/null 2>&1
+            rm -f /var/run/$prog.$i.pid > /dev/null 2>&1
+            getstatus $i
+            eosdstatus="$?"
+        fi
+        if [ "$eosdstatus" -eq "2" ]; then
             echo -n "Starting $prog for instance: $i"
             mkdir -p /var/run/eosd/
             cd /var/run/eosd/
@@ -174,14 +202,33 @@ start() {
 	    echo "EOS_FUSE_REMOTEDIR               : ${EOS_FUSE_REMOTEDIR}"
 
             [[ "x$XRD_STREAMERRORWINDOW" != "x" ]] && echo "XRD_STREAMERRORWINDOW        : ${XRD_STREAMERRORWINDOW}"
-        else 
-            echo eosd already running. Pid is $eosdpid 
+        fi
+        if [ "$eosdstatus" -eq "0" ]; then 
+            echo eosd already running for instance $i. Pid is $eosdpid 
             echo Stop it first with 'service eosd stop'
             echo and try again or use directly 'service eosd restart'.
             RETVAL=1
             echo_warning
+            echo
         fi
         )
+    done
+}
+
+kill_eosd() {
+    umdir="$1"
+    pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
+    existed=$?
+    umount -f -l $umdir >& /dev/null
+    pkill -f "${EOS_ROOT}/bin/eosd $umdir"
+    pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
+    killed=$?
+    while [ $killed -eq 0 ]; 
+    do
+        pkill -9 -f "${EOS_ROOT}/bin/eosd $umdir"
+        usleep 100000
+        pgrep -f "${EOS_ROOT}/bin/eosd $umdir" >& /dev/null
+        killed=$?
     done
 }
 
@@ -205,19 +252,7 @@ stop() {
         fi
         echo -n "Stopping $prog for instance: $i"
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
-        pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
-        existed=$?
-        umount -f -l $umdir >& /dev/null
-        pkill -f "${EOS_ROOT}/bin/eosd $umdir"    
-        pgrep -f "${EOS_ROOT}/bin/eosd $umdir"    >& /dev/null
-        killed=$?
-        while [ $killed -eq 0 ]; 
-        do     
-            pkill -9 -f "${EOS_ROOT}/bin/eosd $umdir"
-            usleep 100000
-            pgrep -f "${EOS_ROOT}/bin/eosd $umdir" >& /dev/null
-            killed=$?
-        done
+        kill_eosd "$umdir"
         rm -f /var/lock/subsys/$prog.$i
         rm -f /var/run/$prog.$i.pid
         echo
@@ -231,29 +266,41 @@ stop() {
     done
 }
 
+stop_force() {
+        PIDS=$( pgrep -f "^${EOS_ROOT}/bin/eosd " )
+        [ "A$PIDS" = "A" ] && return
+        for p in $PIDS; do 
+            cat /proc/$p/cmdline | tr '\0' '$' | xargs echo | { IFS="\$" read dumpit umdir dumpit ; echo -n "Force stopping $prog for mount point $umdir"; echo_warning;  echo; kill_eosd $umdir; } 
+        done
+        rm -rf /var/lock/subsys/$prog.* > /dev/null 2>&1
+        rm -f /var/run/$prog.*.pid > /dev/null 2>&1
+}
+
+
 getstatus() {
     if [ -n "$1" ]; then
         EOS_FUSE_MOUNTS="$1";
-    fi  
+    fi
+    local i=""
     # Loop over xrootd roles
     for i in ${EOS_FUSE_MOUNTS}; do
         pid=`pidofproc $prog.$i`
         type=""
         if [ -n "$pid" ]; then
-            echo $"$prog for instance: $i (pid $pid) is running $type ..."
+            [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i (pid $pid) is running $type ..."
             continue
         else
             # See if /var/lock/subsys/$prog.$i exists
             if [ -f /var/lock/subsys/$prog.$i ]; then
-                echo $"$prog for instance: $i dead but subsys locked"
+                [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i dead but subsys locked"
                 RETVAL=1
             else
                 pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i"| awk '{print $1}' | head -1`
                 if [ -n "$pid" ]; then
-                    echo $"$prog for instance: $i is starting (pid $pid) "
+                    [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i is starting (pid $pid) "
                     RETVAL=0
                 else
-                    echo $"$prog for instance: $i  is stopped"
+                    [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i  is stopped"
                     RETVAL=2
                 fi
             fi
@@ -274,19 +321,31 @@ reload() {
 
 case "$1" in
     start)
+    export _NODISP_STATUS_=1
     start $2
     ;;
     stop)
     stop $2
     ;;
+    stop_force)
+    stop_force
+    ;;
+    killall)
+    stop
+    stop_force
+    ;;
     reload|restart)
     restart $2
     ;;
-    condrestart)
-    
-    if [ -f /var/lock/subsys/eosd ]; then
-        restart 
-    fi
+    condrestart)   
+    export _NODISP_STATUS_=1 
+    for i in ${2-${EOS_FUSE_MOUNTS}}; do
+        getstatus $i
+        if [[ $? < 2 ]]; then
+            stop $i
+            start $i
+        fi
+    done
     ;;
     status)
     
