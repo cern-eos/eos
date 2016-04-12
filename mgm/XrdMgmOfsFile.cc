@@ -458,7 +458,7 @@ XrdMgmOfsFile::open (const char *inpath,
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
 
   // get the directory meta data if exists
-  std::unique_ptr<eos::IContainerMD> dmd = 0;
+  std::shared_ptr<eos::IContainerMD> dmd = 0;
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   bool stdpermcheck = false;
@@ -493,7 +493,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	}
 	catch (eos::MDException &e)
 	{
-	  fmd.reset(nullptr);
+	  fmd.reset();
 	}
 
         if (!fmd)
@@ -518,13 +518,13 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       else
       {
-        fmd.reset(nullptr);
+        fmd.reset();
       }
 
     }
     catch (eos::MDException &e)
     {
-      dmd.reset(nullptr);
+      dmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
@@ -554,7 +554,7 @@ XrdMgmOfsFile::open (const char *inpath,
         }
         catch (eos::MDException &e)
         {
-          dmd.reset(nullptr);
+          dmd.reset();
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=%s\n",
                     e.getErrno(), e.getMessage().str().c_str());
@@ -826,7 +826,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (!ocUploadUuid.length())
       {
-        fmd.reset(nullptr);
+        fmd.reset();
       }
       else
       {
@@ -904,14 +904,14 @@ XrdMgmOfsFile::open (const char *inpath,
             // oc chunks start with flags=0
 
             cid = fmd->getContainerId();
-	    std::unique_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	    std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	    cmd->setMTimeNow();
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	    gOFS->eosView->updateContainerStore(cmd.get());
           }
           catch (eos::MDException &e)
           {
-            fmd.reset(nullptr);
+            fmd.reset();
             errno = e.getErrno();
             eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                       e.getErrno(), e.getMessage().str().c_str());
@@ -1096,7 +1096,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      std::unique_ptr<eos::IFileMD> fmdnew;
+      std::shared_ptr<eos::IFileMD> fmdnew;
       try
       {
         fmdnew = gOFS->eosView->getFile(path);
@@ -1138,7 +1138,7 @@ XrdMgmOfsFile::open (const char *inpath,
       try
       {
         gOFS->eosView->updateFileStore(fmd.get());
-	std::unique_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	cmd->setMTimeNow();
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd.get());
@@ -1148,7 +1148,7 @@ XrdMgmOfsFile::open (const char *inpath,
 	  std::string uri = gOFS->eosView->getUri(fmd.get());
 	  eos::common::Path eos_path {uri.c_str()};
 	  std::string dir_path = eos_path.GetParentPath();
-	  std::unique_ptr<eos::IContainerMD> dir = gOFS->eosView->getContainer(dir_path);
+	  std::shared_ptr<eos::IContainerMD> dir = gOFS->eosView->getContainer(dir_path);
 	  // Get symlink free dir
 	  dir_path = gOFS->eosView->getUri(dir.get());
 	  dir = gOFS->eosView->getContainer(dir_path);

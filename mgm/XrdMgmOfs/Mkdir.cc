@@ -114,7 +114,7 @@ XrdMgmOfs::_mkdir (const char *path,
   bool recurse = false;
   eos::common::Path cPath(path);
   bool noParent = false;
-  std::unique_ptr<eos::IContainerMD> dir;
+  std::shared_ptr<eos::IContainerMD> dir;
   eos::IContainerMD::XAttrMap attrmap;
 
   {
@@ -131,7 +131,7 @@ XrdMgmOfs::_mkdir (const char *path,
       {
 	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		  e.getErrno(), e.getMessage().str().c_str());
-	dir.reset(nullptr);
+	dir.reset();
 	noParent = true;
       }
     }
@@ -231,7 +231,7 @@ XrdMgmOfs::_mkdir (const char *path,
 
     if (dir)
     {
-      std::unique_ptr<eos::IContainerMD> fulldir;
+      std::shared_ptr<eos::IContainerMD> fulldir;
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
       // Only if the parent exists, can the full path exist!
       try
@@ -240,7 +240,7 @@ XrdMgmOfs::_mkdir (const char *path,
       }
       catch (eos::MDException &e)
       {
-	fulldir.reset(nullptr);
+	fulldir.reset();
 	eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
 		  e.getMessage().str().c_str());
       }
@@ -255,7 +255,7 @@ XrdMgmOfs::_mkdir (const char *path,
 
   eos_debug("mkdir path=%s deepness=%d dirname=%s basename=%s", path,
 	    cPath.GetSubPathSize(), cPath.GetParentPath(), cPath.GetName());
-  std::unique_ptr<eos::IContainerMD> newdir;
+  std::shared_ptr<eos::IContainerMD> newdir;
 
   if (noParent)
   {
@@ -282,7 +282,7 @@ XrdMgmOfs::_mkdir (const char *path,
 	}
 	catch (eos::MDException &e)
 	{
-	  dir.reset(nullptr);
+	  dir.reset();
 	}
 
 	if (dir)

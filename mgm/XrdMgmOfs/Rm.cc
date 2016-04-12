@@ -139,8 +139,8 @@ XrdMgmOfs::_rem (const char *path,
   gOFS->eosViewRWMutex.LockWrite();
 
   // free the booked quota
-  std::unique_ptr<eos::IFileMD> fmd;
-  std::unique_ptr<eos::IContainerMD> container;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> container;
   eos::IContainerMD::XAttrMap attrmap;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
@@ -172,7 +172,7 @@ XrdMgmOfs::_rem (const char *path,
     }
     catch (eos::MDException &e)
     {
-      container.reset(nullptr);
+      container.reset();
     }
 
     // ACL and permission check

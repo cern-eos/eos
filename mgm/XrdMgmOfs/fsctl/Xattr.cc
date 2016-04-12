@@ -125,7 +125,7 @@
   else if (!retc && S_ISREG(buf.st_mode))
   {
     // Extended attributes for files
-    std::unique_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IFileMD> fmd;
 
     {
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);

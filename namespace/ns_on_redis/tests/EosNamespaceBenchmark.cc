@@ -183,7 +183,7 @@ static void* RunReader(void* tconf)
 	  std::string file_path = s_file_path;
 
 	  if (dolock) nslock.LockRead();
-	  std::unique_ptr<eos::IFileMD> fmd = view->getFile(file_path);
+	  std::shared_ptr<eos::IFileMD> fmd = view->getFile(file_path);
 
 	  if (fmd)
 	  {
@@ -268,7 +268,7 @@ int main(int argc, char** argv)
 		   "/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/", (unsigned int)i,
 		   (unsigned int)j, (unsigned int)k);
 	  std::string container_path = s_container_path;
-	  std::unique_ptr<eos::IContainerMD> cont = view->createContainer(container_path, true);
+	  std::shared_ptr<eos::IContainerMD> cont = view->createContainer(container_path, true);
 	  cont->setAttribute("sys.forced.blocksize", "4k");
 	  cont->setAttribute("sys.forced.checksum", "adler");
 	  cont->setAttribute("sys.forced.layout", "replica");
@@ -329,7 +329,7 @@ int main(int argc, char** argv)
 		     "level_1_%08u/level_2_%08u/file____________________%08u",
 		     (unsigned int)i, (unsigned int)j, (unsigned int)k, (unsigned int)n);
 	    std::string file_path = s_file_path;
-	    std::unique_ptr<eos::IFileMD> fmd = view->createFile(file_path, 0, 0);
+	    std::shared_ptr<eos::IFileMD> fmd = view->createFile(file_path, 0, 0);
 	    // add two locations
 	    fmd->addLocation(k);
 	    fmd->addLocation(k + 1);

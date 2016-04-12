@@ -550,7 +550,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
   proc_dir.close();
   std::istringstream iss;
-  std::unique_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   eos::IContainerMD::id_t id;
   std::vector<ArchDirStatus> dirs;
 

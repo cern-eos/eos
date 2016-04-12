@@ -56,7 +56,7 @@ XrdMgmOfs::_touch (const char *path,
 
   // Perform the actual deletion
   errno = 0;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IFileMD> fmd;
 
   if (_access(path, W_OK, error, vid, ininfo))
   {
@@ -90,7 +90,7 @@ XrdMgmOfs::_touch (const char *path,
     fmd->setMTimeNow();
     gOFS->eosView->updateFileStore(fmd.get());
     unsigned long long cid = fmd->getContainerId();
-    std::unique_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+    std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
     eos::IFileMD::ctime_t mtime;
     fmd->getMTime(mtime);
     cmd->setMTime(mtime);

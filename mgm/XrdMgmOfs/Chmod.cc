@@ -108,9 +108,9 @@ XrdMgmOfs::_chmod (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  std::unique_ptr<eos::IContainerMD> cmd;
-  std::unique_ptr<eos::IContainerMD> pcmd;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IContainerMD> pcmd;
+  std::shared_ptr<eos::IFileMD> fmd;
   eos::IContainerMD::XAttrMap attrmap;
   errno = 0;
   gOFS->MgmStats.Add("Chmod", vid.uid, vid.gid, 1);

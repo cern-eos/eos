@@ -62,8 +62,8 @@ XrdMgmOfs::_chown (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  std::unique_ptr<eos::IContainerMD> cmd;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
   eos_info("path=%s uid=%u gid=%u", path, uid, gid);

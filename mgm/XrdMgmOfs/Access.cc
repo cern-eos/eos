@@ -107,8 +107,8 @@ XrdMgmOfs::_access (const char *path,
 
   eos::common::Path cPath(path);
 
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fh;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fh;
   bool permok = false;
   uint16_t flags = 0;
   uid_t fuid = 99;
@@ -237,7 +237,7 @@ XrdMgmOfs::_access (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -316,8 +316,8 @@ XrdMgmOfs::acc_access (const char* path,
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
 
   eos::common::Path cPath(path);
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fh;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fh;
   std::string attr_path = cPath.GetPath();
   bool r_ok = false;
   bool w_ok = false;

@@ -150,7 +150,7 @@ XrdMgmOfs::_stat (const char *path,
   // ---------------------------------------------------------------------------
   // try if that is a file
   errno = 0;
-  std::unique_ptr<eos::IFileMD> fmd {nullptr};
+  std::shared_ptr<eos::IFileMD> fmd;
   eos::common::Path cPath(path);
 
   // Stat on the master proc entry succeeds only if this MGM is in RW master mode
@@ -289,7 +289,7 @@ XrdMgmOfs::_stat (const char *path,
   }
 
   // Check if it's a directory
-  std::unique_ptr<eos::IContainerMD> cmd {nullptr};
+  std::shared_ptr<eos::IContainerMD> cmd;
   errno = 0;
 
   // ---------------------------------------------------------------------------
@@ -355,7 +355,9 @@ XrdMgmOfs::_stat (const char *path,
     {
       // use inode + mtime
       char setag[256];
-      snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"", (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime, (unsigned long) buf->st_atim.tv_nsec/1000000);
+      snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"",
+	       (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime,
+	       (unsigned long) buf->st_atim.tv_nsec/1000000);
       *etag = setag;
     }
 

@@ -56,17 +56,18 @@ extern void xrdmgmofs_stacktrace (int sig);
 
 USE_EOSMGMNAMESPACE
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Static method used to start the FileView initialization thread
+//------------------------------------------------------------------------------
 void*
 XrdMgmOfs::StaticInitializeFileView (void* arg)
 {
   return reinterpret_cast<XrdMgmOfs*>(arg)->InitializeFileView();
 }
-  //----------------------------------------------------------------
-  //! static thread startup function calling Drain
-  //----------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Method ran by the FileView initialization thread
+//------------------------------------------------------------------------------
 void*
 XrdMgmOfs::InitializeFileView ()
 {
@@ -130,12 +131,12 @@ XrdMgmOfs::InitializeFileView ()
 	XrdOucErrInfo error;
 	eos::common::Mapping::VirtualIdentity vid;
 	eos::common::Mapping::Root(vid);
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
 
 	try
 	{
 	  fmd = eosView->getFile(procpathwhoami.c_str());
-	  fmd.reset(nullptr);
+	  fmd.reset();
 	}
 	catch (eos::MDException &e)
 	{
@@ -151,7 +152,7 @@ XrdMgmOfs::InitializeFileView ()
 	try
 	{
 	  fmd = eosView->getFile(procpathwho.c_str());
-	  fmd.reset(nullptr);
+	  fmd.reset();
 	}
 	catch (eos::MDException &e)
 	{
@@ -167,7 +168,7 @@ XrdMgmOfs::InitializeFileView ()
 	try
 	{
 	  fmd = eosView->getFile(procpathquota.c_str());
-	  fmd.reset(nullptr);
+	  fmd.reset();
 	}
 	catch (eos::MDException &e)
 	{
@@ -183,7 +184,7 @@ XrdMgmOfs::InitializeFileView ()
 	try
 	{
 	  fmd = eosView->getFile(procpathreconnect.c_str());
-	  fmd.reset(nullptr);
+	  fmd.reset();
 	}
 	catch (eos::MDException &e)
 	{
@@ -199,7 +200,7 @@ XrdMgmOfs::InitializeFileView ()
 	try
 	{
 	  fmd = eosView->getFile(procpathmaster.c_str());
-	  fmd.reset(nullptr);
+	  fmd.reset();
 	}
 	catch (eos::MDException &e)
 	{
@@ -1595,7 +1596,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     return 1;
 
   // Check the '/' directory
-  std::unique_ptr<eos::IContainerMD> rootmd;
+  std::shared_ptr<eos::IContainerMD> rootmd;
 
   try
   {
@@ -1639,16 +1640,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   if (MgmMaster.IsMaster())
   {
     // create /eos
-    std::unique_ptr<eos::IContainerMD> eosmd;
+    std::shared_ptr<eos::IContainerMD> eosmd;
     try
     {
       eosmd = eosView->getContainer("/eos/");
     }
-    catch (eos::MDException &e)
-    {
-      // nothing in this case
-      eosmd.reset(nullptr);
-    }
+    catch (eos::MDException &e) {}
 
     if (!eosmd)
     {

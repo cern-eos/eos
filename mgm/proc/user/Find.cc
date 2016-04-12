@@ -402,7 +402,7 @@ ProcCommand::Find ()
               //-------------------------------------------
 
               gOFS->eosViewRWMutex.LockRead();
-	      std::unique_ptr<eos::IFileMD> fmd;
+	      std::shared_ptr<eos::IFileMD> fmd;
               try
               {
                 bool selected = true;
@@ -775,7 +775,7 @@ ProcCommand::Find ()
             // get location
             //-------------------------------------------
             gOFS->eosViewRWMutex.LockRead();
-	    std::unique_ptr<eos::IFileMD> fmd;
+	    std::shared_ptr<eos::IFileMD> fmd;
             try
             {
               fmd = gOFS->eosView->getFile(fspath.c_str());
@@ -909,7 +909,7 @@ ProcCommand::Find ()
           {
             //-------------------------------------------
             eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-	    std::unique_ptr<eos::IContainerMD> mCmd;
+	    std::shared_ptr<eos::IContainerMD> mCmd;
             unsigned long long childfiles = 0;
             unsigned long long childdirs = 0;
             try
@@ -935,7 +935,7 @@ ProcCommand::Find ()
               if (printuid || printgid)
               {
                 eos::common::RWMutexReadLock nLock(gOFS->eosViewRWMutex);
-		std::unique_ptr<eos::IContainerMD> mCmd;
+		std::shared_ptr<eos::IContainerMD> mCmd;
                 try
                 {
                   mCmd = gOFS->eosView->getContainer(foundit->first.c_str());

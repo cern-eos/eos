@@ -57,7 +57,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 // Find subcontainer
 //------------------------------------------------------------------------------
-std::unique_ptr<IContainerMD>
+std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
   try
@@ -70,7 +70,7 @@ ContainerMD::findContainer(const std::string& name)
   }
   catch (RAMCloud::ClientException& e)
   {
-    return std::unique_ptr<IContainerMD>(nullptr);
+    return std::shared_ptr<IContainerMD>(nullptr);
   }
 }
 
@@ -121,7 +121,7 @@ ContainerMD::addContainer(IContainerMD* container)
 //------------------------------------------------------------------------------
 // Find file
 //------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
+std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
   try
@@ -135,7 +135,7 @@ ContainerMD::findFile(const std::string& name)
   }
   catch (RAMCloud::ClientException& e)
   {
-    return std::unique_ptr<IFileMD>(nullptr);
+    return std::shared_ptr<IFileMD>(nullptr);
   }
 }
 
@@ -173,7 +173,7 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  std::unique_ptr<IFileMD> file;
+  std::shared_ptr<IFileMD> file;
   RAMCloud::RamCloud* client = getRamCloudClient();
 
   try
@@ -293,7 +293,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
   while (iterd.hasNext())
   {
     iterd.nextKeyAndData(&key_len, &key_buff, &data_len, &data_buff);
-    std::unique_ptr<IContainerMD> cont =
+    std::shared_ptr<IContainerMD> cont =
       pContSvc->getContainerMD(atol(reinterpret_cast<const char*>(data_buff)));
     cont->cleanUp(cont_svc, file_svc);
     pContSvc->removeContainer(cont.get());
@@ -443,7 +443,7 @@ ContainerMD::setName(const std::string& name)
   // Check that there is no clash with other subcontainers having the same name
   if (pParentId)
   {
-    std::unique_ptr<eos::IContainerMD> parent = pContSvc->getContainerMD(pParentId);
+    std::shared_ptr<eos::IContainerMD> parent = pContSvc->getContainerMD(pParentId);
 
     if (parent->findContainer(name))
     {

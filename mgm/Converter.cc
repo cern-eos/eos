@@ -93,8 +93,8 @@ ConverterJob::DoIt ()
   eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
-  std::unique_ptr<eos::IFileMD> fmd;
-  std::unique_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   unsigned long long size = 0;

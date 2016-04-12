@@ -65,7 +65,7 @@ void FileMDSvc::initialize()
 //------------------------------------------------------------------------------
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
+std::shared_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id)
 {
   std::string blob;
@@ -89,7 +89,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
     throw e;
   }
 
-  std::unique_ptr<IFileMD> file {new FileMD(0, this)};
+  std::shared_ptr<IFileMD> file {new FileMD(0, this)};
   static_cast<FileMD*>(file.get())->deserialize(blob);
   return file;
 }
@@ -97,14 +97,14 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
-std::unique_ptr<IFileMD> FileMDSvc::createFile()
+std::shared_ptr<IFileMD> FileMDSvc::createFile()
 {
   // Get first available file id
   uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				     constants::sFirstFreeFid, 1);
   // Increase total number of files
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
-  std::unique_ptr<IFileMD> file {new FileMD(free_id, this)};
+  std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   return file;
@@ -216,9 +216,9 @@ uint64_t FileMDSvc::getNumFiles()
 void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 {
   std::ostringstream s1, s2;
-  std::unique_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
+  std::shared_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
   s1 << file->getContainerId();
-  std::unique_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
+  std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
 
   if (!cont)
     cont = pContSvc->createInParent(s1.str(), parentCont.get());

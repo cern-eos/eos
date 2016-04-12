@@ -72,7 +72,7 @@
 
     try
     {
-      std::unique_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
       fullpath = gOFS->eosView->getUri(fmd.get());
       spath = fullpath.c_str();
     }

@@ -837,8 +837,8 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   unsigned long long fid = strtoull(key, 0, 16);
 
   // convert the hex inode number into decimal and retrieve path name
-  std::unique_ptr<eos::IFileMD> fmd;
-  std::unique_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   std::string recyclepath;
   XrdOucString repath;
 

@@ -76,13 +76,13 @@ public:
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id);
+  virtual std::shared_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD> createContainer();
+  virtual std::shared_ptr<IContainerMD> createContainer();
 
   //----------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
@@ -109,18 +109,18 @@ public:
   //----------------------------------------------------------------------------
   //! Create container in parent
   //----------------------------------------------------------------------------
-  std::unique_ptr<IContainerMD> createInParent(const std::string& name,
+  std::shared_ptr<IContainerMD> createInParent(const std::string& name,
 					       IContainerMD* parent);
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
   //----------------------------------------------------------------------------
-  std::unique_ptr<IContainerMD> getLostFound();
+  std::shared_ptr<IContainerMD> getLostFound();
 
   //----------------------------------------------------------------------------
   //! Get the orphans container
   //----------------------------------------------------------------------------
-  std::unique_ptr<IContainerMD> getLostFoundContainer(const std::string& name);
+  std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Set file metadata service

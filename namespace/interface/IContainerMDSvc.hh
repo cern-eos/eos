@@ -83,14 +83,14 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD>
+  virtual std::shared_ptr<IContainerMD>
   getContainerMD(IContainerMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD> createContainer() = 0;
+  virtual std::shared_ptr<IContainerMD> createContainer() = 0;
 
   //------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
@@ -130,13 +130,13 @@ class IContainerMDSvc
   //----------------------------------------------------------------------------
   //! Get the orphans container
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD>
+  virtual std::shared_ptr<IContainerMD>
   getLostFoundContainer(const std::string &name) = 0;
 
   //------------------------------------------------------------------------
   // Create container in parent
   //------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD>
+  virtual std::shared_ptr<IContainerMD>
   createInParent(const std::string& name, IContainerMD* parent) = 0;
 
   //----------------------------------------------------------------------------

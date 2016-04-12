@@ -109,7 +109,7 @@ XrdMgmOfs::_exists (const char *path,
   // try if that is directory
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
-  std::unique_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
 
   {
     // -------------------------------------------------------------------------
@@ -132,7 +132,7 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    std::unique_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IFileMD> fmd;
 
     try
     {
@@ -162,7 +162,7 @@ XrdMgmOfs::_exists (const char *path,
   {
     // get the parent directory
     eos::common::Path cPath(path);
-    std::unique_ptr<eos::IContainerMD> dir;
+    std::shared_ptr<eos::IContainerMD> dir;
     eos::IContainerMD::XAttrMap attrmap;
 
     // -------------------------------------------------------------------------
@@ -177,7 +177,7 @@ XrdMgmOfs::_exists (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dir.reset(nullptr);
+      dir.reset();
     }
     // -------------------------------------------------------------------------
 
@@ -246,7 +246,7 @@ XrdMgmOfs::_exists (const char *path,
 {
   EXEC_TIMING_BEGIN("Exists");
   gOFS->MgmStats.Add("Exists", vid.uid, vid.gid, 1);
-  std::unique_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
 
   // try if that is directory
   {
@@ -258,7 +258,7 @@ XrdMgmOfs::_exists (const char *path,
     }
     catch (eos::MDException &e)
     {
-      cmd.reset(nullptr);
+      cmd.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
 		e.getMessage().str().c_str());
     };
@@ -270,7 +270,7 @@ XrdMgmOfs::_exists (const char *path,
     // try if that is a file
     // -------------------------------------------------------------------------
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    std::unique_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IFileMD> fmd;
 
     try
     {

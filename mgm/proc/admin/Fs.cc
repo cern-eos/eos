@@ -392,7 +392,7 @@ ProcCommand::Fs ()
              eos::IFsView::FileIterator it;
              for (it = filelist.begin(); it != filelist.end(); ++it)
              {
-	       std::unique_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(*it);
+	       std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(*it);
 
                if (fmd)
                {

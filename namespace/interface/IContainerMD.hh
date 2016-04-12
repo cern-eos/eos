@@ -82,7 +82,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Find sub container
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD>
+  virtual std::shared_ptr<IContainerMD>
   findContainer(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
@@ -103,7 +103,7 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD> findFile(const std::string& name) = 0;
+  virtual std::shared_ptr<IFileMD> findFile(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files

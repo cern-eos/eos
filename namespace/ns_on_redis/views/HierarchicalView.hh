@@ -107,13 +107,13 @@ public:
   //----------------------------------------------------------------------------
   //! Retrieve a file for given uri
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD>
+  virtual std::shared_ptr<IFileMD>
   getFile(const std::string& uri, bool follow = true, size_t* link_depths = 0);
 
   //----------------------------------------------------------------------------
   //! Create a file for given uri
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IFileMD>
+  virtual std::shared_ptr<IFileMD>
   createFile(const std::string& uri, uid_t uid = 0, gid_t gid = 0);
 
   //----------------------------------------------------------------------------
@@ -158,13 +158,13 @@ public:
   //----------------------------------------------------------------------------
   //! Get a container (directory)
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD>
+  virtual std::shared_ptr<IContainerMD>
   getContainer(const std::string& uri, bool follow = true, size_t* link_depth = 0);
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
   //----------------------------------------------------------------------------
-  virtual std::unique_ptr<IContainerMD>
+  virtual std::shared_ptr<IContainerMD>
   createContainer(const std::string& uri, bool createParents = false);
 
   //----------------------------------------------------------------------------
@@ -245,7 +245,7 @@ public:
 
 
 private:
-  std::unique_ptr<IContainerMD>
+  std::shared_ptr<IContainerMD>
   findLastContainer(std::vector<char*>& elements, size_t end,
 		    size_t& index, size_t* link_depths = 0);
 
@@ -298,7 +298,7 @@ private:
   IContainerMDSvc* pContainerSvc;
   IFileMDSvc*      pFileSvc;
   IQuotaStats*     pQuotaStats;
-  std::unique_ptr<IContainerMD> pRoot;
+  std::shared_ptr<IContainerMD> pRoot;
   redox::Redox* pRedox; ///< RedisClient
   std::string pRedisHost; ///< Redis instance host
   uint32_t pRedisPort; ///< Redis instance port

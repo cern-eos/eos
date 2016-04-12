@@ -101,7 +101,7 @@ XrdMgmOfs::_utimes (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  std::unique_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   EXEC_TIMING_BEGIN("Utimes");
   gOFS->MgmStats.Add("Utimes", vid.uid, vid.gid, 1);
 
@@ -123,7 +123,7 @@ XrdMgmOfs::_utimes (const char *path,
 
   if (!cmd)
   {
-    std::unique_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IFileMD> fmd;
 
     try
     {

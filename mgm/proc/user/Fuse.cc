@@ -139,8 +139,8 @@ ProcCommand::Fuse ()
       eos::common::Path cPath(statpath.c_str());
 
       // attach MD to get inode number
-      std::unique_ptr<eos::IFileMD> fmd;
-      std::unique_ptr<eos::IContainerMD> dir;
+      std::shared_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IContainerMD> dir;
       inode = 0;
 
       //-------------------------------------------

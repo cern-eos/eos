@@ -61,7 +61,7 @@ void SyncTimeAccounting::Propagate(IContainerMD::id_t id)
 
   while ((iId > 1) && (deepness < 255))
   {
-    std::unique_ptr<IContainerMD> iCont;
+    std::shared_ptr<IContainerMD> iCont;
 
     try
     {

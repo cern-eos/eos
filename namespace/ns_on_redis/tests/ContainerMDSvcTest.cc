@@ -60,11 +60,11 @@ void ContainerMDSvcTest::loadTest()
     containerSvc->configure(config);
     containerSvc->initialize();
 
-    std::unique_ptr<eos::IContainerMD> container1 = containerSvc->createContainer();
-    std::unique_ptr<eos::IContainerMD> container2 = containerSvc->createContainer();
-    std::unique_ptr<eos::IContainerMD> container3 = containerSvc->createContainer();
-    std::unique_ptr<eos::IContainerMD> container4 = containerSvc->createContainer();
-    std::unique_ptr<eos::IContainerMD> container5 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container1 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container2 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container3 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container4 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container5 = containerSvc->createContainer();
     eos::IContainerMD::id_t id = container1->getId();
     container1->setName("root");
     container1->setParentId(container1->getId());
@@ -103,7 +103,7 @@ void ContainerMDSvcTest::loadTest()
     CPPUNIT_ASSERT_EQUAL((size_t) 1, container3->getNumContainers());
     CPPUNIT_ASSERT_EQUAL((size_t) 4, containerSvc->getNumContainers());
 
-    std::unique_ptr<eos::IContainerMD> container6 = containerSvc->createContainer();
+    std::shared_ptr<eos::IContainerMD> container6 = containerSvc->createContainer();
     container6->setName("subContLevel2-3");
     container3->addContainer(container6.get());
     containerSvc->updateStore(container6.get());
@@ -122,10 +122,10 @@ void ContainerMDSvcTest::loadTest()
     containerSvc->finalize();
     containerSvc->initialize();
 
-    std::unique_ptr<eos::IContainerMD> cont1 = containerSvc->getContainerMD(id);
+    std::shared_ptr<eos::IContainerMD> cont1 = containerSvc->getContainerMD(id);
     CPPUNIT_ASSERT(cont1->getName() == "root");
 
-    std::unique_ptr<eos::IContainerMD> cont2 = cont1->findContainer("subContLevel1-1");
+    std::shared_ptr<eos::IContainerMD> cont2 = cont1->findContainer("subContLevel1-1");
     CPPUNIT_ASSERT(cont2 != 0);
     CPPUNIT_ASSERT(cont2->getName() == "subContLevel1-1");
 
@@ -144,7 +144,7 @@ void ContainerMDSvcTest::loadTest()
     CPPUNIT_ASSERT(cont1 != 0);
     CPPUNIT_ASSERT(cont1->getName() == "subContLevel2-3");
 
-    std::unique_ptr<eos::IContainerMD> contAttrs = containerSvc->getContainerMD(idAttr);
+    std::shared_ptr<eos::IContainerMD> contAttrs = containerSvc->getContainerMD(idAttr);
     CPPUNIT_ASSERT(contAttrs->numAttributes() == 3);
     CPPUNIT_ASSERT(contAttrs->getAttribute("test1") == "test11");
     CPPUNIT_ASSERT(contAttrs->getAttribute("test3") == "test3");

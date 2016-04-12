@@ -75,7 +75,7 @@
     auto it = sZeroMove.begin();
     while (it != sZeroMove.end())
     {
-      std::unique_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IFileMD> fmd;
       try
       {
         fmd = gOFS->eosFileService->getFileMD(it->first);
@@ -274,7 +274,7 @@
         else
 	{
 	  std::string fullpath = "";
-	  std::unique_ptr<eos::IFileMD> fmd;
+	  std::shared_ptr<eos::IFileMD> fmd;
 
 	  try
 	  {

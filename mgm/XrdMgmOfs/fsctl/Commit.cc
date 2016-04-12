@@ -169,8 +169,8 @@
     }
 
     // get the file meta data if exists
-    std::unique_ptr<eos::IFileMD> fmd;
-    std::unique_ptr<eos::IContainerMD> cmd;
+    std::shared_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IContainerMD> cmd;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
 
@@ -354,7 +354,7 @@
         {
 	  eos::common::Path eos_path {spath};
 	  std::string dir_path = eos_path.GetParentPath();
-	  std::unique_ptr<eos::IContainerMD> dir {nullptr};
+	  std::shared_ptr<eos::IContainerMD> dir;
 
           try
           {
@@ -495,14 +495,14 @@
       if ((commitsize) && (fmdname != atomic_path.GetName()) && ((!occhunk) || (occhunk && ocdone)))
       {
         eos_thread_info("commit: de-atomize file %s => %s", fmdname.c_str(), atomic_path.GetName());
-	std::unique_ptr<eos::IContainerMD> dir;
-	std::unique_ptr<eos::IContainerMD> versiondir;
+	std::shared_ptr<eos::IContainerMD> dir;
+	std::shared_ptr<eos::IContainerMD> versiondir;
         XrdOucString versionedname = "";
         unsigned long long vfid = 0;
 
         {
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	  std::unique_ptr<eos::IFileMD> versionfmd;
+	  std::shared_ptr<eos::IFileMD> versionfmd;
 
           try
           {
@@ -546,7 +546,7 @@
             fmd = gOFS->eosFileService->getFileMD(fid);
             if (isVersioning)
             {
-	      std::unique_ptr<eos::IFileMD> versionfmd;
+	      std::shared_ptr<eos::IFileMD> versionfmd;
               try
               {
                 versiondir = eosView->getContainer(version_path.GetParentPath());
@@ -568,7 +568,7 @@
               // move to a new directory
             }
 
-	    std::unique_ptr<eos::IFileMD> pfmd;
+	    std::shared_ptr<eos::IFileMD> pfmd;
             // rename the temporary upload path to the final path
             if ((pfmd = dir->findFile(atomic_path.GetName())))
             {

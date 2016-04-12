@@ -248,8 +248,8 @@ XrdMgmOfs::_attr_ls (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_ls";
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrLs");
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
@@ -269,7 +269,7 @@ XrdMgmOfs::_attr_ls (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -290,7 +290,7 @@ XrdMgmOfs::_attr_ls (const char *path,
     }
     catch (eos::MDException &e)
     {
-      fmd.reset(nullptr);
+      fmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }
@@ -315,7 +315,7 @@ XrdMgmOfs::_attr_ls (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh.reset(nullptr);
+      dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }
@@ -359,8 +359,8 @@ XrdMgmOfs::_attr_set (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_set";
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrSet");
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
@@ -413,7 +413,7 @@ XrdMgmOfs::_attr_set (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -449,7 +449,7 @@ XrdMgmOfs::_attr_set (const char *path,
     }
     catch (eos::MDException &e)
     {
-      fmd.reset(nullptr);
+      fmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		e.getErrno(), e.getMessage().str().c_str());
@@ -491,8 +491,8 @@ XrdMgmOfs::_attr_get (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_get";
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrGet");
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
@@ -530,7 +530,7 @@ XrdMgmOfs::_attr_get (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh.reset(nullptr);
+      dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
@@ -589,8 +589,8 @@ XrdMgmOfs::_attr_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_rm";
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrRm");
   gOFS->MgmStats.Add("AttrRm", vid.uid, vid.gid, 1);
@@ -632,7 +632,7 @@ XrdMgmOfs::_attr_rem (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -673,7 +673,7 @@ XrdMgmOfs::_attr_rem (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh.reset(nullptr);
+      dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }

@@ -108,8 +108,8 @@ XrdMgmOfs::_remdir (const char *path,
 
   gOFS->MgmStats.Add("RmDir", vid.uid, vid.gid, 1);
 
-  std::unique_ptr<eos::IContainerMD> dhpar;
-  std::unique_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IContainerMD> dhpar;
+  std::shared_ptr<eos::IContainerMD> dh;
   eos::common::Path cPath(path);
   eos::IContainerMD::XAttrMap attrmap;
 
@@ -139,8 +139,8 @@ XrdMgmOfs::_remdir (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
-    dhpar.reset(nullptr);
+    dh.reset();
+    dhpar.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 	      e.getErrno(), e.getMessage().str().c_str());

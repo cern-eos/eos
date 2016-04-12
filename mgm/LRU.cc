@@ -404,12 +404,12 @@ LRU::AgeExpire (const char* dir,
   std::vector<std::string> lDeleteList;
   {
     // Check the directory contents
-    std::unique_ptr<eos::IContainerMD> cmd;
+    std::shared_ptr<eos::IContainerMD> cmd;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      std::unique_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IFileMD> fmd;
       std::set<std::string> fnames = cmd->getNameFiles();
 
       for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -694,12 +694,12 @@ LRU::ConvertMatch (const char* dir,
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
-    std::unique_ptr<eos::IContainerMD> cmd;
+    std::shared_ptr<eos::IContainerMD> cmd;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      std::unique_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IFileMD> fmd;
       std::set<std::string> fnames = cmd->getNameFiles();
 
       for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -764,7 +764,7 @@ LRU::ConvertMatch (const char* dir,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      cmd.reset(nullptr);
+      cmd.reset();
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                      e.getErrno(), e.getMessage().str().c_str());
     }

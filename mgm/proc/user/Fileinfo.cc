@@ -110,7 +110,7 @@ ProcCommand::FileInfo (const char* path)
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
   {
-    std::unique_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IFileMD> fmd;
 
     if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
     {
@@ -619,7 +619,7 @@ ProcCommand::DirInfo (const char* path)
   XrdOucString option = pOpaque->Get("mgm.file.info.option");
   XrdOucString spath = path;
   {
-    std::unique_ptr<eos::IContainerMD> dmd;
+    std::shared_ptr<eos::IContainerMD> dmd;
 
     if ((spath.beginswith("pid:") || (spath.beginswith("pxid:"))))
     {

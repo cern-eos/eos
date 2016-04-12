@@ -242,7 +242,7 @@ XrdMgmOfs::_symlink (const char *source_name,
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     try
     {
-      std::unique_ptr<eos::IContainerMD> dir = eosView->getContainer(oPath.GetParentPath());
+      std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(oPath.GetParentPath());
       eosView->createLink(oPath.GetPath(), target_name,
 			  vid.uid, vid.gid);
       dir->setMTimeNow();
@@ -340,7 +340,7 @@ XrdMgmOfs::_readlink (const char *name,
 
     try
     {
-      std::unique_ptr<eos::IFileMD> file = eosView->getFile(name,false);
+      std::shared_ptr<eos::IFileMD> file = eosView->getFile(name,false);
       std::string slink = file->getLink();
       link = slink.c_str();
     }

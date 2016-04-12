@@ -50,13 +50,13 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 //------------------------------------------------------------------------------
 // Find subcontainer
 //------------------------------------------------------------------------------
-std::unique_ptr<IContainerMD>
+std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
   std::string scid = pRedox->hget(pDirsKey, name);
 
   if (scid.empty())
-    return std::unique_ptr<IContainerMD>(nullptr);
+    return std::shared_ptr<IContainerMD>(nullptr);
 
   return pContSvc->getContainerMD(std::stoull(scid));
 }
@@ -102,13 +102,13 @@ ContainerMD::addContainer(IContainerMD* container)
 //------------------------------------------------------------------------------
 // Find file
 //------------------------------------------------------------------------------
-std::unique_ptr<IFileMD>
+std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
   std::string sfid = pRedox->hget(pFilesKey, name);
 
   if (sfid.empty())
-    return std::unique_ptr<IFileMD>(nullptr);
+    return std::shared_ptr<IFileMD>(nullptr);
 
   return pFileSvc->getFileMD(std::stoull(sfid));
 }
@@ -165,7 +165,7 @@ ContainerMD::removeFile(const std::string& name)
     // It was already deleted - don't do anything
   }
 
-  std::unique_ptr<IFileMD> file = pFileSvc->getFileMD(std::stoull(sfid));
+  std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(std::stoull(sfid));
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
 				 0, 0, -file->getSize());
   pFileSvc->notifyListeners(&e);
@@ -228,7 +228,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 
   for (auto itc = vect_cids.begin(); itc != vect_cids.end(); ++itc)
   {
-    std::unique_ptr<IContainerMD> cont =
+    std::shared_ptr<IContainerMD> cont =
       pContSvc->getContainerMD(std::stoull(*itc));
     cont->cleanUp(cont_svc, file_svc);
     pContSvc->removeContainer(cont.get());
@@ -249,7 +249,7 @@ std::set<std::string>
 ContainerMD::getNameFiles() const
 {
   try {
-    std::vector<std::string> vect_files = pRedox->hvals(pFilesKey);
+    std::vector<std::string> vect_files = pRedox->hkeys(pFilesKey);
     std::set<std::string> set_files(vect_files.begin(), vect_files.end());
     return set_files;
   }
@@ -265,7 +265,7 @@ std::set<std::string>
 ContainerMD::getNameContainers() const
 {
   try {
-  std::vector<std::string> vect_subcont = pRedox->hvals(pDirsKey);
+  std::vector<std::string> vect_subcont = pRedox->hkeys(pDirsKey);
   std::set<std::string> set_subcont(vect_subcont.begin(), vect_subcont.end());
   return set_subcont;
   }
@@ -366,7 +366,7 @@ ContainerMD::setName(const std::string& name)
   // Check that there is no clash with other subcontainers having the same name
   if (pParentId)
   {
-    std::unique_ptr<eos::IContainerMD> parent = pContSvc->getContainerMD(pParentId);
+    std::shared_ptr<eos::IContainerMD> parent = pContSvc->getContainerMD(pParentId);
 
     if (parent->findContainer(name))
     {

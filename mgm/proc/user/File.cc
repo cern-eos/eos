@@ -113,7 +113,7 @@ ProcCommand::File ()
         // only root can do that
         if (pVid->uid == 0)
         {
-	  std::unique_ptr<eos::IFileMD> fmd;
+	  std::shared_ptr<eos::IFileMD> fmd;
           if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
           {
             unsigned long long fid = 0;
@@ -258,7 +258,7 @@ ProcCommand::File ()
       // only root can do that
       if (pVid->uid == 0)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
         {
           unsigned long long fid = 0;
@@ -665,7 +665,7 @@ ProcCommand::File ()
       }
       else
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
 	{
 	  eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 	  try
@@ -1045,7 +1045,7 @@ ProcCommand::File ()
             else
             {
               // get the file meta data
-	      std::unique_ptr<eos::IFileMD> fmd;
+	      std::shared_ptr<eos::IFileMD> fmd;
               int fsid = 0;
 
               eos::common::LayoutId::layoutid_t layoutid = 0;
@@ -1243,7 +1243,7 @@ ProcCommand::File ()
       // Only root can do this
       if (pVid->uid == 0)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         bool nodrop = false;
 	XrdOucString file_option = pOpaque->Get("mgm.file.option");
 
@@ -1777,7 +1777,7 @@ ProcCommand::File ()
       }
       else
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 

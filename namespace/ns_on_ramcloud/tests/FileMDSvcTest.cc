@@ -57,11 +57,11 @@ void FileMDSvcTest::loadTest()
   fileSvc->configure(config);
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
 
-  std::unique_ptr<eos::IFileMD> file1 = fileSvc->createFile();
-  std::unique_ptr<eos::IFileMD> file2 = fileSvc->createFile();
-  std::unique_ptr<eos::IFileMD> file3 = fileSvc->createFile();
-  std::unique_ptr<eos::IFileMD> file4 = fileSvc->createFile();
-  std::unique_ptr<eos::IFileMD> file5 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file2 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file3 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file4 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file5 = fileSvc->createFile();
   CPPUNIT_ASSERT(file1 != 0);
   CPPUNIT_ASSERT(file2 != 0);
   CPPUNIT_ASSERT(file3 != 0);
@@ -90,9 +90,9 @@ void FileMDSvcTest::loadTest()
   fileSvc->finalize();
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
 
-  std::unique_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
-  std::unique_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD(id3);
-  std::unique_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD(id5);
+  std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
+  std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD(id3);
+  std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD(id5);
   CPPUNIT_ASSERT(fileRec1 != 0);
   CPPUNIT_ASSERT(fileRec3 != 0);
   CPPUNIT_ASSERT(fileRec5 != 0);

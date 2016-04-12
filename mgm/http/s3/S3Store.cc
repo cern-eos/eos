@@ -380,7 +380,7 @@ S3Store::ListBucket (const std::string &bucket, const std::string &query)
 
       // get the file md object
       gOFS->eosViewRWMutex.LockRead();
-      std::unique_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IFileMD> fmd;
 
       try
       {

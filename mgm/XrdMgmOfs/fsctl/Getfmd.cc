@@ -46,7 +46,7 @@
     return SFS_DATA;
   }
 
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IFileMD> fmd;
   std::string fullpath;
   eos::common::RWMutexReadLock(gOFS->eosViewRWMutex);
 

@@ -46,8 +46,8 @@
 
     // ---------------------------------------------------------------------
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-    std::unique_ptr<eos::IFileMD> fmd;
-    std::unique_ptr<eos::IContainerMD> container;
+    std::shared_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IContainerMD> container;
     eos::IQuotaNode* ns_quota = 0;
 
     try
@@ -57,7 +57,6 @@
     catch (...)
     {
       eos_thread_warning("no meta record exists anymore for fid=%s", afid);
-      fmd.reset(nullptr);
     }
 
     if (fmd)
@@ -66,10 +65,7 @@
       {
         container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       }
-      catch (eos::MDException &e)
-      {
-        container.reset(nullptr);
-      }
+      catch (eos::MDException &e) {}
     }
 
     if (container)

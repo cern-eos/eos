@@ -364,7 +364,7 @@ Fsck::Check (void)
           try
           {
             eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-	    std::unique_ptr<eos::IFileMD> fmd;
+	    std::shared_ptr<eos::IFileMD> fmd;
             eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
             eos::IFsView::FileIterator it;
             for (it = filelist.begin(); it != filelist.end(); ++it)
@@ -399,7 +399,7 @@ Fsck::Check (void)
       try
       {
         eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         const eos::IFsView::FileList& filelist = gOFS->eosFsView->getNoReplicasFileList();
 
         for (auto it = filelist.begin(); it != filelist.end(); ++it)
@@ -475,7 +475,7 @@ Fsck::Check (void)
 
       for (it = fid2check.begin(); it != fid2check.end(); it++)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
 
         // Check if locations are online
         try
@@ -718,7 +718,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                   fidit != emapit->second.end();
                   fidit++)
           {
-	    std::unique_ptr<eos::IFileMD> fmd;
+	    std::shared_ptr<eos::IFileMD> fmd;
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             try
             {
@@ -825,7 +825,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                     fidit != efsmapit->second.end();
                     fidit++)
             {
-	      std::unique_ptr<eos::IFileMD> fmd = 0;
+	      std::shared_ptr<eos::IFileMD> fmd = 0;
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
               try
               {
@@ -934,7 +934,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
           for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++)
           {
-	    std::unique_ptr<eos::IFileMD> fmd = 0;
+	    std::shared_ptr<eos::IFileMD> fmd = 0;
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             try
             {
@@ -1051,7 +1051,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                       fidit != efsmapit->second.end();
                       fidit++)
               {
-		std::unique_ptr<eos::IFileMD> fmd;
+		std::shared_ptr<eos::IFileMD> fmd;
                 eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
                 try
                 {
@@ -1171,7 +1171,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
         std::string path = "";
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
@@ -1281,7 +1281,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
         std::string path = "";
-	std::unique_ptr<eos::IFileMD> fmd = 0;
+	std::shared_ptr<eos::IFileMD> fmd = 0;
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
@@ -1357,7 +1357,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         bool haslocation = false;
         std::string spath = "";
         // ---------------------------------------------------------------------
@@ -1457,7 +1457,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         bool haslocation = false;
         // ---------------------------------------------------------------------
@@ -1537,7 +1537,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         std::string path = "";
         try
         {
@@ -1618,7 +1618,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       // -----------------------------------------------------------------------
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
-	std::unique_ptr<eos::IFileMD> fmd;
+	std::shared_ptr<eos::IFileMD> fmd;
         bool haslocation = false;
         std::string path = "";
         // ---------------------------------------------------------------------
@@ -1729,7 +1729,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
             it != eMap["zero_replica"].end();
             it++)
     {
-      std::unique_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IFileMD> fmd;
       std::string path = "";
       time_t now = time(NULL);
       out += "progress: checking fid=";

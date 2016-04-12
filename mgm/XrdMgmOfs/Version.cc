@@ -53,7 +53,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   static const char *epname = "version";
   EXEC_TIMING_BEGIN("Version");
   gOFS->MgmStats.Add("Versioning", vid.uid, vid.gid, 1);
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IFileMD> fmd;
   std::string path;
   std::string vpath;
   std::string bname;

@@ -250,10 +250,10 @@ XrdMgmOfs::_rename (const char *old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
-  std::unique_ptr<eos::IContainerMD> dir = 0;
-  std::unique_ptr<eos::IContainerMD> newdir = 0;
-  std::unique_ptr<eos::IContainerMD> rdir = 0;
-  std::unique_ptr<eos::IFileMD> file = 0;
+  std::shared_ptr<eos::IContainerMD> dir = 0;
+  std::shared_ptr<eos::IContainerMD> newdir = 0;
+  std::shared_ptr<eos::IContainerMD> rdir = 0;
+  std::shared_ptr<eos::IFileMD> file = 0;
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;
@@ -443,7 +443,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		{
 		  std::string fspath = rfoundit->first;
 		  fspath += *fileit;
-		  std::unique_ptr<eos::IFileMD> fmd = 0;
+		  std::shared_ptr<eos::IFileMD> fmd = 0;
 
 		  // Stat this file and add to the deletion maps
 		  try
@@ -588,13 +588,13 @@ XrdMgmOfs::_rename (const char *old_name,
 	  }
 	}
 
-	file.reset(nullptr);
+	file.reset();
       }
     }
     catch (eos::MDException& e)
     {
-      dir.reset(nullptr);
-      file.reset(nullptr);
+      dir.reset();
+      file.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
 		e.getErrno(), e.getMessage().str().c_str());

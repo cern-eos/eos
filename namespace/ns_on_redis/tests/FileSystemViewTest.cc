@@ -111,7 +111,7 @@ void FileSystemViewTest::fileSystemViewTest()
     static_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
     fileSvc->addChangeListener(fsView.get());
     view->createContainer("/test/embed/embed1", true);
-    std::unique_ptr<eos::IContainerMD> c = view->createContainer("/test/embed/embed2", true);
+    std::shared_ptr<eos::IContainerMD> c = view->createContainer("/test/embed/embed2", true);
     view->createContainer("/test/embed/embed3", true);
 
     // Create some files
@@ -119,7 +119,7 @@ void FileSystemViewTest::fileSystemViewTest()
     {
       std::ostringstream o;
       o << "file" << i;
-      std::unique_ptr<eos::IFileMD> files[4];
+      std::shared_ptr<eos::IFileMD> files[4];
       files[0] = view->createFile(std::string("/test/embed/") + o.str());
       files[1] = view->createFile(std::string("/test/embed/embed1/") + o.str());
       files[2] = view->createFile(std::string("/test/embed/embed2/") + o.str());
@@ -156,7 +156,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "file" << i;
       // Unlink some replicas
-      std::unique_ptr<eos::IFileMD> f = c->findFile(o.str());
+      std::shared_ptr<eos::IFileMD> f = c->findFile(o.str());
       f->unlinkLocation(f->getLocation(0));
       f->unlinkLocation(f->getLocation(0));
       view->updateFileStore(f.get());
@@ -173,7 +173,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "file" << i;
       // Unlink some replicas
-      std::unique_ptr<eos::IFileMD> f {c->findFile(o.str())};
+      std::shared_ptr<eos::IFileMD> f {c->findFile(o.str())};
       f->unlinkAllLocations();
       c->removeFile(o.str());
       f->setContainerId(0);
@@ -198,7 +198,7 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT(numUnlinked == 2800);
     CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
 
-    std::unique_ptr<eos::IFileMD> f {view->getFile(std::string("/test/embed/embed1/file1"))};
+    std::shared_ptr<eos::IFileMD> f {view->getFile(std::string("/test/embed/embed1/file1"))};
     f->unlinkAllLocations();
     numReplicas = countReplicas(fsView.get());
     CPPUNIT_ASSERT(numReplicas == 17195);
@@ -235,7 +235,7 @@ void FileSystemViewTest::fileSystemViewTest()
 	  continue;
 	}
 
-	std::unique_ptr<eos::IFileMD> file {view->getFile(elem)};
+	std::shared_ptr<eos::IFileMD> file {view->getFile(elem)};
 	CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
 	CPPUNIT_ASSERT_NO_THROW(file->removeAllLocations());
 	CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
@@ -245,7 +245,7 @@ void FileSystemViewTest::fileSystemViewTest()
     // Remove the files that were unlinked only
     for (auto&& id: file_ids)
     {
-      std::unique_ptr<eos::IFileMD> file = fileSvc->getFileMD(id);
+      std::shared_ptr<eos::IFileMD> file = fileSvc->getFileMD(id);
       CPPUNIT_ASSERT_NO_THROW(file->removeAllLocations());
       CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
     }
@@ -255,7 +255,7 @@ void FileSystemViewTest::fileSystemViewTest()
       std::ostringstream o;
       o << "noreplicasfile" << i;
       std::string path = "/test/embed/embed1/" + o.str();
-      std::unique_ptr<eos::IFileMD> file {view->getFile(path)};
+      std::shared_ptr<eos::IFileMD> file {view->getFile(path)};
       CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
       CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
     }
@@ -263,7 +263,7 @@ void FileSystemViewTest::fileSystemViewTest()
     // Remove all containers
     CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
     // Remove the root container
-    std::unique_ptr<eos::IContainerMD> root {view->getContainer("/")};
+    std::shared_ptr<eos::IContainerMD> root {view->getContainer("/")};
     CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
     view->finalize();
   }

@@ -213,7 +213,7 @@
         }
         else
         {
-	  std::unique_ptr<eos::IFileMD> fmd;
+	  std::shared_ptr<eos::IFileMD> fmd;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;
@@ -237,7 +237,7 @@
           }
           catch (eos::MDException &e)
           {
-            fmd.reset(nullptr);
+            fmd.reset();
           }
 
           if (fmd)

@@ -49,8 +49,8 @@ XrdMgmOfs::merge (
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-  std::unique_ptr<eos::IFileMD> src_fmd;
-  std::unique_ptr<eos::IFileMD> dst_fmd;
+  std::shared_ptr<eos::IFileMD> src_fmd;
+  std::shared_ptr<eos::IFileMD> dst_fmd;
 
   if (!src || !dst)
   {

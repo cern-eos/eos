@@ -51,8 +51,8 @@ XrdMgmOfs::_verifystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "verifystripe";
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   EXEC_TIMING_BEGIN("VerifyStripe");
   errno = 0;
   unsigned long long fid = 0;
@@ -73,7 +73,7 @@ XrdMgmOfs::_verifystripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -100,7 +100,7 @@ XrdMgmOfs::_verifystripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    fmd.reset(nullptr);
+    fmd.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -204,8 +204,8 @@ XrdMgmOfs::_dropstripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "dropstripe";
-  std::unique_ptr<eos::IContainerMD> dh;
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("DropStripe");
   gOFS->MgmStats.Add("DropStripe", vid.uid, vid.gid, 1);
@@ -220,7 +220,7 @@ XrdMgmOfs::_dropstripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -268,7 +268,7 @@ XrdMgmOfs::_dropstripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    fmd.reset(nullptr);
+    fmd.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -380,7 +380,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "replicatestripe";
-  std::unique_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IContainerMD> dh;
   errno = 0;
   EXEC_TIMING_BEGIN("ReplicateStripe");
   eos::common::Path cPath(path);
@@ -395,7 +395,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh.reset(nullptr);
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -404,7 +404,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
     if (!errno) errno = EPERM;
 
-  std::unique_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IFileMD> fmd;
 
   // get the file
   try
@@ -426,7 +426,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    fmd.reset(nullptr);
+    fmd.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
