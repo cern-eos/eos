@@ -37,20 +37,53 @@ Dependencies
    xrootd-private-devel             = 3.3.4                       
    xrootd-cl-devel                  = 3.3.4                       
    readline-devel                   default                        
+   readline                         default
    ncurses-devel                    default                        
+   ncurses-static		    default
+   ncurses                          default
    libattr-devel                    default                        
+   libattr                          default
    openldap-devel                   default                        
-   e2fsprogs-devel                  default                        
+   openldap                         default
+   e2fsprogs-devel                  default
+   e2fsprogs                        default                        
    zlib-devel                       default                        
    openssl-devel                    default                        
    ncurses-devel                    default                        
-   xfsprogs-devel                   default                        
-   fuse-devel                       >= 2.7                         
+   xfsprogs-devel                   default
+   xfsprogs                         default                        
+   fuse-devel                       >= 2.7  
+   fuse-libs                        >= 2.7                       
    fuse                             >= 2.7                         
-   leveldb-devel                    >= 1.7                         
+   leveldb-devel                    >= 1.7 
+   leveldb                          >= 1.7                        
    git                              default                        
-   cmake                            2.8                           
+   cmake                            >= 2.8                           
+   sparsehash-devel                 default
+   libmicrohttpd                    EOS rpm 
+   libmicrohttpd-devel              EOS rpm
+   libuuid                          default
+   libuuid-devel                    default
+   zeromq                           default
+   zeromq-devel                     default
+   protobuf                         default
+   protobuf-devel                   default
+   perl-Time-HiRes                  default
    ===============================  =========
+
+There are two convenience scripts to install all dependencies in the EOS source tree:
+
+SLC6
+++++
+.. code-block:: bash
+  
+   utils/sl6-packages.sh
+
+EL7
++++
+.. code-block:: bash
+
+   utils/el7-packages.sh
 
 Compilation
 -----------
