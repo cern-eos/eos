@@ -133,20 +133,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libeosCommonServer.so.%{version}
 %{_libdir}/libeosCommonServer.so.0
 %{_libdir}/libeosCommonServer.so
-%{_libdir}/libXrdEosAuth.so.%{version}
-%{_libdir}/libXrdEosAuth.so.0
 %{_libdir}/libXrdEosAuth.so
-%{_libdir}/libXrdEosFst.so.%{version}
-%{_libdir}/libXrdEosFst.so.0
 %{_libdir}/libXrdEosFst.so
-%{_libdir}/libEosFstOss.so.%{version}
-%{_libdir}/libEosFstOss.so.0
 %{_libdir}/libEosFstOss.so
-%{_libdir}/libXrdEosMgm.so.%{version}
-%{_libdir}/libXrdEosMgm.so.0
 %{_libdir}/libXrdEosMgm.so
-%{_libdir}/libXrdMqOfs.so.%{version}
-%{_libdir}/libXrdMqOfs.so.0
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
@@ -204,8 +194,6 @@ The EOS shell client.
 %{_bindir}/eos
 %{_bindir}/eosdropboxd
 %{_bindir}/eoscp
-%{_libdir}/libXrdMqClient.so.%{version}
-%{_libdir}/libXrdMqClient.so.0
 %{_libdir}/libXrdMqClient.so
 %{_libdir}/libeosCommon.so.%{version}
 %{_libdir}/libeosCommon.so.0
@@ -384,6 +372,8 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-mgm-clean
 
 
+%if %{?yumrpm:1}%{!?yumrpm:0} == 1
+
 #-------------------------------------------------------------------------------
 # Package eos-repo-el6
 #-------------------------------------------------------------------------------
@@ -421,6 +411,7 @@ Contains a yum configuration file for the production EOS EL7 repo
 %files -n eos-repo-el7
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7.repo
+
 
 #-------------------------------------------------------------------------------
 # Package eos-repo-el6-dev
@@ -460,4 +451,5 @@ Contains a yum configuration file for the development EOS EL7 repo
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
 
+%endif
 
