@@ -7,6 +7,19 @@
 Beryl Release Notes
 ===================
 
+``V0.3.165 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix race condition on google_hash_map in FUSE leading 
+
+New Features
+++++++++++++
+
+- don't set/get xattr with "security.*' keys in FUSE
+
 ``V0.3.164 Aquamarine``
 -----------------------
 
