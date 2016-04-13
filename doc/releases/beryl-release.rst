@@ -7,7 +7,17 @@
 Beryl Release Notes
 ===================
 
-``V0.3.162 Aquamarine``
+``V0.3.164 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix serious bug when moving directory subtress (as used by recycle bin) attaching moved trees after a reboot to the source location
+
+.. warning:: it is highly recommended to update the MGM, if possible purge all recursive deletes before reboot from the recycling bin
+
+``V0.3.163 Aquamarine``
 -----------------------
 
 Bug Fixes
