@@ -365,6 +365,7 @@ Contains an instance test script and some test executables.
 %{_sbindir}/eos-io-test
 %{_sbindir}/eos-io-tool
 
+%if %{?yumrpm:1}%{!?yumrpm:0} == 1
 #-------------------------------------------------------------------------------
 # Package eos-cleanup
 #-------------------------------------------------------------------------------
@@ -459,5 +460,6 @@ Contains a yum configuration file for the development EOS EL7 repo
 %files -n eos-repo-el7-dev
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
+%endif
 
 
