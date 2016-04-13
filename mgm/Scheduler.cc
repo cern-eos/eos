@@ -320,7 +320,6 @@ Scheduler::FilePlacement (const char* path, //< path to place
         if (nassigned == 0)
         {
 	  // push it on the selection list
-	  selected_filesystems.push_back(*ait);
 	  if (hasgeolocation)
           {
 	    selected_geo_location = availablefsgeolocation[*ait];
@@ -335,20 +334,17 @@ Scheduler::FilePlacement (const char* path, //< path to place
 
 	  if ( (nfilesystems==1) && exact_match && !geo_entry_fsid) 
 	  {
-	    ait++;
+	    ait = availablevector.erase(ait);
 	  }
 	  else
 	  {
+	    selected_filesystems.push_back(*ait);
 	    // remove it from the selection map
 	    availablefs.erase(*ait);
+	    ait = availablevector.erase(ait);
+	    // rotate scheduling view ptr
+	    nassigned++;
 	  }
-
-	  ait = availablevector.erase(ait);
-	  if (ait == availablevector.end())
-	    ait = availablevector.begin();
-	  
-	  // rotate scheduling view ptr
-	  nassigned++;
 	}
         else
         {
