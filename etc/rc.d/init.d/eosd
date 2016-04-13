@@ -295,7 +295,7 @@ getstatus() {
                 [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i dead but subsys locked"
                 RETVAL=1
             else
-                pid=`ps -eo pid,ppid,comm,cmd | grep -v egrep | egrep "$prog -n $i"| awk '{print $1}' | head -1`
+                pid=$(pgrep -f "^/usr/bin/eosd.*fsname=eos$i")
                 if [ -n "$pid" ]; then
                     [ -z ${_NODISP_STATUS_} ] && echo $"$prog for instance: $i is starting (pid $pid) "
                     RETVAL=0

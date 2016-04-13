@@ -7,6 +7,22 @@
 Beryl Release Notes
 ===================
 
+``V0.3.162 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- mask all special mode bits in FUSE (was breaking writes via CIFS server if no group-w bit set)
+- fix missing lock in TPC handling function in storage nodes
+- apply removed sudoer priviledged in running instance 
+
+New Features
+++++++++++++
+
+- add 'service eosd killall' command and fix 'service eosd condrestart'
+
+
 ``V0.3.161 Aquamarine``
 -----------------------
 
