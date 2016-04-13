@@ -38,6 +38,7 @@ set(EOS_NS_REDIS_SRCS
   FileMD.cc              FileMD.hh
   ContainerMD.cc         ContainerMD.hh
   RedisClient.cc         RedisClient.hh
+  LRU.hh
 
   persistency/ContainerMDSvc.hh
   persistency/ContainerMDSvc.cc
@@ -63,6 +64,7 @@ add_library(
 target_link_libraries(
   EosNsOnRedis
   EosNsCommon
+  eosCommon
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${REDOX_LIBRARIES}
@@ -81,6 +83,7 @@ if (Linux)
   target_link_libraries(
     EosNsOnRedis-Static
     EosNsCommon-Static
+    eosCommon-Static
     ${UUID_LIBRARIES}
     ${REDOX_LIBRARIES}
     ${LIBEV_LIBRARIES}

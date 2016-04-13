@@ -25,6 +25,7 @@
 #define __EOS_NS_FILE_MD_SVC_HH__
 
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/ns_on_redis/LRU.hh"
 #include <list>
 
 //! Forward declarations
