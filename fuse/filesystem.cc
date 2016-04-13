@@ -905,8 +905,6 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
        fd2count.erase (fd);
        fd2fabst.erase (fd);
 
-       rwmutex_fd2fabst.UnLockWrite();
-       
        std::ostringstream sstr;
        sstr << inode << ":" << get_login (uid, gid, pid);
        iter1 = inodexrdlogin2fds.find (sstr.str ());
@@ -927,6 +925,8 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
        }      
        if (iter1->second.empty ()) inodexrdlogin2fds.erase (iter1);
 
+       rwmutex_fd2fabst.UnLockWrite();
+       
        // Return fd to the pool
        pool_fd.push (fd);
      }
