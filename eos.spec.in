@@ -412,6 +412,8 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-mgm-clean
 
 
+%if %{?yumrpm:1}%{!?yumrpm:0} == 1
+
 #-------------------------------------------------------------------------------
 # Package eos-repo-el6
 #-------------------------------------------------------------------------------
@@ -488,4 +490,5 @@ Contains a yum configuration file for the development EOS EL7 repo
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
 
+%endif
 
