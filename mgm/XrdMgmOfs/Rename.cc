@@ -604,8 +604,10 @@ XrdMgmOfs::_rename (const char *old_name,
 	      }
 
 	      {
-		// rename the moved directory
+		// rename the moved directory and udpate it's parent ID
 		rdir->setName(nPath.GetName());
+		rdir->setParentId(newdir->getId());
+
 		if (updateCTime)
 		{
 		  rdir->setCTimeNow();
