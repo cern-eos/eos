@@ -12,6 +12,14 @@ Beryl Release Notes
 
 Bug Fixes
 +++++++++
+- fix dual side/dual fs exact placement
+- fix 'eosd status' script
+
+``V0.3.162 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
 
 - mask all special mode bits in FUSE (was breaking writes via CIFS server if no group-w bit set)
 - fix missing lock in TPC handling function in storage nodes
