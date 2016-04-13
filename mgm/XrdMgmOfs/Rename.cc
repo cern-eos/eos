@@ -589,15 +589,6 @@ XrdMgmOfs::_rename (const char *old_name,
 	      // -------------------------------------------------------------------
 	      // move from one container to another one
 	      // -------------------------------------------------------------------
-	      {
-		// rename the moved directory
-		rdir->setName(nPath.GetName());
-		if (updateCTime)
-		{
-		  rdir->setCTimeNow();
-		}
-		eosView->updateContainerStore(rdir);
-	      }
 
 	      unsigned long long tree_size = rdir->getTreeSize();
 	      {
@@ -610,6 +601,16 @@ XrdMgmOfs::_rename (const char *old_name,
 		  dir->removeTreeSize(tree_size);
 		}
 		eosView->updateContainerStore(dir);	     
+	      }
+
+	      {
+		// rename the moved directory
+		rdir->setName(nPath.GetName());
+		if (updateCTime)
+		{
+		  rdir->setCTimeNow();
+		}
+		eosView->updateContainerStore(rdir);
 	      }
 
 	      {
