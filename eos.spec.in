@@ -133,10 +133,20 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libeosCommonServer.so.%{version}
 %{_libdir}/libeosCommonServer.so.0
 %{_libdir}/libeosCommonServer.so
+%{_libdir}/libXrdEosAuth.so.%{version}
+%{_libdir}/libXrdEosAuth.so.0
 %{_libdir}/libXrdEosAuth.so
+%{_libdir}/libXrdEosFst.so.%{version}
+%{_libdir}/libXrdEosFst.so.0
 %{_libdir}/libXrdEosFst.so
+%{_libdir}/libEosFstOss.so.%{version}
+%{_libdir}/libEosFstOss.so.0
 %{_libdir}/libEosFstOss.so
+%{_libdir}/libXrdEosMgm.so.%{version}
+%{_libdir}/libXrdEosMgm.so.0
 %{_libdir}/libXrdEosMgm.so
+%{_libdir}/libXrdMqOfs.so.%{version}
+%{_libdir}/libXrdMqOfs.so.0
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
