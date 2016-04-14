@@ -20,7 +20,7 @@ New Features
 
 - by default use FUSE in async mode e.g. fsync is not a blocking call - enable sync behaviour via sysconfig EOS_FUSE_SYNC=1 
 - by default use new FST fast boot option and disable WAL journaling of SQLITE db - the pedantic boot behaviour can be enforced via sysconfig EOS_FST_NO_FAST_BOOT=1
-
+- add 'service eos clean fst' and 'service eos resync fst' to enforce a start behaviour (no resync or resync)
 
 ``V0.3.165 Aquamarine``
 -----------------------
