@@ -136,6 +136,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Disable to use the kernel cache (default on)
 # export EOS_FUSE_KERNELCACHE=0
 
+# Enable a synchronous mount with synchrnous fsync (default off)
+# export EOS_FUSE_SYNC=0
+
 # Bypass the buffercache for write - avoids 4k chopping of IO (default off)
 # (this is not what people understand under O_DIRECT !!!!
 # export EOS_FUSE_DIRECTIO=1

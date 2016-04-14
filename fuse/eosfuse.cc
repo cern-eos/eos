@@ -122,6 +122,15 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    me.config.direct_io = 1;
  }
 
+ if ((getenv("EOS_FUSE_SYNC")) && (!strcmp (getenv ("EOS_FUSE_SYNC"), "1")))
+ {
+   me.config.is_sync = 1;
+ }
+ else
+ {
+   me.config.is_sync = 0;
+ }
+
  xcfsatime = time (NULL);
 
  char rdr[4096];
@@ -241,6 +250,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    eos_static_warning ("kernel-cache           := %s", me.config.kernel_cache ? "true" : "false");
    eos_static_warning ("direct-io              := %s", me.config.direct_io ? "true" : "false");
    eos_static_warning ("no-access              := %s", me.config.no_access ? "true" : "false");
+   eos_static_warning ("fsync                  := %s", me.config.is_sync ? "sync" : "async");
    eos_static_warning ("attr-cache-timeout     := %.02f seconds", me.config.attrcachetime);
    eos_static_warning ("entry-cache-timeout    := %.02f seconds", me.config.entrycachetime);
    eos_static_warning ("negative-entry-timeout := %.02f seconds", me.config.neg_entrycachetime);
@@ -1571,6 +1581,13 @@ EosFuse::fsync (fuse_req_t req, fuse_ino_t ino, int datasync, struct fuse_file_i
  eos_static_debug ("");
 
  EosFuse& me = instance ();
+
+ // short cut if we are configured for async mount
+ if (!me.config.is_sync )
+ {
+   fuse_reply_err (req, 0);
+   return;
+ }
 
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
