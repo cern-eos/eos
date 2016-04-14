@@ -665,7 +665,7 @@ filesystem::dir_cache_add_entry (unsigned long long inode,
                                  unsigned long long entry_inode,
                                  struct fuse_entry_param* e)
 {
- eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
+ eos::common::RWMutexWriteLock wr_lock (mutex_fuse_cache);
  FuseCacheEntry* dir = 0;
 
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
