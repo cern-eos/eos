@@ -7,6 +7,21 @@
 Beryl Release Notes
 ===================
 
+``V0.3.166 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix 'dumpmd' response for files with empty checksum, which cannot be parsed by the FST
+
+New Features
+++++++++++++
+
+- by default use FUSE in async mode e.g. fsync is not a blocking call - enable sync behaviour via sysconfig EOS_FUSE_SYNC=1 
+- by default use new FST fast boot option and disable WAL journaling of SQLITE db - the pedantic boot behaviour can be enforced via sysconfig EOS_FST_NO_FAST_BOOT=1
+
+
 ``V0.3.165 Aquamarine``
 -----------------------
 
