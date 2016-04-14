@@ -419,9 +419,13 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
-  bool resyncmgm = (gFmdSqliteHandler.IsDirty(fsid) ||
-                    (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  bool resyncdisk = (gFmdSqliteHandler.IsDirty(fsid) ||
+  bool is_dirty = gFmdSqliteHandler.IsDirty(fsid);
+  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) || (strcmp("EOS_FST_NO_FAST_BOOT","1"));
+
+  bool resyncmgm  = ( (is_dirty) ||
+		      (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
+
+  bool resyncdisk = ( (is_dirty) || 
                      (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
 
   eos_info("msg=\"start disk synchronisation\"");
@@ -451,8 +455,8 @@ Storage::Boot (FileSystem *fs)
   }
   else
   {
-    eos_info("msg=\"skipped disk synchronisization\" fsid=%lu",
-             (unsigned long) fsid);
+    eos_info("msg=\"skipped disk synchronisization\" fsid=%lu fast-boot=%d",
+	     (unsigned long) fsid, fast_boot);
   }
 
   // if we detect an unclean shutdown, we resync with the MGM
@@ -475,12 +479,16 @@ Storage::Boot (FileSystem *fs)
   }
   else
   {
-    eos_info("msg=\"skip mgm resynchronization - had clean shutdown\" fsid=%lu",
-             (unsigned long) fsid);
+    eos_info("msg=\"skip mgm resynchronization - had clean shutdown\" fsid=%lu fast-boot=%d",
+	     (unsigned long) fsid, fast_boot);
   }
 
   gFmdSqliteHandler.StayDirty(fsid, false); // indicate the flag to unset the DB dirty flag at shutdown
+  // allows fast boot the next time
+  if (fast_boot)
+    gFmdSqliteHandler.MarkCleanDB(fsid);
 
+  
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid))
   {

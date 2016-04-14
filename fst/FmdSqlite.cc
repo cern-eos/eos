@@ -249,6 +249,14 @@ FmdSqliteHandler::SetDBFile (const char* dbfileprefix, int fsid, XrdOucString op
   if ((sqlite3_open(fsDBFileName, &DB[fsid]) == SQLITE_OK))
   {
     XrdOucString createtable = "CREATE TABLE if not exists fst ( fid integer PRIMARY KEY, cid integer, fsid integer, ctime integer, ctime_ns integer, mtime integer, mtime_ns integer, atime integer, atime_ns integer, checktime integer, size integer default 281474976710641, disksize integer default 281474976710641, mgmsize integer default 281474976710641, checksum varchar(32), diskchecksum varchar(32), mgmchecksum varchar(32), lid integer, uid integer, gid integer, filecxerror integer, blockcxerror integer, layouterror integer, locations varchar(128))";
+
+    if (sqlite3_exec(DB[fsid], "PRAGMA main.journal_mode = OFF;", 0, 0, &ErrMsg) != SQLITE_OK)
+    {
+      
+      eos_err("unable to disable WAL journal - msg=%s", ErrMsg);
+      return false;
+    }
+
     if ((sqlite3_exec(DB[fsid], createtable.c_str(), CallBack, this, &ErrMsg)))
     {
       eos_err("unable to create <fst> table - msg=%s\n", ErrMsg);
@@ -302,6 +310,27 @@ FmdSqliteHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
     if ((sqlite3_close(DB[fsid]) == SQLITE_OK))
     {
       return true;
+    }
+  }
+  return false;
+}
+
+
+bool
+FmdSqliteHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::RWMutexWriteLock lock(Mutex);
+  eos_info("SQLITE DB mark clean for fsid=%lu\n", (unsigned long) fsid);
+  if (DB.count(fsid))
+  {
+    if (DBfilename.count(fsid))
+    {
+      // if there was a complete boot procedure done, we remove the dirty flag
+      // set the mode back to S_IRWXU
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
+      {
+	eos_crit("failed to switch the sqlite3 database file to S_IRWXU errno=%d", errno);
+      }
     }
   }
   return false;

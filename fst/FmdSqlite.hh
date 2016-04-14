@@ -285,6 +285,11 @@ public:
   bool ShutdownDB (eos::common::FileSystem::fsid_t fsid);
 
   // ---------------------------------------------------------------------------
+  //! Mark Clean
+  // ---------------------------------------------------------------------------
+  bool MarkCleanDB (eos::common::FileSystem::fsid_t fsid);
+
+  // ---------------------------------------------------------------------------
   //! Read all Fmd entries from a DB file
   // ---------------------------------------------------------------------------
   bool ReadDBFile (eos::common::FileSystem::fsid_t, XrdOucString option = "");
