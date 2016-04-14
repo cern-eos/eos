@@ -445,7 +445,19 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
     // Establish our hostname and IPV4 address
     //
-    HostName = XrdSysDNS::getHostName();
+    char *errtext=0;
+    HostName = XrdSysDNS::getHostName(0,&errtext);
+
+    if (std::string(HostName)=="0.0.0.0")
+    {
+      char buffer[2048];
+      snprintf(buffer,2048,"Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
+      Eroute.Emsg("Config", buffer);
+      // DEBUG: for now, we don't interrupt the boot as we
+      // NoGo = 1;
+      // return NoGo;
+    }
+
 
     if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
     strcpy(buff, "[::");

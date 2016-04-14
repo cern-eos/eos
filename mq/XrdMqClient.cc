@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include <common/Logging.hh>
 #include <mq/XrdMqClient.hh>
 #include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysDNS.hh>
@@ -114,7 +115,14 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   {
     // By default create the client id as /xmesssage/<domain>/<host>/
     int ppos = 0;
-    char* cfull_name = XrdSysDNS::getHostName();
+    char *errtext=0;
+    char *cfull_name = XrdSysDNS::getHostName(0,&errtext);
+    if (std::string(cfull_name)=="0.0.0.0")
+    {
+      eos_static_crit("Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
+      abort();
+    }
+
     XrdOucString FullName = cfull_name;
     XrdOucString HostName = FullName;
     XrdOucString Domain = FullName;

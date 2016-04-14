@@ -305,13 +305,17 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   // Get the hostname
-  mHostName = XrdSysDNS::getHostName();
+  char *errtext=0;
+  mHostName = XrdSysDNS::getHostName(0,&errtext);
 
-  if (!mHostName)
+  if (std::string(mHostName)=="0.0.0.0")
   {
-    Eroute.Emsg("Config", "Hostname coud not be determined");
-    NoGo = 1;
-    return NoGo;
+    char buffer[2048];
+    snprintf(buffer,2048,"Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
+    Eroute.Emsg("Config", buffer);
+    // DEBUG: for now, we don't interrupt the boot as we
+    // NoGo = 1;
+    // return NoGo;
   }
 
   TransferScheduler = new XrdScheduler(&Eroute, &OfsTrace, 8, 128, 60);
