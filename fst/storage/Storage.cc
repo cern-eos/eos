@@ -420,8 +420,7 @@ Storage::Boot (FileSystem *fs)
   }
 
   bool is_dirty = gFmdSqliteHandler.IsDirty(fsid);
-  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) || (strcmp("EOS_FST_NO_FAST_BOOT","1"));
-
+  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) || (strcmp(getenv("EOS_FST_NO_FAST_BOOT"),"1"));
   bool resyncmgm  = ( (is_dirty) ||
 		      (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
 
