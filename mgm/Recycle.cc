@@ -746,6 +746,12 @@ Recycle::Print (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping
                 std::string deltime = ctime_r(&buf.st_ctime, tdeltime);
                 deltime.erase(deltime.length() - 1);
                 snprintf(sline, sizeof (sline) - 1, "%-26s %-8s %-8s %-12s %-13s %-16s %-64s", deltime.c_str(), uids.c_str(), gids.c_str(), eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) buf.st_size), type.c_str(), originode.c_str(), origpath.c_str());
+		if (stdOut.length() > 1*1024*1024*1024)
+		{
+		  stdOut += "... (truncated after 1G of output)\n";
+		  retc = E2BIG;
+		  stdErr += "warning: list too long - truncated after 1GB of output!\n";
+		}
                 stdOut += sline;
                 stdOut += "\n";
               }
