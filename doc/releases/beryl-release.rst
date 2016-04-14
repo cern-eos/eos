@@ -15,6 +15,7 @@ Bug Fixes
 
 - fix 'dumpmd' response for files with empty checksum, which cannot be parsed by the FST
 - convert r=>w lock in FUSE (dir_cache_sync) to fix crashes in readdir 
+- protect 'recycle ls' to exceed string size limitation when listing millions of entries - stops at 1GB of console output and displays warning message
 
 New Features
 ++++++++++++
