@@ -7,6 +7,22 @@
 Beryl Release Notes
 ===================
 
+``V0.3.167 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- add responses for custom namespaces (for new Owncloud clients) HTTP
+- fix race condition for stat after close in FUSE
+- gcc 6.0 warnings
+- don't version module libraries anymore (as done by newer cmake)
+
+New Features
+++++++++++++
+
+- introduction of 'sys.mask' attribute to apply a default mask to all chmod calls on directories (attribute disables !m in acls)
+
 ``V0.3.166 Aquamarine``
 -----------------------
 
