@@ -36,14 +36,14 @@
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Helper struct to test if EntryT implements the getId metod. If EntryT
+//! Helper struct to test if EntryT implements the getId method. If EntryT
 //! implements getId method then hasGetId::value will be true, otherwise false.
 //! This struct is to be used in other template definitions.
 //------------------------------------------------------------------------------
-template<class EntryT> 
+template<class EntryT>
 struct hasGetId
 {
-  template <typename C> 
+  template <typename C>
   static constexpr decltype(std::declval<C>().getId(), bool()) test(int)
   {
     return true;
@@ -97,7 +97,7 @@ public:
   //!         cache is full then the least recently used entry is evicted
   //!         provided that it's not referenced anywhere else in the program.
   //----------------------------------------------------------------------------
-  typename std::enable_if<hasGetId<EntryT>::value, bool>::type
+  typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
   put(IdT id, std::shared_ptr<EntryT> obj);
 
   //----------------------------------------------------------------------------
@@ -120,6 +120,17 @@ public:
     return mList.size();
   }
 
+  //----------------------------------------------------------------------------
+  //! Set max size
+  //!
+  //! @param max_size new maximum number of entries
+  //----------------------------------------------------------------------------
+  inline void set_max_size(const std::uint64_t max_size)
+  {
+    eos::common::RWMutexWriteLock lock_w(mMutex);
+    mMaxSize = max_size;
+  }
+
 private:
   //! Percentage at which the cache purging stops
   static constexpr double sPurgeStopRatio = 0.9;
@@ -136,7 +147,7 @@ private:
   MapT mMap; ///< Internal map pointing to obj in list
   ListT mList; ///< Internal list of objects
   // TODO: in C++17 use std::shared_mutex
-  ///< Mutext to protect access to the map and list which is set to blocking
+  //! Mutext to protect access to the map and list which is set to blocking
   mutable eos::common::RWMutex mMutex;
   std::uint64_t mMaxSize; ///< Maximum number of entries
 };
@@ -185,20 +196,21 @@ std::shared_ptr<EntryT> LRU<IdT, EntryT>::get(IdT id) const
 // Put object
 //------------------------------------------------------------------------------
 template<typename IdT, typename EntryT>
-typename std::enable_if<hasGetId<EntryT>::value, bool>::type
+typename std::enable_if<hasGetId<EntryT>::value, std::shared_ptr<EntryT>>::type
 LRU<IdT, EntryT>::put(IdT id, std::shared_ptr<EntryT> obj)
 {
   eos::common::RWMutexWriteLock lock_w(mMutex);
+  auto iter_map = mMap.find(id);
 
-  if (mMap.find(id) != mMap.end())
-    return false;
+  if (iter_map != mMap.end())
+    return *(iter_map->second);
 
   // Check if map full and purge some entries is necessary 10% of max size
   if (mList.size() >= mMaxSize)
   {
     auto iter = mList.begin();
 
-    while ((iter != mList.end()) && 
+    while ((iter != mList.end()) &&
 	   (mList.size() > sPurgeStopRatio * mMaxSize))
     {
       // If object is referenced also by someone else then skip it
@@ -215,7 +227,7 @@ LRU<IdT, EntryT>::put(IdT id, std::shared_ptr<EntryT> obj)
 
   auto iter = mList.insert(mList.end(), obj);
   mMap.emplace(id, iter);
-  return true;
+  return *iter;
 }
 
 //------------------------------------------------------------------------------
