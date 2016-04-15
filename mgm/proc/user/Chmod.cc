@@ -97,12 +97,14 @@ ProcCommand::Chmod ()
           }
           else
           {
+	    char omode[64];
+	    snprintf(omode,sizeof(omode),"%o", (int)Mode);
             if (pVid->uid)
             {
               stdOut += "success: mode of file/directory ";
               stdOut += foundit->first.c_str();
               stdOut += " is now '2";
-              stdOut += mode;
+              stdOut += omode;
               stdOut += "'\n";
             }
             else
@@ -110,7 +112,7 @@ ProcCommand::Chmod ()
               stdOut += "success: mode of file/directory ";
               stdOut += foundit->first.c_str();
               stdOut += " is now '";
-              stdOut += mode;
+              stdOut += omode;
               stdOut += "'\n";
             }
           }

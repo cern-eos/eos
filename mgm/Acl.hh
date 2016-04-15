@@ -72,6 +72,7 @@ class Acl {
   bool hasEgroup; ///< acl contains egroup rule
   bool isMutable; ///< acl does not contain the immutable flag
   bool canArchive; ///< acl which allows archiving
+  int  modMask; ///< mask defined via sys.mask
 public:
   /*---------------------------------------------------------------------------*/
   //! Default Constructor
@@ -247,6 +248,12 @@ public:
   {
     return canArchive;
   }
+
+  int GetMask()
+  {
+    return modMask;
+  }
+
 };
 
 EOSMGMNAMESPACE_END

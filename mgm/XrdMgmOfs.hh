@@ -192,7 +192,7 @@ public:
   // chmod by vid
   // ---------------------------------------------------------------------------
   int _chmod (const char *Name,
-              XrdSfsMode Mode,
+              XrdSfsMode& Mode,
               XrdOucErrInfo &out_error,
               eos::common::Mapping::VirtualIdentity &vid,
               const char *opaque = 0);

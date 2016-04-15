@@ -267,3 +267,21 @@ owner and not by the authenticated client and quota is booked on the directory o
    eos attr set sys.owner.auth="krb5:prod"
    eos attr set sys.owner.auth="*"
 
+Permission Masks
+++++++++++++++++
+
+A permission mask which is applied on all chmod requests for directories can be defined via:
+
+.. code-block:: bash
+
+   sys.mask=<octal-mask>
+
+Example:
+
+.. code-block:: bash
+
+   eos attr set sys.mask="770"
+   eos chmod 777 <dir>
+   success: mode of file/directory <dir> is now '770'
+
+When the mask attribute is set the !m flag is automatically disabled even if it is given in the ACL.
