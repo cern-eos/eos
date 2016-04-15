@@ -184,7 +184,7 @@ XrdMgmOfs::_chmod (const char *path,
 	    (attrmap.count("sys.mask"))) // a pre-defined mask to apply to the desired modbits
         { // the chmod ACL entry
           // change the permission mask, but make sure it is set to a directory
-	  long mask=0;
+	  long mask=07777777;
 
           if (Mode & S_IFREG)
             Mode ^= S_IFREG;
@@ -202,8 +202,8 @@ XrdMgmOfs::_chmod (const char *path,
 
 	  if (attrmap.count("sys.mask"))
 	  {
-	    mask = strtol(attrmap["sys.mask"].c_str(),0,8);
-	    mask &= 0777777;
+	    mask &= strtol(attrmap["sys.mask"].c_str(),0,8);
+	    mask |= 0777000;
 	  }
 
 	  eosView->updateContainerStore(pcmd);
