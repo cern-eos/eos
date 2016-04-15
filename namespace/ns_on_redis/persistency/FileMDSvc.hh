@@ -146,6 +146,7 @@ class FileMDSvc: public IFileMDSvc
   redox::Redox* pRedox;
   std::string pRedisHost;
   uint32_t pRedisPort;
+  LRU<IFileMD::id_t, IFileMD> mFileCache;
 };
 
 EOSNSNAMESPACE_END

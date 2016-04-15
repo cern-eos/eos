@@ -25,9 +25,14 @@
 #define __EOS_NS_CONTAINER_MD_HH__
 
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <list>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include <sys/time.h>
 
 //! Forward declarations
@@ -418,6 +423,12 @@ private:
   std::string pFilesKey; ///< Key of hmap holding info about files
   std::string pDirsKey; ///< Key of hmap holding info about subcontainers
   redox::Redox* pRedox; ///< Redis client
+  std::map<std::string, eos::IContainerMD::id_t> mDirsMap; ///< Dir name to id map
+  std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map
+  std::list<std::string> mErrors; ///< Error messages from the callback
+  std::mutex mErrorsMutex; ///< Mutex for the errors list
+  std::condition_variable mAsyncCv; ///< Condition variable for async requests
+  std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
 };
 
 EOSNSNAMESPACE_END

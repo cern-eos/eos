@@ -29,7 +29,7 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc():
-  pRedisHost(""), pRedisPort(0)
+  pRedisHost(""), pRedisPort(0), mFileCache(10e6)
 {}
 
 //------------------------------------------------------------------------------
@@ -68,11 +68,18 @@ void FileMDSvc::initialize()
 std::shared_ptr<IFileMD>
 FileMDSvc::getFileMD(IFileMD::id_t id)
 {
+  // Check first in cache
+  std::shared_ptr<IFileMD> file = mFileCache.get(id);
+
+  if (file)
+    return file;
+
+  // If not in cache, then get info from KV store
   std::string blob;
-  std::string key = std::to_string(id) + constants::sFileKeySuffix;
 
   try
   {
+    std::string key = std::to_string(id) + constants::sFileKeySuffix;
     blob = pRedox->hget(key, "data");
   }
   catch (std::runtime_error& e)
@@ -89,9 +96,9 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
     throw e;
   }
 
-  std::shared_ptr<IFileMD> file {new FileMD(0, this)};
+  file = std::make_shared<FileMD>(0, this);
   static_cast<FileMD*>(file.get())->deserialize(blob);
-  return file;
+  return mFileCache.put(file->getId(), file);
 }
 
 //------------------------------------------------------------------------------
@@ -105,6 +112,7 @@ std::shared_ptr<IFileMD> FileMDSvc::createFile()
   // Increase total number of files
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
   std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
+  file = mFileCache.put(free_id, file);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   return file;
@@ -136,6 +144,7 @@ void FileMDSvc::removeFile(IFileMD* obj)
 //------------------------------------------------------------------------------
 void FileMDSvc::removeFile(FileMD::id_t fileId)
 {
+  mFileCache.remove(fileId);
   std::string key = std::to_string(fileId) + constants::sFileKeySuffix;
 
   try

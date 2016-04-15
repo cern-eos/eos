@@ -543,24 +543,21 @@ std::shared_ptr<IContainerMD>
 HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 				    size_t& index, size_t* link_depths)
 {
+  std::shared_ptr<IContainerMD> current  = pRoot;
+  std::shared_ptr<IContainerMD> found;
   size_t position = 0;
-  std::string found_scid {""}, current_scid {"1"};
-  std::shared_ptr<IContainerMD> found {nullptr}, current {nullptr};
 
   while (position < end)
   {
-    found_scid = findSubContainerId(current_scid, elements[position]);
+    found = current->findContainer(elements[position]);
 
-    if (found_scid.empty())
+    if (!found)
     {
-      // Check if link
-      std::string flink_sid = findFileId(current_scid, elements[position]);
+      // check if link
+      std::shared_ptr<IFileMD> flink = current->findFile(elements[position]);
 
-      if (!flink_sid.empty())
+      if (flink)
       {
-	std::shared_ptr<IFileMD> flink =
-	  pFileSvc->getFileMD(std::stoull(flink_sid));
-
 	if (flink->isLink())
 	{
 	  if (link_depths)
@@ -570,8 +567,8 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 	    if ((*link_depths) > 255)
 	    {
 	      MDException e(ELOOP);
-	      e.getMessage() <<
-		"Too many symbolic links were encountered in translating the pathname";
+	      e.getMessage() << "Too many symbolic links were encountered "
+		"in translating the pathname";
 	      throw e;
 	    }
 	  }
@@ -580,7 +577,6 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 
 	  if (link[0] != '/')
 	  {
-	    current = pContainerSvc->getContainerMD(std::stoull(current_scid));
 	    link.insert(0, getUri(current.get()));
 	    absPath(link);
 	  }
@@ -590,7 +586,6 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 	  if (!found)
 	  {
 	    index = position;
-	    current = pContainerSvc->getContainerMD(std::stoull(current_scid));
 	    return current;
 	  }
 	}
@@ -599,20 +594,16 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
       if (!found)
       {
 	index = position;
-	current = pContainerSvc->getContainerMD(std::stoull(current_scid));
 	return current;
       }
     }
-    else 
-    {
-      current_scid = found_scid;
-    }
 
+    current = found;
     ++position;
   }
 
   index = position;
-  return pContainerSvc->getContainerMD(std::stoull(current_scid));
+  return current;
 }
 
 //------------------------------------------------------------------------------
@@ -972,26 +963,6 @@ void HierarchicalView::absPath(std::string& mypath)
 
   mypath = abspath;
   fprintf(stderr, "abspath: %s => %s\n", path.c_str(), mypath.c_str());
-}
-
-//------------------------------------------------------------------------------
-// Find subcontainer in the container
-//------------------------------------------------------------------------------
-std::string
-HierarchicalView::findSubContainerId(const std::string& parent_sid,
-				     const std::string& name) const
-{
-  return pRedox->hget(parent_sid + constants::sMapDirsSuffix, name);
-}
-
-//------------------------------------------------------------------------------
-// Find file id in the container
-//------------------------------------------------------------------------------
-std::string
-HierarchicalView::findFileId(const std::string& parent_id,
-			     const std::string& name) const
-{
-  return pRedox->hget(parent_id + constants::sMapFilesSuffix, name);
 }
 
 EOSNSNAMESPACE_END

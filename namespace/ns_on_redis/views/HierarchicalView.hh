@@ -271,28 +271,6 @@ private:
   };
 
   //----------------------------------------------------------------------------
-  //! Find subcontainer id in the container
-  //!
-  //! @param parent_sid parent container id
-  //! @param name subcontainer name
-  //!
-  //! @return subcontainer id or 0 if not found
-  //----------------------------------------------------------------------------
-  std::string findSubContainerId(const std::string& parent_id,
-				 const std::string& name) const;
-
-  //----------------------------------------------------------------------------
-  //! Find file id in the container
-  //!
-  //! @param parent_sid parent container id
-  //! @param name file name
-  //!
-  //! @return file id or 0 if not found
-  //----------------------------------------------------------------------------
-  std::string findFileId(const std::string& parent_id,
-			 const std::string& name) const;
-
-  //----------------------------------------------------------------------------
   // Data members
   //----------------------------------------------------------------------------
   IContainerMDSvc* pContainerSvc;

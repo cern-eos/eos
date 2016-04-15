@@ -58,6 +58,9 @@ RedisClient::getInstance(const std::string& host, uint32_t port)
     instance = new redox::Redox();
     instance->logger_.level(redox::log::Error);
 
+    // TODO: consider enabling the noWait option which keeps one CPU at 100%
+    // but improves the performance of the event loop
+
     try
     {
       instance->connect(host_tmp, port);

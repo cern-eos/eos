@@ -30,7 +30,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc():
   pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
-  pRedisPort(0)
+  pRedisPort(0), mContainerCache(10e6)
 {}
 
 //------------------------------------------------------------------------------
@@ -70,6 +70,13 @@ void ContainerMDSvc::initialize()
 std::shared_ptr<IContainerMD>
 ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 {
+  // Check first in cache
+  std::shared_ptr<IContainerMD> cont = mContainerCache.get(id);
+
+  if (cont)
+    return cont;
+
+  // If not in cache, then get it from the KV store
   std::string blob;
 
   try
@@ -91,10 +98,10 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     throw e;
   }
 
-  std::shared_ptr<IContainerMD> cont {new ContainerMD(0, pFileSvc,
-				      static_cast<IContainerMDSvc*>(this))};
+  cont = std::make_shared<ContainerMD>(0, pFileSvc,
+				       static_cast<IContainerMDSvc*>(this));
   static_cast<ContainerMD*>(cont.get())->deserialize(blob);
-  return cont;
+  return mContainerCache.put(cont->getId(), cont);
 }
 
 //----------------------------------------------------------------------------
@@ -109,7 +116,7 @@ std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
 				      static_cast<IContainerMDSvc*>(this))};
   // Increase total number of containers
   (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
-  return cont;
+  return mContainerCache.put(cont->getId(), cont);
 }
 
 //----------------------------------------------------------------------------
@@ -165,6 +172,7 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
+  mContainerCache.remove(obj->getId());
 }
 
 //------------------------------------------------------------------------------

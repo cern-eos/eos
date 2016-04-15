@@ -28,6 +28,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_on_redis/Constants.hh"
 #include "namespace/ns_on_redis/accounting/QuotaStats.hh"
+#include "namespace/ns_on_redis/LRU.hh"
 #include <list>
 #include <map>
 
@@ -154,6 +155,7 @@ private:
   redox::Redox* pRedox; ///< Redis client
   std::string pRedisHost; ///< Redis instance host
   uint32_t pRedisPort; ///< Redis instance port
+  LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
 };
 
 EOSNSNAMESPACE_END
