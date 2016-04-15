@@ -606,3 +606,25 @@ bool LayoutWrapper::IsOpen ()
 
   return mOpen;
 }
+
+
+//--------------------------------------------------------------------------
+//! Return last known size of a file we had a caps for
+//--------------------------------------------------------------------------
+long long
+LayoutWrapper::CacheAuthSize(unsigned long long inode)
+{
+  time_t now = time(NULL);
+
+  XrdSysMutexHelper l(gCacheAuthorityMutex);
+  if ( inode )
+  {
+    if (gCacheAuthority.count(inode) && ( (!gCacheAuthority[inode].mLifeTime) || (now < gCacheAuthority[inode].mLifeTime ) ) )
+    {
+      int size = gCacheAuthority[inode].mSize;
+      eos_static_notice("reusing cap owner-authority for inode %x cache-file-size=%lld", inode, size);
+      return size;
+    }
+  }
+  return -1;
+}

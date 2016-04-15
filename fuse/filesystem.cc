@@ -1750,6 +1750,16 @@ filesystem::stat (const char* path,
    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
  }
 
+ if (file_size == -1)
+ {
+   // retrieve size from our local auth cache
+   long long csize=0;
+   if ( (csize = LayoutWrapper::CacheAuthSize(inode)) > 0)
+   {
+     file_size = csize;
+   }
+ }
+
  // If got size using the opened file then return size and mtime from the opened file
  if (file_size != -1)
  {

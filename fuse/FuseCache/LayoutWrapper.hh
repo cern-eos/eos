@@ -214,6 +214,8 @@ public:
   //--------------------------------------------------------------------------
   static bool ToCGI(const std::map<std::string,std::string> &m , std::string &cgi);
 
+  static long long CacheAuthSize(unsigned long long);
+
   //--------------------------------------------------------------------------
   //! Check if we can cache ..
   //--------------------------------------------------------------------------
