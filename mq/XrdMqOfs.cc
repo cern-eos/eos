@@ -589,9 +589,16 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
       char buffer[2048];
       snprintf(buffer,2048,"Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
       // DEBUG: for now, we don't interrupt the boot as we
-      // Eroute.Emsg("Config", buffer);
+      Eroute.Emsg("Config", buffer);
+      Eroute.Say(buffer);
       // return 1;
     }
+    {
+      char buffer[2048];
+      snprintf(buffer,2048,"=====> hostname : %s",HostName);
+      Eroute.Say(buffer);
+    }
+
 
 
 

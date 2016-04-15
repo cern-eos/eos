@@ -453,11 +453,17 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       char buffer[2048];
       snprintf(buffer,2048,"Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
       Eroute.Emsg("Config", buffer);
+      Eroute.Say(buffer);
       // DEBUG: for now, we don't interrupt the boot as we
       // NoGo = 1;
       // return NoGo;
     }
 
+    {
+      char buffer[2048];
+      snprintf(buffer,2048,"=====> hostname : %s",HostName);
+      Eroute.Say(buffer);
+    }
 
     if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
     strcpy(buff, "[::");
