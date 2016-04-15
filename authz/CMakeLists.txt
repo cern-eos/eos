@@ -40,11 +40,8 @@ target_link_libraries (eosCapability-Static)
 
 if (Linux)
   set_target_properties (eosCapability-Static XrdEosAuth PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
-    COMPILE_FLAGS -fPIC
-  )
+    COMPILE_FLAGS -fPIC)
 endif(Linux)
 
 install ( TARGETS XrdEosAuth

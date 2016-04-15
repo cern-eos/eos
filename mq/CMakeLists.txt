@@ -103,7 +103,7 @@ target_link_libraries ( xrdmqsharedobjectbroadcastclient XrdMqClient XrdCl XrdUt
 
 
 if (Linux)
-   set_target_properties (XrdMqClient XrdMqOfs PROPERTIES
+   set_target_properties (XrdMqClient PROPERTIES
      VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
      SOVERSION ${VERSION_MAJOR}
      CLEAN_DIRECT_OUTPUT 1

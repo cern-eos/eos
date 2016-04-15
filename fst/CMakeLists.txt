@@ -317,23 +317,10 @@ endif (MacOSX)
 target_link_libraries( eos-ioping m )
 
 if (Linux)
-  set_target_properties (XrdEosFst PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-  )
-
-  set_target_properties (EosFstOss PROPERTIES
-    VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}
-    SOVERSION ${VERSION_MAJOR}
-    CLEAN_DIRECT_OUTPUT 1
-  )
-
- set_target_properties(
+  set_target_properties(
    EosFstIo-Static
    PROPERTIES
    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
-
 endif(Linux)
 
 INSTALL_PROGRAMS( ${CMAKE_INSTALL_SBINDIR}
