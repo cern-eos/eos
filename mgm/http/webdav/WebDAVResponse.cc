@@ -121,7 +121,21 @@ WebDAVResponse::GetNode (rapidxml::xml_node<> *node, const char *name)
 	full += ":";
       }
       full += name;
-      eos_static_debug("namespace=\"%s\" child=\"%s\"", full.c_str(), child->name());
+      eos_static_debug("namespace(dav)=\"%s\" child=\"%s\"", full.c_str(), child->name());
+      if (std::string(child->name()) == full)
+        return child;
+    }
+
+
+    for (auto it = mCustomNamespaces.begin(); it != mCustomNamespaces.end(); ++it)
+    {
+      std::string full(it->first);
+      if (full.length()) {
+	// empty namespaces do not requre a ':'
+	full += ":";
+      }
+      full += name;
+      eos_static_debug("namespace(custom)=\"%s\" child=\"%s\"", full.c_str(), child->name());
       if (std::string(child->name()) == full)
         return child;
     }

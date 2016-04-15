@@ -308,6 +308,16 @@ PropFindResponse::ParseRequestPropertyTypes (rapidxml::xml_node<> *node)
           mRequestPropertyTypes |= MapRequestPropertyType(prop);
         }
       }
+
+      for (auto it = mCustomNamespaces.begin(); it != mCustomNamespaces.end(); ++it)
+      {
+        std::string ns = it->first;
+        if (propertyName.beginswith(ns.c_str()))
+        {
+          std::string prop(std::string(propertyName.c_str()), colon + 1);
+          mRequestPropertyTypes |= MapRequestPropertyType(prop);
+        }
+      }
     }
     else
     {
