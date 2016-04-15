@@ -85,7 +85,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  EosFuse& me = instance ();
 
  struct fuse_chan* ch;
- time_t xcfsatime;
 
  int err = -1;
  char* epos;
@@ -135,8 +134,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  {
    me.config.is_sync = 0;
  }
-
- xcfsatime = time (NULL);
 
  char rdr[4096];
  char url[4096];
@@ -1085,8 +1082,13 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
 
+#ifdef _FUSE3
+void
+EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t newparent, const char *newname, unsigned int flags)
+#else
 void
 EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t newparent, const char *newname)
+#endif
 {
  eos::common::Timing timing (__func__);
  COMMONTIMING ("_start_", &timing);
@@ -1500,6 +1502,8 @@ EosFuse::write (fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size, of
 
  EosFuse& me = instance ();
 
+ filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
+
  if (fi && fi->fh)
  {
    //UPDATEPROCCACHE;
@@ -1679,7 +1683,7 @@ EosFuse::flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
  COMMONTIMING ("_stop_", &timing);
 
 
- eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
+ eos_static_notice ("RT %-16s %.04f errno=%d", __FUNCTION__, timing.RealTime (), errno);
 }
 
 #ifdef __APPLE__
@@ -1724,7 +1728,6 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
-
 
  int retc = 0;
  size_t init_size = size;
