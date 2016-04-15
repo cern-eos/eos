@@ -1688,17 +1688,18 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 
  EosFuse& me = instance ();
 
- // concurrency monitor
- filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
-
  if ((!strcmp (xattr_name, "system.posix_acl_access")) ||
      (!strcmp (xattr_name, "system.posix_acl_default") ||
       (!strcmp (xattr_name, "security.capability"))))
  {
    // Filter out specific requests to increase performance
-   fuse_reply_err (req, ENODATA);
+   fuse_reply_err (req, ENOSYS);
    return;
  }
+
+ // concurrency monitor
+ filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+
 
  int retc = 0;
  size_t init_size = size;
