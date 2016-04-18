@@ -621,18 +621,17 @@ LayoutWrapper::CacheAuthSize(unsigned long long inode)
   XrdSysMutexHelper l(gCacheAuthorityMutex);
   if ( inode )
   {
-    eos_static_info("checking cap owner-authority for inode %x", inode);
     if (gCacheAuthority.count(inode))
     { 
       long long size = gCacheAuthority[inode].mSize;
       if ((!gCacheAuthority[inode].mLifeTime) || (now < gCacheAuthority[inode].mLifeTime))
       {
-	eos_static_notice("reusing cap owner-authority for inode %x cache-file-size=%lld", inode, size);
+	eos_static_debug("reusing cap owner-authority for inode %x cache-file-size=%lld", inode, size);
 	return size;
       }
       else
       {
-	eos_static_info("found expired cap owner-authority for inode %x cache-file-size=%lld", inode, size);
+	eos_static_debug("found expired cap owner-authority for inode %x cache-file-size=%lld", inode, size);
       }
     }
   }
