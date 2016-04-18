@@ -51,7 +51,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/fsuid.h>
-
+#include <sys/wait.h>
 #include <math.h>
 #include <stdio.h>
 #include <execinfo.h>
@@ -195,12 +195,8 @@ XrdFstOfs::xrdfstofs_stacktrace (int sig)
   // now we put back the initial handler and send the signal again
   signal(sig, SIG_DFL);
   kill(getpid(), sig);
-#ifdef __APPLE__
   int wstatus = 0;
   wait(&wstatus);
-#else
-  wait();
-#endif
 }
 
 /*----------------------------------------------------------------------------*/
@@ -251,14 +247,8 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmdsqlite handler\"");
   gFmdSqliteHandler.Shutdown();
   kill(watchdog,9);
-
-#ifdef __APPLE__
   int wstatus = 0;
   wait(&wstatus);
-#else
-  wait();
-#endif
-
   eos_static_warning("%s", "op=shutdown status=sqliteclosed");
 
   // sync & close all file descriptors
