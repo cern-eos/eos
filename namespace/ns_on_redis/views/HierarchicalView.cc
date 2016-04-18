@@ -543,7 +543,7 @@ std::shared_ptr<IContainerMD>
 HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 				    size_t& index, size_t* link_depths)
 {
-  std::shared_ptr<IContainerMD> current  = pRoot;
+  std::shared_ptr<IContainerMD> current = pRoot;
   std::shared_ptr<IContainerMD> found;
   size_t position = 0;
 

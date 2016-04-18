@@ -26,6 +26,7 @@
 
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -33,6 +34,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <functional>
 #include <sys/time.h>
 
 //! Forward declarations
@@ -429,6 +431,8 @@ private:
   std::mutex mErrorsMutex; ///< Mutex for the errors list
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
   std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
+  //! Callback function for Redox asynchronous requests
+  std::function<void(redox::Command<int>&)> mCallback;
 };
 
 EOSNSNAMESPACE_END

@@ -26,7 +26,10 @@
 
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_on_redis/LRU.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
 #include <list>
+#include <condition_variable>
+#include <mutex>
 
 //! Forward declarations
 namespace redox
@@ -52,7 +55,7 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileMDSvc() {};
+  virtual ~FileMDSvc();
 
   //----------------------------------------------------------------------------
   //! Initizlize the file service
@@ -147,6 +150,12 @@ class FileMDSvc: public IFileMDSvc
   std::string pRedisHost;
   uint32_t pRedisPort;
   LRU<IFileMD::id_t, IFileMD> mFileCache;
+  std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
+  std::mutex mMutex; ///< Mutex used in conjunction with condition-variable
+  std::condition_variable mAsyncCv; ///< Condition variable for async requests
+  std::atomic<bool> mHasErrors; ///< Flag any async errors
+  //! Callback function for Redox asynchronous requests
+  std::function<void(redox::Command<int>&)> mCallback;
 };
 
 EOSNSNAMESPACE_END

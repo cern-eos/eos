@@ -29,8 +29,24 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc():
-  pRedisHost(""), pRedisPort(0), mFileCache(10e6)
-{}
+  pRedisHost(""), pRedisPort(0), mFileCache(10e6), mNumAsyncReq{0}, mMutex(),
+  mAsyncCv(), mHasErrors(false)
+{
+  mCallback = [&](redox::Command<int>& c) {
+    if (!c.ok())
+      mHasErrors = true;
+
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
+  };
+}
+
+//----------------------------------------------------------------------------
+//! Destructor
+//----------------------------------------------------------------------------
+FileMDSvc::~FileMDSvc()
+{
+}
 
 //------------------------------------------------------------------------------
 // Configure the file service
@@ -48,7 +64,7 @@ void FileMDSvc::configure(std::map<std::string, std::string>& config)
 }
 
 //------------------------------------------------------------------------------
-// Initizlize the file service
+// Initialize the file service
 //------------------------------------------------------------------------------
 void FileMDSvc::initialize()
 {
@@ -126,9 +142,25 @@ void FileMDSvc::updateStore(IFileMD* obj)
   std::string buffer;
   dynamic_cast<FileMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
-  pRedox->hset(key, "data", buffer);
+  mHasErrors = false;
+  mNumAsyncReq++;
+  pRedox->hset(key, "data", buffer, mCallback);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
   notifyListeners(&e);
+  {
+    // Wait for async requests
+    std::unique_lock<std::mutex> lock(mMutex);
+
+    while (mNumAsyncReq)
+      mAsyncCv.wait(lock);
+  }
+
+  if (mHasErrors)
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << obj->getId() << " failed to update backend.";
+    throw e;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -145,10 +177,10 @@ void FileMDSvc::removeFile(IFileMD* obj)
 void FileMDSvc::removeFile(FileMD::id_t fileId)
 {
   mFileCache.remove(fileId);
-  std::string key = std::to_string(fileId) + constants::sFileKeySuffix;
 
   try
   {
+    std::string key = std::to_string(fileId) + constants::sFileKeySuffix;
     pRedox->hdel(key, "data");
   }
   catch (std::runtime_error& e)
@@ -165,6 +197,38 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
   // Notify the listeners
   IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
+}
+
+//------------------------------------------------------------------------------
+// Get number of files
+//------------------------------------------------------------------------------
+uint64_t FileMDSvc::getNumFiles()
+{
+  try {
+    return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+				    constants::sNumFiles));
+  }
+  catch (std::exception& e) {
+    return 0;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Attach a broken file to lost+found
+//------------------------------------------------------------------------------
+void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
+{
+  std::ostringstream s1, s2;
+  std::shared_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
+  s1 << file->getContainerId();
+  std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
+
+  if (!cont)
+    cont = pContSvc->createInParent(s1.str(), parentCont.get());
+
+  s2 << file->getName() << "." << file->getId();
+  file->setName(s2.str());
+  cont->addFile(file);
 }
 
 //------------------------------------------------------------------------------
@@ -200,41 +264,6 @@ void
 FileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
 {
   pQuotaStats = quota_stats;
-}
-
-//------------------------------------------------------------------------------
-// Get number of files
-//------------------------------------------------------------------------------
-uint64_t FileMDSvc::getNumFiles()
-{
-  uint64_t num_files = 0;
-
-  try
-  {
-    num_files = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-					 constants::sNumFiles));
-  }
-  catch (std::exception& e) {}
-
-  return num_files;
-}
-
-//------------------------------------------------------------------------------
-// Attach a broken file to lost+found
-//------------------------------------------------------------------------------
-void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
-{
-  std::ostringstream s1, s2;
-  std::shared_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
-  s1 << file->getContainerId();
-  std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
-
-  if (!cont)
-    cont = pContSvc->createInParent(s1.str(), parentCont.get());
-
-  s2 << file->getName() << "." << file->getId();
-  file->setName(s2.str());
-  cont->addFile(file);
 }
 
 EOSNSNAMESPACE_END

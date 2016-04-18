@@ -46,6 +46,18 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   // TODO: review this
   // pRedox = RedisClient::getInstance();
   pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
+  mCallback = [&](redox::Command<int>& c) {
+    if (!c.ok())
+    {
+      std::ostringstream oss;
+      oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
+      std::unique_lock<std::mutex> lock(mErrorsMutex);
+      mErrors.emplace(mErrors.end(), oss.str());
+    }
+
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
+  };
 }
 
 //------------------------------------------------------------------------------
@@ -94,21 +106,9 @@ ContainerMD::removeContainer(const std::string& name)
     throw e;
   }
 
-  mNumAsyncReq++;
-  auto callback = [this, &name](redox::Command<int>& c) {
-    if (!c.ok())
-    {
-      std::string err_msg = "Failed hdel subdirectory: " + name;
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
-      mErrors.emplace(mErrors.end(), err_msg);
-    }
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
-
   // Do async call to KV backend
-  pRedox->hdel(pDirsKey, name, callback);
+  mNumAsyncReq++;
+  pRedox->hdel(pDirsKey, name, mCallback);
 }
 
 //------------------------------------------------------------------------------
@@ -127,21 +127,9 @@ ContainerMD::addContainer(IContainerMD* container)
     throw e;
   }
 
-  mNumAsyncReq++;
-  auto callback = [this, &container](redox::Command<int>& c) {
-    if (!c.ok())
-    {
-      std::string err_msg = "Failed hset subdirectory: " + container->getName();
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
-      mErrors.emplace(mErrors.end(), err_msg);
-    }
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
-
   // Do async call to KV backend
-  pRedox->hset(pDirsKey, container->getName(), container->getId(), callback);
+  mNumAsyncReq++;
+  pRedox->hset(pDirsKey, container->getName(), container->getId(), mCallback);
 }
 
 //------------------------------------------------------------------------------
@@ -177,21 +165,9 @@ ContainerMD::addFile(IFileMD* file)
     throw e;
   }
 
-  mNumAsyncReq++;
-  auto callback = [this, &file](redox::Command<int>& c) {
-    if (!c.ok())
-    {
-      std::string err_msg = "Failed hset file: " + file->getName();
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
-      mErrors.emplace(mErrors.end(), err_msg);
-    }
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
-
   // Do async call to KV backend
-  pRedox->hset(pFilesKey, file->getName(), file->getId(), callback);
+  mNumAsyncReq++;
+  pRedox->hset(pFilesKey, file->getName(), file->getId(), mCallback);
 
   if (file->getSize())
   {
@@ -222,21 +198,9 @@ ContainerMD::removeFile(const std::string& name)
     mFilesMap.erase(iter);
   }
 
-  mNumAsyncReq++;
-  auto callback = [this, &name](redox::Command<int>& c) {
-    if (!c.ok())
-    {
-      std::string err_msg = "Failed hdel file: " + name;
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
-      mErrors.emplace(mErrors.end(), err_msg);
-    }
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
-
   // Do async call to KV backend
-  pRedox->hdel(pFilesKey, name, callback);
+  mNumAsyncReq++;
+  pRedox->hdel(pFilesKey, name, mCallback);
 
   std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
   IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
@@ -274,20 +238,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 
   mFilesMap.clear();
   mNumAsyncReq++;
-  auto callback_f = [&](redox::Command<int>& c) {
-    if (!c.ok())
-    {
-      std::string err_msg = ("Failed to delete files for container:"
-			     + pName);
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
-      mErrors.emplace(mErrors.end(), err_msg);
-    }
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
-
-  pRedox->del(pFilesKey, callback_f);
+  pRedox->del(pFilesKey, mCallback);
 
   // Remove all subcontainers
   for (auto itd = mDirsMap.begin(); itd != mDirsMap.end(); ++itd)
@@ -300,20 +251,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 
   mDirsMap.clear();
   mNumAsyncReq++;
-  auto callback_d = [&](redox::Command<int>& c) {
-    if (!c.ok())
-    {
-      std::string err_msg = ("Failed to delete subcontainers for "
-			     "container:" + pName);
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
-      mErrors.emplace(mErrors.end(), err_msg);
-    }
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
-
-  pRedox->del(pDirsKey, callback_d);
+  pRedox->del(pDirsKey, mCallback);
 }
 
 //------------------------------------------------------------------------------

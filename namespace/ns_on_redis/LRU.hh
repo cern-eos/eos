@@ -146,7 +146,7 @@ private:
   using MapT = std::map<IdT, decltype(ListIterT)>;
   MapT mMap; ///< Internal map pointing to obj in list
   ListT mList; ///< Internal list of objects where new/used objects are at the
-               ///< end of the list
+	       ///< end of the list
   // TODO: in C++17 use std::shared_mutex
   //! Mutext to protect access to the map and list which is set to blocking
   mutable eos::common::RWMutex mMutex;
@@ -184,7 +184,7 @@ LRU<IdT, EntryT>::~LRU()
 template<typename IdT, typename EntryT>
 std::shared_ptr<EntryT> LRU<IdT, EntryT>::get(IdT id)
 {
-  eos::common::RWMutexReadLock lock_r(mMutex);
+  eos::common::RWMutexWriteLock lock_w(mMutex);
   auto iter_map = mMap.find(id);
 
   if (iter_map == mMap.end())
