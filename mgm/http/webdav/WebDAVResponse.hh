@@ -37,21 +37,7 @@
 #include "common/http/HttpRequest.hh"
 #include "mgm/Namespace.hh"
 /*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
-// rapidjason header file violates ordered prototype delcaration
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
-// =============================================================================
-#pragma GCC diagnostic push
-#pragma GCC diagnostic warning "-fpermissive"
 #include "mgm/http/rapidxml/rapidxml.hpp"
-#pragma GCC diagnostic pop
-// =============================================================================
-#else
-// =============================================================================
-#pragma GCC diagnostic warning "-fpermissive"
-#include "mgm/http/rapidxml/rapidxml.hpp"
-// =============================================================================
-#endif
 #include <vector>
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
