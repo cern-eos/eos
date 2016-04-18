@@ -153,6 +153,11 @@ filesystem::log_settings ()
  s += fbcs.c_str ();
  s += " MB";
  log ("WARNING", s.c_str ());
+
+ eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
+ eos_static_warning ("krb5 unsafe inmem krb5 := %s", use_unsafe_krk5? "true" : "false");
+ eos_static_warning ("x509 authentication    := %s", use_user_gsiproxy? "true" : "false");
+
 }
 
 
@@ -4538,12 +4543,16 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    use_user_gsiproxy = true;
  else
    use_user_gsiproxy = false;
+ if (getenv ("EOS_FUSE_USER_UNSAFEKRB5") && (atoi (getenv ("EOS_FUSE_USER_UNSAFEKRB5")) == 1))
+   use_unsafe_krk5 = true;
+ else
+   use_unsafe_krk5 = false;
  if (getenv ("EOS_FUSE_USER_KRB5FIRST") && (atoi (getenv ("EOS_FUSE_USER_KRB5FIRST")) == 1))
    tryKrb5First = true;
  else
    tryKrb5First = false;
 
- authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, tryKrb5First);
+ authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, tryKrb5First);
 
  // get uid and pid specificities of the system
  {

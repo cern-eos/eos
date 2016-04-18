@@ -64,13 +64,15 @@ public:
 
   bool use_user_krb5cc;
   bool use_user_gsiproxy;
+  bool use_unsafe_krk5;
   bool tryKrb5First;
 
   void
-  setAuth (bool krb5, bool proxy, bool krb5first)
+  setAuth (bool krb5, bool proxy, bool unsafekrk5, bool krb5first)
   {
     use_user_krb5cc = krb5;
     use_user_gsiproxy = proxy;
+    use_unsafe_krk5 = unsafekrk5;
     tryKrb5First = krb5first;
   }
 
@@ -281,6 +283,13 @@ protected:
     return false;
   }
 
+  inline bool
+  checkKrk5StringSafe( const std::string &krk5Str)
+  {
+    // TODO: implement here check to be done on in memory krb5 tickets
+    return use_unsafe_krk5;
+  }
+
   inline uint64_t getNewConId(uid_t uid, gid_t gid, pid_t pid)
   {
     //NOTE: we have (2^6)^7 ~= 5e12 connections which is basically infinite
@@ -398,18 +407,15 @@ protected:
     else sId = "x509:";
 
     std::string newauthmeth;
-    if(credinfo.type==krk5)
+    if(credinfo.type==krk5 && !checkKrk5StringSafe(credinfo.fname))
     {
-      // using directly the value of the pointed file (which is the text of the in memory credentials)
-      sId.append(credinfo.fname);
-      newauthmeth = sId;
+      eos_static_err("deny user %d using of unsafe in memory krb5 credential string '%s'",
+                     (int)uid,credinfo.fname.c_str());
+        return EPERM;
     }
-    else
-    {
-      // using the link created by the user
-      sId.append(credinfo.lname);
-      newauthmeth = sId;
-    }
+    // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
+    sId.append(credinfo.fname);
+    newauthmeth = sId;
 
     if(newauthmeth.empty())
     {

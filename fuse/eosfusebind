@@ -28,8 +28,8 @@
 
 function CheckCredDir
 {
-  if [[ `stat -c "%a" /var/run/eosd/credentials` != "607" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
-  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "607" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
+  if [[ `stat -c "%a" /var/run/eosd/credentials` != "1777" ]]; then echo "credential directory is not ready" >&2; exit 1; fi 
+  if [[ `stat -c "%a" /var/run/eosd/credentials/store` != "1777" ]]; then echo "credential store directory is not ready" >&2; exit 1; fi
 }
 
 function ExitUsage
@@ -314,25 +314,23 @@ function LinkUserGlob
   echo "could not find automatically a credential file" 
   exit 1
   fi
-  SymlinkName="${SymlinkBaseNameUser}.${EXTENSION}"
+  SymlinkPathName="${SymlinkBaseNameUser}.${EXTENSION}"
+  SymlinkName=$(basename $SymlinkPathName)
   if [[ "${CREDISFILE}" = "0" ]]; then
     # if we are linking a file as user-global credentials, copy it to the store first
-    cp -f $CREDTAG /var/run/eosd/credentials/store/ 
+    cp -f $CREDTAG /var/run/eosd/credentials/store/$SymlinkName 
     if [ $? -ne 0 ]; then
       echo "Error copying credentials" >&2
     fi
-    CFILE=`basename $CREDTAG`
-    CFILE="/var/run/eosd/credentials/store/$CFILE"
+    CFILE="/var/run/eosd/credentials/store/$SymlinkName"
   fi
-  PREVFILE=`readlink -e $SymlinkName`
-  #echo "ln -sf $CFILE $SymlinkName"
-  ln -sf $CFILE $SymlinkName
+  #echo "ln -sf $CFILE $SymlinkPathName"
+  ln -sf $CFILE $SymlinkPathName
   if [ $? -ne 0 ]; then
     echo "Error creating credentials symlink." >&2
   fi
-  if [[ "X$PREVFILE" != "X" && "$PREVFILE" != "$CFILE" && "`dirname $PREVFILE`" = "/var/run/eosd/credentials/store" ]]; then
-    rm -f "$PREVFILE"
-  fi
+  # cleanup the other credentials in the store as only one global credential is required at a time
+  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \;
 }
 
 function UnlinkUserGlob
@@ -347,6 +345,8 @@ function UnlinkUserGlob
   done;
   #echo rm -f ${SymlinkBaseNameUser}.*
   rm -f ${SymlinkBaseNameUser}.*
+  # cleanup the other credentials in the store as no credentials is needed if there is no user global
+  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{} \;
 }
 
 function UnlinkUserSessions
