@@ -44,8 +44,24 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
   // TODO: review this
-  pRedox = RedisClient::getInstance();
+  // pRedox = RedisClient::getInstance();
   pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ContainerMD::~ContainerMD()
+{
+  // Wait for any in-flight async requests
+  std::unique_lock<std::mutex> lock(mErrorsMutex);
+  while (mNumAsyncReq)
+    mAsyncCv.wait(lock);
+
+  if (mErrors.size())
+  {
+    // TODO: print the accumulated errors
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -87,7 +103,8 @@ ContainerMD::removeContainer(const std::string& name)
       mErrors.emplace(mErrors.end(), err_msg);
     }
 
-    mNumAsyncReq--;
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
   };
 
   // Do async call to KV backend
@@ -119,7 +136,8 @@ ContainerMD::addContainer(IContainerMD* container)
       mErrors.emplace(mErrors.end(), err_msg);
     }
 
-    mNumAsyncReq--;
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
   };
 
   // Do async call to KV backend
@@ -168,7 +186,8 @@ ContainerMD::addFile(IFileMD* file)
       mErrors.emplace(mErrors.end(), err_msg);
     }
 
-    mNumAsyncReq--;
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
   };
 
   // Do async call to KV backend
@@ -178,7 +197,7 @@ ContainerMD::addFile(IFileMD* file)
   {
     IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
 				   0, 0, file->getSize());
-    pFileSvc->notifyListeners(&e);
+   pFileSvc->notifyListeners(&e);
   }
 }
 
@@ -212,7 +231,8 @@ ContainerMD::removeFile(const std::string& name)
       mErrors.emplace(mErrors.end(), err_msg);
     }
 
-    mNumAsyncReq--;
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
   };
 
   // Do async call to KV backend
@@ -253,7 +273,6 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
     file_svc->removeFile(itf->second);
 
   mFilesMap.clear();
-
   mNumAsyncReq++;
   auto callback_f = [&](redox::Command<int>& c) {
     if (!c.ok())
@@ -264,7 +283,8 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
       mErrors.emplace(mErrors.end(), err_msg);
     }
 
-    mNumAsyncReq--;
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
   };
 
   pRedox->del(pFilesKey, callback_f);
@@ -278,6 +298,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
       pContSvc->removeContainer(cont.get());
   }
 
+  mDirsMap.clear();
   mNumAsyncReq++;
   auto callback_d = [&](redox::Command<int>& c) {
     if (!c.ok())
@@ -288,7 +309,8 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
       mErrors.emplace(mErrors.end(), err_msg);
     }
 
-    mNumAsyncReq--;
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
   };
 
   pRedox->del(pDirsKey, callback_d);
