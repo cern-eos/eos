@@ -85,7 +85,7 @@ public:
   //!
   //! @return shared ptr to requested object or nullptr if not found
   //----------------------------------------------------------------------------
-  std::shared_ptr<EntryT> get(IdT id) const;
+  std::shared_ptr<EntryT> get(IdT id);
 
   //----------------------------------------------------------------------------
   //! Put entry
@@ -145,7 +145,8 @@ private:
   typename std::list<std::shared_ptr<EntryT>>::iterator ListIterT;
   using MapT = std::map<IdT, decltype(ListIterT)>;
   MapT mMap; ///< Internal map pointing to obj in list
-  ListT mList; ///< Internal list of objects
+  ListT mList; ///< Internal list of objects where new/used objects are at the
+               ///< end of the list
   // TODO: in C++17 use std::shared_mutex
   //! Mutext to protect access to the map and list which is set to blocking
   mutable eos::common::RWMutex mMutex;
@@ -161,7 +162,7 @@ constexpr double LRU<IdT, EntryT>::sPurgeStopRatio;
 //------------------------------------------------------------------------------
 template<typename IdT, typename EntryT>
 LRU<IdT, EntryT>::LRU(std::uint64_t max_size):
-  mMaxSize(max_size)
+  mMutex(), mMaxSize(max_size)
 {
   mMutex.SetBlocking(true);
 }
@@ -181,7 +182,7 @@ LRU<IdT, EntryT>::~LRU()
 // Get object
 //------------------------------------------------------------------------------
 template<typename IdT, typename EntryT>
-std::shared_ptr<EntryT> LRU<IdT, EntryT>::get(IdT id) const
+std::shared_ptr<EntryT> LRU<IdT, EntryT>::get(IdT id)
 {
   eos::common::RWMutexReadLock lock_r(mMutex);
   auto iter_map = mMap.find(id);
@@ -189,7 +190,11 @@ std::shared_ptr<EntryT> LRU<IdT, EntryT>::get(IdT id) const
   if (iter_map == mMap.end())
     return nullptr;
 
-  return *iter_map->second;
+  // Move object to the end of the list i.e. recently accessed
+  auto iter_new = mList.insert(mList.end(), *iter_map->second);
+  mList.erase(iter_map->second);
+  mMap[id] = iter_new;
+  return *iter_new;
 }
 
 //------------------------------------------------------------------------------

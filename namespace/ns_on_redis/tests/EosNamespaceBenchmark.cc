@@ -47,7 +47,6 @@ static uint64_t mapSize(const eos::IFileMD* file)
 // Boot the namespace
 //------------------------------------------------------------------------------
 eos::IView* bootNamespace(std::map<std::string, std::string>& config)
-throw(eos::MDException)
 {
   eos::IContainerMDSvc* contSvc = new eos::ContainerMDSvc();
   eos::IFileMDSvc*      fileSvc = new eos::FileMDSvc();
@@ -67,7 +66,7 @@ throw(eos::MDException)
 //------------------------------------------------------------------------------
 // Close the namespace
 //------------------------------------------------------------------------------
-void closeNamespace(eos::IView* view) throw(eos::MDException)
+void closeNamespace(eos::IView* view)
 {
   eos::IContainerMDSvc* contSvc = view->getContainerMDSvc();
   eos::IFileMDSvc*      fileSvc = view->getFileMDSvc();
@@ -333,10 +332,10 @@ int main(int argc, char** argv)
 	    // add two locations
 	    fmd->addLocation(k);
 	    fmd->addLocation(k + 1);
-	    /*      fmd->addLocation(k+2);
-	    fmd->addLocation(k+3);
-	    fmd->addLocation(k+4);
-	    fmd->addLocation(k+5);*/
+	    // fmd->addLocation(k+2);
+	    // fmd->addLocation(k+3);
+	    // fmd->addLocation(k+4);
+	    // fmd->addLocation(k+5);
 	    fmd->setLayoutId(10);
 	    view->updateFileStore(fmd.get());
 	  }
@@ -440,5 +439,6 @@ int main(int argc, char** argv)
     double rate = (n_files * n_i * n_j * n_k) / tm.RealTime() * 1000.0;
     PrintStatus(view, st[0], st[1], mem[0], mem[1], rate);
   }
+
   return 0;
 }
