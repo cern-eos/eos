@@ -27,6 +27,30 @@ int RedisClient::sRedisPort {6382};
 std::map<std::string, redox::Redox*> RedisClient::pMapClients;
 std::mutex RedisClient::pMutexMap;
 
+
+//------------------------------------------------------------------------------
+// Initialize
+//------------------------------------------------------------------------------
+void
+RedisClient::Initialize()
+{
+  // empty
+}
+
+//------------------------------------------------------------------------------
+// Finalize
+//------------------------------------------------------------------------------
+void
+RedisClient::Finalize()
+{
+  std::lock_guard<std::mutex> lock(pMutexMap);
+
+  for (auto iter = pMapClients.begin(); iter != pMapClients.end(); ++iter)
+    delete iter->second;
+
+  pMapClients.clear();
+}
+
 //------------------------------------------------------------------------------
 // Get instance
 //------------------------------------------------------------------------------
@@ -84,6 +108,31 @@ RedisClient::getInstance(const std::string& host, uint32_t port)
   }
 
   return instance;
+}
+
+//------------------------------------------------------------------------------
+// Static initialization and finalization
+//------------------------------------------------------------------------------
+namespace
+{
+  static struct RedisInitializer
+  {
+    //--------------------------------------------------------------------------
+    // Initializer
+    //--------------------------------------------------------------------------
+    RedisInitializer()
+    {
+      RedisClient::Initialize();
+    }
+
+    //--------------------------------------------------------------------------
+    // Finalizer
+    //--------------------------------------------------------------------------
+    ~RedisInitializer()
+    {
+      RedisClient::Finalize();
+    }
+  } finalizer;
 }
 
 EOSNSNAMESPACE_END
