@@ -84,7 +84,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     std::string key = std::to_string(id) + constants::sContKeySuffix;
     blob = pRedox->hget(key, "data");
   }
-  catch (std::exception& e)
+  catch (std::runtime_error& e)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";
@@ -109,14 +109,24 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
 {
-  // Get the first free container id
-  uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				     constants::sFirstFreeCid, 1);
-  std::shared_ptr<IContainerMD> cont {new ContainerMD(free_id, pFileSvc,
-				      static_cast<IContainerMDSvc*>(this))};
-  // Increase total number of containers
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
-  return mContainerCache.put(cont->getId(), cont);
+  try
+  {
+    // Get the first free container id
+    uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
+				       constants::sFirstFreeCid, 1);
+    std::shared_ptr<IContainerMD> cont {
+      new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
+
+    // Increase total number of containers
+    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
+    return mContainerCache.put(cont->getId(), cont);
+  }
+  catch (std::runtime_error& e)
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Failed to create new container" << std::endl;
+    throw e;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -126,8 +136,19 @@ void ContainerMDSvc::updateStore(IContainerMD* obj)
 {
   std::string buffer;
   dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
-  std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
-  pRedox->hset(key, "data", buffer);
+
+  try
+  {
+    std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
+    pRedox->hset(key, "data", buffer);
+  }
+  catch (std::runtime_error& e)
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
+    throw e;
+  }
+
   notifyListeners(obj, IContainerMDChangeListener::Updated);
 }
 
@@ -146,17 +167,16 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
-  std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
-
   try
   {
+    std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
     pRedox->hdel(key, "data");
   }
   catch (std::runtime_error& e)
   {
     MDException e(ENOENT);
-    e.getMessage() << "Container #" << obj->getId() << " not found. ";
-    e.getMessage() << "The object was not created in this store!";
+    e.getMessage() << "Container #" << obj->getId() << " not found. "
+		   << "The object was not created in this store!";
     throw e;
   }
 
@@ -219,12 +239,9 @@ std::shared_ptr<IContainerMD> ContainerMDSvc::getLostFound()
   // Get or create lost+found if necessary
   std::shared_ptr<IContainerMD> lostFound = root->findContainer("lost+found");
 
-  if (lostFound)
-  {
-    return lostFound;
-  }
+  if (!lostFound)
+    lostFound = createInParent("lost+found", root.get());
 
-  lostFound = createInParent("lost+found", root.get());
   return lostFound;
 }
 
@@ -241,10 +258,10 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 
   std::shared_ptr<IContainerMD> cont = lostFound->findContainer(name);
 
-  if (cont)
-    return cont;
+  if (!cont)
+    cont = createInParent(name, lostFound.get());
 
-  return createInParent(name, lostFound.get());
+  return cont;
 }
 
 //------------------------------------------------------------------------------
@@ -252,16 +269,15 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 //------------------------------------------------------------------------------
 uint64_t ContainerMDSvc::getNumContainers()
 {
-  uint64_t num_conts = 0;
-
   try
   {
-    num_conts = std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-					 constants::sNumConts));
+    return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
+				    constants::sNumConts));
   }
-  catch (std::exception& e) { }
-
-  return num_conts;
+  catch (std::exception& e)
+  {
+    return 0;
+  }
 }
 
 //------------------------------------------------------------------------------

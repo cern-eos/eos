@@ -44,9 +44,7 @@ FileMDSvc::FileMDSvc():
 //----------------------------------------------------------------------------
 //! Destructor
 //----------------------------------------------------------------------------
-FileMDSvc::~FileMDSvc()
-{
-}
+FileMDSvc::~FileMDSvc() { }
 
 //------------------------------------------------------------------------------
 // Configure the file service
@@ -122,16 +120,22 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 //------------------------------------------------------------------------------
 std::shared_ptr<IFileMD> FileMDSvc::createFile()
 {
-  // Get first available file id
-  uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				     constants::sFirstFreeFid, 1);
-  // Increase total number of files
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
-  std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
-  file = mFileCache.put(free_id, file);
-  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
-  notifyListeners(&e);
-  return file;
+  try {
+    // Get first available file id
+    uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
+				       constants::sFirstFreeFid, 1);
+    // Increase total number of files
+    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
+    std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
+    file = mFileCache.put(free_id, file);
+    IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
+    notifyListeners(&e);
+    return file;
+  }
+  catch (std::runtime_error& e)
+  {
+    return nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -143,11 +147,24 @@ void FileMDSvc::updateStore(IFileMD* obj)
   dynamic_cast<FileMD*>(obj)->serialize(buffer);
   std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
   mHasErrors = false;
-  mNumAsyncReq++;
-  pRedox->hset(key, "data", buffer, mCallback);
+
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->hset(key, "data", buffer, mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
+    throw e;
+  }
+
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
   notifyListeners(&e);
   {
+    // TODO: review if this is such a good idea
     // Wait for async requests
     std::unique_lock<std::mutex> lock(mMutex);
 
@@ -158,7 +175,7 @@ void FileMDSvc::updateStore(IFileMD* obj)
   if (mHasErrors)
   {
     MDException e(ENOENT);
-    e.getMessage() << "File #" << obj->getId() << " failed to update backend.";
+    e.getMessage() << "File #" << obj->getId() << " failed to update backend";
     throw e;
   }
 }
@@ -182,6 +199,8 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
   {
     std::string key = std::to_string(fileId) + constants::sFileKeySuffix;
     pRedox->hdel(key, "data");
+    // Derease total number of files
+    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
   }
   catch (std::runtime_error& e)
   {
@@ -191,10 +210,6 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
     throw e;
   }
 
-  // Derease total number of files
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
-
-  // Notify the listeners
   IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
 }

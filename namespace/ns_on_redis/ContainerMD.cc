@@ -43,11 +43,11 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pTMTime.tv_nsec = 0;
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
-  // TODO: review this
-  // pRedox = RedisClient::getInstance();
   pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
   mCallback = [&](redox::Command<int>& c) {
-    if (!c.ok())
+    // We use this callback for del, hdel and hset operations. The return value
+    // in all these cases should be 1.
+    if ((c.ok() && c.reply() != 1) || !c.ok())
     {
       std::ostringstream oss;
       oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
@@ -107,8 +107,19 @@ ContainerMD::removeContainer(const std::string& name)
   }
 
   // Do async call to KV backend
-  mNumAsyncReq++;
-  pRedox->hdel(pDirsKey, name, mCallback);
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->hdel(pDirsKey, name, mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(ENOENT);
+    e.getMessage() << "Container " << name << " not found or KV-backend "
+		   << "connection error";
+    throw e;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -128,8 +139,19 @@ ContainerMD::addContainer(IContainerMD* container)
   }
 
   // Do async call to KV backend
-  mNumAsyncReq++;
-  pRedox->hset(pDirsKey, container->getName(), container->getId(), mCallback);
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->hset(pDirsKey, container->getName(), container->getId(), mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(EINVAL);
+    e.getMessage() << "Failed to add subcontainer #" << container->getId()
+		   << " or KV-backend connection error";
+    throw e;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -146,7 +168,22 @@ ContainerMD::findFile(const std::string& name)
   else
     id = iter->second;
 
-  return pFileSvc->getFileMD(id);
+  try
+  {
+    return pFileSvc->getFileMD(id);
+  }
+  catch (MDException& e)
+  {
+    // File does not exist so we remove it from the list of files in the
+    // current container
+    mFilesMap.erase(iter);
+    try
+    {
+      pRedox->hdel(pFilesKey, std::to_string(id));
+    }
+    catch (std::runtime_error& e) { /* nothing to do */ }
+    return nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -161,19 +198,30 @@ ContainerMD::addFile(IFileMD* file)
   if (ret.second == false)
   {
     MDException e(EINVAL);
-    e.getMessage() << "Error, file #" << file->getId() << "already exists";
+    e.getMessage() << "Error, file #" << file->getId() << " already exists";
     throw e;
   }
 
   // Do async call to KV backend
-  mNumAsyncReq++;
-  pRedox->hset(pFilesKey, file->getName(), file->getId(), mCallback);
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->hset(pFilesKey, file->getName(), file->getId(), mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(EINVAL);
+    e.getMessage() << "File #" << file->getId() << " already exists or"
+		   << " KV-backend conntection error";
+    throw e;
+  }
 
   if (file->getSize())
   {
     IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
 				   0, 0, file->getSize());
-   pFileSvc->notifyListeners(&e);
+    pFileSvc->notifyListeners(&e);
   }
 }
 
@@ -199,13 +247,31 @@ ContainerMD::removeFile(const std::string& name)
   }
 
   // Do async call to KV backend
-  mNumAsyncReq++;
-  pRedox->hdel(pFilesKey, name, mCallback);
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->hdel(pFilesKey, name, mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(ENOENT);
+    e.getMessage() << "Unknown file " << name << " in container " << pName
+		   << " or KV-backend connection error";
+    throw e;
+  }
 
-  std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
-				 0, 0, -file->getSize());
-  pFileSvc->notifyListeners(&e);
+  try
+  {
+    std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
+    IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
+				   0, 0, -file->getSize());
+    pFileSvc->notifyListeners(&e);
+  }
+  catch (MDException& e)
+  {
+    // File already removed
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -237,8 +303,20 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
     file_svc->removeFile(itf->second);
 
   mFilesMap.clear();
-  mNumAsyncReq++;
-  pRedox->del(pFilesKey, mCallback);
+
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->del(pFilesKey, mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(ECOMM);
+    e.getMessage() << "Failed to clean-up files in container" << pName
+		   << " or KV-backend connection error";
+    throw e;
+  }
 
   // Remove all subcontainers
   for (auto itd = mDirsMap.begin(); itd != mDirsMap.end(); ++itd)
@@ -250,8 +328,20 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
   }
 
   mDirsMap.clear();
-  mNumAsyncReq++;
-  pRedox->del(pDirsKey, mCallback);
+
+  try
+  {
+    mNumAsyncReq++;
+    pRedox->del(pDirsKey, mCallback);
+  }
+  catch (std::runtime_error& e)
+  {
+    mNumAsyncReq--;
+    MDException e(ECOMM);
+    e.getMessage() << "Failed to clean-up subcontainers in container " << pName
+		   << " or KV-backend connection error";
+    throw e;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -674,38 +764,47 @@ ContainerMD::deserialize(const std::string& buffer)
   pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
 
   // Grab the files and subcontainers
-  long long cursor = 0;
-  std::pair<long long, std::unordered_map<std::string, std::string>> reply;
-  reply = pRedox->hscan(pFilesKey, cursor);
-  cursor = reply.first;
-
-  for (auto&& elem: reply.second)
-    mFilesMap.emplace(elem.first, std::stoull(elem.second));
-
-  while (cursor)
+  try
   {
+    long long cursor = 0;
+    std::pair<long long, std::unordered_map<std::string, std::string>> reply;
     reply = pRedox->hscan(pFilesKey, cursor);
     cursor = reply.first;
 
     for (auto&& elem: reply.second)
       mFilesMap.emplace(elem.first, std::stoull(elem.second));
-  }
 
-  // Get the subcontainers
-  cursor = 0;
-  reply = pRedox->hscan(pDirsKey, cursor);
-  cursor = reply.first;
+    while (cursor)
+    {
+      reply = pRedox->hscan(pFilesKey, cursor);
+      cursor = reply.first;
 
-  for (auto&& elem: reply.second)
-    mDirsMap.emplace(elem.first, std::stoull(elem.second));
+      for (auto&& elem: reply.second)
+	mFilesMap.emplace(elem.first, std::stoull(elem.second));
+    }
 
-  while (cursor)
-  {
+    // Get the subcontainers
+    cursor = 0;
     reply = pRedox->hscan(pDirsKey, cursor);
     cursor = reply.first;
 
     for (auto&& elem: reply.second)
       mDirsMap.emplace(elem.first, std::stoull(elem.second));
+
+    while (cursor)
+    {
+      reply = pRedox->hscan(pDirsKey, cursor);
+      cursor = reply.first;
+
+      for (auto&& elem: reply.second)
+	mDirsMap.emplace(elem.first, std::stoull(elem.second));
+    }
+  }
+  catch (std::runtime_error& e)
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Container #" << pId << "failed to get subentrie";
+    throw e;
   }
 }
 
