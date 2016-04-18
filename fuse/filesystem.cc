@@ -1750,14 +1750,16 @@ filesystem::stat (const char* path,
    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
  }
 
- if (file_size == -1)
+ if (file_size == (off_t)-1)
  {
+   eos_static_debug("querying the cache for inode=%x", inode);
    // retrieve size from our local auth cache
    long long csize=0;
    if ( (csize = LayoutWrapper::CacheAuthSize(inode)) > 0)
    {
      file_size = csize;
    }
+   eos_static_debug("local cache size=%lld", csize);
  }
 
  // If got size using the opened file then return size and mtime from the opened file
