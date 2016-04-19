@@ -431,9 +431,10 @@ XrdMgmOfs::acc_access (const char* path,
   }
 
   // return the OC string;
-  accperm == "R";
   if (r_ok)
+  {
     accperm += "R";
+  }
   if (w_ok)
   {
     accperm += "WCKNV";

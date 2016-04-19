@@ -1313,6 +1313,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   }
 
   // Quota values need to be positive
+  /*
   if (value < 0)
   {
     oss_msg << "error: " << ((quota_type == Type::kVolume) ? "volume" : "inode")
@@ -1320,6 +1321,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     msg = oss_msg.str();
     return false;
   }
+  */
 
   // Make sure the quota node exist
   (void) Create(path);

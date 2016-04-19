@@ -96,7 +96,7 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
     std::string key = std::to_string(id) + constants::sFileKeySuffix;
     blob = pRedox->hget(key, "data");
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found";
@@ -153,7 +153,7 @@ void FileMDSvc::updateStore(IFileMD* obj)
     mNumAsyncReq++;
     pRedox->hset(key, "data", buffer, mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(ENOENT);
@@ -202,7 +202,7 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
     // Derease total number of files
     (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "File #" << fileId << " not found. ";

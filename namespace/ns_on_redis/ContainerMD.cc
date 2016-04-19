@@ -112,7 +112,7 @@ ContainerMD::removeContainer(const std::string& name)
     mNumAsyncReq++;
     pRedox->hdel(pDirsKey, name, mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(ENOENT);
@@ -144,7 +144,7 @@ ContainerMD::addContainer(IContainerMD* container)
     mNumAsyncReq++;
     pRedox->hset(pDirsKey, container->getName(), container->getId(), mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(EINVAL);
@@ -208,7 +208,7 @@ ContainerMD::addFile(IFileMD* file)
     mNumAsyncReq++;
     pRedox->hset(pFilesKey, file->getName(), file->getId(), mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(EINVAL);
@@ -252,7 +252,7 @@ ContainerMD::removeFile(const std::string& name)
     mNumAsyncReq++;
     pRedox->hdel(pFilesKey, name, mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(ENOENT);
@@ -309,7 +309,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
     mNumAsyncReq++;
     pRedox->del(pFilesKey, mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(ECOMM);
@@ -334,7 +334,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
     mNumAsyncReq++;
     pRedox->del(pDirsKey, mCallback);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     mNumAsyncReq--;
     MDException e(ECOMM);
@@ -800,7 +800,7 @@ ContainerMD::deserialize(const std::string& buffer)
 	mDirsMap.emplace(elem.first, std::stoull(elem.second));
     }
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << pId << "failed to get subentrie";

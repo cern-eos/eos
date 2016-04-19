@@ -84,7 +84,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
     std::string key = std::to_string(id) + constants::sContKeySuffix;
     blob = pRedox->hget(key, "data");
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";
@@ -121,7 +121,7 @@ std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
     (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
     return mContainerCache.put(cont->getId(), cont);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "Failed to create new container" << std::endl;
@@ -142,7 +142,7 @@ void ContainerMDSvc::updateStore(IContainerMD* obj)
     std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
     pRedox->hset(key, "data", buffer);
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
@@ -172,7 +172,7 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
     pRedox->hdel(key, "data");
   }
-  catch (std::runtime_error& e)
+  catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. "

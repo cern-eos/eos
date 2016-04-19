@@ -66,7 +66,7 @@ namespace eos
       Buffer &operator = ( const Buffer &other )
       {
 	resize( other.getSize() );
-	memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
+	(void) memcpy( getDataPtr(), other.getDataPtr(), other.getSize() );
 	return *this;
       };
 
@@ -111,7 +111,7 @@ namespace eos
       {
 	size_t currSize = size();
 	resize( currSize + dataSize );
-	memcpy( &operator[](currSize), ptr, dataSize );
+	(void) memcpy( &operator[](currSize), ptr, dataSize );
       }
 
       //------------------------------------------------------------------------
@@ -126,7 +126,7 @@ namespace eos
 	  e.getMessage() << "Not enough data to fulfil the request";
 	  throw e;
 	}
-	memcpy( ptr, &operator[](offset), dataSize );
+	(void) memcpy( ptr, &operator[](offset), dataSize );
 	return offset+dataSize;
       }
 
@@ -144,7 +144,7 @@ namespace eos
     grabData(const std::string& buffer, uint64_t offset, void* dest_ptr, uint64_t size)
     {
       const char* src_ptr = buffer.data() + offset;
-      (void*) memcpy(dest_ptr, src_ptr, size);
+      (void) memcpy(dest_ptr, src_ptr, size);
       return offset + size;
     }
 

@@ -1401,7 +1401,7 @@ Master::Slave2Master()
 
   if (rc.exit_code)
   {
-    if ( (rc.exit_code == -1 ) )
+    if (rc.exit_code == -1)
     {
       MasterLog(eos_warning("system command failed due to memory pressure - cannot check the sync service"));
     }

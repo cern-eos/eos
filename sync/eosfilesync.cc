@@ -219,7 +219,7 @@ int main( int argc, char* argv[] )
 	    }
 	  } else {
 	    eos_static_notice("re-opened source file");
-	    file->Close();
+	    (void) file->Close();
 	    if (file) delete file;
 	    
 	    XrdCl::FileSystem FsSync ( dUrl );
