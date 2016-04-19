@@ -180,6 +180,25 @@ FmdDbMapHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
 }
 
 
+bool
+FmdDbMapHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::RWMutexWriteLock lock(Mutex);
+  eos_info("%s DB mark clean for fsid=%lu\n", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
+  if (dbmap.count(fsid))
+  {
+    if (DBfilename.count(fsid))
+    {
+      // if there was a complete boot procedure done, we remove the dirty flag
+      // set the mode back to S_IRWXU
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
+      {
+        eos_crit("failed to switch the %s database file to S_IRWXU errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
+      }
+    }
+  }
+  return false;
+}
 
 /*----------------------------------------------------------------------------*/
 /** 

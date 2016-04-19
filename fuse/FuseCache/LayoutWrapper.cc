@@ -372,7 +372,7 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
       mCanCache = true;
       mCacheCreator = true;
       mSize = gCacheAuthority[mInode].mSize;
-      eos_static_notice("acquired cap owner-authority for file %s size=%d", path.c_str(), (*mCache).size());
+      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu", path.c_str(), (*mCache).size(), mInode);
     }
     else
     {
@@ -386,7 +386,7 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
 	  doOpen = false;
 
 	mMaxOffset = (*mCache).size();
-	eos_static_notice("reusing cap owner-authority for file %s cache-size=%d file-size=%lu", path.c_str(), (*mCache).size(), mSize);
+	eos_static_notice("reusing cap owner-authority for file %s cache-size=%d file-size=%lu inode=%lu", path.c_str(), (*mCache).size(), mSize, mInode);
       }
     }
     eos_static_info("####### %s cache=%d flags=%x\n", path.c_str(), mCanCache, flags);
@@ -605,4 +605,35 @@ bool LayoutWrapper::IsOpen ()
   XrdSysMutexHelper mLock(mMakeOpenMutex);
 
   return mOpen;
+}
+
+
+//--------------------------------------------------------------------------
+//! Return last known size of a file we had a caps for
+//--------------------------------------------------------------------------
+long long
+LayoutWrapper::CacheAuthSize(unsigned long long inode)
+{
+  // the variable mInode is actually using the EOS file ID
+  inode = eos::common::FileId::InodeToFid(inode);
+  time_t now = time(NULL);
+
+  XrdSysMutexHelper l(gCacheAuthorityMutex);
+  if ( inode )
+  {
+    if (gCacheAuthority.count(inode))
+    { 
+      long long size = gCacheAuthority[inode].mSize;
+      if ((!gCacheAuthority[inode].mLifeTime) || (now < gCacheAuthority[inode].mLifeTime))
+      {
+	eos_static_debug("reusing cap owner-authority for inode %x cache-file-size=%lld", inode, size);
+	return size;
+      }
+      else
+      {
+	eos_static_debug("found expired cap owner-authority for inode %x cache-file-size=%lld", inode, size);
+      }
+    }
+  }
+  return -1;
 }

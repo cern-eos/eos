@@ -308,6 +308,22 @@ condrestart() {
     fi
 }
 
+clean() {
+    RETVAL=0
+    if [[ "$1" == fst* ]]; then
+	echo "... cleaning FST db for fast restart ..."
+	chmod 400 /var/eos/md/fmd*.sql
+    fi    
+}
+
+resync() {
+    RETVAL=0
+    if [[ "$1" == fst* ]]; then
+	echo "... forcing FST resycnc for restart ..."
+	chmod 700 /var/eos/md/fmd*.sql
+    fi    
+}
+
 restart() {
     if [ "$eoshaoff" = "1" ]; then
         /etc/init.d/eosha stop 
@@ -492,6 +508,12 @@ case "$1" in
                 ;;
         restart)
                 restart $2
+                ;;
+        clean)
+                clean $2
+                ;;
+        resync)
+                resync $2
                 ;;
         condrestart)
                 condrestart $2

@@ -153,6 +153,11 @@ filesystem::log_settings ()
  s += fbcs.c_str ();
  s += " MB";
  log ("WARNING", s.c_str ());
+
+ eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
+ eos_static_warning ("krb5 unsafe inmem krb5 := %s", use_unsafe_krk5? "true" : "false");
+ eos_static_warning ("x509 authentication    := %s", use_user_gsiproxy? "true" : "false");
+
 }
 
 
@@ -665,7 +670,7 @@ filesystem::dir_cache_add_entry (unsigned long long inode,
                                  unsigned long long entry_inode,
                                  struct fuse_entry_param* e)
 {
- eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
+ eos::common::RWMutexWriteLock wr_lock (mutex_fuse_cache);
  FuseCacheEntry* dir = 0;
 
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
@@ -905,8 +910,6 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
        fd2count.erase (fd);
        fd2fabst.erase (fd);
 
-       rwmutex_fd2fabst.UnLockWrite();
-       
        std::ostringstream sstr;
        sstr << inode << ":" << get_login (uid, gid, pid);
        iter1 = inodexrdlogin2fds.find (sstr.str ());
@@ -927,6 +930,8 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
        }      
        if (iter1->second.empty ()) inodexrdlogin2fds.erase (iter1);
 
+       rwmutex_fd2fabst.UnLockWrite();
+       
        // Return fd to the pool
        pool_fd.push (fd);
      }
@@ -1187,6 +1192,15 @@ filesystem::rmxattr (const char* path,
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
+ 
+ XrdOucString xa=xattr_name; 
+
+ // exclude security attributes
+ if (xa.beginswith("security."))
+ {
+   return 0;
+ }
+
  request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
@@ -1254,6 +1268,14 @@ filesystem::setxattr (const char* path,
                   path, xattr_name, xattr_value, uid, pid);
  eos::common::Timing setxattrtiming ("setxattr");
  COMMONTIMING ("START", &setxattrtiming);
+
+ XrdOucString xa = xattr_name;
+ // exclude security attributes
+ if (xa.beginswith("security."))
+ {
+   return 0;
+ }
+
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
@@ -1335,6 +1357,14 @@ filesystem::getxattr (const char* path,
  eos::common::Timing getxattrtiming ("getxattr");
 
  COMMONTIMING ("START", &getxattrtiming);
+
+ XrdOucString xa = xattr_name; 
+ // exclude security attributes
+ if (xa.beginswith("security."))
+ {
+   return ENOENT;
+ }
+
  std::string request;
  XrdCl::Buffer arg;
  XrdCl::Buffer* response = 0;
@@ -1723,6 +1753,18 @@ filesystem::stat (const char* path,
  {
    eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
+ }
+
+ if (file_size == (off_t)-1)
+ {
+   eos_static_debug("querying the cache for inode=%x", inode);
+   // retrieve size from our local auth cache
+   long long csize=0;
+   if ( (csize = LayoutWrapper::CacheAuthSize(inode)) > 0)
+   {
+     file_size = csize;
+   }
+   eos_static_debug("local cache size=%lld", csize);
  }
 
  // If got size using the opened file then return size and mtime from the opened file
@@ -4501,12 +4543,16 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    use_user_gsiproxy = true;
  else
    use_user_gsiproxy = false;
+ if (getenv ("EOS_FUSE_USER_UNSAFEKRB5") && (atoi (getenv ("EOS_FUSE_USER_UNSAFEKRB5")) == 1))
+   use_unsafe_krk5 = true;
+ else
+   use_unsafe_krk5 = false;
  if (getenv ("EOS_FUSE_USER_KRB5FIRST") && (atoi (getenv ("EOS_FUSE_USER_KRB5FIRST")) == 1))
    tryKrb5First = true;
  else
    tryKrb5First = false;
 
- authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, tryKrb5First);
+ authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, tryKrb5First);
 
  // get uid and pid specificities of the system
  {

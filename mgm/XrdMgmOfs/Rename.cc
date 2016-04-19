@@ -557,6 +557,18 @@ XrdMgmOfs::_rename (const char *old_name,
 	      }
 
 	      {
+		// rename the moved directory and udpate it's parent ID
+		rdir->setName(nPath.GetName());
+		rdir->setParentId(newdir->getId());
+
+		if (updateCTime)
+		{
+		  rdir->setCTimeNow();
+		}
+		eosView->updateContainerStore(rdir);
+	      }
+
+	      {
 		// update the target directory - add the directory
 		newdir->addContainer(rdir);
 		newdir->setMTimeNow();

@@ -50,6 +50,29 @@ prog="eosd"
 
 FUSE_OPT_SAVE=${FUSE_OPT}
 
+kill_mountpoint_users() {
+    local MNTPT="$1"
+    lsof -w > /tmp/eosd.lsof.list
+    local NAMEPOS=$(grep -b -o NAME /tmp/eosd.lsof.list | grep -o [0-9]*)
+    if [ "A${NAMEPOS}" = "A" ]; then
+    echo "Error killing users of mountpoint $1" >&2
+    fi
+    local PIDS=$(tail -n +2 /tmp/eosd.lsof.list | grep "^.\{${NAMEPOS}\}${MNTPT}\$" | awk '{ print $2 }' | xargs echo)
+    PIDS="$PIDS $(tail -n +2 /tmp/eosd.lsof.list | grep "^.\{$NAMEPOS\}${MNTPT}/" | awk '{ print $2 }' | xargs echo)"
+    # if there is no PID to kill, it's a success
+    if [[ ! "$PIDS" =~ ^[\ ]*[0-9]+[0-9\ ]*$ ]]; then return 0; fi;
+    local ACTION=$([ "A$2" = "A-9" ] && echo "killing" || echo "terminating")
+    echo -n "Cleaning mountpoint $MNTPT : ${ACTION} processes $PIDS"
+    echo 
+    echo_warning
+    echo 
+    if [ "A$2" = "A-9" ]; then
+        kill $PIDS
+    else 
+        kill -9 $PIDS
+    fi
+}
+
 start() {
     if [ -n "$1" ]; then
         EOS_FUSE_MOUNTS="$1";
@@ -57,7 +80,7 @@ start() {
     for i in ${EOS_FUSE_MOUNTS}; do
         (
         # in any case, we make sure that there is no leftover in the environment from the previous iteration
-        unset EOS_FUSE_DEBUG EOS_FUSE_LOWLEVEL_DEBUGEOS_FUSE_NOACCESS EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LAZYOPENRO EOS_FUSE_LAZYOPENRW EOS_FUSE_LOG_PREFIX EOS_FUSE_STREAMERRORWINDOW FUSE_OPT EOS_FUSE_ATTR_CACHE_TIME EOS_FUSE_ENTRY_CACHE_TIME EOS_FUSE_NEG_ENTRY_CACHE_TIME EOS_FUSE_FILE_WB_CACHE_SIZE EOS_FUSE_CREATOR_CAP_LIFETIME EOS_FUSE_REMOTEDIR
+        unset EOS_FUSE_DEBUG EOS_FUSE_LOWLEVEL_DEBUGEOS_FUSE_NOACCESS EOS_FUSE_SYNC EOS_FUSE_KERNELCACHE EOS_FUSE_DIRECTIO EOS_FUSE_CACHE EOS_FUSE_CACHE_SIZE EOS_FUSE_BIGWRITES EOS_FUSE_EXEC EOS_FUSE_NO_MT EOS_FUSE_USER_KRB5CC EOS_FUSE_USER_UNSAFEKRB5 EOS_FUSE_USER_GSIPROXY EOS_FUSE_USER_KRB5FIRST EOS_FUSE_PIDMAP EOS_FUSE_RMLVL_PROTECT EOS_FUSE_RDAHEAD EOS_FUSE_RDAHEAD_WINDOW EOS_FUSE_LAZYOPENRO EOS_FUSE_LAZYOPENRW EOS_FUSE_LOG_PREFIX EOS_FUSE_STREAMERRORWINDOW FUSE_OPT EOS_FUSE_ATTR_CACHE_TIME EOS_FUSE_ENTRY_CACHE_TIME EOS_FUSE_NEG_ENTRY_CACHE_TIME EOS_FUSE_FILE_WB_CACHE_SIZE EOS_FUSE_CREATOR_CAP_LIFETIME EOS_FUSE_REMOTEDIR
         # then we use the values from the main /etc/sysconfig/eos config file (if any) as default values
         [ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
         if [ "$i" != "main" ]; then
@@ -86,6 +109,7 @@ start() {
         export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
         export EOS_FUSE_LOWLEVEL_DEBUG=${EOS_FUSE_LOWLEVEL_DEBUG-0}
         export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
+        export EOS_FUSE_SYNC=${EOS_FUSE_SYNC-0}
         export EOS_FUSE_KERNELCACHE=${EOS_FUSE_KERNELCACHE-1}
         export EOS_FUSE_DIRECTIO=${EOS_FUSE_DIRECTIO-0}
         export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
@@ -94,6 +118,7 @@ start() {
         export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
         export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
         export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
+        export EOS_FUSE_USER_UNSAFEKRB5=${EOS_FUSE_USER_UNSAFEKRB5-0}
         export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
         export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
         export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
@@ -123,19 +148,32 @@ start() {
             echo unmounting and cleaning mountpoint for dead but subsys locked instance $i
             echo_warning
             echo
-            umount ${EOS_FUSE_MOUNTDIR} > /dev/null 2>&1
-            nmounts=$( mount | grep -w fuse | awk '{ print $3 }' | grep ${EOS_FUSE_MOUNTDIR} | wc -l )
+            umount -f ${EOS_FUSE_MOUNTDIR} > /dev/null 2>&1
+            nmounts=$( mount | grep -w fuse | awk '{ print $3 }' | grep ^${EOS_FUSE_MOUNTDIR%/}$ | wc -l )
             if [ "$nmounts" -ne "0" ]; then
-                echo cannot unmount dead but subsys locked instance $i
-                echo_error
-                echo
-                RETVAL=1;
-                continue
+                kill_mountpoint_users ${EOS_FUSE_MOUNTDIR%/}
+                [ "$?" != "0" ] || sleep 5 && kill_mountpoint_users ${EOS_FUSE_MOUNTDIR%/} -9 || sleep 5 && kill_mountpoint_users ${EOS_FUSE_MOUNTDIR%/} -9
+                if [ "$?" != "0" ]; then
+                    echo cannot kill processes using instance $i at mount point ${EOS_FUSE_MOUNTDIR} 
+                    echo_failure
+                    echo
+                    RETVAL=1;
+                    continue
+                fi
+                umount -f ${EOS_FUSE_MOUNTDIR} > /dev/null 2>&1
+                nmounts=$( mount | grep -w fuse | awk '{ print $3 }' | grep ^${EOS_FUSE_MOUNTDIR%/}$ | wc -l )
+                if [ "$nmounts" -ne "0" ]; then
+                    echo cannot unmount dead but subsys locked instance $i at mount point ${EOS_FUSE_MOUNTDIR} 
+                    echo_failure
+                    echo
+                    RETVAL=1;
+                    continue
+                fi
             fi
-            rmdir ${EOS_FUSE_MOUNTDIR} > /dev/null 2>&1
+            rmdir ${EOS_FUSE_MOUNTDIR%/} # > /dev/null 2>&1
             if [ -d ${EOS_FUSE_MOUNTDIR} ]; then
-                echo mount point ${EOS_FUSE_MOUNTDIR} for instance $i is not empty and cannot be cleaned.
-                echo_error
+                echo mount point ${EOS_FUSE_MOUNTDIR} for instance $i cannot be removed
+                echo_failure
                 echo
                 RETVAL=1;
                 continue
@@ -176,6 +214,7 @@ start() {
             echo "EOS_FUSE_DEBUG                   : ${EOS_FUSE_DEBUG}"
             echo "EOS_FUSE_LOWLEVEL_DEBUG          : ${EOS_FUSE_DEBUG}"
             echo "EOS_FUSE_NOACCESS                : ${EOS_FUSE_NOACCESS}"
+	    echo "EOS_FUSE_SYNC                    : ${EOS_FUSE_SYNC}"
             echo "EOS_FUSE_KERNELCACHE             : ${EOS_FUSE_KERNELCACHE}"
             echo "EOS_FUSE_DIRECTIO                : ${EOS_FUSE_DIRECTIO}"
             echo "EOS_FUSE_CACHE                   : ${EOS_FUSE_CACHE}"
@@ -253,11 +292,12 @@ stop() {
         echo -n "Stopping $prog for instance: $i"
         umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
         kill_eosd "$umdir"
-        rm -f /var/lock/subsys/$prog.$i
-        rm -f /var/run/$prog.$i.pid
         echo
         if [ $existed -eq 0 ]; then
-            echo_success    
+            # we cleanup only if a clean shutdown can be done
+            rm -f /var/lock/subsys/$prog.$i
+            rm -f /var/run/$prog.$i.pid
+            echo_success
         else
             echo_failure
         fi    
@@ -335,6 +375,7 @@ case "$1" in
     stop_force
     ;;
     reload|restart)
+    export _NODISP_STATUS_=1
     restart $2
     ;;
     condrestart)   

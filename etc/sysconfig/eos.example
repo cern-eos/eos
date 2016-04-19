@@ -95,6 +95,9 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Stream timeout for operations
 #export EOS_FST_STREAM_TIMEOUT=300
 
+# Disable fast boot and always do a full resync when a fs is booting
+# export EOS_FST_NO_FAST_BOOT=0 (default off)
+
 # Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
 # ------------------------------------------------------------------
@@ -215,41 +218,6 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    starting from the root of the mount (if 1)
 #    or from any of its sub directories at a maximum depth (if >1) (default 1)
 # EOS_FUSE_RMLVL_PROTECT=1
-
-# ---------------------------------------------------------------------------------
-# this options are not available since AQUAMARINE is compiled with XROOTD3 
-# --------------------------------------------------------------------------------- 
-# Enable Kerberos authentication. This avoid need to set gateways on the mgm. 
-#    file cache credential should be used. (default 0)
-# EOS_FUSE_USER_KRB5CC=0
-# ---------------------------------------------------------------------------------
-# Enable X509 GSI authentication. This avoid need to set gateways on the mgm. 
-#    file user proxy should be used. (default 0)
-# EOS_FUSE_USER_GSIPROXY=0
-# ---------------------------------------------------------------------------------
-# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
-#    (default 0)
-# EOS_FUSE_USER_KRB5FIRST=0
-# ---------------------------------------------------------------------------------
-# If a connection fails using strong authentication, this is the timeout before actully retrying
-#    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
-#    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
-#    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
-#    (default is XRD_STREAMERRORWINDOW default value)
-# EOS_FUSE_STREAMERRORWINDOW=1
-# ---------------------------------------------------------------------------------
-# If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
-#    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
-#    (default 0)
-# EOS_FUSE_PIDMAP=
-# ---------------------------------------------------------------------------------
-
-# Enable the fuse local host time consistency model
-#   this allows a more precise handling of mtime. Time reference is then the localhost time
-#   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
-#   this only affects the shared fuse mount (default 1)
-#   !! WARNING: it is strongly advised to synchronise the shared mount clock with the eos intance clock to use this !!
-# EOS_FUSE_LOCALTIMECONSISTENT=1
 
 # Disable using access for access permission check (default on)
 # export EOS_FUSE_NOACCESS=0

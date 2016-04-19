@@ -103,7 +103,10 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           {
             fmd->getEnv(env, true);
 	    XrdOucString senv = env.c_str();
-	    senv.replace("checksum=&","checksum=none&");
+	    if (senv.endswith("checksum="))
+	    {
+	      senv.replace("checksum=","checksum=none");
+	    }
             stdOut += senv.c_str();
             if (monitor)
             {

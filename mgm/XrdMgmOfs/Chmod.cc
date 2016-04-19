@@ -81,7 +81,7 @@ XrdMgmOfs::chmod (const char *inpath,
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_chmod (const char *path,
-                   XrdSfsMode Mode,
+                   XrdSfsMode& Mode,
                    XrdOucErrInfo &error,
                    eos::common::Mapping::VirtualIdentity &vid,
                    const char *ininfo)
@@ -90,7 +90,7 @@ XrdMgmOfs::_chmod (const char *path,
  * @brief change mode of a directory or file
  *
  * @param path where to chmod
- * @param Mode mode to set
+ * @param Mode mode to set (and effective mode returned)
  * @param error error object
  * @param vid virtual identity of the client
  * @param ininfo CGI
@@ -172,9 +172,12 @@ XrdMgmOfs::_chmod (const char *path,
             (!vid.uid) || // the root user
             (vid.uid == 3) || // the admin user
             (vid.gid == 4) || // the admin group
-            (acl.CanChmod()))
+            (acl.CanChmod()) ||
+	    (attrmap.count("sys.mask"))) // a pre-defined mask to apply to the desired modbits
         { // the chmod ACL entry
           // change the permission mask, but make sure it is set to a directory
+	  long mask=07777777;
+
           if (Mode & S_IFREG)
             Mode ^= S_IFREG;
           if ((Mode & S_ISUID))
@@ -189,9 +192,16 @@ XrdMgmOfs::_chmod (const char *path,
             }
           }
 
+	  if (attrmap.count("sys.mask"))
+	  {
+	    mask &= strtol(attrmap["sys.mask"].c_str(),0,8);
+	    mask |= 0777000;
+	  }
+
 	  eosView->updateContainerStore(pcmd);
           if (cmd)
           {
+	    Mode &= mask;
             cmd->setMode(Mode | S_IFDIR);
 	    cmd->setCTimeNow();
             // store the in-memory modification time for this directory

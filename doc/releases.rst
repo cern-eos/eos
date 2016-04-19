@@ -21,8 +21,8 @@ Releases
    ================================= =================== =================== =================================
    :doc:`releases/amber`             0.2.47              1st EOS Generation
    :doc:`releases/beryl`             0.3.57-beryl        2nd EOS Generation  :doc:`releases/beryl-release`
-   :doc:`releases/beryl`             0.3.163-aquamarine  2nd EOS Generation  :doc:`releases/beryl-release`
-   :doc:`releases/citrine`           4.0.17              3nd EOS Generation
+   :doc:`releases/beryl`             0.3.167-aquamarine  2nd EOS Generation  :doc:`releases/beryl-release`
+   :doc:`releases/citrine`           4.0.18              3nd EOS Generation
    :doc:`releases/diamond`           Future Development  4th EOS Generation
    ================================= =================== =================== =================================
 

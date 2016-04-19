@@ -419,9 +419,11 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
-  bool resyncmgm = (gFmdDbMapHandler.IsDirty(fsid) ||
+  bool is_dirty = gFmdDbMapHandler.IsDirty(fsid);
+  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) || (strcmp(getenv("EOS_FST_NO_FAST_BOOT"),"1"));
+  bool resyncmgm = ( (is_dirty) ||
                       (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  bool resyncdisk = (gFmdDbMapHandler.IsDirty(fsid) ||
+  bool resyncdisk = ( (is_dirty) ||
                      (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
 
   eos_info("msg=\"start disk synchronisation\"");
@@ -480,6 +482,9 @@ Storage::Boot (FileSystem *fs)
   }
 
   gFmdDbMapHandler.StayDirty(fsid, false); // indicate the flag to unset the DB dirty flag at shutdown
+  // allows fast boot the next time
+  if (fast_boot)
+    gFmdDbMapHandler.MarkCleanDB(fsid);
 
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid))

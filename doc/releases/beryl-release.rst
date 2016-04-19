@@ -7,7 +7,63 @@
 Beryl Release Notes
 ===================
 
-``V0.3.162 Aquamarine``
+``V0.3.167 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- add responses for custom namespaces (for new Owncloud clients) HTTP
+- fix race condition for stat after close in FUSE
+- gcc 6.0 warnings
+- don't version module libraries anymore (as done by newer cmake)
+
+New Features
+++++++++++++
+
+- introduction of 'sys.mask' attribute to apply a default mask to all chmod calls on directories (attribute disables !m in acls)
+
+``V0.3.166 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix 'dumpmd' response for files with empty checksum, which cannot be parsed by the FST
+- convert r=>w lock in FUSE (dir_cache_sync) to fix crashes in readdir 
+- protect 'recycle ls' to exceed string size limitation when listing millions of entries - stops at 1GB of console output and displays warning message
+
+New Features
+++++++++++++
+
+- by default use FUSE in async mode e.g. fsync is not a blocking call - enable sync behaviour via sysconfig EOS_FUSE_SYNC=1 
+- by default use new FST fast boot option and disable WAL journaling of SQLITE db - the pedantic boot behaviour can be enforced via sysconfig EOS_FST_NO_FAST_BOOT=1
+- add 'service eos clean fst' and 'service eos resync fst' to enforce a start behaviour (no resync or resync)
+
+``V0.3.165 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix race condition on google_hash_map in FUSE leading 
+
+New Features
+++++++++++++
+
+- don't set/get xattr with "security.*' keys in FUSE
+
+``V0.3.164 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix serious bug when moving directory subtress (as used by recycle bin) attaching moved trees after a reboot to the source location
+
+.. warning:: it is highly recommended to update the MGM, if possible purge all recursive deletes before reboot from the recycling bin
+
+``V0.3.163 Aquamarine``
 -----------------------
 
 Bug Fixes
