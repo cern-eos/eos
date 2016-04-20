@@ -25,10 +25,16 @@
 #define __EOS_NS_FILE_MD_HH__
 
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
 #include <cstring>
 #include <string>
 #include <sys/time.h>
 #include <stdint.h>
+#include <atomic>
+#include <functional>
+#include <mutex>
+#include <condition_variable>
+#include <list>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -41,6 +47,8 @@ class IContainerMD;
 //------------------------------------------------------------------------------
 class FileMD: public IFileMD
 {
+  friend class FileSystemView;
+
  public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -525,6 +533,14 @@ protected:
   Buffer              pChecksum;
   XAttrMap            pXAttrs;
   IFileMDSvc*         pFileMDSvc;
+
+private:
+  std::list<std::string> mErrors; ///< Error messages from the callbacks
+  std::mutex mMutex; ///< Mutex for condition variable and access to the errors
+  std::condition_variable mAsyncCv; ///< Condition variable for async requests
+  std::atomic<std::uint32_t> mNumAsyncReq; ///< Number of in-flight async requests
+  //! Redox callback for notifications send to listeners
+  std::function<void(redox::Command<int>&)> mNotificationCb;
 };
 
 EOSNSNAMESPACE_END

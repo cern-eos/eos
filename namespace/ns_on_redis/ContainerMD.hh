@@ -427,8 +427,8 @@ private:
   redox::Redox* pRedox; ///< Redis client
   std::map<std::string, eos::IContainerMD::id_t> mDirsMap; ///< Dir name to id map
   std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map
-  std::list<std::string> mErrors; ///< Error messages from the callback
-  std::mutex mErrorsMutex; ///< Mutex for the errors list
+  std::list<std::string> mErrors; ///< Error messages from the callbacks
+  std::mutex mMutex; ///< Mutex for the condition variable and errors list
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
   std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
   //! Callback function for Redox asynchronous requests

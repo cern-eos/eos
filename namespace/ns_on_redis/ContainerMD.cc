@@ -33,7 +33,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 			 IContainerMDSvc* cont_svc):
   IContainerMD(), pId(id), pParentId(0), pFlags(0), pName(""), pCUid(0), pCGid(0),
   pMode(040755), pACLId(0), pTreeSize(0), pContSvc(cont_svc), pFileSvc(file_svc),
-  mDirsMap(), mFilesMap(), mErrors(), mErrorsMutex(), mAsyncCv(), mNumAsyncReq{0}
+  mDirsMap(), mFilesMap(), mErrors(), mMutex(), mAsyncCv(), mNumAsyncReq{0}
 {
   pCTime.tv_sec = 0;
   pCTime.tv_nsec = 0;
@@ -51,7 +51,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
     {
       std::ostringstream oss;
       oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
-      std::unique_lock<std::mutex> lock(mErrorsMutex);
+      std::unique_lock<std::mutex> lock(mMutex);
       mErrors.emplace(mErrors.end(), oss.str());
     }
 
@@ -66,7 +66,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 ContainerMD::~ContainerMD()
 {
   // Wait for any in-flight async requests
-  std::unique_lock<std::mutex> lock(mErrorsMutex);
+  std::unique_lock<std::mutex> lock(mMutex);
   while (mNumAsyncReq)
     mAsyncCv.wait(lock);
 
@@ -646,7 +646,7 @@ ContainerMD::serialize(std::string& buffer)
 {
   // Wait for any ongoing async requests
   {
-    std::unique_lock<std::mutex> lock(mErrorsMutex);
+    std::unique_lock<std::mutex> lock(mMutex);
     while (mNumAsyncReq)
       mAsyncCv.wait(lock);
 

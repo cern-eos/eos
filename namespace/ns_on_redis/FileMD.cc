@@ -28,10 +28,23 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
   IFileMD(), pId(id), pSize(0), pContainerId(0), pCUid(0), pCGid(0),
-  pLayoutId(0), pFlags(0), pChecksum(0), pFileMDSvc(fileMDSvc)
+  pLayoutId(0), pFlags(0), pChecksum(0), pFileMDSvc(fileMDSvc), mMutex(),
+  mAsyncCv(), mNumAsyncReq{0}
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
+  mNotificationCb = [&](redox::Command<int>& c) {
+    if (!c.ok())
+    {
+      std::unique_lock<std::mutex> lock(mMutex);
+      std::ostringstream oss;
+      oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
+      mErrors.emplace(mErrors.end(), oss.str());
+    }
+
+    if (--mNumAsyncReq == 0)
+      mAsyncCv.notify_one();
+  };
 }
 
 //------------------------------------------------------------------------------
@@ -238,6 +251,18 @@ FileMD::serialize(std::string& buffer)
     throw ex;
   }
 
+  // Check that all notifications for async requests have been received
+  {
+    std::unique_lock<std::mutex> lock(mMutex);
+    while (mNumAsyncReq)
+      mAsyncCv.wait(lock);
+
+    if (mErrors.size())
+    {
+      // TODO: save fid in a set of files to be re-checked for consistency
+    }
+  }
+
   buffer.append(reinterpret_cast<const char*>(&pId),    sizeof(pId));
   buffer.append(reinterpret_cast<const char*>(&pCTime), sizeof(pCTime));
   buffer.append(reinterpret_cast<const char*>(&pMTime), sizeof(pMTime));
@@ -391,9 +416,8 @@ FileMD::setSize(uint64_t size)
   int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
   pSize = size & 0x0000ffffffffffff;
 
-  IFileMDChangeListener::Event e( this,
-				  IFileMDChangeListener::SizeChange,
-				  0,0, sizeChange );
+  IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange,
+				 0, 0, sizeChange);
   pFileMDSvc->notifyListeners( &e );
 }
 

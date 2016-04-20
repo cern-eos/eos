@@ -37,18 +37,18 @@ EOSNSNAMESPACE_BEGIN
 //!
 //! This class keeps a mapping between filesystem ids and the actual file ids
 //! that reside on that particular filesystem. For each fs id we keep a set
-//! structure in Redis i.e. fsview_files:fs_ids that holds the file ids. E.g.:
+//! structure in Redis i.e. fs_id:fsview_files that holds the file ids. E.g.:
 //!
-//! fsview_files:1 -->  fid4, fid87, fid1002 etc.
-//! fsview_files:2 ...
+//! 1:fsview_files -->  fid4, fid87, fid1002 etc.
+//! 2:fsview_files ...
 //! ...
-//! fsview_files:n ...
+//! n:fsview_files ...
 //!
-//! Besides these data structures we alos have:
+//! Besides these data structures we also have:
 //!
 //! fsview_set_fsid   - set with all the file system ids used
 //! fsview_noreplicas - file ids that don't have any replicas on any fs
-//! fsview_unlinked:x - set of file ids that are unlinked on file system "x"
+//! x:fsview_unlinked - set of file ids that are unlinked on file system "x"
 //------------------------------------------------------------------------------
 class FileSystemView: public IFsView
 {
@@ -73,7 +73,7 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj);
+  virtual void fileMDRead(IFileMD* obj) { /* not implemented */ };
 
   //----------------------------------------------------------------------------
   //! Return set of files on filesystem
@@ -118,32 +118,30 @@ class FileSystemView: public IFsView
   size_t getNumFileSystems();
 
   //----------------------------------------------------------------------------
-  //! Initizalie
-  //----------------------------------------------------------------------------
-  void initialize();
-
-  //----------------------------------------------------------------------------
   //! Initizalie for testing purposes
   //----------------------------------------------------------------------------
   void initialize(const std::map<std::string, std::string>& config);
 
+  //----------------------------------------------------------------------------
+  //! Initizalie
+  //----------------------------------------------------------------------------
+  void initialize() {};
 
   //----------------------------------------------------------------------------
   //! Finalize
   //----------------------------------------------------------------------------
-  void finalize();
+  void finalize() {};
 
  private:
 
-  // Redis related variables
   redox::Redox* pRedox; ///< Redix C++ client
-  //! Set prefix for file ids on a fs
-  static const std::string sFilesPrefix;
-  //! Set prefix for unlinked file ids on a fs
-  static const std::string sUnlinkedPrefix;
-  //! Set prefix for file ids with no replicas
+  //! Set suffix for file ids on a fs
+  static const std::string sFilesSuffix;
+  //! Set suffix for unlinked file ids on a fs
+  static const std::string sUnlinkedSuffix;
+  //! Set suffix for file ids with no replicas
   static const std::string sNoReplicaPrefix;
-  static const std::string sSetFsIds; ///< Set of FS ids
+  static const std::string sSetFsIds; ///< Set of FS ids in use
 };
 
 EOSNSNAMESPACE_END

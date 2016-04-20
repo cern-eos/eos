@@ -17,13 +17,14 @@
  ************************************************************************/
 
 #include "namespace/ns_on_redis/accounting/FileSystemView.hh"
+#include "namespace/ns_on_redis/FileMD.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
 
 const std::string FileSystemView::sSetFsIds = "fsview_set_fsid";
-const std::string FileSystemView::sFilesPrefix = "fsview_files:";
-const std::string FileSystemView::sUnlinkedPrefix = "fsview_unlinked:";
+const std::string FileSystemView::sFilesSuffix = ":fsview_files";
+const std::string FileSystemView::sUnlinkedSuffix = ":fsview_unlinked";
 const std::string FileSystemView::sNoReplicaPrefix = "fsview_noreplicas";
 
 //------------------------------------------------------------------------------
@@ -40,86 +41,80 @@ FileSystemView::FileSystemView()
 void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
 {
   std::string key, val;
+  FileMD* file = static_cast<FileMD*>(e->file);
 
   switch( e->action )
   {
     // New file has been created
     case IFileMDChangeListener::Created:
-      pRedox->sadd(sNoReplicaPrefix, std::to_string(e->file->getId()));
+      file->mNumAsyncReq++;
+      pRedox->sadd(sNoReplicaPrefix, file->getId(), file->mNotificationCb);
       break;
 
     // File has been deleted
     case IFileMDChangeListener::Deleted:
-      pRedox->srem(sNoReplicaPrefix, std::to_string(e->fileId));
+      // TODO: no file object in this case - make it a bit more consistent
+      pRedox->srem(sNoReplicaPrefix, e->fileId);
       break;
 
     // Add location
     case IFileMDChangeListener::LocationAdded:
-      // Store fsid if it doesn't exist
       val = std::to_string(e->location);
-
-      if (!pRedox->sismember(sSetFsIds, val))
-	pRedox->sadd(sSetFsIds, val);
-
-      key = sFilesPrefix + val;
+      file->mNumAsyncReq++;
+      pRedox->sadd(sSetFsIds, val, file->mNotificationCb);
+      key = val + sFilesSuffix;
       val = std::to_string(e->file->getId());
-      pRedox->sadd(key, val);
-      pRedox->srem(sNoReplicaPrefix, val);
+      file->mNumAsyncReq++;
+      pRedox->sadd(key, val, file->mNotificationCb);
+      file->mNumAsyncReq++;
+      pRedox->srem(sNoReplicaPrefix, val, file->mNotificationCb);
       break;
 
     // Replace location
     case IFileMDChangeListener::LocationReplaced:
-      key = sFilesPrefix + std::to_string(e->oldLocation);
-
-      if (!pRedox->exists(key))
-	return; // inconstency, we should probably crash here...
-
+      key = std::to_string(e->oldLocation)+ sFilesSuffix;
       val = std::to_string(e->file->getId());
-      pRedox->srem(key, val);
-      key = sFilesPrefix + std::to_string(e->location);
-      pRedox->sadd(key, val);
+      file->mNumAsyncReq++;
+      pRedox->srem(key, val, file->mNotificationCb);
+      key = std::to_string(e->location) + sFilesSuffix;
+      file->mNumAsyncReq++;
+      pRedox->sadd(key, val, file->mNotificationCb);
       break;
 
     // Remove location
     case IFileMDChangeListener::LocationRemoved:
-      key = sUnlinkedPrefix + std::to_string(e->location);
-
-      if (!pRedox->exists(key))
-	return; // incostency, we should probably crash here...
-
+      key = std::to_string(e->location) + sUnlinkedSuffix;
       val = std::to_string(e->file->getId());
       pRedox->srem(key, val);
 
-      if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
-	pRedox->sadd(sNoReplicaPrefix, val);
+      if(!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation())
+      {
+	file->mNumAsyncReq++;
+	pRedox->sadd(sNoReplicaPrefix, val, file->mNotificationCb);
+      }
 
       // Cleanup fsid if it doesn't hold any files anymore
-      key = sFilesPrefix + std::to_string(e->location);
+      key = std::to_string(e->location) + sFilesSuffix;
 
       if (!pRedox->exists(key))
       {
-	key = sUnlinkedPrefix + std::to_string(e->location);
+	key = std::to_string(e->location) + sUnlinkedSuffix;
 
 	if (!pRedox->exists(key))
 	{
-	  // Fs does not hold any file replicas or unlinked ones, remove it
+	  // FS does not hold any file replicas or unlinked ones, remove it
 	  key = std::to_string(e->location);
 	  pRedox->srem(sSetFsIds, key);
 	}
       }
-
       break;
 
-      // Unlink location
+    // Unlink location
     case IFileMDChangeListener::LocationUnlinked:
-      key = sFilesPrefix + std::to_string(e->location);
-
-      if (!pRedox->exists(key))
-	return; // incostency, we should probably crash here...
-
+      key = std::to_string(e->location) + sFilesSuffix;
       val = std::to_string(e->file->getId());
       pRedox->srem(key, val);
-      key = sUnlinkedPrefix + std::to_string(e->location);
+      key = std::to_string(e->location) + sUnlinkedSuffix;
       pRedox->sadd(key, val);
       break;
 
@@ -129,47 +124,12 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
 }
 
 //------------------------------------------------------------------------------
-// Notify me about files when recovering from changelog
-//------------------------------------------------------------------------------
-void FileSystemView::fileMDRead( IFileMD *obj )
-{
-  IFileMD::LocationVector::const_iterator it;
-  IFileMD::LocationVector loc_vect = obj->getLocations();
-  std::string key, val;
-
-  for( it = loc_vect.begin(); it != loc_vect.end(); ++it )
-  {
-    // Store fsid if it doesn't exist
-    key = sSetFsIds;
-    val = std::to_string(*it);
-
-    if (!pRedox->sismember(key, val))
-      pRedox->sadd(key, val);
-
-    // Add file to corresponding fs file set
-    key = sFilesPrefix + val;
-    pRedox->sadd(key, std::to_string(obj->getId()));
-  }
-
-  IFileMD::LocationVector unlink_vect = obj->getUnlinkedLocations();
-
-  for( it = unlink_vect.begin(); it != unlink_vect.end(); ++it )
-  {
-    key = sUnlinkedPrefix + std::to_string(*it);
-    pRedox->sadd(key, std::to_string(obj->getId()));
-  }
-
-  if( obj->getNumLocation() == 0 && obj->getNumUnlinkedLocation() == 0 )
-    pRedox->sadd(sNoReplicaPrefix, std::to_string(obj->getId()));
-}
-
-//------------------------------------------------------------------------------
 // Get set of files on filesystem
 //------------------------------------------------------------------------------
 IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
-  std::string key = sFilesPrefix + std::to_string(location);
+  std::string key = std::to_string(location) + sFilesSuffix;
 
   if (!pRedox->exists(key))
   {
@@ -178,6 +138,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
     throw( e );
   }
 
+  // TODO: use sscan to read in the members
   IFsView::FileList set_files;
   std::set<std::string> files = pRedox->smembers(key);
 
@@ -193,7 +154,8 @@ FileSystemView::getFileList(IFileMD::location_t location)
 IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = sUnlinkedPrefix + std::to_string(location);
+  std::string key = std::to_string(location) + sUnlinkedSuffix;
+  // TODO: use sscan to read in the members
   std::set<std::string> unlinked = pRedox->smembers(key);
   IFsView::FileList set_unlinked;
 
@@ -209,6 +171,7 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 IFsView::FileList FileSystemView::getNoReplicasFileList()
 {
   IFsView::FileList set_noreplicas;
+  // TODO: use sscan to read in the members
   std::set<std::string> noreplicas = pRedox->smembers(sNoReplicaPrefix);
 
   for (const auto&  elem: noreplicas)
@@ -223,31 +186,23 @@ IFsView::FileList FileSystemView::getNoReplicasFileList()
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = sUnlinkedPrefix + std::to_string(location);
+  std::string key = std::to_string(location) + sUnlinkedSuffix;
   return pRedox->del(key);
 }
-
 
 //------------------------------------------------------------------------------
 // Get number of file systems
 //------------------------------------------------------------------------------
 size_t FileSystemView::getNumFileSystems()
 {
-  return (size_t) pRedox->scard(sSetFsIds);
-}
-
-//------------------------------------------------------------------------------
-// Initialize
-//------------------------------------------------------------------------------
-void FileSystemView::initialize()
-{
-}
-
-//------------------------------------------------------------------------------
-// Finalize
-//------------------------------------------------------------------------------
-void FileSystemView::finalize()
-{
+  try
+  {
+    return (size_t) pRedox->scard(sSetFsIds);
+  }
+  catch (std::runtime_error &e)
+  {
+    return 0;
+  }
 }
 
 //------------------------------------------------------------------------------
