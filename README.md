@@ -1,5 +1,7 @@
 # EOS
 
+[![Join the chat at https://gitter.im/cern-eos/eos](https://badges.gitter.im/cern-eos/eos.svg)](https://gitter.im/cern-eos/eos?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## Description
 
 **EOS** is a software solution that aims to provide fast and reliable multi-PB
