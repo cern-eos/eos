@@ -569,7 +569,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		{
 		  rdir->setCTimeNow();
 		}
-		eosView->updateContainerStore(rdir);
+		eosView->updateContainerStore(rdir.get());
 	      }
 
 	      {

@@ -92,7 +92,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  EosFuse& me = instance ();
 
  struct fuse_chan* ch;
-
  int err = -1;
  char* epos;
  char* spos;
