@@ -29,16 +29,8 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc():
-  pRedisHost(""), pRedisPort(0), mFileCache(10e6), mNumAsyncReq{0}, mMutex(),
-  mAsyncCv(), mHasErrors(false)
+  pRedisHost(""), pRedisPort(0), mFileCache(10e6)
 {
-  mCallback = [&](redox::Command<int>& c) {
-    if (!c.ok())
-      mHasErrors = true;
-
-    if (--mNumAsyncReq == 0)
-      mAsyncCv.notify_one();
-  };
 }
 
 //----------------------------------------------------------------------------
@@ -145,37 +137,16 @@ void FileMDSvc::updateStore(IFileMD* obj)
 {
   std::string buffer;
   dynamic_cast<FileMD*>(obj)->serialize(buffer);
-  std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
-  mHasErrors = false;
 
   try
   {
-    mNumAsyncReq++;
-    pRedox->hset(key, "data", buffer, mCallback);
+    std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
+    (void) pRedox->hset(key, "data", buffer);
   }
   catch (std::runtime_error& redis_err)
   {
-    mNumAsyncReq--;
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
-    throw e;
-  }
-
-  IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
-  notifyListeners(&e);
-  {
-    // TODO: review if this is such a good idea
-    // Wait for async requests
-    std::unique_lock<std::mutex> lock(mMutex);
-
-    while (mNumAsyncReq)
-      mAsyncCv.wait(lock);
-  }
-
-  if (mHasErrors)
-  {
-    MDException e(ENOENT);
-    e.getMessage() << "File #" << obj->getId() << " failed to update backend";
     throw e;
   }
 }
@@ -219,11 +190,13 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
 //------------------------------------------------------------------------------
 uint64_t FileMDSvc::getNumFiles()
 {
-  try {
+  try
+  {
     return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
 				    constants::sNumFiles));
   }
-  catch (std::exception& e) {
+  catch (std::exception& e)
+  {
     return 0;
   }
 }
