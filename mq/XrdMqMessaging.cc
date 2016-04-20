@@ -127,6 +127,12 @@ bool
 XrdMqMessaging::BroadCastAndCollect(XrdOucString broadcastresponsequeue, XrdOucString broadcasttargetqueues, XrdOucString &msgbody, XrdOucString &responses, unsigned long waittime) 
 {
   XrdMqClient MessageClient(broadcastresponsequeue.c_str());
+  if (!MessageClient.IsInitOK())
+  {
+    fprintf(stderr, "failed to initialize MQ Client\n");
+    return false;
+  }
+
   XrdOucString BroadCastQueue = broadcastresponsequeue;
   if (!MessageClient.AddBroker(BroadCastQueue.c_str(),false,false)) {
     fprintf(stderr,"failed to add broker\n");

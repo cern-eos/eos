@@ -58,6 +58,7 @@ xrdmqclient_sigbus_hdl(int sig, siginfo_t* siginfo, void* ptr)
 XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
                          const char* defaultreceiverid)
 {
+  kInitOK = true;
   kBrokerN = 0;
   kMessageBuffer = "";
   kRecvBuffer = 0;
@@ -115,13 +116,9 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   {
     // By default create the client id as /xmesssage/<domain>/<host>/
     int ppos = 0;
-    char *errtext=0;
-    char *cfull_name = XrdSysDNS::getHostName(0,&errtext);
-    if (std::string(cfull_name)=="0.0.0.0")
-    {
-      eos_static_crit("Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
-      abort();
-    }
+    char* cfull_name = XrdSysDNS::getHostName();
+    if(!cfull_name || std::string(cfull_name)=="0.0.0.0")
+      kInitOK = false;
 
     XrdOucString FullName = cfull_name;
     XrdOucString HostName = FullName;
@@ -652,3 +649,106 @@ XrdMqClient::AddBroker(const char* brokerurl,
 
   return (!exists);
 }
+
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+
+XrdMqClient::XrdMqClient (const char* clientid,
+                          const char* brokerurl,
+                          const char* defaultreceiverid)
+{
+  kBrokerN = 0;
+  kMessageBuffer = "";
+  kRecvBuffer = 0;
+  kRecvBufferAlloc = 0;
+  // install sigbus signal handler
+  struct sigaction act;
+  memset(&act, 0, sizeof ( act));
+  act.sa_sigaction = xrdmqclient_sigbus_hdl;
+  act.sa_flags = SA_SIGINFO;
+
+  if (sigaction(SIGBUS, &act, 0))
+  {
+    fprintf(stderr, "error: [XrdMqClient] cannot install SIGBUS handler\n");
+  }
+
+  // set short timeout resolution, connection window, connection retry and stream error window
+  XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionWindow", 5);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
+  XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
+
+  if (brokerurl && (!AddBroker(brokerurl)))
+  {
+    fprintf(stderr, "error: [XrdMqClient] cannot add broker %s\n", brokerurl);
+  }
+
+  if (defaultreceiverid)
+  {
+    kDefaultReceiverQueue = defaultreceiverid;
+  }
+  else
+  {
+    // default receiver is always a master
+    kDefaultReceiverQueue = "/xmessage/*/master/*";
+  }
+
+  if (clientid)
+  {
+    kClientId = clientid;
+
+    if (kClientId.beginswith("root://"))
+    {
+      // truncate the URL away
+      int pos = kClientId.find("//", 7);
+
+      if (pos != STR_NPOS)
+      {
+        kClientId.erase(0, pos + 1);
+      }
+    }
+  }
+  else
+  {
+    // the default is to create the client id as /xmesssage/<domain>/<host>/
+    int ppos = 0;
+    char* cfull_name = XrdSysDNS::getHostName();
+    XrdOucString FullName = cfull_name;
+    XrdOucString HostName = FullName;
+    XrdOucString Domain = FullName;
+
+    if ((ppos = FullName.find(".")) != STR_NPOS)
+    {
+      HostName.assign(FullName, 0, ppos - 1);
+      Domain.assign(FullName, ppos + 1);
+    }
+    else
+    {
+      Domain = "unknown";
+    }
+
+    kClientId = "/xmessage/";
+    kClientId += HostName;
+    kClientId += "/";
+    kClientId += Domain;
+    free(cfull_name);
+  }
+
+  kInternalBufferPosition = 0;
+}
+
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+
+XrdMqClient::~XrdMqClient ()
+{
+  if(kRecvBuffer)
+  {
+   free(kRecvBuffer);
+  }
+}
+

@@ -267,6 +267,8 @@ ContainerMD::deserialize(Buffer& buffer)
   char strBuffer[len];
   offset = buffer.grabData(offset, strBuffer, len);
   pName = strBuffer;
+  pMTime.tv_sec = pCTime.tv_sec;
+  pMTime.tv_nsec = pCTime.tv_nsec;
   uint16_t len1 = 0;
   uint16_t len2 = 0;
   len = 0;

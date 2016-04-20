@@ -219,6 +219,7 @@ class XrdMqClient
   char* kRecvBuffer;
   int kRecvBufferAlloc;
   size_t kInternalBufferPosition;
+  bool kInitOK;
 };
 
 
