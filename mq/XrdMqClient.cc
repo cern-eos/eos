@@ -503,7 +503,6 @@ XrdMqClient::AddBroker (const char* brokerurl,
                         bool advisoryflushbacklog)
 {
   bool exists = false;
-  kInitOK = true;
 
   if (!brokerurl) return false;
 
@@ -576,6 +575,7 @@ XrdMqClient::XrdMqClient (const char* clientid,
                           const char* brokerurl,
                           const char* defaultreceiverid)
 {
+  kInitOK = true;
   kBrokerN = 0;
   kMessageBuffer = "";
   kRecvBuffer = 0;
