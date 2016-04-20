@@ -130,20 +130,19 @@ IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
   std::string key = std::to_string(location) + sFilesSuffix;
-
-  if (!pRedox->exists(key))
-  {
-    MDException e( ENOENT );
-    e.getMessage() << "Location " << key  << " does not exist" << std::endl;
-    throw( e );
-  }
-
-  // TODO: use sscan to read in the members
   IFsView::FileList set_files;
-  std::set<std::string> files = pRedox->smembers(key);
+  std::pair<long long, std::vector<std::string>> reply;
+  long long cursor = 0, count = 10000;
 
-  for (const auto& elem: files)
-    set_files.insert(std::stoul(elem));
+  do
+  {
+    reply = pRedox->sscan(key, cursor, count);
+    cursor = reply.first;
+
+    for (const auto& elem: reply.second)
+      set_files.insert(std::stoul(elem));
+  }
+  while (cursor);
 
   return set_files;
 }
@@ -155,12 +154,19 @@ IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
   std::string key = std::to_string(location) + sUnlinkedSuffix;
-  // TODO: use sscan to read in the members
-  std::set<std::string> unlinked = pRedox->smembers(key);
   IFsView::FileList set_unlinked;
+  std::pair<long long, std::vector<std::string>> reply;
+  long long cursor = 0, count = 10000;
 
-  for (const auto& elem: unlinked)
-    set_unlinked.insert(std::stoul(elem));
+  do
+  {
+    reply = pRedox->sscan(key, cursor, count);
+    cursor = reply.first;
+
+    for (const auto& elem: reply.second)
+      set_unlinked.insert(std::stoul(elem));
+  }
+  while (cursor);
 
   return set_unlinked;
 }
@@ -171,11 +177,18 @@ FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 IFsView::FileList FileSystemView::getNoReplicasFileList()
 {
   IFsView::FileList set_noreplicas;
-  // TODO: use sscan to read in the members
-  std::set<std::string> noreplicas = pRedox->smembers(sNoReplicaPrefix);
+  std::pair<long long, std::vector<std::string>> reply;
+  long long cursor = 0, count = 10000;
 
-  for (const auto&  elem: noreplicas)
-    set_noreplicas.insert(std::stoul(elem));
+  do
+  {
+    reply = pRedox->sscan(sNoReplicaPrefix, cursor, count);
+    cursor = reply.first;
+
+    for (const auto&  elem: reply.second)
+      set_noreplicas.insert(std::stoul(elem));
+  }
+  while (cursor);
 
   return set_noreplicas;
 }
