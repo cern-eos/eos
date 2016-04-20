@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.168 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- initialize container mtime by default with ctime if not defined
+
+
 ``V0.3.167 Aquamarine``
 -----------------------
 
