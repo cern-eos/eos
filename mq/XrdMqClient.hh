@@ -146,6 +146,8 @@ class XrdMqClient
 
   XrdCl::FileSystem* GetBrokerXrdClientSender(int i);
 
+  bool IsInitOK() const { return kInitOK; }
+
   void ReNewBrokerXrdClientReceiver(int i);
 
   void CheckBrokerXrdClientReceiver(int i);

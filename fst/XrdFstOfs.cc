@@ -300,20 +300,10 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
   char *errtext=0;
   mHostName = XrdSysDNS::getHostName(0,&errtext);
 
-  if (std::string(mHostName)=="0.0.0.0")
+  if ( !mHostName || std::string(mHostName)=="0.0.0.0")
   {
-    char buffer[2048];
-    snprintf(buffer,2048,"Hostname coud not be determined : errno=%d  errtext=%s",errno,errtext);
-    Eroute.Emsg("Config", buffer);
-    Eroute.Say(buffer);
-    // DEBUG: for now, we don't interrupt the boot as we
-    // NoGo = 1;
-    // return NoGo;
-  }
-  {
-    char buffer[2048];
-    snprintf(buffer,2048,"=====> hostname : %s",mHostName);
-    Eroute.Say(buffer);
+    Eroute.Emsg("Config", "hostname is invalid : %s", mHostName);
+    return 1;
   }
 
   TransferScheduler = new XrdScheduler(&Eroute, &OfsTrace, 8, 128, 60);
@@ -449,12 +439,6 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
 
   if (!eos::fst::Config::gConfig.FstOfsBrokerUrl.endswith("/"))
     eos::fst::Config::gConfig.FstOfsBrokerUrl += "/";
-
-  if(!HostName || std::string(HostName)=="0.0.0.0")
-  {
-    Eroute.Emsg("Config", "hostname is invalid : %s", HostName);
-    return 1;
-  }
 
   eos::fst::Config::gConfig.FstDefaultReceiverQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
   eos::fst::Config::gConfig.FstOfsBrokerUrl += mHostName;
