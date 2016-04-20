@@ -503,6 +503,7 @@ XrdMqClient::AddBroker (const char* brokerurl,
                         bool advisoryflushbacklog)
 {
   bool exists = false;
+  kInitOK = true;
 
   if (!brokerurl) return false;
 
@@ -631,6 +632,9 @@ XrdMqClient::XrdMqClient (const char* clientid,
     // the default is to create the client id as /xmesssage/<domain>/<host>/
     int ppos = 0;
     char* cfull_name = XrdSysDNS::getHostName();
+    if(!cfull_name || std::string(cfull_name)=="0.0.0.0")
+      kInitOK = false;
+
     XrdOucString FullName = cfull_name;
     XrdOucString HostName = FullName;
     XrdOucString Domain = FullName;

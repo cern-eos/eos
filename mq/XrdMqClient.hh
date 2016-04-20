@@ -49,6 +49,7 @@ private:
   char* kRecvBuffer;
   int kRecvBufferAlloc;
   size_t kInternalBufferPosition;
+  bool kInitOK;
 public:
 
   // response handler class to clean-up asynchronous call-backs which are
@@ -119,6 +120,8 @@ public:
     return kClientId.c_str();
   }
 
+  bool IsInitOK() const { return kInitOK; }
+
   void ReNewBrokerXrdClientReceiver (int i);
 
   void CheckBrokerXrdClientReceiver (int i);
@@ -141,6 +144,7 @@ public:
     msg = (*this).RecvMessage();
     return msg;
   }
+
 };
 
 

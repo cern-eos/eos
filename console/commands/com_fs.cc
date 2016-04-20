@@ -297,7 +297,13 @@ com_fs (char* arg1)
       if (!mp.length())
       {
         mp = arg;
-        hostport = XrdSysDNS::getHostName();
+        char *errtext=0;
+        hostport = XrdSysDNS::getHostName(0,&errtext);
+        if( !hostport.length() || hostport=="0.0.0.0")
+        {
+          fprintf(stderr, "Error initializing the MQ Client %s\n",errtext);
+          return 0;
+        }
       }
       if (!(hostport.find(":") != STR_NPOS))
       {
@@ -434,6 +440,11 @@ com_fs (char* arg1)
       {
         // status by mount point
         char* HostName = XrdSysDNS::getHostName();
+        if(!HostName || std::string(HostName)=="0.0.0.0")
+        {
+          fprintf(stdout, "Error initializing the MQ Client\n");
+          return 0;
+        }
         in += "&mgm.fs.node=";
         in += HostName;
         in += "&mgm.fs.mountpoint=";

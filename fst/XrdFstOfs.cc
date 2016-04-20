@@ -423,6 +423,12 @@ XrdFstOfs::Configure (XrdSysError& Eroute)
     eos::fst::Config::gConfig.FstOfsBrokerUrl += "/";
   }
 
+  if(!HostName || std::string(HostName)=="0.0.0.0")
+  {
+    Eroute.Emsg("Config", "hostname is invalid : %s", HostName);
+    return 1;
+  }
+
   eos::fst::Config::gConfig.FstDefaultReceiverQueue = eos::fst::Config::gConfig.FstOfsBrokerUrl;
   eos::fst::Config::gConfig.FstOfsBrokerUrl += HostName;
   eos::fst::Config::gConfig.FstOfsBrokerUrl += ":";
