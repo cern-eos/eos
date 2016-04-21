@@ -219,14 +219,16 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
   if(env.Get("xrd.wantprot"))
   {
     user_url += '?';
+    user_url += "xrd.wantprot=";
+    user_url += env.Get("xrd.wantprot");
     if(env.Get("xrd.gsiusrpxy"))
     {
-      user_url+="xrd.gsiusrpxy=";
+      user_url+="&xrd.gsiusrpxy=";
       user_url+=env.Get("xrd.gsiusrpxy");
     }
     if(env.Get("xrd.k5ccname"))
     {
-      user_url+="xrd.k5ccname=";
+      user_url+="&xrd.k5ccname=";
       user_url+=env.Get("xrd.k5ccname");
     }
   }
