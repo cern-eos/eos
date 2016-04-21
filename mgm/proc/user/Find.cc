@@ -542,9 +542,10 @@ ProcCommand::Find ()
                       {
                         if (!printcounter)
 			{
+			  fprintf(fstdout, "path=");
 			  if (printxurl)
 			    fprintf(fstdout,"%s", url.c_str());
-                          fprintf(fstdout, "path=%s", fspath.c_str());
+                          fprintf(fstdout, "%s", fspath.c_str());
 			}
 
                         if (printsize)
