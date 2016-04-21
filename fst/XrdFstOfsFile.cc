@@ -1044,30 +1044,36 @@ XrdFstOfsFile::open (const char* path,
 
   if ((!rc) && isCreation && bookingsize)
   {
-    // ----------------------------------
-    // check if the file system is full
-    // ----------------------------------
-    XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
-
-    if (gOFS.Storage->fileSystemFullMap[fsid])
     {
-      if (layOut->IsEntryServer() && (!isReplication))
+      // ----------------------------------
+      // check if the file system is full
+      // ----------------------------------
+      bool isfull = false;
       {
-        writeErrorFlag = kOfsDiskFullError;
-        layOut->Remove();
-        int ecode = 1094;
-        eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
-                    RedirectManager.c_str(), ecode);
-
-	if (hasCreationMode)
-	{
-	  // clean-up before re-bouncing
-	  dropall(fileid, path, RedirectManager.c_str());
-	}
-
-        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+	XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+	isfull = gOFS.Storage->fileSystemFullMap[fsid];
       }
 
+      if (isfull)
+      {
+	if (layOut->IsEntryServer() && (!isReplication))
+	{
+	  writeErrorFlag = kOfsDiskFullError;
+	  layOut->Remove();
+	  int ecode = 1094;
+	  eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
+		      RedirectManager.c_str(), ecode);
+	  
+	  if (hasCreationMode)
+	  {
+	    // clean-up before re-bouncing
+	    dropall(fileid, path, RedirectManager.c_str());
+	  }
+	  
+	  return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+	}
+      }
+      
       writeErrorFlag = kOfsDiskFullError;
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
                        capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
@@ -2603,9 +2609,13 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
     else
     {
       // Check if the file system is full
-      XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+      bool isfull = false;
+      {
+	XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+	isfull = gOFS.Storage->fileSystemFullMap[fsid];
+      }
 
-      if (gOFS.Storage->fileSystemFullMap[fsid])
+      if (isfull)
       {
         writeErrorFlag = kOfsDiskFullError;
         return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space "
