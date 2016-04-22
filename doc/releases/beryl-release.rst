@@ -7,6 +7,21 @@
 Beryl Release Notes
 ===================
 
+``V0.3.169 Aquamarine``
+-----------------------
+
+Bug Fixes
++++++++++
+
+- fix exclusive lock held around fallocate delaying all writes and opens during an fallocate call
+
+New Features
+++++++++++++
+
+- add new FUSE config flags to enable automatic repair of a broken replica if one is still readable - default enabled until 256MB files
+-- export EOS_FUSE_INLINE_REPAIR=1
+-- export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
+
 ``V0.3.168 Aquamarine``
 -----------------------
 
