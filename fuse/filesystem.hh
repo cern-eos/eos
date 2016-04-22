@@ -912,6 +912,10 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
 
  void setPrefix(std::string &prefix) { mPrefix = prefix; }
 
+ bool getInlineRepair () const { return inline_repair;}
+uint64_t getMaxInlineRepairSize() const { return max_inline_repair_size; }
+  
+  
 protected:
 private:
 
@@ -925,6 +929,8 @@ private:
  bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
  bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
  bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
+ bool inline_repair; ///< indicate if we should try to repair broken files for wrinting inlined in the open
+ off_t max_inline_repair_size; ///< define maximum inline repair size
  bool tryKrb5First; ///< indicated if Krb5 should be tried before Gsi
  bool do_rdahead; ///< true if readahead is to be enabled, otherwise false
  std::string rdahead_window; ///< size of the readahead window

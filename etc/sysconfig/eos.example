@@ -163,7 +163,6 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    or from any of its sub directories at a maximum depth (if >1) (default 1)
 # EOS_FUSE_RMLVL_PROTECT=1
 
-
 # Enable lazy-open of files for reading e.g. files are only opened on an FST if a read is done
 #    by default this option is disabled because most ro files want to read and 
 #    there is a penalty in the two-step process
@@ -173,6 +172,14 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    applications get a visible performance boost by using this option and the latency in synchronous replication
 #    on the FSTs is completely hidden. By default this option is enabled
 # export EOS_FUSE_LAZYOPENRW=1
+
+# Enable inline-repair mode for file updates of files with offline replica/stripe
+#    By default this option is enabled
+# export EOS_FUSE_INLINE_REPAIR=1
+
+# Definae maximum inline-repair size for the previous flag
+#    By default the maximum size is 256M
+# export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
 
 # Set FUSE kernel cache time for directory entries (readdir cache) - default 10 seconds	
 # export EOS_FUSE_ENTRY_CACHE_TIME=10
