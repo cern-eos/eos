@@ -667,7 +667,7 @@ XrdFstOfs::SetSimulationError (const char* tag)
   // define error bool variables to en-/disable error simulation in the OFS layer
 
   XrdOucString stag = tag;
-  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = gOFS.Simulate_FMD_open_error = false;
 
   if (stag == "io_read")
   {
@@ -684,6 +684,10 @@ XrdFstOfs::SetSimulationError (const char* tag)
   if (stag == "xs_write")
   {
     gOFS.Simulate_XS_write_error = true;
+  }
+  if (stag == "fmd_open")
+  {
+    gOFS.Simulate_FMD_open_error = true;
   }
 }
 

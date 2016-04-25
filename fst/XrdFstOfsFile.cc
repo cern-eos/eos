@@ -974,20 +974,22 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
-  if (!fMd)
+  if ( (!fMd) || gOFS.Simulate_FMD_open_error )
   {
-    // try to resync from the MGM and repair on the fly
-    if (gFmdSqliteHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str()))
+    if( !gOFS.Simulate_FMD_open_error )
     {
-      eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
-      fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+      // try to resync from the MGM and repair on the fly
+      if (gFmdSqliteHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str()))
+      {
+        eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+        fMd = gFmdSqliteHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+      }
+      else
+      {
+        eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+      }
     }
-    else
-    {
-      eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
-    }
-
-    if (!fMd)
+    if ( (!fMd) || gOFS.Simulate_FMD_open_error )
     {
       if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
       {
@@ -1081,20 +1083,20 @@ XrdFstOfsFile::open (const char* path,
     if (rc)
     {
       eos_crit("file allocation gave return code %d errno=%d for allocation of size=%llu",
-               rc, errno, bookingsize);
+          rc, errno, bookingsize);
 
       if (layOut->IsEntryServer() && (!isReplication))
       {
         layOut->Remove();
         int ecode = 1094;
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
-                    RedirectManager.c_str(), ecode);
+            RedirectManager.c_str(), ecode);
 
-	if (hasCreationMode) 
-	{
-	  // clean-up before re-bouncing
-	  dropall(fileid, path, RedirectManager.c_str());
-	}
+        if (hasCreationMode)
+        {
+          // clean-up before re-bouncing
+          dropall(fileid, path, RedirectManager.c_str());
+        }
 
         return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }

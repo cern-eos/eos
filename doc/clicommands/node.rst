@@ -14,11 +14,12 @@ node
       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node
       <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer
       <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node
-      <key> : error.simulation=io_read|io_write|xs_read|xs_write
+      <key> : error.simulation=io_read|io_write|xs_read|xs_write|fmd_open
       io_read  : simulate read  errors
       io_write : simulate write errors
       xs_read  : simulate checksum errors when reading a file
       xs_write : simulate checksum errors when writing a file
+      fmd_open : simulate fmd mismatch when opening a file
       <none>   : disable error simulation (every value than the previous ones are fine!)
       <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds
       <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels
