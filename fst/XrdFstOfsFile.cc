@@ -1044,39 +1044,36 @@ XrdFstOfsFile::open (const char* path,
 
   if ((!rc) && isCreation && bookingsize)
   {
+    // ----------------------------------
+    // check if the file system is full
+    // ----------------------------------
+    bool isfull = false;
     {
-      // ----------------------------------
-      // check if the file system is full
-      // ----------------------------------
-      bool isfull = false;
-      {
-	XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
-	isfull = gOFS.Storage->fileSystemFullMap[fsid];
-      }
+      XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+      isfull = gOFS.Storage->fileSystemFullMap[fsid];
+    }
 
-      if (isfull)
+    if (isfull)
+    {
+      if (layOut->IsEntryServer() && (!isReplication))
       {
-	if (layOut->IsEntryServer() && (!isReplication))
-	{
-	  writeErrorFlag = kOfsDiskFullError;
-	  layOut->Remove();
-	  int ecode = 1094;
-	  eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
-		      RedirectManager.c_str(), ecode);
-	  
-	  if (hasCreationMode)
-	  {
-	    // clean-up before re-bouncing
-	    dropall(fileid, path, RedirectManager.c_str());
-	  }
-	  
-	  return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
-	}
+        writeErrorFlag = kOfsDiskFullError;
+        layOut->Remove();
+        int ecode = 1094;
+        eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
+            RedirectManager.c_str(), ecode);
+
+        if (hasCreationMode)
+        {
+          // clean-up before re-bouncing
+          dropall(fileid, path, RedirectManager.c_str());
+        }
+
+        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
       }
-      
       writeErrorFlag = kOfsDiskFullError;
       return gOFS.Emsg("writeofs", error, ENOSPC, "create file - disk space (headroom) exceeded fn=",
-                       capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
+          capOpaque ? (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") : FName()) : FName());
     }
 
     rc = layOut->Fallocate(bookingsize);
