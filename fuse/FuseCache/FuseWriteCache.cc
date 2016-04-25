@@ -172,7 +172,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                          size_t len)
 {
   CacheEntry* pEntry = 0;
-  mMapLock.ReadLock(); // read lock map
+  mMapLock.WriteLock(); // read lock map
   key_entry_t::iterator it = mKeyEntryMap.find(k);
   eos_static_debug("off=%zu, len=%zu key=%lli", off, len, k);
 
@@ -190,8 +190,6 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
     if (pEntry->IsFull())
     {
       eos_static_debug("cache entry full add to writes queue");
-      mMapLock.UnLock();     // unlock
-      mMapLock.WriteLock();  // wr_lock map
       mKeyEntryMap.erase(it);
       mWrReqQueue->push(pEntry);
     }
