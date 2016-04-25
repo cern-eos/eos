@@ -13,9 +13,10 @@ Beryl Release Notes
 Bug Fixes
 +++++++++
 
-- fix exclusive lock held around fallocate delaying all writes and opens during an fallocate call
-- fix SEGV in readlink call when an errno is returned
-- fix OC access permission string to include writable for ACL shared directories
+- fix exclusive lock held around fallocate delaying all writes and opens during an fallocate call (FST)
+- fix SEGV in readlink call when an errno is returned (FUSE)
+- fix OC access permission string to include writable for ACL shared directories (MGM)
+- fix race condition when FUSE write-back cache is full - JIRA EOS-1455
 
 New Features
 ++++++++++++
