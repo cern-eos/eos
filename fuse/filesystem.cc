@@ -3253,7 +3253,20 @@ filesystem::open (const char* path,
    flags_sfs &= ~SFS_O_WRONLY;
    flags_sfs |= SFS_O_RDWR;
  }
- retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime);
+
+ bool do_inline_repair = getInlineRepair();
+
+ // figure out if this file can be repaired inline
+ if (exists)
+ {
+   if ( ((uint64_t) buf.st_size > getMaxInlineRepairSize() ) )
+   {
+     eos_static_notice("disabled inline repair path=%s file-size=%llu repair-limit=%llu", spath.c_str(), buf.st_size, getMaxInlineRepairSize());
+     do_inline_repair = false;
+   }
+ }
+
+ retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
 
  if (retc)
  {
@@ -4404,6 +4417,21 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
      {
        rdahead_window = "131072"; // default 128
      }
+   }
+ }
+
+ // get inline-repair configuration
+ if (getenv ("EOS_FUSE_INLINE_REPAIR") && (!strcmp (getenv ("EOS_FUSE_INLINE_REPAIR"), "1")))
+ {
+   inline_repair = true;
+
+   if (getenv ("EOS_FUSE_MAX_INLINE_REPAIR_SIZE"))
+   {
+     max_inline_repair_size = strtoul(getenv ("EOS_FUSE_MAX_INLINE_REPAIR_SIZE"),0,10);
+   }
+   else
+   {
+     max_inline_repair_size = 268435456; // 256 MB
    }
  }
 

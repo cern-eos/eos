@@ -205,7 +205,6 @@ XrdMgmOfs::FSctl (const int cmd,
   NAMESPACEMAP;
 
   BOUNCE_ILLEGAL_NAMES;
-  BOUNCE_NOT_ALLOWED;
 
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
@@ -214,6 +213,16 @@ XrdMgmOfs::FSctl (const int cmd,
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
+
+  const char* scmd = env.Get("mgm.pcmd");
+  XrdOucString execmd = scmd?scmd:"";
+
+  // version is not submitted to access control
+  // so that features of the instance can be retrieved by an authenticated user
+  if( execmd != "version" )
+  {
+    BOUNCE_NOT_ALLOWED;
+  }
 
   eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
@@ -251,12 +260,8 @@ XrdMgmOfs::FSctl (const int cmd,
     return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);
   }
 
-  const char* scmd;
-
-  if ((scmd = env.Get("mgm.pcmd")))
+  if ( scmd )
   {
-    XrdOucString execmd = scmd;
-
     // -------------------------------------------------------------------------
     // Adjust replica (repairOnClose from FST)
     // -------------------------------------------------------------------------

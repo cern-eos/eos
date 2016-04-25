@@ -246,6 +246,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
    eos_static_warning ("eos-instance-url       := %s", getenv ("EOS_RDRURL"));
    eos_static_warning ("encode-pathname        := %s", me.config.encode_pathname ? "true" : "false");
    eos_static_warning ("lazy-open@server       := %s", me.config.lazy_open ? "true" : "false");
+   eos_static_warning ("inline-repair          := %s max-size=%llu", me.fs().getInlineRepair()?"true":"false", me.fs().getMaxInlineRepairSize());
    eos_static_warning ("multi-threading        := %s", (getenv ("EOS_FUSE_NO_MT") && (!strcmp (getenv ("EOS_FUSE_NO_MT"), "1"))) ? "false" : "true");
    eos_static_warning ("kernel-cache           := %s", me.config.kernel_cache ? "true" : "false");
    eos_static_warning ("direct-io              := %s", me.config.direct_io ? "true" : "false");

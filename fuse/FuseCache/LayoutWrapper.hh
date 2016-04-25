@@ -67,6 +67,7 @@ class LayoutWrapper
   bool mCacheCreator;
   off_t mMaxOffset;
   int64_t mSize;
+  bool mInlineRepair;
 
   //--------------------------------------------------------------------------
   //! do the open on the mgm but not on the fst yet
@@ -133,7 +134,7 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true, size_t creator_lifetime=30);
+  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true, size_t creator_lifetime=30, bool inlineRepair=false);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -193,6 +194,12 @@ public:
   //! Is the file Opened
   //--------------------------------------------------------------------------
   bool IsOpen ();
+
+  //--------------------------------------------------------------------------
+  //! Repair a partially unavailable flie
+  //--------------------------------------------------------------------------
+  
+  bool Repair(const std::string &path, const char* opaque);
 
   //--------------------------------------------------------------------------
   //! Path accessor

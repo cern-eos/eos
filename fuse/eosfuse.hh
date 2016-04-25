@@ -147,6 +147,7 @@ private:
     bool encode_pathname;
     bool lazy_open;
     bool is_sync;
+    bool inline_repair;
     std::string mount_point;
     std::string mounthostport; ///< mount hostport of the form: hostname:port
     std::string mountprefix; ///< mount prefix of the form: dir1/dir2/dir3

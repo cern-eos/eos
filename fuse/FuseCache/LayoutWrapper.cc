@@ -24,7 +24,8 @@
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
 #include "common/Logging.hh"
-
+#include "common/LayoutId.hh"
+#include "fst/layout/PlainLayout.hh"
 
 XrdSysMutex LayoutWrapper::gCacheAuthorityMutex;
 std::map<unsigned long long, LayoutWrapper::CacheEntry> LayoutWrapper::gCacheAuthority;
@@ -77,6 +78,7 @@ LayoutWrapper::LayoutWrapper (eos::fst::Layout* file) :
   mInode = 0;
   mMaxOffset = 0;
   mSize = 0;
+  mInlineRepair = false;
 }
 
 //----------------------------------------------------------------------------
@@ -219,14 +221,16 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
   if(env.Get("xrd.wantprot"))
   {
     user_url += '?';
+    user_url += "xrd.wantprot=";
+    user_url += env.Get("xrd.wantprot");
     if(env.Get("xrd.gsiusrpxy"))
     {
-      user_url+="xrd.gsiusrpxy=";
+      user_url+="&xrd.gsiusrpxy=";
       user_url+=env.Get("xrd.gsiusrpxy");
     }
     if(env.Get("xrd.k5ccname"))
     {
-      user_url+="xrd.k5ccname=";
+      user_url+="&xrd.k5ccname=";
       user_url+=env.Get("xrd.k5ccname");
     }
   }
@@ -236,37 +240,33 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
   XrdCl::FileSystem fs(u);
   status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
-  if (!status.IsOK())
-  {
-    eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d",request.c_str(),user_url.c_str(), status.code, status.errNo);
-    return -1;
+  if (!status.IsOK()) {
+    if ( (status.errNo == kXR_FSError) && mInlineRepair &&
+	 ( ((flags & SFS_O_WRONLY) || (flags & SFS_O_RDWR)) && (!(flags & SFS_O_CREAT)) ) )
+    {
+      // FS io error state for writing we try to recover the file on the fly
+      if (!Repair(path, opaque))
+      {
+	eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d - repair failed",request.c_str(),user_url.c_str(), status.code, status.errNo);
+	return -1;
+      }
+      else
+      {
+	// reissue the open
+	status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+	if (!status.IsOK()) 
+	{
+	  eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d - still unwritable after repair",request.c_str(),user_url.c_str(), status.code, status.errNo);
+	  return -1;
+	}
+      }
+    }
+    else
+    {
+      eos_static_err("failed to lazy open request %s at url %s code=%d errno=%d",request.c_str(),user_url.c_str(), status.code, status.errNo);
+      return -1;
+    }
   }
-
-  /*
-  // split the reponse
-  XrdOucString origResponse = response->GetBuffer();
-  origResponse += "&eos.app=fuse";
-  auto qmidx = origResponse.find("?");
-  
-  // insert back the cgi params that are not given back by the mgm
-  std::map<std::string,std::string> m;
-  ImportCGI(m,opaque);
-  ImportCGI(m,origResponse.c_str()+qmidx+1);
-  // drop authentication params as they would fail on the fst
-  m.erase("xrd.wantprot"); m.erase("xrd.k5ccname"); m.erase("xrd.gsiusrpxy");
-  mOpaque="";
-  ToCGI(m,mOpaque);
-  
-  mPath.assign(origResponse.c_str(),qmidx);
-  */
-  
-  // ==================================================================
-  // ! we don't use the redirect on the actual open from a lazy open anynore.
-  // there is now a split between RO and RW files in the FileAbstraction
-  // to keep the consistency, we always go back to the mgm
-  // the lazy open call is then just used than the open can happen
-  // and possibly add the entry in the namespace if the file is being created
-  // I guess we could still do safely that for rw open
 
   // split the reponse
   XrdOucString origResponse = response->GetBuffer ();
@@ -303,14 +303,54 @@ int LayoutWrapper::LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, 
 }
 
 //--------------------------------------------------------------------------
+// Repair a partially offline file
+//--------------------------------------------------------------------------
+bool
+LayoutWrapper::Repair (const std::string& path, const char* opaque)
+{
+  eos_static_notice("path=\"%s\" opaque=\"%s\"",path.c_str(), opaque);
+
+  // get path and url prefix
+  XrdCl::URL u(path);
+  std::string file_path = u.GetPath();
+
+  if (file_path.substr(0,2) == "//")
+  {
+    file_path.erase(0,1);
+  }
+
+  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&eos.app=fuse&mgm.grab.version=-1&mgm.path=" + file_path + "&" + opaque;
+
+  u.SetParams("");
+  u.SetPath("/proc/user/");
+  XrdCl::XRootDStatus status;
+
+  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+
+  int retc = file->Open (u.GetURL().c_str(), (XrdSfsFileOpenMode)0, (mode_t)0, cmd.c_str(), NULL, true, 0, false);
+
+  if (retc)
+  {
+    eos_static_err ("open failed for %s?%s : error code is %d", u.GetURL().c_str(), cmd.c_str(), (int) errno);
+    return false;
+  }
+  
+  file->Close();
+  return true;
+}
+
+//--------------------------------------------------------------------------
 // overloading member functions of FileLayout class
 //--------------------------------------------------------------------------
-int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen, size_t owner_lifetime)
+int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen, size_t owner_lifetime, bool inlineRepair)
 {
   int retc = 0;
   static int sCleanupTime=0;
+  
+  if (inlineRepair)
+    mInlineRepair = inlineRepair;
 
-  eos_static_debug("opening file %s, lazy open is %d flags=%x", path.c_str (), (int)!doOpen, flags);
+  eos_static_debug("opening file %s, lazy open is %d flags=%x inline-repair=%s", path.c_str (), (int)!doOpen, flags, mInlineRepair?"true":"false");
   if (mOpen)
   {
     eos_static_debug("already open");

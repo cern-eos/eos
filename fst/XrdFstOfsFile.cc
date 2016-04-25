@@ -979,26 +979,42 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
-  if (!fMd)
+  if ( (!fMd) || gOFS.Simulate_FMD_open_error )
   {
-    if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
+    if( !gOFS.Simulate_FMD_open_error )
     {
-      eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-      int ecode = 1094;
-      eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
-                  RedirectManager.c_str(), ecode);
-
-      if (hasCreationMode)
+      // try to resync from the MGM and repair on the fly
+      if (gFmdDbMapHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str()))
       {
-        // clean-up before re-bouncing
-        dropall(fileid, path, RedirectManager.c_str());
+        eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+        fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
       }
-      return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+      else
+      {
+        eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+      }
     }
-    else
+    if ( (!fMd) || gOFS.Simulate_FMD_open_error )
     {
-      eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
-      return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
+      if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
+      {
+	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+	int ecode = 1094;
+	eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
+		    RedirectManager.c_str(), ecode);
+	
+	if (hasCreationMode) 
+	{
+	  // clean-up before re-bouncing
+	  dropall(fileid, path, RedirectManager.c_str());
+	}
+	return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+      }
+      else
+      {
+	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
+	return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
+      }
     }
   }
 
@@ -1078,7 +1094,7 @@ XrdFstOfsFile::open (const char* path,
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
 
-	if (hasCreationMode)
+	if (hasCreationMode) 
 	{
 	  // clean-up before re-bouncing
 	  dropall(fileid, path, RedirectManager.c_str());
@@ -2623,14 +2639,19 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
     else
     {
       // Check if the file system is full
-      XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+      bool isfull = false;
+      {
+	XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+	isfull = gOFS.Storage->fileSystemFullMap[fsid];
+      }
 
-      if (gOFS.Storage->fileSystemFullMap[fsid])
+      if (isfull)
       {
         writeErrorFlag = kOfsDiskFullError;
-        return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=",
-                         capOpaque ? (capOpaque->Get("mgm.path") ?
-                                      capOpaque->Get("mgm.path") : FName()) : FName());
+        return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space "
+                         "(headroom) exceeded fn=", capOpaque ?
+                         (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") :
+                          FName()) : FName());
       }
     }
   }
