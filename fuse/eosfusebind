@@ -330,7 +330,7 @@ function LinkUserGlob
     echo "Error creating credentials symlink." >&2
   fi
   # cleanup the other credentials in the store as only one global credential is required at a time
-  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \;
+  find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \; >/dev/null 2>&1
 }
 
 function UnlinkUserGlob
@@ -346,7 +346,7 @@ function UnlinkUserGlob
   #echo rm -f ${SymlinkBaseNameUser}.*
   rm -f ${SymlinkBaseNameUser}.*
   # cleanup the other credentials in the store as no credentials is needed if there is no user global
-  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{} \;
+  find /var/run/eosd/credentials/store -uid ${UID} -exec rm -f \{} \; >/dev/null 2>&1
 }
 
 function UnlinkUserSessions
