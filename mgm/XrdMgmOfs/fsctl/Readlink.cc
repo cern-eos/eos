@@ -47,10 +47,13 @@
 
   XrdOucString response = "readlink: retc=";
   response += retc;
-  response += " ";
-  if(env.Get("eos.encodepath"))
-    link = eos::common::StringConversion::curl_escaped(link.c_str()).c_str();
-  response += link.c_str();
+  if (!retc)
+  {
+    response += " ";
+    if(env.Get("eos.encodepath"))
+      link = eos::common::StringConversion::curl_escaped(link.c_str()).c_str();
+    response += link.c_str();
+  }
   error.setErrInfo(response.length() + 1, response.c_str());
   return SFS_DATA;
 }
