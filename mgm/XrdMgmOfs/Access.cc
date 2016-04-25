@@ -400,7 +400,9 @@ XrdMgmOfs::acc_access (const char* path,
     // browse permission by ACL
     if (acl.HasAcl())
     {
-
+      if (acl.CanWrite())
+	w_ok = true;
+	 
       // write-once or write is fine for OC write permission
       if (!(acl.CanWrite() || acl.CanWriteOnce()))
         w_ok = false;

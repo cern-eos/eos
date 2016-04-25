@@ -13,8 +13,10 @@ Beryl Release Notes
 Bug Fixes
 +++++++++
 
-- fix exclusive lock held around fallocate delaying all writes and opens during an fallocate call
-- fix SEGV in readlink call when an errno is returned
+- fix exclusive lock held around fallocate delaying all writes and opens during an fallocate call (FST)
+- fix SEGV in readlink call when an errno is returned (FUSE)
+- fix OC access permission string to include writable for ACL shared directories (MGM)
+- fix race condition when FUSE write-back cache is full - JIRA EOS-1455
 
 New Features
 ++++++++++++
@@ -23,6 +25,7 @@ New Features
 -- export EOS_FUSE_INLINE_REPAIR=1
 -- export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
 - bypass authentication requirements for 'eos version' call (e.g. when getting the supported features)
+- add IO error simulation for open on FSTs
 
 ``V0.3.168 Aquamarine``
 -----------------------

@@ -375,9 +375,16 @@ function UnlinkUnactiveSessions
   rm -f $FILELIST
 }
 
-# if this a pan call, re-issue the command as the right user
+# if this a pam call, re-issue the command as the right user
 if [[ ( "$#" = 1 )   &&  (  "$1" = "--pam" ) && (  "$EUID" = "0" ) && (  "$PAM_USER" != "0" ) && (  "$PAM_USER" != "root" ) ]]; then
   su -c "$0 $*" $PAM_USER
+  exit $?
+fi
+
+# re-iisue the call with a file lock to avoid race conditions
+if [[ "A${EOSFUSEBIND_NOLOCK}" != "A1" ]]; then
+  GetSymlinkBaseNameUser
+  env EOSFUSEBIND_NOLOCK=1 flock ${SymlinkBaseNameUser}.lock $0 $*
   exit $?
 fi
 
