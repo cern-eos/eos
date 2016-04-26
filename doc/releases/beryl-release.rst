@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.170 Aquamarine``
+-----------------------
+
+New Feature
++++++++++++
+
+- remove 'chown -R' on FST paritions which was used to compensate a bug visible in 0.3.137 since it might introduce large unnecessary boot times when updating from versions < 0.3.137
+
 ``V0.3.169 Aquamarine``
 -----------------------
 
