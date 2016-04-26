@@ -17,6 +17,8 @@ Bug Fixes
 - fix SEGV in readlink call when an errno is returned (FUSE)
 - fix OC access permission string to include writable for ACL shared directories (MGM)
 - fix race condition when FUSE write-back cache is full - JIRA EOS-1455
+- don't report symlinks as zero replica files
+- fix SEGV in enforced geo placement where no location is available 
 
 New Features
 ++++++++++++
