@@ -2373,7 +2373,7 @@ XrdFstOfsFile::close ()
 
       if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"), capOpaque->Get("mgm.manager"), OpaqueString))
       {
-        eos_err("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
+        eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
         gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is "
                   "at risk - only one replica has been successfully stored for fn=",
                   capOpaque->Get("mgm.path"));
