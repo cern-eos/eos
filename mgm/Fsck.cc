@@ -416,7 +416,7 @@ Fsck::Check (void)
             continue;
           }
 
-          if (fmd)
+          if (fmd && (!fmd->isLink()))
           {
             XrdSysMutexHelper lock(eMutex);
             eMap["zero_replica"].insert(*it);
