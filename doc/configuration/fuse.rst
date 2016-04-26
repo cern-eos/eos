@@ -13,11 +13,11 @@ There a two FUSE client modes available:
 
 .. epigraph::
 
-   ========= ===================================================================
-   daemon    description
-   ========= ===================================================================
-   eosfsd    An end-user private mount which is not shared between users 
-   eosd      A system-wide mount shared between users
+   ========= ===== ===================================================================
+   daemon    user  description
+   ========= ===== ===================================================================
+   eosd      !root An end-user private mount which is not shared between users 
+   eosd      root  A system-wide mount shared between users
    ========= ===================================================================
 
 
@@ -27,6 +27,8 @@ The end user mount supports the strong authentication methods in EOS:
 
 * **KRB5**
 * **X509**
+
+The shared mount supports these authentication methods only in the CITRINE branch.
 
 Mouting
 +++++++
@@ -227,7 +229,84 @@ Once you configured the FUSE mountpoint(s) you can use standard service mechanis
 
    # if instances are up restart them conditional
    service eosd condrestart [myinstance]
-    
+   
+   # shutdown/cleanup all eosd instances running as root
+   service eosd killall
+
+Example Configuration
++++++++++++++++++++++
+
+He is an example to configure two FUSE mounts from instance **use** and **public**
+
+Define two FUSE mounts in /etc/sysconfig/eos
+
+.. code-block:: bash
+
+   # define which instance mounts we have configured
+   export EOS_FUSE_MOUNTS="user public"
+
+   # #################################################################
+   # shared EOS FUSE options
+   # #################################################################
+   # in-memory write-back cache per file
+   export EOS_FUSE_CACHE_SIZE=67108864
+   # just normal logging
+   export EOS_FUSE_DEBUG=0
+   # not to verbose - just prints timing and errors
+   export EOS_FUSE_LOGLEVEL=5
+   # don't wast time to do parallel IO - only useful for RAIN layouts
+   export EOS_FUSE_NOPIO=1
+   # configure 256k readahead (additional to 128k kernel readahead)
+   export EOS_FUSE_RDAHEAD=1
+   export EOS_FUSE_RDAHEAD_WINDOW=262144
+   # stop rm -r for directories with deepness <=2
+   export EOS_FUSE_RMLVL_PROTECT=2
+
+   # #################################################################
+   # shared XrdCl options
+   # #################################################################
+   # tag xroot traffic
+   export XRD_APPNAME=eos-fuse
+   export XRD_CONNECTIONRETRY=4096
+   export XRD_CONNECTIONWINDOW=0
+   # keep connections to FSTs for 5 minutes
+   export XRD_DATASERVERTTL=300
+   # keep connections to MGM for 30 minutes
+   export XRD_LOADBALANCERTTL=1800
+   # standard verbosity for logging
+   export XRD_LOGLEVEL=Info
+   # don't follow more than 5 redirects
+   export XRD_REDIRECTLIMIT=5
+   # short request timeout of 60s - might be low for high throughput storage
+   export XRD_REQUESTTIMEOUT=60
+   export XRD_STREAMERRORWINDOW=15
+   export XRD_STREAMTIMEOUT=15
+   # interval how often timeouts are checked .. to get ~60s we have to set it to a second
+   export XRD_TIMEOUTRESOLUTION=1
+   # client worker thread pool 
+   export XRD_WORKERTHREADS=16
+
+
+Then the individual part of each FUSE mount is described in two sysconfig files:
+
+**user**: ``/etc/sysconfig/eos.user``
+
+.. code-block:: bash
+
+   # from where do we mount ...
+   export EOS_FUSE_MGM_ALIAS=eosuser.cern.ch
+   # where to we mount
+   export EOS_FUSE_MOUNTDIR=/eos/user/
+
+**public**: ``/etc/sysconfig/eos.public``
+
+.. code-block:: bash
+
+   # from where do we mount ...
+   export EOS_FUSE_MGM_ALIAS=eospublic.cern.ch
+   # where to we mount
+   export EOS_FUSE_MOUNTDIR=/eos/public/
+
 Authentication
 --------------
 The shared FUSE mount currently support two authentication modes
@@ -347,7 +426,7 @@ If you have a defined FUSE instances and can manage them with the eosd service s
 .. note::
 
    You should make sure that you don't have **eosd** as a persistent service:
-   /sbin/chkconfig --del eos
+   /sbin/chkconfig --del eosd
 
 To mount **myinstance** to the local directory ``/eos/myinstance`` you can write:
 

@@ -7,6 +7,21 @@
 Beryl Release Notes
 ===================
 
+``V0.3.171 Aquamarine``
+
+Bug Fixes
++++++++++
+
+- fix 'd' via ACL for OC access
+
+``V0.3.170 Aquamarine``
+-----------------------
+
+New Feature
++++++++++++
+
+- remove 'chown -R' on FST paritions which was used to compensate a bug visible in 0.3.137 since it might introduce large unnecessary boot times when updating from versions < 0.3.137
+
 ``V0.3.169 Aquamarine``
 -----------------------
 
@@ -17,13 +32,15 @@ Bug Fixes
 - fix SEGV in readlink call when an errno is returned (FUSE)
 - fix OC access permission string to include writable for ACL shared directories (MGM)
 - fix race condition when FUSE write-back cache is full - JIRA EOS-1455
+- don't report symlinks as zero replica files
+- fix SEGV in enforced geo placement where no location is available 
 
 New Features
 ++++++++++++
 
 - add new FUSE config flags to enable automatic repair of a broken replica if one is still readable - default enabled until 256MB files
--- export EOS_FUSE_INLINE_REPAIR=1
--- export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
+  - export EOS_FUSE_INLINE_REPAIR=1
+  - export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
 - bypass authentication requirements for 'eos version' call (e.g. when getting the supported features)
 - add IO error simulation for open on FSTs
 
