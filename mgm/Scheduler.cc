@@ -335,6 +335,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	  if ( (nfilesystems==1) && exact_match && !geo_entry_fsid) 
 	  {
 	    ait = availablevector.erase(ait);
+            if (ait == availablevector.end())
+              ait = availablevector.begin();
 	  }
 	  else
 	  {
@@ -342,6 +344,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	    // remove it from the selection map
 	    availablefs.erase(*ait);
 	    ait = availablevector.erase(ait);
+            if (ait == availablevector.end())
+              ait = availablevector.begin();
 	    // rotate scheduling view ptr
 	    nassigned++;
 	  }
@@ -404,6 +408,8 @@ Scheduler::FilePlacement (const char* path, //< path to place
         }
         if (nassigned >= nfilesystems)
           break;
+	if (ait == availablevector.end())
+	  break;
       } // leave the <loop> where filesystems get selected by weight
     }
 
