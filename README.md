@@ -29,7 +29,7 @@ common    -	Common Helper Files and Classes
 console   -	Command Line Client Implementation
 etc       -	Service scripts, Logrotation and Sysconfig Files
 fst       -	The Storage Server Plugin (FST)
-fuse      -	The FUSE mount Client (eosd low level - eosfsd high level)
+fuse      -	The FUSE mount Client (eosd low level API)
 man       -	Manual Pages
 mgm       -	The Meta Data Namespace+Scheduling Redirector Plugin (MGM)
 mq        -	The Message Queue Server Plugin
