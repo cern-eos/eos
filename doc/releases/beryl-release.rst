@@ -7,6 +7,13 @@
 Beryl Release Notes
 ===================
 
+``V0.3.171 Aquamarine``
+
+Bug Fixes
++++++++++
+
+- fix 'd' via ACL for OC access
+
 ``V0.3.170 Aquamarine``
 -----------------------
 
