@@ -150,6 +150,11 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    #    file user proxy should be used. (default 0)
    # EOS_FUSE_USER_GSIPROXY=0
 
+   # When strong authentication is used (EOS_FUSE_USER_KRB5CC=1 or/and EOS_FUSE_USER_GSIPROXY=1),
+   #    if no strong credentials is found, try to access using unix authentication as nobody
+   #    note: this does not require to configure the box as a gateway on the mgm but it requires that "nobody" is allowed there 
+   # EOS_FUSE_FALLBACKTONOBODY=0
+
    # If a connection fails using strong authentication, this is the timeout before actully retrying
    #    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
    #    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
