@@ -157,6 +157,7 @@ filesystem::log_settings ()
  eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
  eos_static_warning ("krb5 unsafe inmem krb5 := %s", use_unsafe_krk5? "true" : "false");
  eos_static_warning ("x509 authentication    := %s", use_user_gsiproxy? "true" : "false");
+ eos_static_warning ("fallback to nobody     := %s", fallback2nobody? "true" : "false");
 
 }
 
@@ -3905,6 +3906,10 @@ filesystem::strongauth_cgi (pid_t pid)
      str += authmet.c_str () + 5;
      str += "&xrd.wantprot=gsi";
    }
+   else if (authmet.compare (0, 5, "unix:") == 0)
+   {
+     str += "xrd.wantprot=unix";
+   }
    else
    {
      eos_static_err ("don't know what to do with qualifiedid [%s]", authmet.c_str ());
@@ -4575,12 +4580,16 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    use_unsafe_krk5 = true;
  else
    use_unsafe_krk5 = false;
+ if (getenv ("EOS_FUSE_FALLBACKTONOBODY") && (atoi (getenv ("EOS_FUSE_FALLBACKTONOBODY")) == 1))
+   fallback2nobody = true;
+ else
+   fallback2nobody = false;
  if (getenv ("EOS_FUSE_USER_KRB5FIRST") && (atoi (getenv ("EOS_FUSE_USER_KRB5FIRST")) == 1))
    tryKrb5First = true;
  else
    tryKrb5First = false;
 
- authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, tryKrb5First);
+ authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
 
  // get uid and pid specificities of the system
  {

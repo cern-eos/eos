@@ -24,8 +24,6 @@
 #ifndef __AUTHIDMANAGER__HH__
 #define __AUTHIDMANAGER__HH__
 
-#define sMaxAuthId (2^6)
-
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
@@ -66,14 +64,16 @@ public:
   bool use_user_gsiproxy;
   bool use_unsafe_krk5;
   bool tryKrb5First;
+  bool fallback2nobody;
 
   void
-  setAuth (bool krb5, bool proxy, bool unsafekrk5, bool krb5first)
+  setAuth (bool krb5, bool proxy, bool unsafekrk5, bool fb2unix, bool krb5first)
   {
     use_user_krb5cc = krb5;
     use_user_gsiproxy = proxy;
     use_unsafe_krk5 = unsafekrk5;
     tryKrb5First = krb5first;
+    fallback2nobody = fb2unix;
   }
 
   void
@@ -95,7 +95,7 @@ public:
 
   enum CredType
   {
-    krb5, krk5, x509
+    krb5, krk5, x509, nobody
   };
 
   struct CredInfo
@@ -350,10 +350,19 @@ protected:
     // find the credentials
     CredInfo credinfo;
     struct stat filestat,linkstat;
-    if(!findCred(credinfo,linkstat,filestat,uid,sid,sessionSut))
+    if (!findCred (credinfo, linkstat, filestat, uid, sid, sessionSut))
     {
-      eos_static_notice("could not find any credential");
-      return EACCES;
+      if (fallback2nobody)
+      {
+        credinfo.type = nobody;
+        credinfo.lmtime = credinfo.lctime = 0;
+        eos_static_debug("could not find any strong credential for sid %d, falling back on 'nobody'",(int)sid);
+      }
+      else
+      {
+        eos_static_notice("could not find any strong credential for sid %d",(int)sid);
+        return EACCES;
+      }
     }
 
     // check if the credentials in the credential cache cache are up to date
@@ -368,7 +377,8 @@ protected:
       sessionInCache = false;
       const CredInfo &ci = cacheEntry->second;
       // we also check ctime to be sure that permission/ownership has not changed
-      if(ci.lmtime == credinfo.lmtime
+      if( ci.type == credinfo.type
+          && ci.lmtime == credinfo.lmtime
           && ci.lctime == credinfo.lctime )
       {
         sessionInCache = true;
@@ -389,53 +399,68 @@ protected:
       return 0;
     }
 
-    // refresh the credentials in the cache
-    // check the credential security
-    if(!checkCredSecurity(linkstat,filestat,uid,credinfo.type))
-    {
-      eos_static_alert("credentials are not safe");
-      return EACCES;
-    }
-    // check the credential security
-    if(!readCred(credinfo))
-      return EACCES;
-
-    // update authmethods for session leader and current pid
+    uint64_t authid=0;
     std::string sId;
-    if(credinfo.type==krb5) sId = "krb5:";
-    else if(credinfo.type==krk5) sId = "krk5:";
-    else sId = "x509:";
-
-    std::string newauthmeth;
-    if(credinfo.type==krk5 && !checkKrk5StringSafe(credinfo.fname))
+    if (credinfo.type == nobody)
     {
-      eos_static_err("deny user %d using of unsafe in memory krb5 credential string '%s'",
-                     (int)uid,credinfo.fname.c_str());
+      sId = "unix:nobody";
+      /*** using unix authentication and user nobody ***/
+      proccache_SetAuthMethod (pid, sId.c_str() );
+      proccache_SetAuthMethod (sid, sId.c_str() );
+      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
+      pid2StrongLogin[pid] = "nobody";
+    }
+    else
+    {
+      // refresh the credentials in the cache
+      // check the credential security
+      if (!checkCredSecurity (linkstat, filestat, uid, credinfo.type))
+      {
+        eos_static_alert("credentials are not safe");
+        return EACCES;
+      }
+      // check the credential security
+      if (!readCred (credinfo)) return EACCES;
+
+      // update authmethods for session leader and current pid
+      if (credinfo.type == krb5)
+        sId = "krb5:";
+      else if (credinfo.type == krk5)
+        sId = "krk5:";
+      else
+        sId = "x509:";
+
+      std::string newauthmeth;
+      if (credinfo.type == krk5 && !checkKrk5StringSafe (credinfo.fname))
+      {
+        eos_static_err("deny user %d using of unsafe in memory krb5 credential string '%s'", (int )uid, credinfo.fname.c_str ());
         return EPERM;
-    }
-    // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
-    sId.append(credinfo.fname);
-    newauthmeth = sId;
+      }
+      // using directly the value of the pointed file (which is the text in the case ofin memory credentials)
+      sId.append (credinfo.fname);
+      newauthmeth = sId;
 
-    if(newauthmeth.empty())
-    {
-      eos_static_err("error symlinking credential file ");
-      return EACCES;
-    }
-    proccache_SetAuthMethod(pid,newauthmeth.c_str());
-    proccache_SetAuthMethod(sid,newauthmeth.c_str());
+      if (newauthmeth.empty ())
+      {
+        eos_static_err("error symlinking credential file ");
+        return EACCES;
+      }
+      proccache_SetAuthMethod (pid, newauthmeth.c_str ());
+      proccache_SetAuthMethod (sid, newauthmeth.c_str ());
 
-    auto authid = getNewConId(uid,gid,pid);
-    if(!authid)
-    {
-      eos_static_alert("running out of XRootD connections");
-      errCode = EBUSY;
-      return errCode;
+      authid = getNewConId (uid, gid, pid);
+      if (!authid)
+      {
+        eos_static_alert("running out of XRootD connections");
+        errCode = EBUSY;
+        return errCode;
+      }
+      // update pid2StrongLogin (no lock needed as only one thread per process can access this)
+      map_user xrdlogin (uid, gid, authid);
+      std::string mapped = mapUser (uid, gid, 0, authid);
+      pid2StrongLogin[pid] = std::string (xrdlogin.base64 (mapped));
     }
-    // update pid2StrongLogin (no lock needed as only one thread per process can access this)
-    map_user xrdlogin (uid, gid, authid);
-    std::string mapped = mapUser (uid, gid, 0, authid);
-    pid2StrongLogin[pid] = std::string (xrdlogin.base64 (mapped));
+
     // update uidsid2credinfo
     credinfo.cachedStrongLogin = pid2StrongLogin[pid];
     eos_static_debug("uid=%d  sid=%d  pid=%d  writing stronglogin in cache %s",(int)uid,(int)sid,(int)pid,credinfo.cachedStrongLogin.c_str());

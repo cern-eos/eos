@@ -87,7 +87,7 @@ The configuration variables are:
    ========================= ======================================================================
    balancer                  can be off or on to disable or enable the balancing
    balancer.node.ntx         number of parallel balancer transfers running on each FST
-   balancer.node.rate        rate limitation for each running balancer transfer
+   balancer.node.rate        rate limitation for each running balancer transfer in MB/s
    balancer.threshold        percentage at which balancing get's enabled within a scheduling group
    ========================= ======================================================================
  
