@@ -93,7 +93,7 @@ Storage::GetScheduledDrainJobs (unsigned long long totalscheduled,
  * @param totalscheduled the total number of scheduled jobs
  * @param totalexecuted the total number of executed jobs
  * @return number of scheduled jobs
- * 
+ *
  * The time delay from scheduling on MGM and appearing in the queue on the FST
  * creates an accounting problem. The returned value is the currently known
  * value on the FST which can be wrong e.g. too small!
@@ -201,7 +201,7 @@ Storage::GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
       unsigned long id = fileSystemsVector[index]->GetId();
       eos_static_debug("FileSystem %lu |%s|", id, fileSystemsVector[index]->GetString("stat.drainer").c_str());
 
-      // check if this filesystem has to 'schedule2drain' 
+      // check if this filesystem has to 'schedule2drain'
       if (fileSystemsVector[index]->GetString("stat.drainer") != "on")
       {
         // nothing to do here
@@ -210,7 +210,7 @@ Storage::GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
 
       // store our notification condition variable
       fileSystemsVector[index]->
-        GetDrainQueue()->SetJobEndCallback(&drainJobNotification);
+              GetDrainQueue()->SetJobEndCallback(&drainJobNotification);
 
       // configure the proper rates and slots
       if (fileSystemsVector[index]->GetDrainQueue()->GetBandwidth() != ratetx)
@@ -226,9 +226,9 @@ Storage::GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
       }
 
       eos::common::FileSystem::fsstatus_t bootstatus =
-        fileSystemsVector[index]->GetStatus();
+              fileSystemsVector[index]->GetStatus();
       eos::common::FileSystem::fsstatus_t configstatus =
-        fileSystemsVector[index]->GetConfigStatus();
+              fileSystemsVector[index]->GetConfigStatus();
 
       // check if the filesystem is full
       bool full = false;
@@ -243,14 +243,14 @@ Storage::GetFileSystemInDrainMode (std::vector<unsigned int> &drainfsvector,
       {
         // skip this one in bad state
 
-        eos_static_debug("FileSystem %lu status=%u configstatus=%u", bootstatus, configstatus);
+        eos_static_debug("FileSystem %lu status=%u configstatus=%s", id, bootstatus, configstatus);
         continue;
       }
 
       eos_static_debug("id=%u nparalleltx=%llu",
-                      id,
-                      nparalleltx
-                      );
+                       id,
+                       nparalleltx
+                       );
 
       // add this filesystem to the vector of draining filesystems
       drainfsvector.push_back(index);
@@ -272,7 +272,7 @@ Storage::GetDrainJob (unsigned int index)
 /*----------------------------------------------------------------------------*/
 {
   unsigned long long freebytes =
-    fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
+          fileSystemsVector[index]->GetLongLong("stat.statfs.freebytes");
   unsigned long id = fileSystemsVector[index]->GetId();
 
   XrdOucErrInfo error;
@@ -343,7 +343,7 @@ Storage::Drainer ()
   XrdSysTimer sleeper;
 
   // ---------------------------------------------------------------------------
-  // wait for our configuration queue to be set 
+  // wait for our configuration queue to be set
   // ---------------------------------------------------------------------------
 
   WaitConfigQueue(nodeconfigqueue);
@@ -380,7 +380,7 @@ Storage::Drainer ()
     // -- U --
     // update the config atlast every minute
     // -------------------------------------------------------------------------
-    if (!last_config_update || ( ((long long)now-(long long)last_config_update) > 60) )
+    if (!last_config_update || (((long long) now - (long long) last_config_update) > 60))
     {
       GetDrainSlotVariables(nparalleltx, ratetx, nodeconfigqueue);
       last_config_update = now;
@@ -403,7 +403,7 @@ Storage::Drainer ()
     std::map<unsigned int, time_t> drainfsindexSchedulingTime;
 
     // ************************************************************************>
-    // read lock the file system vector from now on 
+    // read lock the file system vector from now on
     {
       eos::common::RWMutexReadLock lock(fsMutex);
 
@@ -429,16 +429,16 @@ Storage::Drainer ()
       // -------------------------------------------------------------------------
 
       size_t slotstofill = ((nparalleltx - nscheduled) > 0) ?
-        (nparalleltx - nscheduled) : 0;
+              (nparalleltx - nscheduled) : 0;
 
       bool stillGotOneScheduled;
 
       eos_static_debug("slotstofill=%u nparalleltx=%u nscheduled=%u totalscheduled=%llu totalexecuted=%llu",
-                      slotstofill,
-                      nparalleltx,
-                      nscheduled,
-                      totalscheduled,
-                      totalexecuted);
+                       slotstofill,
+                       nparalleltx,
+                       nscheduled,
+                       totalscheduled,
+                       totalexecuted);
 
       if (slotstofill)
       {
@@ -484,11 +484,11 @@ Storage::Drainer ()
         }
         while (slotstofill && stillGotOneScheduled);
 
-	// reset the failed vector, otherwise we starve forever
-	for (size_t i = 0; i < drainfsindex.size(); i++)
-	{
-	  drainfsindexSchedulingFailed[i] = false;
-	}
+        // reset the failed vector, otherwise we starve forever
+        for (size_t i = 0; i < drainfsindex.size(); i++)
+        {
+          drainfsindexSchedulingFailed[i] = false;
+        }
       }
     }
     // ************************************************************************>

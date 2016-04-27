@@ -63,26 +63,28 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class handling proc command execution
 //------------------------------------------------------------------------------
-class ProcCommand : public eos::common::LogId
-{
+class ProcCommand : public eos::common::LogId {
 private:
 
   //----------------------------------------------------------------------------
   //! Response structre holding information about the status of an archived dir
   //----------------------------------------------------------------------------
-  struct ArchDirStatus
-  {
+
+  struct ArchDirStatus {
     time_t ctime;
     std::string path;
     std::string status;
 
-    ArchDirStatus(time_t ct, std::string dpath, std::string st):
-      ctime(ct),
-      path(dpath),
-      status(st)
-    {};
+    ArchDirStatus (time_t ct, std::string dpath, std::string st) :
+    ctime (ct),
+    path (dpath),
+    status (st)
+    {
+    };
 
-    ~ArchDirStatus() {};
+    ~ArchDirStatus ()
+    {
+    };
   };
 
 
@@ -128,7 +130,7 @@ private:
   void MakeResult ();
 
   // helper function able to detect key value pair output and convert to http table format
-  bool KeyValToHttpTable(XrdOucString &stdOut);
+  bool KeyValToHttpTable (XrdOucString &stdOut);
   bool mAdminCmd; // < indicates an admin command
   bool mUserCmd; //< indicates a user command
 
@@ -136,9 +138,10 @@ private:
   bool mJsonFormat; //< indicates JSON format
   bool mHttpFormat; //< indicates HTTP format
   bool mClosed; //< indicates the proc command has been closed already
+  bool mBase64Encoding; //< indicates base64 encoding of response
 
   //----------------------------------------------------------------------------
-  //! Create archive file. If successful then the archive file is copied to the 
+  //! Create archive file. If successful then the archive file is copied to the
   //! arch_dir location. If not it sets the retc and stdErr string accordingly.
   //!
   //! @param arch_dir directory for which the archive file is created
@@ -149,10 +152,10 @@ private:
   //!
   //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
-  void ArchiveCreate(const std::string& arch_dir,
-                     const std::string& dst_url,
-                     const std::vector<std::string>& vect_files,
-                     int fid);
+  void ArchiveCreate (const std::string& arch_dir,
+                      const std::string& dst_url,
+                      const std::vector<std::string>& vect_files,
+                      int fid);
 
 
   //----------------------------------------------------------------------------
@@ -163,7 +166,7 @@ private:
   //! @return 0 is successful, otherwise errno. The output of the command or
   //!         any possible error messages are saved in stdOut and stdErr.
   //----------------------------------------------------------------------------
-  int ArchiveExecuteCmd(const::string& cmd);
+  int ArchiveExecuteCmd (const::string& cmd);
 
 
   //----------------------------------------------------------------------------
@@ -174,7 +177,7 @@ private:
   //! @return vector containing the full path of the directories currently
   //!         archived
   //----------------------------------------------------------------------------
-  std::vector<ArchDirStatus> ArchiveGetDirs(const std::string& root) const;
+  std::vector<ArchDirStatus> ArchiveGetDirs (const std::string& root) const;
 
 
   //----------------------------------------------------------------------------
@@ -187,29 +190,29 @@ private:
   //! @param tx_dirs set containing the paths of ongoing transfers
   //! @param max_len_path maximum path length used later for listing
   //----------------------------------------------------------------------------
-  void ArchiveUpdateStatus(std::vector<ArchDirStatus>& dirs,
-                           const std::set<std::string>& tx_dirs,
-                           size_t& max_len_path);
+  void ArchiveUpdateStatus (std::vector<ArchDirStatus>& dirs,
+                            const std::set<std::string>& tx_dirs,
+                            size_t& max_len_path);
 
 
   //----------------------------------------------------------------------------
   //! Get fileinfo for all files/dirs in the subtree and add it to the
   //! archive i.e.  do
-  //! "find -d --fileinfo /dir/" for directories or 
+  //! "find -d --fileinfo /dir/" for directories or
   //! "find -f --fileinfo /dir/ for files.
   //!
   //! @param arch_dir EOS directory beeing archived
   //! @param arch_ofs local archive file stream object
   //! @param num number of entries added
-  //! @param is_file if true add file entries to the archive, otherwise 
+  //! @param is_file if true add file entries to the archive, otherwise
   //!                directories
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  int ArchiveAddEntries(const std::string& arch_dir,
-                        std::ofstream& arch_ofs,
-                        int& num,
-                        bool is_file);
+  int ArchiveAddEntries (const std::string& arch_dir,
+                         std::ofstream& arch_ofs,
+                         int& num,
+                         bool is_file);
 
 
   //----------------------------------------------------------------------------
@@ -218,12 +221,12 @@ private:
   //!
   //! @param arch_dir EOS directory
   //! @param vect_files vector of special archive filenames
-  //! 
+  //!
   //! @return 0 is successful, otherwise errno. It sets the global retc in case
   //!         of error.
   //----------------------------------------------------------------------------
-  int MakeSubTreeImmutable(const std::string& arch_dir,
-                           const std::vector<std::string>& vect_files);
+  int MakeSubTreeImmutable (const std::string& arch_dir,
+                            const std::vector<std::string>& vect_files);
 
 
   //----------------------------------------------------------------------------
@@ -235,7 +238,7 @@ private:
   //! @return 0 is successful, otherwise errno. It sets the global retc in case
   //!         of error.
   //----------------------------------------------------------------------------
-  int MakeSubTreeMutable(const std::string& arch_dir);
+  int MakeSubTreeMutable (const std::string& arch_dir);
 
 
   //----------------------------------------------------------------------------
@@ -246,7 +249,7 @@ private:
   //!
   //! @return true if user is allowed, otherwise False
   //----------------------------------------------------------------------------
-  bool ArchiveCheckAcl(const std::string& arch_dir) const;
+  bool ArchiveCheckAcl (const std::string& arch_dir) const;
 
 
   //----------------------------------------------------------------------------
@@ -264,11 +267,11 @@ private:
   //! @return 0 if successful, otherwise errno. It sets the global retc in case
   //!         of error
   //----------------------------------------------------------------------------
-  int BackupCreate(const std::string& backup_dir,
-                   const std::string& dst_url,
-                   const std::string& twindow_type,
-                   const std::string& twindow_val,
-                   const std::set<std::string>& excl_xattr);
+  int BackupCreate (const std::string& backup_dir,
+                    const std::string& dst_url,
+                    const std::string& twindow_type,
+                    const std::string& twindow_val,
+                    const std::set<std::string>& excl_xattr);
 
 
 public:
@@ -315,6 +318,7 @@ public:
   // -------------------------------------------------------------------------
   //! get the return code of a proc command
   // -------------------------------------------------------------------------
+
   int
   GetRetc ()
   {
@@ -323,9 +327,10 @@ public:
 
 
   //----------------------------------------------------------------------------
-  //! Get result file name 
+  //! Get result file name
   //----------------------------------------------------------------------------
-  inline const char* GetResultFn() const
+
+  inline const char* GetResultFn () const
   {
     return fresultStreamfilename.c_str();
   }
@@ -334,8 +339,8 @@ public:
   //! list of user proc commands
   // -------------------------------------------------------------------------
   int Attr ();
-  int Archive();
-  int Backup();
+  int Archive ();
+  int Backup ();
   int Cd ();
   int Chmod ();
   int DirInfo (const char* path);
@@ -381,8 +386,7 @@ public:
   ~ProcCommand ();
 };
 
-class ProcInterface
-{
+class ProcInterface {
 private:
 
 public:

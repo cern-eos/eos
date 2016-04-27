@@ -24,17 +24,14 @@
 
 #ifndef __EOSFST_FILEIO_HH__
 #define __EOSFST_FILEIO_HH__
-
-/*----------------------------------------------------------------------------*/
-#include <string>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
+#include "common/Statfs.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-
+#include <string>
+#include <list>
 /*----------------------------------------------------------------------------*/
-
-EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! The truncate offset (1TB) is used to indicate that a file should be deleted
@@ -44,61 +41,24 @@ EOSFSTNAMESPACE_BEGIN
 #define EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN 1024 * 1024 * 1024 * 1024ll
 #define EOS_FST_NOCHECKSUM_FLAG_VIA_TRUNCATE_LEN ((1024 * 1024 * 1024 * 1024ll)+1)
 
-//! Forward declaration
-class XrdFstOfsFile;
+EOSFSTNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-//! Abstract class modelling an IO plugin
-//------------------------------------------------------------------------------
-class FileIo : public eos::common::LogId
-{
+class FileIo : public eos::common::LogId {
 public:
-
-  //--------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param file original OFS file
-  //! @param client security entity
-  //!
-  //--------------------------------------------------------------------------
-  FileIo () :
-  eos::common::LogId (),
-  mFilePath (""),
-  mLastUrl(""),
-  mLastErrMsg("")
-  {
-    //empty
-  }
-
-
-  //--------------------------------------------------------------------------
-  //! Destructor
-  //--------------------------------------------------------------------------
-
-  virtual
-  ~FileIo () {
-    //empty
-  }
-
 
   //--------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
   //! @param timeout timeout value
-  //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode = 0,
-                    const std::string& opaque = "",
-                    uint16_t timeout = 0) = 0;
-
+  virtual int fileOpen(XrdSfsFileOpenMode flags,
+                       mode_t mode = 0,
+                       const std::string& opaque = "",
+                       uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Read from file - sync
@@ -107,15 +67,12 @@ public:
   //! @param buffer where the data is read
   //! @param length read length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        uint16_t timeout = 0) = 0;
-
+  virtual int64_t fileRead(XrdSfsFileOffset offset,
+                           char* buffer,
+                           XrdSfsXferSize length,
+                           uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Write to file - sync
@@ -124,15 +81,12 @@ public:
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length,
-                         uint16_t timeout = 0) = 0;
-
+  virtual int64_t fileWrite(XrdSfsFileOffset offset,
+                            const char* buffer,
+                            XrdSfsXferSize length,
+                            uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Read from file - async
@@ -142,16 +96,13 @@ public:
   //! @param length read length
   //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
-  //!
   //! @return number of bytes read or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t ReadAsync (XrdSfsFileOffset offset,
-                             char* buffer,
-                             XrdSfsXferSize length,
-                             bool readahead = false,
-                             uint16_t timeout = 0) = 0;
-
+  virtual int64_t fileReadAsync(XrdSfsFileOffset offset,
+                                char* buffer,
+                                XrdSfsXferSize length,
+                                bool readahead = false,
+                                uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Write to file - async
@@ -160,155 +111,266 @@ public:
   //! @param buffer data to be written
   //! @param length length
   //! @param timeout timeout value
-  //!
   //! @return number of bytes written or -1 if error
-  //!
   //--------------------------------------------------------------------------
-  virtual int64_t WriteAsync (XrdSfsFileOffset offset,
-                              const char* buffer,
-                              XrdSfsXferSize length,
-                                uint16_t timeout = 0) = 0;
-  
+  virtual int64_t fileWriteAsync(XrdSfsFileOffset offset,
+                                 const char* buffer,
+                                 XrdSfsXferSize length,
+                                 uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Truncate
   //!
   //! @param offset truncate file to this value
   //! @param timeout timeout value
-  //!
   //! @return 0 if successful, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
-
+  virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
-  virtual int
-  Fallocate (XrdSfsFileOffset length)
-  {
-    return 0;
-  }
-
+  virtual int fileFallocate(XrdSfsFileOffset length) = 0;
 
   //--------------------------------------------------------------------------
   //! Deallocate file space
   //!
   //! @param fromOffset offset start
   //! @param toOffset offset end
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
-  virtual int
-  Fdeallocate (XrdSfsFileOffset fromOffset,
-               XrdSfsFileOffset toOffset)
-  {
-    return 0;
-  }
-
+  virtual int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset) = 0;
 
   //--------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-
-  virtual int
-  Remove (uint16_t timeout = 0)
-  {
-    return 0;
-  }
-
+  virtual int fileRemove(uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Sync file to disk
   //!
   //! @param timeout timeout value
-  //!  
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Sync (uint16_t timeout = 0) = 0;
+  virtual int fileSync(uint16_t timeout = 0) = 0;
 
+  //--------------------------------------------------------------------------
+  //! Get pointer to async meta handler object
+  //!
+  //! @return pointer to async handler, NULL otherwise
+  //--------------------------------------------------------------------------
+  virtual void* fileGetAsyncHandler() = 0;
+
+  //--------------------------------------------------------------------------
+  //! Check for the existence of a file
+  //!
+  //! @param path to the file
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int fileExists() = 0;
 
   //--------------------------------------------------------------------------
   //! Close file
   //!
   //! @param timeout timeout value
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //--------------------------------------------------------------------------
-  virtual int Close (uint16_t timeout = 0) = 0;
-
+  virtual int fileClose(uint16_t timeout = 0) = 0;
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
   //! @param buf stat buffer
   //! @param timeout timeout value
-  //!
-  //!
   //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int fileStat(struct stat* buf, uint16_t timeout = 0) = 0;
+
+
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
-  //--------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @param len value length
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrSet(const char* name, const char* value, size_t len) = 0;
 
-  
-  //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object 
+  // ------------------------------------------------------------------------
+  //! Set a binary attribute (name has to start with 'user.' !!!)
   //!
-  //! @return pointer to async handler, NULL otherwise 
+  //! @param name attribute name
+  //! @param value attribute value
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrSet(string name, std::string value) = 0;
+
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
   //!
-  //--------------------------------------------------------------------------
-  virtual void* GetAsyncHandler () = 0;
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @param size the buffer size, after success the value size
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrGet(const char* name, char* value, size_t& size) = 0;
 
+  // ------------------------------------------------------------------------
+  //! Get a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @param value contains attribute value upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrGet(string name, std::string& value) = 0;
+
+  // ------------------------------------------------------------------------
+  //! Delete a binary attribute by name
+  //!
+  //! @param name attribute name
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrDelete(const char* name) = 0;
+
+  // ------------------------------------------------------------------------
+  //! List all attributes for the associated path
+  //!
+  //! @param list contains all attribute names for the set path upon success
+  //! @return 0 on success, -1 otherwise and error code is set
+  // ------------------------------------------------------------------------
+  virtual int attrList(std::vector<std::string>& list) = 0;
+
+  class FtsHandle {
+  protected:
+    std::string mPath;
+  public:
+    FtsHandle(const char* dirp) : mPath(dirp)
+    {
+    }
+
+    virtual ~FtsHandle()
+    {
+    }
+  };
 
   //--------------------------------------------------------------------------
-  //! Get path to current file
+  //! Open a cursor to traverse a storage system
+  //!
+  //! @return returns implementation dependent handle or 0 in case of error
   //--------------------------------------------------------------------------
+  virtual FtsHandle* ftsOpen() = 0;
 
-  const std::string&
-  GetPath ()
+  //--------------------------------------------------------------------------
+  //! Return the next path related to a traversal cursor obtained with ftsOpen
+  //!
+  //! @param fts_handle cursor obtained by ftsOpen
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  virtual std::string ftsRead(FtsHandle* handle) = 0;
+
+  //--------------------------------------------------------------------------
+  //! Close a traversal cursor
+  //!
+  //! @param fts_handle cursor to close
+  //! @return 0 if fts_handle was an open cursor, otherwise -1
+  //--------------------------------------------------------------------------
+  virtual int ftsClose(FtsHandle* handle) = 0;
+
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param path the path associated with this plugin instance
+  //! @param ioType the type of this plugin instance
+  //--------------------------------------------------------------------------
+  FileIo(std::string path, std::string ioType) :
+      eos::common::LogId(),
+      mFilePath(path),
+      mType(ioType),
+      mLastUrl(""),
+      mLastErrMsg(""),
+      mExternalStorage(false)
+  { }
+
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  virtual ~FileIo()
+  { }
+
+  //--------------------------------------------------------------------------
+  //! Plug-in function to fill a statfs structure about the storage filling
+  //! state
+  //! @param path to statfs
+  //! @param statfs return struct
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  virtual int Statfs(struct statfs* statFs) = 0;
+
+  //--------------------------------------------------------------------------
+  //! Callback function to fill a statfs structure about the storage filling
+  //! state
+  //! @param data containing path, return code and statfs structure
+  //! @return 0 if successful otherwise errno
+  //--------------------------------------------------------------------------
+  static int StatfsCB(eos::common::Statfs::Callback::callback_data* data)
   {
-    return mFilePath;
+    if (data && data->caller) {
+      data->retc = ((FileIo*) (data->caller))->Statfs(data->statfs);
+      return data->retc;
+    }
+    else {
+      return -1;
+    }
   }
 
-  //--------------------------------------------------------------------------
-  //! Get last used URL to current file
-  //--------------------------------------------------------------------------
-  const std::string&
-  GetLastUrl ()
+  // -------------------------------------------------------------------------
+  // Mark this IO as an IO module towards an external storage system
+  // -------------------------------------------------------------------------
+  void SetExternalStorage()
+  {
+    mExternalStorage = true;
+  }
+
+  // -------------------------------------------------------------------------
+  // Return the IO type
+  // -------------------------------------------------------------------------
+  std::string GetIoType()
+  {
+    return mType;
+  }
+
+  std::string GetLastUrl()
   {
     return mLastUrl;
   }
 
+  std::string GetPath()
+  {
+    return mFilePath;
+  }
+
+protected:
+  const std::string mFilePath; ///< path to current physical file
+  const std::string mType; ///< type
+  std::string mLastUrl; ///< last used url if remote file
+  std::string mLastErrMsg; ///< last error message seen
+  bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
+
   //--------------------------------------------------------------------------
   //! Get last error message
   //--------------------------------------------------------------------------
-  const std::string&
-  GetLastErrMsg ()
+  const std::string& GetLastErrMsg()
   {
     return mLastErrMsg;
   }
 
-protected:
-
-  std::string mFilePath; ///< path to current physical file
-  std::string mLastUrl;  ///< last used url if remote file
-  std::string mLastErrMsg; ///< last error stored
 };
 
 EOSFSTNAMESPACE_END

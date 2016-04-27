@@ -304,7 +304,6 @@ class FileAbstraction
     std::string mPath; ///< valid path to this file
     XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
     off_t mMaxWriteOffset; ///< maximum written offset
-    
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__

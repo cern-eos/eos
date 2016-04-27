@@ -43,6 +43,8 @@
 #endif
 /*----------------------------------------------------------------------------*/
 #include <XrdSys/XrdSysTimer.hh>
+#include <fst/io/FileIo.hh>
+#include <fst/io/FileIoPluginCommon.hh>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -157,6 +159,71 @@ CheckSum::ScanFile (int fd, unsigned long long &scansize, float &scantime, int r
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+
+/* scan of a complete file using an opened layout*/
+
+
+bool 
+CheckSum::ScanFile (ReadCallBack rcb, unsigned long long &scansize, float &scantime, int rate)
+{
+  static int buffersize = 1024 * 1024;
+  struct timezone tz;
+  struct timeval opentime;
+  struct timeval currenttime;
+  scansize = 0;
+  scantime = 0;
+
+  gettimeofday(&opentime, &tz);
+
+  //move at the right location in the  file
+
+  int nread = 0;
+  off_t offset = 0;
+
+  char* buffer = (char*) malloc(buffersize);
+  if (!buffer)
+  {
+    return false;
+  }
+
+  do
+  {
+    errno = 0;
+    rcb.data.offset=offset;
+    rcb.data.buffer=buffer;
+    rcb.data.size=buffersize;
+    nread = rcb.call(&rcb.data);
+
+    if (nread < 0)
+    {
+      free(buffer);
+      return false;
+    }
+    Add(buffer, nread, offset);
+    offset += nread;
+    if (rate)
+    {
+      // regulate the verification rate
+      gettimeofday(&currenttime, &tz);
+      scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+      float expecttime = (1.0 * offset / rate) / 1000.0;
+      if (expecttime > scantime)
+      {
+        usleep(1000.0 * (expecttime - scantime));
+      }
+    }
+  }
+  while (nread == buffersize);
+
+  gettimeofday(&currenttime, &tz);
+  scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  scansize = (unsigned long long) offset;
+
+  Finalize();
+  free(buffer);
+  return true;
+}
 
 /*----------------------------------------------------------------------------*/
 
@@ -252,7 +319,7 @@ CheckSum::OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize
     {
       return false;
     }
-    if (::chown(cPath.GetParentPath(), geteuid(), getegid()))
+    if (::chown(cPath.GetParentPath(), 2, 2))
       return false;
   }
 
@@ -275,26 +342,17 @@ CheckSum::OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize
 
   eos::common::CloExec::Set(ChecksumMapFd);
 
-  // tag the map file with attributes
-  eos::common::Attr* attr = eos::common::Attr::OpenAttr(mapfilepath);
-  if (!attr)
+  char sblocksize[1024];
+  snprintf(sblocksize, sizeof (sblocksize) - 1, "%llu", (unsigned long long) blocksize);
+  std::string sBlockSize = sblocksize;
+  std::string sBlockCheckSum = Name.c_str();
+
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(mapfilepath));
+  if ((io->attrSet(std::string("user.eos.blocksize"), sBlockSize)) || (io->attrSet(std::string("user.eos.blockchecksum"), sBlockCheckSum)))
   {
+    //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
+    close(ChecksumMapFd);
     return false;
-  }
-  else
-  {
-    char sblocksize[1024];
-    snprintf(sblocksize, sizeof (sblocksize) - 1, "%llu", (unsigned long long) blocksize);
-    std::string sBlockSize = sblocksize;
-    std::string sBlockCheckSum = Name.c_str();
-    if ((!attr->Set(std::string("user.eos.blocksize"), sBlockSize)) || (!attr->Set(std::string("user.eos.blockchecksum"), sBlockCheckSum)))
-    {
-      //      fprintf(stderr,"CheckSum::OpenMap => cannot set extended attributes errno=%d!\n", errno);
-      delete attr;
-      close(ChecksumMapFd);
-      return false;
-    }
-    delete attr;
   }
 
   ChecksumMapSize = ((maxfilesize / blocksize) + 1) * (GetCheckSumLen());

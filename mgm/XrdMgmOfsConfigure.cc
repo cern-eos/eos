@@ -215,7 +215,7 @@ XrdMgmOfs::InitializeFileView ()
         {
           XrdSysMutexHelper lock(InitializationMutex);
           Initialized = kBooted;
-	  eos_static_alert("msg=\"namespace booted (as master)\"");
+          eos_static_alert("msg=\"namespace booted (as master)\"");
         }
       }
     }
@@ -245,7 +245,7 @@ XrdMgmOfs::InitializeFileView ()
       {
         XrdSysMutexHelper lock(InitializationMutex);
         Initialized = kBooted;
-	eos_static_alert("msg=\"namespace booted (as slave)\"");
+        eos_static_alert("msg=\"namespace booted (as slave)\"");
       }
     }
 
@@ -333,7 +333,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
-  UTF8 = getenv("EOS_UTF8")?true:false;
+  UTF8 = getenv("EOS_UTF8") ? true : false;
 
   Shutdown = false;
 
@@ -400,7 +400,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       Eroute.Emsg("Config", errno, "create temporary outputfile"
                   " directory /tmp/eos.mgm/");
       NoGo = 1;
-      return NoGo;;
+      return NoGo;
+      ;
     }
 
     // Own the directory by daemon
@@ -409,7 +410,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eos_err("Unable to own temporary outputfile directory %s", out_dir.GetParentPath());
       Eroute.Emsg("Config", errno, "own outputfile directory /tmp/eos.mgm/");
       NoGo = 1;
-      return NoGo;;
+      return NoGo;
+      ;
     }
   }
 
@@ -654,7 +656,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val)))
+              strcmp("1", val) && strcmp("0", val)))
           {
             Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
                         "Must be <true>, <false>, <1> or <0>!");
@@ -678,7 +680,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val)))
+              strcmp("1", val) && strcmp("0", val)))
           {
             Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
                         "Must be <true>, <false>, <1> or <0>!");
@@ -705,7 +707,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val)))
+              strcmp("1", val) && strcmp("0", val)))
           {
             Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
                         "Must be <true>,<false>,<1> or <0>!");
@@ -985,12 +987,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
             }
 
             Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
-                       std::to_string((long long int)mFstGwPort).c_str());
+                       std::to_string((long long int) mFstGwPort).c_str());
           }
         }
 
         if (!strcmp("trace", var))
         {
+
           static struct traceopts
           {
             const char *opname;
@@ -1148,6 +1151,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("LRU");
+  lFanOutTags.push_back("WFE");
+  lFanOutTags.push_back("WFE::Job");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("GeoBalancer");
   lFanOutTags.push_back("#");
@@ -1212,7 +1217,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
   }
-  
+
   if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") && getenv("EOS_TTY_BROADCAST_EGREP"))
   {
     XrdOucString ttybroadcastline = "eos-tty-broadcast ";
@@ -1283,7 +1288,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     else
     {
       ep = (XrdAccAuthorize * (*)(XrdSysLogger *, const char *, const char *))
-        (myLib->getPlugin("XrdAccAuthorizeObject"));
+              (myLib->getPlugin("XrdAccAuthorizeObject"));
       if (!ep)
       {
         Eroute.Emsg("Config", "Failed to get authorization library plugin!");
@@ -1306,7 +1311,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
   std::string filter = "Process,AddQuota,UpdateHint,Update,UpdateQuotaStatus,SetConfigValue,"
-    "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
+          "Deletion,GetQuota,PrintOut,RegisterNode,SharedHash";
   eos::common::Logging::SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
              "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
@@ -1523,6 +1528,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmProcMasterPath += "/master";
   MgmProcArchivePath = MgmProcPath;
   MgmProcArchivePath += "/archive";
+
+  MgmProcWorkflowPath = MgmProcPath;
+  MgmProcWorkflowPath += "/workflow";
+  MgmProcLockPath = MgmProcPath;
+  MgmProcLockPath += "/lock";
+  MgmProcDelegationPath = MgmProcPath;
+  MgmProcDelegationPath += "/delegation";
 
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
 
@@ -1755,6 +1767,96 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       }
     }
 
+    // Create workflow directory
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcWorkflowPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // workflow directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcWorkflowPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/workflow directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/workflow directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create lock directory
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcLockPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // lock directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcLockPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/lock directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/lock directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create delegation directory
+    try
+    {
+      eosmd = gOFS->eosView->getContainer(MgmProcDelegationPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // delegation directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd);
+    }
+    catch (eos::MDException &e)
+    {
+      eosmd = 0;
+    }
+
+    if (!eosmd)
+    {
+      try
+      {
+        eosmd = gOFS->eosView->createContainer(MgmProcDelegationPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd);
+      }
+      catch (eos::MDException &e)
+      {
+        Eroute.Emsg("Config", "cannot set the /eos/../proc/delegation directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/delegation directory mode to 700");
+        return 1;
+      }
+    }
+
     // Set also the archiverd ZMQ endpoint were client requests are sent
     std::ostringstream oss;
     oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
@@ -1847,10 +1949,10 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     {
       eos_info("starting file view loader thread");
       if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView, static_cast<void *> (this),
-			     0, "File View Loader")))
+                             0, "File View Loader")))
       {
-	eos_crit("cannot start file view loader");
-	NoGo = 1;
+        eos_crit("cannot start file view loader");
+        NoGo = 1;
       }
     }
   }
@@ -1926,6 +2028,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   {
     eos_warning("msg=\"cannot start LRU thread\"");
   }
+
+  // start the WFE daemon
+  if (!gOFS->WFEd.Start())
+  {
+    eos_warning("msg=\"cannot start WFE thread\"");
+  }
+
   // start the recycler garbage collection thread on a master machine
   if ((MgmMaster.IsMaster()) && (!gOFS->Recycler.Start()))
   {
@@ -1965,6 +2074,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("DumpMd", 0, 0, 0);
   gOFS->MgmStats.Add("Drop", 0, 0, 0);
   gOFS->MgmStats.Add("DropStripe", 0, 0, 0);
+  gOFS->MgmStats.Add("Event", 0, 0, 0);
   gOFS->MgmStats.Add("Exists", 0, 0, 0);
   gOFS->MgmStats.Add("Exists", 0, 0, 0);
   gOFS->MgmStats.Add("FileInfo", 0, 0, 0);
@@ -2002,6 +2112,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   gOFS->MgmStats.Add("IdMap", 0, 0, 0);
   gOFS->MgmStats.Add("Ls", 0, 0, 0);
   gOFS->MgmStats.Add("LRUFind", 0, 0, 0);
+  gOFS->MgmStats.Add("WFEFind", 0, 0, 0);
   gOFS->MgmStats.Add("MarkDirty", 0, 0, 0);
   gOFS->MgmStats.Add("MarkClean", 0, 0, 0);
   gOFS->MgmStats.Add("Mkdir", 0, 0, 0);

@@ -29,7 +29,7 @@
 #include <sys/types.h>
 /*----------------------------------------------------------------------------*/
 /******************************************************************************
- * NOTE: Added from the XRootD headers and should be removed in the future 
+ * NOTE: Added from the XRootD headers and should be removed in the future
  * when this header file is available in the private headers.
  ******************************************************************************/
 #include "XrdOfsTPCInfo.hh"
@@ -54,6 +54,7 @@ EOSFSTNAMESPACE_BEGIN;
 
 // Forward declaration
 class Layout;
+class CheckSum;
 
 //------------------------------------------------------------------------------
 //! Class
@@ -125,9 +126,9 @@ public:
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int dropall (eos::common::FileId::fileid_t fileid, 
-	       std::string path, 
-	       std::string manager);
+  int dropall (eos::common::FileId::fileid_t fileid,
+               std::string path,
+               std::string manager);
 
   //--------------------------------------------------------------------------
   //!
@@ -138,6 +139,11 @@ public:
             const XrdSecEntity* client,
             const char* opaque = 0);
 
+
+  //--------------------------------------------------------------------------
+  //!
+  //--------------------------------------------------------------------------
+  int modified ();
 
   //--------------------------------------------------------------------------
   //!
@@ -253,7 +259,11 @@ public:
   //--------------------------------------------------------------------------
   //! Return logical path
   //--------------------------------------------------------------------------
-  std::string GetPath () {return Path.c_str();}
+
+  std::string GetPath ()
+  {
+    return Path.c_str();
+  }
 
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
@@ -264,6 +274,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return the file size seen at open time
   //--------------------------------------------------------------------------
+
   off_t getOpenSize ()
   {
     return openSize;
@@ -272,6 +283,7 @@ public:
   //--------------------------------------------------------------------------
   //! Return the file id
   //--------------------------------------------------------------------------
+
   unsigned long long getFileId ()
   {
     return fileid;
@@ -280,28 +292,38 @@ public:
   //--------------------------------------------------------------------------
   //! Disable the checksumming before close
   //--------------------------------------------------------------------------
-  void disableChecksum(bool broadcast=true);
+  void disableChecksum (bool broadcast = true);
 
   //--------------------------------------------------------------------------
   //! Return checksum
   //--------------------------------------------------------------------------
-  eos::fst::CheckSum* GetChecksum() { return checkSum;}
+
+  eos::fst::CheckSum* GetChecksum ()
+  {
+    return checkSum;
+  }
 
   //--------------------------------------------------------------------------
   //! Return FMD checksum
   //--------------------------------------------------------------------------
-  
-  std::string GetFmdChecksum() {
+
+  std::string GetFmdChecksum ()
+  {
     return fMd->fMd.checksum;
   }
 
   //--------------------------------------------------------------------------
   //! Check for chunked upload flag
   //--------------------------------------------------------------------------
-  bool IsChunkedUpload() 
+
+  bool IsChunkedUpload ()
   {
     return isOCchunk;
   }
+
+  //--------------------------------------------------------------------------
+  static int LayoutReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
+  static int FileIoReadCB (eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
 protected:
   XrdOucEnv* openOpaque;
@@ -339,12 +361,15 @@ protected:
   bool opened; //! indicator that file is opened
   bool haswrite; //! indicator that file was written/modified
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
+  bool hasWriteError; //! indicator for a write error 
   bool isRW; //! indicator that file is opened for rw
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
   bool isInjection; //! indicator that the opened file is a file injection where the size and checksum must match
   bool isReconstruction; //! indicator that the opened file is in a RAIN reconstruction process
   bool deleteOnClose; //! indicator that the file has to be cleaned on close
+  bool eventOnClose; //! indicator to send a specified event to the mgm on close
+  XrdOucString eventWorkflow; //! indicates the workflow to be triggered by an event
   bool repairOnClose; //! indicator that the file should get repaired on close
   bool commitReconstruction; //! indicator that this FST has to commmit after reconstruction
   // <- if the reconstructed piece is not existing on disk we commit anyway since it is a creation.
@@ -437,7 +462,7 @@ protected:
   //--------------------------------------------------------------------------
   void MakeReportEnv (XrdOucString& reportString);
 
- private:
+private:
 
   //----------------------------------------------------------------------------
   //! Static method used to start an asynchronous thread which is doing the
@@ -452,7 +477,7 @@ protected:
   //----------------------------------------------------------------------------
   //! Do TPC transfer
   //----------------------------------------------------------------------------
-  void* DoTpcTransfer();
+  void* DoTpcTransfer ();
 
 
   //----------------------------------------------------------------------------
@@ -461,7 +486,7 @@ protected:
   //! @param state TPC state
   //!
   //----------------------------------------------------------------------------
-  void SetTpcState(TpcState_t state);
+  void SetTpcState (TpcState_t state);
 
 
   //----------------------------------------------------------------------------
@@ -469,7 +494,7 @@ protected:
   //!
   //! @return TPC state
   //----------------------------------------------------------------------------
-  TpcState_t GetTpcState();
+  TpcState_t GetTpcState ();
 
   int mTpcThreadStatus; ///< status of the TPC thread - 0 valid otherwise error
   pthread_t mTpcThread; ///< thread doing the TPC transfer
@@ -480,7 +505,7 @@ protected:
   uint16_t mTimeout; ///< timeout for layout operations
 };
 
-EOSFSTNAMESPACE_END;
+EOSFSTNAMESPACE_END
 
 #endif
 

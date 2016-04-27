@@ -124,7 +124,7 @@ SymKey::Sha256 (const std::string& data,
 
   for (unsigned int i = 0; i < sz_result; ++i)
   {
-    oss << std::setw(2) << (unsigned int)*pResult;
+    oss << std::setw(2) << (unsigned int) *pResult;
     pResult++;
   }
 
@@ -216,7 +216,9 @@ SymKey::Base64Encode (char* in, unsigned int inlen, XrdOucString &out)
 
   if (bptr->data)
   {
-    out.assign((char*) bptr->data, 0, size - 1);
+    std::string sout;
+    sout.assign((char*) bptr->data, 0, size);
+    out = sout.c_str(); // XrdOucString assign can only assign portions of 0 terminated strings
   }
   BIO_free_all(b64);
   return true;
@@ -256,6 +258,51 @@ SymKey::Base64Decode (XrdOucString &in, char* &out, unsigned int &outlen)
   return true;
 }
 
+bool
+SymKey::Base64 (XrdOucString &in, XrdOucString &out)
+{
+  if (in.beginswith("base64:"))
+  {
+    out = in;
+    return false;
+  }
+  bool done = Base64Encode((char*) in.c_str(), in.length() + 1, out);
+  if (done)
+  {
+    out.insert("base64:", 0);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool
+SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
+{
+  if (!in.beginswith("base64:"))
+  {
+    out = in;
+    return true;
+  }
+
+  XrdOucString in64 = in;
+
+  in64.erase(0, 7);
+
+  char* valout = 0;
+  unsigned int valout_len = 0;
+
+  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  if (valout)
+  {
+    out.assign(valout, 0, valout_len - 1);
+    free(valout);
+    return true;
+  }
+  return false;
+}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -271,7 +318,8 @@ SymKeyStore::SymKeyStore ()
 // Destructor
 //------------------------------------------------------------------------------
 
-SymKeyStore::~SymKeyStore () {
+SymKeyStore::~SymKeyStore ()
+{
   // empty
 }
 
@@ -316,8 +364,8 @@ SymKeyStore::SetKey (const char* inkey, time_t invalidity)
 
   Mutex.Lock();
   SymKey* key = SymKey::Create(inkey, invalidity);
-  free((void*)inkey);
-  
+  free((void*) inkey);
+
   if (!key)
   {
     return 0;

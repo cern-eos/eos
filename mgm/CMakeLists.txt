@@ -84,6 +84,7 @@ add_library (XrdEosMgm MODULE
             Quota.cc
             Scheduler.cc
             Vid.cc
+            Workflow.cc
             FsView.cc
             VstView.cc
             XrdMgmOfsConfigure.cc
@@ -104,6 +105,7 @@ add_library (XrdEosMgm MODULE
             Master.cc
             Recycle.cc
             LRU.cc
+	    WFE.cc
             http/HttpServer.cc
             http/HttpHandler.cc
             http/s3/S3Handler.cc

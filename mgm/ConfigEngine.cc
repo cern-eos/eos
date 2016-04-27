@@ -1070,14 +1070,19 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
     eos::common::Mapping::Root(rootvid);
 
     skey.erase(0,3);
-    int spos1 = skey.find("/",1);
-    int spos2 = skey.find("/",spos1+1);
-    int spos3 = skey.find("/",spos2+1);
+    int spos1 = skey.find("/fst",0);
     std::string nodename = skey.c_str();
     std::string mountpoint = skey.c_str();
-    nodename.erase(spos3);
-    mountpoint.erase(0,spos3);
-
+    if (spos1 != STR_NPOS) 
+    {
+      nodename.erase(spos1+4);
+      mountpoint.erase(0,spos1+4);
+    }
+    else
+    {
+      nodename="<illegal>";
+      mountpoint="/";
+    }
     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
     proc_fs_rm (nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
   }

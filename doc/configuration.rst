@@ -20,6 +20,7 @@ Configuration
    configuration/geobalancer
    configuration/geotags
    configuration/http
+   configuration/kinetic
    configuration/lru
    configuration/master
    configuration/permission

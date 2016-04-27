@@ -1,0 +1,9 @@
+{
+  "security":[
+    {"wwn":"ember1","userId":1,"key":"ember123"},
+    {"wwn":"ember2","userId":1,"key":"ember123"},
+    {"wwn":"ember3","userId":1,"key":"ember123"},
+    {"wwn":"ember4","userId":1,"key":"ember123"}
+  ],
+}
+

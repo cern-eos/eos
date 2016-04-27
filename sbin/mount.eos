@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #!/bin/bash
+=======
+#! /bin/bash
+>>>>>>> beryl_aquamarine_kinetic
 # ----------------------------------------------------------------------
 # File: mount.eos
 # Author: Andreas-Joachim Peters - CERN
@@ -45,8 +49,12 @@ if [ $restricted -eq 1 ]; then
   exit -1;
 fi
 
+<<<<<<< HEAD
 if [ -n "$2" ]; then
     export EOS_FUSE_WRAPPER_MOUNTDIR="$2"
 fi
 
 source /etc/rc.d/init.d/eosd start $1
+=======
+/etc/rc.d/init.d/eosd start $@
+>>>>>>> beryl_aquamarine_kinetic

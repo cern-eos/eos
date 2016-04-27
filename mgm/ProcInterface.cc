@@ -58,7 +58,9 @@ EOSMGMNAMESPACE_BEGIN
 /**
  * Constructor
  */
-ProcInterface::ProcInterface () { }
+ProcInterface::ProcInterface ()
+{
+}
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -66,7 +68,9 @@ ProcInterface::ProcInterface () { }
  */
 
 /*----------------------------------------------------------------------------*/
-ProcInterface::~ProcInterface () { }
+ProcInterface::~ProcInterface ()
+{
+}
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -114,21 +118,21 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
   // filter here all namespace modifying proc messages
   // ----------------------------------------------------------------------------
   if (((cmd == "file") &&
-       ((subcmd == "adjustreplica") ||
-        (subcmd == "drop") ||
-        (subcmd == "layout") ||
-        (subcmd == "verify") ||
-	(subcmd == "version") ||
-	(subcmd == "versions") || 
-        (subcmd == "rename"))) ||
+      ((subcmd == "adjustreplica") ||
+      (subcmd == "drop") ||
+      (subcmd == "layout") ||
+      (subcmd == "verify") ||
+      (subcmd == "version") ||
+      (subcmd == "versions") ||
+      (subcmd == "rename"))) ||
       ((cmd == "attr") &&
-       ((subcmd == "set") ||
-        (subcmd == "rm"))) ||
+      ((subcmd == "set") ||
+      (subcmd == "rm"))) ||
       ((cmd == "archive") &&
-       ((subcmd == "create") ||
-        (subcmd == "get")  ||
-        (subcmd == "purge")  ||
-        (subcmd == "delete"))) ||
+      ((subcmd == "create") ||
+      (subcmd == "get") ||
+      (subcmd == "purge") ||
+      (subcmd == "delete"))) ||
       ((cmd == "backup")) ||
       ((cmd == "mkdir")) ||
       ((cmd == "rmdir")) ||
@@ -136,38 +140,38 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
       ((cmd == "chown")) ||
       ((cmd == "chmod")) ||
       ((cmd == "fs") &&
-       ((subcmd == "config") ||
-        (subcmd == "boot") ||
-        (subcmd == "dropfiles") ||
-        (subcmd == "add") ||
-        (subcmd == "mv") ||
-        (subcmd == "rm"))) ||
+      ((subcmd == "config") ||
+      (subcmd == "boot") ||
+      (subcmd == "dropfiles") ||
+      (subcmd == "add") ||
+      (subcmd == "mv") ||
+      (subcmd == "rm"))) ||
       ((cmd == "space") &&
-       ((subcmd == "config") ||
-        (subcmd == "define") ||
-        (subcmd == "set") ||
-        (subcmd == "rm") ||
-        (subcmd == "quota"))) ||
+      ((subcmd == "config") ||
+      (subcmd == "define") ||
+      (subcmd == "set") ||
+      (subcmd == "rm") ||
+      (subcmd == "quota"))) ||
       ((cmd == "node") &&
-       ((subcmd == "rm") ||
-        (subcmd == "config") ||
-        (subcmd == "set") ||
-        (subcmd == "register") ||
-        (subcmd == "gw"))) ||
+      ((subcmd == "rm") ||
+      (subcmd == "config") ||
+      (subcmd == "set") ||
+      (subcmd == "register") ||
+      (subcmd == "gw"))) ||
       ((cmd == "group") &&
-       ((subcmd == "set") ||
-        (subcmd == "rm"))) ||
+      ((subcmd == "set") ||
+      (subcmd == "rm"))) ||
       ((cmd == "map") &&
-       ((subcmd == "link") ||
-        (subcmd == "unlink"))) ||
+      ((subcmd == "link") ||
+      (subcmd == "unlink"))) ||
       ((cmd == "quota") &&
-       ((subcmd != "ls"))) ||
+      ((subcmd != "ls"))) ||
       ((cmd == "vid") &&
-       ((subcmd != "ls"))) ||
+      ((subcmd != "ls"))) ||
       ((cmd == "transfer") &&
-       ((subcmd != ""))) ||
+      ((subcmd != ""))) ||
       ((cmd == "recycle") &&
-       ((subcmd != "ls"))))
+      ((subcmd != "ls"))))
 
   {
 
@@ -383,20 +387,20 @@ ProcCommand::open (const char* inpath,
 
 
   // ---------------------------------------------
-  // deal with '&' ... sigh 
+  // deal with '&' ... sigh
   // ---------------------------------------------
   XrdOucString sinfo = ininfo;
   for (int i = 0; i < sinfo.length(); i++)
   {
 
-    if (sinfo[i] == '&') 
+    if (sinfo[i] == '&')
     {
-      // figure out if this is a real separator or 
-      XrdOucString follow=sinfo.c_str()+i+1;
+      // figure out if this is a real separator or
+      XrdOucString follow = sinfo.c_str() + i + 1;
       if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")))
       {
-	sinfo.erase(i,1);
-	sinfo.insert("#AND#",i);
+        sinfo.erase(i, 1);
+        sinfo.insert("#AND#", i);
       }
     }
   }
@@ -422,6 +426,7 @@ ProcCommand::open (const char* inpath,
   mFuseFormat = false;
   mJsonFormat = false;
   mHttpFormat = false;
+  mBase64Encoding = false;
 
   // ----------------------------------------------------------------------------
   // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line
@@ -449,6 +454,13 @@ ProcCommand::open (const char* inpath,
   mOffset = 0;
   mLen = 0;
   mDoSort = true;
+
+  XrdOucString encoding = pOpaque->Get("mgm.enc");
+
+  if (encoding == "b64")
+  {
+    mBase64Encoding = true;
+  }
 
   // ----------------------------------------------------------------------------
   // admin command section
@@ -530,8 +542,8 @@ ProcCommand::open (const char* inpath,
     }
     else if (mCmd == "vst")
     {
-       Vst();
-       mDoSort = false;
+      Vst();
+      mDoSort = false;
     }
     else if (mCmd == "rtlog")
     {
@@ -662,7 +674,7 @@ ProcCommand::open (const char* inpath,
       stdErr += "'";
       retc = EINVAL;
     }
-    
+
     MakeResult();
     return SFS_OK;
   }
@@ -776,6 +788,7 @@ void
 ProcCommand::MakeResult ()
 {
   mResultStream = "";
+
   if (!fstdout)
   {
     XrdMqMessage::Sort(stdOut, mDoSort);
@@ -785,9 +798,26 @@ ProcCommand::MakeResult ()
       // the default format
       // ------------------------------------------------------------------------
       mResultStream = "mgm.proc.stdout=";
-      mResultStream += XrdMqMessage::Seal(stdOut);
+      if (!mBase64Encoding)
+        mResultStream += XrdMqMessage::Seal(stdOut);
+      else
+      {
+        // on request do base64 encoding
+        XrdOucString l64;
+        eos::common::SymKey::Base64(stdOut, l64);
+        mResultStream += l64;
+      }
       mResultStream += "&mgm.proc.stderr=";
-      mResultStream += XrdMqMessage::Seal(stdErr);
+      if (!mBase64Encoding)
+        mResultStream += XrdMqMessage::Seal(stdErr);
+      else
+      {
+        // on request do base64 encoding
+        XrdOucString l64;
+        eos::common::SymKey::Base64(stdErr, l64);
+        mResultStream += l64;
+      }
+
       mResultStream += "&mgm.proc.retc=";
       mResultStream += retc;
     }
@@ -831,7 +861,7 @@ ProcCommand::MakeResult ()
             {
               mResultStream += "<h3>&#10004;&nbsp;";
               mResultStream += "Success!";
- 	      mResultStream += "</h3>";
+              mResultStream += "</h3>";
             }
             else
             {
@@ -862,6 +892,7 @@ ProcCommand::MakeResult ()
     {
       eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
     }
+
     mLen = mResultStream.length();
     mOffset = 0;
   }
@@ -981,7 +1012,7 @@ ProcCommand::KeyValToHttpTable (XrdOucString & stdOut)
   if (ok)
   {
     table +=
-      R"literal(<style>
+            R"literal(<style>
 table
 {
   table-layout:auto;

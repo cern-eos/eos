@@ -314,7 +314,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_gid = cmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
     buf->st_size = cmd->getTreeSize();
-    buf->st_blksize = 0;
+    buf->st_blksize = cmd->getNumContainers() + cmd->getNumFiles();
     buf->st_blocks = 0;
     eos::ContainerMD::ctime_t ctime;
     eos::ContainerMD::ctime_t mtime;

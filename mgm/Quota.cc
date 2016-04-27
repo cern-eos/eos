@@ -1162,7 +1162,7 @@ Quota::GetSpaceNameList (const char* key, SpaceQuota* spacequota, void *Arg)
 
 /*----------------------------------------------------------------------------*/
 void
-Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes)
+Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const char* path, long long &maxbytes, long long &freebytes, long long &maxfiles, long long &freefiles)
 {
   eos::common::RWMutexReadLock lock(Quota::gQuotaMutex);
   SpaceQuota* space = Quota::GetResponsibleSpaceQuota(path);
@@ -1170,8 +1170,12 @@ Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const c
   {
     long long maxbytes_user, maxbytes_group, maxbytes_project;
     long long freebytes_user, freebytes_group, freebytes_project;
+    long long maxfiles_user, maxfiles_group, maxfiles_project;
+    long long freefiles_user, freefiles_group, freefiles_project;
     freebytes_user = freebytes_group = freebytes_project = 0;
     maxbytes_user = maxbytes_group = maxbytes_project = 0;
+    freefiles_user = freefiles_group = freefiles_project = 0;
+    maxfiles_user = maxfiles_group = maxfiles_project = 0;
     space->Refresh();
     maxbytes_user  = space->GetQuota(SpaceQuota::kUserBytesTarget,vid.uid);
     maxbytes_group = space->GetQuota(SpaceQuota::kGroupBytesTarget,vid.gid);
@@ -1179,6 +1183,13 @@ Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const c
     freebytes_user = maxbytes_user - space->GetQuota(SpaceQuota::kUserBytesIs, vid.uid);
     freebytes_group = maxbytes_group - space->GetQuota(SpaceQuota::kGroupBytesIs, vid.gid);
     freebytes_project = maxbytes_project - space->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+
+    maxfiles_user  = space->GetQuota(SpaceQuota::kUserFilesTarget,vid.uid);
+    maxfiles_group = space->GetQuota(SpaceQuota::kGroupFilesTarget,vid.gid);
+    maxfiles_project = space->GetQuota(SpaceQuota::kGroupFilesTarget, Quota::gProjectId);
+    freefiles_user = maxfiles_user - space->GetQuota(SpaceQuota::kUserFilesIs, vid.uid);
+    freefiles_group = maxfiles_group - space->GetQuota(SpaceQuota::kGroupFilesIs, vid.gid);
+    freefiles_project = maxfiles_project - space->GetQuota(SpaceQuota::kGroupFilesIs, Quota::gProjectId);
 
     if (freebytes_user > freebytes)
       freebytes = freebytes_user;
@@ -1192,6 +1203,19 @@ Quota::GetIndividualQuota (eos::common::Mapping::VirtualIdentity_t &vid, const c
       maxbytes = maxbytes_group;
     if (maxbytes_project > maxbytes)
       maxbytes = maxbytes_project;
+
+    if (freefiles_user > freefiles)
+      freefiles = freefiles_user;
+    if (freefiles_group > freefiles)
+      freefiles = freefiles_group;
+    if (freefiles_project > freefiles)
+      freefiles = freefiles_project;
+    if (maxfiles_user > maxfiles)
+      maxfiles = maxfiles_user;
+    if (maxfiles_group > maxfiles)
+      maxfiles = maxfiles_group;
+    if (maxfiles_project > maxfiles)
+      maxfiles = maxfiles_project;
   }
 }
 

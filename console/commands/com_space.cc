@@ -25,6 +25,10 @@
 #include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
+#include <streambuf>
+#include <string>
+#include <cerrno>
+
 using namespace eos::common;
 
 /* Space listing, configuration, manipulation */
@@ -110,7 +114,9 @@ com_space (char* arg1)
     in = "mgm.cmd=space&mgm.subcmd=reset";
     XrdOucString spacename = subtokenizer.GetToken();
     XrdOucString option = subtokenizer.GetToken();
-    while (option.replace("-","")) {}
+    while (option.replace("-", ""))
+    {
+    }
 
     if (!spacename.length())
       printusage = true;
@@ -122,10 +128,10 @@ com_space (char* arg1)
 	(option != "scheduledrain") && 
 	(option != "schedulebalance") ) 
       printusage = true;
-    
+
     in += "&mgm.space=";
     in += spacename;
-    if (option.length()) 
+    if (option.length())
     {
       in += "&mgm.option=";
       in += option;
@@ -207,6 +213,120 @@ com_space (char* arg1)
     in += "&mgm.space=";
     in += spacename;
     ok = true;
+
+    std::string contents = eos::common::StringConversion::StringFromShellCmd("cat /var/eos/md/stacktrace");
+  }
+
+  if (subcommand == "node-set")
+  {
+    in = "mgm.cmd=space&mgm.subcmd=node-set";
+
+    XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString key = subtokenizer.GetToken();
+    XrdOucString file = subtokenizer.GetToken();
+    std::string val;
+
+    if (!spacename.length())
+      printusage = true;
+
+    if (!key.length())
+      printusage = true;
+
+    if (!file.length())
+      printusage = true;
+
+    in += "&mgm.space=";
+    in += spacename;
+
+    in += "&mgm.space.node-set.key=";
+    in += key;
+    in += "&mgm.space.node-set.val=";
+
+    if (file.length())
+    {
+      if (file.beginswith("/"))
+      {
+	std::ifstream ifs(file.c_str(), std::ios::in | std::ios::binary);
+	if (!ifs)
+	{
+	  fprintf(stderr, "error: unable to read %s - errno=%d\n", file.c_str(), errno);
+	  global_retc = errno;
+	  return (0);
+	}
+	
+	val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	if (val.length()>512)
+	{
+	  fprintf(stderr, "error: the file contents exceeds 0.5 kB - configure a file hosted on the MGM using file:<mgm-path>\n");
+	  global_retc = EINVAL;
+	  return (0);
+	}
+	// store the value b64 encoded
+	XrdOucString val64;
+	
+	eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
+	while (val64.replace("=",":")) {}
+	in += "base64:";
+	in += val64.c_str();
+	ok = true;
+      }
+      else
+      {
+	val = file.c_str();
+	in += val.c_str();
+	ok = true;
+      }
+    }
+  }
+
+  if (subcommand == "node-get")
+  {
+    in = "mgm.cmd=space&mgm.subcmd=node-get";
+
+    XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString key = subtokenizer.GetToken();
+
+    if (!spacename.length())
+      printusage = true;
+
+    if (!key.length())
+      printusage = true;
+
+    in += "&mgm.space=";
+    in += spacename;
+
+    in += "&mgm.space.node-get.key=";
+    in += key;
+    ok = true;
+    result = client_admin_command(in);
+    if (result->Get("mgm.proc.stdout"))
+    {
+      XrdOucString val = result->Get("mgm.proc.stdout");
+      eos::common::StringTokenizer subtokenizer(val.c_str());
+      
+      while (subtokenizer.GetLine())
+      {
+	XrdOucString nodeline = subtokenizer.GetToken();
+	XrdOucString node = nodeline;
+	node.erase(nodeline.find(":"));
+	nodeline.erase(0, nodeline.find(":="));
+	nodeline.erase(0,2);
+
+	// base 64 decode
+	eos::common::SymKey::DeBase64(nodeline, val);
+
+	if (node == "*")
+	{
+	  fprintf(stdout,"%s\n", val.c_str());
+	}
+	else
+	{
+	  fprintf(stdout,"# [ %s ]\n %s\n", node.c_str(), val.c_str());
+	}
+	global_retc =0;
+	return (0);
+      }
+    }
   }
 
   if (subcommand == "quota")
@@ -321,6 +441,14 @@ com_space_usage:
   fprintf(stdout, "                                                                       => <groupmod> defines the maximun number of filesystems per node\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       space reset <space-name>  [--egroup|mapping|drain|scheduledrain|schedulebalance] \n");
+  fprintf(stdout, "       space node-set <space-name> <node.key> <file-name>            : store the contents of <file-name> into the node configuration variable <node.key> visibile to all FSTs\n");
+  fprintf(stdout, "                                                                       => if <file-name> matches file:<path> the file is loaded from the MGM and not from the client\n");
+  fprintf(stdout, "                                                                       => local files cannot exceed 512 bytes - MGM files can be arbitrary length\n");
+  fprintf(stdout, "                                                                       => the contents gets base64 encoded by default\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       space node-get <space-name> <node.key>                        : get the value of <node.key> and base64 decode before output\n");
+  fprintf(stdout, "                                                                     : if the value for <node.key> is identical for all nodes in the referenced space, it is dumped only once, otherwise the value is dumped for each node separately\n");
+  fprintf(stdout, "       space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance] \n");
   fprintf(stdout, "                                                                     : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout, "       space status <space-name>                                     : print's all defined variables for space\n");
   fprintf(stdout, "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");

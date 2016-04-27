@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
 #include "fst/XrdFstOfsFile.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -46,19 +47,20 @@ Layout::Layout (XrdFstOfsFile* file,
                 int lid,
                 const XrdSecEntity* client,
                 XrdOucErrInfo* outError,
-                eos::common::LayoutId::eIoType io,
+                const char* path,
                 uint16_t timeout) :
-eos::common::LogId(),
-mLayoutId(lid),
-mOfsFile(file),
-mError(outError),
-mIoType(io),
-mTimeout(timeout)
+eos::common::LogId (),
+mLayoutId (lid),
+mOfsFile (file),
+mError (outError),
+mTimeout (timeout)
 {
   mSecEntity = const_cast<XrdSecEntity*> (client);
+  mIoType = eos::common::LayoutId::GetIoType(path);
   mName = eos::common::LayoutId::GetLayoutTypeString(mLayoutId);
   mIsEntryServer = false;
   mLocalPath = "";
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
 }
 
 
@@ -66,8 +68,10 @@ mTimeout(timeout)
 // Destructor
 //------------------------------------------------------------------------------
 
-Layout::~Layout () {
-  // empty
+Layout::~Layout ()
+{
+  if (mFileIO)
+    delete mFileIO;
 }
 
 EOSFSTNAMESPACE_END
