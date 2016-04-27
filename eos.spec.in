@@ -71,6 +71,7 @@ Requires: acl
 Requires: gdb
 Requires: zeromq
 Requires: protobuf
+Requires: jemalloc
 
 %if %{distribution} == 5
 Requires: curl
@@ -214,6 +215,7 @@ Group: Applications/File
 Requires: xrootd-client
 Requires: eos-client
 Requires: fuse
+Requires: jemalloc
 
 %description -n eos-fuse
 The EOS fuse client.
