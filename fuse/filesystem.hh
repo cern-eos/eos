@@ -925,7 +925,8 @@ private:
  bool link_pidmap; ///< indicated if mapping between pid and strong authentication is symlinked in /var/run/eosd/credentials/pidXXX
  bool use_user_krb5cc; ///< indicated if user krb5cc file should be used for authentication
  bool use_user_gsiproxy; ///< indicated if user gsi proxy should be used for authentication
- bool use_unsafe_krk5; ///< indicated if if in memory krb5 tickets can be used without any safety check
+ bool use_unsafe_krk5; ///< indicated if in memory krb5 tickets can be used without any safety check
+ bool fallback2nobody; ///< indicated if unix authentication (as nobody) should be used as a fallback if strong authentication is configured and none is found
  bool lazy_open_ro; ///< indicated if lazy openning of the file should be used for files open in RO
  bool lazy_open_rw; ///< indicated if lazy openning of the file should be used for files open in RW
  bool lazy_open_disabled; ///< indicated if lazy openning is disabled because the server does not support it
