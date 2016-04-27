@@ -131,6 +131,9 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    # Set the write-back cache size (default 300M) 
    # export EOS_FUSE_CACHE_SIZE=0
 
+   # Set the write-back cache pagesize (default 256k) 
+   # export EOS_FUSE_CACHE_SIZE=262144
+
    # Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
    # export EOS_FUSE_BIGWRITES=1
 
@@ -228,8 +231,8 @@ Define two FUSE mounts in /etc/sysconfig/eos
    # #################################################################
    # shared EOS FUSE options
    # #################################################################
-   # in-memory write-back cache per file
-   export EOS_FUSE_CACHE_SIZE=67108864
+   # in-memory write-back shared cache 
+   export EOS_FUSE_CACHE_SIZE=268435456
    # just normal logging
    export EOS_FUSE_DEBUG=0
    # not to verbose - just prints timing and errors
