@@ -34,7 +34,6 @@ sub new {
 	
 
 	$this->{PROC_INFO} = new ApMon::ProcInfo();
-	$this->{PROC_INFO}->update();
 	return $this;
 }
 
@@ -105,6 +104,13 @@ sub setCpuSI2k {
 	ApMon::Common::setCpuSI2k($si2k);
 }
 
+# Sets the cpu speed as the one detected when probing cpu type for si2k
+sub setCpuMHz {
+	my ($this, $mhz) = @_;
+
+	$ApMon::Common::CpuMHz = $mhz;
+}
+
 # This is used only if BgMonitor is used as a dedicated monitoring process in order to interpret
 # messages from parent process.
 sub parseParentMessage {
@@ -117,6 +123,7 @@ sub parseParentMessage {
 		$this->setMaxMsgRate($1) if $msg =~ /maxMsgRate:(.*)/;
 		$this->enableBgMonitoring($1) if $msg =~ /bg_enable:(.*)/;
 		$this->setCpuSI2k($1) if $msg =~ /cpu_si2k:(.*)/;
+		$this->setCpuMHz($1) if $msg =~ /cpu_mhz:(.*)/;
 		$pid = $1 if $msg =~ /pid:(.*)/;
 		$this->removeJobToMonitor($1) if $msg =~ /rm_pid:(.*)/;
 		$workDir = $1 if $msg =~ /work_dir:(.*)/;
@@ -203,6 +210,7 @@ sub sendBgMonitoring {
 	if(open(F, ">$this->{LAST_VALUES_FILE}")){
 		print F Dumper($this->{LAST_VALUES});
 		close F;
+		chmod(0600, $this->{LAST_VALUES_FILE});
 	}else{
 		logger("WARNING", "Cannot save last BgMonitored values to $this->{LAST_VALUES_FILE}");
 	}

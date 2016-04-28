@@ -1687,16 +1687,34 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
 
- EosFuse& me = instance ();
-
- if ((!strcmp (xattr_name, "system.posix_acl_access")) ||
-     (!strcmp (xattr_name, "system.posix_acl_default") ||
-      (!strcmp (xattr_name, "security.capability"))))
+ if (getenv("EOS_FUSE_XATTR_ENOSYS"))
  {
-   // Filter out specific requests to increase performance
-   fuse_reply_err (req, ENOSYS);
+   if ((!strcmp (xattr_name, "system.posix_acl_access")) ||
+       (!strcmp (xattr_name, "system.posix_acl_default") ||
+	(!strcmp (xattr_name, "security.capability"))))
+   {
+     // Filter out specific requests to increase performance
+     fuse_reply_err (req, ENOSYS);
+     return;
+   }
+ }
+
+ XrdOucString xa = xattr_name;
+
+ // exclude security attributes                                                                                                                                                                                                                              
+ if (xa.beginswith("security."))
+ {
+   fuse_reply_err (req, ENOATTR);
    return;
  }
+
+ if (xa.beginswith("system.posix_acl"))
+ {
+   fuse_reply_err (req, ENOATTR);
+   return;
+ }
+
+ EosFuse& me = instance ();
 
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
@@ -1764,6 +1782,21 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  eos::common::Timing timing (__func__);
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
+
+ XrdOucString xa = xattr_name;
+
+ // exclude security attributes                                                                                                                                                                                                                              
+ if (xa.beginswith("security."))
+ {
+   fuse_reply_err (req, 0);
+   return;
+ }
+
+ if (xa.beginswith("system.posix_acl"))
+ {
+   fuse_reply_err (req, 0);
+   return;
+ }
 
  EosFuse& me = instance ();
 
@@ -1874,6 +1907,21 @@ EosFuse::removexattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
  eos::common::Timing timing (__func__);
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
+
+ XrdOucString xa = xattr_name;
+
+ // exclude security attributes                                                                                                                                                                                                                              
+ if (xa.beginswith("security."))
+ {
+   fuse_reply_err (req, 0);
+   return;
+ }
+
+ if (xa.beginswith("system.posix_acl"))
+ {
+   fuse_reply_err (req, 0);
+   return;
+ }
 
  EosFuse& me = instance ();
 
