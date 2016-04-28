@@ -677,3 +677,22 @@ LayoutWrapper::CacheAuthSize(unsigned long long inode)
   }
   return -1;
 }
+
+//--------------------------------------------------------------------------
+//! Return last known size of a file we had a caps for
+//--------------------------------------------------------------------------
+void LayoutWrapper::CacheRemove(unsigned long long inode)
+{
+  inode = eos::common::FileId::InodeToFid(inode);
+
+  XrdSysMutexHelper l(gCacheAuthorityMutex);
+  if ( inode )
+  {
+    if (gCacheAuthority.count(inode))
+    {
+      auto d = gCacheAuthority.find(inode);
+      gCacheAuthority.erase(d);
+      eos_static_notice("removed cap owner-authority for file inode=%lu", d->first);
+    }
+  }
+}

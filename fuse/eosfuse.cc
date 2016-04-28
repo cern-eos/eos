@@ -658,9 +658,9 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
    }
 
 #ifdef __APPLE__
-   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtimespec, &tmp_buf);
+   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtimespec, attr.st_ctimespec, &tmp_buf);
 #else
-   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtim, &tmp_buf);
+   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtim, attr.st_ctim, &tmp_buf);
 #endif
 
    if (!dir_status)
@@ -714,9 +714,9 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      // Add directory to cache or update it
      //........................................................................
 #ifdef __APPLE__
-     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtimespec, b);
+     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtimespec, attr.st_ctimespec, b);
 #else
-     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtim, b);
+     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtim, attr.st_ctim, b);
 #endif
      me.fs ().unlock_r_dirview (); // <=
 
@@ -1009,8 +1009,8 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  me.fs ().dir_cache_forget (parent);
  me.fs ().forget_p2i ((unsigned long long) ino);
- int retc = me.fs ().unlink (fullpath.c_str (), fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
-
+ int retc = me.fs ().unlink (fullpath.c_str (), fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino);
+ 
  if (!retc)
    fuse_reply_buf (req, NULL, 0);
  else

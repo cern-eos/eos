@@ -423,6 +423,7 @@ public:
  //!
  //! @param inode inode value of the directory to be cached
  //! @param mtime modification time
+ //! @param ctime modification time
  //! @param b dirbuf structure
  //!
  //! @return true if found, otherwise false
@@ -430,6 +431,7 @@ public:
  //----------------------------------------------------------------------------
  int dir_cache_get (unsigned long long inode,
                     struct timespec mtime,
+                    struct timespec ctime,
                     struct dirbuf** b);
 
  //----------------------------------------------------------------------------
@@ -486,6 +488,7 @@ public:
  void dir_cache_sync (unsigned long long inode,
                       int nentries,
                       struct timespec mtime,
+                      struct timespec ctime,
                       struct dirbuf* b);
 
 
@@ -669,7 +672,8 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  int unlink (const char* path,
              uid_t uid,
              gid_t gid,
-             pid_t pid
+             pid_t pid, 
+	     unsigned long inode
              );
 
  //----------------------------------------------------------------------------
