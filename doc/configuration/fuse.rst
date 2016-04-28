@@ -244,6 +244,8 @@ Define two FUSE mounts in /etc/sysconfig/eos
    export EOS_FUSE_RDAHEAD_WINDOW=262144
    # stop rm -r for directories with deepness <=2
    export EOS_FUSE_RMLVL_PROTECT=2
+   # configure JEMALLOC
+   test -e /usr/lib64/libjemalloc.so.1 && export LD_PRELOAD=/usr/lib64/libjemalloc.so.1
 
    # #################################################################
    # shared XrdCl options

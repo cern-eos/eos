@@ -1202,12 +1202,6 @@ filesystem::rmxattr (const char* path,
  
  XrdOucString xa=xattr_name; 
 
- // exclude security attributes
- if (xa.beginswith("security."))
- {
-   return 0;
- }
-
  request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
@@ -1240,7 +1234,8 @@ filesystem::rmxattr (const char* path,
    if ((items != 2) || (strcmp (tag, "rmxattr:")))
      errno = ENOENT;
    else
-     errno = retc;
+     if (retc)
+       errno = ENOATTR;
  }
  else
  {
@@ -1277,11 +1272,6 @@ filesystem::setxattr (const char* path,
  COMMONTIMING ("START", &setxattrtiming);
 
  XrdOucString xa = xattr_name;
- // exclude security attributes
- if (xa.beginswith("security."))
- {
-   return 0;
- }
 
  std::string request;
  XrdCl::Buffer arg;
@@ -1366,11 +1356,6 @@ filesystem::getxattr (const char* path,
  COMMONTIMING ("START", &getxattrtiming);
 
  XrdOucString xa = xattr_name; 
- // exclude security attributes
- if (xa.beginswith("security."))
- {
-   return ENOENT;
- }
 
  std::string request;
  XrdCl::Buffer arg;
