@@ -500,10 +500,10 @@ int64_t LayoutWrapper::WriteCache (XrdSfsFileOffset offset, const char* buffer, 
 	gCacheAuthority[mInode].mSize = (offset + length);
   }
 
-  if ((*mCache).capacity() < (1*1024*1024))
+  if ((*mCache).capacity() < (4*1024))
   {
     // helps to speed up 
-    (*mCache).resize(1*1024*1024);
+    (*mCache).resize(4*1024);
   } 
   else
   {

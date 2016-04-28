@@ -863,8 +863,7 @@ int
 filesystem::is_wopen (unsigned long inode)
 {
  eos::common::RWMutexReadLock rd_lock (rwmutex_inodeopenw);
- auto iter = inodeopenw.find (inode);
- if (iter == inodeopenw.end ())
+ if (!inodeopenw.count(inode))
    return 0;
  return 1;
 }
