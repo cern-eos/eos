@@ -10,26 +10,28 @@ use ApMon::XDRUtils;
 use Data::Dumper;
 use Sys::Hostname;
 
-use vars qw(@ISA @EXPORT @EXPORT_OK $APMON_DEFAULT_PORT $VERSION %defaultOptions $KSI2K);
+use vars qw(@ISA @EXPORT @EXPORT_OK $APMON_DEFAULT_PORT $VERSION %defaultOptions $KSI2K $CpuMHz);
 
 push @ISA, qw(Exporter);
 push @EXPORT, qw(logger);
 push @EXPORT_OK, qw($APMON_DEFAULT_PORT %defaultOptions);
 
-$VERSION = "2.2.11";
+$VERSION = "2.2.18";
 $APMON_DEFAULT_PORT = 8884;
 
 my @LOG_LEVELS = ("DEBUG", "NOTICE", "INFO", "WARNING", "ERROR", "FATAL");
-my $CRT_LOGLEVEL = 2; # index in the array above
+my $CRT_LOGLEVEL = 2;	# index in the array above
 
-my $MAX_MSG_RATE = 20; # Default value for max nr. of messages that user is allowed to send, per second
+my $MAX_MSG_RATE = 20;	# Default value for max nr. of messages that user is allowed to send, per second
 
-$KSI2K = undef; #kilo spec ints 2k for this machine
+$KSI2K = undef;		# kilo spec ints 2k for this machine
+
+$CpuMHz = undef;	# Cpu Speed when taking the speed for KSI2k
 
 # Default options for background monitoring
 %defaultOptions = (
         'job_monitoring' => 1,          # perform (or not) job monitoring
-        'job_interval' => 10,           # at this interval (in seconds)
+        'job_interval' => 60,           # at this interval (in seconds)
         'job_data_sent' => 0,           # time from Epoch when job information was sent; don't touch!
 
         'job_cpu_time' => 1,            # processor time spent running this job in seconds
@@ -46,6 +48,8 @@ $KSI2K = undef; #kilo spec ints 2k for this machine
         'job_disk_free' => 1,           # size in MB of the free disk partition containing the working directory
         'job_disk_usage' => 1,          # percent of the used disk partition containing the working directory
 	'job_open_files' => 1,		# number of open file descriptors
+	'job_page_faults_min' => 1,	# number of minor page faults in the job
+	'job_page_faults_maj' => 1,	# number of major page faults in the job
 
 
         'sys_monitoring' => 1,          # perform (or not) system monitoring
@@ -57,6 +61,10 @@ $KSI2K = undef; #kilo spec ints 2k for this machine
         'sys_cpu_nice' => 1,
         'sys_cpu_idle' => 1,
 	'sys_cpu_iowait' => 1,
+	'sys_cpu_irq' => 1,
+	'sys_cpu_softirq' => 1,
+	'sys_cpu_steal' => 1,
+	'sys_cpu_guest' => 1,
         'sys_cpu_usage' => 1,
 	'sys_interrupts' => 1,
 	'sys_context_switches' => 1,
@@ -83,22 +91,20 @@ $KSI2K = undef; #kilo spec ints 2k for this machine
 	'sys_net_tcp_details' => 1,	# number of tcp sockets in each state => sockets_tcp_LISTEN, ...
         'sys_processes' => 1,		# total processes and processs in each state (R, S, D ...)
 	'sys_uptime' => 1,		# uptime of the machine, in days (float number)
-        'sys_eos_disk_space' => 1,      # total space on a disk server
-        'sys_eos_disk_free' => 1,       # free space on a disk server
-        'sys_eos_disk_used' => 1,       # used space on a disk server
-        'sys_eos_disk_usage' => 1,      # usage in %
-	'sys_eos_rpm_version' => 1,     # read rpm version
-	'sys_xrootd_rpm_version' => 1,  # read xrootd server version
+
+
         'general_info' => 1,            # send (or not) general host information once every 2 $sys_interval seconds
         'general_data_sent' => 0,       # time from Epoch when general information was sent; don't touch!
 
         'hostname' => 1,
-        'ip' => 1,                      # will produce ethX_ip params for each interface
+        'ip' => 1,                      # will produce <ifname>_ip params for each physical interface
+	'ipv6' => 1,                    # will produce <ifname>_ipv6 params for each physical interface
 	'kernel_version' => 1,
 	'platform' => 1,
 	'os_type' => 1,
         'cpu_MHz' => 1,
         'no_CPUs' => 1,                 # number of CPUs
+	'ksi2k_factor' => 1,		# system's ksi2k factor, if known
         'total_mem' => 1,
         'total_swap' => 1,
 	'cpu_vendor_id' => 1,
@@ -210,9 +216,12 @@ sub directSendParameters {
 		. ApMon::XDRUtils::encodeParameters($clusterName, $nodeName, $time, @params);
         my $in_addr = inet_aton($host);
         my $in_paddr = sockaddr_in($port, $in_addr);
-        if(send(SOCKET, $msg, 0, $in_paddr) != length($msg)){
+	my $msg_len = length($msg);
+        if(send(SOCKET, $msg, 0, $in_paddr) != $msg_len){
                 logger("ERROR", "Could not send UDP datagram to $host:$port");
-        }
+        }else{
+		logger("NOTICE", "~~~~> Packet sent successfully; total size=$msg_len bytes.");
+	}
 }
 
 # This is called by child processes to read messages (if they exist) from the parent.
@@ -373,16 +382,21 @@ sub getInstanceID {
 # TODO: make this work also for Mac.
 sub getCpuType {
 	my $cpu_type = {};
-	if(open(CPU_INFO, "</proc/cpuinfo")){
-		my $line;
-		while($line = <CPU_INFO>){
-			$cpu_type->{"cpu_MHz"} = $1 if($line =~ /cpu MHz\s+:\s+(\d+\.?\d*)/);
-			$cpu_type->{"cpu_model_name"} = $1 if($line =~ /model name\s+:\s+(.+)/ || $line =~ /family\s+:\s+(.+)/);
-			$cpu_type->{"cpu_cache"} = $1 if($line =~ /cache size\s+:\s+(\d+)/);
+	if(-r "/proc/cpuinfo"){
+		if(open(CPU_INFO, "</proc/cpuinfo")){
+			my $line;
+			while($line = <CPU_INFO>){
+				if($line =~ /cpu MHz\s+:\s+(\d+\.?\d*)/){
+					$cpu_type->{"cpu_MHz"} = $1;
+					$CpuMHz = $1;
+				}
+				$cpu_type->{"cpu_model_name"} = $1 if($line =~ /model name\s+:\s+(.+)/ || $line =~ /family\s+:\s+(.+)/);
+				$cpu_type->{"cpu_cache"} = $1 if($line =~ /cache size\s+:\s+(\d+)/);
+			}
+			close(CPU_INFO);
+		}else{
+			logger("NOTICE", "Cannot open /proc/cpuinfo");
 		}
-		close(CPU_INFO);
-	}else{
-		logger("NOTICE", "Cannot open /proc/cpuinfo");
 	}
 	if(-r "/proc/pal/cpu0/cache_info"){
 		if(open(CACHE_INFO, "</proc/pal/cpu0/cache_info")){
@@ -390,7 +404,7 @@ sub getCpuType {
 			my $level3params = 0;
 			while($line = <CACHE_INFO>){
 				$level3params = 1 if($line =~/Cache level 3/);
-				$cpu_type->{"cpu_cache"} = $1 / 1 if ($level3params && $line =~ /Size\s+:\s+(\d+)/);
+				$cpu_type->{"cpu_cache"} = $1 / 1024 if ($level3params && $line =~ /Size\s+:\s+(\d+)/);
 			}
 			close(CACHE_INFO);
 		}else{
@@ -398,7 +412,7 @@ sub getCpuType {
 		}
 	}
 	if(! scalar(keys(%$cpu_type))){
-		logger("NOTICE", "Cannot get cpu type");
+		logger("INFO", "Cannot get cpu type");
 		return undef;
 	}
 	return $cpu_type;

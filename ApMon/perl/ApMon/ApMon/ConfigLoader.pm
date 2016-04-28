@@ -3,7 +3,6 @@ package ApMon::ConfigLoader;
 use strict;
 use warnings;
 
-require LWP::UserAgent;
 use ApMon::Common qw(logger $APMON_DEFAULT_PORT %defaultOptions);
 use Socket;
 use Data::Dumper;
@@ -138,6 +137,7 @@ sub fetchConfig {
         for my $dest (@dests){
                 if ( $dest =~ /^http:\/\// ) {
                         logger("INFO", "Reading config from url: $dest");
+			require LWP::UserAgent;
                         my $ua = LWP::UserAgent->new();
                         $ua->timeout(5);
                         $ua->env_proxy();
@@ -232,6 +232,7 @@ sub writeDestinations {
 			}
 		}
 		close(CONF);
+		chmod(0600, $this->{CONF_FILE}.'.tmp');
 	        # this is done in order to keep the interference between the processes as small as possible
         	rename($this->{CONF_FILE}.'.tmp', $this->{CONF_FILE});
 	}else{

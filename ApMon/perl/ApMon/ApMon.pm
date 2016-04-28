@@ -54,6 +54,9 @@ use Data::Dumper;
 # Here it is kept a list of child processes that have to be killed before finishing.
 my @children = (); 
 
+# Temporary files path
+my $TMPDIR = (defined $ENV{'TMPDIR'}) ? $ENV{'TMPDIR'} : '/tmp';
+
 =item $apm = new ApMon(@destLocations);
 
 This is the constructor for the ApMon class. It can be used with several types of
@@ -74,8 +77,8 @@ sub new {
 	
         my $this = {};
 	bless $this;
-	$this->{CONF_FILE} = "/tmp/confApMon.$$"; # temporary name used to transfer config data from refreshConfig process to the others
-	$this->{LAST_VALUES_FILE} = "/tmp/valuesApMon.$$"; #temporary name used to transfer last monitored data from BgMonitor to the main process
+	$this->{CONF_FILE} = "$TMPDIR/confApMon.$$"; # temporary name used to transfer config data from refreshConfig process to the others
+	$this->{LAST_VALUES_FILE} = "$TMPDIR/valuesApMon.$$"; #temporary name used to transfer last monitored data from BgMonitor to the main process
 	$this->{LAST_CONF_CHECK_TIME} = 0;	# moment when config was checked last time in sec from Epoch
 	$this->{CONF_RECHECK} = 1;		# do check if configuration has changed
 	$this->{CONF_CHECK_INTERVAL} = 20;	# default interval to check for changes in config files
@@ -472,7 +475,9 @@ If it cannot get the cpu type, it returns undef
 
 sub getCpuType {
 	my $this = shift;
-	return ApMon::Common::getCpuType();
+	my $cpuType = ApMon::Common::getCpuType();
+	ApMon::Common::writeMessage($this->{BG_WTR}, "cpu_mhz:$ApMon::Common::CpuMHz\n") if(@children && $ApMon::Common::CpuMHz);
+	return $cpuType;
 }
 
 =item $apm->setCpuSI2k(si2k);
@@ -501,8 +506,8 @@ sub free {
 	my $this = shift;
 	$this->stopBgProcesses();
 	#close(ApMon::Common::SOCKET);
-	unlink("/tmp/confApMon.$$");
-	unlink("/tmp/valuesApMon.$$");
+	unlink("$TMPDIR/confApMon.$$");
+	unlink("$TMPDIR/valuesApMon.$$");
 }
 
 ##################################################################################################
@@ -510,9 +515,9 @@ sub free {
 
 # This is called if uses presses CTRL+C or kill is sent to me
 sub catch_zap {
-	logger("DEBUG", "Killed! Removing temp files /tmp/{conf,values}ApMon.$$") if defined &logger;
-	unlink("/tmp/confApMon.$$");
-	unlink("/tmp/valuesApMon.$$");
+	logger("DEBUG", "Killed! Removing temp files $TMPDIR/{conf,values}ApMon.$$") if defined &logger;
+	unlink("$TMPDIR/confApMon.$$");
+	unlink("$TMPDIR/valuesApMon.$$");
 	stopBgProcesses("dummy");
 	exit(0);
 }
@@ -550,8 +555,8 @@ sub update_last_values {
 }
 
 END {
-    unlink("/tmp/confApMon.$$");
-    unlink("/tmp/valuesApMon.$$");
+    unlink("$TMPDIR/confApMon.$$");
+    unlink("$TMPDIR/valuesApMon.$$");
     stopBgProcesses("dummy");
 }
 
