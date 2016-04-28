@@ -1714,13 +1714,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
  // exclude security attributes                                                                                                                                                                                                                              
  if (xa.beginswith("security."))
  {
-<<<<<<< HEAD
    fuse_reply_err (req, ENOATTR);
-=======
-   // Filter out specific requests to increase performance
-   eos_static_debug("mask attr=%s ino=%lu ", xattr_name, ino);
-   fuse_reply_err (req, ENOSYS);
->>>>>>> FUSE: support for FUSE3
    return;
  }
 
