@@ -51,6 +51,17 @@ Layout (file, lid, client, outError, path, timeout)
 
 
 //------------------------------------------------------------------------------
+// Redirect to new target
+//------------------------------------------------------------------------------
+void ReplicaParLayout::Redirect(const char* path)
+{
+  if (mFileIO)
+    delete mFileIO;
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mLocalPath = path;
+}
+
+//------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
 

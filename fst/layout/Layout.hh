@@ -249,6 +249,13 @@ public:
     return mFileIO;
   }
 
+  virtual void Redirect(const char* path) 
+  {
+    if (mFileIO)
+      delete mFileIO;
+    mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  }
+
 protected:
 
   bool mIsEntryServer; ///< mark entry server

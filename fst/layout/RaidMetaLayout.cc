@@ -108,6 +108,15 @@ RaidMetaLayout::~RaidMetaLayout ()
   delete[] mLastBlock;
 }
 
+//------------------------------------------------------------------------------
+// Redirect to new target
+//------------------------------------------------------------------------------
+void RaidMetaLayout::Redirect(const char* path)
+{
+  if (mFileIO)
+    delete mFileIO;
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+}
 
 //------------------------------------------------------------------------------
 // Open file layout

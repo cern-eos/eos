@@ -53,6 +53,16 @@ mDisableRdAhead (false)
 }
 
 //------------------------------------------------------------------------------
+// Redirect toa new target
+//------------------------------------------------------------------------------
+void PlainLayout::Redirect(const char* path)
+{
+  if (mFileIO)
+    delete mFileIO;
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mLocalPath = path;
+}
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 
@@ -104,7 +114,7 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
 	length = 0;
 
       eos_static_info("read offset=%llu length=%lu", offset, length);
-      int64_t nread = mPlainFile->fileReadAsync(offset, buffer, length, readahead);
+      int64_t nread = mFileIO->fileReadAsync(offset, buffer, length, readahead);
 
       // Wait for any async requests
       AsyncMetaHandler* ptr_handler = static_cast<AsyncMetaHandler*>

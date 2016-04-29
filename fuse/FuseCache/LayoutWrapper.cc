@@ -325,9 +325,9 @@ LayoutWrapper::Repair (const std::string& path, const char* opaque)
   u.SetPath("/proc/user/");
   XrdCl::XRootDStatus status;
 
-  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+  LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, u.GetURL().c_str()));
 
-  int retc = file->Open (u.GetURL().c_str(), (XrdSfsFileOpenMode)0, (mode_t)0, cmd.c_str(), NULL, true, 0, false);
+  int retc = file->Open (u.GetURL().c_str(),(XrdSfsFileOpenMode)0, (mode_t)0, cmd.c_str(), NULL, true, 0, false);
 
   if (retc)
   {
@@ -371,7 +371,8 @@ int LayoutWrapper::Open (const std::string& path, XrdSfsFileOpenMode flags, mode
   
   if (doOpen)
   {
-    if ( (retc = mFile->Open (path, flags, mode, opaque)) )
+    mFile->Redirect(path.c_str());
+    if ( (retc = mFile->Open (flags, mode, opaque)) )
     {
       eos_static_err("error while openning");
       return -1;

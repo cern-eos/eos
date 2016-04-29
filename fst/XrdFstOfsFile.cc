@@ -997,31 +997,8 @@ XrdFstOfsFile::open (const char* path,
     return gOFS.Emsg(epname, error, EINVAL, "open - sec gid missing", Path.c_str());
   }
 
-  if ((val = capOpaque->Get("mgm.logid")))
-  {
-    snprintf(logId, sizeof ( logId) - 1, "%s", val);
-  }
-
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
-
-  //............................................................................
-  // Get the layout object
-  //............................................................................
-  layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
-                                                   eos::common::LayoutId::kLocal,
-                                                   mTimeout, store_recovery);
-
-  if (!layOut)
-  {
-    int envlen;
-    eos_err("unable to handle layout for %s", capOpaque->Env(envlen));
-    delete fMd;
-    return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
-                     capOpaque->Env(envlen));
-  }
-
-  layOut->SetLogId(logId, vid, tident);
 
   //............................................................................
   // Attach meta data
