@@ -15,6 +15,8 @@ New Feature
 - FUSE: deal properly with security/system.posix_acl attributes in (cp -a errors)
 - FUSE: reduce significantly memory footprint for tight file creation loops - default in-memory cache reduced from 1M to 4k 
 - FUSE: cleanup in-memory caches of deleted files immediatly
+- FUSE: use asynchronous writes in release call and gain 25% performance
+- FUSE: prefer readlocks when submitting a piece to the wb-cache and refresh iterator if mutex upgrade from r->w is needed
 - WebDAV: return logical bytes as quota
 - RPMS: add dependency for JEMALLOC at runtime for eos-server and eos-fuse rpms
 
