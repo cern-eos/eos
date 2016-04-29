@@ -182,6 +182,9 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   }
 
   request = mFilePath;
+  request += "?";
+  request += opaque;
+
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
