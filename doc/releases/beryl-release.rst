@@ -7,6 +7,23 @@
 Beryl Release Notes
 ===================
 
+``V0.3.173 Aquamarine``
+
+New Feature
++++++++++++
+ 
+- FUSE: deal properly with security/system.posix_acl attributes in (cp -a errors)
+- FUSE: reduce significantly memory footprint for tight file creation loops - default in-memory cache reduced from 1M to 4k 
+- FUSE: cleanup in-memory caches of deleted files immediatly
+- WebDAV: return logical bytes as quota
+- RPMS: add dependency for JEMALLOC at runtime for eos-server and eos-fuse rpms
+
+Bug Fix
++++++++
+
+- FUSE: fix bug bypassing the directory cache all the time when doing ls,ls -l ... 
+- FUSE: detect meta data updates on directories and refresh the client cache accordingly 
+
 ``V0.3.172 Aquamarine``
 
 New Feature

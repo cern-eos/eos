@@ -501,10 +501,10 @@ int64_t LayoutWrapper::WriteCache (XrdSfsFileOffset offset, const char* buffer, 
 	gCacheAuthority[mInode].mSize = (offset + length);
   }
 
-  if ((*mCache).capacity() < (1*1024*1024))
+  if ((*mCache).capacity() < (4*1024))
   {
     // helps to speed up 
-    (*mCache).resize(1*1024*1024);
+    (*mCache).resize(4*1024);
   } 
   else
   {
@@ -677,4 +677,23 @@ LayoutWrapper::CacheAuthSize(unsigned long long inode)
     }
   }
   return -1;
+}
+
+//--------------------------------------------------------------------------
+//! Return last known size of a file we had a caps for
+//--------------------------------------------------------------------------
+void LayoutWrapper::CacheRemove(unsigned long long inode)
+{
+  inode = eos::common::FileId::InodeToFid(inode);
+
+  XrdSysMutexHelper l(gCacheAuthorityMutex);
+  if ( inode )
+  {
+    if (gCacheAuthority.count(inode))
+    {
+      auto d = gCacheAuthority.find(inode);
+      gCacheAuthority.erase(d);
+      eos_static_notice("removed cap owner-authority for file inode=%lu", d->first);
+    }
+  }
 }
