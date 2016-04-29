@@ -332,8 +332,6 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
-  struct stat buf;
-  
   // --------------------
   // exclude remote disks
   // --------------------
