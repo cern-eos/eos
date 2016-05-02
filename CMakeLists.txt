@@ -107,6 +107,7 @@ if (NOT PACKAGEONLY)
   find_package(Sphinx)
   find_package(kineticio)
   find_package(davix)
+  find_package(jsonc)
 
   if (Linux)
     find_package(glibc REQUIRED)
