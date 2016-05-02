@@ -1639,6 +1639,48 @@ XrdMgmOfsFile::open (const char *inpath,
         }
         isZeroSizeFile = true;
       }
+      if (isFuse && !isCreation)
+      {
+        // ---------------------------------------------------------------------
+        // if we come from fuse for an update
+        // consistently redirect to the highest fsid having if possible the same
+        // geotag as the client
+        // ---------------------------------------------------------------------
+        eos::common::FileSystem::fsid_t fsid = 0;
+        fsIndex = 0;
+        std::string fsgeotag;
+        for (size_t k = 0; k < selectedfs.size (); k++)
+        {
+          filesystem = 0;
+          fsgeotag="";
+          if (FsView::gFsView.mIdView.count (selectedfs[k]))
+          {
+            filesystem = FsView::gFsView.mIdView[selectedfs[k]];
+            fsgeotag = filesystem->GetString ("stat.geotag");
+          }
+          // if the fs is available
+          if (std::find (unavailfs.begin (), unavailfs.end (), selectedfs[k]) == unavailfs.end ())
+          {
+            // take the highest fsid with the same geotag if possible
+            if ((vid.geolocation.empty () || fsgeotag == vid.geolocation) && (selectedfs[k] > fsid))
+            {
+              fsIndex = k;
+              fsid = selectedfs[k];
+            }
+          }
+        }
+        // if the client has a geotag which does not match any of the fs's
+        if (!fsIndex)
+        {
+          fsid = 0;
+          for (size_t k = 0; k < selectedfs.size (); k++)
+            if (selectedfs[k] > fsid)
+            {
+              fsIndex = k;
+              fsid = selectedfs[k];
+            }
+        }
+      }
     }
     else
     {
