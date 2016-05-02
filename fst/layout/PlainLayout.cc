@@ -102,10 +102,10 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
     if (mIoType == eos::common::LayoutId::eIoType::kXrdCl)
     {
       if ((uint64_t)(offset + length) > mFileSize)
-	length = mFileSize - offset;
+        length = mFileSize - offset;
 
       if (length<0)
-	length = 0;
+        length = 0;
 
       eos_static_info("read offset=%llu length=%lu", offset, length);
       int64_t nread = mPlainFile->ReadAsync(offset, buffer, length, readahead);
@@ -123,10 +123,10 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
       }
 
       if ( (nread+offset) > (off_t)mFileSize)
-	mFileSize = nread+offset;
+        mFileSize = nread+offset;
 
       if ( (nread != length) && ( (nread+offset) < (int64_t)mFileSize) )
-	mFileSize = nread+offset;
+        mFileSize = nread+offset;
 
       return nread;
     }
@@ -157,7 +157,7 @@ PlainLayout::Write (XrdSfsFileOffset offset, const char* buffer,
   if ((uint64_t)(offset + length) > mFileSize)
     mFileSize = offset + length;
 
-  return mPlainFile->Write(offset, buffer, length, mTimeout);
+  return mPlainFile->WriteAsync(offset, buffer, length, mTimeout);
 }
 
 //------------------------------------------------------------------------------
@@ -212,7 +212,25 @@ PlainLayout::Stat (struct stat* buf)
 int
 PlainLayout::Close ()
 {
-  return mPlainFile->Close(mTimeout);
+  int rc = SFS_OK;
+  AsyncMetaHandler* ptr_handler =
+      static_cast<AsyncMetaHandler*> (mPlainFile->GetAsyncHandler());
+
+  if (ptr_handler)
+  {
+    if (ptr_handler->WaitOK() != XrdCl::errNone)
+    {
+      eos_err("error=async requests failed for file %s", mLastUrl.c_str());
+      rc = SFS_ERROR;
+    }
+  }
+
+  int rc_close = mPlainFile->Close(mTimeout);
+
+  if (rc != SFS_OK)
+    rc_close = rc;
+
+  return rc_close;
 }
 
 //------------------------------------------------------------------------------

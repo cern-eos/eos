@@ -710,7 +710,12 @@ XrdFstOfsFile::open (const char* path,
   }
 
   std::string RedirectTried = RedirectManager.c_str();
-  RedirectTried += "?tried=+";
+  RedirectTried += "?tried=";
+  if( (val = openOpaque->Get("tried")) )
+  {
+    RedirectTried += openOpaque->Get("tried");
+    RedirectTried += ",";
+  }
   RedirectTried += gOFS.mHostName;
 
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
