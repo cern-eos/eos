@@ -72,6 +72,7 @@ if (NOT PACKAGEONLY)
   find_package(Kerberos5 REQUIRED)
   find_package(kineticio)
   find_package(davix)
+  find_package(jsonc)
 
   if (Linux)
     find_package(glibc REQUIRED)
