@@ -126,10 +126,10 @@ Scheduler::FilePlacement(const std::string& spacename,
   // and chose the group where they are located the most
   if (!alreadyused_filesystems.empty())
   {
-    if (!gGeoTreeEngine.getGroupsFromFsIds(alreadyused_filesystems, &fsidsgeotags,
-                                           &groupsToTry))
+    if (!gGeoTreeEngine.getInfosFromFsIds(alreadyused_filesystems, &fsidsgeotags,
+                                           0,&groupsToTry))
     {
-      eos_static_debug("could not retrieve scheduling group for all avoid fsids");
+      eos_static_debug("could not retrieve scheduling group for all the avoided fsids");
     }
   }
 
@@ -269,6 +269,28 @@ Scheduler::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
   }
   if(schedtype==draining) st = GeoTreeEngine::draining;
   if(schedtype==balancing) st = GeoTreeEngine::balancing;
+
+  // add the already tried fs to the unavailable ones
+  if (!tried_cgi.empty())
+  {
+    std::vector<std::string> hosts;
+    if (!gGeoTreeEngine.getInfosFromFsIds(locationsfs, 0,
+                                           &hosts,0))
+    {
+      eos_static_debug("could not retrieve host for all the avoided fsids");
+    }
+    size_t idx = 0;
+    // consider already tried replicas as unavailable
+    for(auto it=hosts.begin(); it!=hosts.end(); it++)
+    {
+      if( (!it->empty()) && tried_cgi.find((*it)+",")!=std::string::npos )
+      {
+        // should not keep this replica as available
+        unavailfs.push_back(locationsfs[idx]);
+      }
+      idx++;
+    }
+  }
 
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes, fsindex,
          &locationsfs,
