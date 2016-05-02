@@ -79,7 +79,8 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 // Constructor
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
-  mFile(file), mOpen(false), mFabs(NULL)
+    mFile(file), mOpen(false), mFabs(NULL), mDoneAsyncOpen(false),
+    mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
   mLocalUtime[0].tv_nsec = mLocalUtime[1].tv_nsec = 0;
@@ -187,7 +188,7 @@ bool LayoutWrapper::IsEntryServer()
 }
 
 //------------------------------------------------------------------------------
-//! do the open on the mgm but not on the fst yet
+// Do the open on the mgm but not on the fst yet
 //------------------------------------------------------------------------------
 int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                             mode_t mode, const char* opaque, const struct stat* buf)
@@ -250,7 +251,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
     }
   }
 
-  // send the request for FsCtl
+  // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
   status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
@@ -270,7 +271,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       }
       else
       {
-        // reissue the open
+        // Reissue the open
         status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
         if (!status.IsOK())
@@ -292,7 +293,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
     }
   }
 
-  // split the reponse
+  // Split the reponse
   XrdOucString origResponse = response->GetBuffer();
   origResponse += "&eos.app=fuse";
   auto qmidx = origResponse.find("?");
@@ -300,11 +301,11 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   std::map<std::string, std::string> m;
   ImportCGI(m, opaque);
   ImportCGI(m, origResponse.c_str() + qmidx + 1);
-  // drop authentication params as they would fail on the fst
+  // Drop authentication params as they would fail on the fst
   m.erase("xrd.wantprot");
   m.erase("xrd.k5ccname");
   m.erase("xrd.gsiusrpxy");
-  // let the lazy open use an open by inode
+  // Let the lazy open use an open by inode
   std::string fxid = m["mgm.id"];
   mOpaque += "&eos.lfn=fxid:";
   mOpaque += fxid;
@@ -386,38 +387,63 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
   if (!doOpen)
   {
-    retc =  LazyOpen(path, flags, mode, opaque, buf);
+    retc = LazyOpen(path, flags, mode, opaque, buf);
 
     if (retc < 0)
       return retc;
-  }
 
-  if (doOpen)
-  {
-    if ((retc = mFile->Open(path, flags, mode, opaque)))
+    // Do the async open on the FST and return
+    eos::fst::PlainLayout* plain_layout = static_cast<eos::fst::PlainLayout*>(mFile);
+    mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
+
+    if (plain_layout->OpenAsync(path, flags, mode, mOpenHandler, opaque))
     {
-      eos_static_err("error while openning");
+      delete mOpenHandler;
+      eos_static_err("error while async opening path=%s", path.c_str());
       return -1;
     }
     else
     {
-      // We don't want to truncate the file in case we reopen it
-      mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);
-      mOpen = true;
-      std::string lasturl = mFile->GetLastUrl();
-      auto qmidx = lasturl.find("?");
-      lasturl.erase(0, qmidx);
-      std::map<std::string, std::string> m;
-      ImportCGI(m, lasturl);
-      std::string fxid = m["mgm.id"];
-      mInode = strtoull(fxid.c_str(), 0, 16);
-
-      if (flags && buf)
-        Utimes(buf);
-
-      if (buf)
-        mSize = buf->st_size;
+      mDoneAsyncOpen = true;
     }
+  }
+  else
+  {
+    if (mDoneAsyncOpen)
+    {
+      // Wait for the async open response
+      if (!static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync())
+      {
+        eos_static_err("async open failed for path=%s", path.c_str());
+        return -1;
+      }
+    }
+    else
+    {
+      // Do synchronous open
+      if ((retc = mFile->Open(path, flags, mode, opaque)))
+      {
+        eos_static_err("error while openning");
+        return -1;
+      }
+    }
+
+    // We don't want to truncate the file in case we reopen it
+    mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);
+    mOpen = true;
+    std::string lasturl = mFile->GetLastUrl();
+    auto qmidx = lasturl.find("?");
+    lasturl.erase(0, qmidx);
+    std::map<std::string, std::string> m;
+    ImportCGI(m, lasturl);
+    std::string fxid = m["mgm.id"];
+    mInode = strtoull(fxid.c_str(), 0, 16);
+
+    if (flags && buf)
+      Utimes(buf);
+
+    if (buf)
+      mSize = buf->st_size;
   }
 
   time_t now = time(0);

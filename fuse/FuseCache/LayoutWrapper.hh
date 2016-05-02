@@ -27,6 +27,14 @@
 #include "FileAbstraction.hh"
 #include "Bufferll.hh"
 
+//! Forward declaration
+class LayoutWrapper;
+namespace eos {
+  namespace fst {
+    class AsyncLayoutOpenHandler;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Class that wraps a FileLayout to keep track of change times and to be able to
 // close the layout and be able to automatically reopen it if it's needed.
@@ -36,6 +44,7 @@
 //------------------------------------------------------------------------------
 class LayoutWrapper
 {
+  friend class AsyncOpenHandler;
   friend class FileAbstraction;
 
   eos::fst::Layout* mFile;
@@ -266,6 +275,10 @@ class LayoutWrapper
   {
     return mCanCache;
   }
+
+ private:
+  bool mDoneAsyncOpen; ///< Mark if async open was issued
+  eos::fst::AsyncLayoutOpenHandler* mOpenHandler; ///< Asynchronous open handler
 };
 
 #endif

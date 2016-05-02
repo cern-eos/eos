@@ -3219,7 +3219,8 @@ filesystem::open (const char* path,
 
  eos_static_debug ("the spath is:%s", spath.c_str ());
 
- LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+ LayoutWrapper* file = new LayoutWrapper(
+     new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
  XrdOucString open_cgi = "eos.app=fuse";
  if(encode_pathname) open_cgi += "&eos.encodepath=1";
 

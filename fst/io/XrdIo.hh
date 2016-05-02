@@ -30,11 +30,13 @@
 #include "fst/io/SimpleHandler.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
 //! Forward declarations
+class XrdIo;
 class AsyncMetaHandler;
 struct ReadaheadBlock;
 
@@ -91,13 +93,50 @@ struct ReadaheadBlock
   SimpleHandler* handler; ///< async handler for the requests
 };
 
+//------------------------------------------------------------------------------
+//! Class used for handling asynchronous open responses
+//------------------------------------------------------------------------------
+class AsyncIoOpenHandler: public XrdCl::ResponseHandler,
+                          public eos::common::LogId
+{
+ public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param io_file file object
+  //! @param layout_handler handler for the layout object
+  //----------------------------------------------------------------------------
+  AsyncIoOpenHandler(XrdIo* io_file, XrdCl::ResponseHandler* layout_handler):
+      mFileIo(io_file), mLayoutOpenHandler(layout_handler) {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~AsyncIoOpenHandler() {}
+
+  //----------------------------------------------------------------------------
+  //! Called when a response to associated request arrives or an error  occurs
+  //!
+  //! @param status   status of the request
+  //! @param response an object associated with the response (request dependent)
+  //! @param hostList list of hosts the request was redirected to
+  //---------------------------------------------------------------------------
+  virtual void HandleResponseWithHosts(XrdCl::XRootDStatus* status,
+                                       XrdCl::AnyObject* response,
+                                       XrdCl::HostList* hostList);
+
+ private:
+  XrdIo* mFileIo; ///< File IO object corresponding to this handler
+  XrdCl::ResponseHandler* mLayoutOpenHandler; ///< Open handler for the layout
+};
+
 
 //------------------------------------------------------------------------------
 //! Class used for doing remote IO operations using the Xrd client
 //------------------------------------------------------------------------------
-
 class XrdIo : public FileIo
 {
+  friend class AsyncIoOpenHandler;
 public:
 
   static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
@@ -120,7 +159,7 @@ public:
 
 
   //----------------------------------------------------------------------------
-  //! Open file
+  //! Open file - synchronously
   //!
   //! @param path file path
   //! @param flags open flags
@@ -129,7 +168,6 @@ public:
   //! @param timeout timeout value
   //!
   //! @return 0 on success, -1 otherwise and error code is set
-  //!
   //----------------------------------------------------------------------------
   virtual int Open (const std::string& path,
                     XrdSfsFileOpenMode flags,
@@ -137,6 +175,23 @@ public:
                     const std::string& opaque = "",
                     uint16_t timeout = 0);
 
+  //----------------------------------------------------------------------------
+  //! Open file - asynchronously. This call is to be used from one of the file
+  //! layout classes and not on its own, as there is not mechanims buit into
+  //! this class to wait for the response.
+  //!
+  //! @param path file path
+  //! @param handler handler called asynchronously
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque information
+  //! @param timeout timeout value
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //----------------------------------------------------------------------------
+  virtual int OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
+                         XrdSfsFileOpenMode flags, mode_t mode = 0,
+                         const std::string& opaque = "", uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Read from file - sync
@@ -284,7 +339,6 @@ private:
   PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
   XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
-
   
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
