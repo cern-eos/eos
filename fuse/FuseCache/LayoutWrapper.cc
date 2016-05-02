@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "../MacOSXHelper.hh"
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
 #include "common/Logging.hh"
@@ -344,8 +343,8 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
   u.SetParams("");
   u.SetPath("/proc/user/");
   XrdCl::XRootDStatus status;
-  LayoutWrapper* file = new LayoutWrapper(new eos::fst::PlainLayout(
-      NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+  std::unique_ptr<LayoutWrapper> file (new LayoutWrapper(new eos::fst::PlainLayout(
+										   NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl)));
   int retc = file->Open(u.GetURL().c_str(), (XrdSfsFileOpenMode)0,
                         (mode_t)0, cmd.c_str(), NULL, true, 0, false);
 
@@ -524,19 +523,22 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     if (retc < 0)
       return retc;
 
-    // Do the async open on the FST and return
-    eos::fst::PlainLayout* plain_layout = static_cast<eos::fst::PlainLayout*>(mFile);
-    mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
-
-    if (plain_layout->OpenAsync(path, flags, mode, mOpenHandler, opaque))
+    if (getenv("EOS_FUSE_ASYNC_OPEN")) 
     {
-      delete mOpenHandler;
-      eos_static_err("error while async opening path=%s", path.c_str());
-      return -1;
-    }
-    else
-    {
-      mDoneAsyncOpen = true;
+      // Do the async open on the FST and return
+      eos::fst::PlainLayout* plain_layout = static_cast<eos::fst::PlainLayout*>(mFile);
+      mOpenHandler = new eos::fst::AsyncLayoutOpenHandler(plain_layout);
+      
+      if (plain_layout->OpenAsync(path, flags, mode, mOpenHandler, opaque))
+      {
+	delete mOpenHandler;
+	eos_static_err("error while async opening path=%s", path.c_str());
+	return -1;
+      }
+      else
+      {
+	mDoneAsyncOpen = true;
+      }
     }
   }
   else
@@ -831,9 +833,8 @@ int LayoutWrapper::Stat(struct stat* buf)
 void LayoutWrapper::Utimes(const struct stat* buf)
 {
   // set local Utimes
-  mLocalUtime[0] = buf->MTIMESPEC;
-  mLocalUtime[1] = buf->ATIMESPEC;
-
+  mLocalUtime[0] = buf->st_atim;
+  mLocalUtime[1] = buf->st_mtim;
   eos_static_debug("setting timespec  atime:%lu.%.9lu      mtime:%lu.%.9lu",
                    mLocalUtime[0].tv_sec, mLocalUtime[0].tv_nsec,
                    mLocalUtime[1].tv_sec, mLocalUtime[1].tv_nsec);
