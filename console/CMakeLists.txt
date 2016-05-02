@@ -21,11 +21,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+<<<<<<< HEAD
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS})
+  ${KINETICIO_INCLUDE_DIR} )
 
 #-------------------------------------------------------------------------------
 # These files are generated in the ../fst/ directory
@@ -72,6 +74,7 @@ add_executable(
   commands/com_group.cc
   commands/com_info.cc
   commands/com_io.cc
+  commands/com_kinetic.cc
   commands/com_json.cc
   commands/com_license.cc
   commands/com_ls.cc
@@ -129,6 +132,7 @@ if(CLIENT)
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
+    ${KINETICIO_LIBRARIES}
 else()
   target_link_libraries(
     eos
@@ -144,6 +148,7 @@ else()
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
+    ${KINETICIO_LIBRARIES}
 endif()
 
 if (MacOSX)

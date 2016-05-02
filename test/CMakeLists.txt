@@ -30,6 +30,7 @@ include_directories(
   ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/common/ulib/)
+  ${KINETIC_INCLUDE_DIR}
 
 add_subdirectory(benchmark)
 
@@ -88,7 +89,8 @@ target_link_libraries(
   EosFstIo-Static
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
-  ${PROTOBUF_LIBRARIES})
+  ${PROTOBUF_LIBRARIES}
+  ${KINETIC_LIBRARIES})
 
 target_link_libraries(
   xrdstress.exe

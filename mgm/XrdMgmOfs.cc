@@ -42,6 +42,7 @@
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Workflow.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
@@ -312,17 +313,125 @@ int
 XrdMgmOfs::prepare (XrdSfsPrep &pargs,
                     XrdOucErrInfo &error,
                     const XrdSecEntity * client)
+/*----------------------------------------------------------------------------*/
+/*
+ * Prepare a file (EOS will call a prepare workflow if defined)
+ *
+ * @return SFS_OK,SFS_ERR
+ */
+/*----------------------------------------------------------------------------*/
 {
+  static const char *epname = "prepare";
+
   const char *tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, 0, tident, vid);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  ACCESSMODE_R;
+
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-  return SFS_OK;
+
+
+  std::string cmd = "mgm.pcmd=event";
+
+  if (!(pargs.opts & Prep_STAGE))
+  {
+    return Emsg(epname, error, EOPNOTSUPP, "prepare");
+  }
+
+  XrdOucTList* pptr = pargs.paths;
+  XrdOucTList* optr = pargs.oinfo;
+
+  int retc = SFS_OK;
+
+  // check that all files exist
+  while (pptr)
+  {
+    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    eos_info("path=\"%s\"", prep_path.c_str());
+    XrdSfsFileExistence check;
+    if (_exists(prep_path.c_str(),
+                check,
+                error,
+                client,
+                "") || (check != XrdSfsFileExistIsFile))
+
+    {
+      if (check != XrdSfsFileExistIsFile)
+        Emsg(epname, error, ENOENT, "prepare - file does not exist or is not accessible to you", prep_path.c_str());
+      return SFS_ERROR;
+    }
+    if (pptr)
+    {
+      pptr = pptr->next;
+    }
+
+    if (optr)
+    {
+      optr = optr->next;
+    }
+  }
+
+  pptr = pargs.paths;
+  optr = pargs.oinfo;
+
+  while (pptr)
+  {
+    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    eos_info("path=\"%s\"", prep_path.c_str());
+
+    XrdOucString prep_info = optr ? (optr->text ? optr->text : "") : "";
+
+    XrdOucEnv prep_env(prep_info.c_str());
+
+
+    prep_info = cmd.c_str();
+    prep_info += "&";
+    prep_info += "&mgm.event=prepare";
+    prep_info += "&mgm.workflow=";
+
+    if (prep_env.Get("eos.workflow"))
+    {
+      prep_info += prep_env.Get("eos.workflow");
+    }
+    else
+    {
+      prep_info += "default";
+    }
+
+    prep_info += "&mgm.fid=0&mgm.path=";
+    prep_info += prep_path.c_str();
+    prep_info += "&mgm.logid=";
+    prep_info += this->logId;
+
+    XrdSfsFSctl args;
+    args.Arg1 = prep_path.c_str();
+    args.Arg1Len = prep_path.length();
+    args.Arg2 = prep_info.c_str();
+    args.Arg2Len = prep_info.length();
+
+    if (XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,
+                         args,
+                         error,
+                         client) != SFS_DATA)
+    {
+      retc = SFS_ERROR;
+    }
+    if (pptr)
+    {
+      pptr = pptr->next;
+    }
+
+    if (optr)
+    {
+      optr = optr->next;
+    }
+  }
+
+  return retc;
 }
 
 //------------------------------------------------------------------------------
@@ -379,8 +488,7 @@ XrdMgmOfs::Emsg (const char *pfx,
   }
   else
   {
-    if ((!strcmp(op, "stat")) ||
-        ((!strcmp(pfx,"attr_get") || (!strcmp(pfx,"attr_ls"))) && (ecode == ENOENT)))
+    if ((!strcmp(op, "stat")) || ((!strcmp(pfx, "attr_get") || (!strcmp(pfx, "attr_ls"))) && (ecode == ENOENT)))
     {
       eos_debug("Unable to %s %s; %s", op, target, etext);
     }
@@ -421,7 +529,6 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
   error.setErrInfo(0, smessage.c_str());
   return stime;
 }
-
 
 //------------------------------------------------------------------------------
 // Create redirect response

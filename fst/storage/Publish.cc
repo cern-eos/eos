@@ -265,10 +265,27 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors")*512.0 / 1000000.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors")*512.0 / 1000000.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
+
           gOFS.OpenFidMutex.Lock();
+
+	  std::map<std::string, std::string> iostats;
+	  if (fileSystemsVector[i]->getFileIOStats(iostats)) 
+	  {
+	    double readratemb  = strtod(iostats["read-mb-second"].c_str(),0);
+	    double writeratemb = strtod(iostats["write-mb-second"].c_str(),0);
+	    double diskload    = strtod(iostats["load"].c_str(),0);
+	    success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", readratemb);
+	    success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", writeratemb);
+	    success &= fileSystemsVector[i]->SetDouble("stat.disk.load", diskload);
+	  }
+	  else
+	  {
+	    success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors")*512.0 / 1000000.0);
+	    success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors")*512.0 / 1000000.0);
+	    success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
+	  }
+
+
           success &= fileSystemsVector[i]->SetLongLong("stat.ropen", (long long) gOFS.ROpenFid[fsid].size());
           success &= fileSystemsVector[i]->SetLongLong("stat.wopen", (long long) gOFS.WOpenFid[fsid].size());
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes", fileSystemsVector[i]->GetLongLong("stat.statfs.bfree") * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));

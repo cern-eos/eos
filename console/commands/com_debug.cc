@@ -41,8 +41,8 @@ com_debug (char* arg1)
 
     if (level == "this")
     {
-      fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
       debug = !debug;
+      fprintf(stdout, "info: toggling shell debugmode to debug=%d\n", debug);
       if (debug)
       {
         eos::common::Logging::SetLogPriority(LOG_DEBUG);

@@ -1,0 +1,9 @@
+{
+  "location":[
+    {"wwn":"ember1","inet4":["it-ember1","it-ember1"],"port":8123},
+    {"wwn":"ember2","inet4":["it-ember2","it-ember2"],"port":8123},
+    {"wwn":"ember3","inet4":["it-ember3","it-ember3"],"port":8123},
+    {"wwn":"ember4","inet4":["it-ember4","it-ember4"],"port":8123}
+  ],
+}
+

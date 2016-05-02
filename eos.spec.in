@@ -55,7 +55,7 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
-BuildRequires: libmicrohttpd, libmicrohttpd-devel
+BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 
@@ -93,7 +93,7 @@ Group: Applications/File
 Requires: xrootd >= %{xrootd_version}
 Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client
-Requires: libmicrohttpd
+Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
 Requires: protobuf

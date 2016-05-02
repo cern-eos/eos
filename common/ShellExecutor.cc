@@ -43,6 +43,9 @@ const std::string ShellExecutor::stdin = "stdin";
 /*----------------------------------------------------------------------------*/
 ShellExecutor::ShellExecutor ()
 {
+  outfd[0] = outfd[1] = -1;
+  infd[0] = infd[1] = -1;
+  
   // create a pipe for IPC
   if (pipe(outfd) == -1 || pipe(infd) == -1)
   {
@@ -106,6 +109,8 @@ ShellExecutor::execute (const std::string& cmd, fifo_uuid_t uuid) const
     size_t size = cmd.size() - offset < msg_t::max_size ? cmd.size() -
             offset : msg_t::max_size - 1;
 
+    memset(msg.buff, 0, sizeof(msg.buff));
+
     // copy the command
     strncpy(msg.buff, cmd.c_str() + offset, size);
 
@@ -144,6 +149,8 @@ ShellExecutor::run_child () const
 
   // make sure there are no zombie 'command' processes
   struct sigaction sigchld_action;
+
+  memset (&sigchld_action, 0, sizeof sigchld_action);
   sigchld_action.sa_handler = SIG_DFL;
   sigchld_action.sa_flags = SA_NOCLDWAIT;
   sigaction(SIGCHLD, &sigchld_action, 0);
@@ -241,7 +248,8 @@ ShellExecutor::system (char const * cmd, fifo_uuid_t uuid) const
 /*----------------------------------------------------------------------------*/
 ShellExecutor::msg_t::msg_t () : complete (false)
 {
-  *uuid = 0;
+  memset(uuid,0,sizeof(fifo_uuid_t));
+  memset(buff,0, max_size);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -251,7 +259,7 @@ ShellExecutor::msg_t::msg_t (fifo_uuid_t uuid) : complete (false)
   if (uuid == 0)
   {
     // make it an empty string
-    *(this->uuid) = 0;
+    memset(this->uuid,0,sizeof(fifo_uuid_t));
   }
   else
   {

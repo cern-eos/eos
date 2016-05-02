@@ -107,6 +107,8 @@ add_library(
   Master.cc
   Recycle.cc
   LRU.cc
+  WFE.cc
+  Workflow.cc
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc
@@ -122,7 +124,7 @@ add_library(
   Features.cc
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
-  geotree/SchedulingTreeCommon.cc)
+  geotree/SchedulingTreeCommon.cc)  
 
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files

@@ -21,6 +21,25 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if(KINETICIO_FOUND)
+    set(KINETICIO_SRC "io/kinetic/KineticIo.cc")
+    set(KINETICIO_HDR "io/kinetic/KineticIo.hh")
+else()
+    set(KINETICIO_SRC "")
+    set(KINETICIO_HDR "")
+endif()
+
+if(DAVIX_FOUND)
+    add_definitions(-DDAVIX_FOUND)
+    set(DAVIX_SRC "io/davix/DavixIo.cc")
+    set(DAVIX_HDR "io/davix/DavixIo.hh")
+else()
+    set(DAVIX_INCLUDE_DIR "")
+    set(DAVIX_LIBRARIES "")
+    set(DAVIX_SRC "")
+    set(DAVIX_HDR "")
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -29,7 +48,11 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${Z_INCLUDE_DIRS}
-  ${XFS_INCLUDE_DIRS})
+  ${XFS_INCLUDE_DIRS}
+  ${KINETICIO_INCLUDE_DIR}
+  ${JSONC_INCLUDE_DIR}
+  ${DAVIX_INCLUDE_DIR})
+
 
 #-------------------------------------------------------------------------------
 # Add CppUnit tests if possible
@@ -80,9 +103,14 @@ set(
   #-----------------------------------------------------------------------------
   # File IO interface
   #-----------------------------------------------------------------------------
+  io/FileIoPlugin.hh             io/FileIoPlugin.cc
   io/FileIo.hh
-  io/LocalIo.cc                  io/LocalIo.hh
-  io/XrdIo.cc                    io/XrdIo.hh
+  io/local/LocalIo.cc	         io/local/LocalIo.hh
+  io/local/FsIo.cc               io/local/FsIo.hh
+  ${KINETICIO_SRC}               ${KINETICIO_HDR}
+  ${DAVIX_SRC}		         ${DAVIX_HDR}
+  io/rados/RadosIo.cc            io/rados/RadosIo.hh
+  io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/HeaderCRC.cc                io/HeaderCRC.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -131,6 +159,11 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
+  ${JSONC_LIBRARIES}
+  ${KINETICIO_LIBRARIES}
+  ${DAVIX_LIBRARIES}			
+  ${CMAKE_THREAD_LIBS_INIT}                  
+
 
 if(Linux)
   add_library(
@@ -298,6 +331,8 @@ target_link_libraries(
   eosCommonServer
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
+  ${KINETICIO_LIBRARIES} 
+  ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 

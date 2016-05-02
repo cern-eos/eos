@@ -877,7 +877,8 @@ com_cp (char* argin)
       }
       else
       {
-	fprintf(stderr,"append: %s %s\n", cPath.GetPath(),cPath.GetName());
+	if (debug)
+	fprintf(stderr,"[eos-cp] appending %s %s\n", cPath.GetPath(),cPath.GetName());
         arg2.append(cPath.GetName());
       }
     }
@@ -1105,6 +1106,8 @@ com_cp (char* argin)
     if (append) cmdline += "-a ";
     if (!summary) cmdline += "-s ";
     if (noprogress) cmdline += "-n ";
+    if (nooverwrite) cmdline += "-x ";
+
     if (transfersize.length()) cmdline += "-T ";
     cmdline += transfersize;
     cmdline += " ";
@@ -1186,7 +1189,7 @@ com_cp (char* argin)
         url += group_role;
       }
 
-      if (!XrdPosixXrootd::Stat(url.c_str(), &buf))
+      if ((!WEXITSTATUS(lrc)) && (!XrdPosixXrootd::Stat(url.c_str(), &buf)))
       {
         if ((source_size[nfile]) && (buf.st_size != (off_t) source_size[nfile]))
         {

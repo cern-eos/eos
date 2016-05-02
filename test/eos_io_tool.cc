@@ -81,7 +81,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
   XrdSfsFileOpenMode flags_sfs =  SFS_O_RDONLY;
   eos::fst::AsyncMetaHandler* ptr_handler = NULL;
   eos::fst::FileIo* eosf = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl);
+							       url.GetURL().c_str());
   XrdOucString open_opaque = "";
 
   if (do_async)
@@ -94,7 +94,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
   }
 
   // Open the file for reading from EOS
-  status = eosf->Open(url.GetURL(), flags_sfs, 0, open_opaque.c_str());
+  status = eosf->fileOpen(flags_sfs, 0, open_opaque.c_str());
 
   if (status == SFS_ERROR)
   {
@@ -106,7 +106,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
 
   // Do stat to find out the file size
   struct stat buf;
-  status = eosf->Stat(&buf);
+  status = eosf->fileStat(&buf);
 
   if (status)
   {
@@ -137,7 +137,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
 
   if (do_async)
   {
-    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->GetAsyncHandler());
+    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->fileGetAsyncHandler());
   }
 
   // Read the whole file sequentially
@@ -149,11 +149,11 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
     // Read from the EOS file
     if (do_async)
     {
-      nread = eosf->ReadAsync(offset, buffer, length, true, timeout);
+      nread = eosf->fileReadAsync(offset, buffer, length, true, timeout);
     }
     else
     {
-      nread = eosf->Read(offset, buffer, length);
+      nread = eosf->fileRead(offset, buffer, length);
     }
 
     if (nread == SFS_ERROR)
@@ -191,7 +191,7 @@ ReadSequentially(XrdCl::URL& url, std::string& ext_file)
   }
 
   // Close files
-  eosf->Close(timeout);
+  eosf->fileClose(timeout);
   fclose(extf);
   // Free memory
   delete eosf;
@@ -269,8 +269,9 @@ ReadPattern(XrdCl::URL& url,
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY;
   eos::fst::AsyncMetaHandler* ptr_handler = NULL;
   eos::fst::FileIo* eosf = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl);
+							       url.GetURL());
   std::multimap<uint64_t, uint32_t> map_pattern;
+
   XrdOucString open_opaque = "";
 
   // Enable the readahead in async mode
@@ -283,7 +284,7 @@ ReadPattern(XrdCl::URL& url,
   }
 
   // Open the file for reading from EOS
-  status = eosf->Open(url.GetURL(), flags_sfs, 0, open_opaque.c_str(), timeout);
+  status = eosf->fileOpen(flags_sfs, 0, open_opaque.c_str(), timeout);
 
   if (status == SFS_ERROR)
   {
@@ -295,7 +296,7 @@ ReadPattern(XrdCl::URL& url,
 
   // Do stat to find out the file size
   struct stat buf;
-  status = eosf->Stat(&buf);
+  status = eosf->fileStat(&buf);
 
   if (status)
   {
@@ -337,7 +338,7 @@ ReadPattern(XrdCl::URL& url,
 
   if (do_async)
   {
-    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->GetAsyncHandler());
+    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->fileGetAsyncHandler());
   }
 
   // Read each of the pieces from the pattern
@@ -356,11 +357,11 @@ ReadPattern(XrdCl::URL& url,
       // Read from the EOS file
       if (do_async)
       {
-        nread = eosf->ReadAsync(piece_off, buffer, length, true, timeout);
+        nread = eosf->fileReadAsync(piece_off, buffer, length, true, timeout);
       }
       else
       {
-        nread = eosf->Read(piece_off, buffer, length);
+        nread = eosf->fileRead(piece_off, buffer, length);
       }
 
       if (nread == SFS_ERROR)
@@ -399,7 +400,7 @@ ReadPattern(XrdCl::URL& url,
   }
 
   // Close files
-  eosf->Close(timeout);
+  eosf->fileClose(timeout);
   close(ext_fd);
   // Free memory
   delete eosf;
@@ -420,7 +421,7 @@ WriteSequentially(XrdCl::URL& url,
   char* buffer = new char[block_size];
   eos::fst::AsyncMetaHandler* ptr_handler = NULL;
   eos::fst::FileIo* eosf = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl);
+							       url.GetURL().c_str());
   XrdOucString open_opaque = "";
   XrdSfsFileOpenMode flags_sfs;
   mode_t mode_sfs = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH  ;
@@ -438,7 +439,7 @@ WriteSequentially(XrdCl::URL& url,
   }
 
   // Open the file for writing/update from EOS
-  status = eosf->Open(url.GetURL(), flags_sfs, mode_sfs, open_opaque.c_str());
+  status = eosf->fileOpen(flags_sfs, mode_sfs, open_opaque.c_str());
 
   if (status == SFS_ERROR)
   {
@@ -482,7 +483,7 @@ WriteSequentially(XrdCl::URL& url,
 
   if (do_async)
   {
-    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->GetAsyncHandler());
+    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->fileGetAsyncHandler());
   }
 
   // Read the whole file sequentially
@@ -503,11 +504,11 @@ WriteSequentially(XrdCl::URL& url,
     // Write data to the EOS file
     if (do_async)
     {
-      nwrite = eosf->WriteAsync(offset, buffer, nread, timeout);
+      nwrite = eosf->fileWriteAsync(offset, buffer, nread, timeout);
     }
     else
     {
-      nwrite = eosf->Write(offset, buffer, nread);
+      nwrite = eosf->fileWrite(offset, buffer, nread);
     }
 
     if (nwrite != nread)
@@ -535,7 +536,7 @@ WriteSequentially(XrdCl::URL& url,
   }
 
   // Close files
-  eosf->Close(timeout);
+  eosf->fileClose(timeout);
   close(ext_fd);
   // Free memory
   delete eosf;
@@ -559,7 +560,7 @@ WritePattern(XrdCl::URL& url,
   char* buffer = new char[block_size];
   eos::fst::AsyncMetaHandler* ptr_handler = NULL;
   eos::fst::FileIo* eosf = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl);
+							       url.GetURL().c_str());
   XrdOucString open_opaque = "";
   XrdSfsFileOpenMode flags_sfs;
   XrdSfsMode mode_sfs = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH  ;
@@ -578,7 +579,7 @@ WritePattern(XrdCl::URL& url,
   }
 
   // Open the file for writing/update from EOS
-  status = eosf->Open(url.GetURL(), flags_sfs, mode_sfs, open_opaque.c_str());
+  status = eosf->fileOpen(flags_sfs, mode_sfs, open_opaque.c_str());
 
   if (status == SFS_ERROR)
   {
@@ -620,7 +621,7 @@ WritePattern(XrdCl::URL& url,
 
   if (do_async)
   {
-    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->GetAsyncHandler());
+    ptr_handler = static_cast<eos::fst::AsyncMetaHandler*>(eosf->fileGetAsyncHandler());
   }
 
   // Read the pieces specified in the pattern map
@@ -646,12 +647,12 @@ WritePattern(XrdCl::URL& url,
       // Write data to the EOS file
       if (do_async)
       {
-        nwrite = eosf->WriteAsync(piece_off, buffer, nread, timeout);
+        nwrite = eosf->fileWriteAsync(piece_off, buffer, nread, timeout);
       }
       else
       {
         eos_static_debug("wrpatt piece_off=%llu, piece_len=%llu", piece_off, piece_len);
-        nwrite = eosf->Write(piece_off, buffer, nread);
+        nwrite = eosf->fileWrite(piece_off, buffer, nread);
       }
 
       if (nwrite != nread)
@@ -680,7 +681,7 @@ WritePattern(XrdCl::URL& url,
   }
 
   // Close files
-  eosf->Close(timeout);
+  eosf->fileClose(timeout);
   close(ext_fd);
   // Free memory
   delete eosf;

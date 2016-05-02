@@ -42,22 +42,22 @@
 /* -------------------------------------------------------------------------- */
 /**
  * @file Converter.hh
- * 
+ *
  * @brief File Layout Conversion Service class and Conversion Job class
- * 
+ *
  */
+
 /*----------------------------------------------------------------------------*/
 EOSMGMNAMESPACE_BEGIN
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * @brief Class executing a third-party conversion job
  *
  */
 /*----------------------------------------------------------------------------*/
-class ConverterJob : XrdJob
-{
+class ConverterJob : XrdJob {
 private:
   /// file id of the conversion job
   eos::common::FileId::fileid_t mFid;
@@ -70,7 +70,7 @@ private:
 
   /// proc path of the conversion job
   std::string mProcPath;
-  
+
   /// target CGI of the conversion job
   std::string mTargetCGI;
 
@@ -79,7 +79,6 @@ private:
 
   /// target space name of the conversion
   std::string mConverterName;
-  
 public:
 
   // ---------------------------------------------------------------------------
@@ -93,7 +92,9 @@ public:
   //! Destructor
   // ---------------------------------------------------------------------------
 
-  ~ConverterJob () { };
+  ~ConverterJob ()
+  {
+  };
 
   // ---------------------------------------------------------------------------
   // Job execution function
@@ -104,8 +105,8 @@ public:
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Class running the file layout conversion service per space
- * 
- * This class run's an eternal thread per configured space which is responsible 
+ *
+ * This class run's an eternal thread per configured space which is responsible
  * to pick-up conversion
  * jobs from the directory /eos/../proc/conversion/\n\n
  * It uses the XrdScheduler class to run third party clients copying files
@@ -115,9 +116,10 @@ public:
  * layout will be dropped.
  * !<conversionlayout!> is formed like !<space[.group]~>=!<layoutid(08x)!>
  */
+
 /*----------------------------------------------------------------------------*/
 class Converter {
-  private :
+private:
   /// thread id
   pthread_t mThread;
 
@@ -126,7 +128,7 @@ class Converter {
 
   /// this are all jobs which are queued and didn't run yet
   size_t mActiveJobs;
-  
+
   /// condition variabl to get signalled for a done job
   XrdSysCondVar mDoneSignal;
 public:
@@ -145,14 +147,14 @@ public:
   // thread stop function
   // ---------------------------------------------------------------------------
   void Stop ();
-  
+
   // ---------------------------------------------------------------------------
   // Service thread static startup function
   // ---------------------------------------------------------------------------
   static void* StaticConverter (void*);
 
   // ---------------------------------------------------------------------------
-  // Service implementation e.g. eternal conversion loop running third-party 
+  // Service implementation e.g. eternal conversion loop running third-party
   // conversion
   // ---------------------------------------------------------------------------
   void* Convert (void);
@@ -169,6 +171,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Decrement the number of active jobs in this converter
   // ---------------------------------------------------------------------------
+
   void DecActiveJobs ()
   {
     mActiveJobs--;
@@ -178,6 +181,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Increment the number of active jobs in this converter
   // ---------------------------------------------------------------------------
+
   void IncActiveJobs ()
   {
     mActiveJobs++;
@@ -192,6 +196,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Return active jobs
   // ---------------------------------------------------------------------------
+
   size_t GetActiveJobs () const
   {
     return mActiveJobs;
@@ -201,12 +206,12 @@ public:
   //! Reset pending conversion entries
   // ---------------------------------------------------------------------------
   void ResetJobs ();
-  
-  /// the scheduler class is providing a destructor-less object, 
+
+  /// the scheduler class is providing a destructor-less object,
   /// so we have to create once a singleton of this and keep/share it
   static XrdSysMutex gSchedulerMutex;
 
-  /// singelton objct of a scheduler
+  /// singelton object of a scheduler
   static XrdScheduler* gScheduler;
 
   /// the mutex protecting the map of existing converter objects

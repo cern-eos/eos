@@ -64,6 +64,11 @@ export EOS_MGM_ALIAS=eosdev.cern.ch
 export EOS_MAIL_CC="apeters@mail.cern.ch"
 export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
+# Path to json file(s) listing kinetic drive details and cluster definition.
+#export KINETIC_DRIVE_LOCATION=
+#export KINETIC_DRIVE_SECURITY=
+#export KINETIC_CLUSTER_DEFINITION=
+
 # Enable core dumps initiated internally 
 #export EOS_CORE_DUMP
 
@@ -100,6 +105,14 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
+
+# Set S3 ACCESS id & key
+#export EOS_FST_S3_ACCESS_ID=""
+#export EOS_FST_S3_ACCESS+KEY=""
+
+# Set S3 theoretical storage size 
+#export EOS_FST_S3_STORAGE_SIZE=1000000000000000
+
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
@@ -119,7 +132,8 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE low-level debugging mode (default off)
 #export EOS_FUSE_LOWLEVEL_DEBUG=1
 
-# Specify the FUSE logging level (default=4 is LOG_WARNING ... see /usr/include/sys/syslog.h LOG_XXX definitions)
+# Specify the FUSE logging level (default=6 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
+
 # EOS_FUSE_DEBUG=1 overwrites these settings
 #export EOS_FUSE_LOGLEVEL=4
 

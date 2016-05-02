@@ -539,6 +539,7 @@ filesystem::dirview_getbuffer (unsigned long long inode, int get_lock)
 int
 filesystem::dir_cache_get (unsigned long long inode,
                            struct timespec mtime,
+                           struct timespec ctime,
                            struct dirbuf** b)
 {
  int retc = 0;
@@ -549,8 +550,8 @@ filesystem::dir_cache_get (unsigned long long inode,
  {
    struct timespec oldtime = dir->GetModifTime ();
 
-   if ((oldtime.tv_sec == mtime.tv_sec) &&
-       (oldtime.tv_nsec == mtime.tv_nsec))
+   if ((oldtime.tv_sec == (mtime.tv_sec+ctime.tv_sec)) &&
+       (oldtime.tv_nsec == (mtime.tv_nsec+ctime.tv_nsec)))
    {
      // Dir in cache and valid
      *b = static_cast<struct dirbuf*> (calloc (1, sizeof ( dirbuf)));
@@ -593,14 +594,19 @@ void
 filesystem::dir_cache_sync (unsigned long long inode,
                             int nentries,
                             struct timespec mtime,
+                            struct timespec ctime,
                             struct dirbuf* b)
 {
  eos::common::RWMutexWriteLock wr_lock (mutex_fuse_cache);
  FuseCacheEntry* dir = 0;
 
+ struct timespec modtime;
+ modtime.tv_sec  = mtime.tv_sec + ctime.tv_sec;
+ modtime.tv_nsec = ctime.tv_sec + ctime.tv_nsec;
+
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
  {
-   dir->Update (nentries, mtime, b);
+   dir->Update (nentries, modtime, b);
  }
  else
  {
@@ -628,7 +634,7 @@ filesystem::dir_cache_sync (unsigned long long inode,
      }
    }
 
-   dir = new FuseCacheEntry (nentries, mtime, b);
+   dir = new FuseCacheEntry (nentries, modtime, b);
    inode2cache[inode] = dir;
  }
 
@@ -1234,7 +1240,7 @@ filesystem::rmxattr (const char* path,
      errno = ENOENT;
    else
      if (retc)
-       errno = ENOATTR;
+       errno = ENODATA; // = ENOATTR
  }
  else
  {
@@ -3014,10 +3020,11 @@ filesystem::open (const char* path,
      spath += "mgm.cmd=whoami&mgm.format=fuse&eos.app=fuse";
      if(encode_pathname) spath += "&eos.encodepath=1";
 
-     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
+
+     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, open_path.c_str() ));
 
      if (stat (open_path.c_str (), &buf, uid, gid, pid, 0)) exists = false;
 
@@ -3044,9 +3051,11 @@ filesystem::open (const char* path,
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=who&mgm.format=fuse&eos.app=fuse";
      if(encode_pathname) spath += "&eos.encodepath=1";
-     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
+
+     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, open_path.c_str()));
 
      if (stat (open_path.c_str (), &buf, uid, gid, pid, 0)) exists = false;
      retc = file->Open (open_path.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, true);
@@ -3072,10 +3081,11 @@ filesystem::open (const char* path,
      if ((use_user_krb5cc || use_user_gsiproxy) && fuse_shared) spath += '&';
      spath += "mgm.cmd=quota&mgm.subcmd=lsuser&mgm.format=fuse&eos.app=fuse";
      if(encode_pathname) spath += "&eos.encodepath=1";
-     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
 
      XrdOucString open_path = get_url_nocgi (spath.c_str ());
      XrdOucString open_cgi = get_cgi (spath.c_str ());
+
+     LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, open_path.c_str()));
 
      if (stat (open_path.c_str (), &buf, uid, gid, pid, 0)) exists = false;
      retc = file->Open (open_path.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, true);
@@ -3161,11 +3171,11 @@ filesystem::open (const char* path,
 
        if (LayoutId::GetLayoutType (layout) == LayoutId::kRaidDP)
        {
-         file = new eos::fst::RaidDpLayout (NULL, layout, NULL, NULL, eos::common::LayoutId::kXrdCl);
+         file = new eos::fst::RaidDpLayout (NULL, layout, NULL, NULL, "root://dummy");
        }
        else if ((LayoutId::GetLayoutType (layout) == LayoutId::kRaid6) || (LayoutId::GetLayoutType (layout) == LayoutId::kArchive))
        {
-         file = new eos::fst::ReedSLayout (NULL, layout, NULL, NULL, eos::common::LayoutId::kXrdCl);
+         file = new eos::fst::ReedSLayout (NULL, layout, NULL, NULL, "root://dummy");
        }
        else
        {
@@ -3213,7 +3223,7 @@ filesystem::open (const char* path,
 
  eos_static_debug ("the spath is:%s", spath.c_str ());
 
- LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl));
+ LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, spath.c_str()));
  XrdOucString open_cgi = "eos.app=fuse";
  if(encode_pathname) open_cgi += "&eos.encodepath=1";
 
@@ -3784,7 +3794,8 @@ int
 filesystem::unlink (const char* path,
                     uid_t uid,
                     gid_t gid,
-                    pid_t pid)
+                    pid_t pid, 
+		    unsigned long inode)
 {
  eos::common::Timing xpu ("unlink");
  COMMONTIMING ("start", &xpu);
@@ -3798,6 +3809,9 @@ filesystem::unlink (const char* path,
  std::string spath = safePath(path);
  if(encode_pathname) spath += "?eos.encodepath=1";
  XrdCl::XRootDStatus status = fs.Rm (spath);
+
+ // drop evt. the in-memory cache
+ LayoutWrapper::CacheRemove(inode);
 
  if (!error_retc_map (status.errNo))
  {

@@ -36,6 +36,7 @@ EOSFSTNAMESPACE_BEGIN
 #define O_LARGEFILE 0
 #endif
 
+
 //! pointer to the current OSS implementation to be used by the oss files
 extern XrdFstOss* XrdFstSS;
 
@@ -43,7 +44,7 @@ extern XrdFstOss* XrdFstSS;
 // Constuctor
 //------------------------------------------------------------------------------
 XrdFstOssFile::XrdFstOssFile (const char* tid) :
-XrdOssDF(),
+XrdOssDF (),
 eos::common::LogId (),
 mIsRW (false),
 mRWLockXs (0),
@@ -101,8 +102,11 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   // Decide if file opened for rw operations
   if ((flags & (O_WRONLY | O_RDWR | O_CREAT | O_TRUNC)) != 0)
     mIsRW = true;
-  
-  if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
+  }
+
+  // don't do block checksums for 'remote' files
+  if ((eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
+      && (mPath[0] == '/'))
   {
     // Look for a blockchecksum obj corresponding to this file
     std::pair<XrdSysRWLock*, CheckSum*> pair_value;
@@ -142,7 +146,11 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   // Do the actual open of the file
   do
   {
+#if defined(O_CLOEXEC)
+    fd = open(path, flags | O_LARGEFILE | O_CLOEXEC, mode);
+#else
     fd = open(path, flags | O_LARGEFILE, mode);
+#endif
   }
   while ((fd < 0) && (errno == EINTR));
 
@@ -151,8 +159,13 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   {
     if (fd < XrdFstSS->mFdFence)
     {
+#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
+      if ((newfd = fcntl(fd, F_DUPFD_CLOEXEC, XrdFstSS->mFdFence)) < 0)
+      {
+#else
       if ((newfd = fcntl(fd, F_DUPFD, XrdFstSS->mFdFence)) < 0)
       {
+#endif
         eos_err("error= unable to reloc FD for ", path);
       }
       else

@@ -34,8 +34,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class abstracting the physical layout of a file with replicas
 //------------------------------------------------------------------------------
-class ReplicaParLayout : public Layout
-{
+class ReplicaParLayout : public Layout {
 public:
 
   //----------------------------------------------------------------------------
@@ -53,16 +52,19 @@ public:
                     unsigned long lid,
                     const XrdSecEntity* client,
                     XrdOucErrInfo* outError,
-                    eos::common::LayoutId::eIoType io,
+		    const char* path,
                     uint16_t timeout = 0);
-
-
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~ReplicaParLayout ();
 
+  //--------------------------------------------------------------------------
+  // Redirect to new target
+  //--------------------------------------------------------------------------
+
+  virtual void Redirect(const char* path);
 
   //----------------------------------------------------------------------------
   //! Open file
@@ -75,11 +77,10 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
+  virtual int Open (
                     XrdSfsFileOpenMode flags,
                     mode_t mode,
                     const char* opaque);
-
 
   //----------------------------------------------------------------------------
   //! Read from file
@@ -206,7 +207,7 @@ private:
   //! replica file object, index 0 is the local file
   std::vector<FileIo*> mReplicaFile;
   std::vector<std::string> mReplicaUrl; ///< URLs of the replica files
-
+  bool hasWriteError;
 };
 
 EOSFSTNAMESPACE_END

@@ -62,7 +62,7 @@ public:
                   unsigned long lid,
                   const XrdSecEntity* client,
                   XrdOucErrInfo* outError,
-                  eos::common::LayoutId::eIoType io,
+                  const char *path,
                   uint16_t timeout,
                   bool storeRecovery,
                   off_t targetSize,
@@ -74,11 +74,15 @@ public:
   //----------------------------------------------------------------------------
   virtual ~RaidMetaLayout ();
 
+  //--------------------------------------------------------------------------
+  //! Redirect to new target
+  //--------------------------------------------------------------------------
 
-  //----------------------------------------------------------------------------
+  virtual void Redirect(const char*);
+
+  //--------------------------------------------------------------------------
   //! Open file using a gateway
   //!
-  //! @param path path to the file
   //! @param flags flags O_RDWR/O_RDONLY/O_WRONLY
   //! @param mode creation permissions
   //! @param opaque opaque information
@@ -86,11 +90,10 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
+  virtual int Open (
                     XrdSfsFileOpenMode flags,
                     mode_t mode,
                     const char* opaque);
-
 
   //----------------------------------------------------------------------------
   //! Open file using parallel IO

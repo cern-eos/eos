@@ -284,7 +284,7 @@ XrdMgmOfs::_attr_ls (const char *path,
       eos::IFileMD::XAttrMap::const_iterator it;
       for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it)
       {
-	map[it->first] = it->second;
+        map[it->first] = it->second;
       }
       errno = 0;
     }
@@ -405,9 +405,12 @@ XrdMgmOfs::_attr_set (const char *path,
             return SFS_ERROR;
           }
         }
-        dh->setAttribute(key, value);
-	dh->setMTimeNow();
-	dh->notifyMTimeChange( gOFS->eosDirectoryService );
+        XrdOucString val64 = value;
+        XrdOucString val;
+        eos::common::SymKey::DeBase64(val64, val);
+        dh->setAttribute(key, val.c_str());
+        dh->setMTimeNow();
+        dh->notifyMTimeChange(gOFS->eosDirectoryService);
         eosView->updateContainerStore(dh);
         errno = 0;
       }
@@ -428,22 +431,25 @@ XrdMgmOfs::_attr_set (const char *path,
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-	errno = EPERM;
+        errno = EPERM;
       else
       {
-	// check permissions in case of user attributes
-	if (fmd && Key.beginswith("user.") && (vid.uid != fmd->getCUid())
-	    && (!vid.sudoer))
+        // check permissions in case of user attributes
+        if (fmd && Key.beginswith("user.") && (vid.uid != fmd->getCUid())
+            && (!vid.sudoer))
+        {
+          errno = EPERM;
+        }
+        else
 	{
-	  errno = EPERM;
-	}
-	else
-	{
-	  fmd->setAttribute(key, value);
-	  fmd->setMTimeNow();
-	  eosView->updateFileStore(fmd);
-	  errno = 0;
-	}
+	  XrdOucString val64 = value;
+	  XrdOucString val;
+	  eos::common::SymKey::DeBase64(val64, val);
+          fmd->setAttribute(key, val.c_str());
+          fmd->setMTimeNow();
+          eosView->updateFileStore(fmd);
+          errno = 0;
+        }
       }
     }
     catch (eos::MDException &e)
@@ -451,7 +457,7 @@ XrdMgmOfs::_attr_set (const char *path,
       fmd = 0;
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
@@ -550,7 +556,7 @@ XrdMgmOfs::_attr_get (const char *path,
     {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
@@ -614,19 +620,19 @@ XrdMgmOfs::_attr_rem (const char *path,
       // TODO: REVIEW: check permissions
       if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
       {
-	errno = EPERM;
+        errno = EPERM;
       }
       else
       {
-	if (dh->hasAttribute(key))
-	{
-	  dh->removeAttribute(key);
-	  eosView->updateContainerStore(dh);
-	}
-	else
-	{
-	  errno = ENODATA;
-	}
+        if (dh->hasAttribute(key))
+        {
+          dh->removeAttribute(key);
+          eosView->updateContainerStore(dh);
+        }
+        else
+        {
+          errno = ENODATA;
+        }
       }
     }
   }
@@ -639,33 +645,33 @@ XrdMgmOfs::_attr_rem (const char *path,
 
   if (!dh)
   {
-    try 
+    try
     {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-	errno = EPERM;
+        errno = EPERM;
       else
       {
-	// check permissions
-	if (vid.uid && (fmd->getCUid() != vid.uid))
-	{
-	  // TODO: REVIEW: only owner can set file attributes
-	  errno = EPERM;
-	}
-	else
-	{
-	  if (fmd->hasAttribute(key))
-	  {
-	    fmd->removeAttribute(key);
-	    eosView->updateFileStore(fmd);
-	    errno = 0;
-	  }
-	  else
-	  {
-	    errno = ENODATA;
-	  }
-	}
+        // check permissions
+        if (vid.uid && (fmd->getCUid() != vid.uid))
+        {
+          // TODO: REVIEW: only owner can set file attributes
+          errno = EPERM;
+        }
+        else
+        {
+          if (fmd->hasAttribute(key))
+          {
+            fmd->removeAttribute(key);
+            eosView->updateFileStore(fmd);
+            errno = 0;
+          }
+          else
+          {
+            errno = ENODATA;
+          }
+        }
       }
     }
     catch (eos::MDException &e)

@@ -98,16 +98,39 @@ ProcCommand::File ()
     if (mSubCmd == "layout")
     {
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
+      XrdOucString cksum = pOpaque->Get("mgm.file.layout.ckecksum");
+      int checksum_type = eos::common::LayoutId::kNone;
+
+      XrdOucString ne = "eos.layout.checksum=";
+      ne += cksum;
+      XrdOucEnv env(ne.c_str());
+
       int newstripenumber = 0;
       if (stripes.length()) newstripenumber = atoi(stripes.c_str());
-      if (!stripes.length() ||
+
+      if (!stripes.length() && !cksum.length())
+      {
+	stdErr = "error: you have to give a valid number of stripes"
+	  " as an argument to call 'file layout' or a valid checksum";
+	retc = EINVAL;
+      }
+      else
+      if (stripes.length() &&
           ((newstripenumber < (eos::common::LayoutId::kOneStripe + 1)) ||
-           (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
+          (newstripenumber > (eos::common::LayoutId::kSixteenStripe + 1))))
       {
         stdErr = "error: you have to give a valid number of stripes"
                 " as an argument to call 'file layout'";
         retc = EINVAL;
       }
+      else 
+      if (cksum.length() && 
+	  ( ( checksum_type = eos::common::LayoutId::GetChecksumFromEnv(env)) == eos::common::LayoutId::kNone) )
+      {
+        stdErr = "error: you have to give a valid checksum typ0e"
+                " as an argument to call 'file layout'";
+        retc = EINVAL;	
+      }  
       else
       {
         // only root can do that
@@ -168,20 +191,27 @@ ProcCommand::File ()
           if (fmd)
           {
             if ((eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-                 eos::common::LayoutId::kReplica) ||
+                eos::common::LayoutId::kReplica) ||
                 (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
-                 eos::common::LayoutId::kPlain))
-            {
+                eos::common::LayoutId::kPlain))
+	    {
+	      if (!cksum.length())
+		checksum_type = eos::common::LayoutId::GetChecksum(fmd->getLayoutId());
+	      if (!newstripenumber)
+		newstripenumber = eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId());
+		  
               unsigned long newlayout =
                       eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
-                                                   eos::common::LayoutId::GetChecksum(fmd->getLayoutId()),
+                                                   checksum_type,
                                                    newstripenumber,
-                                                   eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId())
+                                                   eos::common::LayoutId::GetBlocksizeType(fmd->getLayoutId())
                                                    );
 
               fmd->setLayoutId(newlayout);
-              stdOut += "success: setting new stripe number to ";
-              stdOut += newstripenumber;
+              stdOut += "success: setting layoutstripe number to ";
+              stdOut += (newstripenumber+1);
+	      stdOut += " and checksum-type to ";
+	      stdOut += cksum.c_str();
               stdOut += " for path=";
               stdOut += spath;
               // commit new layout
@@ -349,44 +379,44 @@ ProcCommand::File ()
             if (acceptfsid)
               acceptfound = true;
 
-	    if (isRAIN) 
-	    {
-	      int lretc = gOFS->SendResync(fileid, (int) *it);
-	      if (!lretc)
-	      {
-		stdOut += "success: sending resync for RAIN layout to fsid= ";
-		stdOut += (int) *it;
-		stdOut += " for path=";
-		stdOut += spath;
-		stdOut += "\n";
-	      }
-	      else
-	      {
-		retc = errno;
-	      }
-	    }
-	    else
-	    {
-	      // rain layouts only resync meta data records
-	      int lretc = gOFS->_verifystripe(spath.c_str(),
-					      *mError,
-					      vid,
-					      (unsigned long) *it,
-					      option);
-	      if (!lretc)
-	      {
-		stdOut += "success: sending verify to fsid= ";
-		stdOut += (int) *it;
-		stdOut += " for path=";
-		stdOut += spath;
-		stdOut += "\n";
-	      }
-	      else
-	      {
-		retc = errno;
-	      }
-	    }
-	  }
+            if (isRAIN)
+            {
+              int lretc = gOFS->SendResync(fileid, (int) *it);
+              if (!lretc)
+              {
+                stdOut += "success: sending resync for RAIN layout to fsid= ";
+                stdOut += (int) *it;
+                stdOut += " for path=";
+                stdOut += spath;
+                stdOut += "\n";
+              }
+              else
+              {
+                retc = errno;
+              }
+            }
+            else
+            {
+              // rain layouts only resync meta data records
+              int lretc = gOFS->_verifystripe(spath.c_str(),
+                                              *mError,
+                                              vid,
+                                              (unsigned long) *it,
+                                              option);
+              if (!lretc)
+              {
+                stdOut += "success: sending verify to fsid= ";
+                stdOut += (int) *it;
+                stdOut += " for path=";
+                stdOut += spath;
+                stdOut += "\n";
+              }
+              else
+              {
+                retc = errno;
+              }
+            }
+          }
 
           // -------------------------------------------------------------------
           // we want to be able to force the registration and verification of a
@@ -499,7 +529,7 @@ ProcCommand::File ()
         // default is 30 days
         expires = (time_t) (time(NULL) + (30 * 86400));
       }
-     std::string sharepath;
+      std::string sharepath;
       sharepath = gOFS->CreateSharePath(spath.c_str(), "", expires, *mError, *pVid);
 
       if (vid.uid != 0)
@@ -525,20 +555,20 @@ ProcCommand::File ()
         httppath += gOFS->HostName;
         httppath += ":8000/";
 
-	size_t qpos = sharepath.find("?");
-	std::string httpunenc = sharepath;
-	httpunenc.erase(qpos);
-	std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
-	
-	httppath += httpenc.c_str();
+        size_t qpos = sharepath.find("?");
+        std::string httpunenc = sharepath;
+        httpunenc.erase(qpos);
+        std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
 
-	XrdOucString cgi = sharepath.c_str();
-	cgi.erase(0,qpos);
-	while (cgi.replace("+", "%2B", qpos))
-	{
-	}
+        httppath += httpenc.c_str();
 
-	httppath += cgi.c_str();
+        XrdOucString cgi = sharepath.c_str();
+        cgi.erase(0, qpos);
+        while (cgi.replace("+", "%2B", qpos))
+        {
+        }
+
+        httppath += cgi.c_str();
 
         XrdOucString rootUrl = "root://";
         rootUrl += gOFS->ManagerId;
@@ -624,6 +654,136 @@ ProcCommand::File ()
     }
 
     // -------------------------------------------------------------------------
+    // trigger a workflow on a given file
+    // -------------------------------------------------------------------------
+    if (mSubCmd == "workflow")
+    {
+      XrdOucString event = pOpaque->Get("mgm.event");
+      XrdOucString workflow = pOpaque->Get("mgm.workflow");
+      unsigned long long fid = 0;
+
+      if (!event.length() || !workflow.length())
+      {
+        stdErr = "error: you have to specify a workflow and an event!\n";
+        retc = EINVAL;
+        return SFS_OK;
+      }
+
+      if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+      {
+        //-------------------------------------------
+        // reference by fid+fsid
+        //-------------------------------------------
+
+        if (spath.beginswith("fid:"))
+        {
+          spath.replace("fid:", "");
+          fid = strtoull(spath.c_str(), 0, 10);
+        }
+        if (spath.beginswith("fxid:"))
+        {
+          spath.replace("fxid:", "");
+          fid = strtoull(spath.c_str(), 0, 16);
+        }
+
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        try
+        {
+          eos::FileMD* fmd = gOFS->eosFileService->getFileMD(fid);
+          spath = gOFS->eosView->getUri(fmd).c_str();
+        }
+        catch (eos::MDException &e)
+        {
+          eos_debug("caught exception %d %s\n",
+                    e.getErrno(),
+                    e.getMessage().str().c_str());
+          stdErr += "error: ";
+          stdErr += mError->getErrText();
+          retc = errno;
+          return SFS_OK;
+        }
+      }
+      else
+      {
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        try
+        {
+          eos::FileMD* fmd = gOFS->eosView->getFile(spath.c_str());
+          fid = fmd->getId();
+        }
+        catch (eos::MDException &e)
+        {
+          eos_debug("caught exception %d %s\n",
+                    e.getErrno(),
+                    e.getMessage().str().c_str());
+          stdErr += "error: ";
+          stdErr += mError->getErrText();
+          retc = errno;
+          return SFS_OK;
+        }
+      }
+
+      // check that we have write permission on path
+      if (gOFS->_access(spath.c_str(),
+                        W_OK,
+                        *mError,
+                        *pVid,
+                        ""))
+      {
+        stdErr += "error: ";
+        stdErr += mError->getErrText();
+        retc = errno;
+        return SFS_OK;
+      }
+      else
+      {
+        XrdSfsFSctl args;
+        XrdOucString opaque = "mgm.pcmd=event&mgm.fid=";
+        XrdOucString hexfid;
+        eos::common::FileId::Fid2Hex(fid, hexfid);
+        opaque += hexfid;
+
+        opaque += "&mgm.logid=";
+        opaque += logId;
+        opaque += "&mgm.event=";
+        opaque += event.c_str();
+        opaque += "&mgm.workflow=";
+        opaque += workflow.c_str();
+        opaque += "&mgm.path=";
+        opaque += spath.c_str();
+
+        args.Arg1 = spath.c_str();
+        args.Arg1Len = spath.length();
+        args.Arg2 = opaque.c_str();
+        args.Arg2Len = opaque.length();
+
+        XrdSecEntity lClient(pVid->prot.c_str());
+        lClient.name = (char*) pVid->name.c_str();
+        lClient.tident = (char*) pVid->tident.c_str();
+        lClient.host = (char*) pVid->host.c_str();
+
+        if (gOFS->FSctl(SFS_FSCTL_PLUGIN,
+                        args,
+                        *mError,
+                        &lClient) != SFS_DATA)
+        {
+          stdErr += "error: unable to run workflow '";
+          stdErr += event.c_str();
+          stdErr += "'";
+          retc = errno;
+        }
+        else
+        {
+          stdOut += "success: trgggered workflow  '";
+          stdOut += event.c_str();
+          stdOut += "' on '";
+          stdOut += spath.c_str();
+          stdOut += "'";
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // tag/untag a file to be located on a certain file system
     // -------------------------------------------------------------------------
     if (mSubCmd == "tag")
@@ -637,31 +797,31 @@ ProcCommand::File ()
       }
 
       XrdOucString sfsid = pOpaque->Get("mgm.file.tag.fsid");
-      bool do_add=false;
+      bool do_add = false;
       bool do_rm = false;
       bool do_unlink = false;
 
       if (sfsid.beginswith("+"))
       {
-	do_add = true;
+        do_add = true;
       }
       if (sfsid.beginswith("-"))
       {
-	do_rm = true;
+        do_rm = true;
       }
       if (sfsid.beginswith("~"))
       {
-	do_unlink = true;
+        do_unlink = true;
       }
 
-      sfsid.erase(0,1);
+      sfsid.erase(0, 1);
       errno = 0;
-      int fsid = (sfsid.c_str())?(int)strtol(sfsid.c_str(),0,10):0;
+      int fsid = (sfsid.c_str()) ? (int) strtol(sfsid.c_str(), 0, 10) : 0;
       if (errno || fsid == 0 || (!do_add && !do_rm && !do_unlink))
       {
-	stdErr = "error: you have to provide a valid filesystem id and a valid operation (+|-) e.g. 'file tag /myfile +1000'\n";
-	retc = EINVAL;
-	stdErr += sfsid;
+        stdErr = "error: you have to provide a valid filesystem id and a valid operation (+|-) e.g. 'file tag /myfile +1000'\n";
+        retc = EINVAL;
+        stdErr += sfsid;
       }
       else
       {
@@ -1373,6 +1533,7 @@ ProcCommand::File ()
                   if (space != refspace)
                   {
                     ngroupmix++;
+                    continue;
                   }
                 }
 
@@ -1580,7 +1741,7 @@ ProcCommand::File ()
                     {
 
                       // match the space name
-                      if (sit->first == cspace)
+                      if (sit->first != cspace)
                       {
                         continue;
                       }
@@ -1784,30 +1945,30 @@ ProcCommand::File ()
         //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-	try
-	{	
-	  if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
-	  {
-	    unsigned long long fid = 0;
-	    if (spath.beginswith("fid:"))
-	    {
+        try
+        {
+          if ((spath.beginswith("fid:") || (spath.beginswith("fxid:"))))
+          {
+            unsigned long long fid = 0;
+            if (spath.beginswith("fid:"))
+            {
               spath.replace("fid:", "");
               fid = strtoull(spath.c_str(), 0, 10);
             }
-	    if (spath.beginswith("fxid:"))
-	    {
-	      spath.replace("fxid:", "");
-	      fid = strtoull(spath.c_str(), 0, 16);
-	    }
-	    // reference by fid+fsid
-	    //-------------------------------------------
-	    
-	    fmd = gOFS->eosFileService->getFileMD(fid);
-	  }
-	  else 
-	  {
-	    fmd = gOFS->eosView->getFile(spath.c_str());
-	  }
+            if (spath.beginswith("fxid:"))
+            {
+              spath.replace("fxid:", "");
+              fid = strtoull(spath.c_str(), 0, 16);
+            }
+            // reference by fid+fsid
+            //-------------------------------------------
+
+            fmd = gOFS->eosFileService->getFileMD(fid);
+          }
+          else
+          {
+            fmd = gOFS->eosView->getFile(spath.c_str());
+          }
         }
         catch (eos::MDException &e)
         {
@@ -2007,36 +2168,36 @@ ProcCommand::File ()
 
       if ((!Cmd.GetRetc()))
       {
-	if (maxversion > 0) 
-	{
-	  XrdOucString versiondir;
-	  eos::common::Path cPath(spath.c_str());
-	  versiondir += cPath.GetParentPath();
-	  versiondir += "/.sys.v#.";
-	  versiondir += cPath.GetName();
-	  versiondir += "/";
+        if (maxversion > 0)
+        {
+          XrdOucString versiondir;
+          eos::common::Path cPath(spath.c_str());
+          versiondir += cPath.GetParentPath();
+          versiondir += "/.sys.v#.";
+          versiondir += cPath.GetName();
+          versiondir += "/";
 
-	  if (gOFS->PurgeVersion(versiondir.c_str(), *mError, maxversion))
-	  {
-	    stdErr += "error: unable to purge versions of path=";
-	    stdErr += spath.c_str();
-	    stdErr += "\n";
-	    stdErr += "error: ";
-	    stdErr += mError->getErrText();
-	    retc = mError->getErrInfo();
-	    return SFS_OK;
-	  }
-	}
-	// everything worked well
-	stdOut = "info: created new version of '";
-	stdOut += spath.c_str();
-	stdOut += "'";
-	if (maxversion > 0)
-	{
-	  stdOut += " keeping ";
-	  stdOut += (int)maxversion;
-	  stdOut += " versions!";
-	}
+          if (gOFS->PurgeVersion(versiondir.c_str(), *mError, maxversion))
+          {
+            stdErr += "error: unable to purge versions of path=";
+            stdErr += spath.c_str();
+            stdErr += "\n";
+            stdErr += "error: ";
+            stdErr += mError->getErrText();
+            retc = mError->getErrInfo();
+            return SFS_OK;
+          }
+        }
+        // everything worked well
+        stdOut = "info: created new version of '";
+        stdOut += spath.c_str();
+        stdOut += "'";
+        if (maxversion > 0)
+        {
+          stdOut += " keeping ";
+          stdOut += (int) maxversion;
+          stdOut += " versions!";
+        }
       }
     }
 

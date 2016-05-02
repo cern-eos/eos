@@ -47,8 +47,7 @@ class XrdFstOfsFile;
 //! Class which abstracts the physical layout of the file
 //------------------------------------------------------------------------------
 
-class Layout : public eos::common::LogId
-{
+class Layout : public eos::common::LogId {
 public:
 
   //----------------------------------------------------------------------------
@@ -68,6 +67,7 @@ public:
   //! @param client security information
   //! @param outError error information
   //! @param io access type informatio ( ofs/xrd )
+  //! @param timeout timeout value
   //! @param timeout timeout value 
   //!
   //----------------------------------------------------------------------------
@@ -75,7 +75,7 @@ public:
           unsigned long lid,
           const XrdSecEntity* client,
           XrdOucErrInfo* outError,
-          eos::common::LayoutId::eIoType io,
+          const char *path,
           uint16_t timeout = 0);
 
 
@@ -120,6 +120,7 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
+
   const std::string&
   GetLastUrl ()
   {
@@ -140,7 +141,6 @@ public:
   //----------------------------------------------------------------------------
   //! Open a file of the current layout type
   //!
-  //! @param path file path
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
@@ -148,11 +148,10 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
+  virtual int Open (
                     XrdSfsFileOpenMode flags,
                     mode_t mode,
                     const char* opaque) = 0;
-
 
   //----------------------------------------------------------------------------
   //! Read from file
@@ -285,7 +284,27 @@ public:
   //----------------------------------------------------------------------------
   virtual int Stat (struct stat* buf) = 0;
 
-  
+  //--------------------------------------------------------------------------
+  //! Get stats about the file
+  //!
+  //! @param buf stat buffer
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  FileIo* GetFileIo ()
+  {
+    return mFileIO;
+  }
+
+  virtual void Redirect(const char* path) 
+  {
+    if (mFileIO)
+      delete mFileIO;
+    mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  }
+
 protected:
 
   bool mIsEntryServer; ///< mark entry server
@@ -300,6 +319,7 @@ protected:
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
 
+  FileIo* mFileIO; //< IO object as entry server
 };
 
 EOSFSTNAMESPACE_END

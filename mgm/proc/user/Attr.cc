@@ -70,7 +70,9 @@ ProcCommand::Attr ()
       XrdOucString key = pOpaque->Get("mgm.attr.key");
       XrdOucString val = pOpaque->Get("mgm.attr.value");
 
-      while (val.replace("\"", "")) {}
+      while (val.replace("\"", ""))
+      {
+      }
       // find everything to be modified
       std::map<std::string, std::set<std::string> > found;
       std::map<std::string, std::set<std::string> >::const_iterator foundit;
@@ -99,15 +101,15 @@ ProcCommand::Attr ()
             eos::IContainerMD::XAttrMap map;
             eos::IContainerMD::XAttrMap linkmap;
 
-            if ( (mSubCmd == "ls") )
+            if ((mSubCmd == "ls"))
             {
-	      if (gOFS->_access(foundit->first.c_str(),R_OK, *mError, *pVid,0))
-	      {
+              if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0))
+              {
                 stdErr += "error: unable to get attributues  ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
-		return SFS_OK;
-	      }
+                return SFS_OK;
+              }
 
               XrdOucString partialStdOut = "";
               if (gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, true))
@@ -145,21 +147,22 @@ ProcCommand::Attr ()
 
             if (mSubCmd == "set")
             {
-	      if (key=="user.acl") {
-		XrdOucString evalacl;
-		// If someone wants to set a user.acl and the tag sys.eval.useracl
+              if (key == "user.acl")
+              {
+                XrdOucString evalacl;
+                // If someone wants to set a user.acl and the tag sys.eval.useracl
                 // is not there, we return an error ...
-		if ((pVid->uid != 0) && gOFS->_attr_get(foundit->first.c_str(),
-                                                   *mError, *pVid,
-                                                   (const char*) 0,
-                                                   "sys.eval.useracl",evalacl))
-		{
+                if ((pVid->uid != 0) && gOFS->_attr_get(foundit->first.c_str(),
+                                                        *mError, *pVid,
+                                                        (const char*) 0,
+                                                        "sys.eval.useracl", evalacl))
+                {
                   stdErr += "error: unable to set user.acl - the file/directory does not "
-                      "evaluate user acls (sys.eval.useracl is undefined)!\n";
-		  retc = EINVAL;
-		  return SFS_OK;
-		}
-	      }
+                          "evaluate user acls (sys.eval.useracl is undefined)!\n";
+                  retc = EINVAL;
+                  return SFS_OK;
+                }
+              }
 
               if (gOFS->_attr_set(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val.c_str()))
               {
@@ -177,7 +180,10 @@ ProcCommand::Attr ()
                 stdOut += "success: set attribute ";
                 stdOut += key;
                 stdOut += "=\"";
-                stdOut += val;
+                XrdOucString valu64;
+                XrdOucString value = val;
+                eos::common::SymKey::DeBase64(val, valu64);
+                stdOut += valu64.c_str();
                 stdOut += "\" in directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
@@ -186,13 +192,13 @@ ProcCommand::Attr ()
 
             if (mSubCmd == "get")
             {
-	      if (gOFS->_access(foundit->first.c_str(),R_OK, *mError, *pVid,0))
-	      {
+              if (gOFS->_access(foundit->first.c_str(), R_OK, *mError, *pVid, 0))
+              {
                 stdErr += "error: unable to get attributes of ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
-		return SFS_OK;
-	      }
+                return SFS_OK;
+              }
 
               if (gOFS->_attr_get(foundit->first.c_str(), *mError, *pVid, (const char*) 0, key.c_str(), val))
               {
@@ -219,7 +225,7 @@ ProcCommand::Attr ()
                 stdErr += key;
                 stdErr += "' in directory ";
                 stdErr += foundit->first.c_str();
-		retc = errno;
+                retc = errno;
               }
               else
               {
@@ -230,15 +236,15 @@ ProcCommand::Attr ()
                 stdOut += "\n";
               }
             }
-	    
-	    if (mSubCmd == "fold")
-	    {
-	      int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
-	      if ( (!retc) && map.count("sys.attr.link"))
-		retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid, (const char*) 0, linkmap, true, true);
-	      
-	      if (retc)
-	      {
+
+            if (mSubCmd == "fold")
+            {
+              int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
+              if ((!retc) && map.count("sys.attr.link"))
+                retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid, (const char*) 0, linkmap, true, true);
+
+              if (retc)
+              {
                 stdErr += "error: unable to list attributes in directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
@@ -255,32 +261,32 @@ ProcCommand::Attr ()
 
                 for (it = map.begin(); it != map.end(); ++it)
                 {
-		  if ( linkmap.count(it->first) &&
-		       linkmap[it->first] == map[it->first] ) 
-		  {
-		    if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0, it->first.c_str()))
-		    {
-		      stdErr += "error [ attr fold ] : unable to remove local attribute ";
-		      stdErr += it->first.c_str();
-		      stdErr += "\n";
-		      retc = errno;
-		    }
-		    else
-		    {
-		      stdOut += "info [ attr fold ] : removing local attribute ";
-		      stdOut += (it->first).c_str();
-		      stdOut += "=";
-		      stdOut += "\"";
-		      stdOut += (it->second).c_str();
-		      stdOut += "\"";
-		      stdOut += "\n";
-		    }
-		  }
+                  if (linkmap.count(it->first) &&
+                      linkmap[it->first] == map[it->first])
+                  {
+                    if (gOFS->_attr_rem(foundit->first.c_str(), *mError, *pVid, (const char*) 0, it->first.c_str()))
+                    {
+                      stdErr += "error [ attr fold ] : unable to remove local attribute ";
+                      stdErr += it->first.c_str();
+                      stdErr += "\n";
+                      retc = errno;
+                    }
+                    else
+                    {
+                      stdOut += "info [ attr fold ] : removing local attribute ";
+                      stdOut += (it->first).c_str();
+                      stdOut += "=";
+                      stdOut += "\"";
+                      stdOut += (it->second).c_str();
+                      stdOut += "\"";
+                      stdOut += "\n";
+                    }
+                  }
                 }
                 if (option == "r")
                   stdOut += "\n";
               }
-	    }
+            }
           }
         }
       }

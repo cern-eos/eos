@@ -1,0 +1,24 @@
+{
+  "configuration":{
+    "cacheTargetSizeMB":256,
+    "cacheCapacityMB":512,
+    "maxBackgroundIoThreads":8,
+    "maxBackgroundIoQueue":8,
+    "maxReadaheadWindow":10,
+    "erasureCodings":1,
+    "erasureDecodingTables":5
+  },
+
+  "cluster":[
+    {"clusterID":"ember",
+      "numData":2,"numParity":1,"chunkSizeKB":512,
+      "minReconnectInterval":10,"timeout":5,
+      "drives":[
+        {"wwn":"ember1"},
+        {"wwn":"ember3"},
+        {"wwn":"ember4"}
+      ]
+    }
+  ]
+}
+

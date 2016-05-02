@@ -79,7 +79,7 @@ HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
   size_t read_sizeblock = 0;
   char* buff = new char[mSizeHeader];
 
-  if (pFile->Read(offset, buff, mSizeHeader, timeout) !=
+  if (pFile->fileRead(offset, buff, mSizeHeader, timeout) !=
       static_cast<uint32_t> (mSizeHeader))
   {
     delete[] buff;
@@ -139,7 +139,8 @@ HeaderCRC::WriteToFile (FileIo*& pFile, uint16_t timeout)
   offset += sizeof mSizeBlock;
   memset(buff + offset, 0, mSizeHeader - offset);
 
-  if (pFile->Write(0, buff, mSizeHeader, timeout) < 0)
+  if (pFile->fileWrite(0, buff, mSizeHeader, timeout) < 0)
+  {
     mValid = false;
   else
     mValid = true;

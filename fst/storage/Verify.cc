@@ -28,6 +28,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOss.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -104,9 +105,12 @@ Storage::Verify ()
       }
     }
 
+    FileIo* io = eos::fst::FileIoPluginHelper::GetIoObject(fstPath.c_str());
+
     // get current size on disk
     struct stat statinfo;
-    if ((XrdOfsOss->Stat(fstPath.c_str(), &statinfo)))
+    int open_rc = 0;
+    if (!io || (open_rc = io->fileOpen(0, 0)) || io->fileStat(&statinfo))
     {
       eos_static_err("unable to verify file id=%x on fs=%u path=%s - stat on local disk failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
       // if there is no file, we should not commit anything to the MGM
@@ -126,9 +130,11 @@ Storage::Verify ()
     }
     else
     {
-      if (fMd->fMd.size() != (unsigned long long) statinfo.st_size)
+      if ( (fMd->fMd.size != (unsigned long long) statinfo.st_size)  ||
+          (fMd->fMd.disksize != (unsigned long long) statinfo.st_size) )
       {
-        eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size, fMd->fMd.size());
+        eos_static_err("updating file size: path=%s fid=%s fs value %llu - changelog value %llu", verifyfile->path.c_str(), hexfid.c_str(), statinfo.st_size, fMd->fMd.size);
+        fMd->fMd.disksize = statinfo.st_size;
         localUpdate = true;
       }
 
@@ -155,7 +161,11 @@ Storage::Verify ()
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
 
-      if ((checksummer) && verifyfile->computeChecksum && (!checksummer->ScanFile(fstPath.c_str(), scansize, scantime, verifyfile->verifyRate)))
+      eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
+      cbd.caller = (void*) io;
+      eos::fst::CheckSum::ReadCallBack cb(eos::fst::XrdFstOfsFile::FileIoReadCB, cbd);
+
+      if ((checksummer) && verifyfile->computeChecksum && (!checksummer->ScanFile(cb, scansize, scantime, verifyfile->verifyRate)))
       {
         eos_static_crit("cannot scan file to recalculate the checksum id=%llu on fs=%u path=%s", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
       }
@@ -205,14 +215,13 @@ Storage::Verify ()
           {
             eos_static_info("checksum OK        : path=%s fid=%s checksum=%s", verifyfile->path.c_str(), hexfid.c_str(), checksummer->GetHexChecksum());
           }
-          eos::common::Attr *attr = eos::common::Attr::OpenAttr(fstPath.c_str());
-          if (attr)
+
+          if (io)
           {
             // update the extended attributes
-            attr->Set("user.eos.checksum", checksummer->GetBinChecksum(checksumlen), checksumlen);
-            attr->Set(std::string("user.eos.checksumtype"), std::string(checksummer->GetName()));
-            attr->Set("user.eos.filecxerror", "0");
-            delete attr;
+            io->attrSet("user.eos.checksum", checksummer->GetBinChecksum(checksumlen), checksumlen);
+            io->attrSet("user.eos.checksumtype", checksummer->GetName(), strlen(checksummer->GetName()));
+            io->attrSet("user.eos.filecxerror", "0", 1);
           }
         }
 
@@ -284,6 +293,10 @@ Storage::Verify ()
       {
         delete fMd;
       }
+    }
+    if (!open_rc)
+    {
+      io->fileClose();
     }
     runningVerify = 0;
     if (verifyfile) delete verifyfile;

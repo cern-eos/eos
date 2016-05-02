@@ -146,12 +146,14 @@ XrdMgmOfs::_rem (const char *path,
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
 
+  eos::common::FileId::fileid_t fid = 0;
+
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
   std::string aclpath;
 
   try
   {
-    fmd = gOFS->eosView->getFile(path,false);
+    fmd = gOFS->eosView->getFile(path, false);
   }
   catch (eos::MDException &e)
   {
@@ -164,6 +166,7 @@ XrdMgmOfs::_rem (const char *path,
   {
     owner_uid = fmd->getCUid();
     owner_gid = fmd->getCGid();
+    fid = fmd->getId();
 
     eos_info("got fmd=%lld", (unsigned long long) fmd);
     try
@@ -291,10 +294,10 @@ XrdMgmOfs::_rem (const char *path,
         }
 
         if (container)
-        {        
-	  container->setMTimeNow();
-	  container->notifyMTimeChange( gOFS->eosDirectoryService );
-	  eosView->updateContainerStore(container);
+        {
+          container->setMTimeNow();
+          container->notifyMTimeChange(gOFS->eosDirectoryService);
+          eosView->updateContainerStore(container);
         }
       }
       errno = 0;
@@ -416,9 +419,21 @@ XrdMgmOfs::_rem (const char *path,
   }
   else
   {
-    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u "
-	     "vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid,
-	     vid.uid, vid.gid);
+    Workflow workflow;
+    // eventually trigger a workflow
+    workflow.Init(&attrmap);
+
+    workflow.SetFile(path, fid);
+    int ret_wfe = 0;
+    if ((ret_wfe = workflow.Trigger("delete", "default")) < 0)
+    {
+      eos_debug("msg=\"no workflow defined for delete\"");
+    }
+    else
+    {
+      eos_debug("msg=\"workflow trigger returned\" retc=%d", ret_wfe);
+    }
+    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
     return SFS_OK;
   }
 }

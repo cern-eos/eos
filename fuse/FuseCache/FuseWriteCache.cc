@@ -118,7 +118,6 @@ FuseWriteCache::RunThreadWrites()
   while (1)
   {
     mWrReqQueue->wait_pop(pEntry);
-
     if (pEntry == 0)
       break;
     else
@@ -158,6 +157,9 @@ FuseWriteCache::SubmitWrite(FileAbstraction*& fabst,
     key = fabst->GenerateBlockKey(off);
     AddWrite(fabst, key, pBuf + written_off, off, len);
   }
+
+  // track the current size
+  fabst->TestMaxWriteOffset(off+len);
 }
 
 
