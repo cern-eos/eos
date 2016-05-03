@@ -93,6 +93,7 @@ void FileSystemViewTest::fileSystemViewTest()
     eos::IView                   *view    = new eos::HierarchicalView;
     eos::FileSystemView          *fsView  = new eos::FileSystemView;
     fileSvc->setContMDService( contSvc );
+    contSvc->setFileMDService( fileSvc );
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;

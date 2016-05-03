@@ -130,6 +130,11 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   void setQuotaStats(IQuotaStats* quota_stats);
 
+  //----------------------------------------------------------------------------
+  //! Visit all the files
+  //----------------------------------------------------------------------------
+  virtual void visit(IFileVisitor* visitor) {};
+
  private:
 
   typedef std::list<IFileMDChangeListener*>  ListenerList;

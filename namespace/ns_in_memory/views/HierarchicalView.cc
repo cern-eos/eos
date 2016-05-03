@@ -99,9 +99,8 @@ namespace eos
     // Scan all the files to reattach them to containers - THIS SHOULD NOT
     // BE DONE! THE INFO NEEDS TO BE STORED WITH CONTAINERS
     //--------------------------------------------------------------------------
-
-    // FileVisitor visitor( pContainerSvc, pQuotaStats, this );
-    // pFileSvc->visit( &visitor );
+    FileVisitor visitor( pContainerSvc, pQuotaStats, this );
+    pFileSvc->visit( &visitor );
   }
 
   //----------------------------------------------------------------------------
@@ -589,7 +588,7 @@ namespace eos
   //----------------------------------------------------------------------------
   void HierarchicalView::cleanUpContainer( IContainerMD *cont )
   {
-    (void) cont->cleanUp(pContainerSvc, pFileSvc);
+    (void) cont->cleanUp();
   }
 
   //----------------------------------------------------------------------------

@@ -26,6 +26,7 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include <stdint.h>
 #include <unistd.h>
 #include <cstring>
@@ -38,6 +39,10 @@
 
 EOSNSNAMESPACE_BEGIN
 
+//! Forward declaration
+class IContainerMDSvc;
+class IFileMDSvc;
+
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single container
 //------------------------------------------------------------------------------
@@ -47,13 +52,24 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   // Type definitions
   //----------------------------------------------------------------------------
-  typedef google::dense_hash_map< std::string, std::shared_ptr<IContainerMD> > ContainerMap;
-  typedef google::dense_hash_map< std::string, std::shared_ptr<IFileMD> > FileMap;
+  typedef google::dense_hash_map< std::string, eos::IContainerMD::id_t >
+  ContainerMap;
+  typedef google::dense_hash_map< std::string, eos::IFileMD::id_t >
+  FileMap;
 
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param id container id
+  //! @param file_svc file metadata service
+  //! @param cont_svc container metadata service
   //----------------------------------------------------------------------------
-  ContainerMD(id_t id);
+  ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ContainerMD();
 
   //----------------------------------------------------------------------------
   //! Virtual copy constructor
@@ -448,12 +464,8 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Clean up the entire contents for the container. Delete files and
   //! containers recurssively
-  //!
-  //! @param cont_svc container metadata service
-  //! @param file_svc file metadata service
-  //!
   //----------------------------------------------------------------------------
-  void cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc);
+  void cleanUp();
 
   //----------------------------------------------------------------------------
   //! Get set of file names contained in the current object
@@ -498,6 +510,9 @@ class ContainerMD: public IContainerMD
   mtime_t      pMTime;
   tmtime_t     pTMTime;
   uint64_t     pTreeSize;
+
+  IFileMDSvc* pFileSvc; ///< File metadata service
+  IContainerMDSvc* pContSvc; ///< Container metadata service
 };
 
 EOSNSNAMESPACE_END

@@ -297,10 +297,10 @@ ContainerMD::getNumContainers()
 // containers recurssively
 //------------------------------------------------------------------------
 void
-ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
+ContainerMD::cleanUp()
 {
   for (auto itf = mFilesMap.begin(); itf != mFilesMap.end(); ++itf)
-    file_svc->removeFile(itf->second);
+    pFileSvc->removeFile(itf->second);
 
   mFilesMap.clear();
 
@@ -323,7 +323,7 @@ ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
   {
     std::shared_ptr<IContainerMD> cont =
       pContSvc->getContainerMD(itd->second);
-    cont->cleanUp(cont_svc, file_svc);
+    cont->cleanUp();
       pContSvc->removeContainer(cont.get());
   }
 

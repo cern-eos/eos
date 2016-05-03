@@ -611,7 +611,7 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
 //------------------------------------------------------------------------------
 void HierarchicalView::cleanUpContainer(IContainerMD* cont)
 {
-  (void) cont->cleanUp(pContainerSvc, pFileSvc);
+  (void) cont->cleanUp();
 }
 
 //------------------------------------------------------------------------------

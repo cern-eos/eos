@@ -368,12 +368,8 @@ public:
   //----------------------------------------------------------------------------
   //! Clean up the entire contents for the container. Delete files and
   //! containers recurssively
-  //!
-  //! @param cont_svc container metadata service
-  //! @param file_svc file metadata service
-  //!
   //----------------------------------------------------------------------------
-  void cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc);
+  void cleanUp();
 
   //----------------------------------------------------------------------------
   //! Get set of file names contained in the current object

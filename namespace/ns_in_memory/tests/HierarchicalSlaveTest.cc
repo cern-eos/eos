@@ -103,7 +103,7 @@ class RWLock: public eos::LockHandler
 //------------------------------------------------------------------------------
 // Add some replicas to the files inside of a container
 //------------------------------------------------------------------------------
-void addReplicas(eos::IView* view, eos::IContainerMD* cont)
+void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
@@ -122,7 +122,7 @@ void addReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Unlink some replicas from the files in the container
 //------------------------------------------------------------------------------
-void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
+void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd = 0;
   std::set<std::string> fnames = cont->getNameFiles();
@@ -151,7 +151,7 @@ void unlinkReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Recursively remove the files from accounting
 //------------------------------------------------------------------------------
-void cleanUpQuotaRec(eos::IView* view, eos::IContainerMD* cont)
+void cleanUpQuotaRec(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   eos::IQuotaNode* qn = view->getQuotaNode(cont);
   std::set<std::string> fnames = cont->getNameFiles();
@@ -172,7 +172,7 @@ void cleanUpQuotaRec(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Delete some replicas from the files in the container
 //------------------------------------------------------------------------------
-void deleteReplicas(eos::IView* view, eos::IContainerMD* cont)
+void deleteReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
@@ -199,7 +199,8 @@ void deleteReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Delete all replicas from all the files in the container recursively
 //------------------------------------------------------------------------------
-void deleteAllReplicas(eos::IView* view, eos::IContainerMD* cont)
+void deleteAllReplicas(std::shared_ptr<eos::IView> view,
+		       eos::IContainerMD* cont)
 {
   std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
@@ -225,7 +226,8 @@ void deleteAllReplicas(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Delete all replicas recursively
 //------------------------------------------------------------------------------
-void deleteAllReplicasRec(eos::IView* view, eos::IContainerMD* cont)
+void deleteAllReplicasRec(std::shared_ptr<eos::IView> view,
+			  eos::IContainerMD* cont)
 {
   deleteAllReplicas(view, cont);
   std::shared_ptr<eos::IContainerMD> dmd;
@@ -241,7 +243,8 @@ void deleteAllReplicasRec(eos::IView* view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Delete all replicas recursively
 //------------------------------------------------------------------------------
-void deleteAllReplicasRec(eos::IView* view, const std::string& path)
+void deleteAllReplicasRec(std::shared_ptr<eos::IView> view,
+			  const std::string& path)
 {
   std::shared_ptr<eos::IContainerMD> container = view->getContainer(path);
   deleteAllReplicasRec(view, container.get());
@@ -250,7 +253,7 @@ void deleteAllReplicasRec(eos::IView* view, const std::string& path)
 //------------------------------------------------------------------------------
 // Create the directory subtree
 //------------------------------------------------------------------------------
-void createSubTree(eos::IView*        view,
+void createSubTree(std::shared_ptr<eos::IView> view,
                    const std::string& prefix,
                    int                depth,
                    int                numDirs,
@@ -284,7 +287,7 @@ void createSubTree(eos::IView*        view,
 //------------------------------------------------------------------------------
 // Modify subtree
 //------------------------------------------------------------------------------
-void modifySubTree(eos::IView* view, const std::string& root)
+void modifySubTree(std::shared_ptr<eos::IView> view, const std::string& root)
 {
   for (int i = 0; i < 5; ++i)
   {
@@ -402,7 +405,8 @@ uint64_t calcFiles(eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 // Compare trees
 //------------------------------------------------------------------------------
-bool compareTrees(eos::IView*        view1, eos::IView*       view2,
+bool compareTrees(std::shared_ptr<eos::IView> view1,
+		  std::shared_ptr<eos::IView> view2,
                   eos::IContainerMD* tree1, eos::IContainerMD* tree2)
 {
   std::string treeMsg = view1->getUri(tree1) + " " + view2->getUri(tree2);
@@ -487,13 +491,15 @@ static uint64_t mapSize(const eos::IFileMD* file)
 void HierarchicalSlaveTest::functionalTest()
 {
   srandom(time(0));
-  //----------------------------------------------------------------------------
   // Set up the master namespace
-  //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvcMaster = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvcMaster = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   viewMaster    = new eos::HierarchicalView;
-  fileSvcMaster->setContMDService(contSvcMaster);
+  std::shared_ptr<eos::ChangeLogContainerMDSvc> contSvcMaster =
+    std::shared_ptr<eos::ChangeLogContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvcMaster =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> viewMaster =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvcMaster->setContMDService(contSvcMaster.get());
+  contSvcMaster->setFileMDService(fileSvcMaster.get());
   std::map<std::string, std::string> fileSettings1;
   std::map<std::string, std::string> contSettings1;
   std::map<std::string, std::string> settings1;
@@ -503,8 +509,8 @@ void HierarchicalSlaveTest::functionalTest()
   fileSettings1["changelog_path"] = fileNameFileMD;
   fileSvcMaster->configure(fileSettings1);
   contSvcMaster->configure(contSettings1);
-  viewMaster->setContainerMDSvc(contSvcMaster);
-  viewMaster->setFileMDSvc(fileSvcMaster);
+  viewMaster->setContainerMDSvc(contSvcMaster.get());
+  viewMaster->setFileMDSvc(fileSvcMaster.get());
   viewMaster->configure(settings1);
   viewMaster->getQuotaStats()->registerSizeMapper(mapSize);
   CPPUNIT_ASSERT_NO_THROW(viewMaster->initialize());
@@ -556,11 +562,15 @@ void HierarchicalSlaveTest::functionalTest()
   //----------------------------------------------------------------------------
   // Set up the slave
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvcSlave = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvcSlave = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   viewSlave    = new eos::HierarchicalView;
+  std::shared_ptr<eos::ChangeLogContainerMDSvc> contSvcSlave =
+    std::shared_ptr<eos::ChangeLogContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::ChangeLogFileMDSvc> fileSvcSlave =
+    std::shared_ptr<eos::ChangeLogFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> viewSlave =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
   fileSvcSlave->addChangeListener(fsViewSlave);
-  fileSvcSlave->setContMDService(contSvcSlave);
+  fileSvcSlave->setContMDService(contSvcSlave.get());
+  contSvcSlave->setFileMDService(fileSvcSlave.get());
   RWLock lock;
   contSvcSlave->setSlaveLock(&lock);
   fileSvcSlave->setSlaveLock(&lock);
@@ -575,8 +585,8 @@ void HierarchicalSlaveTest::functionalTest()
   fileSettings2["poll_interval_us"] = "1000";
   contSvcSlave->configure(contSettings2);
   fileSvcSlave->configure(fileSettings2);
-  viewSlave->setContainerMDSvc(contSvcSlave);
-  viewSlave->setFileMDSvc(fileSvcSlave);
+  viewSlave->setContainerMDSvc(contSvcSlave.get());
+  viewSlave->setFileMDSvc(fileSvcSlave.get());
   viewSlave->configure(settings2);
   viewSlave->getQuotaStats()->registerSizeMapper(mapSize);
   fileSvcSlave->setQuotaStats(viewSlave->getQuotaStats());
@@ -689,12 +699,6 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW(fileSvcSlave->stopSlave());
   viewSlave->finalize();
   viewMaster->finalize();
-  delete viewSlave;
-  delete viewMaster;
-  delete contSvcSlave;
-  delete contSvcMaster;
-  delete fileSvcSlave;
-  delete fileSvcMaster;
   delete fsViewMaster;
   delete fsViewSlave;
   unlink(fileNameFileMD.c_str());

@@ -301,12 +301,8 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Clean up the entire contents for the container. Delete files and
   //! containers recurssively
-  //!
-  //! @param cmd_svc container metadata service
-  //! @param fmd_svc file metadata service
-  //!
   //----------------------------------------------------------------------------
-  virtual void cleanUp(IContainerMDSvc* cmd_svc, IFileMDSvc* fmd_svc) = 0;
+  virtual void cleanUp() = 0;
 
   //----------------------------------------------------------------------------
   //! Get set of file names contained in the current object

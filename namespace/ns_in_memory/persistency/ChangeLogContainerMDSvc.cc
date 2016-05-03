@@ -41,9 +41,10 @@ namespace eos
   class ContainerMDFollower: public eos::ILogRecordScanner
   {
     public:
-      ContainerMDFollower( eos::ChangeLogContainerMDSvc *contSvc ):
-	pContSvc( contSvc )
+    ContainerMDFollower(eos::ChangeLogContainerMDSvc *contSvc):
+      pContSvc(contSvc)
       {
+	pFileSvc = pContSvc->pFileSvc;
 	pQuotaStats = pContSvc->pQuotaStats;
       }
 
@@ -58,7 +59,8 @@ namespace eos
 	//----------------------------------------------------------------------
 	if( type == UPDATE_RECORD_MAGIC )
 	{
-	  std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>(IContainerMD::id_t(0));
+	  std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
+	    (IContainerMD::id_t(0), pFileSvc, pContSvc);
 	  static_cast<ContainerMD*>(container.get())->deserialize( (Buffer&)buffer );
 	  ContMap::iterator it = pUpdated.find( container->getId() );
 
@@ -171,6 +173,7 @@ namespace eos
 	      if (currentCont->getName() == it->second.ptr->getName())
 	      {
 		// meta data change - keeping directory name
+		// TODO: maybe do a shared_ptr swap
 		*dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()) =
 		  *dynamic_cast<eos::ContainerMD*>(currentCont.get());
 		pContSvc->notifyListeners( it->second.ptr.get() , IContainerMDChangeListener::MTimeChange );
@@ -265,9 +268,8 @@ namespace eos
 		// first remove from the old parent container
 		// -------------------------------------------------------------
 		itP->second.ptr->removeContainer(it->second.ptr->getName());
-		// -------------------------------------------------------------
 		// copy the meta data
-		// -------------------------------------------------------------
+		// TODO: maybe do a shared_ptr swap
 		*dynamic_cast<eos::ContainerMD*>(it->second.ptr.get()) =
 		  *dynamic_cast<eos::ContainerMD*>(currentCont.get());
 		// -------------------------------------------------------------
@@ -363,6 +365,7 @@ namespace eos
       ContMap                           pUpdated;
       std::set<eos::IContainerMD::id_t> pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
+      eos::IFileMDSvc*                  pFileSvc;
       IQuotaStats                      *pQuotaStats;
   };
 }
@@ -501,6 +504,13 @@ namespace eos
   //----------------------------------------------------------------------------
   void ChangeLogContainerMDSvc::initialize()
   {
+    if (!pFileSvc)
+    {
+      MDException e( EINVAL );
+      e.getMessage() << "ContainerMDSvc: No FileMDSvc set!";
+      throw e;
+    }
+
     // Decide on how to open the change log
     pIdMap.resize(pResSize);
     int logOpenFlags = 0;
@@ -733,7 +743,8 @@ namespace eos
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> ChangeLogContainerMDSvc::createContainer()
   {
-    std::shared_ptr<IContainerMD> cont = std::make_shared<ContainerMD>(pFirstFreeId++);
+    std::shared_ptr<IContainerMD> cont = std::make_shared<ContainerMD>
+      (pFirstFreeId++, pFileSvc, this);
     pIdMap.insert( std::make_pair( cont->getId(), DataInfo( 0, cont ) ) );
     return cont;
   }
@@ -1019,7 +1030,8 @@ namespace eos
   {
     Buffer buffer;
     pChangeLog->readRecord( it->second.logOffset, buffer );
-    std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>(IContainerMD::id_t(0));
+    std::shared_ptr<IContainerMD> container = std::make_shared<ContainerMD>
+      (IContainerMD::id_t(0), pFileSvc, this);
     static_cast<ContainerMD*>(container.get())->deserialize( buffer );
     it->second.ptr = container;
 

@@ -27,6 +27,7 @@
 
 #include "namespace/utils/TestHelpers.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+#include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
 
 
 //------------------------------------------------------------------------------
@@ -51,7 +52,12 @@ void ChangeLogContainerMDSvcTest::reloadTest()
 {
   try
   {
-    eos::IContainerMDSvc *containerSvc = new eos::ChangeLogContainerMDSvc;
+    std::shared_ptr<eos::IContainerMDSvc> containerSvc =
+      std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+    std::shared_ptr<eos::IFileMDSvc> fileSvc =
+      std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+    fileSvc->setContMDService(containerSvc.get());
+    containerSvc->setFileMDService(fileSvc.get());
     std::map<std::string, std::string> config;
     std::string fileName = getTempName( "/tmp", "eosns" );
     config["changelog_path"] = fileName;
@@ -147,7 +153,6 @@ void ChangeLogContainerMDSvcTest::reloadTest()
     CPPUNIT_ASSERT_THROW( contAttrs->getAttribute( "test15" ), eos::MDException );
 
     containerSvc->finalize();
-    delete containerSvc;
     unlink( fileName.c_str() );
   }
   catch( eos::MDException &e )

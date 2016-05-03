@@ -189,6 +189,11 @@ class IFileMDSvc
   //! Set container service
   //----------------------------------------------------------------------------
   virtual void setContMDService(IContainerMDSvc* cont_svc) = 0;
+
+  //------------------------------------------------------------------------
+  //! Visit all the files
+  //------------------------------------------------------------------------
+  virtual void visit( IFileVisitor *visitor ) = 0;
 };
 
 EOSNSNAMESPACE_END

@@ -67,10 +67,14 @@ void HierarchicalViewTest::reloadTest()
 {
   try
   {
-    eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-    eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-    eos::IView*                   view    = new eos::HierarchicalView;
-    fileSvc->setContMDService(contSvc);
+    std::shared_ptr<eos::IContainerMDSvc> contSvc =
+      std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+    std::shared_ptr<eos::IFileMDSvc> fileSvc =
+      std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+    std::shared_ptr<eos::IView> view =
+      std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+    fileSvc->setContMDService(contSvc.get());
+    contSvc->setFileMDService(fileSvc.get());
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;
@@ -80,8 +84,8 @@ void HierarchicalViewTest::reloadTest()
     fileSettings["changelog_path"] = fileNameFileMD;
     fileSvc->configure(fileSettings);
     contSvc->configure(contSettings);
-    view->setContainerMDSvc(contSvc);
-    view->setFileMDSvc(fileSvc);
+    view->setContainerMDSvc(contSvc.get());
+    view->setFileMDSvc(fileSvc.get());
     view->configure(settings);
     view->initialize();
     std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
@@ -175,9 +179,6 @@ void HierarchicalViewTest::reloadTest()
     view->finalize();
     unlink(fileNameFileMD.c_str());
     unlink(fileNameContMD.c_str());
-    delete view;
-    delete contSvc;
-    delete fileSvc;
   }
   catch (eos::MDException& e)
   {
@@ -206,7 +207,7 @@ static uint64_t mapSize(const eos::IFileMD* file)
 // Create files at given path
 //------------------------------------------------------------------------------
 static void createFiles(const std::string&                          path,
-                        eos::IView*                                 view,
+                        std::shared_ptr<eos::IView>                 view,
                         std::map<uid_t, eos::QuotaNode::UsageInfo>& users,
                         std::map<gid_t, eos::QuotaNode::UsageInfo>& groups)
 {
@@ -244,10 +245,14 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Initialize the system
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   view    = new eos::HierarchicalView;
-  fileSvc->setContMDService(contSvc);
+  std::shared_ptr<eos::IContainerMDSvc> contSvc =
+    std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvc =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> view =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvc->setContMDService(contSvc.get());
+  contSvc->setFileMDService(fileSvc.get());
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
@@ -257,8 +262,8 @@ void HierarchicalViewTest::quotaTest()
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure(contSettings);
   contSvc->configure(fileSettings);
-  view->setContainerMDSvc(contSvc);
-  view->setFileMDSvc(fileSvc);
+  view->setContainerMDSvc(contSvc.get());
+  view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->getQuotaStats()->registerSizeMapper(mapSize);
   CPPUNIT_ASSERT_NO_THROW(view->initialize());
@@ -502,9 +507,6 @@ void HierarchicalViewTest::quotaTest()
   CPPUNIT_ASSERT_NO_THROW(view->finalize());
   unlink(fileNameFileMD.c_str());
   unlink(fileNameContMD.c_str());
-  delete view;
-  delete contSvc;
-  delete fileSvc;
 }
 
 //------------------------------------------------------------------------------
@@ -515,10 +517,14 @@ void HierarchicalViewTest::lostContainerTest()
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   view    = new eos::HierarchicalView;
-  fileSvc->setContMDService(contSvc);
+  std::shared_ptr<eos::IContainerMDSvc> contSvc =
+    std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvc =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> view =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvc->setContMDService(contSvc.get());
+  contSvc->setFileMDService(fileSvc.get());
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
@@ -528,8 +534,8 @@ void HierarchicalViewTest::lostContainerTest()
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure(contSettings);
   contSvc->configure(fileSettings);
-  view->setContainerMDSvc(contSvc);
-  view->setFileMDSvc(fileSvc);
+  view->setContainerMDSvc(contSvc.get());
+  view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->initialize();
   std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
@@ -617,9 +623,6 @@ void HierarchicalViewTest::lostContainerTest()
   view->finalize();
   unlink(fileNameFileMD.c_str());
   unlink(fileNameContMD.c_str());
-  delete view;
-  delete contSvc;
-  delete fileSvc;
 }
 
 //------------------------------------------------------------------------------
@@ -642,9 +645,8 @@ void* compactThread(void* arg)
 //------------------------------------------------------------------------------
 // Check if everything is as expected
 //------------------------------------------------------------------------------
-void CheckOnlineComp(eos::IView* view,
-                     uint32_t    totalFiles,
-                     uint32_t    changedFiles)
+void CheckOnlineComp(std::shared_ptr<eos::IView> view, uint32_t totalFiles,
+                     uint32_t changedFiles)
 {
   std::shared_ptr<eos::IContainerMD> cont;
   CPPUNIT_ASSERT_NO_THROW(cont = view->getContainer("/test/"));
@@ -672,10 +674,14 @@ void HierarchicalViewTest::onlineCompactingTest()
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   view    = new eos::HierarchicalView;
-  fileSvc->setContMDService(contSvc);
+  std::shared_ptr<eos::IContainerMDSvc> contSvc =
+    std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvc =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> view =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvc->setContMDService(contSvc.get());
+  contSvc->setFileMDService(fileSvc.get());
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
@@ -685,8 +691,8 @@ void HierarchicalViewTest::onlineCompactingTest()
   contSvc->configure(contSettings);
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure(fileSettings);
-  view->setContainerMDSvc(contSvc);
-  view->setFileMDSvc(fileSvc);
+  view->setContainerMDSvc(contSvc.get());
+  view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->initialize();
   //----------------------------------------------------------------------------
@@ -832,7 +838,4 @@ void HierarchicalViewTest::onlineCompactingTest()
   unlink(fileNameFileMD.c_str());
   unlink(fileNameContMD.c_str());
   unlink(newFileLogName.c_str());
-  delete view;
-  delete contSvc;
-  delete fileSvc;
 }
