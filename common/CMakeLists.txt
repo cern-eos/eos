@@ -207,6 +207,10 @@ add_library(
   plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 
+target_link_libraries(
+  EosPluginManager
+  ${XROOTD_UTILS_LIBRARY})
+
 set_target_properties(
   EosPluginManager
   PROPERTIES
