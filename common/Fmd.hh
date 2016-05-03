@@ -53,7 +53,10 @@
 #include <dirent.h>
 #include <zlib.h>
 #include <openssl/sha.h>
+#include <limits>
 
+#undef max
+#undef min
 
 #ifdef __APPLE__
 #define ECOMM 70
