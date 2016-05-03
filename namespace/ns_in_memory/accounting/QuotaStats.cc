@@ -64,14 +64,18 @@ namespace eos
   //----------------------------------------------------------------------------
   void QuotaNode::meld( const IQuotaNode *node )
   {
-    /*
-    for (auto it1 = node->userUsageBegin(); it1 != node->userUsageEnd(); ++it1)
+    const QuotaNode* qnode = static_cast<const QuotaNode*>(node);
+    for (auto it1 = qnode->pUserUsage.begin(); it1 != qnode->pUserUsage.end();
+	 ++it1)
+    {
       pUserUsage[it1->first] += it1->second;
+    }
 
-    for (auto it2 = node->groupUsageBegin(); it2 != node->groupUsageEnd(); ++it2)
+    for (auto it2 = qnode->pGroupUsage.begin(); it2 != qnode->pGroupUsage.end();
+	 ++it2)
+    {
       pGroupUsage[it2->first] += it2->second;
-    */
-    // TODO:
+    }
   }
 
   //----------------------------------------------------------------------------

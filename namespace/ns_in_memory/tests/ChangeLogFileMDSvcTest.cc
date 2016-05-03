@@ -52,7 +52,7 @@ void ChangeLogFileMDSvcTest::reloadTest()
 {
   eos::ChangeLogContainerMDSvc *contSvc = new eos::ChangeLogContainerMDSvc;
   eos::ChangeLogFileMDSvc      *fileSvc = new eos::ChangeLogFileMDSvc;
-  fileSvc->setContainerService( contSvc );
+  fileSvc->setContMDService( contSvc );
 
   std::map<std::string, std::string> config;
   std::string fileName = getTempName( "/tmp", "eosns" );
@@ -60,11 +60,11 @@ void ChangeLogFileMDSvcTest::reloadTest()
   fileSvc->configure( config );
   CPPUNIT_ASSERT_NO_THROW( fileSvc->initialize() );
 
-  eos::IFileMD *file1 = fileSvc->createFile();
-  eos::IFileMD *file2 = fileSvc->createFile();
-  eos::IFileMD *file3 = fileSvc->createFile();
-  eos::IFileMD *file4 = fileSvc->createFile();
-  eos::IFileMD *file5 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file2 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file3 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file4 = fileSvc->createFile();
+  std::shared_ptr<eos::IFileMD> file5 = fileSvc->createFile();
 
   CPPUNIT_ASSERT( file1 != 0 );
   CPPUNIT_ASSERT( file2 != 0 );
@@ -84,21 +84,21 @@ void ChangeLogFileMDSvcTest::reloadTest()
   eos::IFileMD::id_t id4 = file4->getId();
   eos::IFileMD::id_t id5 = file5->getId();
 
-  fileSvc->updateStore( file1 );
-  fileSvc->updateStore( file2 );
-  fileSvc->updateStore( file3 );
-  fileSvc->updateStore( file4 );
-  fileSvc->updateStore( file5 );
+  fileSvc->updateStore( file1.get() );
+  fileSvc->updateStore( file2.get() );
+  fileSvc->updateStore( file3.get() );
+  fileSvc->updateStore( file4.get() );
+  fileSvc->updateStore( file5.get() );
 
-  fileSvc->removeFile( file2 );
-  fileSvc->removeFile( file4 );
+  fileSvc->removeFile( file2.get() );
+  fileSvc->removeFile( file4.get() );
 
   fileSvc->finalize();
 
   CPPUNIT_ASSERT_NO_THROW( fileSvc->initialize() );
-  eos::IFileMD *fileRec1 = fileSvc->getFileMD( id1 );
-  eos::IFileMD *fileRec3 = fileSvc->getFileMD( id3 );
-  eos::IFileMD *fileRec5 = fileSvc->getFileMD( id5 );
+  std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD( id1 );
+  std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD( id3 );
+  std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD( id5 );
 
   CPPUNIT_ASSERT( fileRec1 != 0 );
   CPPUNIT_ASSERT( fileRec3 != 0 );

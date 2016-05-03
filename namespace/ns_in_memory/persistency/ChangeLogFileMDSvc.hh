@@ -220,7 +220,6 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   virtual void setContMDService(IContainerMDSvc* cont_svc);
 
-
   //----------------------------------------------------------------------------
   //! Get the change log
   //----------------------------------------------------------------------------

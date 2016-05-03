@@ -28,7 +28,7 @@ include_directories(
  ${XROOTD_INCLUDE_DIR})
 
 if(CPPUNIT_FOUND)
-#  add_subdirectory(tests)
+  add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
 #-----------------------------------------------------------------------------
