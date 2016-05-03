@@ -101,7 +101,8 @@ void QuotaNode::removeFile(const IFileMD* file)
 void QuotaNode::meld(const IQuotaNode* node)
 {
   std::string field;
-  std::vector<std::string> elems = pRedox->hgetall(node->getUidKey());
+  std::vector<std::string> elems = pRedox->hgetall(
+    static_cast<const QuotaNode*>(node)->getUidKey());
 
   for (auto it = elems.begin(); it != elems.end(); ++it)
   {
@@ -110,7 +111,8 @@ void QuotaNode::meld(const IQuotaNode* node)
     (void) pRedox->hincrby(pQuotaUidKey, field, *it);
   }
 
-  elems = pRedox->hgetall(node->getGidKey());
+  elems = pRedox->hgetall(
+    static_cast<const QuotaNode*>(node)->getGidKey());
 
   for (auto it = elems.begin(); it != elems.end(); ++it)
   {

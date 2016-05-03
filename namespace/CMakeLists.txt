@@ -100,7 +100,7 @@ target_link_libraries(
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-#add_subdirectory(ns_in_memory)
-#add_subdirectory(ns_on_ramcloud)
+add_subdirectory(ns_in_memory)
 add_subdirectory(ns_on_redis)
 #add_subdirectory(ns_on_filesystem)
+#add_subdirectory(ns_on_ramcloud)

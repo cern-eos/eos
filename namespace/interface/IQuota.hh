@@ -117,16 +117,6 @@ class IQuotaNode
   virtual void meld(const IQuotaNode* node) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get current uid qutoa key
-  //----------------------------------------------------------------------------
-  virtual std::string getUidKey() const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get current uid qutoa key
-  //----------------------------------------------------------------------------
-  virtual std::string getGidKey() const = 0;
-
-  //----------------------------------------------------------------------------
   //! Get the set of uids for which information is stored in the current quota
   //! node.
   //!
@@ -141,7 +131,6 @@ class IQuotaNode
   //! @return set of gids
   //----------------------------------------------------------------------------
   virtual std::vector<unsigned long> getGids() = 0;
-
 
  protected:
   IQuotaStats* pQuotaStats;
