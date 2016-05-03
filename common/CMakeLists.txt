@@ -55,8 +55,6 @@ set(
   Attr.cc
   Report.cc
   ZMQ.cc
-  ShellExecutor.cc
-  ShellCmd.cc
   StringTokenizer.cc
   StringConversion.cc
   CommentLog.cc
@@ -96,6 +94,8 @@ else()
 
   add_library(
     eosCommonServer SHARED
+    ShellExecutor.cc
+    ShellCmd.cc
     FileSystem.cc
     TransferQueue.cc
     TransferJob.cc
