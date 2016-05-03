@@ -227,7 +227,7 @@ FileTest::SplitReadVTest()
 					    LayoutId::k1M,
 					    LayoutId::kCRC32);
   RaidMetaLayout* file =  new RaidDpLayout(NULL, layout_id, NULL, NULL,
-					   eos::common::LayoutId::kXrdCl);
+					   "root://localhost//dummy");
   // Create readV request
   int num_datasets = 4;
   char* buff = new char[1024 * 1024];
