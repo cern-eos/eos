@@ -238,38 +238,6 @@ class FileMD: public IFileMD
   }
 
   //----------------------------------------------------------------------------
-  //! Start iterator for locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator locationsBegin() const
-  {
-    return pLocation.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! End iterator for locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator locationsEnd() const
-  {
-    return pLocation.end();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Start iterator for unlinked locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator unlinkedLocationsBegin() const
-  {
-    return pUnlinkedLocation.begin();
-  }
-
-  //----------------------------------------------------------------------------
-  //! End iterator for unlinked locations
-  //----------------------------------------------------------------------------
-  LocationVector::const_iterator unlinkedLocationsEnd() const
-  {
-    return pUnlinkedLocation.end();
-  }
-
-  //----------------------------------------------------------------------------
   //! Add location
   //----------------------------------------------------------------------------
   void addLocation(location_t location);

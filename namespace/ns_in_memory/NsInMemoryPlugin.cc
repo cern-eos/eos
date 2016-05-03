@@ -165,7 +165,7 @@ NsInMemoryPlugin::DestroyFileMDSvc(void* obj)
 void*
 NsInMemoryPlugin::CreateHierarchicalView(PF_PlatformServices* services)
 {
-  return new HierarchicalView();
+  return static_cast<void*>(new HierarchicalView());
 }
 
 //------------------------------------------------------------------------------
@@ -187,7 +187,7 @@ NsInMemoryPlugin::DestroyHierarchicalView(void* obj)
 void*
 NsInMemoryPlugin::CreateFsView(PF_PlatformServices* services)
 {
-  return new FileSystemView();
+  return static_cast<void*>(new FileSystemView());
 }
 
 //------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ NsInMemoryPlugin::CreateContAcc(PF_PlatformServices* services)
   if (!pContMDSvc)
     return 0;
 
-  return new ContainerAccounting(pContMDSvc);
+  return static_cast<void*>(new ContainerAccounting(pContMDSvc));
 }
 
 //------------------------------------------------------------------------------
@@ -237,7 +237,7 @@ NsInMemoryPlugin::CreateSyncTimeAcc(PF_PlatformServices* services)
   if (!pContMDSvc)
     return 0;
 
-  return new SyncTimeAccounting(pContMDSvc);
+  return static_cast<void*>(new SyncTimeAccounting(pContMDSvc));
 }
 
 //------------------------------------------------------------------------------

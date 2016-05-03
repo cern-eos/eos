@@ -47,8 +47,8 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   // Type definitions
   //----------------------------------------------------------------------------
-  typedef google::dense_hash_map<std::string, IContainerMD*> ContainerMap;
-  typedef google::dense_hash_map<std::string, IFileMD*>      FileMap;
+  typedef google::dense_hash_map< std::string, std::shared_ptr<IContainerMD> > ContainerMap;
+  typedef google::dense_hash_map< std::string, std::shared_ptr<IFileMD> > FileMap;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -83,12 +83,12 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Find sub container
   //----------------------------------------------------------------------------
-  IContainerMD* findContainer(const std::string& name);
+  std::shared_ptr<IContainerMD> findContainer(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  size_t getNumContainers() const
+  size_t getNumContainers()
   {
     return pSubContainers.size();
   }
@@ -106,12 +106,12 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  IFileMD* findFile(const std::string& name);
+  std::shared_ptr<IFileMD> findFile(const std::string& name);
 
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  size_t getNumFiles() const
+  size_t getNumFiles()
   {
     return pFiles.size();
   }

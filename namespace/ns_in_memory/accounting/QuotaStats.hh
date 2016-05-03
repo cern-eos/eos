@@ -158,6 +158,25 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   void meld(const IQuotaNode* node);
 
+  //----------------------------------------------------------------------------
+  //! Get the set of uids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of uids
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long> getUids();
+
+  //----------------------------------------------------------------------------
+  //! Get the set of gids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of gids
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long> getGids();
+
+private:
+  UserMap pUserUsage;
+  GroupMap pGroupUsage;
 };
 
 //----------------------------------------------------------------------------
@@ -177,6 +196,14 @@ class QuotaStats: public IQuotaStats
   virtual ~QuotaStats();
 
   //----------------------------------------------------------------------------
+  //! Get the set of all quota node ids. The quota node id corresponds to the
+  //! container id.
+  //!
+  //! @return set of quota node ids
+  //----------------------------------------------------------------------------
+  std::set<std::string> getAllIds();
+
+  //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
   //----------------------------------------------------------------------------
   IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId);
@@ -190,6 +217,9 @@ class QuotaStats: public IQuotaStats
   //! Remove quota node
   //----------------------------------------------------------------------------
   void removeNode(IContainerMD::id_t nodeId) throw(MDException);
+
+private:
+  std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
 };
 
 EOSNSNAMESPACE_END

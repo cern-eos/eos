@@ -46,7 +46,7 @@ namespace eos
       //------------------------------------------------------------------------
       HierarchicalView(): pContainerSvc( 0 ), pFileSvc( 0 ), pRoot( 0 )
       {
-        pQuotaStats = new QuotaStats();
+	pQuotaStats = new QuotaStats();
       }
 
       //------------------------------------------------------------------------
@@ -54,7 +54,7 @@ namespace eos
       //------------------------------------------------------------------------
       virtual ~HierarchicalView()
       {
-        delete pQuotaStats;
+	delete pQuotaStats;
       }
 
       //------------------------------------------------------------------------
@@ -62,15 +62,15 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void setContainerMDSvc( IContainerMDSvc *containerSvc )
       {
-        pContainerSvc = containerSvc;
+	pContainerSvc = containerSvc;
       }
 
       //------------------------------------------------------------------------
       //! Get the container svc pointer
       //------------------------------------------------------------------------
-      virtual IContainerMDSvc *getContainerMDSvc()
+      virtual IContainerMDSvc* getContainerMDSvc()
       {
-        return pContainerSvc;
+	return pContainerSvc;
       }
 
       //------------------------------------------------------------------------
@@ -79,15 +79,15 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void setFileMDSvc( IFileMDSvc *fileMDSvc )
       {
-        pFileSvc = fileMDSvc;
+	pFileSvc = fileMDSvc;
       }
 
       //------------------------------------------------------------------------
       //! Get the FileMDSvc
       //------------------------------------------------------------------------
-      virtual IFileMDSvc *getFileMDSvc()
+      virtual IFileMDSvc* getFileMDSvc()
       {
-        return pFileSvc;
+	return pFileSvc;
       }
 
       //------------------------------------------------------------------------
@@ -112,14 +112,15 @@ namespace eos
       //------------------------------------------------------------------------
       //! Retrieve a file for given uri
       //------------------------------------------------------------------------
-      virtual IFileMD *getFile( const std::string &uri, bool follow = true,
-                                size_t* link_depths=0 );
+      virtual std::shared_ptr<IFileMD> getFile(const std::string &uri,
+					       bool follow = true,
+					       size_t* link_depths = 0);
 
       //------------------------------------------------------------------------
       //! Create a file for given uri
       //------------------------------------------------------------------------
-      virtual IFileMD *createFile( const std::string &uri,
-                                  uid_t uid = 0, gid_t gid = 0 );
+      virtual std::shared_ptr<IFileMD> createFile(const std::string &uri,
+						  uid_t uid = 0, gid_t gid = 0);
 
       //------------------------------------------------------------------------
       //! Create a link for given uri
@@ -133,7 +134,7 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void updateFileStore( IFileMD *file )
       {
-        pFileSvc->updateStore( file );
+	pFileSvc->updateStore( file );
       }
 
       //------------------------------------------------------------------------
@@ -147,6 +148,16 @@ namespace eos
       virtual void unlinkFile( const std::string &uri );
 
       //------------------------------------------------------------------------
+      //! Remove the file from the hierarchy so that it won't be accessible
+      //! by path anymore and unlink all of it's replicas. The file needs
+      //! to be manually removed (ie. using removeFile method) once it has
+      //! no valid replicas.
+      //!
+      //! @param file IFileMD object to be removed
+      //------------------------------------------------------------------------
+      virtual void unlinkFile(eos::IFileMD* file);
+
+      //------------------------------------------------------------------------
       //! Remove the file
       //------------------------------------------------------------------------
       virtual void removeFile( IFileMD *file );
@@ -154,29 +165,29 @@ namespace eos
       //------------------------------------------------------------------------
       //! Get a container (directory)
       //------------------------------------------------------------------------
-      virtual IContainerMD *getContainer( const std::string &uri ,
-                                          bool follow = true,
-                                          size_t* link_depth = 0);
+      virtual std::shared_ptr<IContainerMD>
+      getContainer(const std::string &uri, bool follow = true,
+		   size_t* link_depth = 0);
 
       //------------------------------------------------------------------------
       //! Create a container (directory)
       //------------------------------------------------------------------------
-      virtual IContainerMD *createContainer( const std::string &uri,
-                                            bool createParents = false );
+      virtual std::shared_ptr<IContainerMD>
+      createContainer(const std::string &uri, bool createParents = false );
 
       //------------------------------------------------------------------------
       //! Update container store
       //------------------------------------------------------------------------
       virtual void updateContainerStore( IContainerMD *container )
       {
-        pContainerSvc->updateStore( container );
+	pContainerSvc->updateStore( container );
       }
 
       //------------------------------------------------------------------------
       //! Remove a container (directory)
       //------------------------------------------------------------------------
       virtual void removeContainer( const std::string &uri,
-                                    bool recursive = false );
+				    bool recursive = false );
 
       //------------------------------------------------------------------------
       //! Get uri for the container
@@ -192,7 +203,7 @@ namespace eos
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
       virtual IQuotaNode *getQuotaNode( const IContainerMD *container,
-                                        bool               search = true );
+					bool               search = true );
 
       //------------------------------------------------------------------------
       //! Register the container to be a quota node
@@ -209,7 +220,7 @@ namespace eos
       //------------------------------------------------------------------------
       virtual IQuotaStats *getQuotaStats()
       {
-        return pQuotaStats;
+	return pQuotaStats;
       }
 
       //------------------------------------------------------------------------
@@ -218,14 +229,14 @@ namespace eos
       //------------------------------------------------------------------------
       virtual void setQuotaStats( IQuotaStats *quotaStats )
       {
-        pQuotaStats = quotaStats;
+	pQuotaStats = quotaStats;
       }
 
       //------------------------------------------------------------------------
       //! Rename container
       //------------------------------------------------------------------------
       virtual void renameContainer( IContainerMD *container,
-                                    const std::string &newName );
+				    const std::string &newName );
 
       //------------------------------------------------------------------------
       //! Rename file
@@ -233,14 +244,16 @@ namespace eos
       virtual void renameFile( IFileMD *file, const std::string &newName );
 
       //------------------------------------------------------------------------
-      //! Absolute Path sanitizing all '/../' and '/./' entries 
+      //! Absolute Path sanitizing all '/../' and '/./' entries
       //------------------------------------------------------------------------
       virtual void absPath(std::string &path);
 
 
     private:
-      IContainerMD *findLastContainer( std::vector<char*> &elements, size_t end,
-                                       size_t &index, size_t* link_depths = 0 );
+      std::shared_ptr<IContainerMD> findLastContainer(
+	 std::vector<char*> &elements, size_t end,size_t &index,
+	 size_t* link_depths = 0 );
+
       void cleanUpContainer( IContainerMD *cont );
 
       //------------------------------------------------------------------------
@@ -248,18 +261,18 @@ namespace eos
       //------------------------------------------------------------------------
       class FileVisitor: public IFileVisitor
       {
-        public:
-          FileVisitor(IContainerMDSvc *contSvc,
-                      IQuotaStats *quotaStats,
-                      IView *view):
-            pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
+	public:
+	  FileVisitor(IContainerMDSvc *contSvc,
+		      IQuotaStats *quotaStats,
+		      IView *view):
+	    pContSvc( contSvc ), pQuotaStats( quotaStats ), pView( view ) {}
 
-          virtual void visitFile( IFileMD *file );
-        
-        private:
-          IContainerMDSvc *pContSvc;
-          IQuotaStats      *pQuotaStats;
-          IView           *pView;
+	  virtual void visitFile( IFileMD *file );
+
+	private:
+	  IContainerMDSvc *pContSvc;
+	  IQuotaStats     *pQuotaStats;
+	  IView           *pView;
       };
 
       //------------------------------------------------------------------------
@@ -268,7 +281,7 @@ namespace eos
       IContainerMDSvc *pContainerSvc;
       IFileMDSvc      *pFileSvc;
       IQuotaStats     *pQuotaStats;
-      IContainerMD    *pRoot;
+      std::shared_ptr<IContainerMD> pRoot;
   };
 };
 

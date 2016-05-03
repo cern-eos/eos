@@ -63,18 +63,27 @@ class FileSystemView: public IFsView
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  const FileList& getFileList(IFileMD::location_t location);
+  FileList getFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Return reference to a list of unlinked files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  FileList& getUnlinkedFileList(IFileMD::location_t location);
+  FileList getUnlinkedFileList(IFileMD::location_t location);
+
+  //----------------------------------------------------------------------------
+  //! Clear unlinked files for filesystem
+  //!
+  //! @param location filssystem id
+  //!
+  //! @return True if cleanup done successfully, otherwise false.
+  //----------------------------------------------------------------------------
+  bool clearUnlinkedFileList(IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
   //! Get number of file systems
   //----------------------------------------------------------------------------
-  size_t getNumFileSystems() const
+  size_t getNumFileSystems()
   {
     return pFiles.size();
   }
@@ -83,7 +92,7 @@ class FileSystemView: public IFsView
   //! Get list of files without replicas
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  FileList& getNoReplicasFileList()
+  FileList getNoReplicasFileList()
   {
     return pNoReplicas;
   }
@@ -92,7 +101,7 @@ class FileSystemView: public IFsView
   //! Get list of files without replicas
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  const FileList& getNoReplicasFileList() const
+  const FileList getNoReplicasFileList() const
   {
     return pNoReplicas;
   }

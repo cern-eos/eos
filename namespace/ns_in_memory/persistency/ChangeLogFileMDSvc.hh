@@ -98,12 +98,12 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
-  virtual IFileMD* getFileMD(IFileMD::id_t id);
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
-  virtual IFileMD* createFile();
+  virtual std::shared_ptr<IFileMD> createFile();
 
   //----------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the FileMD object
@@ -124,7 +124,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumFiles() const
+  virtual uint64_t getNumFiles()
   {
     return pIdMap.size();
   }
@@ -218,7 +218,8 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //!
   //! @param cont_svc container service
   //----------------------------------------------------------------------------
-  void setContainerService(IContainerMDSvc* cont_svc);
+  virtual void setContMDService(IContainerMDSvc* cont_svc);
+
 
   //----------------------------------------------------------------------------
   //! Get the change log
@@ -293,14 +294,14 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   {
     DataInfo(): logOffset(0), ptr(0),
                 buffer(0) {} // for some reason needed by sparse_hash_map::erase
-    DataInfo(uint64_t logOffset, IFileMD* ptr)
+    DataInfo(uint64_t logOffset, std::shared_ptr<IFileMD> ptr)
     {
       this->logOffset = logOffset;
-      this->ptr       = ptr;
-      this->buffer    = 0;
+      this->ptr = ptr;
+      this->buffer= 0;
     }
     uint64_t logOffset;
-    IFileMD* ptr;
+    std::shared_ptr<IFileMD> ptr;
     Buffer*  buffer;
   };
 

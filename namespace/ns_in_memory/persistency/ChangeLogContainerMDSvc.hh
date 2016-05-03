@@ -58,11 +58,12 @@ class ChangeLogContainerMDSvc:
   //--------------------------------------------------------------------------
   ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
                              pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-                             pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pResSize( 1000000 )
+                             pFollowStart( 0 ), pQuotaStats( 0 ), pFileSvc(NULL),
+			     pAutoRepair( 0 ), pResSize( 1000000 )
   {
     pIdMap.set_deleted_key(0);
     pIdMap.set_empty_key( std::numeric_limits<IContainerMD::id_t>::max() );
-    pChangeLog = new ChangeLogFile;
+    pChangeLog = new ChangeLogFile();
   }
 
   //--------------------------------------------------------------------------
@@ -88,16 +89,24 @@ class ChangeLogContainerMDSvc:
   //--------------------------------------------------------------------------
   virtual void finalize();
 
+  //----------------------------------------------------------------------------
+  //! Set file metadata service
+  //----------------------------------------------------------------------------
+  virtual void setFileMDService(IFileMDSvc* file_svc)
+  {
+    pFileSvc = file_svc;
+  }
+
   //--------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
   //--------------------------------------------------------------------------
-  virtual IContainerMD* getContainerMD(IContainerMD::id_t id);
+  virtual std::shared_ptr<IContainerMD> getContainerMD(IContainerMD::id_t id);
 
   //--------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //--------------------------------------------------------------------------
-  virtual IContainerMD* createContainer();
+  virtual std::shared_ptr<IContainerMD> createContainer();
 
   //--------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
@@ -118,7 +127,7 @@ class ChangeLogContainerMDSvc:
   //--------------------------------------------------------------------------
   //! Get number of containers
   //--------------------------------------------------------------------------
-  virtual uint64_t getNumContainers() const
+  virtual uint64_t getNumContainers()
   {
     return pIdMap.size();
   }
@@ -212,18 +221,18 @@ class ChangeLogContainerMDSvc:
   //--------------------------------------------------------------------------
   //! Create container in parent
   //--------------------------------------------------------------------------
-  IContainerMD* createInParent(const std::string& name,
-                               IContainerMD*       parent);
+  std::shared_ptr<IContainerMD> createInParent(const std::string& name,
+					       IContainerMD* parent);
 
   //--------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
   //--------------------------------------------------------------------------
-  IContainerMD* getLostFound();
+  std::shared_ptr<IContainerMD> getLostFound();
 
   //--------------------------------------------------------------------------
   //! Get the orphans container
   //--------------------------------------------------------------------------
-  IContainerMD* getLostFoundContainer(const std::string& name);
+  std::shared_ptr<IContainerMD> getLostFoundContainer(const std::string& name);
 
   //--------------------------------------------------------------------------
   //! Get the change log
@@ -293,18 +302,18 @@ class ChangeLogContainerMDSvc:
   {
     DataInfo(): logOffset(0),
                 ptr(0) {} // for some reason needed by sparse_hash_map::erase
-    DataInfo(uint64_t logOffset, IContainerMD* ptr)
+    DataInfo(uint64_t logOffset, std::shared_ptr<IContainerMD> ptr)
     {
       this->logOffset = logOffset;
-      this->ptr       = ptr;
+      this->ptr = ptr;
     }
-    uint64_t     logOffset;
-    IContainerMD* ptr;
+    uint64_t logOffset;
+    std::shared_ptr<IContainerMD> ptr;
   };
 
   typedef google::dense_hash_map<IContainerMD::id_t, DataInfo> IdMap;
   typedef std::list<IContainerMDChangeListener*>               ListenerList;
-  typedef std::list<IContainerMD*>                             ContainerList;
+  typedef std::list<std::shared_ptr<IContainerMD>>             ContainerList;
 
   //--------------------------------------------------------------------------
   // Changelog record scanner
@@ -360,6 +369,7 @@ class ChangeLogContainerMDSvc:
   int32_t            pSlavePoll;
   uint64_t           pFollowStart;
   IQuotaStats*       pQuotaStats;
+  IFileMDSvc*        pFileSvc;
   bool               pAutoRepair;
   uint64_t           pResSize;
 };

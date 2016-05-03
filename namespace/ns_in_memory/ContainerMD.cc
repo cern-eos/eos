@@ -97,7 +97,7 @@ ContainerMD& ContainerMD::operator= (const ContainerMD& other)
 //------------------------------------------------------------------------------
 // Find sub container
 //------------------------------------------------------------------------------
-IContainerMD*
+std::shared_ptr<IContainerMD>
 ContainerMD::findContainer(const std::string& name)
 {
   ContainerMap::iterator it = pSubContainers.find(name);
@@ -124,13 +124,13 @@ void
 ContainerMD::addContainer(IContainerMD* container)
 {
   container->setParentId(pId);
-  pSubContainers[container->getName()] = container;
+  pSubContainers[container->getName()] = std::shared_ptr<IContainerMD>(container);
 }
 
 //------------------------------------------------------------------------------
 // Find file
 //------------------------------------------------------------------------------
-IFileMD*
+std::shared_ptr<IFileMD>
 ContainerMD::findFile(const std::string& name)
 {
   FileMap::iterator it = pFiles.find(name);
@@ -148,9 +148,8 @@ void
 ContainerMD::addFile(IFileMD* file)
 {
   file->setContainerId(pId);
-  pFiles[file->getName()] = file;
-  IFileMDChangeListener::Event e(file,
-				 IFileMDChangeListener::SizeChange,
+  pFiles[file->getName()] = std::shared_ptr<IFileMD>(file);
+  IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
 				 0,0, file->getSize() );
   file->getFileMDSvc()->notifyListeners( &e );
 }
@@ -163,9 +162,8 @@ ContainerMD::removeFile(const std::string& name)
 {
   if (pFiles.count(name))
   {
-    IFileMD* file = pFiles[name];
-    IFileMDChangeListener::Event e(file,
-				   IFileMDChangeListener::SizeChange,
+    std::shared_ptr<IFileMD> file = pFiles[name];
+    IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
 				   0, 0, -file->getSize() );
     file->getFileMDSvc()->notifyListeners( &e );
     pFiles.erase( name );
@@ -180,12 +178,12 @@ void
 ContainerMD::cleanUp(IContainerMDSvc* cont_svc, IFileMDSvc* file_svc)
 {
   for (auto itf = pFiles.begin(); itf != pFiles.end(); ++itf)
-    file_svc->removeFile(itf->second);
+    file_svc->removeFile(itf->second.get());
 
   for (auto itc = pSubContainers.begin(); itc != pSubContainers.end(); ++itc)
   {
     (void) itc->second->cleanUp(cont_svc, file_svc);
-    cont_svc->removeContainer(itc->second);
+    cont_svc->removeContainer(itc->second.get());
   }
 }
 
