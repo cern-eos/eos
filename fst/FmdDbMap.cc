@@ -25,11 +25,11 @@
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/Attr.hh"
 #include "common/DbMap.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include <fst/io/FileIoPluginCommon.hh>
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFileSystem.hh"
 /*----------------------------------------------------------------------------*/
@@ -742,11 +742,11 @@ FmdDbMapHandler::ResyncDisk (const char* path,
   off_t disksize = 0;
   if (fid)
   {
-    eos::common::Attr *attr = eos::common::Attr::OpenAttr(path);
-    if (attr)
+    std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(path));
+    if (!io)
     {
       struct stat buf;
-      if ((!stat(path, &buf)) && S_ISREG(buf.st_mode))
+      if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode))
       {
         std::string checksumType, checksumStamp, filecxError, blockcxError;
         std::string diskchecksum = "";
@@ -758,14 +758,14 @@ FmdDbMapHandler::ResyncDisk (const char* path,
         disksize = buf.st_size;
         memset(checksumVal, 0, sizeof (checksumVal));
         checksumLen = SHA_DIGEST_LENGTH;
-        if (!attr->Get("user.eos.checksum", checksumVal, checksumLen))
+	if (io->attrGet("user.eos.checksum", checksumVal, checksumLen))
         {
           checksumLen = 0;
         }
 
-        checksumType = attr->Get("user.eos.checksumtype");
-        filecxError = attr->Get("user.eos.filecxerror");
-        blockcxError = attr->Get("user.eos.blockcxerror");
+	io->attrGet("user.eos.checksumtype", checksumType);
+        io->attrGet("user.eos.filecxerror", filecxError);
+        io->attrGet("user.eos.blockcxerror", blockcxError);
 
         checktime = (strtoull(checksumStamp.c_str(), 0, 10) / 1000000);
         if (checksumLen)
@@ -795,7 +795,6 @@ FmdDbMapHandler::ResyncDisk (const char* path,
           retc = false;
         }
       }
-      delete attr;
     }
   }
   else

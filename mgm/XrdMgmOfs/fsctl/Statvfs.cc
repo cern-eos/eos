@@ -92,7 +92,8 @@
       l_maxbytes = (long long)maxbytes;
       l_maxfiles = (long long)maxfiles;
     } else {
-      Quota::GetIndividualQuota(vid, space.c_str(), l_maxbytes, l_freebytes, l_maxfiles, l_freefiles);
+      const std::string sspace = space.c_str();
+      Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes, l_maxfiles, l_freefiles);
     }
      
 

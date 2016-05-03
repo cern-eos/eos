@@ -140,7 +140,6 @@ HeaderCRC::WriteToFile (FileIo*& pFile, uint16_t timeout)
   memset(buff + offset, 0, mSizeHeader - offset);
 
   if (pFile->fileWrite(0, buff, mSizeHeader, timeout) < 0)
-  {
     mValid = false;
   else
     mValid = true;

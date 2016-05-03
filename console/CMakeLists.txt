@@ -21,12 +21,11 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-<<<<<<< HEAD
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS})
+  ${XROOTD_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIR} )
 
 #-------------------------------------------------------------------------------
@@ -120,6 +119,7 @@ add_dependencies(eos XrdEosFst)
 if(CLIENT)
   target_link_libraries(
     eos
+    EosFstIoa
     eosCommon
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
@@ -131,11 +131,12 @@ if(CLIENT)
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
-    ${KINETICIO_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KINETICIO_LIBRARIES})
 else()
   target_link_libraries(
     eos
+    EosFstIo-Static
     eosCommon-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
@@ -147,8 +148,8 @@ else()
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
-    ${KINETICIO_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KINETICIO_LIBRARIES})
 endif()
 
 if (MacOSX)

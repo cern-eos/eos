@@ -29,8 +29,8 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/common/ulib/)
-  ${KINETIC_INCLUDE_DIR}
+  ${CMAKE_SOURCE_DIR}/common/ulib/
+  ${KINETIC_INCLUDE_DIR})
 
 add_subdirectory(benchmark)
 
@@ -103,6 +103,7 @@ target_link_libraries(
 target_link_libraries(
   eoschecksumbench
   eosCommon
+  EosFstIo-Static
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})

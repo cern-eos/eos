@@ -28,7 +28,6 @@
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/Attr.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"

@@ -632,7 +632,7 @@ WFE::Job::DoIt ()
 
         if (executable.find("/") == std::string::npos)
         {
-          eos::FileMD* fmd = 0;
+          eos::IFileMD* fmd = 0;
 
           // do meta replacement
           gOFS->eosViewRWMutex.LockRead();
@@ -649,24 +649,23 @@ WFE::Job::DoIt ()
                                                                                                                                                                                                                                                                                                                       \
           if (fmd)
           {
-            eos::FileMD fmdCopy(*fmd);
-            fmd = &fmdCopy;
+	    std::unique_ptr<eos::IFileMD> cfmd (fmd->clone());
 
             gOFS->eosViewRWMutex.UnLockRead();
 
             std::string cv;
-            eos::FileMD::ctime_t ctime;
-            eos::FileMD::ctime_t mtime;
-            fmd->getCTime(ctime);
-            fmd->getMTime(mtime);
+            eos::IFileMD::ctime_t ctime;
+            eos::IFileMD::ctime_t mtime;
+            cfmd->getCTime(ctime);
+            cfmd->getMTime(mtime);
 
             std::string checksum;
 
-            size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
+            size_t cxlen = eos::common::LayoutId::GetChecksumLen(cfmd->getLayoutId());
             for (unsigned int i = 0; i < cxlen; i++)
             {
               char hb[3];
-              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
+              sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (cfmd->getChecksum().getDataPadded(i)) : 0);
               checksum += hb;
             }
 
@@ -675,12 +674,12 @@ WFE::Job::DoIt ()
             }
 
             while (execargs.replace("<uid>",
-                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) fmd->getCUid())))
+                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCUid())))
             {
             }
 
             while (execargs.replace("<gid>",
-                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) fmd->getCGid())))
+                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCGid())))
             {
             }
 
@@ -715,12 +714,12 @@ WFE::Job::DoIt ()
             }
 
             while (execargs.replace("<size>",
-                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) fmd->getSize())))
+                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getSize())))
             {
             }
 
             while (execargs.replace("<cid>",
-                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) fmd->getContainerId())))
+                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getContainerId())))
             {
             }
 
@@ -737,11 +736,11 @@ WFE::Job::DoIt ()
             {
             }
 
-            while (execargs.replace("<name>", fmd->getName().c_str()))
+            while (execargs.replace("<name>", cfmd->getName().c_str()))
             {
             }
 
-            while (execargs.replace("<link>", fmd->getLink().c_str()))
+            while (execargs.replace("<link>", cfmd->getLink().c_str()))
             {
             }
 

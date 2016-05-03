@@ -517,38 +517,6 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
   ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
   ObjectManager.SetDebug(false);
 
-  // Setup notification subjects
-  ObjectManager.SubjectsMutex.Lock();
-  std::string watch_id = "id";
-  std::string watch_bootsenttime = "bootsenttime";
-  std::string watch_scaninterval = "scaninterval";
-  std::string watch_symkey = "symkey";
-  std::string watch_manager = "manager";
-  std::string watch_publishinterval = "publish.interval";
-  std::string watch_debuglevel = "debug.level";
-  std::string watch_gateway = "txgw";
-  std::string watch_gateway_rate = "gw.rate";
-  std::string watch_gateway_ntx = "gw.ntx";
-  std::string watch_error_simulation = "error.simulation";
-  std::string watch_kinetic_reload = "kinetic.reload";
-
-  ObjectManager.ModificationWatchKeys.insert(watch_id);
-  ObjectManager.ModificationWatchKeys.insert(watch_bootsenttime);
-  ObjectManager.ModificationWatchKeys.insert(watch_scaninterval);
-  ObjectManager.ModificationWatchKeys.insert(watch_symkey);
-  ObjectManager.ModificationWatchKeys.insert(watch_manager);
-  ObjectManager.ModificationWatchKeys.insert(watch_publishinterval);
-  ObjectManager.ModificationWatchKeys.insert(watch_debuglevel);
-  ObjectManager.ModificationWatchKeys.insert(watch_gateway);
-  ObjectManager.ModificationWatchKeys.insert(watch_gateway_rate);
-  ObjectManager.ModificationWatchKeys.insert(watch_gateway_ntx);
-  ObjectManager.ModificationWatchKeys.insert(watch_error_simulation);
-  ObjectManager.ModificationWatchKeys.insert(watch_kinetic_reload);
-  ObjectManager.SubjectsMutex.UnLock();
-
-
-
-
   // create the specific listener class
   Messaging = new eos::fst::Messaging(eos::fst::Config::gConfig.FstOfsBrokerUrl.c_str(),
                                       eos::fst::Config::gConfig.FstDefaultReceiverQueue.c_str(),

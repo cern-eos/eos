@@ -176,10 +176,6 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
  enhanced_opaque += "&fst.blocksize=";
  enhanced_opaque += static_cast<int> (mStripeWidth);
 
- // Do open on local stripe - force it in RDWR mode if store recovery enabled
- mLocalPath = path;
-
- 
  // evt. mark an IO module as talking to external storage
  if ((mFileIO->GetIoType() != "LocalIo"))
    mFileIO->SetExternalStorage();
@@ -205,11 +201,8 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
  {
    if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() , mTimeout ) )
    {
-     eos_err("error=failed to open local ", path.c_str());
+     eos_err("error=failed to open local ", mFileIO->GetPath().c_str());
      errno = EIO;
-     mLastErrMsg = file->GetLastErrMsg();
-     delete file;
-     file = 0;
      return SFS_ERROR;
    }
  }
@@ -331,7 +324,6 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
        if (ret == SFS_ERROR)
        {
          eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
-         mLastErrMsg = file->GetLastErrMsg();
          delete file;
          file = NULL;
        }
@@ -480,14 +472,12 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
        if (ret == SFS_ERROR)
        {
          eos_err("error=failed to create remote stripes %s", stripe_urls[i].c_str());
-         mLastErrMsg = file->GetLastErrMsg();
          delete file;
          file = NULL;
        }
      }
      else
      {
-       mLastErrMsg = file->GetLastErrMsg();
        delete file;
        file = NULL;
      }
@@ -850,7 +840,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
     // Non-entry server doing local readv operations
     if (mStripe[0])
     {
-      nread = mStripe[0]->ReadV(chunkList);
+      nread = mStripe[0]->fileReadV(chunkList);
 
       if (nread != len)
       {
@@ -866,7 +856,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
     {
       if (mStripe[i])
       {
-        phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+        phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
         if (phandler)
           phandler->Reset();
       }
@@ -888,7 +878,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
       {
         eos_debug("readv stripe=%u, read_count=%i physical_id=%u ",
                   stripe_id, stripe_chunks[stripe_id].size(), physical_id);
-        nread = mStripe[physical_id]->ReadVAsync(stripe_chunks[stripe_id], mTimeout);
+        nread = mStripe[physical_id]->fileReadVAsync(stripe_chunks[stripe_id], mTimeout);
       
         if (nread == SFS_ERROR)
           got_error = true;
@@ -920,7 +910,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
     {
       if (mStripe[j])
       {
-        phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->GetAsyncHandler());
+        phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->fileGetAsyncHandler());
         
         if (phandler)
         {
@@ -945,7 +935,7 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
             if (error_type == XrdCl::errOperationExpired)
             {
               eos_debug("debug=calling close on the file after a timeout error");
-              mStripe[j]->Close(mTimeout);
+              mStripe[j]->fileClose(mTimeout);
               delete mStripe[j];
               mStripe[j] = NULL;
             }
@@ -1246,7 +1236,7 @@ RaidMetaLayout::ReadGroup (uint64_t offGroup)
      // Do read operation - chunk info is not interesting at this point
      // !!!Here we can only do normal async requests without readahead as this
      // would lead to corruptions in the parity information computed!!!
-     nread = mStripe[physical_id]->FileReadAsync(off_local,
+     nread = mStripe[physical_id]->fileReadAsync(off_local,
 						 mDataBlocks[MapSmallToBig(i)],
 						 mStripeWidth,
 						 false, mTimeout);
@@ -1683,7 +1673,6 @@ RaidMetaLayout::Close ()
          if (mStripe[i]->fileClose(mTimeout))
          {
            eos_err("error=failed to close remote file %i", i);
-           mLastErrMsg = mStripe[i]->GetLastErrMsg();
            rc = SFS_ERROR;
          }
        }
@@ -1700,7 +1689,6 @@ RaidMetaLayout::Close ()
      if (mStripe[0]->fileClose(mTimeout))
      {
        eos_err("failed to close local file");
-       mLastErrMsg = mStripe[0]->GetLastErrMsg();
        rc = SFS_ERROR;
      }
    }

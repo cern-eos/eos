@@ -30,7 +30,6 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #ifndef _NOOFS
-#include "fst/FmdSqlite.hh"
 #endif
 /*----------------------------------------------------------------------------*/
 #include <cstdlib>
@@ -326,7 +325,7 @@ ScanDir::CheckFile (const char* filepath)
         {
           XrdOucString manager = "";
           // ask the meta data handling class to update the error flags for this file
-          gFmdSqliteHandler.ResyncDisk(filePath.c_str(), fsId, false);
+          gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
             XrdOucString manager = "";
             // ask the meta data handling class to update the error flags for this file

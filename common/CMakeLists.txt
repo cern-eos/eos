@@ -52,7 +52,6 @@ set(
   Statfs.cc
   SymKeys.cc
   GlobalConfig.cc
-  Attr.cc
   Report.cc
   ZMQ.cc
   ShellExecutor.cc

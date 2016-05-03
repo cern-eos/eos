@@ -302,12 +302,11 @@ int64_t
 ReplicaParLayout::Read (XrdSfsFileOffset offset, char* buffer,
                         XrdSfsXferSize length, bool readahead)
 {
-<<<<<<< HEAD
  int64_t rc = 0;
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->Read(offset, buffer, length, mTimeout);
+   rc = mReplicaFile[i]->fileRead(offset, buffer, length, mTimeout);
 
    if (rc != length)
    {
@@ -338,35 +337,6 @@ ReplicaParLayout::Read (XrdSfsFileOffset offset, char* buffer,
  return rc;
 }
 
-=======
-  int64_t rc = 0;
-
-  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
-  {
-    rc = mReplicaFile[i]->fileRead(offset, buffer, length, mTimeout);
-
-    if (rc == SFS_ERROR)
-    {
-      XrdOucString maskUrl = mReplicaUrl[i].c_str() ? mReplicaUrl[i].c_str() : "";
-      // mask some opaque parameters to shorten the logging
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.sym");
-      eos::common::StringConversion::MaskTag(maskUrl, "cap.msg");
-      eos::common::StringConversion::MaskTag(maskUrl, "authz");
-      eos_warning("Failed to read from replica off=%lld, lenght=%i, mask_url=%s",
-                  offset, length, maskUrl.c_str());
-      continue;
-    }
-    else
-    {
-      //......................................................................
-      // Read was scucessful no need to read from another replica
-      //......................................................................
-      break;
-    }
-  }
->>>>>>> beryl_emerald
-
-
 //------------------------------------------------------------------------------
 // Vector read 
 //------------------------------------------------------------------------------
@@ -378,7 +348,7 @@ ReplicaParLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 
  for (unsigned int i = 0; i < mReplicaFile.size(); i++)
  {
-   rc = mReplicaFile[i]->ReadV(chunkList, mTimeout);
+   rc = mReplicaFile[i]->fileReadV(chunkList, mTimeout);
 
    if (rc == SFS_ERROR)
    {

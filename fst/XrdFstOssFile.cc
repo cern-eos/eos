@@ -82,7 +82,7 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   unsigned long lid = 0;
   off_t booking_size = 0;
   mPath = path;
-
+  
   // Return an error if this object is already open
   if (fd >= 0) return -EBADF;
   
@@ -91,18 +91,18 @@ XrdFstOssFile::Open (const char* path, int flags, mode_t mode, XrdOucEnv& env)
   if ((val = env.Get("mgm.bookingsize")))
   {
     booking_size = strtoull(val, 0, 10);
-
+    
     if (errno == ERANGE)
     {
       eos_err("error=invalid bookingsize in capability: %s", val);
       return -EINVAL;
     }
   }
-
+  
   // Decide if file opened for rw operations
   if ((flags & (O_WRONLY | O_RDWR | O_CREAT | O_TRUNC)) != 0)
     mIsRW = true;
-  }
+  
 
   // don't do block checksums for 'remote' files
   if ((eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)

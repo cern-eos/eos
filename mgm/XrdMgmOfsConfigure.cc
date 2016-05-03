@@ -2078,10 +2078,10 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     eos_warning("msg=\"cannot start egroup thread\"");
 
   // start the LRU daemon
-  if (!LRUd.Start())
+  if (!LRUd.Start()) {
     eos_warning("msg=\"cannot start LRU thread\"");
   }
-
+  
   // start the WFE daemon
   if (!gOFS->WFEd.Start())
   {

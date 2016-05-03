@@ -29,12 +29,10 @@
 #include "common/Statfs.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
-<<<<<<< HEAD
 #include "XrdCl/XrdClXRootDResponses.hh"
-=======
 #include <string>
 #include <list>
->>>>>>> beryl_emerald
+#include <errno.h>
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -50,33 +48,7 @@ EOSFSTNAMESPACE_BEGIN
 class FileIo : public eos::common::LogId {
 public:
 
-<<<<<<< HEAD
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  FileIo () :
-  eos::common::LogId (),
-  mFilePath (""),
-  mLastUrl("")
-  {
-    //empty
-  }
-
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  virtual
-  ~FileIo ()
-  {
-    //empty
-  }
-
-
-  //----------------------------------------------------------------------------
-=======
   //--------------------------------------------------------------------------
->>>>>>> beryl_emerald
   //! Open file
   //!
   //! @param flags open flags
@@ -84,22 +56,11 @@ public:
   //! @param opaque opaque information
   //! @param timeout timeout value
   //! @return 0 if successful, -1 otherwise and error code is set
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode = 0,
-                    const std::string& opaque = "",
-                    uint16_t timeout = 0) = 0;
-
-=======
   //--------------------------------------------------------------------------
   virtual int fileOpen(XrdSfsFileOpenMode flags,
                        mode_t mode = 0,
                        const std::string& opaque = "",
                        uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Read from file - sync
@@ -109,21 +70,11 @@ public:
   //! @param length read length
   //! @param timeout timeout value
   //! @return number of bytes read or -1 if error
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        uint16_t timeout = 0) = 0;
-
-=======
   //--------------------------------------------------------------------------
   virtual int64_t fileRead(XrdSfsFileOffset offset,
                            char* buffer,
                            XrdSfsXferSize length,
                            uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Vector read - sync
@@ -134,8 +85,8 @@ public:
   //! @return number of bytes read of -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
-                         uint16_t timeout = 0) = 0;
+  virtual int64_t fileReadV (XrdCl::ChunkList& chunkList,
+			     uint16_t timeout = 0) { errno = EOPNOTSUPP; return -1;}
 
 
   //------------------------------------------------------------------------------
@@ -147,8 +98,8 @@ public:
   //! @return 0(SFS_OK) if request successfully sent, otherwise -1(SFS_ERROR)
   //!
   //------------------------------------------------------------------------------
-  virtual int64_t ReadVAsync (XrdCl::ChunkList& chunkList,
-                              uint16_t timeout = 0) = 0;
+  virtual int64_t fileReadVAsync (XrdCl::ChunkList& chunkList,
+				  uint16_t timeout = 0) { errno = EOPNOTSUPP; return -1;}
 
  
   //----------------------------------------------------------------------------
@@ -159,21 +110,11 @@ public:
   //! @param length length
   //! @param timeout timeout value
   //! @return number of bytes written or -1 if error
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length,
-                         uint16_t timeout = 0) = 0;
-
-=======
   //--------------------------------------------------------------------------
   virtual int64_t fileWrite(XrdSfsFileOffset offset,
                             const char* buffer,
                             XrdSfsXferSize length,
                             uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Read from file - async
@@ -184,23 +125,12 @@ public:
   //! @param readahead set if readahead is to be used
   //! @param timeout timeout value
   //! @return number of bytes read or -1 if error
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int64_t ReadAsync (XrdSfsFileOffset offset,
-                             char* buffer,
-                             XrdSfsXferSize length,
-                             bool readahead = false,
-                             uint16_t timeout = 0) = 0;
-
-=======
   //--------------------------------------------------------------------------
   virtual int64_t fileReadAsync(XrdSfsFileOffset offset,
                                 char* buffer,
                                 XrdSfsXferSize length,
                                 bool readahead = false,
                                 uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Write to file - async
@@ -210,21 +140,11 @@ public:
   //! @param length length
   //! @param timeout timeout value
   //! @return number of bytes written or -1 if error
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int64_t WriteAsync (XrdSfsFileOffset offset,
-                              const char* buffer,
-                              XrdSfsXferSize length,
-                              uint16_t timeout = 0) = 0;
-  
-=======
   //--------------------------------------------------------------------------
   virtual int64_t fileWriteAsync(XrdSfsFileOffset offset,
                                  const char* buffer,
                                  XrdSfsXferSize length,
                                  uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Truncate
@@ -232,34 +152,16 @@ public:
   //! @param offset truncate file to this value
   //! @param timeout timeout value
   //! @return 0 if successful, -1 otherwise and error code is set
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
-
-=======
   //--------------------------------------------------------------------------
   virtual int fileTruncate(XrdSfsFileOffset offset, uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Allocate file space
   //!
   //! @param length space to be allocated
   //! @return 0 on success, -1 otherwise and error code is set
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int
-  Fallocate (XrdSfsFileOffset length)
-  {
-    return 0;
-  }
-
-=======
   //--------------------------------------------------------------------------
   virtual int fileFallocate(XrdSfsFileOffset length) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Deallocate file space
@@ -267,39 +169,16 @@ public:
   //! @param fromOffset offset start
   //! @param toOffset offset end
   //! @return 0 on success, -1 otherwise and error code is set
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int
-  Fdeallocate (XrdSfsFileOffset fromOffset,
-               XrdSfsFileOffset toOffset)
-  {
-    return 0;
-  }
-
-=======
   //--------------------------------------------------------------------------
   virtual int fileFdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Remove file
   //!
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int
-  Remove (uint16_t timeout = 0)
-  {
-    return 0;
-  }
-
-=======
   //--------------------------------------------------------------------------
   virtual int fileRemove(uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Sync file to disk
@@ -312,14 +191,9 @@ public:
   //--------------------------------------------------------------------------
   //! Get pointer to async meta handler object
   //!
-<<<<<<< HEAD
-  //----------------------------------------------------------------------------
-  virtual int Sync (uint16_t timeout = 0) = 0;
-=======
   //! @return pointer to async handler, NULL otherwise
   //--------------------------------------------------------------------------
   virtual void* fileGetAsyncHandler() = 0;
->>>>>>> beryl_emerald
 
   //--------------------------------------------------------------------------
   //! Check for the existence of a file
@@ -334,15 +208,8 @@ public:
   //!
   //! @param timeout timeout value
   //! @return 0 on success, -1 otherwise and error code is set
-<<<<<<< HEAD
-  //!
-  //----------------------------------------------------------------------------
-  virtual int Close (uint16_t timeout = 0) = 0;
-
-=======
   //--------------------------------------------------------------------------
   virtual int fileClose(uint16_t timeout = 0) = 0;
->>>>>>> beryl_emerald
 
   //----------------------------------------------------------------------------
   //! Get stats about the file
@@ -423,22 +290,13 @@ public:
 
   //--------------------------------------------------------------------------
   //! Open a cursor to traverse a storage system
-  //!
-<<<<<<< HEAD
-  //----------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf, uint16_t timeout = 0) = 0;
-
+  //! @param subtree where to start traversing
+  //! @return returns implementation dependent handle or 0 in case of error
+  //--------------------------------------------------------------------------
+  virtual FileIo::FtsHandle* ftsOpen () = 0;
   
   //----------------------------------------------------------------------------
   //! Get pointer to async meta handler object 
-=======
-  //! @return returns implementation dependent handle or 0 in case of error
-  //--------------------------------------------------------------------------
-  virtual FtsHandle* ftsOpen() = 0;
-
-  //--------------------------------------------------------------------------
-  //! Return the next path related to a traversal cursor obtained with ftsOpen
->>>>>>> beryl_emerald
   //!
   //! @param fts_handle cursor obtained by ftsOpen
   //! @return returns implementation dependent handle or 0 in case of error
@@ -448,15 +306,10 @@ public:
   //--------------------------------------------------------------------------
   //! Close a traversal cursor
   //!
-<<<<<<< HEAD
-  //----------------------------------------------------------------------------
-  virtual void* GetAsyncHandler () = 0;
-=======
   //! @param fts_handle cursor to close
   //! @return 0 if fts_handle was an open cursor, otherwise -1
   //--------------------------------------------------------------------------
   virtual int ftsClose(FtsHandle* handle) = 0;
->>>>>>> beryl_emerald
 
   //--------------------------------------------------------------------------
   //! Constructor
@@ -473,16 +326,9 @@ public:
       mExternalStorage(false)
   { }
 
-<<<<<<< HEAD
-  //----------------------------------------------------------------------------
-  //! Get path to current file
-  //----------------------------------------------------------------------------
-  const std::string&
-  GetPath ()
-  {
-    return mFilePath;
-  };
-=======
+  FileIo()
+  {}
+
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
@@ -497,7 +343,6 @@ public:
   //! @return 0 if successful otherwise errno
   //--------------------------------------------------------------------------
   virtual int Statfs(struct statfs* statFs) = 0;
->>>>>>> beryl_emerald
 
   //--------------------------------------------------------------------------
   //! Callback function to fill a statfs structure about the storage filling

@@ -689,7 +689,7 @@ ProcCommand::File ()
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
-          eos::FileMD* fmd = gOFS->eosFileService->getFileMD(fid);
+          eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
           spath = gOFS->eosView->getUri(fmd).c_str();
         }
         catch (eos::MDException &e)
@@ -708,7 +708,7 @@ ProcCommand::File ()
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
-          eos::FileMD* fmd = gOFS->eosView->getFile(spath.c_str());
+          eos::IFileMD* fmd = gOFS->eosView->getFile(spath.c_str());
           fid = fmd->getId();
         }
         catch (eos::MDException &e)

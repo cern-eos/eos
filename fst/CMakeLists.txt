@@ -88,6 +88,7 @@ add_library(
 
 target_link_libraries(
   EosFstOss
+  EosFstIo
   eosCommon
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
@@ -103,7 +104,6 @@ set(
   #-----------------------------------------------------------------------------
   # File IO interface
   #-----------------------------------------------------------------------------
-  io/FileIoPlugin.hh             io/FileIoPlugin.cc
   io/FileIo.hh
   io/local/LocalIo.cc	         io/local/LocalIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
@@ -148,7 +148,6 @@ add_library(
 target_link_libraries(
   EosFstIo
   eosCommon
-  XrdEosFst
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -158,11 +157,11 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
   ${JSONC_LIBRARIES}
   ${KINETICIO_LIBRARIES}
   ${DAVIX_LIBRARIES}			
-  ${CMAKE_THREAD_LIBS_INIT}                  
+  ${CMAKE_THREAD_LIBS_INIT})
 
 
 if(Linux)
@@ -243,12 +242,14 @@ set(
   #-----------------------------------------------------------------------------
   # EosFstIo interface
   #-----------------------------------------------------------------------------
-  ${EOSFSTIO_SRCS})
+  io/FileIoPlugin-Server.cc
+  ${EOSFSTIO_SRCS_SERVER})
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
 target_link_libraries(
    XrdEosFst
+   EosFstIo
    eosCommon
    eosCommonServer
    eosCapability-Static
@@ -321,14 +322,15 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-check-blockxs EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-compute-blockxs EosFstIo-Static eosCommon  ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-adler32 EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT})
 
 target_link_libraries(
   eos-scan-fs
   eosCommon
   eosCommonServer
+  EosFstIo-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
   ${KINETICIO_LIBRARIES} 
@@ -378,7 +380,7 @@ if (MacOSX)
 else()
   install(
     TARGETS
-    EosFstOss XrdEosFst eoscp
+    EosFstIo EosFstOss XrdEosFst eoscp
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})

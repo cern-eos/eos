@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
 #include "mgm/Namespace.hh"
-#include "namespace/ContainerMD.hh"
+#include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -46,7 +46,7 @@ public:
     mAttr = 0;
   };
 
-  void Init (eos::ContainerMD::XAttrMap *attr, std::string path = "", eos::common::FileId::fileid_t fid = 0)
+  void Init (eos::IContainerMD::XAttrMap *attr, std::string path = "", eos::common::FileId::fileid_t fid = 0)
   {
     mAttr = attr;
     mPath = path;
@@ -86,7 +86,7 @@ public:
 
 private:
 
-  eos::ContainerMD::XAttrMap* mAttr;
+  eos::IContainerMD::XAttrMap* mAttr;
   std::string mPath;
   eos::common::FileId::fileid_t mFid;
   std::string mEvent;

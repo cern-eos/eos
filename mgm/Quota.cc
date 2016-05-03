@@ -1236,8 +1236,11 @@ Quota::ExistsResponsible(const std::string& path)
 //------------------------------------------------------------------------------
 void
 Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
-			  const std::string& path, long long& max_bytes,
-			  long long& free_bytes)
+			  const std::string& path, 
+			  long long& max_bytes,
+			  long long& free_bytes,
+			  long long & max_files, 
+			  long long & free_files)
 {
   eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
@@ -1249,8 +1252,16 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
 
     long long max_bytes_usr, max_bytes_grp, max_bytes_prj;
     long long free_bytes_usr, free_bytes_grp, free_bytes_prj;
+    long long max_files_usr, max_files_grp, max_files_prj;
+    long long free_files_usr, free_files_grp, free_files_prj;
+
     free_bytes_usr = free_bytes_grp = free_bytes_prj = 0;
     max_bytes_usr = max_bytes_grp = max_bytes_prj = 0;
+
+    free_files_usr = free_files_grp = free_files_prj = 0;
+    max_files_usr = max_files_grp = max_files_prj = 0;
+
+
     max_bytes_usr  = space->GetQuota(SpaceQuota::kUserBytesTarget, vid.uid);
     max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, vid.gid);
     max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
@@ -1261,12 +1272,29 @@ Quota::GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
     free_bytes_prj = max_bytes_prj - space->GetQuota(SpaceQuota::kGroupLogicalBytesIs,
 						     Quota::gProjectId);
 
-    if (free_bytes_usr > free_bytes) free_bytes = free_bytes_usr;
-    if (free_bytes_grp > free_bytes) free_bytes = free_bytes_grp;
-    if (free_bytes_prj > free_bytes) free_bytes = free_bytes_prj;
-    if (max_bytes_usr > max_bytes) max_bytes = max_bytes_usr;
-    if (max_bytes_grp > max_bytes) max_bytes = max_bytes_grp;
-    if (max_bytes_prj > max_bytes) max_bytes = max_bytes_prj;
+    if (free_files_usr > free_files) free_files = free_files_usr;
+    if (free_files_grp > free_files) free_files = free_files_grp;
+    if (free_files_prj > free_files) free_files = free_files_prj;
+    if (max_files_usr > max_files) max_files = max_files_usr;
+    if (max_files_grp > max_files) max_files = max_files_grp;
+    if (max_files_prj > max_files) max_files = max_files_prj;
+
+    max_files_usr  = space->GetQuota(SpaceQuota::kUserFilesTarget, vid.uid);
+    max_files_grp = space->GetQuota(SpaceQuota::kGroupFilesTarget, vid.gid);
+    max_files_prj = space->GetQuota(SpaceQuota::kGroupFilesTarget, Quota::gProjectId);
+    free_files_usr = max_files_usr - space->GetQuota(SpaceQuota::kUserFilesIs,
+						     vid.uid);
+    free_files_grp = max_files_grp - space->GetQuota(SpaceQuota::kGroupFilesIs,
+						     vid.gid);
+    free_files_prj = max_files_prj - space->GetQuota(SpaceQuota::kGroupFilesIs,
+						     Quota::gProjectId);
+
+    if (free_files_usr > free_files) free_files = free_files_usr;
+    if (free_files_grp > free_files) free_files = free_files_grp;
+    if (free_files_prj > free_files) free_files = free_files_prj;
+    if (max_files_usr > max_files) max_files = max_files_usr;
+    if (max_files_grp > max_files) max_files = max_files_grp;
+    if (max_files_prj > max_files) max_files = max_files_prj;
   }
 }
 

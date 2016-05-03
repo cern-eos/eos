@@ -188,8 +188,12 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
-  mXrdFile->EnableReadRecovery(false);
-  mXrdFile->EnableWriteRecovery(false);
+  if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
+      !mXrdFile->SetProperty("WriteRecovery", "false"))
+  {
+    eos_warning("failed to set XrdCl::File properties read recovery and write "
+		"recovery to false");
+  }
 
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
@@ -212,8 +216,8 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   // store the last URL we are connected after open
   //............................................................................
 
-  XrdCl::URL cUrl = mXrdFile->GetLastURL();
-  mLastUrl = cUrl.GetURL();
+  // Save the last URL we are connected after open
+  mXrdFile->GetProperty("LastURL", mLastUrl);
   return SFS_OK;
 }
 
@@ -547,7 +551,7 @@ XrdIo::fileWriteAsync (XrdSfsFileOffset offset,
   ChunkHandler* handler;
   XrdCl::XRootDStatus status;
 
-  handler = mMetaHandler->Register(offset, length, buffer, true);
+  handler = mMetaHandler->Register(offset, length, (char*) buffer, true);
 
   // If previous write requests failed then we won't get a new handler
   // and we return directly an error

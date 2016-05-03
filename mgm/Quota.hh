@@ -367,8 +367,11 @@ public:
   //!
   //----------------------------------------------------------------------------
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
-				 const std::string& path, long long& max_bytes,
-				 long long& free_bytes);
+				 const std::string& path, 
+				 long long& max_bytes,
+				 long long& free_bytes,
+				 long long& max_files,
+				 long long& free_files);
 
 
   //----------------------------------------------------------------------------

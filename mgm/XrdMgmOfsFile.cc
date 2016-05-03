@@ -1319,8 +1319,9 @@ XrdMgmOfsFile::open (const char *inpath,
 
     if (fmd->getNumUnlinkedLocation())
     {
-      eos::FileMD::LocationVector::const_iterator it;
-      for (it = fmd->unlinkedLocationsBegin(); it != fmd->unlinkedLocationsEnd(); ++it)
+      eos::IFileMD::LocationVector loc = fmd->getUnlinkedLocations();
+      eos::IFileMD::LocationVector::const_iterator it;
+      for (it = loc.begin(); it != loc.end(); ++it)
       {
         // file systems with pending deletions cannot be re-selected for injection
         unavailfs.push_back(*it);
@@ -1422,10 +1423,6 @@ XrdMgmOfsFile::open (const char *inpath,
         ProcCommand* procCmd = new ProcCommand();
         if (procCmd)
         {
-          // unlock mutexes (results in double unlock when scope left)
-          FsView::gFsView.ViewMutex.UnLockRead();
-          Quota::gQuotaMutex.UnLockRead();
-
           // issue the version command
           XrdOucString cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.purge.version=-1&mgm.path=";
           cmd += path;
@@ -1487,10 +1484,6 @@ XrdMgmOfsFile::open (const char *inpath,
           ProcCommand* procCmd = new ProcCommand();
           if (procCmd)
           {
-            // unlock mutexes (results in double unlock when scope left)
-            FsView::gFsView.ViewMutex.UnLockRead();
-            Quota::gQuotaMutex.UnLockRead();
-
             // issue the adjustreplica command as root
             eos::common::Mapping::VirtualIdentity vidroot;
             eos::common::Mapping::Copy(vid, vidroot);

@@ -64,10 +64,10 @@
 
   std::string event = aevent;
 
-  eos::FileMD* fmd = 0;
-  eos::ContainerMD* dh = 0;
+  eos::IFileMD* fmd = 0;
+  eos::IContainerMD* dh = 0;
   Workflow workflow;
-  eos::ContainerMD::XAttrMap attr;
+  eos::IContainerMD::XAttrMap attr;
   
   XrdOucString lWorkflow = aworkflow;
 
@@ -92,7 +92,7 @@
       }
 
       dh = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-      eos::ContainerMD::XAttrMap::const_iterator it;
+      eos::IContainerMD::XAttrMap::const_iterator it;
       for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
       {
         attr[it->first] = it->second;
