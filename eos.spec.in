@@ -166,6 +166,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libeosCommonServer.so.%{major_version}
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libEosFstOss.so
+%{_libdir}/libEosFstIo.so
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosPluginManager.so.%{version}
 %{_libdir}/libEosPluginManager.so.%{major_version}
