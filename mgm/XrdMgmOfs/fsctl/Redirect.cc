@@ -47,6 +47,7 @@
       omode = (mode_t) strtol(openmode.c_str(),NULL,8);
     }
 
+
     if ( (oflags & SFS_O_CREAT) ||
 	 (oflags & SFS_O_RDWR) ||
 	 (oflags & SFS_O_TRUNC) )
