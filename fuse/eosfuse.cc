@@ -1768,7 +1768,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 }
 
 #ifdef __APPLE__
-void EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const char *value, size_t size, int flags, uint32_t position)
+void EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const char *xattr_value, size_t size, int flags, uint32_t position)
 #else
 
 void
