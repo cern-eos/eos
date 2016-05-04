@@ -179,15 +179,14 @@ WFE::WFEr ()
       {
         lWFEInterval =
                 atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe.interval").c_str());
+	lWFEntx =
+	  atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe.ntx").c_str());
       }
       else
       {
         lWFEInterval = 0;
+	lWFEntx = 0;
       }
-
-      lWFEntx =
-              atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe.ntx").c_str());
-
     }
 
     // only a master needs to run WFE
