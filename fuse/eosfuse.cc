@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "eosfuse.hh"
+#include "MacOSXHelper.hh"
 
 #include <string>
 #include <map>
@@ -39,7 +40,11 @@
 #include <string.h>
 
 #include <sys/types.h>
+#ifdef __APPLE__
+#include <sys/xattr.h>
+#else
 #include <attr/xattr.h>
+#endif
 
 #include "common/Timing.hh"
 
@@ -435,10 +440,10 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
  {
    struct timespec tvp[2];
-   tvp[0].tv_sec = attr->st_atim.tv_sec;
-   tvp[0].tv_nsec = attr->st_atim.tv_nsec;
-   tvp[1].tv_sec = attr->st_mtim.tv_sec;
-   tvp[1].tv_nsec = attr->st_mtim.tv_nsec;
+   tvp[0].tv_sec = attr->ATIMESPEC.tv_sec;
+   tvp[0].tv_nsec = attr->ATIMESPEC.tv_nsec;
+   tvp[1].tv_sec = attr->MTIMESPEC.tv_sec;
+   tvp[1].tv_nsec = attr->MTIMESPEC.tv_nsec;
 
    eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld",
                      (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
@@ -657,11 +662,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      return;
    }
 
-#ifdef __APPLE__
-   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtimespec, attr.st_ctimespec, &tmp_buf);
-#else
-   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtim, attr.st_ctim, &tmp_buf);
-#endif
+   dir_status = me.fs ().dir_cache_get (ino, attr.MTIMESPEC, attr.CTIMESPEC, &tmp_buf);
 
    if (!dir_status)
    {
@@ -713,11 +714,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      //........................................................................
      // Add directory to cache or update it
      //........................................................................
-#ifdef __APPLE__
-     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtimespec, attr.st_ctimespec, b);
-#else
-     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtim, attr.st_ctim, b);
-#endif
+     me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, b);
      me.fs ().unlock_r_dirview (); // <=
 
      //........................................................................
@@ -1678,7 +1675,6 @@ EosFuse::flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 #ifdef __APPLE__
 void EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size, uint32_t position)
 #else
-
 void
 EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size)
 #endif

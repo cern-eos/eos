@@ -52,6 +52,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
+#include "MacOSXHelper.hh"
 #include "FuseCache/CacheEntry.hh"
 #include "filesystem.hh"
 
@@ -1609,7 +1610,7 @@ filesystem::stat (const char* path,
                file_size = cache_size;
              }
              fabst->GetUtimes (&mtim);
-             eos_static_debug ("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.st_mtim, tmp.st_atim, file);
+             eos_static_debug ("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
            }
            else
            {
@@ -1718,24 +1719,15 @@ filesystem::stat (const char* path,
      buf->st_size = (off_t) sval[7];
      buf->st_blksize = (blksize_t) sval[8];
      buf->st_blocks = (blkcnt_t) sval[9];
-#ifdef __APPLE__
-     buf->st_atimespec.tv_sec = (time_t) ival[0];
-     buf->st_mtimespec.tv_sec = (time_t) ival[1];
-     buf->st_ctimespec.tv_sec = (time_t) ival[2];
-     buf->st_atimespec.tv_nsec = (time_t) ival[3];
-     buf->st_mtimespec.tv_nsec = (time_t) ival[4];
-     buf->st_ctimespec.tv_nsec = (time_t) ival[5];
-#else
      buf->st_atime = (time_t) ival[0];
      buf->st_mtime = (time_t) ival[1];
      buf->st_ctime = (time_t) ival[2];
-     buf->st_atim.tv_sec = (time_t) ival[0];
-     buf->st_mtim.tv_sec = (time_t) ival[1];
-     buf->st_ctim.tv_sec = (time_t) ival[2];
-     buf->st_atim.tv_nsec = (time_t) ival[3];
-     buf->st_mtim.tv_nsec = (time_t) ival[4];
-     buf->st_ctim.tv_nsec = (time_t) ival[5];
-#endif
+     buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+     buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+     buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+     buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+     buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+     buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
 
      if (S_ISREG (buf->st_mode) && fuse_exec)
        buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
@@ -1770,10 +1762,10 @@ filesystem::stat (const char* path,
    buf->st_size = file_size;
    if (mtim.tv_sec)
    {
-     buf->st_mtim = mtim;
-     buf->st_atim = mtim;
-     buf->st_atime = buf->st_atim.tv_sec;
-     buf->st_mtime = buf->st_mtim.tv_sec;
+     buf->MTIMESPEC = mtim;
+     buf->ATIMESPEC = mtim;
+     buf->st_atime = buf->ATIMESPEC.tv_sec;
+     buf->st_mtime = buf->ATIMESPEC.tv_sec;
    }
  }
 
@@ -1782,7 +1774,7 @@ filesystem::stat (const char* path,
  if (EOS_LOGS_DEBUG)
    stattiming.Print ();
 
- eos_static_info ("path=%s st-ino =%llu st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_ino, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
+ eos_static_info ("path=%s st-ino =%llu st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_ino, buf->st_size, buf->MTIMESPEC.tv_sec, buf->MTIMESPEC.tv_nsec, errno);
  delete response;
  return errno;
 }
@@ -2510,10 +2502,10 @@ filesystem::inodirlist (unsigned long long dirinode,
          char *statptr2;
          statptr++; // skip '{'
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_atim.tv_nsec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_nsec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_atim.tv_sec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_sec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blksize, statptr2 - statptr);
@@ -2522,10 +2514,10 @@ filesystem::inodirlist (unsigned long long dirinode,
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blocks, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_ctim.tv_nsec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_nsec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_ctim.tv_sec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_sec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_dev, statptr2 - statptr);
@@ -2540,10 +2532,10 @@ filesystem::inodirlist (unsigned long long dirinode,
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mode, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mtim.tv_nsec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_nsec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mtim.tv_sec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_sec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_nlink, statptr2 - statptr);
@@ -2658,7 +2650,7 @@ filesystem::readdir (const char* path_dir, size_t *size,
      size_t len = list_entry->GetName ().length ();
      const char* cp = list_entry->GetName ().c_str ();
      const int dirhdrln = dirs[i].d_name - (char *) &dirs[i];
-#if defined(__macos__) || defined(__FreeBSD__)
+#ifdef __APPLE__
      dirs[i].d_fileno = i;
      dirs[i].d_type = DT_UNKNOWN;
      dirs[i].d_namlen = len;
@@ -2773,24 +2765,15 @@ filesystem::mkdir (const char* path,
      buf->st_size = (off_t) sval[7];
      buf->st_blksize = (blksize_t) sval[8];
      buf->st_blocks = (blkcnt_t) sval[9];
-#ifdef __APPLE__
-     buf->st_atimespec.tv_sec = (time_t) ival[0];
-     buf->st_mtimespec.tv_sec = (time_t) ival[1];
-     buf->st_ctimespec.tv_sec = (time_t) ival[2];
-     buf->st_atimespec.tv_nsec = (time_t) ival[3];
-     buf->st_mtimespec.tv_nsec = (time_t) ival[4];
-     buf->st_ctimespec.tv_nsec = (time_t) ival[5];
-#else
      buf->st_atime = (time_t) ival[0];
      buf->st_mtime = (time_t) ival[1];
      buf->st_ctime = (time_t) ival[2];
-     buf->st_atim.tv_sec = (time_t) ival[0];
-     buf->st_mtim.tv_sec = (time_t) ival[1];
-     buf->st_ctim.tv_sec = (time_t) ival[2];
-     buf->st_atim.tv_nsec = (time_t) ival[3];
-     buf->st_mtim.tv_nsec = (time_t) ival[4];
-     buf->st_ctim.tv_nsec = (time_t) ival[5];
-#endif
+     buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+     buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+     buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+     buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+     buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+     buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
 
      if (S_ISREG (buf->st_mode) && fuse_exec)
        buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
