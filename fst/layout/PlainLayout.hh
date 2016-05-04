@@ -25,17 +25,55 @@
 #ifndef __EOSFST_PLAINLAYOUT_HH__
 #define __EOSFST_PLAINLAYOUT_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/layout/Layout.hh"
-/*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClXRootDResponses.hh"
+#include <pthread.h>
 
 EOSFSTNAMESPACE_BEGIN
+
+//! Forward declaration
+class PlainLayout;
+
+//------------------------------------------------------------------------------
+//! Class used for handling asynchronous open responses for this layout
+//------------------------------------------------------------------------------
+class AsyncLayoutOpenHandler:
+    public XrdCl::ResponseHandler, public eos::common::LogId
+{
+ public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param layout layout object
+  //----------------------------------------------------------------------------
+  AsyncLayoutOpenHandler(PlainLayout* layout): mPlainLayout(layout) {}
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~AsyncLayoutOpenHandler() {}
+
+  //----------------------------------------------------------------------------
+  //! Called when a response to associated request arrives or an error occurs
+  //!
+  //! @param status   status of the request
+  //! @param response an object associated with the response (request dependent)
+  //! @param hostList list of hosts the request was redirected to
+  //---------------------------------------------------------------------------
+  virtual void HandleResponseWithHosts(XrdCl::XRootDStatus* status,
+                                       XrdCl::AnyObject* response,
+                                       XrdCl::HostList* hostList);
+
+ private:
+  PlainLayout* mPlainLayout; ///< Layout object corresponding to this handler
+};
 
 //------------------------------------------------------------------------------
 //! Class abstracting the physical layout of a plain file
 //------------------------------------------------------------------------------
 class PlainLayout : public Layout
 {
+  friend class AsyncLayoutOpenHandler;
 public:
 
   //----------------------------------------------------------------------------
@@ -79,8 +117,29 @@ public:
                     mode_t mode,
                     const char* opaque = "");
 
+  //--------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param path file path
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param handler open handler
+  //! @param opaque opaque information
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int OpenAsync (const std::string& path, XrdSfsFileOpenMode flags,
+                         mode_t mode, XrdCl::ResponseHandler* handler,
+                         const char* opaque = "");
 
-  //----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
+  //! Wait for the asynchronous open response
+  //!
+  //! @return true if open successful, false otherwise
+  //--------------------------------------------------------------------------
+  bool WaitOpenAsync();
+
+  //--------------------------------------------------------------------------
   //! Read from file
   //!
   //! @param offset offset
@@ -197,12 +256,17 @@ public:
   //----------------------------------------------------------------------------
   virtual int Close ();
 
-  
 private:
 
   uint64_t mFileSize; ///< file size
   FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
   bool mDisableRdAhead; ///< if any write operations is done, disable rdahead
+  bool mHasAsyncResponse; ///< true if async open response arrived
+  bool mAsyncResponse; ///< True if successful, otherwise false
+  pthread_mutex_t mMutex; ///< Mutex to be used with the condition variable
+  pthread_cond_t mCondVar; ///< Condition variable for async notifications
+  eos::fst::AsyncIoOpenHandler* mIoOpenHandler; ///< Open handler for IO layer
+  XrdSfsFileOpenMode mFlags; ///< Open flags
 
   //----------------------------------------------------------------------------
   //! Disable copy constructor

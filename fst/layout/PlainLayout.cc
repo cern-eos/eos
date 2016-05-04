@@ -31,6 +31,35 @@
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
+// Handle asynchronous open responses
+//------------------------------------------------------------------------------
+void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
+                                                     XrdCl::AnyObject* response,
+                                                     XrdCl::HostList* hostList)
+{
+  eos_info("handling response in AsyncLayoutOpenHandler");
+  // response and hostList are nullptr
+  bool is_ok = false;
+
+  if (status->IsOK())
+  {
+    // Store the last URL we are connected after open
+    mPlainLayout->mLastUrl = mPlainLayout->mPlainFile->GetLastUrl();
+    is_ok = true;
+  }
+
+  // Notify any blocked threads
+  pthread_mutex_lock(&mPlainLayout->mMutex);
+  mPlainLayout->mAsyncResponse = is_ok;
+  mPlainLayout->mHasAsyncResponse = true;
+  pthread_cond_signal(&mPlainLayout->mCondVar);
+  pthread_mutex_unlock(&mPlainLayout->mMutex);
+  delete status;
+  mPlainLayout->mIoOpenHandler = NULL;
+  delete this;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 PlainLayout::PlainLayout (XrdFstOfsFile* file,
@@ -40,10 +69,11 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           eos::common::LayoutId::eIoType io,
                           uint16_t timeout) :
     Layout (file, lid, client, outError, io, timeout),
-    mFileSize(0),
-    mDisableRdAhead(false)
+    mFileSize(0), mDisableRdAhead(false), mHasAsyncResponse(false),
+    mAsyncResponse(false), mIoOpenHandler(NULL), mFlags(0)
 {
-  // For the plain layout we use only the LocalFileIo type
+  pthread_mutex_init(&mMutex, NULL);
+  pthread_cond_init(&mCondVar, NULL);
   mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
   mIsEntryServer = true;
 }
@@ -53,6 +83,12 @@ PlainLayout::PlainLayout (XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 PlainLayout::~PlainLayout ()
 {
+  pthread_mutex_destroy(&mMutex);
+  pthread_cond_destroy(&mCondVar);
+
+  if (mIoOpenHandler)
+    delete mIoOpenHandler;
+
   delete mPlainFile;
 }
 
@@ -65,29 +101,78 @@ PlainLayout::Open (const std::string& path,
                    mode_t mode,
                    const char* opaque)
 {
+  mFlags = flags;
   mLocalPath = path;
   int retc = mPlainFile->Open(path, flags, mode, opaque, mTimeout);
-
-  if (retc)
-  {
-    eos_err("failed open for file=%s", path.c_str());
-    return SFS_ERROR;
-  }
-
   mLastUrl = mPlainFile->GetLastUrl();
 
-  // Get initial file size
-  struct stat st_info;
-  int retc_stat = mPlainFile->Stat(&st_info);
-
-  if (retc_stat)
+  // Get initial file size if not new file or truncated
+  if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
   {
-    eos_err("failed stat for file=%s", path.c_str());
-    return SFS_ERROR;
+    struct stat st_info;
+    int retc_stat = mPlainFile->Stat(&st_info);
+
+    if (retc_stat)
+    {
+      eos_err("failed stat for file=%s", path.c_str());
+      return SFS_ERROR;
+    }
+
+    mFileSize = st_info.st_size;
   }
 
-  mFileSize = st_info.st_size;
   return retc;
+}
+
+//------------------------------------------------------------------------------
+// Open asynchronously
+//------------------------------------------------------------------------------
+int
+PlainLayout::OpenAsync(const std::string& path, XrdSfsFileOpenMode flags,
+                       mode_t mode, XrdCl::ResponseHandler* layout_handler,
+                       const char* opaque)
+{
+  mFlags = flags;
+  mLocalPath = path;
+  mIoOpenHandler = new eos::fst::AsyncIoOpenHandler(
+      static_cast<eos::fst::XrdIo*>(mPlainFile), layout_handler);
+  return static_cast<eos::fst::XrdIo*>(mPlainFile)->OpenAsync(
+      path, mIoOpenHandler, flags, mode, opaque, mTimeout);
+}
+
+//------------------------------------------------------------------------------
+// Wait for asynchronous open reponse
+//------------------------------------------------------------------------------
+bool
+PlainLayout::WaitOpenAsync()
+{
+  pthread_mutex_lock(&mMutex);
+  while (!mHasAsyncResponse)
+    pthread_cond_wait(&mCondVar, &mMutex);
+
+  pthread_mutex_unlock(&mMutex);
+
+  if (mAsyncResponse)
+  {
+    // Get initial file size if not new file or truncated
+    if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
+    {
+      struct stat st_info;
+      int retc_stat = mPlainFile->Stat(&st_info);
+
+      if (retc_stat)
+      {
+        eos_err("failed stat");
+        mAsyncResponse = false;
+      }
+      else
+      {
+        mFileSize = st_info.st_size;
+      }
+    }
+  }
+
+  return mAsyncResponse;
 }
 
 //------------------------------------------------------------------------------
@@ -104,7 +189,7 @@ PlainLayout::Read (XrdSfsFileOffset offset, char* buffer,
       if ((uint64_t)(offset + length) > mFileSize)
         length = mFileSize - offset;
 
-      if (length<0)
+      if (length < 0)
         length = 0;
 
       eos_static_info("read offset=%llu length=%lu", offset, length);

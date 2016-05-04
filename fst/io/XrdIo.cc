@@ -38,6 +38,27 @@ const uint64_t ReadaheadBlock::sDefaultBlocksize = 1 *1024 * 1024; ///< 1MB defa
 const uint32_t XrdIo::sNumRdAheadBlocks = 2;
 
 //------------------------------------------------------------------------------
+// Handle asynchronous open responses
+//------------------------------------------------------------------------------
+void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
+                                                 XrdCl::AnyObject* response,
+                                                 XrdCl::HostList* hostList)
+{
+  eos_info("handling response in AsyncIoOpenHandler");
+  // response is nullptr
+  delete hostList;
+
+  if (status->IsOK())
+  {
+    // Store the last URL we are connected after open
+    mFileIo->mXrdFile->GetProperty("LastURL", mFileIo->mLastUrl);
+  }
+
+  mLayoutOpenHandler->HandleResponseWithHosts(status, 0, 0);
+  delete this;
+}
+
+//------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 XrdIo::XrdIo () :
@@ -51,7 +72,6 @@ mMetaHandler(new AsyncMetaHandler())
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt( "TimeoutResolution", 1 );
 }
-
 
 //------------------------------------------------------------------------------
 // Destructor
@@ -80,16 +100,12 @@ XrdIo::~XrdIo ()
     delete mXrdFile;
 }
 
-
 //------------------------------------------------------------------------------
-// Open file
+// Open file synchronously
 //------------------------------------------------------------------------------
 int
-XrdIo::Open (const std::string& path,
-             XrdSfsFileOpenMode flags,
-             mode_t mode,
-             const std::string& opaque,
-             uint16_t timeout)
+XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
+             const std::string& opaque, uint16_t timeout)
 {
   const char* val = 0;
   std::string request;
@@ -157,11 +173,88 @@ XrdIo::Open (const std::string& path,
     errno = 0;
   }
 
-  // Save the last URL we are connected after open
+  //............................................................................   
+  // store the last URL we are connected after open
+  //............................................................................
+
   mXrdFile->GetProperty("LastURL", mLastUrl);
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Open file asynchronously
+//------------------------------------------------------------------------------
+int
+XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
+                  XrdSfsFileOpenMode flags, mode_t mode,
+                  const std::string& opaque, uint16_t timeout)
+{
+  const char* val = 0;
+  std::string request;
+  std::string lOpaque;
+  size_t qpos = 0;
+  mFilePath = path;
+
+  // Opaque info can be part of the 'path'
+  if ( ( (qpos = path.find("?")) != std::string::npos) ) {
+    lOpaque = path.substr(qpos+1);
+    mFilePath.erase(qpos);
+  }
+  else
+  {
+    lOpaque = opaque;
+  }
+
+  XrdOucEnv open_opaque(lOpaque.c_str());
+
+  // Decide if readahead is used and the block size
+  if ((val = open_opaque.Get("fst.readahead")) &&
+      (strncmp(val, "true", 4) == 0))
+  {
+    eos_debug("Enabling the readahead.");
+    mDoReadahead = true;
+    val = 0;
+
+    if ((val = open_opaque.Get("fst.blocksize")))
+    {
+      mBlocksize = static_cast<uint64_t> (atoll(val));
+    }
+
+    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
+    {
+      mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+    }
+  }
+
+  request = path;
+  request += "?";
+  request += lOpaque;
+  mXrdFile = new XrdCl::File();
+
+  // Disable recovery on read and write
+  if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
+      !mXrdFile->SetProperty("WriteRecovery", "false"))
+  {
+    eos_warning("failed to set XrdCl::File properties read recovery and write "
+                "recovery to false");
+  }
+
+  XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
+  XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
+  XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl,
+                                              io_handler, timeout);
+
+  if (!status.IsOK())
+  {
+    delete io_handler;
+    eos_err("error=opening remote XrdClFile");
+    errno = status.errNo;
+    mLastErrMsg = status.ToString().c_str();
+    return SFS_ERROR;
+  }
+
+  return SFS_OK;
+}
 
 //------------------------------------------------------------------------------
 // Read from file - sync
