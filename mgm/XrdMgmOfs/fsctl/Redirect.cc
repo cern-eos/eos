@@ -28,10 +28,6 @@
 // -----------------------------------------------------------------------
 
 {
-  ACCESSMODE_W;
-  MAYSTALL;
-  MAYREDIRECT;
-
   gOFS->MgmStats.Add("OpenRedirect", vid.uid, vid.gid, 1);
   XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));
 
@@ -50,6 +46,23 @@
       std::string openmode=env.Get("eos.client.openmode");
       omode = (mode_t) strtol(openmode.c_str(),NULL,8);
     }
+
+    if ( (oflags & SFS_O_CREAT) ||
+	 (oflags & SFS_O_RDWR) ||
+	 (oflags & SFS_O_TRUNC) )
+    {
+      ACCESSMODE_W;
+      MAYSTALL;
+      MAYREDIRECT;
+    }
+    else 
+    {
+      ACCESSMODE_R;
+      MAYSTALL;
+      MAYREDIRECT;      
+    }
+
+
     int rc = file->open(spath.c_str(), oflags, omode, client, opaque.c_str());
     std::string ei = file->error.getErrText();
     if (rc == SFS_REDIRECT)
