@@ -405,6 +405,27 @@ filesystem::forget_p2i (unsigned long long inode)
  }
 }
 
+void
+filesystem::rename_p2i (unsigned long long inode, unsigned long long new_inode)
+{
+ eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
+
+ if (inode2path.count (inode))
+ {
+   std::string path = inode2path[inode];
+
+   // only delete the reverse lookup if it points to the originating inode
+   if (path2inode[path] == inode)
+   {
+     path2inode.erase (path);
+     path2inode[path] = new_inode;
+   } 
+   inode2path.erase (inode);
+   inode2path[new_inode] = path;
+ }
+}
+
+
 //------------------------------------------------------------------------------
 // Lock read
 //------------------------------------------------------------------------------
@@ -3340,9 +3361,19 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
 
  if (XFC)
  {
+   LayoutWrapper* file = fabst->GetRawFileRW ();
+   error_type error;
+
    fabst->mMutexRW.WriteLock ();
    XFC->ForceAllWrites (fabst.get());
+   eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
+   if (file && (err_queue.try_pop (error)))
+   {
+     eos_static_warning ("write error found in err queue for inode=%llu - enabling restore", inode);
+     file->SetRestore();
+   }
    fabst->mMutexRW.UnLock ();
+
  }
 
  {
@@ -3353,9 +3384,6 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
  }
 
  {
-   //   eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (inode);
-   //   eos::common::RWMutexWriteLock lock (*myOpenMutex);
-
    // Close file and remove it from all mappings
    ret = remove_fd2file (fildes, inode, uid, gid, pid);
  }
@@ -3433,7 +3461,7 @@ int
 filesystem::truncate (int fildes, off_t offset)
 {
 
- eos::common::Timing truncatetiming ("runcate");
+ eos::common::Timing truncatetiming ("truncate");
  COMMONTIMING ("START", &truncatetiming);
 
  int ret = -1;

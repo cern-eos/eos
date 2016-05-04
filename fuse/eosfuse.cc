@@ -1560,6 +1560,15 @@ EosFuse::release (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
    // Free memory
    free (info);
    fi->fh = 0;
+
+   // evt. call the inode migration procedure in the cache and lookup tables                                                                                                                                         
+   unsigned long long new_inode;
+   if ( (new_inode = LayoutWrapper::CacheRestore(ino)))
+     {
+       eos_static_notice("migrating inode=%llu to inode=%llu after restore", ino, new_inode);
+       me.fs ().rename_p2i(ino, new_inode);
+     }
+
  }
 
  fuse_reply_err (req, errno);

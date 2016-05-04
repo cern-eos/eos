@@ -66,6 +66,8 @@ class LayoutWrapper
     time_t mLifeTime;
     time_t mOwnerLifeTime;
     int64_t  mSize;
+    bool mPartial;
+    int64_t mRestoreInode;
   };
 
   static XrdSysMutex gCacheAuthorityMutex;
@@ -76,7 +78,7 @@ class LayoutWrapper
   off_t mMaxOffset;
   int64_t mSize;
   bool mInlineRepair;
-
+  bool mRestore;
   //----------------------------------------------------------------------------
   //! Do the open on the mgm but not on the fst yet
   //----------------------------------------------------------------------------
@@ -229,6 +231,21 @@ class LayoutWrapper
   //! Repair a partially unavailable flie
   //----------------------------------------------------------------------------
   bool Repair(const std::string& path, const char* opaque);
+
+  //----------------------------------------------------------------------------
+  //! Restore a file from the cache into EOS
+  //----------------------------------------------------------------------------
+  bool Restore();
+  
+  //----------------------------------------------------------------------------
+  //! Enable the restore flag when closing the file
+  //----------------------------------------------------------------------------
+  void SetRestore() { mRestore = true; }
+
+  //----------------------------------------------------------------------------
+  //! Migrate cache inode after a restore operation
+  //----------------------------------------------------------------------------
+  static unsigned long long CacheRestore(unsigned long long);
 
   //----------------------------------------------------------------------------
   //! Path accessor
