@@ -406,7 +406,7 @@ filesystem::forget_p2i (unsigned long long inode)
 }
 
 void
-filesystem::rename_p2i (unsigned long long inode, unsigned long long new_inode)
+filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode)
 {
  eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
 
@@ -420,7 +420,8 @@ filesystem::rename_p2i (unsigned long long inode, unsigned long long new_inode)
      path2inode.erase (path);
      path2inode[path] = new_inode;
    } 
-   inode2path.erase (inode);
+   // since inodes are cache dupstream we leave for the rare case of a restore a blind entry
+   //   inode2path.erase (inode);
    inode2path[new_inode] = path;
  }
 }

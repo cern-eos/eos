@@ -1566,7 +1566,7 @@ EosFuse::release (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
    if ( (new_inode = LayoutWrapper::CacheRestore(ino)))
      {
        eos_static_notice("migrating inode=%llu to inode=%llu after restore", ino, new_inode);
-       me.fs ().rename_p2i(ino, new_inode);
+       me.fs ().redirect_p2i(ino, new_inode);
      }
 
  }

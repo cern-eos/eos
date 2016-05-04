@@ -368,6 +368,10 @@ bool
 LayoutWrapper::Restore()
 {
   mRestore = false;
+
+  if (getenv("EOS_FUSE_NO_CACHE_RESTORE"))
+    return false;
+
   off_t restore_size=0;
   {
     XrdSysMutexHelper l(gCacheAuthorityMutex);

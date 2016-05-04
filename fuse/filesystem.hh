@@ -186,9 +186,9 @@ public:
 
 
  //----------------------------------------------------------------------------
- //! rename inode
+ //! redirect inode to a new inode
  //----------------------------------------------------------------------------
-void rename_p2i (unsigned long long inode, unsigned long long new_inode);
+void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
 
  //----------------------------------------------------------------------------
  //! Replace all names with a given prefix
