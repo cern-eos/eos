@@ -64,7 +64,6 @@ set(
   # File IO interface
   #-----------------------------------------------------------------------------
   io/FileIo.hh
-  io/LocalIo.cc                  io/LocalIo.hh
   io/XrdIo.cc                    io/XrdIo.hh
   io/HeaderCRC.cc                io/HeaderCRC.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -198,6 +197,7 @@ set(
   ScanDir.cc
   Messaging.cc
   io/FileIoPlugin-Server.cc
+  io/LocalIo.cc                  io/LocalIo.hh
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
 
   #-----------------------------------------------------------------------------
@@ -268,7 +268,7 @@ target_link_libraries(
    ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
-# eoscp executable
+# Other executables
 #-------------------------------------------------------------------------------
 add_executable(
   eos-check-blockxs
