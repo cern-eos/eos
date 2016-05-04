@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.174 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: add 'restore' functionality which recovers file write errors on client side transparently if all the writes are still in the local in-memory cache
+- FUSE: add the option do do an asynchronous open after a lazy open call (by default disabled - still WIP)
+- MGM: print fid as decimal number in 'file info'
+- MGM: redirect new 'Redirect' fuse call on the MGM always to a master
+- MGM: keep the replica chain in the same order for FUSE updates (cl=>rep1=>rep2) doing identical scheduling
+- FST: fix 'tried' CGI to append to a list and not overwrite previous tried add-ons
+
 ``V0.3.173 Aquamarine``
 
 New Feature
