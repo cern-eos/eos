@@ -113,7 +113,8 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${PROTOBUF_LIBRARIES})
 
 #-------------------------------------------------------------------------------
 # eoscp executable
