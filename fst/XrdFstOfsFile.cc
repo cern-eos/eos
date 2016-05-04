@@ -3175,8 +3175,12 @@ XrdFstOfsFile::stat (struct stat * buf)
   if (!rc)
     buf->st_ino = fileid << 28;
 
-  // we store the mtime.ns time in st_dev ... sigh@Xrootd ...                                                                                                                                 
+  // we store the mtime.ns time in st_dev ... sigh@Xrootd ...                                                                    
+#ifdef __APPLE__
+  unsigned long nsec = buf->st_mtimespec.tv_nsec;
+#else
   unsigned long nsec = buf->st_mtim.tv_nsec;
+#endif
   // mask for 10^9                                                                                                                                                                            
   nsec &= 0x7fffffff;
   // enable bit 32 as indicator                                                                                                                                                               
@@ -3184,7 +3188,11 @@ XrdFstOfsFile::stat (struct stat * buf)
   // overwrite st_dev                                                                                                                                                                         
   buf->st_dev = nsec;
 
+#ifdef __APPLE__
+  eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", Path.c_str(), fileid, (unsigned long) buf->st_size, buf->st_mtimespec.tv_sec, buf->st_dev&0x7ffffff);
+#else
   eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", Path.c_str(), fileid, (unsigned long) buf->st_size, buf->st_mtim.tv_sec, buf->st_dev&0x7ffffff);
+#endif
   return rc;
 }
 
