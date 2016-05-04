@@ -662,8 +662,14 @@ int LayoutWrapper::Stat(struct stat* buf)
 void LayoutWrapper::Utimes(const struct stat* buf)
 {
   // set local Utimes
+#ifdef __APPLE__
+  mLocalUtime[0] = buf->st_mtimespec;
+  mLocalUtime[1] = buf->st_atimespec;
+#else
   mLocalUtime[0] = buf->st_atim;
   mLocalUtime[1] = buf->st_mtim;
+#endif
+
   eos_static_debug("setting timespec  atime:%lu.%.9lu      mtime:%lu.%.9lu",
                    mLocalUtime[0].tv_sec, mLocalUtime[0].tv_nsec,
                    mLocalUtime[1].tv_sec, mLocalUtime[1].tv_nsec);

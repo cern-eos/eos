@@ -117,7 +117,7 @@ XrdCapability::Create(XrdOucEnv *inenv,
   // Add the validity time - default 1 hour
   toencrypt += "&cap.valid=";
   char validity[32];
-  snprintf(validity,32,"%lu", (unsigned int) time(NULL) + cap_validity);
+  snprintf(validity,32,"%llu", (unsigned int) time(NULL) + cap_validity);
   toencrypt += validity;
   XrdOucString encrypted="";
   
