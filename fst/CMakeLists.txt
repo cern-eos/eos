@@ -51,23 +51,6 @@ set_source_files_properties(
 set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
 set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 
-#-------------------------------------------------------------------------------
-# EosFstOss library
-#-------------------------------------------------------------------------------
-add_library(
-  EosFstOss MODULE
-  XrdFstOss.cc XrdFstOss.hh
-  XrdFstOssFile.cc XrdFstOssFile.hh
-  checksum/CheckSum.cc checksum/CheckSum.hh
-  checksum/Adler.cc checksum/Adler.hh
-  checksum/crc32c.cc checksum/crc32ctables.cc
-  ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
-
-target_link_libraries(
-  EosFstOss
-  eosCommon
-  ${UUID_LIBRARIES}
-  ${XROOTD_SERVER_LIBRARY})
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -120,7 +103,6 @@ add_library(
 target_link_libraries(
   EosFstIo
   eosCommon
-  XrdEosFst
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -129,10 +111,29 @@ target_link_libraries(
   ${NCURSES_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
+  ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-if(Linux)
+#-------------------------------------------------------------------------------
+# eoscp executable
+#-------------------------------------------------------------------------------
+add_executable(eoscp txqueue/eoscp.cc)
+
+set_target_properties(
+  eoscp
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+
+if(MacOSX)
+  set_target_properties(
+    EosFstIo
+    PROPERTIES
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    MACOSX_RPATH TRUE)
+  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
+else()
   add_library(
     EosFstIo-Static STATIC
     ${EOSFSTIO_SRCS}
@@ -151,7 +152,40 @@ if(Linux)
     ${NCURSES_LIBRARY_STATIC}
     ${OPENSSL_CRYPTO_LIBRARY_STATIC}
     ${CMAKE_THREAD_LIBS_INIT})
+
+  set_target_properties(
+    EosFstIo-Static
+    PROPERTIES
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  target_link_libraries(eoscp EosFstIo-Static)
 endif()
+
+  install(
+    TARGETS
+    EosFstIo eoscp
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+
+if(NOT CLIENT)
+#-------------------------------------------------------------------------------
+# EosFstOss library
+#-------------------------------------------------------------------------------
+add_library(
+  EosFstOss MODULE
+  XrdFstOss.cc XrdFstOss.hh
+  XrdFstOssFile.cc XrdFstOssFile.hh
+  checksum/CheckSum.cc checksum/CheckSum.hh
+  checksum/Adler.cc checksum/Adler.hh
+  checksum/crc32c.cc checksum/crc32ctables.cc
+  ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
+
+target_link_libraries(
+  EosFstOss
+  eosCommon
+  ${UUID_LIBRARIES}
+  ${XROOTD_SERVER_LIBRARY})
 
 #-------------------------------------------------------------------------------
 # XrdEosFst library
@@ -235,13 +269,6 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # eoscp executable
 #-------------------------------------------------------------------------------
-add_executable(eoscp txqueue/eoscp.cc)
-
-set_target_properties(
-  eoscp
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-
 add_executable(
   eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -301,22 +328,6 @@ target_link_libraries(
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-if(MacOSX)
-  set_target_properties(
-    EosFstIo
-    PROPERTIES
-    VERSION ${VERSION}
-    SOVERSION ${VERSION_MAJOR}
-    MACOSX_RPATH TRUE)
-  target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
-else()
-  set_target_properties(
-    EosFstIo-Static
-    PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
-  target_link_libraries(eoscp EosFstIo-Static)
-endif()
-
 target_link_libraries(eos-ioping ${GLIBC_M_LIBRARY})
 
 install(
@@ -333,18 +344,12 @@ install(
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-if (MacOSX)
   install(
     TARGETS
-    EosFstIo XrdEosFst eoscp
+    EosFstOss XrdEosFst
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-else()
-  install(
-    TARGETS
-    EosFstOss XrdEosFst eoscp
-    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
 endif()
+
