@@ -752,10 +752,6 @@ WFE::Job::DoIt ()
             {
             }
 
-            while (execargs.replace("<action>", mActions[0].mAction.c_str()));
-            {
-            }
-
             while (execargs.replace("<queue>", mActions[0].mQueue.c_str()));
             {
             }
@@ -769,6 +765,8 @@ WFE::Job::DoIt ()
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) now)))
             {
             }
+
+            execargs.replace("<action>", mActions[0].mAction.c_str())
 
             std::string bashcmd = EOS_WFE_BASH_PREFIX + executable + " " + execargs.c_str();
 
