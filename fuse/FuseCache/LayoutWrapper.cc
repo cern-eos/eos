@@ -752,6 +752,7 @@ int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
   if (mFile->Truncate(offset))
     return -1;
 
+  XrdSysMutexHelper l(gCacheAuthorityMutex);
   if (gCacheAuthority.count(mInode))
     gCacheAuthority[mInode].mSize = (int64_t) offset;
 

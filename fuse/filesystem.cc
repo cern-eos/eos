@@ -603,6 +603,7 @@ filesystem::dir_cache_forget (unsigned long long inode)
    {
      inode2parent.erase(*it);
    }
+   delete inode2cache[inode];
    inode2cache.erase (inode);
    return true;
  }
