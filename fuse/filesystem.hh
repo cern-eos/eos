@@ -619,14 +619,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            pid_t pid,
            unsigned long* return_inode);
 
-
- //----------------------------------------------------------------------------
- //! Ref counting of wopen inodes
- //----------------------------------------------------------------------------
- int is_wopen (unsigned long inode);
- void inc_wopen (unsigned long inode);
- void dec_wopen (unsigned long inode);
-
  //----------------------------------------------------------------------------
  //!
  //----------------------------------------------------------------------------

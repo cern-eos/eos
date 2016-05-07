@@ -884,37 +884,6 @@ filesystem::get_file (int fd, bool *isRW, bool forceRWtoo)
  return fabst;
 }
 
-
-//----------------------------------------------------------------------------
-//! Check if inode is currently open
-//----------------------------------------------------------------------------
-
-int
-filesystem::is_wopen (unsigned long inode)
-{
- eos::common::RWMutexReadLock rd_lock (rwmutex_inodeopenw);
- if (!inodeopenw.count(inode))
-   return 0;
- return 1;
-}
-
-void
-filesystem::inc_wopen (unsigned long inode)
-{
- eos::common::RWMutexWriteLock rw_lock (rwmutex_inodeopenw);
- inodeopenw[inode]++;
-}
-
-void
-filesystem::dec_wopen (unsigned long inode)
-{
- eos::common::RWMutexWriteLock rw_lock (rwmutex_inodeopenw);
- inodeopenw[inode]--;
- if (!inodeopenw[inode])
-   inodeopenw.erase (inode);
-}
-
-
 //------------------------------------------------------------------------------
 // Remove entry from mapping
 //------------------------------------------------------------------------------
