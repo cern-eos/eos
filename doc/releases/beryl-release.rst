@@ -7,6 +7,11 @@
 Beryl Release Notes
 ===================
 
+``V0.3.175 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: fix memory leaks and missing mutex - remove w-open tracking map
+
 ``V0.3.174 Aquamarine``
 +++++++++++++++++++++++
 
