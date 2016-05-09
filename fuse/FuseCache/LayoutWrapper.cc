@@ -23,6 +23,7 @@
 
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
+#include "../SyncResponseHandler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "fst/layout/PlainLayout.hh"
@@ -255,7 +256,10 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
-  status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  SyncResponseHandler handler;
+  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+  status = handler.Sync(response);
 
   if (!status.IsOK())
   {
@@ -273,7 +277,9 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       else
       {
         // Reissue the open
-        status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+	SyncResponseHandler handler;
+	fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+	status = handler.Sync(response);
 
         if (!status.IsOK())
         {
@@ -319,6 +325,8 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // ==================================================================
   // We don't want to truncate the file in case we reopen it
   mFlags = flags & ~(SFS_O_TRUNC | SFS_O_CREAT);
+
+  delete response;
   return 0;
 }
 
