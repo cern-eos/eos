@@ -80,7 +80,25 @@ filesystem::filesystem ()
  XFC = 0;
 }
 
-filesystem::~filesystem () { }
+filesystem::~filesystem () 
+{ 
+  FuseCacheEntry* dir = 0;
+
+  std::map<unsigned long long, FuseCacheEntry*>::iterator iter;
+  iter = inode2cache.begin ();
+  
+  while ( (iter != inode2cache.end ()) )
+  {
+    dir = (FuseCacheEntry*) iter->second;
+    std::set<unsigned long long> lset = iter->second->GetEntryInodes();
+    for (auto it = lset.begin(); it!=lset.end(); ++it)
+    {
+      inode2parent.erase(*it);
+    }
+    inode2cache.erase (iter++);
+    delete dir;
+  }
+}
 
 void
 filesystem::log (const char* _level, const char *msg)
@@ -2631,6 +2649,7 @@ filesystem::inodirlist (unsigned long long dirinode,
    for (auto i = 0; i < (int) statvec.size (); i++)
    {
      struct fuse_entry_param &e = (*stats)[i];
+     memset(&e, 0, sizeof(struct fuse_entry_param));
      e.attr = statvec[i];
      e.attr_timeout = 0;
      e.entry_timeout = 0;
