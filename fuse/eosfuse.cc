@@ -219,8 +219,11 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
      mountprefix[strlen (mountprefix) - 1] = '\0';
  }
 
- unsetenv ("KRB5CCNAME");
- unsetenv ("X509_USER_PROXY");
+ if (getuid () <= DAEMONUID)
+ {
+  unsetenv ("KRB5CCNAME");
+  unsetenv ("X509_USER_PROXY");
+ }
 
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
