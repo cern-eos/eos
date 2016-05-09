@@ -176,6 +176,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    on the FSTs is completely hidden. By default this option is enabled
 # export EOS_FUSE_LAZYOPENRW=1
 
+# Show hidden files from atomic/versioning and backup entries
+#    By default this option is disabled
+# export EOS_FUSE_SHOW_SPECIAL_FILES=0
+
 # Enable inline-repair mode for file updates of files with offline replica/stripe
 #    By default this option is enabled
 # export EOS_FUSE_INLINE_REPAIR=1

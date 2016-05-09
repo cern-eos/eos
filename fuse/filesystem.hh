@@ -947,6 +947,7 @@ private:
  int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
  bool encode_pathname; ///< indicated if filename should be encoded
+ bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
 
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 

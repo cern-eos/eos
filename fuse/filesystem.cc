@@ -68,6 +68,8 @@ filesystem::filesystem ()
  lazy_open_ro = false;
  lazy_open_rw = false;
  lazy_open_disabled = false;
+ hide_special_files = true;
+
  do_rdahead = false;
  rdahead_window = "131072";
 
@@ -131,9 +133,16 @@ filesystem::log_settings ()
 
  s = "lazy-open-rw           := ";
  if (lazy_open_disabled)
-   s+= "disabled";
+   s += "disabled";
  else
    s += lazy_open_rw ? "true" : "false";
+ log ("WARNING", s.c_str ());
+
+ s = "hide-special-files     := ";
+ if (hide_special_files)
+   s+= "true";
+ else
+   s += "false";
  log ("WARNING", s.c_str ());
 
  s = "rm-level-protect       := ";
@@ -2622,8 +2631,20 @@ filesystem::inodirlist (unsigned long long dirinode,
       }
       else
       {
-        store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-        dir2inodelist[dirinode].push_back (inode);
+	bool show_entry = true;
+        if ( hide_special_files &&
+             ( whitespacedirpath.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
+	       whitespacedirpath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+	       whitespacedirpath.beginswith(EOS_COMMON_PATH_BACKUP_FILE_PREFIX) ) )
+	{
+	  show_entry = false;
+	}
+        
+	if (show_entry)
+	{
+	  store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+	  dir2inodelist[dirinode].push_back (inode);
+	}
       }
    }
    if (parseerror)
@@ -4516,6 +4537,15 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  if (getenv ("EOS_FUSE_LAZYOPENRW") && (!strcmp (getenv ("EOS_FUSE_LAZYOPENRW"), "1")))
  {
    lazy_open_rw = true;
+ }
+
+ if (getenv("EOS_FUSE_SHOW_SPECIAL_FILES") && (!strcmp(getenv("EOS_FUSE_SHOW_SPECIAL_FILES"),"1")))
+ {
+   hide_special_files = false;
+ }
+ else
+ {
+   hide_special_files = true;
  }
 
  if (features && !features->count("eos.lazyopen"))
