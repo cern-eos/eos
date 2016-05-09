@@ -183,8 +183,8 @@ com_fuse (char* arg1)
    }
    else
    {
-     setenv("EOS_FUSE_CACHE_SIZE", "134217728", 1);
-     env += " EOS_FUSE_CACHE_SIZE=134217728";
+     setenv("EOS_FUSE_CACHE_SIZE", "67108864", 1);
+     env += " EOS_FUSE_CACHE_SIZE=67108864";
    }
 
    if (getenv("EOS_FUSE_CACHE"))
