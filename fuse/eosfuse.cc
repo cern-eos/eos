@@ -229,6 +229,7 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
       (fuse_daemonize (0) != -1 ) )
  {
+   me.config.isdebug = 0;
    if (getenv ("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp (getenv ("EOS_FUSE_LOWLEVEL_DEBUG"), "1")))
      me.config.isdebug = 1;
 
