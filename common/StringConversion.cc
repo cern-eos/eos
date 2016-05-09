@@ -1111,6 +1111,7 @@ CURL* StringConversion::tlCurlInit()
 }
 void StringConversion::tlInitThreadKey()
 {
+  curl_global_init(CURL_GLOBAL_DEFAULT);
   pthread_key_create(&sPthreadKey, StringConversion::tlCurlFree);
 }
 __thread CURL* StringConversion::curl=NULL;
