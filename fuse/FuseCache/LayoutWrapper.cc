@@ -24,7 +24,6 @@
 #include "../MacOSXHelper.hh"
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
-#include "../SyncResponseHandler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "fst/layout/PlainLayout.hh"
@@ -205,7 +204,6 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // build request to send to mgm to get redirection url
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-  XrdCl::XRootDStatus status;
   std::string request = file_path;
   std::string openflags;
 
@@ -257,10 +255,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
-
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  status = handler.Sync(response);
+  XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
 
   if (!status.IsOK())
   {
@@ -273,14 +268,13 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_err("failed to lazy open request %s at url %s code=%d "
                        "errno=%d - repair failed", request.c_str(),
                        user_url.c_str(), status.code, status.errNo);
+        delete response;
         return -1;
       }
       else
       {
         // Reissue the open
-	SyncResponseHandler handler;
-	fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-	status = handler.Sync(response);
+        status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
 
         if (!status.IsOK())
         {
@@ -288,6 +282,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                          "errno=%d - still unwritable after repair",
                          request.c_str(), user_url.c_str(), status.code,
                          status.errNo);
+          delete response;
           return -1;
         }
       }
@@ -297,6 +292,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       eos_static_err("failed to lazy open request %s at url %s code=%d "
                      "errno=%d", request.c_str(), user_url.c_str(),
                      status.code, status.errNo);
+      delete response;
       return -1;
     }
   }
