@@ -994,7 +994,7 @@ XrdFstOfsFile::open (const char* path,
       if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
       {
 	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-	eos_warning("failed to get FMD record return recoverable error kXR_NotFound");
+	eos_warning("failed to get FMD record return recoverable error ENOENT(kXR_NotFound)");
 	
 	if (hasCreationMode) 
 	{
@@ -1003,12 +1003,12 @@ XrdFstOfsFile::open (const char* path,
 	}
 
         // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, kXR_NotFound, "open - no FMD record found");
+        return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
       }
       else
       {
 	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
-	return gOFS.Emsg(epname, error, kXR_NotFound, "open - no FMD record found");
+	return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
       }
     }
   }
@@ -1041,9 +1041,7 @@ XrdFstOfsFile::open (const char* path,
 
   if ((!rc) && isCreation && bookingsize)
   {
-    // ----------------------------------
-    // check if the file system is full
-    // ----------------------------------
+    // Check if the file system is full
     XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
 
     if (gOFS.Storage->fileSystemFullMap[fsid])
@@ -1052,7 +1050,7 @@ XrdFstOfsFile::open (const char* path,
       {
         writeErrorFlag = kOfsDiskFullError;
         layOut->Remove();
-        eos_warning("not enough space return recoverable error kXR_FSError");
+        eos_warning("not enough space return recoverable error ENODEV(kXR_FSError)");
 
 	if (hasCreationMode)
 	{
@@ -1061,7 +1059,7 @@ XrdFstOfsFile::open (const char* path,
 	}
 
         // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, kXR_FSError, "open - not enough sapce");
+        return gOFS.Emsg(epname, error, ENODEV, "open - not enough sapce");
       }
 
       writeErrorFlag = kOfsDiskFullError;
@@ -1080,7 +1078,7 @@ XrdFstOfsFile::open (const char* path,
       {
         layOut->Remove();
         eos_warning("not enough space i.e file allocation failed, return "
-                    "recoverable error kXR_FSError");
+                    "recoverable error ENODEV(kXR_FSError)");
 
 	if (hasCreationMode) 
 	{
@@ -1089,7 +1087,7 @@ XrdFstOfsFile::open (const char* path,
 	}
 
         // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, kXR_FSError, "open - file allocation failed");
+        return gOFS.Emsg(epname, error, ENODEV, "open - file allocation failed");
       }
       else
       {
@@ -1246,7 +1244,7 @@ XrdFstOfsFile::open (const char* path,
     // the client we return a recoverable error.
     if (layOut->IsEntryServer() && (!isReplication))
     {
-      eos_warning("open error return recoverable error kXR_IOError");
+      eos_warning("open error return recoverable error EIO(kXR_IOError)");
 
       if (hasCreationMode)
       {
@@ -1255,7 +1253,7 @@ XrdFstOfsFile::open (const char* path,
       }
 
       // Return an error that can be recovered at the MGM
-      return gOFS.Emsg(epname, error, kXR_IOError, "open - failed open");
+      return gOFS.Emsg(epname, error, EIO, "open - failed open");
     }
     else
     {
