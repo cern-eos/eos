@@ -29,7 +29,9 @@ include_directories(
   ${SPARSEHASH_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${Z_INCLUDE_DIRS}
-  ${XFS_INCLUDE_DIRS})
+  ${XFS_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
 
 #-------------------------------------------------------------------------------
 # Add CppUnit tests if possible
@@ -51,6 +53,79 @@ set_source_files_properties(
 set(FMDBASE_SRCS ${FMDBASE_SRCS} PARENT_SCOPE)
 set(FMDBASE_HDRS ${FMDBASE_HDRS} PARENT_SCOPE)
 
+#-------------------------------------------------------------------------------
+# gf-complete static library
+#-------------------------------------------------------------------------------
+set(
+  GFCOMPLETE_SRCS
+  ./layout/gf-complete/src/gf.c
+  ./layout/gf-complete/src/gf_w128.c
+  ./layout/gf-complete/src/gf_rand.c
+  ./layout/gf-complete/src/gf_method.c
+  ./layout/gf-complete/src/gf_general.c
+  ./layout/gf-complete/src/gf_w16.c
+  ./layout/gf-complete/src/gf_w32.c
+  ./layout/gf-complete/src/gf_w8.c
+  ./layout/gf-complete/src/gf_w64.c
+  ./layout/gf-complete/src/gf_w4.c
+  ./layout/gf-complete/src/gf_wgen.c)
+
+set(
+  GFCOMPLETE_HDRS
+  ./layout/gf-complete/include/gf_complete.h
+  ./layout/gf-complete/include/gf_rand.h
+  ./layout/gf-complete/include/gf_method.h
+  ./layout/gf-complete/include/gf_int.h
+  ./layout/gf-complete/include/gf_general.h
+  ./layout/gf-complete/include/gf_w8.h
+  ./layout/gf-complete/include/gf_w64.h
+  ./layout/gf-complete/include/gf_w4.h
+  ./layout/gf-complete/include/gf_w32.h
+  ./layout/gf-complete/include/gf_w16.h)
+
+add_library(
+  gf-complete STATIC
+  ${GFCOMPLETE_SRCS}
+  ${GFCOMPLETE_HDRS})
+
+set_target_properties(
+  gf-complete
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+
+#-------------------------------------------------------------------------------
+# jerasure 2.0 static library
+#-------------------------------------------------------------------------------
+set(
+  JERASURE_SRCS
+  layout/jerasure/src/cauchy_best_r6.c
+  layout/jerasure/src/cauchy.c
+  layout/jerasure/src/galois.c
+  layout/jerasure/src/jerasure.c
+  layout/jerasure/src/liberation.c
+  layout/jerasure/src/reed_sol.c
+  layout/jerasure/src/timing.c)
+
+set(
+  JERASURE_HDRS
+  layout/jerasure/include/cauchy.h
+  layout/jerasure/include/galois.h
+  layout/jerasure/include/jerasure.h
+  layout/jerasure/include/liberation.h
+  layout/jerasure/include/reed_sol.h
+  layout/jerasure/include/timing.h)
+
+add_library(
+  jerasure STATIC
+  ${JERASURE_SRCS}
+  ${JERASURE_HDRS})
+
+target_link_libraries(jerasure gf-complete)
+
+set_target_properties(
+  jerasure
+  PROPERTIES
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -87,12 +162,7 @@ set(
   layout/ReplicaParLayout.cc         layout/ReplicaParLayout.hh
   layout/RaidMetaLayout.cc           layout/RaidMetaLayout.hh
   layout/RaidDpLayout.cc             layout/RaidDpLayout.hh
-  layout/ReedSLayout.cc              layout/ReedSLayout.hh
-  layout/jerasure/jerasure.cc        layout/jerasure/jerasure.hh
-  layout/jerasure/reed_sol.cc        layout/jerasure/reed_sol.hh
-  layout/jerasure/liberation.cc      layout/jerasure/liberation.hh
-  layout/jerasure/galois.cc          layout/jerasure/galois.hh
-  layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh)
+  layout/ReedSLayout.cc              layout/ReedSLayout.hh)
 
 add_library(
   EosFstIo SHARED
@@ -102,6 +172,7 @@ add_library(
 target_link_libraries(
   EosFstIo
   eosCommon
+  jerasure
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -132,7 +203,14 @@ if(MacOSX)
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     MACOSX_RPATH TRUE)
+
   target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
+
+  install(
+    TARGETS EosFstIo
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 else()
   add_library(
     EosFstIo-Static STATIC
@@ -142,6 +220,7 @@ else()
   target_link_libraries(
     EosFstIo-Static
     eosCommon-Static
+    jerasure
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${Z_LIBRARY_STATIC}
@@ -160,13 +239,11 @@ else()
   target_link_libraries(eoscp EosFstIo-Static)
 endif()
 
-  install(
-    TARGETS
-    EosFstIo eoscp
-    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
+install(
+  TARGETS eoscp
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 if(NOT CLIENT)
 #-------------------------------------------------------------------------------
@@ -253,6 +330,7 @@ target_link_libraries(
    XrdEosFst
    eosCommon
    eosCommonServer
+   EosFstIo-Static
    eosCapability-Static
    XrdMqClient-Static
    ${Z_LIBRARY}
@@ -266,6 +344,13 @@ target_link_libraries(
    ${XOORTD_UTILS_LIBRARY}
    ${OPENSSL_CRYPTO_LIBRARY}
    ${CMAKE_THREAD_LIBS_INIT})
+
+install(
+  TARGETS
+  EosFstOss XrdEosFst
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 #-------------------------------------------------------------------------------
 # Other executables
@@ -305,7 +390,7 @@ add_executable(
   checksum/crc32c.cc
   checksum/crc32ctables.cc)
 
-set_target_properties( eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1 )
+set_target_properties(eos-scan-fs PROPERTIES COMPILE_FLAGS -D_NOOFS=1)
 
 add_executable(eos-ioping tools/IoPing.cc)
 add_executable(FstLoad Load.cc tools/FstLoad.cc)
@@ -344,13 +429,4 @@ install(
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-  install(
-    TARGETS
-    EosFstOss XrdEosFst
-    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
 endif()
-
