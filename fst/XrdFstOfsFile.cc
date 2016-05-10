@@ -666,11 +666,8 @@ XrdFstOfsFile::open (const char* path,
     localPrefix = gOFS.Storage->fileSystemsMap[fsid]->GetPath().c_str();
   }
 
-  //............................................................................
   // Attention: the localprefix implementation does not work for gateway machines
   // - this needs some modifications
-  //............................................................................
-
   if (!localPrefix.length())
   {
     return gOFS.Emsg(epname, error, EINVAL,
@@ -703,7 +700,8 @@ XrdFstOfsFile::open (const char* path,
     XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
     XrdOucString ConfigManager = eos::fst::Config::gConfig.Manager;
     if (ConfigManager != RedirectManager) {
-      eos_warning("msg=\"MGM master seems to have changed - adjusting global config\" old-manager=\"%s\" new-manager=\"%s\"", 
+      eos_warning("msg=\"MGM master seems to have changed - adjusting global "
+                  "config\" old-manager=\"%s\" new-manager=\"%s\"",
 		  ConfigManager.c_str(), RedirectManager.c_str());
       eos::fst::Config::gConfig.Manager = RedirectManager;
     }
@@ -724,9 +722,7 @@ XrdFstOfsFile::open (const char* path,
   lid = (unsigned long)atoi(slid);
   cid = strtoull(scid, 0, 10);
 
-  //............................................................................
   // Check if this is an open for replication
-  //............................................................................
   eos_info("Path=%s beginswith=%d", Path.c_str(), Path.beginswith("/replicate:"));
 
   if (Path.beginswith("/replicate:"))
@@ -754,9 +750,7 @@ XrdFstOfsFile::open (const char* path,
     isReplication = true;
   }
 
-  //............................................................................
   // Check if this is an open for HTTP
-  //............................................................................
   if ( (!isRW) && ( (std::string(client->tident) == "http" )))
   {
     bool isopenforwrite = false;
@@ -961,9 +955,7 @@ XrdFstOfsFile::open (const char* path,
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
 
-  //............................................................................
   // Get the layout object
-  //............................................................................
   layOut = eos::fst::LayoutPlugin::GetLayoutObject(this, lid, client, &error,
                                                    eos::common::LayoutId::kLocal,
                                                    mTimeout, store_recovery);
@@ -979,9 +971,7 @@ XrdFstOfsFile::open (const char* path,
 
   layOut->SetLogId(logId, vid, tident);
 
-  //............................................................................
   // Attach meta data
-  //............................................................................
   fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
   if ( (!fMd) || gOFS.Simulate_FMD_open_error )
@@ -1004,38 +994,33 @@ XrdFstOfsFile::open (const char* path,
       if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
       {
 	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-	int ecode = 1094;
-	eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
-		    RedirectManager.c_str(), ecode);
+	eos_warning("failed to get FMD record return recoverable error kXR_NotFound");
 	
 	if (hasCreationMode) 
 	{
-	  // clean-up before re-bouncing
+	  // Clean-up before re-bouncing
 	  dropall(fileid, path, RedirectManager.c_str());
 	}
-	return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+
+        // Return an error that can be recovered at the MGM
+        return gOFS.Emsg(epname, error, kXR_NotFound, "open - no FMD record found");
       }
       else
       {
 	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
-	return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
+	return gOFS.Emsg(epname, error, kXR_NotFound, "open - no FMD record found");
       }
     }
   }
 
-  //............................................................................
   // Call the checksum factory function with the selected layout
-  //............................................................................
-
   if (isRW || (opaqueCheckSum != "ignore"))
   {
     checkSum = eos::fst::ChecksumPlugins::GetChecksumObject(lid);
     eos_debug("checksum requested %d %u", checkSum, lid);
   }
 
-  //............................................................................
   // Save block xs opaque information for the OSS layer
-  //............................................................................
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
     if (opaqueBlockCheckSum != "ignore")
@@ -1067,9 +1052,7 @@ XrdFstOfsFile::open (const char* path,
       {
         writeErrorFlag = kOfsDiskFullError;
         layOut->Remove();
-        int ecode = 1094;
-        eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
-                    RedirectManager.c_str(), ecode);
+        eos_warning("not enough space return recoverable error kXR_FSError");
 
 	if (hasCreationMode)
 	{
@@ -1077,7 +1060,8 @@ XrdFstOfsFile::open (const char* path,
 	  dropall(fileid, path, RedirectManager.c_str());
 	}
 
-        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+        // Return an error that can be recovered at the MGM
+        return gOFS.Emsg(epname, error, kXR_FSError, "open - not enough sapce");
       }
 
       writeErrorFlag = kOfsDiskFullError;
@@ -1095,9 +1079,8 @@ XrdFstOfsFile::open (const char* path,
       if (layOut->IsEntryServer() && (!isReplication))
       {
         layOut->Remove();
-        int ecode = 1094;
-        eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
-                    RedirectManager.c_str(), ecode);
+        eos_warning("not enough space i.e file allocation failed, return "
+                    "recoverable error kXR_FSError");
 
 	if (hasCreationMode) 
 	{
@@ -1105,7 +1088,8 @@ XrdFstOfsFile::open (const char* path,
 	  dropall(fileid, path, RedirectManager.c_str());
 	}
 
-        return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+        // Return an error that can be recovered at the MGM
+        return gOFS.Emsg(epname, error, kXR_FSError, "open - file allocation failed");
       }
       else
       {
@@ -1230,14 +1214,10 @@ XrdFstOfsFile::open (const char* path,
 
   if ((!isRW) && (filecxerror == "1"))
   {
-    //..........................................................................
     // If we have a replica layout
-    //..........................................................................
     if (eos::common::LayoutId::GetLayoutType(lid) == eos::common::LayoutId::kReplica)
     {
-      //........................................................................
       // There was a checksum error during the last scan
-      //........................................................................
       eos_err("open of %s failed - replica has a checksum mismatch", Path.c_str());
       return gOFS.Emsg(epname, error, EIO, "open - replica has a checksum mismatch", Path.c_str());
     }
@@ -1261,28 +1241,21 @@ XrdFstOfsFile::open (const char* path,
   }
   else
   {
-    //..........................................................................
-    // If we have local errors in open we don't disable a filesystem -
-    // this is done by the Scrub thread if necessary!
-    //..........................................................................
-
-    //..........................................................................
-    // In any case we just redirect back to the manager if we are the 1st entry
-    // point of the client
-    //..........................................................................
+    // If we have local errors in open we don't disable a filesystem - this is
+    // done by the Scrub thread if necessary! If we are the 1st entry point for
+    // the client we return a recoverable error.
     if (layOut->IsEntryServer() && (!isReplication))
     {
-      int ecode = 1094;
-      rc = SFS_REDIRECT;
-      eos_warning("rebouncing client after open error back to MGM %s:%d", RedirectManager.c_str(), ecode);
+      eos_warning("open error return recoverable error kXR_IOError");
 
       if (hasCreationMode)
       {
-	// clean-up before re-bouncing
+	// Clean-up before re-bouncing
 	dropall(fileid, path, RedirectManager.c_str());
       }
 
-      return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+      // Return an error that can be recovered at the MGM
+      return gOFS.Emsg(epname, error, kXR_IOError, "open - failed open");
     }
     else
     {
@@ -1293,9 +1266,7 @@ XrdFstOfsFile::open (const char* path,
 
   if (rc == SFS_OK)
   {
-    //..........................................................................
     // Tag this transaction as open
-    //..........................................................................
     if (isRW)
     {
       if (!gOFS.Storage->OpenTransaction(fsid, fileid))
