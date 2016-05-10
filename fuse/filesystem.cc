@@ -4640,7 +4640,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
      auto comment_tag = strstr (line, "#");
      if (comment_tag && comment_tag < keyword) continue; // commented line with the keyword
      char buffer[4096];
-     if (sscanf (line, "%s %lu", buffer, &uid_max) != 2)
+     if (sscanf (line, "%s %llu", buffer, (unsigned long long*)&uid_max) != 2)
      {
        eos_static_err ("could not parse line %s in /etc/login.defs", line);
        uid_max = 0;
