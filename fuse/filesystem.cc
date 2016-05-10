@@ -4620,7 +4620,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  // get uid and pid specificities of the system
  {
    FILE *f = fopen ("/proc/sys/kernel/pid_max", "r");
-   if (f && fscanf (f, "%lu", &pid_max))
+   if (f && fscanf (f, "%llu", (unsigned long long*)&pid_max))
      eos_static_notice ("pid_max is %llu", pid_max);
    else
    {
@@ -4679,9 +4679,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 size_t
 strlcat (char *dst, const char *src, size_t siz)
 {
- register char *d = dst;
- register const char *s = src;
- register size_t n = siz;
+ char *d = dst;
+ const char *s = src;
+ size_t n = siz;
  size_t dlen;
 
  /* Find the end of dst and adjust bytes left but don't go past end */

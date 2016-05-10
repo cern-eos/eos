@@ -89,11 +89,9 @@ public:
 class ProcReaderPsStat
 {
   std::string pFileName;
-  time_t pStartTime;
-  pid_t pPpid, pSid;
 public:
   ProcReaderPsStat (const std::string &filename) :
-      pFileName (filename), pStartTime(), pPpid(), pSid()
+      pFileName (filename)
   {
   }
   ~ProcReaderPsStat ()
