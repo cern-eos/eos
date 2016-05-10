@@ -7,6 +7,49 @@
 Beryl Release Notes
 ===================
 
+``V0.3.176 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: unset KRB5CCNAME only when run as a shared fuse mount ( prevented krb5 for single user mounts via 'eos fuse mount'
+- FUSE: fix XRootD 3.3.6 memory leaks in every synchronous call (AnyObject leak) - not present anymore in XRootD 4.X
+- FUSE: add clean-up to filesystem destructor to clean valgrind reports
+- MGM: remove tight lock on namespace boot in HTTP service
+
+New Feature
++++++++++++
+
+- FUSE: by default hide all special files from version/atomic/backup - enable with env EOS_FUSE_SHOW_SPECIAL_FILES=1
+- FUSE: by default configure a 64M shared write-back cache for shared and single-user mounts
+- FUSE: use a blocking flush if the write-back size is larger than the in-memory cache - in this case there is no recovery possible so it is better to see possible errors on the application layer via the flush call
+
+``V0.3.175 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix memory leaks and missing mutex - remove w-open tracking map
+
+``V0.3.174 Aquamarine``
++++++++++++++++++++++++
+
+New Feature
++++++++++++
+
+- FUSE: add 'restore' functionality which recovers file write errors on client side transparently if all the writes are still in the local in-memory cache
+- FUSE: add the option do do an asynchronous open after a lazy open call (by default disabled - still WIP)
+
+Bug Fix
++++++++
+
+- MGM: print fid as decimal number in 'file info'
+- MGM: redirect new 'Redirect' fuse call on the MGM always to a master
+- MGM: keep the replica chain in the same order for FUSE updates (cl=>rep1=>rep2) doing identical scheduling
+- FST: fix 'tried' CGI to append to a list and not overwrite previous tried add-ons
+
 ``V0.3.173 Aquamarine``
 
 New Feature

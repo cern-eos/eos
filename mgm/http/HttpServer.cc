@@ -63,12 +63,14 @@ HttpServer::Handler (void                  *cls,
     // wait that the namespace is booted
     // --------------------------------------------------------
     {
-      XrdSysMutexHelper(gOFS->InitializationMutex);
-      if (gOFS->Initialized == gOFS->kBooted)
       {
-	go = true;
+	XrdSysMutexHelper(gOFS->InitializationMutex);
+	if (gOFS->Initialized == gOFS->kBooted)
+	{
+	  go = true;
+	}
       }
-      else
+      if (!go)
       {
 	XrdSysTimer sleeper;
 	sleeper.Wait(100);

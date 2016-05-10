@@ -184,6 +184,12 @@ public:
  //----------------------------------------------------------------------------
  void forget_p2i (unsigned long long inode);
 
+
+ //----------------------------------------------------------------------------
+ //! redirect inode to a new inode
+ //----------------------------------------------------------------------------
+void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
+
  //----------------------------------------------------------------------------
  //! Replace all names with a given prefix
  //----------------------------------------------------------------------------
@@ -613,14 +619,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            pid_t pid,
            unsigned long* return_inode);
 
-
- //----------------------------------------------------------------------------
- //! Ref counting of wopen inodes
- //----------------------------------------------------------------------------
- int is_wopen (unsigned long inode);
- void inc_wopen (unsigned long inode);
- void dec_wopen (unsigned long inode);
-
  //----------------------------------------------------------------------------
  //!
  //----------------------------------------------------------------------------
@@ -949,6 +947,7 @@ private:
  int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
  bool encode_pathname; ///< indicated if filename should be encoded
+ bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
 
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 

@@ -219,13 +219,17 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
      mountprefix[strlen (mountprefix) - 1] = '\0';
  }
 
- unsetenv ("KRB5CCNAME");
- unsetenv ("X509_USER_PROXY");
+ if (getuid () <= DAEMONUID)
+ {
+  unsetenv ("KRB5CCNAME");
+  unsetenv ("X509_USER_PROXY");
+ }
 
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
       (fuse_daemonize (0) != -1 ) )
  {
+   me.config.isdebug = 0;
    if (getenv ("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp (getenv ("EOS_FUSE_LOWLEVEL_DEBUG"), "1")))
      me.config.isdebug = 1;
 
@@ -534,7 +538,7 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  eos_static_debug ("entry_found = %lli %s", entry_inode, ifullpath);
 
- if (entry_inode && (!me.fs ().is_wopen (entry_inode)))
+ if (entry_inode && ( LayoutWrapper::CacheAuthSize(entry_inode) == -1))
  {
    // Try to get entry from cache if this inode is not currently opened 
    entry_found = me.fs ().dir_cache_get_entry (req, parent, entry_inode, ifullpath);
@@ -1319,8 +1323,6 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
  else
    fi->direct_io = 0;
 
- me.fs ().inc_wopen (ino);
-
  fuse_reply_open (req, fi);
 
  COMMONTIMING ("_stop_", &timing);
@@ -1556,10 +1558,18 @@ EosFuse::release (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
    me.fs ().close (info->fd, ino, info->uid, info->gid, info->pid);
    me.fs ().release_rd_buff (pthread_self ());
 
-   me.fs ().dec_wopen (ino);
    // Free memory
    free (info);
    fi->fh = 0;
+
+   // evt. call the inode migration procedure in the cache and lookup tables                                                                                                                                         
+   unsigned long long new_inode;
+   if ( (new_inode = LayoutWrapper::CacheRestore(ino)))
+     {
+       eos_static_notice("migrating inode=%llu to inode=%llu after restore", ino, new_inode);
+       me.fs ().redirect_p2i(ino, new_inode);
+     }
+
  }
 
  fuse_reply_err (req, errno);

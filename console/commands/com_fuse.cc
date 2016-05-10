@@ -153,26 +153,27 @@ com_fuse (char* arg1)
    }
 
    XrdOucString env = "env";
-   if (getenv("EOS_FUSE_READAHEADSIZE"))
+
+   if (getenv("EOS_FUSE_RDAHEAD"))
    {
-     env += " EOS_FUSE_READAHEADSIZE=";
-     env += getenv("EOS_FUSE_READAHEADSIZE");
+     env += " EOS_FUSE_RDAHEAD=";
+     env += getenv("EOS_FUSE_RDAHEAD");
    }
    else
    {
-     setenv("EOS_FUSE_READAHEADSIZE", "131072", 1);
-     env += " EOS_FUSE_READAHEADSIZE=131072";
+     setenv("EOS_FUSE_RDAHEAD", "1", 1);
+     env += " EOS_FUSE_RDAHEAD=1";
    }
 
-   if (getenv("EOS_FUSE_READCACHESIZE"))
+   if (getenv("EOS_FUSE_RDAHEAD_WINDOW"))
    {
-     env += " EOS_FUSE_READCACHESIZE=";
-     env += getenv("EOS_FUSE_READCACHESIZE");
+     env += " EOS_FUSE_RDAHEAD_WINDOW=";
+     env += getenv("EOS_FUSE_RDAHEAD_WINDOW");
    }
    else
    {
-     setenv("EOS_FUSE_READCACHESIZE", "393216", 1);
-     env += " EOS_FUSE_READCACHESIZE=393216";
+     setenv("EOS_FUSE_RDAHEAD_WINDOW", "1048576", 1);
+     env += " EOS_FUSE_RDAHEAD_WINDOW=1048576";
    }
 
    if (getenv("EOS_FUSE_CACHE_SIZE"))
@@ -182,8 +183,8 @@ com_fuse (char* arg1)
    }
    else
    {
-     setenv("EOS_FUSE_CACHE_SIZE", "100000000", 1);
-     env += " EOS_FUSE_CACHE_SIZE=100000000";
+     setenv("EOS_FUSE_CACHE_SIZE", "67108864", 1);
+     env += " EOS_FUSE_CACHE_SIZE=67108864";
    }
 
    if (getenv("EOS_FUSE_CACHE"))
@@ -210,7 +211,7 @@ com_fuse (char* arg1)
 
    if (getenv("EOS_FUSE_LOWLEVEL_DEBUG"))
    {
-     env += " EOS_FUSE_LOWOEVEL_DEBUG=";
+     env += " EOS_FUSE_LOWLEVEL_DEBUG=";
      env += getenv("EOS_FUSE_LOWLEVEL_DEBUG");
    }
    else
@@ -263,8 +264,8 @@ com_fuse (char* arg1)
    }
    else
    {
-     setenv("EOS_FUSE_NO_MT", "1", 1);
-     env += " EOS_FUSE_NO_MT=1";
+     setenv("EOS_FUSE_NO_MT", "0", 1);
+     env += " EOS_FUSE_NO_MT=0";
    }
    
    if (getenv("EOS_FUSE_LOGLEVEL"))
@@ -278,8 +279,8 @@ com_fuse (char* arg1)
      env += " EOS_FUSE_LOGLEVEL=5";
    }
    
-   fprintf(stderr, "===> xrootd ra             : %s\n", getenv("EOS_FUSE_READAHEADSIZE"));
-   fprintf(stderr, "===> xrootd cache          : %s\n", getenv("EOS_FUSE_READCACHESIZE"));
+   fprintf(stderr, "===> fuse readahead        : %s\n", getenv("EOS_FUSE_RDAHEAD"));
+   fprintf(stderr, "===> fuse readahead-window : %s\n", getenv("EOS_FUSE_RDAHEAD_WINDOW"));
    fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
    fprintf(stderr, "===> fuse low-level debug  : %s\n", getenv("EOS_FUSE_LOWLEVEL_DEBUG"));
    fprintf(stderr, "===> fuse log-level        : %s\n", getenv("EOS_FUSE_LOGLEVEL"));
@@ -296,7 +297,6 @@ com_fuse (char* arg1)
    mount += " -f";
    mount += " -o";
    mount += params;
-   
    
    mount += " >& /dev/null ";
    int rc = system(mount.c_str());

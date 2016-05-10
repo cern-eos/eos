@@ -323,7 +323,7 @@ ProcCommand::FileInfo (const char* path)
           time_t filectime = (time_t) ctime.tv_sec;
           time_t filemtime = (time_t) mtime.tv_sec;
           char fid[32];
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd_cpy->getId());
+          snprintf(fid, 32, "%llx", (unsigned long long) fmd_cpy->getId());
 
           std::string etag;
           // if there is a checksum we use the checksum, otherwise we return inode+mtime
