@@ -71,9 +71,19 @@ class FileSystemView: public IFsView
   virtual void fileMDChanged(IFileMDChangeListener::Event* e);
 
   //----------------------------------------------------------------------------
-  //! Notify me about files when recovering from changelog
+  //! Notify me about files when recovering from changelog - not used
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj) { /* not implemented */ };
+  virtual void fileMDRead(IFileMD* obj) { };
+
+  //----------------------------------------------------------------------------
+  //! Recheck the current file object and make any modifications necessary so
+  //! that the information is consistent in the back-end KV store.
+  //!
+  //! @param file file object to be checked
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool fileMDCheck(IFileMD* file);
 
   //----------------------------------------------------------------------------
   //! Return set of files on filesystem

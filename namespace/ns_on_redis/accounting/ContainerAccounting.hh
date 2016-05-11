@@ -61,7 +61,17 @@ class ContainerAccounting : public IFileMDChangeListener
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj) {}
+  virtual void fileMDRead(IFileMD* obj) { }
+
+  //----------------------------------------------------------------------------
+  //! Recheck the current file object and make any modifications necessary so
+  //! that the information is consistent in the back-end KV store.
+  //!
+  //! @param file file object to be checked
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool fileMDCheck(IFileMD* file) { return true; }
 
  private:
 

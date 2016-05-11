@@ -124,6 +124,100 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
 }
 
 //------------------------------------------------------------------------------
+// Recheck the current file object and make any modifications necessary so
+// that the information is consistent in the back-end KV store.
+//------------------------------------------------------------------------------
+bool
+FileSystemView::fileMDCheck(IFileMD* file)
+{
+  std::string key;
+  IFileMD::LocationVector replica_locs = file->getLocations();
+  IFileMD::LocationVector unlink_locs = file->getUnlinkedLocations();
+  bool has_no_replicas = replica_locs.empty() && unlink_locs.empty();
+  long long cursor = 0;
+  std::pair< long long, std::vector<std::string> > reply;
+  // Variables used for the asynchronous callbacks
+  std::atomic<bool> has_error {false};
+  std::mutex mutex;
+  std::condition_variable cond_var;
+  std::atomic<std::int32_t> num_async_req {0};
+  // Function called by the redox client when async response arrives
+  auto callback = [&](redox::Command<int>& c) {
+    if (!c.ok())
+    {
+      std::unique_lock<std::mutex> lock(mutex);
+      has_error = true;
+    }
+
+    if (--num_async_req == 0)
+      cond_var.notify_one();
+  };
+
+  // Wrapper callback that accounts for the number of issued requests
+  auto wrapper_cb = [&]() -> decltype(callback) {
+    num_async_req++;
+    return callback;
+  };
+
+  // If file has no replicas make sure it's accounted for
+  if (has_no_replicas)
+  {
+    pRedox->sadd(sNoReplicaPrefix, file->getId(), wrapper_cb());
+  }
+  else
+  {
+    pRedox->srem(sNoReplicaPrefix, file->getId(), wrapper_cb());
+  }
+
+  do {
+    reply = pRedox->sscan(sSetFsIds, cursor);
+    cursor = reply.first;
+    IFileMD::id_t fsid;
+
+    for (auto&& sfsid: reply.second)
+    {
+      fsid = std::stoull(sfsid);
+
+      // Deal with the fs replica set
+      key = sfsid + sFilesSuffix;
+
+      if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
+	  replica_locs.end())
+      {
+	pRedox->sadd(key, file->getId(), wrapper_cb());
+      }
+      else
+      {
+	pRedox->srem(key, file->getId(), wrapper_cb());
+      }
+
+      // Deal with the fs unlinked set
+      key = sfsid + sUnlinkedSuffix;
+
+      if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
+	       unlink_locs.end())
+      {
+	pRedox->sadd(key, file->getId(), wrapper_cb());
+      }
+      else
+      {
+	pRedox->srem(key, file->getId(), wrapper_cb());
+      }
+    }
+  }
+  while (cursor);
+
+  {
+    // Wait for all async responses
+    std::unique_lock<std::mutex> lock(mutex);
+    while (num_async_req)
+      cond_var.wait(lock);
+  }
+
+  return !has_error;
+}
+
+//------------------------------------------------------------------------------
 // Get set of files on filesystem
 //------------------------------------------------------------------------------
 IFsView::FileList

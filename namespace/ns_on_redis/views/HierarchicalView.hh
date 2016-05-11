@@ -243,12 +243,20 @@ public:
   //----------------------------------------------------------------------------
   virtual void absPath(std::string& path);
 
-
 private:
+
+  //----------------------------------------------------------------------------
+  //! Get last existing container in the provided path
+  //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD>
   findLastContainer(std::vector<char*>& elements, size_t end,
 		    size_t& index, size_t* link_depths = 0);
 
+  //----------------------------------------------------------------------------
+  //! Clean up contents of container
+  //!
+  //! @param cont container object
+  //----------------------------------------------------------------------------
   void cleanUpContainer(IContainerMD* cont);
 
   //----------------------------------------------------------------------------
@@ -266,8 +274,8 @@ private:
 
   private:
     IContainerMDSvc* pContSvc;
-    IQuotaStats*      pQuotaStats;
-    IView*           pView;
+    IQuotaStats* pQuotaStats;
+    IView* pView;
   };
 
   //----------------------------------------------------------------------------

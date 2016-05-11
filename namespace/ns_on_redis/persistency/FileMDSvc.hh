@@ -133,11 +133,28 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Visit all the files
   //----------------------------------------------------------------------------
-  virtual void visit(IFileVisitor* visitor) {};
+  void visit(IFileVisitor* visitor) {};
 
- private:
+  //----------------------------------------------------------------------------
+  //! Check files that had errors - these are stored in a separate set in the
+  //! KV store.
+  //!
+  //! @return true if all files are consistent, otherwise false
+  //----------------------------------------------------------------------------
+  bool checkFiles();
 
-  typedef std::list<IFileMDChangeListener*>  ListenerList;
+private:
+
+  typedef std::list<IFileMDChangeListener*> ListenerList;
+
+  //----------------------------------------------------------------------------
+  //! Recheck a file object
+  //!
+  //! @param fid file id
+  //!
+  //! @return true if file info is consistent, otherwise false
+  //----------------------------------------------------------------------------
+  bool checkFile(std::uint64_t fid);
 
   //----------------------------------------------------------------------------
   //! Attach a broken file to lost+found

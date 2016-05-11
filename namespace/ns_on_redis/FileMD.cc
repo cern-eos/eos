@@ -232,8 +232,7 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
   {
     char hx[3];
     hx[0] = 0;
-    snprintf(hx, sizeof(hx), "%02x",
-	     *((unsigned char*)(pChecksum.getDataPtr() + i)));
+    snprintf(hx, sizeof(hx), "%02x", *((unsigned char*)(pChecksum.getDataPtr() + i)));
     env += hx;
   }
 }
@@ -241,9 +240,11 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
 //------------------------------------------------------------------------------
 // Serialize the object to a std::string buffer
 //------------------------------------------------------------------------------
-void
+bool
 FileMD::serialize(std::string& buffer)
 {
+  bool ret = true;
+
   if (!pFileMDSvc)
   {
     MDException ex(ENOTSUP);
@@ -258,9 +259,7 @@ FileMD::serialize(std::string& buffer)
       mAsyncCv.wait(lock);
 
     if (mErrors.size())
-    {
-      // TODO: save fid in a set of files to be re-checked for consistency
-    }
+      ret = false;
   }
 
   buffer.append(reinterpret_cast<const char*>(&pId),    sizeof(pId));
@@ -327,6 +326,8 @@ FileMD::serialize(std::string& buffer)
       buffer.append(it->second.c_str(), strLen);
     }
   }
+
+  return ret;
 }
 
 //------------------------------------------------------------------------------

@@ -506,8 +506,10 @@ class FileMD: public IFileMD
   //! Serialize the object to a std::string buffer
   //!
   //! @param output buffer holding the binary representation of the object
+  //!
+  //! @return true if successful, false if any of the asynchronous calls failed
   //----------------------------------------------------------------------------
-  void serialize(std::string& buffer);
+  bool serialize(std::string& buffer);
 
   //----------------------------------------------------------------------------
   //! Deserialize the class from a std::string buffer

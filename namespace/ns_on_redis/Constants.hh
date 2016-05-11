@@ -54,6 +54,10 @@ namespace constants
   static const std::string sNumFiles {"num_files"};
   //! Field number of containers in meta info map
   static const std::string sNumConts {"num_conts"};
+  //! Set of files that need to be rechecked
+  static const std::string sSetCheckFiles {"files_set_check"};
+  //! Set of containers that need to be rechecked
+  static const std::string sSetCheckConts {"conts_set_check"};
 }
 
 EOSNSNAMESPACE_END

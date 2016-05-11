@@ -136,7 +136,18 @@ std::shared_ptr<IFileMD> FileMDSvc::createFile()
 void FileMDSvc::updateStore(IFileMD* obj)
 {
   std::string buffer;
-  dynamic_cast<FileMD*>(obj)->serialize(buffer);
+
+  if (!dynamic_cast<FileMD*>(obj)->serialize(buffer))
+  {
+    // Add fid to the set of files to be rechecked
+    if (!pRedox->sadd(constants::sSetCheckFiles, obj->getId()))
+    {
+      MDException e(ENOENT);
+      e.getMessage() << "File #" << obj->getId() << " failed to insert into the"
+	" set of files to be rechecked";
+      throw e;
+    }
+  }
 
   try
   {
@@ -252,6 +263,70 @@ void
 FileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
 {
   pQuotaStats = quota_stats;
+}
+
+//------------------------------------------------------------------------------
+// Check files that have errors
+//------------------------------------------------------------------------------
+bool
+FileMDSvc::checkFiles()
+{
+  bool is_ok = true;
+  long long cursor = 0;
+  std::pair< long long, std::vector<std::string> > reply;
+  std::vector<std::string> to_drop;
+
+  do {
+    reply = pRedox->sscan(constants::sSetCheckFiles, cursor);
+    cursor= reply.first;
+
+    for (auto&& elem: reply.second)
+    {
+      if (checkFile(std::stoull(elem)))
+      {
+	to_drop.insert(to_drop.end(), elem);
+      }
+      else
+      {
+	is_ok = false;
+      }
+    }
+  }
+  while (cursor);
+
+  if (!to_drop.empty())
+  {
+    try {
+      pRedox->srem(constants::sSetCheckFiles, to_drop);
+    }
+    catch (std::runtime_error& e) {
+      fprintf(stderr, "Failed to drop files that have been fixed\n");
+    }
+  }
+
+  return is_ok;
+}
+
+//------------------------------------------------------------------------------
+// Recheck individual file - the information stored in the filemd map is the
+// one reliabe and to be enforced.
+//------------------------------------------------------------------------------
+bool
+FileMDSvc::checkFile(std::uint64_t fid)
+{
+  bool is_ok = true;
+  std::shared_ptr<IFileMD> file = getFileMD(fid);
+
+  for (auto&& elem : pListeners)
+  {
+    if (!elem->fileMDCheck(file.get()))
+    {
+      is_ok = false;
+      break;
+    }
+  }
+
+  return is_ok;
 }
 
 EOSNSNAMESPACE_END
