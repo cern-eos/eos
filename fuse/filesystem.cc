@@ -146,6 +146,12 @@ filesystem::log_settings ()
    s += "false";
  log ("WARNING", s.c_str ());
 
+ if (mode_overlay)
+ {
+   s = "mode-overlay           := ";
+   s += getenv("EOS_FUSE_MODE_OVERLAY");
+ }
+
  s = "rm-level-protect       := ";
  XrdOucString rml;
  rml += rm_level_protect;
@@ -1791,6 +1797,10 @@ filesystem::stat (const char* path,
    eos_static_debug("local cache size=%lld", csize);
  }
 
+ // eventually configure an overlay mode to enable bits by default
+ buf->st_mode |= mode_overlay;
+
+
  // If got size using the opened file then return size and mtime from the opened file
  if (file_size != -1)
  {
@@ -2621,6 +2631,7 @@ filesystem::inodirlist (unsigned long long dirinode,
 	 buf.st_mode &= (~S_ISVTX); // clear the vxt bit
 	 buf.st_mode &= (~S_ISUID); // clear suid
 	 buf.st_mode &= (~S_ISGID); // clear sgid
+	 buf.st_mode |= mode_overlay;
        }
        else
          buf.st_ino = 0;
@@ -4703,6 +4714,16 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    tryKrb5First = false;
 
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
+
+
+ if (getenv("EOS_FUSE_MODE_OVERLAY"))
+ {
+   mode_overlay = (mode_t)strtol(getenv("EOS_FUSE_MODE_OVERLAY"),0,8);
+ }
+ else
+ {
+   mode_overlay = 0;
+ }
 
  // get uid and pid specificities of the system
  {
