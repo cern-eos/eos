@@ -94,6 +94,7 @@ class IFileMDChangeListener
   virtual ~IFileMDChangeListener() {}
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
+  virtual bool fileMDCheck(IFileMD* obj) = 0;
 };
 
 //----------------------------------------------------------------------------

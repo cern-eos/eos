@@ -60,6 +60,16 @@ class FileSystemView: public IFsView
   virtual void fileMDRead(IFileMD* obj);
 
   //----------------------------------------------------------------------------
+  //! Recheck the current file object and make any modifications necessary so
+  //! that the information is consistent - NOT used for this NS implementation
+  //!
+  //! @param obj file object to be checked
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool fileMDCheck(IFileMD* obj) { return true; }
+
+  //----------------------------------------------------------------------------
   //! Return reference to a list of files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
