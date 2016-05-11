@@ -50,6 +50,8 @@ Layout::Layout (XrdFstOfsFile* file,
                 uint16_t timeout) :
 eos::common::LogId(),
 mLayoutId(lid),
+mLastErrCode(0),
+mLastErrNo(0),
 mOfsFile(file),
 mError(outError),
 mIoType(io),

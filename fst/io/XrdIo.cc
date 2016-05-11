@@ -158,9 +158,11 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
 
   if (!status.IsOK())
   {
-    eos_err("error=opening remote XrdClFile");
-    errno = status.errNo;
+    eos_err("error=opening remote XrdClFile errno=%d errcode=%d msg=%s",(int)status.errNo,(int)status.code,status.ToString().c_str());
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
+    errno = status.errNo;
     return SFS_ERROR;
   }
   else
@@ -239,6 +241,8 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -270,6 +274,8 @@ XrdIo::Read (XrdSfsFileOffset offset,
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -300,6 +306,8 @@ XrdIo::Write (XrdSfsFileOffset offset,
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -601,6 +609,8 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -620,6 +630,8 @@ XrdIo::Sync (uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -642,6 +654,8 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
   }
   else
   {
@@ -692,6 +706,8 @@ XrdIo::Close (uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 

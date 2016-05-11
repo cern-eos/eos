@@ -47,6 +47,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -4489,6 +4490,13 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  eos::common::Logging::SetUnit ("FUSE@localhost");
  eos::common::Logging::gShortFormat = true;
  XrdOucString fusedebug = getenv ("EOS_FUSE_DEBUG");
+
+#ifdef STOPONREDIRECT
+ // Set the redirect limit
+ XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1 );
+ setenv("XRD_REDIRECTLIMIT","1",1);
+#endif
+
 
  // Extract MGM endpoint and check availability
  if (check_mgm ( features ) == 0)

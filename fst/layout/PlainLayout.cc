@@ -102,6 +102,8 @@ PlainLayout::Open (const std::string& path,
   mLocalPath = path;
   int retc = mPlainFile->Open(path, flags, mode, opaque, mTimeout);
   mLastUrl = mPlainFile->GetLastUrl();
+  mLastErrCode = mPlainFile->GetLastErrCode();
+  mLastErrNo = mPlainFile->GetLastErrNo();
 
   // Get initial file size if not new file or truncated
   if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
