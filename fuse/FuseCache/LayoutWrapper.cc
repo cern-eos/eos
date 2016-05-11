@@ -548,23 +548,131 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   }
   else
   {
+    bool retry = true;
+    XrdOucString sopaque (opaque);
+#ifdef STOPONREDIRECT
+    if (sopaque.length ()) sopaque += '&';
+    sopaque += "tried=";
+#endif
     if (mDoneAsyncOpen)
     {
       // Wait for the async open response
       if (!static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync())
       {
-        eos_static_err("async open failed for path=%s", path.c_str());
-        return -1;
+        XrdCl::URL url (mFile->GetLastUrl ());
+        const std::string &username = url.GetUserName ();
+        if (!username.empty () && username[0]!='*'
+        && static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo () == kXR_NotAuthorized)
+        {
+          eos_static_notice("async open failed for path=%s because of authentication, credentials might have been lost on redirect. Trying to fix with a sync open", path.c_str ());
+        }
+        else
+        {
+          eos_static_err("async open failed for path=%s", path.c_str());
+          return -1;
+        }
+#ifdef STOPONREDIRECT
+        eos_static_notice("async open failed for path=%s, trying to fix it with other replicas", path.c_str ());
+        XrdCl::URL url (mFile->GetLastUrl ());
+        sopaque += url.GetHostName ().c_str ();
+        sopaque.append (',');
+#endif
       }
+      else // async open ok, don't need a sync open
+        retry = false;
     }
-    else
+
+    std::string _lasturl,_path(path);
+    size_t pos, _pos(0);
+    while (retry)
     {
+      eos_static_debug("Sync-open path=%s opaque=%s",
+                       _path.c_str (),
+                       sopaque.c_str ());
       // Do synchronous open
-      if ((retc = mFile->Open(path, flags, mode, opaque)))
+      if ((retc = mFile->Open (_path.c_str (), flags, mode, sopaque.c_str ())))
       {
-        eos_static_err("error while openning");
-        return -1;
+        eos_static_debug("Sync-open got errNo=%d errCode=%d",
+                         static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo (),
+                         static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrCode ());
+#ifdef STOPONREDIRECT
+        /*
+        =======================================================================================
+        This is an alternative way to deal with the loss of credentials when getting redirected
+        There we assume that we hit first the mgm, then an fst then a mgm, then a fst .....
+        So we stopevery two redirects to reissue the open and get the credentials back
+        This works because every time a channel has to be opened, it is opened with the krb5
+        cgis by an explicit user (not the redirect open which is slightly different)
+        =======================================================================================
+        */
+        if(static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode()==XrdCl::errRedirectLimit)
+        {
+          // if we fail because of too many redirects, try again
+          // appending the last visited fst to the list of the tried
+          retry = true;
+          _lasturl = mFile->GetLastUrl();
+          XrdCl::URL url(mFile->GetLastUrl());
+          eos_static_debug("Last URL = %s",mFile->GetLastUrl().c_str());
+          sopaque += url.GetHostName().c_str();
+          sopaque += ',';
+        }
+#else
+        XrdCl::URL url (mFile->GetLastUrl ());
+        const std::string &username = url.GetUserName ();
+        /*
+        =======================================================================================
+        This is a hackish fix to the loss of strong credentials while being redirected
+        The open will follow redirects until we get a permission denied on an mgm because
+        authenticated using unix
+        At this point, it is too late to retry with the same connection which is using unix.
+        We then try again with another connection incrementing the first letter of the username
+        We iterate that process as long the failing location changes.
+        NOTE1: this fixes only the redirect problem on open. It does not fix the problem for
+        other access, especially XrdCl::FileSystem operations
+        NOTE2: the main use case of this is a recoverable error on open on the fst ( fmd error
+        on RO open for example ). We then get redirected to the mgm possibly with a different
+        hostname and a new connection is being created and the credentials are lost).
+        NOTE3: the previous use case is also fixed on server side using the standard XRootD
+        fail recovery procedure on open which goes back to the mgm using the previous
+        connection. This is implemented on server side starting from eos-citrine 4.0.20.
+        =======================================================================================
+        */
+        if (!username.empty () && username[0]!='*'
+        && static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo () == kXR_NotAuthorized
+        && ( _lasturl.empty() || (_pos = _lasturl.find('@'))!=std::string::npos )
+        && (pos=mFile->GetLastUrl().find('@'))!=std::string::npos)
+        {
+          // if it's the same url regardless of the username, we fail
+          if (!strcmp (_lasturl.c_str () + _pos, mFile->GetLastUrl ().c_str () + pos))
+          {
+            eos_static_err("using a new connection did not fix at %s",
+                           mFile->GetLastUrl ().c_str());
+            return -1;
+          }
+          _lasturl = mFile->GetLastUrl ();
+          _path = mFile->GetLastUrl();
+          size_t p;
+          // increment the first character of the login until we reach Z
+          // it forces a new connection to be used , as the previous is most likely used by unix
+          if ((p = _path.find ('@')) != std::string::npos)
+          {
+            if (_path[p-8] != 'Z') _path[p-8]++;
+            else
+              eos_static_warning("reached maximum number of redirects for strong authentication");
+          }
+          sopaque = "";
+          eos_static_debug("authentication error at %s, try with a new connection to overcome strong credentials loss in redirects",
+                           mFile->GetLastUrl ().c_str ());
+        }
+#endif
+        else
+        {
+          eos_static_err("error while openning");
+          return -1;
+        }
       }
+      else
+        retry = false;
     }
 
     // We don't want to truncate the file in case we reopen it

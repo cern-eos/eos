@@ -897,6 +897,7 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
       me->mInUse.UnLockWrite ();
     else
       me->mInUse.UnLockRead ();
+    eos_static_debug ("unlocked  caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
    }
   private:
    std::shared_ptr<meta_t> me;

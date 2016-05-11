@@ -250,6 +250,8 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -280,6 +282,8 @@ XrdIo::Read (XrdSfsFileOffset offset,
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -303,6 +307,9 @@ XrdIo::Read (XrdSfsFileOffset offset,
    if (!status.IsOK())
    {
      errno = status.errNo;
+     mLastErrMsg = status.ToString().c_str();
+     mLastErrCode  = status.code;
+     mLastErrNo  = status.errNo;
      return SFS_ERROR;
    }
 
@@ -345,6 +352,8 @@ XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
     // has already failed 
     mMetaHandler->HandleResponse(&status, vhandler);
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
   
@@ -612,6 +621,8 @@ XrdIo::Write (XrdSfsFileOffset offset,
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -661,6 +672,8 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -680,6 +693,8 @@ XrdIo::Sync (uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -709,6 +724,8 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
   }
   
   if (stat)
@@ -743,11 +760,18 @@ XrdIo::Close (uint16_t timeout)
   
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
-  // If close failed or any async errors then return error
-  if (!status.IsOK() || !async_ok)
+  if (!status.IsOK())
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
+    return SFS_ERROR;
+  }
+
+  // If any of the async requests failed then we have an error
+  if (!async_ok)
+  {
     return SFS_ERROR;
   }
 
@@ -761,12 +785,10 @@ XrdIo::Close (uint16_t timeout)
 int
 XrdIo::Remove (uint16_t timeout)
 {
-  // Send opaque coamand to file object to mark it for deletion
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* response = 0;
-  arg.FromString("delete");
-  XrdCl::XRootDStatus status = mXrdFile->Fcntl(arg, response, timeout);
-  delete response;
+  //............................................................................
+  // Remove the file by truncating using the special value offset
+  //............................................................................
+  XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
 
   if (!status.IsOK())
   {
