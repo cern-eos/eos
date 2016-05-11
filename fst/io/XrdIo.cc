@@ -161,11 +161,15 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl, timeout);
 
+  mXrdFile->GetProperty("LastURL", mLastUrl);
+
   if (!status.IsOK())
   {
-    eos_err("error=opening remote XrdClFile");
-    errno = status.errNo;
+    eos_err("error=opening remote XrdClFile errno=%d errcode=%d msg=%s",(int)status.errNo,(int)status.code,status.ToString().c_str());
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
+    errno = status.errNo;
     return SFS_ERROR;
   }
   else
@@ -176,8 +180,6 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   //............................................................................   
   // store the last URL we are connected after open
   //............................................................................
-
-  mXrdFile->GetProperty("LastURL", mLastUrl);
   return SFS_OK;
 }
 
