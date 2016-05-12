@@ -119,7 +119,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
 #define MAYREDIRECT_ENONET { if (gOFS->IsRedirect) {		\
       int port=0;						\
       XrdOucString host="";					\
-      if (gOFS->HasRedirect(path,"ENOENT:*",host,port)) {	\
+      if (gOFS->HasRedirect(path,"ENONET:*",host,port)) {	\
 	return gOFS->Redirect(error, host.c_str(), port) ;	\
       }								\
     }								\
@@ -161,8 +161,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   XrdOucString store_path=path;						\
   if ( inpath && ( !(ininfo) || (ininfo && (!strstr(ininfo,"eos.prefix"))))) { \
     gOFS->PathRemap(inpath,store_path);					\
-  }									\
-  while(store_path.replace("#AND#","&")){}                              \
+  }                                                                     \
+  if(inpath && ininfo && strstr(ininfo,"eos.encodepath"))               \
+    store_path = eos::common::StringConversion::curl_unescaped(inpath).c_str(); \
+  else                                                                  \
+    while(store_path.replace("#AND#","&")){}                            \
   size_t __i=0;								\
   size_t __n = store_path.length();					\
   if (gOFS->UTF8) {							\

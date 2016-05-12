@@ -1,0 +1,9 @@
+[eos-citrine-dev]
+name=EOS 4.0 Development Version
+baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/citrine/commit/el-6/$basearch//
+gpgcheck=0
+
+[eos-dep]
+name=EOS Aquamarine Dependencies
+baseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/aquamarine-depend/el-6-$basearch/
+gpgcheck=0

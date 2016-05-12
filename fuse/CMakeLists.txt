@@ -25,9 +25,9 @@ include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${XROOTD_INCLUDE_DIRS}
+  ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${FUSE_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${KINETIC_INCLUDE_DIR}
   ${KRB5_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIR} )
 
@@ -38,47 +38,24 @@ endif(CPPUNIT_FOUND)
 add_subdirectory(FuseCache)
 
 #-------------------------------------------------------------------------------
-# eosfsd and eosd executables
+# eosd executables
 #-------------------------------------------------------------------------------
-add_executable ( 
- eosfsd
- ProcCache.cc ProcCache.hh
- ProcCacheC.cc ProcCacheC.h
- eosfs.c
- xrdposix.cc        xrdposix.hh
- FuseCacheEntry.cc  FuseCacheEntry.hh )
-
-add_executable ( 
+add_executable(
   eosd
   ProcCache.cc ProcCache.hh
   ProcCacheC.cc ProcCacheC.h
-  eosd.c
-  xrdposix.cc        xrdposix.hh
-  FuseCacheEntry.cc  FuseCacheEntry.hh )
+  main.cc eosfuse.cc eosfuse.hh
+  filesystem.cc      filesystem.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh
+  AuthIdManager.cc)
 
-if( MacOSX )
-target_link_libraries ( 
-    eosfsd 
+if(MacOSX)
+  target_link_libraries(
+    eosd
     FuseCache
     EosFstIo
-    eosCommon
-    ${FUSE_LIBRARIES}
-    ${KINETIC_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY} )
-
-target_link_libraries ( 
-    eosd 
-    FuseCache
-    EosFstIo
-    eosCommon
     ${UUID_LIBRARIES}
     ${FUSE_LIBRARIES}
-    ${JSONC_LIBRARIES}
-    ${KINETIC_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UNTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -86,33 +63,18 @@ target_link_libraries (
     ${OPENSSL_CRYPTO_LIBRARY} )
 
   set_target_properties(
-    eosd eosfsd
+    eosd
     PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
-    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE")
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
+    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE -DVERSION=\\\"${VERSION}\\\"")
 else()
-target_link_libraries ( 
-    eosfsd 
+
+  target_link_libraries(
+    eosd
     FuseCache-Static
     EosFstIo-Static
-    eosCommon-Static
-    ${FUSE_LIBRARIES}
-    ${JSONC_LIBRARIES}
-    ${KINETIC_LIBRARIES}
-    ${XROOTD_CL_LIBRARY}
-    ${XROOTD_UTILS_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT}
-    ${KRB5_LIBRARIES}
-    ${OPENSSL_CRYPTO_LIBRARY})
-
-target_link_libraries ( 
-  eosd 
-    FuseCache-Static
-  EosFstIo-Static
-  ${FUSE_LIBRARY}
-  ${UUID_LIBRARIES}
-  ${JSONC_LIBRARIES}
-  ${KINETIC_LIBRARIES}
+    ${FUSE_LIBRARY}
+    ${UUID_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT}
@@ -120,18 +82,15 @@ target_link_libraries (
     ${OPENSSL_CRYPTO_LIBRARY})
 
   set_target_properties(
-    eosd eosfsd
+    eosd 
     PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
 endif()
 
 install(
   TARGETS eosd
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-install(
-  TARGETS eosfsd
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
 
 install(
   FILES eosfusebind

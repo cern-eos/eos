@@ -172,7 +172,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                          size_t len)
 {
   CacheEntry* pEntry = 0;
-  mMapLock.ReadLock(); // read lock map
+  mMapLock.WriteLock(); // read lock map
   key_entry_t::iterator it = mKeyEntryMap.find(k);
   eos_static_debug("off=%zu, len=%zu key=%lli", off, len, k);
 
@@ -190,8 +190,6 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
     if (pEntry->IsFull())
     {
       eos_static_debug("cache entry full add to writes queue");
-      mMapLock.UnLock();     // unlock
-      mMapLock.WriteLock();  // wr_lock map
       mKeyEntryMap.erase(it);
       mWrReqQueue->push(pEntry);
     }
@@ -285,8 +283,8 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
     error = std::make_pair(retc, pEntry->GetOffsetStart());
     pEntry->GetParentFile()->errorsQueue->push(error);
   }
-  else
-    pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
+
+  pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
 
   mRecycleQueue->push(pEntry);
 }
@@ -319,7 +317,7 @@ FuseWriteCache::ForceWrite()
 // wait for their completion
 //------------------------------------------------------------------------------
 void
-FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
+FuseWriteCache::ForceAllWrites(FileAbstraction* fabst, bool wait)
 {
   eos_debug("fabst_ptr=%p force all writes", fabst);
 
@@ -339,5 +337,8 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst)
     eos_debug("map entries size=%ji", mKeyEntryMap.size());
   }
 
-  fabst->WaitFinishWrites();
+  if (wait)
+  {
+    fabst->WaitFinishWrites();
+  }
 }

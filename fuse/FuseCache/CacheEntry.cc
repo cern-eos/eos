@@ -388,10 +388,10 @@ CacheEntry::DoWrite ()
   for (/*empty*/; iCurrent != iEnd; iCurrent++)
   {
     eos_debug("write cache piece off=%ji len=%ji, raw_file=%p",
-             iCurrent->first, iCurrent->second, mParentFile->GetRawFile());
+             iCurrent->first, iCurrent->second, mParentFile->GetRawFileRW());
     off_relative = iCurrent->first % msMaxSize;
     // TODO: investigate using WriteAsync
-    ret = mParentFile->GetRawFile()->Write(iCurrent->first,
+    ret = mParentFile->GetRawFileRW()->Write(iCurrent->first,
                                            mBuffer + off_relative,
                                            iCurrent->second);
 

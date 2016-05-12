@@ -49,6 +49,7 @@ class IContainerMDChangeListener
     MTimeChange
   };
 
+  virtual ~IContainerMDChangeListener() {}
   virtual void containerMDChanged(IContainerMD* obj, Action type) = 0;
 };
 

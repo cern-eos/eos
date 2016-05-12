@@ -430,9 +430,7 @@ FileMD::getLocations() const
 IFileMD::LocationVector
 FileMD::getUnlinkedLocations() const
 {
-  IFileMD::LocationVector result;
-  result = pUnlinkedLocation;
-  return std::move(result);
+  return pUnlinkedLocation;
 }
 
 //------------------------------------------------------------------------------

@@ -95,7 +95,7 @@ mTpcThreadStatus(EINVAL)
   tpcFlag = kTpcNone;
   mTpcState = kTpcIdle;
   ETag = "";
-  mForcedMtime = 0;
+  mForcedMtime = 1;
   mForcedMtime_ms = 0;
   isOCchunk = 0;
   mTimeout = getenv("EOS_FST_STREAM_TIMEOUT")?strtoul(getenv("EOS_FST_STREAM_TIMEOUT"),0,10):msDefaultTimeout;
@@ -224,6 +224,7 @@ XrdFstOfsFile::open (const char* path,
   gettimeofday(&openTime, &tz);
   XrdOucString stringOpaque = opaque;
   XrdOucString opaqueCheckSum = "";
+  XrdOucString opaqueBlockCheckSum = "";
   std::string sec_protocol = client->prot;
 
   bool hasCreationMode = (open_mode & SFS_O_CREAT);
@@ -284,6 +285,13 @@ XrdFstOfsFile::open (const char* path,
     ETag = val;
   }
 
+  if ((val = tmpOpaque.Get("mgm.mtime")))
+  {
+    // mgm.mtime=0 we set the external mtime=0 and indicated during commit, that it should not update the mtime as in case of a FUSE client which will call utimes
+    mForcedMtime = 0;
+    mForcedMtime_ms = 0;
+  }
+
   if (eos::common::OwnCloud::isChunkUpload(tmpOpaque))
   {
     // tag as an OC chunk upload
@@ -314,7 +322,14 @@ XrdFstOfsFile::open (const char* path,
   if (tpc_key.length())
   {
     time_t now = time(NULL);
-    if ((tpc_stage == "placement") || (!gOFS.TpcMap[isRW].count(tpc_key.c_str())))
+    bool new_entry = false;
+
+    {
+      XrdSysMutexHelper tpcLock(gOFS.TpcMapMutex);
+      new_entry = !gOFS.TpcMap[isRW].count(tpc_key.c_str());
+    }
+
+    if ((tpc_stage == "placement") || (new_entry))
     {
       //.........................................................................
       // Create a TPC entry in the TpcMap 
@@ -489,6 +504,11 @@ XrdFstOfsFile::open (const char* path,
   if ((val = openOpaque->Get("mgm.checksum")))
   {
     opaqueCheckSum = val;
+  }
+
+  if ((val = openOpaque->Get("mgm.blockchecksum")))
+  {
+    opaqueBlockCheckSum = val;
   }
 
   if ((val = openOpaque->Get("eos.injection")))
@@ -911,6 +931,28 @@ XrdFstOfsFile::open (const char* path,
   }
 
   //............................................................................
+  // Check if the booking size violates the min/max-size criteria
+  //............................................................................
+
+  if (bookingsize && maxsize)
+  {
+    if (bookingsize > maxsize)
+    {
+      eos_err("invalid bookingsize specified - violates maximum file size criteria");
+      return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates maximum allowed filesize", Path.c_str());
+    }
+  }
+
+  if (bookingsize && minsize)
+  {
+    if (bookingsize < minsize)
+    {
+      eos_err("invalid bookingsize specified - violates minimum file size criteria");
+      return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates minimum allowed filesize", Path.c_str());
+    }
+  }
+
+  //............................................................................
   // Get the identity
   //............................................................................
   eos::common::Mapping::VirtualIdentity vid;
@@ -985,26 +1027,42 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
-  if (!fMd)
+  if ( (!fMd) || gOFS.Simulate_FMD_open_error )
   {
-    if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
+    if( !gOFS.Simulate_FMD_open_error )
     {
-      eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
-      int ecode = 1094;
-      eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
-                  RedirectManager.c_str(), ecode);
-
-      if (hasCreationMode)
+      // try to resync from the MGM and repair on the fly
+      if (gFmdDbMapHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str()))
       {
-        // clean-up before re-bouncing
-        dropall(fileid, path, RedirectManager.c_str());
+        eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+        fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
       }
-      return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+      else
+      {
+        eos_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
+      }
     }
-    else
+    if ( (!fMd) || gOFS.Simulate_FMD_open_error )
     {
-      eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
-      return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
+      if ((!isRW) || (layOut->IsEntryServer() && (!isReplication)))
+      {
+	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, fsid);
+	int ecode = 1094;
+	eos_warning("rebouncing client since we failed to get the FMD record back to MGM %s:%d",
+		    RedirectManager.c_str(), ecode);
+	
+	if (hasCreationMode) 
+	{
+	  // clean-up before re-bouncing
+	  dropall(fileid, path, RedirectManager.c_str());
+	}
+	return gOFS.Redirect(error, RedirectTried.c_str(), ecode);
+      }
+      else
+      {
+	eos_crit("no fmd for fileid %llu on filesystem %lu", fileid, (unsigned long long) fsid);
+	return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found ");
+      }
     }
   }
 
@@ -1023,7 +1081,8 @@ XrdFstOfsFile::open (const char* path,
   //............................................................................
   if (eos::common::LayoutId::GetBlockChecksum(lid) != eos::common::LayoutId::kNone)
   {
-    hasBlockXs = true;
+    if (opaqueBlockCheckSum != "ignore")
+      hasBlockXs = true;
   }
 
   XrdOucString oss_opaque = "";
@@ -1083,7 +1142,7 @@ XrdFstOfsFile::open (const char* path,
         eos_warning("rebouncing client since we don't have enough space back to MGM %s:%d",
                     RedirectManager.c_str(), ecode);
 
-	if (hasCreationMode)
+	if (hasCreationMode) 
 	{
 	  // clean-up before re-bouncing
 	  dropall(fileid, path, RedirectManager.c_str());
@@ -1983,9 +2042,9 @@ XrdFstOfsFile::close ()
             }
 
 	    capOpaqueFile += "&mgm.mtime=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime : (unsigned long long) fMd->fMd.mtime());
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime : (unsigned long long) fMd->fMd.mtime());
 	    capOpaqueFile += "&mgm.mtime_ns=";
-	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, mForcedMtime ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns());
+	    capOpaqueFile += eos::common::StringConversion::GetSizeString(mTimeString, (mForcedMtime!=1) ? mForcedMtime_ms : (unsigned long long) fMd->fMd.mtime_ns());
 
 	    if (haswrite) 
 	    {
@@ -2392,7 +2451,7 @@ XrdFstOfsFile::close ()
 
       if (gOFS.CallManager(&error, capOpaque->Get("mgm.path"), capOpaque->Get("mgm.manager"), OpaqueString))
       {
-        eos_warning("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
+        eos_err("failed to execute 'adjustreplica' for path=%s", capOpaque->Get("mgm.path"));
         gOFS.Emsg(epname, error, EIO, "create all replicas - uploaded file is "
                   "at risk - only one replica has been successfully stored for fn=",
                   capOpaque->Get("mgm.path"));
@@ -2658,14 +2717,19 @@ XrdFstOfsFile::writeofs (XrdSfsFileOffset fileOffset,
     else
     {
       // Check if the file system is full
-      XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+      bool isfull = false;
+      {
+	XrdSysMutexHelper(gOFS.Storage->fileSystemFullMapMutex);
+	isfull = gOFS.Storage->fileSystemFullMap[fsid];
+      }
 
-      if (gOFS.Storage->fileSystemFullMap[fsid])
+      if (isfull)
       {
         writeErrorFlag = kOfsDiskFullError;
-        return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space (headroom) exceeded fn=",
-                         capOpaque ? (capOpaque->Get("mgm.path") ?
-                                      capOpaque->Get("mgm.path") : FName()) : FName());
+        return gOFS.Emsg("writeofs", error, ENOSPC, "write file - disk space "
+                         "(headroom) exceeded fn=", capOpaque ?
+                         (capOpaque->Get("mgm.path") ? capOpaque->Get("mgm.path") :
+                          FName()) : FName());
       }
     }
   }
@@ -3184,7 +3248,16 @@ XrdFstOfsFile::stat (struct stat * buf)
   if (!rc)
     buf->st_ino = fileid << 28;
 
-  eos_notice("path=%s inode=%lu", Path.c_str(), fileid);
+  // we store the mtime.ns time in st_dev ... sigh@Xrootd ...                                                                                                                                 
+  unsigned long nsec = buf->st_mtim.tv_nsec;
+  // mask for 10^9                                                                                                                                                                            
+  nsec &= 0x7fffffff;
+  // enable bit 32 as indicator                                                                                                                                                               
+  nsec |= 0x80000000;
+  // overwrite st_dev                                                                                                                                                                         
+  buf->st_dev = nsec;
+
+  eos_info("path=%s inode=%lu size=%lu mtime=%lu.%lu", Path.c_str(), fileid, (unsigned long) buf->st_size, buf->st_mtim.tv_sec, buf->st_dev&0x7ffffff);
   return rc;
 }
 

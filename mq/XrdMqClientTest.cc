@@ -29,9 +29,9 @@
 
 int main (int argc, char* argv[]) {
   printf("Starting up ...\n");
-
+  XrdMqMessage::Logger = new XrdSysLogger();
+  XrdMqMessage::Eroute.logger(XrdMqMessage::Logger);
   XrdMqClient mqc;
-  
   printf("Created broker ...\n");
 
   if (mqc.AddBroker("root://localhost//xmessage/")) {
@@ -51,7 +51,6 @@ int main (int argc, char* argv[]) {
   XrdMqMessage message("TestMessage");
    
   message.Print();
-  printf("Encode %d \n",message.Encode());
   message.Print();
   printf("Decode %d \n",message.Decode());
   message.Print();

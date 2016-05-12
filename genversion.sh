@@ -23,8 +23,8 @@ function getVersionFromLog()
     AWK=awk
   fi
 
-  MAJOR="$(echo $1 | $AWK -F "." '{print $1;}')"
-  VERSION="$(echo $2 | $AWK -v major="${MAJOR}" '{ gsub("-","",$1); print major"."$1"."$4; }')"
+  TAG=$1
+  VERSION="$(echo $2 | $AWK -v tag="${TAG}" '{ gsub("-","",$1); print tag"-"$1"git"$4; }')"
 
   if test $? -ne 0; then
     echo "unknown";
@@ -81,17 +81,18 @@ else
     # in the rpmbuild step. We don't have a git repo but the version was already
     # set in the eos.spec file.
     if [[ -e "eos.spec" ]]; then
-       VERSION="$(grep "Version:" eos.spec | awk '{print $2;}')"
+       VERSION="$(grep "Version:" eos.spec | head -1 | awk '{print $2;}')"
     else
       echo "[!] Unable to get version from git or spec file." 1>&2
       exit 1
     fi
   else
     # Can we match the exact tag?
-    git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
+    LASTCOMMITONBRANCH=$(git log --first-parent --pretty=format:'%h' -n 1)
+    git describe --tags --abbrev=0 --exact-match ${LASTCOMMITONBRANCH} >/dev/null 2>&1
 
     if [[ ${?} -eq 0 ]]; then
-      TAG="$(git describe --tags --abbrev=0 --exact-match)"
+      TAG="$(git describe --tags --abbrev=0 --exact-match ${LASTCOMMITONBRANCH})"
       EXP="[0-9]+\.[0-9]+\.[0-9]+$"
 
       # Check if tag respects the regular expression
@@ -105,7 +106,7 @@ else
 
     else
       # Get last tag to extract the major version number
-      LAST_TAG="$(git describe --tags --abbrev=0)"
+      LAST_TAG="$(git describe --tags --abbrev=0 --candidates=50 ${LASTCOMMITONBRANCH})"
 
       if [[ ${?} -ne 0 ]]; then
 	echo "[!] Can not find last tag to build the commit version"

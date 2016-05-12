@@ -332,7 +332,7 @@ ProcCommand::FileInfo (const char* path)
           {
             // use inode + checksum
             char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)fmd_cpy->getId()<<28);
+	    snprintf(setag,sizeof(setag)-1,"%llu:", (unsigned long long)eos::common::FileId::FidToInode(fmd_cpy->getId()));
             etag = setag;
             for (unsigned int i = 0; i < cxlen; i++)
             {
@@ -348,8 +348,7 @@ ProcCommand::FileInfo (const char* path)
             eos::IFileMD::ctime_t mtime;
             fmd_cpy->getMTime(mtime);
             time_t filemtime = (time_t) mtime.tv_sec;
-            snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)fmd_cpy->getId()<<28,
-                     (unsigned long long)filemtime);
+	    snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) eos::common::FileId::FidToInode(fmd_cpy->getId()), (unsigned long long) filemtime);
             etag = setag;
           }
 
@@ -795,18 +794,6 @@ ProcCommand::DirInfo (const char* path)
                 static_cast<long long int>(tmtime.tv_sec),
                 static_cast<long long int>(tmtime.tv_sec));
 
-        if (!mtime.tv_sec)
-        {
-          mtime.tv_sec = ctime.tv_sec;
-          mtime.tv_nsec = ctime.tv_nsec;
-        }
-        
-        if (!tmtime.tv_sec)
-        {
-          tmtime.tv_sec = mtime.tv_sec;
-            tmtime.tv_nsec = mtime.tv_nsec;
-        }
-
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;
         time_t filetmtime = (time_t) tmtime.tv_sec;
@@ -817,8 +804,7 @@ ProcCommand::DirInfo (const char* path)
 
         // use inode + tmtime
         char setag[256];
-        snprintf(setag,sizeof(setag)-1,"%llu:%llu", (unsigned long long)dmd_cpy->getId(),
-                 (unsigned long long)filemtime);
+        snprintf(setag,sizeof(setag)-1,"%llx:%llu.%03lu", (unsigned long long)dmd_cpy->getId(), (unsigned long long)tmtime.tv_sec, (unsigned long)tmtime.tv_nsec/1000000);
         etag = setag;
 
         if (!Monitoring)

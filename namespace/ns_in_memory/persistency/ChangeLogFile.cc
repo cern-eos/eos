@@ -229,6 +229,7 @@ namespace eos
       pFd = fd;
       pIsOpen  = true;
       pVersion = version;
+      pFileName = name;
       return;
     }
 
@@ -535,6 +536,14 @@ namespace eos
     uint8_t          type;
     Buffer           data;
 
+    size_t progress = 0;
+
+    time_t start_time = time(0);
+    time_t now = start_time;
+
+    std::string fname = pFileName;
+    fname.erase(0, pFileName.rfind("/")+1);
+
     while( offset < end )
     {
       bool proceed = false;
@@ -601,7 +610,22 @@ namespace eos
       }
       if (!proceed)
 	break;
+
+      now = time(0);
+
+      if ( (100.0 * offset / end ) > progress) {
+	double estimate = (1+end-offset) / ((1.0*offset/(now+1 - start_time)));
+	if (progress==0)
+	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate none \n", fname.c_str(), (unsigned int)progress);
+	else
+	  fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.02fs\n", fname.c_str(), (unsigned int)progress, estimate);
+	progress += 5;
+
+      }      
     }
+    now = time(0);
+    fprintf(stderr,"ALERT    [ %-64s ] finished in %ds\n", fname.c_str(), (int)(now - start_time));
+
     return offset;
   }
 

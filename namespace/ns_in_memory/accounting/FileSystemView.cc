@@ -48,8 +48,8 @@ namespace eos
   //----------------------------------------------------------------------------
   FileSystemView::FileSystemView()
   {
-    pNoReplicas.set_deleted_key( 0 );
     pNoReplicas.set_empty_key(0xffffffffffffffffll);
+    pNoReplicas.set_deleted_key( 0 );
   }
 
   //----------------------------------------------------------------------------
@@ -63,14 +63,15 @@ namespace eos
       // New file has been created
       //------------------------------------------------------------------------
       case IFileMDChangeListener::Created:
-        pNoReplicas.insert( e->file->getId() );
+	if (!e->file->isLink())
+	  pNoReplicas.insert( e->file->getId() );
         break;
 
       //------------------------------------------------------------------------
       // File has been deleted
       //------------------------------------------------------------------------
       case IFileMDChangeListener::Deleted:
-        pNoReplicas.erase( e->fileId );
+	pNoReplicas.erase( e->fileId );
         break;
 
       //------------------------------------------------------------------------
@@ -168,8 +169,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Return reference to a list of unlinked files
   //----------------------------------------------------------------------------
-  const FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
-                                              IFileMD::location_t location )
+  FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
+      IFileMD::location_t location )
   {
     if( pUnlinkedFiles.size() <= location )
     {

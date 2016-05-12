@@ -102,6 +102,11 @@ com_group (char* arg1)
           silent = true;
           ok = true;
         }
+	if ( (option == "--brief") || (option == "-b") )
+	{
+	  in += "&mgm.outhost=brief";
+	  ok = true;
+	}
         if (!option.beginswith("-"))
         {
           in += "&mgm.selection=";
@@ -181,7 +186,7 @@ com_group (char* arg1)
 com_group_usage:
 
   fprintf(stdout, "usage: group ls                                                      : list groups\n");
-  fprintf(stdout, "usage: group ls [-s|-g <depth>] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout, "usage: group ls [-s] [-g] [-b|--brief] [-m|-l|--io] [<group>]                          : list groups or only <group>. <group> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each group\n");

@@ -27,10 +27,17 @@
 
 /*----------------------------------------------------------------------------*/
 #include <map>
+#include <set>
 /*----------------------------------------------------------------------------*/
-#include "xrdposix.hh"
 #include "common/RWMutex.hh"
 /*----------------------------------------------------------------------------*/
+
+struct dirbuf
+{
+  char *p;
+  size_t size;
+  size_t alloc_size;
+};
 
 using eos::common::RWMutex;
 
@@ -120,6 +127,29 @@ class FuseCacheEntry
     //!
     //--------------------------------------------------------------------------
     bool GetEntry( unsigned long long inode, struct fuse_entry_param& e );
+
+
+    //--------------------------------------------------------------------------
+    //! Update subentry stat
+    //!
+    //! @param inode subentry inode
+    //! @param buf statu strcuture
+    //!
+    //! @return true if entry found, otherwise false
+    //!
+    //--------------------------------------------------------------------------
+    bool UpdateEntry( unsigned long long inode, struct stat* buf );
+
+    //--------------------------------------------------------------------------
+    //! Get set with all entry inodes
+    //!
+    //! @param inode subentry inode
+    //!
+    //! @return set with entry inodes
+    //!
+    //--------------------------------------------------------------------------
+
+    std::set<unsigned long long> GetEntryInodes();
 
 
   private:

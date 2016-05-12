@@ -268,7 +268,11 @@ def set_dir_info(surl, dict_dinfo, excl_xattr):
         logger.error(err_msg)
         raise IOError(err_msg)
 
-    # Remove any existing attributes
+    # Deal with extended attributes. If all are excluded then don't touch them.
+    if "*" in excl_xattr:
+        return
+
+    # Get all the current xattrs
     flsattr = ''.join([url.protocol, "://", url.hostid, "//proc/user/?",
                        "mgm.cmd=attr&mgm.subcmd=ls&mgm.path=", seal_path(url.path)])
 

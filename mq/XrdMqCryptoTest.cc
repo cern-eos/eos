@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #define TRACE_debug 0xffff
-#include <mq/XrdMqClient.hh>
+#include <mq/XrdMqMessage.hh>
 #include <mq/XrdMqTiming.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
@@ -42,18 +42,18 @@ int main(int argc, char* argv[]) {
       XrdMqMessage::SymmetricStringEncrypt(textplain,textencrypted,secretkey);
       XrdMqMessage::SymmetricStringDecrypt(textencrypted,textdecrypted,secretkey);
       int inlen = strlen(secretkey);
-      XrdOucString fout;
+      std::string fout;
       XrdMqMessage::Base64Encode(secretkey, inlen, fout);
       fprintf(stdout,"%s\n", fout.c_str());
       char* binout =0;
-      unsigned int outlen;
-      if (!XrdMqMessage::Base64Decode(fout, binout, outlen)) {
+      ssize_t outlen;
+      if (!XrdMqMessage::Base64Decode((char*)fout.c_str(), binout, outlen)) {
         fprintf(stderr,"error: cannot base64 decode\n");
         exit(-1);
       }
       binout[20]=0;
       
-      fprintf(stdout,"outlen is %d - %s\n", outlen, binout);
+      fprintf(stdout,"outlen is %zd - %s\n", outlen, binout);
       //      printf("a) |%s|\nb) |%s|\nc) |%s|\n\n", textplain.c_str(), textencrypted.c_str(), textdecrypted.c_str());
     }
     TIMING("STOP", &mqs);

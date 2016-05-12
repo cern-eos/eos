@@ -91,6 +91,7 @@ class IFileMDChangeListener
     int64_t              sizeChange;
   };
 
+  virtual ~IFileMDChangeListener() {}
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
 };

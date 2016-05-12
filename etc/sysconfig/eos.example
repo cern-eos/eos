@@ -100,14 +100,20 @@ export EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Stream timeout for operations
 #export EOS_FST_STREAM_TIMEOUT=300
 
+# Disable fast boot and always do a full resync when a fs is booting
+# export EOS_FST_NO_FAST_BOOT=0 (default off)
+
 # Changel minimum file system size setting - default is to have atleast 5 GB free on a partition
 #export EOS_FS_FULL_SIZE_IN_GB=5
 # ------------------------------------------------------------------
 # FUSE Configuration
 # ------------------------------------------------------------------
 
-# The mount directory for 'eosd' 
+# The local mount directory for 'eosd' 
 export EOS_FUSE_MOUNTDIR=/eos/
+
+# The optional remote directory visiable unter the mount dir
+export EOS_FUSE_REMOTEDIR=/eos/
 
 # The MGM host from where to do the inital mount
 export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
@@ -115,9 +121,12 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Enable FUSE debugging mode (default off)
 #export EOS_FUSE_DEBUG=1
 
-# Specify the FUSE logging level (default=6 is LOG_INFO ... see /usr/include/sys/syslog.h LOG_XXX definitions)
+# Enable FUSE low-level debugging mode (default off)
+#export EOS_FUSE_LOWLEVEL_DEBUG=1
+
+# Specify the FUSE logging level (default=4 is LOG_WARNING ... see /usr/include/sys/syslog.h LOG_XXX definitions)
 # EOS_FUSE_DEBUG=1 overwrites these settings
-#export EOS_FUSE_LOGLEVEL=6
+#export EOS_FUSE_LOGLEVEL=4
 
 # Disable parallel IO mode (default on)
 #export EOS_FUSE_NOPIO=1
@@ -129,7 +138,7 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #export EOS_FUSE_RDAHEAD=0
 
 # Configure FUSE read-ahead window (default 128k)
-#export EOS_FUSE_RDAHEAD_WINDOW=131072
+# export EOS_FUSE_RDAHEAD_WINDOW=131072
 # Disable using access for access permission check (default on)
 # export EOS_FUSE_NOACCESS=0
 
@@ -169,6 +178,13 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    (default 0)
 # EOS_FUSE_USER_KRB5FIRST=0
 
+# If a connection fails using strong authentication, this is the timeout before actully retrying
+#    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
+#    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
+#    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
+#    (default is XRD_STREAMERRORWINDOW default value)
+# EOS_FUSE_STREAMERRORWINDOW=1
+
 # Enable the fuse local host time consistency model
 #   this allows a more precise handling of mtime. Time reference is then the localhost time
 #   this is very useful to use applications massively relying on mtime : e.g. emacs, make, ...
@@ -180,6 +196,127 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
 #    (default 0)
 # EOS_FUSE_PIDMAP=0
+
+# Disable using access for access permission check (default on)
+# export EOS_FUSE_NOACCESS=0
+
+# Disable to use the kernel cache (default on)
+# export EOS_FUSE_KERNELCACHE=0
+
+# Bypass the buffercache for write - avoids 4k chopping of IO (default off)
+# (this is not what people understand under O_DIRECT !!!!
+# export EOS_FUSE_DIRECTIO=1
+
+# Disable the write-back cache (default on)
+# export EOS_FUSE_CACHE=0
+
+# Set the write-back cache size (default 300M)
+# export EOS_FUSE_CACHE_SIZE=0
+
+# Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
+# export EOS_FUSE_BIGWRITES=1
+
+# Mount all files with 'x' bit to be able to run as an executable (default off)
+# export EOS_FUSE_EXEC=1
+
+# Enable protection against recursive deletion (rm -r command) 
+#    starting from the root of the mount (if 1)
+#    or from any of its sub directories at a maximum depth (if >1) (default 1)
+# EOS_FUSE_RMLVL_PROTECT=1
+
+# Disable using access for access permission check (default on)
+# export EOS_FUSE_NOACCESS=0
+
+# Disable to use the kernel cache (default on)
+# export EOS_FUSE_KERNELCACHE=0
+
+# Bypass the buffercache for write - avoids 4k chopping of IO (default off)
+# (this is not what people understand under O_DIRECT !!!!
+# export EOS_FUSE_DIRECTIO=1
+
+# Disable the write-back cache (default on)
+# export EOS_FUSE_CACHE=0
+
+# Set the write-back cache size (default 300M)
+# export EOS_FUSE_CACHE_SIZE=0
+
+# Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
+# export EOS_FUSE_BIGWRITES=1
+
+# Mount all files with 'x' bit to be able to run as an executable (default off)
+# export EOS_FUSE_EXEC=1
+
+# Enable protection against recursive deletion (rm -r command) 
+#    starting from the root of the mount (if 1)
+#    or from any of its sub directories at a maximum depth (if >1) (default 1)
+# EOS_FUSE_RMLVL_PROTECT=1
+
+# Enable lazy-open of files for reading e.g. files are only opened on an FST if a read is done
+#    by default this option is disabled because most ro files want to read and 
+#    there is a penalty in the two-step process
+# export EOS_FUSE_LAZYOPENRO=0
+
+# Enable lazy-open of files for writing 
+#    applications get a visible performance boost by using this option and the latency in synchronous replication
+#    on the FSTs is completely hidden. By default this option is enabled
+# export EOS_FUSE_LAZYOPENRW=1
+
+# Enable inline-repair mode for file updates of files with offline replica/stripe
+#    By default this option is enabled
+# export EOS_FUSE_INLINE_REPAIR=1
+
+# Definae maximum inline-repair size for the previous flag
+#    By default the maximum size is 256M
+# export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=268435456
+
+# Set FUSE kernel cache time for directory entries (readdir cache) - default 10 seconds	
+# export EOS_FUSE_ENTRY_CACHE_TIME=10
+
+# Set FUSE kernel attribute cache time (stat cache) - default 10 seconds
+# export EOS_FUSE_ATTR_CACHE_TIME=10
+
+# Set FUSE kernel negative stat cache time - default 30 seconds
+# export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
+
+# Set FUSE client creator CAP liftime
+#    During this time window all reads done on the client where a file has been created
+#    can be served from a local file write-back cache.
+#    this improves significantly compilation. Remote changes are not visible inside
+#    files after creation during the specified time period. Default is 30 seconds.
+# export EOS_FUSE_CREATOR_CAP_LIFETIME=30
+
+# Set FUSE client max. write-back cache size per file
+#    This is required until kernel 3.15. where the write-back cache of the kernel can be used
+#    via a mount option. The default is 64 MB.
+# export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
+
+# ---------------------------------------------------------------------------------
+# this options are not available since AQUAMARINE is compiled with XROOTD3 
+# --------------------------------------------------------------------------------- 
+# Enable Kerberos authentication. This avoid need to set gateways on the mgm. 
+#    file cache credential should be used. (default 0)
+# EOS_FUSE_USER_KRB5CC=0
+# ---------------------------------------------------------------------------------
+# Enable X509 GSI authentication. This avoid need to set gateways on the mgm. 
+#    file user proxy should be used. (default 0)
+# EOS_FUSE_USER_GSIPROXY=0
+# ---------------------------------------------------------------------------------
+# If both KRB5 and X509 are enabled, specify if KRB5 should be tried first. 
+#    (default 0)
+# EOS_FUSE_USER_KRB5FIRST=0
+# ---------------------------------------------------------------------------------
+# If a connection fails using strong authentication, this is the timeout before actully retrying
+#    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
+#    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
+#    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
+#    (default is XRD_STREAMERRORWINDOW default value)
+# EOS_FUSE_STREAMERRORWINDOW=1
+# ---------------------------------------------------------------------------------
+# If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
+#    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
+#    (default 0)
+# EOS_FUSE_PIDMAP=
+# ---------------------------------------------------------------------------------
 
 # Configure a log-file prefix - useful for several FUSE instances
 #export EOS_FUSE_LOG_PREFIX=dev
@@ -275,4 +412,19 @@ export EOS_TEST_TESTTIMESLICE=300;
 export EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
 
 # define the log file regex you want to broad cast to all consoles
-export EOS_TTY_BROACAST_EGREP="CRIT,ALERT,EMERG"
+export EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
+
+# ------------------------------------------------------------------
+# Service Script aliasing for EL7 machines
+# ------------------------------------------------------------------
+
+which systemctl >& /dev/null
+if [ $? -eq 0 ]; then
+   alias service="service --skip-redirect"
+fi
+
+# ------------------------------------------------------------------
+# MGM Namespace Preset Size - this can safe memory for large namespaces if you know an upper limit for the namespace size
+# ------------------------------------------------------------------
+# export EOS_NS_DIR_SIZE=1000000
+# export EOS_NS_FILE_SIZE=1000000

@@ -143,8 +143,9 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
-mFstGwHost(""),
-mFstGwPort(0)
+    mCapabilityValidity(3600),
+    mFstGwHost(""),
+    mFstGwPort(0)
 {
   eDest = ep;
   ConfigFN = 0;
@@ -292,51 +293,6 @@ XrdMgmOfs::HasRedirect (const char* path,
     return false;
   }
 
-
-//------------------------------------------------------------------------------
-// Update emulated in-memory directory modification time with the current time
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::UpdateNowInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id)
-{
-  struct timespec ts;
-  eos::common::Timing::GetTimeSpec(ts);
-  return UpdateInmemoryDirectoryModificationTime(id, ts);
-}
-
-
-//------------------------------------------------------------------------------
-// Update emulated in-memory directory modification time with a given time
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::UpdateInmemoryDirectoryModificationTime (eos::IContainerMD::id_t id,
-                                                    eos::IContainerMD::ctime_t &mtime)
-{
-  XrdSysMutexHelper vLock(gOFS->MgmDirectoryModificationTimeMutex);
-  {
-    eos::IContainerMD::id_t cid = id;
-    // mtime upstream hierarchy-up-propagation
-    do
-    {
-      try
-      {
-        eos::IContainerMD* dmd = gOFS->eosDirectoryService->getContainerMD(cid);
-        gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_sec = mtime.tv_sec;
-        gOFS->MgmDirectoryModificationTime[dmd->getId()].tv_nsec = mtime.tv_nsec;
-        if (!dmd->hasAttribute("sys.mtime.propagation"))
-          break;
-        cid = dmd->getParentId();
-      }
-      catch (eos::MDException &e)
-      {
-        break;
-      }
-    }
-    while (cid > 1);
-  }
-}
-
-
 //------------------------------------------------------------------------------
 // Return the version of the MGM software
 //------------------------------------------------------------------------------
@@ -444,7 +400,6 @@ XrdMgmOfs::Emsg (const char *pfx,
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
 }
-
 
 //------------------------------------------------------------------------------
 // Create stall response

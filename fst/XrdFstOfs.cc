@@ -52,7 +52,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/fsuid.h>
-
+#include <sys/wait.h>
 #include <math.h>
 #include <stdio.h>
 #include <execinfo.h>
@@ -195,12 +195,8 @@ XrdFstOfs::xrdfstofs_stacktrace (int sig)
   // Now we put back the initial handler and send the signal again
   signal(sig, SIG_DFL);
   kill(getpid(), sig);
-#ifdef __APPLE__
   int wstatus = 0;
   wait(&wstatus);
-#else
-  wait();
-#endif
 }
 
 
@@ -253,12 +249,8 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   gFmdDbMapHandler.Shutdown();
   kill(watchdog, 9);
 
-#ifdef __APPLE__
   int wstatus = 0;
   wait(&wstatus);
-#else
-  wait();
-#endif
 
   eos_static_warning("%s", "op=shutdown status=dbmapclosed");
 
@@ -305,13 +297,13 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   // Get the hostname
-  mHostName = XrdSysDNS::getHostName();
+  char *errtext=0;
+  mHostName = XrdSysDNS::getHostName(0,&errtext);
 
-  if (!mHostName)
+  if ( !mHostName || std::string(mHostName)=="0.0.0.0")
   {
-    Eroute.Emsg("Config", "Hostname coud not be determined");
-    NoGo = 1;
-    return NoGo;
+    Eroute.Emsg("Config", "hostname is invalid : %s", mHostName);
+    return 1;
   }
 
   TransferScheduler = new XrdScheduler(&Eroute, &OfsTrace, 8, 128, 60);
@@ -658,8 +650,7 @@ void
 XrdFstOfs::SetSimulationError (const char* tag)
 {
   XrdOucString stag = tag;
-  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error =
-      gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = false;
+  gOFS.Simulate_IO_read_error = gOFS.Simulate_IO_write_error = gOFS.Simulate_XS_read_error = gOFS.Simulate_XS_write_error = gOFS.Simulate_FMD_open_error = false;
 
   if (stag == "io_read")
     gOFS.Simulate_IO_read_error = true;
@@ -672,6 +663,8 @@ XrdFstOfs::SetSimulationError (const char* tag)
 
   if (stag == "xs_write")
     gOFS.Simulate_XS_write_error = true;
+  if (stag == "fmd_open")
+    gOFS.Simulate_FMD_open_error = true;
 }
 
 
@@ -689,7 +682,17 @@ XrdFstOfs::stat (const char* path,
   memset(buf, 0, sizeof ( struct stat));
 
   if (!XrdOfsOss->Stat(path, buf))
+  {
+    // we store the mtime.ns time in st_dev ... sigh@Xrootd ... 
+    unsigned long nsec = buf->st_mtim.tv_nsec;
+    // mask for 10^9
+    nsec &= 0x7fffffff;
+    // enable bit 32 as indicator
+    nsec |= 0x80000000;
+    // overwrite st_dev
+    buf->st_dev = nsec;
     return SFS_OK;
+  }
   else
     return gOFS.Emsg(epname, out_error, errno, "stat file", path);
 }
@@ -720,10 +723,12 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
     // use the broadcasted manager name
     XrdSysMutexHelper lock(Config::gConfig.Mutex);
     lManager = Config::gConfig.Manager.c_str();
-    manager = lManager.c_str();
+    address += lManager.c_str();
   }
-
-  address += manager;
+  else
+  {
+    address += manager;
+  }
   address += "//dummy";
   XrdCl::URL url(address.c_str());
 
@@ -793,7 +798,7 @@ again:
           goto again;
         }
       gOFS.Emsg(epname, *error, ECOMM, msg.c_str(), path);
-  }
+    }
   }
 
   if ( response && return_result )

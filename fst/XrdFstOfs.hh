@@ -388,6 +388,7 @@ public:
   bool Simulate_IO_write_error; ///< simulate an IO error on write
   bool Simulate_XS_read_error; ///< simulate a checksum error on read
   bool Simulate_XS_write_error; ///< simulate a checksum error on write
+  bool Simulate_FMD_open_error; //! simulate a fmd mismatch error on open
 
   static XrdSysMutex ShutdownMutex; ///< protecting Shutdown variable
   static bool Shutdown; ///< indicating if a shutdown procedure is running

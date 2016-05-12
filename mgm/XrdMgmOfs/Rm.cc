@@ -83,7 +83,8 @@ XrdMgmOfs::_rem (const char *path,
                  eos::common::Mapping::VirtualIdentity &vid,
                  const char *ininfo,
                  bool simulate,
-                 bool keepversion)
+                 bool keepversion,
+		 bool no_recycling)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -247,7 +248,7 @@ XrdMgmOfs::_rem (const char *path,
       // already recycled files/dirs
       // -----------------------------------------------------------------------
       XrdOucString sPath = path;
-      if (attrmap.count(Recycle::gRecyclingAttribute) &&
+      if (!(no_recycling) && attrmap.count(Recycle::gRecyclingAttribute) &&
           (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str())))
       {
         // ---------------------------------------------------------------------
@@ -309,6 +310,7 @@ XrdMgmOfs::_rem (const char *path,
   if (doRecycle && (!simulate))
   {
     // Two-step deletion recycle logic
+    XrdOucString recyclePath;
     std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
     fmd = (eos::IFileMD*)(0);
     gOFS->eosViewRWMutex.UnLockWrite();
@@ -339,6 +341,10 @@ XrdMgmOfs::_rem (const char *path,
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
           return rc;
+	else
+	{
+	  recyclePath = error.getErrText();
+	}
       }
     }
     else
@@ -355,8 +361,34 @@ XrdMgmOfs::_rem (const char *path,
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
+
+      // tag the version directory key on the garbage file
+      if (recyclePath.length())
+      {
+        eos::common::Mapping::VirtualIdentity rootvid;
+        eos::common::Mapping::Root(rootvid);
+	struct stat buf;
+	if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0))
+	{
+	  char sp[256];
+	  snprintf(sp, sizeof (sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
+	  
+	  if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "", Recycle::gRecyclingVersionKey.c_str(),sp))
+	  {
+	    eos_err("msg=\"failed to set attribute on recycle path\" path=%s", recyclePath.c_str());
+	  
+	  }
+	}
+	else
+	{
+	  eos_err("msg\"failed to stat recycle path\" path=%s", recyclePath.c_str());
+	}
+      }
+
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
       error.clear();
+      
+
       errno = 0; // purge might return ENOENT if there was no version
     }
   }

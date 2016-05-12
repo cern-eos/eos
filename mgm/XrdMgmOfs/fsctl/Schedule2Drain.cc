@@ -55,7 +55,7 @@
   bool has_zero_mv_files = false;
   // deal with the 0-size files
   {
-    XrdSysMutexHelper sZeroMoveMutex;
+    XrdSysMutexHelper zLock(sZeroMoveMutex);
     if (sZeroMove.size())
     {
       has_zero_mv_files = true;
@@ -71,7 +71,7 @@
     // ---------------------------------------------------------------------
     // lock the ZeroMove;
     // ---------------------------------------------------------------------
-    XrdSysMutexHelper sZeroMoveMutex;
+    XrdSysMutexHelper sLock(sZeroMoveMutex);
     auto it = sZeroMove.begin();
     while (it != sZeroMove.end())
     {
@@ -138,7 +138,7 @@
   eos_thread_info("cmd=schedule2drain fsid=%d freebytes=%llu logid=%s", target_fsid, freebytes, alogid ? alogid : "");
 
   while (1)
-    // lock the view and get the filesystem information for the target where be balance to
+    // lock the view and get the filesystem information for the target where be drain to
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     target_fs = FsView::gFsView.mIdView[target_fsid];
@@ -215,6 +215,10 @@
       return SFS_DATA;
     }
     source_fs->SnapShotFileSystem(source_snapshot);
+
+    // Lock namespace view here to avoid deadlock with the Commit.cc code on
+    // the ScheduledToDrainFidMutex
+    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
     eos::IFsView::FileList source_filelist;
     eos::IFsView::FileList target_filelist;
@@ -293,26 +297,22 @@
 	  std::string fullpath = "";
 	  std::unique_ptr<eos::IFileMD> fmd_cpy;
 
-	  {
-	    eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
-
-	    try
-	    {
-	      eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
-	      fullpath = gOFS->eosView->getUri(fmd);
-	      XrdOucString savepath = fullpath.c_str();
-	      while (savepath.replace("&", "#AND#")){}
-	      fullpath = savepath.c_str();
-	      fmd = gOFS->eosFileService->getFileMD(fid);
-	      fmd_cpy.reset(fmd->clone());
-	      fmd = (eos::IFileMD*)(0);
-	    }
-	    catch (eos::MDException &e)
-	    {
-	      fit++;
-	      continue;
-	    }
-	  }
+          try
+          {
+            eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
+            fullpath = gOFS->eosView->getUri(fmd);
+            XrdOucString savepath = fullpath.c_str();
+            while (savepath.replace("&", "#AND#")){}
+            fullpath = savepath.c_str();
+            fmd = gOFS->eosFileService->getFileMD(fid);
+            fmd_cpy.reset(fmd->clone());
+            fmd = (eos::IFileMD*)(0);
+          }
+          catch (eos::MDException &e)
+          {
+            fit++;
+            continue;
+          }
 
 	  if (fmd_cpy.get() == 0)
           {
@@ -400,7 +400,7 @@
 	      std::string tried_cgi;
 	      if (Quota::FileAccess(h_vid, (long unsigned int) 0, (const char*) 0,
 				    tried_cgi, lid, locationfs, NULL, NULL, fsindex,
-				    false, (long long unsigned) 0, unavailfs))
+				    false, (long long unsigned) 0, unavailfs,eos::mgm::Scheduler::draining))
               {
 		// inaccessible files we retry after 60 seconds
 		eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);
@@ -410,6 +410,13 @@
 		continue;
 	      }
 	    }
+            else
+	    {
+               // point to the stripe which is accessible but should be drained
+               locationfs.clear();	       
+               locationfs.push_back(source_fsid);
+               fsindex=0;
+	     }
 
 	    if (size < freebytes)
             {
@@ -514,8 +521,10 @@
 	      eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 	      int caprc = 0;
 
-	      if ((caprc = gCapabilityEngine.Create(&insource_capability, source_capabilityenv, symkey)) ||
-		  (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv, symkey)))
+	      if ((caprc = gCapabilityEngine.Create(&insource_capability, source_capabilityenv,
+                                                    symkey, mCapabilityValidity)) ||
+		  (caprc = gCapabilityEngine.Create(&intarget_capability, target_capabilityenv,
+                                                    symkey, mCapabilityValidity)))
               {
 		eos_thread_err("unable to create source/target capability - errno=%u", caprc);
 		gOFS->MgmStats.Add("SchedulingFailedDrain", 0, 0, 1);

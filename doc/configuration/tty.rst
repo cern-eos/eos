@@ -4,8 +4,8 @@
    pair: Console message Broadcasts; TTY
 
 
-FUSE Client
-===========
+Important Messgages Broadcasts on Terminals
+===========================================
 
 You can enable console broadcasts on MGM nodes for all desired messages by defining the two following
 environment variables in ``/etc/sysconfig/eos``

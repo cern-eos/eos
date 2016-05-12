@@ -180,6 +180,25 @@ FmdDbMapHandler::ShutdownDB (eos::common::FileSystem::fsid_t fsid)
 }
 
 
+bool
+FmdDbMapHandler::MarkCleanDB(eos::common::FileSystem::fsid_t fsid)
+{
+  eos::common::RWMutexWriteLock lock(Mutex);
+  eos_info("%s DB mark clean for fsid=%lu\n", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
+  if (dbmap.count(fsid))
+  {
+    if (DBfilename.count(fsid))
+    {
+      // if there was a complete boot procedure done, we remove the dirty flag
+      // set the mode back to S_IRWXU
+      if (chmod(DBfilename[fsid].c_str(), S_IRWXU))
+      {
+        eos_crit("failed to switch the %s database file to S_IRWXU errno=%d", eos::common::DbMap::getDbType().c_str(), errno);
+      }
+    }
+  }
+  return false;
+}
 
 /*----------------------------------------------------------------------------*/
 /** 
@@ -281,28 +300,29 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
           if ((!isRW) && ((fmd->fMd.disksize() && (fmd->fMd.disksize() != fmd->fMd.size())) ||
               (fmd->fMd.mgmsize() && (fmd->fMd.mgmsize() != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize() != fmd->fMd.size()))))
           {
-            eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size(), fmd->fMd.disksize(), fmd->fMd.mgmsize());
+            eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
+		     fid, (unsigned long) fsid, fmd->fMd.size(), fmd->fMd.disksize(), fmd->fMd.mgmsize());
             delete fmd;
             Mutex.UnLockRead();
             return 0;
           }
-        }
 
-        // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
-        // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
-        if ((!isRW) && fmd->fMd.mgmsize() &&
-            ((fmd->fMd.diskchecksum().length() && (fmd->fMd.diskchecksum() != fmd->fMd.checksum())) ||
-                (fmd->fMd.mgmchecksum().length() && (fmd->fMd.mgmchecksum() != fmd->fMd.checksum()))))
-        {
-          eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
-              "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
-              fid, (unsigned long) fsid, fmd->fMd.checksum().c_str(),
-              fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str());
+	  // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
+	  // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
+	  if ((!isRW) && fmd->fMd.mgmsize() &&
+	      ((fmd->fMd.diskchecksum().length() && (fmd->fMd.diskchecksum() != fmd->fMd.checksum())) ||
+	       (fmd->fMd.mgmchecksum().length() && (fmd->fMd.mgmchecksum() != fmd->fMd.checksum()))))
+	  {
+	    eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
+		     "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
+		     fid, (unsigned long) fsid, fmd->fMd.checksum().c_str(),
+		     fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str());
 
-          delete fmd;
-          Mutex.UnLockRead();
-          return 0;
-        }
+	    delete fmd;
+	    Mutex.UnLockRead();
+	    return 0;
+	  }
+	}
       }
 
       // return the new entry

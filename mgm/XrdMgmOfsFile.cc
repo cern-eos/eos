@@ -540,6 +540,8 @@ XrdMgmOfsFile::open (const char *inpath,
     // -------------------------------------------------------------------------
     if (!dmd)
     {
+      int save_errno = errno;
+
       MAYREDIRECT_ENOENT;
 
       if (cPath.GetSubPath(2))
@@ -598,6 +600,9 @@ XrdMgmOfsFile::open (const char *inpath,
           return rcode;
         }
       }
+      // put back original errno
+      errno = save_errno;
+
       gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
       return Emsg(epname, error, errno, "open file", path);
     }
@@ -913,9 +918,7 @@ XrdMgmOfsFile::open (const char *inpath,
             cid = fmd->getContainerId();
 
 	    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	    eos::IFileMD::ctime_t mtime;
-	    fmd->getMTime(mtime);
-	    cmd->setMTime(mtime);
+	    cmd->setMTimeNow();
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	    gOFS->eosView->updateContainerStore(cmd);
           }
@@ -1148,9 +1151,7 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         gOFS->eosView->updateFileStore(fmd);
 	eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
-	eos::IFileMD::ctime_t mtime;
-	fmd->getMTime(mtime);
-	cmd->setMTime(mtime);
+	cmd->setMTimeNow();
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
 	gOFS->eosView->updateContainerStore(cmd);
 
@@ -2112,7 +2113,8 @@ XrdMgmOfsFile::open (const char *inpath,
 
   eos_debug("capability=%s\n", capability.c_str());
   int caprc = 0;
-  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey)))
+  if ((caprc = gCapabilityEngine.Create(&incapability, capabilityenv, symkey,
+                                        gOFS->mCapabilityValidity)))
   {
     return Emsg(epname, error, caprc, "sign capability", path);
   }
@@ -2175,12 +2177,24 @@ XrdMgmOfsFile::open (const char *inpath,
     // get the current ETAG
     gOFS->_stat(path, &buf, error, rootvid, "", &etag);
     redirectionhost += "&mgm.etag=";
-    redirectionhost += etag.c_str();
+    if (!etag.length())
+    {
+      redirectionhost += "undef";
+    }
+    else 
+    {
+      redirectionhost += etag.c_str();
+    }
   }
 
   // add the MGM hex id for this file
   redirectionhost += "&mgm.id=";
   redirectionhost += hexfid;
+
+  if (isFuse)
+  {
+    redirectionhost += "&mgm.mtime=0";
+  }
 
   // Always redirect
   ecode = targetport;

@@ -16,14 +16,16 @@ if(NOT PYTHONINTERP_FOUND)
 endif()
 
 if(PYTHONSITEPKG_PATH)
- set(PYTHONSITEPKG_FIND_QUIETLY TRUE)
+  set(PYTHONSITEPKG_FIND_QUIETLY TRUE)
 else()
+  if((PYTHON_VERSION_MAJOR VERSION_EQUAL "3") OR (PYTHON_VERSION_MAJOR VERSION_GREATER "3"))
+    set(PY_CMD "from distutils import sysconfig; print(sysconfig.get_python_lib());")
+  else()
+    set(PY_CMD "from distutils import sysconfig; print sysconfig.get_python_lib();")
+  endif()
+
   execute_process(
-    COMMAND "${PYTHON_EXECUTABLE}" "-c"
-    "from __future__ import print_function;
-from distutils import sysconfig;
-print(sysconfig.get_python_lib());
-"
+    COMMAND "${PYTHON_EXECUTABLE}" "-c" "${PY_CMD}"
     RESULT_VARIABLE _PYTHON_SUCCESS
     ERROR_VARIABLE _PYTHON_ERROR_VALUE
     OUTPUT_VARIABLE PYTHONSITEPKG_PATH

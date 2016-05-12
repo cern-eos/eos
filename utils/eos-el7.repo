@@ -1,0 +1,9 @@
+[eos-citrine]
+name=EOS 4.0 Version
+baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/citrine/tag/el-7/$basearch/
+gpgcheck=0
+
+[eos-dep]
+name=EOS Aquamarine Dependencies
+baseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/aquamarine-depend/el-7-$basearch/
+gpgcheck=0

@@ -195,7 +195,7 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
 
     // TODO: this is useless as we don't release the lock eosViewRWMutex
-    eos::IFileMD* fmdCopy = fmd->clone();
+    std::unique_ptr<eos::IFileMD> fmdCopy{fmd->clone()};
 
     if (fmdCopy->isLink())
       buf->st_mode = S_IFLNK;
@@ -324,7 +324,12 @@ XrdMgmOfs::_stat (const char *path,
     eos::IContainerMD::ctime_t tmtime;
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
-    cmd->getTMTime(tmtime);
+
+    if (gOFS->eosSyncTimeAccounting)
+      cmd->getTMTime(tmtime);
+    else
+      // if there is no sync time accounting we just use the normal modification time
+      tmtime = mtime;
 
 #ifdef __APPLE__
     buf->st_atimespec.tv_sec = tmtime.tv_sec;
@@ -350,7 +355,7 @@ XrdMgmOfs::_stat (const char *path,
     {
       // use inode + mtime
       char setag[256];
-      snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino, (unsigned long long) buf->st_mtime);
+      snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"", (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime, (unsigned long) buf->st_atim.tv_nsec/1000000);
       *etag = setag;
     }
     // --|

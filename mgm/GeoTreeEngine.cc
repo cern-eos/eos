@@ -1407,80 +1407,83 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       // maps a geolocation scores (int) to all the file system having this geolocation scores
       map< unsigned , std::vector< FileSystem::fsid_t > > geoScore2Fs;
       vector<SchedTreeBase::tFastTreeIdx> accessedReplicasIdx(1);
-      // find the closest tree node to the accesser
-      accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
       for(auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end(); entryIt ++)
       {
-	if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
-	{
-	  char buffer[1024];
-	  buffer[0]=0;
-	  char *buf = buffer;
-	  for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
-	  buf += sprintf(buf,"%lu  ",(unsigned long)(it->second));
-	  eos_debug("existing replicas indices in geotree -> %s", buffer);
+        if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
+        {
+          char buffer[1024];
+          buffer[0]=0;
+          char *buf = buffer;
+          for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
+          buf += sprintf(buf,"%lu  ",(unsigned long)(it->second));
+          eos_debug("existing replicas indices in geotree -> %s", buffer);
 
-	  buffer[0]=0;
-	  buf = buffer;
-	  for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
-	  buf += sprintf(buf,"%s  ",(*entryIt->first->foregroundFastStruct->treeInfo)[it->second].fullGeotag.c_str());
-	  eos_debug("existing replicas geotags in geotree -> %s", buffer);
-	}
+          buffer[0]=0;
+          buf = buffer;
+          for(auto it = entryIt->second.begin(); it!= entryIt->second.end(); ++it)
+          buf += sprintf(buf,"%s  ",(*entryIt->first->foregroundFastStruct->treeInfo)[it->second].fullGeotag.c_str());
+          eos_debug("existing replicas geotags in geotree -> %s", buffer);
+        }
 
-	// if there is no replica here (might happen if it's spotted as unavailable after the first pass)
-	if(entryIt->second.empty())
-	continue;
+        // if there is no replica here (might happen if it's spotted as unavailable after the first pass)
+        if(entryIt->second.empty())
+        continue;
 
-	// fill a vector with the indices of the replicas
-	vector<SchedTreeBase::tFastTreeIdx> existingReplicasIdx(entryIt->second.size());
-	for(size_t i = 0; i < entryIt->second.size(); i++)
-	existingReplicasIdx[i] = entryIt->second[i].second;
+        entry = entryIt->first;
 
-	// pickup an access slot is this scheduling group
-	accessedReplicasIdx.clear();
-	unsigned char retCode = 0;
-	switch(type)
-	{
-	  case regularRO:
-	  retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
-	      entry->foregroundFastStruct->rOAccessTree,NULL,NULL,pSkipSaturatedAccess);
-	  break;
-	  case regularRW:
-	  retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
-	      entry->foregroundFastStruct->rWAccessTree,NULL,NULL,pSkipSaturatedAccess);
-	  break;
-	  case draining:
-	  retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
-	      entry->foregroundFastStruct->drnAccessTree,NULL,NULL,pSkipSaturatedDrnAccess);
-	  break;
-	  case balancing:
-	  retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
-	      entry->foregroundFastStruct->blcAccessTree,NULL,NULL,pSkipSaturatedBlcAccess);
-	  break;
-	  default:
-	  break;
-	}
-	if(!retCode) goto cleanup;
+        // find the closest tree node to the accesser
+        accesserNode = entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(accesserGeotag.c_str());;
 
-	const string &fsGeotag = (*entryIt->first->foregroundFastStruct->treeInfo)[*accessedReplicasIdx.begin()].fullGeotag;
-	unsigned geoScore = 0;
-	size_t kmax = min(accesserGeotag.length(),fsGeotag.length());
-	for(size_t k=0; k<kmax; k++)
-	{
-	  if(accesserGeotag[k]!=fsGeotag[k])
-	  break;
-	  if(accesserGeotag[k]==':' && k+1 < kmax && accesserGeotag[k+1]==':')
-	  geoScore++;
-	}
-	// if the box is unsaturated, give an advantage to this FS
-	if(retCode == 2)
-	{
-	  geoScore+=100;
-	  eos_debug("found unsaturated fs");
-	}
+        // fill a vector with the indices of the replicas
+        vector<SchedTreeBase::tFastTreeIdx> existingReplicasIdx(entryIt->second.size());
+        for(size_t i = 0; i < entryIt->second.size(); i++)
+        existingReplicasIdx[i] = entryIt->second[i].second;
 
-	geoScore2Fs[geoScore].push_back(
-	    (*entryIt->first->foregroundFastStruct->treeInfo)[*accessedReplicasIdx.begin()].fsId);
+        // pickup an access slot is this scheduling group
+        accessedReplicasIdx.clear();
+        unsigned char retCode = 0;
+        switch(type)
+        {
+          case regularRO:
+          retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+              entry->foregroundFastStruct->rOAccessTree,NULL,NULL,pSkipSaturatedAccess);
+          break;
+          case regularRW:
+          retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+              entry->foregroundFastStruct->rWAccessTree,NULL,NULL,pSkipSaturatedAccess);
+          break;
+          case draining:
+          retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+              entry->foregroundFastStruct->drnAccessTree,NULL,NULL,pSkipSaturatedDrnAccess);
+          break;
+          case balancing:
+          retCode = accessReplicas(entryIt->first,1,&accessedReplicasIdx,accesserNode,&existingReplicasIdx,
+              entry->foregroundFastStruct->blcAccessTree,NULL,NULL,pSkipSaturatedBlcAccess);
+          break;
+          default:
+          break;
+        }
+        if(!retCode) goto cleanup;
+
+        const string &fsGeotag = (*entryIt->first->foregroundFastStruct->treeInfo)[*accessedReplicasIdx.begin()].fullGeotag;
+        unsigned geoScore = 0;
+        size_t kmax = min(accesserGeotag.length(),fsGeotag.length());
+        for(size_t k=0; k<kmax; k++)
+        {
+          if(accesserGeotag[k]!=fsGeotag[k])
+          break;
+          if(accesserGeotag[k]==':' && k+1 < kmax && accesserGeotag[k+1]==':')
+          geoScore++;
+        }
+        // if the box is unsaturated, give an advantage to this FS
+        if(retCode == 2)
+        {
+          geoScore+=100;
+          eos_debug("found unsaturated fs");
+        }
+
+        geoScore2Fs[geoScore].push_back(
+            (*entryIt->first->foregroundFastStruct->treeInfo)[*accessedReplicasIdx.begin()].fsId);
       }
 
       // randomly choose a fs among the highest scored ones
@@ -1489,11 +1492,19 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       // return the corresponding index
       for (it = existingReplicas->begin(); it != existingReplicas->end(); it++)
       {
-	if(*it == selectedFsId)
-	{
-	  fsIndex = (eos::common::FileSystem::fsid_t) (it-existingReplicas->begin());
-	  break;
-	}
+        if(*it == selectedFsId)
+        {
+          fsIndex = (eos::common::FileSystem::fsid_t) (it-existingReplicas->begin());
+          break;
+        }
+      }
+
+      // check we found it
+      if(it == existingReplicas->end())
+      {
+        eos_err("inconsistency : unable to find the selected fs but it should be there");
+        returnCode = EIO;
+        goto cleanup;
       }
     }
 
@@ -1511,14 +1522,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     }
   }
 
-  // check we found it
-  if(it == existingReplicas->end())
-  {
-    eos_err("inconsistency : unable to find the selected fs but it should be there");
-    returnCode = EIO;
-    goto cleanup;
-  }
-
+  // apply penalties if needed
   if(!noIO)
   {
     std::set<eos::common::FileSystem::fsid_t> setunav(unavailableFs->begin(),unavailableFs->end());
@@ -1535,6 +1539,9 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       //////////
       // apply the penalties
       //////////
+      if(!pFs2SchedTME.count(fs))
+        continue;
+      entry = pFs2SchedTME[fs];
       const SchedTreeBase::tFastTreeIdx *idx;
       if(entry->foregroundFastStruct->fs2TreeIdx->get(fs,idx))
       {
@@ -1935,29 +1942,52 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_
   if(keys&sfgDrain)
   {
     FileSystem::fsstatus_t drainStatus = fs->mDrainStatus;
-    switch(drainStatus)
+    if(fs->mConfigStatus==FileSystem::kDrain && drainStatus==FileSystem::kDraining)
     {
-      case FileSystem::kNoDrain:
-      case FileSystem::kDrainPrepare:
-      case FileSystem::kDrainWait:
-      case FileSystem::kDrainStalling:
-      case FileSystem::kDrained:
-      case FileSystem::kDrainExpired:
-      case FileSystem::kDrainLostFiles:
-      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
-      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Draining;
-      // mark as unavailable for read/write
-      break;
-      case FileSystem::kDraining:
       // mark as draining
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
       if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Draining;
-      break;
+    }
+    else
+    {
+      // this covers the following cases
+      // case FileSystem::kNoDrain:
+      // case FileSystem::kDrainPrepare:
+      // case FileSystem::kDrainWait:
+      // case FileSystem::kDrainStalling:
+      // case FileSystem::kDrained:
+      // case FileSystem::kDrainExpired:
+      // case FileSystem::kDrainLostFiles:
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Draining);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Draining;
     }
   }
-  if(keys&sfgBalthres)
+  if(keys&sfgDrainer)
   {
-    if(fs->mBalRunning)
+    if(fs->mDrainerOn)
+    {
+      if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
+      if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Drainer;
+    }
+    else
+    {
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Drainer);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Drainer;
+    }
+  }
+
+  if(keys&(sfgBalthres|sfgFsfilled|sfgNomfilled))
+  {
+    auto nominal = fs->mNominalFilled;
+    auto filled = fs->mDiskFilled;
+    auto threshold = fs->mBalThresh;
+    bool balancing = false, balancer = false;
+    if ( nominal && ( (filled - threshold) >= nominal) )
+          balancing = true;
+    if ( nominal && ( (filled + threshold) <= nominal) )
+          balancer = true;
+
+    if(balancing)
     {
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancing);
       if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Balancing;
@@ -1967,15 +1997,19 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_
       if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancing);
       if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancing;
     }
-  }
-  //	if(keys&sfgFsfilled)
-  //	{
-  //		//half fr = half(fs->mNominalFilled);
-  //		float fr = float(fs->mNominalFilled);
-  //		if(ftIdx) setOneStateVarInAllFastTrees(fillRatio,fr);
-  //		if(stn) stn->pNodeState.fillRatio = fr;
-  //	}
 
+    if(balancer)
+    {
+      if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
+      if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Balancer;
+    }
+    else
+    {
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Balancer);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Balancer;
+    }
+
+  }
   if(keys&sfgBlkavailb)
   {
     float ts = float(fs->mDiskBfree * (double)fs->mDiskBsize );
@@ -2549,7 +2583,7 @@ bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsi
 
 void GeoTreeEngine::updateAtomicPenalties()
 {
-  // In this function, we compute a simplified version
+  // In this function, we compute a rough a simplified version
   // of the penalties applied to selected fs for placement and access.
   // there is only one penalty and it's copied to ulplct, dlplct, ulaccess and dlaccess
   // variants.
@@ -2709,34 +2743,34 @@ void GeoTreeEngine::updateAtomicPenalties()
   }
 }
 
-bool GeoTreeEngine::setSkipSaturatedPlct(bool value)
+bool GeoTreeEngine::setSkipSaturatedPlct(bool value, bool setconfig)
 {
-  return setInternalParam(pSkipSaturatedPlct,(int)value,false,"skipsaturatedplct");
+  return setInternalParam(pSkipSaturatedPlct,(int)value,false,setconfig?"skipsaturatedplct":"");
 }
-bool GeoTreeEngine::setSkipSaturatedAccess(bool value)
+bool GeoTreeEngine::setSkipSaturatedAccess(bool value, bool setconfig)
 {
-  return setInternalParam(pSkipSaturatedAccess,(int)value,false,"skipsaturatedaccess");
+  return setInternalParam(pSkipSaturatedAccess,(int)value,false,setconfig?"skipsaturatedaccess":"");
 }
-bool GeoTreeEngine::setSkipSaturatedDrnAccess(bool value)
+bool GeoTreeEngine::setSkipSaturatedDrnAccess(bool value, bool setconfig)
 {
-  return setInternalParam(pSkipSaturatedDrnAccess,(int)value,false,"skipsaturateddrnaccess");
+  return setInternalParam(pSkipSaturatedDrnAccess,(int)value,false,setconfig?"skipsaturateddrnaccess":"");
 }
-bool GeoTreeEngine::setSkipSaturatedBlcAccess(bool value)
+bool GeoTreeEngine::setSkipSaturatedBlcAccess(bool value, bool setconfig)
 {
-  return setInternalParam(pSkipSaturatedBlcAccess,(int)value,false,"skipsaturatedblcaccess");
+  return setInternalParam(pSkipSaturatedBlcAccess,(int)value,false,setconfig?"skipsaturatedblcaccess":"");
 }
-bool GeoTreeEngine::setSkipSaturatedDrnPlct(bool value)
+bool GeoTreeEngine::setSkipSaturatedDrnPlct(bool value, bool setconfig)
 {
-  return setInternalParam(pSkipSaturatedDrnPlct,(int)value,false,"skipsaturateddrnplct");
+  return setInternalParam(pSkipSaturatedDrnPlct,(int)value,false,setconfig?"skipsaturateddrnplct":"");
 }
-bool GeoTreeEngine::setSkipSaturatedBlcPlct(bool value)
+bool GeoTreeEngine::setSkipSaturatedBlcPlct(bool value, bool setconfig)
 {
-  return setInternalParam(pSkipSaturatedBlcPlct,(int)value,false,"skipsaturatedblcplct");
+  return setInternalParam(pSkipSaturatedBlcPlct,(int)value,false,setconfig?"skipsaturatedblcplct":"");
 }
 
-bool GeoTreeEngine::setProxyCloseToFs(bool value)
+bool GeoTreeEngine::setProxyCloseToFs(bool value, bool setconfig)
 {
-  return setInternalParam(pProxyCloseToFs,(int)value,false,"proxyclosetofs");
+  return setInternalParam(pProxyCloseToFs,(int)value,false,setconfig?"proxyclosetofs":"");
 }
 
 bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &vvalue, const std::string &configentry)
@@ -2779,70 +2813,70 @@ bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<cha
   return false;
 }
 
-bool GeoTreeEngine::setPlctDlScorePenalty(char value, int netSpeedClass)
+bool GeoTreeEngine::setPlctDlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-  return setScorePenalty(pPenaltySched.pPlctDlScorePenaltyF,pPenaltySched.pPlctDlScorePenalty,value,netSpeedClass,"plctdlscorepenalty");
+  return setScorePenalty(pPenaltySched.pPlctDlScorePenaltyF,pPenaltySched.pPlctDlScorePenalty,value,netSpeedClass,setconfig?"plctdlscorepenalty":"");
 }
-bool GeoTreeEngine::setPlctUlScorePenalty(char value, int netSpeedClass)
+bool GeoTreeEngine::setPlctUlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-  return setScorePenalty(pPenaltySched.pPlctUlScorePenaltyF,pPenaltySched.pPlctUlScorePenalty,value,netSpeedClass,"plctulscorepenalty");
+  return setScorePenalty(pPenaltySched.pPlctUlScorePenaltyF,pPenaltySched.pPlctUlScorePenalty,value,netSpeedClass,setconfig?"plctulscorepenalty":"");
 }
-bool GeoTreeEngine::setAccessDlScorePenalty(char value, int netSpeedClass)
+bool GeoTreeEngine::setAccessDlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-  return setScorePenalty(pPenaltySched.pAccessDlScorePenaltyF,pPenaltySched.pAccessDlScorePenalty,value,netSpeedClass,"accessdlscorepenalty");
+  return setScorePenalty(pPenaltySched.pAccessDlScorePenaltyF,pPenaltySched.pAccessDlScorePenalty,value,netSpeedClass,setconfig?"accessdlscorepenalty":"");
 }
-bool GeoTreeEngine::setAccessUlScorePenalty(char value, int netSpeedClass)
+bool GeoTreeEngine::setAccessUlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-   return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,netSpeedClass,"accessulscorepenalty");
+   return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,netSpeedClass,setconfig?"accessulscorepenalty":"");
 }
-bool GeoTreeEngine::setGwScorePenalty(char value, int netSpeedClass)
+bool GeoTreeEngine::setGwScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-   return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,netSpeedClass,"gwscorepenalty");
-}
-
-bool GeoTreeEngine::setPlctDlScorePenalty(const char *value)
-{
-  return setScorePenalty(pPenaltySched.pPlctDlScorePenaltyF,pPenaltySched.pPlctDlScorePenalty,value,"plctdlscorepenalty");
-}
-bool GeoTreeEngine::setPlctUlScorePenalty(const char *value)
-{
-  return setScorePenalty(pPenaltySched.pPlctUlScorePenaltyF,pPenaltySched.pPlctUlScorePenalty,value,"plctulscorepenalty");
-}
-bool GeoTreeEngine::setAccessDlScorePenalty(const char *value)
-{
-  return setScorePenalty(pPenaltySched.pAccessDlScorePenaltyF,pPenaltySched.pAccessDlScorePenalty,value,"accessdlscorepenalty");
-}
-bool GeoTreeEngine::setAccessUlScorePenalty(const char *value)
-{
-  return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,"accessulscorepenalty");
-}
-bool GeoTreeEngine::setGwScorePenalty(const char *value)
-{
-  return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,"gwscorepenalty");
+   return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,netSpeedClass,setconfig?"gwscorepenalty":"");
 }
 
-bool GeoTreeEngine::setFillRatioLimit(char value)
+bool GeoTreeEngine::setPlctDlScorePenalty(const char *value, bool setconfig)
 {
-  return setInternalParam(pFillRatioLimit,value,true,"fillratiolimit");
+  return setScorePenalty(pPenaltySched.pPlctDlScorePenaltyF,pPenaltySched.pPlctDlScorePenalty,value,setconfig?"plctdlscorepenalty":"");
 }
-bool GeoTreeEngine::setFillRatioCompTol(char value)
+bool GeoTreeEngine::setPlctUlScorePenalty(const char *value, bool setconfig)
 {
-  return setInternalParam(pFillRatioCompTol,value,true,"fillratiocomptol");
+  return setScorePenalty(pPenaltySched.pPlctUlScorePenaltyF,pPenaltySched.pPlctUlScorePenalty,value,setconfig?"plctulscorepenalty":"");
 }
-bool GeoTreeEngine::setSaturationThres(char value)
+bool GeoTreeEngine::setAccessDlScorePenalty(const char *value, bool setconfig)
 {
-  return setInternalParam(pSaturationThres,value,true,"saturationthres");
+  return setScorePenalty(pPenaltySched.pAccessDlScorePenaltyF,pPenaltySched.pAccessDlScorePenalty,value,setconfig?"accessdlscorepenalty":"");
 }
-bool GeoTreeEngine::setTimeFrameDurationMs(int value)
+bool GeoTreeEngine::setAccessUlScorePenalty(const char *value, bool setconfig)
 {
-  return setInternalParam(pTimeFrameDurationMs,value,false,"timeframedurationms");
+  return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,setconfig?"accessulscorepenalty":"");
 }
-bool GeoTreeEngine::setPenaltyUpdateRate(float value)
+bool GeoTreeEngine::setGwScorePenalty(const char *value, bool setconfig)
 {
-  return setInternalParam(pPenaltyUpdateRate,value,false,"penaltyupdaterate");
+  return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,setconfig?"gwscorepenalty":"");
 }
 
-bool GeoTreeEngine::setParameter( std::string param, const std::string &value,int iparamidx)
+bool GeoTreeEngine::setFillRatioLimit(char value, bool setconfig)
+{
+  return setInternalParam(pFillRatioLimit,value,true,setconfig?"fillratiolimit":"");
+}
+bool GeoTreeEngine::setFillRatioCompTol(char value, bool setconfig)
+{
+  return setInternalParam(pFillRatioCompTol,value,true,setconfig?"fillratiocomptol":"");
+}
+bool GeoTreeEngine::setSaturationThres(char value, bool setconfig)
+{
+  return setInternalParam(pSaturationThres,value,true,setconfig?"saturationthres":"");
+}
+bool GeoTreeEngine::setTimeFrameDurationMs(int value, bool setconfig)
+{
+  return setInternalParam(pTimeFrameDurationMs,value,false,setconfig?"timeframedurationms":"");
+}
+bool GeoTreeEngine::setPenaltyUpdateRate(float value, bool setconfig)
+{
+  return setInternalParam(pPenaltyUpdateRate,value,false,setconfig?"penaltyupdaterate":"");
+}
+
+bool GeoTreeEngine::setParameter( std::string param, const std::string &value,int iparamidx,bool setconfig)
 {
   std::transform(param.begin(), param.end(),param.begin(), ::tolower);
   double dval = 0.0;
@@ -2852,82 +2886,82 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
 #define readParamVFromString(PARAM,VALUE) { std::string q; if(sscanf(VALUE.c_str(),"[%f,%f,%f,%f,%f,%f,%f,%f]",&PARAM##F[0],&PARAM##F[1],&PARAM##F[2],&PARAM##F[3],&PARAM##F[4],&PARAM##F[5],&PARAM##F[6],&PARAM##F[7])!=8) return false; for(int i=0;i<8;i++) PARAM[i]=(char)PARAM##F[i]; ok = true;}
   if(param == "timeframedurationms")
   {
-    ok = gGeoTreeEngine.setTimeFrameDurationMs(ival);
+    ok = gGeoTreeEngine.setTimeFrameDurationMs(ival,setconfig);
   }
   else if(param == "saturationthres")
   {
-    ok = gGeoTreeEngine.setSaturationThres((char)ival);
+    ok = gGeoTreeEngine.setSaturationThres((char)ival,setconfig);
   }
   else if(param == "fillratiocomptol")
   {
-    ok = gGeoTreeEngine.setFillRatioCompTol((char)ival);
+    ok = gGeoTreeEngine.setFillRatioCompTol((char)ival,setconfig);
   }
   else if(param == "fillratiolimit")
   {
-    ok = gGeoTreeEngine.setFillRatioLimit((char)ival);
+    ok = gGeoTreeEngine.setFillRatioLimit((char)ival,setconfig);
   }
   else if(param == "accessulscorepenalty")
   {
     if(iparamidx>-2)
-      ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival,iparamidx);
+      ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival,iparamidx,setconfig);
     else
       readParamVFromString(pPenaltySched.pAccessUlScorePenalty,value);
   }
   else if(param == "accessdlscorepenalty")
   {
     if(iparamidx>-2)
-      ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival,iparamidx);
+      ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival,iparamidx,setconfig);
     else
       readParamVFromString(pPenaltySched.pAccessDlScorePenalty,value);
   }
   else if(param == "plctulscorepenalty")
   {
     if(iparamidx>-2)
-      ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival,iparamidx);
+      ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival,iparamidx,setconfig);
     else
       readParamVFromString(pPenaltySched.pPlctUlScorePenalty,value);
   }
   else if(param == "plctdlscorepenalty")
   {
     if(iparamidx>-2)
-      ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival,iparamidx);
+      ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival,iparamidx,setconfig);
     else
       readParamVFromString(pPenaltySched.pPlctDlScorePenalty,value);
   }
   else if(param == "gwscorepenalty")
   {
     if(iparamidx>-2)
-      ok = gGeoTreeEngine.setGwScorePenalty((char)ival,iparamidx);
+      ok = gGeoTreeEngine.setGwScorePenalty((char)ival,iparamidx,setconfig);
     else
       readParamVFromString(pPenaltySched.pGwScorePenalty,value);
   }
   else if(param == "skipsaturatedblcplct")
   {
-    ok = gGeoTreeEngine.setSkipSaturatedBlcPlct((bool)ival);
+    ok = gGeoTreeEngine.setSkipSaturatedBlcPlct((bool)ival,setconfig);
   }
   else if(param == "skipsaturateddrnplct")
   {
-    ok = gGeoTreeEngine.setSkipSaturatedDrnPlct((bool)ival);
+    ok = gGeoTreeEngine.setSkipSaturatedDrnPlct((bool)ival,setconfig);
   }
   else if(param == "skipsaturatedblcaccess")
   {
-    ok = gGeoTreeEngine.setSkipSaturatedBlcAccess((bool)ival);
+    ok = gGeoTreeEngine.setSkipSaturatedBlcAccess((bool)ival,setconfig);
   }
   else if(param == "skipsaturateddrnaccess")
   {
-    ok = gGeoTreeEngine.setSkipSaturatedDrnAccess((bool)ival);
+    ok = gGeoTreeEngine.setSkipSaturatedDrnAccess((bool)ival,setconfig);
   }
   else if(param == "skipsaturatedaccess")
   {
-    ok = gGeoTreeEngine.setSkipSaturatedAccess((bool)ival);
+    ok = gGeoTreeEngine.setSkipSaturatedAccess((bool)ival,setconfig);
   }
   else if(param == "skipsaturatedplct")
   {
-    ok = gGeoTreeEngine.setSkipSaturatedPlct((bool)ival);
+    ok = gGeoTreeEngine.setSkipSaturatedPlct((bool)ival,setconfig);
   }
   else if(param == "penaltyupdaterate")
   {
-    ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval);
+    ok = gGeoTreeEngine.setPenaltyUpdateRate((float)dval,setconfig);
   }
   else if(param == "disabledbranches")
   {
@@ -2948,7 +2982,7 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
         auto comidx2 = list.find(',',comidx+1);
         string optype(list.substr(comidx+1,comidx2-comidx-1));
         string group(list.substr(comidx2+1,idxr-comidx2-1));
-        ok = ok && gGeoTreeEngine.addDisabledBranch(group,optype,geotag,NULL);
+        ok = ok && gGeoTreeEngine.addDisabledBranch(group,optype,geotag,NULL,setconfig);
         list.erase(idxl,std::string::npos);
       }
     }
@@ -3088,7 +3122,7 @@ bool GeoTreeEngine::addDisabledBranch (const std::string& group, const std::stri
   return true;
 }
 
-bool GeoTreeEngine::rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output)
+bool GeoTreeEngine::rmDisabledBranch (const std::string& group, const std::string &optype, const std::string&geotag, XrdOucString *output, bool toConfig)
 {
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
   eos::common::RWMutexWriteLock lock2(pTreeMapMutex);
@@ -3120,12 +3154,15 @@ bool GeoTreeEngine::rmDisabledBranch (const std::string& group, const std::strin
     // to apply the new set of rules, mark the involved slow trees as modified to force a refresh
     markPendingBranchDisablings(group,optype,geotag);
 
-    // update the config
-    XrdOucString outStr("[ ");
-    showDisabledBranches("*","*","*",&outStr,false);
-    outStr.replace(")\n(",") , ("); outStr.replace(")\n",")");
-    outStr += " ]";
-    setConfigValue("geosched","disabledbranches" , outStr.c_str());
+    if(toConfig)
+    {
+      // update the config
+      XrdOucString outStr("[ ");
+      showDisabledBranches("*","*","*",&outStr,false);
+      outStr.replace(")\n(",") , ("); outStr.replace(")\n",")");
+      outStr += " ]";
+      setConfigValue("geosched","disabledbranches" , outStr.c_str());
+    }
   }
 
   return found;

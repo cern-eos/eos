@@ -134,8 +134,10 @@ ProcCommand::Attr ()
                   partialStdOut += "\"";
                   partialStdOut += "\n";
                 }
-                XrdMqMessage::Sort(partialStdOut);
+
+                eos::common::StringConversion::SortLines(partialStdOut);
                 stdOut += partialStdOut;
+
                 if (option == "r")
                   stdOut += "\n";
               }

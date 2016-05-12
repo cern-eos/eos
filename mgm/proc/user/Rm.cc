@@ -44,6 +44,8 @@ ProcCommand::Rm ()
   const char* inpath = spath.c_str();
   eos::common::Path cPath(inpath);
 
+  bool force = (option.find("f") != STR_NPOS);
+
   XrdOucString filter = "";
   std::set<std::string> rmList;
 
@@ -54,6 +56,12 @@ ProcCommand::Rm ()
   PROC_BOUNCE_NOT_ALLOWED;
 
   spath = path;
+
+  if (force && (vid.uid))
+  {
+    stdErr = "warning: removing the force flag - this is only allowed for the 'root' role!\n";
+    force = false;
+  }
 
   if (!spath.length())
   {
@@ -92,7 +100,7 @@ ProcCommand::Rm ()
     if (file_exists == XrdSfsFileExistIsFile)
     {
       // if we have rm -r <file> we remove the -r flag
-      option = "";
+      option.replace("r","");
     }
 
     if ((file_exists == XrdSfsFileExistIsDirectory) && filter.length())
@@ -120,7 +128,7 @@ ProcCommand::Rm ()
         }
       }
       // if we have rm * (whatever wildcard) we remove the -r flag
-      option = "";
+      option.replace("r","");
     }
     else
     {
@@ -128,7 +136,7 @@ ProcCommand::Rm ()
     }
 
     // find everything to be deleted
-    if (option == "r")
+    if (option.find("r") != STR_NPOS)
     {
       std::map<std::string, std::set<std::string> > found;
       std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
@@ -150,18 +158,30 @@ ProcCommand::Rm ()
       else
       {
 	XrdOucString recyclingAttribute;
-	
-	// check if this path has a recycle attribute
-	gOFS->_attr_get(spath.c_str(), *mError, *pVid, "",
-                        Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+
+	if (!force)
+	{
+	  // only recycle if there is no '-f' flag
+	  int rpos;
+	  if ( (rpos = spath.find("/.sys.v#.")) == STR_NPOS)
+	  {
+	    // check if this path has a recycle attribute
+	    gOFS->_attr_get(spath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	  }
+	  else
+	  {
+	    XrdOucString ppath = spath;
+	    ppath.erase(rpos);
+	    // get it from the parent directory for version directories
+	    gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "", Recycle::gRecyclingAttribute.c_str(),recyclingAttribute);
+	  }
+	}
 
         //.......................................................................
-        // see if we have a recycle policy set and if avoid to recycle inside
-        // the recycle bin
+        // see if we have a recycle policy set 
         //.......................................................................
 	if (recyclingAttribute.length() &&
-	    (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) &&
-	    (spath.find("/.sys.v#.") == STR_NPOS))
+	    (!spath.beginswith(Recycle::gRecyclingPrefix.c_str())) )
 	{
           //.....................................................................
           // two step deletion via recycle bin
@@ -258,9 +278,10 @@ ProcCommand::Rm ()
 		entry.erase(l_pos);
 
               fspath += entry;
-              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0))
+              if (gOFS->_rem(fspath.c_str(), *mError, *pVid, (const char*) 0, false, false, force))
               {
-                stdErr += "error: unable to remove file\n";
+                stdErr += "error: unable to remove file : \n";
+		stdErr += fspath.c_str();
                 retc = errno;
               }
             }
@@ -275,7 +296,8 @@ ProcCommand::Rm ()
             if (gOFS->_remdir(rfoundit->first.c_str(), *mError, *pVid, (const char*) 0))
             {
 	      if (errno != ENOENT) {
-		stdErr += "error: unable to remove directory";
+		stdErr += "error: unable to remove directory :";
+		stdErr += rfoundit->first.c_str();
 		retc = errno;
 	      }
             }
@@ -287,7 +309,7 @@ ProcCommand::Rm ()
     {
       for (auto it = rmList.begin(); it != rmList.end(); ++it)
       {
-        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0) && (errno != ENOENT))
+        if (gOFS->_rem(it->c_str(), *mError, *pVid, (const char*) 0, false, false, force) && (errno != ENOENT))
         {
           stdErr += "error: unable to remove file/directory '";
           stdErr += it->c_str();

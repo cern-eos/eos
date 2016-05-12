@@ -308,6 +308,16 @@ PropFindResponse::ParseRequestPropertyTypes (rapidxml::xml_node<> *node)
           mRequestPropertyTypes |= MapRequestPropertyType(prop);
         }
       }
+
+      for (auto it = mCustomNamespaces.begin(); it != mCustomNamespaces.end(); ++it)
+      {
+        std::string ns = it->first;
+        if (propertyName.beginswith(ns.c_str()))
+        {
+          std::string prop(std::string(propertyName.c_str()), colon + 1);
+          mRequestPropertyTypes |= MapRequestPropertyType(prop);
+        }
+      }
     }
     else
     {
@@ -449,7 +459,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     // -----------------------------------------------------------
     // retrieve the current quota
     // -----------------------------------------------------------
-    std::string path = urlp.c_str();
+    std::string path = url.c_str();
     if (path.substr(path.length() - 1, 1) != "/")
     {
       path += "/";
@@ -470,8 +480,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     {
       std::string sQuotaUsed;
       quotaUsed = AllocateNode("d:quota-used-bytes");
-      if (quotaUsed)
-        SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) maxbytes - freebytes));
+      SetValue(quotaUsed, eos::common::StringConversion::GetSizeString(sQuotaUsed, (unsigned long long) statInfo.st_size));
     }
   }
 
@@ -515,7 +524,7 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
   {
     // test access permissions
     std::string oc_perm = "";
-    gOFS->acc_access(urlp.c_str(), error, *mVirtualIdentity, oc_perm);
+    gOFS->acc_access(url.c_str(), error, *mVirtualIdentity, oc_perm);
     SetValue(ocperm, oc_perm.c_str());
     propFound->append_node(ocperm);
   }

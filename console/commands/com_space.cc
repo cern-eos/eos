@@ -131,23 +131,22 @@ com_space (char* arg1)
     in = "mgm.cmd=space&mgm.subcmd=reset";
     XrdOucString spacename = subtokenizer.GetToken();
     XrdOucString option = subtokenizer.GetToken();
-    while (option.replace("-", ""))
-    {
-    }
+    while (option.replace("-","")) {}
 
     if (!spacename.length())
       printusage = true;
 
-    if (option.length() &&
-        (option != "egroup") &&
-        (option != "drain") &&
-        (option != "scheduledrain") &&
-        (option != "schedulebalance"))
+    if (option.length() && 
+	(option != "egroup") &&
+	(option != "mapping") &&
+	(option != "drain") &&
+	(option != "scheduledrain") && 
+	(option != "schedulebalance") ) 
       printusage = true;
-
+    
     in += "&mgm.space=";
     in += spacename;
-    if (option.length())
+    if (option.length()) 
     {
       in += "&mgm.option=";
       in += option;
@@ -464,6 +463,7 @@ com_space_usage:
   fprintf(stdout, "\n");
   fprintf(stdout, "       space node-get <space-name> <node.key>                        : get the value of <node.key> and base64 decode before output\n");
   fprintf(stdout, "                                                                     : if the value for <node.key> is identical for all nodes in the referenced space, it is dumped only once, otherwise the value is dumped for each node separately\n");
+  fprintf(stdout, "\n");
   fprintf(stdout, "       space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance] \n");
   fprintf(stdout, "                                                                     : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout, "       space status <space-name>                                     : print's all defined variables for space\n");

@@ -34,9 +34,9 @@ ProcCommand::AdminQuota()
 {
   if (mSubCmd == "rmnode")
   {
-    eos_notice("quota rm");
+    eos_notice("quota rmnode");
 
-    if ((pVid->prot != "sss") && (eos::common::Mapping::IsLocalhost(*pVid)))
+    if ( (pVid->uid == 0) )
     {
       std::string msg = "";
       std::string tag = "mgm.quota.space";
@@ -58,8 +58,7 @@ ProcCommand::AdminQuota()
     else
     {
       retc = EPERM;
-      stdErr = "error: you cannot remove quota nodes from storage node with"
-	       " 'sss' authentication!";
+      stdErr = "error: you cannot remove quota nodes without having the root role!";
     }
   }
   else

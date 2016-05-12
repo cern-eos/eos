@@ -311,8 +311,9 @@ Storage::Publish ()
           gOFS.OpenFidMutex.UnLock();
 
           {
-            XrdSysMutexHelper(fileSystemFullMapMutex);
             long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
+
+            XrdSysMutexHelper(fileSystemFullMapMutex);
             // stop the writers if it get's critical under 5 GB space
 
 	    int full_gb = 5;

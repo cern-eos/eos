@@ -51,10 +51,12 @@ include_directories(
   ${XFS_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIR}
   ${JSONC_INCLUDE_DIR}
-  ${DAVIX_INCLUDE_DIR}
-)
+  ${DAVIX_INCLUDE_DIR})
 
-if (CPPUNIT_FOUND)
+#-------------------------------------------------------------------------------
+# Add CppUnit tests if possible
+#-------------------------------------------------------------------------------
+if(CPPUNIT_FOUND)
   add_subdirectory(tests)
 endif(CPPUNIT_FOUND)
 
@@ -93,7 +95,7 @@ target_link_libraries(
 # EosFstIo library
 #-------------------------------------------------------------------------------
 set(
-  EOSFSTIO_SRCS_SERVER
+  EOSFSTIO_SRCS
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
 
@@ -137,11 +139,6 @@ set(
   layout/jerasure/galois.cc          layout/jerasure/galois.hh
   layout/jerasure/cauchy_best_r6.cc  layout/jerasure/cauchy.hh)
 
-set(
-  EOSFSTIO_SRCS
-  ${EOSFSTIO_SRCS_SERVER}
-)
-
 add_library(
   EosFstIo SHARED
   ${EOSFSTIO_SRCS}
@@ -164,7 +161,7 @@ target_link_libraries(
   ${JSONC_LIBRARIES}
   ${KINETICIO_LIBRARIES}
   ${DAVIX_LIBRARIES}
-)
+  ${PROTOBUF_LIBRARIES})
 
 if(Linux)
   add_library(
@@ -200,6 +197,8 @@ set(
   Load.cc
   ScanDir.cc
   Messaging.cc
+  io/FileIoPlugin-Server.cc
+  io/LocalIo.cc                  io/LocalIo.hh
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
 
   #-----------------------------------------------------------------------------
@@ -247,8 +246,7 @@ set(
   #-----------------------------------------------------------------------------
   # EosFstIo interface
   #-----------------------------------------------------------------------------
-  io/FileIoPlugin-Server.cc
-  ${EOSFSTIO_SRCS_SERVER})
+  ${EOSFSTIO_SRCS})
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
 
@@ -304,7 +302,6 @@ add_executable(
   eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdHandler.cc
-#  FmdSqlite.cc           
   FmdDbMap.cc
   FmdClient.cc           tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
@@ -364,9 +361,9 @@ endif()
 if(MacOSX)
   set_target_properties(
     EosFstIo
+    PROPERTIES
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
-    PROPERTIES
     MACOSX_RPATH TRUE)
   target_link_libraries(eoscp EosFstIo ${XROOTD_CL_LIBRARY})
 else()

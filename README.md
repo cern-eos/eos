@@ -39,7 +39,7 @@ doxygen
 * doc - Doxygen documentation
 * etc - Service scripts, logrotation and sysconfig Files
 * fst - The Storage Server Plugin (FST)
-* fuse - The FUSE mount Client (eosd - low level, eosfsd - high level)
+* fuse - The FUSE mount Client (eosd low level API)
 * man - Manual pages
 * mgm - Meta Data Namespace and Scheduling Redirector Plugin (MGM)
 * mq - Message Queue Server Plugin

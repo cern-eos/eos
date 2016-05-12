@@ -21,76 +21,64 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-		     ${CMAKE_CURRENT_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR}
-             ${KINETIC_INCLUDE_DIR}
- )
+include_directories(${XROOTD_INCLUDE_DIRS}
+                    ${KINETIC_INCLUDE_DIR})
 
-link_directories( ${XROOTD_LIB_DIR} )
-
-add_library( 
+#-------------------------------------------------------------------------------
+# FuseCache library
+#-------------------------------------------------------------------------------
+add_library(
   FuseCache SHARED
-  LayoutWrapper.cc LayoutWrapper.hh
   FuseWriteCache.cc  FuseWriteCache.hh
   CacheEntry.cc      CacheEntry.hh
-  FileAbstraction.cc FileAbstraction.hh )
-
+  FileAbstraction.cc FileAbstraction.hh
+  LayoutWrapper.cc LayoutWrapper.hh)
 
 set_target_properties(
   FuseCache
   PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
 
-if( MacOSX )
-target_link_libraries( 
-  FuseCache 
-  XrdCl    
-  XrdUtils 
+target_link_libraries(
+  FuseCache
+  eosCommon
   EosFstIo
-  eosCommon
-  ${KINETIC_LIBRARIES} 
-  ${CMAKE_THREAD_LIBS_INIT} )
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${KINETIC_LIBRARIES})
 
+if (Linux)
+  set_target_properties(
+    FuseCache
+    PROPERTIES
+    VERSION ${VERSION}
+    SOVERSION ${VERSION_MAJOR}
+    INTERFACE_LINK_LIBRARIES "")
 
-install ( TARGETS FuseCache
-          LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
-          RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-          ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR} )
+  add_library(
+    FuseCache-Static STATIC
+    FuseWriteCache.cc  FuseWriteCache.hh
+    CacheEntry.cc      CacheEntry.hh
+    FileAbstraction.cc FileAbstraction.hh
+    LayoutWrapper.cc LayoutWrapper.hh)
 
-else( MacOSX )
-target_link_libraries( 
-  FuseCache 
-  XrdCl    
-  XrdUtils 
-  EosFstIo-Static 
-  eosCommon
-  ${KINETIC_LIBRARIES}
-  ${CMAKE_THREAD_LIBS_INIT} )
+  target_link_libraries(
+    FuseCache-Static
+    EosFstIo-Static
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KINETIC_LIBRARIES})
 
-add_library( 
-  FuseCache-Static STATIC
-  LayoutWrapper.cc LayoutWrapper.hh
-  FuseWriteCache.cc  FuseWriteCache.hh
-  CacheEntry.cc      CacheEntry.hh
-  FileAbstraction.cc FileAbstraction.hh )
-
-target_link_libraries( 
-  FuseCache-Static 
-  XrdCl 
-  XrdUtils   
-  EosFstIo-Static 
-  eosCommon-Static
-  ${KINETIC_LIBRARIES} 
-  ${CMAKE_THREAD_LIBS_INIT} )
-
-set_target_properties(
+  set_target_properties(
   FuseCache-Static
   PROPERTIES
   COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
 
-endif ( MacOSX )
-
-
-
-
+else()
+  set_target_properties(
+    FuseCache
+    PROPERTIES
+    MACOSX_RPATH TRUE)
+endif()

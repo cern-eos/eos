@@ -64,14 +64,12 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
   eos::common::Mapping::VirtualIdentity fidvid;
   eos::common::Mapping::Copy(vid, fidvid);
   time_t filectime = 0;
-  unsigned long long cid=0;
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       fmd = gOFS->eosFileService->getFileMD(fid);
-      cid = fmd->getContainerId();
       path = gOFS->eosView->getUri(fmd).c_str();
       eos::common::Path cPath(path.c_str());
       bool noversion;
@@ -230,6 +228,26 @@ XrdMgmOfs::PurgeVersion (const char* versiondir,
   int listrc = directory.open(versiondir, rootvid, (const char*) 0);
 
   int success = 0;
+
+  eos_info("listrc=%d max-version=%d", listrc, max_versions);
+  if (!listrc && !max_versions)
+  {
+    // we use the rm-r proc function to do the clean-up to have the recycle functionality involved for version directories
+    ProcCommand Cmd;
+    //info=eos.rgid=0&eos.ruid=0&mgm.cmd=rm&mgm.option=r&mgm.path=
+    XrdOucString info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
+    info += path.c_str();
+    Cmd.open("/proc/user", info.c_str(), vid, &error);
+    Cmd.close();
+    if (Cmd.GetRetc())
+    {
+      return SFS_ERROR;
+    }
+    else
+    {
+      return SFS_OK;
+    }
+  }
 
   if (!listrc)
   {

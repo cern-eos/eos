@@ -60,7 +60,8 @@ Scheduler::FilePlacement(const std::string& spacename,
                          const std::string& plctTrgGeotag,
                          bool truncate,
                          int forced_scheduling_group_index,
-                         unsigned long long bookingsize)
+                         unsigned long long bookingsize,
+                         tSchedType schedtype)
 {
   eos_static_debug("requesting file placement from geolocation %s", vid.geolocation.c_str());
   // the caller routine has to lock via => eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
@@ -268,20 +269,30 @@ Scheduler::FileAccess (
                        std::vector<unsigned int> &unavailfs, //< return filesystems currently unavailable
                        eos::common::FileSystem::fsstatus_t min_fsstatus, //< defines minimum filesystem state to allow filesystem selection
                        std::string overridegeoloc, //< override geolocation defined in virtual id
-                       bool noIO)
+                       bool noIO,
+                       tSchedType schedtype)
 {
-  // Read(/write) access routine
-  size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid):
-  eos::common::LayoutId::GetMinOnlineReplica(lid);
-  eos_static_debug("requesting file access from geolocation %s",vid.geolocation.c_str());
+  size_t nReqStripes = isRW ? eos::common::LayoutId::GetOnlineStripeNumber(lid) :
+                       eos::common::LayoutId::GetMinOnlineReplica(lid);
+  eos_static_debug("requesting file access from geolocation %s",
+                   vid.geolocation.c_str());
 
-  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes,fsindex,&locationsfs,
-      dataproxys,
-      firewallentpts,
-      isRW?GeoTreeEngine::regularRW:GeoTreeEngine::regularRO,
-      overridegeoloc.empty() ?
-      vid.geolocation :
-      overridegeoloc,forcedfsid,&unavailfs,noIO);
+  GeoTreeEngine::SchedType st=GeoTreeEngine::regularRO;
+  if(schedtype==regular)
+  {
+    if(isRW) st = GeoTreeEngine::regularRW;
+    else     st = GeoTreeEngine::regularRO;
+  }
+  if(schedtype==draining) st = GeoTreeEngine::draining;
+  if(schedtype==balancing) st = GeoTreeEngine::balancing;
+
+  return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes, fsindex,
+         &locationsfs,
+         dataproxys,
+         firewallentpts,
+         st,
+         overridegeoloc.empty() ? vid.geolocation : overridegeoloc,
+         forcedfsid, &unavailfs, noIO);
 }
 
 EOSMGMNAMESPACE_END

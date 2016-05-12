@@ -1,23 +1,24 @@
 #-------------------------------------------------------------------------------
-# Helper macros
+# Helper macros and variables
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
 %define distribution %(/usr/lib/rpm/redhat/dist.sh --distnum)
 
 %if %{?rhel:1}%{!?rhel:0}
     %if %{rhel} >= 7
-        %define use_systemd 1
+	%define use_systemd 1
     %else
-        %define use_systemd 0
+	%define use_systemd 0
     %endif
 %else
     %if %{?fedora}%{!?fedora:0} >= 19
-        %define use_systemd 1
+	%define use_systemd 1
     %else
-        %define use_systemd 0
+	%define use_systemd 0
     %endif
 %endif
 
+%define xrootd_version 4.0.0
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
 #-------------------------------------------------------------------------------
@@ -42,10 +43,10 @@ BuildRequires: cmake >= 2.8
 %define cmake_cmd cmake
 %endif
 
-BuildRequires: xrootd >= 3.3.4
-BuildRequires: xrootd-server-devel >= 3.3.4
-BuildRequires: xrootd-private-devel  >= 3.3.4
-BuildRequires: xrootd-client-devel
+BuildRequires: xrootd >= %{xrootd_version}
+BuildRequires: xrootd-server-devel >= %{xrootd_version}
+BuildRequires: xrootd-private-devel >= %{xrootd_version}
+BuildRequires: xrootd-client-devel >= %{xrootd_version}
 BuildRequires: git, readline-devel
 BuildRequires: libattr-devel, openldap-devel
 BuildRequires: e2fsprogs-devel, xfsprogs-devel
@@ -89,8 +90,8 @@ The EOS software package.
 Summary: The EOS server installation
 Group: Applications/File
 
-Requires: xrootd >= 3.3.4
-Requires: xrootd-client
+Requires: xrootd >= %{xrootd_version}
+Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client
 Requires: libmicrohttpd
 Requires: acl
@@ -205,14 +206,14 @@ sleep 2
 
 %preun -n eos-server
 if [ $1 = 0 ]; then
-        echo "Stopping EOS services"
-        /sbin/service eosha stop > /dev/null 2>&1
-        /sbin/service eosd stop > /dev/null 2>&1
-        /sbin/service eos stop > /dev/null 2>&1 || :
-        /sbin/service eossync stop > /dev/null 2>&1
-        /sbin/service eosslave stop > /dev/null 2>&1
-        /sbin/chkconfig --del eos
-        /sbin/chkconfig --del eosslave
+	echo "Stopping EOS services"
+	/sbin/service eosha stop > /dev/null 2>&1
+	/sbin/service eosd stop > /dev/null 2>&1
+	/sbin/service eos stop > /dev/null 2>&1 || :
+	/sbin/service eossync stop > /dev/null 2>&1
+	/sbin/service eosslave stop > /dev/null 2>&1
+	/sbin/chkconfig --del eos
+	/sbin/chkconfig --del eosslave
 fi
 
 #-------------------------------------------------------------------------------
@@ -222,7 +223,7 @@ fi
 Summary: The EOS shell client
 Group: Applications/File
 
-Requires: xrootd-client
+Requires: xrootd-client >= %{xrootd_version}
 Requires: protobuf
 
 %description -n eos-client
@@ -250,8 +251,7 @@ The EOS shell client.
 Summary: The EOS fuse client
 Group: Applications/File
 
-Requires: xrootd-client
-Requires: eos-client
+Requires: xrootd-client >= %{xrootd_version}
 Requires: fuse
 
 %description -n eos-fuse
@@ -259,9 +259,10 @@ The EOS fuse client.
 
 %files -n eos-fuse
 %defattr(-, root, root, -)
-%{_bindir}/eosfsd
-%{_sbindir}/eosd
+%{_bindir}/eosd
 %{_bindir}/eosfusebind
+/sbin/mount.eos
+/sbin/umount.eos
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
@@ -273,17 +274,21 @@ The EOS fuse client.
 %endif
 
 %post -n eos-fuse
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+echo "Skipping chkconfig for eosd"
+%else
 /sbin/chkconfig --add eosd
-echo "Starting conditional EOS FUSE services"
-sleep 2
-/sbin/service eosd condrestart > /dev/null 2>&1 || :
-
+%endif
 %preun -n eos-fuse
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+echo "Skipping chkconfig for eosd"
+%else
 if [ $1 = 0 ]; then
-        echo "Stopping EOS FUSE services"
-        /sbin/service eosd stop > /dev/null 2>&1 || :
-        /sbin/chkconfig --del eosd
+	echo "Stopping EOS FUSE services"
+	/sbin/service eosd stop > /dev/null 2>&1 || :
+	/sbin/chkconfig --del eosd
 fi
+%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-srm
@@ -326,7 +331,8 @@ Contains an example keytab file.
 Summary: The EOS archive daemon
 Group: Applications/File
 
-Requires: python-daemon python-zmq xrootd-python
+Requires: python-daemon python-zmq
+Requires: xrootd-python >= %{xrootd_version}
 
 %description -n eos-archive
 The EOS archive daemon.
@@ -349,9 +355,9 @@ sleep 2
 
 %preun -n eos-archive
 if [ $1 = 0 ]; then
-        echo "Stopping EOS archive services"
-        /sbin/service eosarchvied stop > /dev/null 2>&1 || :
-        /sbin/chkconfig --del eosarchived
+	echo "Stopping EOS archive services"
+	/sbin/service eosarchvied stop > /dev/null 2>&1 || :
+	/sbin/chkconfig --del eosarchived
 fi
 %endif
 
@@ -404,3 +410,85 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-log-clean
 %{_sbindir}/eos-fst-clean
 %{_sbindir}/eos-mgm-clean
+
+
+%if %{?yumrpm:1}%{!?yumrpm:0} == 1
+
+#-------------------------------------------------------------------------------
+# Package eos-repo-el6
+#-------------------------------------------------------------------------------
+%package -n eos-repo-el6
+
+Version: generic
+Release: 1
+BuildArch: noarch
+
+Summary: The EOS YUM repo configuration for EL6
+Group: Applications/File
+
+%description -n eos-repo-el6
+Contains a yum configuration file for the production EOS EL6 repo
+
+%files -n eos-repo-el6
+%defattr(-, root, root, -)
+%{_sysconfdir}/yum.repos.d/eos-el6.repo
+
+#-------------------------------------------------------------------------------
+# Package eos-repo-el7
+#-------------------------------------------------------------------------------
+%package -n eos-repo-el7
+
+Version: generic
+Release: 1
+BuildArch: noarch
+
+Summary: The EOS YUM repo configuration for EL7
+Group: Applications/File
+
+%description -n eos-repo-el7
+Contains a yum configuration file for the production EOS EL7 repo
+
+%files -n eos-repo-el7
+%defattr(-, root, root, -)
+%{_sysconfdir}/yum.repos.d/eos-el7.repo
+
+#-------------------------------------------------------------------------------
+# Package eos-repo-el6-dev
+#-------------------------------------------------------------------------------
+%package -n eos-repo-el6-dev
+
+Version: generic
+Release: 1
+BuildArch: noarch
+
+Summary: The EOS developement YUM repo configuration for EL6
+Group: Applications/File
+
+%description -n eos-repo-el6-dev
+Contains a yum configuration file for the development EOS EL6 repo
+
+%files -n eos-repo-el6-dev
+%defattr(-, root, root, -)
+%{_sysconfdir}/yum.repos.d/eos-el6-dev.repo
+
+#-------------------------------------------------------------------------------
+# Package eos-repo-el7-dev
+#-------------------------------------------------------------------------------
+%package -n eos-repo-el7-dev
+
+Version: generic
+Release: 1
+BuildArch: noarch
+
+Summary: The EOS development YUM repo configuration for EL7
+Group: Applications/File
+
+%description -n eos-repo-el7-dev
+Contains a yum configuration file for the development EOS EL7 repo
+
+%files -n eos-repo-el7-dev
+%defattr(-, root, root, -)
+%{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
+
+%endif
+

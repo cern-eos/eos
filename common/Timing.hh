@@ -128,7 +128,54 @@ public:
     return time_elapsed;
   }
   
-  
+  // ---------------------------------------------------------------------------
+  //! Return the age of a timespec
+  // ---------------------------------------------------------------------------
+  static long long
+  GetAgeInNs ( const struct timespec *ts , const struct timespec *now=NULL)
+  {
+    struct timespec tsn;
+    if(!now)
+    {
+      GetTimeSpec(tsn);
+      now = &tsn;
+    }
+
+    return (now->tv_sec-ts->tv_sec)*1000000000 + (now->tv_nsec-ts->tv_nsec);
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Return the age of a ns timestamp
+  // ---------------------------------------------------------------------------
+  static long long
+  GetAgeInNs ( long long ts , const struct timespec *now=NULL)
+  {
+    struct timespec tsn;
+    if(!now)
+    {
+      GetTimeSpec(tsn);
+      now = &tsn;
+    }
+
+    return (now->tv_sec*1000000000 + now->tv_nsec) - ts;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Return the coarse age of a ns timestamp
+  // ---------------------------------------------------------------------------
+  static long long
+  GetCoarseAgeInNs ( long long ts , const struct timespec *now=NULL)
+  {
+    struct timespec tsn;
+    if(!now)
+    {
+      GetTimeSpec(tsn,true);
+      now = &tsn;
+    }
+
+    return (now->tv_sec*1000000000 + now->tv_nsec) - ts;
+  }
+
   // ---------------------------------------------------------------------------
   //! Print method to display measurements on STDERR
   // ---------------------------------------------------------------------------
@@ -187,7 +234,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  GetTimeSpec (struct timespec &ts)
+  GetTimeSpec (struct timespec &ts, bool coarse=false)
   {
 #ifdef __APPLE__
     struct timeval tv;
@@ -195,7 +242,14 @@ public:
     ts.tv_sec = tv.tv_sec;
     ts.tv_nsec = tv.tv_usec * 1000;
 #else
-    clock_gettime(CLOCK_REALTIME, &ts);
+    if(coarse)
+#ifdef CLOCK_REALTIME_COARSE
+      clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+#else
+      clock_gettime(CLOCK_REALTIME, &ts);
+#endif
+    else
+      clock_gettime(CLOCK_REALTIME, &ts);
 #endif
   }
 

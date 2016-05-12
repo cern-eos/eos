@@ -78,8 +78,10 @@ XrdMgmOfs::rename (const char *old_name,
   oldn = old_name;
   newn = new_name;
 
-  oldn.replace("#space#"," ");
-  newn.replace("#space#"," ");
+  if(!renameo_Env.Get("eos.encodepath"))
+    oldn.replace("#space#"," ");
+  if(!renamen_Env.Get("eos.encodepath"))
+    newn.replace("#space#"," ");
 
   if ((oldn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS) ||
       (newn.find(EOS_COMMON_PATH_VERSION_PREFIX) != STR_NPOS))
@@ -372,7 +374,9 @@ XrdMgmOfs::_rename (const char *old_name,
 	  if (file)
 	  {
 	    eosView->renameFile(file, nPath.GetName());
-	    UpdateNowInmemoryDirectoryModificationTime(dir->getId());
+            dir->setMTimeNow();
+            dir->notifyMTimeChange( gOFS->eosDirectoryService );
+            eosView->updateContainerStore(dir);
 	  }
 	}
 	else
@@ -383,8 +387,12 @@ XrdMgmOfs::_rename (const char *old_name,
 	  {
 	    // Move to a new directory
 	    dir->removeFile(oPath.GetName());
-	    UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-	    UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
+            dir->setMTimeNow();
+            dir->notifyMTimeChange( gOFS->eosDirectoryService );
+            newdir->setMTimeNow();
+            newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+            eosView->updateContainerStore(dir);
+            eosView->updateContainerStore(newdir);
 	    file->setName(nPath.GetName());
 	    file->setContainerId(newdir->getId());
 
@@ -518,21 +526,65 @@ XrdMgmOfs::_rename (const char *old_name,
 	  {
 	    // Rename within a container
 	    eosView->renameContainer(rdir, nPath.GetName());
-	    UpdateNowInmemoryDirectoryModificationTime(rdir->getId());
+	    dir->setMTimeNow();
+	    dir->notifyMTimeChange( gOFS->eosDirectoryService );
+	    eosView->updateContainerStore(dir);	     
 	  }
 	  else
 	  {
 	    // Remove from one container to another one
-	    dir->removeContainer(oPath.GetName());
-	    UpdateNowInmemoryDirectoryModificationTime(dir->getId());
-	    rdir->setName(nPath.GetName());
+              {
+			// rename the moved directory
+		rdir->setName(nPath.GetName());
+		if (updateCTime)
+		{
+		  rdir->setCTimeNow();
+		}
+		eosView->updateContainerStore(rdir);
+	      }
 
-	    if (updateCTime)
-	      rdir->setCTimeNow();
+	      unsigned long long tree_size = rdir->getTreeSize();
+	      {
+		// update the source directory - remove the directory
+		dir->removeContainer(oPath.GetName());
+		dir->setMTimeNow();
+		dir->notifyMTimeChange( gOFS->eosDirectoryService );
+		if (gOFS->eosSyncTimeAccounting)
+		{
+		  dir->removeTreeSize(tree_size);
+		}
+		eosView->updateContainerStore(dir);	     
+	      }
 
-	    newdir->addContainer(rdir);
-	    UpdateNowInmemoryDirectoryModificationTime(newdir->getId());
-	    eosView->updateContainerStore(rdir);
+	      {
+		// rename the moved directory and udpate it's parent ID
+		rdir->setName(nPath.GetName());
+		rdir->setParentId(newdir->getId());
+
+		if (updateCTime)
+		{
+		  rdir->setCTimeNow();
+		}
+		eosView->updateContainerStore(rdir);
+	      }
+
+	      {
+		// update the target directory - add the directory
+		newdir->addContainer(rdir);
+		newdir->setMTimeNow();
+		if (gOFS->eosSyncTimeAccounting)
+		{
+		  newdir->addTreeSize(tree_size);
+		}
+		newdir->notifyMTimeChange( gOFS->eosDirectoryService );
+		eosView->updateContainerStore(newdir);
+	      }
+
+
+	      {
+		// update to recursive accounting if enabled
+		
+	      }
 	  }
 	}
 

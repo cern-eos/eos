@@ -103,10 +103,15 @@ XrdMgmOfs::InitializeFileView ()
 
   try
   {
+    time_t t1 = time(0);
     eosView->initialize2();
+    time_t t2 = time(0);
     {
       eos::common::RWMutexWriteLock view_lock(eosViewRWMutex);
       eosView->initialize3();
+      time_t t3 = time(0);
+      eos_notice("eos file view initialize2: %d seconds", t2-t1);
+      eos_notice("eos file view initialize3: %d seconds", t3-t2);
 
       if (MgmMaster.IsMaster())
       {
@@ -314,7 +319,6 @@ int
 XrdMgmOfs::Configure (XrdSysError &Eroute)
 {
   // the process run's as root, but acts on the filesystem as daemon
-
   char *var;
   const char *val;
   int cfgFD, retc, NoGo = 0;
@@ -357,12 +361,13 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmArchiveDir = "";
 
   MgmHealMap.set_deleted_key(0);
-  MgmDirectoryModificationTime.set_deleted_key(0);
 
   IoReportStorePath = "/var/tmp/eos/report";
   MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
+
+  eos::common::StringConversion::InitLookupTables();
 
   if (getenv("EOS_VST_BROKER_URL"))
     MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
@@ -440,7 +445,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
     // Establish our hostname and IPV4 address
     //
-    HostName = XrdSysDNS::getHostName();
+    char *errtext=0;
+    HostName = XrdSysDNS::getHostName(0,&errtext);
+    if(!HostName || std::string(HostName)=="0.0.0.0")
+    {
+      return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
+    }
 
     if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
     strcpy(buff, "[::");
@@ -595,6 +605,22 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
                             "argument 2 for capbility invalid. Can be <true>/1 or <false>/0");
                 NoGo = 1;
               }
+            }
+          }
+        }
+
+        if (!strcmp("capability_validity", var))
+        {
+          if ((val = Config.GetWord()))
+          {
+            Eroute.Say("=====> mgmofs.capability_validity: ", val, "");
+            try
+            {
+              mCapabilityValidity = std::stoi(std::string(val));
+            }
+            catch (std::exception& e)
+            {
+              mCapabilityValidity = 3600; // default 1 hour
             }
           }
         }
@@ -1545,8 +1571,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   XrdOucString instancepath = "/eos/";
   MgmProcPath = "/eos/";
   XrdOucString subpath = MgmOfsInstanceName;
+
+  // Remove leading "eos" from the instance name when building the proc path for
+  // "aesthetic" reasons.
   if (subpath.beginswith("eos"))
-    subpath.replace("eos", "");
+  {
+    subpath.erase(0, 3);
+  }
+
   MgmProcPath += subpath;
   MgmProcPath += "/proc";
   // This path is used for temporary output files for layout conversions

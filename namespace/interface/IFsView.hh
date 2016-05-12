@@ -86,7 +86,7 @@ class IFsView: public IFileMDChangeListener
   //! Return reference to a list of unlinked files
   //! BEWARE: any replica change may invalidate iterators
   //----------------------------------------------------------------------------
-  virtual  const FileList& getUnlinkedFileList(IFileMD::location_t location) = 0;
+  virtual FileList& getUnlinkedFileList(IFileMD::location_t location) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of file systems

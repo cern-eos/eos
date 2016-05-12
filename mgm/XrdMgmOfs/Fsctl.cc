@@ -205,7 +205,6 @@ XrdMgmOfs::FSctl (const int cmd,
   NAMESPACEMAP;
 
   BOUNCE_ILLEGAL_NAMES;
-  BOUNCE_NOT_ALLOWED;
 
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
@@ -214,6 +213,16 @@ XrdMgmOfs::FSctl (const int cmd,
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
+
+  const char* scmd = env.Get("mgm.pcmd");
+  XrdOucString execmd = scmd?scmd:"";
+
+  // version is not submitted to access control
+  // so that features of the instance can be retrieved by an authenticated user
+  if( execmd != "version" )
+  {
+    BOUNCE_NOT_ALLOWED;
+  }
 
   eos_thread_debug("path=%s opaque=%s", spath.c_str(), opaque.c_str());
 
@@ -251,12 +260,8 @@ XrdMgmOfs::FSctl (const int cmd,
     return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);
   }
 
-  const char* scmd;
-
-  if ((scmd = env.Get("mgm.pcmd")))
+  if ( scmd )
   {
-    XrdOucString execmd = scmd;
-
     // -------------------------------------------------------------------------
     // Adjust replica (repairOnClose from FST)
     // -------------------------------------------------------------------------
@@ -346,6 +351,14 @@ XrdMgmOfs::FSctl (const int cmd,
     }
 
     // -------------------------------------------------------------------------
+    // get open redirect
+    // -------------------------------------------------------------------------
+    if (execmd == "redirect")
+    {
+#include "fsctl/Redirect.cc"
+    }
+
+    // -------------------------------------------------------------------------
     // utimes
     // -------------------------------------------------------------------------
     if (execmd == "utimes")
@@ -425,6 +438,14 @@ XrdMgmOfs::FSctl (const int cmd,
 #include "fsctl/Txstate.cc"
     }
 
+    // -------------------------------------------------------------------------
+    // Get the eos version (and the features)
+    // -------------------------------------------------------------------------
+    if (execmd == "version")
+    {
+#include "fsctl/Version.cc"
+    }
+
     if (execmd == "mastersignalbounce")
     {
       // -----------------------------------------------------------------------
@@ -448,7 +469,17 @@ XrdMgmOfs::FSctl (const int cmd,
 
       REQUIRE_SSS_OR_LOCAL_AUTH;
 
-      gOFS->MgmMaster.WaitNamespaceFilesInSync();
+      const char* sf = env.Get("compact_files");
+      const char* sd = env.Get("compact_dirs");
+      bool compact_files=false;
+      bool compact_directories=false;
+      
+      if (sf)
+	compact_files=true;
+      if (sd)
+	compact_directories=true;
+
+      gOFS->MgmMaster.WaitNamespaceFilesInSync(compact_files, compact_directories);
       gOFS->MgmMaster.RebootSlaveNamespace();
 
       const char* ok = "OK";

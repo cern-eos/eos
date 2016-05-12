@@ -358,26 +358,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Reset clears all cached information
   // ---------------------------------------------------------------------------
-
-  static void Reset ()
-  {
-    {
-      XrdSysMutexHelper mLock(gPhysicalIdMutex);
-      gPhysicalUidCache.Purge();
-      gPhysicalGidCache.Purge();
-    }
-    {
-      XrdSysMutexHelper mLock(gPhysicalNameCacheMutex);
-      gPhysicalGroupNameCache.clear();
-      gPhysicalUserNameCache.clear();
-      gPhysicalGroupIdCache.clear();
-      gPhysicalUserIdCache.clear();
-    }
-    {
-      XrdSysMutexHelper mLock(ActiveLock);
-      ActiveTidents.clear();
-    }
-  }
+  static void Reset();
 
   // ---------------------------------------------------------------------------
   //! Convert a komma separated uid string to a vector uid list

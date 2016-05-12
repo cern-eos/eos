@@ -134,7 +134,7 @@ public:
     fsstatus_t mConfigStatus;
     fsstatus_t mDrainStatus;
     fsactive_t mActiveStatus;
-    bool mBalRunning;
+    double mBalThresh;
     long long mHeadRoom;
     unsigned int mErrCode;
     time_t mBootSentTime;
@@ -168,6 +168,7 @@ public:
     time_t mScanInterval;
     time_t mGracePeriod;
     time_t mDrainPeriod;
+    bool mDrainerOn;
   } fs_snapshot_t;
 
   typedef struct host_snapshot {
@@ -804,7 +805,6 @@ public:
   //------------------------------------------------------------------------
   //! Snapshot filesystem.
   //------------------------------------------------------------------------
-
   bool SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock = true);
 
   //------------------------------------------------------------------------
@@ -816,7 +816,6 @@ public:
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.
   //------------------------------------------------------------------------
-
   void
   Print (std::string &out, std::string listformat)
   {

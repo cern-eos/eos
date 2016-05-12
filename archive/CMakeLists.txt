@@ -22,33 +22,32 @@
 # ************************************************************************
 
 if(PYTHONSITEPKG_FOUND)
-    install(PROGRAMS eosarchived.py eosarch_run.py eosarch_reconstruct.py
-	    DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
-	    PERMISSIONS OWNER_READ OWNER_EXECUTE
-			GROUP_READ GROUP_EXECUTE
-			WORLD_READ WORLD_EXECUTE)
+  install(PROGRAMS eosarchived.py eosarch_run.py eosarch_reconstruct.py
+	  DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+	  PERMISSIONS OWNER_READ OWNER_EXECUTE
+		      GROUP_READ GROUP_EXECUTE
+		      WORLD_READ WORLD_EXECUTE)
 
-    install(DIRECTORY eosarch
-	    DESTINATION ${PYTHONSITEPKG_PATH}
-	    PATTERN "tests" EXCLUDE
-	    PATTERN "*~" EXCLUDE
-	    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+  install(DIRECTORY eosarch
+	  DESTINATION ${PYTHONSITEPKG_PATH}
+	  PATTERN "tests" EXCLUDE
+	  PATTERN "*~" EXCLUDE
+	  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
-    install(FILES eosarchived.init
-	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d//init.d/
-	    PERMISSIONS OWNER_READ OWNER_EXECUTE
-			GROUP_READ GROUP_EXECUTE
-			WORLD_READ WORLD_EXECUTE
-	    RENAME eosarchived)
+  install(FILES eosarchived.init
+	  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/rc.d//init.d/
+	  PERMISSIONS OWNER_READ OWNER_EXECUTE
+		      GROUP_READ GROUP_EXECUTE
+		      WORLD_READ WORLD_EXECUTE
+	  RENAME eosarchived)
 
-    install(FILES eosarchived.sysconfig
-	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
-	    RENAME eosarchived)
+  install(FILES eosarchived.sysconfig
+	  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/sysconfig/
+	  RENAME eosarchived)
 
-    install(FILES eosarchived.conf
-	    DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}
-	    PERMISSIONS OWNER_READ OWNER_WRITE
-			GROUP_READ
-			WORLD_READ)
-
+  install(FILES eosarchived.conf
+	  DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}
+	  PERMISSIONS OWNER_READ OWNER_WRITE
+		      GROUP_READ
+		      WORLD_READ)
 endif()

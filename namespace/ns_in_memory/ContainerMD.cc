@@ -150,8 +150,8 @@ ContainerMD::addFile(IFileMD* file)
   file->setContainerId(pId);
   pFiles[file->getName()] = file;
   IFileMDChangeListener::Event e(file,
-                                 IFileMDChangeListener::SizeChange,
-                                 0,0, file->getSize() );
+				 IFileMDChangeListener::SizeChange,
+				 0,0, file->getSize() );
   file->getFileMDSvc()->notifyListeners( &e );
 }
 
@@ -165,8 +165,8 @@ ContainerMD::removeFile(const std::string& name)
   {
     IFileMD* file = pFiles[name];
     IFileMDChangeListener::Event e(file,
-                                   IFileMDChangeListener::SizeChange,
-                                   0, 0, -file->getSize() );
+				   IFileMDChangeListener::SizeChange,
+				   0, 0, -file->getSize() );
     file->getFileMDSvc()->notifyListeners( &e );
     pFiles.erase( name );
   }
@@ -267,6 +267,8 @@ ContainerMD::deserialize(Buffer& buffer)
   char strBuffer[len];
   offset = buffer.grabData(offset, strBuffer, len);
   pName = strBuffer;
+  pMTime.tv_sec = pCTime.tv_sec;
+  pMTime.tv_nsec = pCTime.tv_nsec;
   uint16_t len1 = 0;
   uint16_t len2 = 0;
   len = 0;
@@ -291,12 +293,12 @@ ContainerMD::deserialize(Buffer& buffer)
     {
       if (key== "sys.mtime.ns")
       {
-        // Stored modification time in ns
-        pMTime.tv_nsec = strtoull(strBuffer2,0,10);
+	// Stored modification time in ns
+	pMTime.tv_nsec = strtoull(strBuffer2,0,10);
       }
       else
       {
-        pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
+	pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
       }
     }
   }
@@ -341,7 +343,7 @@ static bool checkPerms(char actual, char requested)
   for (int i = 0; i < 3; ++i)
     if (requested & (1 << i))
       if (!(actual & (1 << i)))
-        return false;
+	return false;
 
   return true;
 }
@@ -384,79 +386,36 @@ ContainerMD::access(uid_t uid, gid_t gid, int flags)
 }
 
 //------------------------------------------------------------------------------
-// Get pointer to first subcontainer. Must be used in conjunction with
-// nextContainer to iterate over the list of subcontainers.
+// Get set of file names contained in the current object
 //------------------------------------------------------------------------------
-IContainerMD*
-ContainerMD::beginSubContainer()
+std::set<std::string>
+ContainerMD::getNameFiles() const
 {
-  if (pSubContainers.empty())
+  std::set<std::string> fnames;
+
+  for (auto it = pFiles.begin(); it != pFiles.end(); ++it)
   {
-    pIterContainer = pSubContainers.end();
-    return (IContainerMD*)(0);
+    fnames.insert(it->first);
   }
-  else
-  {
-    pIterContainer = pSubContainers.begin();
-    return pIterContainer->second;
-  }
+
+  return fnames;
 }
 
 //------------------------------------------------------------------------------
-// Get pointer to the next subcontainer object. Must be used in conjunction
-// with beginContainers to iterate over the list of subcontainers.
+// Get set of subcontainer names contained in the current object
 //------------------------------------------------------------------------------
-IContainerMD*
-ContainerMD::nextSubContainer()
+std::set<std::string>
+ContainerMD::getNameContainers() const
 {
-  if (pIterContainer == pSubContainers.end())
-    return (IContainerMD*)(0);
+  std::set<std::string> dnames;
 
-  ++pIterContainer;
-
-  if (pIterContainer == pSubContainers.end())
-    return (IContainerMD*)(0);
-  else
-    return pIterContainer->second;
-}
-
-//------------------------------------------------------------------------------
-// Get pointer to first file in the container. Must be used in conjunction
-// with nextFile to iterate over the list of files.
-//------------------------------------------------------------------------------
-IFileMD*
-ContainerMD::beginFile()
-{
-  if (pFiles.empty())
+  for (auto it = pSubContainers.begin(); it != pSubContainers.end(); ++it)
   {
-    pIterFile = pFiles.end();
-    return (IFileMD*)(0);
+    dnames.insert(it->first);
   }
-  else
-  {
-    pIterFile = pFiles.begin();
-    return pIterFile->second;
-  }
+
+  return dnames;
 }
-
-//------------------------------------------------------------------------------
-// Get pointer to the next file object. Must be used in conjunction
-// with beginFiles to iterate over the list of files.
-//------------------------------------------------------------------------------
-IFileMD*
-ContainerMD::nextFile()
-{
-  if (pIterFile == pFiles.end())
-    return (IFileMD*)(0);
-
-  ++pIterFile;
-
-  if (pIterFile == pFiles.end())
-    return (IFileMD*)(0);
-  else
-    return pIterFile->second;
-}
-
 
 //------------------------------------------------------------------------------
 // Set modification time

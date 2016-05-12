@@ -31,27 +31,15 @@ com_member (char* arg1)
 {
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
-  XrdOucString egroup = "";
-
+  XrdOucString egroup = subtokenizer.GetToken();
   XrdOucString in = "";
 
-  if (wants_help(arg1))
+  if (wants_help(egroup.c_str()) || !egroup.length())
     goto com_member_usage;
 
   in = "mgm.cmd=member";
-  do
-  {
-    egroup = subtokenizer.GetToken();
-    break;
-  }
-  while (1);
-
-  if (egroup.length())
-  {
-    in += "&mgm.egroup=";
-    in += egroup;
-  }
-
+  in += "&mgm.egroup=";
+  in += egroup;
   global_retc = output_result(client_user_command(in));
   return (0);
 

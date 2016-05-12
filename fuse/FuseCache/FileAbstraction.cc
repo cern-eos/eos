@@ -33,26 +33,25 @@
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileAbstraction::FileAbstraction(int fd, LayoutWrapper* file, const char* path) :
+FileAbstraction::FileAbstraction(const char* path) :
   mMutexRW(),
-  mFd(fd),
-  mFile(file),
-  mNoReferences(0),
-  mNumOpen(1),
+  mFd(-1),
+  mFileRW(NULL),
+  mFileRO(NULL),
+  mNoReferencesRW(0),
+  mNoReferencesRO(0),
+  mNumOpenRW(0),
+  mNumOpenRO(0),
   mSizeWrites(0),
-  mPath(path)
+  mPath(path),
+  mMaxWriteOffset(0)
 {
-  // Max file size we can deal with is ~ 90TB
-  mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
-  mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
-  eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
-                   this, mFirstPossibleKey, mLastPossibleKey);
+  mFirstPossibleKey = mLastPossibleKey = 0;
   errorsQueue = new eos::common::ConcurrentQueue<error_type > ();
   mCondUpdate = XrdSysCondVar(0);
 
-  mFile->mFabs = this;
-  mUtime[0] = mFile->mLocalUtime[0];
-  mUtime[1] = mFile->mLocalUtime[1];
+  mUtime[0].tv_sec = mUtime[1].tv_sec = 0;
+  mUtime[0].tv_nsec = mUtime[1].tv_nsec = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -60,8 +59,13 @@ FileAbstraction::FileAbstraction(int fd, LayoutWrapper* file, const char* path) 
 //------------------------------------------------------------------------------
 FileAbstraction::~FileAbstraction()
 {
-  delete errorsQueue;
-  delete mFile;
+  if (mFileRW)
+    mFileRW->Close();
+  if (mFileRO)
+    mFileRO->Close();
+  if(errorsQueue) delete errorsQueue;
+  if(mFileRW) delete mFileRW;
+  if(mFileRO) delete mFileRO;
 }
 
 
@@ -75,6 +79,61 @@ FileAbstraction::GetSizeWrites()
   return mSizeWrites;
 }
 
+//------------------------------------------------------------------------------
+// Get size of maximum write offset
+//------------------------------------------------------------------------------
+off_t
+FileAbstraction::GetMaxWriteOffset()
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  return mMaxWriteOffset;
+}
+
+//------------------------------------------------------------------------------
+// TestMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::TestMaxWriteOffset(off_t offset)
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  if (offset > mMaxWriteOffset)
+    mMaxWriteOffset = offset;
+}
+
+//------------------------------------------------------------------------------
+// SetMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::SetMaxWriteOffset(off_t offset)
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  mMaxWriteOffset = offset;
+}
+
+//------------------------------------------------------------------------------
+// SetMaxWriteOffset
+//------------------------------------------------------------------------------
+void
+FileAbstraction::GrabMaxWriteOffset()
+{
+  XrdSysMutexHelper lLock(mMaxWriteOffsetMutex);
+  int64_t l1=-1;
+  int64_t l2=-1;
+  if (mFileRW) 
+  {
+    l1 = mFileRW->Size();
+    mMaxWriteOffset = l1;
+  }
+  
+  if (mFileRO)
+  {
+    l2 = mFileRO->Size();
+    if (l2>l1)
+      mMaxWriteOffset = l2;
+  }
+
+  eos_static_info("grabbing %llx l1=%lld l2=%lld offset %lld", mFileRW, l1, l2, mMaxWriteOffset);
+}
 
 //------------------------------------------------------------------------------
 // Increment the value of accumulated writes size
@@ -131,10 +190,10 @@ FileAbstraction::GenerateBlockKey(off_t offset)
 // Increment the number of open requests
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncNumOpen()
+FileAbstraction::IncNumOpenRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNumOpen++;
+  mNumOpenRW++;
 }
 
 
@@ -142,21 +201,42 @@ FileAbstraction::IncNumOpen()
 // Decrement the number of open requests
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecNumOpen()
+FileAbstraction::DecNumOpenRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNumOpen--;
+  mNumOpenRW--;
 }
 
+
+//------------------------------------------------------------------------------
+// Increment the number of open requests
+//------------------------------------------------------------------------------
+void
+FileAbstraction::IncNumOpenRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNumOpenRO++;
+}
+
+
+//------------------------------------------------------------------------------
+// Decrement the number of open requests
+//------------------------------------------------------------------------------
+void
+FileAbstraction::DecNumOpenRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNumOpenRO--;
+}
 
 //------------------------------------------------------------------------------
 // Increment the number of references
 //------------------------------------------------------------------------------
 void
-FileAbstraction::IncNumRef()
+FileAbstraction::IncNumRefRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNoReferences++;
+  mNoReferencesRW++;
 }
 
 
@@ -164,25 +244,70 @@ FileAbstraction::IncNumRef()
 // Decrement the number of references
 //------------------------------------------------------------------------------
 void
-FileAbstraction::DecNumRef()
+FileAbstraction::DecNumRefRW()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
-  mNoReferences--;
+  mNoReferencesRW--;
+}
+
+//------------------------------------------------------------------------------
+// Increment the number of references
+//------------------------------------------------------------------------------
+void
+FileAbstraction::IncNumRefRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNoReferencesRO++;
 }
 
 
 //------------------------------------------------------------------------------
-// Test if file is in use
+// Decrement the number of references
+//------------------------------------------------------------------------------
+void
+FileAbstraction::DecNumRefRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  mNoReferencesRO--;
+}
+
+
+//------------------------------------------------------------------------------
+// Test if file is in use in RW
+//------------------------------------------------------------------------------
+bool
+FileAbstraction::IsInUseRW()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
+                   mSizeWrites, mNoReferencesRW, mNumOpenRW);
+  return ((mNumOpenRW > 1) || (mSizeWrites) || (mNoReferencesRW > 1));
+}
+
+
+//------------------------------------------------------------------------------
+// Test if file is in use in RW
+//------------------------------------------------------------------------------
+bool
+FileAbstraction::IsInUseRO()
+{
+  XrdSysCondVarHelper cond_helper(mCondUpdate);
+  eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
+                   mSizeWrites, mNoReferencesRO, mNumOpenRO);
+  return ((mNumOpenRO > 1) || (mNoReferencesRO > 1));
+}
+
+//------------------------------------------------------------------------------
+// Test if file is in use in RW or RO
 //------------------------------------------------------------------------------
 bool
 FileAbstraction::IsInUse()
 {
   XrdSysCondVarHelper cond_helper(mCondUpdate);
   eos_static_debug("write_sz=%zu, num_ref=%i, num_open=%i",
-                   mSizeWrites, mNoReferences, mNumOpen);
-  return ((mNumOpen > 1) || (mSizeWrites) || (mNoReferences > 1));
+                   mSizeWrites, mNoReferencesRW, mNumOpenRW);
+  return (( (mNumOpenRW + mNumOpenRO) > 1) || (mSizeWrites) || (mNoReferencesRW+mNoReferencesRO > 1) );
 }
-
 
 //------------------------------------------------------------------------------
 // Get handler to the queue of errors
@@ -199,6 +324,7 @@ FileAbstraction::GetErrorQueue() const
 void 
 FileAbstraction::SetUtimes(struct timespec* utime)
 {
+  XrdSysMutexHelper v(mUtimeMutex);
   for(size_t i=0; i< 2; i++) 
   {   
     mUtime[i].tv_sec = utime[i].tv_sec;
@@ -207,11 +333,12 @@ FileAbstraction::SetUtimes(struct timespec* utime)
 }
 
 //--------------------------------------------------------------------------
-// Get last utime setting of a file
+// Get last external utime setting of a file
 //--------------------------------------------------------------------------
 const char*
 FileAbstraction::GetUtimes(struct timespec *utime)
 {
+  XrdSysMutexHelper v(mUtimeMutex);
   if (mUtime[0].tv_sec ||
       mUtime[0].tv_nsec ||
       mUtime[1].tv_sec ||
@@ -222,7 +349,33 @@ FileAbstraction::GetUtimes(struct timespec *utime)
       utime[i].tv_sec = mUtime[i].tv_sec;
       utime[i].tv_nsec = mUtime[i].tv_nsec;
     }
-    return mPath.c_str();
+    
   }
-  return 0;
+  return mPath.c_str();
 }
+
+
+//--------------------------------------------------------------------------                                                                                                                            
+//! Set undelying raw file object                                                                                                                                                                       
+//--------------------------------------------------------------------------                                                                                                                            
+void 
+FileAbstraction::SetRawFileRW(LayoutWrapper* file)
+{
+  if (mFileRW)
+    delete mFileRW;
+  mFileRW=file;
+  mNumOpenRW=1;
+};
+
+//--------------------------------------------------------------------------                                                                                                                            
+// Set undelying raw file object                                                                                                                                                                       
+//--------------------------------------------------------------------------                                                                                                                            
+void 
+FileAbstraction::SetRawFileRO(LayoutWrapper* file)
+{
+  if (mFileRO)
+    delete mFileRO;
+  mFileRO=file;
+  mNumOpenRO=1;
+};
+

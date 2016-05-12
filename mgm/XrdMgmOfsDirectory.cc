@@ -215,13 +215,9 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
       // Add all the files and subdirectories
       gOFS->MgmStats.Add("OpenDir-Entry", vid.uid, vid.gid,
                          dh->getNumContainers() + dh->getNumFiles());
-
-      for (auto fmd = dh->beginFile(); fmd; fmd = dh->nextFile())
-        dh_list.insert(fmd->getName());
-
-      for (auto dmd = dh->beginSubContainer(); dmd; dmd = dh->nextSubContainer())
-        dh_list.insert(dmd->getName());
-
+      dh_list = dh->getNameFiles();
+      std::set<std::string> dnames = dh->getNameContainers();
+      dh_list.insert(dnames.begin(), dnames.end());
       dh_list.insert(".");
 
       // The root dir has no .. entry

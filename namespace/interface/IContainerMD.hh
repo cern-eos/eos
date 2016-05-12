@@ -29,10 +29,9 @@
 #include "namespace/MDException.hh"
 #include <stdint.h>
 #include <unistd.h>
-#include <cstring>
 #include <string>
-#include <vector>
 #include <map>
+#include <set>
 #include <sys/time.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -41,6 +40,7 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 class IFileMDSvc;
 class IFileMD;
+
 
 //------------------------------------------------------------------------------
 //! Class holding the interface to the metadata information concerning a
@@ -59,7 +59,12 @@ class IContainerMD
   typedef std::map<std::string, std::string> XAttrMap;
 
   //----------------------------------------------------------------------------
-  //! Desstructor
+  //! Constructor
+  //----------------------------------------------------------------------------
+  IContainerMD() {};
+
+  //----------------------------------------------------------------------------
+  //! Destructor
   //----------------------------------------------------------------------------
   virtual ~IContainerMD() {};
 
@@ -307,36 +312,29 @@ class IContainerMD
   virtual void cleanUp(IContainerMDSvc* cmd_svc, IFileMDSvc* fmd_svc) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get pointer to first subcontainer. *MUST* be used in conjunction with
-  //! nextContainer to iterate over the list of subcontainers.
+  //! Get set of file names contained in the current object
   //!
-  //! @return pointer to first subcontainer or 0 if no subcontainers
+  //! @return set of file names
   //----------------------------------------------------------------------------
-  virtual IContainerMD* beginSubContainer() = 0;
+  virtual std::set<std::string> getNameFiles() const = 0;
 
   //----------------------------------------------------------------------------
-  //! Get pointer to the next subcontainer object. *MUST* be used in conjunction
-  //! with beginContainers to iterate over the list of subcontainers.
+  //! Get set of subcontainer names contained in the current object
   //!
-  //! @return pointer to next subcontainer or 0 if no subcontainers
+  //! @return set of subcontainer names
   //----------------------------------------------------------------------------
-  virtual IContainerMD* nextSubContainer() = 0;
+  virtual std::set<std::string> getNameContainers() const = 0;
+
+ private:
 
   //----------------------------------------------------------------------------
-  //! Get pointer to first file in the container. *MUST* be used in conjunction
-  //! with nextFile to iterate over the list of files.
-  //!
-  //! @return pointer to the first file or 0 if no files
+  //! Make copy constructor and assignment operator private to avoid "slicing"
+  //! when dealing with derived classes.
   //----------------------------------------------------------------------------
-  virtual IFileMD* beginFile() = 0;
+  IContainerMD(const IContainerMD& other);
 
-  //----------------------------------------------------------------------------
-  //! Get pointer to the next file object. *MUST* be used in conjunction
-  //! with beginFiles to iterate over the list of files.
-  //!
-  //! @return pointer to next file or 0 if no files
-  //----------------------------------------------------------------------------
-  virtual IFileMD* nextFile() = 0;
+  IContainerMD& operator=(const IContainerMD& other);
+
 };
 
 EOSNSNAMESPACE_END

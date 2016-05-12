@@ -57,6 +57,10 @@ public:
   //! Types of placement policy
   enum tPlctPolicy {kScattered, kHybrid, kGathered};
 
+  //! Types of scheduling
+  enum tSchedType
+    { regular,balancing,draining};
+
   //----------------------------------------------------------------------------
   //! Take the decision where to place a new file in the system.
   //!
@@ -95,7 +99,8 @@ public:
                            const std::string& plctTrgGeotag = "",
                            bool truncate = false,
                            int forced_scheduling_group_index = -1,
-                           unsigned long long bookingsize = 1024 * 1024 * 1024ll);
+                           unsigned long long bookingsize = 1024 * 1024 * 1024ll,
+                           tSchedType schedtype = regular);
 
   //----------------------------------------------------------------------------
   //! Take the decision from where to access a file.
@@ -136,7 +141,8 @@ public:
                         eos::common::FileSystem::fsstatus_t min_fsstatus =
                         eos::common::FileSystem::kDrain,
                         std::string overridegeoloc = "",
-                        bool noIO = false);
+                        bool noIO  = false,
+                        tSchedType schedtype = regular);
 
 protected:
 

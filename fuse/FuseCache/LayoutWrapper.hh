@@ -25,6 +25,7 @@
 #define __EOS_FUSE_LAYOUTWRAPPER_HH__
 
 #include "FileAbstraction.hh"
+#include "Bufferll.hh"
 
 //------------------------------------------------------------------------------
 //! Class that wraps a FileLayout to keep track of change times and to
@@ -39,16 +40,40 @@ class LayoutWrapper
 
   eos::fst::Layout* mFile;
   bool mOpen;
-  XrdSfsXferSize mDebugSize; // file size, debug purpose only
-  bool mDebugHasWrite; // debug purpose only
   std::string mPath;
+  unsigned long long mInode;
   XrdSfsFileOpenMode mFlags;
   mode_t mMode;
   std::string mOpaque;
+  std::string mLazyUrl;
   FileAbstraction *mFabs;
-  bool mLocalTimeConsistent;
   timespec mLocalUtime[2];
-  bool mDebugWasReopen; // debug purpose only
+
+  XrdSysMutex mMakeOpenMutex;
+
+  std::shared_ptr<Bufferll> mCache;
+
+  struct CacheEntry {
+    std::shared_ptr<Bufferll> mCache;
+    time_t mLifeTime;
+    time_t mOwnerLifeTime;
+    int64_t  mSize;
+  };
+
+  static XrdSysMutex gCacheAuthorityMutex;
+  static std::map<unsigned long long, LayoutWrapper::CacheEntry> gCacheAuthority;
+
+  bool mCanCache;
+  bool mCacheCreator;
+  off_t mMaxOffset;
+  int64_t mSize;
+  bool mInlineRepair;
+
+  //--------------------------------------------------------------------------
+  //! do the open on the mgm but not on the fst yet
+  //--------------------------------------------------------------------------
+  int LazyOpen (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
+
 
 public:
   //--------------------------------------------------------------------------
@@ -57,7 +82,7 @@ public:
   //! @param file layout to be wrapped
   //!
   //--------------------------------------------------------------------------
-  LayoutWrapper (eos::fst::Layout* file, bool localtimeconsistent);
+  LayoutWrapper (eos::fst::Layout* file);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -75,6 +100,12 @@ public:
   //--------------------------------------------------------------------------
   const char*
   GetName ();
+
+  //--------------------------------------------------------------------------
+  //! return the path of the file
+  //--------------------------------------------------------------------------
+  inline const char*
+  GetPath () { return mPath.c_str(); }
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -103,12 +134,14 @@ public:
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
-  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf);
+  int Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode, const char* opaque, const struct stat *buf, bool doOpen=true, size_t creator_lifetime=30, bool inlineRepair=false);
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
+  int64_t CacheSize();
   int64_t Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, bool readahead = false);
+  int64_t ReadCache (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length, off_t maxcache=(64*1024*1024));
 
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
@@ -119,7 +152,14 @@ public:
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
   int64_t Write (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, bool touchMtime=true);
+  int64_t WriteCache (XrdSfsFileOffset offset, const char* buffer, XrdSfsXferSize length, off_t maxcache=(64*1024*1024));
 
+  // size known after open if this file was created here
+  int64_t Size()
+  {
+    return mSize;
+  }
+  
   //--------------------------------------------------------------------------
   //! overloading member functions of FileLayout class
   //--------------------------------------------------------------------------
@@ -141,11 +181,6 @@ public:
   int Stat (struct stat* buf);
 
   //--------------------------------------------------------------------------
-  //! Set atime and mtime at current time and commit them at file closure
-  //--------------------------------------------------------------------------
-  void UtimesToCommitNow ();
-
-  //--------------------------------------------------------------------------
   //! Set atime and mtime according to argument without commit at file closure
   //--------------------------------------------------------------------------
   void Utimes ( const struct stat *buf);
@@ -161,6 +196,12 @@ public:
   bool IsOpen ();
 
   //--------------------------------------------------------------------------
+  //! Repair a partially unavailable flie
+  //--------------------------------------------------------------------------
+  
+  bool Repair(const std::string &path, const char* opaque);
+
+  //--------------------------------------------------------------------------
   //! Path accessor
   //--------------------------------------------------------------------------
   inline const std::string & GetOpenPath() const {return mPath;}
@@ -169,6 +210,23 @@ public:
   //! Open Flags accessors
   //--------------------------------------------------------------------------
   inline const XrdSfsFileOpenMode & GetOpenFlags() const {return mFlags;}
+
+  //--------------------------------------------------------------------------
+  //! Utility function to import (key,value) from a cgi string to a map
+  //--------------------------------------------------------------------------
+  static bool ImportCGI(std::map<std::string,std::string> &m, const std::string &cgi);
+
+  //--------------------------------------------------------------------------
+  //! Utility function to write the content of a(key,value) map to a cgi string
+  //--------------------------------------------------------------------------
+  static bool ToCGI(const std::map<std::string,std::string> &m , std::string &cgi);
+
+  static long long CacheAuthSize(unsigned long long);
+
+  //--------------------------------------------------------------------------
+  //! Check if we can cache ..
+  //--------------------------------------------------------------------------
+  bool CanCache() const {return mCanCache;}
 };
 
 #endif

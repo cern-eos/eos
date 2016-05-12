@@ -1152,7 +1152,7 @@ Iostat::PrintNs (XrdOucString &out, XrdOucString option)
 
     if (!monitoring)
     {
-      XrdMqMessage::Sort(out, true);
+      eos::common::StringConversion::SortLines(out);
       out.insert("# --------------------------------------------------------------------------------------\n", 0);
       snprintf(outline, sizeof (outline) - 1, "%5s #%3s %5s %24s %s\n", "type", "heat", "fs", "host", "path");
       out.insert(outline, 0);

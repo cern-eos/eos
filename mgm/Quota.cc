@@ -1221,7 +1221,6 @@ Quota::Exists(const std::string& path)
   return (pMapQuota.count(path) != 0);
 }
 
-
 //------------------------------------------------------------------------------
 // Check if there is a SpaceQuota responsible for the given path
 //------------------------------------------------------------------------------
@@ -1765,7 +1764,8 @@ Quota::FilePlacement(const std::string& space,
 		     const std::string& plctTrgGeotag,
 		     bool truncate,
 		     int forced_scheduling_group_index,
-		     unsigned long long bookingsize)
+		     unsigned long long bookingsize,
+		     eos::mgm::Scheduler::tSchedType schedtype)
 {
   // 0 = 1 replica !
   unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1;
@@ -1773,24 +1773,25 @@ Quota::FilePlacement(const std::string& space,
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u", vid.uid,
 		   vid.gid, grouptag, nfilesystems);
 
+  // Check if quota enabled for current space
   if (FsView::gFsView.IsQuotaEnabled(space))
   {
-  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+    eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+    SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
     if (squota)
-  {
-    bool has_quota = false;
-    long long desired_vol = 1ll * nfilesystems * bookingsize;
-    has_quota = squota->CheckWriteQuota(vid.uid, vid.gid, desired_vol,
-                                        nfilesystems);
-
-    if (!has_quota)
     {
-      eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
-                       "has no quota left!", vid.uid, vid.gid, grouptag,
-                       nfilesystems);
-      return EDQUOT;
+      bool has_quota = false;
+      long long desired_vol = 1ll * nfilesystems * bookingsize;
+      has_quota = squota->CheckWriteQuota(vid.uid, vid.gid, desired_vol,
+					  nfilesystems);
+
+      if (!has_quota)
+      {
+	eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
+			 "has no quota left!", vid.uid, vid.gid, grouptag,
+			 nfilesystems);
+	return EDQUOT;
       }
     }
   }
@@ -1811,7 +1812,7 @@ Quota::FilePlacement(const std::string& space,
                  alreadyused_filesystems, selected_filesystems, 
                  dataproxys, firewallentpts,
                  plctpolicy, plctTrgGeotag, truncate, 
-                 forced_scheduling_group_index, bookingsize);
+                 forced_scheduling_group_index, bookingsize,schedtype);
 }
 
 //------------------------------------------------------------------------------
@@ -1833,12 +1834,13 @@ Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 		  std::vector<unsigned int>& unavailfs,
 		  eos::common::FileSystem::fsstatus_t min_fsstatus,
 		  std::string overridegeoloc,
-		  bool noIO)
+		  bool noIO,
+		  eos::mgm::Scheduler::tSchedType schedtype)
 {
   return Scheduler::FileAccess(vid, forcedfsid, forcedspace, tried_cgi, lid,
                                locationsfs, dataproxys, firewallentpts,
                                fsindex, isRW, bookingsize, unavailfs,
-                               min_fsstatus, overridegeoloc, noIO);
+                               min_fsstatus, overridegeoloc, noIO,schedtype);
 }
 
 //------------------------------------------------------------------------------

@@ -581,7 +581,13 @@ int XrdMqOfs::Configure(XrdSysError& Eroute)
 
     // Establish our hostname and IPV4 address
     //
-    HostName      = XrdSysDNS::getHostName();
+    char *errtext=0;
+    HostName = XrdSysDNS::getHostName(0,&errtext);
+    if(!HostName || std::string(HostName)=="0.0.0.0")
+    {
+      return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
+    }
+
 
     if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
     strcpy(buff, "[::"); bp = buff+3;

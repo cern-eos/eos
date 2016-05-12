@@ -212,7 +212,7 @@ class FileMDFollower: public eos::ILogRecordScanner
           // We have the file already but it might have changed the parent
           // container or might have been unlinked, so we need to check it up
           // in its original container
-          IFileMD*     originalFile      = it->second.ptr;
+          IFileMD*      originalFile      = it->second.ptr;
           IContainerMD* originalContainer = 0;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
           itP = contIdMap->find(originalFile->getContainerId());
@@ -251,7 +251,7 @@ class FileMDFollower: public eos::ILogRecordScanner
             }
 
             handleReplicas(originalFile, currentFile);
-            *originalFile = *currentFile;
+            *dynamic_cast<eos::FileMD*>(originalFile) = *dynamic_cast<eos::FileMD*>(currentFile);
             originalFile->setFileMDSvc(pFileSvc);
             it->second.logOffset = currentOffset;
             processed.push_back(currentFile->getId());
@@ -292,7 +292,8 @@ class FileMDFollower: public eos::ILogRecordScanner
 
             // Update the file and handle the replicas
             handleReplicas(originalFile, currentFile);
-            *originalFile = *currentFile;
+            // Cast to derived class implementation to avoid "slicing" of info
+            *dynamic_cast<eos::FileMD*>(originalFile) = *dynamic_cast<eos::FileMD*>(currentFile);
             originalFile->setFileMDSvc(pFileSvc);
             it->second.logOffset = currentOffset;
             delete currentFile;
@@ -312,7 +313,7 @@ class FileMDFollower: public eos::ILogRecordScanner
               // the container, if it does, we have a name conflict in which
               // case we attach the new file and remove the old one
               IContainerMD* newContainer = itPN->second.ptr;
-              IQuotaNode* node            = getQuotaNode(newContainer);
+              IQuotaNode* node           = getQuotaNode(newContainer);
               IFileMD* existingFile = newContainer->findFile(originalFile->getName());
 
               if (existingFile)
@@ -643,6 +644,8 @@ namespace eos
 //------------------------------------------------------------------------
 void ChangeLogFileMDSvc::initialize()
 {
+  pIdMap.resize(pResSize);
+
   if (!pContSvc)
   {
     MDException e(EINVAL);
@@ -856,6 +859,12 @@ void ChangeLogFileMDSvc::configure(
       if (pollInterval == 0) pollInterval = 1000;
     }
   }
+
+  it = config.find( "ns_size");
+  if ( it != config.end() )
+  {
+    pResSize = strtoull(it->second.c_str(), 0, 10);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -977,8 +986,31 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
 {
   IdMap::iterator it;
 
+  time_t start_time = time(0);
+  time_t now = start_time;
+  uint64_t cnt = 0;
+  uint64_t end = pIdMap.size();
+  size_t progress = 0;
+
+
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
-    visitor->visitFile(it->second.ptr);
+  {
+    cnt++;
+    visitor->visitFile( it->second.ptr );
+    if ( (100.0 * cnt / end ) > progress)
+      {
+        now = time(NULL);
+        double estimate = (1+end-cnt) / ((1.0*cnt/(now+1 - start_time)));
+        if (progress==0)
+          fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate none \n", "file-visit",(unsigned int)progress);
+        else
+          fprintf(stderr,"PROGRESS [ scan %-64s ] %02u%% estimate %3.02fs\n", "file-visit", (unsigned int)progress, estimate);
+        progress += 10;
+      }
+  }
+  now = time(NULL);
+
+  fprintf(stderr,"ALERT    [ %-64s ] finnished in %ds\n", "file-visit", (int)(now-start_time));
 }
 
 //------------------------------------------------------------------------------
@@ -1007,6 +1039,7 @@ bool ChangeLogFileMDSvc::FileMDScanner::processRecord(uint64_t      offset,
   else if (type == DELETE_RECORD_MAGIC)
   {
     IFileMD::id_t id;
+
     buffer.grabData(0, &id, sizeof(IFileMD::id_t));
     IdMap::iterator it = pIdMap.find(id);
 

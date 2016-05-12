@@ -30,9 +30,6 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#ifndef _NOOFS
-#include "fst/FmdSqlite.hh"
-#endif
 /*----------------------------------------------------------------------------*/
 #include <cstdlib>
 #include <cstring>
@@ -42,6 +39,7 @@
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #endif
+#include <fts.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <fcntl.h>

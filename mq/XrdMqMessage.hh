@@ -21,21 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//         $Id: XrdMqMessage.hh,v 1.00 2007/10/04 01:34:19 abh Exp $
 #ifndef __XMQMESSAGE_H__
 #define __XMQMESSAGE_H__
 
-/* xroot includes                 */
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucStream.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdSys/XrdSysLogger.hh>
-
-/* openssl includes               */
 #include <openssl/rsa.h>
 #include <openssl/evp.h>
 #include <openssl/objects.h>
@@ -44,164 +39,431 @@
 #include <openssl/pem.h>
 #include <openssl/ssl.h>
 
-
-#define XMQHEADER "xrdmqmessage.header"
-#define XMQBODY   "xrdmqmessage.body"
-#define XMQMONITOR "xrdmqmessage.mon"
-
-#define XMQADVISORYHOST "xrdmqmessage.advisoryhost"
-#define XMQADVISORYSTATE "xrdmqmessage.advisorystate"
-
-#define XMQCADVISORYSTATUS "xmqclient.advisory.status"
-#define XMQCADVISORYQUERY  "xmqclient.advisory.query"
+#define XMQHEADER                "xrdmqmessage.header"
+#define XMQBODY                  "xrdmqmessage.body"
+#define XMQMONITOR               "xrdmqmessage.mon"
+#define XMQADVISORYHOST          "xrdmqmessage.advisoryhost"
+#define XMQADVISORYSTATE         "xrdmqmessage.advisorystate"
+#define XMQCADVISORYSTATUS       "xmqclient.advisory.status"
+#define XMQCADVISORYQUERY        "xmqclient.advisory.query"
 #define XMQCADVISORYFLUSHBACKLOG "xmqclient.advisory.flushbacklog"
-
 #define XMQCIPHER EVP_des_cbc
 
+//------------------------------------------------------------------------------
+//! Class XrdMqMessageHeader
+//------------------------------------------------------------------------------
+class XrdMqMessageHeader
+{
+ public:
 
-class XrdMqMessageHeader {
-protected:
-  XrdOucString kMessageHeaderBuffer;
-  
-  // we save us all the getter & setter functions
-public:
-  enum {kMessage=0, kStatusMessage=1, kQueryMessage=2};
-  
-  const char* GetHeaderBuffer() { return kMessageHeaderBuffer.c_str();}
-  static void GetTime(time_t &sec, long &nsec);
-  static const char* ToString(XrdOucString &s, long n)   { char tb[1024];sprintf(tb,"%ld", n); s = tb; return s.c_str();}
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMqMessageHeader();
 
-  XrdOucString kMessageId;     // filled by sender
-  XrdOucString kReplyId;       // filled by sender
-  XrdOucString kSenderId;      // filled by sender
-  XrdOucString kBrokerId;      // filled by broker
-  XrdOucString kReceiverId;    // filled by receiver
-  XrdOucString kReceiverQueue; // filled by sender
-  XrdOucString kDescription;   // filled by sender
-  time_t kSenderTime_sec;      // filled by sender
-  long   kSenderTime_nsec;     // filled by sender
-  time_t kBrokerTime_sec;      // filled by broker
-  long   kBrokerTime_nsec;     // filled by broker
-  time_t kReceiverTime_sec;    // filled by receiver
-  long   kReceiverTime_nsec;   // filled by receiver
-  
-  XrdOucString kCertificateHash;   // hash of the certificate needed to verify sender
-  XrdOucString kMessageSignature;  // signature of the message body hash
-  XrdOucString kMessageDigest;     // hash of the message body
-  bool   kEncrypted;               // encrypted with private key or not
-  int    kType;                    // type of message
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdMqMessageHeader() {};
 
-  bool  Encode();
-  bool  Decode(const char* headerasstring = 0);
+  //----------------------------------------------------------------------------
+  //! Message type
+  //----------------------------------------------------------------------------
+  enum {
+    kMessage = 0,
+    kStatusMessage = 1,
+    kQueryMessage = 2
+  };
+
+  //----------------------------------------------------------------------------
+  //! Get header buffer
+  //----------------------------------------------------------------------------
+  const char* GetHeaderBuffer() const;
+
+  //----------------------------------------------------------------------------
+  //! Encode the message header
+  //----------------------------------------------------------------------------
+  void Encode();
+
+  //----------------------------------------------------------------------------
+  //! Decode
+  //!
+  //! @param str_header header in string format
+  //!
+  //! @return true if successfully decoded, otherwise false
+  //----------------------------------------------------------------------------
+  bool Decode(const char* str_header = 0);
+
+  //----------------------------------------------------------------------------
+  //! Print message header
+  //----------------------------------------------------------------------------
   void  Print();
 
+  //----------------------------------------------------------------------------
+  //! Get the current time and set the two values
+  //!
+  //! @param sec current time in seconds
+  //! @param nsec current time in nanoseconds
+  //!
+  //! @todo This should be moved in a common place
+  //----------------------------------------------------------------------------
+  static void GetTime(time_t& sec, long& nsec);
 
-  XrdMqMessageHeader();
-  virtual ~XrdMqMessageHeader();
+  XrdOucString kMessageId;     ///< filled by sender
+  XrdOucString kReplyId;       ///< filled by sender
+  XrdOucString kSenderId;      ///< filled by sender
+  XrdOucString kBrokerId;      ///< filled by broker
+  XrdOucString kReceiverId;    ///< filled by receiver
+  XrdOucString kReceiverQueue; ///< filled by sender
+  XrdOucString kDescription;   ///< filled by sender
+  time_t kSenderTime_sec;      ///< filled by sender
+  long   kSenderTime_nsec;     ///< filled by sender
+  time_t kBrokerTime_sec;      ///< filled by broker
+  long   kBrokerTime_nsec;     ///< filled by broker
+  time_t kReceiverTime_sec;    ///< filled by receiver
+  long   kReceiverTime_nsec;   ///< filled by receiver
+
+  XrdOucString kMessageSignature; ///< signature of the message body hash
+  XrdOucString kMessageDigest; ///< hash of the message body
+  bool kEncrypted;///< encrypted with private key or not
+  int kType; ///< type of message
+
+ private:
+  XrdOucString mMsgHdrBuffer; ///< message header buffer
+  XrdOucString kCertificateHash; ///< certificate hash used to verify sender
 };
 
-class XrdMqMessage {
-  
-protected:
 
-  XrdOucString kMessageBuffer;
-  XrdOucString kMessageBody;
-  int errc;
-  XrdOucString errmsg;
-  bool         kMonitor;
+//------------------------------------------------------------------------------
+//! Class XrdMqMessage
+//------------------------------------------------------------------------------
+class XrdMqMessage
+{
+ public:
 
-public:
+  //----------------------------------------------------------------------------
+  //! Constructor for empty message
+  //----------------------------------------------------------------------------
+  XrdMqMessage(const char* description = "XrdMqMessage",
+               int type = XrdMqMessageHeader::kMessage);
 
-  static const char* Seal(XrdOucString &s, const char* seal="#and#")
+  //----------------------------------------------------------------------------
+  //! Constructor for message based on raw(wire) format
+  //!
+  //! @param rawmessage raw messsage format
+  //----------------------------------------------------------------------------
+  XrdMqMessage(XrdOucString& rawmessage);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdMqMessage() {};
+
+  //----------------------------------------------------------------------------
+  //! Factory method to create a message from raw format
+  //!
+  //! @param rawmessage raw message data
+  //!
+  //! @return message object or 0
+  //----------------------------------------------------------------------------
+  static XrdMqMessage* Create(const char* rawmessage);
+
+  //----------------------------------------------------------------------------
+  //! Generate a new message id
+  //----------------------------------------------------------------------------
+  void NewId();
+
+  //----------------------------------------------------------------------------
+  //! Read in configuration from file
+  //!
+  //! @param configfile path to configuration file
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Configure(const char* configfile = 0);
+
+  //----------------------------------------------------------------------------
+  //! Encode full message
+  //----------------------------------------------------------------------------
+  virtual void Encode();
+
+  //----------------------------------------------------------------------------
+  //! Decode
+  //!
+  //! @return true if successful, othersie false
+  //----------------------------------------------------------------------------
+  virtual bool Decode();
+
+  //----------------------------------------------------------------------------
+  //! Base64 encode
+  //!
+  //! @param decoded_bytes input data
+  //! @param decoded_length input length
+  //! @param out encoded data
+  //!
+  //! @return true if encoding successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Base64Encode(char* decoded_bytes, ssize_t decoded_length,
+                           std::string& out);
+
+  //----------------------------------------------------------------------------
+  //! Base64 decode
+  //!
+  //! @param encoded_bytes input data
+  //! @param decoded_bytes output data
+  //! @param decoded_length output length
+  //!
+  //! @return true if decoding successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool Base64Decode(char* encoded_bytes, char*& decoded_bytes,
+                           ssize_t& decoded_length);
+
+  //----------------------------------------------------------------------------
+  //! Cipher encrypt using provided key
+  //!
+  //! @param data data to be encrypted
+  //! @param data_length length of the data
+  //! @param encrypted_data output encrypted data. It's not necessarily null
+  //!        terminated and could contain embedded nulls.
+  //! @param encrypted_length output data length
+  //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
+  //!
+  //! @return true if encryption successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CipherEncrypt(const char* data, ssize_t data_length,
+                            char*& encrypted_data, ssize_t& encrypted_length,
+                            char* key);
+
+  //----------------------------------------------------------------------------
+  //! Cipher decrypt using provided key
+  //!
+  //! @param encrypted_data input encrypted data
+  //! @param encrypted_length input data length
+  //! @param data decrypted data pointer for which the caller takes ownership
+  //! @param data_length length of the decrypted data
+  //! @param key cipher key whose length must be SHA_DIGEST_LENGTH (20)
+  //!
+  //! @return true if decryption successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool CipherDecrypt(char* encrypted_data, ssize_t encrypted_length,
+                            char*& data, ssize_t& data_length, char* key);
+
+  //----------------------------------------------------------------------------
+  //! RSA encrypt using private key
+  //!
+  //! @param data input data
+  //! @param data_length input data length
+  //! @param encrypted_data output encrypted data. It's not necessarily null
+  //!        terminated and could contain embedded nulls.
+  //! @param encrypted_length output data length
+  //!
+  //! @return true if encryption successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool RSAEncrypt(char* data, ssize_t data_length,
+                         char*& encrypted_data, ssize_t& encrypted_length);
+
+  //----------------------------------------------------------------------------
+  //! RSA decrypt using public key
+  //!
+  //! @param encrypted_data input encrypted data
+  //! @param encrypted_length input data length
+  //! @param data decrypted data pointer for which the caller takes ownership
+  //! @param data_length length of the decrypted data
+  //! @param key_hash hash of the key to be used
+  //!
+  //! @return true if decryption successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool RSADecrypt(char* encrypted_data, ssize_t encrypted_length,
+                         char*& data, ssize_t& data_length, XrdOucString& key_hash);
+
+  //----------------------------------------------------------------------------
+  //! Sign message object
+  //!
+  //! @param encrypt if true
+  //!
+  //! @return true if signing successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Sign(bool encrypt = false);
+
+  //----------------------------------------------------------------------------
+  //! Verify message object
+  //----------------------------------------------------------------------------
+  bool Verify();
+
+  //----------------------------------------------------------------------------
+  //!
+  //! key length is SHA_DIGEST_LENGTH
+  //----------------------------------------------------------------------------
+  static bool SymmetricStringEncrypt(XrdOucString& in, XrdOucString& out,
+                                     char* key);
+
+  //----------------------------------------------------------------------------
+  //!
+  //! key length is SHA_DIGEST_LENGTH
+  //----------------------------------------------------------------------------
+  static bool SymmetricStringDecrypt(XrdOucString& in, XrdOucString& out,
+                                     char* key);
+
+  //----------------------------------------------------------------------------
+  //! Print contents of the message object
+  //----------------------------------------------------------------------------
+  virtual void Print();
+
+
+  //----------------------------------------------------------------------------
+  //! Get message buffer
+  //----------------------------------------------------------------------------
+  inline const char* GetMessageBuffer()
   {
-    while (s.replace("&",seal)) {};
+    return kMessageBuffer.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set reply ID in the header of the message
+  //!
+  //! @param message message holding the reply ID
+  //----------------------------------------------------------------------------
+  void SetReply(XrdMqMessage& message);
+
+  //----------------------------------------------------------------------------
+  //! Seal string by replacing & with the desired seal
+  //!
+  //! @param s input string
+  //! @param seal type of seal to use
+  //!
+  //! @return pointer to the sealed string
+  //! @toto This should be moved in a common place
+  //----------------------------------------------------------------------------
+  static const char* Seal(XrdOucString& s, const char* seal = "#and#")
+  {
+    while (s.replace("&", seal)) {};
     return s.c_str();
   }
 
-  static const char* UnSeal(XrdOucString &s, const char* seal="#and#")
+  //----------------------------------------------------------------------------
+  //! Un-seal string
+  //!
+  //! @param s input string
+  //! @param seal type of seal to use
+  //!
+  //! @return pointer to the un-sealed string
+  //! @toto This should be moved in a common place
+  //----------------------------------------------------------------------------
+  static const char* UnSeal(XrdOucString& s, const char* seal = "#and#")
   {
-    while (s.replace(seal,"&")) {};
+    while (s.replace(seal, "&")) {};
     return s.c_str();
   }
 
-  static void Sort(XrdOucString &s, bool dosort=true);
-  static bool Base64Encode(char* in, unsigned int inlen, XrdOucString &fout);
-  static bool Base64Decode(XrdOucString &in, char* &out, unsigned int &outlen);
-  static bool CipherEncrypt(XrdOucString &in, char* &out, unsigned int &outlen, char* key); // key length is SHA_DIGEST_LENGTH
-  static bool CipherDecrypt(char* in, unsigned int inlen, XrdOucString &out, char* key);    // key length is SHA_DIGEST_LENGHT
+  //----------------------------------------------------------------------------
+  //! Set message body
+  //!
+  //! @param body raw data
+  //----------------------------------------------------------------------------
+  void SetBody(const char* body)
+  {
+    kMessageBody = body;
+    Seal(kMessageBody);
+  }
 
-  static bool RSAEncrypt(char* in, unsigned int len, char* &out, unsigned int &outlen);
-  static bool RSADecrypt(char* in, unsigned int len, char* &out, unsigned int &outlen, XrdOucString &KeyHash);
+  //----------------------------------------------------------------------------
+  //! Get message body
+  //!
+  //! @return raw data
+  //----------------------------------------------------------------------------
+  const char* GetBody()
+  {
+    UnSeal(kMessageBody);
+    return kMessageBody.c_str();
+  }
 
-  static bool SymmetricStringEncrypt(XrdOucString &in, XrdOucString &out, char* key); // key length is SHA_DIGEST_LENGTH
-  static bool SymmetricStringDecrypt(XrdOucString &in, XrdOucString &out, char* key); // key length is SHA_DIGEST_LENGTH
+  //----------------------------------------------------------------------------
+  //! Mark as monitor message
+  //----------------------------------------------------------------------------
+  inline void MarkAsMonitor()
+  {
+    kMonitor = true;
+  }
 
+  //! @todo These two should be review as they are used only for printing info
   static bool kCanSign;
   static bool kCanVerify;
 
-  XrdMqMessageHeader kMessageHeader;
- 
-  const char* GetMessageBuffer() { return kMessageBuffer.c_str();}
+  // Static settings and configuration
+  static EVP_PKEY* PrivateKey;             ///< private key for signatures
+  static XrdOucString PublicKeyDirectory;  ///< containing public keys names with hashval
+  static XrdOucString PrivateKeyFile;      ///< name of private key file
+  static XrdOucString PublicKeyFileHash;   ///< hash value of corresponding public key
+  static XrdOucHash<EVP_PKEY> PublicKeyHash; ///< hash with public keys
+  static XrdSysLogger* Logger; ///< logger object for error/debug info
+  static XrdSysError Eroute; ///< error object for error/debug info
+  XrdMqMessageHeader kMessageHeader; ///< message header
 
-  // create a new message ID
-  void NewId();
+ protected:
 
-  // set reply ID
-  void SetReply(XrdMqMessage &message);
-
-  // constructor for empty message
-  XrdMqMessage(const char* description ="XrdMqMessage", int type = XrdMqMessageHeader::kMessage);
-
-  // constructor for message based on raw(wire) format
-  XrdMqMessage(XrdOucString &rawmessage);
-
-  // factory function to build a message from raw format
-  static XrdMqMessage* Create(const char* rawmessage);
-
-  // add's user message information 
-  void SetBody(const char* body) { kMessageBody = body;  Seal(kMessageBody);}
-  
-  // retrieves user message information 
-  const char* GetBody() { UnSeal(kMessageBody); return kMessageBody.c_str();}
-
-  // mark as monitor message
-  void MarkAsMonitor() { kMonitor=true;}
-
-  // static settings and configuration
-  static EVP_PKEY* PrivateKey;             // private key for signatures
-  static XrdOucString PublicKeyDirectory;  // containing public keys names with hashval
-  static XrdOucString PrivateKeyFile;      // name of private key file
-  static XrdOucString PublicKeyFileHash;   // hash value of corresponding public key
-  static XrdOucHash<EVP_PKEY> PublicKeyHash; // hash with public keys 
-  static XrdSysLogger* Logger; 
-  static XrdSysError  Eroute;
-
-  // load configuration file
-  static bool Configure(const char* configfile=0);
-  static XrdSysMutex CryptoMutex;
-  virtual ~XrdMqMessage();
-
-  virtual bool Encode();
-  virtual bool Decode();
-
-  bool Sign(bool encrypt=false);
-  bool Verify();
-  virtual void Print();
+  XrdOucString kMessageBuffer;
+  XrdOucString kMessageBody;
+  bool kMonitor;
+  int errc;
 };
 
 
-class XrdAdvisoryMqMessage : public XrdMqMessage {
-public:
-  XrdOucString kQueue;
-  bool kOnline;
+//------------------------------------------------------------------------------
+// Class XrdAdvisoryMqMessage
+//------------------------------------------------------------------------------
+class XrdAdvisoryMqMessage : public XrdMqMessage
+{
+ public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdAdvisoryMqMessage():
+      XrdMqMessage(), kQueue(""), kOnline(false)
+  { }
 
-  bool Encode();
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdAdvisoryMqMessage(const char* description , const char* queue,
+                       bool online, int type):
+      XrdMqMessage(description, type),
+      kQueue(queue), kOnline(online)
+  { }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdAdvisoryMqMessage() {};
+
+  //----------------------------------------------------------------------------
+  //! Factory method to create advisory object from raw format
+  //!
+  //! @param rawmessage raw message data
+  //!
+  //! @return advisory mq message object or 0
+  //----------------------------------------------------------------------------
+  static XrdAdvisoryMqMessage* Create(const char* rawmessage);
+
+  //----------------------------------------------------------------------------
+  //! Encode message - encodes the header only, the message encoding has to be
+  //! implemented in the derived class and the derived class has FIRST to call
+  //! the base class. Encode function and append to kMessageBuffer the tag
+  //! "xrdmqmessage.body=<....>" [ defined as XMQBODY ]
+  //----------------------------------------------------------------------------
+  void Encode();
+
+  //----------------------------------------------------------------------------
+  //! Decode message
+  //----------------------------------------------------------------------------
   bool Decode();
 
+  //----------------------------------------------------------------------------
+  //! Print contents of the message object
+  //----------------------------------------------------------------------------
   void Print();
-  XrdAdvisoryMqMessage(const char* description ,const char* queue, bool online, int type) : XrdMqMessage(description, type) { kQueue = queue; kOnline = online;};
-  XrdAdvisoryMqMessage() : XrdMqMessage() { kQueue = ""; kOnline = false;}
-  static XrdAdvisoryMqMessage* Create(const char* rawmessage);
+
+  XrdOucString kQueue; ///< queue that changed
+  bool kOnline; ///< mark online status
 };
 
 #endif

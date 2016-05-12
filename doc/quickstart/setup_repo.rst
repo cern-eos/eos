@@ -6,31 +6,40 @@
 Setup YUM Repository
 ====================
 
-For SL5 or SL6 add the following repository
+EOS Beryl-Aquamarine
 -------------------------------------------
 
-EOS (for sl6 change "slc-5-x86_64" to "slc-6-x86_64"). Create file /etc/yum.repos.d/eos.repo with following content
+EOS Repo (eventually change el-7 to your platform: el-5 el-6 el-7 fc-21 fc-22 fc-23 fc-rawhide). Create file /etc/yum.repos.d/eos.repo with following content
 
 .. code-block:: text
 
-   [eos-beryll]
+   [eos-aquamarine]
    name=EOS 0.3 Version
-   baseurl=http://eos.cern.ch/rpms/eos-beryll/slc-5-x86_64/
+   baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/aquamarine/tag/el-7/x86_64/
    gpgcheck=0
-   enabled=1
 
-Fedora 18
----------
-
-EOS repo /etc/yum.repos.d/eos.repo with following content
+Create file /etc/yum.repos.d/eos-dep.repo with following content
 
 .. code-block:: text
 
-   [eos]
-   name=eos
-   baseurl=http://eos.cern.ch/rpms/eos-beryll/fedora/repos/eos/$releasever/$basearch
-   enabled=1
+   [eos-dep]
+   name=EOS 0.3 Dependencies
+   baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/aquamarine-depend/el-7-x86_64/
    gpgcheck=0
 
 .. warning::
-   You have to add line "exclude=xrootd*" in fedora.repo and fedora-updates.repo to avoid conflicting xrootd versions. This will be removed in furure.
+   You have to add line "exclude=xrootd*,libmicrohttp*" in epel.repo and epel-testing.repo.repo . This will be removed in future.
+
+
+
+EOS Citrine
+-------------------------------------------
+
+EOS Repo (eventually change el-7 to your platform: el-5 el-6 el-7 fc-21 fc-22 fc-23 fc-rawhide). Create file /etc/yum.repos.d/eos.repo with following content
+
+.. code-block:: text
+
+   [eos-citrine]
+   name=EOS 4.0 Version
+   baseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/citrine/tag/el-7/x86_64/
+   gpgcheck=0

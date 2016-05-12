@@ -334,6 +334,7 @@ namespace eos
       uint8_t  pUserFlags;
       uint64_t pSeqNumber;
       uint16_t pContentFlag;
+      std::string pFileName;
       std::vector<std::string> pWarningMessages;
       pthread_mutex_t pWarningMessagesMutex;
   };

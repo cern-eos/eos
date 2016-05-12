@@ -54,6 +54,7 @@ protected:
   HttpResponse                          *mHttpResponse;    //!< the HTTP response
   eos::common::Mapping::VirtualIdentity *mVirtualIdentity; //!< the virtual identity
 
+  std::string mRequestBody; //!< store small request bodies like PROPFIND
 public:
 
   /**
@@ -109,6 +110,21 @@ public:
    */
   inline void
   DeleteResponse() { delete mHttpResponse; mHttpResponse = 0; }
+
+
+  /**
+   * Add a piece to the body
+   */
+  void
+  AddToBody(const char* body, size_t size) { mRequestBody.append(body,size); }
+
+  /**
+   * @return the client request body
+   */
+
+  inline const std::string&
+  GetBody () { return mRequestBody; }
+
 };
 
 /*----------------------------------------------------------------------------*/

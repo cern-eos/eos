@@ -70,6 +70,12 @@ com_console (char *arg)
   if (!(pid = fork()))
   {
     XrdMqClient mqc;
+    if (!mqc.IsInitOK())
+    {
+      fprintf(stderr, "error: failed to initialize MQ Client\n");
+      exit(-1);
+    }
+
     XrdMqMessage message("");
     message.Configure(0);
 

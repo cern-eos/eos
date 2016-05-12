@@ -79,9 +79,34 @@ Mapping::ip_cache Mapping::gIpCache (300);
 void
 Mapping::Init ()
 {
-  ActiveTidents.set_empty_key("");
+  ActiveTidents.set_empty_key("#__EMPTY__#");
   ActiveTidents.set_deleted_key("#__DELETED__#");
 }
+
+//------------------------------------------------------------------------------
+// Reset
+//------------------------------------------------------------------------------
+void
+Mapping::Reset()
+{
+  {
+    XrdSysMutexHelper mLock(gPhysicalIdMutex);
+    gPhysicalUidCache.Purge();
+    gPhysicalGidCache.Purge();
+  }
+  {
+    XrdSysMutexHelper mLock(gPhysicalNameCacheMutex);
+    gPhysicalGroupNameCache.clear();
+    gPhysicalUserNameCache.clear();
+    gPhysicalGroupIdCache.clear();
+    gPhysicalUserIdCache.clear();
+  }
+  {
+    XrdSysMutexHelper mLock(ActiveLock);
+    ActiveTidents.clear();
+  }
+}
+
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -1416,9 +1441,10 @@ Mapping::UserNameToUid (const std::string &username, int &errc)
       }
     }
 
-    if (is_number)
+    uid = atoi(username.c_str());
+
+    if ((uid != 0) && (is_number))
     {
-      uid = atoi(username.c_str());
       errc = 0;
       return uid;
     }
@@ -1435,9 +1461,12 @@ Mapping::UserNameToUid (const std::string &username, int &errc)
     errc = 0;
   }
 
-  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-  gPhysicalUserIdCache[username] = uid;
-  gPhysicalUserNameCache[uid] = username;
+  if (!errc)
+  {
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    gPhysicalUserIdCache[username] = uid;
+    gPhysicalUserNameCache[uid] = username;
+  }
   return uid;
 }
 
@@ -1473,10 +1502,22 @@ Mapping::GroupNameToGid (const std::string &groupname, int &errc)
   getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
   if (!grbufp)
   {
-    // cannot translate this name
+    bool is_number = true;
+    for (size_t i = 0; i < groupname.length(); i++)
+    {
+      if (!isdigit(groupname[i]))
+      {
+        is_number = false;
+        break;
+      }
+    }
+
     gid = atoi(groupname.c_str());
-    if (gid != 0)
+    if ((gid != 0) && (is_number))
+    {
       errc = 0;
+      return gid;
+    }
     else
     {
       errc = EINVAL;
@@ -1489,9 +1530,12 @@ Mapping::GroupNameToGid (const std::string &groupname, int &errc)
     errc = 0;
   }
 
-  XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
-  gPhysicalGroupIdCache[groupname] = gid;
-  gPhysicalGroupNameCache[gid] = groupname;
+  if (!errc)
+  {
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    gPhysicalGroupIdCache[groupname] = gid;
+    gPhysicalGroupNameCache[gid] = groupname;
+  }
   return gid;
 }
 

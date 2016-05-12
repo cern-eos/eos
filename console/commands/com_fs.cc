@@ -189,6 +189,11 @@ com_fs (char* arg1)
           in += "&mgm.outformat=e";
           ok = true;
         }
+	if ( (option == "--brief") || (option == "-b") )
+	{
+	  in += "&mgm.outhost=brief";
+	  ok = true;
+	}
         if (!option.beginswith("-"))
         {
           in += "&mgm.selection=";
@@ -292,7 +297,13 @@ com_fs (char* arg1)
       if (!mp.length())
       {
         mp = arg;
-        hostport = XrdSysDNS::getHostName();
+        char *errtext=0;
+        hostport = XrdSysDNS::getHostName(0,&errtext);
+        if( !hostport.length() || hostport=="0.0.0.0")
+        {
+          fprintf(stderr, "Error initializing the MQ Client %s\n",errtext);
+          return 0;
+        }
       }
       if (!(hostport.find(":") != STR_NPOS))
       {
@@ -429,6 +440,11 @@ com_fs (char* arg1)
       {
         // status by mount point
         char* HostName = XrdSysDNS::getHostName();
+        if(!HostName || std::string(HostName)=="0.0.0.0")
+        {
+          fprintf(stdout, "Error initializing the MQ Client\n");
+          return 0;
+        }
         in += "&mgm.fs.node=";
         in += HostName;
         in += "&mgm.fs.mountpoint=";
@@ -860,9 +876,10 @@ com_fs_usage:
   fprintf(stdout, "'[eos] fs ..' provides the filesystem interface of EOS.\n");
   fprintf(stdout, "Usage: fs add|boot|config|dropdeletion|dropfiles|dumpmd|mv|ls|rm|status [OPTIONS]\n");
   fprintf(stdout, "Options:\n");
-  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [ [matchlist] ] :\n");
+  fprintf(stdout, "fs ls [-m|-l|-e|--io|--fsck|-d|--drain] [-s] [--brief|-b] [ [matchlist] ] :\n");
   fprintf(stdout, "                                                  list all filesystems in default output format. <space> is an optional substring match for the space name and can be a comma separated list\n");
   fprintf(stdout, "            -m                                  : list all filesystem parameters in monitoring format\n");
+  fprintf(stdout, "            --b,--brief                         : display host names without domain names\n");
   fprintf(stdout, "            -l                                  : display all filesystem parameters in long format\n");
   fprintf(stdout, "            -e                                  : display all filesystems in error state\n");
   fprintf(stdout, "            --io                                : display all filesystems in IO output format\n");

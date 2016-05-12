@@ -90,6 +90,11 @@ com_node (char* arg1)
           silent = true;
           ok = true;
         }
+	if ( (option == "--brief") || (option == "-b") )
+	{
+	  in += "&mgm.outhost=brief";
+	  ok = true;
+	}
         if (!option.beginswith("-"))
         {
           in += "&mgm.selection=";
@@ -332,8 +337,9 @@ com_node (char* arg1)
 
 com_node_usage:
 
-  fprintf(stdout, "usage: node ls [-s] [-m|-l|--sys|--io|--fsck] [<node>]                     : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout, "usage: node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>]  : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
   fprintf(stdout, "                                                                  -s : silent mode\n");
+  fprintf(stdout, "                                                          -b,--brief : display host names without domain names\n");
   fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
   fprintf(stdout, "                                                                  -l : long output - list also file systems after each node\n");
   fprintf(stdout, "                                                                --io : print IO statistics\n");
@@ -342,11 +348,12 @@ com_node_usage:
   fprintf(stdout, "       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node\n");
   fprintf(stdout, "                                                               <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n");
   fprintf(stdout, "                                                               <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n");
-  fprintf(stdout, "                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write\n");
+  fprintf(stdout, "                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write|fmd_open\n");
   fprintf(stdout, "                                                                       io_read  : simulate read  errors\n");
   fprintf(stdout, "                                                                       io_write : simulate write errors\n");
   fprintf(stdout, "                                                                       xs_read  : simulate checksum errors when reading a file\n");
   fprintf(stdout, "                                                                       xs_write : simulate checksum errors when writing a file\n");
+  fprintf(stdout, "                                                                       fmd_open : simulate a file metadata mismatch when opening a file\n");
   fprintf(stdout, "                                                                       <none>   : disable error simulation (every value than the previous ones are fine!)\n");
   fprintf(stdout, "                                                               <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n");
   fprintf(stdout, "                                                               <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n");

@@ -324,7 +324,7 @@ Storage::Boot (FileSystem *fs)
     return;
 
   // try to statfs the filesystem
-  eos::common::Statfs* statfs = fs->GetStatfs();
+  eos::common::Statfs* statfs = eos::common::Statfs::DoStatfs(fs->GetPath().c_str());
   if (!statfs)
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
@@ -422,16 +422,18 @@ Storage::Boot (FileSystem *fs)
     return;
   }
 
-  bool resyncmgm = (gFmdDbMapHandler.IsDirty(fsid) ||
+  bool is_dirty = gFmdDbMapHandler.IsDirty(fsid);
+  bool fast_boot = (!getenv("EOS_FST_NO_FAST_BOOT")) || (strcmp(getenv("EOS_FST_NO_FAST_BOOT"),"1"));
+  bool resyncmgm = ( (is_dirty) ||
                       (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootResync));
-  bool resyncdisk = (gFmdDbMapHandler.IsDirty(fsid) ||
+  bool resyncdisk = ( (is_dirty) ||
                      (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootForced));
 
   eos_info("msg=\"start disk synchronisation\"");
   // resync the DB 
   gFmdDbMapHandler.StayDirty(fsid, true); // indicate the flag to keep the DP dirty
 
-  if (resyncdisk && (fs->GetPath()[0] == '/'))
+  if (resyncdisk)
   {
     if (resyncmgm)
     {
@@ -483,6 +485,9 @@ Storage::Boot (FileSystem *fs)
   }
 
   gFmdDbMapHandler.StayDirty(fsid, false); // indicate the flag to unset the DB dirty flag at shutdown
+  // allows fast boot the next time
+  if (fast_boot)
+    gFmdDbMapHandler.MarkCleanDB(fsid);
 
   // check if there is a lable on the disk and if the configuration shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid))
@@ -524,7 +529,7 @@ Storage::Boot (FileSystem *fs)
     }
   }
 
-  if (chown(transactionDirectory.c_str(), geteuid(), getegid()))
+  if (chown(transactionDirectory.c_str(), 2, 2))
   {
     fs->SetStatus(eos::common::FileSystem::kBootFailure);
     fs->SetError(errno ? errno : EIO, "cannot change ownership of transactiondirectory");
