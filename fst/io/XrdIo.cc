@@ -222,9 +222,14 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
       mBlocksize = static_cast<uint64_t> (atoll(val));
     }
 
-    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
+    // Allocate only if not already done - this can happen if open is called
+    // multiple times on the same XrdIo object
+    if (mQueueBlocks.empty())
     {
-      mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
+      {
+        mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      }
     }
   }
 
@@ -248,12 +253,13 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
 
   if (!status.IsOK())
   {
-    delete io_handler;
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
+    delete mXrdFile;
+    delete io_handler;
     return SFS_ERROR;
   }
 
