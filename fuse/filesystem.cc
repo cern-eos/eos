@@ -661,7 +661,7 @@ filesystem::dir_cache_sync (unsigned long long inode,
 
  struct timespec modtime;
  modtime.tv_sec  = mtime.tv_sec + ctime.tv_sec;
- modtime.tv_nsec = ctime.tv_sec + ctime.tv_nsec;
+ modtime.tv_nsec = mtime.tv_nsec + ctime.tv_nsec;
 
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
  {
