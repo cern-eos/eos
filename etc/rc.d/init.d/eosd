@@ -107,7 +107,7 @@ start() {
 
         # Check if eosd is already running
         echo
-        eosdpid=`pgrep -f "${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR-/eos/}"`
+        eosdpid=`pgrep -f "${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR}"`
         getstatus $i
         eosdstatus="$?"
         export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
@@ -142,6 +142,7 @@ start() {
         export EOS_FUSE_NEG_ENTRY_CACHE_TIME=${EOS_FUSE_NEG_ENTRY_CACHE_TIME-30}
         export EOS_FUSE_CREATOR_CAP_LIFETIME=${EOS_FUSE_CREATOR_CAP_LIFETIME-30}
         export EOS_FUSE_FILE_WB_CACHE_SIZE=${EOS_FUSE_FILE_WB_CACHE_SIZE-67108864}
+	export EOS_FUSE_MOUNTDIR=${EOS_FUSE_MOUNTDIR-/eos/}
         export EOS_FUSE_REMOTEDIR=${EOS_FUSE_REMOTEDIR-${EOS_FUSE_MOUNTDIR}}
 
          [[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
@@ -205,16 +206,16 @@ start() {
             mkdir -p /var/run/eosd/credentials/store
             chmod 1777 /var/run/eosd/credentials
             chmod 1777 /var/run/eosd/credentials/store
-            mkdir -p ${EOS_FUSE_MOUNTDIR-/eos/}
-            chmod 700 ${EOS_FUSE_MOUNTDIR-/eos/}
+            mkdir -p ${EOS_FUSE_MOUNTDIR}
+            chmod 700 ${EOS_FUSE_MOUNTDIR}
             unset KRB5CCNAME
             unset X509_USER_CERT
             unset X509_USER_KEY
             ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
             ulimit -n 65000
             test -c /dev/fuse || modprobe fuse
-            ${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR-/eos/} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR-/eos/}  >& /dev/null 
-            pid=`pgrep -f "${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR-/eos/}"`
+            ${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$i,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR}  >& /dev/null 
+            pid=`pgrep -f "${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR}"`
             SRETVAL=$?
             if [ $SRETVAL -eq 0 ]; then
                 touch /var/lock/subsys/$prog.$i
@@ -309,7 +310,7 @@ stop() {
             fi
         fi
         echo -n "Stopping $prog for instance: $i"
-        umdir="${EOS_FUSE_MOUNTDIR-/eos/}";
+        umdir="${EOS_FUSE_MOUNTDIR}";
         kill_eosd "$umdir"
         echo
         if [ $existed -eq 0 ]; then

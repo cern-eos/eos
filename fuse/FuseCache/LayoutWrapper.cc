@@ -80,7 +80,7 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 // Constructor
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
-    mFile(file), mOpen(false), mFabs(NULL), mDoneAsyncOpen(false),
+    mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
     mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
@@ -113,6 +113,12 @@ int LayoutWrapper::MakeOpen()
 {
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("makeopening file %s", mPath.c_str());
+
+  if (mClose)
+  {
+    eos_static_err("file %s is already closed - won't open", mPath.c_str());
+    return -1;
+  }
 
   if (!mOpen)
   {
@@ -888,6 +894,8 @@ int LayoutWrapper::Close()
 {
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("closing file %s ", mPath.c_str());;
+
+  mClose = true;
 
   if (!mOpen)
   {

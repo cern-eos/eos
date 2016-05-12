@@ -49,6 +49,7 @@ class LayoutWrapper
 
   eos::fst::Layout* mFile;
   bool mOpen;
+  bool mClose;
   std::string mPath;
   unsigned long long mInode;
   XrdSfsFileOpenMode mFlags;
