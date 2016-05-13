@@ -991,7 +991,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
     // get the proxygroup
     // WARNING: entries[i]->doubleBufferMutex should be locked by the caller of findProxy
 
-    if(!(*dataProxys)[i].empty() )
+    if(!(*dataProxys)[i].empty() && (*dataProxys)[i]!="<none>")
     {
       if(pPxyHost2DpTMEs.count((*dataProxys)[i]))
       {
@@ -1031,7 +1031,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
       }
     }
     if(proxyGroup.empty()) fsproxygroup = & (*entries[i]->foregroundFastStruct->treeInfo)[fsIdxs[i]].proxygroup;
-    if(fsproxygroup->empty())    // no proxygroup, nothing to do, there will be an entry with an empty string
+    if(fsproxygroup->empty() || (*fsproxygroup)=="<none>")    // no proxygroup, nothing to do, there will be an entry with an empty string)
     {
       (*dataProxys)[i].clear();
       continue;
