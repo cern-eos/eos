@@ -23,7 +23,9 @@
 
 include_directories(
   ${CMAKE_SOURCE_DIR}
-  ${XROOTD_INCLUDE_DIRS})
+  ${XROOTD_INCLUDE_DIRS}
+  ${OPENSSL_INCLUDE_DIRS})
+  
 
 #-------------------------------------------------------------------------------
 # eosCapability-Static library

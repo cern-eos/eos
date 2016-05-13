@@ -52,6 +52,11 @@
 
 #define _FILE_OFFSET_BITS 64 
 
+#ifdef __APPLE__
+#define UPDATEPROCCACHE \
+  do {} while (0)
+
+#else
 #define UPDATEPROCCACHE \
   do { \
     int errCode; \
@@ -61,6 +66,8 @@
       return; \
     } \
   } while (0)
+
+#endif
 
 EosFuse::EosFuse ()
 {
