@@ -57,7 +57,7 @@
         int rc = gOFS->attr_ls(spath.c_str(), error, client, (const char *) 0, map);
 
         XrdOucString response = "lsxattr: retc=";
-        response += rc;
+        response += rc? (errno?errno:-1):rc;
         response += " ";
         if (rc == SFS_OK)
         {
@@ -88,7 +88,7 @@
                                 (const char*) 0, key.c_str(), value);
 
         XrdOucString response = "getxattr: retc=";
-        response += rc;
+	response += rc? (errno?errno:-1):rc;
 
         if (rc == SFS_OK)
         {
@@ -108,7 +108,7 @@
                                 (const char *) 0, key.c_str(), value.c_str());
 
         XrdOucString response = "setxattr: retc=";
-        response += rc;
+        response += rc? (errno?errno:-1):rc;
 
         error.setErrInfo(response.length() + 1, response.c_str());
         return SFS_DATA;
@@ -121,7 +121,7 @@
                                 (const char *) 0, key.c_str());
 
         XrdOucString response = "rmxattr: retc=";
-        response += rc;
+        response += rc? (errno?errno:-1):rc;
 
         error.setErrInfo(response.length() + 1, response.c_str());
         return SFS_DATA;

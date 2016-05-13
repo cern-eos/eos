@@ -7,6 +7,8 @@ my $XDR_STRING = 0;
 my $XDR_INT32 = 2;
 my $XDR_REAL64 = 5;
 
+my $MAX_INT = 1<<31;
+
 # Encode a set of parameters in the following format:
 # |clusterName | nodeName | time | #params |
 # | paramName | paramType | paramValue| x #params
@@ -43,7 +45,7 @@ sub encodeParameter {
 sub getType {
         $_ = shift;
 	
-	return $XDR_INT32 if /^[+-]?\d+$/;
+	return $XDR_INT32 if(/^[+-]?\d+$/ && (abs($_) < $MAX_INT));
 	return $XDR_REAL64 if /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
 	return $XDR_STRING;
 }

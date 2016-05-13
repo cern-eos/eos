@@ -459,15 +459,17 @@ PropFindResponse::BuildResponseNode (const std::string &url, const std::string &
     // -----------------------------------------------------------
     // retrieve the current quota
     // -----------------------------------------------------------
-    std::string path = url.c_str();
-    if (path.substr(path.length() - 1, 1) != "/")
+    XrdOucString path = url.c_str();
+    if (!path.endswith("/"))
     {
       path += "/";
     }
 
+    while (path.replace("//","/")) {}
+
     long long maxbytes = 0;
     long long freebytes = 0;
-    Quota::GetIndividualQuota(*mVirtualIdentity, path, maxbytes, freebytes);
+    Quota::GetIndividualQuota(*mVirtualIdentity, path.c_str(), maxbytes, freebytes);
 
     if (mRequestPropertyTypes & PropertyTypes::QUOTA_AVAIL)
     {

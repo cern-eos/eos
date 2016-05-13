@@ -52,6 +52,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
+#include "FuseCache/CacheEntry.hh"
 #include "filesystem.hh"
 
 #ifndef __macos__
@@ -133,6 +134,11 @@ filesystem::log_settings ()
  s = "write-cache-size       := ";
  std::string efcs = getenv ("EOS_FUSE_CACHE_SIZE") ? getenv ("EOS_FUSE_CACHE_SIZE") : "0";
  s += efcs;
+ log ("WARNING", s.c_str ());
+
+ s = "write-cache-page-size  := ";
+ std::string efpcs = getenv ("EOS_FUSE_CACHE_PAGE_SIZE") ? getenv ("EOS_FUSE_CACHE_PAGE_SIZE") : "(default 262144)";
+ s += efpcs;
  log ("WARNING", s.c_str ());
 
  s = "big-writes             := ";
@@ -857,8 +863,7 @@ int
 filesystem::is_wopen (unsigned long inode)
 {
  eos::common::RWMutexReadLock rd_lock (rwmutex_inodeopenw);
- auto iter = inodeopenw.find (inode);
- if (iter == inodeopenw.end ())
+ if (!inodeopenw.count(inode))
    return 0;
  return 1;
 }
@@ -1196,12 +1201,6 @@ filesystem::rmxattr (const char* path,
  
  XrdOucString xa=xattr_name; 
 
- // exclude security attributes
- if (xa.beginswith("security."))
- {
-   return 0;
- }
-
  request = safePath(path);
  request += "?";
  request += "mgm.pcmd=xattr&eos.app=fuse&";
@@ -1234,7 +1233,8 @@ filesystem::rmxattr (const char* path,
    if ((items != 2) || (strcmp (tag, "rmxattr:")))
      errno = ENOENT;
    else
-     errno = retc;
+     if (retc)
+       errno = ENOATTR;
  }
  else
  {
@@ -1271,11 +1271,6 @@ filesystem::setxattr (const char* path,
  COMMONTIMING ("START", &setxattrtiming);
 
  XrdOucString xa = xattr_name;
- // exclude security attributes
- if (xa.beginswith("security."))
- {
-   return 0;
- }
 
  std::string request;
  XrdCl::Buffer arg;
@@ -1360,11 +1355,6 @@ filesystem::getxattr (const char* path,
  COMMONTIMING ("START", &getxattrtiming);
 
  XrdOucString xa = xattr_name; 
- // exclude security attributes
- if (xa.beginswith("security."))
- {
-   return ENOENT;
- }
 
  std::string request;
  XrdCl::Buffer arg;
@@ -4502,6 +4492,12 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    XFC = FuseWriteCache::GetInstance (static_cast<size_t> (atol (getenv ("EOS_FUSE_CACHE_SIZE"))));
 
    fuse_cache_write = true;
+ }
+
+
+ if ((getenv("EOS_FUSE_CACHE_PAGE_SIZE")))
+ {
+   CacheEntry::SetMaxSize((size_t)strtoul(getenv("EOS_FUSE_CACHE_PAGE_SIZE"), 0, 10));
  }
 
  // Get the number of levels in the top hierarchy protected agains deletions

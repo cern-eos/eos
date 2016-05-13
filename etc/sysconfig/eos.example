@@ -240,6 +240,9 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 # Set the write-back cache size (default 300M)
 # export EOS_FUSE_CACHE_SIZE=0
 
+# Set the write-back cache pagesize (default 256k)
+# export EOS_FUSE_CACHE_PAGE_SIZE=262144
+
 # Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
 # export EOS_FUSE_BIGWRITES=1
 

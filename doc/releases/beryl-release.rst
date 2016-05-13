@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.172 Aquamarine``
+
+New Feature
++++++++++++
+
+- reduce default write-back page size to 256k (was 4M)
+- make the page size configurable via env EOS_FUSE_CACHE_PAGE_SIZE (in bytes)
+
+
 ``V0.3.171 Aquamarine``
 
 Bug Fixes

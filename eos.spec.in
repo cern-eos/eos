@@ -97,6 +97,7 @@ Requires: libmicrohttpd
 Requires: acl
 Requires: gdb
 Requires: protobuf
+Requires: jemalloc
 
 %if 0%{distribution} == 5
 Requires: zeromq
@@ -253,6 +254,7 @@ Group: Applications/File
 
 Requires: xrootd-client >= %{xrootd_version}
 Requires: fuse
+Requires: jemalloc
 
 %description -n eos-fuse
 The EOS fuse client.
