@@ -34,7 +34,7 @@ function printHelp()
   echo "  <xrootd_tag>    XRootD tag version used for this build             " 1>&2
   echo "  <build_number>  build number value passed in by Jenkins            " 1>&2
   echo "  <platform>      build platform e.g. slc-6, el-7, fc-24             " 1>&2
-  echo "  <architectur>   build architecture e.g. x86_64, i386               " 1>&2
+  echo "  <architecture>  build architecture e.g. x86_64, i386               " 1>&2
   echo "  <dst_path>      destination path for the rpms built                " 1>&2
 }
 
@@ -142,10 +142,11 @@ cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__X
 mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
+echo "Save RPMs in the YUM repo if necessary"
 BRANCH_LIST=('aquamarine' 'citrine')
 
 # If building one of the production branches then push rpms to YUM repo
-if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]] ; then
+if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
   # Get the release string length
   RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 | awk -F "-" '{print $3;}' | awk -F "." '{print length($1);}')
@@ -163,6 +164,6 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]] ; then
   mkdir -p ${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}
   cp -f *.rpm ${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}
   createrepo --update -q ${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}
+else
+  echo "Branch ${BRANCH} not in list for YUM repo"
 fi
-
-exit 0
