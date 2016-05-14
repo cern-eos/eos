@@ -138,9 +138,12 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
       mBlocksize = static_cast<uint64_t> (atoll(val));
     }
 
-    for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
+    if (mQueueBlocks.empty())
     {
-      mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      for (unsigned int i = 0; i < sNumRdAheadBlocks; i++)
+      {
+        mQueueBlocks.push(new ReadaheadBlock(mBlocksize));
+      }
     }
   }
 
@@ -165,11 +168,13 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
 
   if (!status.IsOK())
   {
-    eos_err("error=opening remote XrdClFile errno=%d errcode=%d msg=%s",(int)status.errNo,(int)status.code,status.ToString().c_str());
+    eos_err("error=opening remote XrdClFile errno=%d errcode=%d msg=%s",
+            (int)status.errNo,(int)status.code,status.ToString().c_str());
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     errno = status.errNo;
+    delete mXrdFile;
     return SFS_ERROR;
   }
   else
