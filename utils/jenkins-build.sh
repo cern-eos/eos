@@ -142,7 +142,6 @@ cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__X
 mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
-echo "Save RPMs in the YUM repo if necessary"
 BRANCH_LIST=('aquamarine' 'citrine')
 
 # If building one of the production branches then push rpms to YUM repo
@@ -160,10 +159,12 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   fi
 
   # Make sure the directories are created and rebuild the YUM repo
+  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
+  echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
   aklog
-  mkdir -p ${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}
-  cp -f *.rpm ${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}
-  createrepo --update -q ${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}
+  mkdir -p ${YUM_REPO_PATH}
+  cp -f *.rpm ${YUM_REPO_PATH}
+  createrepo --update -q ${YUM_REPO_PATH}
 else
-  echo "Branch ${BRANCH} not in list for YUM repo"
+  echo "RPMs for branch ${BRANCH} are NOT saved in any YUM repository!"
 fi
