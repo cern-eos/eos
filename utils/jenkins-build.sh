@@ -42,7 +42,7 @@ function printHelp()
 # Get the local branch name and dist tag for the rpms. For example local branch
 # name of branch 'origin/master' is master. The dist tag for Scientific Linux 5
 # can be 'slc5' or 'el5'.
-# Function sets two global variables BRANCH and DIST
+# Function sets two global variables BRANCH and DIST.
 #-------------------------------------------------------------------------------
 function getLocalBranchAndDistTag()
 {
@@ -94,12 +94,13 @@ function getLocalBranchAndDistTag()
   # Remove any "-" from the dist tag
   DIST="${DIST//-}"
 
-  echo "Local branch: ${BRANCH}"
-  echo "Dist tag:     ${DIST}  "
+  echo "Local branch:         ${BRANCH}"
+  echo "Dist tag:             ${DIST}"
 }
 
 #-------------------------------------------------------------------------------
-# Main - when we are called the current BRANCH_OR_TAG is already checked-out
+# Main - when we are called the current BRANCH_OR_TAG is already checked-out and
+#        the script must be run from the **same directory** where it resides.
 #-------------------------------------------------------------------------------
 if [[ ${#} -ne 6 ]]; then
     printHelp
@@ -113,12 +114,13 @@ PLATFORM=${4}
 ARCHITECTURE=${5}
 DST_PATH=${6}
 
-echo "Branch or tag:      ${BRANCH_OR_TAG}"
-echo "XRootD tag:         ${XROOTD_TAG}"
-echo "Build number:       ${BUILD_NUMBER}"
-echo "Build platform:     ${PLATFORM}"
-echo "Build architecture: ${ARCHITECTURE}"
-echo "Destination path:   ${DST_PATH}"
+echo "Build number:         ${BUILD_NUMBER}"
+echo "Branch or tag:        ${BRANCH_OR_TAG}"
+echo "XRootD tag:           ${XROOTD_TAG}"
+echo "Build platform:       ${PLATFORM}"
+echo "Build architecture:   ${ARCHITECTURE}"
+echo "Destination path:     ${DST_PATH}"
+echo "Running in directory: $(pwd)"
 
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
