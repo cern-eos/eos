@@ -1,7 +1,7 @@
 #!/bin/bash
 #-------------------------------------------------------------------------------
 # @author Elvin-Alin Sindrilaru - CERN
-# @brief Script used by Jenkins to build EOS rpms
+# @brief Script used by Jenkins to build EOS Nginx rpms
 #-------------------------------------------------------------------------------
 
 #************************************************************************
@@ -124,44 +124,23 @@ echo "Running in directory: $(pwd)"
 
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
-
-# Create cmake build directory and build without dependencies
-cd ..; mkdir build; cd build
-cmake .. -DPACKAGEONLY=1
-# Create tarball
-make dist
-# Build the source RPM
-rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-*.tar.gz
-# Move the source RPM
-mv rpmbuild/SRPMS/eos-*.src.rpm .
-
+# Move to nginx directory and create the SRPMs
+cd nginx
+./makesrpm.sh
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 # Prepare the mock configuration
 cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/${XROOTD_TAG}/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
-
 # Build the RPMs
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
-
+mock --yum --init --uniqueext="eos-nginx01" -r ./eos.cfg --rebuild ./eos-nginx*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
-  # Get the release string length
-  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 | awk -F "-" '{print $3;}' | awk -F "." '{print length($1);}')
-  COMMIT_LEN=18
-
-  # For not tagged builds the release string is 18 characters i.e date + git + commit_hash
-  if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
-    BUILD_TYPE="commit"
-  else
-    BUILD_TYPE="tag"
-  fi
-
   # Make sure the directories are created and rebuild the YUM repo
-  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
+  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/tag/${PLATFORM}/${ARCHITECTURE}"
   echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
   aklog
   mkdir -p ${YUM_REPO_PATH}
