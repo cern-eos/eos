@@ -163,7 +163,6 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl, timeout);
-
   mXrdFile->GetProperty("LastURL", mLastUrl);
 
   if (!status.IsOK())
@@ -182,9 +181,6 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
     errno = 0;
   }
 
-  //............................................................................   
-  // store the last URL we are connected after open
-  //............................................................................
   return SFS_OK;
 }
 
