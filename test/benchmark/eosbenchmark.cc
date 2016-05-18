@@ -452,8 +452,6 @@ PrintResults(const string& resultsFile, const string& configFile)
       current_result = iter->second.second;
       current_config->Print();
       current_result->Print();
-      delete current_config;
-      delete current_result;
     }
   }
 
