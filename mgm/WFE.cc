@@ -765,7 +765,7 @@ WFE::Job::DoIt ()
             {
             }
 
-            execargs.replace("<action>", mActions[0].mAction.c_str())
+            execargs.replace("<action>", mActions[0].mAction.c_str());
 
             std::string bashcmd = EOS_WFE_BASH_PREFIX + executable + " " + execargs.c_str();
 
