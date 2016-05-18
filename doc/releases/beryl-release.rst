@@ -7,6 +7,16 @@
 Beryl Release Notes
 ===================
 
+``V0.3.178 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: fix geotag scheduling when exact switch is enabled/disabled (try always first with exact geo matching, then relax the requirement)
+- FUSE: fix SEGV on krb5 recovery redirection
+- COMMON: fix eternal loop for esoteric .././.././../ path combinations
+
 ``V0.3.177 Aquamarine``
 +++++++++++++++++++++++
 
