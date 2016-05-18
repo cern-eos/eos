@@ -73,7 +73,9 @@ Scheduler::FilePlacement (const char* path, //< path to place
   gid_t gid = vid.gid;
 
   bool hasgeolocation = false;
-  bool exact_match = false;
+  bool exact_match = true;
+  bool config_exact_match = false;
+
   int geo_entry_fsid = 0;
 
   if (vid.geolocation.length())
@@ -82,7 +84,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     {
       // we only do geolocations for replica layouts
       hasgeolocation = true;
-      exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.write.exact") == "on");
+      config_exact_match = (FsView::gFsView.mSpaceView[SpaceName.c_str()]->GetConfigMember("geo.access.policy.write.exact") == "on");
     }
   }
 
@@ -137,9 +139,18 @@ Scheduler::FilePlacement (const char* path, //< path to place
     schedulingMutex.UnLock();
   }
 
-  // we can loop over all existing scheduling views
-  for (unsigned int groupindex = 0; groupindex < FsView::gFsView.mSpaceGroupView[spacename].size(); groupindex++)
+  // we can loop over all existing scheduling views twice, once with exact match, then once without
+  for (unsigned int groupindex = 0; groupindex < (2*FsView::gFsView.mSpaceGroupView[spacename].size()); groupindex++)
   {
+    eos_static_info("group-index=%d max-index=%d exact-match=%d config-exact-match=%d", groupindex, FsView::gFsView.mSpaceGroupView[spacename].size(), exact_match, config_exact_match);
+    if (groupindex >= FsView::gFsView.mSpaceGroupView[spacename].size())
+    {
+      if (exact_match && !config_exact_match)
+	exact_match = false;
+      else
+	break;
+    }
+
     eos_static_debug("scheduling group loop %d", forced_scheduling_group_index);
     selected_filesystems.clear();
     availablefs.clear();
@@ -333,11 +344,30 @@ Scheduler::FilePlacement (const char* path, //< path to place
 	  
 	  eos_static_debug("fs %u selected for %d. replica", *ait, nassigned + 1);
 
-	  if ( (nfilesystems==1) && exact_match && !geo_entry_fsid) 
+	  if ( exact_match && !geo_entry_fsid) 
 	  {
-	    ait = availablevector.erase(ait);
-            if (ait == availablevector.end())
-              ait = availablevector.begin();
+	    std::list<eos::common::FileSystem::fsid_t>::iterator geoit;
+	    for (geoit=ait++; geoit != availablevector.end(); geoit++)
+	    {
+	      if (vid.geolocation == availablefsgeolocation[*geoit])
+	      {
+		geo_entry_fsid = *geoit;
+		selected_filesystems.push_back(*geoit);
+		if (*geoit == *ait)
+		{
+		  ait = availablevector.erase(geoit);
+		}
+		else 
+		{
+		  availablevector.erase(geoit);
+		}
+		if (ait == availablevector.end())
+		  ait = availablevector.begin();
+		// rotate scheduling view ptr
+		nassigned++;
+		break;
+	      }
+	    }
 	  }
 	  else
 	  {
