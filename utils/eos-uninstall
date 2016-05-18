@@ -30,8 +30,11 @@ fi
 echo "# [ to execute the cleaning of the MGM give '--do-uninstall' as option ] ...";
 
 ECHO="echo"
+CLEANUP=""
+
 if [ "$runtest" = "no" ]; then
-  ECHOo=""
+  ECHO=""
+  CLEANUP="--do-cleanup"
 fi
 
 for name in `rpm -qa | grep ^eos- | grep -v eos-cleanup` ; do 
@@ -39,9 +42,9 @@ for name in `rpm -qa | grep ^eos- | grep -v eos-cleanup` ; do
   $ECHO rpm -e $name
 done
 
-/usr/sbin/eos-mgm-clean $1
-/usr/sbin/eos-fst-clean $1
-/usr/sbin/eos-log-clean $1
+/usr/sbin/eos-mgm-clean $CLEANUP
+/usr/sbin/eos-fst-clean $CLEANUP
+/usr/sbin/eos-log-clean $CLEANUP
 
 for name in `rpm -qa | grep ^eos- ` ; do 
   echo "# Uninstalling RPM $name ...";
