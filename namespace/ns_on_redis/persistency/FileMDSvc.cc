@@ -139,14 +139,9 @@ void FileMDSvc::updateStore(IFileMD* obj)
 
   if (!dynamic_cast<FileMD*>(obj)->serialize(buffer))
   {
-    // Add fid to the set of files to be rechecked
-    if (!pRedox->sadd(constants::sSetCheckFiles, obj->getId()))
-    {
-      MDException e(ENOENT);
-      e.getMessage() << "File #" << obj->getId() << " failed to insert into the"
-	" set of files to be rechecked";
-      throw e;
-    }
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << obj->getId() << " serialization failed";
+    throw e;
   }
 
   try
@@ -159,6 +154,12 @@ void FileMDSvc::updateStore(IFileMD* obj)
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
     throw e;
+  }
+
+  if (!static_cast<FileMD*>(obj)->IsConsistent())
+  {
+    pRedox->srem(constants::sSetCheckFiles, obj->getId());
+    static_cast<FileMD*>(obj)->SetConsistent(true);
   }
 }
 
@@ -327,6 +328,23 @@ FileMDSvc::checkFile(std::uint64_t fid)
   }
 
   return is_ok;
+}
+
+//------------------------------------------------------------------------------
+// Add file object to consistency check list
+//------------------------------------------------------------------------------
+void
+FileMDSvc::addToConsistencyCheck(IFileMD::id_t id)
+{
+  try {
+    pRedox->sadd(constants::sSetCheckFiles, id);
+  }
+  catch (std::runtime_error& e) {
+    MDException e(ENOENT);
+    e.getMessage() << "File #" << id << " failed to insert into the set of "
+      "files to be checked - got an exception";
+    throw e;
+  }
 }
 
 EOSNSNAMESPACE_END

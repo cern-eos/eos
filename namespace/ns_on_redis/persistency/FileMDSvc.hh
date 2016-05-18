@@ -143,6 +143,13 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   bool checkFiles();
 
+  //----------------------------------------------------------------------------
+  //! Add file object to consistency check list to recover it in case of a crash
+  //!
+  //! @param id file object id
+  //----------------------------------------------------------------------------
+  void addToConsistencyCheck(IFileMD::id_t id);
+
 private:
 
   typedef std::list<IFileMDChangeListener*> ListenerList;

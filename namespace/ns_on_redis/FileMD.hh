@@ -26,6 +26,7 @@
 
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include <cstring>
 #include <string>
 #include <sys/time.h>
@@ -399,7 +400,7 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   inline void setFileMDSvc(IFileMDSvc* fileMDSvc)
   {
-    pFileMDSvc = fileMDSvc;
+    pFileMDSvc = static_cast<FileMDSvc*>(fileMDSvc);
   }
 
   //----------------------------------------------------------------------------
@@ -518,6 +519,20 @@ class FileMD: public IFileMD
   //----------------------------------------------------------------------------
   void deserialize(const std::string& buffer);
 
+  //----------------------------------------------------------------------------
+  //! Get consistency status
+  //!
+  //! @return true if file is consistent in the back-end store, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool IsConsistent() const { return mIsConsistent; }
+
+  //----------------------------------------------------------------------------
+  //! Set consistency status
+  //!
+  //! @param is_consistent new status
+  //----------------------------------------------------------------------------
+  void SetConsistent(bool is_consistent) { mIsConsistent = is_consistent;}
+
 protected:
   id_t                pId;
   ctime_t             pCTime;
@@ -534,13 +549,14 @@ protected:
   LocationVector      pUnlinkedLocation;
   Buffer              pChecksum;
   XAttrMap            pXAttrs;
-  IFileMDSvc*         pFileMDSvc;
+  FileMDSvc*          pFileMDSvc;
 
 private:
   std::list<std::string> mErrors; ///< Error messages from the callbacks
   std::mutex mMutex; ///< Mutex for condition variable and access to the errors
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
   std::atomic<std::uint32_t> mNumAsyncReq; ///< Number of in-flight async requests
+  bool mIsConsistent; ///< Mark if object is fully consistent in the back-end
   //! Redox callback for notifications send to listeners
   std::function<void(redox::Command<int>&)> mNotificationCb;
   //! Wrapper callback which returns a callback used by the Redox clietn

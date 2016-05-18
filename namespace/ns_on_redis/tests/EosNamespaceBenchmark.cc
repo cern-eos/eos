@@ -32,7 +32,6 @@
 #include <unistd.h>
 #include <string>
 
-
 eos::common::RWMutex nslock;
 
 //------------------------------------------------------------------------------
@@ -221,7 +220,7 @@ int main(int argc, char** argv)
 	      << "<level1-dirs> <level3-files> "
 	      << std::endl;
     return 1;
-  };
+  }
 
   std::map<std::string, std::string> config = {
     {"redis_host", argv[1]},

@@ -28,8 +28,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
   IFileMD(), pId(id), pSize(0), pContainerId(0), pCUid(0), pCGid(0),
-  pLayoutId(0), pFlags(0), pChecksum(0), pFileMDSvc(fileMDSvc), mMutex(),
-  mAsyncCv(), mNumAsyncReq{0}
+  pLayoutId(0), pFlags(0), pChecksum(0), pFileMDSvc((FileMDSvc*)fileMDSvc), mMutex(),
+  mAsyncCv(), mNumAsyncReq{0}, mIsConsistent{true}
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
@@ -47,6 +47,13 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
   };
 
   mWrapperCb = [&]() -> decltype(mNotificationCb) {
+    // Mark object as inconsistent so we can recover it in case of a crash
+    if (mIsConsistent)
+    {
+      pFileMDSvc->addToConsistencyCheck(pId);
+      mIsConsistent = false;
+    }
+
     mNumAsyncReq++;
     return mNotificationCb;
   };
@@ -131,6 +138,7 @@ void FileMD::removeLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::removeAllLocations()
 {
+  // TODO: use srem interface that takes a vector as input to save on RTT
   std::vector<location_t>::reverse_iterator it;
 
   while ((it = pUnlinkedLocation.rbegin()) != pUnlinkedLocation.rend())
@@ -168,6 +176,7 @@ void FileMD::unlinkLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::unlinkAllLocations()
 {
+  // TODO: use srem interface that takes a vector as input to save on RTT
   std::vector<location_t>::reverse_iterator it;
 
   while ((it = pLocation.rbegin()) != pLocation.rend())

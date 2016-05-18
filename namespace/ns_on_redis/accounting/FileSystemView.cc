@@ -52,7 +52,7 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
 
     // File has been deleted
     case IFileMDChangeListener::Deleted:
-      // TODO: no file object in this case - make it a bit more consistent
+      // Note: for this type oc action we only have the file id
       pRedox->srem(sNoReplicaPrefix, e->fileId);
       break;
 
@@ -61,7 +61,7 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
       val = std::to_string(e->location);
       pRedox->sadd(sSetFsIds, val, file->mWrapperCb());
       key = val + sFilesSuffix;
-      val = std::to_string(e->file->getId());
+      val = std::to_string(file->getId());
       pRedox->sadd(key, val, file->mWrapperCb());
       pRedox->srem(sNoReplicaPrefix, val, file->mWrapperCb());
       break;
@@ -69,7 +69,7 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
     // Replace location
     case IFileMDChangeListener::LocationReplaced:
       key = std::to_string(e->oldLocation)+ sFilesSuffix;
-      val = std::to_string(e->file->getId());
+      val = std::to_string(file->getId());
       pRedox->srem(key, val, file->mWrapperCb());
       key = std::to_string(e->location) + sFilesSuffix;
       pRedox->sadd(key, val, file->mWrapperCb());
@@ -78,7 +78,8 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
     // Remove location
     case IFileMDChangeListener::LocationRemoved:
       key = std::to_string(e->location) + sUnlinkedSuffix;
-      val = std::to_string(e->file->getId());
+      val = std::to_string(file->getId());
+      file->SetConsistent(false);
       pRedox->srem(key, val);
 
       if(!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation())
@@ -104,9 +105,9 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
     case IFileMDChangeListener::LocationUnlinked:
       key = std::to_string(e->location) + sFilesSuffix;
       val = std::to_string(e->file->getId());
-      pRedox->srem(key, val);
+      pRedox->srem(key, val, file->mWrapperCb());
       key = std::to_string(e->location) + sUnlinkedSuffix;
-      pRedox->sadd(key, val);
+      pRedox->sadd(key, val, file->mWrapperCb());
       break;
 
     default:
