@@ -7,6 +7,25 @@
 Beryl Release Notes
 ===================
 
+``V0.3.177 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FST: reduce lock contention on Sqlite mutex
+- FST: use one Sqlite lock per filestem instead of a global lock for all filesystems
+- ETC: fix use of default mount dir in eosd scripts
+- FUSE: fix invalid modtime calculation disabling directory caching
+- FUSE: fix memory leak in XrdIo when a file was deleted before it was ever opened 
+- HTTP: add mutex to avoid parallel loading of grid-map file and possible memory SEGV when parsing
+- NAMESPACE: don't cancel follower threads on the Slave in active code (avoids exceptions on pthread_join)
+ 
+New Feature
++++++++++++
+
+- FUSE: add support to compile eosd3 using libfuse3
+
 ``V0.3.176 Aquamarine``
 +++++++++++++++++++++++
 

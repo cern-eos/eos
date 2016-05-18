@@ -46,14 +46,14 @@ EOSMGMNAMESPACE_BEGIN
 #ifdef EOS_MICRO_HTTPD
 /*----------------------------------------------------------------------------*/
 int
-HttpServer::Handler (void                  *cls,
+HttpServer::Handler (void *cls,
                      struct MHD_Connection *connection,
-                     const char            *url,
-                     const char            *method,
-                     const char            *version,
-                     const char            *uploadData,
-                     size_t                *uploadDataSize,
-                     void                 **ptr)
+                     const char *url,
+                     const char *method,
+                     const char *version,
+                     const char *uploadData,
+                     size_t *uploadDataSize,
+                     void **ptr)
 {
   std::map<std::string, std::string> headers;
   bool go=false;
@@ -126,10 +126,10 @@ HttpServer::Handler (void                  *cls,
     *ptr = handler;
     // PUT has to run through to avoid the generation of 100-CONTINUE before a redirect
     if ( strcmp(method,"PUT") )
-    return MHD_YES;
+      return MHD_YES;
   }
   // Retrieve the protocol handler stored in *ptr
-  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) *ptr;
+  eos::common::ProtocolHandler *protocolHandler = (eos::common::ProtocolHandler*) * ptr;
 
   // For requests which have a body (i.e. uploadDataSize != 0) we must handle
   // the body data on the last call to this function. We must
@@ -154,11 +154,12 @@ HttpServer::Handler (void                  *cls,
     size_t bodySize = protocolHandler->GetBody().size();
 
     // Make a request object
-    eos::common::HttpRequest *request = new eos::common::HttpRequest(headers, method, url,
+    eos::common::HttpRequest *request = new eos::common::HttpRequest(
+                                                                     headers, method, url,
                                                                      query.c_str() ? query : "",
                                                                      protocolHandler->GetBody(), &bodySize, cookies);
     eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(), request->GetBody().c_str());
-
+    
     // Handle the request and build a response based on the specific protocol unless the body is not complete ...
     protocolHandler->HandleRequest(request);
     delete request;
@@ -218,7 +219,7 @@ HttpServer::Handler (void                  *cls,
   }
 }
 
-//#endif
+#endif
 
 /*----------------------------------------------------------------------------*/
 void
@@ -241,17 +242,17 @@ HttpServer::CompleteHandler (void                              *cls,
 
   eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ", scode.c_str());
 }
-#endif
+
 /*----------------------------------------------------------------------------*/
 eos::common::Mapping::VirtualIdentity*
-HttpServer::Authenticate(std::map<std::string, std::string> &headers)
+HttpServer::Authenticate (std::map<std::string, std::string> &headers)
 {
   eos::common::Mapping::VirtualIdentity *vid = 0;
   std::string clientDN = headers["ssl_client_s_dn"];
   std::string remoteUser = headers["remote-user"];
   std::string dn;
   std::string username;
-  size_t    pos;
+  unsigned pos;
 
   if (clientDN.empty() && remoteUser.empty())
   {
@@ -268,22 +269,27 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
       {
 	eos_static_warning("msg=\"error stating gridmap file: %s\"", strerror(errno));
 	username = "";
-      }
+      }  
       else
-      {
-        // Initially load the file, or reload it if it was modified
-        if (!mGridMapFileLastModTime.tv_sec ||
-            mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
-        {
-          eos_static_info("msg=\"reloading gridmap file\"");
-
-          std::ifstream in("/etc/grid-security/grid-mapfile");
-          std::stringstream buffer;
-          buffer << in.rdbuf();
-          mGridMapFile = buffer.str();
-          mGridMapFileLastModTime = info.st_mtim;
-          in.close();
-        }
+      {  
+	{
+	  static XrdSysMutex mGridMapMutex;
+	  XrdSysMutexHelper gLock(mGridMapMutex);
+	  
+	  // Initially load the file, or reload it if it was modified
+	  if (!mGridMapFileLastModTime.tv_sec ||
+	      mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
+	  {
+	    eos_static_info("msg=\"reloading gridmap file\"");
+	    
+	    std::ifstream in("/etc/grid-security/grid-mapfile");
+	    std::stringstream buffer;
+	    buffer << in.rdbuf();
+	    mGridMapFile = buffer.str();
+	    mGridMapFileLastModTime = info.st_mtim;
+	    in.close();
+	  }
+	}
 
         // For proxy certificates clientDN can have multiple ../CN=... appended
         size_t pos = 0;
@@ -347,17 +353,17 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
       }
     }
 
-    if (remoteUser.length())
+    if (remoteUser.length()) 
     {
       // extract kerberos username
       pos = remoteUser.find_last_of("@");
       std::string remoteUserName = remoteUser.substr(0, pos);
       username = remoteUserName;
       eos_static_info("msg=\"mapped client remote username successfully\" "
-                      "username=\"%s\"", username.c_str());
+		      "username=\"%s\"", username.c_str());
     }
   }
-
+  
   if (username.empty())
   {
     eos_static_info("msg=\"unauthenticated client mapped to nobody"
@@ -365,26 +371,26 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
                     clientDN.c_str(), remoteUser.c_str());
     username = "nobody";
   }
-    
+
   XrdSecEntity client(headers.count("x-real-ip")?"https":"http");
   std::string remotehost="";
 
   if (headers.count("x-real-ip"))
-    {       
+  {
     // translate a proxied host name
     remotehost = const_cast<char*> (headers["x-real-ip"].c_str());
-      
+
     char* haddr[1];
     char* hname[1];
     if ( (XrdSysDNS::getAddrName(remotehost.c_str(),
 				     1,
 				     haddr,
 				     hname)) > 0 )
-      {
+    {
       remotehost =const_cast<char*> (hname[0]);
       free(hname[0]);
       free(haddr[0]);
-      }
+    }
   
     if (headers.count("auth-type"))
     {
@@ -399,8 +405,8 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
   client.name = const_cast<char*> (username.c_str());
   client.tident = const_cast<char*> (tident.c_str());
   {
-  // Make a virtual identity object
-  vid = new eos::common::Mapping::VirtualIdentity();
+    // Make a virtual identity object
+    vid = new eos::common::Mapping::VirtualIdentity();
 
     EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap (&client, "eos.app=http", client.tident, *vid, true);
@@ -417,7 +423,7 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
     // if we have been mapped to nobody, change also the name accordingly
     if (vid->uid == 99)
       vid->name = const_cast<char*> ("nobody");
-  vid->dn     = dn;
+    vid->dn = dn;
     vid->tident = tident.c_str();
   }
 
