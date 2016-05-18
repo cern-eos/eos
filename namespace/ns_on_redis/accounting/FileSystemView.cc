@@ -47,8 +47,7 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
   {
     // New file has been created
     case IFileMDChangeListener::Created:
-      file->mNumAsyncReq++;
-      pRedox->sadd(sNoReplicaPrefix, file->getId(), file->mNotificationCb);
+      pRedox->sadd(sNoReplicaPrefix, file->getId(), file->mWrapperCb());
       break;
 
     // File has been deleted
@@ -60,25 +59,20 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
     // Add location
     case IFileMDChangeListener::LocationAdded:
       val = std::to_string(e->location);
-      file->mNumAsyncReq++;
-      pRedox->sadd(sSetFsIds, val, file->mNotificationCb);
+      pRedox->sadd(sSetFsIds, val, file->mWrapperCb());
       key = val + sFilesSuffix;
       val = std::to_string(e->file->getId());
-      file->mNumAsyncReq++;
-      pRedox->sadd(key, val, file->mNotificationCb);
-      file->mNumAsyncReq++;
-      pRedox->srem(sNoReplicaPrefix, val, file->mNotificationCb);
+      pRedox->sadd(key, val, file->mWrapperCb());
+      pRedox->srem(sNoReplicaPrefix, val, file->mWrapperCb());
       break;
 
     // Replace location
     case IFileMDChangeListener::LocationReplaced:
       key = std::to_string(e->oldLocation)+ sFilesSuffix;
       val = std::to_string(e->file->getId());
-      file->mNumAsyncReq++;
-      pRedox->srem(key, val, file->mNotificationCb);
+      pRedox->srem(key, val, file->mWrapperCb());
       key = std::to_string(e->location) + sFilesSuffix;
-      file->mNumAsyncReq++;
-      pRedox->sadd(key, val, file->mNotificationCb);
+      pRedox->sadd(key, val, file->mWrapperCb());
       break;
 
     // Remove location
@@ -88,10 +82,7 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
       pRedox->srem(key, val);
 
       if(!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation())
-      {
-	file->mNumAsyncReq++;
-	pRedox->sadd(sNoReplicaPrefix, val, file->mNotificationCb);
-      }
+	pRedox->sadd(sNoReplicaPrefix, val, file->mWrapperCb());
 
       // Cleanup fsid if it doesn't hold any files anymore
       key = std::to_string(e->location) + sFilesSuffix;

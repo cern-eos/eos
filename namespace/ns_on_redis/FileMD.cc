@@ -45,6 +45,11 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc):
     if (--mNumAsyncReq == 0)
       mAsyncCv.notify_one();
   };
+
+  mWrapperCb = [&]() -> decltype(mNotificationCb) {
+    mNumAsyncReq++;
+    return mNotificationCb;
+  };
 }
 
 //------------------------------------------------------------------------------

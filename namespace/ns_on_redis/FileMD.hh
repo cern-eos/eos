@@ -543,6 +543,8 @@ private:
   std::atomic<std::uint32_t> mNumAsyncReq; ///< Number of in-flight async requests
   //! Redox callback for notifications send to listeners
   std::function<void(redox::Command<int>&)> mNotificationCb;
+  //! Wrapper callback which returns a callback used by the Redox clietn
+  std::function<decltype(mNotificationCb)(void)> mWrapperCb;
 };
 
 EOSNSNAMESPACE_END
