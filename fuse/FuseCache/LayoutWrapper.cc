@@ -656,6 +656,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           {
             eos_static_err("using a new connection did not fix at %s",
                            mFile->GetLastUrl ().c_str());
+            errno = EPERM;
             return -1;
           }
           _lasturl = mFile->GetLastUrl ();
@@ -667,7 +668,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           {
             if (_path[p-8] != 'Z') _path[p-8]++;
             else
+            {
               eos_static_warning("reached maximum number of redirects for strong authentication");
+              errno = EPERM;
+              return -1;
+            }
           }
           sopaque = "";
           eos_static_debug("authentication error at %s, try with a new connection to overcome strong credentials loss in redirects",
