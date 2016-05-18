@@ -144,6 +144,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     selected_filesystems.clear();
     availablefs.clear();
     availablefsgeolocation.clear();
+    geo_entry_fsid = 0;
 
     std::set<eos::common::FileSystem::fsid_t>::const_iterator fsit;
     eos::common::FileSystem::fsid_t fsid = 0;
