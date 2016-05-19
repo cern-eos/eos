@@ -150,6 +150,11 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   request = path;
   request += "?";
   request += lOpaque;
+  if(mXrdFile)
+  {    
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
@@ -173,7 +178,6 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     errno = status.errNo;
-    delete mXrdFile;
     return SFS_ERROR;
   }
   else
@@ -237,6 +241,11 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
   request = path;
   request += "?";
   request += lOpaque;
+  if(mXrdFile)
+  {    
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
@@ -254,13 +263,12 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
 
   if (!status.IsOK())
   {
+    delete io_handler;
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
-    delete mXrdFile;
-    delete io_handler;
     return SFS_ERROR;
   }
 
@@ -281,6 +289,13 @@ XrdIo::Read (XrdSfsFileOffset offset,
             static_cast<uint64_t> (length));
 
   uint32_t nread = 0;
+
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Read(static_cast<uint64_t> (offset),
                                               static_cast<uint32_t> (length),
                                               buffer,
@@ -309,6 +324,13 @@ XrdIo::Read (XrdSfsFileOffset offset,
  {
    eos_debug("read count=%i", chunkList.size());
    int64_t nread = 0;
+
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
    XrdCl::VectorReadInfo* vReadInfo = 0;
    XrdCl::XRootDStatus status = mXrdFile->VectorRead(chunkList, 0,
                                                      vReadInfo, timeout);
@@ -335,6 +357,12 @@ int64_t
 XrdIo::ReadVAsync (XrdCl::ChunkList& chunkList,
                    uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   VectChunkHandler* vhandler = 0;
   XrdCl::XRootDStatus status;
  
@@ -383,6 +411,12 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
   eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
+
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
 
   bool done_read = false;
   int64_t nread = 0;
@@ -621,6 +655,12 @@ XrdIo::Write (XrdSfsFileOffset offset,
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
 
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t> (offset),
                                                static_cast<uint32_t> (length),
                                                buffer,
@@ -649,6 +689,13 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
                    uint16_t timeout)
 {
   eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
+
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status;
   ChunkHandler* handler = mMetaHandler->Register(offset, length, (char*)buffer, true);
 
@@ -674,6 +721,12 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 int
 XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
                                                   timeout);
   
@@ -696,6 +749,12 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 int
 XrdIo::Sync (uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
   if (!status.IsOK())
@@ -717,6 +776,12 @@ XrdIo::Sync (uint16_t timeout)
 int
 XrdIo::Stat (struct stat* buf, uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
   XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat, timeout);
@@ -750,6 +815,12 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 int
 XrdIo::Close (uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   bool async_ok = true;
 
   if (mDoReadahead)
@@ -794,6 +865,12 @@ XrdIo::Close (uint16_t timeout)
 int
 XrdIo::Remove (uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   //............................................................................
   // Remove the file by truncating using the special value offset
   //............................................................................
