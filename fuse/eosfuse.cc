@@ -231,7 +231,12 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
 
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
+#ifdef __APPLE__
+      (fuse_daemonize (1) != -1 ) )
+#else
       (fuse_daemonize (0) != -1 ) )
+#endif
+
  {
    me.config.isdebug = 0;
    if (getenv ("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp (getenv ("EOS_FUSE_LOWLEVEL_DEBUG"), "1")))
