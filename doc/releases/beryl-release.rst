@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.179 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix SEGV introduced by XrdIo memory leak fix in 0.3.177
+
 ``V0.3.178 Aquamarine``
 +++++++++++++++++++++++
 
