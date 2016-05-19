@@ -314,7 +314,8 @@ com_fuse (char* arg1)
      exit(-1);
    }
     
-   mount += " eosd ";
+   // El Captian does not forward DYLD_LIBRARY_PATH to subshells
+   mount += " env DYLD_LIBRARY_PATH=/usr/local/opt/eos/usr/local/lib eosd ";
    mount += mountpoint.c_str();
    mount += " -f";
    mount += " -o";
