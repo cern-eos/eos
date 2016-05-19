@@ -39,7 +39,15 @@ make install DESTDIR=/tmp/eos.dst/
 cd -
 
 if [ -n "$3" ];  then
-  cp -v $3 /tmp/eos.dst/usr/local/lib/
+  cp -v $3 /tmp/eos.dst/usr/local/opt/eos/
+fi
+
+if [ -n "$4" ]; then 
+  cp -v $4 /tmp/eos.dst/usr/local/opt/eos/
+fi
+
+if [ -n "$5" ]; then 
+  cp -v $5 /tmp/eos.dst/usr/local/opt/eos/
 fi
 
 pkgbuild --install-location / --version $VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
