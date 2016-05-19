@@ -137,6 +137,11 @@ com_fuse (char* arg1)
      }
    }
 
+
+#ifdef __APPLE__
+   params += ",noappledouble,defer_permissions,noapplexattr,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
+#endif
+
    params += ",url=";
    params += serveruri.c_str();
    if ((params.find("//eos/") == STR_NPOS))
@@ -253,14 +258,14 @@ com_fuse (char* arg1)
      env += " EOS_FUSE_LAZYOPENRW=1";
    }
 
-   bool mt=false;
+   bool mt=true;
    
    if (getenv("EOS_FUSE_NO_MT"))
    {
      env += " EOS_FUSE_NO_MT";
      env += getenv("EOS_FUSE_NO_MT");
      if (!strcmp("0", getenv("EOS_FUSE_NO_MT")))
-       mt=true;
+       mt=false;
    }
    else
    {
@@ -278,7 +283,16 @@ com_fuse (char* arg1)
      setenv("EOS_FUSE_LOGLEVEL", "5", 1);
      env += " EOS_FUSE_LOGLEVEL=5";
    }
-   
+
+   // no pio
+   env += " EOS_FUSE_NOPIO=1"; 
+
+   // use the kernel cache
+   env += " EOS_FUSE_KERNELCACHE=1";
+
+   // use big writes
+   env += " EOS_FUSE_BIGWRITES=1";
+
    fprintf(stderr, "===> fuse readahead        : %s\n", getenv("EOS_FUSE_RDAHEAD"));
    fprintf(stderr, "===> fuse readahead-window : %s\n", getenv("EOS_FUSE_RDAHEAD_WINDOW"));
    fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
@@ -292,13 +306,29 @@ com_fuse (char* arg1)
    fprintf(stderr, "==== fuse multi-threading  : %s\n", mt?"true":"false");
 
    XrdOucString mount = env;
+
+#ifdef __APPLE__
+   if (!getenv("EOS_MGM_URL"))
+   {
+     fprintf(stderr,"Error: please define the variable EOS_MGM_URL like root://eouser.cern.ch before mounting!\n");
+     exit(-1);
+   }
+    
    mount += " eosd ";
    mount += mountpoint.c_str();
    mount += " -f";
    mount += " -o";
    mount += params;
-   
+   mount += " >& /dev/null &";
+#else
+   mount += " eosd ";
+   mount += mountpoint.c_str();
+   mount += " -f";
+   mount += " -o";
+   mount += params;
    mount += " >& /dev/null ";
+#endif
+   
    int rc = system(mount.c_str());
    if (WEXITSTATUS(rc))
    {

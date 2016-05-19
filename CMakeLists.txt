@@ -42,10 +42,16 @@ endif()
 include(EosUtils)
 include(GNUInstallDirs)
 
-# Force /usr/ installation prefix
+# Force /usr/ /etc for Linux and /usr/local installation prefix for MacOSX
+if( MacOSX )
+set(CMAKE_INSTALL_SYSCONFDIR /usr/local/etc)
+set(CMAKE_INSTALL_SBINDIR /usr/local/sbin)
+set(CMAKE_INSTALL_FULL_SBINDIR /usr/local/sbin)
+else()
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 set(CMAKE_INSTALL_SBINDIR /sbin)
 set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
+endif( MacOSX )
 
 EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
 EOS_DefineOperatingSystem()

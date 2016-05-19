@@ -111,10 +111,12 @@ namespace llfusexx
    operations.fsync = &T::fsync;
    operations.forget = &T::forget;
    operations.flush = &T::flush;
+#ifndef __APPLE__
    operations.setxattr = &T::setxattr;
    operations.getxattr = &T::getxattr;
    operations.listxattr = &T::listxattr;
    operations.removexattr = &T::removexattr;
+#endif
    operations.readlink = &T::readlink;
    operations.symlink = &T::symlink;
   }

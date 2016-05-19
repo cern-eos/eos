@@ -30,7 +30,9 @@ include_directories(
   ${CURL_INCLUDE_DIRS}
   ${LEVELDB_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS})
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${OPENSSL_INCLUDE_DIRS}
+  )
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files

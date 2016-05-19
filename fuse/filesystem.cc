@@ -615,8 +615,15 @@ filesystem::dir_cache_get (unsigned long long inode,
      dir->GetDirbuf (*b);
      retc = 1; // found
    }
+   else 
+   {
+     eos_static_debug("entry expired %llu %llu %llu %llu", mtime.tv_sec+ctime.tv_sec, oldtime.tv_sec, mtime.tv_nsec+ctime.tv_nsec,oldtime.tv_nsec);
+   }
  }
-
+ else
+ {
+   eos_static_debug("not in cache");
+ }
  return retc;
 }
 
@@ -4636,7 +4643,6 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
 
-
  if (getenv("EOS_FUSE_MODE_OVERLAY"))
  {
    mode_overlay = (mode_t)strtol(getenv("EOS_FUSE_MODE_OVERLAY"),0,8);
@@ -4646,6 +4652,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    mode_overlay = 0;
  }
 
+#ifndef __APPLE__
  // get uid and pid specificities of the system
  {
    FILE *f = fopen ("/proc/sys/kernel/pid_max", "r");
@@ -4689,6 +4696,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    }
    if (f) fclose (f);
  }
+
+#endif
+
  authidmanager.resize (pid_max + 1);
 
  // Get parameters about strong authentication
@@ -4696,7 +4706,6 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    link_pidmap = true;
  else
    link_pidmap = false;
-
 
  eos_static_notice ("krb5=%d", use_user_krb5cc ? 1 : 0);
 }

@@ -39,7 +39,15 @@ make install DESTDIR=/tmp/eos.dst/
 cd -
 
 if [ -n "$3" ];  then
-  cp -v $3 /tmp/eos.dst/usr/lib/
+  cp -v $3 /tmp/eos.dst/usr/local/opt/eos/
+fi
+
+if [ -n "$4" ]; then 
+  cp -v $4 /tmp/eos.dst/usr/local/opt/eos/
+fi
+
+if [ -n "$5" ]; then 
+  cp -v $5 /tmp/eos.dst/usr/local/opt/eos/
 fi
 
 pkgbuild --install-location / --version $VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
@@ -47,8 +55,8 @@ pkgbuild --install-location / --version $VERSION --identifier com.eos.pkg.app --
 rm -rf dmg
 mkdir dmg
 cp EOS.pkg dmg/
-cp ../var/eos/html/EOS-logo.jpg dmg/
-unlink EOS-$VERSION.dmg
-create_dmg_with_icon EOS-$VERSION EOS-$VERSION.dmg dmg ../var/eos/html/EOS-logo.icns
+#cp ../var/eos/html/EOS-logo.jpg dmg/
+unlink eos-citrine-$VERSION.dmg > /dev/null
+create_dmg_with_icon eos-citrine-$VERSION eos-citrine-$VERSION.dmg dmg ../icons/EOS.icns
 # create_dmg_with_icon Frobulator Frobulator.dmg path/to/frobulator/dir path/to/someicon.icns [ 'Andreas-Joachim Peters' ]
 
