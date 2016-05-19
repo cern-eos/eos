@@ -395,6 +395,16 @@ public:
   //----------------------------------------------------------------------------
   void deserialize(const std::string& buffer);
 
+  //----------------------------------------------------------------------------
+  //! Serialize the object to a buffer
+  //----------------------------------------------------------------------------
+  void serialize(Buffer& buffer);
+
+  //----------------------------------------------------------------------------
+  //! Deserialize the class to a buffer
+  //----------------------------------------------------------------------------
+  void deserialize(Buffer& buffer);
+
 protected:
   id_t         pId;
   id_t         pParentId;
@@ -408,8 +418,12 @@ protected:
   XAttrMap     pXAttrs;
 
 private:
-  // uint64_t pFileCursor; ///< File hmap cursor for scan operations
-  // uint64_t pDirCursor; ///< Directory hmap cursor for scan operations
+  //------------------------------------------------------------------------------
+  //! Wait for asynchronous requests
+  //!
+  //! @return true if all successful, otherwise false
+  //------------------------------------------------------------------------------
+  bool waitAsyncReplies();
 
   // Non-presistent data members
   mtime_t pMTime;
@@ -428,7 +442,10 @@ private:
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
   std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
   //! Callback function for Redox asynchronous requests
-  std::function<void(redox::Command<int>&)> mCallback;
+  std::function<void(redox::Command<int>&)> mNotificationCb;
+  //! Wrapper callback which returns a callback used by the Redox clietn
+  std::function<decltype(mNotificationCb)(void)> mWrapperCb;
+
 };
 
 EOSNSNAMESPACE_END

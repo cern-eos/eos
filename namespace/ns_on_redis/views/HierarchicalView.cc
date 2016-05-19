@@ -108,7 +108,7 @@ void HierarchicalView::initialize1()
     pRoot = pContainerSvc->createContainer();
     pRoot->setName("/");
     pRoot->setParentId(pRoot->getId());
-    pContainerSvc->updateStore(pRoot.get());
+    updateContainerStore(pRoot.get());
   }
 }
 
@@ -262,7 +262,7 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
   file->setMTimeNow();
   file->clearChecksum(0);
   cont->addFile(file.get());
-  pFileSvc->updateStore(file.get());
+  updateFileStore(file.get());
   return file;
 }
 
@@ -278,7 +278,7 @@ void HierarchicalView::createLink(const std::string& uri,
   if (file)
   {
     file->setLink(linkuri);
-    pFileSvc->updateStore(file.get());
+    updateFileStore(file.get());
   }
 }
 
@@ -322,7 +322,7 @@ void HierarchicalView::unlinkFile(const std::string& uri)
   cont->removeFile(file->getName());
   file->setContainerId(0);
   file->unlinkAllLocations();
-  pFileSvc->updateStore(file.get());
+  updateFileStore(file.get());
 }
 
 //------------------------------------------------------------------------------
@@ -335,7 +335,7 @@ void HierarchicalView::unlinkFile(eos::IFileMD* file)
   cont->removeFile(file->getName());
   file->setContainerId(0);
   file->unlinkAllLocations();
-  pFileSvc->updateStore(file);
+  updateFileStore(file);
 }
 
 //------------------------------------------------------------------------------
@@ -475,7 +475,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
     newContainer->setCTimeNow();
     lastContainer->addContainer(newContainer.get());
     lastContainer.swap(newContainer);
-    pContainerSvc->updateStore(lastContainer.get());
+    updateContainerStore(lastContainer.get());
   }
 
   return lastContainer;
@@ -528,6 +528,7 @@ void HierarchicalView::removeContainer(const std::string& uri,
     throw e;
   }
 
+  // This is a two-step delete
   parent->removeContainer(cont->getName());
 
   if (recursive)

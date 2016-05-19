@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2015 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -44,9 +44,9 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
   pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
   pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
-  mCallback = [&](redox::Command<int>& c) {
-    // We use this callback for del, hdel and hset operations. The return value
-    // in all these cases should be 1.
+  mNotificationCb = [&](redox::Command<int>& c) {
+    // Use this callback for del, hdel and hset operations. The return value in
+    // all these cases should be 1.
     if ((c.ok() && c.reply() != 1) || !c.ok())
     {
       std::ostringstream oss;
@@ -57,6 +57,11 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 
     if (--mNumAsyncReq == 0)
       mAsyncCv.notify_one();
+  };
+
+  mWrapperCb = [&]() -> decltype(mNotificationCb) {
+    mNumAsyncReq++;
+    return mNotificationCb;
   };
 }
 
@@ -99,18 +104,24 @@ ContainerMD::findContainer(const std::string& name)
 void
 ContainerMD::removeContainer(const std::string& name)
 {
-  if (mDirsMap.erase(name) != 1)
+  auto it = mDirsMap.find(name);
+
+  if (it == mDirsMap.end())
   {
     MDException e(ENOENT);
     e.getMessage() << "Container " << name << " not found";
     throw e;
   }
 
+  IContainerMD::id_t id = it->second;
+  mDirsMap.erase(it);
+
   // Do async call to KV backend
   try
   {
-    mNumAsyncReq++;
-    pRedox->hdel(pDirsKey, name, mCallback);
+    // Add to set of unlinked subcontainers
+    pRedox->sadd(constants::sSetCheckConts, id, mWrapperCb());
+    pRedox->hdel(pDirsKey, name, mWrapperCb());
   }
   catch (std::runtime_error& redis_err)
   {
@@ -118,6 +129,13 @@ ContainerMD::removeContainer(const std::string& name)
     MDException e(ENOENT);
     e.getMessage() << "Container " << name << " not found or KV-backend "
 		   << "connection error";
+    throw e;
+  }
+
+  if (!waitAsyncReplies())
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Container " << name << " error while contacting KV-store";
     throw e;
   }
 }
@@ -141,12 +159,10 @@ ContainerMD::addContainer(IContainerMD* container)
   // Do async call to KV backend
   try
   {
-    mNumAsyncReq++;
-    pRedox->hset(pDirsKey, container->getName(), container->getId(), mCallback);
+    pRedox->hset(pDirsKey, container->getName(), container->getId());
   }
   catch (std::runtime_error& redis_err)
   {
-    mNumAsyncReq--;
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId()
 		   << " or KV-backend connection error";
@@ -181,7 +197,7 @@ ContainerMD::findFile(const std::string& name)
     {
       pRedox->hdel(pFilesKey, std::to_string(id));
     }
-    catch (std::runtime_error& e) { /* nothing to do */ }
+    catch (std::runtime_error& redis_err) { /* nothing to do */ }
     return nullptr;
   }
 }
@@ -205,12 +221,10 @@ ContainerMD::addFile(IFileMD* file)
   // Do async call to KV backend
   try
   {
-    mNumAsyncReq++;
-    pRedox->hset(pFilesKey, file->getName(), file->getId(), mCallback);
+    pRedox->hset(pFilesKey, file->getName(), file->getId());
   }
   catch (std::runtime_error& redis_err)
   {
-    mNumAsyncReq--;
     MDException e(EINVAL);
     e.getMessage() << "File #" << file->getId() << " already exists or"
 		   << " KV-backend conntection error";
@@ -249,12 +263,10 @@ ContainerMD::removeFile(const std::string& name)
   // Do async call to KV backend
   try
   {
-    mNumAsyncReq++;
-    pRedox->hdel(pFilesKey, name, mCallback);
+    pRedox->hdel(pFilesKey, name);
   }
   catch (std::runtime_error& redis_err)
   {
-    mNumAsyncReq--;
     MDException e(ENOENT);
     e.getMessage() << "Unknown file " << name << " in container " << pName
 		   << " or KV-backend connection error";
@@ -306,8 +318,7 @@ ContainerMD::cleanUp()
 
   try
   {
-    mNumAsyncReq++;
-    pRedox->del(pFilesKey, mCallback);
+    pRedox->del(pFilesKey, mWrapperCb());
   }
   catch (std::runtime_error& redis_err)
   {
@@ -324,15 +335,14 @@ ContainerMD::cleanUp()
     std::shared_ptr<IContainerMD> cont =
       pContSvc->getContainerMD(itd->second);
     cont->cleanUp();
-      pContSvc->removeContainer(cont.get());
+    pContSvc->removeContainer(cont.get());
   }
 
   mDirsMap.clear();
 
   try
   {
-    mNumAsyncReq++;
-    pRedox->del(pDirsKey, mCallback);
+    pRedox->del(pDirsKey, mWrapperCb());
   }
   catch (std::runtime_error& redis_err)
   {
@@ -340,6 +350,13 @@ ContainerMD::cleanUp()
     MDException e(ECOMM);
     e.getMessage() << "Failed to clean-up subcontainers in container " << pName
 		   << " or KV-backend connection error";
+    throw e;
+  }
+
+  if (!waitAsyncReplies())
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Container " << pName << " error while contacting KV-store";
     throw e;
   }
 }
@@ -768,37 +785,26 @@ ContainerMD::deserialize(const std::string& buffer)
   {
     long long cursor = 0;
     std::pair<long long, std::unordered_map<std::string, std::string>> reply;
-    reply = pRedox->hscan(pFilesKey, cursor);
-    cursor = reply.first;
 
-    for (auto&& elem: reply.second)
-      mFilesMap.emplace(elem.first, std::stoull(elem.second));
-
-    while (cursor)
-    {
+    do {
       reply = pRedox->hscan(pFilesKey, cursor);
       cursor = reply.first;
 
       for (auto&& elem: reply.second)
 	mFilesMap.emplace(elem.first, std::stoull(elem.second));
     }
+    while (cursor);
 
     // Get the subcontainers
     cursor = 0;
-    reply = pRedox->hscan(pDirsKey, cursor);
-    cursor = reply.first;
-
-    for (auto&& elem: reply.second)
-      mDirsMap.emplace(elem.first, std::stoull(elem.second));
-
-    while (cursor)
-    {
+    do {
       reply = pRedox->hscan(pDirsKey, cursor);
       cursor = reply.first;
 
       for (auto&& elem: reply.second)
 	mDirsMap.emplace(elem.first, std::stoull(elem.second));
     }
+    while (cursor);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -806,6 +812,179 @@ ContainerMD::deserialize(const std::string& buffer)
     e.getMessage() << "Container #" << pId << "failed to get subentrie";
     throw e;
   }
+}
+
+
+//------------------------------------------------------------------------------
+// Serialize the object to a buffer
+//------------------------------------------------------------------------------
+void
+ContainerMD::serialize(Buffer& buffer)
+{
+  buffer.putData(&pId,       sizeof(pId));
+  buffer.putData(&pParentId, sizeof(pParentId));
+  buffer.putData(&pFlags,    sizeof(pFlags));
+  buffer.putData(&pCTime,    sizeof(pCTime));
+  buffer.putData(&pCUid,     sizeof(pCUid));
+  buffer.putData(&pCGid,     sizeof(pCGid));
+  buffer.putData(&pMode,     sizeof(pMode));
+  buffer.putData(&pACLId,    sizeof(pACLId));
+  uint16_t len = pName.length() + 1;
+  buffer.putData(&len,          2);
+  buffer.putData(pName.c_str(), len);
+  len = pXAttrs.size() + 2;
+  buffer.putData(&len, sizeof(len));
+  XAttrMap::iterator it;
+
+  for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
+  {
+    uint16_t strLen = it->first.length() + 1;
+    buffer.putData(&strLen, sizeof(strLen));
+    buffer.putData(it->first.c_str(), strLen);
+    strLen = it->second.length() + 1;
+    buffer.putData(&strLen, sizeof(strLen));
+    buffer.putData(it->second.c_str(), strLen);
+  }
+
+  // Store mtime as ext. attributes
+  std::string k1 = "sys.mtime.s";
+  std::string k2 = "sys.mtime.ns";
+  uint16_t l1 = k1.length() + 1;
+  uint16_t l2 = k2.length() + 1;
+  uint16_t l3;
+  char stime[64];
+
+  snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_sec);
+  l3 = strlen(stime) + 1;
+  // key
+  buffer.putData(&l1, sizeof(l1));
+  buffer.putData(k1.c_str(), l1);
+  // value
+  buffer.putData(&l3, sizeof(l3));
+  buffer.putData(stime, l3);
+  snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_nsec);
+  l3 = strlen(stime) + 1;
+
+  // key
+  buffer.putData(&l2, sizeof(l2));
+  buffer.putData(k2.c_str(), l2);
+  // value
+  buffer.putData(&l3, sizeof(l3));
+  buffer.putData(stime, l3);
+}
+
+//------------------------------------------------------------------------------
+// Deserialize the class to a buffer
+//------------------------------------------------------------------------------
+void
+ContainerMD::deserialize(Buffer& buffer)
+{
+  uint16_t offset = 0;
+  offset = buffer.grabData(offset, &pId,       sizeof(pId));
+  offset = buffer.grabData(offset, &pParentId, sizeof(pParentId));
+  offset = buffer.grabData(offset, &pFlags,    sizeof(pFlags));
+  offset = buffer.grabData(offset, &pCTime,    sizeof(pCTime));
+  offset = buffer.grabData(offset, &pCUid,     sizeof(pCUid));
+  offset = buffer.grabData(offset, &pCGid,     sizeof(pCGid));
+  offset = buffer.grabData(offset, &pMode,     sizeof(pMode));
+  offset = buffer.grabData(offset, &pACLId,    sizeof(pACLId));
+  uint16_t len;
+  offset = buffer.grabData(offset, &len, 2);
+  char strBuffer[len];
+  offset = buffer.grabData(offset, strBuffer, len);
+  pName = strBuffer;
+  pMTime.tv_sec = pCTime.tv_sec;
+  pMTime.tv_nsec = pCTime.tv_nsec;
+  uint16_t len1 = 0;
+  uint16_t len2 = 0;
+  len = 0;
+  offset = buffer.grabData(offset, &len, sizeof(len));
+
+  for (uint16_t i = 0; i < len; ++i)
+  {
+    offset = buffer.grabData(offset, &len1, sizeof(len1));
+    char strBuffer1[len1];
+    offset = buffer.grabData(offset, strBuffer1, len1);
+    offset = buffer.grabData(offset, &len2, sizeof(len2));
+    char strBuffer2[len2];
+    offset = buffer.grabData(offset, strBuffer2, len2);
+    std::string key = strBuffer1;
+
+    if (key=="sys.mtime.s")
+    {
+      // Stored modification time in s
+      pMTime.tv_sec = strtoull(strBuffer2,0,10);
+    }
+    else
+    {
+      if (key== "sys.mtime.ns")
+      {
+	// Stored modification time in ns
+	pMTime.tv_nsec = strtoull(strBuffer2,0,10);
+      }
+      else
+      {
+	pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
+      }
+    }
+  }
+
+  // Rebuild the file and subcontainer keys
+  pFilesKey = std::to_string(pId) + constants::sMapFilesSuffix;
+  pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
+
+  // Grab the files and subcontainers
+  try
+  {
+    long long cursor = 0;
+    std::pair<long long, std::unordered_map<std::string, std::string>> reply;
+
+    do {
+      reply = pRedox->hscan(pFilesKey, cursor);
+      cursor = reply.first;
+
+      for (auto&& elem: reply.second)
+	mFilesMap.emplace(elem.first, std::stoull(elem.second));
+    }
+    while (cursor);
+
+    // Get the subcontainers
+    cursor = 0;
+    do {
+      reply = pRedox->hscan(pDirsKey, cursor);
+      cursor = reply.first;
+
+      for (auto&& elem: reply.second)
+	mDirsMap.emplace(elem.first, std::stoull(elem.second));
+    }
+    while (cursor);
+  }
+  catch (std::runtime_error& redis_err)
+  {
+    MDException e(ENOENT);
+    e.getMessage() << "Container #" << pId << "failed to get subentrie";
+    throw e;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Wait for asynchronous requests
+//------------------------------------------------------------------------------
+bool
+ContainerMD::waitAsyncReplies()
+{
+  // Wait for any in-flight async requests
+  std::unique_lock<std::mutex> lock(mMutex);
+  while (mNumAsyncReq)
+    mAsyncCv.wait(lock);
+
+  if (mErrors.size())
+  {
+    // TODO: print the accumulated errors
+    return false;
+  }
+
+  return true;
 }
 
 EOSNSNAMESPACE_END

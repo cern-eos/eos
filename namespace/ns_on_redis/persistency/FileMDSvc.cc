@@ -158,7 +158,7 @@ void FileMDSvc::updateStore(IFileMD* obj)
 
   if (!static_cast<FileMD*>(obj)->IsConsistent())
   {
-    pRedox->srem(constants::sSetCheckFiles, obj->getId());
+    pRedox->srem(constants::sSetCheckFiles, obj->getId(), nullptr);
     static_cast<FileMD*>(obj)->SetConsistent(true);
   }
 }

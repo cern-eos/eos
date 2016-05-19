@@ -100,7 +100,9 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 
   cont = std::make_shared<ContainerMD>(0, pFileSvc,
 				       static_cast<IContainerMDSvc*>(this));
-  static_cast<ContainerMD*>(cont.get())->deserialize(blob);
+  eos::Buffer ebuff;
+  ebuff.putData(blob.c_str(), blob.length());
+  static_cast<ContainerMD*>(cont.get())->deserialize(ebuff);
   return mContainerCache.put(cont->getId(), cont);
 }
 
@@ -134,13 +136,14 @@ std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
 //----------------------------------------------------------------------------
 void ContainerMDSvc::updateStore(IContainerMD* obj)
 {
-  std::string buffer;
-  dynamic_cast<ContainerMD*>(obj)->serialize(buffer);
+  eos::Buffer ebuff;
+  dynamic_cast<ContainerMD*>(obj)->serialize(ebuff);
+  std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
 
   try
   {
     std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
-    pRedox->hset(key, "data", buffer);
+    pRedox->hset(key, "data", buffer, nullptr);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -171,6 +174,9 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   {
     std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
     pRedox->hdel(key, "data");
+
+    // Drop the container from the parent's set of unlinked subcontainers
+    pRedox->srem(constants::sSetCheckConts, obj->getId());
   }
   catch (std::runtime_error& redis_err)
   {
@@ -185,12 +191,9 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   {
     (void) pRedox->del(constants::sMapMetaInfoKey);
   }
-  else
-  {
-    // Decrease total number of containers
-    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
-  }
 
+  // Decrease total number of containers
+  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
   mContainerCache.remove(obj->getId());
 }
