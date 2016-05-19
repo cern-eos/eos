@@ -40,7 +40,7 @@ target_link_libraries(
   ${CPPUNIT_LIBRARIES})
 
 add_executable(eosnsbench EosNamespaceBenchmark.cc)
-target_link_libraries(eosnsbench EosNsOnRedis eosCommon-Static)
+target_link_libraries(eosnsbench EosNsOnRedis eosCommon)
 set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
 
 install(
