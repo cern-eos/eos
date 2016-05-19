@@ -1,0 +1,8 @@
+#!/bin/bash
+export EOS_MGM_URL=${EOS_MGM_URL-root://eosuser.cern.ch}
+myeos=$0
+myinstall=`dirname $myeos`
+export DYLD_LIBRARY_PATH=$myinstall/../opt/eos/usr/local/lib:${DYLD_LIBRARY_PATH}
+export PATH=$myinstall/../opt/eos/usr/local/bin:$PATH
+$myinstall/../opt/eos/usr/local/bin/eos $@
+

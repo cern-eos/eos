@@ -1,0 +1,37 @@
+Installation:
+
+- install OSXFUSE 3.2.0 https://osxfuse.github.io/2016/02/14/OSXFUSE-3.2.0.html
+- install this package
+
+Usage Fuse Mount
+================
+
+sudo mkdir /eos
+
+Mounting eosuser.cern.ch:
+=========================
+kinit myuser@CERN.CH
+eos fuse mount /eos/
+
+Hint: if the mount failed f.e. you forget to create kerberos token you have to do 'killall eosd; eos fuse umount /eos';
+
+
+Unmounting:
+===========
+eos fuse umount /eos
+
+Usage EOS shell
+===============
+eos whoami
+eos ls -la /eos/
+
+To change the default EOS instance set before mounting or using the shell:
+
+export EOS_MGM_URL=root://<mgm-host-name>
+
+
+
+
+
+
+

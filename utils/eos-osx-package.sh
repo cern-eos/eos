@@ -1,6 +1,5 @@
 #!/bin/bash
-# give the desired versioon name like '0.3.49-beryl' and the path to the XRootD build directory as argument like '/Users/apeters/Software/xrootd-3.3.6/build'
-# the third argument is an optional extra lib to add like '/opt/local/lib/libuuid.16.dylib'
+# give the desired versioon name like '0.3.49-beryl' and the path to the XRootD build directory as argument like '/Users/apeters/Software/xrootd-4.3.0/build'
 VERSION=$1
 
 create_dmg_with_icon() {
@@ -32,31 +31,33 @@ fi
 
 rm -rf /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/
+mkdir -p /tmp/eos.dst/usr/local/bin/
+mkdir -p /tmp/eos.dst/usr/local/opt/eos/
 
-make install DESTDIR=/tmp/eos.dst/
-cd $2
-make install DESTDIR=/tmp/eos.dst/
+make install DESTDIR=/tmp/eos.dst/usr/local/opt/eos/
+cd ${2-${HOME}/Software/xrootd-4.3.0/build/}
+make install DESTDIR=/tmp/eos.dst/usr/local/opt/eos/
 cd -
 
-if [ -n "$3" ];  then
-  cp -v $3 /tmp/eos.dst/usr/local/opt/eos/
+for name in `otool -L /usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
+echo $name
+if [ -n "$name" ];  then
+  cp -v $name /tmp/eos.dst/usr/local/opt/eos/usr/local/lib/
 fi
+done
 
-if [ -n "$4" ]; then 
-  cp -v $4 /tmp/eos.dst/usr/local/opt/eos/
-fi
-
-if [ -n "$5" ]; then 
-  cp -v $5 /tmp/eos.dst/usr/local/opt/eos/
-fi
-
+# exchange the eosx script with the eos binary
+cp -v ../utils/eosx /tmp/eos.dst/usr/local/bin/eos
+chmod 555 /tmp/eos.dst/usr/local/bin/eos
 pkgbuild --install-location / --version $VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
 
 rm -rf dmg
 mkdir dmg
 cp EOS.pkg dmg/
+cp ../utils/README.osx dmg/README.txt
+
 #cp ../var/eos/html/EOS-logo.jpg dmg/
-unlink eos-citrine-$VERSION.dmg > /dev/null
-create_dmg_with_icon eos-citrine-$VERSION eos-citrine-$VERSION.dmg dmg ../icons/EOS.icns
+unlink eos-osx-$VERSION.dmg >& /dev/null
+create_dmg_with_icon eos-osx-$VERSION eos-osx-$VERSION.dmg dmg ../icons/EOS.icns
 # create_dmg_with_icon Frobulator Frobulator.dmg path/to/frobulator/dir path/to/someicon.icns [ 'Andreas-Joachim Peters' ]
 

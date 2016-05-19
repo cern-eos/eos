@@ -267,6 +267,10 @@ add_custom_target(gitdist
     | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
+
+add_custom_target(osx
+    COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
+
 #-------------------------------------------------------------------------------
 # Source and binary rpms
 #-------------------------------------------------------------------------------

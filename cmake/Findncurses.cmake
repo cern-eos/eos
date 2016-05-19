@@ -23,6 +23,19 @@ else()
     HINTS ${NCURSES_ROOT_DIR}
     PATH_SUFFIXES ${LIBRARY_PATH_PREFIX})
 
+if( MacOSX )
+  find_package_handle_standard_args(
+    ncurses
+    DEFAULT_MSG
+    NCURSES_LIBRARY
+    NCURSES_INCLUDE_DIR)
+
+
+  mark_as_advanced(
+    NCURSES_LIBRARY
+    NCURSES_INCLUDE_DIR)
+
+else()
   find_library(
     NCURSES_LIBRARY_STATIC
     NAMES libncurses.a
@@ -43,4 +56,5 @@ else()
     NCURSES_LIBRARY
     NCURSES_LIBRARY_STATIC
     NCURSES_INCLUDE_DIR)
+endif()
 endif()

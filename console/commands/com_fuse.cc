@@ -382,9 +382,8 @@ com_fuse (char* arg1)
 
    XrdOucString umount;
 #ifdef __APPLE__
-   umount = "umount -f ";
-   umount += mountpoint.c_str();
-
+   umount = "killall eosd";
+   umount += " >& /dev/null";
 #else
    umount = "fusermount -z -u ";
    umount += mountpoint.c_str();
