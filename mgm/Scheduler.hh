@@ -71,6 +71,8 @@ public:
   //! @param lid layout to be placed
   //! @param alreadyused_filsystems filesystems to avoid
   //! @param selected_filesystems filesystems selected by scheduler
+  //! @param dataproxys if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+  //! @param firewallentpts if non NULL, schedule a firewall entry point for each fs
   //! @param plctpolicy indicates if placement should be local/spread/hybrid
   //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
   //!                      should be placed
@@ -91,6 +93,8 @@ public:
                            unsigned long lid,
                            std::vector<unsigned int>& alreadyused_filesystems,
                            std::vector<unsigned int>& selected_filesystems,
+                           std::vector<std::string> *dataproxys,
+                           std::vector<std::string> *firewallentpts,
                            tPlctPolicy plctpolicy,
                            const std::string& plctTrgGeotag = "",
                            bool truncate = false,
@@ -107,6 +111,8 @@ public:
   //! @param tried_cgi cgi containing already tried hosts
   //! @param lid layout fo the file
   //! @param locationsfs filesystem ids where layout is stored
+  //! @param dataproxys if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+  //! @param firewallentpts if non NULL, schedule a firewall entry point for each fs
   //! @param fsindex return index pointing to layout entry filesystem
   //! @param isRW indicate pure read or rd/wr access
   //! @param bookingsize size to book additionally for rd/wr access
@@ -126,7 +132,9 @@ public:
                         std::string tried_cgi,
                         unsigned long lid,
                         std::vector<unsigned int>& locationsfs,
-                         unsigned long& fsindex,
+                        std::vector<std::string> *dataproxys,
+                        std::vector<std::string> *firewallentpts,
+                        unsigned long& fsindex,
                         bool isRW,
                         unsigned long long bookingsize,
                         std::vector<unsigned int>& unavailfs,

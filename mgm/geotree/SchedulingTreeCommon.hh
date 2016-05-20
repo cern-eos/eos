@@ -138,6 +138,7 @@ public:
     std::string geotag;
     std::string fullGeotag;
     std::string host;
+    std::string proxygroup;
     eos::common::FileSystem::fsid_t fsId;
     float netSpeedClass;
 
@@ -604,6 +605,30 @@ public:
     if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
     return 1;
     if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
+    return -1;
+
+    // we might add a notion of depth to minimize latency
+    return 0;
+  }
+
+  template<typename T>
+  inline static signed char
+  compareGateway(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
+                 const TreeNodeSlots* const &rightp)
+  {
+    // -2 - Should not be disabled
+    int16_t mask = Disabled;
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return -1;
+
+    // lexicographic order
+    // -1 - Should be a balancing
+    mask = Available;
+    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
+    return 1;
+    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
     return -1;
 
     // we might add a notion of depth to minimize latency

@@ -71,9 +71,11 @@ GeoTreeEngine::sfgEthmib = 1 << 14,
 GeoTreeEngine::sfgInratemib = 1 << 15,
 GeoTreeEngine::sfgOutratemib = 1 << 16,
 GeoTreeEngine::sfgErrc = 1 << 17,
-GeoTreeEngine::sfgPubTmStmp = 1 << 18;
+GeoTreeEngine::sfgPubTmStmp = 1 << 18,
+GeoTreeEngine::sfgPxyGrp = 1 << 19;
 
 set<string> GeoTreeEngine::gWatchedKeys;
+set<string> GeoTreeEngine::gWatchedKeysGw;
 
 const map<string,int> GeoTreeEngine::gNotifKey2Enum =
 {
@@ -98,32 +100,28 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
   make_pair("stat.net.inratemib",sfgInratemib),
   make_pair("stat.net.outratemib",sfgOutratemib),
   make_pair("stat.errc",sfgErrc),
+  make_pair("stat.publishtimestamp",sfgPubTmStmp),
+  make_pair("proxygroup",sfgPxyGrp)
+};
+
+const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
+{
+  make_pair("stat.hostport",sfgHost),
+  make_pair("stat.geotag",sfgGeotag),
+  make_pair("stat.net.ethratemib",sfgEthmib),
+  make_pair("stat.net.inratemib",sfgInratemib),
+  make_pair("stat.net.outratemib",sfgOutratemib),
   make_pair("stat.publishtimestamp",sfgPubTmStmp)
 };
 
-map<string,int> GeoTreeEngine::gNotificationsBuffer;
+map<string,int> GeoTreeEngine::gNotificationsBufferFs;
+map<string,int> GeoTreeEngine::gNotificationsBufferDp;
 XrdSysSemaphore GeoTreeEngine::gUpdaterPauseSem;
 bool GeoTreeEngine::gUpdaterPaused = false;
 bool GeoTreeEngine::gUpdaterStarted = false;
-
-bool GeoTreeEngine::TreeMapEntry::updateFastStructures()
-{
-  FastStructures *ft = backgroundFastStruct;
-
-  if(!slowTree->buildFastStrctures(
-	  ft->placementTree , ft->rOAccessTree, ft->rWAccessTree,
-	  ft->blcPlacementTree , ft->blcAccessTree,
-	  ft->drnPlacementTree , ft->drnAccessTree,
-	  ft->treeInfo , ft->fs2TreeIdx, ft->tag2NodeIdx
-      ))
-  {
-    eos_static_crit("Error updating the fast structures");
-    return false;
-  }
-  ft->penalties->resize(slowTree->getNodeCount());
-
-  return true;
-}
+const unsigned char GeoTreeEngine::sntFilesystem=1,GeoTreeEngine::sntDataproxy=4;
+std::map<std::string,unsigned char> GeoTreeEngine::gQueue2NotifType;
+const unsigned char GeoTreeEngine::fsTypeEosReplica=1, GeoTreeEngine::fsTypeEosPIO=2, GeoTreeEngine::fsTypeKinetic=4, GeoTreeEngine::fstTypeAll=255;
 
 bool GeoTreeEngine::forceRefresh()
 {
@@ -135,10 +133,19 @@ bool GeoTreeEngine::forceRefresh()
   pTreeMapMutex.LockWrite();
 
   // mark all fs needing a refresh for all the watched attributes
+  // => SCHED
   for(auto it=pFsId2FsPtr.begin(); it!=pFsId2FsPtr.end(); it++)
-    gNotificationsBuffer[it->second->GetQueuePath()]=(~0);
-
-  for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++)
+    gNotificationsBufferFs[it->second->GetQueuePath()]=(~0);
+  for(auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++)
+  {
+  it->second->fastStructModified = true;
+  it->second->slowTreeModified = true;
+  }
+  // mark all fs needing a refresh for all the watched attributes
+  // => PROXYGROUPS
+  for(auto it=pPxyQueue2PxyId.begin(); it!=pPxyQueue2PxyId.end(); it++)
+    gNotificationsBufferFs[it->first]=(~0);
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++)
   {
   it->second->fastStructModified = true;
   it->second->slowTreeModified = true;
@@ -146,7 +153,7 @@ bool GeoTreeEngine::forceRefresh()
 
   // do the update
   pTreeMapMutex.UnLockWrite();
-  updateTreeInfo(gNotificationsBuffer);
+  updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
   pAddRmFsMutex.UnLockWrite();
   // signal a resume to the background updating
   ResumeUpdater();
@@ -161,12 +168,12 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
 
   FileSystem::fsid_t fsid = fs->GetId();
-  TreeMapEntry *mapEntry;
+  SchedTME *mapEntry;
 
   {
     pTreeMapMutex.LockWrite();
     // ==== check that fs is not already registered
-    if(pFs2TreeMapEntry.count(fsid))
+    if(pFs2SchedTME.count(fsid))
     {
       eos_err("error inserting fs %lu into group %s : fs is already part of a group",
 	  (unsigned long)fsid,
@@ -177,11 +184,11 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     }
 
     // ==== get the entry
-    if(pGroup2TreeMapEntry.count(group))
-    mapEntry = pGroup2TreeMapEntry[group];
+    if(pGroup2SchedTME.count(group))
+    mapEntry = pGroup2SchedTME[group];
     else
     {
-      mapEntry = new TreeMapEntry(group->mName.c_str());
+      mapEntry = new SchedTME(group->mName.c_str());
       updateFastStruct = true; // force update to be sure that the fast structures are properly created
 #ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
 #ifdef EOS_INSTRUMENTED_RWMUTEX
@@ -246,7 +253,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     snprintf(buffer,64,"nohost-");
     uuid_generate_time(uuid);
     uuid_unparse(uuid, buffer+7);
-    info.geotag = buffer;
+    info.host = buffer;
   }
   info.netSpeedClass = (unsigned char)round(log10(fsn.mNetEthRateMiB*8 * 1024 * 1024 + 1));
   info.netSpeedClass = info.netSpeedClass>8 ? info.netSpeedClass-8 : (unsigned char)0; // netSpeedClass 1 means 1Gbps
@@ -280,13 +287,13 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   }
 
   // ==== update the penalties vectors if necessary
-  if((fsn.mId+1)>pFsId2LatencyStats.size())
+  if((fsn.mId+1)>pLatencySched.pFsId2LatencyStats.size())
   {
-    for(auto it=pCircFrCnt2FsPenalties.begin(); it!=pCircFrCnt2FsPenalties.end(); it++)
+    for(auto it=pPenaltySched.pCircFrCnt2FsPenalties.begin(); it!=pPenaltySched.pCircFrCnt2FsPenalties.end(); it++)
     {
       it->resize(fsn.mId+1);
     }
-    pFsId2LatencyStats.resize(fsn.mId+1);
+    pLatencySched.pFsId2LatencyStats.resize(fsn.mId+1);
   }
 
 
@@ -299,12 +306,17 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
         gWatchedKeys.insert(it->first);
       }
     }
+    gQueue2NotifType[fs->GetQueuePath()] |= sntFilesystem;
     if(!gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",fs->GetQueuePath(),gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
       eos_crit("error inserting fs %lu into group %s : error subscribing to shared object notifications",
           (unsigned long)fsid,
           group->mName.c_str()
       );
+      gQueue2NotifType[fs->GetQueuePath()] &= ~sntFilesystem;
+      if(gQueue2NotifType[fs->GetQueuePath()] == 0)
+        gQueue2NotifType.erase(fs->GetQueuePath());
+      mapEntry->slowTreeMutex.UnLockWrite();
       return false;
     }
   }
@@ -332,10 +344,10 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
     {
       mapEntry->slowTreeMutex.UnLockWrite();
       pTreeMapMutex.LockRead();
-      eos_err("error inserting fs %lu into group %s/%s : fast structures update failed",
+      eos_err("error inserting fs %lu into group %s : fast structures update failed",
 	  fsid,
 	  group->mName.c_str(),
-	  pFs2TreeMapEntry[fsid]->group->mName.c_str()
+	  pFs2SchedTME[fsid]->group->mName.c_str()
       );
       pTreeMapMutex.UnLockRead();
       return false;
@@ -350,8 +362,8 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
   {
     pTreeMapMutex.LockWrite();
     mapEntry->group = group;
-    pGroup2TreeMapEntry[group] = mapEntry;
-    pFs2TreeMapEntry[fsid] = mapEntry;
+    pGroup2SchedTME[group] = mapEntry;
+    pFs2SchedTME[fsid] = mapEntry;
     pFsId2FsPtr[fsid] = fs;
     pTreeMapMutex.UnLockWrite();
     mapEntry->slowTreeMutex.UnLockWrite();
@@ -380,13 +392,13 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
 {
   eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
 
-  TreeMapEntry *mapEntry;
+  SchedTME *mapEntry;
   FileSystem::fsid_t fsid = fs->GetId();
 
   {
     pTreeMapMutex.LockWrite();
     // ==== check that fs is registered
-    if(!pFs2TreeMapEntry.count(fsid))
+    if(!pFs2SchedTME.count(fsid))
     {
       eos_err("error removing fs %lu from group %s : fs is not registered",
 	  (unsigned long)fsid,
@@ -395,10 +407,10 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
       pTreeMapMutex.UnLockWrite();
       return false;
     }
-    mapEntry = pFs2TreeMapEntry[fsid];
+    mapEntry = pFs2SchedTME[fsid];
 
     // ==== get the entry
-    if(!pGroup2TreeMapEntry.count(group))
+    if(!pGroup2SchedTME.count(group))
     {
       eos_err("error removing fs %lu from group %s : fs is not registered ",
 	  (unsigned long)fsid,
@@ -408,7 +420,7 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
       return false;
     }
     pTreeMapMutex.UnLockWrite();
-    mapEntry = pGroup2TreeMapEntry[group];
+    mapEntry = pGroup2SchedTME[group];
     mapEntry->slowTreeMutex.LockWrite();
   }
 
@@ -416,18 +428,21 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
   {
     if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",fs->GetQueuePath(),gWatchedKeys,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
     {
-      pTreeMapMutex.UnLockWrite();
+      mapEntry->slowTreeMutex.UnLockWrite();
       eos_crit("error removing fs %lu into group %s : error unsubscribing to shared object notifications",
 	  (unsigned long)fsid,
 	  group->mName.c_str()
       );
       return false;
     }
+    gQueue2NotifType[fs->GetQueuePath()] &= ~sntFilesystem;
+    if(gQueue2NotifType[fs->GetQueuePath()] == 0)
+      gQueue2NotifType.erase(fs->GetQueuePath());
   }
 
   // ==== discard updates about this fs
   // ==== clean the notifications buffer
-  gNotificationsBuffer.erase(fs->GetQueuePath());
+  gNotificationsBufferFs.erase(fs->GetQueuePath());
   // ==== clean the thread-local notification queue
   {
     XrdMqSharedObjectChangeNotifier::Subscriber *subscriber = gOFS->ObjectNotifier.GetSubscriberFromCatalog("geotreeengine",false);
@@ -479,10 +494,10 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
   {
     mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockRead();
-    eos_err("error removing fs %lu from group %s/%s : fast structures update failed",
+    eos_err("error removing fs %lu from group %s : fast structures update failed",
 	fsid,
 	group->mName.c_str(),
-	pFs2TreeMapEntry[fsid]->group->mName.c_str()
+	pFs2SchedTME[fsid]->group->mName.c_str()
     );
     pTreeMapMutex.UnLockRead();
     return false;
@@ -491,11 +506,11 @@ bool GeoTreeEngine::removeFsFromGroup(FileSystem *fs ,
   // ==== update the entry in the map if needed
   {
     pTreeMapMutex.LockWrite();
-    pFs2TreeMapEntry.erase(fsid);
+    pFs2SchedTME.erase(fsid);
     pFsId2FsPtr.erase(fsid);
     if(mapEntry->fs2SlowTreeNode.empty())
     {
-      pGroup2TreeMapEntry.erase(group); // prevent from access by other threads
+      pGroup2SchedTME.erase(group); // prevent from access by other threads
       pPendingDeletions.push_back(mapEntry);
     }
     mapEntry->slowTreeMutex.UnLockWrite();
@@ -524,27 +539,28 @@ void GeoTreeEngine::printInfo(std::string &info,
     ostr << "skipSaturatedBlcAccess = "<< pSkipSaturatedBlcAccess << std::endl;
     ostr << "skipSaturatedDrnPlct = "<< pSkipSaturatedDrnPlct << std::endl;
     ostr << "skipSaturatedBlcPlct = "<< pSkipSaturatedBlcPlct << std::endl;
+    ostr << "proxyCloseToFs = "<< pProxyCloseToFs << std::endl;
     ostr << "penaltyUpdateRate = "<< pPenaltyUpdateRate << std::endl;
-    ostr << "plctDlScorePenalty = "<< pPlctDlScorePenaltyF[0] << "(default)" << " | "
-        << pPlctDlScorePenaltyF[1] << "(1Gbps)" << " | "
-        << pPlctDlScorePenaltyF[2] << "(10Gbps)" << " | "
-        << pPlctDlScorePenaltyF[3] << "(100Gbps)" << " | "
-        << pPlctDlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
-    ostr << "plctUlScorePenalty = "<< pPlctUlScorePenaltyF[0] << "(defaUlt)" << " | "
-        << pPlctUlScorePenaltyF[1] << "(1Gbps)" << " | "
-        << pPlctUlScorePenaltyF[2] << "(10Gbps)" << " | "
-        << pPlctUlScorePenaltyF[3] << "(100Gbps)" << " | "
-        << pPlctUlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
-    ostr << "accessDlScorePenalty = "<< pAccessDlScorePenaltyF[0] << "(default)" << " | "
-        << pAccessDlScorePenaltyF[1] << "(1Gbps)" << " | "
-        << pAccessDlScorePenaltyF[2] << "(10Gbps)" << " | "
-        << pAccessDlScorePenaltyF[3] << "(100Gbps)" << " | "
-        << pAccessDlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
-    ostr << "accessUlScorePenalty = "<< pAccessUlScorePenaltyF[0] << "(defaUlt)" << " | "
-        << pAccessUlScorePenaltyF[1] << "(1Gbps)" << " | "
-        << pAccessUlScorePenaltyF[2] << "(10Gbps)" << " | "
-        << pAccessUlScorePenaltyF[3] << "(100Gbps)" << " | "
-        << pAccessUlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "plctDlScorePenalty = "<< pPenaltySched.pPlctDlScorePenaltyF[0] << "(default)" << " | "
+        << pPenaltySched.pPlctDlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << pPenaltySched.pPlctDlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << pPenaltySched.pPlctDlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << pPenaltySched.pPlctDlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "plctUlScorePenalty = "<< pPenaltySched.pPlctUlScorePenaltyF[0] << "(defaUlt)" << " | "
+        << pPenaltySched.pPlctUlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << pPenaltySched.pPlctUlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << pPenaltySched.pPlctUlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << pPenaltySched.pPlctUlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "accessDlScorePenalty = "<< pPenaltySched.pAccessDlScorePenaltyF[0] << "(default)" << " | "
+        << pPenaltySched.pAccessDlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << pPenaltySched.pAccessDlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << pPenaltySched.pAccessDlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << pPenaltySched.pAccessDlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
+    ostr << "accessUlScorePenalty = "<< pPenaltySched.pAccessUlScorePenaltyF[0] << "(defaUlt)" << " | "
+        << pPenaltySched.pAccessUlScorePenaltyF[1] << "(1Gbps)" << " | "
+        << pPenaltySched.pAccessUlScorePenaltyF[2] << "(10Gbps)" << " | "
+        << pPenaltySched.pAccessUlScorePenaltyF[3] << "(100Gbps)" << " | "
+        << pPenaltySched.pAccessUlScorePenaltyF[4] << "(1000Gbps)" << std::endl;
     ostr << "fillRatioLimit = "<< (int)pFillRatioLimit << std::endl;
     ostr << "fillRatioCompTol = "<< (int)pFillRatioCompTol << std::endl;
     ostr << "saturationThres = "<< (int)pSaturationThres << std::endl;
@@ -563,17 +579,17 @@ void GeoTreeEngine::printInfo(std::string &info,
 
       ostr << std::setw(6)<<"fsid"<< std::setw(6)<<"drct ";
       for(size_t itcol=0; itcol<pCircSize;itcol++)
-      ostr << std::setw(6)<< std::fixed << std::setprecision(1)<<(pCircFrCnt2Timestamp[(pFrameCount+pCircSize-1-itcol)%pCircSize]?(ts-pCircFrCnt2Timestamp[(pFrameCount+pCircSize-1-itcol)%pCircSize])*0.001:0);
+      ostr << std::setw(6)<< std::fixed << std::setprecision(1)<<(pLatencySched.pCircFrCnt2Timestamp[(pFrameCount+pCircSize-1-itcol)%pCircSize]?(ts-pLatencySched.pCircFrCnt2Timestamp[(pFrameCount+pCircSize-1-itcol)%pCircSize])*0.001:0);
       ostr << std::endl;
-      for(size_t itline=1; itline<pCircFrCnt2FsPenalties.begin()->size();itline++)
+      for(size_t itline=1; itline<pPenaltySched.pCircFrCnt2FsPenalties.begin()->size();itline++)
       {
         ostr << std::setw(6)<< itline << std::setw(6)<<"UL";
         for(size_t itcol=0; itcol<pCircSize;itcol++)
-        ostr << std::setw(6)<< (int)(pCircFrCnt2FsPenalties[(pFrameCount+pCircSize-1-itcol)%pCircSize][itline].ulScorePenalty);
+        ostr << std::setw(6)<< (int)(pPenaltySched.pCircFrCnt2FsPenalties[(pFrameCount+pCircSize-1-itcol)%pCircSize][itline].ulScorePenalty);
         ostr <<std::endl;
         ostr << std::setw(6)<< "" <<  std::setw(6)<<"DL";
         for(size_t itcol=0; itcol<pCircSize;itcol++)
-        ostr << std::setw(6)<< (int)(pCircFrCnt2FsPenalties[(pFrameCount+pCircSize-1-itcol)%pCircSize][itline].dlScorePenalty);
+        ostr << std::setw(6)<< (int)(pPenaltySched.pCircFrCnt2FsPenalties[(pFrameCount+pCircSize-1-itcol)%pCircSize][itline].dlScorePenalty);
         ostr <<std::endl;
       }
     }
@@ -584,34 +600,64 @@ void GeoTreeEngine::printInfo(std::string &info,
     size_t nowms = nowtv.tv_sec*1000 + nowtv.tv_usec/1000;
     double avAge = 0.0;
     size_t count = 0;
-    for(size_t n=1; n<pFsId2LatencyStats.size(); n++)
+    for(size_t n=1; n<pLatencySched.pFsId2LatencyStats.size(); n++)
     {
-      if(pFsId2LatencyStats[n].getage(nowms)<600000) // consider only if less than a minute
+      if(pLatencySched.pFsId2LatencyStats[n].getage(nowms)<600000) // consider only if less than a minute
       {
-      avAge += pFsId2LatencyStats[n].getage(nowms);
+      avAge += pLatencySched.pFsId2LatencyStats[n].getage(nowms);
       count++;
       }
     }
     avAge /= count;
-    ostr << "globalLatency  = "<< setw(5)<<(int)pGlobalLatencyStats.minlatency <<"ms.(min)"<< " | "
-        << setw(5)<<(int)pGlobalLatencyStats.averagelatency <<"ms.(avg)"<< " | "
-        << setw(5)<<(int)pGlobalLatencyStats.maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)avAge<<"ms.(avg)"<<std::endl;
-    for(size_t n=1; n<pFsId2LatencyStats.size(); n++)
+    ostr << "globalLatency  = "<< setw(5)<<(int)pLatencySched.pGlobalLatencyStats.minlatency <<"ms.(min)"<< " | "
+        << setw(5)<<(int)pLatencySched.pGlobalLatencyStats.averagelatency <<"ms.(avg)"<< " | "
+        << setw(5)<<(int)pLatencySched.pGlobalLatencyStats.maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)avAge<<"ms.(avg)"<<std::endl;
+    for(size_t n=1; n<pLatencySched.pFsId2LatencyStats.size(); n++)
     {
     ostr << "fsLatency (fsid="<<std::setw(6)<<n<<")  = ";
-    if(pFsId2LatencyStats[n].getage(nowms)>600000) // more than 1 minute, something is wrong
+    if(pLatencySched.pFsId2LatencyStats[n].getage(nowms)>600000) // more than 1 minute, something is wrong
       ostr<< setw(5)<<"NA" <<"ms.(min)"<< " | "
             << setw(5)<<"NA" <<"ms.(avg)"<< " | "
             << setw(5)<<"NA" <<"ms.(max)"<<"  |  age="<< setw(6)<<"NA"<<"ms.(last)" <<std::endl;
     else
-      ostr<< setw(5)<<(int)pFsId2LatencyStats[n].minlatency <<"ms.(min)"<< " | "
-            << setw(5)<<(int)pFsId2LatencyStats[n].averagelatency <<"ms.(avg)"<< " | "
-            << setw(5)<<(int)pFsId2LatencyStats[n].maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)pFsId2LatencyStats[n].getage(nowms)<<"ms.(last)" <<std::endl;
+      ostr<< setw(5)<<(int)pLatencySched.pFsId2LatencyStats[n].minlatency <<"ms.(min)"<< " | "
+            << setw(5)<<(int)pLatencySched.pFsId2LatencyStats[n].averagelatency <<"ms.(avg)"<< " | "
+            << setw(5)<<(int)pLatencySched.pFsId2LatencyStats[n].maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)pLatencySched.pFsId2LatencyStats[n].getage(nowms)<<"ms.(last)" <<std::endl;
+    }
+    ostr << "============================================================="<<std::endl<<std::endl;
+    ostr << "================ gw2GeotreeEngine latency  ================="<<std::endl;
+    avAge = 0.0;
+    count = 0;
+    //for(size_t n=1; n<pLatencySched.pFsId2LatencyStats.size(); n++)
+    for(auto lit = pLatencySched.pHost2LatencyStats.begin(); lit != pLatencySched.pHost2LatencyStats.end(); ++lit)
+    {
+      if(lit->second.getage(nowms)<600000) // consider only if less than a minute
+      {
+      avAge += lit->second.getage(nowms);
+      count++;
+      }
+    }
+    avAge /= count;
+    ostr << "globalLatency  = "<< setw(5)<<(int)pLatencySched.pGlobalLatencyStats.minlatency <<"ms.(min)"<< " | "
+        << setw(5)<<(int)pLatencySched.pGlobalLatencyStats.averagelatency <<"ms.(avg)"<< " | "
+        << setw(5)<<(int)pLatencySched.pGlobalLatencyStats.maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)avAge<<"ms.(avg)"<<std::endl;
+    //for(size_t n=1; n<pLatencySched.pFsId2LatencyStats.size(); n++)
+    for(auto lit = pLatencySched.pHost2LatencyStats.begin(); lit != pLatencySched.pHost2LatencyStats.end(); ++lit)
+    {
+    ostr << "hostLatency (host="<<std::setw(16)<<lit->first<<")  = ";
+    if(lit->second.getage(nowms)>600000) // more than 1 minute, something is wrong
+      ostr<< setw(5)<<"NA" <<"ms.(min)"<< " | "
+            << setw(5)<<"NA" <<"ms.(avg)"<< " | "
+            << setw(5)<<"NA" <<"ms.(max)"<<"  |  age="<< setw(6)<<"NA"<<"ms.(last)" <<std::endl;
+    else
+      ostr<< setw(5)<<(int)lit->second.minlatency <<"ms.(min)"<< " | "
+            << setw(5)<<(int)lit->second.averagelatency <<"ms.(avg)"<< " | "
+            << setw(5)<<(int)lit->second.maxlatency <<"ms.(max)"<<"  |  age="<< setw(6)<<(int)lit->second.getage(nowms)<<"ms.(last)" <<std::endl;
     }
     ostr << "============================================================="<<std::endl;
   }
   // ==== run through the map of file systems
-  for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++)
+  for(auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++)
   {
     stringstream ostr;
 
@@ -656,13 +702,34 @@ void GeoTreeEngine::printInfo(std::string &info,
       }
       if(optype.empty() || (optype == "plctblc") )
       {
-	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Balancing Placement\' :" << std::endl;
+	ostr << "### scheduling snapshot for scheduling group "<< it->second->group->mName <<" and operation \'Draining Placement\' :" << std::endl;
 	it->second->foregroundFastStruct->blcPlacementTree->recursiveDisplay(ostr,useColors)<<endl;
       }
     }
 
     orderByGroupName[it->second->group->mName] = ostr.str();
   }
+
+  // ==== run through the map of file systems
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++)
+  {
+    stringstream ostr;
+
+    if(dispTree && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->first)) )
+    {
+      ostr << "### scheduling tree for proxy group "<< it->first <<" :" << std::endl;
+      it->second->slowTree->display(ostr,useColors);
+      ostr <<std::endl;
+    }
+
+    if(dispSnaps && (schedgroup.empty() || schedgroup=="*" || (schedgroup == it->first)) )
+    {
+        ostr << "### scheduling snapshot for proxy group "<< it->first <<" :" << std::endl;
+        it->second->foregroundFastStruct->gWAccessTree->recursiveDisplay(ostr,useColors)<<endl;
+    }
+    orderByGroupName[it->first] = ostr.str();
+  }
+
 
   if(dispParam)
   {
@@ -691,11 +758,14 @@ void GeoTreeEngine::printInfo(std::string &info,
 
 bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
     vector<FileSystem::fsid_t> *newReplicas,
+    std::vector<std::string> *dataProxys,
+    std::vector<std::string> *firewallEntryPoint,
     SchedType type,
     vector<FileSystem::fsid_t> *existingReplicas,
     std::vector<std::string> *fsidsgeotags,
     unsigned long long bookingSize,
     const std::string &startFromGeoTag,
+    const std::string &clientGeoTag,
     const size_t &nCollocatedReplicas,
     vector<FileSystem::fsid_t> *excludeFs,
     vector<string> *excludeGeoTags,
@@ -703,18 +773,19 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
 {
   assert(nNewReplicas);
   assert(newReplicas);
+  std::vector<SchedTME*> entries;
 
   // find the entry in the map
   tlCurrentGroup = group;
-  TreeMapEntry *entry;
+  SchedTME *entry;
   {
     RWMutexReadLock lock(this->pTreeMapMutex);
-    if(!pGroup2TreeMapEntry.count(group))
+    if(!pGroup2SchedTME.count(group))
     {
       eos_err("could not find the requested placement group in the map");
       return false;
     }
-    entry = pGroup2TreeMapEntry[group];
+    entry = pGroup2SchedTME[group];
     AtomicInc(entry->fastStructLockWaitersCount);
   }
 
@@ -840,9 +911,35 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
     newReplicas->push_back(fsid);
     // apply the penalties
     if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>0)
-    applyDlScorePenalty(entry,*idx,pPlctDlScorePenalty[netSpeedClass]);
+    applyDlScorePenalty(entry,*idx,pPenaltySched.pPlctDlScorePenalty[netSpeedClass]);
     if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>0)
-    applyUlScorePenalty(entry,*idx,pPlctUlScorePenalty[netSpeedClass]);
+    applyUlScorePenalty(entry,*idx,pPenaltySched.pPlctUlScorePenalty[netSpeedClass]);
+  }
+
+  if(dataProxys || firewallEntryPoint )
+    entries.assign(newReplicasIdx.size(),entry);
+
+  // find the firewall entry point if needed
+  if(firewallEntryPoint)
+  {
+    if(!findProxy(newReplicasIdx, entries, firewallEntryPoint,"firewallentrypoint",pProxyCloseToFs?"":clientGeoTag))
+    {
+      success = false;
+      goto cleanup;
+    }
+  }
+
+  // find proxy in the right proxygroup if any
+  if(dataProxys)
+  {
+    // if we already have some firewall entry points, pass them to the findProxy procedure to check if it's needed to find a distinct data proxy
+    if(firewallEntryPoint)
+      *dataProxys=*firewallEntryPoint;
+    if(!findProxy(newReplicasIdx, entries, dataProxys,"",pProxyCloseToFs?"":clientGeoTag))
+    {
+      success = false;
+      goto cleanup;
+    }
   }
 
   // unlock, cleanup
@@ -855,6 +952,155 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   if(forceBrIdx) delete forceBrIdx;
 
   return success;
+}
+
+bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsIdxs, std::vector<SchedTME *> entries, std::vector<std::string> *dataProxys,const std::string &proxyGroup,const std::string &clientgeotag)
+{
+  // re initialize result vector
+  dataProxys->resize(fsIdxs.size());
+
+  const std::string *fsproxygroup = proxyGroup.empty()?0:&proxyGroup;
+  DataProxyTME *pxyentry = NULL;
+  FastGatewayAccessTree *tree=NULL;
+  if(fsproxygroup)
+  {
+    // if we deal only with a given proxygroup, do it in one go
+    RWMutexReadLock lock(this->pPxyTreeMapMutex);
+    if(!pPxyGrp2DpTME.count(*fsproxygroup))
+    {
+      eos_err("could not find the requested proxy group %s in the map",fsproxygroup->c_str());
+      return false;
+    }
+    pxyentry = pPxyGrp2DpTME[*fsproxygroup];
+    AtomicInc(pxyentry->fastStructLockWaitersCount);
+    // readlock the original fast structure
+    pxyentry->doubleBufferMutex.LockRead();
+    // copy the fasttree
+    if(pxyentry->foregroundFastStruct->gWAccessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
+    {
+      eos_crit("could not make a working copy of the fast tree for proxygroup %s",fsproxygroup->c_str());
+      pxyentry->doubleBufferMutex.UnLockRead();
+      return false;
+    }
+    tree = (FastGatewayAccessTree*)tlGeoBuffer;
+  }
+
+  for(size_t i = 0; i<fsIdxs.size(); i++)
+  {
+    const std::string *geotag=NULL;
+    // get the proxygroup
+    // WARNING: entries[i]->doubleBufferMutex should be locked by the caller of findProxy
+
+    if(!(*dataProxys)[i].empty() && (*dataProxys)[i]!="<none>")
+    {
+      if(pPxyHost2DpTMEs.count((*dataProxys)[i]))
+      {
+        const auto &TMEs = pPxyHost2DpTMEs[(*dataProxys)[i]];
+        // if dataProxys already contains proxy hostnames, check first if they already do the job for the given proxygroup,
+        bool isInRightPxyGrp = false;
+        for(auto it=TMEs.begin(); it!=TMEs.end(); it++)
+        {
+          if((*it)->slowTree->getName()==proxyGroup)
+          {
+            isInRightPxyGrp = true;
+            break;
+          }
+        }
+        if(isInRightPxyGrp) continue;
+
+        {
+          auto entry = (*TMEs.begin());
+          // we don't want to lock the pxyentry which is already locked
+          if(entry!=pxyentry)
+          {
+          AtomicInc(entry->fastStructLockWaitersCount);
+          entry->doubleBufferMutex.LockRead();
+          }
+          // if they don't, take their geotag as a staring point
+          SchedTreeBase::tFastTreeIdx fastidx;
+          //idx=pxyentry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(geotag->c_str());
+          if((fastidx=entry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode((*dataProxys)[i].c_str())))
+              assert(false);
+          geotag = &(*(entry->foregroundFastStruct->treeInfo))[fastidx].fullGeotag;
+          if(entry!=pxyentry)
+          {
+          entry->doubleBufferMutex.UnLockRead();
+          AtomicDec(entry->fastStructLockWaitersCount);
+          }
+        }
+      }
+    }
+    if(proxyGroup.empty()) fsproxygroup = & (*entries[i]->foregroundFastStruct->treeInfo)[fsIdxs[i]].proxygroup;
+    if(fsproxygroup->empty() || (*fsproxygroup)=="<none>")    // no proxygroup, nothing to do, there will be an entry with an empty string)
+    {
+      (*dataProxys)[i].clear();
+      continue;
+    }
+    // if we don't have a proxy to match, if a client geotag is given then use it else use the file system client
+    if(!geotag) geotag = (clientgeotag.empty()?&((*(entries[i]->foregroundFastStruct->treeInfo))[fsIdxs[i]].fullGeotag):&clientgeotag);
+    //const std::string & geotag = clientgeotag.empty()?(*entries[i]->foregroundFastStruct->treeInfo)[fsIdxs[i]].fullGeotag:clientgeotag;
+
+    if(proxyGroup.empty())
+    {
+      // if dealing with one proxygroup per fs, lock it for each new fs
+
+      // get the treemapentry
+      RWMutexReadLock lock(this->pPxyTreeMapMutex);
+      if(!pPxyGrp2DpTME.count(*fsproxygroup))
+      {
+        eos_err("could not find the requested proxy group %s in the map",fsproxygroup->c_str());
+        return false;
+      }
+      pxyentry = pPxyGrp2DpTME[*fsproxygroup];
+      AtomicInc(pxyentry->fastStructLockWaitersCount);
+      // readlock the original fast structure
+      pxyentry->doubleBufferMutex.LockRead();
+      // copy the fasttree
+      if(pxyentry->foregroundFastStruct->gWAccessTree->copyToBuffer((char*)tlGeoBuffer,gGeoBufferSize))
+      {
+        eos_crit("could not make a working copy of the fast tree for proxygroup %s",fsproxygroup->c_str());
+        pxyentry->doubleBufferMutex.UnLockRead();
+        AtomicDec(pxyentry->fastStructLockWaitersCount);
+        return false;
+      }
+      tree = (FastGatewayAccessTree*)tlGeoBuffer;
+    }
+
+    // get the closest node from the filesystem
+    SchedTreeBase::tFastTreeIdx idx;
+    idx=pxyentry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(geotag->c_str());
+    // get the proxy
+    if(!tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, true /*skipSaturated*/))
+    {
+      if(!tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, false /*skipSaturated*/))
+      {
+        eos_err("could not find a proxy for proxygroup %s",fsproxygroup->c_str());
+        std::stringstream ss;
+        ss<<"tree is as follow\n"<<(*tree);
+        eos_err(ss.str().c_str());
+        pxyentry->doubleBufferMutex.UnLockRead();
+        AtomicDec(pxyentry->fastStructLockWaitersCount);
+        return false;
+      }
+    }
+    (*dataProxys)[i]=(*pxyentry->foregroundFastStruct->treeInfo)[idx].host;
+
+    // if dealing with one proxygroup per fs, unlock it for each new fs
+    if(proxyGroup.empty())
+    {
+      pxyentry->doubleBufferMutex.UnLockRead();
+      AtomicDec(pxyentry->fastStructLockWaitersCount);
+    }
+  }
+
+  // if we deal only with a given proxygroup, unlock after the loop
+  if(!proxyGroup.empty())
+  {
+    pxyentry->doubleBufferMutex.UnLockRead();
+    AtomicDec(pxyentry->fastStructLockWaitersCount);
+  }
+
+  return true;
 }
 
 bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccessReplicas,
@@ -884,15 +1130,15 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 
   // find the entry in the map
   tlCurrentGroup = group;
-  TreeMapEntry *entry;
+  SchedTME *entry;
   {
     RWMutexReadLock lock(this->pTreeMapMutex);
-    if(!pGroup2TreeMapEntry.count(group))
+    if(!pGroup2SchedTME.count(group))
     {
       eos_err("could not find the requested placement group in the map");
       return false;
     }
-    entry = pGroup2TreeMapEntry[group];
+    entry = pGroup2SchedTME[group];
     AtomicInc(entry->fastStructLockWaitersCount);
   }
 
@@ -1002,10 +1248,10 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
     const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*idx].netSpeedClass;
     accessedReplicas->push_back(fsid);
     // apply the penalties
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=pAccessDlScorePenalty[netSpeedClass])
-    applyDlScorePenalty(entry,*idx,pAccessDlScorePenalty[netSpeedClass]);
-    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=pAccessUlScorePenalty[netSpeedClass])
-    applyUlScorePenalty(entry,*idx,pAccessUlScorePenalty[netSpeedClass]);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=pPenaltySched.pAccessDlScorePenalty[netSpeedClass])
+    applyDlScorePenalty(entry,*idx,pPenaltySched.pAccessDlScorePenalty[netSpeedClass]);
+    if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=pPenaltySched.pAccessUlScorePenalty[netSpeedClass])
+    applyUlScorePenalty(entry,*idx,pPenaltySched.pAccessUlScorePenalty[netSpeedClass]);
   }
 
   // unlock, cleanup
@@ -1022,6 +1268,8 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     unsigned long &fsIndex,
     std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+    std::vector<std::string> *dataProxys,
+    std::vector<std::string> *firewallEntryPoint,
     SchedType type,
     const std::string &accesserGeotag,
     const eos::common::FileSystem::fsid_t &forcedFsId,
@@ -1055,75 +1303,83 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
   eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
   freeSlot.freeSlotsCount=1;
   std::vector<eos::common::FileSystem::fsid_t>::iterator it;
+  std::vector<SchedTreeBase::tFastTreeIdx> ERIdx;
+  ERIdx.reserve(existingReplicas->size());
+  std::vector<SchedTME*> entries;
+  entries.reserve(existingReplicas->size());
 
   // maps tree maps entries (i.e. scheduling groups) to fsids containing a replica being available and the corresponding fastTreeIndex
-  map<TreeMapEntry*,vector< pair<FileSystem::fsid_t,SchedTreeBase::tFastTreeIdx> > > entry2FsId;
-  TreeMapEntry *entry=NULL;
+  map<SchedTME*,vector< pair<FileSystem::fsid_t,SchedTreeBase::tFastTreeIdx> > > entry2FsId;
+  SchedTME *entry=NULL;
   {
     // lock the scheduling group -> trees map so that the a map entry cannot be delete while processing it
     RWMutexReadLock lock(this->pTreeMapMutex);
     for(auto exrepIt = existingReplicas->begin(); exrepIt != existingReplicas->end(); exrepIt++)
     {
-      auto mentry = pFs2TreeMapEntry.find(*exrepIt);
+      auto mentry = pFs2SchedTME.find(*exrepIt);
       // if we cannot find the fs in any group, there is an inconsistency somewhere
-      if(mentry == pFs2TreeMapEntry.end())
+      if(mentry == pFs2SchedTME.end())
       {
-        eos_warning("cannot find the existing replica in any scheduling group");
-        continue;
+	eos_warning("cannot find the existing replica in any scheduling group");
+	continue;
       }
       entry = mentry->second;
 
       // lock the double buffering to make sure all the fast trees are not modified
       if(!entry2FsId.count(entry))
       {
-        // if the entry is already there, it was locked already
-        entry->doubleBufferMutex.LockRead();
-        // to prevent the destruction of the entry
-        AtomicInc(entry->fastStructLockWaitersCount);
+	// if the entry is already there, it was locked already
+	entry->doubleBufferMutex.LockRead();
+	// to prevent the destruction of the entry
+	AtomicInc(entry->fastStructLockWaitersCount);
       }
 
       const SchedTreeBase::tFastTreeIdx *idx;
       if(!entry->foregroundFastStruct->fs2TreeIdx->get(*exrepIt,idx) )
       {
-        eos_warning("cannot find fs in the scheduling group in the 2nd pass");
-        if(!entry2FsId.count(entry))
-        {
-          entry->doubleBufferMutex.UnLockRead();
-          AtomicDec(entry->fastStructLockWaitersCount);
-        }
-        continue;
+	eos_warning("cannot find fs in the scheduling group in the 2nd pass");
+	if(!entry2FsId.count(entry))
+	{
+	  entry->doubleBufferMutex.UnLockRead();
+	  AtomicDec(entry->fastStructLockWaitersCount);
+	}
+	continue;
       }
+      // take the fastindex of each existing replica
+      ERIdx.push_back(*idx);
+      entries.push_back(entry);
+
       // check if the fs is available
       bool isValid = false;
       switch(type)
       {
-        case regularRO:
-        isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        case regularRW:
-        isValid = entry->foregroundFastStruct->rWAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        case draining:
-        isValid = entry->foregroundFastStruct->drnAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        case balancing:
-        isValid = entry->foregroundFastStruct->blcAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        default:
-        break;
+	case regularRO:
+	isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
+	break;
+	case regularRW:
+	isValid = entry->foregroundFastStruct->rWAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
+	break;
+	case draining:
+	isValid = entry->foregroundFastStruct->drnAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
+	break;
+	case balancing:
+	isValid = entry->foregroundFastStruct->blcAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
+	break;
+	default:
+	break;
       }
       if(isValid)
       {
-        entry2FsId[entry].push_back(make_pair(*exrepIt,*idx));
-        availFsCount++;
+	entry2FsId[entry].push_back(make_pair(*exrepIt,*idx));
+	availFsCount++;
       }
       else
       {
-        // create an empty entry in the map if needed
-        if(!entry2FsId.count(entry))
-        entry2FsId[entry]=vector< pair<FileSystem::fsid_t,SchedTreeBase::tFastTreeIdx> >();
-        // update the unavailable fs
-        unavailableFs->push_back(*exrepIt);
+	// create an empty entry in the map if needed
+	if(!entry2FsId.count(entry))
+	entry2FsId[entry]=vector< pair<FileSystem::fsid_t,SchedTreeBase::tFastTreeIdx> >();
+	// update the unavailable fs
+	unavailableFs->push_back(*exrepIt);
       }
     }
   }
@@ -1283,21 +1539,21 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       //////////
       // apply the penalties
       //////////
-      if(!pFs2TreeMapEntry.count(fs))
+      if(!pFs2SchedTME.count(fs))
         continue;
-      entry = pFs2TreeMapEntry[fs];
+      entry = pFs2SchedTME[fs];
       const SchedTreeBase::tFastTreeIdx *idx;
       if(entry->foregroundFastStruct->fs2TreeIdx->get(fs,idx))
       {
         const char netSpeedClass = (*entry->foregroundFastStruct->treeInfo)[*idx].netSpeedClass;
         // every available box will push data
-        if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=pAccessUlScorePenalty[netSpeedClass])
-        applyUlScorePenalty(entry,*idx,pAccessUlScorePenalty[netSpeedClass]);
+        if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.ulScore>=pPenaltySched.pAccessUlScorePenalty[netSpeedClass])
+        applyUlScorePenalty(entry,*idx,pPenaltySched.pAccessUlScorePenalty[netSpeedClass]);
         // every available box will have to pull data if it's a RW access (or if it's a gateway)
         if( (type==regularRW) || (j==fsIndex && nAccessReplicas>1) )
         {
-          if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=pAccessDlScorePenalty[netSpeedClass])
-          applyDlScorePenalty(entry,*idx,pAccessDlScorePenalty[netSpeedClass]);
+          if(entry->foregroundFastStruct->placementTree->pNodes[*idx].fsData.dlScore>=pPenaltySched.pAccessDlScorePenalty[netSpeedClass])
+          applyDlScorePenalty(entry,*idx,pPenaltySched.pAccessDlScorePenalty[netSpeedClass]);
         }
       }
       else
@@ -1308,6 +1564,25 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     }
   }
 
+  if(firewallEntryPoint)
+  {
+    if(!findProxy(ERIdx, entries, firewallEntryPoint,"firewallentrypoint",pProxyCloseToFs?"":accesserGeotag))
+    {
+      returnCode = ENONET;
+      goto cleanup;
+    }
+  }
+
+  if(dataProxys)
+  {
+    if(firewallEntryPoint)
+      *dataProxys=*firewallEntryPoint;
+    if(!findProxy(ERIdx, entries, dataProxys,"",pProxyCloseToFs?"":accesserGeotag))
+    {
+      returnCode = ENONET;
+      goto cleanup;
+    }
+  }
 
   // if we arrive here, it all ran fine
   returnCode = 0;
@@ -1413,26 +1688,40 @@ void GeoTreeEngine::listenFsChange()
 
 	eos_debug("received modification on subject %s", newsubject.c_str());
 
-	string key = newsubject;
-	string queue = newsubject;
-	size_t dpos = 0;
-	if ((dpos = queue.find(";")) != string::npos)
-	{
-	  key.erase(0, dpos + 1);
-	  queue.erase(dpos);
-	}
+        string key = newsubject;
+        string queue = newsubject;
+        size_t dpos = 0;
+        if ((dpos = queue.find(";")) != string::npos)
+        {
+          key.erase(0, dpos + 1);
+          queue.erase(dpos);
+        }
 
-	// store the notification for the next update
-	if(gNotificationsBuffer.count(queue))
-	{
-	  gNotificationsBuffer[queue] |= gNotifKey2Enum.at(key);
-	}
-	else
-	{
-	  gNotificationsBuffer[queue] = gNotifKey2Enum.at(key);
-	}
+        auto notifTypeIt = gQueue2NotifType.find(queue);
+        if(notifTypeIt==gQueue2NotifType.end())
+        {
+          eos_err("could not determine the type of notification associated to queue ",queue.c_str());
+        }
+        else
+        {
+          // a machine might have several roles at the same time (DataProxy and Gateway), so an update might end in multiple update maps
+          if(notifTypeIt->second & sntFilesystem)
+          {
+            if(gNotificationsBufferFs.count(queue))
+            (gNotificationsBufferFs)[queue] |= gNotifKey2Enum.at(key);
+            else
+            (gNotificationsBufferFs)[queue] = gNotifKey2Enum.at(key);
+          }
+          if(notifTypeIt->second & sntDataproxy)
+          {
+            if(gNotificationsBufferDp.count(queue))
+            (gNotificationsBufferDp)[queue] |= gNotifKey2EnumGw.at(key);
+            else
+            (gNotificationsBufferDp)[queue] = gNotifKey2EnumGw.at(key);
+          }
+        }
 
-	continue;
+        continue;
       }
 
       if (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion)
@@ -1458,9 +1747,10 @@ void GeoTreeEngine::listenFsChange()
       checkPendingDeletions(); // do it before tree info to leave some time to the other threads
       {
 	eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
-	updateTreeInfo(gNotificationsBuffer);
+	updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
       }
-      gNotificationsBuffer.clear();
+      gNotificationsBufferFs.clear();
+      gNotificationsBufferDp.clear();
     }
     XrdSysThread::SetCancelOff();
     size_t elapsedMs = (curtime.tv_sec-prevtime.tv_sec)*1000 +(curtime.tv_usec-prevtime.tv_usec)/1000;
@@ -1472,7 +1762,7 @@ void GeoTreeEngine::listenFsChange()
   while (1);
 }
 
-bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftIdx , SlowTreeNode *stn)
+bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_snapshot_t *fs, int keys, SchedTreeBase::tFastTreeIdx ftIdx , SlowTreeNode *stn)
 {
   eos::common::RWMutexReadLock lock(configMutex); // we git a consistent set of configuration parameters per refresh of the state
   // nothing to update
@@ -1516,6 +1806,8 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
   {
     // update the treenodeinfo
     string newGeoTag = fs->mGeoTag;
+    if(newGeoTag.empty())
+      newGeoTag="nogeotag";
     FileSystem::fsid_t fsid = fs->mId;
     if(!fsid)
     {
@@ -1590,15 +1882,24 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
       if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Available;
     }
   }
+  if(keys&sfgPxyGrp)
+  {
+    if(stn)
+    {
+      stn->pNodeInfo.proxygroup = fs->mProxyGroup;
+    }
+    if(ftIdx)
+      (*entry->backgroundFastStruct->treeInfo)[ftIdx].proxygroup = fs->mProxyGroup;
+  }
   if(keys&sfgConfigstatus)
   {
-    FileSystem::fsstatus_t configstatus = fs->mConfigStatus;
-    if(configstatus==FileSystem::kRW)
+    FileSystem::fsstatus_t status = fs->mConfigStatus;
+    if(status==FileSystem::kRW)
     {
       if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Readable|SchedTreeBase::Writable);
       if(stn) stn->pNodeState.mStatus |= (SchedTreeBase::Readable|SchedTreeBase::Writable);
     }
-    else if(configstatus==FileSystem::kRO)
+    else if(status==FileSystem::kRO)
     {
       if(ftIdx)
       {
@@ -1611,7 +1912,7 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 	stn->pNodeState.mStatus &= ~SchedTreeBase::Writable;
       }
     }
-    else if(configstatus==FileSystem::kWO)
+    else if(status==FileSystem::kWO)
     {
       if(ftIdx)
       {
@@ -1720,27 +2021,27 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
 
   if( (keys&sfgPubTmStmp) && fs->mPublishTimestamp)
   {
-    pGlobalLatencyStats.lastupdate = fs->mPublishTimestamp;
-    pGlobalLatencyStats.update();
+    pLatencySched.pGlobalLatencyStats.lastupdate = fs->mPublishTimestamp;
+    pLatencySched.pGlobalLatencyStats.update();
     // update the latency of this fs
     tLatencyStats *lstat = NULL;
     if(ftIdx)
     {
-      if( ( (int)((*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId) ) < ((int)pFsId2LatencyStats.size()) )
+      if( ( (int)((*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId) ) < ((int)pLatencySched.pFsId2LatencyStats.size()) )
       {
-        lstat = &pFsId2LatencyStats[(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId];
+        lstat = &pLatencySched.pFsId2LatencyStats[(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId];
       }
       else
-      eos_crit("trying to update latency for fs %d but latency stats vector size is %d : something is wrong",(int)(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId,(int)pFsId2LatencyStats.size());
+      eos_crit("trying to update latency for fs %d but latency stats vector size is %d : something is wrong",(int)(*entry->backgroundFastStruct->treeInfo)[ftIdx].fsId,(int)pLatencySched.pFsId2LatencyStats.size());
     }
     else if(stn)
     {
-      if( (int)( stn->pNodeInfo.fsId ) < ((int)pFsId2LatencyStats.size()) )
+      if( (int)( stn->pNodeInfo.fsId ) < ((int)pLatencySched.pFsId2LatencyStats.size()) )
       {
-        lstat = &pFsId2LatencyStats[stn->pNodeInfo.fsId];
+        lstat = &pLatencySched.pFsId2LatencyStats[stn->pNodeInfo.fsId];
       }
       else
-      eos_err("trying to update latency for fs %d but latency stats vector size is %d : something is wrong",(int)( stn->pNodeInfo.fsId ),(int)pFsId2LatencyStats.size());
+      eos_err("trying to update latency for fs %d but latency stats vector size is %d : something is wrong",(int)( stn->pNodeInfo.fsId ),(int)pLatencySched.pFsId2LatencyStats.size());
     }
     if(lstat)
     {
@@ -1780,14 +2081,14 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
       if(stn) stn->pNodeInfo.netSpeedClass = netSpeedClass;
     }
 
-    nodeAgreg& na = pUpdatingNodes[fs->mQueue];// this one will create the entry if it doesnt exists already
+    nodeAgreg& na = pPenaltySched.pUpdatingNodes[fs->mHostPort];// this one will create the entry if it doesnt exists already
     na.fsCount++;
     if(!na.saturated)
     {
       if(na.fsCount ==1 )
       {
         na.netSpeedClass = netSpeedClass;
-        pMaxNetSpeedClass = std::max( pMaxNetSpeedClass , netSpeedClass);
+        pPenaltySched.pMaxNetSpeedClass = std::max( pPenaltySched.pMaxNetSpeedClass , netSpeedClass);
         na.netOutWeight += (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetOutRateMiB / fs->mNetEthRateMiB) : 0.0));
         na.netInWeight += (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetInRateMiB / fs->mNetEthRateMiB) : 0.0));
         if(na.netOutWeight<0.1 || na.netInWeight<0.1)
@@ -1819,17 +2120,162 @@ bool GeoTreeEngine::updateTreeInfo(TreeMapEntry* entry, eos::common::FileSystem:
   //	}
 
   return true;
+#undef setOneStateVarInAllFastTrees
+#undef setOneStateVarStatusInAllFastTrees
+#undef unsetOneStateVarStatusInAllFastTrees
 }
 
-bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
+bool GeoTreeEngine::updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::host_snapshot_t *hs, int keys, SchedTreeBase::tFastTreeIdx ftIdx , SlowTreeNode *stn)
+{
+  eos::common::RWMutexReadLock lock(configMutex); // we git a consistent set of configuration parameters per refresh of the state
+  // nothing to update
+  if((!ftIdx && !stn) || !keys)
+  return true;
+
+#define setOneStateVarInAllFastTrees(variable,value) \
+                { \
+        entry->backgroundFastStruct->gWAccessTree->pNodes[ftIdx].fsData.variable = value; \
+                }
+
+#define setOneStateVarStatusInAllFastTrees(flag) \
+                { \
+        entry->backgroundFastStruct->gWAccessTree->pNodes[ftIdx].fsData.mStatus |= flag; \
+                }
+
+#define unsetOneStateVarStatusInAllFastTrees(flag) \
+                { \
+        entry->backgroundFastStruct->gWAccessTree->pNodes[ftIdx].fsData.mStatus &= ~flag; \
+                }
+
+  if(keys&sfgGeotag)
+  {
+    // update the treenodeinfo
+    string newGeoTag = hs->mGeoTag;
+    if(newGeoTag.empty())
+      newGeoTag="nogeotag";
+    auto host = hs->mHost;
+    if(host.empty())
+    {
+      eos_err("could not get the Host");
+      return false;
+    }
+    entry->slowTreeMutex.LockWrite();
+    if(!entry->host2SlowTreeNode.count(host))
+    {
+      eos_err("could not get the slowtree node");
+      entry->slowTreeMutex.UnLockWrite();
+      return false;
+    }
+    SlowTreeNode *oldNode = entry->host2SlowTreeNode[host];
+
+    //const string &oldGeoTag = oldNode->pNodeInfo.fullGeotag;
+    string oldGeoTag = oldNode->pNodeInfo.fullGeotag;
+    oldGeoTag = (oldGeoTag.rfind("::")!=std::string::npos)?oldGeoTag.substr(0,oldGeoTag.rfind("::")):std::string("");
+
+    eos_debug("geotag change detected : old geotag is %s   new geotag is %s",oldGeoTag.c_str(),newGeoTag.c_str());
+    //CHECK IF CHANGE ACTUALLY HAPPENED BEFORE ACTUALLY CHANGING SOMETHING
+    if( oldGeoTag !=newGeoTag)
+    { // do the change only if there is one
+      SlowTreeNode *newNode = NULL;
+      newNode = entry->slowTree->moveToNewGeoTag(oldNode,newGeoTag);
+      if(!newNode)
+      {
+        stringstream ss;
+        ss << (*entry->slowTree);
+        eos_err("error changing geotag in slowtree : move is %s => %s and slowtree is \n%s\n",
+            oldGeoTag.c_str(),
+            newGeoTag.c_str(),
+            ss.str().c_str()
+        );
+
+        entry->slowTreeMutex.UnLockWrite();
+        return false;
+      }
+      entry->slowTreeModified = true;
+      entry->host2SlowTreeNode[host] = newNode;
+      // !!! change the argument too
+      stn = newNode;
+    }
+    entry->slowTreeMutex.UnLockWrite();
+  }
+
+  size_t netSpeedClass = 0; // <1Gb/s -> 0 ; 1Gb/s -> 1; 10Gb/s->2 ; 100Gb/s->...etc
+
+  if( (keys&sfgPubTmStmp) && hs->mPublishTimestamp)
+  {
+    pLatencySched.pGlobalLatencyStats.lastupdate = hs->mPublishTimestamp;
+    pLatencySched.pGlobalLatencyStats.update();
+    // update the latency of this fs
+    std::string host;
+    if(ftIdx)
+      host = (*entry->backgroundFastStruct->treeInfo)[ftIdx].host;
+    else if(stn)
+      host = stn->pNodeInfo.host;
+    if(!host.empty())
+    {
+      tLatencyStats *lstat = NULL;
+      lstat = &pLatencySched.pHost2LatencyStats[host];
+      lstat->lastupdate = hs->mPublishTimestamp;
+      lstat->update();
+    }
+  }
+
+  if(keys&(sfgOutratemib|sfgReadratemb))
+  {
+    double dlScore = (1.0 - ((hs->mNetEthRateMiB) ? (hs->mNetInRateMiB / hs->mNetEthRateMiB) : 0.0));
+    dlScore = ((dlScore > 0) ? sqrt(dlScore) : 0);
+
+    if(ftIdx) setOneStateVarInAllFastTrees(dlScore,(char)(dlScore*100));
+    if(stn) stn->pNodeState.dlScore = dlScore*100;
+  }
+  if(keys&(sfgInratemib|sfgOutratemib|sfgEthmib))
+  {
+    netSpeedClass = round(log10(hs->mNetEthRateMiB*8 * 1024 * 1024 + 1));
+    netSpeedClass = netSpeedClass>8 ? netSpeedClass-8 : 0; // netSpeedClass 1 means 1Gbps
+    // check if netspeed calss need an update
+    if(entry->backgroundFastStruct->treeInfo->size()>=netSpeedClass+1 &&
+        (*entry->backgroundFastStruct->treeInfo)[ftIdx].netSpeedClass!=(unsigned char)netSpeedClass)
+    {
+      if(ftIdx) (*entry->backgroundFastStruct->treeInfo)[ftIdx].netSpeedClass = netSpeedClass;
+      if(stn) stn->pNodeInfo.netSpeedClass = netSpeedClass;
+    }
+
+    nodeAgreg& na = pPenaltySched.pUpdatingNodes[hs->mHost];    // this one will create the entry if it doesnt exists already
+    na.fsCount++;
+    if(!na.saturated)
+    {
+      if(na.fsCount ==1 )
+      {
+        na.netSpeedClass = netSpeedClass;
+        pPenaltySched.pMaxNetSpeedClass = std::max( pPenaltySched.pMaxNetSpeedClass , netSpeedClass);
+        na.netOutWeight += (1.0 - ((hs->mNetEthRateMiB) ? (hs->mNetOutRateMiB / hs->mNetEthRateMiB) : 0.0));
+        na.netInWeight += (1.0 - ((hs->mNetEthRateMiB) ? (hs->mNetInRateMiB / hs->mNetEthRateMiB) : 0.0));
+        if(na.netOutWeight<0.1 || na.netInWeight<0.1)
+        na.saturated = true; // network of the box is saturated
+      }
+      na.gOpen += hs->mGopen;
+    }
+
+    // contrary to the fs case, we don't deal with penalties here
+  }
+
+  return true;
+
+#undef setOneStateVarInAllFastTrees
+#undef setOneStateVarStatusInAllFastTrees
+#undef unsetOneStateVarStatusInAllFastTrees
+}
+
+bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<string,int> &updatesDp)
 {
   // copy the foreground FastStructures to the BackGround FastStructures
   // so that the penalties applied after the placement/access are kept by defaut
   // (and overwritten if a new state is received from the fs)
+  // => SCHEDULING
   pTreeMapMutex.LockRead();
-  for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++ )
+  for(auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++ )
   {
-    TreeMapEntry *entry = it->second;
+    SchedTME *entry = it->second;
     RWMutexReadLock lock(entry->slowTreeMutex);
     if(!entry->foregroundFastStruct->DeepCopyTo(entry->backgroundFastStruct))
     {
@@ -1839,7 +2285,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     }
 
     // copy the penalties of the last frame from each group and reset the penalties counter in the fast trees
-    auto& pVec=pCircFrCnt2FsPenalties[pFrameCount%pCircSize];
+    auto& pVec=pPenaltySched.pCircFrCnt2FsPenalties[pFrameCount%pCircSize];
     for(auto it2=entry->foregroundFastStruct->fs2TreeIdx->begin();
         it2!=entry->foregroundFastStruct->fs2TreeIdx->end();
         it2++)
@@ -1851,15 +2297,44 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     }
   }
   pTreeMapMutex.UnLockRead();
+  // => PROXYGROUPS
+  pPxyTreeMapMutex.LockRead();
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++ )
+  {
+    DataProxyTME *entry = it->second;
+    RWMutexReadLock lock(entry->slowTreeMutex);
+    if(!entry->foregroundFastStruct->DeepCopyTo(entry->backgroundFastStruct))
+    {
+      eos_crit("error deep copying in double buffering");
+      pPxyTreeMapMutex.UnLockRead();
+      return false;
+    }
+
+    // copy the penalties of the last frame from each group and reset the penalties counter in the fast trees
+    auto& pMap=pPenaltySched.pCircFrCnt2HostPenalties[pFrameCount%pCircSize];
+    for(auto it2=entry->foregroundFastStruct->host2TreeIdx->begin();
+        it2!=entry->foregroundFastStruct->host2TreeIdx->end();
+        it2++)
+    {
+      auto cur=*it2;
+      pMap[cur.first] = (*entry->foregroundFastStruct->penalties)[cur.second];
+      AtomicCAS((*entry->foregroundFastStruct->penalties)[cur.second].dlScorePenalty,(*entry->foregroundFastStruct->penalties)[cur.second].dlScorePenalty,(char)0);
+      AtomicCAS((*entry->foregroundFastStruct->penalties)[cur.second].ulScorePenalty,(*entry->foregroundFastStruct->penalties)[cur.second].ulScorePenalty,(char)0);
+    }
+  }
+  pPxyTreeMapMutex.UnLockRead();
+
+
   // timestamp the current frame
   {
     struct timeval curtime;
     gettimeofday(&curtime, 0);
-    pCircFrCnt2Timestamp[pFrameCount%pCircSize] = ((size_t)curtime.tv_sec)*1000+((size_t)curtime.tv_usec)/1000;
+    pLatencySched.pCircFrCnt2Timestamp[pFrameCount%pCircSize] = ((size_t)curtime.tv_sec)*1000+((size_t)curtime.tv_usec)/1000;
   }
-  pUpdatingNodes.clear();
-  pMaxNetSpeedClass = 0;
-  for(auto it = updates.begin(); it != updates.end(); ++it)
+  pPenaltySched.pUpdatingNodes.clear();
+  pPenaltySched.pMaxNetSpeedClass = 0;
+  // => SCHED
+  for(auto it = updatesFs.begin(); it != updatesFs.end(); ++it)
   {
 
     gOFS->ObjectManager.HashMutex.LockRead();
@@ -1890,13 +2365,13 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     filesystem->SnapShotFileSystem(fs, true);
 
     pTreeMapMutex.LockRead();
-    if(!pFs2TreeMapEntry.count(fsid))
+    if(!pFs2SchedTME.count(fsid))
     {
       eos_err("update : TreeEntryMap has been removed, skipping this update");
       pTreeMapMutex.UnLockRead();
       continue;
     }
-    TreeMapEntry *entry = pFs2TreeMapEntry[fsid];
+    SchedTME *entry = pFs2SchedTME[fsid];
     AtomicInc(entry->fastStructLockWaitersCount);
     pTreeMapMutex.UnLockRead();
 
@@ -1912,10 +2387,10 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
       auto nodeit = entry->fs2SlowTreeNode.find(fsid);
       if(nodeit == entry->fs2SlowTreeNode.end())
       {
-	eos_crit("Inconsistency : cannot locate an fs %lu supposed to be in the fast structures",(unsigned long)fsid);
-	entry->doubleBufferMutex.UnLockRead();
-	AtomicDec(entry->fastStructLockWaitersCount);
-	return false;
+        eos_crit("Inconsistency : cannot locate an fs %lu supposed to be in the fast structures",(unsigned long)fsid);
+        entry->doubleBufferMutex.UnLockRead();
+        AtomicDec(entry->fastStructLockWaitersCount);
+        return false;
       }
       node = nodeit->second;
       eos_debug("no fast tree for fs %lu : updating slowtree",(unsigned long)fsid);
@@ -1931,15 +2406,88 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     entry->doubleBufferMutex.UnLockRead();
     AtomicDec(entry->fastStructLockWaitersCount);
   }
+  // => PROXYGROUPS
+  for(auto it = updatesDp.begin(); it != updatesDp.end(); ++it)
+  {
+    gOFS->ObjectManager.HashMutex.LockRead();
+    XrdMqSharedHash* hash = gOFS->ObjectManager.GetObject(it->first.c_str(), "hash");
+    if(!hash)
+    {
+      eos_warning("Inconsistency : Trying to access a deleted host.");
+      gOFS->ObjectManager.HashMutex.UnLockRead();
+      continue;
+    }
+    std::string host = hash->Get("stat.hostport");
+    if(host.empty())
+    {
+      eos_warning("Inconsistency : Trying to update an unregistered host. Should not happen.");
+      gOFS->ObjectManager.HashMutex.UnLockRead();
+      continue;
+    }
+    gOFS->ObjectManager.HashMutex.UnLockRead();
+
+    eos::common::FileSystem::host_snapshot_t hs;
+    eos::common::FileSystem::SnapShotHost(&gOFS->ObjectManager, it->first,hs,true);
+
+    pPxyTreeMapMutex.LockRead();
+    if(!pPxyHost2DpTMEs.count(hs.mHost))
+    {
+      eos_err("update : TreeEntryMap has been removed, skipping this update");
+      pPxyTreeMapMutex.UnLockRead();
+      continue;
+    }
+    auto entryset = pPxyHost2DpTMEs[hs.mHost];
+    pPxyTreeMapMutex.UnLockRead();
+    for(auto setit=entryset.begin(); setit!=entryset.end(); setit++)
+    {
+      DataProxyTME *entry = *setit;
+
+      AtomicInc(entry->fastStructLockWaitersCount);
+
+      eos_debug("CHANGE BITFIELD %x",it->second);
+
+      // update only the fast structures because even if a fast structure rebuild is needed from the slow tree
+      // its information and state is updated from the fast structures
+      entry->doubleBufferMutex.LockRead();
+      const SchedTreeBase::tFastTreeIdx *idx=NULL;
+      SlowTreeNode *node=NULL;
+      if( !entry->backgroundFastStruct->host2TreeIdx->get(host.c_str(),idx) )
+      {
+        auto nodeit = entry->host2SlowTreeNode.find(host);
+        if(nodeit == entry->host2SlowTreeNode.end())
+        {
+          eos_crit("Inconsistency : cannot locate an host: %s supposed to be in the fast structures",host.c_str());
+          entry->doubleBufferMutex.UnLockRead();
+          AtomicDec(entry->fastStructLockWaitersCount);
+          return false;
+        }
+        node = nodeit->second;
+        eos_debug("no fast tree for host %s : updating slowtree",host.c_str());
+      }
+      else
+      {
+        eos_debug("fast tree available for fs %s : not updating slowtree",host.c_str());
+      }
+      updateTreeInfo(entry, &hs, it->second, idx?*idx:0 , node);
+      if(idx) entry->fastStructModified = true;
+      if(node) entry->slowTreeModified = true;
+      // if we update the slowtree, then a fast tree generation is already pending
+      entry->doubleBufferMutex.UnLockRead();
+      AtomicDec(entry->fastStructLockWaitersCount);
+    }
+  }
+
+  // update the atomic penalties
   updateAtomicPenalties();
 
   // update the trees that need to be updated ( could maybe optimized by updating only the branch needing, might be worth it if only 1 or 2 branches are updated )
   // self update for the fast structure if update from slow tree is not needed
   // if convert from slowtree is needed, update the slowtree from the fast for the info and for the state
+  // => SCHED
   pTreeMapMutex.LockRead();
-  for(auto it = pGroup2TreeMapEntry.begin(); it != pGroup2TreeMapEntry.end(); it++ )
+  for(auto it = pGroup2SchedTME.begin(); it != pGroup2SchedTME.end(); it++ )
   {
-    TreeMapEntry *entry = it->second;
+    SchedTME *entry = it->second;
     RWMutexReadLock lock(entry->slowTreeMutex);
     if(!updateFastStructures(entry))
     {
@@ -1949,9 +2497,24 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
     }
   }
   pTreeMapMutex.UnLockRead();
+  // => PROXYGROUPS
+  pPxyTreeMapMutex.LockRead();
+  for(auto it = pPxyGrp2DpTME.begin(); it != pPxyGrp2DpTME.end(); it++ )
+  {
+    DataProxyTME *entry = it->second;
+    RWMutexReadLock lock(entry->slowTreeMutex);
+    if(!updateFastStructures(entry))
+    {
+      pPxyTreeMapMutex.UnLockRead();
+      eos_err("error updating the tree");
+      return false;
+    }
+  }
+  pPxyTreeMapMutex.UnLockRead();
 
   return true;
 }
+
 
 bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups)
 {
@@ -1965,15 +2528,15 @@ bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsi
     RWMutexReadLock lock(this->pTreeMapMutex);
     for(auto it = fsids.begin(); it != fsids.end(); ++ it)
     {
-      if(pFs2TreeMapEntry.count(*it))
+      if(pFs2SchedTME.count(*it))
       {
-	FsGroup *group = pFs2TreeMapEntry[*it]->group;
+	FsGroup *group = pFs2SchedTME[*it]->group;
 	if(fsgeotags)
 	{
 	  const SchedTreeBase::tFastTreeIdx *idx=NULL;
-	  if(pFs2TreeMapEntry[*it]->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
+	  if(pFs2SchedTME[*it]->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
 	  fsgeotags->push_back(
-	      (*pFs2TreeMapEntry[*it]->foregroundFastStruct->treeInfo)[*idx].fullGeotag
+	      (*pFs2SchedTME[*it]->foregroundFastStruct->treeInfo)[*idx].fullGeotag
 	  );
 	  else
 	  fsgeotags->push_back("");
@@ -2020,7 +2583,7 @@ bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsi
 
 void GeoTreeEngine::updateAtomicPenalties()
 {
-  // In this function, we compute a rought a simplified version
+  // In this function, we compute a rough a simplified version
   // of the penalties applied to selected fs for placement and access.
   // there is only one penalty and it's copied to ulplct, dlplct, ulaccess and dlaccess
   // variants.
@@ -2028,7 +2591,7 @@ void GeoTreeEngine::updateAtomicPenalties()
   // if the update is enabled
   if(pPenaltyUpdateRate)
   {
-    if(pUpdatingNodes.empty())
+    if(pPenaltySched.pUpdatingNodes.empty())
     {
       //eos_debug("updatingNodes is empty!");
     }
@@ -2036,19 +2599,20 @@ void GeoTreeEngine::updateAtomicPenalties()
     {
       // each networking speed class has its own variables
       std::vector<double>
-      ropen(pMaxNetSpeedClass+1,0.0),
-      wopen(pMaxNetSpeedClass+1,0.0),
-      ulload(pMaxNetSpeedClass+1,0.0),
-      dlload(pMaxNetSpeedClass+1,0.0),
-      fscount(pMaxNetSpeedClass+1,0.0),
-      hostcount(pMaxNetSpeedClass+1,0.0),
-      diskutil(pMaxNetSpeedClass+1,0.0);
+      ropen(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      wopen(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      gopen(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      ulload(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      dlload(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      fscount(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      hostcount(pPenaltySched.pMaxNetSpeedClass+1,0.0),
+      diskutil(pPenaltySched.pMaxNetSpeedClass+1,0.0);
 
       // we use the view to check that we have all the fs in a node
       // could be removed if we were sure to run a single on fst daemon / box
 
       // WARNING: see below / FsView::gFsView.ViewMutex.LockRead();
-      for( auto it = pUpdatingNodes.begin(); it!= pUpdatingNodes.end(); it++)
+      for( auto it = pPenaltySched.pUpdatingNodes.begin(); it!= pPenaltySched.pUpdatingNodes.end(); it++)
       {
          const std::string &nodestr = it->first;
         // ===============
@@ -2074,8 +2638,18 @@ void GeoTreeEngine::updateAtomicPenalties()
         // ===============
         if((!it->second.saturated))
         {
-//          eos_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
-//              it->first.c_str(),it->second.wOpen,it->second.rOpen,it->second.netOutWeight,it->second.netInWeight);
+          // eos_debug("aggregated opened files for %s : wopen %d   ropen %d   outweight %lf   inweight %lf",
+          //   it->first.c_str(),it->second.wOpen,it->second.rOpen,it->second.netOutWeight,it->second.netInWeight);
+
+          // update aggregated informations for the right networking class (take into account only unsaturated boxes)
+          ropen[it->second.netSpeedClass]+=(it->second.rOpen);
+          wopen[it->second.netSpeedClass]+=(it->second.wOpen);
+          gopen[it->second.netSpeedClass]+=(it->second.gOpen);
+          ulload[it->second.netSpeedClass]+=(1.0-it->second.netOutWeight);
+          dlload[it->second.netSpeedClass]+=(1.0-it->second.netInWeight);
+          diskutil[it->second.netSpeedClass]+=it->second.diskUtilSum;
+          fscount[it->second.netSpeedClass]+=it->second.fsCount;
+          hostcount[it->second.netSpeedClass]++;
         }
         else
         {
@@ -2086,20 +2660,12 @@ void GeoTreeEngine::updateAtomicPenalties()
 //          long long wopen = node->SumLongLong("stat.wopen",false);
 //          long long ropen = node->SumLongLong("stat.ropen",false);
         }
-        // update aggregated informations for the right networking class
-        ropen[it->second.netSpeedClass]+=(it->second.rOpen);
-        wopen[it->second.netSpeedClass]+=(it->second.wOpen);
-        ulload[it->second.netSpeedClass]+=(1.0-it->second.netOutWeight);
-        dlload[it->second.netSpeedClass]+=(1.0-it->second.netInWeight);
-        diskutil[it->second.netSpeedClass]+=it->second.diskUtilSum;
-        fscount[it->second.netSpeedClass]+=it->second.fsCount;
-        hostcount[it->second.netSpeedClass]++;
       }
       // WARNING: see above / FsView::gFsView.ViewMutex.UnLockRead();
 
-      for(size_t netSpeedClass=0; netSpeedClass<=pMaxNetSpeedClass; netSpeedClass++)
+      for(size_t netSpeedClass=0; netSpeedClass<=pPenaltySched.pMaxNetSpeedClass; netSpeedClass++)
       {
-        if(ropen[netSpeedClass]+ropen[netSpeedClass]>4)
+        if(ropen[netSpeedClass]+wopen[netSpeedClass]>4)
         {
           eos_debug("UPDATE netSpeedClass=%d  ulload=%lf  dlload=%lf  diskutil=%lf  ropen=%lf  wopen=%lf  fscount=%lf  hostcount=%lf",
               (int)netSpeedClass, ulload[netSpeedClass], dlload[netSpeedClass],diskutil[netSpeedClass], ropen[netSpeedClass],
@@ -2111,29 +2677,34 @@ void GeoTreeEngine::updateAtomicPenalties()
           // network penalty per file
           // the multiplication by the number of fs is to take into account
           // that the bw is shared between multiple fs
-          double networkpen =
-          0.5*(ulload[netSpeedClass]+dlload[netSpeedClass])/(ropen[netSpeedClass]+wopen[netSpeedClass])
-          *(fscount[netSpeedClass]/hostcount[netSpeedClass]);
+          double avgnetload = 0.5*(ulload[netSpeedClass]+dlload[netSpeedClass]) / ( ropen[netSpeedClass] + wopen[netSpeedClass] + gopen[netSpeedClass]);
+          double networkpenSched = avgnetload *(fscount[netSpeedClass]/hostcount[netSpeedClass]);
+          double networkpenGw    = avgnetload;
+//          double networkpen =
+//          0.5*(ulload[netSpeedClass]+dlload[netSpeedClass])/(ropen[netSpeedClass]+wopen[netSpeedClass])
+//          *(fscount[netSpeedClass]/hostcount[netSpeedClass]);
 
           // there is factor to take into account the read cache
           // TODO use a realistic value for this factor
           double diskpen =
           diskutil[netSpeedClass]/(0.4*ropen[netSpeedClass]+wopen[netSpeedClass]);
 
-          eos_debug("penalties updates are network %lf   disk %lf",networkpen,diskpen);
+          eos_debug("penalties updates for scheduling are network %lf   disk %lf",networkpenSched,diskpen);
+          eos_debug("penalties updates for gateway/dataproxy are network %lf",networkpenGw,diskpen);
 
-          double update = 100*std::max(diskpen,networkpen);
+          double updateSched = 100*std::max(diskpen,networkpenSched);
+          double updateGw = 100*networkpenGw;
 
-          if(update<1 || update>99)// could be more restrictive
+          if(updateSched<1 || updateSched>99)// could be more restrictive
           {
-            eos_debug("weird value for accessDlScorePenalty update : %lf. Not using this one.",update);
+            eos_debug("weird value for accessDlScorePenalty update : %lf. Not using this one.",updateSched);
           }
           else
           {
-            eos_debug("netSpeedClass %d : using update values %lf for penalties with weight %f",
-                netSpeedClass, update, pPenaltyUpdateRate);
+            eos_debug("netSpeedClass %d : using update values %lf for penalties with weight %f%%",
+                netSpeedClass, pPenaltyUpdateRate);
             eos_debug("netSpeedClass %d : values before update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
-                netSpeedClass, pAccessDlScorePenaltyF[netSpeedClass],pPlctDlScorePenaltyF[netSpeedClass],pAccessUlScorePenaltyF[netSpeedClass],pPlctUlScorePenaltyF[netSpeedClass]);
+                netSpeedClass, pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass],pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass],pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass],pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]);
             union
             {
               float f;
@@ -2141,21 +2712,25 @@ void GeoTreeEngine::updateAtomicPenalties()
             }uf;
 
             // atomic change, no need to lock anything
-            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pAccessDlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*update);
-            AtomicCAS( reinterpret_cast<uint32_t&>(pAccessDlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pAccessDlScorePenaltyF[netSpeedClass]) , uf.u );
-            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPlctDlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*update);
-            AtomicCAS( reinterpret_cast<uint32_t&>(pPlctDlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPlctDlScorePenaltyF[netSpeedClass]) , uf.u);
-            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pAccessUlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*update);
-            AtomicCAS( reinterpret_cast<uint32_t&>(pAccessUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pAccessUlScorePenaltyF[netSpeedClass]) , uf.u);
-            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPlctUlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*update);
-            AtomicCAS( reinterpret_cast<uint32_t&>(pPlctUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPlctUlScorePenaltyF[netSpeedClass]) , uf.u);
-            eos_debug("netSpeedClass %d : values after update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f",
-                netSpeedClass, pAccessDlScorePenaltyF[netSpeedClass],pPlctDlScorePenaltyF[netSpeedClass],pAccessUlScorePenaltyF[netSpeedClass],pPlctUlScorePenaltyF[netSpeedClass]);
+            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateSched);
+            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass]) , uf.u );
+            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateSched);
+            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]) , uf.u);
+            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateSched);
+            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]) , uf.u);
+            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateSched);
+            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]) , uf.u);
+            uf.f = 0.01*( ( 100 - pPenaltyUpdateRate)*pPenaltySched.pGwScorePenaltyF[netSpeedClass] + pPenaltyUpdateRate*updateGw);
+            AtomicCAS( reinterpret_cast<uint32_t&>(pPenaltySched.pGwScorePenaltyF[netSpeedClass]) , reinterpret_cast<uint32_t&>(pPenaltySched.pGwScorePenaltyF[netSpeedClass]) , uf.u);
+            eos_debug("netSpeedClass %d : values after update are accessDlScorePenalty=%f  plctDlScorePenalty=%f  accessUlScorePenalty=%f  plctUlScorePenalty=%f gwScorePenalty=%f",
+                netSpeedClass, pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass],pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass],pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass],pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass],
+                pPenaltySched.pGwScorePenaltyF[netSpeedClass]);
             // update the casted versions too
-            AtomicCAS( pPlctUlScorePenalty[netSpeedClass], pPlctUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPlctUlScorePenaltyF[netSpeedClass]);
-            AtomicCAS( pPlctDlScorePenalty[netSpeedClass], pPlctDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPlctDlScorePenaltyF[netSpeedClass]);
-            AtomicCAS( pAccessDlScorePenalty[netSpeedClass], pAccessDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pAccessDlScorePenaltyF[netSpeedClass]);
-            AtomicCAS( pAccessUlScorePenalty[netSpeedClass], pAccessUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pAccessUlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( pPenaltySched.pPlctUlScorePenalty[netSpeedClass], pPenaltySched.pPlctUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( pPenaltySched.pPlctDlScorePenalty[netSpeedClass], pPenaltySched.pPlctDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( pPenaltySched.pAccessDlScorePenalty[netSpeedClass], pPenaltySched.pAccessDlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( pPenaltySched.pAccessUlScorePenalty[netSpeedClass], pPenaltySched.pAccessUlScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]);
+            AtomicCAS( pPenaltySched.pGwScorePenalty[netSpeedClass], pPenaltySched.pGwScorePenalty[netSpeedClass], (SchedTreeBase::tFastTreeIdx) pPenaltySched.pGwScorePenaltyF[netSpeedClass]);
           }
         }
         else
@@ -2191,6 +2766,11 @@ bool GeoTreeEngine::setSkipSaturatedDrnPlct(bool value, bool setconfig)
 bool GeoTreeEngine::setSkipSaturatedBlcPlct(bool value, bool setconfig)
 {
   return setInternalParam(pSkipSaturatedBlcPlct,(int)value,false,setconfig?"skipsaturatedblcplct":"");
+}
+
+bool GeoTreeEngine::setProxyCloseToFs(bool value, bool setconfig)
+{
+  return setInternalParam(pProxyCloseToFs,(int)value,false,setconfig?"proxyclosetofs":"");
 }
 
 bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<char> &cvector, const std::vector<char> &vvalue, const std::string &configentry)
@@ -2235,36 +2815,44 @@ bool GeoTreeEngine::setScorePenalty(std::vector<float> &fvector, std::vector<cha
 
 bool GeoTreeEngine::setPlctDlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-  return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,netSpeedClass,setconfig?"plctdlscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pPlctDlScorePenaltyF,pPenaltySched.pPlctDlScorePenalty,value,netSpeedClass,setconfig?"plctdlscorepenalty":"");
 }
 bool GeoTreeEngine::setPlctUlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-  return setScorePenalty(pPlctUlScorePenaltyF,pPlctUlScorePenalty,value,netSpeedClass,setconfig?"plctulscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pPlctUlScorePenaltyF,pPenaltySched.pPlctUlScorePenalty,value,netSpeedClass,setconfig?"plctulscorepenalty":"");
 }
 bool GeoTreeEngine::setAccessDlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-  return setScorePenalty(pAccessDlScorePenaltyF,pAccessDlScorePenalty,value,netSpeedClass,setconfig?"accessdlscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pAccessDlScorePenaltyF,pPenaltySched.pAccessDlScorePenalty,value,netSpeedClass,setconfig?"accessdlscorepenalty":"");
 }
 bool GeoTreeEngine::setAccessUlScorePenalty(char value, int netSpeedClass, bool setconfig)
 {
-   return setScorePenalty(pAccessUlScorePenaltyF,pAccessUlScorePenalty,value,netSpeedClass,setconfig?"accessulscorepenalty":"");
+   return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,netSpeedClass,setconfig?"accessulscorepenalty":"");
+}
+bool GeoTreeEngine::setGwScorePenalty(char value, int netSpeedClass, bool setconfig)
+{
+   return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,netSpeedClass,setconfig?"gwscorepenalty":"");
 }
 
 bool GeoTreeEngine::setPlctDlScorePenalty(const char *value, bool setconfig)
 {
-  return setScorePenalty(pPlctDlScorePenaltyF,pPlctDlScorePenalty,value,setconfig?"plctdlscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pPlctDlScorePenaltyF,pPenaltySched.pPlctDlScorePenalty,value,setconfig?"plctdlscorepenalty":"");
 }
 bool GeoTreeEngine::setPlctUlScorePenalty(const char *value, bool setconfig)
 {
-  return setScorePenalty(pPlctUlScorePenaltyF,pPlctUlScorePenalty,value,setconfig?"plctulscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pPlctUlScorePenaltyF,pPenaltySched.pPlctUlScorePenalty,value,setconfig?"plctulscorepenalty":"");
 }
 bool GeoTreeEngine::setAccessDlScorePenalty(const char *value, bool setconfig)
 {
-  return setScorePenalty(pAccessDlScorePenaltyF,pAccessDlScorePenalty,value,setconfig?"accessdlscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pAccessDlScorePenaltyF,pPenaltySched.pAccessDlScorePenalty,value,setconfig?"accessdlscorepenalty":"");
 }
 bool GeoTreeEngine::setAccessUlScorePenalty(const char *value, bool setconfig)
 {
-  return setScorePenalty(pAccessUlScorePenaltyF,pAccessUlScorePenalty,value,setconfig?"accessulscorepenalty":"");
+  return setScorePenalty(pPenaltySched.pAccessUlScorePenaltyF,pPenaltySched.pAccessUlScorePenalty,value,setconfig?"accessulscorepenalty":"");
+}
+bool GeoTreeEngine::setGwScorePenalty(const char *value, bool setconfig)
+{
+  return setScorePenalty(pPenaltySched.pGwScorePenaltyF,pPenaltySched.pGwScorePenalty,value,setconfig?"gwscorepenalty":"");
 }
 
 bool GeoTreeEngine::setFillRatioLimit(char value, bool setconfig)
@@ -2317,28 +2905,35 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
     if(iparamidx>-2)
       ok = gGeoTreeEngine.setAccessUlScorePenalty((char)ival,iparamidx,setconfig);
     else
-      readParamVFromString(pAccessUlScorePenalty,value);
+      readParamVFromString(pPenaltySched.pAccessUlScorePenalty,value);
   }
   else if(param == "accessdlscorepenalty")
   {
     if(iparamidx>-2)
       ok = gGeoTreeEngine.setAccessDlScorePenalty((char)ival,iparamidx,setconfig);
     else
-      readParamVFromString(pAccessDlScorePenalty,value);
+      readParamVFromString(pPenaltySched.pAccessDlScorePenalty,value);
   }
   else if(param == "plctulscorepenalty")
   {
     if(iparamidx>-2)
       ok = gGeoTreeEngine.setPlctUlScorePenalty((char)ival,iparamidx,setconfig);
     else
-      readParamVFromString(pPlctUlScorePenalty,value);
+      readParamVFromString(pPenaltySched.pPlctUlScorePenalty,value);
   }
   else if(param == "plctdlscorepenalty")
   {
     if(iparamidx>-2)
       ok = gGeoTreeEngine.setPlctDlScorePenalty((char)ival,iparamidx,setconfig);
     else
-      readParamVFromString(pPlctDlScorePenalty,value);
+      readParamVFromString(pPenaltySched.pPlctDlScorePenalty,value);
+  }
+  else if(param == "gwscorepenalty")
+  {
+    if(iparamidx>-2)
+      ok = gGeoTreeEngine.setGwScorePenalty((char)ival,iparamidx,setconfig);
+    else
+      readParamVFromString(pPenaltySched.pGwScorePenalty,value);
   }
   else if(param == "skipsaturatedblcplct")
   {
@@ -2405,7 +3000,7 @@ void GeoTreeEngine::setConfigValue (const char* prefix,
 
 bool GeoTreeEngine::markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag)
 {
-  for(auto git = pGroup2TreeMapEntry.begin(); git != pGroup2TreeMapEntry.end(); git++)
+  for(auto git = pGroup2SchedTME.begin(); git != pGroup2SchedTME.end(); git++)
   {
     RWMutexReadLock lock(git->second->doubleBufferMutex);
     if(group=="*" || git->first->mName==group)
@@ -2416,7 +3011,7 @@ bool GeoTreeEngine::markPendingBranchDisablings(const std::string &group, const 
   return true;
 }
 
-bool GeoTreeEngine::applyBranchDisablings(const TreeMapEntry& entry)
+bool GeoTreeEngine::applyBranchDisablings(const SchedTME& entry)
 {
   for(auto mit = pDisabledBranches.begin(); mit != pDisabledBranches.end(); mit++)
   {
@@ -2454,6 +3049,12 @@ bool GeoTreeEngine::applyBranchDisablings(const TreeMapEntry& entry)
       }
     }
   }
+  return true;
+}
+
+bool GeoTreeEngine::applyBranchDisablings(const GwTMEBase& entry)
+{
+  // don't use the branch disablings for Gateway and DataProxy
   return true;
 }
 
@@ -2586,6 +3187,447 @@ bool GeoTreeEngine::showDisabledBranches (const std::string& group, const std::s
   }
 
   if(lock) configMutex.UnLockRead();
+  return true;
+}
+
+bool GeoTreeEngine::insertHostIntoPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStruct)
+{
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex,lockAddRm);
+
+  eos::common::FileSystem::host_snapshot_t hsn;
+  if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
+  host->SnapShotHost(hsn,true);
+  const std::string &url = hsn.mHost;
+  if(lockFsView) FsView::gFsView.ViewMutex.UnLockRead();
+
+  DataProxyTME *mapEntry;
+
+  {
+    pPxyTreeMapMutex.LockWrite();
+    // ==== get the entry
+    if(pPxyGrp2DpTME.count(proxygroup))
+    mapEntry = pPxyGrp2DpTME[proxygroup];
+    else
+    {
+      mapEntry = new DataProxyTME(proxygroup);
+      updateFastStruct = true; // force update to be sure that the fast structures are properly created
+#ifdef EOS_GEOTREEENGINE_USE_INSTRUMENTED_MUTEX
+#endif
+    }
+
+    // ==== check that host is not already registered
+    if(pPxyHost2DpTMEs.count(url) && pPxyHost2DpTMEs[url].count(mapEntry))
+    {
+      eos_err("error inserting host %s into proxygroup %s : host is already registered with proxygroup",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+
+    mapEntry->slowTreeMutex.LockWrite();
+    pPxyTreeMapMutex.UnLockWrite();
+  }
+
+  // ==== fill the entry
+  // create new TreeNodeInfo/TreeNodeState pair and update its data
+  // check if there is still some space for a new host
+  {
+    size_t depth=1;
+    std::string sub("::");
+    for (size_t offset = hsn.mGeoTag.find(sub); offset != std::string::npos;
+        offset = hsn.mGeoTag.find(sub, offset + sub.length())) depth++;
+    if(depth + mapEntry->slowTree->getNodeCount() > SchedTreeBase::sGetMaxNodeCount()-2 )
+    {
+      mapEntry->slowTreeMutex.UnLockWrite();
+
+      eos_err("error inserting host %s into proxygroup %s : the proxygroup-tree is full",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+
+      return false;
+    }
+  }
+
+  SchedTreeBase::TreeNodeInfo info;
+  info.geotag = hsn.mGeoTag;
+  if(info.geotag.empty())
+  {
+    char buffer[64];
+    snprintf(buffer,64,"nogeotag");
+    info.geotag = buffer;
+  }
+  info.host= url;
+  if(info.host.empty())
+  {
+    uuid_t uuid;
+    char buffer[64];
+    snprintf(buffer,64,"nohost-");
+    uuid_generate_time(uuid);
+    uuid_unparse(uuid, buffer+7);
+    info.host = buffer;
+  }
+  info.netSpeedClass = (unsigned char)round(log10(hsn.mNetEthRateMiB*8 * 1024 * 1024 + 1));
+  info.netSpeedClass = info.netSpeedClass>8 ? info.netSpeedClass-8 : (unsigned char)0; // netSpeedClass 1 means 1Gbps
+  // TODO: is it necessary to give a fake fsid ? yes for trees, they need a unique fsid
+  if(pPxyQueue2PxyId.count(hsn.mQueue))
+  info.fsId = pPxyQueue2PxyId[hsn.mQueue];
+  else
+  {
+    if(pPxyId2Recycle.empty())
+    info.fsId = pPxyQueue2PxyId.size()+1;
+    else
+    {
+      info.fsId = *pPxyId2Recycle.begin();
+      pPxyId2Recycle.erase(pPxyId2Recycle.begin());
+    }
+    pPxyQueue2PxyId[hsn.mQueue] = info.fsId;
+  }
+  //info.fsId = 0;
+
+  SchedTreeBase::TreeNodeStateFloat state;
+  state.mStatus = SchedTreeBase::Available|SchedTreeBase::Writable|SchedTreeBase::Readable;
+  // try to insert the new node in the Slowtree
+  SlowTreeNode *node = mapEntry->slowTree->insert(&info,&state);
+  if(node==NULL)
+  {
+    mapEntry->slowTreeMutex.UnLockWrite();
+
+    eos_err("error inserting host %s into proxygroup %s : slow tree node insertion failed",
+        url.c_str(),
+        proxygroup.c_str()
+    );
+
+    return false;
+  }
+
+  //  // ==== update the penalties vectors if necessary
+  //  if((info.fsId+1)>pLatencySched.pFsId2LatencyStats.size())
+  //  {
+  //    for(auto it=pPenaltySched.pCircFrCnt2HostPenalties.begin(); it!=pPenaltySched.pCircFrCnt2HostPenalties.end(); it++)
+  //    {
+  //      it->resize(info.fsId+1);
+  //    }
+  //  }
+
+  // ==== update the shared object notifications
+  {
+    if(gWatchedKeysGw.empty())
+    {
+      for(auto it = gNotifKey2EnumGw.begin(); it != gNotifKey2EnumGw.end(); it++ )
+      {
+        gWatchedKeysGw.insert(it->first);
+      }
+    }
+    if(gQueue2NotifType.count(hsn.mQueue)==0 && !gOFS->ObjectNotifier.SubscribesToSubjectAndKey("geotreeengine",hsn.mQueue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
+    {
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_crit("error inserting host %s into proxygroup %s : error subscribing to shared object notifications",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+      return false;
+    }
+    gQueue2NotifType[hsn.mQueue] |= (sntDataproxy);
+  }
+
+  // update all the information about this new node
+  if(!updateTreeInfo(mapEntry,&hsn,~sfgGeotag & ~sfgId & ~sfgHost ,0,node))
+  {
+    eos_err("error inserting host %s into proxygroup %s : slow tree node update failed",
+        url.c_str(),
+        proxygroup.c_str()
+    );
+    return false;
+  }
+
+  mapEntry->host2SlowTreeNode[url] = node;
+  mapEntry->slowTreeModified = true;
+
+  // update the fast structures now if requested
+  if(updateFastStruct)
+  {
+    if(!updateFastStructures(mapEntry))
+    {
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_err("error inserting host %s into proxygroup %s : fast structures update failed",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+      return false;
+    }
+    else
+    {
+      mapEntry->slowTreeModified = false;
+    }
+  }
+
+  // ==== update the entry in the map
+  {
+    pPxyTreeMapMutex.LockWrite();
+    mapEntry->group = NULL;
+    pPxyGrp2DpTME[proxygroup] = mapEntry;
+    pPxyHost2DpTMEs[url].insert( mapEntry );
+    // TODO: fix that?
+    // pFsId2FsPtr[fsid] = fs;
+    pPxyTreeMapMutex.UnLockWrite();
+    mapEntry->slowTreeMutex.UnLockWrite();
+  }
+
+  if(eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
+  {
+    stringstream ss;
+    ss << (*mapEntry->slowTree);
+
+    eos_debug("inserted host %s into proxygroup %s : : geotag is %s and fullgeotag is %s\n%s",
+        url.c_str(),
+        proxygroup.c_str(),
+        node->pNodeInfo.geotag.c_str(),
+        node->pNodeInfo.fullGeotag.c_str(),
+        ss.str().c_str()
+    );
+  }
+
+  return true;
+}
+
+bool GeoTreeEngine::removeHostFromPxyGr(FsNode *host , const std::string &proxygroup, bool lockAddRm, bool lockFsView, bool updateFastStruct)
+{
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex,lockAddRm);
+
+  eos::common::FileSystem::host_snapshot_t hsn;
+  if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
+  host->SnapShotHost(hsn,true);
+  const std::string &url = hsn.mHost;
+  if(lockFsView) FsView::gFsView.ViewMutex.UnLockRead();
+  const std::string &hostname = hsn.mHost;
+  const std::string &queue = hsn.mQueue;
+
+  bool rmHost = false;
+
+  DataProxyTME *mapEntry;
+  {
+    pPxyTreeMapMutex.LockWrite();
+    // ==== get the entry
+    if(!pPxyGrp2DpTME.count(proxygroup))
+    {
+      eos_err("error removing host %s from proxygroup %s  : host is not registered ",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+    mapEntry = pPxyGrp2DpTME[proxygroup];
+
+    // ==== check that host is registered
+    if(!pPxyHost2DpTMEs.count(url) || !pPxyHost2DpTMEs[url].count(mapEntry))
+    {
+      eos_err("error removing host %s from proxygroup %s  : host is not registered with this proxygroup",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+      pPxyTreeMapMutex.UnLockWrite();
+      return false;
+    }
+
+    pPxyTreeMapMutex.UnLockWrite();
+    mapEntry->slowTreeMutex.LockWrite();
+  }
+
+  // ==== update the shared object notifications
+  if(pPxyHost2DpTMEs[url].size()==1) // this is the proxygroup for this host, no need to get notifications anymore
+  {
+    if(!gOFS->ObjectNotifier.UnsubscribesToSubjectAndKey("geotreeengine",queue,gWatchedKeysGw,XrdMqSharedObjectChangeNotifier::kMqSubjectStrictModification))
+    {
+      mapEntry->slowTreeMutex.UnLockWrite();
+      eos_crit("error removing host %s into proxygroup %s : error unsubscribing to shared object notifications",
+          url.c_str(),
+          proxygroup.c_str()
+      );
+
+      return false;
+    }
+    if(gQueue2NotifType.count(queue))
+    {
+      gQueue2NotifType[queue] &= ~GeoTreeEngine::sntDataproxy;
+      if(gQueue2NotifType[queue]==0)
+      {
+        gQueue2NotifType.erase(queue);
+        rmHost = true;
+      }
+    }
+  }
+
+  // ==== discard updates about this fs
+  // ==== clean the notifications buffer
+  gNotificationsBufferDp.erase(queue);
+  // ==== clean the thread-local notification queue
+  if(rmHost)
+  {
+    XrdMqSharedObjectChangeNotifier::Subscriber *subscriber = gOFS->ObjectNotifier.GetSubscriberFromCatalog("geotreeengine",false);
+    subscriber->SubjectsMutex.Lock();
+    for ( auto it = subscriber->NotificationSubjects.begin();
+        it != subscriber->NotificationSubjects.end(); it++ )
+    {
+      // to mark the filesystem as removed, we change the notification type flag
+      if(it->mSubject.compare(0,queue.length(),queue)==0)
+      {
+        eos_warning("found a notification to remove %s ",it->mSubject.c_str());
+        it->mType = XrdMqSharedObjectManager::kMqSubjectDeletion;
+      }
+    }
+    subscriber->SubjectsMutex.UnLock();
+  }
+
+  // remove the entry in the fake fsid system
+  auto it = pPxyQueue2PxyId.find(hsn.mQueue);
+  if(it!=pPxyQueue2PxyId.end())
+  {
+    pPxyId2Recycle.insert(it->second);
+    pPxyQueue2PxyId.erase(it);
+  }
+
+  // ==== update the entry
+  SchedTreeBase::TreeNodeInfo info;
+  const SlowTreeNode *intree = mapEntry->host2SlowTreeNode[hostname];
+  info = intree->pNodeInfo;
+  info.geotag = intree->pNodeInfo.fullGeotag;
+  eos_debug("SlowNodeTree to be removed is %lu   %s   %s   %s",
+      (unsigned long)intree->pNodeInfo.fsId,
+      intree->pNodeInfo.host.c_str(),
+      intree->pNodeInfo.geotag.c_str(),
+      intree->pNodeInfo.fullGeotag.c_str());
+
+  // try to update the SlowTree
+  info.fsId = 0;
+  if(!mapEntry->slowTree->remove(&info))
+  {
+    mapEntry->slowTreeMutex.UnLockWrite();
+    eos_err("error inserting host %s into proxygroup %s : removing the slow tree node failed. geotag is %s and geotag in tree is %s and %s",
+        url.c_str(),
+        proxygroup.c_str(),
+        info.geotag.c_str(),
+        intree->pNodeInfo.fullGeotag.c_str(),
+        intree->pNodeInfo.geotag.c_str()
+    );
+
+    return false;
+  }
+  mapEntry->host2SlowTreeNode.erase(hostname);
+  // if the tree is empty, remove the entry from the map
+  if(!mapEntry->host2SlowTreeNode.empty())// if the tree is getting empty, no need to update it
+  mapEntry->slowTreeModified = true;
+
+  if(updateFastStruct && mapEntry->slowTreeModified)
+  if(!updateFastStructures(mapEntry))
+  {
+    eos_err("error inserting host %s into proxygroup %s : fast structures update failed",
+        url.c_str(),
+        proxygroup.c_str()
+    );
+
+    return false;
+  }
+
+  // ==== update the entry in the map if needed
+  {
+    pPxyTreeMapMutex.LockWrite();
+    if(pPxyHost2DpTMEs.count(url))
+    {
+      pPxyHost2DpTMEs[url].erase(mapEntry);
+      if(pPxyHost2DpTMEs[url].empty())
+        pPxyHost2DpTMEs.erase(url);
+    }
+    // TODO:: p Hostname2NodePtr ??
+    // pFsId2FsPtr.erase(fsid);
+    if(mapEntry->host2SlowTreeNode.empty())
+    {
+      pPxyGrp2DpTME.erase(proxygroup); // prevent from access by other threads
+      // TODO: Pending Deletions for DataProxy?
+      // pPendingDeletions.push_back(mapEntry);
+    }
+    mapEntry->slowTreeMutex.UnLockWrite();
+    pPxyTreeMapMutex.UnLockWrite();
+  }
+
+  return true;
+}
+
+bool GeoTreeEngine::matchHostPxyGr(FsNode *host , const std::string &status, bool lockFsView, bool updateFastStructures)
+{
+  eos::common::RWMutexWriteLock lock(pAddRmFsMutex);
+
+  eos::common::FileSystem::host_snapshot_t hsn;
+  if(lockFsView) FsView::gFsView.ViewMutex.LockRead();
+  host->SnapShotHost(hsn,true);
+  const std::string &url = hsn.mHost;
+  if(lockFsView) FsView::gFsView.ViewMutex.UnLockRead();
+
+  std::vector<std::string> groups2insert;
+  std::vector<std::string> groups2remove;
+  std::set<std::string> finalgroups;
+
+  std::string::size_type pos1=0,pos2=0;
+  if(status.size())
+  do
+  {
+    pos2=status.find(',',pos1);
+
+    // ==== INSERT THE NODE IF IT'S NOT IN THE GROUP
+    std::string proxygroup = status.substr(pos1,pos2==std::string::npos?std::string::npos:pos2-pos1);
+    finalgroups.insert(proxygroup);
+    // ====
+
+    pos1=pos2;
+    if(pos1!=std::string::npos) pos1++;
+  }while(pos2!=std::string::npos);
+
+  pPxyTreeMapMutex.LockRead();
+  for(auto it = pPxyGrp2DpTME.begin(); it!= pPxyGrp2DpTME.end(); it++)
+  {
+    auto proxygroup = it->first;
+    bool alreadythere = !( !pPxyGrp2DpTME.count(proxygroup) ||  !pPxyHost2DpTMEs.count(url) || !pPxyHost2DpTMEs[url].count(pPxyGrp2DpTME[proxygroup]) );
+
+    if(finalgroups.count(proxygroup)) // we should have this proxygroup
+    {
+      if(!alreadythere) // we don't have it
+      groups2insert.push_back(proxygroup); // we will add it
+    }
+    else // we should NOT have this proxygroup
+    {
+      if(alreadythere) //we have it
+        groups2remove.push_back(proxygroup); // we will remove it
+    }
+    finalgroups.erase(proxygroup);
+  }
+  pPxyTreeMapMutex.UnLockRead();
+  // the remaining proxygroups do not exist in the GeoTreeEngine yet, they are to be added
+  for(auto it=finalgroups.begin(); it!= finalgroups.end(); it++)
+  {
+    if(!insertHostIntoPxyGr(host,*it,false,lockFsView,updateFastStructures))
+      return false;
+  }
+
+  for(auto it=groups2insert.begin(); it!= groups2insert.end(); it++)
+  {
+    eos_debug("trying to insert proxygroup %s for host %s",it->c_str(),url.c_str());
+    if(!insertHostIntoPxyGr(host,*it,false,lockFsView,updateFastStructures))
+      return false;
+    eos_debug("success");
+  }
+
+  for(auto it=groups2remove.begin(); it!= groups2remove.end(); it++)
+  {
+    eos_debug("trying to remove proxygroup %s for host %s",it->c_str(),url.c_str());
+    if(!removeHostFromPxyGr(host,*it,false,lockFsView,updateFastStructures))
+      return false;
+    eos_debug("success");
+  }
+
   return true;
 }
 

@@ -1786,6 +1786,8 @@ Quota::FilePlacement(const std::string& space,
 		     unsigned long lid,
 		     std::vector<unsigned int>& alreadyused_filesystems,
 		     std::vector<unsigned int>& selected_filesystems,
+		     std::vector<std::string> *dataproxys,
+		     std::vector<std::string> *firewallentpts,
 		     Scheduler::tPlctPolicy plctpolicy,
 		     const std::string& plctTrgGeotag,
 		     bool truncate,
@@ -1835,9 +1837,10 @@ Quota::FilePlacement(const std::string& space,
 
   // Call the scheduler implementation
   return Scheduler::FilePlacement(space, path, vid, grouptag, lid,
-				  alreadyused_filesystems,
-				  selected_filesystems, plctpolicy, plctTrgGeotag,
-				  truncate, forced_scheduling_group_index, bookingsize,schedtype);
+                 alreadyused_filesystems, selected_filesystems, 
+                 dataproxys, firewallentpts,
+                 plctpolicy, plctTrgGeotag, truncate, 
+                 forced_scheduling_group_index, bookingsize,schedtype);
 }
 
 //------------------------------------------------------------------------------
@@ -1851,6 +1854,8 @@ Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 		  std::string tried_cgi,
 		  unsigned long lid,
 		  std::vector<unsigned int>& locationsfs,
+		  std::vector<std::string> *dataproxys, //< if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+		  std::vector<std::string> *firewallentpts, //< if non NULL, schedule a firewall entry point for each fs
 		  unsigned long& fsindex,
 		  bool isRW,
 		  unsigned long long bookingsize,
@@ -1861,8 +1866,9 @@ Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
 		  eos::mgm::Scheduler::tSchedType schedtype)
 {
   return Scheduler::FileAccess(vid, forcedfsid, forcedspace, tried_cgi, lid,
-			       locationsfs, fsindex, isRW, bookingsize, unavailfs,
-			       min_fsstatus, overridegeoloc, noIO,schedtype);
+                               locationsfs, dataproxys, firewallentpts,
+                               fsindex, isRW, bookingsize, unavailfs,
+                               min_fsstatus, overridegeoloc, noIO,schedtype);
 }
 
 //------------------------------------------------------------------------------

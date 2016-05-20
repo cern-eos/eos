@@ -322,9 +322,9 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(eos-check-blockxs EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-compute-blockxs EosFstIo-Static eosCommon  ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-adler32 EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-check-blockxs  EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries(eos-compute-blockxs  EosFstIo-Static eosCommon  ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries(eos-adler32  EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries(
   eos-scan-fs

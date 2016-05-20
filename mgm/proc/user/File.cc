@@ -1604,7 +1604,7 @@ ProcCommand::File ()
               // care since we are scheduled as root
               if (!(errno = Quota::FilePlacement(space.c_str(), spath.c_str(),
                                                  *pVid, 0, layoutId, sourcefs,
-                                                 selectedfs, plctplcy, targetgeotag,
+                                                 selectedfs, NULL, NULL, plctplcy, targetgeotag,
                                                  SFS_O_TRUNC, forcedsubgroup,
                                                  fmd_cpy->getSize())))
               {
@@ -1617,6 +1617,7 @@ ProcCommand::File ()
                                                   tried_cgi,
                                                   (unsigned long) fmd_cpy->getLayoutId(),
                                                   sourcefs,
+                                                  NULL,NULL,
                                                   fsIndex,
                                                   false,
                                                   (long long unsigned) 0,

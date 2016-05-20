@@ -28,9 +28,9 @@
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 /*----------------------------------------------------------------------------*/
-#include <vector>
-#include <set>
-#include <stdint.h>
+#include <google/dense_hash_map>
+#include <google/sparsehash/densehashtable.h>
+/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -541,6 +541,8 @@ public:
   //! @param lid layout to be placed
   //! @param alreadyused_filsystems filesystems to avoid
   //! @param selected_filesystems filesystems selected by scheduler
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param plctpolicy indicates if placement should be local/spread/hybrid
   //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
   //!                      should be placed
@@ -562,6 +564,8 @@ public:
 		    unsigned long lid,
 		    std::vector<unsigned int>& alreadyused_filesystems,
 		    std::vector<unsigned int>& selected_filesystems,
+            std::vector<std::string> *dataproxys,
+            std::vector<std::string> *firewallentpts,
 		    Scheduler::tPlctPolicy plctpolicy,
 		    const std::string& plctTrgGeotag,
 		    bool truncate = false,
@@ -579,6 +583,8 @@ public:
   //! @param tried_cgi cgi containing already tried hosts
   //! @param lid layout fo the file
   //! @param locationsfs filesystem ids where layout is stored
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param fsindex return index pointing to layout entry filesystem
   //! @param isRW indicate pure read or rd/wr access
   //! @param bookingsize size to book additionally for rd/wr access
@@ -597,8 +603,10 @@ public:
 			std::string tried_cgi,
 			unsigned long lid,
 			std::vector<unsigned int>& locationsfs,
+                        std::vector<std::string> *dataproxys,
+                        std::vector<std::string> *firewallentpts,
 			unsigned long& fsindex,
-			 bool isRW,
+			bool isRW,
 			unsigned long long bookingsize,
 			std::vector<unsigned int>& unavailfs,
 			eos::common::FileSystem::fsstatus_t min_fsstatus =
