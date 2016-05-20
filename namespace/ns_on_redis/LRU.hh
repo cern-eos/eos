@@ -117,7 +117,7 @@ public:
   inline std::uint64_t size() const
   {
     eos::common::RWMutexWriteLock lock_w(mMutex);
-    return mList.size();
+    return mMap.size();
   }
 
   //----------------------------------------------------------------------------
@@ -149,6 +149,7 @@ private:
 	       ///< end of the list
   // TODO: in C++17 use std::shared_mutex
   //! Mutext to protect access to the map and list which is set to blocking
+  //mutable eos::common::RWMutex mMutex;
   mutable eos::common::RWMutex mMutex;
   std::uint64_t mMaxSize; ///< Maximum number of entries
 };
@@ -211,12 +212,12 @@ LRU<IdT, EntryT>::put(IdT id, std::shared_ptr<EntryT> obj)
     return *(iter_map->second);
 
   // Check if map full and purge some entries is necessary 10% of max size
-  if (mList.size() >= mMaxSize)
+  if (mMap.size() >= mMaxSize)
   {
     auto iter = mList.begin();
 
     while ((iter != mList.end()) &&
-	   (mList.size() > sPurgeStopRatio * mMaxSize))
+	   (mMap.size() > sPurgeStopRatio * mMaxSize))
     {
       // If object is referenced also by someone else then skip it
       if (iter->use_count() > 1)
