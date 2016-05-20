@@ -79,7 +79,7 @@ SpaceQuota::SpaceQuota (const char* name)
       try
       {
         quotadir = gOFS->eosView->createContainer(name, true);
-        quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+        quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
         gOFS->eosView->updateContainerStore(quotadir);
 
       }
@@ -1117,8 +1117,8 @@ Quota::GetSpaceQuota (const char* name, bool nocreate)
     {
       // this is a dangerous way if any other mutex was used from the caller after gQuotaMutex.UnLockRead() => take care not do to that!
       gQuotaMutex.UnLockRead();
-      gQuotaMutex.LockWrite();
       spacequota = new SpaceQuota(sname.c_str());
+      gQuotaMutex.LockWrite();
       gQuota[sname] = spacequota;
       gQuotaMutex.UnLockWrite();
       gQuotaMutex.LockRead();
