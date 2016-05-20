@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.180 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: fix particular geo scheduling case which could return ENOSPACE
+- MGM: avoid dead-lock in SetQuota calls
+
 ``V0.3.179 Aquamarine``
 +++++++++++++++++++++++
 
