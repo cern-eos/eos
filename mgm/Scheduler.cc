@@ -145,7 +145,7 @@ Scheduler::FilePlacement (const char* path, //< path to place
     eos_static_info("group-index=%d max-index=%d exact-match=%d config-exact-match=%d", groupindex, FsView::gFsView.mSpaceGroupView[spacename].size(), exact_match, config_exact_match);
     if (groupindex >= FsView::gFsView.mSpaceGroupView[spacename].size())
     {
-      if (exact_match && !config_exact_match)
+      if (!config_exact_match)
 	exact_match = false;
       else
 	break;
