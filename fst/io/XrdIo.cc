@@ -172,6 +172,7 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
     mLastErrCode  = status.code;
     mLastErrNo  = status.errNo;
     errno = status.errNo;
+    delete mXrdFile;
     return SFS_ERROR;
   }
   else
@@ -252,6 +253,7 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
   if (!status.IsOK())
   {
     delete io_handler;
+    delete mXrdFile;
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
