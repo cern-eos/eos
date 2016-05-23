@@ -32,3 +32,7 @@ else()
 
   mark_as_advanced(MICROHTTPD_LIBRARY MICROHTTPD_INCLUDE_DIR)
 endif()
+
+if (NOT MICROHTTPD_FOUND)
+  message (STATUS "MicroHttpd not found, no httpd access available.")
+endif()

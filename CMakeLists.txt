@@ -24,70 +24,42 @@
 #-------------------------------------------------------------------------------
 # Main section
 #-------------------------------------------------------------------------------
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 3.5)
+
+# Set the default CMAKE_BUILD_TYPE to RelWithDebInfo before the project command
+# as it can set CMAKE_BUILD_TYPE itself.
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
+    "Build options: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release \
+     RelWithDebInfo MinSizeRel.")
+endif ()
+
 project (eos)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
-if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-  set(CMAKE_BUILD_TYPE Debug)
-endif()
-
-# Set "/usr" installation prefix if not specified otherwise
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+#-------------------------------------------------------------------------------
+# Include some generic functions and compiler definition parameters
+#-------------------------------------------------------------------------------
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Default install prefix: /usr" FORCE)
-endif()
+endif ()
 
-# Include some generic functions and GNU path settings
 include(EosUtils)
-include(GNUInstallDirs)
-
-# Force /usr/ /etc for Linux and /usr/local installation prefix for MacOSX
-if( MacOSX )
-set(CMAKE_INSTALL_SYSCONFDIR /usr/local/etc)
-set(CMAKE_INSTALL_SBINDIR /usr/local/sbin)
-set(CMAKE_INSTALL_FULL_SBINDIR /usr/local/sbin)
-else()
-set(CMAKE_INSTALL_SYSCONFDIR /etc)
-set(CMAKE_INSTALL_SBINDIR /sbin)
-set(CMAKE_INSTALL_FULL_SBINDIR /usr/sbin)
-endif( MacOSX )
-
+EOS_CheckOutOfSourceBuild()
+EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")
 EOS_GetVersion("${VERSION_MAJOR}" "${VERSION_MINOR}" "${VERSION_PATCH}" "${RELEASE}")
-EOS_DefineOperatingSystem()
+include(EosOSDefaults)
 
-#-------------------------------------------------------------------------------
-# Avoid CMake warnings
-#-------------------------------------------------------------------------------
-if(NOT (CMAKE_VERSION VERSION_LESS "2.8.12"))
-  cmake_policy(SET CMP0022 NEW)
-endif()
+if (CLIENT)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCLIENT_ONLY=1")
+endif ()
 
-#-------------------------------------------------------------------------------
-# Platform Specific
-#-------------------------------------------------------------------------------
-if(MacOSX)
-  # On MAC we don't link static objects at all
-  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
-  set(CMAKE_MACOSX_RPATH ON)
-  set(CMAKE_SKIP_BUILD_RPATH FALSE)
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-  set(LIBRARY_PATH_PREFIX lib)
-  List(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+set(EOS_CXX_DEFINE "-DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP11_FLAG} -msse4.2 -Wall")
 
-  if("${isSystemDir}" STREQUAL "-1")
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-  endif()
-else()
-  # On Linux we use static objects
-  set(LIB_INSTALL_DIR lib64)
-  set(RT_LIBS rt)
-endif()
-
-include_directories(/usr/include/xrootd/ /usr/include/)
-link_directories(${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/)
+set (CMAKE_INSTALL_SYSCONFDIR /etc)
+set (CMAKE_INSTALL_SBINDIR /sbin)
+set (CMAKE_INSTALL_FULL_SBINDIR /sbin)
 
 #-------------------------------------------------------------------------------
 # Search for dependencies
@@ -119,7 +91,7 @@ if (NOT PACKAGEONLY)
 
   # The server build also requires
   if (NOT CLIENT)
-    find_package(RAMCloud REQUIRED)
+    # find_package(RAMCloud REQUIRED)
     find_package(SparseHash REQUIRED)
     find_package(rt REQUIRED)
     find_package(ldap REQUIRED)
@@ -132,53 +104,11 @@ if (NOT PACKAGEONLY)
     find_package(httpd)
   endif()
 else()
-  message(STATUS "Runing CMake in package only mode")
+  message(STATUS "Runing CMake in package only mode.")
   # Fake function for building the SRPMS in build system
   function(PROTOBUF_GENERATE_CPP SRCS HDRS)
     return()
   endfunction()
-endif()
-
-#-------------------------------------------------------------------------------
-# Check for Gcc >=4.4
-#-------------------------------------------------------------------------------
-if(CMAKE_COMPILER_IS_GNUCXX)
-  exec_program(${CMAKE_CXX_COMPILER} ARGS --version
-      OUTPUT_VARIABLE _compiler_output)
-  string(REGEX REPLACE ".* ([0-9]\\.[0-9]\\.[0-9]) .*" "\\1"
-         gcc_compiler_version ${_compiler_output})
-  message(STATUS "C++ compiler version: ${gcc_compiler_version} [${CMAKE_CXX_COMPILER}]")
-
-  if(gcc_compiler_version MATCHES "4\\.[0-3]\\.[0-9]")
-    message(FATAL_ERROR "Error: you need atleast gcc 4.4.x to compile EOS!")
-  endif()
-endif()
-
-#-------------------------------------------------------------------------------
-# Check for out of source build
-#-------------------------------------------------------------------------------
-EOS_CheckOutOfSourceBuild()
-
-#-------------------------------------------------------------------------------
-# Get daemon uid and gid
-#-------------------------------------------------------------------------------
-set( DAEMONUID "" )
-set( DAEMONGID "" )
-EOS_GetUidGid("daemon" "DAEMONUID" "DAEMONGID")
-if (CLIENT)
-  if (MacOSX)
-    set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -Wno-c++11-narrowing -msse4.2 -std=c++11 -stdlib=libc++ -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1 -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
-  else ()
-  set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DCLIENT_ONLY=1 -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
-  endif()
-else (CLIENT)
-  set(CMAKE_CXX_FLAGS "-O2 -g -Wall -Wno-deprecated-declarations -msse4.2 -std=gnu++0x -DHAVE_ATOMICS=1 -DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\" -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID}" )
-endif (CLIENT)
-
-if(NOT MICROHTTPD_FOUND)
- message("  Warning: MicroHttpd not found, no httpd access available")
-else()
- set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DEOS_MICRO_HTTPD=1")
 endif()
 
 #-------------------------------------------------------------------------------
@@ -249,19 +179,19 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSIO
 set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/nginx/;/dsi/;/microhttpd/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
-               "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
+	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-                   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-                   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-                           "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+		   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+		   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+			   "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
 add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source
-                  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
+		  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
 
 add_custom_command(TARGET dist POST_BUILD
-                   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-                   COMMENT "clean generated spec file")
+		   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+		   COMMENT "clean generated spec file")
 
 include(CPack)
 
