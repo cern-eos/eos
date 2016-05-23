@@ -39,8 +39,8 @@
 bool XrdMqSharedObjectManager::debug = 0;
 bool XrdMqSharedObjectManager::broadcast = true;
 
-unsigned long long XrdMqSharedHash::SetCounter = 0;
-unsigned long long XrdMqSharedHash::SetNLCounter = 0;
+std::atomic<unsigned long long> XrdMqSharedHash::SetCounter(0);
+std::atomic<unsigned long long> XrdMqSharedHash::SetNLCounter(0);
 std::atomic<unsigned long long> XrdMqSharedHash::GetCounter(0);
 
 __thread XrdMqSharedObjectChangeNotifier::Subscriber *XrdMqSharedObjectChangeNotifier::tlSubscriber = NULL;

@@ -218,8 +218,8 @@ public:
   const char*  GetBroadCastQueue() { return BroadCastQueue.c_str();}
   unsigned int        GetSize()    { XrdMqRWMutexReadLock lock(StoreMutex);unsigned int val = (unsigned int) Store.size(); return val; }
 
-  static unsigned long long SetCounter;
-  static unsigned long long SetNLCounter;
+  static std::atomic<unsigned long long> SetCounter;
+  static std::atomic<unsigned long long> SetNLCounter;
   static std::atomic<unsigned long long> GetCounter;
 };
 
