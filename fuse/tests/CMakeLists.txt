@@ -21,26 +21,26 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( ${CMAKE_SOURCE_DIR}
-	             ${CMAKE_CURRENT_SOURCE_DIR}
-                     ${CPPUNIT_INCLUDE_DIRS} )
+include_directories(${CMAKE_SOURCE_DIR}
+	            ${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CPPUNIT_INCLUDE_DIRS})
 
-link_directories( ${CPPUNIT_LIBRARY} )
+link_directories(${CPPUNIT_LIBRARY})
 
 add_library(
   EosFuseTests MODULE
   Namespace.hh
   FuseFsTest.cc
   FuseFileTest.cc
-  TestEnv.cc       TestEnv.hh )
+  TestEnv.cc       TestEnv.hh)
 
 target_link_libraries(
  EosFuseTests 
  FuseCache-Static
- ${CPPUNIT_LIBRARIES} )
+ ${CPPUNIT_LIBRARIES})
 
-install( TARGETS EosFuseTests
-         LIBRARY DESTINATION ${LIB_INSTALL_DIR}
-         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-         ARCHIVE DESTINATION ${LIB_INSTALL_DIR} )
+install(
+  TARGETS EosFuseTests
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 	  
