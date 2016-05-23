@@ -1723,6 +1723,7 @@ XrdMgmOfsFile::open (const char *inpath,
       oss << proxys[fsIndex];
 
     redirectionhost = oss.str ().c_str ();
+    redirectionhost += "&";
   }
   else
   {
@@ -1751,6 +1752,17 @@ XrdMgmOfsFile::open (const char *inpath,
     }
     redirectionhost = targethost;
     redirectionhost += "?";
+  }
+  if(!proxys[fsIndex].empty ())
+  {
+    std::string fsprefix = filesystem->GetPath();
+    if(fsprefix.size())
+    {
+      XrdOucString s = ("mgm.fsprefix="+fsprefix).c_str();
+      s.replace(":","#COL#");
+      redirectionhost += s;
+    }
+    eos_info("DEBUG-PROXYANDFIREWALLEP : %s",redirectionhost.c_str());
   }
 
 
@@ -2091,6 +2103,9 @@ XrdMgmOfsFile::open (const char *inpath,
             redirectionhost = targethost;
             redirectionhost += "?";
           }
+
+          // point at the right vector entry
+          fsIndex = i;
         }
       }
 
@@ -2142,6 +2157,17 @@ XrdMgmOfsFile::open (const char *inpath,
       capability += i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
+      if(!proxys[fsIndex].empty ())
+      {
+        std::string fsprefix = filesystem->GetPath();
+        if(fsprefix.size())
+        {
+          XrdOucString s = ("mgm.fsprefix="+fsprefix).c_str();
+          s.replace(":","#COL#");
+          redirectionhost += s;
+        }
+        eos_info("DEBUG-PROXYANDFIREWALLEP : %s",redirectionhost.c_str());
+      }
 
       if (isPio)
       {
