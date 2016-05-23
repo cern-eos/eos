@@ -156,9 +156,9 @@ ContainerMD::addContainer(IContainerMD* container)
     throw e;
   }
 
-  // Do async call to KV backend
-  try
-  {
+  try {
+    // TODO: make this call async with container collecting the response
+    // in the updateStore command
     pRedox->hset(pDirsKey, container->getName(), container->getId());
   }
   catch (std::runtime_error& redis_err)
@@ -821,6 +821,18 @@ ContainerMD::deserialize(const std::string& buffer)
 void
 ContainerMD::serialize(Buffer& buffer)
 {
+  // Wait for any ongoing async requests
+  {
+    std::unique_lock<std::mutex> lock(mMutex);
+    while (mNumAsyncReq)
+      mAsyncCv.wait(lock);
+
+    if (mErrors.size())
+    {
+      // TODO: take some action
+    }
+  }
+
   buffer.putData(&pId,       sizeof(pId));
   buffer.putData(&pParentId, sizeof(pParentId));
   buffer.putData(&pFlags,    sizeof(pFlags));

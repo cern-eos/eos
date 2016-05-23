@@ -149,6 +149,17 @@ private:
   void notifyListeners(IContainerMD* obj,
 		       IContainerMDChangeListener::Action a);
 
+  //----------------------------------------------------------------------------
+  //! Get container bucket
+  //!
+  //! @param id container id
+  //!
+  //! @return container bucket key
+  //----------------------------------------------------------------------------
+  std::string getBucketKey(IContainerMD::id_t id) const;
+
+  static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
+
   ListenerList pListeners; ///< List of listeners to be notified
   IQuotaStats* pQuotaStats; ///< Quota view
   IFileMDSvc*  pFileSvc; ///< File metadata service

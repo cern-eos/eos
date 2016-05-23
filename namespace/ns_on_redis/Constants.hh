@@ -33,9 +33,9 @@ EOSNSNAMESPACE_BEGIN
 namespace constants
 {
   //! Suffix for container metadata in Redis
-  static const std::string sContKeySuffix {":cont_md"};
+  static const std::string sContKeySuffix {":bucket_conts"};
   //! Sufix for file metadata in Redis
-  static const std::string sFileKeySuffix {":file_md"};
+  static const std::string sFileKeySuffix {":bucket_files"};
   //! Suffix for set of subcontainers in a container
   static const std::string sMapDirsSuffix {":cont_hmap_conts"};
   //! Suffix for set of files in a container
@@ -52,8 +52,6 @@ namespace constants
   static const std::string sFirstFreeCid {"first_free_cid"};
   //! Field number of files in meta info map
   static const std::string sNumFiles {"num_files"};
-  //! Field number of containers in meta info map
-  static const std::string sNumConts {"num_conts"};
   //! Set of files that need to be rechecked
   static const std::string sSetCheckFiles {"files_set_check"};
   //! Set of containers that need to be rechecked

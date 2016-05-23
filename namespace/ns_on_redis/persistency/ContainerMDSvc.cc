@@ -25,12 +25,14 @@
 
 EOSNSNAMESPACE_BEGIN
 
+std::uint64_t ContainerMDSvc::sNumContBuckets = 512 * 1024;
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc():
   pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
-  pRedisPort(0), mContainerCache(10e6)
+  pRedisPort(0), mContainerCache(static_cast<uint64_t>(10e6))
 {}
 
 //------------------------------------------------------------------------------
@@ -81,8 +83,9 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 
   try
   {
-    std::string key = std::to_string(id) + constants::sContKeySuffix;
-    blob = pRedox->hget(key, "data");
+    std::string sid = std::to_string(id);
+    std::string bucket_key = getBucketKey(id);
+    blob = pRedox->hget(bucket_key, sid);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -111,16 +114,19 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
 {
+  static uint64_t free_id = 0;
   try
   {
     // Get the first free container id
-    uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				       constants::sFirstFreeCid, 1);
+    free_id++;
+    // TODO: grab 100 ids which are put back in a list is we shut down and
+    // haven't used all or them. When a new mgm starts he first cheks this
+    // list and grabs any available ids.
+    //uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
+    //				       constants::sFirstFreeCid, 1);
     std::shared_ptr<IContainerMD> cont {
       new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
 
-    // Increase total number of containers
-    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, 1);
     return mContainerCache.put(cont->getId(), cont);
   }
   catch (std::runtime_error& redis_err)
@@ -142,8 +148,9 @@ void ContainerMDSvc::updateStore(IContainerMD* obj)
 
   try
   {
-    std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
-    pRedox->hset(key, "data", buffer, nullptr);
+    std::string sid = std::to_string(obj->getId());
+    std::string bucket_key = getBucketKey(obj->getId());
+    pRedox->hset(bucket_key, sid, buffer);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -170,13 +177,13 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     throw e;
   }
 
-  try
-  {
-    std::string key = std::to_string(obj->getId()) + constants::sContKeySuffix;
-    pRedox->hdel(key, "data");
+  try {
+    std::string sid = std::to_string(obj->getId());
+    std::string bucket_key = getBucketKey(obj->getId());
+    pRedox->hdel(bucket_key, sid);
 
     // Drop the container from the parent's set of unlinked subcontainers
-    pRedox->srem(constants::sSetCheckConts, obj->getId());
+    pRedox->srem(constants::sSetCheckConts, sid);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -192,8 +199,6 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     (void) pRedox->del(constants::sMapMetaInfoKey);
   }
 
-  // Decrease total number of containers
-  (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumConts, -1);
   notifyListeners(obj, IContainerMDChangeListener::Deleted);
   mContainerCache.remove(obj->getId());
 }
@@ -268,19 +273,31 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 }
 
 //------------------------------------------------------------------------------
-// Get number of containers
+// Get number of containers which is sum(hlen(hash_i)) for i=0,1023
 //------------------------------------------------------------------------------
 uint64_t ContainerMDSvc::getNumContainers()
 {
-  try
+  std::atomic<std::uint64_t> num_conts{0};
+  std::string bucket_key("");
+  auto callback_len = [&](redox::Command<long long int>) {
+    // TODO: implement
+  };
+
+  for (std::uint64_t i = 0; i < sNumContBuckets; ++i)
   {
-    return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-				    constants::sNumConts));
+    bucket_key = std::to_string(i);
+    bucket_key += constants::sContKeySuffix;
+
+    try {
+      // TODO: do this call asynchronously
+      num_conts += pRedox->hlen(bucket_key);
+    }
+    catch (std::runtime_error& redis_err) {
+      // no change
+    }
   }
-  catch (std::exception& e)
-  {
-    return 0;
-  }
+
+  return num_conts;
 }
 
 //------------------------------------------------------------------------------
@@ -291,6 +308,20 @@ void ContainerMDSvc::notifyListeners(IContainerMD* obj,
 {
   for (auto it = pListeners.begin(); it != pListeners.end(); ++it)
     (*it)->containerMDChanged(obj, a);
+}
+
+//------------------------------------------------------------------------------
+// Get container bucket
+//------------------------------------------------------------------------------
+std::string
+ContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
+{
+  if (id >= sNumContBuckets)
+    id = id & (sNumContBuckets - 1);
+
+  std::string bucket_key = std::to_string(id);
+  bucket_key += constants::sContKeySuffix;
+  return bucket_key;
 }
 
 EOSNSNAMESPACE_END
