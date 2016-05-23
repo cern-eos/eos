@@ -805,6 +805,57 @@ filesystem::generate_fd ()
 //------------------------------------------------------------------------------
 
 int
+filesystem::force_rwopen (
+                         unsigned long inode,
+                         uid_t uid, gid_t gid, pid_t pid
+                         )
+{
+  int fd = -1;
+  bool isROfd = false;
+  std::ostringstream sstr;
+  sstr << inode << ":" << get_login (uid, gid, pid);
+
+  eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
+  auto iter_fd = inodexrdlogin2fds.find (sstr.str ());
+
+  // If there is already an entry for the current user and the current inode
+  if (iter_fd != inodexrdlogin2fds.end ())
+  {
+    fd = *iter_fd->second.begin ();
+    auto iter_file = fd2fabst.find (fd); //all the fd ti a same file share the same fabst
+
+    for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
+    {
+      if (isROfd == (fd2count[*fdit] < 0))
+      {
+        fd2count[*fdit] += isROfd ? -1 : 1;
+        std::shared_ptr<FileAbstraction> fabst = get_file (*fdit, NULL);
+        if (!fabst.get() || fabst->GetRawFileRW())
+        {
+          if(fabst.get ()) fabst->DecNumRefRW ();
+          errno = ENOENT;
+          return -1; // return -1 if failure
+        }
+        if(fabst->GetRawFileRW()->MakeOpen())
+        {
+          fabst->DecNumRefRW ();
+          errno = EIO;
+          return -1; // return -1 if failure
+        }
+        fabst->DecNumRefRW ();
+        return *fdit; // return the fd if succeed (>0)
+      }
+    }
+  }
+
+  return 0; // return 0 if nothing to do
+}
+
+//------------------------------------------------------------------------------
+// Add new mapping between fd and raw file object
+//------------------------------------------------------------------------------
+
+int
 filesystem::add_fd2file (LayoutWrapper* raw_file,
                          unsigned long inode,
                          uid_t uid, gid_t gid, pid_t pid,
@@ -3351,6 +3402,12 @@ filesystem::open (const char* path,
    }
  }
 
+  if (isRO && force_rwopen (*return_inode, uid, gid, pid) < 0)
+  {
+    eos_static_err("forcing rw open failed for inode %lu path %s", (unsigned long )*return_inode, path);
+    delete file;
+    return error_retc_map (errno);
+  }
  retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
 
  if (retc)

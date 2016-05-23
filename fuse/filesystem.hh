@@ -403,6 +403,16 @@ void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
               const char* path = "");
 
  //----------------------------------------------------------------------------
+ //! Force pending rw open to happen (in case of lazy open)
+ //----------------------------------------------------------------------------
+
+ int
+ force_rwopen (
+               unsigned long inode,
+               uid_t uid, gid_t gid, pid_t pid
+               );
+
+ //----------------------------------------------------------------------------
  //! Get the file abstraction object corresponding to the fd
  //----------------------------------------------------------------------------
 
