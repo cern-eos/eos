@@ -778,7 +778,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
                             XrdSfsXferSize length, bool readahead)
 {
-  MakeOpen();
+  if (MakeOpen ())
+  {
+    errno = EIO;
+    return -1;
+  }
   return mFile->Read(offset, buffer, length, readahead);
 }
 
@@ -788,7 +792,11 @@ int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
 #ifdef XROOTD4
 int64_t LayoutWrapper::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
-  MakeOpen();
+  if (MakeOpen ())
+  {
+    errno = EIO;
+    return -1;
+  }
   return mFile->ReadV(chunkList, len);
 }
 #endif
@@ -853,7 +861,12 @@ int64_t LayoutWrapper::WriteCache(XrdSfsFileOffset offset, const char* buffer,
 int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
                              XrdSfsXferSize length, bool touchMtime)
 {
-  MakeOpen();
+  if (MakeOpen ())
+  {
+    errno = EIO;
+    return -1;
+  }
+
   int retc = 0;
 
   if (length > 0)
@@ -874,7 +887,11 @@ int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 {
-  MakeOpen();
+  if (MakeOpen ())
+  {
+    errno = EIO;
+    return -1;
+  }
 
   if (mFile->Truncate(offset))
     return -1;
@@ -891,7 +908,11 @@ int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 //------------------------------------------------------------------------------
 int LayoutWrapper::Sync()
 {
-  MakeOpen();
+  if (MakeOpen ())
+  {
+    errno = EIO;
+    return -1;
+  }
   return mFile->Sync();
 }
 
@@ -948,7 +969,11 @@ int LayoutWrapper::Close()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Stat(struct stat* buf)
 {
-  MakeOpen();
+  if (MakeOpen ())
+  {
+    errno = EIO;
+    return -1;
+  }
 
   if (mFile->Stat(buf))
     return -1;
