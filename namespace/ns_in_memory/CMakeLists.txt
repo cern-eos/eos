@@ -66,6 +66,9 @@ add_library(
   EosNsInMemory MODULE
   ${EOS_NS_MEMORY_SRCS})
 
+target_compile_definitions(
+  EosNsInMemory PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
 target_link_libraries(
   EosNsInMemory
   EosNsCommon
@@ -84,6 +87,9 @@ if (Linux)
     ${EOS_NS_MEMORY_SRCS}
     progs/EOSLogCompact.cc
     progs/EOSLogRepair.cc)
+
+  target_compile_definitions(
+    EosNsInMemory-Static PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(
     EosNsInMemory-Static
