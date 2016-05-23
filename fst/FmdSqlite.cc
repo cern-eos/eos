@@ -762,7 +762,7 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
 {
   eos::common::RWMutexReadLock lock(Mutex);
   eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
-  Mutex.UnLockRead();
+
   eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
 
   if (!fid)
