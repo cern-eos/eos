@@ -343,7 +343,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
   
   // Indicate we are in preread state and see if we have exceeded the limit
   if (XrdFstSS->mPrDepth
-      && (++XrdFstSS->mPrActive) < XrdFstSS->mPrQSize)
+      && ((++XrdFstSS->mPrActive) < XrdFstSS->mPrQSize)
       && (n > 2))
   {
     int faBytes = 0;
