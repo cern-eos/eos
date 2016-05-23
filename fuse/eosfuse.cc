@@ -1034,6 +1034,9 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
 
  const char* parentpath = NULL;
  std::string fullpath;
+ char ifullpath[16384];
+
+ unsigned long long ino;
 
  UPDATEPROCCACHE;
 
@@ -1064,7 +1067,19 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
                             fuse_req_ctx (req)->gid,
                             fuse_req_ctx (req)->pid);
 
+
+ if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
+   sprintf (ifullpath, "/%s", name);
+ else
+   sprintf (ifullpath, "%s/%s", parentpath, name);
+
+ ino = me.fs ().inode (ifullpath);
+
  me.fs ().dir_cache_forget ((unsigned long long) parent);
+
+
+ if (ino)
+   me.fs ().forget_p2i ((unsigned long long) ino);
 
  if (!retc)
    fuse_reply_err (req, 0);

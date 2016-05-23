@@ -778,9 +778,9 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
                             XrdSfsXferSize length, bool readahead)
 {
-  if (MakeOpen ())
+  if (MakeOpen())
   {
-    errno = EIO;
+    errno = EBADF;
     return -1;
   }
   return mFile->Read(offset, buffer, length, readahead);
@@ -792,9 +792,9 @@ int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
 #ifdef XROOTD4
 int64_t LayoutWrapper::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
-  if (MakeOpen ())
+  if (MakeOpen())
   {
-    errno = EIO;
+    errno = EBADF;
     return -1;
   }
   return mFile->ReadV(chunkList, len);
@@ -861,12 +861,11 @@ int64_t LayoutWrapper::WriteCache(XrdSfsFileOffset offset, const char* buffer,
 int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
                              XrdSfsXferSize length, bool touchMtime)
 {
-  if (MakeOpen ())
+  if (MakeOpen())
   {
-    errno = EIO;
+    errno = EBADF;
     return -1;
   }
-
   int retc = 0;
 
   if (length > 0)
@@ -887,9 +886,9 @@ int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 {
-  if (MakeOpen ())
+  if (MakeOpen())
   {
-    errno = EIO;
+    errno = EBADF;
     return -1;
   }
 
@@ -908,9 +907,9 @@ int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 //------------------------------------------------------------------------------
 int LayoutWrapper::Sync()
 {
-  if (MakeOpen ())
+  if (MakeOpen())
   {
-    errno = EIO;
+    errno = EBADF;
     return -1;
   }
   return mFile->Sync();
@@ -969,9 +968,9 @@ int LayoutWrapper::Close()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Stat(struct stat* buf)
 {
-  if (MakeOpen ())
+  if (MakeOpen())
   {
-    errno = EIO;
+    errno = EBADF;
     return -1;
   }
 
