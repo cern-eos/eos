@@ -64,6 +64,14 @@ set(
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 
+# !!!!!
+# TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
+# use std::atomic and the <atomic> header.
+# !!!!!
+target_compile_definitions(
+  eosCommon
+  PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
 if(MacOSX)
   target_link_libraries(
     eosCommon
@@ -78,8 +86,6 @@ if(MacOSX)
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
 else()
-  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
-
   target_link_libraries(
     eosCommon
     XrdMqClient
@@ -143,6 +149,16 @@ else()
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
+
+  # !!!!!
+  # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
+  # use std::atomic and the <atomic> header.
+  # !!!!!
+  target_compile_definitions(
+    eosCommon-Static
+    PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
 
   target_link_libraries(
     eosCommon-Static
@@ -220,6 +236,7 @@ set_target_properties(
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
   MACOSX_RPATH TRUE)
 
 install(
