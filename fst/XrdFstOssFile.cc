@@ -337,13 +337,13 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
   ssize_t totBytes = 0;
 
 // For platforms that support fadvise, pre-advise what we will be reading
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if defined(__linux__)
   long long begOff, endOff, begLst = -1, endLst = -1;
   int nPR = n;
   
   // Indicate we are in preread state and see if we have exceeded the limit
   if (XrdFstSS->mPrDepth
-      && (AtomicInc((XrdFstSS->mPrActive)) < XrdFstSS->mPrQSize)
+      && (++XrdFstSS->mPrActive) < XrdFstSS->mPrQSize)
       && (n > 2))
   {
     int faBytes = 0;
@@ -382,7 +382,7 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
     }              
    
     totBytes += rdsz;
-#if defined(__linux__) && defined(HAVE_ATOMICS)
+#if defined(__linux__)
     if (nPR < n && readV[nPR].size > 0)
     {
       begOff = XrdFstSS->mPrPMask &  readV[nPR].offset;
@@ -402,8 +402,9 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
    }
    
 // All done, return bytes read.
-#if defined(__linux__) && defined(HAVE_ATOMICS)
- if (XrdFstSS->mPrDepth) AtomicDec((XrdFstSS->mPrActive));
+#if defined(__linux__)
+ if (XrdFstSS->mPrDepth)
+   XrdFstSS->mPrActive--;
 #endif
  return totBytes;
 }

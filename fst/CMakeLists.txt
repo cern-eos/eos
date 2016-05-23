@@ -89,10 +89,11 @@ add_library(
   ${GFCOMPLETE_SRCS}
   ${GFCOMPLETE_HDRS})
 
-set_target_properties(
+target_compile_definitions(
   gf-complete
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+target_compile_options(gf-complete PUBLIC -fPIC)
 
 #-------------------------------------------------------------------------------
 # jerasure 2.0 static library
@@ -121,12 +122,14 @@ add_library(
   ${JERASURE_SRCS}
   ${JERASURE_HDRS})
 
-target_link_libraries(jerasure gf-complete)
-
-set_target_properties(
+target_compile_definitions(
   jerasure
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -fPIC")
+  PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
+
+target_compile_options(
+  jerasure PUBLIC -fPIC)
+
+target_link_libraries(jerasure gf-complete)
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -326,6 +329,9 @@ set(
   ${EOSFSTIO_SRCS})
 
 add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
+
+target_compile_definitions(
+  XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(
    XrdEosFst
