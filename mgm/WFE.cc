@@ -283,8 +283,8 @@ WFE::WFEr ()
     eos_static_info("snooze-time=%llu enabled=%d", snoozetime, IsEnabledWFE);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
-    time_t snoozeinterval = 10;
-    size_t snoozeloop = snoozetime / 10;
+    time_t snoozeinterval = 1;
+    size_t snoozeloop = snoozetime / 1;
     for (size_t i = 0; i < snoozeloop; i++)
     {
       sleeper.Snooze(snoozeinterval);
@@ -668,6 +668,21 @@ WFE::Job::DoIt ()
               checksum += hb;
             }
 
+	    // translate uid/gid to username/groupname
+	    std::string user_name;
+	    std::string group_name;
+	    int errc;
+
+	    errc = 0;
+	    user_name  = Mapping::UidToUserName(cfmd->getCUid(), errc);
+	    if (errc)
+	      user_name="nobody";
+
+	    errc = 0;
+	    group_name = Mapping::GidToGroupName(cfmd->getCGid(), errc);
+	    if (errc)
+	      group_name="nobody";
+
             while (execargs.replace("<path>", fullpath.c_str()))
             {
             }
@@ -681,6 +696,19 @@ WFE::Job::DoIt ()
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCGid())))
             {
             }
+
+            while (execargs.replace("<username>",
+                                    user_name.c_str()))
+            {
+            }
+
+            while (execargs.replace("<groupname>",
+				    group_name.c_str()))
+            {
+            }
+
+	    while (execargs.replace("<instance>",
+				    gOFS->MgmOfsInstanceName));
 
             while (execargs.replace("<ctime.s>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_sec)))
@@ -746,6 +774,10 @@ WFE::Job::DoIt ()
             while (execargs.replace("<checksum>", checksum.c_str()))
             {
             }
+
+	    while (execargs.replace("<checksumtype>",  eos::common::LayoutId::GetChecksumString(cfmd->getLayoutId())))
+	    {
+	    }
 
             while (execargs.replace("<event>", mActions[0].mEvent.c_str()))
             {
