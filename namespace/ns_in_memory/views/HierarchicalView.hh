@@ -44,7 +44,8 @@ namespace eos
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      HierarchicalView(): pContainerSvc( 0 ), pFileSvc( 0 ), pRoot( 0 )
+      HierarchicalView(): pContainerSvc((IContainerMDSvc*)0),
+                          pFileSvc((IFileMDSvc*)0), pRoot((IContainerMD*)0)
       {
 	pQuotaStats = new QuotaStats();
       }

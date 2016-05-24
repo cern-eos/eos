@@ -1676,7 +1676,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     catch (eos::MDException &e)
     {
       // nothing in this case
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)
@@ -1707,7 +1707,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
     catch (eos::MDException &e)
     {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)
@@ -1737,7 +1737,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
     catch (eos::MDException &e)
     {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)
@@ -1768,7 +1768,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
     catch (eos::MDException &e)
     {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)

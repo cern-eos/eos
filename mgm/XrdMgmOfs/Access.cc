@@ -417,7 +417,7 @@ XrdMgmOfs::acc_access (const char* path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());

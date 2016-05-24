@@ -291,7 +291,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   struct DataInfo
   {
-    DataInfo(): logOffset(0), ptr(0),
+    DataInfo(): logOffset(0), ptr((IFileMD*)0),
                 buffer(0) {} // for some reason needed by sparse_hash_map::erase
     DataInfo(uint64_t logOffset, std::shared_ptr<IFileMD> ptr)
     {

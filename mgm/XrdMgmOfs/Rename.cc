@@ -250,10 +250,10 @@ XrdMgmOfs::_rename (const char *old_name,
 
   gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
 
-  std::shared_ptr<eos::IContainerMD> dir = 0;
-  std::shared_ptr<eos::IContainerMD> newdir = 0;
-  std::shared_ptr<eos::IContainerMD> rdir = 0;
-  std::shared_ptr<eos::IFileMD> file = 0;
+  std::shared_ptr<eos::IContainerMD> dir = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+  std::shared_ptr<eos::IContainerMD> newdir = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+  std::shared_ptr<eos::IContainerMD> rdir = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+  std::shared_ptr<eos::IFileMD> file = std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
   bool renameFile = false;
   bool renameDir = false;
   bool renameVersion = false;
@@ -443,7 +443,7 @@ XrdMgmOfs::_rename (const char *old_name,
 		{
 		  std::string fspath = rfoundit->first;
 		  fspath += *fileit;
-		  std::shared_ptr<eos::IFileMD> fmd = 0;
+		  std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
 
 		  // Stat this file and add to the deletion maps
 		  try

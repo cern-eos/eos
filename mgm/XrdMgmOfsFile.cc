@@ -458,7 +458,8 @@ XrdMgmOfsFile::open (const char *inpath,
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
 
   // get the directory meta data if exists
-  std::shared_ptr<eos::IContainerMD> dmd = 0;
+  std::shared_ptr<eos::IContainerMD> dmd =
+      std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   bool stdpermcheck = false;

@@ -124,7 +124,8 @@ void addReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 //------------------------------------------------------------------------------
 void unlinkReplicas(std::shared_ptr<eos::IView> view, eos::IContainerMD* cont)
 {
-  std::shared_ptr<eos::IFileMD> fmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd =
+      std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
   std::set<std::string> fnames = cont->getNameFiles();
 
   for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -594,8 +595,8 @@ void HierarchicalSlaveTest::functionalTest()
   CPPUNIT_ASSERT_NO_THROW(viewSlave->initialize());
   CPPUNIT_ASSERT_NO_THROW(contSvcSlave->startSlave());
   CPPUNIT_ASSERT_NO_THROW(fileSvcSlave->startSlave());
-  contMaster2 = 0;
-  contMaster3 = 0;
+  contMaster2 = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+  contMaster3 = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
   CPPUNIT_ASSERT_NO_THROW(contMaster2 = viewMaster->getContainer("/newdir2"));
   CPPUNIT_ASSERT_NO_THROW(contMaster3 = viewMaster->getContainer("/newdir3"));
   qnMaster2 = 0;

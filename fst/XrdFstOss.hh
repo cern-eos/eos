@@ -27,7 +27,6 @@
 
 /*----------------------------------------------------------------------------*/
 #include <map>
-#include <atomic>
 #include <string>
 /*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
@@ -291,7 +290,7 @@ private:
   long long mPrPMask; ///< page hi order bit mask
   int mPrPSize; ///< preread page size
   int mPrBytes; ///< preread byte limit
-  std::atomic<int> mPrActive; ///< preread activity count
+  int mPrActive; ///< preread activity count
   short mPrDepth; ///< preread depth
   short mPrQSize; ///< preread maximum allowed
 

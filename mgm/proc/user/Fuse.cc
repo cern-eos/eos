@@ -170,7 +170,7 @@ ProcCommand::Fuse ()
         }
         catch (eos::MDException &e)
         {
-          dir = 0;
+          dir = std::shared_ptr<IContainerMD>((IContainerMD*)0);
           eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
         }
       }

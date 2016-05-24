@@ -105,7 +105,7 @@ ContainerMD::findContainer(const std::string& name)
   ContainerMap::iterator it = pSubContainers.find(name);
 
   if (it == pSubContainers.end())
-    return 0;
+    return std::shared_ptr<IContainerMD>((IContainerMD*)0);
 
   return pContSvc->getContainerMD(it->second);
 }
@@ -138,7 +138,7 @@ ContainerMD::findFile(const std::string& name)
   FileMap::iterator it = pFiles.find(name);
 
   if (it == pFiles.end())
-    return 0;
+    return std::shared_ptr<IFileMD>((IFileMD*)0);
 
   return pFileSvc->getFileMD(it->second);
 }

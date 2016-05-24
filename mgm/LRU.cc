@@ -449,7 +449,7 @@ LRU::AgeExpire (const char* dir,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      cmd = 0;
+      cmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                      e.getErrno(), e.getMessage().str().c_str());
     }

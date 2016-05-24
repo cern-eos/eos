@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include <fcntl.h>
 #include <algorithm>
+#include "XrdSys/XrdSysAtomics.hh"
 /*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOss.hh"
 #include "fst/XrdFstOssFile.hh"
@@ -337,13 +338,13 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
   ssize_t totBytes = 0;
 
 // For platforms that support fadvise, pre-advise what we will be reading
-#if defined(__linux__)
+#if defined(__linux__) && defined(HAVE_ATOMICS)
   long long begOff, endOff, begLst = -1, endLst = -1;
   int nPR = n;
   
   // Indicate we are in preread state and see if we have exceeded the limit
   if (XrdFstSS->mPrDepth
-      && ((++XrdFstSS->mPrActive) < XrdFstSS->mPrQSize)
+      && (AtomicInc(XrdFstSS->mPrActive) < XrdFstSS->mPrQSize)
       && (n > 2))
   {
     int faBytes = 0;
@@ -402,9 +403,9 @@ XrdFstOssFile::ReadV(XrdOucIOVec *readV, int n)
    }
    
 // All done, return bytes read.
-#if defined(__linux__)
+#if defined(__linux__)  && defined(HAVE_ATOMICS)
  if (XrdFstSS->mPrDepth)
-   XrdFstSS->mPrActive--;
+   AtomicDec(XrdFstSS->mPrActive);
 #endif
  return totBytes;
 }

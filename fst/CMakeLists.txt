@@ -262,6 +262,9 @@ add_library(
   checksum/crc32c.cc checksum/crc32ctables.cc
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh)
 
+target_compile_definitions(
+  EosFstOss PUBLIC -DHAVE_ATOMICS=1)
+
 target_link_libraries(
   EosFstOss
   eosCommon

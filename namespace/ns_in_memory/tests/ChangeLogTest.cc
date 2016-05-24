@@ -75,8 +75,10 @@ public:
   virtual void initialize() {}
   virtual void configure( std::map<std::string, std::string> &config ) {}
   virtual void finalize() throw( eos::MDException ) {}
-  virtual std::shared_ptr<eos::IFileMD> getFileMD( eos::IFileMD::id_t id ) { return 0; }
-  virtual std::shared_ptr<eos::IFileMD> createFile() { return 0; }
+  virtual std::shared_ptr<eos::IFileMD> getFileMD( eos::IFileMD::id_t id ) {
+    return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0); }
+  virtual std::shared_ptr<eos::IFileMD> createFile() {
+    return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0); }
   virtual void updateStore( eos::IFileMD *obj ) {}
   virtual void removeFile( eos::IFileMD *obj ) {}
   virtual void removeFile( eos::IFileMD::id_t fileId ) {}

@@ -825,7 +825,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
                     fidit != efsmapit->second.end();
                     fidit++)
             {
-	      std::shared_ptr<eos::IFileMD> fmd = 0;
+	      std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
               eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
               try
               {
@@ -934,7 +934,7 @@ Fsck::Report (XrdOucString &out, XrdOucString &err, XrdOucString option, XrdOucS
           std::set <eos::common::FileId::fileid_t>::const_iterator fidit;
           for (fidit = emapit->second.begin(); fidit != emapit->second.end(); fidit++)
           {
-	    std::shared_ptr<eos::IFileMD> fmd = 0;
+	    std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
             try
             {
@@ -1281,7 +1281,7 @@ Fsck::Repair (XrdOucString &out, XrdOucString &err, XrdOucString option)
       for (it = efsmapit->second.begin(); it != efsmapit->second.end(); it++)
       {
         std::string path = "";
-	std::shared_ptr<eos::IFileMD> fmd = 0;
+	std::shared_ptr<eos::IFileMD> fmd = std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0);
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {

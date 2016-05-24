@@ -48,7 +48,7 @@ gid_t Quota::gProjectId = 99;
 //------------------------------------------------------------------------------
 SpaceQuota::SpaceQuota(const char* path):
   pPath(path),
-  mQuotaNode(nullptr),
+  mQuotaNode((eos::IQuotaNode*)0),
   mLastEnableCheck(0),
   mLayoutSizeFactor(1.0),
   mDirtyTarget(true)
@@ -84,7 +84,7 @@ SpaceQuota::SpaceQuota(const char* path):
     }
     catch (eos::MDException& e)
     {
-      mQuotaNode = nullptr;
+      mQuotaNode = (eos::IQuotaNode*)0;
     }
 
     if (!mQuotaNode)
@@ -95,7 +95,7 @@ SpaceQuota::SpaceQuota(const char* path):
       }
       catch (eos::MDException &e)
       {
-	mQuotaNode = nullptr;
+        mQuotaNode = (eos::IQuotaNode*)0;
 	eos_static_crit("Cannot register quota node %s", path);
       }
     }
@@ -165,7 +165,7 @@ SpaceQuota::UpdateQuotaNodeAddress()
   }
   catch (eos::MDException& e)
   {
-    mQuotaNode = nullptr;
+    mQuotaNode = (eos::IQuotaNode*)0;
     return false;
   }
 

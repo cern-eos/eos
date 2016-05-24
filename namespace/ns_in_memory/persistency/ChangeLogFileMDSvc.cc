@@ -485,7 +485,7 @@ class FileMDFollower: public eos::ILogRecordScanner
     //--------------------------------------------------------------------------
     struct FileHelper
     {
-      FileHelper(): offset(0), file(0) {}
+      FileHelper(): offset(0), file((IFileMD*)0) {}
       FileHelper(uint64_t _offset, std::shared_ptr<eos::IFileMD> _file):
         offset(_offset), file(_file) {}
       uint64_t      offset;
