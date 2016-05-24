@@ -127,33 +127,40 @@ set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
 set(CPACK_PACKAGE_RELEASE "${RELEASE}")
 set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
-set(CPACK_SOURCE_IGNORE_FILES "xrootd-dsi/;/nginx/;/dsi/;/microhttpd/;/build/;/.deps/;/.bzr/;~$;'.'o$;/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
+set(CPACK_SOURCE_IGNORE_FILES
+"xrootd-dsi/;/nginx/;/dsi/;/microhttpd/;/build/;/.deps/;/.bzr/;~$;'.'o$;\
+/CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;\
+ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
-	       "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
-add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-		   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-		   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-			   "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+add_custom_command(
+  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+  COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
+	  "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
-add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source
-		  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
+add_custom_target(
+  dist
+  COMMAND ${CMAKE_MAKE_PROGRAM} package_source
+  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
 
-add_custom_command(TARGET dist POST_BUILD
-		   COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-		   COMMENT "clean generated spec file")
+add_custom_command(
+  TARGET dist POST_BUILD
+  COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+  COMMENT "Clean generated spec file")
 
 include(CPack)
 
 add_custom_target(gitdist
-    COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}/ HEAD
-    | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-
+  COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}/ HEAD
+  | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 add_custom_target(osx
-    COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
+  COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
 
 #-------------------------------------------------------------------------------
 # Source and binary rpms
@@ -163,7 +170,6 @@ set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_fi
 add_custom_target(
   srpm
   COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
-
 
 add_custom_target(
   rpm
