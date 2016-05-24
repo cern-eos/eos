@@ -24,7 +24,7 @@
 #-------------------------------------------------------------------------------
 # Main section
 #-------------------------------------------------------------------------------
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.4)
 
 # Set the default CMAKE_BUILD_TYPE to RelWithDebInfo before the project command
 # as it can set CMAKE_BUILD_TYPE itself.
