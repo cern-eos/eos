@@ -91,15 +91,20 @@ endif ()
 #-------------------------------------------------------------------------------
 # text-runner used for running CPPUnit tests
 #-------------------------------------------------------------------------------
+if (CPPUNIT_FOUND)
 add_executable(
   text-runner
   utils/TextRunner.cc)
+
+target_include_directories(
+  text-runner PUBLIC ${CPPUNIT_INCLUDE_DIRS})
 
 target_link_libraries(
   text-runner
   ${CPPUNIT_LIBRARIES}
   ${GLIBC_DL_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
 add_subdirectory(ns_in_memory)
 
