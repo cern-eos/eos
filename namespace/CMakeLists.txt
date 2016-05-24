@@ -102,6 +102,10 @@ target_link_libraries(
   ${CMAKE_THREAD_LIBS_INIT})
 
 add_subdirectory(ns_in_memory)
-add_subdirectory(ns_on_redis)
-#add_subdirectory(ns_on_filesystem)
+
+# Build ns_on_redis if Redox client library available
+if (REDOX_FOUND)
+ add_subdirectory(ns_on_redis)
+endif()
+
 #add_subdirectory(ns_on_ramcloud)

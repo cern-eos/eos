@@ -60,56 +60,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP11_FLAG} -msse4.2
 set (CMAKE_INSTALL_SYSCONFDIR /etc)
 set (CMAKE_INSTALL_SBINDIR /sbin)
 set (CMAKE_INSTALL_FULL_SBINDIR /sbin)
-
-#-------------------------------------------------------------------------------
-# Search for dependencies
-#-------------------------------------------------------------------------------
-set(PACKAGEONLY CACHE BOOL false)
-set(CLIENT CACHE BOOL false)
-
-if (NOT PACKAGEONLY)
-  find_package(PythonSitePkg REQUIRED)
-  find_package(XRootD REQUIRED)
-  find_package(fuse REQUIRED)
-  find_package(fuse3 )
-  find_package(Threads REQUIRED)
-  find_package(z REQUIRED)
-  find_package(readline REQUIRED)
-  find_package(CURL REQUIRED)
-  find_package(uuid REQUIRED)
-  find_package(ProtocolBuffers REQUIRED)
-  find_package(openssl REQUIRED)
-  find_package(ncurses REQUIRED)
-  find_package(leveldb REQUIRED)
-  find_package(ZMQ REQUIRED)
-  find_package(krb5 REQUIRED)
-  find_package(Sphinx)
-
-  if (Linux)
-    find_package(glibc REQUIRED)
-  endif()
-
-  # The server build also requires
-  if (NOT CLIENT)
-    # find_package(RAMCloud REQUIRED)
-    find_package(SparseHash REQUIRED)
-    find_package(rt REQUIRED)
-    find_package(ldap REQUIRED)
-    find_package(xfs REQUIRED)
-    find_package(attr REQUIRED)
-    find_package(libev REQUIRED)
-    find_package(redox REQUIRED)
-    find_package(CPPUnit)
-    find_package(microhttpd)
-    find_package(httpd)
-  endif()
-else()
-  message(STATUS "Runing CMake in package only mode.")
-  # Fake function for building the SRPMS in build system
-  function(PROTOBUF_GENERATE_CPP SRCS HDRS)
-    return()
-  endfunction()
-endif()
+include (EosFindLibs)
 
 #-------------------------------------------------------------------------------
 # Generate documentation
