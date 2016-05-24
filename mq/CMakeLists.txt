@@ -53,6 +53,9 @@ set(
 
 add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
 
+target_compile_definitions(
+  XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
+
 target_link_libraries(
   XrdMqClient
   ${UUID_LIBRARIES}

@@ -58,8 +58,6 @@ set(EOS_CXX_DEFINE "-DVERSION=\\\"${VERSION}\\\" -DRELEASE=\\\"${RELEASE}\\\"")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EOS_CXX_DEFINE} ${CPP11_FLAG} -msse4.2 -Wall")
 
 set (CMAKE_INSTALL_SYSCONFDIR /etc)
-set (CMAKE_INSTALL_SBINDIR /sbin)
-set (CMAKE_INSTALL_FULL_SBINDIR /sbin)
 include (EosFindLibs)
 
 #-------------------------------------------------------------------------------
