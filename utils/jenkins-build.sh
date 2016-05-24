@@ -127,7 +127,12 @@ getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
 # Create cmake build directory and build without dependencies
 cd ..; mkdir build; cd build
-cmake .. -DPACKAGEONLY=1
+# Use cmake3 if installed, otherwise fallback to cmake command
+CMAKE_EX="$(which cmake3)"
+if test x"${CMAKE_EX}" == x -o ! -x "${CMAKE_EX}"; then
+  CMAKE_EX=cmake
+fi
+${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
 # Build the source RPM
