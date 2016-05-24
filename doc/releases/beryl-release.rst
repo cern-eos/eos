@@ -7,6 +7,17 @@
 Beryl Release Notes
 ===================
 
+``V0.3.181 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FST: fix double unlock leading to an abort if a file checksum was found
+- FUSE: fix race condition in locking scheme when adding pieces to the writeback cache
+- FUSE: avoid several memory leaks induced by open/write/close/delete sequences
+- FUSE: avoid possible order inversion of Open[create] file / Open[read] file
+
 ``V0.3.180 Aquamarine``
 +++++++++++++++++++++++
 
