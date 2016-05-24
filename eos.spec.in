@@ -35,10 +35,10 @@ Group: Applications/File
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 %if %{?fedora:1}%{!?fedora:0}
-BuildRequires: cmake >= 3.4
+BuildRequires: cmake >= 3.3
 %define cmake_cmd cmake
 %else
-BuildRequires: cmake3 >= 3.4
+BuildRequires: cmake3 >= 3.3
 %define cmake_cmd cmake3
 %endif
 BuildRequires: xrootd >= %{xrootd_version}
