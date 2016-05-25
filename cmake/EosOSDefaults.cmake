@@ -39,6 +39,7 @@ endif()
 
 # Check if we are on MacOSX
 if(APPLE)
+  include(GNUInstallDirs)
   set(MacOSX TRUE )
   set(CLIENT TRUE )
   set(OSDEFINE "-D__APPLE__=1")
