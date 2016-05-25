@@ -44,6 +44,7 @@
 #include <string.h>
 #include <fstream>
 #include <sstream>
+#include "fmt/fmt/format.h"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -74,9 +75,9 @@ public:
    * @param delimiters delimiter used for tokenizing
    */
   // ----------------------------------------------------------------------------
-  static void Tokenize (const std::string& str,
-                        std::vector<std::string>& tokens,
-                        const std::string& delimiters = " ");
+  static void Tokenize(const std::string& str,
+		       std::vector<std::string>& tokens,
+		       const std::string& delimiters = " ");
 
 
   // ---------------------------------------------------------------------------
@@ -88,9 +89,9 @@ public:
    * @param delimiters delimiter used for tokenizing
    */
   // ---------------------------------------------------------------------------
-  static void EmptyTokenize (const std::string& str,
-                             std::vector<std::string>& tokens,
-                             const std::string& delimiters = " ");
+  static void EmptyTokenize(const std::string& str,
+			    std::vector<std::string>& tokens,
+			    const std::string& delimiters = " ");
 
   // ---------------------------------------------------------------------------
   /**
@@ -102,10 +103,9 @@ public:
    * @return sizestring.c_str()
    */
   // ---------------------------------------------------------------------------
-
   static const char*
-  GetReadableAgeString (XrdOucString& sizestring,
-                        unsigned long long age);
+  GetReadableAgeString(XrdOucString& sizestring,
+		       unsigned long long age);
 
   // ---------------------------------------------------------------------------
   /**
@@ -118,11 +118,10 @@ public:
    * @return sizestring.c_str()
    */
   // ---------------------------------------------------------------------------
-
   static const char*
-  GetReadableSizeString (XrdOucString& sizestring,
-                         unsigned long long insize,
-                         const char* unit);
+  GetReadableSizeString(XrdOucString& sizestring,
+			unsigned long long insize,
+			const char* unit);
 
   // ---------------------------------------------------------------------------
   /**
@@ -135,11 +134,10 @@ public:
    * @return sizestring.c_str()
    */
   // ---------------------------------------------------------------------------
-
   static const char*
-  GetReadableSizeString (std::string& sizestring,
-                         unsigned long long insize,
-                         const char* unit);
+  GetReadableSizeString(std::string& sizestring,
+			unsigned long long insize,
+			const char* unit);
 
   // ---------------------------------------------------------------------------
   /**
@@ -151,15 +149,19 @@ public:
    */
   // ----------------------------------------------------------------------------
   static unsigned long long
-  GetSizeFromString (XrdOucString sizestring) { return GetSizeFromString(sizestring.c_str()); }
+  GetSizeFromString(const char* sizestring);
 
   static unsigned long long
-  GetSizeFromString (std::string  sizestring) { return GetSizeFromString(sizestring.c_str()); }
+  GetSizeFromString(XrdOucString sizestring)
+  {
+    return GetSizeFromString(sizestring.c_str());
+  }
 
   static unsigned long long
-  GetSizeFromString (const char* sizestring);
-
-
+  GetSizeFromString(std::string  sizestring)
+  {
+    return GetSizeFromString(sizestring.c_str());
+  }
 
   // ---------------------------------------------------------------------------
   /**
@@ -173,7 +175,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static const char*
-  GetSizeString (XrdOucString& sizestring, unsigned long long insize);
+  GetSizeString(XrdOucString& sizestring, unsigned long long insize);
 
   // ----------------------------------------------------------------------------
   /**
@@ -187,7 +189,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static const char*
-  GetSizeString (std::string& sizestring, unsigned long long insize);
+  GetSizeString(std::string& sizestring, unsigned long long insize);
 
   // ---------------------------------------------------------------------------
   /**
@@ -200,7 +202,7 @@ public:
    */
   // ---------------------------------------------------------------------------
   static const char*
-  GetSizeString (XrdOucString& sizestring, double insize);
+  GetSizeString(XrdOucString& sizestring, double insize);
 
   // ---------------------------------------------------------------------------
   /**
@@ -213,7 +215,7 @@ public:
    */
   // ---------------------------------------------------------------------------Ï
   static const char*
-  GetSizeString (std::string& sizestring, double insize);
+  GetSizeString(std::string& sizestring, double insize);
 
   // ---------------------------------------------------------------------------
   /**
@@ -228,10 +230,8 @@ public:
    */
   // ---------------------------------------------------------------------------
   static bool
-  SplitKeyValue (std::string keyval,
-                 std::string &key,
-                 std::string &value,
-                 std::string split = ":");
+  SplitKeyValue(std::string keyval, std::string& key, std::string& value,
+		std::string split = ":");
 
   // ---------------------------------------------------------------------------
   /**
@@ -246,10 +246,8 @@ public:
    */
   // ---------------------------------------------------------------------------
   static bool
-  SplitKeyValue (XrdOucString keyval,
-                 XrdOucString &key,
-                 XrdOucString &value,
-                 XrdOucString split = ":");
+  SplitKeyValue(XrdOucString keyval, XrdOucString& key, XrdOucString& value,
+		XrdOucString split = ":");
 
   // ---------------------------------------------------------------------------
   /**
@@ -264,11 +262,11 @@ public:
    */
   // ---------------------------------------------------------------------------
   static bool
-  GetKeyValueMap (const char* mapstring,
-                  std::map<std::string, std::string> &map,
-                  const char* split = ":",
-                  const char* delimiter = ",",
-                  std::vector<std::string>* keyvector=0);
+  GetKeyValueMap(const char* mapstring,
+		 std::map<std::string, std::string>& map,
+		 const char* split = ":",
+		 const char* delimiter = ",",
+		 std::vector<std::string>* keyvector = 0);
 
 
   // ---------------------------------------------------------------------------
@@ -281,7 +279,7 @@ public:
    */
   // ---------------------------------------------------------------------------
   static XrdOucString
-  GetHostPortFromQueue (const char* queue);
+  GetHostPortFromQueue(const char* queue);
 
   // ---------------------------------------------------------------------------
   /**
@@ -293,7 +291,7 @@ public:
    */
   // ---------------------------------------------------------------------------
   static std::string
-  GetStringHostPortFromQueue (const char* queue);
+  GetStringHostPortFromQueue(const char* queue);
 
   // ---------------------------------------------------------------------------
   /**
@@ -305,7 +303,7 @@ public:
    */
   // ---------------------------------------------------------------------------
   static void
-  SplitByPoint (std::string in, std::string &pre, std::string &post);
+  SplitByPoint(std::string in, std::string& pre, std::string& post);
 
   // ---------------------------------------------------------------------------
   /**
@@ -315,13 +313,13 @@ public:
    * @param out vector with std::string lines
    */
   // ---------------------------------------------------------------------------
-
   static void
-  StringToLineVector (char* in, std::vector<std::string> &out);
+  StringToLineVector(char* in, std::vector<std::string>& out);
 
   // ---------------------------------------------------------------------------
   /**
-   * Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,std::set<unsigned long long>'
+   * Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,
+   * std::set<unsigned long long>'.
    *
    * @param in char*
    * @param tag string
@@ -331,10 +329,8 @@ public:
    */
   // ---------------------------------------------------------------------------
   static bool
-  ParseStringIdSet (char* in,
-                    std::string& tag,
-                    unsigned long& id,
-                    std::set<unsigned long long> &set);
+  ParseStringIdSet(char* in, std::string& tag, unsigned long& id,
+		   std::set<unsigned long long>& set);
 
   // ---------------------------------------------------------------------------
   /**
@@ -346,57 +342,58 @@ public:
    */
   // ---------------------------------------------------------------------------
   static const char*
-  LoadFileIntoString (const char* filename, std::string &out);
+  LoadFileIntoString(const char* filename, std::string& out);
 
   // ---------------------------------------------------------------------------
   /**
-   * Read a long long number as output of a shell command - this is not usefull in multi-threaded environments
+   * Read a long long number as output of a shell command - this is not usefull
+   * in multi-threaded environments.
    *
    * @param shellcommand to execute
    * @return long long value of converted shell output
    */
   // ---------------------------------------------------------------------------
   static long long
-  LongLongFromShellCmd (const char* shellcommand);
+  LongLongFromShellCmd(const char* shellcommand);
 
   // ---------------------------------------------------------------------------
   /**
-   * Read a string as output of a shell command - this is not usefull in multi-threaded environments
+   * Read a string as output of a shell command - this is not usefull in
+   * multi-threaded environments.
    *
    * @param shellcommand to execute
    * @return XrdOucString
    */
   // ---------------------------------------------------------------------------
   static std::string
-  StringFromShellCmd (const char* shellcommand);
-
+  StringFromShellCmd(const char* shellcommand);
 
   // ---------------------------------------------------------------------------
   /**
    * Return the time as <seconds>.<nanoseconds> in a string
+   *
    * @param stime XrdOucString where to store the time as text
    * @return const char* to XrdOucString object passed
    */
   // ---------------------------------------------------------------------------
   static const char*
-  TimeNowAsString (XrdOucString& stime);
-
+  TimeNowAsString(XrdOucString& stime);
 
   // ---------------------------------------------------------------------------
   /**
    * Mask a tag 'key=val' as 'key=<...>' in an opaque string
+   *
    * @param XrdOucString where to mask
    * @return pointer to string where the masked string is stored
    */
   // ---------------------------------------------------------------------------
   static const char*
-  MaskTag (XrdOucString& line, const char* tag);
-
-
+  MaskTag(XrdOucString& line, const char* tag);
 
   // ---------------------------------------------------------------------------
   /**
    * Parse a string as an URL (does not deal with opaque information)
+   *
    * @param url string to parse
    * @param &protocol - return of the protocol identifier
    * @param &hostport - return of the host(port) identifier
@@ -404,24 +401,23 @@ public:
    */
   // ---------------------------------------------------------------------------
   static const char*
-  ParseUrl (const char* url, XrdOucString& protocol, XrdOucString& hostport);
-
+  ParseUrl(const char* url, XrdOucString& protocol, XrdOucString& hostport);
 
   // ---------------------------------------------------------------------------
   /**
    * Convert numeric value to string in a pretty way using KB, MB or GB symbols
-   * @param size size in KB to be processed
    *
+   * @param size size in KB to be processed
    * @return string representation of the value in a pretty format
    */
   // ---------------------------------------------------------------------------
   static std::string
-  GetPrettySize (float size);
-
+  GetPrettySize(float size);
 
   // ---------------------------------------------------------------------------
   /**
-   * Create an Url
+   * Create an URL
+   *
    * @param protocol - name of the protocol
    * @param hostport - host[+port]
    * @param path     - path name
@@ -430,22 +426,25 @@ public:
    */
   // ---------------------------------------------------------------------------
   static const char*
-  CreateUrl (const char* protocol, const char* hostport, const char* path, XrdOucString& url);
+  CreateUrl(const char* protocol, const char* hostport, const char* path,
+	    XrdOucString& url);
 
   // ---------------------------------------------------------------------------
   /**
    * Check if a string is a hexadecimal number
+   *
    * @param hexstring - hexadecimal string
    * @param format - format used for printing e.g. %08x
    * @return true if it is a converted hex number otherwise false
    */
   // ---------------------------------------------------------------------------
   static bool
-  IsHexNumber (const char* hexstring, const char* format = "%08x");
+  IsHexNumber(const char* hexstring, const char* format = "%08x");
 
   // ---------------------------------------------------------------------------
   /**
    * Return a lower case string
+   *
    * @param input - input string
    * @return lower case string
    */
@@ -460,6 +459,7 @@ public:
   // ---------------------------------------------------------------------------
   /**
    * Return a lower case string
+   *
    * @param input - input string
    * @return lower case string
    */
@@ -481,10 +481,10 @@ public:
    */
   // ---------------------------------------------------------------------------
   static std::string
-  IntToOctal(int number, int digits=4)
+  IntToOctal(int number, int digits = 4)
   {
     char format[16];
-    snprintf(format, sizeof(format), "%%0%do",digits);
+    snprintf(format, sizeof(format), "%%0%do", digits);
     char octal[32];
     snprintf(octal, sizeof(octal), format, number);
     return std::string(octal);
@@ -492,16 +492,17 @@ public:
 
   static void InitLookupTables()
   {
-    for(int i=0;i<10;i++)
-    {
-      pAscii2HexLkup['0'+i]=i;
-      pHex2AsciiLkup[i]='0'+i;
-    }
-    for(int i=0;i<6;i++)
-    {
-      pAscii2HexLkup['a'+i]=10+i;
-      pHex2AsciiLkup[10+i]='a'+i;
-    }
+    for (int i = 0; i < 10; i++)
+      {
+	pAscii2HexLkup['0' + i] = i;
+	pHex2AsciiLkup[i] = '0' + i;
+      }
+
+    for (int i = 0; i < 6; i++)
+      {
+	pAscii2HexLkup['a' + i] = 10 + i;
+	pHex2AsciiLkup[10 + i] = 'a' + i;
+      }
   }
 
   // ---------------------------------------------------------------------------
@@ -516,22 +517,22 @@ public:
   FastUnsignedToAsciiHex(UnsignedType u, char* s)
   {
     if (!u)
-    {
-      *s = '0';
-      return s + 1;
-    }
+      {
+	*s = '0';
+	return s + 1;
+      }
 
     int nchar = 0;
     const int size = 2 * sizeof(UnsignedType);
 
     for (int j = 1; j <= size; j++)
-    {
-      int digit = (u >> ((size - j) << 2)) & 15;
+      {
+	int digit = (u >> ((size - j) << 2)) & 15;
 
-      if (!nchar && !digit) continue;
+	if (!nchar && !digit) continue;
 
-      s[nchar++] = pHex2AsciiLkup[digit];
-    }
+	s[nchar++] = pHex2AsciiLkup[digit];
+      }
 
     return s + nchar;
   }
@@ -549,31 +550,33 @@ public:
     *u = 0;
 
     for (int j = 0; s[j] != 0 && j != len; j++)
-    {
-      (*u) <<= 4;
-      (*u) += pAscii2HexLkup[static_cast<int>(s[j])];
-    }
+      {
+	(*u) <<= 4;
+	(*u) += pAscii2HexLkup[static_cast<int>(s[j])];
+      }
   }
 
   // ---------------------------------------------------------------------------
   /**
    * Return an unescaped URI
+   *
    * @param str - uri to unescape
    * @return unescaped URI string
    */
   // ---------------------------------------------------------------------------
   static std::string
-  curl_unescaped(const std::string &str);
+  curl_unescaped(const std::string& str);
 
   // ---------------------------------------------------------------------------
   /**
    * Return an escaped URI
+   *
    * @param str - uri to escape
    * @return escaped URI string
    */
   // ---------------------------------------------------------------------------
   static std::string
-  curl_escaped(const std::string &str);
+  curl_escaped(const std::string& str);
 
   // ---------------------------------------------------------------------------
   /**
@@ -586,29 +589,25 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  StringConversion () { };
+  StringConversion() {};
 
   //----------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
-  ~StringConversion () { };
+  ~StringConversion() {};
 
 private:
-  // ---------------------------------------------------------------------------
   //! Lookup Table for Hex Ascii Conversion
-  // ---------------------------------------------------------------------------
   static char pAscii2HexLkup[256];
   static char pHex2AsciiLkup[16];
-  static __thread CURL *curl;
-  // thread-local storage management
+  static __thread CURL* curl;
+  //! Thread-local storage management
   static pthread_key_t sPthreadKey;
   static pthread_once_t sTlInit;
-  static void tlCurlFree( void *arg);
+  static void tlCurlFree(void* arg);
   static CURL* tlCurlInit();
   static void tlInitThreadKey();
 };
 
-/*----------------------------------------------------------------------------*/
 EOSCOMMONNAMESPACE_END
-
 #endif
