@@ -44,7 +44,6 @@
 #include <string.h>
 #include <fstream>
 #include <sstream>
-#include "fmt/fmt/format.h"
 
 EOSCOMMONNAMESPACE_BEGIN
 
