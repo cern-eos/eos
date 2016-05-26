@@ -158,7 +158,7 @@ public:
   }
 
   static unsigned long long
-  GetSizeFromString(std::string  sizestring)
+  GetSizeFromString(std::string sizestring)
   {
     return GetSizeFromString(sizestring.c_str());
   }

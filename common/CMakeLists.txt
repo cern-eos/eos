@@ -21,18 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( 
+include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
-  ${CURL_INCLUDE_DIRS}
-  ${LEVELDB_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
-  ${OPENSSL_INCLUDE_DIRS}
-  )
+  ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -71,6 +68,9 @@ add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
 target_compile_definitions(
   eosCommon
   PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+target_include_directories(
+  eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
 if(MacOSX)
   target_link_libraries(
@@ -118,6 +118,9 @@ else()
     http/s3/S3Handler.cc
     stringencoders/modp_numtoa.c)
 
+  target_include_directories(
+   eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
+
   target_link_libraries(
     eosCommonServer
     XrdMqClient
@@ -152,6 +155,9 @@ else()
 
   add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
 
+  target_include_directories(
+    eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
+
   # !!!!!
   # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
   # use std::atomic and the <atomic> header.
@@ -159,6 +165,10 @@ else()
   target_compile_definitions(
     eosCommon-Static
     PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+  target_compile_options(
+    eosCommon-Static
+    PUBLIC -fPIC)
 
   target_link_libraries(
     eosCommon-Static
@@ -173,8 +183,6 @@ else()
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
     ${CMAKE_THREAD_LIBS_INIT})
-
-  set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
 endif()
 
 set_target_properties(
