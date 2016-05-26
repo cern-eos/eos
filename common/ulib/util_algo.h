@@ -29,6 +29,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifndef typeof
+#define typeof __typeof__
+#endif
+
 #define _min(x, y) ({						\
 			typeof(x) _min1 = (x);			\
 			typeof(y) _min2 = (y);			\
