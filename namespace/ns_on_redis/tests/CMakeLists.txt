@@ -34,14 +34,23 @@ add_library(
   FileSystemViewTest.cc
   OtherTests.cc)
 
+
 target_link_libraries(
   EosNsOnRedisTests
   EosNsOnRedis-Static
   ${CPPUNIT_LIBRARIES})
 
+
+#-------------------------------------------------------------------------------
+# eosnsbench executable
+#-------------------------------------------------------------------------------
 add_executable(eosnsbench EosNamespaceBenchmark.cc)
-target_link_libraries(eosnsbench EosNsOnRedis eosCommon)
-set_target_properties(eosnsbench PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64")
+
+target_compile_options(
+  eosnsbench
+  PUBLIC -DFILE_OFFSET_BITS=64)
+
+target_link_libraries(eosnsbench EosNsOnRedis-Static eosCommon-Static)
 
 install(
   TARGETS

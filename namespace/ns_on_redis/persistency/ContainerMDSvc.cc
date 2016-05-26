@@ -21,11 +21,12 @@
 #include "namespace/ns_on_redis/ContainerMD.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include "namespace/utils/StringConvertion.hh"
 #include <memory>
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t ContainerMDSvc::sNumContBuckets = 512 * 1024;
+std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -83,7 +84,7 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 
   try
   {
-    std::string sid = std::to_string(id);
+    std::string sid = stringify(id);
     std::string bucket_key = getBucketKey(id);
     blob = pRedox->hget(bucket_key, sid);
   }
@@ -114,16 +115,14 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 //----------------------------------------------------------------------------
 std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
 {
-  static uint64_t free_id = 0;
   try
   {
     // Get the first free container id
-    free_id++;
     // TODO: grab 100 ids which are put back in a list is we shut down and
     // haven't used all or them. When a new mgm starts he first cheks this
     // list and grabs any available ids.
-    //uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-    //				       constants::sFirstFreeCid, 1);
+    uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
+				       constants::sFirstFreeCid, 1);
     std::shared_ptr<IContainerMD> cont {
       new ContainerMD(free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
 
@@ -148,7 +147,7 @@ void ContainerMDSvc::updateStore(IContainerMD* obj)
 
   try
   {
-    std::string sid = std::to_string(obj->getId());
+    std::string sid = stringify(obj->getId());
     std::string bucket_key = getBucketKey(obj->getId());
     pRedox->hset(bucket_key, sid, buffer);
   }
@@ -178,7 +177,7 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
   }
 
   try {
-    std::string sid = std::to_string(obj->getId());
+    std::string sid = stringify(obj->getId());
     std::string bucket_key = getBucketKey(obj->getId());
     pRedox->hdel(bucket_key, sid);
 
@@ -273,31 +272,51 @@ ContainerMDSvc::getLostFoundContainer(const std::string& name)
 }
 
 //------------------------------------------------------------------------------
-// Get number of containers which is sum(hlen(hash_i)) for i=0,1023
+// Get number of containers which is sum(hlen(hash_i)) for i=0,128k
 //------------------------------------------------------------------------------
 uint64_t ContainerMDSvc::getNumContainers()
 {
+  std::atomic<std::uint32_t> num_requests{0};
   std::atomic<std::uint64_t> num_conts{0};
   std::string bucket_key("");
-  auto callback_len = [&](redox::Command<long long int>) {
-    // TODO: implement
+  std::mutex mutex;
+  std::condition_variable cond_var;
+  auto callback_len = [&num_conts, &num_requests, &cond_var]
+    (redox::Command<long long int>& c) {
+    if (c.ok()) {
+      num_conts += c.reply();
+    }
+
+    if (!--num_requests)
+      cond_var.notify_one();
+  };
+
+  auto wrapper_cb = [&num_requests, &callback_len]() -> decltype(callback_len) {
+    num_requests++;
+    return callback_len;
   };
 
   for (std::uint64_t i = 0; i < sNumContBuckets; ++i)
   {
-    bucket_key = std::to_string(i);
+    bucket_key = stringify(i);
     bucket_key += constants::sContKeySuffix;
 
     try {
-      // TODO: do this call asynchronously
-      num_conts += pRedox->hlen(bucket_key);
+      pRedox->hlen(bucket_key, wrapper_cb());
     }
     catch (std::runtime_error& redis_err) {
       // no change
     }
   }
 
-  return num_conts;
+  // Wait for all responses
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    while (num_requests)
+      cond_var.wait(lock);
+  }
+
+  return num_conts.load();
 }
 
 //------------------------------------------------------------------------------
@@ -319,7 +338,7 @@ ContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
   if (id >= sNumContBuckets)
     id = id & (sNumContBuckets - 1);
 
-  std::string bucket_key = std::to_string(id);
+  std::string bucket_key = stringify(id);
   bucket_key += constants::sContKeySuffix;
   return bucket_key;
 }

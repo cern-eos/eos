@@ -22,6 +22,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include "namespace/utils/StringConvertion.hh"
 #include <sys/stat.h>
 
 EOSNSNAMESPACE_BEGIN
@@ -41,8 +42,9 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   pMTime.tv_nsec = 0;
   pTMTime.tv_sec = 0;
   pTMTime.tv_nsec = 0;
-  pFilesKey = std::to_string(id) + constants::sMapFilesSuffix;
-  pDirsKey = std::to_string(id) + constants::sMapDirsSuffix;
+
+  pFilesKey = stringify(id) + constants::sMapFilesSuffix;
+  pDirsKey = stringify(id) + constants::sMapDirsSuffix;
   pRedox = static_cast<ContainerMDSvc*>(cont_svc)->pRedox;
   mNotificationCb = [&](redox::Command<int>& c) {
     // Use this callback for del, hdel and hset operations. The return value in
@@ -195,7 +197,7 @@ ContainerMD::findFile(const std::string& name)
     mFilesMap.erase(iter);
     try
     {
-      pRedox->hdel(pFilesKey, std::to_string(id));
+      pRedox->hdel(pFilesKey, stringify(id));
     }
     catch (std::runtime_error& redis_err) { /* nothing to do */ }
     return nullptr;
@@ -777,8 +779,8 @@ ContainerMD::deserialize(const std::string& buffer)
   }
 
   // Rebuild the file and subcontainer keys
-  pFilesKey = std::to_string(pId) + constants::sMapFilesSuffix;
-  pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
+  pFilesKey = stringify(pId) + constants::sMapFilesSuffix;
+  pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
 
   // Grab the files and subcontainers
   try
@@ -942,8 +944,8 @@ ContainerMD::deserialize(Buffer& buffer)
   }
 
   // Rebuild the file and subcontainer keys
-  pFilesKey = std::to_string(pId) + constants::sMapFilesSuffix;
-  pDirsKey = std::to_string(pId) + constants::sMapDirsSuffix;
+  pFilesKey = stringify(pId) + constants::sMapFilesSuffix;
+  pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
 
   // Grab the files and subcontainers
   try
