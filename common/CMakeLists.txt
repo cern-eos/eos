@@ -156,7 +156,9 @@ else()
   add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
 
   target_include_directories(
-    eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
+    eosCommon-Static PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:include>)
 
   # !!!!!
   # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should

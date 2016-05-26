@@ -28,8 +28,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS}
-  ${CMAKE_SOURCE_DIR}/common/ulib/)
+  ${SPARSEHASH_INCLUDE_DIRS})
 
 add_subdirectory(benchmark)
 
