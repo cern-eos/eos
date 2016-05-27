@@ -48,7 +48,6 @@ include_directories(../
                     ${NCURSES_INCLUDE_DIR}
                     ${Z_INCLUDE_DIR}
                     ${KINETICIO_INCLUDE_DIR}
-                    ${JSONC_INCLUDE_DIR}
 		    ${DAVIX_INCLUDE_DIR}
 )
 
@@ -105,7 +104,7 @@ add_library(EosFstIo-Static STATIC
 target_link_libraries(  EosFstIo-Static
                         eosCommon-Static
                         XrdCl	
-                        XrdUtils                ${JSONC_LIBRARIES}
+                        XrdUtils
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -148,7 +147,7 @@ target_link_libraries(  EosFstIo
                         XrdEosFst
                         eosCommon
                         XrdCl	
-                        XrdUtils                ${JSONC_LIBRARIES}
+                        XrdUtils
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -215,7 +214,7 @@ target_link_libraries(  XrdEosFst
                         eosCommon
                         eosCommonServer         eosCapability-Static
                         XrdMqClient-Static      XrdCl	
-                        XrdUtils                ${JSONC_LIBRARIES}
+                        XrdUtils
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
@@ -281,7 +280,7 @@ target_link_libraries(  XrdEosFst
                         eosCommon
                         eosCommonServer         eosCapability-Static
                         XrdMqClient-Static      XrdCl	
-                        XrdUtils                ${JSONC_LIBRARIES}
+                        XrdUtils
                         crypto                  ${NCURSES_LIBRARIES}
                         dl                      ${Z_LIBRARIES}  
                         ${UUID_LIBRARIES}       ${ATTR_LIBRARIES}       
