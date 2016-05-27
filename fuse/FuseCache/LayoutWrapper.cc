@@ -529,7 +529,13 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   mFlags = flags;
   mMode = mode;
   mOpaque = opaque;
-
+  
+  if (buf)
+    Utimes(buf);
+  
+  if (buf)
+    mSize = buf->st_size;
+  
   if (!doOpen)
   {
     retc = LazyOpen(path, flags, mode, opaque, buf);
@@ -699,12 +705,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     ImportCGI(m, lasturl);
     std::string fxid = m["mgm.id"];
     mInode = strtoull(fxid.c_str(), 0, 16);
-
-    if (flags && buf)
-      Utimes(buf);
-
-    if (buf)
-      mSize = buf->st_size;
   }
 
   time_t now = time(0);
@@ -712,7 +712,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
   if (mInode && (!mCache.get()))
   {
-    if (flags & SFS_O_CREAT)
+    if ( (flags & SFS_O_CREAT) || (flags & SFS_O_TRUNC) )
     {
       gCacheAuthority[mInode].mLifeTime = 0;
       gCacheAuthority[mInode].mPartial = false;
@@ -722,8 +722,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       mCanCache = true;
       mCacheCreator = true;
       mSize = gCacheAuthority[mInode].mSize;
-      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu",
-                        path.c_str(), (*mCache).size(), mInode);
+      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu create=%d truncate=%d",
+                        path.c_str(), (*mCache).size(), mInode, flags & SFS_O_CREAT, flags & SFS_O_TRUNC);
     }
     else
     {
