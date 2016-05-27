@@ -150,7 +150,8 @@ private:
 		       IContainerMDChangeListener::Action a);
 
   //----------------------------------------------------------------------------
-  //! Get container bucket
+  //! Get container bucket which is computed as the id of the container modulo
+  //! the number of container buckets.
   //!
   //! @param id container id
   //!

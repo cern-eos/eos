@@ -154,6 +154,8 @@ private:
 
   typedef std::list<IFileMDChangeListener*> ListenerList;
 
+  static std::uint64_t sNumFileBuckets; ///< Numver of buckets power of 2
+
   //----------------------------------------------------------------------------
   //! Recheck a file object
   //!
@@ -170,8 +172,15 @@ private:
   void attachBroken(const std::string& parent, IFileMD* file);
 
   //----------------------------------------------------------------------------
-  // Data
+  //! Get file bucket which is computed as the id of the container  modulo the
+  //! number of file buckets.
+  //!
+  //! @param id file id
+  //!
+  //! @return file bucket key
   //----------------------------------------------------------------------------
+  std::string getBucketKey(IContainerMD::id_t id) const;
+
   ListenerList pListeners;
   IQuotaStats* pQuotaStats;
   IContainerMDSvc* pContSvc;

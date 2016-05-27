@@ -976,7 +976,7 @@ ContainerMD::deserialize(Buffer& buffer)
   catch (std::runtime_error& redis_err)
   {
     MDException e(ENOENT);
-    e.getMessage() << "Container #" << pId << "failed to get subentrie";
+    e.getMessage() << "Container #" << pId << "failed to get subentries";
     throw e;
   }
 }

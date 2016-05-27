@@ -356,6 +356,8 @@ int main(int argc, char** argv)
     return 2;
   }
 
+  return 0;
+
   eos::IView* view = 0;
 
   // Run a parallel consumer thread benchmark without locking

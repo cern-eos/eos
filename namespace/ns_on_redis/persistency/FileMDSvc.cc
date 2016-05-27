@@ -22,8 +22,11 @@
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+#include "namespace/utils/StringConvertion.hh"
 
 EOSNSNAMESPACE_BEGIN
+
+std::uint64_t FileMDSvc::sNumFileBuckets = 1024*1024;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -85,8 +88,9 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
 
   try
   {
-    std::string key = std::to_string(id) + constants::sFileKeySuffix;
-    blob = pRedox->hget(key, "data");
+    std::string sid = stringify(id);
+    std::string bucket_key = getBucketKey(id);
+    blob = pRedox->hget(bucket_key, sid);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -117,6 +121,7 @@ std::shared_ptr<IFileMD> FileMDSvc::createFile()
     uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				       constants::sFirstFreeFid, 1);
     // Increase total number of files
+    // TODO: THIS CAN BE REMOVED AND ADD FILES TO THEIR CORRESPONDING BUCKETS
     (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
     std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
     file = mFileCache.put(free_id, file);
@@ -146,8 +151,9 @@ void FileMDSvc::updateStore(IFileMD* obj)
 
   try
   {
-    std::string key = std::to_string(obj->getId()) + constants::sFileKeySuffix;
-    (void) pRedox->hset(key, "data", buffer);
+    std::string sid = stringify(obj->getId());
+    std::string bucket_key = getBucketKey(obj->getId());
+    pRedox->hset(bucket_key, sid, buffer);
   }
   catch (std::runtime_error& redis_err)
   {
@@ -180,9 +186,11 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
 
   try
   {
-    std::string key = std::to_string(fileId) + constants::sFileKeySuffix;
-    pRedox->hdel(key, "data");
+    std::string sid = stringify(fileId);
+    std::string bucket_key = getBucketKey(fileId);
+    pRedox->hdel(bucket_key, sid);
     // Derease total number of files
+    // TODO: THIS SHOULD BE REMOVED
     (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
   }
   catch (std::runtime_error& redis_err)
@@ -202,15 +210,47 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
 //------------------------------------------------------------------------------
 uint64_t FileMDSvc::getNumFiles()
 {
-  try
+  std::atomic<std::uint32_t> num_requests{0};
+  std::atomic<std::uint64_t> num_files{0};
+  std::string bucket_key("");
+  std::mutex mutex;
+  std::condition_variable cond_var;
+  auto callback_len = [&num_files, &num_requests, &cond_var]
+    (redox::Command<long long int>& c) {
+    if (c.ok()) {
+      num_files += c.reply();
+    }
+
+    if (!--num_requests)
+      cond_var.notify_one();
+  };
+
+  auto wrapper_cb = [&num_requests, &callback_len]() -> decltype(callback_len) {
+    num_requests++;
+    return callback_len;
+  };
+
+  for (std::uint64_t i = 0; i < sNumFileBuckets; ++i)
   {
-    return std::stoull(pRedox->hget(constants::sMapMetaInfoKey,
-				    constants::sNumFiles));
+    bucket_key = stringify(i);
+    bucket_key += constants::sFileKeySuffix;
+
+    try {
+      pRedox->hlen(bucket_key, wrapper_cb());
+    }
+    catch (std::runtime_error& redis_err) {
+      // no change
+    }
   }
-  catch (std::exception& e)
+
+  // Wait for all responses
   {
-    return 0;
+    std::unique_lock<std::mutex> lock(mutex);
+    while (num_requests)
+      cond_var.wait(lock);
   }
+
+  return num_files;
 }
 
 //------------------------------------------------------------------------------
@@ -345,6 +385,20 @@ FileMDSvc::addToConsistencyCheck(IFileMD::id_t id)
       "files to be checked - got an exception";
     throw e;
   }
+}
+
+//------------------------------------------------------------------------------
+// Get file bucket
+//------------------------------------------------------------------------------
+std::string
+FileMDSvc::getBucketKey(IContainerMD::id_t id) const
+{
+  if (id >= sNumFileBuckets)
+    id = id & (sNumFileBuckets - 1);
+
+  std::string bucket_key = stringify(id);
+  bucket_key += constants::sFileKeySuffix;
+  return bucket_key;
 }
 
 EOSNSNAMESPACE_END

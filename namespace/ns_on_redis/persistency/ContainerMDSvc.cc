@@ -316,7 +316,7 @@ uint64_t ContainerMDSvc::getNumContainers()
       cond_var.wait(lock);
   }
 
-  return num_conts.load();
+  return num_conts;
 }
 
 //------------------------------------------------------------------------------
