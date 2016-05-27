@@ -709,7 +709,8 @@ int
 filesystem::dir_cache_get_entry (fuse_req_t req,
                                  unsigned long long inode,
                                  unsigned long long entry_inode,
-                                 const char* efullpath)
+                                 const char* efullpath, 
+				 struct stat* overwrite_stat)
 {
  int retc = 0;
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
@@ -722,6 +723,13 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
      struct fuse_entry_param e;
      if (dir->GetEntry (entry_inode, e))
      {
+       // we eventually need to overwrite the cached information
+       if (overwrite_stat)
+       {
+	 e.attr.MTIMESPEC = overwrite_stat->MTIMESPEC;
+	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
+	 e.attr.st_size = overwrite_stat->st_size;
+       }
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
        retc = 1; // found
@@ -811,11 +819,10 @@ filesystem::force_rwopen (
                          )
 {
   int fd = -1;
-  bool isROfd = false;
   std::ostringstream sstr;
   sstr << inode << ":" << get_login (uid, gid, pid);
 
-  eos::common::RWMutexWriteLock wr_lock (rwmutex_fd2fabst);
+  eos::common::RWMutexReadLock rd_lock (rwmutex_fd2fabst);
   auto iter_fd = inodexrdlogin2fds.find (sstr.str ());
 
   // If there is already an entry for the current user and the current inode
@@ -826,23 +833,38 @@ filesystem::force_rwopen (
 
     for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
     {
-      if (isROfd == (fd2count[*fdit] < 0))
+      if ( fd2count[*fdit] > 0)
       {
-        fd2count[*fdit] += isROfd ? -1 : 1;
         std::shared_ptr<FileAbstraction> fabst = get_file (*fdit, NULL);
-        if (!fabst.get() || fabst->GetRawFileRW())
+        if (!fabst.get())
         {
-          if(fabst.get ()) fabst->DecNumRefRW ();
           errno = ENOENT;
-          return -1; // return -1 if failure
+          return 0;
         }
+
+	if (fabst->GetRawFileRO())
+	{
+	  fabst->DecNumRefRO ();
+	  return 0;
+	}
+
+	if (!fabst->GetRawFileRW())
+	{
+	  return 0;
+	}
+
         if(fabst->GetRawFileRW()->MakeOpen())
         {
           fabst->DecNumRefRW ();
           errno = EIO;
+	  eos_static_info("makeopen returned -1");
           return -1; // return -1 if failure
-        }
-        fabst->DecNumRefRW ();
+        } 
+	else
+	{
+	  eos_static_info("forced read-open");
+	  fabst->DecNumRefRW ();
+	}
         return *fdit; // return the fd if succeed (>0)
       }
     }
@@ -926,6 +948,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    }
 
    fabst->GrabMaxWriteOffset ();
+   fabst->GrabUtimes ();
 
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
@@ -1619,7 +1642,8 @@ filesystem::stat (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long inode)
+                  unsigned long inode, 
+		  bool onlysizemtime)
 {
  eos_static_info ("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int) uid, (int) gid, inode);
@@ -1629,6 +1653,11 @@ filesystem::stat (const char* path,
  atim.tv_sec = atim.tv_nsec = mtim.tv_sec = mtim.tv_nsec = 0;
  errno = 0;
  COMMONTIMING ("START", &stattiming);
+
+ if (onlysizemtime && !inode)
+ {
+   return -1;
+ }
 
  if (inode)
  {
@@ -1679,7 +1708,7 @@ filesystem::stat (const char* path,
        // otherwise, the file will be opened on the fst, just for a stat
        if (isrw)
        {
-         // only stat via open files if we are don't have cache capabilities
+         // only stat via open files if we don't have cache capabilities
          if (!file->CanCache ())
          {
            if ((!file->Stat (&tmp)))
@@ -1699,7 +1728,7 @@ filesystem::stat (const char* path,
                file_size = cache_size;
              }
              fabst->GetUtimes (&mtim);
-             eos_static_debug ("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
+             eos_static_debug ("fd=%i, size-fd=%lld, mtim=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
            }
            else
            {
@@ -1731,6 +1760,20 @@ filesystem::stat (const char* path,
    {
      rwmutex_fd2fabst.UnLockRead();
      eos_static_debug ("path=%s not open", path);
+   }
+
+   if (onlysizemtime)
+   {
+     if (file_size == -1)
+     {
+       eos_static_debug("onlysizetime couldn't get the size from an open file");
+       return -1;
+     }
+     buf->st_size = file_size;
+     buf->MTIMESPEC = mtim;
+     buf->st_mtime = mtim.tv_sec;
+     eos_static_debug("onlysizetime size from open file");
+     return 0;
    }
  }
 

@@ -476,8 +476,8 @@ void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
  int dir_cache_get_entry (fuse_req_t req,
                           unsigned long long inode,
                           unsigned long long einode,
-                          const char* ifullpath);
-
+                          const char* ifullpath, 
+			  struct stat* overwrite_stat = 0);
 
  //----------------------------------------------------------------------------
  //! Add new subentry to a cached directory
@@ -531,7 +531,8 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            uid_t uid,
            gid_t gid,
            pid_t pid,
-           unsigned long inode);
+           unsigned long inode, 
+	   bool onlysizemtime=false);
 
  //----------------------------------------------------------------------------
  //!
