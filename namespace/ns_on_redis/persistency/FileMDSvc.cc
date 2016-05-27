@@ -120,9 +120,6 @@ std::shared_ptr<IFileMD> FileMDSvc::createFile()
     // Get first available file id
     uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				       constants::sFirstFreeFid, 1);
-    // Increase total number of files
-    // TODO: THIS CAN BE REMOVED AND ADD FILES TO THEIR CORRESPONDING BUCKETS
-    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, 1);
     std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
     file = mFileCache.put(free_id, file);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
@@ -189,9 +186,6 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
     std::string sid = stringify(fileId);
     std::string bucket_key = getBucketKey(fileId);
     pRedox->hdel(bucket_key, sid);
-    // Derease total number of files
-    // TODO: THIS SHOULD BE REMOVED
-    (void) pRedox->hincrby(constants::sMapMetaInfoKey, constants::sNumFiles, -1);
   }
   catch (std::runtime_error& redis_err)
   {

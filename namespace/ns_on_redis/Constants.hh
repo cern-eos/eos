@@ -50,8 +50,6 @@ namespace constants
   static const std::string sFirstFreeFid {"first_free_fid"};
   //! Field last used container id in meta info map
   static const std::string sFirstFreeCid {"first_free_cid"};
-  //! Field number of files in meta info map
-  static const std::string sNumFiles {"num_files"};
   //! Set of files that need to be rechecked
   static const std::string sSetCheckFiles {"files_set_check"};
   //! Set of containers that need to be rechecked
