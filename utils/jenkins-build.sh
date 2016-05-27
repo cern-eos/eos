@@ -154,7 +154,7 @@ echo -e '"""' >> eos.cfg
 
 
 # Build the RPMs
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
+mock --yum --verbose --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine')
