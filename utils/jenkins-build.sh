@@ -130,6 +130,9 @@ echo "Running in directory: $(pwd)"
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
+# ensure that script reports errors
+set -e
+
 # Create cmake build directory and build without dependencies
 cd ..; mkdir build; cd build
 cmake .. -DPACKAGEONLY=1
@@ -151,7 +154,6 @@ if [[ ${BRANCH} == 'emerald' ]]; then
     echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
 fi
 echo -e '"""' >> eos.cfg
-
 
 # Build the RPMs
 mock --yum --verbose --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
