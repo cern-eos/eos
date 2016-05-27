@@ -137,8 +137,7 @@ XrdMgmOfs::_rem (const char *path,
   }
 
   // ---------------------------------------------------------------------------
-  if (lock_quota) 
-    Quota::gQuotaMutex.LockRead();
+  std::unique_ptr<eos::common::RWMutexReadLock> qLock(lock_quota?0:new eos::common::RWMutexReadLock(Quota::gQuotaMutex));
 
   gOFS->eosViewRWMutex.LockWrite();
 
@@ -195,8 +194,6 @@ XrdMgmOfs::_rem (const char *path,
     {
       errno = EPERM;
       gOFS->eosViewRWMutex.UnLockWrite();
-      if (lock_quota) 
-	Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
@@ -224,8 +221,6 @@ XrdMgmOfs::_rem (const char *path,
       {
         errno = EPERM;
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname, error, errno, "remove file", path);
       }
 
@@ -233,8 +228,6 @@ XrdMgmOfs::_rem (const char *path,
       if (acl.CanWriteOnce() && (fmd->getSize()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this is a write once user
         return Emsg(epname, error, EPERM, "remove existing file - you are write-once user");
@@ -246,8 +239,6 @@ XrdMgmOfs::_rem (const char *path,
 
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // deletion is forbidden for not-owner
         return Emsg(epname, error, EPERM, "remove existing file - ACL forbids file deletion");
@@ -256,8 +247,6 @@ XrdMgmOfs::_rem (const char *path,
       if ((!stdpermcheck) && (!acl.CanWrite()))
       {
         gOFS->eosViewRWMutex.UnLockWrite();
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         errno = EPERM;
         // this user is not allowed to write
         return Emsg(epname, error, EPERM, "remove existing file - you don't have write permissions");
@@ -360,8 +349,6 @@ XrdMgmOfs::_rem (const char *path,
         // since the recycle space is full
         // ---------------------------------------------------------------------
         errno = ENOSPC;
-	if (lock_quota) 
-	  Quota::gQuotaMutex.UnLockRead();
         return Emsg(epname,
                     error,
                     ENOSPC,
@@ -382,8 +369,6 @@ XrdMgmOfs::_rem (const char *path,
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
         {
-	  if (lock_quota) 
-	    Quota::gQuotaMutex.LockRead();
           return rc;
         }
 	else
@@ -398,8 +383,6 @@ XrdMgmOfs::_rem (const char *path,
       // there is no quota defined on that recycle path
       // -----------------------------------------------------------------------
       errno = ENODEV;
-      if (lock_quota) 
-	Quota::gQuotaMutex.UnLockRead();
       return Emsg(epname,
                   error,
                   ENODEV,
@@ -461,11 +444,6 @@ XrdMgmOfs::_rem (const char *path,
       errno = 0; // purge might return ENOENT if there was no version
     }
   }
-
-  if (lock_quota) 
-    Quota::gQuotaMutex.UnLockRead();
-    
-
 
   EXEC_TIMING_END("Rm");
 
