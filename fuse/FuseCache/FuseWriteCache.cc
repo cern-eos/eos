@@ -171,7 +171,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                          size_t len)
 {
   CacheEntry* pEntry = 0;
-  XrdSysRWLockHelper wr_lock(mMapLock, 0); // write lock
+  XrdSysMutexHelper lock(mMapLock);
   key_entry_t::iterator it = mKeyEntryMap.find(k);
   eos_static_debug("off=%zu, len=%zu key=%lli", off, len, k);
 
@@ -291,7 +291,7 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
 void
 FuseWriteCache::ForceWrite()
 {
-  XrdSysRWLockHelper wr_lock(mMapLock, 0); // write lock
+  XrdSysMutexHelper lock(mMapLock);
   auto iStart = mKeyEntryMap.begin();
   auto iEnd = mKeyEntryMap.end();
   CacheEntry* pEntry = iStart->second;
@@ -315,7 +315,7 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst, bool wait)
   eos_debug("fabst_ptr=%p force all writes", fabst);
 
   {
-    XrdSysRWLockHelper wr_lock(mMapLock, 0); // write lock
+    XrdSysMutexHelper lock(mMapLock);
     auto iStart = mKeyEntryMap.lower_bound(fabst->GetFirstPossibleKey());
     auto iEnd = mKeyEntryMap.lower_bound(fabst->GetLastPossibleKey());
     CacheEntry* pEntry = NULL;
