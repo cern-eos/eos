@@ -563,6 +563,14 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   }
   else
   {
+    // for latency simulation purposes
+    if (getenv("EOS_FUSE_LAZY_LAG"))
+    {
+      eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG"));
+      XrdSysTimer sleeper;
+      sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG")));
+    }
+
     bool retry = true;
     XrdOucString sopaque (opaque);
 #ifdef STOPONREDIRECT
