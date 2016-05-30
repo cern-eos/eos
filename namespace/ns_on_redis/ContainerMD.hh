@@ -443,7 +443,7 @@ private:
   std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
   //! Callback function for Redox asynchronous requests
   std::function<void(redox::Command<int>&)> mNotificationCb;
-  //! Wrapper callback which returns a callback used by the Redox clietn
+  //! Wrapper callback which returns a callback used by the Redox client
   std::function<decltype(mNotificationCb)(void)> mWrapperCb;
 
 };

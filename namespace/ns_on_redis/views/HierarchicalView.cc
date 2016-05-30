@@ -319,10 +319,10 @@ void HierarchicalView::unlinkFile(const std::string& uri)
     throw e;
   }
 
-  cont->removeFile(file->getName());
   file->setContainerId(0);
   file->unlinkAllLocations();
   updateFileStore(file.get());
+  cont->removeFile(file->getName());
 }
 
 //------------------------------------------------------------------------------
@@ -332,10 +332,10 @@ void HierarchicalView::unlinkFile(eos::IFileMD* file)
 {
   std::shared_ptr<IContainerMD> cont =
     pContainerSvc->getContainerMD(file->getContainerId());
-  cont->removeFile(file->getName());
   file->setContainerId(0);
   file->unlinkAllLocations();
   updateFileStore(file);
+  cont->removeFile(file->getName());
 }
 
 //------------------------------------------------------------------------------
@@ -354,7 +354,8 @@ void HierarchicalView::removeFile(IFileMD* file)
 
   if (file->getContainerId() != 0)
   {
-    std::shared_ptr<IContainerMD> cont = pContainerSvc->getContainerMD(file->getContainerId());
+    std::shared_ptr<IContainerMD> cont =
+      pContainerSvc->getContainerMD(file->getContainerId());
     cont->removeFile(file->getName());
   }
 

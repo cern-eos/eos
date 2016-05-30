@@ -62,7 +62,7 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
   };
 
   mWrapperCb = [&]() -> decltype(mNotificationCb) {
-    mNumAsyncReq++;
+    ++mNumAsyncReq;
     return mNotificationCb;
   };
 }
@@ -97,7 +97,16 @@ ContainerMD::findContainer(const std::string& name)
   else
     id = iter->second;
 
-  return pContSvc->getContainerMD(id);
+  auto cont = pContSvc->getContainerMD(id);
+
+  // Curate the list of subcontainers in case entry is not found
+  if (!cont)
+  {
+    mDirsMap.erase(iter);
+    pRedox->hdel(pDirsKey, name);
+  }
+
+  return cont;
 }
 
 //------------------------------------------------------------------------------
@@ -159,8 +168,6 @@ ContainerMD::addContainer(IContainerMD* container)
   }
 
   try {
-    // TODO: make this call async with container collecting the response
-    // in the updateStore command
     pRedox->hset(pDirsKey, container->getName(), container->getId());
   }
   catch (std::runtime_error& redis_err)
@@ -220,7 +227,6 @@ ContainerMD::addFile(IFileMD* file)
     throw e;
   }
 
-  // Do async call to KV backend
   try
   {
     pRedox->hset(pFilesKey, file->getName(), file->getId());
