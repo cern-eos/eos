@@ -171,7 +171,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                          size_t len)
 {
   CacheEntry* pEntry = 0;
-  mMapLock.ReadLock(); // read lock map
+  XrdSysMutexHelper lock(mMapLock);
   key_entry_t::iterator it = mKeyEntryMap.find(k);
   eos_static_debug("off=%zu, len=%zu key=%lli", off, len, k);
 
@@ -189,18 +189,13 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
     if (pEntry->IsFull())
     {
       eos_static_debug("cache entry full add to writes queue");
-      mMapLock.UnLock();     // unlock
-      mMapLock.WriteLock();  // wr_lock map
       mKeyEntryMap.erase(k);//mKeyEntryMap.find(k));
       mWrReqQueue->push(pEntry);
     }
 
-    mMapLock.UnLock();  //unlock map
   }
   else
   {
-    mMapLock.UnLock();  //unlock map
-
     // Get CacheEntry obj - new or recycled
     pEntry = GetRecycledBlock(fabst, buf, off, len);
     fabst->IncrementWrites(len);
@@ -212,7 +207,6 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
     // Deal with new entry
     if (!pEntry->IsFull())
     {
-      XrdSysRWLockHelper wr_lock(mMapLock, 0); // wr_lock
       mKeyEntryMap.insert(std::make_pair(k, pEntry));
     }
     else
@@ -297,7 +291,7 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
 void
 FuseWriteCache::ForceWrite()
 {
-  XrdSysRWLockHelper wr_lock(mMapLock, 0); // write lock
+  XrdSysMutexHelper lock(mMapLock);
   auto iStart = mKeyEntryMap.begin();
   auto iEnd = mKeyEntryMap.end();
   CacheEntry* pEntry = iStart->second;
@@ -321,7 +315,7 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst, bool wait)
   eos_debug("fabst_ptr=%p force all writes", fabst);
 
   {
-    XrdSysRWLockHelper wr_lock(mMapLock, 0); // write lock
+    XrdSysMutexHelper lock(mMapLock);
     auto iStart = mKeyEntryMap.lower_bound(fabst->GetFirstPossibleKey());
     auto iEnd = mKeyEntryMap.lower_bound(fabst->GetLastPossibleKey());
     CacheEntry* pEntry = NULL;

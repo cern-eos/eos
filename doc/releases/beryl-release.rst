@@ -7,6 +7,56 @@
 Beryl Release Notes
 ===================
 
+``V0.3.182 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix bug introduced in 0.3.181 to force creation of a file before a read open can proceed
+- FUSE: use a standard mutex instead of a rw mutex to protect wb cache map
+- FUSE: fix open(update) wrong mtime behaviour observed when using vim ona a file without local caps
+- COMMON: fix performance relevant ShellCmd::Wait() function to use exponential backoff starting at 1ms to discover if a subprocess has terminated. This has a drastic effect on balancing and draining jobs which was limited to 1Hz due to this implementation
+- FST: when running multiple FST instances store the eoscp log for each instance in their private log directory
+- FST: fix missing tpcClose when a target TPC operation had been terminated
+- MGM: use conditional/scoped lock monitor to avoid any path in the code where the quota mutex could stay read-locked and no new quota node can be created/listed
+
+
+New Features
+++++++++++++
+
+- MGM: by default don't do a risk analysis for 'fs status' since it can take significant amount of time when millions of files are on a filesystem - previous behaviour using 'fs status -r'
+- MGM: extend 'schedule2balance' call to directly return a balance job to the FST instead of sending it through the asynchronous queue (FST equivalent part is still not committed)
+- FUSE: add an environment variable to simulate slow backend behaviour in the asynchronous part of FUSE (EOS_FUSE_LAZY_LAG=<ms>)
+
+``V0.3.181 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FST: fix double unlock leading to an abort if a file checksum was found
+- FUSE: fix race condition in locking scheme when adding pieces to the writeback cache
+- FUSE: avoid several memory leaks induced by open/write/close/delete sequences
+- FUSE: avoid possible order inversion of Open[create] file / Open[read] file
+
+``V0.3.180 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: fix particular geo scheduling case which could return ENOSPACE
+- MGM: avoid dead-lock in SetQuota calls
+
+``V0.3.179 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix SEGV introduced by XrdIo memory leak fix in 0.3.177
+
 ``V0.3.178 Aquamarine``
 +++++++++++++++++++++++
 

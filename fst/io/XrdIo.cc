@@ -710,7 +710,13 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
                            handler->GetBuffer(),
                            handler,
                            timeout);
-  
+
+  if (!status.IsOK())
+  {
+    mMetaHandler->HandleResponse(&status, handler);
+    return SFS_ERROR;
+  }
+
   return length;
 }
 

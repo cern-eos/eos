@@ -497,7 +497,18 @@ XrdFstOfs::Configure (XrdSysError& Eroute, XrdOucEnv* envP)
   eos::common::Logging::SetLogPriority(LOG_NOTICE);
   eos::common::Logging::SetUnit(unit.c_str());
 
-  eos_info("info=\"logging configured\"");
+
+  // get the XRootD log directory                                                                                                                                                                        
+  char *logdir = 0;
+  XrdOucEnv::Import("XRDLOGDIR", logdir);
+
+  if (logdir)
+  {
+    eoscpTransferLog = logdir;
+    eoscpTransferLog += "eoscp.log";
+  }
+
+  Eroute.Say("=====> eoscp-log : ", eoscpTransferLog.c_str());
 
   //////////////////////////////////////////////////////////////////////////////
   // Create the messaging object(recv thread)

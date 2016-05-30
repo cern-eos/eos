@@ -548,8 +548,13 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (entry_inode && ( LayoutWrapper::CacheAuthSize(entry_inode) == -1))
  {
-   // Try to get entry from cache if this inode is not currently opened 
-   entry_found = me.fs ().dir_cache_get_entry (req, parent, entry_inode, ifullpath);
+   struct fuse_entry_param e;
+   memset (&e, 0, sizeof ( e));
+   int rc = me.fs ().stat (fullpath.c_str (), &e.attr, fuse_req_ctx (req)->uid,
+		  fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, entry_inode, true);
+
+   // Try to get entry from cache if this inode is not currently opened, but eventualy overwrite the cached size & mtime
+   entry_found = me.fs ().dir_cache_get_entry (req, parent, entry_inode, ifullpath, rc?0:&e.attr);
 
    eos_static_debug ("subentry_found = %i", entry_found);
  }
@@ -1045,6 +1050,9 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
 
  const char* parentpath = NULL;
  std::string fullpath;
+ char ifullpath[16384];
+
+ unsigned long long ino;
 
  UPDATEPROCCACHE;
 
@@ -1075,7 +1083,19 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
                             fuse_req_ctx (req)->gid,
                             fuse_req_ctx (req)->pid);
 
+
+ if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
+   sprintf (ifullpath, "/%s", name);
+ else
+   sprintf (ifullpath, "%s/%s", parentpath, name);
+
+ ino = me.fs ().inode (ifullpath);
+
  me.fs ().dir_cache_forget ((unsigned long long) parent);
+
+
+ if (ino)
+   me.fs ().forget_p2i ((unsigned long long) ino);
 
  if (!retc)
    fuse_reply_err (req, 0);

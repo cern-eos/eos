@@ -66,7 +66,7 @@ SpaceQuota::SpaceQuota(const char* path):
     try
     {
       quotadir = gOFS->eosView->createContainer(path, true);
-      quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+      quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
       gOFS->eosView->updateContainerStore(quotadir.get());
     }
     catch (eos::MDException& e)

@@ -526,7 +526,13 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   mFlags = flags;
   mMode = mode;
   mOpaque = opaque;
-
+  
+  if (buf)
+    Utimes(buf);
+  
+  if (buf)
+    mSize = buf->st_size;
+  
   if (!doOpen)
   {
     retc = LazyOpen(path, flags, mode, opaque, buf);
@@ -554,6 +560,14 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   }
   else
   {
+    // for latency simulation purposes
+    if (getenv("EOS_FUSE_LAZY_LAG"))
+    {
+      eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG"));
+      XrdSysTimer sleeper;
+      sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG")));
+    }
+
     bool retry = true;
     XrdOucString sopaque (opaque);
 #ifdef STOPONREDIRECT
@@ -696,12 +710,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     ImportCGI(m, lasturl);
     std::string fxid = m["mgm.id"];
     mInode = strtoull(fxid.c_str(), 0, 16);
-
-    if (flags && buf)
-      Utimes(buf);
-
-    if (buf)
-      mSize = buf->st_size;
   }
 
   time_t now = time(0);
@@ -709,7 +717,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
   if (mInode && (!mCache.get()))
   {
-    if (flags & SFS_O_CREAT)
+    if ( (flags & SFS_O_CREAT) || (flags & SFS_O_TRUNC) )
     {
       gCacheAuthority[mInode].mLifeTime = 0;
       gCacheAuthority[mInode].mPartial = false;
@@ -719,8 +727,8 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       mCanCache = true;
       mCacheCreator = true;
       mSize = gCacheAuthority[mInode].mSize;
-      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu",
-                        path.c_str(), (*mCache).size(), mInode);
+      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu create=%d truncate=%d",
+                        path.c_str(), (*mCache).size(), mInode, flags & SFS_O_CREAT, flags & SFS_O_TRUNC);
     }
     else
     {
@@ -775,7 +783,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
                             XrdSfsXferSize length, bool readahead)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   return mFile->Read(offset, buffer, length, readahead);
 }
 
@@ -785,7 +797,11 @@ int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
 #ifdef XROOTD4
 int64_t LayoutWrapper::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   return mFile->ReadV(chunkList, len);
 }
 #endif
@@ -850,7 +866,11 @@ int64_t LayoutWrapper::WriteCache(XrdSfsFileOffset offset, const char* buffer,
 int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
                              XrdSfsXferSize length, bool touchMtime)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   int retc = 0;
 
   if (length > 0)
@@ -871,7 +891,11 @@ int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
 
   if (mFile->Truncate(offset))
     return -1;
@@ -888,7 +912,11 @@ int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 //------------------------------------------------------------------------------
 int LayoutWrapper::Sync()
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   return mFile->Sync();
 }
 
@@ -945,7 +973,11 @@ int LayoutWrapper::Close()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Stat(struct stat* buf)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
 
   if (mFile->Stat(buf))
     return -1;

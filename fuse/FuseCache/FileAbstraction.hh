@@ -275,6 +275,8 @@ class FileAbstraction
     void TestMaxWriteOffset(off_t offset);
     void GrabMaxWriteOffset();
 
+    void GrabUtimes();
+
     //--------------------------------------------------------------------------
     //! Set the max write offset to offset
     //--------------------------------------------------------------------------

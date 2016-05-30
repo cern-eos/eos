@@ -2990,6 +2990,7 @@ XrdFstOfsFile::DoTpcTransfer()
     error.setErrInfo(ECONNABORTED, "sync - TPC session has been closed by disconnect");
     SetTpcState(kTpcDone);
     mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by disconnect");
+    tpcIO.Close();
     return 0;
   }
 
@@ -3014,6 +3015,7 @@ XrdFstOfsFile::DoTpcTransfer()
       eos_err("msg=\"tpc transfer terminated - remote read failed\"");
       error.setErrInfo(EIO, "sync - TPC remote read failed");
       mTpcInfo.Reply(SFS_ERROR, EIO, "TPC remote read failed");
+      tpcIO.Close();
       return 0;
     }
 
@@ -3029,6 +3031,7 @@ XrdFstOfsFile::DoTpcTransfer()
         eos_err("msg=\"tpc transfer terminated - local write failed\"");
         error.setErrInfo(EIO, "sync - tpc local write failed");
         mTpcInfo.Reply(SFS_ERROR, EIO, "TPC local write failed");
+	tpcIO.Close();
         return 0;
       }
 
@@ -3042,6 +3045,7 @@ XrdFstOfsFile::DoTpcTransfer()
       eos_err("msg=\"tpc transfer invalidated during sync\"");
       error.setErrInfo(ECONNABORTED, "sync - TPC session has been closed by disconnect");
       mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by diconnect");
+      tpcIO.Close();
       return 0;
     }
   }
