@@ -122,6 +122,9 @@ echo "Build architecture:   ${ARCHITECTURE}"
 echo "Destination path:     ${DST_PATH}"
 echo "Running in directory: $(pwd)"
 
+# Exit script immediately if a command exists with a non-zero status
+set -e
+
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
