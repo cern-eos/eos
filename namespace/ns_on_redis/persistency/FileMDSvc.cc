@@ -107,7 +107,9 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
   }
 
   file = std::make_shared<FileMD>(0, this);
-  static_cast<FileMD*>(file.get())->deserialize(blob);
+  eos::Buffer ebuff;
+  ebuff.putData(blob.c_str(), blob.length());
+  static_cast<FileMD*>(file.get())->deserialize(ebuff);
   return mFileCache.put(file->getId(), file);
 }
 
@@ -137,14 +139,16 @@ std::shared_ptr<IFileMD> FileMDSvc::createFile()
 //------------------------------------------------------------------------------
 void FileMDSvc::updateStore(IFileMD* obj)
 {
-  std::string buffer;
+  eos::Buffer ebuff;
 
-  if (!dynamic_cast<FileMD*>(obj)->serialize(buffer))
+  if (!dynamic_cast<FileMD*>(obj)->serialize(ebuff))
   {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " serialization failed";
     throw e;
   }
+
+  std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
 
   try
   {

@@ -81,14 +81,20 @@ void closeNamespace(eos::IView* view)
 void PrintStatus(eos::IView* view, eos::common::LinuxStat::linux_stat_t& st1,
 		 eos::common::LinuxStat::linux_stat_t& st2,
 		 eos::common::LinuxMemConsumption::linux_mem_t& mem1,
-		 eos::common::LinuxMemConsumption::linux_mem_t& mem2, double& rate)
+		 eos::common::LinuxMemConsumption::linux_mem_t& mem2, double& rate,
+		 bool print_total = false)
 {
   XrdOucString sizestring;
   XrdOucString stdOut;
   eos::IContainerMDSvc* contSvc = view->getContainerMDSvc();
   eos::IFileMDSvc*      fileSvc = view->getFileMDSvc();
-  unsigned long long f = (unsigned long long)fileSvc->getNumFiles();
-  unsigned long long d = (unsigned long long)contSvc->getNumContainers();
+  unsigned long long f = 0, d = 0;
+
+  if (print_total)
+  {
+    f = (unsigned long long)fileSvc->getNumFiles();
+    d = (unsigned long long)contSvc->getNumContainers();
+  }
 
   char files[256];
   snprintf(files, sizeof(files) - 1, "%llu", f);
@@ -201,7 +207,6 @@ static void* RunReader(void* tconf)
   catch (eos::MDException& e)
   {
     std::cerr << "[!] Error: " << e.getMessage().str() << std::endl;
-    return 0;
   }
 
   return 0;
@@ -228,8 +233,8 @@ int main(int argc, char** argv)
   };
 
   size_t n_i = atoi(argv[3]);
-  size_t n_j = 32;
-  size_t n_k = 32;
+  size_t n_j = 64;
+  size_t n_k = 64;
   size_t n_files = atoi(argv[4]);
 
   // Create Namespace and populate dirs
@@ -356,8 +361,6 @@ int main(int argc, char** argv)
     return 2;
   }
 
-  return 0;
-
   eos::IView* view = 0;
 
   // Run a parallel consumer thread benchmark without locking
@@ -438,7 +441,7 @@ int main(int argc, char** argv)
     COMMONTIMING("read-lock-stop", &tm);
     tm.Print();
     double rate = (n_files * n_i * n_j * n_k) / tm.RealTime() * 1000.0;
-    PrintStatus(view, st[0], st[1], mem[0], mem[1], rate);
+    PrintStatus(view, st[0], st[1], mem[0], mem[1], rate, true);
   }
 
   return 0;

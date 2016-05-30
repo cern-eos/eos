@@ -180,7 +180,6 @@ void ContainerMDSvc::removeContainer(IContainerMD* obj)
     std::string sid = stringify(obj->getId());
     std::string bucket_key = getBucketKey(obj->getId());
     pRedox->hdel(bucket_key, sid);
-    // Drop the container from the parent's set of unlinked subcontainers
     pRedox->srem(constants::sSetCheckConts, sid);
   }
   catch (std::runtime_error& redis_err)

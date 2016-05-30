@@ -254,8 +254,7 @@ void FileMD::getEnv(std::string& env, bool escapeAnd)
 //------------------------------------------------------------------------------
 // Serialize the object to a std::string buffer
 //------------------------------------------------------------------------------
-bool
-FileMD::serialize(std::string& buffer)
+bool FileMD::serialize(eos::Buffer& buffer)
 {
   bool ret = true;
 
@@ -276,15 +275,14 @@ FileMD::serialize(std::string& buffer)
       ret = false;
   }
 
-  buffer.append(reinterpret_cast<const char*>(&pId),    sizeof(pId));
-  buffer.append(reinterpret_cast<const char*>(&pCTime), sizeof(pCTime));
-  buffer.append(reinterpret_cast<const char*>(&pMTime), sizeof(pMTime));
-
+  buffer.putData(&pId,          sizeof(pId));
+  buffer.putData(&pCTime,       sizeof(pCTime));
+  buffer.putData(&pMTime,       sizeof(pMTime));
   uint64_t tmp = pFlags;
   tmp <<= 48;
   tmp |= (pSize & 0x0000ffffffffffff);
-  buffer.append(reinterpret_cast<const char*>(&tmp),          sizeof(tmp));
-  buffer.append(reinterpret_cast<const char*>(&pContainerId), sizeof(pContainerId));
+  buffer.putData(&tmp,          sizeof(tmp));
+  buffer.putData(&pContainerId, sizeof(pContainerId));
 
   // Symbolic links are serialized as <name>//<link>
   std::string nameAndLink = pName;
@@ -296,48 +294,49 @@ FileMD::serialize(std::string& buffer)
   }
 
   uint16_t len = nameAndLink.length() + 1;
-  buffer.append(reinterpret_cast<const char*>(&len), sizeof(len));
-  buffer.append(nameAndLink.c_str(), len);
+  buffer.putData(&len,          sizeof(len));
+  buffer.putData(nameAndLink.c_str(), len);
   len = pLocation.size();
-  buffer.append(reinterpret_cast<const char*>(&len), sizeof(len));
+  buffer.putData(&len, sizeof(len));
   LocationVector::iterator it;
 
   for (it = pLocation.begin(); it != pLocation.end(); ++it)
   {
     location_t location = *it;
-    buffer.append(reinterpret_cast<const char*>(&location), sizeof(location_t));
+    buffer.putData(&location, sizeof(location_t));
   }
 
   len = pUnlinkedLocation.size();
-  buffer.append(reinterpret_cast<const char*>(&len), sizeof(len));
+  buffer.putData(&len, sizeof(len));
 
   for (it = pUnlinkedLocation.begin(); it != pUnlinkedLocation.end(); ++it)
   {
     location_t location = *it;
-    buffer.append(reinterpret_cast<const char*>(&location), sizeof(location_t));
+    buffer.putData(&location, sizeof(location_t));
   }
 
-  buffer.append(reinterpret_cast<const char*>(&pCUid),     sizeof(pCUid));
-  buffer.append(reinterpret_cast<const char*>(&pCGid),     sizeof(pCGid));
-  buffer.append(reinterpret_cast<const char*>(&pLayoutId), sizeof(pLayoutId));
+  buffer.putData(&pCUid,      sizeof(pCUid));
+  buffer.putData(&pCGid,      sizeof(pCGid));
+  buffer.putData(&pLayoutId, sizeof(pLayoutId));
   uint8_t size = pChecksum.getSize();
-  buffer.append(reinterpret_cast<const char*>(&size), sizeof(size));
-  buffer.append(pChecksum.getDataPtr(), size);
+  buffer.putData(&size, sizeof(size));
+  buffer.putData(pChecksum.getDataPtr(), size);
 
   // May store xattr
   if (pXAttrs.size())
   {
     uint16_t len = pXAttrs.size();
-    buffer.append(reinterpret_cast<const char*>(&len), sizeof(len));
+    buffer.putData( &len, sizeof( len ) );
+    XAttrMap::iterator it;
 
-    for(auto it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
+    for( it = pXAttrs.begin(); it != pXAttrs.end(); ++it )
     {
-      uint16_t strLen = it->first.length() + 1;
-      buffer.append(reinterpret_cast<const char*>(&strLen), sizeof(strLen));
-      buffer.append(it->first.c_str(), strLen);
-      strLen = it->second.length() + 1;
-      buffer.append(reinterpret_cast<const char*>(&strLen), sizeof(strLen));
-      buffer.append(it->second.c_str(), strLen);
+      uint16_t strLen = it->first.length()+1;
+      buffer.putData( &strLen, sizeof( strLen ) );
+      buffer.putData( it->first.c_str(), strLen );
+      strLen = it->second.length()+1;
+      buffer.putData( &strLen, sizeof( strLen ) );
+      buffer.putData( it->second.c_str(), strLen );
     }
   }
 
@@ -345,25 +344,24 @@ FileMD::serialize(std::string& buffer)
 }
 
 //------------------------------------------------------------------------------
-// Deserialize the class from a std::string buffer
+// Deserialize the class to a buffer
 //------------------------------------------------------------------------------
-void
-FileMD::deserialize(const std::string& buffer)
+void FileMD::deserialize(const eos::Buffer& buffer)
 {
   uint16_t offset = 0;
-  offset = Buffer::grabData(buffer, offset, &pId, sizeof(pId));
-  offset = Buffer::grabData(buffer, offset, &pCTime, sizeof(pCTime));
-  offset = Buffer::grabData(buffer, offset, &pMTime, sizeof(pMTime));
+  offset = buffer.grabData(offset, &pId,          sizeof(pId));
+  offset = buffer.grabData(offset, &pCTime,       sizeof(pCTime));
+  offset = buffer.grabData(offset, &pMTime,       sizeof(pMTime));
   uint64_t tmp;
-  offset = Buffer::grabData(buffer, offset, &tmp, sizeof(tmp));
+  offset = buffer.grabData(offset, &tmp,          sizeof(tmp));
   pSize = tmp & 0x0000ffffffffffff;
   tmp >>= 48;
   pFlags = tmp & 0x000000000000ffff;
-  offset = Buffer::grabData(buffer, offset, &pContainerId, sizeof(pContainerId));
+  offset = buffer.grabData(offset, &pContainerId, sizeof(pContainerId));
   uint16_t len = 0;
-  offset = Buffer::grabData(buffer, offset, &len, 2);
+  offset = buffer.grabData(offset, &len, 2);
   char strBuffer[len];
-  offset = Buffer::grabData(buffer, offset, strBuffer, len);
+  offset = buffer.grabData(offset, strBuffer, len);
   pName = strBuffer;
 
   // Possibly extract symbolic link
@@ -375,31 +373,31 @@ FileMD::deserialize(const std::string& buffer)
     pName.erase(link_pos);
   }
 
-  offset = Buffer::grabData(buffer, offset, &len, 2);
+  offset = buffer.grabData(offset, &len, 2);
 
   for (uint16_t i = 0; i < len; ++i)
   {
     location_t location;
-    offset = Buffer::grabData(buffer, offset, &location, sizeof(location_t));
+    offset = buffer.grabData(offset, &location, sizeof(location_t));
     pLocation.push_back(location);
   }
 
-  offset = Buffer::grabData(buffer, offset, &len, 2);
+  offset = buffer.grabData(offset, &len, 2);
 
   for (uint16_t i = 0; i < len; ++i)
   {
     location_t location;
-    offset = Buffer::grabData(buffer, offset, &location, sizeof(location_t));
+    offset = buffer.grabData(offset, &location, sizeof(location_t));
     pUnlinkedLocation.push_back(location);
   }
 
-  offset = Buffer::grabData(buffer, offset, &pCUid, sizeof(pCUid));
-  offset = Buffer::grabData(buffer, offset, &pCGid, sizeof(pCGid));
-  offset = Buffer::grabData(buffer, offset, &pLayoutId, sizeof(pLayoutId));
+  offset = buffer.grabData(offset, &pCUid,      sizeof(pCUid));
+  offset = buffer.grabData(offset, &pCGid,      sizeof(pCGid));
+  offset = buffer.grabData(offset, &pLayoutId, sizeof(pLayoutId));
   uint8_t size = 0;
-  offset = Buffer::grabData(buffer, offset, &size, sizeof(size));
+  offset = buffer.grabData(offset, &size, sizeof(size));
   pChecksum.resize(size);
-  offset = Buffer::grabData(buffer, offset, pChecksum.getDataPtr(), size);
+  offset = buffer.grabData(offset, pChecksum.getDataPtr(), size);
 
   if ((buffer.size() - offset) >= 4)
   {
@@ -407,17 +405,17 @@ FileMD::deserialize(const std::string& buffer)
     uint16_t len1 = 0;
     uint16_t len2 = 0;
     uint16_t len = 0;
-    offset = Buffer::grabData(buffer, offset, &len, sizeof(len));
+    offset = buffer.grabData( offset, &len, sizeof( len ) );
 
-    for(uint16_t i = 0; i < len; ++i)
+    for( uint16_t i = 0; i < len; ++i )
     {
-      offset = Buffer::grabData(buffer, offset, &len1, sizeof(len1));
+      offset = buffer.grabData( offset, &len1, sizeof( len1 ) );
       char strBuffer1[len1];
-      offset = Buffer::grabData(buffer, offset, strBuffer1, len1);
-      offset = Buffer::grabData(buffer, offset, &len2, sizeof(len2));
+      offset = buffer.grabData( offset, strBuffer1, len1 );
+      offset = buffer.grabData( offset, &len2, sizeof( len2 ) );
       char strBuffer2[len2];
-      offset = Buffer::grabData(buffer, offset, strBuffer2, len2);
-      pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
+      offset = buffer.grabData( offset, strBuffer2, len2 );
+      pXAttrs.insert( std::make_pair <char*, char*>( strBuffer1, strBuffer2 ) );
     }
   }
 }
