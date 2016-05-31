@@ -756,7 +756,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset, char* buffer,
       while (len >= mStripeWidth)
       {
         nread = mStripeWidth;
-        map_all_errors.insert(std::make_pair<off_t, size_t > (offset, nread));
+        map_all_errors.insert(std::make_pair(offset, nread));
 
         if (offset % mSizeGroup == 0)
         {

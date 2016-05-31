@@ -54,6 +54,9 @@
 #include <zlib.h>
 #include <openssl/sha.h>
 
+// Where do these macros come from? Only in el-7.
+#undef max
+#undef min
 
 #ifdef __APPLE__
 #define ECOMM 70
