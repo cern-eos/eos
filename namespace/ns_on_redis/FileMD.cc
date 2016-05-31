@@ -1,6 +1,6 @@
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2015 CERN/Switzerland                                  *
+ * Copyright (C) 2016 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -138,14 +138,12 @@ void FileMD::removeLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::removeAllLocations()
 {
-  // TODO: use srem interface that takes a vector as input to save on RTT
   std::vector<location_t>::reverse_iterator it;
 
   while ((it = pUnlinkedLocation.rbegin()) != pUnlinkedLocation.rend())
   {
     pUnlinkedLocation.pop_back();
-    IFileMDChangeListener::Event e(this,
-				   IFileMDChangeListener::LocationRemoved,
+    IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationRemoved,
 				   *it);
     pFileMDSvc->notifyListeners(&e);
   }
@@ -162,8 +160,7 @@ void FileMD::unlinkLocation(location_t location)
     {
       pUnlinkedLocation.push_back(*it);
       pLocation.erase(it);
-      IFileMDChangeListener::Event e(this,
-				     IFileMDChangeListener::LocationUnlinked,
+      IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationUnlinked,
 				     location);
       pFileMDSvc->notifyListeners(&e);
       return;
@@ -176,7 +173,6 @@ void FileMD::unlinkLocation(location_t location)
 //------------------------------------------------------------------------------
 void FileMD::unlinkAllLocations()
 {
-  // TODO: use srem interface that takes a vector as input to save on RTT
   std::vector<location_t>::reverse_iterator it;
 
   while ((it = pLocation.rbegin()) != pLocation.rend())
