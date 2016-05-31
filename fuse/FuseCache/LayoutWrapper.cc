@@ -564,11 +564,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   else
   {
     // for latency simulation purposes
-    if (getenv("EOS_FUSE_LAZY_LAG"))
+    if (getenv("EOS_FUSE_LAZY_LAG_OPEN") && mFlags)
     {
-      eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG"));
+      eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG_OPEN"));
       XrdSysTimer sleeper;
-      sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG")));
+      sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG_OPEN")));
     }
 
     bool retry = true;
@@ -931,6 +931,14 @@ int LayoutWrapper::Close()
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("closing file %s ", mPath.c_str());;
 
+  // for latency simulation purposes
+  if (getenv("EOS_FUSE_LAZY_LAG_CLOSE") && mFlags)
+  {
+    eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG_CLOSE"));
+    XrdSysTimer sleeper;
+    sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG_CLOSE")));
+  }
+  
   mClose = true;
 
   if (!mOpen)
