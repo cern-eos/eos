@@ -1811,7 +1811,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    stbuf->f_files = a4;
    stbuf->f_ffree = a2;
    stbuf->f_fsid = 0xcafe;
-   stbuf->f_namemax = 256;
+   stbuf->f_namemax = 1024;
    statmutex.UnLock ();
    return errno;
  }
@@ -1879,6 +1879,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    stbuf->f_bavail = a1 / 4096;
    stbuf->f_files = a4;
    stbuf->f_ffree = a2;
+   stbuf->f_namemax = 1024;
  }
  else
  {
