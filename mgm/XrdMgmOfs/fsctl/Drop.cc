@@ -152,6 +152,13 @@
           }
 
           gOFS->eosView->removeFile(fmd);
+
+	  if (container)
+	  {
+	    container->setMTimeNow();
+	    gOFS->eosView->updateContainerStore(container);
+	    container->notifyMTimeChange( gOFS->eosDirectoryService );
+	  }
         }
       }
       catch (...)
