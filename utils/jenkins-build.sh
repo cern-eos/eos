@@ -159,7 +159,7 @@ echo -e '"""' >> eos.cfg
 mock --yum --verbose --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine')
+BRANCH_LIST=('aquamarine' 'citrine' 'emerald')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
