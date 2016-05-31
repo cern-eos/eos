@@ -7,6 +7,15 @@
 Beryl Release Notes
 ===================
 
+``V0.3.183 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix lock bug visible since 0.3.182 in the WriteBack cache as a dead-lock (responsible for many previous changes) 
+- FUSE: close inconsistent mtime window present during release file (vim editor problem)
+ 
 ``V0.3.182 Aquamarine``
 +++++++++++++++++++++++
 
