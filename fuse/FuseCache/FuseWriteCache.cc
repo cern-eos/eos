@@ -291,7 +291,6 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
 void
 FuseWriteCache::ForceWrite()
 {
-  XrdSysMutexHelper lock(mMapLock);
   auto iStart = mKeyEntryMap.begin();
   auto iEnd = mKeyEntryMap.end();
   CacheEntry* pEntry = iStart->second;
