@@ -148,8 +148,13 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 # Prepare the mock configuration
 cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/${XROOTD_TAG}/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
 
-# Build the RPMs
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
+## Build the RPMs (with yum repo rpms)
+#mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
+# Build the RPMs (without yum repo rpms)
+mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
+
+
+
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine')
