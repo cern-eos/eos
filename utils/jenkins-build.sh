@@ -139,7 +139,7 @@ ${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
 # Build the source RPM
-rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" --define "yumrpm 1" -ts eos-*.tar.gz
+rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-*.tar.gz
 # Move the source RPM
 mv rpmbuild/SRPMS/eos-*.src.rpm .
 
@@ -149,7 +149,7 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/${XROOTD_TAG}/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
 
 # Build the RPMs
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
+mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine')
