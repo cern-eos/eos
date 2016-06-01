@@ -1659,9 +1659,13 @@ XrdFstOfsFile::verifychecksum ()
                fMd->fMd.checksum().c_str());
       std::string calculatedchecksum = checkSum->GetHexChecksum();
 
-      if (calculatedchecksum != fMd->fMd.checksum().c_str())
+      // we might fetch an unitialized value, so that is not to be considered a checksum error yet
+      if (fMd->fMd.checksum() != "none")
       {
-        checksumerror = true;
+	if (calculatedchecksum != fMd->fMd.checksum().c_str())
+	{
+	  checksumerror = true;
+	}
       }
     }
   }

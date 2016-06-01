@@ -386,6 +386,7 @@ LayoutWrapper::Restore()
   {
     XrdSysMutexHelper l(gCacheAuthorityMutex);
     
+    // the file could have been unlinked in the meanwhile or could exceed our local cache size, so no need/way to restore
     if (!mCanCache || (!gCacheAuthority.count(mInode)) || gCacheAuthority[mInode].mPartial)
     {
       eos_static_warning("unable to restore inode=%lu size=%llu partial=%d lifetime=%lu", mInode, gCacheAuthority[mInode].mSize, gCacheAuthority[mInode].mPartial, gCacheAuthority[mInode].mSize);
@@ -948,12 +949,20 @@ int LayoutWrapper::Close()
   {
     // define expiration of owner lifetime from close on
     XrdSysMutexHelper l(gCacheAuthorityMutex);
-    time_t now = time(0);
-    time_t expire = now + gCacheAuthority[mInode].mOwnerLifeTime;
-    gCacheAuthority[mInode].mLifeTime = expire;
-    eos_static_notice("define expiry of  cap owner-authority for file "
-                      "inode=%lu tst=%lu lifetime=%lu", mInode, expire,
-                      gCacheAuthority[mInode].mOwnerLifeTime);
+    if (!gCacheAuthority.count(mInode))
+    {
+      // this file could have been unlinked in the meanwhile, so we don't want to restore it 'by mistake'
+      mCanCache = false;
+    }
+    else
+    {
+      time_t now = time(0);
+      time_t expire = now + gCacheAuthority[mInode].mOwnerLifeTime;
+      gCacheAuthority[mInode].mLifeTime = expire;
+      eos_static_notice("define expiry of  cap owner-authority for file "
+			"inode=%lu tst=%lu lifetime=%lu", mInode, expire,
+			gCacheAuthority[mInode].mOwnerLifeTime);
+    }
   }
 
   int retc = 0; 
@@ -968,7 +977,8 @@ int LayoutWrapper::Close()
     eos_static_debug("successfully closed");
     retc = 0;
   }
-  if ( ((mFlags & O_RDWR) || (mFlags & O_WRONLY)) && (retc || mRestore))
+
+  if ( ((mFlags & O_RDWR) || (mFlags & O_WRONLY)) && (retc || mRestore) )
   {
     if (Restore())
       retc = 0;
