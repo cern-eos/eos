@@ -139,7 +139,7 @@ ${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
 # Build the source RPM
-rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-*.tar.gz
+rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" --define "yumrpm 1" -ts eos-*.tar.gz
 # Move the source RPM
 mv rpmbuild/SRPMS/eos-*.src.rpm .
 
