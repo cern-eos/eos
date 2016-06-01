@@ -1788,7 +1788,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
                            fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
  if (retc)
-   fuse_reply_err (req, ENODATA);
+   fuse_reply_err (req, ENOATTR);
  else
  {
    if (init_size)
@@ -1824,6 +1824,7 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  eos_static_debug ("");
 
  XrdOucString xa = xattr_name;
+ XrdOucString xv = xattr_value;
 
  // exclude security attributes                                                                                                                                                                                                                              
  if (xa.beginswith("security."))
@@ -1838,6 +1839,11 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
    return;
  }
 
+ if (!xv.length())
+ {
+   // TODO this is a workaround to get the APPLE finder working which wants to set empty values - needs a server side fix
+   xv ="\"\"";
+ }
  EosFuse& me = instance ();
 
  // concurrency monitor
@@ -1866,7 +1872,7 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  eos_static_debug ("inode=%lld path=%s",
                    (long long) ino, fullpath.c_str ());
 
- retc = me.fs ().setxattr (fullpath.c_str (), xattr_name, xattr_value, size,
+ retc = me.fs ().setxattr (fullpath.c_str (), xattr_name, xv.c_str(), size,
                            fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
  eos_static_debug ("setxattr_retc=%i", retc);
  fuse_reply_err (req, retc);
