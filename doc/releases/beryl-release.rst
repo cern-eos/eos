@@ -7,6 +7,18 @@
 Beryl Release Notes
 ===================
 
+``V0.3.184 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: report 1k as maximum file name length in statvfs
+- FUSE: don't trigger recovery if a file is deleted before it is actually written
+- MGM: update directory mtime when a replica drop leads to a file remove
+- FST: don't give a checksum error if a not yet fully created file is read by a second FUSE client 
+
+Bug Fix
++++++++
+
+
 ``V0.3.183 Aquamarine``
 +++++++++++++++++++++++
 
