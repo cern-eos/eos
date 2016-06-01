@@ -57,7 +57,7 @@ function getLocalBranchAndDistTag()
 
   local BRANCH_OR_TAG=${1}
   local PLATORM=${2}
-  local TAG_REGEX="^[04]+\..*$"
+  local TAG_REGEX="^[034]+\..*$"
   local TAG_REGEX_AQUAMARINE="^0.3.*$"
   local TAG_REGEX_EMERALD="^3.*$"
   local TAG_REGEX_CITRINE="^4.*$"
@@ -156,7 +156,7 @@ fi
 echo -e '"""' >> eos.cfg
 
 # Build the RPMs
-mock --yum --verbose --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
+mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine' 'emerald')
