@@ -122,7 +122,6 @@ com_fuse (char* arg1)
      }
    }
 
-
    if (stat(mountpoint.c_str(), &buf))
    {
      fprintf(stderr, "error: cannot create mountpoint %s !\n", mountpoint.c_str());
@@ -139,7 +138,7 @@ com_fuse (char* arg1)
 
 
 #ifdef __APPLE__
-   params += ",noappledouble,defer_permissions,noapplexattr,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
+   params += ",noapplexattr,noappledouble,defer_permissions,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
 #endif
 
    params += ",url=";
@@ -264,7 +263,7 @@ com_fuse (char* arg1)
    {
      env += " EOS_FUSE_NO_MT";
      env += getenv("EOS_FUSE_NO_MT");
-     if (!strcmp("0", getenv("EOS_FUSE_NO_MT")))
+     if (!strcmp("1", getenv("EOS_FUSE_NO_MT")))
        mt=false;
    }
    else
@@ -333,10 +332,21 @@ com_fuse (char* arg1)
    int rc = system(mount.c_str());
    if (WEXITSTATUS(rc))
    {
-     fprintf(stderr, "error: failed mount, check log for details\n");
+     fprintf(stderr, "error: failed mount, maybe still mounted? Check with df and eventually 'killall eosd'\n");
      exit(-1);
    }
-   
+
+#ifdef __APPLE__
+   size_t cnt=5;
+   for (cnt=5; cnt>0; cnt--) 
+   {
+     fprintf(stderr,"\r[wait] %ds ...", cnt);
+     fflush(stderr);
+     sleep(1);
+   }
+   fprintf(stderr,"\n");
+#endif
+
    bool mountok = false;
 
    // Keep checking for 5 seconds
@@ -345,6 +355,10 @@ com_fuse (char* arg1)
      if (stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino) )
      {
        usleep(100000);
+       if (i && (! (i%10)))
+       {
+	 fprintf(stderr,"[check] %d. time for mount ...\n", i/10);
+       }
      }
      else
      {
@@ -355,9 +369,12 @@ com_fuse (char* arg1)
 
    if (!mountok)
    {
-     fprintf(stderr, "error: failed mount at %s, check log for details\n",
-             mountpoint.c_str());
+     fprintf(stderr, "error: failed mount, maybe still mounted? Check with df and eventually 'killall eosd'\n");
      exit(-1);
+   }
+   else
+   {
+     fprintf(stderr,"info: successfully mounted EOS [%s] under %s\n", serveruri.c_str(), mountpoint.c_str());
    }
  }
 
@@ -383,7 +400,8 @@ com_fuse (char* arg1)
 
    XrdOucString umount;
 #ifdef __APPLE__
-   umount = "killall eosd";
+   umount = "umount ";
+   umount += mountpoint.c_str();
    umount += " >& /dev/null";
 #else
    umount = "fusermount -z -u ";
@@ -393,7 +411,7 @@ com_fuse (char* arg1)
    int rc = system(umount.c_str());
    if (WEXITSTATUS(rc))
    {
-     fprintf(stderr, "error: umount failed\n");
+     fprintf(stderr, "error: umount failed - maybe wasn't mounted?\n");
    }
    if ((stat(mountpoint.c_str(), &buf2)))
    {
