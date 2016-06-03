@@ -984,11 +984,13 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  UPDATEPROCCACHE;
 
+#ifndef __APPLE__
  if (me.fs ().is_toplevel_rm (fuse_req_ctx (req)->pid, me.config.mount_point.c_str ()) == 1)
  {
    fuse_reply_err (req, EPERM);
    return;
  }
+#endif
 
  me.fs ().lock_r_p2i (); // =>
  parentpath = me.fs ().path ((unsigned long long) parent);
@@ -1890,6 +1892,9 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
 
+ static XrdSysMutex lListCacheMutex;
+ static std::map<fuse_ino_t, std::pair<size_t, char*>> lListCache;
+
  EosFuse& me = instance ();
 
  // concurrency monitor
@@ -1901,6 +1906,34 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
  const char* name = NULL;
 
  UPDATEPROCCACHE;
+
+ char* xattr_list = NULL;
+
+ if (init_size)
+ {
+   XrdSysMutexHelper cLock(lListCacheMutex);
+   if (lListCache.count(ino))
+   {
+     size = lListCache[ino].first;
+     xattr_list = lListCache[ino].second;
+     lListCache.erase(ino);
+   
+     if (init_size < size)
+       fuse_reply_err (req, ERANGE);
+     else
+       fuse_reply_buf (req, xattr_list, size );
+     
+     if (xattr_list)
+     {
+       free (xattr_list);
+       eos_static_debug("free=%x", xattr_list);
+     }
+
+     return;
+   }
+ }
+
+
 
  me.fs ().lock_r_p2i (); // =>
  name = me.fs ().path ((unsigned long long) ino);
@@ -1919,27 +1952,34 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
  eos_static_debug ("inode=%lld path=%s",
                    (long long) ino, fullpath.c_str ());
 
- char* xattr_list = NULL;
  retc = me.fs ().listxattr (fullpath.c_str (), &xattr_list, &size, fuse_req_ctx (req)->uid,
                             fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
+ eos_static_debug("retc=%d init-size=%d size=%d", retc, init_size, size);
  if (retc)
    fuse_reply_err (req, retc);
  else
  {
+   eos_static_debug("alloc=%x", xattr_list);
+   XrdSysMutexHelper cLock(lListCacheMutex);
    if (init_size)
    {
      if (init_size < size)
        fuse_reply_err (req, ERANGE);
      else
-       fuse_reply_buf (req, xattr_list, size + 1);
-   }
-   else
-     fuse_reply_xattr (req, size);
- }
+       fuse_reply_buf (req, xattr_list, size);
 
- if (xattr_list)
-   free (xattr_list);
+     if (xattr_list) {
+       free (xattr_list);
+       eos_static_debug("free=%x", xattr_list);
+     }
+   }
+   else 
+   {
+     lListCache[ino] = std::make_pair(size,xattr_list);
+     fuse_reply_xattr (req, size);
+   }
+ }
 
  COMMONTIMING ("_stop_", &timing);
 
