@@ -7,6 +7,13 @@
 Beryl Release Notes
 ===================
 
+``V0.3.185 Aquamarine``
++++++++++++++++++++++++
+
+- FST: correct error codes in eoscp to flag target errors in tranfser queue jobs
+- MGM: allow 'xrd.*' to be present in proc commands (used by FUSE repair)
+
+
 ``V0.3.184 Aquamarine``
 +++++++++++++++++++++++
 
