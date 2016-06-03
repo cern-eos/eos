@@ -18,14 +18,10 @@
 
 #include "namespace/ns_on_redis/accounting/FileSystemView.hh"
 #include "namespace/ns_on_redis/FileMD.hh"
+#include "namespace/ns_on_redis/Constants.hh"
 #include <iostream>
 
 EOSNSNAMESPACE_BEGIN
-
-const std::string FileSystemView::sSetFsIds = "fsview_set_fsid";
-const std::string FileSystemView::sFilesSuffix = ":fsview_files";
-const std::string FileSystemView::sUnlinkedSuffix = ":fsview_unlinked";
-const std::string FileSystemView::sNoReplicaPrefix = "fsview_noreplicas";
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -47,66 +43,66 @@ void FileSystemView::fileMDChanged(IFileMDChangeListener::Event *e)
   {
     // New file has been created
     case IFileMDChangeListener::Created:
-      pRedox->sadd(sNoReplicaPrefix, file->getId(), file->mWrapperCb());
+      pRedox->sadd(fsview::sNoReplicaPrefix, file->getId(), file->mWrapperCb());
       break;
 
     // File has been deleted
     case IFileMDChangeListener::Deleted:
       // Note: for this type oc action we only have the file id
-      pRedox->srem(sNoReplicaPrefix, e->fileId);
+      pRedox->srem(fsview::sNoReplicaPrefix, e->fileId);
       break;
 
     // Add location
     case IFileMDChangeListener::LocationAdded:
       val = std::to_string(e->location);
-      pRedox->sadd(sSetFsIds, val, file->mWrapperCb());
-      key = val + sFilesSuffix;
+      pRedox->sadd(fsview::sSetFsIds, val, file->mWrapperCb());
+      key = val + fsview::sFilesSuffix;
       val = std::to_string(file->getId());
       pRedox->sadd(key, val, file->mWrapperCb());
-      pRedox->srem(sNoReplicaPrefix, val, file->mWrapperCb());
+      pRedox->srem(fsview::sNoReplicaPrefix, val, file->mWrapperCb());
       break;
 
     // Replace location
     case IFileMDChangeListener::LocationReplaced:
-      key = std::to_string(e->oldLocation)+ sFilesSuffix;
+      key = std::to_string(e->oldLocation)+ fsview::sFilesSuffix;
       val = std::to_string(file->getId());
       pRedox->srem(key, val, file->mWrapperCb());
-      key = std::to_string(e->location) + sFilesSuffix;
+      key = std::to_string(e->location) + fsview::sFilesSuffix;
       pRedox->sadd(key, val, file->mWrapperCb());
       break;
 
     // Remove location
     case IFileMDChangeListener::LocationRemoved:
-      key = std::to_string(e->location) + sUnlinkedSuffix;
+      key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
       val = std::to_string(file->getId());
       file->SetConsistent(false);
       pRedox->srem(key, val);
 
       if(!e->file->getNumUnlinkedLocation() && !e->file->getNumLocation())
-	pRedox->sadd(sNoReplicaPrefix, val, file->mWrapperCb());
+	pRedox->sadd(fsview::sNoReplicaPrefix, val, file->mWrapperCb());
 
       // Cleanup fsid if it doesn't hold any files anymore
-      key = std::to_string(e->location) + sFilesSuffix;
+      key = std::to_string(e->location) + fsview::sFilesSuffix;
 
       if (!pRedox->exists(key))
       {
-	key = std::to_string(e->location) + sUnlinkedSuffix;
+	key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
 
 	if (!pRedox->exists(key))
 	{
 	  // FS does not hold any file replicas or unlinked ones, remove it
 	  key = std::to_string(e->location);
-	  pRedox->srem(sSetFsIds, key);
+	  pRedox->srem(fsview::sSetFsIds, key);
 	}
       }
       break;
 
     // Unlink location
     case IFileMDChangeListener::LocationUnlinked:
-      key = std::to_string(e->location) + sFilesSuffix;
+      key = std::to_string(e->location) + fsview::sFilesSuffix;
       val = std::to_string(e->file->getId());
       pRedox->srem(key, val, file->mWrapperCb());
-      key = std::to_string(e->location) + sUnlinkedSuffix;
+      key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
       pRedox->sadd(key, val, file->mWrapperCb());
       break;
 
@@ -154,15 +150,15 @@ FileSystemView::fileMDCheck(IFileMD* file)
   // If file has no replicas make sure it's accounted for
   if (has_no_replicas)
   {
-    pRedox->sadd(sNoReplicaPrefix, file->getId(), wrapper_cb());
+    pRedox->sadd(fsview::sNoReplicaPrefix, file->getId(), wrapper_cb());
   }
   else
   {
-    pRedox->srem(sNoReplicaPrefix, file->getId(), wrapper_cb());
+    pRedox->srem(fsview::sNoReplicaPrefix, file->getId(), wrapper_cb());
   }
 
   do {
-    reply = pRedox->sscan(sSetFsIds, cursor);
+    reply = pRedox->sscan(fsview::sSetFsIds, cursor);
     cursor = reply.first;
     IFileMD::id_t fsid;
 
@@ -171,7 +167,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
       fsid = std::stoull(sfsid);
 
       // Deal with the fs replica set
-      key = sfsid + sFilesSuffix;
+      key = sfsid + fsview::sFilesSuffix;
 
       if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
 	  replica_locs.end())
@@ -184,7 +180,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
       }
 
       // Deal with the fs unlinked set
-      key = sfsid + sUnlinkedSuffix;
+      key = sfsid + fsview::sUnlinkedSuffix;
 
       if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
 	       unlink_locs.end())
@@ -215,7 +211,7 @@ FileSystemView::fileMDCheck(IFileMD* file)
 IFsView::FileList
 FileSystemView::getFileList(IFileMD::location_t location)
 {
-  std::string key = std::to_string(location) + sFilesSuffix;
+  std::string key = std::to_string(location) + fsview::sFilesSuffix;
   IFsView::FileList set_files;
   std::pair<long long, std::vector<std::string>> reply;
   long long cursor = 0, count = 10000;
@@ -239,7 +235,7 @@ FileSystemView::getFileList(IFileMD::location_t location)
 IFsView::FileList
 FileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = std::to_string(location) + sUnlinkedSuffix;
+  std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
   IFsView::FileList set_unlinked;
   std::pair<long long, std::vector<std::string>> reply;
   long long cursor = 0, count = 10000;
@@ -268,7 +264,7 @@ IFsView::FileList FileSystemView::getNoReplicasFileList()
 
   do
   {
-    reply = pRedox->sscan(sNoReplicaPrefix, cursor, count);
+    reply = pRedox->sscan(fsview::sNoReplicaPrefix, cursor, count);
     cursor = reply.first;
 
     for (const auto&  elem: reply.second)
@@ -285,7 +281,7 @@ IFsView::FileList FileSystemView::getNoReplicasFileList()
 bool
 FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  std::string key = std::to_string(location) + sUnlinkedSuffix;
+  std::string key = std::to_string(location) + fsview::sUnlinkedSuffix;
   return pRedox->del(key);
 }
 
@@ -296,7 +292,7 @@ size_t FileSystemView::getNumFileSystems()
 {
   try
   {
-    return (size_t) pRedox->scard(sSetFsIds);
+    return (size_t) pRedox->scard(fsview::sSetFsIds);
   }
   catch (std::runtime_error &e)
   {

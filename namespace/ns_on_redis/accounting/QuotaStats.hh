@@ -64,6 +64,9 @@ class QuotaStats;
 //------------------------------------------------------------------------------
 class QuotaNode: public IQuotaNode
 {
+  friend class ConvertContainerMDSvc;
+  friend class ConvertFileMDSvc;
+
  public:
 
   //----------------------------------------------------------------------------
@@ -194,6 +197,8 @@ private:
 class QuotaStats: public IQuotaStats
 {
   friend class QuotaNode;
+  friend class ConvertContainerMDSvc;
+  friend class ConvertFileMDSvc;
 
  public:
   //----------------------------------------------------------------------------

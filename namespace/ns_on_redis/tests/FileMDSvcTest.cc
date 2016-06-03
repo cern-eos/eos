@@ -25,6 +25,7 @@
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_on_redis/views/HierarchicalView.hh"
+#include "namespace/ns_on_redis/Constants.hh"
 #include <memory>
 // Hack to expose all members of FileSystemView to this test unit
 #define private public
@@ -157,33 +158,33 @@ void FileMDSvcTest::checkFileTest()
   std::string key;
   redox::Redox* redox = eos::RedisClient::getInstance
     (config["redis_host"], std::stoi(config["redis_port"]));
-  key = "1" + eos::FileSystemView::sFilesSuffix;
+  key = "1" + eos::fsview::sFilesSuffix;
   CPPUNIT_ASSERT(redox->srem(key, sfid));
-  key = "4" + eos::FileSystemView::sUnlinkedSuffix;
+  key = "4" + eos::fsview::sUnlinkedSuffix;
   CPPUNIT_ASSERT(redox->srem(key, sfid));
-  key = eos::FileSystemView::sNoReplicaPrefix;
+  key = eos::fsview::sNoReplicaPrefix;
   CPPUNIT_ASSERT(redox->sadd(key, sfid));
-  key = "5" + eos::FileSystemView::sFilesSuffix;
+  key = "5" + eos::fsview::sFilesSuffix;
   CPPUNIT_ASSERT(redox->sadd(key, sfid));
   // Need to add fsid by hand
-  CPPUNIT_ASSERT(redox->sadd(eos::FileSystemView::sSetFsIds, "5"));
+  CPPUNIT_ASSERT(redox->sadd(eos::fsview::sSetFsIds, "5"));
 
   // Introduce file in the set to be checked and trigger a check
   CPPUNIT_ASSERT_NO_THROW(redox->sadd(eos::constants::sSetCheckFiles, sfid));
   CPPUNIT_ASSERT(fileSvc->checkFiles());
 
   // Check that the back-end KV store is consistent
-  key = "1" + eos::FileSystemView::sFilesSuffix;
+  key = "1" + eos::fsview::sFilesSuffix;
   CPPUNIT_ASSERT(redox->sismember(key, sfid));
-  key = "2" + eos::FileSystemView::sFilesSuffix;
+  key = "2" + eos::fsview::sFilesSuffix;
   CPPUNIT_ASSERT(redox->sismember(key, sfid));
-  key = "5" + eos::FileSystemView::sFilesSuffix;
+  key = "5" + eos::fsview::sFilesSuffix;
   CPPUNIT_ASSERT(!redox->sismember(key, sfid));
-  key = "3" + eos::FileSystemView::sUnlinkedSuffix;
+  key = "3" + eos::fsview::sUnlinkedSuffix;
   CPPUNIT_ASSERT(redox->sismember(key, sfid));
-  key = "4" + eos::FileSystemView::sUnlinkedSuffix;
+  key = "4" + eos::fsview::sUnlinkedSuffix;
   CPPUNIT_ASSERT(redox->sismember(key, sfid));
-  key = eos::FileSystemView::sNoReplicaPrefix;
+  key = eos::fsview::sNoReplicaPrefix;
   CPPUNIT_ASSERT(redox->scard(key) == 0);
   file->unlinkAllLocations();
   file->removeAllLocations();

@@ -17,8 +17,8 @@
  ************************************************************************/
 
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   User quota accounting
+// @author Elvin-Alin Sindrilaru <esindril@cern.ch>
+// @brief User quota accounting
 //------------------------------------------------------------------------------
 
 #include "namespace/interface/IContainerMD.hh"

@@ -145,13 +145,6 @@ class FileSystemView: public IFsView
  private:
 
   redox::Redox* pRedox; ///< Redix C++ client
-  //! Set suffix for file ids on a fs
-  static const std::string sFilesSuffix;
-  //! Set suffix for unlinked file ids on a fs
-  static const std::string sUnlinkedSuffix;
-  //! Set suffix for file ids with no replicas
-  static const std::string sNoReplicaPrefix;
-  static const std::string sSetFsIds; ///< Set of FS ids in use
 };
 
 EOSNSNAMESPACE_END
