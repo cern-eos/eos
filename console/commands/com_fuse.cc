@@ -138,7 +138,7 @@ com_fuse (char* arg1)
 
 
 #ifdef __APPLE__
-   params += ",noapplexattr,noappledouble,defer_permissions,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
+   params += ",noappledouble,defer_permissions,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
 #endif
 
    params += ",url=";
@@ -400,7 +400,7 @@ com_fuse (char* arg1)
 
    XrdOucString umount;
 #ifdef __APPLE__
-   umount = "umount ";
+   umount = "umount -f ";
    umount += mountpoint.c_str();
    umount += " >& /dev/null";
 #else
