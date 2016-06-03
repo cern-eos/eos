@@ -92,7 +92,7 @@ if (Linux)
     EosNsInMemory-Static PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
   target_link_libraries(
-    EosNsInMemory-Static
+    EosNsInMemory-Static PUBLIC
     EosNsCommon-Static
     ${UUID_LIBRARIES}
     ${Z_LIBRARY_STATIC}

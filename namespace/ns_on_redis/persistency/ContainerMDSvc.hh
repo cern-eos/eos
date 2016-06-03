@@ -43,7 +43,7 @@ EOSNSNAMESPACE_BEGIN
 class ContainerMD;
 
 //------------------------------------------------------------------------------
-//! Container metadata servcie based on Redis
+//! Container metadata service based on Redis
 //------------------------------------------------------------------------------
 class ContainerMDSvc: public IContainerMDSvc
 {

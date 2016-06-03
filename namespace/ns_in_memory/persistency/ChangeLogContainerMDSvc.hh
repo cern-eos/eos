@@ -52,7 +52,10 @@ class ChangeLogContainerMDSvc:
 {
   friend class ContainerMDFollower;
   friend class FileMDFollower;
- public:
+  friend class ConvertContainerMDSvc;
+
+public:
+
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------
@@ -312,8 +315,8 @@ class ChangeLogContainerMDSvc:
   };
 
   typedef google::dense_hash_map<IContainerMD::id_t, DataInfo> IdMap;
-  typedef std::list<IContainerMDChangeListener*>               ListenerList;
-  typedef std::list<std::shared_ptr<IContainerMD>>             ContainerList;
+  typedef std::list<IContainerMDChangeListener*> ListenerList;
+  typedef std::list<std::shared_ptr<IContainerMD>> ContainerList;
 
   //--------------------------------------------------------------------------
   // Changelog record scanner
@@ -345,9 +348,9 @@ class ChangeLogContainerMDSvc:
   // Recreate the container structure recursively and create the list
   // of orphans and name conflicts
   //--------------------------------------------------------------------------
-  void recreateContainer(IdMap::iterator& it,
-                         ContainerList&   orphans,
-                         ContainerList&   nameConflicts);
+  virtual void recreateContainer(IdMap::iterator& it,
+				 ContainerList&   orphans,
+				 ContainerList&   nameConflicts);
 
   //--------------------------------------------------------------------------
   // Attach broken containers to lost+found

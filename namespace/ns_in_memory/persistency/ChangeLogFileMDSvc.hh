@@ -47,6 +47,7 @@ class ChangeLogContainerMDSvc;
 class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
 {
   friend class FileMDFollower;
+  friend class ConvertFileMDSvc;
  public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -266,7 +267,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   void setQuotaStats(IQuotaStats* quota_stats);
 
   //----------------------------------------------------------------------------
-  //! Get id map reservation size                                                                                                                            
+  //! Get id map reservation size
   //----------------------------------------------------------------------------
   uint64_t getResSize() const
   {
@@ -292,7 +293,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   struct DataInfo
   {
     DataInfo(): logOffset(0), ptr((IFileMD*)0),
-                buffer(0) {} // for some reason needed by sparse_hash_map::erase
+		buffer(0) {} // for some reason needed by sparse_hash_map::erase
     DataInfo(uint64_t logOffset, std::shared_ptr<IFileMD> ptr)
     {
       this->logOffset = logOffset;
@@ -314,10 +315,10 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   {
    public:
     FileMDScanner(IdMap& idMap, bool slaveMode):
-        pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+	pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
     {}
     virtual bool processRecord(uint64_t offset, char type,
-                               const Buffer& buffer);
+			       const Buffer& buffer);
     uint64_t getLargestId() const
     {
       return pLargestId;

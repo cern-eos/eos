@@ -89,7 +89,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Add container
   //----------------------------------------------------------------------------
-  void addContainer(IContainerMD* container);
+  virtual void addContainer(IContainerMD* container);
 
   //----------------------------------------------------------------------------
   //! Remove container
@@ -112,7 +112,7 @@ class ContainerMD: public IContainerMD
   //----------------------------------------------------------------------------
   //! Add file
   //----------------------------------------------------------------------------
-  void addFile(IFileMD* file);
+  virtual void addFile(IFileMD* file);
 
   //----------------------------------------------------------------------------
   //! Remove file

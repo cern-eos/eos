@@ -118,9 +118,6 @@ std::shared_ptr<IContainerMD> ContainerMDSvc::createContainer()
   try
   {
     // Get the first free container id
-    // TODO: grab 100 ids which are put back in a list is we shut down and
-    // haven't used all or them. When a new mgm starts he first cheks this
-    // list and grabs any available ids.
     uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
 				       constants::sFirstFreeCid, 1);
     std::shared_ptr<IContainerMD> cont {
