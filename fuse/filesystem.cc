@@ -440,6 +440,11 @@ filesystem::forget_p2i (unsigned long long inode)
  }
 }
 
+
+//------------------------------------------------------------------------------
+// Redirect an inode to a new inode - repair actions change inodes, so we have two ino1,ino2=>path1 mappings
+//------------------------------------------------------------------------------
+
 void
 filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode)
 {
@@ -459,6 +464,25 @@ filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode
    //   inode2path.erase (inode);
    inode2path[new_inode] = path;
  }
+}
+
+//------------------------------------------------------------------------------
+// Redirect an inode to the latest valid inode version - due to repair actions
+//------------------------------------------------------------------------------
+
+unsigned long long
+filesystem::redirect_i2i (unsigned long long inode)
+{
+ eos::common::RWMutexReadLock rd_lock (mutex_inode_path);
+
+ return inode;
+ if (inode2path.count (inode))
+ {
+   std::string path = inode2path[inode];
+   if (path2inode.count(path))
+     return path2inode[path];
+ }
+ return inode;
 }
 
 
@@ -3354,11 +3378,19 @@ filesystem::open (const char* path,
 
          {
            eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
-           path2inode.erase (path);
-           inode2path.erase (old_ino);
-           path2inode[path] = new_ino;
-           inode2path[new_ino] = path;
-           eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	   if (inode2path.count(old_ino))
+	   {
+	     std::string ipath = inode2path[old_ino];
+	     if (path2inode.count(ipath))
+	     {
+	       if (path2inode[ipath] != new_ino)
+	       {
+		 path2inode[ipath] = new_ino;
+		 inode2path[new_ino] = ipath;
+		 eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	       }
+	     }
+	   }
          }
        }
        else
