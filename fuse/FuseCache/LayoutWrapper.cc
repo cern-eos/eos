@@ -322,7 +322,9 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   std::string fxid = m["mgm.id"];
   mOpaque += "&eos.lfn=fxid:";
   mOpaque += fxid;
-  mInode = strtoull(fxid.c_str(), 0, 16);
+
+  mInode = strtoull(fxid.c_str(), 0, 16);  
+
   std::string LazyOpaque;
   ToCGI(m, LazyOpaque);
   mLazyUrl.assign(origResponse.c_str(), qmidx);
@@ -352,8 +354,10 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
     file_path.erase(0, 1);
   }
 
-  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&eos.app=fuse&"
-                    "mgm.grab.version=-1&mgm.path=" + file_path + "&" + opaque;
+  // mgm.zzz is a workaround for a bug in the MGM which does deal properly with potential opaque info for the authentication given as xrd.*
+  // the opaque tags are sorted and mgm.zzz protects the subcmd tag which might be corrupted by the following xrd.*
+  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.zzz=ignore&eos.app=fuse&"
+                    "mgm.purge.version=-1&mgm.path=" + file_path + "&" + opaque;
   u.SetParams("");
   u.SetPath("/proc/user/");
   XrdCl::XRootDStatus status;
