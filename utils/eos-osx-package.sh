@@ -32,23 +32,26 @@ fi
 rm -rf /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/
 mkdir -p /tmp/eos.dst/usr/local/bin/
-mkdir -p /tmp/eos.dst/usr/local/opt/eos/
 
-make install DESTDIR=/tmp/eos.dst/usr/local/opt/eos/
+make install DESTDIR=/tmp/eos.dst/
 cd ${2-${HOME}/Software/xrootd-4.3.0/build/}
-make install DESTDIR=/tmp/eos.dst/usr/local/opt/eos/
+make install DESTDIR=/tmp/eos.dst/
 cd -
 
 for name in `otool -L /usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
 echo $name
 if [ -n "$name" ];  then
-  cp -v $name /tmp/eos.dst/usr/local/opt/eos/usr/local/lib/
+  dn=`dirname $name`;
+  mkdir -p /tmp/eos.dst/$dn/
+  cp -v $name /tmp/eos.dst/$name
 fi
 done
 
 # exchange the eosx script with the eos binary
+mv /tmp/eos.dst/usr/local/bin/eos /tmp/eos.dst/usr/local/bin/eos.exe
 cp -v ../utils/eosx /tmp/eos.dst/usr/local/bin/eos
-chmod 555 /tmp/eos.dst/usr/local/bin/eos
+chmod ugo+rx /tmp/eos.dst/usr/local/bin/eos
+
 pkgbuild --install-location / --version $VERSION --identifier com.eos.pkg.app --root /tmp/eos.dst EOS.pkg
 
 rm -rf dmg
