@@ -108,3 +108,23 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+
+#-------------------------------------------------------------------------------
+# convert_mem_to_kv executable
+#-------------------------------------------------------------------------------
+add_executable(
+  convert_mem_to_kv
+  ConvertMemToKV.cc
+  ${CMAKE_SOURCE_DIR}/namespace/ns_on_redis/RedisClient.cc)
+
+target_link_libraries(
+  convert_mem_to_kv
+  EosNsInMemory-Static
+  ${LIBEV_LIBRARIES}
+  ${REDOX_LIBRARIES})
+
+install(
+  TARGETS convert_mem_to_kv
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
