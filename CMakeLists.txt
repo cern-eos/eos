@@ -34,6 +34,12 @@ if (NOT CMAKE_BUILD_TYPE)
      RelWithDebInfo MinSizeRel.")
 endif ()
 
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
+endif()
+
 project (eos)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
