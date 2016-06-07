@@ -51,16 +51,17 @@ include_directories(../
 		    ${DAVIX_INCLUDE_DIR}
 )
 
-link_directories( ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
-                  ${XROOTD_LIB_DIR} )
+link_directories(
+  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}
+  ${XROOTD_LIB_DIR})
 
 add_library( EosFstOss MODULE
-	     XrdFstOss.cc           XrdFstOss.hh
-	     XrdFstOssFile.cc       XrdFstOssFile.hh
-	     checksum/CheckSum.cc   checksum/CheckSum.hh
-	     checksum/Adler.cc      checksum/Adler.hh
-	     checksum/crc32c.cc     checksum/crc32ctables.cc
-	     ../common/LayoutId.hh  )
+             XrdFstOss.cc           XrdFstOss.hh
+             XrdFstOssFile.cc       XrdFstOssFile.hh
+             checksum/CheckSum.cc   checksum/CheckSum.hh
+             checksum/Adler.cc      checksum/Adler.hh
+             checksum/crc32c.cc     checksum/crc32ctables.cc
+             ../common/LayoutId.hh  )
 
 
 target_link_libraries( EosFstOss

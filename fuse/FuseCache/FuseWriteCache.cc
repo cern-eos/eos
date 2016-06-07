@@ -118,7 +118,6 @@ FuseWriteCache::RunThreadWrites()
   while (1)
   {
     mWrReqQueue->wait_pop(pEntry);
-
     if (pEntry == 0)
       break;
     else
@@ -175,7 +174,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                          size_t len)
 {
   CacheEntry* pEntry = 0;
-  mMapLock.WriteLock(); // read lock map
+  mMapLock.ReadLock(); // read lock map
   key_entry_t::iterator it = mKeyEntryMap.find(k);
   eos_static_debug("off=%zu, len=%zu key=%lli", off, len, k);
 
@@ -193,7 +192,9 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
     if (pEntry->IsFull())
     {
       eos_static_debug("cache entry full add to writes queue");
-      mKeyEntryMap.erase(it);
+      mMapLock.UnLock();     // unlock
+      mMapLock.WriteLock();  // wr_lock map
+      mKeyEntryMap.erase(k);//mKeyEntryMap.find(k));
       mWrReqQueue->push(pEntry);
     }
 
@@ -279,7 +280,6 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
                    pEntry->GetParentFile()->GetSizeWrites(),
                    pEntry->GetSizeData(), pEntry->GetOffsetStart());
   int retc = pEntry->DoWrite();
-
   // Put error code in error queue
   if (retc == -1)
   {
@@ -288,7 +288,6 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
   }
 
   pEntry->GetParentFile()->DecrementWrites(pEntry->GetSizeData());
-
   mRecycleQueue->push(pEntry);
 }
 

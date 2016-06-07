@@ -65,8 +65,7 @@ if(MacOSX)
   set_target_properties(
     eosd
     PROPERTIES
-    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\""
-    COMPILE_FLAGS "-D__FreeBSD__=10 -D_DARWIN_USE_64_BIT_INODE -DVERSION=\\\"${VERSION}\\\"")
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"" )
 else()
 
   target_link_libraries(
@@ -97,3 +96,37 @@ install(
   DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
 	      GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ )
+
+
+if (FUSE3_FOUND)
+add_executable(
+  eosd3
+  ProcCache.cc ProcCache.hh
+  ProcCacheC.cc ProcCacheC.h
+  main.cc eosfuse.cc eosfuse.hh
+  filesystem.cc      filesystem.hh
+  FuseCacheEntry.cc  FuseCacheEntry.hh
+  AuthIdManager.cc)
+
+  target_link_libraries(
+    eosd3
+    FuseCache-Static
+    EosFstIo-Static
+    ${FUSE3_LIBRARY}
+    ${UUID_LIBRARIES}
+    ${XROOTD_CL_LIBRARY}
+    ${XROOTD_UTILS_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KRB5_LIBRARIES}
+    ${OPENSSL_CRYPTO_LIBRARY})
+
+  set_target_properties(
+    eosd3 
+    PROPERTIES
+    COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FUSE3 -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
+
+install(
+  TARGETS eosd3
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+
+endif()

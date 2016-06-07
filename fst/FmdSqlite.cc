@@ -376,7 +376,6 @@ FmdSqliteHandler::CompareMtime (const void* a, const void *b)
 bool
 FmdSqliteHandler::ReadDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString option)
 {
-  // needs the write-lock on gFmdHandler::Mutex
   eos_debug("");
 
   struct timeval tv1, tv2;
@@ -395,6 +394,9 @@ FmdSqliteHandler::ReadDBFile (eos::common::FileSystem::fsid_t fsid, XrdOucString
   query = "select * from fst";
 
   fs_callback_info_t cbinfo;
+
+  eos::common::RWMutexWriteLock lock(FmdSqliteMutexMap[fsid]);
+
   cbinfo.fsid = fsid;
   cbinfo.fmdmap = &(FmdSqliteMap[fsid]);
   // we use a specialized callback to avoid to have everything again in memory at once
@@ -432,139 +434,146 @@ FmdSqliteHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSy
     return 0;
   }
 
-  Mutex.LockRead();
+  eos::common::RWMutexReadLock lock(Mutex);
 
   if (DB.count(fsid))
   {
-    if (FmdSqliteMap.count(fsid) && FmdSqliteMap[fsid].count(fid))
+    if (FmdSqliteMap.count(fsid))
     {
-      // this is to read an existing entry
-      FmdSqlite* fmd = new FmdSqlite();
-      if (!fmd)
+      FmdSqliteMutexMap[fsid].LockRead();
+      if (FmdSqliteMap[fsid].count(fid))
       {
-        Mutex.UnLockRead();
-        return 0;
-      }
-
-      // make a copy of the current record
-      fmd->Replicate(FmdSqliteMap[fsid][fid]);
-
-      if (fmd->fMd.fid != fid)
-      {
-        // fatal this is somehow a wrong record!
-        eos_crit("unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fid);
-        delete fmd;
-        Mutex.UnLockRead();
-        return 0;
-      }
-
-      if (fmd->fMd.fsid != fsid)
-      {
-        // fatal this is somehow a wrong record!
-        eos_crit("unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fsid);
-        delete fmd;
-        Mutex.UnLockRead();
-        return 0;
-      }
-
-      // the force flag allows to retrieve 'any' value even with inconsistencies as needed by ResyncAllMgm
-
-      if (!force)
-      {
-        if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raid6") &&
-            strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raiddp") &&
-            strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "archive"))
+        // this is to read an existing entry
+        FmdSqlite* fmd = new FmdSqlite();
+        if (!fmd)
         {
-
-          // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
-          if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
-              (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize != fmd->fMd.size))))
-          {
-            eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
-            delete fmd;
-            Mutex.UnLockRead();
-            return 0;
-          }
-
-          // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
-          // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
-          if ((!isRW) && fmd->fMd.mgmsize &&
-              ((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
-              (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
-          {
-            eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
-                     "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
-                     fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
-                     fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
-
-            delete fmd;
-            Mutex.UnLockRead();
-            return 0;
-          }
+          FmdSqliteMutexMap[fsid].UnLockRead();
+          return 0;
         }
+
+	// make a copy of the current record
+	fmd->Replicate(FmdSqliteMap[fsid][fid]);
+	
+	if (fmd->fMd.fid != fid)
+	{
+	  // fatal this is somehow a wrong record!
+	  eos_crit("unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fid);
+	  delete fmd;
+	  FmdSqliteMutexMap[fsid].UnLockRead();
+	  return 0;
+	}
+
+	if (fmd->fMd.fsid != fsid)
+	{
+	  // fatal this is somehow a wrong record!
+	  eos_crit("unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fsid);
+	  delete fmd;
+	  FmdSqliteMutexMap[fsid].UnLockRead();
+	  return 0;
+	}
+
+	// the force flag allows to retrieve 'any' value even with inconsistencies as needed by ResyncAllMgm
+	
+	if (!force)
+	{
+	  if (strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raid6") &&
+	      strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "raiddp") &&
+	      strcmp(eos::common::LayoutId::GetLayoutTypeString(fmd->fMd.lid), "archive"))
+	  {
+	    // if we have a mismatch between the mgm/disk and 'ref' value in size,  we don't return the Fmd record
+	    if ((!isRW) && ((fmd->fMd.disksize && (fmd->fMd.disksize != fmd->fMd.size)) ||
+			    (fmd->fMd.mgmsize && (fmd->fMd.mgmsize != 0xfffffffffff1ULL) && (fmd->fMd.mgmsize != fmd->fMd.size))))
+	    {
+	      eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu", fid, (unsigned long) fsid, fmd->fMd.size, fmd->fMd.disksize, fmd->fMd.mgmsize);
+	      delete fmd;
+	      FmdSqliteMutexMap[fsid].UnLockRead();
+	      return 0;
+	    }
+
+	    // if we have a mismatch between the mgm/disk and 'ref' value in checksum, we don't return the Fmd record
+	    // this check we can do only if the file is !zero otherwise we don't have a checksum on disk (e.g. a touch <a> file)
+	    if ((!isRW) && fmd->fMd.mgmsize &&
+		((fmd->fMd.diskchecksum.length() && (fmd->fMd.diskchecksum != fmd->fMd.checksum)) ||
+		 (fmd->fMd.mgmchecksum.length() && (fmd->fMd.mgmchecksum != fmd->fMd.checksum))))
+	    {
+	      eos_crit("msg=\"checksum mismatch disk/mgm vs memory\" fid=%08llx "
+		       "fsid=%lu checksum=%s diskchecksum=%s mgmchecksum=%s",
+		       fid, (unsigned long) fsid, fmd->fMd.checksum.c_str(),
+		       fmd->fMd.diskchecksum.c_str(), fmd->fMd.mgmchecksum.c_str());
+	      
+	      delete fmd;
+	      FmdSqliteMutexMap[fsid].UnLockRead();
+	      return 0;
+	    }
+	  }
+	}
+	
+	// return the entry
+	FmdSqliteMutexMap[fsid].UnLockRead();
+	return fmd;
       }
 
-      // return the new entry
-      Mutex.UnLockRead();
-      return fmd;
-    }
-
-    if (isRW)
-    {
+      if (isRW)
+      {
       // make a new record
-
-      struct timeval tv;
-      struct timezone tz;
-
-      gettimeofday(&tv, &tz);
-
-      Mutex.UnLockRead(); // <--
-
-      eos::common::RWMutexWriteLock lock(Mutex); // --> (return)
-
-      FmdSqliteMap[fsid][fid].uid = uid;
-      FmdSqliteMap[fsid][fid].gid = gid;
-      FmdSqliteMap[fsid][fid].lid = layoutid;
-      FmdSqliteMap[fsid][fid].fsid = fsid;
-      FmdSqliteMap[fsid][fid].fid = fid;
-
-      FmdSqliteMap[fsid][fid].ctime = FmdSqliteMap[fsid][fid].mtime = FmdSqliteMap[fsid][fid].atime = tv.tv_sec;
-      FmdSqliteMap[fsid][fid].ctime_ns = FmdSqliteMap[fsid][fid].mtime_ns = FmdSqliteMap[fsid][fid].atime_ns = tv.tv_usec * 1000;
-
-      FmdSqlite* fmd = new FmdSqlite(fid, fsid);
-      if (!fmd)
-      {
-        return 0;
-      }
-
-      // make a copy of the current record
-      fmd->Replicate(FmdSqliteMap[fsid][fid]);
-
-      if (Commit(fmd, false))
-      {
-        eos_debug("returning meta data block for fid %d on fs %d", fid, (unsigned long) fsid);
-        // return the mmaped meta data block
-
-        return fmd;
+	
+	struct timeval tv;
+	struct timezone tz;
+	
+	gettimeofday(&tv, &tz);
+	
+	FmdSqliteMutexMap[fsid].UnLockRead();
+	
+	eos::common::RWMutexWriteLock lock(FmdSqliteMutexMap[fsid]); // --> (return)
+	
+	FmdSqliteMap[fsid][fid].uid = uid;
+	FmdSqliteMap[fsid][fid].gid = gid;
+	FmdSqliteMap[fsid][fid].lid = layoutid;
+	FmdSqliteMap[fsid][fid].fsid = fsid;
+	FmdSqliteMap[fsid][fid].fid = fid;
+	
+	FmdSqliteMap[fsid][fid].ctime = FmdSqliteMap[fsid][fid].mtime = FmdSqliteMap[fsid][fid].atime = tv.tv_sec;
+	FmdSqliteMap[fsid][fid].ctime_ns = FmdSqliteMap[fsid][fid].mtime_ns = FmdSqliteMap[fsid][fid].atime_ns = tv.tv_usec * 1000;
+	
+	FmdSqlite* fmd = new FmdSqlite(fid, fsid);
+	if (!fmd)
+	{
+	  return 0;
+	}
+	
+	// make a copy of the current record
+	fmd->Replicate(FmdSqliteMap[fsid][fid]);
+	
+	if (Commit(fmd, false))
+	{
+	  eos_debug("returning meta data block for fid %d on fs %d", fid, (unsigned long) fsid);
+	  // return the mmaped meta data block
+	  
+	  return fmd;
+	}
+	else
+	{
+	  eos_crit("unable to write new block for fid %d on fs %d - no changelog db open for writing", fid, (unsigned long) fsid);
+	  delete fmd;
+	  return 0;
+	}
       }
       else
       {
-        eos_crit("unable to write new block for fid %d on fs %d - no changelog db open for writing", fid, (unsigned long) fsid);
-        delete fmd;
-        return 0;
+	eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, (unsigned long) fsid);
+	FmdSqliteMutexMap[fsid].UnLockRead();
+	return 0;
       }
     }
     else
     {
-      eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, (unsigned long) fsid);
-      Mutex.UnLockRead();
+      eos_crit("unable to get fmd for fid %llu on fs %lu - there is no memory map for that file system id", fid, (unsigned long) fsid);
       return 0;
     }
   }
   else
   {
     eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id", fid, (unsigned long) fsid);
-    Mutex.UnLockRead();
     return 0;
   }
 }
@@ -586,7 +595,9 @@ FmdSqliteHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::Fil
 {
   bool rc = true;
   eos_static_info("");
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock flock(FmdSqliteMutexMap[fsid]);
+
   // erase the hash entry
   if (FmdSqliteMap.count(fsid) && FmdSqliteMap[fsid].count(fid))
   {
@@ -644,11 +655,11 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
   fmd->fMd.mtime = fmd->fMd.atime = tv.tv_sec;
   fmd->fMd.mtime_ns = fmd->fMd.atime_ns = tv.tv_usec * 1000;
 
-
   if (lockit)
   {
+    Mutex.LockRead();
+    FmdSqliteMutexMap[fsid].LockWrite();
     // ---->
-    Mutex.LockWrite();
   }
 
   if (FmdSqliteMap.count(fsid))
@@ -657,7 +668,9 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
     FmdSqliteMap[fsid][fid] = fmd->fMd;
     if (lockit)
     {
-      Mutex.UnLockWrite(); // <----
+      FmdSqliteMutexMap[fsid].UnLockWrite();
+      Mutex.UnLockRead();
+      // <----
     }
     return CommitFromMemory(fid, fsid);
   }
@@ -666,7 +679,9 @@ FmdSqliteHandler::Commit (FmdSqlite* fmd, bool lockit)
     eos_crit("no sqlite DB open for fsid=%llu", (unsigned long) fsid);
     if (lockit)
     {
-      Mutex.UnLockWrite(); // <----
+      FmdSqliteMutexMap[fsid].UnLockWrite();
+      Mutex.UnLockRead();
+      // <----
     }
   }
 
@@ -745,8 +760,9 @@ FmdSqliteHandler::CommitFromMemory (eos::common::FileId::fileid_t fid, eos::comm
 bool
 FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, unsigned long long disksize, std::string diskchecksum, unsigned long checktime, bool filecxerror, bool blockcxerror, bool flaglayouterror)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
-
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
+  Mutex.UnLockRead();
   eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
 
   if (!fid)
@@ -802,7 +818,8 @@ FmdSqliteHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::com
 bool
 FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
 
   eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
             (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
@@ -864,7 +881,8 @@ FmdSqliteHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::comm
 bool
 FmdSqliteHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
 
   if (FmdSqliteMap.count(fsid))
   {
@@ -912,7 +930,8 @@ FmdSqliteHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 bool
 FmdSqliteHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
 
   if (FmdSqliteMap.count(fsid))
   {
@@ -1357,6 +1376,7 @@ FmdSqliteHandler::Query (eos::common::FileSystem::fsid_t fsid,
                          std::vector<eos::common::FileId::fileid_t>& fidvector)
 {
   eos::common::RWMutexReadLock lock(Mutex);
+
   if (DB.count(fsid))
   {
     Qr.clear();
@@ -1443,6 +1463,8 @@ FmdSqliteHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fs
 
   if (!IsSyncing(fsid))
   {
+    eos::common::RWMutexReadLock vlock(FmdSqliteMutexMap[fsid]);
+
     // we report values only when we are not in the sync phase from disk/mgm
     for (it = FmdSqliteMap[fsid].begin(); it != FmdSqliteMap[fsid].end(); it++)
     {
@@ -1547,6 +1569,7 @@ FmdSqliteHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
   // erase the hash entry
   if (FmdSqliteMap.count(fsid))
   {
+    eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
     // delete in the in-memory hash
     FmdSqliteMap[fsid].clear();
 
