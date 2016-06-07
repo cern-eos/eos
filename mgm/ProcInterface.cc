@@ -138,7 +138,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
       ((cmd == "fs") &&
        ((subcmd == "config") ||
         (subcmd == "boot") ||
-        (subcmd == "dropfiles") ||
+        (subcmd == "dropdeletion") ||
         (subcmd == "add") ||
         (subcmd == "mv") ||
         (subcmd == "rm"))) ||
