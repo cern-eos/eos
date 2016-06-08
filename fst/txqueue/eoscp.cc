@@ -2486,7 +2486,7 @@ main (int argc, char* argv[])
 	fprintf(stderr,"error: %s\n",status.ToStr().c_str());
 	exit(-EIO);
       }
-      delete static_cast<XrdCl::File*>(dst_handler[i].second);
+      delete static_cast<eos::fst::FileIo*>(dst_handler[i].second);
       break;
 
     case RIO_ACCESS:
