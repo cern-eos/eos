@@ -809,6 +809,7 @@ XrdFstOfs::CallManager (XrdOucErrInfo* error,
 
   XrdCl::FileSystem* fs = new XrdCl::FileSystem(url);
 
+  eos_static_info("url=%s", address.c_str());
   if (!fs)
   {
     eos_err("error=failed to get new FS object");
