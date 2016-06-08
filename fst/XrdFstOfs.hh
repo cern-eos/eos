@@ -301,6 +301,8 @@ public:
   XrdScheduler* TransferScheduler; //! TransferScheduler
   XrdSysMutex TransferSchedulerMutex; //! protecting the TransferScheduler
 
+  XrdOucString eoscpTransferLog; //! eoscp.log full path
+
   void SetSimulationError (const char* tag); //! allows to switch on error simulation in the OfsFile stack
 
   bool Simulate_IO_read_error; //! simulate an IO error on read

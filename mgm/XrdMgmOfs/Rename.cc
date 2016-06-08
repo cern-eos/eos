@@ -364,9 +364,7 @@ XrdMgmOfs::_rename (const char *old_name,
   }
   // ---------------------------------------------------------------------------
   {
-    if (lock_quota)
-      Quota::gQuotaMutex.LockRead();
-
+    std::unique_ptr<eos::common::RWMutexReadLock> qLock(lock_quota?0:new eos::common::RWMutexReadLock(Quota::gQuotaMutex));
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
       try
@@ -480,8 +478,6 @@ XrdMgmOfs::_rename (const char *old_name,
 		    
 		    if (!fmd)
 		    {
-		      if (lock_quota)
-			Quota::gQuotaMutex.UnLockRead();
 		      return Emsg(epname, error, errno, "rename - cannot stat file in subtree", fspath.c_str());
 		    }
 		    user_deletion_size[fmd->getCUid()] += (fmd->getSize() * fmd->getNumLocation());
@@ -533,8 +529,6 @@ XrdMgmOfs::_rename (const char *old_name,
 		if ((!userok) && (!groupok))
 		{
 		  // deletion has to fail there is not enough quota on the target
-		  if (lock_quota)
-		    Quota::gQuotaMutex.UnLockRead();
 		  return Emsg(epname, error, ENOSPC, "rename - cannot get all the needed quota for the target directory");
 		}
 	      } // if (checkQuota)
@@ -646,9 +640,6 @@ XrdMgmOfs::_rename (const char *old_name,
 		  e.getErrno(), e.getMessage().str().c_str());
       }
     }
-
-    if (lock_quota)
-      Quota::gQuotaMutex.UnLockRead();
 
     if ((!dir) || ((!file) && (!rdir)))
     {

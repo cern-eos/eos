@@ -169,7 +169,7 @@ class FuseWriteCache: public eos::common::LogId
   size_t mAllocSize; ///< total allocated cache size
   pthread_t mWriteThread; ///< async thread doing the writes
   key_entry_t mKeyEntryMap; ///< map of entries in the cache
-  XrdSysRWLock mMapLock; ///< rw lock for the key entry map
+  XrdSysMutex mMapLock; ///< rw lock for the key entry map
   XrdSysMutex mMutexSize; ///< cache size mutex
 
   eos::common::ConcurrentQueue<CacheEntry*>* mRecycleQueue; ///< pool of reusable objects

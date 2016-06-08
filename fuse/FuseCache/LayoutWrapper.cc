@@ -81,6 +81,9 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
     mFile(file), mOpen(false), mFabs(NULL), mDoneAsyncOpen(false),
+
+    mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
+
     mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
@@ -113,6 +116,12 @@ int LayoutWrapper::MakeOpen()
 {
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("makeopening file %s", mPath.c_str());
+
+  if (mClose)
+  {
+    eos_static_err("file %s is already closed - won't open", mPath.c_str());
+    return -1;
+  }
 
   if (!mOpen)
   {
@@ -346,15 +355,17 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
     file_path.erase(0, 1);
   }
 
-  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&eos.app=fuse&"
-                    "mgm.grab.version=-1&mgm.path=" + file_path + "&" + opaque;
+
+  // mgm.zzz is a workaround for a bug in the MGM which does deal properly with potential opaque info for the authentication given as xrd.*
+  // the opaque tags are sorted and mgm.zzz protects the subcmd tag which might be corrupted by the following xrd.*
+  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.zzz=ignore&eos.app=fuse&"
+                    "mgm.purge.version=-1&mgm.path=" + file_path + "&" + opaque;
   u.SetParams("");
   u.SetPath("/proc/user/");
   XrdCl::XRootDStatus status;
-
   std::unique_ptr<LayoutWrapper> file (new LayoutWrapper(new eos::fst::PlainLayout(
-										   NULL, 0, NULL, NULL, u.GetURL().c_str())));
-  int retc = file->Open(u.GetURL(), (XrdSfsFileOpenMode)0,
+										   NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl)));
+  int retc = file->Open(u.GetURL().c_str(), (XrdSfsFileOpenMode)0,
                         (mode_t)0, cmd.c_str(), NULL, true, 0, false);
 
   if (retc)
@@ -384,6 +395,8 @@ LayoutWrapper::Restore()
   {
     XrdSysMutexHelper l(gCacheAuthorityMutex);
     
+
+    // the file could have been unlinked in the meanwhile or could exceed our local cache size, so no need/way to restore
     if (!mCanCache || (!gCacheAuthority.count(mInode)) || gCacheAuthority[mInode].mPartial)
     {
       eos_static_warning("unable to restore inode=%lu size=%llu partial=%d lifetime=%lu", mInode, gCacheAuthority[mInode].mSize, gCacheAuthority[mInode].mPartial, gCacheAuthority[mInode].mSize);
@@ -429,7 +442,7 @@ LayoutWrapper::Restore()
 									  NULL, 0, NULL, NULL, u.GetURL().c_str()));
   for (size_t i = 0; i < 3; ++i)
   {
-    if ( file->Open(mFlags | SFS_O_CREAT, mMode, params.c_str()) )
+    if ( file->Open(u.GetURL().c_str(), mFlags | SFS_O_CREAT, mMode, params.c_str()) )
     {
       XrdSysTimer sleeper;
       eos_static_warning("restore failed to open path=%s - snooze 5s ...", u.GetURL().c_str());
@@ -525,6 +538,12 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   mMode = mode;
   mOpaque = opaque;
 
+  if (buf)
+    Utimes(buf);
+  
+  if (buf)
+    mSize = buf->st_size;
+
   if (!doOpen)
   {
     retc = LazyOpen(path, flags, mode, opaque, buf);
@@ -553,23 +572,146 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   else
   {
     mFile->Redirect(path.c_str());
+
+    // for latency simulation purposes
+    if (getenv("EOS_FUSE_LAZY_LAG_OPEN") && mFlags)
+    {
+      eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG_OPEN"));
+      XrdSysTimer sleeper;
+      sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG_OPEN")));
+    }
+
+    bool retry = true;
+    XrdOucString sopaque (opaque);
+#ifdef STOPONREDIRECT
+    if (sopaque.length ()) sopaque += '&';
+    sopaque += "tried=";
+#endif
     if (mDoneAsyncOpen)
     {
       // Wait for the async open response
       if (!static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync())
       {
-        eos_static_err("async open failed for path=%s", path.c_str());
-        return -1;
+        XrdCl::URL url (mFile->GetLastUrl ());
+        const std::string &username = url.GetUserName ();
+        if (!username.empty () && username[0]!='*'
+        && static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo () == kXR_NotAuthorized)
+        {
+          eos_static_notice("async open failed for path=%s because of authentication, credentials might have been lost on redirect. Trying to fix with a sync open", path.c_str ());
+        }
+        else
+        {
+          eos_static_err("async open failed for path=%s", path.c_str());
+          return -1;
+        }
+#ifdef STOPONREDIRECT
+        eos_static_notice("async open failed for path=%s, trying to fix it with other replicas", path.c_str ());
+        XrdCl::URL url (mFile->GetLastUrl ());
+        sopaque += url.GetHostName ().c_str ();
+        sopaque.append (',');
+#endif
       }
+      else // async open ok, don't need a sync open
+        retry = false;
     }
-    else
+
+    std::string _lasturl,_path(path);
+    size_t pos, _pos(0);
+    while (retry)
     {
+      eos_static_debug("Sync-open path=%s opaque=%s",
+                       _path.c_str (),
+                       sopaque.c_str ());
       // Do synchronous open
-      if ((retc = mFile->Open(flags, mode, opaque)))
+      if ((retc = mFile->Open (_path.c_str (), flags, mode, sopaque.c_str ())))
       {
-        eos_static_err("error while openning");
-        return -1;
+        eos_static_debug("Sync-open got errNo=%d errCode=%d",
+                         static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo (),
+                         static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrCode ());
+#ifdef STOPONREDIRECT
+        /*
+        =======================================================================================
+        This is an alternative way to deal with the loss of credentials when getting redirected
+        There we assume that we hit first the mgm, then an fst then a mgm, then a fst .....
+        So we stopevery two redirects to reissue the open and get the credentials back
+        This works because every time a channel has to be opened, it is opened with the krb5
+        cgis by an explicit user (not the redirect open which is slightly different)
+        =======================================================================================
+        */
+        if(static_cast<eos::fst::PlainLayout*>(mFile)->GetLastErrCode()==XrdCl::errRedirectLimit)
+        {
+          // if we fail because of too many redirects, try again
+          // appending the last visited fst to the list of the tried
+          retry = true;
+          _lasturl = mFile->GetLastUrl();
+          XrdCl::URL url(mFile->GetLastUrl());
+          eos_static_debug("Last URL = %s",mFile->GetLastUrl().c_str());
+          sopaque += url.GetHostName().c_str();
+          sopaque += ',';
+        }
+#else
+        XrdCl::URL url (mFile->GetLastUrl ());
+        const std::string &username = url.GetUserName ();
+        /*
+        =======================================================================================
+        This is a hackish fix to the loss of strong credentials while being redirected
+        The open will follow redirects until we get a permission denied on an mgm because
+        authenticated using unix
+        At this point, it is too late to retry with the same connection which is using unix.
+        We then try again with another connection incrementing the first letter of the username
+        We iterate that process as long the failing location changes.
+        NOTE1: this fixes only the redirect problem on open. It does not fix the problem for
+        other access, especially XrdCl::FileSystem operations
+        NOTE2: the main use case of this is a recoverable error on open on the fst ( fmd error
+        on RO open for example ). We then get redirected to the mgm possibly with a different
+        hostname and a new connection is being created and the credentials are lost).
+        NOTE3: the previous use case is also fixed on server side using the standard XRootD
+        fail recovery procedure on open which goes back to the mgm using the previous
+        connection. This is implemented on server side starting from eos-citrine 4.0.20.
+        =======================================================================================
+        */
+        if (!username.empty () && username[0]!='*'
+        && static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo () == kXR_NotAuthorized
+        && ( _lasturl.empty() || (_pos = _lasturl.find('@'))!=std::string::npos )
+        && (pos=mFile->GetLastUrl().find('@'))!=std::string::npos)
+        {
+          // if it's the same url regardless of the username, we fail
+          if (!strcmp (_lasturl.c_str () + _pos, mFile->GetLastUrl ().c_str () + pos))
+          {
+            eos_static_err("using a new connection did not fix at %s",
+                           mFile->GetLastUrl ().c_str());
+            errno = EPERM;
+            return -1;
+          }
+          _lasturl = mFile->GetLastUrl ();
+          _path = mFile->GetLastUrl();
+          size_t p;
+          // increment the first character of the login until we reach Z
+          // it forces a new connection to be used , as the previous is most likely used by unix
+          if ((p = _path.find ('@')) != std::string::npos)
+          {
+            if (_path[p-8] != 'Z') _path[p-8]++;
+            else
+            {
+              eos_static_warning("reached maximum number of redirects for strong authentication");
+              errno = EPERM;
+              return -1;
+            }
+          }
+          sopaque = "";
+          eos_static_debug("authentication error at %s, try with a new connection to overcome strong credentials loss in redirects",
+                           mFile->GetLastUrl ().c_str ());
+        }
+#endif
+        else
+        {
+          eos_static_err("error while openning");
+          return -1;
+        }
       }
+      else
+        retry = false;
+
     }
 
     // We don't want to truncate the file in case we reopen it
@@ -595,7 +737,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
   if (mInode && (!mCache.get()))
   {
-    if (flags & SFS_O_CREAT)
+    if ( (flags & SFS_O_CREAT) || (flags & SFS_O_TRUNC) )
     {
       gCacheAuthority[mInode].mLifeTime = 0;
       gCacheAuthority[mInode].mPartial = false;
@@ -605,8 +747,9 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       mCanCache = true;
       mCacheCreator = true;
       mSize = gCacheAuthority[mInode].mSize;
-      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu",
-                        path.c_str(), (*mCache).size(), mInode);
+
+      eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu create=%d truncate=%d",
+                        path.c_str(), (*mCache).size(), mInode, flags & SFS_O_CREAT, flags & SFS_O_TRUNC);
     }
     else
     {
@@ -661,7 +804,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
                             XrdSfsXferSize length, bool readahead)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   return mFile->Read(offset, buffer, length, readahead);
 }
 
@@ -671,7 +818,11 @@ int64_t LayoutWrapper::Read(XrdSfsFileOffset offset, char* buffer,
 #ifdef XROOTD4
 int64_t LayoutWrapper::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   return mFile->ReadV(chunkList, len);
 }
 #endif
@@ -736,7 +887,11 @@ int64_t LayoutWrapper::WriteCache(XrdSfsFileOffset offset, const char* buffer,
 int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
                              XrdSfsXferSize length, bool touchMtime)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   int retc = 0;
 
   if (length > 0)
@@ -757,7 +912,11 @@ int64_t LayoutWrapper::Write(XrdSfsFileOffset offset, const char* buffer,
 //------------------------------------------------------------------------------
 int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
 
   if (mFile->Truncate(offset))
     return -1;
@@ -774,7 +933,11 @@ int LayoutWrapper::Truncate(XrdSfsFileOffset offset, bool touchMtime)
 //------------------------------------------------------------------------------
 int LayoutWrapper::Sync()
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
   return mFile->Sync();
 }
 
@@ -785,6 +948,17 @@ int LayoutWrapper::Close()
 {
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("closing file %s ", mPath.c_str());;
+
+
+  // for latency simulation purposes
+  if (getenv("EOS_FUSE_LAZY_LAG_CLOSE") && mFlags)
+  {
+    eos_static_warning("lazy-lag configured - delay by %s ms", getenv("EOS_FUSE_LAZY_LAG_CLOSE"));
+    XrdSysTimer sleeper;
+    sleeper.Wait(atoi(getenv("EOS_FUSE_LAZY_LAG_CLOSE")));
+  }
+  
+  mClose = true;
 
   if (!mOpen)
   {
@@ -802,6 +976,21 @@ int LayoutWrapper::Close()
     eos_static_notice("define expiry of  cap owner-authority for file "
                       "inode=%lu tst=%lu lifetime=%lu", mInode, expire,
                       gCacheAuthority[mInode].mOwnerLifeTime);
+
+    if (!gCacheAuthority.count(mInode))
+    {
+      // this file could have been unlinked in the meanwhile, so we don't want to restore it 'by mistake'
+      mCanCache = false;
+    }
+    else
+    {
+      time_t now = time(0);
+      time_t expire = now + gCacheAuthority[mInode].mOwnerLifeTime;
+      gCacheAuthority[mInode].mLifeTime = expire;
+      eos_static_notice("define expiry of  cap owner-authority for file "
+			"inode=%lu tst=%lu lifetime=%lu", mInode, expire,
+			gCacheAuthority[mInode].mOwnerLifeTime);
+    }
   }
 
   int retc = 0; 
@@ -816,7 +1005,8 @@ int LayoutWrapper::Close()
     eos_static_debug("successfully closed");
     retc = 0;
   }
-  if ( ((mFlags & O_RDWR) || (mFlags & O_WRONLY)) && (retc || mRestore))
+
+  if ( ((mFlags & O_RDWR) || (mFlags & O_WRONLY)) && (retc || mRestore) )
   {
     if (Restore())
       retc = 0;
@@ -829,7 +1019,11 @@ int LayoutWrapper::Close()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Stat(struct stat* buf)
 {
-  MakeOpen();
+  if (MakeOpen())
+  {
+    errno = EBADF;
+    return -1;
+  }
 
   if (mFile->Stat(buf))
     return -1;

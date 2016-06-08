@@ -1,7 +1,7 @@
 #!/bin/bash
 #-------------------------------------------------------------------------------
 # @author Elvin-Alin Sindrilaru - CERN
-# @brief Script used by Jenkins to build EOS rpms
+# @brief Script used by Jenkins to build EOS Nginx rpms
 #-------------------------------------------------------------------------------
 
 #************************************************************************
@@ -57,18 +57,14 @@ function getLocalBranchAndDistTag()
 
   local BRANCH_OR_TAG=${1}
   local PLATORM=${2}
-  local TAG_REGEX="^[034]+\..*$"
+  local TAG_REGEX="^[04]+\..*$"
   local TAG_REGEX_AQUAMARINE="^0.3.*$"
-  local TAG_REGEX_EMERALD="^3.*$"
-
   local TAG_REGEX_CITRINE="^4.*$"
 
   # If this is a tag get the branch it belogs to
   if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX} ]]; then
       if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_AQUAMARINE} ]]; then
 	  BRANCH="aquamarine"
-	  elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_EMERALD} ]]; then
-	  BRANCH="emerald"
       elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
 	  BRANCH="citrine"
       fi
@@ -77,15 +73,13 @@ function getLocalBranchAndDistTag()
       # For beryl_aquamarine use aquamarine as release
       if [[ "${BRANCH}" == "beryl_aquamarine" ]]; then
 	  BRANCH="aquamarine"
-      elif [[ "${BRANCH}"  == "beryl_emerald" ]]; then
-	  BRANCH="emerald"
       elif [[ "${BRANCH}"  == "master" ]]; then
 	  BRANCH="citrine"
       fi
   fi
 
   # For aquamarine still use the old ".slc-*" dist tag for SLC5/6
-  if [[ "${BRANCH}" == "aquamarine" ]] || [[ "${BRANCH}" == "emerald" ]] ; then
+  if [[ "${BRANCH}" == "aquamarine" ]] ; then
       if [[ "${PLATFORM}" == "el-5" ]] || [[ "${PLATFORM}" == "el-6" ]]; then
 	  DIST=".slc${PLATFORM: -1}"
       else
@@ -130,58 +124,23 @@ echo "Running in directory: $(pwd)"
 
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
-
-# ensure that script reports errors
-set -e
-
-# Create cmake build directory and build without dependencies
-cd ..; mkdir build; cd build
-cmake .. -DPACKAGEONLY=1
-# Create tarball
-make dist
-# Build the source RPM
-rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-*.tar.gz
-# Move the source RPM
-mv rpmbuild/SRPMS/eos-*.src.rpm .
-
+# Move to nginx directory and create the SRPMs
+cd nginx
+./makesrpm.sh
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
-
-# Prepare the mock configuration
-head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
-if [[ ${BRANCH} == 'emerald' ]]; then
-    # Add kineticio and kineticio dependency repos
-    echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
-    echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
-fi
-echo -e '"""' >> eos.cfg
-
 # Prepare the mock configuration
 cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/${XROOTD_TAG}/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
-
-
 # Build the RPMs
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
-
+mock --yum --init --uniqueext="eos-nginx01" -r ./eos.cfg --rebuild ./eos-nginx*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 # List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine' 'emerald')
+BRANCH_LIST=('aquamarine' 'citrine')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
-  # Get the release string length
-  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 | awk -F "-" '{print $3;}' | awk -F "." '{print length($1);}')
-  COMMIT_LEN=18
-
-  # For not tagged builds the release string is 18 characters i.e date + git + commit_hash
-  if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
-    BUILD_TYPE="commit"
-  else
-    BUILD_TYPE="tag"
-  fi
-
   # Make sure the directories are created and rebuild the YUM repo
-  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/${BUILD_TYPE}/${PLATFORM}/${ARCHITECTURE}"
+  YUM_REPO_PATH="${DST_PATH}/${BRANCH}/tag/${PLATFORM}/${ARCHITECTURE}"
   echo "Save RPMs in YUM repo: ${YUM_REPO_PATH}"
   aklog
   mkdir -p ${YUM_REPO_PATH}

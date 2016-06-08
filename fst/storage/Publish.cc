@@ -264,6 +264,7 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
+<<<<<<< HEAD
 
           gOFS.OpenFidMutex.Lock();
 
@@ -283,6 +284,11 @@ Storage::Publish ()
 	    success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors")*512.0 / 1000000.0);
 	    success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
 	  }
+=======
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors")*512.0 / 1000000.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors")*512.0 / 1000000.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
+>>>>>>> beryl_aquamarine
 
 	  long long r_open = 0;
 	  long long w_open = 0;

@@ -111,7 +111,7 @@ FileAbstraction::SetMaxWriteOffset(off_t offset)
 }
 
 //------------------------------------------------------------------------------
-// SetMaxWriteOffset
+// GrabMaxWriteOffset
 //------------------------------------------------------------------------------
 void
 FileAbstraction::GrabMaxWriteOffset()
@@ -133,6 +133,38 @@ FileAbstraction::GrabMaxWriteOffset()
   }
 
   eos_static_info("grabbing %llx l1=%lld l2=%lld offset %lld", mFileRW, l1, l2, mMaxWriteOffset);
+}
+
+//------------------------------------------------------------------------------
+// GrabUtimes
+//------------------------------------------------------------------------------
+void
+FileAbstraction::GrabUtimes()
+{
+  if (mFileRW) 
+  {
+    if (mFileRW->mLocalUtime[0].tv_sec ||
+	mFileRW->mLocalUtime[0].tv_nsec ||
+	mFileRW->mLocalUtime[1].tv_sec ||
+	mFileRW->mLocalUtime[1].tv_nsec )
+    {
+      SetUtimes(mFileRW->mLocalUtime);
+    }
+  }
+  else
+  {
+    if (mFileRO)
+    {
+      if (mFileRO->mLocalUtime[0].tv_sec ||
+	  mFileRO->mLocalUtime[0].tv_nsec ||
+	  mFileRO->mLocalUtime[1].tv_sec ||
+	  mFileRO->mLocalUtime[1].tv_nsec )
+      {
+	SetUtimes(mFileRO->mLocalUtime);
+      }
+    }
+  }
+  eos_static_info("grabbing %llx %u.%u %u.%u", mFileRW, mUtime[0].tv_sec, mUtime[0].tv_nsec, mUtime[1].tv_sec, mUtime[1].tv_nsec);
 }
 
 //------------------------------------------------------------------------------

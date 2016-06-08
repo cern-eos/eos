@@ -47,6 +47,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -145,6 +146,12 @@ filesystem::log_settings ()
    s += "false";
  log ("WARNING", s.c_str ());
 
+
+ if (mode_overlay)
+ {
+   s = "mode-overlay           := ";
+   s += getenv("EOS_FUSE_MODE_OVERLAY");
+ }
  s = "rm-level-protect       := ";
  XrdOucString rml;
  rml += rm_level_protect;
@@ -433,6 +440,11 @@ filesystem::forget_p2i (unsigned long long inode)
  }
 }
 
+
+//------------------------------------------------------------------------------
+// Redirect an inode to a new inode - repair actions change inodes, so we have two ino1,ino2=>path1 mappings
+//------------------------------------------------------------------------------
+
 void
 filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode)
 {
@@ -454,6 +466,26 @@ filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode
  }
 }
 
+//------------------------------------------------------------------------------
+// Redirect an inode to the latest valid inode version - due to repair actions
+//------------------------------------------------------------------------------
+
+unsigned long long
+filesystem::redirect_i2i (unsigned long long inode)
+{
+ eos::common::RWMutexReadLock rd_lock (mutex_inode_path);
+
+ return inode;
+ if (inode2path.count (inode))
+ {
+   std::string path = inode2path[inode];
+   if (path2inode.count(path))
+     return path2inode[path];
+ }
+ return inode;
+}
+
+>>>>>>> beryl_aquamarine
 
 //------------------------------------------------------------------------------
 // Lock read
@@ -654,7 +686,7 @@ filesystem::dir_cache_sync (unsigned long long inode,
 
  struct timespec modtime;
  modtime.tv_sec  = mtime.tv_sec + ctime.tv_sec;
- modtime.tv_nsec = ctime.tv_sec + ctime.tv_nsec;
+ modtime.tv_nsec = mtime.tv_nsec + ctime.tv_nsec;
 
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
  {
@@ -702,7 +734,8 @@ int
 filesystem::dir_cache_get_entry (fuse_req_t req,
                                  unsigned long long inode,
                                  unsigned long long entry_inode,
-                                 const char* efullpath)
+                                 const char* efullpath, 
+				 struct stat* overwrite_stat)
 {
  int retc = 0;
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
@@ -715,6 +748,13 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
      struct fuse_entry_param e;
      if (dir->GetEntry (entry_inode, e))
      {
+       // we eventually need to overwrite the cached information
+       if (overwrite_stat)
+       {
+	 e.attr.MTIMESPEC = overwrite_stat->MTIMESPEC;
+	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
+	 e.attr.st_size = overwrite_stat->st_size;
+       }
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
        retc = 1; // found
@@ -798,6 +838,71 @@ filesystem::generate_fd ()
 //------------------------------------------------------------------------------
 
 int
+filesystem::force_rwopen (
+                         unsigned long inode,
+                         uid_t uid, gid_t gid, pid_t pid
+                         )
+{
+  int fd = -1;
+  std::ostringstream sstr;
+  sstr << inode << ":" << get_login (uid, gid, pid);
+
+  eos::common::RWMutexReadLock rd_lock (rwmutex_fd2fabst);
+  auto iter_fd = inodexrdlogin2fds.find (sstr.str ());
+
+  // If there is already an entry for the current user and the current inode
+  if (iter_fd != inodexrdlogin2fds.end ())
+  {
+    fd = *iter_fd->second.begin ();
+    auto iter_file = fd2fabst.find (fd); //all the fd ti a same file share the same fabst
+
+    for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
+    {
+      if ( fd2count[*fdit] > 0)
+      {
+        std::shared_ptr<FileAbstraction> fabst = get_file (*fdit, NULL);
+        if (!fabst.get())
+        {
+          errno = ENOENT;
+          return 0;
+        }
+
+	if (fabst->GetRawFileRO())
+	{
+	  fabst->DecNumRefRO ();
+	  return 0;
+	}
+
+	if (!fabst->GetRawFileRW())
+	{
+	  return 0;
+	}
+
+        if(fabst->GetRawFileRW()->MakeOpen())
+        {
+          fabst->DecNumRefRW ();
+          errno = EIO;
+	  eos_static_info("makeopen returned -1");
+          return -1; // return -1 if failure
+        } 
+	else
+	{
+	  eos_static_info("forced read-open");
+	  fabst->DecNumRefRW ();
+	}
+        return *fdit; // return the fd if succeed (>0)
+      }
+    }
+  }
+
+  return 0; // return 0 if nothing to do
+}
+
+//------------------------------------------------------------------------------
+// Add new mapping between fd and raw file object
+//------------------------------------------------------------------------------
+
+int
 filesystem::add_fd2file (LayoutWrapper* raw_file,
                          unsigned long inode,
                          uid_t uid, gid_t gid, pid_t pid,
@@ -868,6 +973,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    }
 
    fabst->GrabMaxWriteOffset ();
+   fabst->GrabUtimes ();
 
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
@@ -922,7 +1028,6 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
  int retc = -1;
  eos_static_debug ("fd=%i, inode=%lu", fd, inode);
 
-
  rwmutex_fd2fabst.LockWrite();
 
  auto iter = fd2fabst.find (fd);
@@ -976,143 +1081,6 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
      if (isRW)
      {
        eos_static_debug ("fabst=%p, rwfile is not in use, close it", fabst.get());
-       LayoutWrapper* raw_file = fabst->GetRawFileRW ();
-       if (raw_file->IsOpen ())
-       {
-         struct timespec ut[2];
-         const char* path = 0;
-         struct stat buf;
-
-         // retrieve the last modification time from the open file
-         raw_file->Stat (&buf);
-         eos_static_debug ("stat gave mtime=%llu", buf.st_mtime);
-         ut[0].tv_sec = buf.st_mtime;
-         ut[0].tv_nsec = 0;
-         ut[1].tv_sec = buf.st_mtime;
-         ut[1].tv_nsec = 0;
-
-         if ((path = fabst->GetUtimes (ut)))
-         {
-	   const char* nowpath=0;
-	   std::string npath;
-	   {
-	     // a file might have been renamed in the meanwhile
-	     lock_r_p2i();
-	     nowpath = this->path((unsigned long long)inode);
-	     unlock_r_p2i();
-	     if (nowpath)
-	     {
-	       // get it prefixed again
-	       getPath(npath, mPrefix, nowpath);
-	       nowpath = npath.c_str();
-	     }
-	     else
-	     {
-	       nowpath = path;
-	     }
-	   }
-	   if (strcmp(path,nowpath))
-	   {
-	     eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
-	     path = nowpath;
-	   }
-           eos_static_debug ("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
-           // run the utimes command now after the close
-           if (this->utimes (path, ut, uid, gid, pid))
-	   {
-	     // a file might have been renamed in the meanwhile
-	     lock_r_p2i();
-	     nowpath = this->path((unsigned long long)inode);
-	     unlock_r_p2i();
-	     if (nowpath) 
-	     {
-	       // get it prefixed again
-	       getPath(npath, mPrefix, nowpath);
-	       nowpath = npath.c_str();
-	     }
-	     else
-	     {
-	       nowpath = path;
-	     }
-	     if (strcmp(nowpath, path))
-	     {
-	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
-	       path = nowpath;
-	       if (this->utimes (path, ut, uid, gid, pid))
-	       {
-		 eos_static_err("file utime setting failed permanently for %s", path);
-	       }
-	     }
-	   }
-         }
-         else
-         {
-           eos_static_debug ("CLOSEDEBUG no utime");
-         }
-       }
-       else
-       {
-         // the file might have just been touched with an utime set
-         struct timespec ut[2];
-         ut[0].tv_sec = ut[1].tv_sec = 0;
-         const char* path = fabst->GetUtimes (ut);
-	 const char* nowpath=0;
-	 std::string npath;
-	 {
-	   // a file might have been renamed in the meanwhile
-	   lock_r_p2i();
-	   nowpath = this->path((unsigned long long)inode);
-	   unlock_r_p2i();
-	   if (nowpath)
-	   {
-	     // get it prefixed again
-	     getPath(npath, mPrefix, nowpath);
-	     nowpath = npath.c_str();
-	   }
-	   else
-	   {
-	     nowpath = path;
-	   }
-	 }
-	 if (strcmp(path,nowpath))
-	 {
-	   eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
-	   path = nowpath;
-	 }
-
-         if (ut[0].tv_sec || ut[1].tv_sec)
-         {
-	   // this still allows to jump in for a rename, but we neglect this possiblity for now
-           eos_static_debug ("CLOSEDEBUG closing touched file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
-           // run the utimes command now after the close
-	   if (this->utimes (path, ut, uid, gid, pid))
-	   {
-	     // a file might have been renamed in the meanwhile
-	     lock_r_p2i();
-	     nowpath = this->path((unsigned long long)inode);
-	     unlock_r_p2i();
-	     if (nowpath)
-	     {
-	       // get it prefixed again
-	       getPath(npath, mPrefix, nowpath);
-	       nowpath = npath.c_str();
-	     }
-	     else
-	     {
-	       nowpath = path;
-	     }
-	     if (strcmp(nowpath, path))
-	     {
-	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
-	       path = nowpath;
-	       if (this->utimes (path, ut, uid, gid, pid))
-	       {
-		 eos_static_err("file utime setting failed permanently for %s", path);
-	       }
-	     }
-	   }
-         }
-       }
        retc = 0;
      }
      else
@@ -1561,7 +1529,8 @@ filesystem::stat (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long inode)
+                  unsigned long inode, 
+		  bool onlysizemtime)
 {
  eos_static_info ("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int) uid, (int) gid, inode);
@@ -1571,6 +1540,11 @@ filesystem::stat (const char* path,
  atim.tv_sec = atim.tv_nsec = mtim.tv_sec = mtim.tv_nsec = 0;
  errno = 0;
  COMMONTIMING ("START", &stattiming);
+
+ if (onlysizemtime && !inode)
+ {
+   return -1;
+ }
 
  if (inode)
  {
@@ -1621,7 +1595,7 @@ filesystem::stat (const char* path,
        // otherwise, the file will be opened on the fst, just for a stat
        if (isrw)
        {
-         // only stat via open files if we are don't have cache capabilities
+         // only stat via open files if we don't have cache capabilities
          if (!file->CanCache ())
          {
            if ((!file->Stat (&tmp)))
@@ -1641,7 +1615,7 @@ filesystem::stat (const char* path,
                file_size = cache_size;
              }
              fabst->GetUtimes (&mtim);
-             eos_static_debug ("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
+             eos_static_debug ("fd=%i, size-fd=%lld, mtime=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
            }
            else
            {
@@ -1673,6 +1647,20 @@ filesystem::stat (const char* path,
    {
      rwmutex_fd2fabst.UnLockRead();
      eos_static_debug ("path=%s not open", path);
+   }
+
+   if (onlysizemtime)
+   {
+     if (file_size == -1)
+     {
+       eos_static_debug("onlysizetime couldn't get the size from an open file");
+       return -1;
+     }
+     buf->st_size = file_size;
+     buf->MTIMESPEC = mtim;
+     buf->st_mtime = mtim.tv_sec;
+     eos_static_debug("onlysizetime size from open file");
+     return 0;
    }
  }
 
@@ -1790,6 +1778,10 @@ filesystem::stat (const char* path,
    eos_static_debug("local cache size=%lld", csize);
  }
 
+ // eventually configure an overlay mode to enable bits by default
+ buf->st_mode |= mode_overlay;
+
+
  // If got size using the opened file then return size and mtime from the opened file
  if (file_size != -1)
  {
@@ -1844,7 +1836,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    stbuf->f_files = a4;
    stbuf->f_ffree = a2;
    stbuf->f_fsid = 0xcafe;
-   stbuf->f_namemax = 256;
+   stbuf->f_namemax = 1024;
    statmutex.UnLock ();
    return errno;
  }
@@ -1912,6 +1904,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    stbuf->f_bavail = a1 / 4096;
    stbuf->f_files = a4;
    stbuf->f_ffree = a2;
+   stbuf->f_namemax = 1024;
  }
  else
  {
@@ -2620,6 +2613,7 @@ filesystem::inodirlist (unsigned long long dirinode,
 	 buf.st_mode &= (~S_ISVTX); // clear the vxt bit
 	 buf.st_mode &= (~S_ISUID); // clear suid
 	 buf.st_mode &= (~S_ISGID); // clear sgid
+	 buf.st_mode |= mode_overlay;
        }
        else
          buf.st_ino = 0;
@@ -3341,9 +3335,15 @@ filesystem::open (const char* path,
    }
  }
 
+ if (isRO && force_rwopen (*return_inode, uid, gid, pid) < 0)
+ {
+   eos_static_err("forcing rw open failed for inode %lu path %s", (unsigned long )*return_inode, path);
+   delete file;
+   return error_retc_map (errno);
+ }
+
  LayoutWrapper* file = new LayoutWrapper(
 					 new eos::fst::PlainLayout (NULL, 0, NULL, NULL, spath.c_str()));
-
 
  retc = file->Open (spath.c_str(), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
 
@@ -3385,11 +3385,19 @@ filesystem::open (const char* path,
 
          {
            eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
-           path2inode.erase (path);
-           inode2path.erase (old_ino);
-           path2inode[path] = new_ino;
-           inode2path[new_ino] = path;
-           eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	   if (inode2path.count(old_ino))
+	   {
+	     std::string ipath = inode2path[old_ino];
+	     if (path2inode.count(ipath))
+	     {
+	       if (path2inode[ipath] != new_ino)
+	       {
+		 path2inode[ipath] = new_ino;
+		 inode2path[new_ino] = ipath;
+		 eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	       }
+	     }
+	   }
          }
        }
        else
@@ -3417,6 +3425,143 @@ filesystem::open (const char* path,
  }
 }
 
+int
+filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
+{
+  LayoutWrapper* raw_file = fabst->GetRawFileRW ();
+
+  if (!raw_file)
+    return 0;
+
+  if (raw_file->IsOpen ())
+  {
+    struct timespec ut[2];
+    const char* path = 0;
+    
+    if ((path = fabst->GetUtimes (ut)))
+    {
+      const char* nowpath=0;
+      std::string npath;
+      {
+	// a file might have been renamed in the meanwhile
+	lock_r_p2i();
+	nowpath = this->path((unsigned long long)inode);
+	unlock_r_p2i();
+	if (nowpath)
+	{
+	  // get it prefixed again
+	  getPath(npath, mPrefix, nowpath);
+	  nowpath = npath.c_str();
+	}
+	else
+	{
+	  nowpath = path;
+	}
+      }
+      if (strcmp(path,nowpath))
+      {
+	eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+	path = nowpath;
+      }
+      eos_static_debug ("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
+      // run the utimes command now after the close
+      if (this->utimes (path, ut, uid, gid, pid))
+      {
+	// a file might have been renamed in the meanwhile
+	lock_r_p2i();
+	nowpath = this->path((unsigned long long)inode);
+	unlock_r_p2i();
+	if (nowpath) 
+	{
+	  // get it prefixed again
+	  getPath(npath, mPrefix, nowpath);
+	  nowpath = npath.c_str();
+	}
+	else
+	{
+	  nowpath = path;
+	}
+	if (strcmp(nowpath, path))
+	{
+	  eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+	  path = nowpath;
+	  if (this->utimes (path, ut, uid, gid, pid))
+	  {
+	    eos_static_err("file utime setting failed permanently for %s", path);
+	  }
+	}
+      }
+    }
+    else
+    {
+      eos_static_debug ("CLOSEDEBUG no utime");
+    }
+  }
+  else
+  {
+    // the file might have just been touched with an utime set
+    struct timespec ut[2];
+    ut[0].tv_sec = ut[1].tv_sec = 0;
+    const char* path = fabst->GetUtimes (ut);
+    const char* nowpath=0;
+    std::string npath;
+    {
+      // a file might have been renamed in the meanwhile
+      lock_r_p2i();
+      nowpath = this->path((unsigned long long)inode);
+      unlock_r_p2i();
+      if (nowpath)
+      {
+	// get it prefixed again
+	getPath(npath, mPrefix, nowpath);
+	nowpath = npath.c_str();
+      }
+      else
+      {
+	nowpath = path;
+      }
+    }
+    if (strcmp(path,nowpath))
+    {
+      eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+      path = nowpath;
+    }
+    
+    if (ut[0].tv_sec || ut[1].tv_sec)
+    {
+      // this still allows to jump in for a rename, but we neglect this possiblity for now
+      eos_static_debug ("CLOSEDEBUG closing touched file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
+      // run the utimes command now after the close
+      if (this->utimes (path, ut, uid, gid, pid))
+      {
+	// a file might have been renamed in the meanwhile
+	lock_r_p2i();
+	nowpath = this->path((unsigned long long)inode);
+	unlock_r_p2i();
+	if (nowpath)
+	{
+	  // get it prefixed again
+	  getPath(npath, mPrefix, nowpath);
+	  nowpath = npath.c_str();
+	}
+	else
+	{
+	  nowpath = path;
+	}
+	if (strcmp(nowpath, path))
+	{
+	  eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+	  path = nowpath;
+	  if (this->utimes (path, ut, uid, gid, pid))
+	  {
+	    eos_static_err("file utime setting failed permanently for %s", path);
+	  }
+	}
+      }
+    }
+  }
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Release is called when FUSE is completely done with a file; at that point,
@@ -3462,6 +3607,9 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
  }
 
  {
+   // Commit the utime first - we cannot handle errors here
+   ret = utimes_from_fabst(fabst, inode, uid, gid, pid);
+
    // Close file and remove it from all mappings
    ret = remove_fd2file (fildes, inode, uid, gid, pid);
  }
@@ -4496,6 +4644,13 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  eos::common::Logging::gShortFormat = true;
  XrdOucString fusedebug = getenv ("EOS_FUSE_DEBUG");
 
+#ifdef STOPONREDIRECT
+ // Set the redirect limit
+ XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1 );
+ setenv("XRD_REDIRECTLIMIT","1",1);
+#endif
+
+
  // Extract MGM endpoint and check availability
  if (check_mgm ( features ) == 0)
  {
@@ -4701,6 +4856,16 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    tryKrb5First = false;
 
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
+
+
+ if (getenv("EOS_FUSE_MODE_OVERLAY"))
+ {
+   mode_overlay = (mode_t)strtol(getenv("EOS_FUSE_MODE_OVERLAY"),0,8);
+ }
+ else
+ {
+   mode_overlay = 0;
+ }
 
  // get uid and pid specificities of the system
  {

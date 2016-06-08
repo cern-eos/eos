@@ -207,12 +207,17 @@ ShellCmd::wait ()
 cmd_status
 ShellCmd::wait (size_t timeout)
 {
-  for (size_t i=0; i< timeout; ++i) 
+  size_t exp_sleep=1; 
+  for (size_t i=0; i< timeout+9; ++i) 
   {
     if (!is_active())
       break;
     XrdSysTimer sleeper;
-    sleeper.Snooze(1);
+    sleeper.Wait(exp_sleep);
+    if (exp_sleep<512)
+      exp_sleep*=2;
+    else
+      exp_sleep=1000;
   }
 
   // stop it if the timeout is exceeded

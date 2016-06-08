@@ -121,12 +121,10 @@ XrdMgmOfs::_remdir (const char *path,
   // make sure this is not a quota node
   // ---------------------------------------------------------------------------
   {
-    if (lock_quota)
-	Quota::gQuotaMutex.LockRead();
+    std::unique_ptr<eos::common::RWMutexReadLock> qLock(lock_quota?0:new eos::common::RWMutexReadLock(Quota::gQuotaMutex));
+
     SpaceQuota* quota = Quota::GetSpaceQuota(path, true);
 
-    if (lock_quota)
-	Quota::gQuotaMutex.UnLockRead();
     if (quota)
     {
       errno = EBUSY;

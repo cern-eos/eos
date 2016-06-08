@@ -380,6 +380,33 @@ protected:
     return mLastErrMsg;
   }
 
+
+  //--------------------------------------------------------------------------
+  //! Get last error code
+  //--------------------------------------------------------------------------
+  const int&
+  GetLastErrCode()
+  {
+    return mLastErrCode;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get last error number
+  //--------------------------------------------------------------------------
+  const int&
+  GetLastErrNo()
+  {
+    return mLastErrNo;
+  }
+
+protected:
+
+  std::string mFilePath; ///< path to current physical file
+  std::string mLastUrl;  ///< last used url if remote file
+  std::string mLastErrMsg; ///< last error stored
+  int mLastErrCode; ///< last error code
+  int mLastErrNo; ///< last error no
+
 };
 
 EOSFSTNAMESPACE_END

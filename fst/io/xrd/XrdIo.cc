@@ -205,6 +205,12 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   request += "?";
   request += opaque;
 
+  if(mXrdFile)
+  {
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
+
   mXrdFile = new XrdCl::File();
 
   // Disable recovery on read and write
@@ -220,6 +226,8 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
   else
@@ -284,6 +292,13 @@ XrdIo::fileOpenAsync (void* io_handler,
   request = mFilePath;
   request += "?";
   request += lOpaque;
+
+  if(mXrdFile)
+  {
+    delete mXrdFile;
+    mXrdFile = NULL;
+  }
+
   mXrdFile = new XrdCl::File();
   
   // Disable recovery on read and write
@@ -301,6 +316,8 @@ XrdIo::fileOpenAsync (void* io_handler,
     eos_err("error=opening remote XrdClFile");
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
   
@@ -323,6 +340,13 @@ XrdIo::fileRead (XrdSfsFileOffset offset,
             static_cast<uint64_t> (length));
 
   uint32_t bytes_read = 0;
+
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Read(static_cast<uint64_t> (offset),
                                               static_cast<uint32_t> (length),
                                               buffer,
@@ -333,6 +357,8 @@ XrdIo::fileRead (XrdSfsFileOffset offset,
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -354,6 +380,12 @@ XrdIo::fileWrite (XrdSfsFileOffset offset,
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
 
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Write(static_cast<uint64_t> (offset),
                                                static_cast<uint32_t> (length),
                                                buffer,
@@ -363,6 +395,8 @@ XrdIo::fileWrite (XrdSfsFileOffset offset,
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -384,6 +418,12 @@ XrdIo::fileReadAsync (XrdSfsFileOffset offset,
   eos_debug("offset=%llu length=%llu",
             static_cast<uint64_t> (offset),
             static_cast<uint64_t> (length));
+
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
 
   bool done_read = false;
   int64_t nread = 0;
@@ -634,6 +674,12 @@ XrdIo::fileWriteAsync (XrdSfsFileOffset offset,
 {
   eos_debug("offset=%llu length=%i", static_cast<uint64_t> (offset), length);
 
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   ChunkHandler* handler;
   XrdCl::XRootDStatus status;
 
@@ -652,6 +698,13 @@ XrdIo::fileWriteAsync (XrdSfsFileOffset offset,
                            handler->GetBuffer(),
                            handler,
                            timeout);
+
+  if (!status.IsOK())
+  {
+    mMetaHandler->HandleResponse(&status, handler);
+    return SFS_ERROR;
+  }
+
   return length;
 }
 
@@ -663,6 +716,11 @@ XrdIo::fileWriteAsync (XrdSfsFileOffset offset,
 int
 XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
 
   if (mExternalStorage || !mIsOpen)
   {
@@ -689,6 +747,8 @@ XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -703,6 +763,12 @@ XrdIo::fileTruncate (XrdSfsFileOffset offset, uint16_t timeout)
 int
 XrdIo::fileSync (uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   XrdCl::XRootDStatus status = mXrdFile->Sync(timeout);
 
   if (!status.IsOK())
@@ -710,6 +776,8 @@ XrdIo::fileSync (uint16_t timeout)
 
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -724,6 +792,12 @@ XrdIo::fileSync (uint16_t timeout)
 int
 XrdIo::fileStat (struct stat* buf, uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
   //............................................................................
@@ -733,6 +807,8 @@ XrdIo::fileStat (struct stat* buf, uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
   }
   else
   {
@@ -760,6 +836,12 @@ XrdIo::fileStat (struct stat* buf, uint16_t timeout)
 int
 XrdIo::fileClose (uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
+
   bool async_ok = true;
   mIsOpen = false;
 
@@ -786,6 +868,8 @@ XrdIo::fileClose (uint16_t timeout)
   {
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return SFS_ERROR;
   }
 
@@ -807,6 +891,11 @@ XrdIo::fileClose (uint16_t timeout)
 int
 XrdIo::fileRemove (uint16_t timeout)
 {
+  if(!mXrdFile)
+  {
+    errno = EIO;
+    return SFS_ERROR;
+  }
 
   //............................................................................
   // Remove the file by truncating using the special value offset
@@ -818,6 +907,8 @@ XrdIo::fileRemove (uint16_t timeout)
 
     eos_err("error=failed to truncate file with deletion offset - %s", mFilePath.c_str());
     mLastErrMsg = "failed to truncate file with deletion offset";
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
   }
 
   return retc;
@@ -842,11 +933,15 @@ XrdIo::fileExists ()
     {
       errno = ENOENT;
       mLastErrMsg = "no such file or directory";
+      mLastErrCode  = status.code;
+      mLastErrNo  = status.errNo;
     }
     else
     {
       errno = EIO;
       mLastErrMsg = "failed to check for existance";
+      mLastErrCode  = status.code;
+      mLastErrNo  = status.errNo;
     }
 
     return SFS_ERROR;
@@ -884,6 +979,8 @@ XrdIo::fileDelete (const char* url)
 
     eos_err("error=failed to delete file - %s", url);
     mLastErrMsg = "failed to delete file";
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     errno = EIO;
     return SFS_ERROR;
   }
@@ -978,6 +1075,8 @@ XrdIo::Statfs( struct statfs* sfs)
   {
     eos_err("msg=\"failed to statfs remote XRootD\" url=\"%s\"", mFilePath.c_str());
     mLastErrMsg = "failed to statfs remote XRootD";
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     errno = EREMOTEIO;
     return errno;
   }
@@ -1297,6 +1396,8 @@ XrdIo::ftsOpen ()
     eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
     errno = status.errNo;
     mLastErrMsg = status.ToString().c_str();
+    mLastErrCode  = status.code;
+    mLastErrNo  = status.errNo;
     return 0;
   }
 
@@ -1364,6 +1465,8 @@ XrdIo::ftsRead (FileIo::FtsHandle* fts_handle)
         eos_err("error=listing remote XrdClFile - %s", status.ToString().c_str());
         errno = status.errNo;
         mLastErrMsg = status.ToString().c_str();
+	mLastErrCode  = status.code;
+	mLastErrNo  = status.errNo;
         return "";
       }
       else

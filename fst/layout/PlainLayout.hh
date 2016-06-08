@@ -137,6 +137,28 @@ public:
   bool WaitOpenAsync();
 
   //--------------------------------------------------------------------------
+  //! Open file asynchronously
+  //!
+  //! @param path file path
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param handler open handler
+  //! @param opaque opaque information
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  virtual int OpenAsync (const std::string& path, XrdSfsFileOpenMode flags,
+                         mode_t mode, XrdCl::ResponseHandler* handler,
+                         const char* opaque = "");
+
+  //--------------------------------------------------------------------------
+  //! Wait for the asynchronous open response
+  //!
+  //! @return true if open successful, false otherwise
+  //--------------------------------------------------------------------------
+  bool WaitOpenAsync();
+
+  //--------------------------------------------------------------------------
   //! Read from file
   //!
   //! @param offset offset

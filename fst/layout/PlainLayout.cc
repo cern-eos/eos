@@ -45,7 +45,9 @@ void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status
   if (status->IsOK())
   {
     // Store the last URL we are connected after open
+
     mPlainLayout->mLastUrl = mPlainLayout->mFileIO->GetLastUrl();
+
     is_ok = true;
   }
 
@@ -63,6 +65,7 @@ void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
+<<<<<<< HEAD
 PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           int lid,
                           const XrdSecEntity* client,
@@ -80,6 +83,7 @@ mAsyncResponse(false), mIoOpenHandler(NULL), mFlags(0)
     mFileIO->SetExternalStorage();
   pthread_mutex_init(&mMutex, NULL);
   pthread_cond_init(&mCondVar, NULL);
+
   mIsEntryServer = true;
   mLocalPath = path;
 }
@@ -100,13 +104,17 @@ void PlainLayout::Redirect(const char* path)
 
 PlainLayout::~PlainLayout ()
 {
+
   // mFileIO is deleted via mFileIO in the base class
+
 
   pthread_mutex_destroy(&mMutex);
   pthread_cond_destroy(&mCondVar);
 
   if (mIoOpenHandler)
     delete mIoOpenHandler;
+
+
 }
 
 //------------------------------------------------------------------------------
@@ -120,6 +128,10 @@ PlainLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   mLastUrl = mFileIO->GetLastUrl();
 
   mFlags = flags;
+
+  mLastErrCode = mFileIO->GetLastErrCode();
+  mLastErrNo = mFileIO->GetLastErrNo();
+
   // Get initial file size if not new file or truncated
   if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
   {

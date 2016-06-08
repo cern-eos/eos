@@ -7,6 +7,113 @@
 Beryl Release Notes
 ===================
 
+``V0.3.185 Aquamarine``
++++++++++++++++++++++++
+
+- FST: correct error codes in eoscp to flag target errors in tranfser queue jobs
+- MGM: allow 'xrd.*' to be present in proc commands (used by FUSE repair)
+
+
+``V0.3.184 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: report 1k as maximum file name length in statvfs
+- FUSE: don't trigger recovery if a file is deleted before it is actually written
+- MGM: update directory mtime when a replica drop leads to a file remove
+- FST: don't give a checksum error if a not yet fully created file is read by a second FUSE client 
+
+Bug Fix
++++++++
+
+
+``V0.3.183 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix lock bug visible since 0.3.182 in the WriteBack cache as a dead-lock (responsible for many previous changes) 
+- FUSE: close inconsistent mtime window present during release file (vim editor problem)
+ 
+``V0.3.182 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix bug introduced in 0.3.181 to force creation of a file before a read open can proceed
+- FUSE: use a standard mutex instead of a rw mutex to protect wb cache map
+- FUSE: fix open(update) wrong mtime behaviour observed when using vim ona a file without local caps
+- COMMON: fix performance relevant ShellCmd::Wait() function to use exponential backoff starting at 1ms to discover if a subprocess has terminated. This has a drastic effect on balancing and draining jobs which was limited to 1Hz due to this implementation
+- FST: when running multiple FST instances store the eoscp log for each instance in their private log directory
+- FST: fix missing tpcClose when a target TPC operation had been terminated
+- MGM: use conditional/scoped lock monitor to avoid any path in the code where the quota mutex could stay read-locked and no new quota node can be created/listed
+
+
+New Features
+++++++++++++
+
+- MGM: by default don't do a risk analysis for 'fs status' since it can take significant amount of time when millions of files are on a filesystem - previous behaviour using 'fs status -r'
+- MGM: extend 'schedule2balance' call to directly return a balance job to the FST instead of sending it through the asynchronous queue (FST equivalent part is still not committed)
+- FUSE: add an environment variable to simulate slow backend behaviour in the asynchronous part of FUSE (EOS_FUSE_LAZY_LAG=<ms>)
+
+``V0.3.181 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FST: fix double unlock leading to an abort if a file checksum was found
+- FUSE: fix race condition in locking scheme when adding pieces to the writeback cache
+- FUSE: avoid several memory leaks induced by open/write/close/delete sequences
+- FUSE: avoid possible order inversion of Open[create] file / Open[read] file
+
+``V0.3.180 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: fix particular geo scheduling case which could return ENOSPACE
+- MGM: avoid dead-lock in SetQuota calls
+
+``V0.3.179 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix SEGV introduced by XrdIo memory leak fix in 0.3.177
+
+``V0.3.178 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: fix geotag scheduling when exact switch is enabled/disabled (try always first with exact geo matching, then relax the requirement)
+- FUSE: fix SEGV on krb5 recovery redirection
+- COMMON: fix eternal loop for esoteric .././.././../ path combinations
+
+``V0.3.177 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FST: reduce lock contention on Sqlite mutex
+- FST: use one Sqlite lock per filestem instead of a global lock for all filesystems
+- ETC: fix use of default mount dir in eosd scripts
+- FUSE: fix invalid modtime calculation disabling directory caching
+- FUSE: fix memory leak in XrdIo when a file was deleted before it was ever opened 
+- HTTP: add mutex to avoid parallel loading of grid-map file and possible memory SEGV when parsing
+- NAMESPACE: don't cancel follower threads on the Slave in active code (avoids exceptions on pthread_join)
+ 
+New Feature
++++++++++++
+
+- FUSE: add support to compile eosd3 using libfuse3
+
 ``V0.3.176 Aquamarine``
 +++++++++++++++++++++++
 

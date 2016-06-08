@@ -116,6 +116,24 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Get last errCode
+  //--------------------------------------------------------------------------
+  const int&
+  GetLastErrCode ()
+  {
+    return mLastErrCode;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get last errCode
+  //--------------------------------------------------------------------------
+  const int&
+  GetLastErrNo ()
+  {
+    return mLastErrNo;
+  }
+
+  //--------------------------------------------------------------------------
   //! Test if we are at the entry server
   //--------------------------------------------------------------------------
   virtual bool
@@ -262,6 +280,8 @@ protected:
   unsigned int mLayoutId; ///< layout id
   XrdOucString mName; ///< layout name
   std::string mLastUrl; ///< last URL for remote files
+  int mLastErrCode; ///< last errCode
+  int mLastErrNo; ///< last errno
   XrdFstOfsFile* mOfsFile; ///< handler to logical file
   std::string mLocalPath; ///< path to local file
   XrdOucErrInfo* mError; ///< error information
