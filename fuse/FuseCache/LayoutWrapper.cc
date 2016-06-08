@@ -80,10 +80,7 @@ bool LayoutWrapper::ToCGI(const std::map<std::string, std::string>& m ,
 // Constructor
 //------------------------------------------------------------------------------
 LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
-    mFile(file), mOpen(false), mFabs(NULL), mDoneAsyncOpen(false),
-
     mFile(file), mOpen(false), mClose(false), mFabs(NULL), mDoneAsyncOpen(false),
-
     mOpenHandler(NULL)
 {
   mLocalUtime[0].tv_sec = mLocalUtime[1].tv_sec = 0;
@@ -363,10 +360,11 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
   u.SetParams("");
   u.SetPath("/proc/user/");
   XrdCl::XRootDStatus status;
-  std::unique_ptr<LayoutWrapper> file (new LayoutWrapper(new eos::fst::PlainLayout(
-										   NULL, 0, NULL, NULL, eos::common::LayoutId::kXrdCl)));
-  int retc = file->Open(u.GetURL().c_str(), (XrdSfsFileOpenMode)0,
-                        (mode_t)0, cmd.c_str(), NULL, true, 0, false);
+
+  std::unique_ptr <eos::fst::PlainLayout> file (new eos::fst::PlainLayout(
+									  NULL, 0, NULL, NULL, u.GetURL().c_str()));
+  int retc = file->Open((XrdSfsFileOpenMode)0,
+                        (mode_t)0, cmd.c_str());
 
   if (retc)
   {
@@ -442,7 +440,7 @@ LayoutWrapper::Restore()
 									  NULL, 0, NULL, NULL, u.GetURL().c_str()));
   for (size_t i = 0; i < 3; ++i)
   {
-    if ( file->Open(u.GetURL().c_str(), mFlags | SFS_O_CREAT, mMode, params.c_str()) )
+    if ( file->Open(mFlags | SFS_O_CREAT, mMode, params.c_str()) )
     {
       XrdSysTimer sleeper;
       eos_static_warning("restore failed to open path=%s - snooze 5s ...", u.GetURL().c_str());
@@ -622,8 +620,10 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       eos_static_debug("Sync-open path=%s opaque=%s",
                        _path.c_str (),
                        sopaque.c_str ());
+
+      mFile->Redirect(_path.c_str());
       // Do synchronous open
-      if ((retc = mFile->Open (_path.c_str (), flags, mode, sopaque.c_str ())))
+      if ((retc = mFile->Open (flags, mode, sopaque.c_str ())))
       {
         eos_static_debug("Sync-open got errNo=%d errCode=%d",
                          static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo (),

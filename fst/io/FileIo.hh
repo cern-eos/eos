@@ -365,13 +365,6 @@ public:
     return mFilePath;
   }
 
-protected:
-  const std::string mFilePath; ///< path to current physical file
-  const std::string mType; ///< type
-  std::string mLastUrl; ///< last used url if remote file
-  std::string mLastErrMsg; ///< last error message seen
-  bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
-
   //--------------------------------------------------------------------------
   //! Get last error message
   //--------------------------------------------------------------------------
@@ -400,13 +393,14 @@ protected:
   }
 
 protected:
-
-  std::string mFilePath; ///< path to current physical file
-  std::string mLastUrl;  ///< last used url if remote file
-  std::string mLastErrMsg; ///< last error stored
+  const std::string mFilePath; ///< path to current physical file
+  const std::string mType; ///< type
+  std::string mLastUrl; ///< last used url if remote file
+  std::string mLastErrMsg; ///< last error message seen
   int mLastErrCode; ///< last error code
   int mLastErrNo; ///< last error no
 
+  bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
 };
 
 EOSFSTNAMESPACE_END

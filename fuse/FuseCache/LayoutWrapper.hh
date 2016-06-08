@@ -179,20 +179,6 @@ class LayoutWrapper
   int64_t Write(XrdSfsFileOffset offset, const char* buffer,
                 XrdSfsXferSize length, bool touchMtime = true);
 
-  int64_t ReadCache(XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
-                    off_t maxcache = (64 * 1024 * 1024));
-
-  //----------------------------------------------------------------------------
-  //! Overloading member functions of FileLayout class
-  //----------------------------------------------------------------------------
-  int64_t ReadV(XrdCl::ChunkList& chunkList, uint32_t len);
-
-  //----------------------------------------------------------------------------
-  //! Overloading member functions of FileLayout class
-  //----------------------------------------------------------------------------
-  int64_t Write(XrdSfsFileOffset offset, const char* buffer,
-                XrdSfsXferSize length, bool touchMtime = true);
-
   //----------------------------------------------------------------------------
   //! Overloading member functions of FileLayout class
   //----------------------------------------------------------------------------

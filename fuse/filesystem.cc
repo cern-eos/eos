@@ -3336,7 +3336,6 @@ filesystem::open (const char* path,
  if (isRO && force_rwopen (*return_inode, uid, gid, pid) < 0)
  {
    eos_static_err("forcing rw open failed for inode %lu path %s", (unsigned long )*return_inode, path);
-   delete file;
    return error_retc_map (errno);
  }
 

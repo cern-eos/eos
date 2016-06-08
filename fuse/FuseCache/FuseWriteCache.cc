@@ -174,8 +174,6 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                          size_t len)
 {
   CacheEntry* pEntry = 0;
-  mMapLock.ReadLock(); // read lock map
-
   XrdSysMutexHelper lock(mMapLock);
 
   key_entry_t::iterator it = mKeyEntryMap.find(k);

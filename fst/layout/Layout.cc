@@ -55,7 +55,6 @@ mLastErrCode(0),
 mLastErrNo(0),
 mOfsFile(file),
 mError(outError),
-mIoType(io),
 mTimeout(timeout)
 
 {

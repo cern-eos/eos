@@ -907,8 +907,6 @@ XrdIo::fileRemove (uint16_t timeout)
 
     eos_err("error=failed to truncate file with deletion offset - %s", mFilePath.c_str());
     mLastErrMsg = "failed to truncate file with deletion offset";
-    mLastErrCode  = status.code;
-    mLastErrNo  = status.errNo;
   }
 
   return retc;
