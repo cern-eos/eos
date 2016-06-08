@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.186 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: fix inode mapping after repair and follow new inode
+- FUSE: avoid to force a file open for a utimes setattr call
+- MGM: fix 'map' interface to work with encoded FUSE paths
+- CONSOLE: update 'fs dropdeletion' and deprecate 'fs dropfiles' and MGM redirection behaviour for 'fs dropdeletion'
+
 ``V0.3.185 Aquamarine``
 +++++++++++++++++++++++
 

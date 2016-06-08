@@ -475,7 +475,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
 
  if (!retc)
  {
-   retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino);
+   retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, 0/*ino*/);
    if (!retc)
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
    else
