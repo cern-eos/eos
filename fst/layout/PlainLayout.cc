@@ -65,7 +65,6 @@ void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-<<<<<<< HEAD
 PlainLayout::PlainLayout (XrdFstOfsFile* file,
                           int lid,
                           const XrdSecEntity* client,
