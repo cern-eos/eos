@@ -141,9 +141,10 @@ com_config (char* arg1)
     return (0);
   }
 
-  if (subcommand == "export")
+  if (subcommand == "load2Redis")
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=export&mgm.config.file=";
+    XrdOucString in = "mgm.cmd=config&mgm.subcmd=load2Redis&mgm.config.file=";
+
     if (!arg.length())
       goto com_config_usage;
 

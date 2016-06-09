@@ -109,18 +109,12 @@ ProcCommand::Config ()
    }
  }
 
- if (mSubCmd == "export")
+ if (mSubCmd == "load2Redis")
  {
-   if (gOFS->MgmOfsConfigEngineType == "file")
-   {
-        retc = EINVAL;
-        stdErr = "error: this command is available only with ConfigEngine type 'redis'";
-   }
-   else if (pVid->uid == 0)
+   if (pVid->uid == 0)
    {
      eos_notice("config load2Redis: %s", pOpaque->Env(envlen));
-     ConfigEngineRedis* redis_conf = dynamic_cast<ConfigEngineRedis*> (gOFS->ConfEngine);
-     if (!redis_conf->LoadConfig2Redis(*pOpaque, stdErr))
+     if (!gOFS->ConfEngine->LoadConfig2Redis(*pOpaque, stdErr))
      {
        retc = errno;
      }

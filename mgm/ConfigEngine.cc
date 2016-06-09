@@ -42,6 +42,33 @@ EOSMGMNAMESPACE_BEGIN
 
 XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
 
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+ConfigEngine::ConfigEngine (const char* configdir)
+{
+  SetConfigDir(configdir);
+  changeLog.configChanges = "";
+  currentConfigFile = "default";
+  XrdOucString changeLogFile = configDir;
+  changeLogFile += "/config.changelog";
+  changeLog.Init(changeLogFile.c_str());
+  autosave = false;
+  configBroadcast = true;
+  if (useConfig2Redis) { 
+    client.connect(REDIS_HOST, REDIS_PORT);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+ConfigEngine::~ConfigEngine() {
+  if (useConfig2Redis) {
+    client.disconnect();
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 int
 ConfigEngine::DeleteConfigByMatch(const char* key, XrdOucString* def, void* Arg)
@@ -588,5 +615,118 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
   return 0;
 }
 
+
+/* ---------------------------------------------------------------------------*/
+bool 
+ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err) 
+/**
+ * Dump a configuration to Redis from the current loaded config
+ *
+ */
+/*----------------------------------------------------------------------------*/
+{
+  const char* name = env.Get("mgm.config.file");
+  eos_notice("loading name=%s ", name);
+
+  XrdOucString cl = "loaded config ";
+  cl += name;
+  cl += " ";
+  if (!name)
+  {
+    err = "error: you have to specify a configuration file name";
+    return false;
+  }
+
+  XrdOucString fullpath = configDir;
+  fullpath += name;
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+
+  if (::access(fullpath.c_str(), R_OK))
+  {
+    err = "error: unable to open config file ";
+    err += fullpath.c_str();
+    return false;
+  }
+
+  ResetConfig();
+
+  ifstream infile(fullpath.c_str());
+  std::string s;
+  XrdOucString allconfig = "";
+  if (infile.is_open())
+  {
+    XrdOucString config = "";
+    while (!infile.eof())
+    {
+      getline(infile, s);
+      if (s.length())
+      {
+        allconfig += s.c_str();
+        allconfig += "\n";
+      }
+      eos_notice("IN ==> %s", s.c_str());
+    }
+    infile.close();
+    if (!ParseConfig(allconfig, err))
+      return false;
+    configBroadcast = false;
+    if (!ApplyConfig(err))
+    {
+      configBroadcast = true;
+      cl += " with failure";
+      cl += " : ";
+      cl += err;
+      changeLog.AddEntry(cl.c_str());
+      return false;
+    }
+    else
+    {
+      configBroadcast = true;
+      cl += " successfully";
+      changeLog.AddEntry(cl.c_str());
+      currentConfigFile = name;
+      changeLog.configChanges = "";
+
+      std::string hash_key = "redox_test:configuration";//to define
+      redox::RedoxHash rdx_hash(client,hash_key);
+      if (rdx_hash.hlen() > 0) {
+        std::vector<std::string> resp = rdx_hash.hkeys();
+
+        for (auto&& elem: resp)
+        	rdx_hash.hdel(elem);
+
+       }
+      Mutex.Lock();
+      configDefinitions.Apply(SetRedisHashConfig, &rdx_hash);
+      Mutex.UnLock();
+      return true;
+    }
+   }
+  else
+  {
+    err = "error: failed to open configuration file with name \"";
+    err += name;
+    err += "\"!";
+    return false;
+  }
+  return false;
+
+}
+
+/* ---------------------------------------------------------------------------*/
+int 
+ConfigEngine::SetRedisHashConfig  (const char* key, XrdOucString* def, void* Arg)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Callback function of XrdOucHash to set to Redox Hash each key
+ * @brief configuration object
+ *
+ */
+{
+  eos_static_debug("%s => %s", key, def->c_str());
+  redox::RedoxHash *hash = ((redox::RedoxHash*) Arg);
+  hash->hset(key, std::string(def->c_str()));
+  return 0;
+}
 
 EOSMGMNAMESPACE_END

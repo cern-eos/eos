@@ -127,12 +127,15 @@ public:
   // ---------------------------------------------------------------------------
   virtual bool SaveConfig (XrdOucEnv& env, XrdOucString &err) {return true;};
 
-  // ---------------------------------------------------------------------------
-  // List all configurations
-  // ---------------------------------------------------------------------------
-  virtual bool ListConfigs (XrdOucString &configlist, bool showbackups = false)
-  { return true;}
+  redox::Redox client;
+  //TO DO take from mgm configuration
+  std::string REDIS_HOST="localhost";
+  //TO DO take from mgm configuration
+  int REDIS_PORT = 6379;
+  //TO DO take from mgm configuration
+  bool useConfig2Redis = true;
 
+public:
   // ---------------------------------------------------------------------------
   // Dump a configuration
   // ---------------------------------------------------------------------------
@@ -439,24 +442,22 @@ class ConfigEngineRedis : public ConfigEngine
                       bool noBroadcast = true);
 
   void
-    SetConfigValue (const char* prefix,
-                   const char* fsname,
-                   const char* def,
-                   bool noBroadcast = true);
+  DeleteConfigValueByMatch (const char* prefix, const char* match);
 
-  private:
+  //----------------------------------------------------------------------------
+  // Redis conf specific functions
+  //----------------------------------------------------------------------------
 
-  redox::Redox client;
-  
-  std::string REDIS_HOST;
-
-  int REDIS_PORT;
-
-  std::string conf_set_key = "EOSConfig:list";
-  std::string conf_hash_key_prefix = "EOSConfig";
-  std::string conf_backup_hash_key_prefix = "EOSConfig:backup";
-  std::string conf_set_backup_key = "EOSConfig:backuplist";
-
+  // ---------------------------------------------------------------------------
+  // Load a configuration to Redis
+  // ---------------------------------------------------------------------------
+  bool 
+  LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err);
+  // ---------------------------------------------------------------------------
+  // XrdOucHash callback function to set to an HashSet all the configuration value
+  // ---------------------------------------------------------------------------
+  static int 
+  SetRedisHashConfig  (const char* key, XrdOucString* def, void* Arg);
 };
 
 
