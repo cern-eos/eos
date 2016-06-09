@@ -40,13 +40,13 @@ namespace eos
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      MDException( int errorNo = ENODATA ) noexcept:
+      MDException( int errorNo = ENODATA ):
 	pErrorNo( errorNo ), pTmpMessage( 0 ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      virtual ~MDException() noexcept
+    virtual ~MDException()
       {
 	delete [] pTmpMessage;
       }
@@ -55,7 +55,7 @@ namespace eos
       //! Copy constructor - this is actually required because we cannot copy
       //! stringstreams
       //------------------------------------------------------------------------
-      MDException( MDException &e ) noexcept
+      MDException( MDException &e )
       {
 	pMessage << e.getMessage().str();
 	pErrorNo = e.getErrno();
@@ -81,7 +81,7 @@ namespace eos
       //------------------------------------------------------------------------
       // Get the message
       //------------------------------------------------------------------------
-      virtual const char *what() const noexcept override
+      virtual const char *what() const throw()
       {
 	// we could to that instead: return (pMessage.str()+" ").c_str();
 	// but it's ugly and probably not portable
