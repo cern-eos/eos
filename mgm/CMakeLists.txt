@@ -32,7 +32,10 @@ include_directories(
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
+  ${REDOX_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/auth_plugin/)
+
+#add_subdirectory (test)
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
@@ -161,7 +164,8 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${JSONCPP_LIBRARIES})
+  ${JSONCPP_LIBRARIES}
+  ${REDOX_LIBRARIES})
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part

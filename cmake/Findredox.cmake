@@ -10,7 +10,7 @@ if(REDOX_INCLUDE_DIRS AND REDOX_LIBRARIES)
 else()
   find_path(
     REDOX_INCLUDE_DIR
-    NAMES redox.hpp
+    NAMES redox.hpp redoxSet.hpp redoxHash.hpp
     HINTS ${REDOX_ROOT_DIR}
     PATH_SUFFIXES include)
 

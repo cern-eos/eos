@@ -109,6 +109,28 @@ ProcCommand::Config ()
    }
  }
 
+ if (mSubCmd == "load2Redis")
+ {
+   if (pVid->uid == 0)
+   {
+     eos_notice("config load2Redis: %s", pOpaque->Env(envlen));
+     if (!gOFS->ConfEngine->LoadConfig2Redis(*pOpaque, stdErr))
+     {
+       retc = errno;
+     }
+     else
+     {
+       stdOut = "success: configuration successfully loaded!";
+     }
+   }
+   else
+   {
+     retc = EPERM;
+     stdErr = "error: you have to take role 'root' to execute this command";
+   }
+ }
+
+
  if (mSubCmd == "save")
  {
    eos_notice("config save: %s", pOpaque->Env(envlen));

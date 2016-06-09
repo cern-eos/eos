@@ -46,8 +46,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-
 /*----------------------------------------------------------------------------*/
+#include <redox.hpp>
+#include <redox/redoxSet.hpp>
+#include <redox/redoxHash.hpp>
+/*----------------------------------------------------------------------------*/
+
 /**
  * @file ConfigEngine.hh
  * 
@@ -125,6 +129,14 @@ private:
   /// broadcasting flag - if enabled all changes are broadcasted into the MGM
   /// configuration queue (config/<instance>/mgm)
   bool configBroadcast;
+
+  redox::Redox client;
+  //TO DO take from mgm configuration
+  std::string REDIS_HOST="localhost";
+  //TO DO take from mgm configuration
+  int REDIS_PORT = 6379;
+  //TO DO take from mgm configuration
+  bool useConfig2Redis = true;
 
 public:
 
@@ -318,6 +330,23 @@ public:
   // ---------------------------------------------------------------------------
   void
   DeleteConfigValueByMatch (const char* prefix, const char* match);
+
+  //----------------------------------------------------------------------------
+  // Redis conf specific functions
+  //----------------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------------
+  // Load a configuration to Redis
+  // ---------------------------------------------------------------------------
+  bool 
+  LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err);
+  // ---------------------------------------------------------------------------
+  // XrdOucHash callback function to set to an HashSet all the configuration value
+  // ---------------------------------------------------------------------------
+  static int 
+  SetRedisHashConfig  (const char* key, XrdOucString* def, void* Arg);
+
+
 };
 
 EOSMGMNAMESPACE_END
