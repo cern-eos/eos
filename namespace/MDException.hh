@@ -46,7 +46,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-    virtual ~MDException()
+      virtual ~MDException() throw()
       {
 	delete [] pTmpMessage;
       }
