@@ -73,7 +73,7 @@ class DummyFileMDSvc: public eos::IFileMDSvc
 {
 public:
   virtual void initialize() {}
-  virtual void configure( std::map<std::string, std::string> &config ) {}
+  virtual void configure(const std::map<std::string, std::string> &config ) {}
   virtual void finalize() throw( eos::MDException ) {}
   virtual std::shared_ptr<eos::IFileMD> getFileMD( eos::IFileMD::id_t id ) {
     return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0); }

@@ -27,7 +27,6 @@
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
-#include <map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -62,17 +61,15 @@ class QuotaStats;
 //! Besides these, we also save the ids of all the containers that are also
 //! quota nodes in a set structure called "quota_set_ids".
 //------------------------------------------------------------------------------
-class QuotaNode: public IQuotaNode
-{
+class QuotaNode : public IQuotaNode {
   friend class ConvertContainerMDSvc;
   friend class ConvertFileMDSvc;
 
- public:
-
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t nodeId);
+  QuotaNode(IQuotaStats* quotaStats, IContainerMD::id_t node_id);
 
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
@@ -122,7 +119,8 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get current uid qutoa key
   //----------------------------------------------------------------------------
-  std::string getUidKey() const
+  std::string
+  getUidKey() const
   {
     return pQuotaUidKey;
   }
@@ -130,7 +128,8 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get current uid qutoa key
   //----------------------------------------------------------------------------
-  std::string getGidKey() const
+  std::string
+  getGidKey() const
   {
     return pQuotaGidKey;
   }
@@ -149,7 +148,7 @@ class QuotaNode: public IQuotaNode
   //!
   //! @return vector of uids
   //----------------------------------------------------------------------------
-  std::vector<unsigned long> getUids();
+  std::vector<uint64_t> getUids();
 
   //----------------------------------------------------------------------------
   //! Get the set of gids for which information is stored in the current quota
@@ -157,10 +156,9 @@ class QuotaNode: public IQuotaNode
   //!
   //! @return vector of gids
   //----------------------------------------------------------------------------
-  std::vector<unsigned long> getGids();
+  std::vector<uint64_t> getGids();
 
 private:
-
   //----------------------------------------------------------------------------
   //! Get all uid fields for current quota node
   //!
@@ -181,9 +179,9 @@ private:
   std::string pQuotaGidKey;
   redox::Redox* pRedox; ///< Redis client
 
-  static const std::string sSpaceTag; ///< Tag for space quota
+  static const std::string sSpaceTag;         ///< Tag for space quota
   static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
-  static const std::string sFilesTag; ///< Tag for number of files quota
+  static const std::string sFilesTag;         ///< Tag for number of files quota
 };
 
 //----------------------------------------------------------------------------
@@ -194,17 +192,16 @@ private:
 //! ids for the corresponding quota nodes. The key name of the set in the
 //! Redis instance needs to be unique i.e the sSetQuotaIds static variable.
 //----------------------------------------------------------------------------
-class QuotaStats: public IQuotaStats
-{
+class QuotaStats : public IQuotaStats {
   friend class QuotaNode;
   friend class ConvertContainerMDSvc;
   friend class ConvertFileMDSvc;
 
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  QuotaStats(const std::map<std::string, std::string>& map);
+  QuotaStats(const std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -235,11 +232,10 @@ class QuotaStats: public IQuotaStats
   std::set<std::string> getAllIds();
 
 private:
-
-  static const std::string sSetQuotaIds; ///< Set of quota node ids
+  static const std::string sSetQuotaIds;     ///< Set of quota node ids
   static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
   static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
-  redox::Redox* pRedox; ///< Redix client
+  redox::Redox* pRedox;                      ///< Redix client
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
 };
 

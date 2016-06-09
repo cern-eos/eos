@@ -24,63 +24,69 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc) :
-    pContainerMDSvc(svc)
-{}
+SyncTimeAccounting::SyncTimeAccounting(IContainerMDSvc* svc)
+    : pContainerMDSvc(svc)
+{
+}
 
 //------------------------------------------------------------------------------
 // Notify the me about the changes in the main view
 //------------------------------------------------------------------------------
-void SyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
+void
+SyncTimeAccounting::containerMDChanged(IContainerMD* obj, Action type)
 {
-  switch (type)
-  {
-    // MTime change
-    case IContainerMDChangeListener::MTimeChange:
-      Propagate(obj->getId());
-      break;
+  switch (type) {
+  // MTime change
+  case IContainerMDChangeListener::MTimeChange:
+    Propagate(obj->getId());
+    break;
 
-    default:
-      break;
+  default:
+    break;
   }
 }
 
 //------------------------------------------------------------------------------
 // Propagate the sync time
 //------------------------------------------------------------------------------
-void SyncTimeAccounting::Propagate(IContainerMD::id_t id)
+void
+SyncTimeAccounting::Propagate(IContainerMD::id_t id)
 {
   size_t deepness = 0;
 
-  if (!id)
+  if (id == 0u) {
     return;
+  }
 
-  IContainerMD::ctime_t mTime;
-  mTime.tv_sec = mTime.tv_nsec = 0 ;
+  IContainerMD::ctime_t mTime = {0};
+  mTime.tv_sec = mTime.tv_nsec = 0;
   IContainerMD::id_t iId = id;
 
-  while ((iId > 1) && (deepness < 255))
-  {
+  while ((iId > 1) && (deepness < 255)) {
     std::shared_ptr<IContainerMD> iCont;
 
-    try
-    {
+    try {
       iCont = pContainerMDSvc->getContainerMD(iId);
 
       // Only traverse if there there is an attribute saying so
-      if (!iCont->hasAttribute("sys.mtime.propagation"))
+      if (!iCont->hasAttribute("sys.mtime.propagation")) {
         return;
+      }
 
-      if (!deepness)
+      if (deepness == 0u) {
         iCont->getMTime(mTime);
+      }
 
-      if (!iCont->setTMTime(mTime) && deepness)
+      if (!iCont->setTMTime(mTime) && (deepness != 0u)) {
         return;
+      }
+    } catch (MDException& e) {
+      iCont = nullptr;
     }
-    catch (MDException& e) {}
 
-    if (!iCont)
+    if (iCont == nullptr) {
       return;
+    }
 
     iId = iCont->getParentId();
     deepness++;

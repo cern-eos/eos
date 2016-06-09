@@ -40,7 +40,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Configure the view
   //----------------------------------------------------------------------------
-  void HierarchicalView::configure( std::map<std::string, std::string> &config )
+  void HierarchicalView::configure( const std::map<std::string, std::string> &config )
   {
     if( !pContainerSvc )
     {

@@ -23,19 +23,17 @@
 
 #ifndef EOS_NS_SYNCTIME_ACCOUNTING_HH
 #define EOS_NS_SYNCTIME_ACCOUNTING_HH
-#include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/MDException.hh"
 #include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMDSvc.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Synchronous mtime propagation listener
 //------------------------------------------------------------------------------
-class SyncTimeAccounting : public IContainerMDChangeListener
-{
- public:
-
+class SyncTimeAccounting : public IContainerMDChangeListener {
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -51,7 +49,7 @@ class SyncTimeAccounting : public IContainerMDChangeListener
   //----------------------------------------------------------------------------
   void containerMDChanged(IContainerMD* obj, Action type);
 
- private:
+private:
   IContainerMDSvc* pContainerMDSvc;
 
   //----------------------------------------------------------------------------

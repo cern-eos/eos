@@ -16,53 +16,50 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/Constants.hh"
 #include "namespace/ns_on_redis/FileMD.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
-#include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
 #include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include "namespace/utils/StringConvertion.hh"
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t FileMDSvc::sNumFileBuckets = 1024*1024;
+std::uint64_t FileMDSvc::sNumFileBuckets = 1024 * 1024;
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileMDSvc::FileMDSvc():
-  pRedisHost(""), pRedisPort(0), mFileCache(10e6)
-{
-}
-
-//----------------------------------------------------------------------------
-//! Destructor
-//----------------------------------------------------------------------------
-FileMDSvc::~FileMDSvc() { }
+FileMDSvc::FileMDSvc() 
+  : pQuotaStats(nullptr), pContSvc(nullptr), pRedox(nullptr), pRedisHost(""),
+    pRedisPort(0), mFileCache(10e6) {}
 
 //------------------------------------------------------------------------------
 // Configure the file service
 //------------------------------------------------------------------------------
-void FileMDSvc::configure(std::map<std::string, std::string>& config)
+void
+FileMDSvc::configure(const std::map<std::string, std::string>& config)
 {
   std::string key_host = "redis_host";
   std::string key_port = "redis_port";
 
-  if (config.find(key_host) != config.end())
-    pRedisHost = config[key_host];
+  if (config.find(key_host) != config.end()) {
+    pRedisHost = config.at(key_host);
+  }
 
-  if (config.find(key_port) != config.end())
-    pRedisPort = std::stoul(config[key_port]);
+  if (config.find(key_port) != config.end()) {
+    pRedisPort = std::stoul(config.at(key_port));
+  }
 }
 
 //------------------------------------------------------------------------------
 // Initialize the file service
 //------------------------------------------------------------------------------
-void FileMDSvc::initialize()
+void
+FileMDSvc::initialize()
 {
-  if (!pContSvc)
-  {
+  if (pContSvc == nullptr) {
     MDException e(EINVAL);
     e.getMessage() << "FileMDSvc: container service not set";
     throw e;
@@ -80,27 +77,24 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
   // Check first in cache
   std::shared_ptr<IFileMD> file = mFileCache.get(id);
 
-  if (file)
+  if (file != nullptr) {
     return file;
+  }
 
   // If not in cache, then get info from KV store
   std::string blob;
 
-  try
-  {
+  try {
     std::string sid = stringify(id);
     std::string bucket_key = getBucketKey(id);
     blob = pRedox->hget(bucket_key, sid);
-  }
-  catch (std::runtime_error& redis_err)
-  {
+  } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found";
     throw e;
   }
 
-  if (blob.empty())
-  {
+  if (blob.empty()) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << id << " not found";
     throw e;
@@ -109,27 +103,26 @@ FileMDSvc::getFileMD(IFileMD::id_t id)
   file = std::make_shared<FileMD>(0, this);
   eos::Buffer ebuff;
   ebuff.putData(blob.c_str(), blob.length());
-  static_cast<FileMD*>(file.get())->deserialize(ebuff);
+  dynamic_cast<FileMD*>(file.get())->deserialize(ebuff);
   return mFileCache.put(file->getId(), file);
 }
 
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
-std::shared_ptr<IFileMD> FileMDSvc::createFile()
+std::shared_ptr<IFileMD>
+FileMDSvc::createFile()
 {
   try {
     // Get first available file id
     uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-				       constants::sFirstFreeFid, 1);
-    std::shared_ptr<IFileMD> file {new FileMD(free_id, this)};
+                                       constants::sFirstFreeFid, 1);
+    std::shared_ptr<IFileMD> file{new FileMD(free_id, this)};
     file = mFileCache.put(free_id, file);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
     notifyListeners(&e);
     return file;
-  }
-  catch (std::runtime_error& e)
-  {
+  } catch (std::runtime_error& e) {
     return nullptr;
   }
 }
@@ -137,12 +130,12 @@ std::shared_ptr<IFileMD> FileMDSvc::createFile()
 //------------------------------------------------------------------------------
 // Update backend store and notify all the listeners
 //------------------------------------------------------------------------------
-void FileMDSvc::updateStore(IFileMD* obj)
+void
+FileMDSvc::updateStore(IFileMD* obj)
 {
   eos::Buffer ebuff;
 
-  if (!dynamic_cast<FileMD*>(obj)->serialize(ebuff))
-  {
+  if (!dynamic_cast<FileMD*>(obj)->serialize(ebuff)) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " serialization failed";
     throw e;
@@ -150,30 +143,27 @@ void FileMDSvc::updateStore(IFileMD* obj)
 
   std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
 
-  try
-  {
+  try {
     std::string sid = stringify(obj->getId());
     std::string bucket_key = getBucketKey(obj->getId());
     pRedox->hset(bucket_key, sid, buffer);
-  }
-  catch (std::runtime_error& redis_err)
-  {
+  } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
     throw e;
   }
 
-  if (!static_cast<FileMD*>(obj)->IsConsistent())
-  {
+  if (!dynamic_cast<FileMD*>(obj)->IsConsistent()) {
     pRedox->srem(constants::sSetCheckFiles, obj->getId(), nullptr);
-    static_cast<FileMD*>(obj)->SetConsistent(true);
+    dynamic_cast<FileMD*>(obj)->SetConsistent(true);
   }
 }
 
 //------------------------------------------------------------------------------
 // Remove object from the store
 //------------------------------------------------------------------------------
-void FileMDSvc::removeFile(IFileMD* obj)
+void
+FileMDSvc::removeFile(IFileMD* obj)
 {
   removeFile(obj->getId());
 }
@@ -181,18 +171,16 @@ void FileMDSvc::removeFile(IFileMD* obj)
 //------------------------------------------------------------------------------
 // Remove object from the store
 //------------------------------------------------------------------------------
-void FileMDSvc::removeFile(FileMD::id_t fileId)
+void
+FileMDSvc::removeFile(FileMD::id_t fileId)
 {
   mFileCache.remove(fileId);
 
-  try
-  {
+  try {
     std::string sid = stringify(fileId);
     std::string bucket_key = getBucketKey(fileId);
     pRedox->hdel(bucket_key, sid);
-  }
-  catch (std::runtime_error& redis_err)
-  {
+  } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << fileId << " not found. ";
     e.getMessage() << "The object was not created in this store!";
@@ -206,21 +194,23 @@ void FileMDSvc::removeFile(FileMD::id_t fileId)
 //------------------------------------------------------------------------------
 // Get number of files
 //------------------------------------------------------------------------------
-uint64_t FileMDSvc::getNumFiles()
+uint64_t
+FileMDSvc::getNumFiles()
 {
   std::atomic<std::uint32_t> num_requests{0};
   std::atomic<std::uint64_t> num_files{0};
   std::string bucket_key("");
   std::mutex mutex;
   std::condition_variable cond_var;
-  auto callback_len = [&num_files, &num_requests, &cond_var]
-    (redox::Command<long long int>& c) {
+  auto callback_len = [&num_files, &num_requests,
+                       &cond_var](redox::Command<long long int>& c) {
     if (c.ok()) {
       num_files += c.reply();
     }
 
-    if (!--num_requests)
+    if (--num_requests == 0u) {
       cond_var.notify_one();
+    }
   };
 
   auto wrapper_cb = [&num_requests, &callback_len]() -> decltype(callback_len) {
@@ -228,15 +218,13 @@ uint64_t FileMDSvc::getNumFiles()
     return callback_len;
   };
 
-  for (std::uint64_t i = 0; i < sNumFileBuckets; ++i)
-  {
+  for (std::uint64_t i = 0; i < sNumFileBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sFileKeySuffix;
 
     try {
       pRedox->hlen(bucket_key, wrapper_cb());
-    }
-    catch (std::runtime_error& redis_err) {
+    } catch (std::runtime_error& redis_err) {
       // no change
     }
   }
@@ -244,8 +232,9 @@ uint64_t FileMDSvc::getNumFiles()
   // Wait for all responses
   {
     std::unique_lock<std::mutex> lock(mutex);
-    while (num_requests)
+    while (num_requests != 0u) {
       cond_var.wait(lock);
+    }
   }
 
   return num_files;
@@ -254,15 +243,18 @@ uint64_t FileMDSvc::getNumFiles()
 //------------------------------------------------------------------------------
 // Attach a broken file to lost+found
 //------------------------------------------------------------------------------
-void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
+void
+FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 {
   std::ostringstream s1, s2;
-  std::shared_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
+  std::shared_ptr<IContainerMD> parentCont =
+      pContSvc->getLostFoundContainer(parent);
   s1 << file->getContainerId();
   std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
 
-  if (!cont)
+  if (!cont) {
     cont = pContSvc->createInParent(s1.str(), parentCont.get());
+  }
 
   s2 << file->getName() << "." << file->getId();
   file->setName(s2.str());
@@ -272,7 +264,8 @@ void FileMDSvc::attachBroken(const std::string& parent, IFileMD* file)
 //------------------------------------------------------------------------------
 // Add file listener
 //------------------------------------------------------------------------------
-void FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
+void
+FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 {
   pListeners.push_back(listener);
 }
@@ -280,10 +273,12 @@ void FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 //------------------------------------------------------------------------------
 // Notify the listeners about the change
 //------------------------------------------------------------------------------
-void FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
+void
+FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 {
-  for (auto it = pListeners.begin(); it != pListeners.end(); ++it)
-    (*it)->fileMDChanged(event);
+  for (auto&& elem: pListeners) {
+    elem->fileMDChanged(event);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -311,34 +306,27 @@ bool
 FileMDSvc::checkFiles()
 {
   bool is_ok = true;
-  long long cursor = 0;
-  std::pair< long long, std::vector<std::string> > reply;
+  int64_t cursor = 0;
+  std::pair<int64_t, std::vector<std::string>> reply;
   std::vector<std::string> to_drop;
 
   do {
     reply = pRedox->sscan(constants::sSetCheckFiles, cursor);
-    cursor= reply.first;
+    cursor = reply.first;
 
-    for (auto&& elem: reply.second)
-    {
-      if (checkFile(std::stoull(elem)))
-      {
-	to_drop.insert(to_drop.end(), elem);
-      }
-      else
-      {
-	is_ok = false;
+    for (auto&& elem : reply.second) {
+      if (checkFile(std::stoull(elem))) {
+        to_drop.insert(to_drop.end(), elem);
+      } else {
+        is_ok = false;
       }
     }
-  }
-  while (cursor);
+  } while (cursor != 0);
 
-  if (!to_drop.empty())
-  {
+  if (!to_drop.empty()) {
     try {
       pRedox->srem(constants::sSetCheckFiles, to_drop);
-    }
-    catch (std::runtime_error& e) {
+    } catch (std::runtime_error& e) {
       fprintf(stderr, "Failed to drop files that have been fixed\n");
     }
   }
@@ -356,10 +344,8 @@ FileMDSvc::checkFile(std::uint64_t fid)
   bool is_ok = true;
   std::shared_ptr<IFileMD> file = getFileMD(fid);
 
-  for (auto&& elem : pListeners)
-  {
-    if (!elem->fileMDCheck(file.get()))
-    {
+  for (auto&& elem : pListeners) {
+    if (!elem->fileMDCheck(file.get())) {
       is_ok = false;
       break;
     }
@@ -376,11 +362,11 @@ FileMDSvc::addToConsistencyCheck(IFileMD::id_t id)
 {
   try {
     pRedox->sadd(constants::sSetCheckFiles, id);
-  }
-  catch (std::runtime_error& e) {
+  } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
-    e.getMessage() << "File #" << id << " failed to insert into the set of "
-      "files to be checked - got an exception";
+    e.getMessage() << "File #" << id
+                   << " failed to insert into the set of "
+                      "files to be checked - got an exception";
     throw e;
   }
 }
@@ -391,8 +377,9 @@ FileMDSvc::addToConsistencyCheck(IFileMD::id_t id)
 std::string
 FileMDSvc::getBucketKey(IContainerMD::id_t id) const
 {
-  if (id >= sNumFileBuckets)
+  if (id >= sNumFileBuckets) {
     id = id & (sNumFileBuckets - 1);
+  }
 
   std::string bucket_key = stringify(id);
   bucket_key += constants::sFileKeySuffix;

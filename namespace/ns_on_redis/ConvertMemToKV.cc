@@ -16,20 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
-//! @brief Executable used to convert an in-memory namespace representation to
-//! to a KV one.
-//------------------------------------------------------------------------------
-
 #include "namespace/ns_on_redis/ConvertMemToKV.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
-#include "namespace/ns_on_redis/Constants.hh"
-#include "namespace/utils/StringConvertion.hh"
+#include "common/LayoutId.hh"
+#include "namespace/Constants.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
-#include "namespace/Constants.hh"
-#include "common/LayoutId.hh"
+#include "namespace/ns_on_redis/Constants.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
+#include "namespace/utils/StringConvertion.hh"
 
 // Static global variables
 static redox::Redox* sRedox;
@@ -47,8 +41,8 @@ std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
 // Constructor
 //------------------------------------------------------------------------------
 ConvertContainerMD::ConvertContainerMD(id_t id, IFileMDSvc* file_svc,
-				       IContainerMDSvc* cont_svc):
-  eos::ContainerMD(id, file_svc, cont_svc)
+                                       IContainerMDSvc* cont_svc)
+    : eos::ContainerMD(id, file_svc, cont_svc)
 {
   pFilesKey = stringify(id) + constants::sMapFilesSuffix;
   pDirsKey = stringify(id) + constants::sMapDirsSuffix;
@@ -75,7 +69,7 @@ ConvertContainerMD::addContainer(eos::IContainerMD* container)
   } catch (std::runtime_error& redis_err) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId()
-		   << " or KV-backend connection error";
+                   << " or KV-backend connection error";
     throw e;
   }
 }
@@ -91,7 +85,7 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
   } catch (std::runtime_error& redis_err) {
     MDException e(EINVAL);
     e.getMessage() << "File #" << file->getId() << " already exists or"
-		   << " KV-backend conntection error";
+                   << " KV-backend conntection error";
     throw e;
   }
 }
@@ -105,15 +99,16 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 //------------------------------------------------------------------------------
 void
 ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
-    ContainerList& orphans,
-    ContainerList& nameConflicts)
+                                         ContainerList& orphans,
+                                         ContainerList& nameConflicts)
 {
   eos::Buffer ebuff;
   pChangeLog->readRecord(it->second.logOffset, ebuff);
   std::shared_ptr<IContainerMD> container =
-    std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc, this);
-  static_cast<ConvertContainerMD*>(container.get())->deserialize(ebuff);
-  static_cast<ConvertContainerMD*>(container.get())->updateInternal();
+      std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc,
+                                           this);
+  dynamic_cast<ConvertContainerMD*>(container.get())->deserialize(ebuff);
+  dynamic_cast<ConvertContainerMD*>(container.get())->updateInternal();
   it->second.ptr = container;
 
   // For non-root containers recreate the parent
@@ -125,12 +120,12 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
       return;
     }
 
-    if (!(parentIt->second.ptr))
+    if (!(parentIt->second.ptr)) {
       recreateContainer(parentIt, orphans, nameConflicts);
+    }
 
     std::shared_ptr<IContainerMD> parent = parentIt->second.ptr;
-    std::shared_ptr<IContainerMD> child  = parent->findContainer(
-	container->getName());
+    std::shared_ptr<IContainerMD> child = parent->findContainer(container->getName());
 
     if (!child) {
       parent->addContainer(container.get());
@@ -150,7 +145,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << container->getId()
-		   << " failed to contact backend";
+                   << " failed to contact backend";
     throw e;
   }
 }
@@ -161,7 +156,7 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
 void
 ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
 {
-  if (cont->getFlags() & QUOTA_NODE_FLAG) {
+  if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
     sRedox->sadd(quota::sSetQuotaIds, cont->getId());
   }
 }
@@ -172,8 +167,9 @@ ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
 std::string
 ConvertContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
 {
-  if (id >= sNumContBuckets)
+  if (id >= sNumContBuckets) {
     id = id & (sNumContBuckets - 1);
+  }
 
   std::string bucket_key = stringify(id);
   bucket_key += constants::sContKeySuffix;
@@ -190,23 +186,24 @@ ConvertContainerMDSvc::getBucketKey(IContainerMD::id_t id) const
 std::string
 ConvertFileMDSvc::getBucketKey(IContainerMD::id_t id) const
 {
-  if (id >= sNumFileBuckets)
+  if (id >= sNumFileBuckets) {
     id = id & (sNumFileBuckets - 1);
+  }
 
   std::string bucket_key = stringify(id);
   bucket_key += constants::sFileKeySuffix;
   return bucket_key;
 }
 
-//------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Initialize the file service
-//------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 void
 ConvertFileMDSvc::initialize()
 {
   pIdMap.resize(pResSize);
 
-  if (!pContSvc) {
+  if (pContSvc == nullptr) {
     MDException e(EINVAL);
     e.getMessage() << "ConvertFileMDSvc: container service not set";
     throw e;
@@ -221,37 +218,40 @@ ConvertFileMDSvc::initialize()
   pFirstFreeId = scanner.getLargestId() + 1;
 
   // Recreate the files
-  for (auto it = pIdMap.begin(); it != pIdMap.end(); ++it) {
+  for (auto&& elem : pIdMap) {
     // Unpack the serialized buffers
     std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-    static_cast<FileMD*>(file.get())->deserialize(*it->second.buffer);
+    dynamic_cast<FileMD*>(file.get())->deserialize(*elem.second.buffer);
 
     // Attach to the hierarchy
-    if (file->getContainerId() == 0)
+    if (file->getContainerId() == 0) {
       continue;
+    }
 
     // Add file to the KV store
     try {
-      std::string buffer(it->second.buffer->getDataPtr(),
-			 it->second.buffer->getSize());
+      std::string buffer(elem.second.buffer->getDataPtr(),
+                         elem.second.buffer->getSize());
       std::string sid = stringify(file->getId());
       std::string bucket_key = getBucketKey(file->getId());
       sRedox->hset(bucket_key, sid, buffer);
     } catch (std::runtime_error& redis_err) {
       MDException e(ENOENT);
       e.getMessage() << "File #" << file->getId()
-		     << " failed to contact backend";
+                     << " failed to contact backend";
       throw e;
     }
 
     // Free the memory used by the buffer
-    delete it->second.buffer;
-    it->second.buffer = 0;
+    delete elem.second.buffer;
+    elem.second.buffer = nullptr;
     std::shared_ptr<IContainerMD> cont;
 
     try {
       cont = pContSvc->getContainerMD(file->getContainerId());
-    } catch (MDException& e) {}
+    } catch (MDException& e) {
+      cont = nullptr;
+    }
 
     if (!cont) {
       attachBroken("orphans", file.get());
@@ -276,17 +276,17 @@ ConvertFileMDSvc::initialize()
 void
 ConvertFileMDSvc::exportToFsView(IFileMD* file)
 {
-  IFileMD::LocationVector::const_iterator it;
   IFileMD::LocationVector loc_vect = file->getLocations();
   std::string key, val;
 
-  for (it = loc_vect.begin(); it != loc_vect.end(); ++it) {
+  for (const auto& elem : loc_vect) {
     // Store fsid if it doesn't exist
     key = fsview::sSetFsIds;
-    val = stringify(*it);
+    val = stringify(elem);
 
-    if (!sRedox->sismember(key, val))
+    if (!sRedox->sismember(key, val)) {
       sRedox->sadd(key, val);
+    }
 
     // Add file to corresponding fs file set
     key = val + fsview::sFilesSuffix;
@@ -295,13 +295,15 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
 
   IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
 
-  for (it = unlink_vect.begin(); it != unlink_vect.end(); ++it) {
-    key = stringify(*it) + fsview::sUnlinkedSuffix;;
+  for (const auto& elem : unlink_vect) {
+    key = stringify(elem) + fsview::sUnlinkedSuffix;
+    ;
     sRedox->sadd(key, stringify(file->getId()));
   }
 
-  if (file->getNumLocation() == 0 && file->getNumUnlinkedLocation() == 0)
+  if ((file->getNumLocation() == 0) && (file->getNumUnlinkedLocation() == 0)) {
     sRedox->sadd(fsview::sNoReplicaPrefix, stringify(file->getId()));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -312,37 +314,40 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
 {
   // Search for a quota node
   std::shared_ptr<IContainerMD> current =
-    pContSvc->getContainerMD(file->getContainerId());
+      pContSvc->getContainerMD(file->getContainerId());
 
   while ((current->getId() != 1) &&
-	 ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {
+         ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {
     current = pContSvc->getContainerMD(current->getParentId());
   }
 
-  if ((current->getFlags() & QUOTA_NODE_FLAG) == 0)
+  if ((current->getFlags() & QUOTA_NODE_FLAG) == 0) {
     return;
+  }
 
   // Add current file to the hmap contained in the current quota node
-  std::string quota_uid_key = stringify(current->getId()) + quota::sQuotaUidsSuffix;
-  std::string quota_gid_key = stringify(current->getId()) + quota::sQuotaGidsSuffix;
+  std::string quota_uid_key =
+      stringify(current->getId()) + quota::sQuotaUidsSuffix;
+  std::string quota_gid_key =
+      stringify(current->getId()) + quota::sQuotaGidsSuffix;
   const std::string suid = stringify(file->getCUid());
   const std::string sgid = stringify(file->getCGid());
   // Compute physical size
   eos::IFileMD::layoutId_t lid = file->getLayoutId();
-  const int64_t size = file->getSize() * eos::common::LayoutId::GetSizeFactor(
-			 lid);
+  const int64_t size =
+      file->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
   std::string field = suid + quota::sPhysicalSpaceTag;
-  (void) sRedox->hincrby(quota_uid_key, field, size);
+  (void)sRedox->hincrby(quota_uid_key, field, size);
   field = sgid + quota::sPhysicalSpaceTag;
-  (void) sRedox->hincrby(quota_gid_key, field, size);
+  (void)sRedox->hincrby(quota_gid_key, field, size);
   field = suid + quota::sSpaceTag;
-  (void) sRedox->hincrby(quota_uid_key, field, file->getSize());
+  (void)sRedox->hincrby(quota_uid_key, field, file->getSize());
   field = sgid + quota::sSpaceTag;
-  (void) sRedox->hincrby(quota_gid_key, field, file->getSize());
+  (void)sRedox->hincrby(quota_gid_key, field, file->getSize());
   field = suid + quota::sFilesTag;
-  (void) sRedox->hincrby(quota_uid_key, field, 1);
+  (void)sRedox->hincrby(quota_uid_key, field, 1);
   field = sgid + quota::sFilesTag;
-  (void) sRedox->hincrby(quota_gid_key, field, 1);
+  (void)sRedox->hincrby(quota_gid_key, field, 1);
 }
 
 EOSNSNAMESPACE_END
@@ -350,22 +355,27 @@ EOSNSNAMESPACE_END
 //------------------------------------------------------------------------------
 // Print usage information
 //------------------------------------------------------------------------------
-void usage()
+void
+usage()
 {
   std::cerr << "Usage:                                            " << std::endl
-	    << "  ./convert_mem_to_kv <file_chlog> <dir_chlog> <redis_host> "
-	    << "<redis_port>" << std::endl
-	    << "    file_chlog - file changelog                   " << std::endl
-	    << "    dir_chlog  - directory changelog              " << std::endl
-	    << "    redis_host - Redis host destination           " << std::endl
-	    << "    redis_port - Redis port destination           " << std::endl;
+            << "  ./convert_mem_to_kv <file_chlog> <dir_chlog> <redis_host> "
+            << "<redis_port>" << std::endl
+            << "    file_chlog - file changelog                   " << std::endl
+            << "    dir_chlog  - directory changelog              " << std::endl
+            << "    redis_host - Redis host destination           " << std::endl
+            << "    redis_port - Redis port destination           "
+            << std::endl;
 }
 
 //------------------------------------------------------------------------------
 // Main function
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[])
+int
+main(int argc, char* argv[])
 {
+  std::cout << "First line in main()" << std::endl;
+
   if (argc != 5) {
     usage();
     return 1;
@@ -378,29 +388,25 @@ int main(int argc, char* argv[])
   sRedox = eos::RedisClient::getInstance(redis_host, redis_port);
   // Check file and directory changelog files
   int ret;
-  struct stat info;
-  std::list<std::string> lst_files {file_chlog, dir_chlog};
+  struct stat info = {0};
+  std::list<std::string> lst_files{file_chlog, dir_chlog};
 
   for (auto& fn : lst_files) {
     ret = stat(fn.c_str(), &info);
 
-    if (ret) {
+    if (ret != 0) {
       std::cerr << "Unable to access file: " << fn << std::endl;
       return EIO;
     }
   }
 
   std::unique_ptr<eos::IFileMDSvc> file_svc(new eos::ConvertFileMDSvc());
-  std::unique_ptr<eos::IContainerMDSvc> cont_svc(new
-      eos::ConvertContainerMDSvc());
-  std::map<std::string, std::string> config_cont {
-    {"changelog_path", dir_chlog},
-    {"slave_mode", "false"}
-  };
-  std::map<std::string, std::string> config_file {
-    {"changelog_path", file_chlog},
-    {"slave_mode", "false"}
-  };
+  std::unique_ptr<eos::IContainerMDSvc> cont_svc(
+      new eos::ConvertContainerMDSvc());
+  std::map<std::string, std::string> config_cont{{"changelog_path", dir_chlog},
+                                                 {"slave_mode", "false"}};
+  std::map<std::string, std::string> config_file{{"changelog_path", file_chlog},
+                                                 {"slave_mode", "false"}};
   // Initialize the container meta-data service
   cont_svc->setFileMDService(file_svc.get());
   cont_svc->configure(config_cont);
@@ -409,6 +415,7 @@ int main(int argc, char* argv[])
   file_svc->setContMDService(cont_svc.get());
   file_svc->configure(config_file);
   file_svc->initialize();
-  // TODO: save the first free file and container id in the meta_hmap
+
+  // TODO(esindril): save the first free file and container id in the meta_hmap
   return 0;
 }

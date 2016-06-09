@@ -85,7 +85,7 @@ public:
   //--------------------------------------------------------------------------
   //! Configure the container service
   //--------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config);
 
   //--------------------------------------------------------------------------
   //! Finalize the container service

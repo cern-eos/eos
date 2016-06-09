@@ -27,20 +27,19 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
+#include <atomic>
+#include <condition_variable>
 #include <cstdint>
-#include <string>
-#include <vector>
+#include <functional>
 #include <list>
 #include <mutex>
-#include <condition_variable>
-#include <atomic>
-#include <functional>
+#include <string>
 #include <sys/time.h>
+#include <vector>
 
 //! Forward declarations
-namespace redox
-{
-  class Redox;
+namespace redox {
+class Redox;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -51,10 +50,8 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single container
 //------------------------------------------------------------------------------
-class ContainerMD: public IContainerMD
-{
+class ContainerMD : public IContainerMD {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -73,7 +70,7 @@ public:
   //----------------------------------------------------------------------------
   //! Assignment operator
   //----------------------------------------------------------------------------
-  ContainerMD& operator= (const ContainerMD& other) = delete;
+  ContainerMD& operator=(const ContainerMD& other) = delete;
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -118,7 +115,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get container id
   //----------------------------------------------------------------------------
-  inline id_t getId() const
+  inline id_t
+  getId() const
   {
     return pId;
   }
@@ -126,7 +124,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get parent id
   //----------------------------------------------------------------------------
-  inline id_t getParentId() const
+  inline id_t
+  getParentId() const
   {
     return pParentId;
   }
@@ -134,7 +133,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set parent id
   //----------------------------------------------------------------------------
-  void setParentId(id_t parentId)
+  void
+  setParentId(id_t parentId)
   {
     pParentId = parentId;
   }
@@ -142,7 +142,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the flags
   //----------------------------------------------------------------------------
-  uint16_t& getFlags()
+  uint16_t&
+  getFlags()
   {
     return pFlags;
   }
@@ -150,7 +151,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the flags
   //----------------------------------------------------------------------------
-  inline uint16_t getFlags() const
+  inline uint16_t
+  getFlags() const
   {
     return pFlags;
   }
@@ -208,7 +210,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get tree size
   //----------------------------------------------------------------------------
-  inline uint64_t getTreeSize() const
+  inline uint64_t
+  getTreeSize() const
   {
     return pTreeSize;
   }
@@ -216,7 +219,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set tree size
   //----------------------------------------------------------------------------
-  inline void setTreeSize(uint64_t treesize)
+  inline void
+  setTreeSize(uint64_t treesize)
   {
     pTreeSize = treesize;
   }
@@ -234,7 +238,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
-  inline const std::string& getName() const
+  inline const std::string&
+  getName() const
   {
     return pName;
   }
@@ -247,7 +252,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get uid
   //----------------------------------------------------------------------------
-  inline uid_t getCUid() const
+  inline uid_t
+  getCUid() const
   {
     return pCUid;
   }
@@ -255,7 +261,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set uid
   //----------------------------------------------------------------------------
-  inline void setCUid(uid_t uid)
+  inline void
+  setCUid(uid_t uid)
   {
     pCUid = uid;
   }
@@ -263,7 +270,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get gid
   //----------------------------------------------------------------------------
-  inline gid_t getCGid() const
+  inline gid_t
+  getCGid() const
   {
     return pCGid;
   }
@@ -271,7 +279,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set gid
   //----------------------------------------------------------------------------
-  inline void setCGid(gid_t gid)
+  inline void
+  setCGid(gid_t gid)
   {
     pCGid = gid;
   }
@@ -279,7 +288,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get mode
   //----------------------------------------------------------------------------
-  inline mode_t getMode() const
+  inline mode_t
+  getMode() const
   {
     return pMode;
   }
@@ -287,7 +297,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set mode
   //----------------------------------------------------------------------------
-  inline void setMode(mode_t mode)
+  inline void
+  setMode(mode_t mode)
   {
     pMode = mode;
   }
@@ -295,7 +306,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get ACL Id
   //----------------------------------------------------------------------------
-  inline uint16_t getACLId() const
+  inline uint16_t
+  getACLId() const
   {
     return pACLId;
   }
@@ -303,7 +315,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set ACL Id
   //----------------------------------------------------------------------------
-  inline void setACLId(uint16_t ACLId)
+  inline void
+  setACLId(uint16_t ACLId)
   {
     pACLId = ACLId;
   }
@@ -311,7 +324,8 @@ public:
   //----------------------------------------------------------------------------
   //! Add extended attribute
   //----------------------------------------------------------------------------
-  void setAttribute(const std::string& name, const std::string& value)
+  void
+  setAttribute(const std::string& name, const std::string& value)
   {
     pXAttrs[name] = value;
   }
@@ -324,7 +338,8 @@ public:
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
-  bool hasAttribute(const std::string& name) const
+  bool
+  hasAttribute(const std::string& name) const
   {
     return pXAttrs.find(name) != pXAttrs.end();
   }
@@ -332,7 +347,8 @@ public:
   //----------------------------------------------------------------------------
   //! Return number of attributes
   //----------------------------------------------------------------------------
-  size_t numAttributes() const
+  size_t
+  numAttributes() const
   {
     return pXAttrs.size();
   }
@@ -345,7 +361,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get attribute begin iterator
   //----------------------------------------------------------------------------
-  XAttrMap::iterator attributesBegin()
+  XAttrMap::iterator
+  attributesBegin()
   {
     return pXAttrs.begin();
   }
@@ -353,7 +370,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the attribute end iterator
   //----------------------------------------------------------------------------
-  XAttrMap::iterator attributesEnd()
+  XAttrMap::iterator
+  attributesEnd()
   {
     return pXAttrs.end();
   }
@@ -406,16 +424,16 @@ public:
   void deserialize(Buffer& buffer);
 
 protected:
-  id_t         pId;
-  id_t         pParentId;
-  uint16_t     pFlags;
-  ctime_t      pCTime;
-  std::string  pName;
-  uid_t        pCUid;
-  gid_t        pCGid;
-  mode_t       pMode;
-  uint16_t     pACLId;
-  XAttrMap     pXAttrs;
+  id_t pId;
+  id_t pParentId;
+  uint16_t pFlags;
+  ctime_t pCTime;
+  std::string pName;
+  uid_t pCUid;
+  gid_t pCGid;
+  mode_t pMode;
+  uint16_t pACLId;
+  XAttrMap pXAttrs;
 
 private:
   //------------------------------------------------------------------------------
@@ -431,21 +449,22 @@ private:
   uint64_t pTreeSize;
 
   IContainerMDSvc* pContSvc; ///< Container metadata service
-  IFileMDSvc* pFileSvc; ///< File metadata service
-  std::string pFilesKey; ///< Key of hmap holding info about files
-  std::string pDirsKey; ///< Key of hmap holding info about subcontainers
-  redox::Redox* pRedox; ///< Redis client
-  std::map<std::string, eos::IContainerMD::id_t> mDirsMap; ///< Dir name to id map
+  IFileMDSvc* pFileSvc;      ///< File metadata service
+  std::string pFilesKey;     ///< Key of hmap holding info about files
+  std::string pDirsKey;      ///< Key of hmap holding info about subcontainers
+  redox::Redox* pRedox;      ///< Redis client
+  //! Dir name to id map
+  std::map<std::string, eos::IContainerMD::id_t> mDirsMap;
   std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map
   std::list<std::string> mErrors; ///< Error messages from the callbacks
   std::mutex mMutex; ///< Mutex for the condition variable and errors list
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
-  std::atomic<std::uint64_t> mNumAsyncReq; ///< Number of in-flight async requests
+  //! Number of in-flight async requests
+  std::atomic<std::uint64_t> mNumAsyncReq;
   //! Callback function for Redox asynchronous requests
   std::function<void(redox::Command<int>&)> mNotificationCb;
   //! Wrapper callback which returns a callback used by the Redox client
   std::function<decltype(mNotificationCb)(void)> mWrapperCb;
-
 };
 
 EOSNSNAMESPACE_END

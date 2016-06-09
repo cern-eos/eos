@@ -24,10 +24,8 @@
 #ifndef __EOS_NS_ON_REDIS_PLUGIN_HH__
 #define __EOS_NS_ON_REDIS_PLUGIN_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "common/plugin_manager/Plugin.hh"
 #include "namespace/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
 //! Plugin exit function called by the PluginManager when doing cleanup
@@ -47,9 +45,8 @@ class IContainerMDSvc;
 //------------------------------------------------------------------------------
 //! Class NsOnRedisPlugin
 //------------------------------------------------------------------------------
-class NsOnRedisPlugin
-{
- public:
+class NsOnRedisPlugin {
+public:
   //----------------------------------------------------------------------------
   //! Create container metadata service
   //!
@@ -65,7 +62,7 @@ class NsOnRedisPlugin
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int32_t DestroyContainerMDSvc(void *);
+  static int32_t DestroyContainerMDSvc(void*);
 
   //----------------------------------------------------------------------------
   //! Create file metadata service
@@ -82,7 +79,7 @@ class NsOnRedisPlugin
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int32_t DestroyFileMDSvc(void *);
+  static int32_t DestroyFileMDSvc(void*);
 
   //----------------------------------------------------------------------------
   //! Create hierarchical view
@@ -99,7 +96,7 @@ class NsOnRedisPlugin
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int32_t DestroyHierarchicalView(void *);
+  static int32_t DestroyHierarchicalView(void*);
 
   //----------------------------------------------------------------------------
   //! Create file system view
@@ -116,7 +113,7 @@ class NsOnRedisPlugin
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int32_t DestroyFsView(void *);
+  static int32_t DestroyFsView(void*);
 
   //----------------------------------------------------------------------------
   //! Create recursive container accounting listener
@@ -133,7 +130,7 @@ class NsOnRedisPlugin
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int32_t DestroyContAcc(void *);
+  static int32_t DestroyContAcc(void*);
 
   //----------------------------------------------------------------------------
   //! Create sync time propagation listener
@@ -150,11 +147,10 @@ class NsOnRedisPlugin
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  static int32_t DestroySyncTimeAcc(void *);
+  static int32_t DestroySyncTimeAcc(void*);
 
- private:
-
-  static IContainerMDSvc* pContMDSvc; ///< pointer to container MD service
+private:
+  static IContainerMDSvc* pContMDSvc; ///< Pointer to container MD service
 };
 
 EOSNSNAMESPACE_END

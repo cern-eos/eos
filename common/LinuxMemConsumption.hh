@@ -31,6 +31,8 @@
 #ifndef __EOSCOMMON__LINUXMEMCONSUMPTION__HH
 #define __EOSCOMMON__LINUXMEMCONSUMPTION__HH
 
+#include "common/Namespace.hh" 
+
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/

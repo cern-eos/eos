@@ -25,9 +25,9 @@
 #define __EOS_NS_REDIS_HIERARHICAL_VIEW_HH__
 
 #include "namespace/Namespace.hh"
-#include "namespace/interface/IView.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
+#include "namespace/interface/IView.hh"
 #include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 
 #ifdef __clang__
@@ -39,8 +39,7 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the hierarchical namespace
 //------------------------------------------------------------------------------
-class HierarchicalView: public IView
-{
+class HierarchicalView : public IView {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -55,7 +54,8 @@ public:
   //----------------------------------------------------------------------------
   //! Specify a pointer to the underlying container service
   //----------------------------------------------------------------------------
-  virtual void setContainerMDSvc(IContainerMDSvc* containerSvc)
+  virtual void
+  setContainerMDSvc(IContainerMDSvc* containerSvc)
   {
     pContainerSvc = containerSvc;
   }
@@ -63,7 +63,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the container svc pointer
   //----------------------------------------------------------------------------
-  virtual IContainerMDSvc* getContainerMDSvc()
+  virtual IContainerMDSvc*
+  getContainerMDSvc()
   {
     return pContainerSvc;
   }
@@ -72,7 +73,8 @@ public:
   //! Specify a pointer to the underlying file service that alocates the
   //! actual files
   //----------------------------------------------------------------------------
-  virtual void setFileMDSvc(IFileMDSvc* fileMDSvc)
+  virtual void
+  setFileMDSvc(IFileMDSvc* fileMDSvc)
   {
     pFileSvc = fileMDSvc;
   }
@@ -80,7 +82,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the FileMDSvc
   //----------------------------------------------------------------------------
-  virtual IFileMDSvc* getFileMDSvc()
+  virtual IFileMDSvc*
+  getFileMDSvc()
   {
     return pFileSvc;
   }
@@ -88,16 +91,15 @@ public:
   //----------------------------------------------------------------------------
   //! Configure the view
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Initialize the view
   //----------------------------------------------------------------------------
   virtual void initialize();
-
-  virtual void initialize1();// phase 1 - load & setup container
-  virtual void initialize2();// phase 2 - load files
-  virtual void initialize3();// phase 3 - register files in container
+  virtual void initialize1(); // phase 1 - load & setup container
+  virtual void initialize2(); // phase 2 - load files
+  virtual void initialize3(); // phase 3 - register files in container
 
   //----------------------------------------------------------------------------
   //! Finalize the view
@@ -113,20 +115,20 @@ public:
   //----------------------------------------------------------------------------
   //! Create a file for given uri
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IFileMD>
-  createFile(const std::string& uri, uid_t uid = 0, gid_t gid = 0);
+  virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
+                                              uid_t uid = 0, gid_t gid = 0);
 
   //----------------------------------------------------------------------------
   //! Create a link for given uri
   //----------------------------------------------------------------------------
-  virtual void createLink(const std::string& uri,
-			  const std::string& linkuri,
-			  uid_t uid = 0, gid_t gid = 0);
+  virtual void createLink(const std::string& uri, const std::string& linkuri,
+                          uid_t uid = 0, gid_t gid = 0);
 
   //----------------------------------------------------------------------------
   //! Update file store
   //----------------------------------------------------------------------------
-  virtual void updateFileStore(IFileMD* file)
+  virtual void
+  updateFileStore(IFileMD* file)
   {
     pFileSvc->updateStore(file);
   }
@@ -158,8 +160,9 @@ public:
   //----------------------------------------------------------------------------
   //! Get a container (directory)
   //----------------------------------------------------------------------------
-  virtual std::shared_ptr<IContainerMD>
-  getContainer(const std::string& uri, bool follow = true, size_t* link_depth = 0);
+  virtual std::shared_ptr<IContainerMD> getContainer(const std::string& uri,
+                                                     bool follow = true,
+                                                     size_t* link_depth = 0);
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
@@ -170,7 +173,8 @@ public:
   //----------------------------------------------------------------------------
   //! Update container store
   //----------------------------------------------------------------------------
-  virtual void updateContainerStore(IContainerMD* container)
+  virtual void
+  updateContainerStore(IContainerMD* container)
   {
     pContainerSvc->updateStore(container);
   }
@@ -178,8 +182,7 @@ public:
   //----------------------------------------------------------------------------
   //! Remove a container (directory)
   //----------------------------------------------------------------------------
-  virtual void removeContainer(const std::string& uri,
-			       bool recursive = false);
+  virtual void removeContainer(const std::string& uri, bool recursive = false);
 
   //----------------------------------------------------------------------------
   //! Get uri for the container
@@ -195,7 +198,7 @@ public:
   //! Get quota node id concerning given container
   //----------------------------------------------------------------------------
   virtual IQuotaNode* getQuotaNode(const IContainerMD* container,
-				   bool               search = true);
+                                   bool search = true);
 
   //----------------------------------------------------------------------------
   //! Register the container to be a quota node
@@ -210,7 +213,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get the quota stats placeholder
   //----------------------------------------------------------------------------
-  virtual IQuotaStats* getQuotaStats()
+  virtual IQuotaStats*
+  getQuotaStats()
   {
     return pQuotaStats;
   }
@@ -219,7 +223,8 @@ public:
   //! Set the quota stats placeholder, currently associated object (if any)
   //! won't beX deleted.
   //----------------------------------------------------------------------------
-  virtual void setQuotaStats(IQuotaStats* quotaStats)
+  virtual void
+  setQuotaStats(IQuotaStats* quotaStats)
   {
     if (pQuotaStats)
       delete pQuotaStats;
@@ -231,7 +236,7 @@ public:
   //! Rename container
   //----------------------------------------------------------------------------
   virtual void renameContainer(IContainerMD* container,
-			       const std::string& newName);
+                               const std::string& newName);
 
   //----------------------------------------------------------------------------
   //! Rename file
@@ -241,16 +246,15 @@ public:
   //----------------------------------------------------------------------------
   //! Absolute Path sanitizing all '/../' and '/./' entries
   //----------------------------------------------------------------------------
-  virtual void absPath(std::string& path);
+  virtual void absPath(std::string& mypath);
 
 private:
-
   //----------------------------------------------------------------------------
   //! Get last existing container in the provided path
   //----------------------------------------------------------------------------
-  std::shared_ptr<IContainerMD>
-  findLastContainer(std::vector<char*>& elements, size_t end,
-		    size_t& index, size_t* link_depths = 0);
+  std::shared_ptr<IContainerMD> findLastContainer(std::vector<char*>& elements,
+                                                  size_t end, size_t& index,
+                                                  size_t* link_depths = 0);
 
   //----------------------------------------------------------------------------
   //! Clean up contents of container
@@ -262,13 +266,12 @@ private:
   //----------------------------------------------------------------------------
   // File visitor for reloading
   //----------------------------------------------------------------------------
-  class FileVisitor: public IFileVisitor
-  {
+  class FileVisitor : public IFileVisitor {
   public:
-    FileVisitor(IContainerMDSvc* contSvc,
-		IQuotaStats* quotaStats,
-		IView* view):
-      pContSvc(contSvc), pQuotaStats(quotaStats), pView(view) {}
+    FileVisitor(IContainerMDSvc* contSvc, IQuotaStats* quotaStats, IView* view)
+        : pContSvc(contSvc), pQuotaStats(quotaStats), pView(view)
+    {
+    }
 
     virtual void visitFile(IFileMD* file);
 
@@ -282,13 +285,12 @@ private:
   // Data members
   //----------------------------------------------------------------------------
   IContainerMDSvc* pContainerSvc;
-  IFileMDSvc*      pFileSvc;
-  IQuotaStats*     pQuotaStats;
+  IFileMDSvc* pFileSvc;
+  IQuotaStats* pQuotaStats;
   std::shared_ptr<IContainerMD> pRoot;
-  redox::Redox* pRedox; ///< RedisClient
+  redox::Redox* pRedox;   ///< RedisClient
   std::string pRedisHost; ///< Redis instance host
-  uint32_t pRedisPort; ///< Redis instance port
-
+  uint32_t pRedisPort;    ///< Redis instance port
 };
 
 EOSNSNAMESPACE_END

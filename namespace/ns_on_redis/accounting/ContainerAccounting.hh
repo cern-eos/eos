@@ -24,25 +24,23 @@
 #ifndef EOS_NS_CONTAINER_ACCOUNTING_HH
 #define EOS_NS_CONTAINER_ACCOUNTING_HH
 
+#include "namespace/MDException.hh"
+#include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_on_redis/ContainerMD.hh"
 #include "namespace/ns_on_redis/FileMD.hh"
-#include "namespace/MDException.hh"
-#include "namespace/Namespace.hh"
-#include <utility>
-#include <list>
 #include <deque>
+#include <list>
+#include <utility>
 
 EOSNSNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Container subtree accounting listener
 //------------------------------------------------------------------------------
-class ContainerAccounting : public IFileMDChangeListener
-{
- public:
-
+class ContainerAccounting : public IFileMDChangeListener {
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -61,7 +59,10 @@ class ContainerAccounting : public IFileMDChangeListener
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj) { }
+  virtual void
+  fileMDRead(IFileMD* obj)
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -71,10 +72,13 @@ class ContainerAccounting : public IFileMDChangeListener
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool fileMDCheck(IFileMD* file) { return true; }
+  virtual bool
+  fileMDCheck(IFileMD* file)
+  {
+    return true;
+  }
 
- private:
-
+private:
   IContainerMDSvc* pContainerMDSvc; ///< container MD service
 
   //----------------------------------------------------------------------------
@@ -83,8 +87,7 @@ class ContainerAccounting : public IFileMDChangeListener
   //! @param obj file meta-data object
   //! @param dsize size change
   //----------------------------------------------------------------------------
-  void Account(IFileMD* obj , int64_t dsize);
-
+  void Account(IFileMD* obj, int64_t dsize);
 };
 
 EOSNSNAMESPACE_END

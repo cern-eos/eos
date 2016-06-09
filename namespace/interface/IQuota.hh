@@ -25,15 +25,17 @@
 #define __EOS_NS_IQUOTA_HH__
 
 #include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
+#include <iostream>
 #include <memory>
 #include <map>
 #include <set>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declrations
-class IContainerMD;
-class IFileMD;
+//! Forward declarations
 class IQuotaStats;
 
 //------------------------------------------------------------------------------

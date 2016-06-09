@@ -30,35 +30,33 @@
 EOSNSNAMESPACE_BEGIN
 
 //! Variables associated with the HierarchcalView
-namespace constants
-{
+namespace constants {
 //! Suffix for container metadata in Redis
-static const std::string sContKeySuffix {":bucket_conts"};
+static const std::string sContKeySuffix{":bucket_conts"};
 //! Sufix for file metadata in Redis
-static const std::string sFileKeySuffix {":bucket_files"};
+static const std::string sFileKeySuffix{":bucket_files"};
 //! Suffix for set of subcontainers in a container
-static const std::string sMapDirsSuffix {":cont_hmap_conts"};
+static const std::string sMapDirsSuffix{":cont_hmap_conts"};
 //! Suffix for set of files in a container
-static const std::string sMapFilesSuffix {":cont_hmap_files"};
+static const std::string sMapFilesSuffix{":cont_hmap_files"};
 //! Key for set of orphan containers
-static const std::string sSetOrphanCont {"cont_set_orphans"};
+static const std::string sSetOrphanCont{"cont_set_orphans"};
 //! Key for set of name conflicts
-static const std::string sSetConflicts {"cont_set_conflicts"};
+static const std::string sSetConflicts{"cont_set_conflicts"};
 //! Key for map containing meta info
-static const std::string sMapMetaInfoKey {"meta_hmap"};
+static const std::string sMapMetaInfoKey{"meta_hmap"};
 //! Field last used file id in meta info map
-static const std::string sFirstFreeFid {"first_free_fid"};
+static const std::string sFirstFreeFid{"first_free_fid"};
 //! Field last used container id in meta info map
-static const std::string sFirstFreeCid {"first_free_cid"};
+static const std::string sFirstFreeCid{"first_free_cid"};
 //! Set of files that need to be rechecked
-static const std::string sSetCheckFiles {"files_set_check"};
+static const std::string sSetCheckFiles{"files_set_check"};
 //! Set of containers that need to be rechecked
-static const std::string sSetCheckConts {"conts_set_check"};
+static const std::string sSetCheckConts{"conts_set_check"};
 }
 
 //! Variable associated with the QuotaView
-namespace quota
-{
+namespace quota {
 // QuotaStats
 //! Set of quota node ids
 static const std::string sSetQuotaIds = "quota_set_ids";
@@ -77,8 +75,7 @@ static const std::string sFilesTag = ":files";
 }
 
 // Variable associated with the FileSystemView
-namespace fsview
-{
+namespace fsview {
 //! Set of file system ids in use
 static const std::string sSetFsIds = "fsview_set_fsid";
 //! Set suffix for file ids on a fs

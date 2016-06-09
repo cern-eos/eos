@@ -24,69 +24,70 @@ EOSNSNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 // Constructor
 //----------------------------------------------------------------------------
-ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc) :
-    pContainerMDSvc(svc)
+ContainerAccounting::ContainerAccounting(IContainerMDSvc* svc)
+    : pContainerMDSvc(svc)
 {
 }
 
 //----------------------------------------------------------------------------
 // Notify the me about the changes in the main view
 //----------------------------------------------------------------------------
-void ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
+void
+ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 {
-  switch (e->action)
-  {
-    // New file has been created
-    case IFileMDChangeListener::Created:
-      if (e->file)
-      {
-        // Creation is triggered with a SizeChange event separately
-      }
+  switch (e->action) {
+  // New file has been created
+  case IFileMDChangeListener::Created:
+    if (e->file != nullptr) {
+      // Creation is triggered with a SizeChange event separately
+    }
 
-      break;
+    break;
 
-    // File has been deleted
-    case IFileMDChangeListener::Deleted:
-      if (e->file)
-      {
-        Account(e->file, -e->file->getSize());
-      }
+  // File has been deleted
+  case IFileMDChangeListener::Deleted:
+    if (e->file != nullptr) {
+      Account(e->file, -e->file->getSize());
+    }
 
-      break;
+    break;
 
-    // Unlink location
-    case IFileMDChangeListener::SizeChange:
-      Account(e->file, e->sizeChange);
-      break;
+  // Unlink location
+  case IFileMDChangeListener::SizeChange:
+    Account(e->file, e->sizeChange);
+    break;
 
-    default:
-      break;
+  default:
+    break;
   }
 }
 
 //------------------------------------------------------------------------------
 // Account a file in the respective container
 //------------------------------------------------------------------------------
-void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
+void
+ContainerAccounting::Account(IFileMD* obj, int64_t dsize)
 {
   size_t deepness = 0;
 
-  if (!obj)
+  if (obj == nullptr) {
     return;
+  }
 
   ContainerMD::id_t iId = obj->getContainerId();
 
-  while ((iId > 1) && (deepness < 255))
-  {
+  while ((iId > 1) && (deepness < 255)) {
     std::shared_ptr<IContainerMD> iCont;
 
     try {
       iCont = pContainerMDSvc->getContainerMD(iId);
+    } catch (MDException& e) {
+      iCont = nullptr;
     }
-    catch (MDException& e) {}
 
-    if (!iCont)
+    if (iCont == nullptr) {
       return;
+    }
 
     iCont->addTreeSize(dsize);
     iId = iCont->getParentId();

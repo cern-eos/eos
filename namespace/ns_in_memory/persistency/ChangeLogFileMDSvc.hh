@@ -89,7 +89,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   //! Configure the file service
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Finalize the file service

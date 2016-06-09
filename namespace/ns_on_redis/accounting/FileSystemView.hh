@@ -50,10 +50,8 @@ EOSNSNAMESPACE_BEGIN
 //! fsview_noreplicas - file ids that don't have any replicas on any fs
 //! x:fsview_unlinked - set of file ids that are unlinked on file system "x"
 //------------------------------------------------------------------------------
-class FileSystemView: public IFsView
-{
- public:
-
+class FileSystemView : public IFsView {
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -62,8 +60,7 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView() {};
-
+  virtual ~FileSystemView(){};
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -73,7 +70,7 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog - not used
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj) { };
+  virtual void fileMDRead(IFileMD* obj){};
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -135,15 +132,14 @@ class FileSystemView: public IFsView
   //----------------------------------------------------------------------------
   //! Initizalie
   //----------------------------------------------------------------------------
-  void initialize() {};
+  void initialize(){};
 
   //----------------------------------------------------------------------------
   //! Finalize
   //----------------------------------------------------------------------------
-  void finalize() {};
+  void finalize(){};
 
- private:
-
+private:
   redox::Redox* pRedox; ///< Redix C++ client
 };
 

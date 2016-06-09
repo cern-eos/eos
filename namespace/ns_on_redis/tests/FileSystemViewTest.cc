@@ -20,29 +20,28 @@
 //! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief FileSystemView test
 //------------------------------------------------------------------------------
-#include <stdint.h>
-#include <unistd.h>
-#include <sstream>
-#include <cstdlib>
-#include <ctime>
-#include <cppunit/extensions/HelperMacros.h>
-#include "namespace/utils/TestHelpers.hh"
-#include "namespace/ns_on_redis/views/HierarchicalView.hh"
 #include "namespace/ns_on_redis/accounting/FileSystemView.hh"
 #include "namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_on_redis/persistency/FileMDSvc.hh"
+#include "namespace/ns_on_redis/views/HierarchicalView.hh"
+#include "namespace/utils/TestHelpers.hh"
+#include <cppunit/extensions/HelperMacros.h>
+#include <cstdlib>
+#include <cstdint>
+#include <ctime>
+#include <sstream>
+#include <unistd.h>
 
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
-class FileSystemViewTest: public CppUnit::TestCase
-{
-  public:
-    CPPUNIT_TEST_SUITE(FileSystemViewTest);
-    CPPUNIT_TEST(fileSystemViewTest);
-    CPPUNIT_TEST_SUITE_END();
+class FileSystemViewTest : public CppUnit::TestCase {
+public:
+  CPPUNIT_TEST_SUITE(FileSystemViewTest);
+  CPPUNIT_TEST(fileSystemViewTest);
+  CPPUNIT_TEST_SUITE_END();
 
-    void fileSystemViewTest();
+  void fileSystemViewTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION(FileSystemViewTest);
@@ -50,7 +49,8 @@ CPPUNIT_TEST_SUITE_REGISTRATION(FileSystemViewTest);
 //------------------------------------------------------------------------------
 // Randomize a location
 //------------------------------------------------------------------------------
-eos::IFileMD::location_t getRandomLocation()
+eos::IFileMD::location_t
+getRandomLocation()
 {
   return 1 + random() % 50;
 }
@@ -58,12 +58,14 @@ eos::IFileMD::location_t getRandomLocation()
 //------------------------------------------------------------------------------
 // Count replicas
 //------------------------------------------------------------------------------
-size_t countReplicas(eos::IFsView* fs)
+size_t
+countReplicas(eos::IFsView* fs)
 {
   size_t replicas = 0;
 
-  for (size_t i = 1; i <= fs->getNumFileSystems(); ++i)
+  for (size_t i = 1; i <= fs->getNumFileSystems(); ++i) {
     replicas += fs->getFileList(i).size();
+  }
 
   return replicas;
 }
@@ -71,12 +73,14 @@ size_t countReplicas(eos::IFsView* fs)
 //------------------------------------------------------------------------------
 // Count unlinked
 //------------------------------------------------------------------------------
-size_t countUnlinked(eos::IFsView* fs)
+size_t
+countUnlinked(eos::IFsView* fs)
 {
   size_t unlinked = 0;
 
-  for (size_t i = 1; i <= fs->getNumFileSystems(); ++i)
+  for (size_t i = 1; i <= fs->getNumFileSystems(); ++i) {
     unlinked += fs->getUnlinkedFileList(i).size();
+  }
 
   return unlinked;
 }
@@ -84,22 +88,19 @@ size_t countUnlinked(eos::IFsView* fs)
 //------------------------------------------------------------------------------
 // Concrete implementation tests
 //------------------------------------------------------------------------------
-void FileSystemViewTest::fileSystemViewTest()
+void
+FileSystemViewTest::fileSystemViewTest()
 {
-  srandom(time(0));
+  srandom(time(nullptr));
 
-  try
-  {
-    std::map<std::string, std::string> config =
-    {
-      {"redis_host", "localhost"},
-      {"redis_port", "6380"}
-    };
+  try {
+    std::map<std::string, std::string> config = {{"redis_host", "localhost"},
+                                                 {"redis_port", "6380"}};
 
-    std::unique_ptr<eos::ContainerMDSvc> contSvc {new eos::ContainerMDSvc()};
-    std::unique_ptr<eos::FileMDSvc> fileSvc {new eos::FileMDSvc()};
-    std::unique_ptr<eos::IView> view {new eos::HierarchicalView()};
-    std::unique_ptr<eos::IFsView> fsView {new eos::FileSystemView()};
+    std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
+    std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
+    std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
+    std::unique_ptr<eos::IFsView> fsView{new eos::FileSystemView()};
     fileSvc->setContMDService(contSvc.get());
     contSvc->setFileMDService(fileSvc.get());
     contSvc->configure(config);
@@ -108,15 +109,15 @@ void FileSystemViewTest::fileSystemViewTest()
     view->setFileMDSvc(fileSvc.get());
     view->configure(config);
     view->initialize();
-    static_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
+    dynamic_cast<eos::FileSystemView*>(fsView.get())->initialize(config);
     fileSvc->addChangeListener(fsView.get());
     view->createContainer("/test/embed/embed1", true);
-    std::shared_ptr<eos::IContainerMD> c = view->createContainer("/test/embed/embed2", true);
+    std::shared_ptr<eos::IContainerMD> c =
+        view->createContainer("/test/embed/embed2", true);
     view->createContainer("/test/embed/embed3", true);
 
     // Create some files
-    for (int i = 0; i < 1000; ++i)
-    {
+    for (int i = 0; i < 1000; ++i) {
       std::ostringstream o;
       o << "file" << i;
       std::shared_ptr<eos::IFileMD> files[4];
@@ -125,18 +126,17 @@ void FileSystemViewTest::fileSystemViewTest()
       files[2] = view->createFile(std::string("/test/embed/embed2/") + o.str());
       files[3] = view->createFile(std::string("/test/embed/embed3/") + o.str());
 
-      for (int j = 0; j < 4; ++j)
-      {
-	while (files[j]->getNumLocation() != 5)
-	  files[j]->addLocation(getRandomLocation());
+      for (int j = 0; j < 4; ++j) {
+        while (files[j]->getNumLocation() != 5) {
+          files[j]->addLocation(getRandomLocation());
+	}
 
-	view->updateFileStore(files[j].get());
+        view->updateFileStore(files[j].get());
       }
     }
 
     // Create some file without replicas assigned
-    for (int i = 0; i < 500; ++i)
-    {
+    for (int i = 0; i < 500; ++i) {
       std::ostringstream o;
       o << "noreplicasfile" << i;
       view->createFile(std::string("/test/embed/embed1/") + o.str());
@@ -151,8 +151,7 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
 
     // Unlink replicas
-    for (int i = 100; i < 500; ++i)
-    {
+    for (int i = 100; i < 500; ++i) {
       std::ostringstream o;
       o << "file" << i;
       // Unlink some replicas
@@ -168,12 +167,11 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT(numUnlinked == 800);
     std::list<eos::IFileMD::id_t> file_ids;
 
-    for (int i = 500; i < 900; ++i)
-    {
+    for (int i = 500; i < 900; ++i) {
       std::ostringstream o;
       o << "file" << i;
       // Unlink some replicas
-      std::shared_ptr<eos::IFileMD> f {c->findFile(o.str())};
+      std::shared_ptr<eos::IFileMD> f{c->findFile(o.str())};
       f->unlinkAllLocations();
       c->removeFile(o.str());
       f->setContainerId(0);
@@ -198,7 +196,8 @@ void FileSystemViewTest::fileSystemViewTest()
     CPPUNIT_ASSERT(numUnlinked == 2800);
     CPPUNIT_ASSERT(fsView->getNoReplicasFileList().size() == 500);
 
-    std::shared_ptr<eos::IFileMD> f {view->getFile(std::string("/test/embed/embed1/file1"))};
+    std::shared_ptr<eos::IFileMD> f{
+        view->getFile(std::string("/test/embed/embed1/file1"))};
     f->unlinkAllLocations();
     numReplicas = countReplicas(fsView.get());
     CPPUNIT_ASSERT(numReplicas == 17195);
@@ -216,8 +215,7 @@ void FileSystemViewTest::fileSystemViewTest()
     fsView->finalize();
 
     // Cleanup - remove all files
-    for (int i = 0; i < 1000; ++i)
-    {
+    for (int i = 0; i < 1000; ++i) {
       std::ostringstream o;
       o << "file" << i;
       std::list<std::string> paths;
@@ -226,36 +224,32 @@ void FileSystemViewTest::fileSystemViewTest()
       paths.push_back("/test/embed/embed2/" + o.str());
       paths.push_back("/test/embed/embed3/" + o.str());
 
-      for (auto&& elem: paths)
-      {
-	// Skip the files that have already been removed
-	if ((elem == "/test/embed/embed1/file1") ||
-	    (i >= 500 && i < 900 && elem.find("/test/embed/embed2/") == 0))
-	{
-	  continue;
-	}
+      for (auto&& elem : paths) {
+        // Skip the files that have already been removed
+        if ((elem == "/test/embed/embed1/file1") ||
+            (i >= 500 && i < 900 && elem.find("/test/embed/embed2/") == 0)) {
+          continue;
+        }
 
-	std::shared_ptr<eos::IFileMD> file {view->getFile(elem)};
-	CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
-	CPPUNIT_ASSERT_NO_THROW(file->removeAllLocations());
-	CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
+        std::shared_ptr<eos::IFileMD> file{view->getFile(elem)};
+        CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
+        CPPUNIT_ASSERT_NO_THROW(file->removeAllLocations());
+        CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
       }
     }
 
     // Remove the files that were unlinked only
-    for (auto&& id: file_ids)
-    {
+    for (auto&& id : file_ids) {
       std::shared_ptr<eos::IFileMD> file = fileSvc->getFileMD(id);
       CPPUNIT_ASSERT_NO_THROW(file->removeAllLocations());
       CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
     }
 
-    for (int i = 0; i < 500; ++i)
-    {
+    for (int i = 0; i < 500; ++i) {
       std::ostringstream o;
       o << "noreplicasfile" << i;
       std::string path = "/test/embed/embed1/" + o.str();
-      std::shared_ptr<eos::IFileMD> file {view->getFile(path)};
+      std::shared_ptr<eos::IFileMD> file{view->getFile(path)};
       CPPUNIT_ASSERT_NO_THROW(view->unlinkFile(file.get()));
       CPPUNIT_ASSERT_NO_THROW(view->removeFile(file.get()));
     }
@@ -263,12 +257,10 @@ void FileSystemViewTest::fileSystemViewTest()
     // Remove all containers
     CPPUNIT_ASSERT_NO_THROW(view->removeContainer("/test/", true));
     // Remove the root container
-    std::shared_ptr<eos::IContainerMD> root {view->getContainer("/")};
+    std::shared_ptr<eos::IContainerMD> root{view->getContainer("/")};
     CPPUNIT_ASSERT_NO_THROW(contSvc->removeContainer(root.get()));
     view->finalize();
-  }
-  catch (eos::MDException& e)
-  {
+  } catch (eos::MDException& e) {
     CPPUNIT_ASSERT_MESSAGE(e.getMessage().str(), false);
   }
 }

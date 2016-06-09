@@ -94,7 +94,7 @@ namespace eos
       //------------------------------------------------------------------------
       //! Configure the view
       //------------------------------------------------------------------------
-      virtual void configure( std::map<std::string, std::string> &config );
+      virtual void configure( const std::map<std::string, std::string> &config );
 
       //------------------------------------------------------------------------
       //! Initialize the view

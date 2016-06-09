@@ -40,26 +40,26 @@ namespace eos
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      MDException( int errorNo = ENODATA ) throw():
-        pErrorNo( errorNo ), pTmpMessage( 0 ) {}
+      MDException( int errorNo = ENODATA ) noexcept:
+	pErrorNo( errorNo ), pTmpMessage( 0 ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      virtual ~MDException() throw()
+      virtual ~MDException() noexcept
       {
-        delete [] pTmpMessage;
+	delete [] pTmpMessage;
       }
 
       //------------------------------------------------------------------------
       //! Copy constructor - this is actually required because we cannot copy
       //! stringstreams
       //------------------------------------------------------------------------
-      MDException( MDException &e )
+      MDException( MDException &e ) noexcept
       {
-        pMessage << e.getMessage().str();
-        pErrorNo = e.getErrno();
-        pTmpMessage = 0;
+	pMessage << e.getMessage().str();
+	pErrorNo = e.getErrno();
+	pTmpMessage = 0;
       }
 
       //------------------------------------------------------------------------
@@ -67,7 +67,7 @@ namespace eos
       //------------------------------------------------------------------------
       int getErrno() const
       {
-        return pErrorNo;
+	return pErrorNo;
       }
 
       //------------------------------------------------------------------------
@@ -75,25 +75,25 @@ namespace eos
       //------------------------------------------------------------------------
       std::ostringstream &getMessage()
       {
-        return pMessage;
+	return pMessage;
       }
 
       //------------------------------------------------------------------------
       // Get the message
       //------------------------------------------------------------------------
-      virtual const char *what() const throw()
+      virtual const char *what() const noexcept override
       {
-        // we could to that instead: return (pMessage.str()+" ").c_str();
-        // but it's ugly and probably not portable
+	// we could to that instead: return (pMessage.str()+" ").c_str();
+	// but it's ugly and probably not portable
 
-        if( pTmpMessage )
-          delete [] pTmpMessage;
+	if( pTmpMessage )
+	  delete [] pTmpMessage;
 
-        std::string msg = pMessage.str();
-        pTmpMessage = new char[msg.length()+1];
-        pTmpMessage[msg.length()] = 0;
-        strcpy( pTmpMessage, msg.c_str() );
-        return pTmpMessage;
+	std::string msg = pMessage.str();
+	pTmpMessage = new char[msg.length()+1];
+	pTmpMessage[msg.length()] = 0;
+	pTmpMessage = strcpy( pTmpMessage, msg.c_str() );
+	return pTmpMessage;
       }
 
     private:

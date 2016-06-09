@@ -129,7 +129,7 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Configure the file service
   //------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config) = 0;
+  virtual void configure(const std::map<std::string, std::string>& config) = 0;
 
   //------------------------------------------------------------------------
   //! Finalize the file service

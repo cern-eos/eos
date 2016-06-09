@@ -25,10 +25,10 @@
 #ifndef __EOS_NS_CONVERTMEMTOKV_HH__
 #define __EOS_NS_CONVERTMEMTOKV_HH__
 
+#include "namespace/Namespace.hh"
+#include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
-#include "namespace/ns_in_memory/ContainerMD.hh"
-#include "namespace/Namespace.hh"
 #include <cstdint>
 
 EOSNSNAMESPACE_BEGIN
@@ -36,10 +36,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class ConvertContainerMD
 //------------------------------------------------------------------------------
-class ConvertContainerMD: public eos::ContainerMD
-{
+class ConvertContainerMD : public eos::ContainerMD {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -48,7 +46,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ConvertContainerMD() {};
+  virtual ~ConvertContainerMD(){};
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -58,7 +56,7 @@ public:
   //----------------------------------------------------------------------------
   //! Add file
   //----------------------------------------------------------------------------
-  void addFile(IFileMD* file);
+  void addFile(IFileMD* file) override;
 
   //----------------------------------------------------------------------------
   //! Update the name of the directories and files hmap based on the id of the
@@ -68,21 +66,20 @@ public:
 
 private:
   std::string pFilesKey; ///< Key of hmap holding info about files
-  std::string pDirsKey; ///< Key of hmap holding info about subcontainers
+  std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
 };
 
 
 //------------------------------------------------------------------------------
 //! Class for converting in-memory containers to KV-store representation
 //------------------------------------------------------------------------------
-class ConvertContainerMDSvc: public eos::ChangeLogContainerMDSvc
-{
+class ConvertContainerMDSvc : public eos::ChangeLogContainerMDSvc {
 public:
   //----------------------------------------------------------------------------
   //! Recreate the container in the KV store
   //----------------------------------------------------------------------------
   void recreateContainer(IdMap::iterator& it, ContainerList& orphans,
-			 ContainerList& nameConflicts);
+                         ContainerList& nameConflicts);
 
 private:
   static std::uint64_t sNumContBuckets; ///< Numnber of buckets power of 2
@@ -104,13 +101,12 @@ private:
   void exportToQuotaView(IContainerMD* cont);
 };
 
+
 //------------------------------------------------------------------------------
 //! Class for converting in-memory files to KV-store representation
 //------------------------------------------------------------------------------
-class ConvertFileMDSvc: public eos::ChangeLogFileMDSvc
-{
+class ConvertFileMDSvc : public eos::ChangeLogFileMDSvc {
 public:
-
   //----------------------------------------------------------------------------
   //! Initizlize the file service
   //----------------------------------------------------------------------------

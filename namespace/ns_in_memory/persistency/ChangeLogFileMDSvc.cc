@@ -824,10 +824,10 @@ void ChangeLogFileMDSvc::makeReadOnly()
 // Configure the file service
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::configure(
-  std::map<std::string, std::string>& config)
+  const std::map<std::string, std::string>& config)
 {
   // Configure the changelog
-  std::map<std::string, std::string>::iterator it;
+  std::map<std::string, std::string>::const_iterator it;
   it = config.find("changelog_path");
 
   if (it == config.end())

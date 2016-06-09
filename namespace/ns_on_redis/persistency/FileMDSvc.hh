@@ -27,14 +27,13 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_on_redis/LRU.hh"
 #include "namespace/ns_on_redis/RedisClient.hh"
-#include <list>
 #include <condition_variable>
+#include <list>
 #include <mutex>
 
 //! Forward declarations
-namespace redox
-{
-  class Redox;
+namespace redox {
+class Redox;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -44,9 +43,8 @@ class IQuotaStats;
 //------------------------------------------------------------------------------
 //! FileMDSvc based on Redis
 //------------------------------------------------------------------------------
-class FileMDSvc: public IFileMDSvc
-{
- public:
+class FileMDSvc : public IFileMDSvc {
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -55,7 +53,7 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileMDSvc();
+  virtual ~FileMDSvc() = default;
 
   //----------------------------------------------------------------------------
   //! Initizlize the file service
@@ -67,12 +65,12 @@ class FileMDSvc: public IFileMDSvc
   //!
   //! @param config map holding configuration parameters
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
   //----------------------------------------------------------------------------
-  virtual void finalize() {};
+  virtual void finalize(){};
 
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
@@ -133,7 +131,7 @@ class FileMDSvc: public IFileMDSvc
   //----------------------------------------------------------------------------
   //! Visit all the files
   //----------------------------------------------------------------------------
-  void visit(IFileVisitor* visitor) {};
+  void visit(IFileVisitor* visitor){};
 
   //----------------------------------------------------------------------------
   //! Check files that had errors - these are stored in a separate set in the
@@ -151,7 +149,6 @@ class FileMDSvc: public IFileMDSvc
   void addToConsistencyCheck(IFileMD::id_t id);
 
 private:
-
   typedef std::list<IFileMDChangeListener*> ListenerList;
 
   static std::uint64_t sNumFileBuckets; ///< Numver of buckets power of 2

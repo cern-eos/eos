@@ -21,20 +21,20 @@
 EOSNSNAMESPACE_BEGIN
 
 // Static variables
-std::atomic<redox::Redox*> RedisClient::sRedoxClient {nullptr};
-std::string RedisClient::sRedisHost {"localhost"};
-int RedisClient::sRedisPort {6382};
+std::atomic<redox::Redox*> RedisClient::sRedoxClient(nullptr);
+std::string RedisClient::sRedisHost("localhost");
+int RedisClient::sRedisPort(6382);
 std::map<std::string, redox::Redox*> RedisClient::pMapClients;
 std::mutex RedisClient::pMutexMap;
-
 
 //------------------------------------------------------------------------------
 // Initialize
 //------------------------------------------------------------------------------
 void
-RedisClient::Initialize()
+RedisClient::Initialize() noexcept
 {
   // empty
+  std::cerr << "Calling RedisClient::Initialize" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -43,10 +43,12 @@ RedisClient::Initialize()
 void
 RedisClient::Finalize()
 {
+  std::cerr << "Calling RedisClient::Finalize !!! " << std::endl;
   std::lock_guard<std::mutex> lock(pMutexMap);
 
-  for (auto iter = pMapClients.begin(); iter != pMapClients.end(); ++iter)
-    delete iter->second;
+  for (auto& elem : pMapClients) {
+    delete elem.second;
+  }
 
   pMapClients.clear();
 }
@@ -57,17 +59,17 @@ RedisClient::Finalize()
 redox::Redox*
 RedisClient::getInstance(const std::string& host, uint32_t port)
 {
-  bool is_default {false};
-  std::string host_tmp {host};
-  redox::Redox* instance {nullptr};
+  bool is_default{false};
+  std::string host_tmp{host};
+  redox::Redox* instance{nullptr};
 
-  if (host_tmp.empty() || !port)
-  {
+  if (host_tmp.empty() || (port == 0u)) {
     // Try to be as efficient as possible in the default case
     instance = sRedoxClient.load();
 
-    if (instance)
+    if (instance != nullptr) {
       return instance;
+    }
 
     host_tmp = sRedisHost;
     port = sRedisPort;
@@ -77,33 +79,26 @@ RedisClient::getInstance(const std::string& host, uint32_t port)
   std::string redis_id = host_tmp + ":" + std::to_string(port);
   std::lock_guard<std::mutex> lock(pMutexMap);
 
-  if (pMapClients.find(redis_id) == pMapClients.end())
-  {
+  if (pMapClients.find(redis_id) == pMapClients.end()) {
     instance = new redox::Redox();
     instance->logger_.level(redox::log::Error);
 
-    // TODO: consider enabling the noWait option which keeps one CPU at 100%
-    // but improves the performance of the event loop
+    // TODO(esindril): consider enabling the noWait option which keeps one CPU
+    // at 100%  but improves the performance of the event loop
 
-    try
-    {
+    try {
       instance->connect(host_tmp, port);
-    }
-    catch (...)
-    {
+    } catch (...) {
       std::cerr << "ERROR: Failed to connect to Redis instance" << std::endl;
       throw;
     }
 
     pMapClients.insert(std::make_pair(redis_id, instance));
 
-    if (is_default)
-    {
+    if (is_default) {
       sRedoxClient.store(instance);
     }
-  }
-  else
-  {
+  } else {
     instance = pMapClients[redis_id];
   }
 
@@ -111,28 +106,16 @@ RedisClient::getInstance(const std::string& host, uint32_t port)
 }
 
 //------------------------------------------------------------------------------
-// Static initialization and finalization
+// Initialization and finalization
 //------------------------------------------------------------------------------
-namespace
-{
-  static struct RedisInitializer
-  {
-    //--------------------------------------------------------------------------
-    // Initializer
-    //--------------------------------------------------------------------------
-    RedisInitializer()
-    {
-      RedisClient::Initialize();
-    }
+namespace {
+struct RedisInitializer {
+  // Initializer
+  RedisInitializer() noexcept { RedisClient::Initialize(); }
 
-    //--------------------------------------------------------------------------
-    // Finalizer
-    //--------------------------------------------------------------------------
-    ~RedisInitializer()
-    {
-      RedisClient::Finalize();
-    }
-  } finalizer;
-}
+  // Finalizer
+  ~RedisInitializer() { RedisClient::Finalize(); }
+} finalizer;
+} // namespace
 
 EOSNSNAMESPACE_END

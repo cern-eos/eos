@@ -27,15 +27,14 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/ns_on_redis/Constants.hh"
-#include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include "namespace/ns_on_redis/LRU.hh"
+#include "namespace/ns_on_redis/accounting/QuotaStats.hh"
 #include <list>
 #include <map>
 
 //! Forward declarations
-namespace redox
-{
-  class Redox;
+namespace redox {
+class Redox;
 }
 
 EOSNSNAMESPACE_BEGIN
@@ -45,9 +44,9 @@ class ContainerMD;
 //------------------------------------------------------------------------------
 //! Container metadata service based on Redis
 //------------------------------------------------------------------------------
-class ContainerMDSvc: public IContainerMDSvc
-{
+class ContainerMDSvc : public IContainerMDSvc {
   friend ContainerMD;
+
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -57,7 +56,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMDSvc() {};
+  virtual ~ContainerMDSvc(){};
 
   //----------------------------------------------------------------------------
   //! Initizlize the container service
@@ -67,12 +66,12 @@ public:
   //----------------------------------------------------------------------------
   //! Configure the container service
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Finalize the container service
   //----------------------------------------------------------------------------
-  virtual void finalize() {};
+  virtual void finalize(){};
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
@@ -111,7 +110,7 @@ public:
   //! Create container in parent
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-					       IContainerMD* parent);
+                                               IContainerMD* parent);
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -126,7 +125,8 @@ public:
   //----------------------------------------------------------------------------
   //! Set file metadata service
   //----------------------------------------------------------------------------
-  void setFileMDService(IFileMDSvc* file_svc)
+  void
+  setFileMDService(IFileMDSvc* file_svc)
   {
     pFileSvc = file_svc;
   }
@@ -134,20 +134,19 @@ public:
   //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower
   //----------------------------------------------------------------------------
-  void setQuotaStats(IQuotaStats* quotaStats)
+  void
+  setQuotaStats(IQuotaStats* quotaStats)
   {
     pQuotaStats = quotaStats;
   }
 
 private:
-
   typedef std::list<IContainerMDChangeListener*> ListenerList;
 
   //----------------------------------------------------------------------------
   //! Notify the listeners about the change
   //----------------------------------------------------------------------------
-  void notifyListeners(IContainerMD* obj,
-		       IContainerMDChangeListener::Action a);
+  void notifyListeners(IContainerMD* obj, IContainerMDChangeListener::Action a);
 
   //----------------------------------------------------------------------------
   //! Get container bucket which is computed as the id of the container modulo
@@ -161,12 +160,12 @@ private:
 
   static std::uint64_t sNumContBuckets; ///< Number of buckets power of 2
 
-  ListenerList pListeners; ///< List of listeners to be notified
+  ListenerList pListeners;  ///< List of listeners to be notified
   IQuotaStats* pQuotaStats; ///< Quota view
-  IFileMDSvc*  pFileSvc; ///< File metadata service
-  redox::Redox* pRedox; ///< Redis client
-  std::string pRedisHost; ///< Redis instance host
-  uint32_t pRedisPort; ///< Redis instance port
+  IFileMDSvc* pFileSvc;     ///< File metadata service
+  redox::Redox* pRedox;     ///< Redis client
+  std::string pRedisHost;   ///< Redis instance host
+  uint32_t pRedisPort;      ///< Redis instance port
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
 };
 

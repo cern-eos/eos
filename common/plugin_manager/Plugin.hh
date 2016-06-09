@@ -142,7 +142,7 @@ extern
 //!
 //! @return the exit func of the plugin or NULL if initialization failed
 //------------------------------------------------------------------------------
-PF_ExitFunc PF_initPlugin(const PF_PlatformServices* params);
+PF_ExitFunc PF_initPlugin(const PF_PlatformServices*);
 
 #ifdef  __cplusplus
 }
