@@ -1017,11 +1017,13 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
  eos_static_debug ("path=%s ipath=%s inode=%llu", fullpath.c_str (), ifullpath, ino);
 
  me.fs ().dir_cache_forget (parent);
- me.fs ().forget_p2i ((unsigned long long) ino);
  int retc = me.fs ().unlink (fullpath.c_str (), fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino);
 
  if (!retc)
+ {
+   me.fs ().forget_p2i ((unsigned long long) ino);
    fuse_reply_buf (req, NULL, 0);
+ }
  else
    fuse_reply_err (req, errno);
 
@@ -1089,17 +1091,21 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
  me.fs ().dir_cache_forget ((unsigned long long) parent);
 
 
- if (ino)
-   me.fs ().forget_p2i ((unsigned long long) ino);
+ if (!retc) 
+ {
+   if (ino)
+     me.fs ().forget_p2i ((unsigned long long) ino);
 
- if (!retc)
    fuse_reply_err (req, 0);
+ }
  else
  {
    if (errno == ENOSYS)
      fuse_reply_err (req, ENOTEMPTY);
    else
+   {
      fuse_reply_err (req, errno);
+   }
  }
 
  COMMONTIMING ("_stop_", &timing);
