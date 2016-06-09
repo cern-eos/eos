@@ -38,7 +38,7 @@ cd ${2-${HOME}/Software/xrootd-4.3.0/build/}
 make install DESTDIR=/tmp/eos.dst/
 cd -
 
-for name in `otool -L /usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
+for name in `otool -L $3/usr/local/bin/eosd | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse`; do
 echo $name
 if [ -n "$name" ];  then
   dn=`dirname $name`;
