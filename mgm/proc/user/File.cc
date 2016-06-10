@@ -1602,59 +1602,85 @@ ProcCommand::File ()
 
               // We don't know the container tag here, but we don't really
               // care since we are scheduled as root
-              if (!(errno = Quota::FilePlacement(space.c_str(), spath.c_str(),
-                                                 *pVid, 0, layoutId, sourcefs,
-                                                 selectedfs, NULL, NULL, plctplcy, targetgeotag,
-                                                 SFS_O_TRUNC, forcedsubgroup,
-                                                 fmd_cpy->getSize())))
-              {
-                // We got a new replication vector
-                for (unsigned int i = 0; i < selectedfs.size(); i++)
-                {
-                  if (!(errno = Quota::FileAccess(*pVid,
-                                                  (unsigned long) 0,
-                                                  space.c_str(),
-                                                  tried_cgi,
-                                                  (unsigned long) fmd_cpy->getLayoutId(),
-                                                  sourcefs,
-                                                  NULL,NULL,
-                                                  fsIndex,
-                                                  false,
-                                                  (long long unsigned) 0,
-                                                  unavailfs)))
-                  {
-                    // This is now our source filesystem
-                    unsigned int sourcefsid = sourcefs[fsIndex];
+              Scheduler::PlacementArguments plctargs;
+              plctargs.alreadyused_filesystems=&sourcefs;
+              plctargs.bookingsize=fmd_cpy->getSize();
+              plctargs.forced_scheduling_group_index=forcedsubgroup;
+              plctargs.lid=layoutId;
+              plctargs.path=spath.c_str();
+              plctargs.plctTrgGeotag=&targetgeotag;
+              plctargs.plctpolicy=plctplcy;
+              plctargs.selected_filesystems=&selectedfs;
+              std::string spacename=space.c_str();
+              plctargs.spacename=&spacename;
+              plctargs.truncate=true;
+              plctargs.vid=pVid;
 
-                    // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
-                    // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
-                    // Add replication here
-                    if (gOFS->_replicatestripe(fmd_cpy.get(), spath.c_str(),
-                                               *mError, *pVid, sourcefsid,
-                                               selectedfs[i], false, expressflag))
+              if (!plctargs.isValid())
+              {
+                // there is something wrong in the arguments of file placement
+                retc = EINVAL;
+                stdErr += "error: invalid argument for file placement";
+              }
+              else if (!(errno = retc = Quota::FilePlacement(&plctargs)))
+              {
+                Scheduler::AccessArguments acsargs;
+                acsargs.bookingsize=0;
+                acsargs.forcedspace=space.c_str();
+                acsargs.fsindex=&fsIndex;
+                acsargs.isRW=false;
+                acsargs.lid=(unsigned long) fmd_cpy->getLayoutId();
+                acsargs.locationsfs=&sourcefs;
+                acsargs.tried_cgi=&tried_cgi;
+                acsargs.unavailfs=&unavailfs;
+                acsargs.vid=pVid;
+
+                if (!acsargs.isValid())
+                {
+                  // there is something wrong in the arguments of file access
+                  retc = EINVAL;
+                  stdErr += "error: invalid argument for file access";
+                }
+                else
+                {
+                  // We got a new replication vector
+                  for (unsigned int i = 0; i < selectedfs.size(); i++)
+                  {
+                    if (!(errno = Quota::FileAccess(&acsargs)))
                     {
-                      stdErr += "error: unable to replicate stripe ";
-                      stdErr += (int) sourcefsid;
-                      stdErr += " => ";
-                      stdErr += (int) selectedfs[i];
-                      stdErr += "\n";
-                      retc = errno;
+                      // This is now our source filesystem
+                      unsigned int sourcefsid = sourcefs[fsIndex];
+
+                      // stdOut += "info: replication := "; stdOut += (int) sourcefsid;
+                      // stdOut += " => "; stdOut += (int)selectedfs[i]; stdOut += "\n";
+                      // Add replication here
+                      if (gOFS->_replicatestripe(fmd_cpy.get(), spath.c_str(),
+                              *mError, *pVid, sourcefsid,
+                              selectedfs[i], false, expressflag))
+                      {
+                        stdErr += "error: unable to replicate stripe ";
+                        stdErr += (int) sourcefsid;
+                        stdErr += " => ";
+                        stdErr += (int) selectedfs[i];
+                        stdErr += "\n";
+                        retc = errno;
+                      }
+                      else
+                      {
+                        stdOut += "success: scheduled replication from source fs=";
+                        stdOut += (int) sourcefsid;
+                        stdOut += " => target fs=";
+                        stdOut += (int) selectedfs[i];
+                        stdOut += "\n";
+                      }
                     }
                     else
                     {
-                      stdOut += "success: scheduled replication from source fs=";
-                      stdOut += (int) sourcefsid;
-                      stdOut += " => target fs=";
-                      stdOut += (int) selectedfs[i];
-                      stdOut += "\n";
+                      stdErr = "error: create new replicas => no source available: ";
+                      stdErr += spath;
+                      stdErr += "\n";
+                      retc = ENOSPC;
                     }
-                  }
-                  else
-                  {
-                    stdErr = "error: create new replicas => no source available: ";
-                    stdErr += spath;
-                    stdErr += "\n";
-                    retc = ENOSPC;
                   }
                 }
               }

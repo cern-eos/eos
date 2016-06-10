@@ -1323,13 +1323,30 @@ XrdMgmOfsFile::open (const char *inpath,
     // if the client should go through a firewall entrypoint, try to get it
     // if the scheduled fs need to be accessed through a dataproxy, try to get it
     // if any of the two fails, the scheduling operation fails
-    retc = Quota::FilePlacement(space.c_str(),path, vid, containertag, layoutId,
-                                     selectedfs, selectedfs, &proxys,
-                                     (vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL,
-                                     plctplcy,targetgeotag,
-                                     open_mode & SFS_O_TRUNC,
-                                     forcedGroup,
-                                     bookingsize);
+    Scheduler::PlacementArguments plctargs;
+    plctargs.alreadyused_filesystems=&selectedfs;
+    plctargs.bookingsize=bookingsize;
+    plctargs.dataproxys=&proxys;
+    plctargs.firewallentpts=(vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL;
+    plctargs.forced_scheduling_group_index=forcedGroup;
+    plctargs.grouptag=containertag;
+    plctargs.lid=layoutId;
+    plctargs.path=path;
+    plctargs.plctTrgGeotag=&targetgeotag;
+    plctargs.plctpolicy=plctplcy;
+    plctargs.selected_filesystems=&selectedfs;
+    std::string spacename=space.c_str();
+    plctargs.spacename=&spacename;
+    plctargs.truncate=open_mode & SFS_O_TRUNC;
+    plctargs.vid=&vid;
+
+    if (!plctargs.isValid())
+    {
+      // there is something wrong in the arguments of file placement
+      return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+    }
+
+    retc = Quota::FilePlacement(&plctargs);
   }
   else
   {
@@ -1354,11 +1371,27 @@ XrdMgmOfsFile::open (const char *inpath,
     // if the client should go through a firewall entrypoint, try to get it
     // if the scheduled fs need to be accessed through a dataproxy, try to get it
     // if any of the two fails, the scheduling operation fails
-    retc = Quota::FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
-                                  selectedfs, &proxys,
-                                  (vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL,
-                                  fsIndex, isPioReconstruct ? false : isRW, fmd->getSize(),
-                                  unavailfs);
+    Scheduler::AccessArguments acsargs;
+    acsargs.bookingsize=fmd->getSize();
+    acsargs.dataproxys=&proxys;
+    acsargs.firewallentpts=(vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL;
+    acsargs.forcedfsid=forcedFsId;
+    acsargs.forcedspace=space.c_str();
+    acsargs.fsindex=&fsIndex;
+    acsargs.isRW=isPioReconstruct ? false : isRW;;
+    acsargs.lid=layoutId;
+    acsargs.locationsfs=&selectedfs;
+    acsargs.tried_cgi=&tried_cgi;
+    acsargs.unavailfs=&unavailfs;
+    acsargs.vid=&vid;
+
+    if (!acsargs.isValid())
+    {
+      // there is something wrong in the arguments of file access
+      return Emsg(epname, error, EINVAL, "open - invalid access argument", path);
+    }
+
+    retc = Quota::FileAccess(&acsargs);
 
     if (retc == EXDEV)
     {
@@ -1925,13 +1958,30 @@ XrdMgmOfsFile::open (const char *inpath,
       // if the client should go through a firewall entrypoint, try to get it
       // if the scheduled fs need to be accessed through a dataproxy, try to get it
       // if any of the two fails, the scheduling operation fails
-      retc = Quota::FilePlacement(space.c_str(),path, rootvid, containertag, plainLayoutId,
-                                  selectedfs, PioReplacementFsList,
-                                  &proxys,
-                                  (vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL,
-                                  plctplcy,targetgeotag,
-                                  false, forcedGroup,
-                                  plainBookingSize);
+      Scheduler::PlacementArguments plctargs;
+      plctargs.alreadyused_filesystems=&selectedfs;
+      plctargs.bookingsize=plainBookingSize;
+      plctargs.dataproxys=&proxys;
+      plctargs.firewallentpts=(vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL;
+      plctargs.forced_scheduling_group_index=forcedGroup;
+      plctargs.grouptag=containertag;
+      plctargs.lid=plainLayoutId;
+      plctargs.path=path;
+      plctargs.plctTrgGeotag=&targetgeotag;
+      plctargs.plctpolicy=plctplcy;
+      plctargs.selected_filesystems=&PioReplacementFsList;
+      std::string spacename=space.c_str();
+      plctargs.spacename=&spacename;
+      plctargs.truncate=false;
+      plctargs.vid=&rootvid;
+
+      if (!plctargs.isValid())
+      {
+        // there is something wrong in the arguments of file placement
+        return Emsg(epname, error, EIO, "open - invalid placement argument", path);
+      }
+
+      retc = Quota::FilePlacement(&plctargs);
       /// ###############
       if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
       {
