@@ -973,6 +973,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
      {
        // dec ref count, because they won't be a close referring to an mknod call
        fabst->DecNumOpenRW();
+       fabst->DecNumRefRW();
      }
      fabst->SetFd (fd);
    }
@@ -982,6 +983,9 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
 
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
+   if (mknod)
+     fd2count[fd] = 0; 
+
    inodexrdlogin2fds[sstr.str ()].insert (fd);
    eos_static_debug ("inserting fd : fabst=%p  key=%s  =>  fdesc=%d file-size=%llu", fabst.get(), sstr.str ().c_str (), (int) fd, fabst->GetMaxWriteOffset());
  }
