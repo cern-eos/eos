@@ -1379,6 +1379,24 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
 
+void 
+EosFuse::mknod (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode, dev_t rdev)
+{
+ eos::common::Timing timing (__func__);
+ COMMONTIMING ("_start_", &timing);
+ eos_static_debug ("");
+
+  if (!(mode & S_IFREG))
+ {
+   // we only imnplement files
+   fuse_reply_err (req, ENOSYS);
+   return;
+ }
+
+ struct fuse_file_info fi;
+ return create(req, parent, name, mode | S_IFBLK, &fi);
+}
+
 void
 EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode, struct fuse_file_info *fi)
 {
@@ -1393,6 +1411,14 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
 
  int res;
  unsigned long rinode = 0;
+
+ bool mknod = false;
+
+ if (mode & S_IFBLK)
+ {
+   mode &= (~S_IFBLK);
+   mknod = true;
+ }
 
  if (S_ISREG (mode))
  {
@@ -1430,7 +1456,8 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
                         fuse_req_ctx (req)->uid,
                         fuse_req_ctx (req)->gid,
                         fuse_req_ctx (req)->pid,
-                        &rinode);
+                        &rinode, 
+			mknod);
 
    if (res == -1)
    {
@@ -1490,7 +1517,10 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
      else
        fi->direct_io = 0;
 
-     fuse_reply_create (req, &e, fi);
+     if (mknod)
+       fuse_reply_entry (req, &e);
+     else
+       fuse_reply_create (req, &e, fi);
 
      COMMONTIMING ("_stop_", &timing);
      eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
