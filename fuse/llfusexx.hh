@@ -103,6 +103,7 @@ namespace llfusexx
    operations.rename = &T::rename;
    operations.open = &T::open;
    operations.create = &T::create;
+   operations.mknod = &T::mknod;
    operations.read = &T::read;
    operations.write = &T::write;
    operations.statfs = &T::statfs;

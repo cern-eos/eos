@@ -1587,7 +1587,7 @@ LvDbDbLogInterface::GetTail (int nentries, TlogentryVec &retvec) const
     retvec.push_back(entry);
     n++;
   }
-  if ((count+n-1)>0)
+  if (n>1)
     std::reverse(&retvec[count], &retvec[count + n - 1]);
   delete it;
   return retvec.size() - count;
