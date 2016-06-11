@@ -278,6 +278,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_err("failed to lazy open request %s at url %s code=%d "
                        "errno=%d - repair failed", request.c_str(),
                        user_url.c_str(), status.code, status.errNo);
+	errno = status.errNo;
         return -1;
       }
       else
@@ -293,6 +294,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                          "errno=%d - still unwritable after repair",
                          request.c_str(), user_url.c_str(), status.code,
                          status.errNo);
+	  errno = status.errNo;
           return -1;
         }
       }
@@ -302,6 +304,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       eos_static_err("failed to lazy open request %s at url %s code=%d "
                      "errno=%d", request.c_str(), user_url.c_str(),
                      status.code, status.errNo);
+      errno = status.errNo;
       return -1;
     }
   }
