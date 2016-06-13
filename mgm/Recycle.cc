@@ -134,7 +134,19 @@ Recycle::Recycler ()
     eos_static_info("snooze-time=%llu", snoozetime);
     XrdSysThread::SetCancelOn();
     XrdSysTimer sleeper;
-    sleeper.Snooze(snoozetime);
+
+    for (int i=0; i< snoozetime/10; i++)
+    {
+      sleeper.Snooze(10);
+      {
+	XrdSysMutexHelper lock(mWakeUpMutex);
+	if (mWakeUp)
+	{
+	  mWakeUp = false;
+	  break;
+	}
+      }
+    }
 
     snoozetime = gRecyclingPollTime; // this will be reconfigured to an appropriate value later
 
@@ -1225,6 +1237,7 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
       stdOut += "success: recycle bin size configured!\n";
     }
 
+    gOFS->Recycler.WakeUp();
     return result;
   }
 
@@ -1271,6 +1284,7 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
     {
       stdOut += "success: recycle bin lifetime configured!\n";
     }
+    gOFS->Recycler.WakeUp();
   }
 
   if (option == "--ratio")
@@ -1315,6 +1329,7 @@ Recycle::Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappin
     {
       stdOut += "success: recycle bin ratio configured!\n";
     }
+    gOFS->Recycler.WakeUp();
   }
 
   return 0;
