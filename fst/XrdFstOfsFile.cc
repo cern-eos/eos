@@ -1281,13 +1281,8 @@ XrdFstOfsFile::open (const char* path,
 
       if (hasCreationMode)
       {
-<<<<<<< HEAD
         // clean-up before re-bouncing
         dropall(fileid, path, RedirectManager.c_str());
-=======
-	// Clean-up before re-bouncing
-	dropall(fileid, path, RedirectManager.c_str());
->>>>>>> master
       }
 
       // Return an error that can be recovered at the MGM
@@ -1733,10 +1728,6 @@ XrdFstOfsFile::verifychecksum ()
                fMd->fMd.checksum().c_str());
       std::string calculatedchecksum = checkSum->GetHexChecksum();
 
-<<<<<<< HEAD
-
-=======
->>>>>>> master
       // we might fetch an unitialized value, so that is not to be considered a checksum error yet
       if (fMd->fMd.checksum() != "none")
       {

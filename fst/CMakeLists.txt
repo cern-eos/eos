@@ -301,6 +301,7 @@ target_compile_definitions(
 
 target_link_libraries(
   EosFstOss
+  EosFstIo
   eosCommon
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
@@ -315,18 +316,9 @@ set(
   ScanDir.cc
   Messaging.cc
   io/FileIoPlugin-Server.cc
-  io/LocalIo.cc                  io/LocalIo.hh
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
-
-  #-----------------------------------------------------------------------------
-  # OFS layer implementation
-  #-----------------------------------------------------------------------------
   XrdFstOfs.cc                   XrdFstOfs.hh
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
-
-  #-----------------------------------------------------------------------------
-  # Storage interface
-  #-----------------------------------------------------------------------------
   storage/Balancer.cc
   storage/Cleaner.cc             storage/Comunicator.cc
   storage/Drainer.cc             storage/ErrorReport.cc
@@ -335,38 +327,23 @@ set(
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
   storage/Trim.cc                storage/Verify.cc
-
-  #-----------------------------------------------------------------------------
-  # Transfer interface
-  #-----------------------------------------------------------------------------
   txqueue/TransferMultiplexer.cc
   txqueue/TransferJob.cc
   txqueue/TransferQueue.cc
-
-  #-----------------------------------------------------------------------------
-  # File metadata interface
-  #-----------------------------------------------------------------------------
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
-
-  #-----------------------------------------------------------------------------
-  # HTTP interface
-  #-----------------------------------------------------------------------------
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
-
-  #-----------------------------------------------------------------------------
-  # EosFstIo interface
-  #-----------------------------------------------------------------------------
   io/FileIoPlugin-Server.cc
   ${EOSFSTIO_SRCS_SERVER})
 
-add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
+add_library(XrdEosFst MODULE 
+            ${XRDEOSFST_SRCS})
 
 target_compile_definitions(
   XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
