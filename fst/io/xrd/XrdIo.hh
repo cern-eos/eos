@@ -37,8 +37,45 @@
 EOSFSTNAMESPACE_BEGIN
 
 //! Forward declarations
+class XrdIo;
 class AsyncMetaHandler;
 struct ReadaheadBlock;
+
+//------------------------------------------------------------------------------
+//! Class used for handling asynchronous open responses
+//------------------------------------------------------------------------------
+class AsyncIoOpenHandler: public XrdCl::ResponseHandler,
+                            public eos::common::LogId
+  {
+  public:
+    //----------------------------------------------------------------------------
+    //! Constructor
+    //!
+    //! @param io_file file object
+    //! @param layout_handler handler for the layout object
+    //----------------------------------------------------------------------------
+    AsyncIoOpenHandler(XrdIo* io_file, XrdCl::ResponseHandler* layout_handler) :
+      mFileIO(io_file), mLayoutOpenHandler(layout_handler) {}
+    //----------------------------------------------------------------------------
+    //! Destructor
+    //----------------------------------------------------------------------------
+    virtual ~AsyncIoOpenHandler() {}
+    
+    //----------------------------------------------------------------------------
+    //! Called when a response to associated request arrives or an error  occurs
+    //!
+    //! @param status   status of the request
+    //! @param response an object associated with the response (request dependent)
+    //! @param hostList list of hosts the request was redirected to
+    //---------------------------------------------------------------------------
+    virtual void HandleResponseWithHosts(XrdCl::XRootDStatus* status,
+					 XrdCl::AnyObject* response,
+					 XrdCl::HostList* hostList);
+
+  private:
+    XrdIo* mFileIO; ///< File IO object corresponding to this handler
+    XrdCl::ResponseHandler* mLayoutOpenHandler; ///< Open handler for the layout
+};
 
 typedef std::map<uint64_t, ReadaheadBlock*> PrefetchMap;
 
@@ -98,6 +135,7 @@ struct ReadaheadBlock {
 //------------------------------------------------------------------------------
 
 class XrdIo : public FileIo {
+  friend class AsyncIoOpenHandler;
 public:
 
   static const uint32_t sNumRdAheadBlocks; ///< no. of blocks used for readahead
@@ -120,7 +158,7 @@ public:
 
 
   //--------------------------------------------------------------------------
-  //! Open file
+  //! Open file - synchronously
   //!
   //! @param flags open flags
   //! @param mode open mode
@@ -132,6 +170,23 @@ public:
                mode_t mode = 0,
                const std::string& opaque = "",
                uint16_t timeout = 0);
+
+  //----------------------------------------------------------------------------
+  //! Open file - asynchronously. This call is to be used from one of the file
+  //! layout classes and not on its own, as there is not mechanims buit into
+  //! this class to wait for the response.
+  //!
+  //! @param handler handler called asynchronously
+  //! @param flags open flags
+  //! @param mode open mode
+  //! @param opaque opaque information
+  //! @param timeout timeout value
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //----------------------------------------------------------------------------
+  virtual int fileOpenAsync (void* io_handler,
+			     XrdSfsFileOpenMode flags, mode_t mode = 0,
+			     const std::string& opaque = "", uint16_t timeout = 0);
 
   //--------------------------------------------------------------------------
   //! Read from file - sync

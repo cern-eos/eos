@@ -78,7 +78,11 @@ public:
 
   static void rmdir (fuse_req_t req, fuse_ino_t parent, const char *name);
 
+#ifdef _FUSE3
+  static void rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t newparent, const char *newname, unsigned int flags);
+#else
   static void rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t newparent, const char *newname);
+#endif
 
   static void access (fuse_req_t req, fuse_ino_t ino, int mask);
 

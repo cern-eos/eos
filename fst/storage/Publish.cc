@@ -174,21 +174,24 @@ Storage::Publish ()
           {
             std::map<unsigned int, std::set<unsigned long long>> Rhotfiles;
             std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
-            XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-            if (gOFS.ROpenFid.count(fsid))
-            {
-              for ( auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end(); ++it )
-              {
-                Rhotfiles[it->second].insert(it->first);
-              }
-            }
-            if (gOFS.WOpenFid.count(fsid))
-            {
-              for ( auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end(); ++it )
-              {
-                Whotfiles[it->second].insert(it->first);
-              }
-            }
+	    
+	    {
+	      XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+	      if (gOFS.ROpenFid.count(fsid))
+	      {
+		for ( auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end(); ++it )
+		{
+		  Rhotfiles[it->second].insert(it->first);
+		}
+	      }
+	      if (gOFS.WOpenFid.count(fsid))
+	      {
+		for ( auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end(); ++it )
+		{
+		  Whotfiles[it->second].insert(it->first);
+		}
+	      }
+	    }
 
             size_t cnt=0;
             for ( auto it = Rhotfiles.rbegin(); it != Rhotfiles.rend(); ++it)
@@ -266,8 +269,6 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
 
-          gOFS.OpenFidMutex.Lock();
-
 	  std::map<std::string, std::string> iostats;
 	  if (fileSystemsVector[i]->getFileIOStats(iostats)) 
 	  {
@@ -285,9 +286,17 @@ Storage::Publish ()
 	    success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
 	  }
 
+	  long long r_open = 0;
+	  long long w_open = 0;
+	  {
+	    XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+	    r_open =  (long long) gOFS.ROpenFid[fsid].size();
+	    w_open =  (long long) gOFS.WOpenFid[fsid].size();
+	  }
 
-          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", (long long) gOFS.ROpenFid[fsid].size());
-          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", (long long) gOFS.WOpenFid[fsid].size());
+	  success &= fileSystemsVector[i]->SetLongLong("stat.ropen", r_open);
+	  success &= fileSystemsVector[i]->SetLongLong("stat.wopen", w_open);
+
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes", fileSystemsVector[i]->GetLongLong("stat.statfs.bfree") * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes", (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") - fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled", 100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") - fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) / (1 + fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
@@ -297,6 +306,18 @@ Storage::Publish ()
             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
             success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdDbMapHandler.FmdMap.count(fsid) ? gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
           }
+
+          {
+            eos::common::RWMutexReadLock lock(gFmdSqliteHandler.Mutex);
+	    used_files = 0;
+	    if (gFmdSqliteHandler.FmdSqliteMap.count(fsid))
+	    {
+	      eos::common::RWMutexReadLock flock(gFmdSqliteHandler.FmdSqliteMutexMap[fsid]);
+	      used_files = (long long) (gFmdSqliteHandler.FmdSqliteMap[fsid].size());
+	    }
+	  }
+
+	  success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", used_files);
 
           success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
@@ -325,7 +346,6 @@ Storage::Publish ()
             success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
             success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
 	  }
-          gOFS.OpenFidMutex.UnLock();
 
           {
             long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");

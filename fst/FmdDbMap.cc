@@ -249,10 +249,11 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
     return 0;
   }
 
-  Mutex.LockRead();
+  eos::common::RWMutexReadLock lock(Mutex);
 
   if (dbmap.count(fsid))
   {
+    eos::common::RwMutexReadLock(FmdSqliteMutexMap[fsid]);
     bool entryexist=ExistFmd(fid,fsid);
     Fmd valfmd=RetrieveFmd(fid,fsid);
 
@@ -303,7 +304,6 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
             eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
 		     fid, (unsigned long) fsid, fmd->fMd.size(), fmd->fMd.disksize(), fmd->fMd.mgmsize());
             delete fmd;
-            Mutex.UnLockRead();
             return 0;
           }
 
@@ -319,14 +319,12 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
 		     fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str());
 
 	    delete fmd;
-	    Mutex.UnLockRead();
 	    return 0;
 	  }
 	}
       }
 
       // return the new entry
-      Mutex.UnLockRead();
       return fmd;
     }
 
@@ -339,10 +337,8 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
 
       gettimeofday(&tv, &tz);
 
-      Mutex.UnLockRead(); // <--
-
-      eos::common::RWMutexWriteLock lock(Mutex); // --> (return)
-
+ 
+      eos::common::RwMutexWriteLock(FmdSqliteMutexMap[fsid]);
       valfmd.set_uid(uid);
       valfmd.set_gid(gid);
       valfmd.set_lid(layoutid);
@@ -383,14 +379,12 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
     else
     {
       eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, (unsigned long) fsid);
-      Mutex.UnLockRead();
       return 0;
     }
   }
   else
   {
     eos_crit("unable to get fmd for fid %llu on fs %lu - there is no changelog file open for that file system id", fid, (unsigned long) fsid);
-    Mutex.UnLockRead();
     return 0;
   }
 }
@@ -412,7 +406,9 @@ FmdDbMapHandler::DeleteFmd (eos::common::FileId::fileid_t fid, eos::common::File
 {
   bool rc = true;
   eos_static_info("");
-  eos::common::RWMutexWriteLock lock(Mutex);
+
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RwMutexWriteLock(FmdSqliteMutexMap[fsid]);
 
   bool entryexist=ExistFmd(fid,fsid);
 
@@ -466,7 +462,8 @@ FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
   if (lockit)
   {
     // ---->
-    Mutex.LockWrite();
+    Mutex.LockRead();
+    FmdSqliteMutexMap[fsid].LockWrite();
   }
 
   if (dbmap.count(fsid))
@@ -475,6 +472,7 @@ FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
     if (lockit)
     {
       Mutex.UnLockWrite(); // <----
+      FmdSqliteMutexMap[fsid].UnLockWrite();
     }
     return PutFmd(fid,fsid,fmd->fMd);
   }
@@ -483,7 +481,8 @@ FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
     eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
     if (lockit)
     {
-      Mutex.UnLockWrite(); // <----
+      Mutex.UnLockRead(); // <----
+      FmdSqliteMutexMap[fsid].UnLockWrite();
     }
   }
 
@@ -568,7 +567,8 @@ FmdDbMapHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::comm
 bool
 FmdDbMapHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, eos::common::FileId::fileid_t cid, eos::common::LayoutId::layoutid_t lid, unsigned long long mgmsize, std::string mgmchecksum, uid_t uid, gid_t gid, unsigned long long ctime, unsigned long long ctime_ns, unsigned long long mtime, unsigned long long mtime_ns, int layouterror, std::string locations)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RwMutexWriteLock(FmdSqliteMutexMap[fsid]);
 
   eos_debug("fsid=%lu fid=%08llx cid=%llu lid=%lx mgmsize=%llu mgmchecksum=%s",
       (unsigned long) fsid, fid, cid, lid, mgmsize, mgmchecksum.c_str());
@@ -632,7 +632,8 @@ FmdDbMapHandler::UpdateFromMgm (eos::common::FileSystem::fsid_t fsid, eos::commo
 bool
 FmdDbMapHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RwMutexWriteLock(FmdSqliteMutexMap[fsid]);
 
   if (dbmap.count(fsid))
   {

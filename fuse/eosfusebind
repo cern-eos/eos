@@ -120,9 +120,14 @@ function CheckArgs
   fi
 }
 
-function GetEnvKrb5CredFile
+function GetKlistKrb5CredFile
 {
-  CREDTAG=$KRB5CCNAME
+  which klist >/dev/null 2>&1
+  if [[ "$?" = "0" ]]; then
+    CREDTAG=$(klist | head -1 | awk '{ print $3 }')
+  else
+    CREDTAG=$KRB5CCNAME
+  fi
 }
 
 function GetDefaultKrb5CredFile
@@ -141,7 +146,7 @@ function GetDefaultKrb5CredFile
 
 function GetAutoKrb5CredFile
 {
-  GetEnvKrb5CredFile
+  GetKlistKrb5CredFile
   UpdateCredIsFile
   if [[ "X$CREDTAG" = "X" ]] || [[ "${CREDISFILE}" = "0" && `stat -c "%a" $CREDTAG` != "600" ]]; then  GetDefaultKrb5CredFile; fi
   UpdateCredIsFile

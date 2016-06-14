@@ -395,6 +395,9 @@ public:
 
   HttpServer* httpd; ///< embedded http server
   const char* mHostName; ///< FST hostname
+  XrdOucString eoscpTransferLog; //! eoscp.log full path
+
+  void SetSimulationError (const char* tag); //! allows to switch on error simulation in the OfsFile stack
 
  private:
 

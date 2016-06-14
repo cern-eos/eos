@@ -58,6 +58,7 @@ BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: kineticio >= 1.0.0
 
 %if 0%{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -98,6 +99,7 @@ Requires: acl
 Requires: gdb
 Requires: protobuf
 Requires: jemalloc
+Requires: kineticio >= 1.0.0
 
 %if 0%{distribution} == 5
 Requires: zeromq

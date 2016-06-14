@@ -1698,7 +1698,7 @@ main (int argc, char* argv[])
         std::string errmsg;
         errmsg = status.GetErrorMessage();
         fprintf(stderr, "error: %s\n", status.ToStr().c_str());
-        exit(-status.errNo);
+        exit(-status.errNo?-status.errNo:-EIO);
       }
 
       src_handler.push_back(std::make_pair(0, (void*)file));
@@ -1750,7 +1750,7 @@ main (int argc, char* argv[])
       std::string errmsg;
       errmsg = status.GetErrorMessage();
       fprintf(stderr, "error: %s\n", status.ToStr().c_str());
-      exit(-status.errNo);
+      exit(-status.errNo?-status.errNo:-EIO);
     }
 
     if (isRaidTransfer && isSrcRaid)
@@ -1963,8 +1963,10 @@ main (int argc, char* argv[])
 
       if (retc)
       {
-        fprintf(stderr, "error: target file open failed - retc=%d\n", retc);
-	exit(-retc);
+        std::string errmsg;
+        errmsg = status.GetErrorMessage();
+        fprintf(stderr, "error: %s\n", status.ToStr().c_str());
+        exit(-status.errNo?-status.errNo:-EIO);
       }
 
       dst_handler.push_back(std::make_pair(0, file));
@@ -2028,8 +2030,11 @@ main (int argc, char* argv[])
     {
       std::string errmsg;
       errmsg = status.GetErrorMessage();
-      fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
-      exit(-status.errNo);
+      if (status.errNo)
+	fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
+      else
+	fprintf(stderr, "error: errc=%d msg=\"%s\"\n", errno?errno:EINVAL, strerror(errno?errno:EINVAL));
+      exit(-status.errNo?-status.errNo:-1);
     }
 
     if (isRaidTransfer && !isSrcRaid)
@@ -2481,7 +2486,7 @@ main (int argc, char* argv[])
 	fprintf(stderr,"error: %s\n",status.ToStr().c_str());
 	exit(-EIO);
       }
-      delete static_cast<XrdCl::File*>(dst_handler[i].second);
+      delete static_cast<eos::fst::FileIo*>(dst_handler[i].second);
       break;
 
     case RIO_ACCESS:

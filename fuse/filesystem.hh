@@ -184,6 +184,17 @@ public:
  //----------------------------------------------------------------------------
  void forget_p2i (unsigned long long inode);
 
+
+ //----------------------------------------------------------------------------
+ //! redirect inode to a new inode
+ //----------------------------------------------------------------------------
+void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
+
+ //----------------------------------------------------------------------------
+ //! redirect inode to latest version of an inode
+ //----------------------------------------------------------------------------
+unsigned long long redirect_i2i (unsigned long long inode);
+
  //----------------------------------------------------------------------------
  //! Replace all names with a given prefix
  //----------------------------------------------------------------------------
@@ -397,6 +408,16 @@ public:
               const char* path = "");
 
  //----------------------------------------------------------------------------
+ //! Force pending rw open to happen (in case of lazy open)
+ //----------------------------------------------------------------------------
+
+ int
+ force_rwopen (
+               unsigned long inode,
+               uid_t uid, gid_t gid, pid_t pid
+               );
+
+ //----------------------------------------------------------------------------
  //! Get the file abstraction object corresponding to the fd
  //----------------------------------------------------------------------------
 
@@ -460,8 +481,8 @@ public:
  int dir_cache_get_entry (fuse_req_t req,
                           unsigned long long inode,
                           unsigned long long einode,
-                          const char* ifullpath);
-
+                          const char* ifullpath, 
+			  struct stat* overwrite_stat = 0);
 
  //----------------------------------------------------------------------------
  //! Add new subentry to a cached directory
@@ -515,7 +536,8 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            uid_t uid,
            gid_t gid,
            pid_t pid,
-           unsigned long inode);
+           unsigned long inode, 
+	   bool onlysizemtime=false);
 
  //----------------------------------------------------------------------------
  //!
@@ -613,14 +635,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            pid_t pid,
            unsigned long* return_inode);
 
-
- //----------------------------------------------------------------------------
- //! Ref counting of wopen inodes
- //----------------------------------------------------------------------------
- int is_wopen (unsigned long inode);
- void inc_wopen (unsigned long inode);
- void dec_wopen (unsigned long inode);
-
  //----------------------------------------------------------------------------
  //!
  //----------------------------------------------------------------------------
@@ -641,6 +655,13 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
                 void* buf,
                 size_t nbyte,
                 off_t offset);
+
+
+ //----------------------------------------------------------------------------
+ //!
+ //----------------------------------------------------------------------------
+  int utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned long inode, uid_t uid, gid_t gid, pid_t pid);
+
 
  //----------------------------------------------------------------------------
  //!
@@ -899,6 +920,7 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
       me->mInUse.UnLockWrite ();
     else
       me->mInUse.UnLockRead ();
+    eos_static_debug ("unlocked  caller=%s self=%llx in=%llu exclusive=%d", caller, pthread_self (), ino, exclusive);
    }
   private:
    std::shared_ptr<meta_t> me;
@@ -949,6 +971,9 @@ private:
  int creator_cap_lifetime; ///< time period where files are considered owned locally e.g. remote modifications are not reflected locally
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
  bool encode_pathname; ///< indicated if filename should be encoded
+ bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
+
+ mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
 
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 

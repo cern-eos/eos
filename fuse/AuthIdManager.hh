@@ -25,6 +25,7 @@
 #define __AUTHIDMANAGER__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "MacOSXHelper.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
@@ -196,8 +197,8 @@ protected:
               {
                 ret = true;
                 credinfo.lname = buffer;
-                credinfo.lmtime = linkstat.st_mtim.tv_sec;
-                credinfo.lctime = linkstat.st_ctim.tv_sec;
+                credinfo.lmtime = linkstat.MTIMESPEC.tv_sec;
+                credinfo.lctime = linkstat.CTIMESPEC.tv_sec;
                 credinfo.type = credtypes[i];
                 size_t bsize = readlink (buffer, buffer2, 1024);
                 buffer2[bsize] = 0;

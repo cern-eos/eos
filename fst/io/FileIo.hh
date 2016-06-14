@@ -62,7 +62,16 @@ public:
                        const std::string& opaque = "",
                        uint16_t timeout = 0) = 0;
 
-  //----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
+  //! Open file asynchronously
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+
+  virtual int fileOpenAsync (void* io_handler,
+                             XrdSfsFileOpenMode flags, mode_t mode = 0,
+                             const std::string& opaque = "", uint16_t timeout = 0) { return -1;}
+  
+  //--------------------------------------------------------------------------
   //! Read from file - sync
   //!
   //! @param offset offset in file
@@ -387,13 +396,6 @@ public:
     return mFilePath;
   }
 
-protected:
-  const std::string mFilePath; ///< path to current physical file
-  const std::string mType; ///< type
-  std::string mLastUrl; ///< last used url if remote file
-  std::string mLastErrMsg; ///< last error message seen
-  bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
-
   //--------------------------------------------------------------------------
   //! Get last error message
   //--------------------------------------------------------------------------
@@ -402,6 +404,34 @@ protected:
     return mLastErrMsg;
   }
 
+
+  //--------------------------------------------------------------------------
+  //! Get last error code
+  //--------------------------------------------------------------------------
+  const int&
+  GetLastErrCode()
+  {
+    return mLastErrCode;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get last error number
+  //--------------------------------------------------------------------------
+  const int&
+  GetLastErrNo()
+  {
+    return mLastErrNo;
+  }
+
+protected:
+  const std::string mFilePath; ///< path to current physical file
+  const std::string mType; ///< type
+  std::string mLastUrl; ///< last used url if remote file
+  std::string mLastErrMsg; ///< last error message seen
+  int mLastErrCode; ///< last error code
+  int mLastErrNo; ///< last error no
+
+  bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
 };
 
 EOSFSTNAMESPACE_END

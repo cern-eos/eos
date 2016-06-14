@@ -938,7 +938,7 @@ com_fs_usage:
   fprintf(stdout, "                                                  boot filesystem with ID <fs-id> or name <node-queue> or all (*)\n");
   fprintf(stdout, "                                                                   --syncmgm : force an MGM resynchronization during the boot\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "fs dropfdeletion <fs-id> :\n");
+  fprintf(stdout, "fs dropdeletion <fs-id> :\n");
   fprintf(stdout, "                                                  allows to drop all pending deletions on <fs-id> \n");
   fprintf(stdout, "fs dropfiles <fs-id> [-f] :\n");
   fprintf(stdout, "                                                  allows to drop all files on <fs-id> - force\n");
@@ -954,14 +954,15 @@ com_fs_usage:
 
 
   fprintf(stdout, "\n");
-  fprintf(stdout, "fs status [-l] <fs-id> :\n");
+  fprintf(stdout, "fs status [-r] [-l] <fs-id> :\n");
   fprintf(stdout, "                                                  returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed\n");
-  fprintf(stdout, "fs status [-l] mount-point> :\n");
+  fprintf(stdout, "fs status [-r] [-l] mount-point> :\n");
   fprintf(stdout, "                                                  as before but accepts the mount point as input parameters and set's host=<this host>\n");
 
-  fprintf(stdout, "fs status [-l] <host> <mount-point> :\n");
+  fprintf(stdout, "fs status [-r] [-l] <host> <mount-point> :\n");
   fprintf(stdout, "                                                  as before but accepts the mount point and hostname as input parameters\n");
   fprintf(stdout, "                                                                  -l    : list all files at risk and files which are offline\n");
+  fprintf(stdout, "                                                                  -r    : show a risk analysis for this filesystem\n");
   fprintf(stdout, "Examples:\n");
   fprintf(stdout, "  fs ls --io             List all filesystems with IO statistics\n\n");
   fprintf(stdout, "  fs boot *              Send boot request to all filesystems\n\n");

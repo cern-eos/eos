@@ -23,11 +23,11 @@
 # ************************************************************************
 runtest="yes";
 
-if [ "x$1" = "x--do-uninstall" ]; then
+if [ "x$1" = "x--do-cleanup" ]; then
   runtest="no";
 fi
 
-echo "# [ to execute the cleaning of the MGM give '--do-uninstall' as option ] ...";
+echo "# [ to execute the cleaning of the MGM give '--do-cleanup' as option ] ...";
 
 ECHO="echo"
 CLEANUP=""

@@ -303,6 +303,11 @@ public:
         fullPath.erase(bppos, 4);
         fullPath.erase(spos + 1, bppos - spos - 1);
       }
+      else
+      {
+	fullPath="/";
+	break;
+      }
     }
 
     if (!fullPath.length())

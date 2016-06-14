@@ -63,12 +63,14 @@ HttpServer::Handler (void                  *cls,
     // wait that the namespace is booted
     // --------------------------------------------------------
     {
-      XrdSysMutexHelper(gOFS->InitializationMutex);
-      if (gOFS->Initialized == gOFS->kBooted)
       {
-	go = true;
+	XrdSysMutexHelper(gOFS->InitializationMutex);
+	if (gOFS->Initialized == gOFS->kBooted)
+	{
+	  go = true;
+	}
       }
-      else
+      if (!go)
       {
 	XrdSysTimer sleeper;
 	sleeper.Wait(100);
@@ -268,20 +270,26 @@ HttpServer::Authenticate(std::map<std::string, std::string> &headers)
 	username = "";
       }
       else
-      {
-        // Initially load the file, or reload it if it was modified
-        if (!mGridMapFileLastModTime.tv_sec ||
-            mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
-        {
-          eos_static_info("msg=\"reloading gridmap file\"");
 
-          std::ifstream in("/etc/grid-security/grid-mapfile");
-          std::stringstream buffer;
-          buffer << in.rdbuf();
-          mGridMapFile = buffer.str();
-          mGridMapFileLastModTime = info.st_mtim;
-          in.close();
-        }
+      {  
+	{
+	  static XrdSysMutex mGridMapMutex;
+	  XrdSysMutexHelper gLock(mGridMapMutex);
+	  
+	  // Initially load the file, or reload it if it was modified
+	  if (!mGridMapFileLastModTime.tv_sec ||
+	      mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec)
+	  {
+	    eos_static_info("msg=\"reloading gridmap file\"");
+	    
+	    std::ifstream in("/etc/grid-security/grid-mapfile");
+	    std::stringstream buffer;
+	    buffer << in.rdbuf();
+	    mGridMapFile = buffer.str();
+	    mGridMapFileLastModTime = info.st_mtim;
+	    in.close();
+	  }
+	}
 
         // For proxy certificates clientDN can have multiple ../CN=... appended
         size_t pos = 0;

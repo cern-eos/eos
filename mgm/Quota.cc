@@ -87,6 +87,17 @@ SpaceQuota::SpaceQuota(const char* path):
     catch (eos::MDException& e)
     {
       mQuotaNode = 0;
+      try
+      {
+        quotadir = gOFS->eosView->createContainer(name, true);
+        quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
+        gOFS->eosView->updateContainerStore(quotadir);
+
+      }
+      catch (eos::MDException &e)
+      {
+        eos_static_crit("Cannot create quota directory %s", name);
+      }
     }
 
     if (!mQuotaNode)
@@ -1178,6 +1189,25 @@ Quota::GetSpaceQuota(const std::string& path)
 
   if (lpath[lpath.length() - 1] != '/')
     lpath += '/';
+  }
+  else
+  {
+    if (nocreate)
+    {
+      return NULL;
+    }
+    do
+    {
+      // this is a dangerous way if any other mutex was used from the caller after gQuotaMutex.UnLockRead() => take care not do to that!
+      gQuotaMutex.UnLockRead();
+      spacequota = new SpaceQuota(sname.c_str());
+      gQuotaMutex.LockWrite();
+      gQuota[sname] = spacequota;
+      gQuotaMutex.UnLockWrite();
+      gQuotaMutex.LockRead();
+    }
+    while ((!gQuota.count(sname) && (!(spacequota = gQuota[sname]))));
+  }
 
   if (pMapQuota.count(lpath))
     return pMapQuota[lpath];

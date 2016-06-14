@@ -57,10 +57,13 @@ ProcCommand::File ()
 
   spath = path;
 
+  bool cmdok=false;
+
   if (!spath.length())
   {
     stdErr = "error: you have to give a path name to call 'file'";
     retc = EINVAL;
+    return SFS_OK;
   }
   else
   {
@@ -69,6 +72,7 @@ ProcCommand::File ()
     // --------------------------------------------------------------------------
     if (mSubCmd == "drop")
     {
+      cmdok=true;
       XrdOucString sfsid = pOpaque->Get("mgm.file.fsid");
       XrdOucString sforce = pOpaque->Get("mgm.file.force");
       bool forceRemove = false;
@@ -97,6 +101,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "layout")
     {
+      cmdok=true;
       XrdOucString stripes = pOpaque->Get("mgm.file.layout.stripes");
       XrdOucString cksum = pOpaque->Get("mgm.file.layout.ckecksum");
       int checksum_type = eos::common::LayoutId::kNone;
@@ -245,6 +250,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "verify")
     {
+      cmdok=true;
       XrdOucString option = "";
       XrdOucString computechecksum = pOpaque->Get("mgm.file.compute.checksum");
       XrdOucString commitchecksum = pOpaque->Get("mgm.file.commit.checksum");
@@ -463,6 +469,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "move")
     {
+      cmdok=true;
       XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
       unsigned long sourcefsid = (sfsidsource.length()) ?
               strtoul(sfsidsource.c_str(), 0, 10) : 0;
@@ -494,6 +501,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "replicate")
     {
+      cmdok=true;
       XrdOucString sfsidsource = pOpaque->Get("mgm.file.sourcefsid");
       unsigned long sourcefsid = (sfsidsource.length()) ?
               strtoul(sfsidsource.c_str(), 0, 10) : 0;
@@ -520,6 +528,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "share")
     {
+      cmdok=true;
       XrdOucString sexpires = pOpaque->Get("mgm.file.expires");
       time_t expires = (sexpires.length()) ?
               (time_t) strtoul(sexpires.c_str(), 0, 10) : 0;
@@ -612,6 +621,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "rename")
     {
+      cmdok=true;
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
 
@@ -635,6 +645,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "symlink")
     {
+      cmdok=true;
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
 
@@ -788,6 +799,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "tag")
     {
+      cmdok=true;
       if ( (! ((vid.prot == "sss") && (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list))) ) &&
 	   (vid.uid) )
       {
@@ -900,6 +912,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "copy")
     {
+      cmdok=true;
       XrdOucString src = spath;
       XrdOucString dst = pOpaque->Get("mgm.file.target");
 
@@ -1128,6 +1141,7 @@ ProcCommand::File ()
 
     if (mSubCmd == "convert")
     {
+      cmdok=true;
       // -----------------------------------------------------------------------
       // check access permissions on source
       // -----------------------------------------------------------------------
@@ -1381,6 +1395,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "touch")
     {
+      cmdok=true;
       if (gOFS->_touch(spath.c_str(), *mError, *pVid, 0))
       {
         stdErr += "error: unable to touch";
@@ -1401,6 +1416,10 @@ ProcCommand::File ()
     if (mSubCmd == "adjustreplica")
     {
       // Only root can do this
+      cmdok=true;
+      // -----------------------------------------------------------------------
+      // only root can do that
+      // -----------------------------------------------------------------------
       if (pVid->uid == 0)
       {
         eos::IFileMD* fmd = 0;
@@ -1920,6 +1939,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "getmdlocation")
     {
+      cmdok=true;
       gOFS->MgmStats.Add("GetMdLocation", pVid->uid, pVid->gid, 1);
       // this returns the access urls to query local metadata information
       XrdOucString spath = pOpaque->Get("mgm.path");
@@ -2081,6 +2101,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "purge")
     {
+      cmdok=true;
       XrdOucString max_count = pOpaque->Get("mgm.purge.version");
       ProcCommand Cmd;
       XrdOucString info;
@@ -2123,6 +2144,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "version")
     {
+      cmdok=true;
       XrdOucString max_count = pOpaque->Get("mgm.purge.version");
       int maxversion = 0;
       if (!max_count.length())
@@ -2206,6 +2228,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "versions")
     {
+      cmdok=true;
       XrdOucString grab = pOpaque->Get("mgm.grab.version");
 
       if (grab == "-1")
@@ -2303,6 +2326,14 @@ ProcCommand::File ()
       }
     }
   }
+
+  if (!cmdok)
+  {
+    stdErr += "error: don't know subcmd=";
+    stdErr += mSubCmd;
+    retc = EINVAL;
+  }
+
   return SFS_OK;
 }
 EOSMGMNAMESPACE_END

@@ -48,11 +48,14 @@ Layout::Layout (XrdFstOfsFile* file,
                 XrdOucErrInfo* outError,
                 const char* path,
                 uint16_t timeout) :
-eos::common::LogId (),
-mLayoutId (lid),
-mOfsFile (file),
-mError (outError),
-mTimeout (timeout)
+eos::common::LogId(),
+mLayoutId(lid),
+mLastErrCode(0),
+mLastErrNo(0),
+mOfsFile(file),
+mError(outError),
+mTimeout(timeout)
+
 {
   mSecEntity = const_cast<XrdSecEntity*> (client);
   mIoType = eos::common::LayoutId::GetIoType(path);

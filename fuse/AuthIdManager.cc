@@ -40,7 +40,7 @@ std::string AuthIdManager::mapUser (uid_t uid, gid_t gid, pid_t pid, uint64_t co
 
   if ((use_user_krb5cc || use_user_gsiproxy))
   {
-    sid = "F";
+    sid = "A"; // this might be increased by redirection handling
     bituser=conid;
     eos_static_debug("conid = %llu", conid);
   }

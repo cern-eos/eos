@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #include "eosfuse.hh"
+#include "MacOSXHelper.hh"
 
 #include <string>
 #include <map>
@@ -39,7 +40,11 @@
 #include <string.h>
 
 #include <sys/types.h>
+#ifdef __APPLE__
+#include <sys/xattr.h>
+#else
 #include <attr/xattr.h>
+#endif
 
 #include "common/Timing.hh"
 
@@ -80,7 +85,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  EosFuse& me = instance ();
 
  struct fuse_chan* ch;
- time_t xcfsatime;
 
  int err = -1;
  char* epos;
@@ -130,8 +134,6 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
  {
    me.config.is_sync = 0;
  }
-
- xcfsatime = time (NULL);
 
  char rdr[4096];
  char url[4096];
@@ -214,13 +216,17 @@ EosFuse::run ( int argc, char* argv[], void *userdata )
      mountprefix[strlen (mountprefix) - 1] = '\0';
  }
 
- unsetenv ("KRB5CCNAME");
- unsetenv ("X509_USER_PROXY");
+ if (getuid () <= DAEMONUID)
+ {
+  unsetenv ("KRB5CCNAME");
+  unsetenv ("X509_USER_PROXY");
+ }
 
  if ( (fuse_parse_cmdline (&args, &local_mount_dir, NULL, &me.config.isdebug) != -1) &&
       ((ch = fuse_mount (local_mount_dir, &args)) != NULL) &&
       (fuse_daemonize (0) != -1 ) )
  {
+   me.config.isdebug = 0;
    if (getenv ("EOS_FUSE_LOWLEVEL_DEBUG") && (!strcmp (getenv ("EOS_FUSE_LOWLEVEL_DEBUG"), "1")))
      me.config.isdebug = 1;
 
@@ -345,6 +351,9 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
  eos_static_debug ("");
  EosFuse& me = instance ();
 
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
+
  // filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
 
  struct stat stbuf;
@@ -394,6 +403,9 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  eos_static_debug ("");
  EosFuse& me = instance ();
 
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
+
  // filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
 
  int retc = 0;
@@ -435,10 +447,10 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
  {
    struct timespec tvp[2];
-   tvp[0].tv_sec = attr->st_atim.tv_sec;
-   tvp[0].tv_nsec = attr->st_atim.tv_nsec;
-   tvp[1].tv_sec = attr->st_mtim.tv_sec;
-   tvp[1].tv_nsec = attr->st_mtim.tv_nsec;
+   tvp[0].tv_sec = attr->ATIMESPEC.tv_sec;
+   tvp[0].tv_nsec = attr->ATIMESPEC.tv_nsec;
+   tvp[1].tv_sec = attr->MTIMESPEC.tv_sec;
+   tvp[1].tv_nsec = attr->MTIMESPEC.tv_nsec;
 
    eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld",
                      (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
@@ -463,7 +475,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
 
  if (!retc)
  {
-   retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino);
+   retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, 0/*ino*/);
    if (!retc)
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
    else
@@ -529,10 +541,15 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  eos_static_debug ("entry_found = %lli %s", entry_inode, ifullpath);
 
- if (entry_inode && (!me.fs ().is_wopen (entry_inode)))
+ if (entry_inode && ( LayoutWrapper::CacheAuthSize(entry_inode) == -1))
  {
-   // Try to get entry from cache if this inode is not currently opened 
-   entry_found = me.fs ().dir_cache_get_entry (req, parent, entry_inode, ifullpath);
+   struct fuse_entry_param e;
+   memset (&e, 0, sizeof ( e));
+   int rc = me.fs ().stat (fullpath.c_str (), &e.attr, fuse_req_ctx (req)->uid,
+		  fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, entry_inode, true);
+
+   // Try to get entry from cache if this inode is not currently opened, but eventualy overwrite the cached size & mtime
+   entry_found = me.fs ().dir_cache_get_entry (req, parent, entry_inode, ifullpath, rc?0:&e.attr);
 
    eos_static_debug ("subentry_found = %i", entry_found);
  }
@@ -657,11 +674,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      return;
    }
 
-#ifdef __APPLE__
-   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtimespec, attr.st_ctimespec, &tmp_buf);
-#else
-   dir_status = me.fs ().dir_cache_get (ino, attr.st_mtim, attr.st_ctim, &tmp_buf);
-#endif
+   dir_status = me.fs ().dir_cache_get (ino, attr.MTIMESPEC, attr.CTIMESPEC, &tmp_buf);
 
    if (!dir_status)
    {
@@ -713,11 +726,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      //........................................................................
      // Add directory to cache or update it
      //........................................................................
-#ifdef __APPLE__
-     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtimespec, attr.st_ctimespec, b);
-#else
-     me.fs ().dir_cache_sync (ino, cnt, attr.st_mtim, attr.st_ctim, b);
-#endif
+     me.fs ().dir_cache_sync (ino, cnt, attr.MTIMESPEC, attr.CTIMESPEC, b);
      me.fs ().unlock_r_dirview (); // <=
 
      //........................................................................
@@ -1010,7 +1019,7 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
  me.fs ().dir_cache_forget (parent);
  me.fs ().forget_p2i ((unsigned long long) ino);
  int retc = me.fs ().unlink (fullpath.c_str (), fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, ino);
- 
+
  if (!retc)
    fuse_reply_buf (req, NULL, 0);
  else
@@ -1036,6 +1045,9 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
 
  const char* parentpath = NULL;
  std::string fullpath;
+ char ifullpath[16384];
+
+ unsigned long long ino;
 
  UPDATEPROCCACHE;
 
@@ -1066,7 +1078,19 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
                             fuse_req_ctx (req)->gid,
                             fuse_req_ctx (req)->pid);
 
+
+ if ((strlen (parentpath) == 1) && (parentpath[0] == '/'))
+   sprintf (ifullpath, "/%s", name);
+ else
+   sprintf (ifullpath, "%s/%s", parentpath, name);
+
+ ino = me.fs ().inode (ifullpath);
+
  me.fs ().dir_cache_forget ((unsigned long long) parent);
+
+
+ if (ino)
+   me.fs ().forget_p2i ((unsigned long long) ino);
 
  if (!retc)
    fuse_reply_err (req, 0);
@@ -1084,8 +1108,13 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
  eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
 }
 
+#ifdef _FUSE3
+void
+EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t newparent, const char *newname, unsigned int flags)
+#else
 void
 EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t newparent, const char *newname)
+#endif
 {
  eos::common::Timing timing (__func__);
  COMMONTIMING ("_start_", &timing);
@@ -1194,6 +1223,9 @@ EosFuse::access (fuse_req_t req, fuse_ino_t ino, int mask)
 
  EosFuse& me = instance ();
 
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
+
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
 
@@ -1258,6 +1290,9 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
  EosFuse& me = instance ();
 
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
+
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
 
@@ -1285,13 +1320,21 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
  if (fi->flags & (O_RDWR | O_WRONLY | O_CREAT))
    mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
+ fuse_ino_t rino=ino;
  // Do open
  res = me.fs ().open (fullpath.c_str (), fi->flags, mode, fuse_req_ctx (req)->uid,
-                      fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, &ino);
+                      fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, &rino);
 
  eos_static_debug ("inode=%lld path=%s res=%d",
                    (long long) ino, fullpath.c_str (), res);
 
+
+ if (rino != ino)
+ {
+   // this indicates a repaired file
+   eos_static_notice("migrating inode=%llu to inode=%llu after repair", ino, rino);
+   me.fs ().redirect_p2i(ino, rino);
+ }
 
  if (res == -1)
  {
@@ -1321,8 +1364,6 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
    fi->direct_io = 1;
  else
    fi->direct_io = 0;
-
- me.fs ().inc_wopen (ino);
 
  fuse_reply_open (req, fi);
 
@@ -1501,6 +1542,8 @@ EosFuse::write (fuse_req_t req, fuse_ino_t ino, const char *buf, size_t size, of
 
  EosFuse& me = instance ();
 
+ filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
+
  if (fi && fi->fh)
  {
    //UPDATEPROCCACHE;
@@ -1559,10 +1602,17 @@ EosFuse::release (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
    me.fs ().close (info->fd, ino, info->uid, info->gid, info->pid);
    me.fs ().release_rd_buff (pthread_self ());
 
-   me.fs ().dec_wopen (ino);
    // Free memory
    free (info);
    fi->fh = 0;
+
+   // evt. call the inode migration procedure in the cache and lookup tables                                                                                                                                         
+   unsigned long long new_inode;
+   if ( (new_inode = LayoutWrapper::CacheRestore(ino)))
+   {
+     eos_static_notice("migrating inode=%llu to inode=%llu after restore", ino, new_inode);
+     me.fs ().redirect_p2i(ino, new_inode);
+   }
  }
 
  fuse_reply_err (req, errno);
@@ -1672,13 +1722,12 @@ EosFuse::flush (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
  COMMONTIMING ("_stop_", &timing);
 
 
- eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
+ eos_static_notice ("RT %-16s %.04f errno=%d", __FUNCTION__, timing.RealTime (), errno);
 }
 
 #ifdef __APPLE__
 void EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size, uint32_t position)
 #else
-
 void
 EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_t size)
 #endif
@@ -1716,9 +1765,11 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 
  EosFuse& me = instance ();
 
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
+
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
-
 
  int retc = 0;
  size_t init_size = size;
@@ -1772,7 +1823,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 }
 
 #ifdef __APPLE__
-void EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const char *value, size_t size, int flags, uint32_t position)
+void EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const char *xattr_value, size_t size, int flags, uint32_t position)
 #else
 
 void
@@ -1799,6 +1850,9 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  }
 
  EosFuse& me = instance ();
+
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
 
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
@@ -1845,6 +1899,9 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
  eos_static_debug ("");
 
  EosFuse& me = instance ();
+
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
 
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
@@ -1925,6 +1982,9 @@ EosFuse::removexattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
 
  EosFuse& me = instance ();
 
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
+
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
 
@@ -1970,6 +2030,9 @@ EosFuse::readlink (fuse_req_t req, fuse_ino_t ino)
  eos_static_debug ("");
 
  EosFuse& me = instance ();
+
+ // re-resolve the inode
+ ino = me.fs().redirect_i2i(ino);
 
  // concurrency monitor
  filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);

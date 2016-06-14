@@ -728,6 +728,13 @@ XrdFstOfsFile::open (const char* path,
   std::string RedirectTried = RedirectManager.c_str();
   RedirectTried += "?tried=+";
   RedirectTried += gOFS.mHostName;
+  RedirectTried += "?tried=";
+  if( (val = openOpaque->Get("tried")) )
+  {
+    RedirectTried += openOpaque->Get("tried");
+    RedirectTried += ",";
+  }
+  RedirectTried += gOFS.HostName;
 
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
   fileid = eos::common::FileId::Hex2Fid(hexfid);
@@ -1752,9 +1759,14 @@ XrdFstOfsFile::verifychecksum ()
                fMd->fMd.checksum().c_str());
       std::string calculatedchecksum = checkSum->GetHexChecksum();
 
-      if (calculatedchecksum != fMd->fMd.checksum().c_str())
+
+      // we might fetch an unitialized value, so that is not to be considered a checksum error yet
+      if (fMd->fMd.checksum != "none")
       {
-        checksumerror = true;
+	if (calculatedchecksum != fMd->fMd.checksum.c_str())
+	{
+	  checksumerror = true;
+	}
       }
     }
   }
@@ -3143,6 +3155,7 @@ XrdFstOfsFile::DoTpcTransfer ()
     error.setErrInfo(ECONNABORTED, "sync - TPC session has been closed by disconnect");
     SetTpcState(kTpcDone);
     mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by disconnect");
+    tpcIO.fileClose();
     return 0;
   }
 
@@ -3167,6 +3180,7 @@ XrdFstOfsFile::DoTpcTransfer ()
       eos_err("msg=\"tpc transfer terminated - remote read failed\"");
       error.setErrInfo(EIO, "sync - TPC remote read failed");
       mTpcInfo.Reply(SFS_ERROR, EIO, "TPC remote read failed");
+      tpcIO.fileClose();
       return 0;
     }
 
@@ -3182,6 +3196,7 @@ XrdFstOfsFile::DoTpcTransfer ()
         eos_err("msg=\"tpc transfer terminated - local write failed\"");
         error.setErrInfo(EIO, "sync - tpc local write failed");
         mTpcInfo.Reply(SFS_ERROR, EIO, "TPC local write failed");
+	tpcIO.fileClose();
         return 0;
       }
 
@@ -3195,6 +3210,7 @@ XrdFstOfsFile::DoTpcTransfer ()
       eos_err("msg=\"tpc transfer invalidated during sync\"");
       error.setErrInfo(ECONNABORTED, "sync - TPC session has been closed by disconnect");
       mTpcInfo.Reply(SFS_ERROR, ECONNABORTED, "TPC session closed by diconnect");
+      tpcIO.fileClose();
       return 0;
     }
   }

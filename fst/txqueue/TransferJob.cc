@@ -302,6 +302,9 @@ TransferJob::SendState (int state, const char* logfile, float progress)
 void
 TransferJob::DoIt ()
 {
+  eos::common::Timing tm("Lock");
+
+
   // This is the execution part of a transfer
   // - in the standard case where we use only 'root:' protocol, we prepare a single script 
   //   running the transfer with a given timeout
@@ -788,7 +791,7 @@ TransferJob::DoIt ()
     }
     else
     {
-      fprintf(stderr,"################ setting no auth option to %d\n", noauth);
+      eos_static_info("no-auth=%d", noauth);
       if (!noauth)
 	command << "export XrdSecPROTOCOL=sss; ";
       else
@@ -876,7 +879,7 @@ TransferJob::DoIt ()
             kill(-spid, SIGKILL);
             waitpid(spid, &rc, 0);
             eoscpLogMutex.Lock();
-            FILE* fout = fopen("/var/log/eos/fst/eoscp.log", "a+");
+            FILE* fout = fopen(gOFS.eoscpTransferLog.c_str(), "a+");
             if (fout)
             {
               time_t rawtime;
@@ -953,7 +956,7 @@ TransferJob::DoIt ()
                 kill(-spid, SIGKILL);
                 waitpid(spid, &rc, 0);
                 eoscpLogMutex.Lock();
-                FILE* fout = fopen("/var/log/eos/fst/eoscp.log", "a+");
+                FILE* fout = fopen(gOFS.eoscpTransferLog.c_str(), "a+");
                 if (fout)
                 {
                   time_t rawtime;
@@ -1013,19 +1016,26 @@ TransferJob::DoIt ()
     }
   }
 
-  // ---- get the static log lock mutex ----
+  COMMONTIMING("START",&tm);                                                                                                                                                                           
   eoscpLogMutex.Lock();
+  COMMONTIMING("STOP",&tm);
 
+  eos_static_debug("lock-time=%.02f", tm.RealTime());
 
   // move the output to the log file  
-  cattolog = "touch /var/log/eos/fst/eoscp.log; cat ";
+  cattolog = "touch ";
+  cattolog += gOFS.eoscpTransferLog.c_str();
+  cattolog += "; cat ";
   cattolog += fileOutput.c_str();
-  cattolog += " >> /var/log/eos/fst/eoscp.log 2>/dev/null";
+  cattolog += " >> ";
+  cattolog += gOFS.eoscpTransferLog.c_str();
+  cattolog + " 2>/dev/nulll";
   {
     eos::common::ShellCmd scmd(cattolog.c_str());
     eos::common::cmd_status rcst = scmd.wait(60);
     rc = rcst.exit_code;
   }
+
   if (rc)
   {
     fprintf(stderr, "error: failed to append to eoscp log file (%s)\n", cattolog.c_str());
@@ -1033,9 +1043,16 @@ TransferJob::DoIt ()
   if (stagefile.length())
   {
     // move the output to the log file
-    std::string cattolog = "touch /var/log/eos/fst/eoscp.log; echo ______________________ STAGEOUT _____________________ >> /var/log/eos/fst/eoscp.log 2>/dev/null; cat ";
+    std::string cattolog = "touch ";
+    cattolog += gOFS.eoscpTransferLog.c_str();
+    cattolog += ";  echo ______________________ STAGEOUT _____________________ >> ";
+    cattolog += gOFS.eoscpTransferLog.c_str();
+    cattolog += " 2>/dev/nulll; cat ";
     cattolog += fileStageOutput.c_str();
-    cattolog += " | grep -v \"bytes remaining\" >> /var/log/eos/fst/eoscp.log 2>/dev/null;";
+    cattolog += " | grep -v \"bytes remaining\" >> ";
+    cattolog += gOFS.eoscpTransferLog.c_str();
+    cattolog += " 2>/dev/null;";
+
     eos::common::ShellCmd scmd(cattolog.c_str());
     eos::common::cmd_status rcst = scmd.wait(60);
     rc = rcst.exit_code;

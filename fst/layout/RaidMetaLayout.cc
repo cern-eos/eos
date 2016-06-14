@@ -844,8 +844,29 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 
       if (nread != len)
       {
+<<<<<<< HEAD
         eos_err("error local vector read");
         return SFS_ERROR;
+=======
+        nread = mStripeWidth;
+        map_all_errors.insert(std::make_pair(offset, nread));
+
+        if (offset % mSizeGroup == 0)
+        {
+          if (!RecoverPieces(offset, mFirstBlock, map_all_errors))
+          {
+            eos_err("error=failed recovery of stripe");
+            return SFS_ERROR;
+          }
+          else
+          {
+            map_all_errors.clear();
+          }
+        }
+
+        len -= mSizeGroup;
+        offset += mSizeGroup;
+>>>>>>> beryl_emerald
       }
     }
   }

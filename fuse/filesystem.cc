@@ -47,13 +47,16 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 /*----------------------------------------------------------------------------*/
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 /*----------------------------------------------------------------------------*/
 
+#include "MacOSXHelper.hh"
 #include "FuseCache/CacheEntry.hh"
 #include "filesystem.hh"
+#include "SyncResponseHandler.hh"
 
 #ifndef __macos__
 #define OSPAGESIZE 4096
@@ -66,6 +69,8 @@ filesystem::filesystem ()
  lazy_open_ro = false;
  lazy_open_rw = false;
  lazy_open_disabled = false;
+ hide_special_files = true;
+
  do_rdahead = false;
  rdahead_window = "131072";
 
@@ -78,7 +83,25 @@ filesystem::filesystem ()
  XFC = 0;
 }
 
-filesystem::~filesystem () { }
+filesystem::~filesystem () 
+{ 
+  FuseCacheEntry* dir = 0;
+
+  std::map<unsigned long long, FuseCacheEntry*>::iterator iter;
+  iter = inode2cache.begin ();
+  
+  while ( (iter != inode2cache.end ()) )
+  {
+    dir = (FuseCacheEntry*) iter->second;
+    std::set<unsigned long long> lset = iter->second->GetEntryInodes();
+    for (auto it = lset.begin(); it!=lset.end(); ++it)
+    {
+      inode2parent.erase(*it);
+    }
+    inode2cache.erase (iter++);
+    delete dir;
+  }
+}
 
 void
 filesystem::log (const char* _level, const char *msg)
@@ -111,11 +134,24 @@ filesystem::log_settings ()
 
  s = "lazy-open-rw           := ";
  if (lazy_open_disabled)
-   s+= "disabled";
+   s += "disabled";
  else
    s += lazy_open_rw ? "true" : "false";
  log ("WARNING", s.c_str ());
 
+ s = "hide-special-files     := ";
+ if (hide_special_files)
+   s+= "true";
+ else
+   s += "false";
+ log ("WARNING", s.c_str ());
+
+
+ if (mode_overlay)
+ {
+   s = "mode-overlay           := ";
+   s += getenv("EOS_FUSE_MODE_OVERLAY");
+ }
  s = "rm-level-protect       := ";
  XrdOucString rml;
  rml += rm_level_protect;
@@ -404,6 +440,51 @@ filesystem::forget_p2i (unsigned long long inode)
  }
 }
 
+
+//------------------------------------------------------------------------------
+// Redirect an inode to a new inode - repair actions change inodes, so we have two ino1,ino2=>path1 mappings
+//------------------------------------------------------------------------------
+
+void
+filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode)
+{
+ eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
+
+ if (inode2path.count (inode))
+ {
+   std::string path = inode2path[inode];
+
+   // only delete the reverse lookup if it points to the originating inode
+   if (path2inode[path] == inode)
+   {
+     path2inode.erase (path);
+     path2inode[path] = new_inode;
+   } 
+   // since inodes are cache dupstream we leave for the rare case of a restore a blind entry
+   //   inode2path.erase (inode);
+   inode2path[new_inode] = path;
+ }
+}
+
+//------------------------------------------------------------------------------
+// Redirect an inode to the latest valid inode version - due to repair actions
+//------------------------------------------------------------------------------
+
+unsigned long long
+filesystem::redirect_i2i (unsigned long long inode)
+{
+ eos::common::RWMutexReadLock rd_lock (mutex_inode_path);
+
+ return inode;
+ if (inode2path.count (inode))
+ {
+   std::string path = inode2path[inode];
+   if (path2inode.count(path))
+     return path2inode[path];
+ }
+ return inode;
+}
+
 //------------------------------------------------------------------------------
 // Lock read
 //------------------------------------------------------------------------------
@@ -580,6 +661,7 @@ filesystem::dir_cache_forget (unsigned long long inode)
    {
      inode2parent.erase(*it);
    }
+   delete inode2cache[inode];
    inode2cache.erase (inode);
    return true;
  }
@@ -602,7 +684,7 @@ filesystem::dir_cache_sync (unsigned long long inode,
 
  struct timespec modtime;
  modtime.tv_sec  = mtime.tv_sec + ctime.tv_sec;
- modtime.tv_nsec = ctime.tv_sec + ctime.tv_nsec;
+ modtime.tv_nsec = mtime.tv_nsec + ctime.tv_nsec;
 
  if ((inode2cache.count (inode)) && (dir = inode2cache[inode]))
  {
@@ -650,7 +732,8 @@ int
 filesystem::dir_cache_get_entry (fuse_req_t req,
                                  unsigned long long inode,
                                  unsigned long long entry_inode,
-                                 const char* efullpath)
+                                 const char* efullpath, 
+				 struct stat* overwrite_stat)
 {
  int retc = 0;
  eos::common::RWMutexReadLock rd_lock (mutex_fuse_cache);
@@ -663,6 +746,13 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
      struct fuse_entry_param e;
      if (dir->GetEntry (entry_inode, e))
      {
+       // we eventually need to overwrite the cached information
+       if (overwrite_stat)
+       {
+	 e.attr.MTIMESPEC = overwrite_stat->MTIMESPEC;
+	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
+	 e.attr.st_size = overwrite_stat->st_size;
+       }
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
        retc = 1; // found
@@ -746,6 +836,71 @@ filesystem::generate_fd ()
 //------------------------------------------------------------------------------
 
 int
+filesystem::force_rwopen (
+                         unsigned long inode,
+                         uid_t uid, gid_t gid, pid_t pid
+                         )
+{
+  int fd = -1;
+  std::ostringstream sstr;
+  sstr << inode << ":" << get_login (uid, gid, pid);
+
+  eos::common::RWMutexReadLock rd_lock (rwmutex_fd2fabst);
+  auto iter_fd = inodexrdlogin2fds.find (sstr.str ());
+
+  // If there is already an entry for the current user and the current inode
+  if (iter_fd != inodexrdlogin2fds.end ())
+  {
+    fd = *iter_fd->second.begin ();
+    auto iter_file = fd2fabst.find (fd); //all the fd ti a same file share the same fabst
+
+    for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
+    {
+      if ( fd2count[*fdit] > 0)
+      {
+        std::shared_ptr<FileAbstraction> fabst = get_file (*fdit, NULL);
+        if (!fabst.get())
+        {
+          errno = ENOENT;
+          return 0;
+        }
+
+	if (fabst->GetRawFileRO())
+	{
+	  fabst->DecNumRefRO ();
+	  return 0;
+	}
+
+	if (!fabst->GetRawFileRW())
+	{
+	  return 0;
+	}
+
+        if(fabst->GetRawFileRW()->MakeOpen())
+        {
+          fabst->DecNumRefRW ();
+          errno = EIO;
+	  eos_static_info("makeopen returned -1");
+          return -1; // return -1 if failure
+        } 
+	else
+	{
+	  eos_static_info("forced read-open");
+	  fabst->DecNumRefRW ();
+	}
+        return *fdit; // return the fd if succeed (>0)
+      }
+    }
+  }
+
+  return 0; // return 0 if nothing to do
+}
+
+//------------------------------------------------------------------------------
+// Add new mapping between fd and raw file object
+//------------------------------------------------------------------------------
+
+int
 filesystem::add_fd2file (LayoutWrapper* raw_file,
                          unsigned long inode,
                          uid_t uid, gid_t gid, pid_t pid,
@@ -816,6 +971,7 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    }
 
    fabst->GrabMaxWriteOffset ();
+   fabst->GrabUtimes ();
 
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
@@ -860,37 +1016,6 @@ filesystem::get_file (int fd, bool *isRW, bool forceRWtoo)
  return fabst;
 }
 
-
-//----------------------------------------------------------------------------
-//! Check if inode is currently open
-//----------------------------------------------------------------------------
-
-int
-filesystem::is_wopen (unsigned long inode)
-{
- eos::common::RWMutexReadLock rd_lock (rwmutex_inodeopenw);
- if (!inodeopenw.count(inode))
-   return 0;
- return 1;
-}
-
-void
-filesystem::inc_wopen (unsigned long inode)
-{
- eos::common::RWMutexWriteLock rw_lock (rwmutex_inodeopenw);
- inodeopenw[inode]++;
-}
-
-void
-filesystem::dec_wopen (unsigned long inode)
-{
- eos::common::RWMutexWriteLock rw_lock (rwmutex_inodeopenw);
- inodeopenw[inode]--;
- if (!inodeopenw[inode])
-   inodeopenw.erase (inode);
-}
-
-
 //------------------------------------------------------------------------------
 // Remove entry from mapping
 //------------------------------------------------------------------------------
@@ -900,7 +1025,6 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
 {
  int retc = -1;
  eos_static_debug ("fd=%i, inode=%lu", fd, inode);
-
 
  rwmutex_fd2fabst.LockWrite();
 
@@ -955,143 +1079,6 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
      if (isRW)
      {
        eos_static_debug ("fabst=%p, rwfile is not in use, close it", fabst.get());
-       LayoutWrapper* raw_file = fabst->GetRawFileRW ();
-       if (raw_file->IsOpen ())
-       {
-         struct timespec ut[2];
-         const char* path = 0;
-         struct stat buf;
-
-         // retrieve the last modification time from the open file
-         raw_file->Stat (&buf);
-         eos_static_debug ("stat gave mtime=%llu", buf.st_mtime);
-         ut[0].tv_sec = buf.st_mtime;
-         ut[0].tv_nsec = 0;
-         ut[1].tv_sec = buf.st_mtime;
-         ut[1].tv_nsec = 0;
-
-         if ((path = fabst->GetUtimes (ut)))
-         {
-	   const char* nowpath=0;
-	   std::string npath;
-	   {
-	     // a file might have been renamed in the meanwhile
-	     lock_r_p2i();
-	     nowpath = this->path((unsigned long long)inode);
-	     unlock_r_p2i();
-	     if (nowpath)
-	     {
-	       // get it prefixed again
-	       getPath(npath, mPrefix, nowpath);
-	       nowpath = npath.c_str();
-	     }
-	     else
-	     {
-	       nowpath = path;
-	     }
-	   }
-	   if (strcmp(path,nowpath))
-	   {
-	     eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
-	     path = nowpath;
-	   }
-           eos_static_debug ("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
-           // run the utimes command now after the close
-           if (this->utimes (path, ut, uid, gid, pid))
-	   {
-	     // a file might have been renamed in the meanwhile
-	     lock_r_p2i();
-	     nowpath = this->path((unsigned long long)inode);
-	     unlock_r_p2i();
-	     if (nowpath) 
-	     {
-	       // get it prefixed again
-	       getPath(npath, mPrefix, nowpath);
-	       nowpath = npath.c_str();
-	     }
-	     else
-	     {
-	       nowpath = path;
-	     }
-	     if (strcmp(nowpath, path))
-	     {
-	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
-	       path = nowpath;
-	       if (this->utimes (path, ut, uid, gid, pid))
-	       {
-		 eos_static_err("file utime setting failed permanently for %s", path);
-	       }
-	     }
-	   }
-         }
-         else
-         {
-           eos_static_debug ("CLOSEDEBUG no utime");
-         }
-       }
-       else
-       {
-         // the file might have just been touched with an utime set
-         struct timespec ut[2];
-         ut[0].tv_sec = ut[1].tv_sec = 0;
-         const char* path = fabst->GetUtimes (ut);
-	 const char* nowpath=0;
-	 std::string npath;
-	 {
-	   // a file might have been renamed in the meanwhile
-	   lock_r_p2i();
-	   nowpath = this->path((unsigned long long)inode);
-	   unlock_r_p2i();
-	   if (nowpath)
-	   {
-	     // get it prefixed again
-	     getPath(npath, mPrefix, nowpath);
-	     nowpath = npath.c_str();
-	   }
-	   else
-	   {
-	     nowpath = path;
-	   }
-	 }
-	 if (strcmp(path,nowpath))
-	 {
-	   eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
-	   path = nowpath;
-	 }
-
-         if (ut[0].tv_sec || ut[1].tv_sec)
-         {
-	   // this still allows to jump in for a rename, but we neglect this possiblity for now
-           eos_static_debug ("CLOSEDEBUG closing touched file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
-           // run the utimes command now after the close
-	   if (this->utimes (path, ut, uid, gid, pid))
-	   {
-	     // a file might have been renamed in the meanwhile
-	     lock_r_p2i();
-	     nowpath = this->path((unsigned long long)inode);
-	     unlock_r_p2i();
-	     if (nowpath)
-	     {
-	       // get it prefixed again
-	       getPath(npath, mPrefix, nowpath);
-	       nowpath = npath.c_str();
-	     }
-	     else
-	     {
-	       nowpath = path;
-	     }
-	     if (strcmp(nowpath, path))
-	     {
-	       eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
-	       path = nowpath;
-	       if (this->utimes (path, ut, uid, gid, pid))
-	       {
-		 eos_static_err("file utime setting failed permanently for %s", path);
-	       }
-	     }
-	   }
-         }
-       }
        retc = 0;
      }
      else
@@ -1223,8 +1210,10 @@ filesystem::rmxattr (const char* path,
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
 
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("GETPLUGIN", &rmxattrtiming);
  errno = 0;
 
@@ -1308,8 +1297,11 @@ filesystem::setxattr (const char* path,
 
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("GETPLUGIN", &setxattrtiming);
  errno = 0;
 
@@ -1387,8 +1379,11 @@ filesystem::getxattr (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("GETPLUGIN", &getxattrtiming);
  errno = 0;
 
@@ -1469,8 +1464,11 @@ filesystem::listxattr (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("GETPLUGIN", &listxattrtiming);
  errno = 0;
 
@@ -1529,7 +1527,8 @@ filesystem::stat (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long inode)
+                  unsigned long inode, 
+		  bool onlysizemtime)
 {
  eos_static_info ("path=%s, uid=%i, gid=%i inode=%lu",
                   path, (int) uid, (int) gid, inode);
@@ -1539,6 +1538,11 @@ filesystem::stat (const char* path,
  atim.tv_sec = atim.tv_nsec = mtim.tv_sec = mtim.tv_nsec = 0;
  errno = 0;
  COMMONTIMING ("START", &stattiming);
+
+ if (onlysizemtime && !inode)
+ {
+   return -1;
+ }
 
  if (inode)
  {
@@ -1589,7 +1593,7 @@ filesystem::stat (const char* path,
        // otherwise, the file will be opened on the fst, just for a stat
        if (isrw)
        {
-         // only stat via open files if we are don't have cache capabilities
+         // only stat via open files if we don't have cache capabilities
          if (!file->CanCache ())
          {
            if ((!file->Stat (&tmp)))
@@ -1609,7 +1613,7 @@ filesystem::stat (const char* path,
                file_size = cache_size;
              }
              fabst->GetUtimes (&mtim);
-             eos_static_debug ("fd=%i, size-fd=%lld, mtiem=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.st_mtim, tmp.st_atim, file);
+             eos_static_debug ("fd=%i, size-fd=%lld, mtime=%llu/%llu raw_file=%p", *iter_fd->second.begin (), file_size, tmp.MTIMESPEC.tv_sec, tmp.ATIMESPEC.tv_sec, file);
            }
            else
            {
@@ -1642,6 +1646,20 @@ filesystem::stat (const char* path,
      rwmutex_fd2fabst.UnLockRead();
      eos_static_debug ("path=%s not open", path);
    }
+
+   if (onlysizemtime)
+   {
+     if (file_size == -1)
+     {
+       eos_static_debug("onlysizetime couldn't get the size from an open file");
+       return -1;
+     }
+     buf->st_size = file_size;
+     buf->MTIMESPEC = mtim;
+     buf->st_mtime = mtim.tv_sec;
+     eos_static_debug("onlysizetime size from open file");
+     return 0;
+   }
  }
 
  // Do stat using the Fils System object
@@ -1663,8 +1681,11 @@ filesystem::stat (const char* path,
  XrdCl::FileSystem fs (Url);
 
  eos_static_debug ("arg = %s", arg.ToString ().c_str ());
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("GETPLUGIN", &stattiming);
 
  if (status.IsOK ())
@@ -1702,8 +1723,8 @@ filesystem::stat (const char* path,
        errno = retc;
      else
        errno = EFAULT;
-     delete response;
      eos_static_info ("path=%s errno=%i tag=%s", path, errno, tag);
+     delete response;
      return errno;
    }
    else
@@ -1718,24 +1739,15 @@ filesystem::stat (const char* path,
      buf->st_size = (off_t) sval[7];
      buf->st_blksize = (blksize_t) sval[8];
      buf->st_blocks = (blkcnt_t) sval[9];
-#ifdef __APPLE__
-     buf->st_atimespec.tv_sec = (time_t) ival[0];
-     buf->st_mtimespec.tv_sec = (time_t) ival[1];
-     buf->st_ctimespec.tv_sec = (time_t) ival[2];
-     buf->st_atimespec.tv_nsec = (time_t) ival[3];
-     buf->st_mtimespec.tv_nsec = (time_t) ival[4];
-     buf->st_ctimespec.tv_nsec = (time_t) ival[5];
-#else
      buf->st_atime = (time_t) ival[0];
      buf->st_mtime = (time_t) ival[1];
      buf->st_ctime = (time_t) ival[2];
-     buf->st_atim.tv_sec = (time_t) ival[0];
-     buf->st_mtim.tv_sec = (time_t) ival[1];
-     buf->st_ctim.tv_sec = (time_t) ival[2];
-     buf->st_atim.tv_nsec = (time_t) ival[3];
-     buf->st_mtim.tv_nsec = (time_t) ival[4];
-     buf->st_ctim.tv_nsec = (time_t) ival[5];
-#endif
+     buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+     buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+     buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+     buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+     buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+     buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
 
      if (S_ISREG (buf->st_mode) && fuse_exec)
        buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
@@ -1764,16 +1776,20 @@ filesystem::stat (const char* path,
    eos_static_debug("local cache size=%lld", csize);
  }
 
+ // eventually configure an overlay mode to enable bits by default
+ buf->st_mode |= mode_overlay;
+
+
  // If got size using the opened file then return size and mtime from the opened file
  if (file_size != -1)
  {
    buf->st_size = file_size;
    if (mtim.tv_sec)
    {
-     buf->st_mtim = mtim;
-     buf->st_atim = mtim;
-     buf->st_atime = buf->st_atim.tv_sec;
-     buf->st_mtime = buf->st_mtim.tv_sec;
+     buf->MTIMESPEC = mtim;
+     buf->ATIMESPEC = mtim;
+     buf->st_atime = buf->ATIMESPEC.tv_sec;
+     buf->st_mtime = buf->ATIMESPEC.tv_sec;
    }
  }
 
@@ -1782,7 +1798,7 @@ filesystem::stat (const char* path,
  if (EOS_LOGS_DEBUG)
    stattiming.Print ();
 
- eos_static_info ("path=%s st-ino =%llu st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_ino, buf->st_size, buf->st_mtim.tv_sec, buf->st_mtim.tv_nsec, errno);
+ eos_static_info ("path=%s st-ino =%llu st-size=%llu st-mtim.tv_sec=%llu st-mtim.tv_nsec=%llu errno=%i", path, buf->st_ino, buf->st_size, buf->MTIMESPEC.tv_sec, buf->MTIMESPEC.tv_nsec, errno);
  delete response;
  return errno;
 }
@@ -1818,7 +1834,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    stbuf->f_files = a4;
    stbuf->f_ffree = a2;
    stbuf->f_fsid = 0xcafe;
-   stbuf->f_namemax = 256;
+   stbuf->f_namemax = 1024;
    statmutex.UnLock ();
    return errno;
  }
@@ -1842,8 +1858,11 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  errno = 0;
 
  if (status.IsOK ())
@@ -1854,8 +1873,8 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    if (!response->GetBuffer ())
    {
      statmutex.UnLock ();
-     delete response;
      errno = EFAULT;
+     delete response;
      return errno;
    }
 
@@ -1868,8 +1887,8 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    if ((items != 6) || (strcmp (tag, "statvfs:")))
    {
      statmutex.UnLock ();
-     delete response;
      errno = EFAULT;
+     delete response;
      return errno;
    }
 
@@ -1883,6 +1902,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
    stbuf->f_bavail = a1 / 4096;
    stbuf->f_files = a4;
    stbuf->f_ffree = a2;
+   stbuf->f_namemax = 1024;
  }
  else
  {
@@ -1932,8 +1952,11 @@ filesystem::chmod (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("END", &chmodtiming);
  errno = 0;
 
@@ -1946,8 +1969,8 @@ filesystem::chmod (const char* path,
 
    if (!response->GetBuffer ())
    {
-     delete response;
      errno = EFAULT;
+     delete response;
      return errno;
    }
 
@@ -2044,8 +2067,11 @@ filesystem::utimes (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("END", &utimestiming);
  errno = 0;
 
@@ -2117,8 +2143,9 @@ filesystem::symlink (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
 
  COMMONTIMING ("STOP", &symlinktiming);
  errno = 0;
@@ -2147,7 +2174,6 @@ filesystem::symlink (const char* path,
  }
 
  delete response;
-
  return errno;
 }
 
@@ -2181,8 +2207,11 @@ filesystem::readlink (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("END", &readlinktiming);
  errno = 0;
 
@@ -2195,8 +2224,8 @@ filesystem::readlink (const char* path,
 
    if (!response->GetBuffer ())
    {
-     delete response;
      errno = EFAULT;
+     delete response;
      return errno;
    }
 
@@ -2283,8 +2312,9 @@ filesystem::access (const char* path,
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
 
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
 
  COMMONTIMING ("STOP", &accesstiming);
  errno = 0;
@@ -2377,14 +2407,32 @@ filesystem::inodirlist (unsigned long long dirinode,
  value = (char*) malloc (PAGESIZE + 1);
  COMMONTIMING ("READSTSTREAM", &inodirtiming);
 
- status = file->Read (offset, PAGESIZE, value + offset, nbytes);
+ {
+   SyncResponseHandler handler;
+   XrdCl::ChunkInfo *chunkInfo = 0;
+   file->Read (offset, PAGESIZE, value + offset, &handler);
+   status = handler.Sync(chunkInfo);
+   if (chunkInfo)
+   {
+     nbytes = chunkInfo->length;
+     delete chunkInfo;
+   }
+ }
 
  while ((status.IsOK ()) && (nbytes == PAGESIZE))
  {
+   SyncResponseHandler handler;
+   XrdCl::ChunkInfo *chunkInfo = 0;
    npages++;
    value = (char*) realloc (value, npages * PAGESIZE + 1);
    offset += PAGESIZE;
-   status = file->Read (offset, PAGESIZE, value + offset, nbytes);
+   file->Read (offset, PAGESIZE, value + offset, &handler);
+   status = handler.Sync(chunkInfo);
+   if (chunkInfo)
+   {
+     nbytes = chunkInfo->length;
+     delete chunkInfo;
+   }
  }
 
  if (status.IsOK ()) offset += nbytes;
@@ -2510,10 +2558,10 @@ filesystem::inodirlist (unsigned long long dirinode,
          char *statptr2;
          statptr++; // skip '{'
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_atim.tv_nsec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_nsec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_atim.tv_sec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.ATIMESPEC.tv_sec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blksize, statptr2 - statptr);
@@ -2522,10 +2570,10 @@ filesystem::inodirlist (unsigned long long dirinode,
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_blocks, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_ctim.tv_nsec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_nsec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_ctim.tv_sec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.CTIMESPEC.tv_sec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_dev, statptr2 - statptr);
@@ -2540,10 +2588,10 @@ filesystem::inodirlist (unsigned long long dirinode,
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mode, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mtim.tv_nsec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_nsec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
-         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_mtim.tv_sec, statptr2 - statptr);
+         eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.MTIMESPEC.tv_sec, statptr2 - statptr);
          statptr = statptr2 + 1; // skip ','
          for (statptr2 = statptr; *statptr2 && *statptr2 != ',' && *statptr2 != '}'; statptr2++);
          eos::common::StringConversion::FastAsciiHexToUnsigned (statptr, &buf.st_nlink, statptr2 - statptr);
@@ -2563,6 +2611,7 @@ filesystem::inodirlist (unsigned long long dirinode,
 	 buf.st_mode &= (~S_ISVTX); // clear the vxt bit
 	 buf.st_mode &= (~S_ISUID); // clear suid
 	 buf.st_mode &= (~S_ISGID); // clear sgid
+	 buf.st_mode |= mode_overlay;
        }
        else
          buf.st_ino = 0;
@@ -2574,8 +2623,20 @@ filesystem::inodirlist (unsigned long long dirinode,
       }
       else
       {
-        store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
-        dir2inodelist[dirinode].push_back (inode);
+	bool show_entry = true;
+        if ( hide_special_files &&
+             ( whitespacedirpath.beginswith(EOS_COMMON_PATH_VERSION_FILE_PREFIX) ||
+	       whitespacedirpath.beginswith(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) ||
+	       whitespacedirpath.beginswith(EOS_COMMON_PATH_BACKUP_FILE_PREFIX) ) )
+	{
+	  show_entry = false;
+	}
+        
+	if (show_entry)
+	{
+	  store_child_p2i (dirinode, inode, whitespacedirpath.c_str ());
+	  dir2inodelist[dirinode].push_back (inode);
+	}
       }
    }
    if (parseerror)
@@ -2601,6 +2662,7 @@ filesystem::inodirlist (unsigned long long dirinode,
    for (auto i = 0; i < (int) statvec.size (); i++)
    {
      struct fuse_entry_param &e = (*stats)[i];
+     memset(&e, 0, sizeof(struct fuse_entry_param));
      e.attr = statvec[i];
      e.attr_timeout = 0;
      e.entry_timeout = 0;
@@ -2658,7 +2720,7 @@ filesystem::readdir (const char* path_dir, size_t *size,
      size_t len = list_entry->GetName ().length ();
      const char* cp = list_entry->GetName ().c_str ();
      const int dirhdrln = dirs[i].d_name - (char *) &dirs[i];
-#if defined(__macos__) || defined(__FreeBSD__)
+#ifdef __APPLE__
      dirs[i].d_fileno = i;
      dirs[i].d_type = DT_UNKNOWN;
      dirs[i].d_namlen = len;
@@ -2672,11 +2734,13 @@ filesystem::readdir (const char* path_dir, size_t *size,
      dirs[i].d_name[len] = '\0';
      i++;
    }
-
+   
+   delete response;
    return dirs;
  }
 
  *size = 0;
+ delete response;
  return NULL;
 }
 
@@ -2714,8 +2778,11 @@ filesystem::mkdir (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
- XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile,
-                                        arg, response);
+
+ SyncResponseHandler handler;
+ fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+ XrdCl::XRootDStatus status = handler.Sync(response);
+
  COMMONTIMING ("GETPLUGIN", &mkdirtiming);
 
  if (status.IsOK ())
@@ -2773,24 +2840,15 @@ filesystem::mkdir (const char* path,
      buf->st_size = (off_t) sval[7];
      buf->st_blksize = (blksize_t) sval[8];
      buf->st_blocks = (blkcnt_t) sval[9];
-#ifdef __APPLE__
-     buf->st_atimespec.tv_sec = (time_t) ival[0];
-     buf->st_mtimespec.tv_sec = (time_t) ival[1];
-     buf->st_ctimespec.tv_sec = (time_t) ival[2];
-     buf->st_atimespec.tv_nsec = (time_t) ival[3];
-     buf->st_mtimespec.tv_nsec = (time_t) ival[4];
-     buf->st_ctimespec.tv_nsec = (time_t) ival[5];
-#else
      buf->st_atime = (time_t) ival[0];
      buf->st_mtime = (time_t) ival[1];
      buf->st_ctime = (time_t) ival[2];
-     buf->st_atim.tv_sec = (time_t) ival[0];
-     buf->st_mtim.tv_sec = (time_t) ival[1];
-     buf->st_ctim.tv_sec = (time_t) ival[2];
-     buf->st_atim.tv_nsec = (time_t) ival[3];
-     buf->st_mtim.tv_nsec = (time_t) ival[4];
-     buf->st_ctim.tv_nsec = (time_t) ival[5];
-#endif
+     buf->ATIMESPEC.tv_sec = (time_t) ival[0];
+     buf->MTIMESPEC.tv_sec = (time_t) ival[1];
+     buf->CTIMESPEC.tv_sec = (time_t) ival[2];
+     buf->ATIMESPEC.tv_nsec = (time_t) ival[3];
+     buf->MTIMESPEC.tv_nsec = (time_t) ival[4];
+     buf->CTIMESPEC.tv_nsec = (time_t) ival[5];
 
      if (S_ISREG (buf->st_mode) && fuse_exec)
        buf->st_mode |= (S_IXUSR | S_IXGRP | S_IXOTH);
@@ -3033,6 +3091,7 @@ filesystem::open (const char* path,
      if (retc)
      {
        eos_static_err ("open failed for %s : error code is %d", spath.c_str (), (int) errno);
+       delete file;
        return error_retc_map (errno);
      }
      else
@@ -3063,6 +3122,7 @@ filesystem::open (const char* path,
      if (retc)
      {
        eos_static_err ("open failed for %s", spath.c_str ());
+       delete file;
        return error_retc_map (errno);
      }
      else
@@ -3093,6 +3153,7 @@ filesystem::open (const char* path,
      if (retc)
      {
        eos_static_err ("open failed for %s", spath.c_str ());
+       delete file;
        return error_retc_map (errno);
      }
      else
@@ -3125,7 +3186,10 @@ filesystem::open (const char* path,
    surl += strongauth_cgi (pid);
    XrdCl::URL Url (surl);
    XrdCl::FileSystem fs (Url);
-   status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+
+   SyncResponseHandler handler;
+   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+   status = handler.Sync(response);
 
    if (status.IsOK ())
    {
@@ -3148,7 +3212,7 @@ filesystem::open (const char* path,
      {
      }
 
-     XrdOucEnv* openOpaque = new XrdOucEnv (stringOpaque.c_str ());
+     std::unique_ptr<XrdOucEnv> openOpaque (new XrdOucEnv (stringOpaque.c_str ()));
      char* opaqueInfo = (char*) strstr (origResponse.c_str (), "&mgm.logid");
 
      if (opaqueInfo)
@@ -3189,6 +3253,7 @@ filesystem::open (const char* path,
          if (retc)
          {
            eos_static_err ("failed open for pio red, path=%s", spath.c_str ());
+	   delete response;
            delete file;
            return error_retc_map (errno);
          }
@@ -3209,6 +3274,7 @@ filesystem::open (const char* path,
            }
 
            retc = add_fd2file (new LayoutWrapper (file), *return_inode, uid, gid, pid, isRO);
+	   delete response;
            return retc;
          }
        }
@@ -3219,11 +3285,11 @@ filesystem::open (const char* path,
    else
      eos_static_err ("failed get request for pio read. query was   %s  ,  response was   %s    and   error was    %s",
                      arg.ToString ().c_str (), response ? response->ToString ().c_str () : "no-response", status.ToStr ().c_str ());
+   delete response;
  }
 
  eos_static_debug ("the spath is:%s", spath.c_str ());
 
- LayoutWrapper* file = new LayoutWrapper (new eos::fst::PlainLayout (NULL, 0, NULL, NULL, spath.c_str()));
  XrdOucString open_cgi = "eos.app=fuse";
  if(encode_pathname) open_cgi += "&eos.encodepath=1";
 
@@ -3267,7 +3333,16 @@ filesystem::open (const char* path,
    }
  }
 
- retc = file->Open (spath.c_str (), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
+ if (isRO && force_rwopen (*return_inode, uid, gid, pid) < 0)
+ {
+   eos_static_err("forcing rw open failed for inode %lu path %s", (unsigned long )*return_inode, path);
+   return error_retc_map (errno);
+ }
+
+ LayoutWrapper* file = new LayoutWrapper(
+					 new eos::fst::PlainLayout (NULL, 0, NULL, NULL, spath.c_str()));
+
+ retc = file->Open (spath.c_str(), flags_sfs, mode, open_cgi.c_str (), exists ? &buf : NULL, !lazy_open, creator_cap_lifetime, do_inline_repair);
 
  if (retc)
  {
@@ -3307,17 +3382,26 @@ filesystem::open (const char* path,
 
          {
            eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
-           path2inode.erase (path);
-           inode2path.erase (old_ino);
-           path2inode[path] = new_ino;
-           inode2path[new_ino] = path;
-           eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	   if (inode2path.count(old_ino))
+	   {
+	     std::string ipath = inode2path[old_ino];
+	     if (path2inode.count(ipath))
+	     {
+	       if (path2inode[ipath] != new_ino)
+	       {
+		 path2inode[ipath] = new_ino;
+		 inode2path[new_ino] = ipath;
+		 eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	       }
+	     }
+	   }
          }
        }
        else
        {
          eos_static_crit ("new inode is null: cannot move old inode to new inode!");
          errno = EBADR;
+	 delete file;
          return errno;
        }
      }
@@ -3338,6 +3422,143 @@ filesystem::open (const char* path,
  }
 }
 
+int
+filesystem::utimes_from_fabst(std::shared_ptr<FileAbstraction> fabst, unsigned long inode, uid_t uid, gid_t gid, pid_t pid)
+{
+  LayoutWrapper* raw_file = fabst->GetRawFileRW ();
+
+  if (!raw_file)
+    return 0;
+
+  if (raw_file->IsOpen ())
+  {
+    struct timespec ut[2];
+    const char* path = 0;
+    
+    if ((path = fabst->GetUtimes (ut)))
+    {
+      const char* nowpath=0;
+      std::string npath;
+      {
+	// a file might have been renamed in the meanwhile
+	lock_r_p2i();
+	nowpath = this->path((unsigned long long)inode);
+	unlock_r_p2i();
+	if (nowpath)
+	{
+	  // get it prefixed again
+	  getPath(npath, mPrefix, nowpath);
+	  nowpath = npath.c_str();
+	}
+	else
+	{
+	  nowpath = path;
+	}
+      }
+      if (strcmp(path,nowpath))
+      {
+	eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+	path = nowpath;
+      }
+      eos_static_debug ("CLOSEDEBUG closing file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
+      // run the utimes command now after the close
+      if (this->utimes (path, ut, uid, gid, pid))
+      {
+	// a file might have been renamed in the meanwhile
+	lock_r_p2i();
+	nowpath = this->path((unsigned long long)inode);
+	unlock_r_p2i();
+	if (nowpath) 
+	{
+	  // get it prefixed again
+	  getPath(npath, mPrefix, nowpath);
+	  nowpath = npath.c_str();
+	}
+	else
+	{
+	  nowpath = path;
+	}
+	if (strcmp(nowpath, path))
+	{
+	  eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+	  path = nowpath;
+	  if (this->utimes (path, ut, uid, gid, pid))
+	  {
+	    eos_static_err("file utime setting failed permanently for %s", path);
+	  }
+	}
+      }
+    }
+    else
+    {
+      eos_static_debug ("CLOSEDEBUG no utime");
+    }
+  }
+  else
+  {
+    // the file might have just been touched with an utime set
+    struct timespec ut[2];
+    ut[0].tv_sec = ut[1].tv_sec = 0;
+    const char* path = fabst->GetUtimes (ut);
+    const char* nowpath=0;
+    std::string npath;
+    {
+      // a file might have been renamed in the meanwhile
+      lock_r_p2i();
+      nowpath = this->path((unsigned long long)inode);
+      unlock_r_p2i();
+      if (nowpath)
+      {
+	// get it prefixed again
+	getPath(npath, mPrefix, nowpath);
+	nowpath = npath.c_str();
+      }
+      else
+      {
+	nowpath = path;
+      }
+    }
+    if (strcmp(path,nowpath))
+    {
+      eos_static_info("file renamed before close old-name=%s new-name=%s", path, nowpath);
+      path = nowpath;
+    }
+    
+    if (ut[0].tv_sec || ut[1].tv_sec)
+    {
+      // this still allows to jump in for a rename, but we neglect this possiblity for now
+      eos_static_debug ("CLOSEDEBUG closing touched file open-path=%s current-path=%s open with flag %d and utiming", raw_file->GetOpenPath ().c_str (), path, (int) raw_file->GetOpenFlags ());
+      // run the utimes command now after the close
+      if (this->utimes (path, ut, uid, gid, pid))
+      {
+	// a file might have been renamed in the meanwhile
+	lock_r_p2i();
+	nowpath = this->path((unsigned long long)inode);
+	unlock_r_p2i();
+	if (nowpath)
+	{
+	  // get it prefixed again
+	  getPath(npath, mPrefix, nowpath);
+	  nowpath = npath.c_str();
+	}
+	else
+	{
+	  nowpath = path;
+	}
+	if (strcmp(nowpath, path))
+	{
+	  eos_static_info("file renamed again before close old-name=%s new-name=%s", path, nowpath);
+	  path = nowpath;
+	  if (this->utimes (path, ut, uid, gid, pid))
+	  {
+	    eos_static_err("file utime setting failed permanently for %s", path);
+	  }
+	}
+      }
+    }
+  }
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Release is called when FUSE is completely done with a file; at that point,
@@ -3360,9 +3581,19 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
 
  if (XFC)
  {
+   LayoutWrapper* file = fabst->GetRawFileRW ();
+   error_type error;
+
    fabst->mMutexRW.WriteLock ();
    XFC->ForceAllWrites (fabst.get());
+   eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
+   if (file && (err_queue.try_pop (error)))
+   {
+     eos_static_warning ("write error found in err queue for inode=%llu - enabling restore", inode);
+     file->SetRestore();
+   }
    fabst->mMutexRW.UnLock ();
+
  }
 
  {
@@ -3373,8 +3604,8 @@ filesystem::close (int fildes, unsigned long inode, uid_t uid, gid_t gid, pid_t 
  }
 
  {
-   //   eos::common::RWMutex *myOpenMutex = openmutexes + get_open_idx (inode);
-   //   eos::common::RWMutexWriteLock lock (*myOpenMutex);
+   // Commit the utime first - we cannot handle errors here
+   ret = utimes_from_fabst(fabst, inode, uid, gid, pid);
 
    // Close file and remove it from all mappings
    ret = remove_fd2file (fildes, inode, uid, gid, pid);
@@ -3426,8 +3657,11 @@ filesystem::flush (int fd, uid_t uid, gid_t gid, pid_t pid)
 
  if (XFC && fuse_cache_write)
  {
+   off_t cache_size = fabst->GetMaxWriteOffset ();
+   
    fabst->mMutexRW.WriteLock ();
-   XFC->ForceAllWrites (fabst.get(), false);
+   // if we wrote more than the in-memory cache-size we wait for the writes in flush and evt. report an error
+   XFC->ForceAllWrites (fabst.get(), (cache_size > file_write_back_cache_size)?true:false);
    eos::common::ConcurrentQueue<error_type> err_queue = fabst->GetErrorQueue ();
    error_type error;
 
@@ -3453,7 +3687,7 @@ int
 filesystem::truncate (int fildes, off_t offset)
 {
 
- eos::common::Timing truncatetiming ("runcate");
+ eos::common::Timing truncatetiming ("truncate");
  COMMONTIMING ("START", &truncatetiming);
 
  int ret = -1;
@@ -4216,7 +4450,10 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
 
   XrdCl::URL Url (url.c_str());
   XrdCl::FileSystem fs (Url);
-  status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  SyncResponseHandler handler;
+  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+  status = handler.Sync(response);
 
   if (!status.IsOK ())
   {
@@ -4230,7 +4467,7 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
   bool infeatures = false;
   ss.str(response->GetBuffer(0));
   do
-  {
+  { 
     line.clear();
     std::getline(ss,line);
     if(line.empty())
@@ -4404,6 +4641,13 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  eos::common::Logging::gShortFormat = true;
  XrdOucString fusedebug = getenv ("EOS_FUSE_DEBUG");
 
+#ifdef STOPONREDIRECT
+ // Set the redirect limit
+ XrdCl::DefaultEnv::GetEnv()->PutInt("RedirectLimit", 1 );
+ setenv("XRD_REDIRECTLIMIT","1",1);
+#endif
+
+
  // Extract MGM endpoint and check availability
  if (check_mgm ( features ) == 0)
  {
@@ -4454,6 +4698,15 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  if (getenv ("EOS_FUSE_LAZYOPENRW") && (!strcmp (getenv ("EOS_FUSE_LAZYOPENRW"), "1")))
  {
    lazy_open_rw = true;
+ }
+
+ if (getenv("EOS_FUSE_SHOW_SPECIAL_FILES") && (!strcmp(getenv("EOS_FUSE_SHOW_SPECIAL_FILES"),"1")))
+ {
+   hide_special_files = false;
+ }
+ else
+ {
+   hide_special_files = true;
  }
 
  if (features && !features->count("eos.lazyopen"))
@@ -4600,6 +4853,16 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    tryKrb5First = false;
 
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
+
+
+ if (getenv("EOS_FUSE_MODE_OVERLAY"))
+ {
+   mode_overlay = (mode_t)strtol(getenv("EOS_FUSE_MODE_OVERLAY"),0,8);
+ }
+ else
+ {
+   mode_overlay = 0;
+ }
 
  // get uid and pid specificities of the system
  {

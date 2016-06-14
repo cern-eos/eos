@@ -225,6 +225,18 @@ public:
 
   // that is all we need for meta data handling
 
+
+  // ---------------------------------------------------------------------------
+  //! Hash map pointing from fsid to a map of file id to meta data
+  // ---------------------------------------------------------------------------
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, google::dense_hash_map<unsigned long long, struct Fmd > > FmdSqliteMap;
+
+  // ---------------------------------------------------------------------------
+  //! Hash map protecting each filesystem map in FmdSqliteMap
+  // ---------------------------------------------------------------------------
+
+  google::sparse_hash_map<eos::common::FileSystem::fsid_t, eos::common::RWMutex> FmdSqliteMutexMap;
+
   // ---------------------------------------------------------------------------
   //! Hash map pointing from fid to offset in changelog file
   // ---------------------------------------------------------------------------
