@@ -255,9 +255,11 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
 
   if (dbmap.count(fsid))
   {
+    Fmd valfmd;
+    {
     eos::common::RWMutexReadLock rLock(FmdSqliteMutexMap[fsid]);
     bool entryexist=ExistFmd(fid,fsid);
-    Fmd valfmd=RetrieveFmd(fid,fsid);
+    valfmd=RetrieveFmd(fid,fsid);
 
     if (dbmap.count(fsid) && entryexist)
     {
@@ -328,6 +330,7 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
 
       // return the new entry
       return fmd;
+    }
     }
 
     if (isRW)
