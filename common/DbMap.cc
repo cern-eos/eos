@@ -160,14 +160,14 @@ ConvertLevelDb2Sqlite (const std::string &lvdbpath, const std::string &sqlpath, 
     if (!lvdbrename.empty()) rename(lvdbrename.c_str(), sqlpath.c_str()); // revert the source renaming
     return false;
   }
-
+  
   DbMapSqlite sqdbm;
   if (!sqdbm.attachLog(sqlpath, 0, st.st_mode & ~0111))
   { // forget the executable mode related to directories
     if (!lvdbrename.empty()) rename(lvdbrename.c_str(), lvdbpath.c_str()); // revert the source renaming
     return false; // cannot open the target file
   }
-
+  
   DbLogLeveldb::TlogentryVec lventryvec;
   DbLogLeveldb::Tlogentry lventry;
   sqdbm.beginSetSequence();
@@ -175,15 +175,16 @@ ConvertLevelDb2Sqlite (const std::string &lvdbpath, const std::string &sqlpath, 
   {
     DbMapTypes::Tval tval;
     for (DbLogLeveldb::TlogentryVec::iterator it = lventryvec.begin(); it != lventryvec.end(); it++)
-{
+    {
       Tlogentry2Tval(*it,&tval);
       sqdbm.set(it->key, tval); // keep the original metadata
-  }
+    }
     lventryvec.clear();
-}
+  }
   sqdbm.endSetSequence();
   return true;
 }
+
 #endif
 
 EOSCOMMONNAMESPACE_END

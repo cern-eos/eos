@@ -906,7 +906,8 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
                          unsigned long inode,
                          uid_t uid, gid_t gid, pid_t pid,
                          bool isROfd,
-                         const char* path)
+                         const char* path,
+			 bool mknod)
 {
  eos_static_debug ("file raw ptr=%p, inode=%lu, uid=%lu",
                    raw_file, inode, (unsigned long) uid);
@@ -968,6 +969,12 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    else
    {
      fabst->SetRawFileRW (raw_file); // sets numopenRW to 1
+     if (mknod)
+     {
+       // dec ref count, because they won't be a close referring to an mknod call
+       fabst->DecNumOpenRW();
+       fabst->DecNumRefRW();
+     }
      fabst->SetFd (fd);
    }
 
@@ -976,6 +983,9 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
 
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
+   if (mknod)
+     fd2count[fd] = 0; 
+
    inodexrdlogin2fds[sstr.str ()].insert (fd);
    eos_static_debug ("inserting fd : fabst=%p  key=%s  =>  fdesc=%d file-size=%llu", fabst.get(), sstr.str ().c_str (), (int) fd, fabst->GetMaxWriteOffset());
  }
@@ -2944,7 +2954,8 @@ filesystem::open (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long* return_inode)
+                  unsigned long* return_inode, 
+		  bool mknod)
 {
  eos_static_info ("path=%s flags=%08x mode=%d uid=%u pid=%u", path, oflags, mode, uid, pid);
  XrdOucString spath = user_url (uid, gid, pid).c_str ();
@@ -3341,7 +3352,7 @@ filesystem::open (const char* path,
      eos_static_debug ("path=%s opened ino=%lu", path, (unsigned long) *return_inode);
    }
 
-   retc = add_fd2file (file, *return_inode, uid, gid, pid, isRO, path);
+   retc = add_fd2file (file, *return_inode, uid, gid, pid, isRO, path, mknod);
 
    COMMONTIMING ("END", &opentiming);
 
