@@ -122,7 +122,6 @@ com_fuse (char* arg1)
      }
    }
 
-
    if (stat(mountpoint.c_str(), &buf))
    {
      fprintf(stderr, "error: cannot create mountpoint %s !\n", mountpoint.c_str());
@@ -136,6 +135,11 @@ com_fuse (char* arg1)
        exit(EBUSY);
      }
    }
+
+
+#ifdef __APPLE__
+   params += ",noappledouble,defer_permissions,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
+#endif
 
    params += ",url=";
    params += serveruri.c_str();
@@ -253,14 +257,14 @@ com_fuse (char* arg1)
      env += " EOS_FUSE_LAZYOPENRW=1";
    }
 
-   bool mt=false;
+   bool mt=true;
    
    if (getenv("EOS_FUSE_NO_MT"))
    {
      env += " EOS_FUSE_NO_MT";
      env += getenv("EOS_FUSE_NO_MT");
-     if (!strcmp("0", getenv("EOS_FUSE_NO_MT")))
-       mt=true;
+     if (!strcmp("1", getenv("EOS_FUSE_NO_MT")))
+       mt=false;
    }
    else
    {
@@ -278,7 +282,16 @@ com_fuse (char* arg1)
      setenv("EOS_FUSE_LOGLEVEL", "5", 1);
      env += " EOS_FUSE_LOGLEVEL=5";
    }
-   
+
+   // no pio
+   env += " EOS_FUSE_NOPIO=1"; 
+
+   // use the kernel cache
+   env += " EOS_FUSE_KERNELCACHE=1";
+
+   // use big writes
+   env += " EOS_FUSE_BIGWRITES=1";
+
    fprintf(stderr, "===> fuse readahead        : %s\n", getenv("EOS_FUSE_RDAHEAD"));
    fprintf(stderr, "===> fuse readahead-window : %s\n", getenv("EOS_FUSE_RDAHEAD_WINDOW"));
    fprintf(stderr, "===> fuse debug            : %s\n", getenv("EOS_FUSE_DEBUG"));
@@ -292,20 +305,48 @@ com_fuse (char* arg1)
    fprintf(stderr, "==== fuse multi-threading  : %s\n", mt?"true":"false");
 
    XrdOucString mount = env;
+
+#ifdef __APPLE__
+   if (!getenv("EOS_MGM_URL"))
+   {
+     fprintf(stderr,"Error: please define the variable EOS_MGM_URL like root://eouser.cern.ch before mounting!\n");
+     exit(-1);
+   }
+    
+   // El Captian does not forward DYLD_LIBRARY_PATH to subshells
+   mount += " env DYLD_LIBRARY_PATH=/usr/local/opt/eos/usr/local/lib eosd ";
+   mount += mountpoint.c_str();
+   mount += " -f";
+   mount += " -o";
+   mount += params;
+   mount += " >& /dev/null &";
+#else
    mount += " eosd ";
    mount += mountpoint.c_str();
    mount += " -f";
    mount += " -o";
    mount += params;
-   
    mount += " >& /dev/null ";
+#endif
+   
    int rc = system(mount.c_str());
    if (WEXITSTATUS(rc))
    {
-     fprintf(stderr, "error: failed mount, check log for details\n");
+     fprintf(stderr, "error: failed mount, maybe still mounted? Check with df and eventually 'killall eosd'\n");
      exit(-1);
    }
-   
+
+#ifdef __APPLE__
+   size_t cnt=5;
+   for (cnt=5; cnt>0; cnt--) 
+   {
+     fprintf(stderr,"\r[wait] %ds ...", cnt);
+     fflush(stderr);
+     sleep(1);
+   }
+   fprintf(stderr,"\n");
+#endif
+
    bool mountok = false;
 
    // Keep checking for 5 seconds
@@ -314,6 +355,10 @@ com_fuse (char* arg1)
      if (stat(mountpoint.c_str(), &buf2) || (buf2.st_ino == buf.st_ino) )
      {
        usleep(100000);
+       if (i && (! (i%10)))
+       {
+	 fprintf(stderr,"[check] %lu. time for mount ...\n", i/10);
+       }
      }
      else
      {
@@ -324,9 +369,12 @@ com_fuse (char* arg1)
 
    if (!mountok)
    {
-     fprintf(stderr, "error: failed mount at %s, check log for details\n",
-             mountpoint.c_str());
+     fprintf(stderr, "error: failed mount, maybe still mounted? Check with df and eventually 'killall eosd'\n");
      exit(-1);
+   }
+   else
+   {
+     fprintf(stderr,"info: successfully mounted EOS [%s] under %s\n", serveruri.c_str(), mountpoint.c_str());
    }
  }
 
@@ -354,7 +402,7 @@ com_fuse (char* arg1)
 #ifdef __APPLE__
    umount = "umount -f ";
    umount += mountpoint.c_str();
-
+   umount += " >& /dev/null";
 #else
    umount = "fusermount -z -u ";
    umount += mountpoint.c_str();
@@ -363,7 +411,7 @@ com_fuse (char* arg1)
    int rc = system(umount.c_str());
    if (WEXITSTATUS(rc))
    {
-     fprintf(stderr, "error: umount failed\n");
+     fprintf(stderr, "error: umount failed - maybe wasn't mounted?\n");
    }
    if ((stat(mountpoint.c_str(), &buf2)))
    {

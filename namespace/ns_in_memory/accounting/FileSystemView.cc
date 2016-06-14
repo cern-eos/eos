@@ -36,11 +36,13 @@ namespace eos
     if( size <= oldSize )
       return;
     d.resize(size);
+    /*
     for( size_t i = oldSize; i < size; ++i )
     {
       d[i].set_deleted_key( 0 );
       d[i].set_empty_key(0xffffffffffffffffll);
     }
+    */
   }
 
   //----------------------------------------------------------------------------
@@ -48,8 +50,8 @@ namespace eos
   //----------------------------------------------------------------------------
   FileSystemView::FileSystemView()
   {
-    pNoReplicas.set_empty_key(0xffffffffffffffffll);
-    pNoReplicas.set_deleted_key( 0 );
+    // pNoReplicas.set_empty_key(0xffffffffffffffffll);
+    // pNoReplicas.set_deleted_key( 0 );
   }
 
   //----------------------------------------------------------------------------
@@ -65,61 +67,61 @@ namespace eos
       case IFileMDChangeListener::Created:
 	if (!e->file->isLink())
 	  pNoReplicas.insert( e->file->getId() );
-        break;
+	break;
 
       //------------------------------------------------------------------------
       // File has been deleted
       //------------------------------------------------------------------------
       case IFileMDChangeListener::Deleted:
 	pNoReplicas.erase( e->fileId );
-        break;
+	break;
 
       //------------------------------------------------------------------------
       // Add location
       //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationAdded:
-        resize( pFiles, e->location+1 );
-        resize( pUnlinkedFiles, e->location+1 );
-        pFiles[e->location].insert( e->file->getId() );
-        pNoReplicas.erase( e->file->getId() );
-        break;
+	resize( pFiles, e->location+1 );
+	resize( pUnlinkedFiles, e->location+1 );
+	pFiles[e->location].insert( e->file->getId() );
+	pNoReplicas.erase( e->file->getId() );
+	break;
 
       //------------------------------------------------------------------------
       // Replace location
       //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationReplaced:
-        if( e->oldLocation >= pFiles.size() )
-          return; // incostency, we should probably crash here...
+	if( e->oldLocation >= pFiles.size() )
+	  return; // incostency, we should probably crash here...
 
-        resize( pFiles, e->location+1 );
-        resize( pUnlinkedFiles, e->location+1 );
-        pFiles[e->oldLocation].erase( e->file->getId() );
-        pFiles[e->location].insert( e->file->getId() );
-        break;
+	resize( pFiles, e->location+1 );
+	resize( pUnlinkedFiles, e->location+1 );
+	pFiles[e->oldLocation].erase( e->file->getId() );
+	pFiles[e->location].insert( e->file->getId() );
+	break;
 
       //------------------------------------------------------------------------
       // Remove location
       //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationRemoved:
-        if( e->location >= pUnlinkedFiles.size() )
-          return; // incostency, we should probably crash here...
-        pUnlinkedFiles[e->location].erase( e->file->getId() );
-        if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
-          pNoReplicas.insert( e->file->getId() );
-        break;
+	if( e->location >= pUnlinkedFiles.size() )
+	  return; // incostency, we should probably crash here...
+	pUnlinkedFiles[e->location].erase( e->file->getId() );
+	if( !e->file->getNumUnlinkedLocation() && !e->file->getNumLocation() )
+	  pNoReplicas.insert( e->file->getId() );
+	break;
 
       //------------------------------------------------------------------------
       // Unlink location
       //------------------------------------------------------------------------
       case IFileMDChangeListener::LocationUnlinked:
-        if( e->location >= pFiles.size() )
-          return; // incostency, we should probably crash here...
-        pFiles[e->location].erase( e->file->getId() );
-        pUnlinkedFiles[e->location].insert( e->file->getId() );
-        break;
+	if( e->location >= pFiles.size() )
+	  return; // incostency, we should probably crash here...
+	pFiles[e->location].erase( e->file->getId() );
+	pUnlinkedFiles[e->location].insert( e->file->getId() );
+	break;
 
       default:
-        break;
+	break;
     }
   }
 
@@ -130,7 +132,7 @@ namespace eos
   {
     IFileMD::LocationVector::const_iterator it;
     IFileMD::LocationVector loc_vect = obj->getLocations();
-    
+
     for( it = loc_vect.begin(); it != loc_vect.end(); ++it )
     {
       resize( pFiles, *it+1 );
@@ -139,14 +141,14 @@ namespace eos
     }
 
     IFileMD::LocationVector unlink_vect = obj->getUnlinkedLocations();
-    
+
     for( it = unlink_vect.begin(); it != unlink_vect.end(); ++it )
     {
       resize( pFiles, *it+1 );
       resize( pUnlinkedFiles, *it+1 );
       pUnlinkedFiles[*it].insert( obj->getId() );
     }
-    
+
     if( obj->getNumLocation() == 0 && obj->getNumUnlinkedLocation() == 0 )
       pNoReplicas.insert( obj->getId() );
   }
@@ -154,8 +156,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Return reference to a list of files
   //----------------------------------------------------------------------------
-  const FileSystemView::FileList &FileSystemView::getFileList(
-      IFileMD::location_t location )
+  FileSystemView::FileList FileSystemView::getFileList(
+    IFileMD::location_t location)
   {
     if( pFiles.size() <= location )
     {
@@ -169,8 +171,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Return reference to a list of unlinked files
   //----------------------------------------------------------------------------
-  FileSystemView::FileList &FileSystemView::getUnlinkedFileList(
-      IFileMD::location_t location )
+  FileSystemView::FileList FileSystemView::getUnlinkedFileList(
+      IFileMD::location_t location)
   {
     if( pUnlinkedFiles.size() <= location )
     {
@@ -180,6 +182,16 @@ namespace eos
     }
 
     return pUnlinkedFiles[location];
+  }
+
+  //------------------------------------------------------------------------------
+  // Clear unlinked files for filesystem
+  //------------------------------------------------------------------------------
+  bool
+  FileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
+  {
+    pUnlinkedFiles[location].clear();
+    return true;
   }
 
   //----------------------------------------------------------------------------

@@ -51,20 +51,15 @@ XrdMgmOfs::_verifystripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "verifystripe";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
-
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   EXEC_TIMING_BEGIN("VerifyStripe");
-
   errno = 0;
   unsigned long long fid = 0;
   unsigned long long cid = 0;
   int lid = 0;
-
   eos::IContainerMD::XAttrMap attrmap;
-
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
-
   eos_debug("verify");
   eos::common::Path cPath(path);
   std::string attr_path;
@@ -73,36 +68,29 @@ XrdMgmOfs::_verifystripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    attr_path = gOFS->eosView->getUri(dh);
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
+    attr_path = gOFS->eosView->getUri(dh.get());
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
 
-  // check permissions
+  // Check permissions
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
     if (!errno) errno = EPERM;
-
 
   if (errno)
   {
     return Emsg(epname, error, errno, "verify stripe", path);
   }
 
-  // get attributes                                                                                                                                                                             
-  gOFS->_attr_ls(attr_path.c_str(),
-		 error,
-		 vid,
-		 0,
-		 attrmap,
-		 false);
+  // Get attributes
+  gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap, false);
 
-
-  // get the file
+  // Get the file
   try
   {
     fmd = gOFS->eosView->getFile(path);
@@ -112,7 +100,7 @@ XrdMgmOfs::_verifystripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    fmd = 0;
+    fmd.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -216,14 +204,11 @@ XrdMgmOfs::_dropstripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "dropstripe";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("DropStripe");
-
   gOFS->MgmStats.Add("DropStripe", vid.uid, vid.gid, 1);
-
   eos_debug("drop");
   eos::common::Path cPath(path);
   // ---------------------------------------------------------------------------
@@ -231,16 +216,16 @@ XrdMgmOfs::_dropstripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
 
-  // check permissions
+  // Check permissions
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
     if (!errno) errno = EPERM;
 
@@ -253,13 +238,14 @@ XrdMgmOfs::_dropstripe (const char *path,
   try
   {
     fmd = gOFS->eosView->getFile(path);
+
     if (!forceRemove)
     {
       // we only unlink a location
       if (fmd->hasLocation(fsid))
       {
         fmd->unlinkLocation(fsid);
-        gOFS->eosView->updateFileStore(fmd);
+        gOFS->eosView->updateFileStore(fmd.get());
         eos_debug("unlinking location %u", fsid);
       }
       else
@@ -274,14 +260,15 @@ XrdMgmOfs::_dropstripe (const char *path,
       {
         fmd->unlinkLocation(fsid);
       }
+
       fmd->removeLocation(fsid);
-      gOFS->eosView->updateFileStore(fmd);
+      gOFS->eosView->updateFileStore(fmd.get());
       eos_debug("removing/unlinking location %u", fsid);
     }
   }
   catch (eos::MDException &e)
   {
-    fmd = 0;
+    fmd.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -290,7 +277,9 @@ XrdMgmOfs::_dropstripe (const char *path,
   EXEC_TIMING_END("DropStripe");
 
   if (errno)
+  {
     return Emsg(epname, error, errno, "drop stripe", path);
+  }
 
   return SFS_OK;
 }
@@ -391,13 +380,10 @@ XrdMgmOfs::_replicatestripe (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "replicatestripe";
-  eos::IContainerMD *dh = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
   errno = 0;
-
   EXEC_TIMING_BEGIN("ReplicateStripe");
-
   eos::common::Path cPath(path);
-
   eos_debug("replicating %s from %u=>%u [drop=%d]", path, sourcefsid, targetfsid, dropsource);
 
   // ---------------------------------------------------------------------------
@@ -405,11 +391,11 @@ XrdMgmOfs::_replicatestripe (const char *path,
   try
   {
     dh = gOFS->eosView->getContainer(cPath.GetParentPath());
-    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh));
+    dh = gOFS->eosView->getContainer(gOFS->eosView->getUri(dh.get()));
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -418,12 +404,13 @@ XrdMgmOfs::_replicatestripe (const char *path,
   if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
     if (!errno) errno = EPERM;
 
-  eos::IFileMD * fmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
 
   // get the file
   try
   {
     fmd = gOFS->eosView->getFile(path);
+
     if (fmd->hasLocation(sourcefsid))
     {
       if (fmd->hasLocation(targetfsid))
@@ -439,7 +426,7 @@ XrdMgmOfs::_replicatestripe (const char *path,
   }
   catch (eos::MDException &e)
   {
-    fmd = 0;
+    fmd.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -451,13 +438,10 @@ XrdMgmOfs::_replicatestripe (const char *path,
     return Emsg(epname, error, errno, "replicate stripe", path);
   }
 
-  // Make a copy of the file meta data to release the lock
-  std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
-  fmd = (eos::IFileMD*)(0);
   // ---------------------------------------------------------------------------
   gOFS->eosViewRWMutex.UnLockRead();
 
-  int retc = _replicatestripe(fmd_cpy.get(), path, error, vid, sourcefsid,
+  int retc = _replicatestripe(fmd.get(), path, error, vid, sourcefsid,
                               targetfsid, dropsource, expressflag);
   EXEC_TIMING_END("ReplicateStripe");
   return retc;

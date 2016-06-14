@@ -64,11 +64,52 @@ namespace eos
   //----------------------------------------------------------------------------
   void QuotaNode::meld( const IQuotaNode *node )
   {
-    for (auto it1 = node->userUsageBegin(); it1 != node->userUsageEnd(); ++it1)
+    const QuotaNode* qnode = static_cast<const QuotaNode*>(node);
+    for (auto it1 = qnode->pUserUsage.begin(); it1 != qnode->pUserUsage.end();
+	 ++it1)
+    {
       pUserUsage[it1->first] += it1->second;
+    }
 
-    for (auto it2 = node->groupUsageBegin(); it2 != node->groupUsageEnd(); ++it2)
+    for (auto it2 = qnode->pGroupUsage.begin(); it2 != qnode->pGroupUsage.end();
+	 ++it2)
+    {
       pGroupUsage[it2->first] += it2->second;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the set of uids for which information is stored in the current quota
+  // node.
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long>
+  QuotaNode::getUids()
+  {
+    std::vector<unsigned long> uids;
+
+    for (auto it = pUserUsage.begin(); it != pUserUsage.end(); ++it)
+    {
+      uids.push_back(it->first);
+    }
+
+    return uids;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the set of gids for which information is stored in the current quota
+  // node.
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long>
+  QuotaNode::getGids()
+  {
+    std::vector<unsigned long> gids;
+
+    for (auto it = pGroupUsage.begin(); it != pGroupUsage.end(); ++it)
+    {
+      gids.push_back(it->first);
+    }
+
+    return gids;
   }
 
   //----------------------------------------------------------------------------
@@ -87,9 +128,27 @@ namespace eos
   //----------------------------------------------------------------------------
   QuotaStats::~QuotaStats()
   {
-    NodeMap::iterator it;
-    for( it = pNodeMap.begin(); it != pNodeMap.end(); ++it )
+    for(auto it = pNodeMap.begin(); it != pNodeMap.end(); ++it )
       delete it->second;
+  }
+
+  //------------------------------------------------------------------------------
+  // Get the set of all quota node ids. The quota node id corresponds to the
+  // container id.
+  //------------------------------------------------------------------------------
+  std::set<std::string>
+  QuotaStats::getAllIds()
+  {
+    char buff[48];
+    std::set<std::string> set_ids;
+
+    for (auto it = pNodeMap.begin(); it != pNodeMap.end(); ++it)
+    {
+      snprintf(buff, 48, "%lu", it->first);
+      (void)set_ids.insert(std::string(buff));
+    }
+
+    return set_ids;
   }
 
   //----------------------------------------------------------------------------
@@ -126,5 +185,4 @@ namespace eos
     delete it->second;
     pNodeMap.erase( it );
   }
-
 }

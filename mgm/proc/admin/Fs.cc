@@ -377,103 +377,102 @@ ProcCommand::Fs ()
              stdOut += line;
            }
 
-            
 	   if (riskanalysis) 
 	   {
-	     stdOut += "# ....................................................................................\n";
-	     stdOut += "# Risk Analysis\n";
-	     stdOut += "# ....................................................................................\n";
-	     
-	     // get some statistics about the filesystem
-	     //-------------------------------------------
-	     unsigned long long nfids = 0;
-	     unsigned long long nfids_healthy = 0;
-	     unsigned long long nfids_risky = 0;
-	     unsigned long long nfids_inaccessible = 0;
-	     unsigned long long nfids_todelete = 0;
-	     
-	     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	     try
-	     {
-	       eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
-	       eos::IFsView::FileList unlinkfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
-	       nfids_todelete = unlinkfilelist.size();
-	       
-	       nfids = (unsigned long long) filelist.size();
-	       eos::IFsView::FileIterator it;
-	       for (it = filelist.begin(); it != filelist.end(); ++it)
-	       {
-		 eos::IFileMD* fmd = 0;
-		 fmd = gOFS->eosFileService->getFileMD(*it);
-		 if (fmd)
-		 {
-		   size_t nloc = fmd->getNumLocation();
-		   size_t nloc_ok = 0;
-		   eos::IFileMD::LocationVector::const_iterator lociter;
-		   eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+             stdOut += "# ....................................................................................\n";
+             stdOut += "# Risk Analysis\n";
+             stdOut += "# ....................................................................................\n";
+  
+             // get some statistics about the filesystem
+             //-------------------------------------------
+             unsigned long long nfids = 0;
+             unsigned long long nfids_healthy = 0;
+             unsigned long long nfids_risky = 0;
+             unsigned long long nfids_inaccessible = 0;
+             unsigned long long nfids_todelete = 0;
+
+             eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+             try
+             {
+               eos::IFsView::FileList filelist = gOFS->eosFsView->getFileList(fsid);
+               eos::IFsView::FileList unlinkfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
+               nfids_todelete = unlinkfilelist.size();
+
+               nfids = (unsigned long long) filelist.size();
+               eos::IFsView::FileIterator it;
+               for (it = filelist.begin(); it != filelist.end(); ++it)
+               {
+                 std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(*it);
+
+                 if (fmd)
+                 {
+                   size_t nloc_ok = 0;
+                   size_t nloc = fmd->getNumLocation();
+                   eos::IFileMD::LocationVector::const_iterator lociter;
+                   eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
                  
-		   for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
-		   {
-		     if (*lociter)
-		     {
-		       if (FsView::gFsView.mIdView.count(*lociter))
-		       {
-			 FileSystem* repfs = FsView::gFsView.mIdView[*lociter];
-			 eos::common::FileSystem::fs_snapshot_t snapshot;
-			 repfs->SnapShotFileSystem(snapshot, false);
-			 if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
-			     (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
-			     (snapshot.mErrCode == 0) && // this we probably don't need
-			     (fs->GetActiveStatus(snapshot)))
-			 {
-			   nloc_ok++;
-			 }
-		       }
-		     }
-		   }
-		   if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica)
-		   {
-		     if (nloc_ok == nloc)
-		     {
-		       nfids_healthy++;
-		     }
-		     else
-		     {
-		       if (nloc_ok == 0)
-		       {
-			 nfids_inaccessible++;
-			 if (listfile) 
-			 {
-			   filelisting += "status=offline path=";
-			   filelisting += gOFS->eosView->getUri(fmd).c_str();
-			   filelisting += "\n";
-			 }
-		       }
-		       else
-		       {
-			 if (nloc_ok < nloc)
-			 {
-			   nfids_risky++;
-			   if (listfile)
-			   {
-			     filelisting += "status=atrisk  path=";
-			     filelisting += gOFS->eosView->getUri(fmd).c_str();
-			     filelisting += "\n";
-			   }
-			 }
-		       }
-		     }
-		   }
-		   if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kPlain)
-		   {
-		     if (nloc_ok != nloc)
-		     {
-		       nfids_inaccessible++;
-		       if (listfile) 
-		       {
-			 filelisting += "status=offline path=";
-			 filelisting += gOFS->eosView->getUri(fmd).c_str();
-			 filelisting += "\n";
+                   for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
+                   {
+                     if (*lociter)
+                     {
+                       if (FsView::gFsView.mIdView.count(*lociter))
+                       {
+                         FileSystem* repfs = FsView::gFsView.mIdView[*lociter];
+                         eos::common::FileSystem::fs_snapshot_t snapshot;
+                         repfs->SnapShotFileSystem(snapshot, false);
+                         if ((snapshot.mStatus == eos::common::FileSystem::kBooted) &&
+                             (snapshot.mConfigStatus == eos::common::FileSystem::kRW) &&
+                             (snapshot.mErrCode == 0) && // this we probably don't need
+                             (fs->GetActiveStatus(snapshot)))
+                         {
+                           nloc_ok++;
+                         }
+                       }
+                     }
+                   }
+                   if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kReplica)
+                   {
+                     if (nloc_ok == nloc)
+                     {
+                       nfids_healthy++;
+                     }
+                     else
+                     {
+                       if (nloc_ok == 0)
+                       {
+                         nfids_inaccessible++;
+  		       if (listfile) 
+                         {
+  			 filelisting += "status=offline path=";
+  			 filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+  			 filelisting += "\n";
+  		       }
+                       }
+                       else
+                       {
+                         if (nloc_ok < nloc)
+                         {
+                           nfids_risky++;
+                           if (listfile)
+                           {
+                             filelisting += "status=atrisk  path=";
+                             filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                             filelisting += "\n";
+                           }
+                         }
+                       }
+                     }
+                   }
+                   if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) == eos::common::LayoutId::kPlain)
+                   {
+                     if (nloc_ok != nloc)
+                     {
+                       nfids_inaccessible++;
+                       if (listfile) 
+                       {
+                         filelisting += "status=offline path=";
+                         filelisting += gOFS->eosView->getUri(fmd.get()).c_str();
+                         filelisting += "\n";
 		       }
 		     }
                    }

@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "../MacOSXHelper.hh"
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
 #include "../SyncResponseHandler.hh"
@@ -1041,8 +1042,9 @@ int LayoutWrapper::Stat(struct stat* buf)
 void LayoutWrapper::Utimes(const struct stat* buf)
 {
   // set local Utimes
-  mLocalUtime[0] = buf->st_atim;
-  mLocalUtime[1] = buf->st_mtim;
+  mLocalUtime[0] = buf->MTIMESPEC;
+  mLocalUtime[1] = buf->ATIMESPEC;
+
   eos_static_debug("setting timespec  atime:%lu.%.9lu      mtime:%lu.%.9lu",
                    mLocalUtime[0].tv_sec, mLocalUtime[0].tv_nsec,
                    mLocalUtime[1].tv_sec, mLocalUtime[1].tv_nsec);

@@ -31,11 +31,11 @@
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 /*----------------------------------------------------------------------------*/
-#include "fst/layout/jerasure/jerasure.hh"
-#include "fst/layout/jerasure/reed_sol.hh"
-#include "fst/layout/jerasure/galois.hh"
-#include "fst/layout/jerasure/cauchy.hh"
-#include "fst/layout/jerasure/liberation.hh"
+#include "fst/layout/jerasure/include/jerasure.h"
+#include "fst/layout/jerasure/include/reed_sol.h"
+#include "fst/layout/jerasure/include/galois.h"
+#include "fst/layout/jerasure/include/cauchy.h"
+#include "fst/layout/jerasure/include/liberation.h"
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN

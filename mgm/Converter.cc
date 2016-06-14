@@ -93,19 +93,18 @@ ConverterJob::DoIt ()
   eos_static_info("msg=\"start tpc job\" fxid=%016x layout=%s proc_path=%s",
                   mFid, mConversionLayout.c_str(), mProcPath.c_str());
   XrdSysTimer sleeper;
-
-  eos::IFileMD* fmd = 0;
-  eos::IContainerMD* cmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
   unsigned long long size = 0;
   eos::IContainerMD::XAttrMap attrmap;
-
   XrdOucString sourceChecksum;
   XrdOucString sourceAfterChecksum;
   XrdOucString sourceSize;
   Converter* startConverter = 0;
   Converter* stopConverter = 0;
+
   {
     XrdSysMutexHelper cLock(Converter::gConverterMapMutex);
     startConverter = Converter::gConverterMap[mConverterName];
@@ -119,14 +118,14 @@ ConverterJob::DoIt ()
       owner_uid = fmd->getCUid();
       owner_gid = fmd->getCGid();
       size = fmd->getSize();
-      mSourcePath = gOFS->eosView->getUri(fmd);
+      mSourcePath = gOFS->eosView->getUri(fmd.get());
       eos::common::Path cPath(mSourcePath.c_str());
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-      cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd));
+      cmd = gOFS->eosView->getContainer(gOFS->eosView->getUri(cmd.get()));
 
       XrdOucErrInfo error;
       // load the attributes
-      gOFS->_attr_ls(gOFS->eosView->getUri(cmd).c_str(), error, rootvid, 0,
+      gOFS->_attr_ls(gOFS->eosView->getUri(cmd.get()).c_str(), error, rootvid, 0,
 		     attrmap, false, true);
 
       // get the checksum string if defined

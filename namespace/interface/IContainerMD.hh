@@ -29,6 +29,7 @@
 #include "namespace/MDException.hh"
 #include <stdint.h>
 #include <unistd.h>
+#include <memory>
 #include <string>
 #include <map>
 #include <set>
@@ -69,11 +70,6 @@ class IContainerMD
   virtual ~IContainerMD() {};
 
   //----------------------------------------------------------------------------
-  //! Virtual copy constructor
-  //----------------------------------------------------------------------------
-  virtual IContainerMD* clone() const = 0;
-
-  //----------------------------------------------------------------------------
   //! Add container
   //----------------------------------------------------------------------------
   virtual void addContainer(IContainerMD* container) = 0;
@@ -86,12 +82,13 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Find sub container
   //----------------------------------------------------------------------------
-  virtual IContainerMD* findContainer(const std::string& name) = 0;
+  virtual std::shared_ptr<IContainerMD>
+  findContainer(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of containers
   //----------------------------------------------------------------------------
-  virtual size_t getNumContainers() const = 0;
+  virtual size_t getNumContainers() = 0;
 
   //----------------------------------------------------------------------------
   //! Add file
@@ -106,12 +103,12 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Find file
   //----------------------------------------------------------------------------
-  virtual IFileMD* findFile(const std::string& name) = 0;
+  virtual std::shared_ptr<IFileMD> findFile(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  virtual size_t getNumFiles() const = 0;
+  virtual size_t getNumFiles() = 0;
 
   //----------------------------------------------------------------------------
   //! Get name
@@ -267,7 +264,7 @@ class IContainerMD
   //! Add extended attribute
   //----------------------------------------------------------------------------
   virtual void setAttribute(const std::string& name,
-                            const std::string& value) = 0;
+			    const std::string& value) = 0;
 
   //----------------------------------------------------------------------------
   //! Remove attribute
@@ -304,12 +301,8 @@ class IContainerMD
   //----------------------------------------------------------------------------
   //! Clean up the entire contents for the container. Delete files and
   //! containers recurssively
-  //!
-  //! @param cmd_svc container metadata service
-  //! @param fmd_svc file metadata service
-  //!
   //----------------------------------------------------------------------------
-  virtual void cleanUp(IContainerMDSvc* cmd_svc, IFileMDSvc* fmd_svc) = 0;
+  virtual void cleanUp() = 0;
 
   //----------------------------------------------------------------------------
   //! Get set of file names contained in the current object
@@ -334,7 +327,6 @@ class IContainerMD
   IContainerMD(const IContainerMD& other);
 
   IContainerMD& operator=(const IContainerMD& other);
-
 };
 
 EOSNSNAMESPACE_END

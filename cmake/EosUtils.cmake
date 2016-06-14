@@ -22,6 +22,11 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
+# This value is used throughout the Find*.cmake modules
+#-------------------------------------------------------------------------------
+set(LIBRARY_PATH_PREFIX "lib")
+
+#-------------------------------------------------------------------------------
 # Get UID/GID for an account
 #-------------------------------------------------------------------------------
 function(EOS_GetUidGid USERNAME UIDVARNAME GIDVARNAME)
@@ -89,36 +94,6 @@ function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
 endfunction()
 
 #-------------------------------------------------------------------------------
-# Detect the operating system and define variables
-#-------------------------------------------------------------------------------
-function(EOS_DefineOperatingSystem)
-  # Nothing detected yet
-  set(Linux FALSE PARENT_SCOPE)
-  set(MacOSX FALSE PARENT_SCOPE)
-  set(Windows FALSE PARENT_SCOPE)
-  set(OSDEFINE "")
-
-  # Check if we are on Linux
-  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-    set(Linux TRUE PARENT_SCOPE)
-    set(OSDEFINE "-D__LINUX__=1" PARENT_SCOPE)
-  endif()
-
-  # Check if we are on MacOSX
-  if(APPLE)
-    set(MacOSX TRUE PARENT_SCOPE)
-    set(CLIENT TRUE PARENT_SCOPE)
-    set(OSDEFINE "-D__APPLE__=1" PARENT_SCOPE)
-  endif(APPLE)
-
-  # Check if we are on Windows
-  if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
-    set(Windows TRUE PARENT_SCOPE)
-    set(OSDEFINE "-D__WINDOWS__=1" PARENT_SCOPE)
-  endif()
-endfunction()
-
-#-------------------------------------------------------------------------------
 # Detect in source builds
 #-------------------------------------------------------------------------------
 macro(EOS_CheckOutOfSourceBuild)
@@ -137,5 +112,3 @@ macro(EOS_CheckOutOfSourceBuild)
     message(FATAL_ERROR "EOS cannot be built in-source! Please run cmake <src-dir> outside the source directory")
   endif(${srcdir} STREQUAL ${bindir})
 endmacro(EOS_CheckOutOfSourceBuild)
-
-set(LIBRARY_PATH_PREFIX "lib")

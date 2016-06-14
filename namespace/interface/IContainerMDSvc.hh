@@ -73,7 +73,7 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   //! Configure the container service
   //------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config) = 0;
+  virtual void configure(const std::map<std::string, std::string>& config) = 0;
 
   //------------------------------------------------------------------------
   //! Finalize the container service
@@ -83,13 +83,14 @@ class IContainerMDSvc
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //------------------------------------------------------------------------
-  virtual IContainerMD* getContainerMD(IContainerMD::id_t id) = 0;
+  virtual std::shared_ptr<IContainerMD>
+  getContainerMD(IContainerMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new container metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual IContainerMD* createContainer() = 0;
+  virtual std::shared_ptr<IContainerMD> createContainer() = 0;
 
   //------------------------------------------------------------------------
   //! Update the contaienr metadata in the backing store after the
@@ -103,14 +104,9 @@ class IContainerMDSvc
   virtual void removeContainer(IContainerMD* obj) = 0;
 
   //------------------------------------------------------------------------
-  //! Remove object from the store
-  //------------------------------------------------------------------------
-  virtual void removeContainer(IContainerMD::id_t containerId) = 0;
-
-  //------------------------------------------------------------------------
   //! Get number of containers
   //------------------------------------------------------------------------
-  virtual uint64_t getNumContainers() const = 0;
+  virtual uint64_t getNumContainers() = 0;
 
   //------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
@@ -125,12 +121,28 @@ class IContainerMDSvc
   //----------------------------------------------------------------------------
   virtual void setQuotaStats(IQuotaStats* quota_stats) = 0;
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Notify all subscribed listener
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   virtual void notifyListeners( IContainerMD *obj,
-                                IContainerMDChangeListener::Action a  ) = 0;
+				IContainerMDChangeListener::Action a  ) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Get the orphans container
+  //----------------------------------------------------------------------------
+  virtual std::shared_ptr<IContainerMD>
+  getLostFoundContainer(const std::string &name) = 0;
+
+  //------------------------------------------------------------------------
+  // Create container in parent
+  //------------------------------------------------------------------------
+  virtual std::shared_ptr<IContainerMD>
+  createInParent(const std::string& name, IContainerMD* parent) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set file metadata service
+  //----------------------------------------------------------------------------
+  virtual void setFileMDService(IFileMDSvc* file_svc) = 0;
 };
 
 EOSNSNAMESPACE_END

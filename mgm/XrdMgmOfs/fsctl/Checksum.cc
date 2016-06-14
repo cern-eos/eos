@@ -36,7 +36,7 @@
 
   // get the checksum 
   XrdOucString checksum = "";
-  eos::IFileMD* fmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
   int retc = 0;
 
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);

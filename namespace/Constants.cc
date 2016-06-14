@@ -20,7 +20,6 @@
 // author: Lukasz Janyst <ljanyst@cern.ch>
 // desc:   Namespace constants
 //------------------------------------------------------------------------------
-
 #include "namespace/Constants.hh"
 
 namespace eos

@@ -37,7 +37,11 @@
 #include "common/DbMapSqlite.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
+#ifdef __APPLE__
+#include <regex>
+#else
 #include <regex.h>
+#endif
 /*----------------------------------------------------------------------------*/
 
 #ifndef __EOSCOMMON_DBMAP_HH__
@@ -64,6 +68,14 @@ public:
     pContent->ptrcount=1;
     pContent->op=Content::op_expr;
     pContent->pattern=pattern;
+#ifdef __APPLE__
+    try {
+    pContent->buffer=new std::regex(pattern.c_str(),std::regex::egrep);
+    }
+    catch (...) {
+      pContent->op=Content::op_error;
+    }
+#else
     re_set_syntax(RE_SYNTAX_POSIX_EGREP);
     pContent->buffer=new re_pattern_buffer;
     memset(pContent->buffer, 0, sizeof (*pContent->buffer));
@@ -72,6 +84,7 @@ public:
       //eos_err("DbMap: Error Compiling Regex");
       pContent->op=Content::op_error;
     }
+#endif
 
     if(variable=="key") pContent->var=Content::var_key;
     else if(variable=="value") pContent->var=Content::var_val;
@@ -104,7 +117,9 @@ public:
     pContent->ptrcount++;
     if(pContent->buffer)
     {
+#ifndef __APPLE__
       regfree(pContent->buffer);
+#endif
       delete pContent->buffer;
     }
     return *this;
@@ -125,6 +140,26 @@ public:
       case Content::op_expr:
       switch(pContent->var)
       {
+#ifdef __APPLE__
+        case Content::var_key:
+        result = regex_match(entry.key.data(),*pContent->buffer);
+        break;
+        case Content::var_val:
+        result = regex_match(entry.value.data(),*pContent->buffer);
+        break;
+        case Content::var_comment:
+        result = regex_match(entry.comment.data(),*pContent->buffer);
+        break;
+        case Content::var_seqid:
+        result = regex_match(entry.seqid.data(),*pContent->buffer);
+        break;
+        case Content::var_writer:
+        result = regex_match(entry.writer.data(),*pContent->buffer);
+        break;
+        case Content::var_tstampstr:
+        result = regex_match(entry.timestampstr.data(),*pContent->buffer);
+        break;
+#else
         case Content::var_key:
         result = re_match(pContent->buffer, entry.key.data(), entry.key.size(), 0, NULL)>=0;
         break;
@@ -143,6 +178,7 @@ public:
         case Content::var_tstampstr:
         result = re_match(pContent->buffer, entry.timestampstr.data(), entry.timestampstr.size(), 0, NULL)>=0;
         break;
+#endif
         default:
         result=false;
         break;
@@ -251,7 +287,11 @@ protected:
     //! regex pattern
     std::string pattern;
     //! compiled regex
+#ifdef    __APPLE__
+    std::regex *buffer;
+#else
     struct re_pattern_buffer *buffer;
+#endif
     //! left subranch
     RegexBranch *left;
     //! right subranch

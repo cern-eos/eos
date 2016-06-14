@@ -999,7 +999,7 @@ XrdMqSharedObjectChangeNotifier::StopNotifyCurrentThread ()
 	    it != tlSubscriber->WatchSubjectsRegex[type].end (); it++)
 	  _NotifierMapUpdate(WatchSubjects2Subscribers[type], *it, tlSubscriber);
 
-	std::vector<typeof(WatchSubjectsXKeys2Subscribers[type].begin())> toRemove;
+	std::vector<decltype(WatchSubjectsXKeys2Subscribers[type].begin())> toRemove;
 	for (auto it = WatchSubjectsXKeys2Subscribers[type].begin (); it != WatchSubjectsXKeys2Subscribers[type].end ();
 	    it++)
 	{

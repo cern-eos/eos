@@ -218,9 +218,6 @@ XrdMgmOfs::_symlink (const char *source_name,
   }
 
   gOFS->MgmStats.Add("Symlink", vid.uid, vid.gid, 1);
-
-  eos::IContainerMD* dir = 0;
-
   XrdSfsFileExistence file_exists = XrdSfsFileExistNo;
 
   _exists(oP.c_str(), file_exists, error, vid, infoN);
@@ -245,12 +242,12 @@ XrdMgmOfs::_symlink (const char *source_name,
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     try
     {
-      dir = eosView->getContainer(oPath.GetParentPath());
+      std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(oPath.GetParentPath());
       eosView->createLink(oPath.GetPath(), target_name,
 			  vid.uid, vid.gid);
       dir->setMTimeNow();
       dir->notifyMTimeChange( gOFS->eosDirectoryService );
-      eosView->updateContainerStore(dir);
+      eosView->updateContainerStore(dir.get());
     }
     catch (eos::MDException &e)
     {
@@ -340,10 +337,10 @@ XrdMgmOfs::_readlink (const char *name,
 
   {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::IFileMD* file=0;
+
     try
     {
-      file = eosView->getFile(name,false);
+      std::shared_ptr<eos::IFileMD> file = eosView->getFile(name,false);
       std::string slink = file->getLink();
       link = slink.c_str();
     }

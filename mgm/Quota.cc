@@ -53,51 +53,49 @@ SpaceQuota::SpaceQuota(const char* path):
   mLayoutSizeFactor(1.0),
   mDirtyTarget(true)
 {
-  eos::IContainerMD* quotadir = 0;
+  std::shared_ptr<eos::IContainerMD> quotadir;
 
   try
   {
     quotadir = gOFS->eosView->getContainer(path);
   }
-  catch (eos::MDException& e)
-  {
-    quotadir = 0;
-  }
-  
+  catch (eos::MDException& e) {}
+
   if (!quotadir)
   {
     try
     {
       quotadir = gOFS->eosView->createContainer(path, true);
-      quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-      gOFS->eosView->updateContainerStore(quotadir);
+      quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
+      gOFS->eosView->updateContainerStore(quotadir.get());
     }
     catch (eos::MDException& e)
     {
       eos_static_crit("Cannot create quota directory %s", path);
     }
   }
-  else
+
+  if (!quotadir)
   {
     try
     {
-      mQuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
+      mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
       eos_static_info("Found ns quota node for path=%s", path);
     }
     catch (eos::MDException& e)
     {
-      mQuotaNode = 0;
+      mQuotaNode = (eos::IQuotaNode*)0;
     }
     
     if (!mQuotaNode)
     {
       try
       {
-	mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir);
+	mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
       }
       catch (eos::MDException &e)
       {
-	mQuotaNode = 0;
+        mQuotaNode = (eos::IQuotaNode*)0;
 	eos_static_crit("Cannot register quota node %s", path);
       }
     }
@@ -107,7 +105,7 @@ SpaceQuota::SpaceQuota(const char* path):
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-SpaceQuota::~SpaceQuota() { }
+SpaceQuota::~SpaceQuota() {}
 
 
 //------------------------------------------------------------------------------
@@ -158,21 +156,21 @@ SpaceQuota::UpdateQuotaNodeAddress()
 {
   try
   {
-    eos::IContainerMD* quotadir = gOFS->eosView->getContainer(pPath.c_str());
-    mQuotaNode = gOFS->eosView->getQuotaNode(quotadir, false);
+    std::shared_ptr<eos::IContainerMD> quotadir =
+      gOFS->eosView->getContainer(pPath.c_str());
+    mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
 
     if (!mQuotaNode)
       return false;
   }
   catch (eos::MDException& e)
   {
-    mQuotaNode = 0;
+    mQuotaNode = (eos::IQuotaNode*)0;
     return false;
   }
 
   return true;
 }
-
 
 //------------------------------------------------------------------------------
 // Calculate the size factor used to estimate the logical available bytes
@@ -292,7 +290,6 @@ SpaceQuota::AddQuota(unsigned long tag, unsigned long id, long long value)
 
   eos_static_debug("sum quota tag=%lu id=%lu value=%llu", tag, id,
 		   mMapIdQuota[Index(tag, id)]);
-
 }
 
 //------------------------------------------------------------------------------
@@ -434,12 +431,13 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
 	mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)] = 0;
 
 	// Loop over users and fill project quota
-	for (auto itu = mQuotaNode->userUsageBegin();
-	     itu != mQuotaNode->userUsageEnd(); ++itu)
+	std::vector<unsigned long> uids = mQuotaNode->getUids();
+
+	for (auto itu = uids.begin(); itu != uids.end(); ++itu)
 	{
-	  AddQuota(kGroupBytesIs, Quota::gProjectId, itu->second.physicalSpace);
-	  AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, itu->second.space);
-	  AddQuota(kGroupFilesIs, Quota::gProjectId, itu->second.files);
+	  AddQuota(kGroupBytesIs, Quota::gProjectId, mQuotaNode->getPhysicalSpaceByUser(*itu));
+	  AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, mQuotaNode->getUsedSpaceByUser(*itu));
+	  AddQuota(kGroupFilesIs, Quota::gProjectId, mQuotaNode->getNumFilesByUser(*itu));
 	}
       }
     }
@@ -452,7 +450,7 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
 void
 SpaceQuota::Refresh()
 {
-  NsQuotaToSpaceQuota();
+  AccountNsToSpace();
   UpdateLogicalSizeFactor();
   UpdateIsSums();
   UpdateTargetSums();
@@ -1025,7 +1023,7 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
 // Import ns quota values into current space quota
 //------------------------------------------------------------------------------
 void
-SpaceQuota::NsQuotaToSpaceQuota()
+SpaceQuota::AccountNsToSpace()
 {
   if (UpdateQuotaNodeAddress())
   {
@@ -1037,38 +1035,40 @@ SpaceQuota::NsQuotaToSpaceQuota()
     ResetQuota(kGroupLogicalBytesIs, Quota::gProjectId);
 
     // Loop over users
-    for (auto itu = mQuotaNode->userUsageBegin();
-	 itu != mQuotaNode->userUsageEnd(); itu++)
+    std::vector<unsigned long> uids = mQuotaNode->getUids();
+
+    for (auto itu = uids.begin(); itu != uids.end(); ++itu)
     {
-      ResetQuota(kUserBytesIs, itu->first);
-      AddQuota(kUserBytesIs, itu->first, itu->second.physicalSpace);
-      ResetQuota(kUserFilesIs, itu->first);
-      AddQuota(kUserFilesIs, itu->first, itu->second.files);
-      ResetQuota(kUserLogicalBytesIs, itu->first);
-      AddQuota(kUserLogicalBytesIs, itu->first, itu->second.space);
+      ResetQuota(kUserBytesIs, *itu);
+      AddQuota(kUserBytesIs, *itu, mQuotaNode->getPhysicalSpaceByUser(*itu));
+      ResetQuota(kUserFilesIs, *itu);
+      AddQuota(kUserFilesIs, *itu, mQuotaNode->getNumFilesByUser(*itu));
+      ResetQuota(kUserLogicalBytesIs, *itu);
+      AddQuota(kUserLogicalBytesIs, *itu, mQuotaNode->getUsedSpaceByUser(*itu));
 
       if (mMapIdQuota[Index(kGroupBytesTarget, Quota::gProjectId)] > 0)
       {
 	// Only account in project quota nodes
-	AddQuota(kGroupBytesIs, Quota::gProjectId, itu->second.physicalSpace);
-	AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, itu->second.space);
-	AddQuota(kGroupFilesIs, Quota::gProjectId, itu->second.files);
+	AddQuota(kGroupBytesIs, Quota::gProjectId, mQuotaNode->getPhysicalSpaceByUser(*itu));
+	AddQuota(kGroupLogicalBytesIs, Quota::gProjectId, mQuotaNode->getUsedSpaceByUser(*itu));
+	AddQuota(kGroupFilesIs, Quota::gProjectId, mQuotaNode->getNumFilesByUser(*itu));
       }
     }
 
-    for (auto itg = mQuotaNode->groupUsageBegin();
-	 itg != mQuotaNode->groupUsageEnd(); itg++)
+    std::vector<unsigned long> gids = mQuotaNode->getGids();
+
+    for (auto itg = gids.begin(); itg != gids.end(); ++itg)
     {
       // Don't update the project quota directory from the quota
-      if (itg->first == Quota::gProjectId)
+      if (*itg == Quota::gProjectId)
 	continue;
 
-      ResetQuota(kGroupBytesIs, itg->first);
-      AddQuota(kGroupBytesIs, itg->first, itg->second.physicalSpace);
-      ResetQuota(kGroupFilesIs, itg->first);
-      AddQuota(kGroupFilesIs, itg->first, itg->second.files);
-      ResetQuota(kGroupLogicalBytesIs, itg->first);
-      AddQuota(kGroupLogicalBytesIs, itg->first, itg->second.space);
+      ResetQuota(kGroupBytesIs, *itg);
+      AddQuota(kGroupBytesIs, *itg, mQuotaNode->getPhysicalSpaceByGroup(*itg));
+      ResetQuota(kGroupFilesIs, *itg);
+      AddQuota(kGroupFilesIs, *itg, mQuotaNode->getNumFilesByGroup(*itg));
+      ResetQuota(kGroupLogicalBytesIs, *itg);
+      AddQuota(kGroupLogicalBytesIs, *itg, mQuotaNode->getUsedSpaceByGroup(*itg));
     }
   }
 }
@@ -1342,6 +1342,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   }
 
   // Quota values need to be positive
+  /*
   if (value < 0)
   {
     oss_msg << "error: " << ((quota_type == Type::kVolume) ? "volume" : "inode")
@@ -1349,6 +1350,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     msg = oss_msg.str();
     return false;
   }
+  */
 
   // Make sure the quota node exist
   (void) Create(path);
@@ -1536,8 +1538,8 @@ Quota::RmSpaceQuota(std::string& path, std::string& msg, int& retc)
     // Remove ns quota node
     try
     {
-      eos::IContainerMD* qcont = gOFS->eosView->getContainer(path);
-      gOFS->eosView->removeQuotaNode(qcont);
+      std::shared_ptr<eos::IContainerMD> qcont = gOFS->eosView->getContainer(path);
+      gOFS->eosView->removeQuotaNode(qcont.get());
       retc = 0;
     }
     catch (eos::MDException& e)
@@ -1601,28 +1603,28 @@ Quota::MapSizeCB(const eos::IFileMD* file)
 void
 Quota::LoadNodes()
 {
-  eos_static_info("Calling LoadNodes");
   std::vector<std::string> create_quota;
 
   // Load all known nodes
   {
     std::string quota_path;
-    eos::IContainerMD* container = 0;
+    std::shared_ptr<eos::IContainerMD> container;
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    std::set<std::string> set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
 
-    for (auto it = gOFS->eosView->getQuotaStats()->nodesBegin();
-	 it != gOFS->eosView->getQuotaStats()->nodesEnd(); ++it)
+    for (auto it = set_ids.begin(); it != set_ids.end(); ++it)
     {
       try
       {
-	container = gOFS->eosDirectoryService->getContainerMD(it->first);
-	quota_path = gOFS->eosView->getUri(container);
+	container = gOFS->eosDirectoryService->getContainerMD(std::stoull(*it));
+	quota_path = gOFS->eosView->getUri(container.get());
 
 	// Make sure directories are '/' terminated
 	if (quota_path[quota_path.length() - 1] != '/')
 	  quota_path += '/';
 
-	create_quota.push_back(quota_path);
+	if (!Exists(quota_path))
+	  create_quota.push_back(quota_path);
       }
       catch (eos::MDException& e)
       {

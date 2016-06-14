@@ -1,0 +1,535 @@
+;; -*- mode: emacs-lisp; coding: emacs-mule; -*-
+;; --------------------------------------------------------------------------
+;; Desktop File for Emacs
+;; --------------------------------------------------------------------------
+;; Created Mon May  9 14:53:33 2016
+;; Desktop file format version 206
+;; Emacs version 24.3.1
+
+;; Global section:
+(setq desktop-missing-file-warning nil)
+(setq tags-file-name nil)
+(setq tags-table-list nil)
+(setq search-ring '("WaitForRes" "response" "WaitForResponse" "WaitFor" "::Stat" "::Status" "ResponseHandler" "Sync" "status" "pResponse" "SyncResponseHandler" "::Stat" "response" "responsePtr" "Stateful" "testName"))
+(setq regexp-search-ring nil)
+(setq register-alist '((48 . "  delete viewSlave;\n  delete viewMaster;\n  delete contSvcSlave;\n  delete contSvcMaster;\n  delete fileSvcSlave;\n  delete fileSvcMaster;\n")))
+(setq file-name-history '("/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClXRootDResponses.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClFileStateHandler.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClMessageUtils.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClXRootDResponses.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClXRootDResponses.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClFile.hh" "/mnt/Code/xrootd/src/XrdCl/XrdClFile.cc" "/mnt/Code/xrootd/src/XrdCl/XrdClFileStateHandler.cc" "/mnt/Code/eos/namespace/ns_on_redis/RedisClient.cc" "/mnt/Code/eos/test/XrdStress.cc" "/mnt/Code/eos/test/eos-instance-test" "/mnt/Code/eos/authz/XrdCapability.cc" "/mnt/Code/eos/namespace/ns_in_memory/tests/HierarchicalSlaveTest.cc" "/mnt/Code/eos/namespace/ns_in_memory/" "/mnt/Code/eos/namespace/ns_in_memory/tests/ChangeLogContainerMDSvcTest.cc" "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc" "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh" "/mnt/Code/eos/namespace/ns_on_redis/persistency/FileMDSvc.hh" "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc" "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh" "/mnt/Code/eos/namespace/interface/IFileMDSvc.hh" "/mnt/Code/eos/namespace/ns_in_memory/views/HierarchicalView.cc" "/mnt/Code/eos/namespace/interface/IQuota.hh" "/mnt/Code/eos/namespace/ns_in_memory/accounting/QuotaStats.hh" "/mnt/Code/eos/namespace/ns_in_memory/accounting/QuotaStats.cc" "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh" "/mnt/Code/eos/namespace/ns_in_memory/views/HierarchicalView.cc"))
+
+;; Buffer section -- buffers listed in same order as in buffer list:
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/RedisClient.cc"
+  "RedisClient.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1467
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/HierarchicalViewTest.cc"
+  "HierarchicalViewTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2910
+  '(2910 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/ChangeLogContainerMDSvcTest.cc"
+  "ChangeLogContainerMDSvcTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1694
+  '(1694 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix) (overwrite-mode)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/HierarchicalSlaveTest.cc"
+  "HierarchicalSlaveTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3781
+  '(3781 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.cc"
+  "ChangeLogContainerMDSvc.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2238
+  '(2238 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.cc"
+  "ChangeLogFileMDSvc.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2593
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/views/HierarchicalView.cc"
+  "HierarchicalView.cc<2>"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3335
+  '(3335 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix) (overwrite-mode)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/persistency/FileMDSvc.hh"
+  "FileMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1642
+  '(1642 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
+  "ChangeLogFileMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  4689
+  '(4689 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/interface/IFileMDSvc.hh"
+  "IFileMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  8205
+  '(8205 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/interface/IQuota.hh"
+  "IQuota.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1601
+  '(1601 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/accounting/QuotaStats.hh"
+  "QuotaStats.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2246
+  '(2506 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/accounting/QuotaStats.cc"
+  "QuotaStats.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3180
+  '(3180 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/FileSystemViewTest.cc"
+  "FileSystemViewTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3997
+  '(3997 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
+  "ChangeLogContainerMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2931
+  '(2931 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/ContainerMD.cc"
+  "ContainerMD.cc<2>"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1962
+  '(1962 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix) (overwrite-mode)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/ChangeLogTest.cc"
+  "ChangeLogTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  12504
+  '(2949 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/interface/IContainerMDSvc.hh"
+  "IContainerMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3776
+  '(3776 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/views/HierarchicalView.cc"
+  "HierarchicalView.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  169
+  '(169 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/ContainerMD.hh"
+  "ContainerMD.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1681
+  '(1681 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/interface/IFileMD.hh"
+  "IFileMD.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3158
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/CMakeLists.txt"
+  "CMakeLists.txt<5>"
+  'text-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode)
+  1895
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/views/HierarchicalView.hh"
+  "HierarchicalView.hh<2>"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2413
+  '(2413 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix) (overwrite-mode)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/tests/ChangeLogFileMDSvcTest.cc"
+  "ChangeLogFileMDSvcTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2612
+  '(4738 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/CMakeLists.txt"
+  "CMakeLists.txt<4>"
+  'text-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode)
+  1638
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/accounting/FileSystemView.cc"
+  "FileSystemView.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1961
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/accounting/ContainerAccounting.cc"
+  "ContainerAccounting.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2051
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/interface/IFsView.hh"
+  "IFsView.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1707
+  '(1707 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/accounting/FileSystemView.hh"
+  "FileSystemView.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2926
+  '(5402 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/accounting/FileSystemView.cc"
+  "FileSystemView.cc<2>"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1323
+  '(1323 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/interface/IView.hh"
+  "IView.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2249
+  '(2249 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/persistency/ContainerMDSvc.hh"
+  "ContainerMDSvc.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1415
+  '(1415 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/FileMD.hh"
+  "FileMD.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  169
+  '(169 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_in_memory/FileMD.hh"
+  "FileMD.hh<2>"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  10322
+  '(8631 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/CMakeLists.txt"
+  "CMakeLists.txt<3>"
+  'text-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode)
+  1529
+  '(1529 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix) (overwrite-mode)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/redox/src/command.cpp"
+  "command.cpp"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  3053
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/utils/Buffer.hh"
+  "Buffer.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2135
+  '(2135 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/CMakeLists.txt"
+  "CMakeLists.txt<2>"
+  'text-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode)
+  2486
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/LRU.hh"
+  "LRU.hh"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  7324
+  '(7431 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/CMakeLists.txt"
+  "CMakeLists.txt"
+  'text-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode)
+  1535
+  '(1535 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/redox/examples/speed_test_async_multi.cpp"
+  "speed_test_async_multi.cpp"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  621
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  nil
+  "examples"
+  'dired-mode
+  '(flx-ido-mode linum-mode global-auto-revert-mode)
+  792
+  '(nil nil)
+  t
+  '("/mnt/Code/redox/examples/")
+  nil)
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/mgm/XrdMgmOfs/Stat.cc"
+  "Stat.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1876
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/mgm/proc/user/Ls.cc"
+  "Ls.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1838
+  '(1838 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/mgm/XrdMgmOfsDirectory.cc"
+  "XrdMgmOfsDirectory.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1822
+  '(1822 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/tests/OtherTests.cc"
+  "OtherTests.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  1554
+  '(1 nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+
+(desktop-create-buffer 206
+  "/mnt/Code/eos/namespace/ns_on_redis/tests/FileMDSvcTest.cc"
+  "FileMDSvcTest.cc"
+  'c++-mode
+  '(abbrev-mode auto-complete-mode flx-ido-mode linum-mode global-auto-revert-mode)
+  2667
+  '(nil nil)
+  nil
+  nil
+  '((buffer-file-coding-system . undecided-unix)))
+

@@ -66,8 +66,10 @@ eos::IView *bootNamespace( const std::string &dirLog,
 
   fileSvc->configure( fileSettings );
   contSvc->configure( contSettings );
+  contSvc->setFileMDService( fileSvc );
+  fileSvc->setContMDService( contSvc );
 
-  ((eos::ChangeLogFileMDSvc*)fileSvc)->setContainerService( (eos::ChangeLogContainerMDSvc*)contSvc );
+  ((eos::ChangeLogFileMDSvc*)fileSvc)->setContMDService( (eos::ChangeLogContainerMDSvc*)contSvc );
 
   view->setContainerMDSvc( contSvc );
   view->setFileMDSvc( fileSvc );
@@ -185,7 +187,7 @@ static void* RunReader(void* tconf)
                    (unsigned int)i,(unsigned int)j,(unsigned int)k, (unsigned int)n);
 	  std::string file_path = s_file_path;
 	  if (dolock) nslock.LockRead();
-	  eos::IFileMD* fmd = view->getFile(file_path);
+	  std::shared_ptr<eos::IFileMD> fmd = view->getFile(file_path);
 	  if (fmd) {
 	    unsigned long long size = (unsigned long long) fmd->getSize();
 	    if (size == 0 ) {
@@ -257,13 +259,13 @@ int main( int argc, char **argv )
 	  char s_container_path[1024];
 	  snprintf(s_container_path,sizeof(s_container_path)-1,"/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/",(unsigned int)i,(unsigned int)j,(unsigned int)k);
 	  std::string container_path = s_container_path;
-	  eos::IContainerMD* cont = view->createContainer( container_path, true );
+	  std::shared_ptr<eos::IContainerMD> cont = view->createContainer( container_path, true );
 	  cont->setAttribute("sys.forced.blocksize","4k");
 	  cont->setAttribute("sys.forced.checksum","adler");
 	  cont->setAttribute("sys.forced.layout","replica");
 	  cont->setAttribute("sys.forced.nstripes","2");
 	  cont->setAttribute("user.acl","u:atlas003:rw,egroup:atlas-comp-cern-storage-support:rw");
-	  view->updateContainerStore(cont);
+	  view->updateContainerStore(cont.get());
 	}
       }
     }
@@ -348,7 +350,7 @@ int main( int argc, char **argv )
                      "level_1_%08u/level_2_%08u/file____________________%08u",
                      (unsigned int)i,(unsigned int)j,(unsigned int)k, (unsigned int)n);
 	    std::string file_path = s_file_path;
-	    eos::IFileMD* fmd = view->createFile(file_path, 0,0);
+	    std::shared_ptr<eos::IFileMD> fmd = view->createFile(file_path, 0,0);
 	    // add two locations
 	    fmd->addLocation(k);
 	    fmd->addLocation(k+1);
@@ -357,7 +359,7 @@ int main( int argc, char **argv )
 	    fmd->addLocation(k+4);
 	    fmd->addLocation(k+5);*/
 	    fmd->setLayoutId(10);
-	    view->updateFileStore(fmd);
+	    view->updateFileStore(fmd.get());
 	  }
 	}
       }

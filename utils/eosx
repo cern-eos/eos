@@ -1,0 +1,19 @@
+#!/bin/bash
+export EOS_MGM_URL=${EOS_MGM_URL-root://eosuser.cern.ch}
+klist >& /dev/null
+if [ $? -ne 0 ]; then
+  echo WARNING: please create a kerberos token first!
+  exit -1
+fi
+
+myeos=$0
+myinstall=`dirname $myeos`
+if [ "$1x" = "fusex" ]; 
+then 
+  if [ ! -e "/usr/local/lib/libosxfuse.2.dylib" ]; then
+    echo WARNING: please install OSXFUSE 3.2.0 https://osxfuse.github.io/2016/02/14/OSXFUSE-3.2.0.html to use FUSE!
+    exit -1
+  fi
+fi
+$myinstall/eos.exe $@
+

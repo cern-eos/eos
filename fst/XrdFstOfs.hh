@@ -383,6 +383,7 @@ public:
   XrdMqSharedObjectChangeNotifier ObjectNotifier; ///< notifying any shared object changes;
   XrdScheduler* TransferScheduler; ///< TransferScheduler
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
+  XrdOucString eoscpTransferLog; //! eoscp.log full path
 
   bool Simulate_IO_read_error; ///< simulate an IO error on read
   bool Simulate_IO_write_error; ///< simulate an IO error on write

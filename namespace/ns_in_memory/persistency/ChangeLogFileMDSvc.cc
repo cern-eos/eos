@@ -57,8 +57,8 @@ class FileMDFollower: public eos::ILogRecordScanner
       // Update
       if (type == UPDATE_RECORD_MAGIC)
       {
-        FileMD* file = new FileMD(0, pFileSvc);
-        file->deserialize((Buffer&)buffer);
+	std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, pFileSvc);
+        static_cast<FileMD*>(file.get())->deserialize((Buffer&)buffer);
         FileMap::iterator it = pUpdated.find(file->getId());
 
         if (file->getId() >= pFileSvc->pFirstFreeId)
@@ -66,7 +66,6 @@ class FileMDFollower: public eos::ILogRecordScanner
 
         if (it != pUpdated.end())
         {
-          delete it->second.file;
           it->second.file   = file;
           it->second.offset = offset;
         }
@@ -81,10 +80,7 @@ class FileMDFollower: public eos::ILogRecordScanner
         FileMap::iterator it = pUpdated.find(id);
 
         if (it != pUpdated.end())
-        {
-          delete it->second.file;
           pUpdated.erase(it);
-        }
 
         pDeleted.insert(id);
       }
@@ -113,7 +109,7 @@ class FileMDFollower: public eos::ILogRecordScanner
 
         // We have the file but we need to check if we have a corresponding
         // container
-        IFileMD* currentFile = it->second.ptr;
+	std::shared_ptr<IFileMD> currentFile = it->second.ptr;
         ChangeLogContainerMDSvc::IdMap::iterator itP;
         itP = contIdMap->find(currentFile->getContainerId());
 
@@ -128,24 +124,23 @@ class FileMDFollower: public eos::ILogRecordScanner
           // containerId=0.
           if (currentFile->getContainerId())
           {
-            IContainerMD* container = itP->second.ptr;
-            IFileMD* existingFile = container->findFile(currentFile->getName());
+	    std::shared_ptr<IContainerMD> container = itP->second.ptr;
+	    std::shared_ptr<IFileMD> existingFile = container->findFile(currentFile->getName());
 
-            if (existingFile == currentFile)
+            if (existingFile.get() == currentFile.get())
             {
               container->removeFile(currentFile->getName());
-              IQuotaNode* node = getQuotaNode(container);
+              IQuotaNode* node = getQuotaNode(container.get());
 
               if (node)
-                node->removeFile(currentFile);
+                node->removeFile(currentFile.get());
             }
           }
 
           // If the file was not attached to the container it's safe to
           // remove it, if it had been attached it has been detached by
           // the code above.
-          handleReplicas(currentFile, 0);
-          delete currentFile;
+          handleReplicas(currentFile.get(), 0);
           fileIdMap->erase(it);
           IFileMDChangeListener::Event e(*itD,
                                          IFileMDChangeListener::Deleted);
@@ -163,7 +158,7 @@ class FileMDFollower: public eos::ILogRecordScanner
       {
         ChangeLogFileMDSvc::IdMap::iterator it;
         ChangeLogContainerMDSvc::IdMap::iterator itP;
-        IFileMD*   currentFile   = itU->second.file;
+	std::shared_ptr<IFileMD> currentFile = itU->second.file;
         uint64_t  currentOffset = itU->second.offset;
         it = fileIdMap->find(currentFile->getId());
 
@@ -180,28 +175,28 @@ class FileMDFollower: public eos::ILogRecordScanner
             // We check if the file with the given name already exists in
             // the container, if it does, we have a name conflict in which
             // case we attach the new file and remove the old one
-            IContainerMD* container = itP->second.ptr;
-            IFileMD* existingFile   = container->findFile(currentFile->getName());
-            IQuotaNode* node        = getQuotaNode(container);
+	    std::shared_ptr<IContainerMD> container = itP->second.ptr;
+	    std::shared_ptr<IFileMD> existingFile   = container->findFile(currentFile->getName());
+            IQuotaNode* node = getQuotaNode(container.get());
 
             if (existingFile)
             {
               if (node)
-                node->removeFile(existingFile);
+                node->removeFile(existingFile.get());
 
               container->removeFile(existingFile->getName());
             }
 
-            container->addFile(currentFile);
+            container->addFile(currentFile.get());
             (*fileIdMap)[currentFile->getId()] =
               ChangeLogFileMDSvc::DataInfo(currentOffset, currentFile);
-            IFileMDChangeListener::Event e(currentFile,
+            IFileMDChangeListener::Event e(currentFile.get(),
                                            IFileMDChangeListener::Created);
             pFileSvc->notifyListeners(&e);
-            handleReplicas(0, currentFile);
+            handleReplicas(0, currentFile.get());
 
             if (node)
-              node->addFile(currentFile);
+              node->addFile(currentFile.get());
 
             processed.push_back(currentFile->getId());
           }
@@ -212,8 +207,8 @@ class FileMDFollower: public eos::ILogRecordScanner
           // We have the file already but it might have changed the parent
           // container or might have been unlinked, so we need to check it up
           // in its original container
-          IFileMD*      originalFile      = it->second.ptr;
-          IContainerMD* originalContainer = 0;
+	  std::shared_ptr<IFileMD>  originalFile = it->second.ptr;
+	  std::shared_ptr<IContainerMD> originalContainer;
           ChangeLogContainerMDSvc::IdMap::iterator itP;
           itP = contIdMap->find(originalFile->getContainerId());
 
@@ -228,35 +223,36 @@ class FileMDFollower: public eos::ILogRecordScanner
           {
             if (originalContainer)
             {
-              IFileMD* existingFile =
+	      std::shared_ptr<IFileMD> existingFile =
                   originalContainer->findFile(originalFile->getName());
 
               if (existingFile &&
                   existingFile->getId() == originalFile->getId())
               {
                 // Update quota
-                IQuotaNode* node = getQuotaNode(originalContainer);
+                IQuotaNode* node = getQuotaNode(originalContainer.get());
 
                 if (node)
                 {
-                  node->removeFile(existingFile);
-                  node->addFile(currentFile);
+                  node->removeFile(existingFile.get());
+                  node->addFile(currentFile.get());
                 }
 
                 // Rename
                 originalContainer->removeFile(existingFile->getName());
                 existingFile->setName(currentFile->getName());
-                originalContainer->addFile(existingFile);
+                originalContainer->addFile(existingFile.get());
               }
             }
 
-            handleReplicas(originalFile, currentFile);
-            *dynamic_cast<eos::FileMD*>(originalFile) = *dynamic_cast<eos::FileMD*>(currentFile);
+            handleReplicas(originalFile.get(), currentFile.get());
+            // Cast to derived class implementation to avoid "slicing" of info
+            *dynamic_cast<eos::FileMD*>(originalFile.get()) =
+	      *dynamic_cast<eos::FileMD*>(currentFile.get());
             originalFile->setFileMDSvc(pFileSvc);
             it->second.logOffset = currentOffset;
             processed.push_back(currentFile->getId());
-            delete currentFile;
-            IFileMDChangeListener::Event e(originalFile,
+            IFileMDChangeListener::Event e(originalFile.get(),
                                            IFileMDChangeListener::Updated);
             pFileSvc->notifyListeners(&e);
           }
@@ -275,34 +271,34 @@ class FileMDFollower: public eos::ILogRecordScanner
             // it from there and update the quota
             if (originalContainer)
             {
-              IFileMD* existingFile =
+	      std::shared_ptr<IFileMD> existingFile =
                 originalContainer->findFile(originalFile->getName());
 
               if (existingFile &&
                   existingFile->getId() == originalFile->getId())
               {
-                IQuotaNode* node = getQuotaNode(originalContainer);
+                IQuotaNode* node = getQuotaNode(originalContainer.get());
 
                 if (node)
-                  node->removeFile(existingFile);
+                  node->removeFile(existingFile.get());
 
                 originalContainer->removeFile(existingFile->getName());
               }
             }
 
             // Update the file and handle the replicas
-            handleReplicas(originalFile, currentFile);
+            handleReplicas(originalFile.get(), currentFile.get());
             // Cast to derived class implementation to avoid "slicing" of info
-            *dynamic_cast<eos::FileMD*>(originalFile) = *dynamic_cast<eos::FileMD*>(currentFile);
+            *dynamic_cast<eos::FileMD*>(originalFile.get()) = 
+	      *dynamic_cast<eos::FileMD*>(currentFile.get());
             originalFile->setFileMDSvc(pFileSvc);
             it->second.logOffset = currentOffset;
-            delete currentFile;
 
             // The file was unlinked so our job is done
             if (originalFile->getContainerId() == 0)
             {
               processed.push_back(originalFile->getId());
-              IFileMDChangeListener::Event e(originalFile,
+              IFileMDChangeListener::Event e(originalFile.get(),
                                              IFileMDChangeListener::Updated);
               pFileSvc->notifyListeners(&e);
             }
@@ -312,25 +308,25 @@ class FileMDFollower: public eos::ILogRecordScanner
               // We check if the file with the given name already exists in
               // the container, if it does, we have a name conflict in which
               // case we attach the new file and remove the old one
-              IContainerMD* newContainer = itPN->second.ptr;
-              IQuotaNode* node           = getQuotaNode(newContainer);
-              IFileMD* existingFile = newContainer->findFile(originalFile->getName());
+	      std::shared_ptr<IContainerMD> newContainer = itPN->second.ptr;
+              IQuotaNode* node           = getQuotaNode(newContainer.get());
+	      std::shared_ptr<IFileMD> existingFile = newContainer->findFile(originalFile->getName());
 
               if (existingFile)
               {
                 if (node)
-                  node->removeFile(existingFile);
+                  node->removeFile(existingFile.get());
 
                 newContainer->removeFile(existingFile->getName());
               }
 
-              newContainer->addFile(originalFile);
+              newContainer->addFile(originalFile.get());
 
               if (node)
-                node->addFile(originalFile);
+                node->addFile(originalFile.get());
 
               processed.push_back(originalFile->getId());
-              IFileMDChangeListener::Event e(originalFile,
+              IFileMDChangeListener::Event e(originalFile.get(),
                                              IFileMDChangeListener::Updated);
               pFileSvc->notifyListeners(&e);
             }
@@ -364,7 +360,7 @@ class FileMDFollower: public eos::ILogRecordScanner
       // Search for the node
       while (container->getId() != 1 &&
              (container->getFlags() & QUOTA_NODE_FLAG) == 0)
-        container = pContSvc->getContainerMD(container->getParentId());
+        container = pContSvc->getContainerMD(container->getParentId()).get();
 
       // We have either found a quota node or reached root without finding one
       // so we need to double check whether the current container has an
@@ -489,11 +485,11 @@ class FileMDFollower: public eos::ILogRecordScanner
     //--------------------------------------------------------------------------
     struct FileHelper
     {
-      FileHelper(): offset(0), file(0) {}
-      FileHelper(uint64_t _offset, eos::IFileMD* _file):
+      FileHelper(): offset(0), file((IFileMD*)0) {}
+      FileHelper(uint64_t _offset, std::shared_ptr<eos::IFileMD> _file):
         offset(_offset), file(_file) {}
       uint64_t      offset;
-      eos::IFileMD* file;
+      std::shared_ptr<eos::IFileMD> file;
     };
   
     typedef std::map<eos::IFileMD::id_t, FileHelper> FileMap;
@@ -525,9 +521,9 @@ extern "C"
     {
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, 0);
       offset = file->follow(&f, offset);
-      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
       f.commit();
       fileSvc->setFollowOffset(offset);
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0);
       file->wait(pollInt);
     }
 
@@ -691,21 +687,21 @@ void ChangeLogFileMDSvc::initialize()
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
     {
       // Unpack the serialized buffers
-      FileMD* file = new FileMD(0, this);
-      file->deserialize(*it->second.buffer);
+      std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
+      static_cast<FileMD*>(file.get())->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
       it->second.buffer = 0;
       ListenerList::iterator it;
 
       for (it = pListeners.begin(); it != pListeners.end(); ++it)
-        (*it)->fileMDRead(file);
+        (*it)->fileMDRead(file.get());
 
       // Attach to the hierarchy
       if (file->getContainerId() == 0)
         continue;
 
-      IContainerMD* cont = 0;
+      std::shared_ptr<IContainerMD> cont;
 
       try
       {
@@ -716,7 +712,7 @@ void ChangeLogFileMDSvc::initialize()
       if (!cont)
       {
         if (!pSlaveMode)
-          attachBroken("orphans", file);
+          attachBroken("orphans", file.get());
 
         continue;
       }
@@ -724,12 +720,12 @@ void ChangeLogFileMDSvc::initialize()
       if (cont->findFile(file->getName()))
       {
         if (!pSlaveMode)
-          attachBroken("name_conflicts", file);
+          attachBroken("name_conflicts", file.get());
 
         continue;
       }
       else
-        cont->addFile(file);
+        cont->addFile(file.get());
     }
   }
 
@@ -828,10 +824,10 @@ void ChangeLogFileMDSvc::makeReadOnly()
 // Configure the file service
 //------------------------------------------------------------------------------
 void ChangeLogFileMDSvc::configure(
-  std::map<std::string, std::string>& config)
+  const std::map<std::string, std::string>& config)
 {
   // Configure the changelog
-  std::map<std::string, std::string>::iterator it;
+  std::map<std::string, std::string>::const_iterator it;
   it = config.find("changelog_path");
 
   if (it == config.end())
@@ -873,18 +869,13 @@ void ChangeLogFileMDSvc::configure(
 void ChangeLogFileMDSvc::finalize()
 {
   pChangeLog->close();
-  IdMap::iterator it;
-
-  for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
-    delete it->second.ptr;
-
   pIdMap.clear();
 }
 
 //------------------------------------------------------------------------------
 // Get the file metadata information for the given file ID
 //------------------------------------------------------------------------------
-IFileMD*
+std::shared_ptr<IFileMD>
 ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
 {
   IdMap::iterator it = pIdMap.find(id);
@@ -903,11 +894,11 @@ ChangeLogFileMDSvc::getFileMD(IFileMD::id_t id)
 //------------------------------------------------------------------------------
 // Create new file metadata object
 //------------------------------------------------------------------------------
-IFileMD* ChangeLogFileMDSvc::createFile()
+std::shared_ptr<IFileMD> ChangeLogFileMDSvc::createFile()
 {
-  IFileMD* file = new FileMD(pFirstFreeId++, this);
+  std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(pFirstFreeId++, this);
   pIdMap.insert(std::make_pair(file->getId(), DataInfo(0, file)));
-  IFileMDChangeListener::Event e(file, IFileMDChangeListener::Created);
+  IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::Created);
   notifyListeners(&e);
   return file;
 }
@@ -967,7 +958,6 @@ void ChangeLogFileMDSvc::removeFile(FileMD::id_t fileId)
   pChangeLog->storeRecord(eos::DELETE_RECORD_MAGIC, buffer);
   IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
-  delete it->second.ptr;
   pIdMap.erase(it);
 }
 
@@ -996,7 +986,7 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
   for (it = pIdMap.begin(); it != pIdMap.end(); ++it)
   {
     cnt++;
-    visitor->visitFile( it->second.ptr );
+    visitor->visitFile( it->second.ptr.get() );
     if ( (100.0 * cnt / end ) > progress)
       {
         now = time(NULL);
@@ -1293,12 +1283,12 @@ void ChangeLogFileMDSvc::attachBroken(const std::string& parent,
                                       IFileMD*            file)
 {
   std::ostringstream s1, s2;
-  IContainerMD* parentCont = pContSvc->getLostFoundContainer(parent);
+  std::shared_ptr<IContainerMD> parentCont = pContSvc->getLostFoundContainer(parent);
   s1 << file->getContainerId();
-  IContainerMD* cont = parentCont->findContainer(s1.str());
+  std::shared_ptr<IContainerMD> cont = parentCont->findContainer(s1.str());
 
   if (!cont)
-    cont = pContSvc->createInParent(s1.str(), parentCont);
+    cont = pContSvc->createInParent(s1.str(), parentCont.get());
 
   s2 << file->getName() << "." << file->getId();
   file->setName(s2.str());
@@ -1327,7 +1317,7 @@ ChangeLogFileMDSvc::clearWarningMessages()
 // Set container service
 //------------------------------------------------------------------------------
 void
-ChangeLogFileMDSvc::setContainerService(IContainerMDSvc* cont_svc)
+ChangeLogFileMDSvc::setContMDService(IContainerMDSvc* cont_svc)
 {
   pContSvc = dynamic_cast<eos::ChangeLogContainerMDSvc*>(cont_svc);
 }

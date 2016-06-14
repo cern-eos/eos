@@ -25,13 +25,17 @@
 #define __EOS_NS_IQUOTA_HH__
 
 #include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
+#include <iostream>
+#include <memory>
 #include <map>
+#include <set>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declrations
-class IContainerMD;
-class IFileMD;
+//! Forward declarations
 class IQuotaStats;
 
 //------------------------------------------------------------------------------
@@ -100,82 +104,6 @@ class IQuotaNode
   virtual uint64_t getNumFilesByGroup(gid_t gid) = 0;
 
   //----------------------------------------------------------------------------
-  //! Change the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  virtual void changeSpaceUser(uid_t uid, int64_t delta) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occpied by the given group
-  //----------------------------------------------------------------------------
-  virtual void changeSpaceGroup(gid_t gid, int64_t delta) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occupied by the given user
-  //----------------------------------------------------------------------------
-  virtual void changePhysicalSpaceUser(uid_t uid, int64_t delta) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Change the amount of space occpied by the given group
-  //----------------------------------------------------------------------------
-  virtual void changePhysicalSpaceGroup(gid_t gid, int64_t delta) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Change the number of files owned by the given user
-  //----------------------------------------------------------------------------
-  virtual uint64_t changeNumFilesUser(uid_t uid, uint64_t delta) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Change the number of files owned by the given group
-  //----------------------------------------------------------------------------
-  virtual uint64_t changeNumFilesGroup(gid_t gid, uint64_t delta) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Iterate over the usage of known users
-  //----------------------------------------------------------------------------
-  UserMap::iterator userUsageBegin()
-  {
-    return pUserUsage.begin();
-  }
-
-  UserMap::iterator userUsageEnd()
-  {
-    return pUserUsage.end();
-  }
-
-  UserMap::const_iterator userUsageBegin() const
-  {
-    return pUserUsage.begin();
-  }
-
-  UserMap::const_iterator userUsageEnd() const
-  {
-    return pUserUsage.end();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Iterate over the usage of known groups
-  //----------------------------------------------------------------------------
-  GroupMap::iterator groupUsageBegin()
-  {
-    return pGroupUsage.begin();
-  }
-
-  GroupMap::iterator groupUsageEnd()
-  {
-    return pGroupUsage.end();
-  }
-
-  const GroupMap::const_iterator groupUsageBegin() const
-  {
-    return pGroupUsage.begin();
-  }
-
-  const GroupMap::const_iterator groupUsageEnd() const
-  {
-    return pGroupUsage.end();
-  }
-
-  //----------------------------------------------------------------------------
   //! Account a new file, adjust the size using the size mapping function
   //----------------------------------------------------------------------------
   virtual void addFile(const IFileMD* file) = 0;
@@ -190,9 +118,23 @@ class IQuotaNode
   //----------------------------------------------------------------------------
   virtual void meld(const IQuotaNode* node) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Get the set of uids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of uids
+  //----------------------------------------------------------------------------
+  virtual std::vector<unsigned long> getUids() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get the set of gids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of gids
+  //----------------------------------------------------------------------------
+  virtual std::vector<unsigned long> getGids() = 0;
+
  protected:
-  UserMap      pUserUsage;
-  GroupMap     pGroupUsage;
   IQuotaStats* pQuotaStats;
 };
 
@@ -234,6 +176,14 @@ class IQuotaStats
   virtual void removeNode(IContainerMD::id_t nodeId) = 0;
 
   //----------------------------------------------------------------------------
+  //! Get the set of all quota node ids. The quota node id corresponds to the
+  //! container id.
+  //!
+  //! @return set of quota node ids
+  //----------------------------------------------------------------------------
+  virtual std::set<std::string> getAllIds() = 0;
+
+  //----------------------------------------------------------------------------
   //! Register a mapping function used to calculate the physical
   //! space that the file occuppies (replicas, striping and so on)
   //----------------------------------------------------------------------------
@@ -257,32 +207,8 @@ class IQuotaStats
     return (*pSizeMapper)(file);
   }
 
-  //----------------------------------------------------------------------------
-  //! Iterate over the quota nodes
-  //----------------------------------------------------------------------------
-  NodeMap::iterator nodesBegin()
-  {
-    return pNodeMap.begin();
-  }
-
-  NodeMap::iterator nodesEnd()
-  {
-    return pNodeMap.end();
-  }
-
-  const NodeMap::const_iterator nodesBegin() const
-  {
-    return pNodeMap.begin();
-  }
-
-  const NodeMap::const_iterator nodesEnd() const
-  {
-    return pNodeMap.end();
-  }
-
  protected:
   SizeMapper pSizeMapper;
-  NodeMap    pNodeMap;
 };
 
 EOSNSNAMESPACE_END

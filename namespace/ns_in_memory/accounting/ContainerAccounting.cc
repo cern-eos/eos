@@ -40,7 +40,7 @@ void ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
     case IFileMDChangeListener::Created:
       if (e->file)
       {
-        // Creation is triggered with a SizeChange event separately
+	// Creation is triggered with a SizeChange event separately
       }
 
       break;
@@ -49,7 +49,7 @@ void ContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
     case IFileMDChangeListener::Deleted:
       if (e->file)
       {
-        Account(e->file, -e->file->getSize());
+	Account(e->file, -e->file->getSize());
       }
 
       break;
@@ -78,7 +78,7 @@ void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
 
   while ((iId > 1) && (deepness < 255))
   {
-    IContainerMD* iCont = 0;
+    std::shared_ptr<IContainerMD> iCont;
 
     try
     {

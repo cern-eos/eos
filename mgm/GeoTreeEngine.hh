@@ -1299,18 +1299,21 @@ public:
   bool StopUpdater();
 
   // ---------------------------------------------------------------------------
-  //! Get the groups to which belong some fs
+  //! Get the fs informations in the GeotreeEngine
   //! It's faster than accessing the MqHash
   // @param fsids
   //   a vector containing the FsIds
   // @param fsgeotags
   //   return if non NULL, geotags of the fsids are reported in this vector
+  // @param hosts
+  //   return if non NULL, hosts of the fsids are reported in this vector
   // @param sortedgroups
   //   return if non NULL, get the list of groups in decreasing order of number of fs in the list they contain
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
-  bool getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups);
+  bool getInfosFromFsIds(const std::vector<FileSystem::fsid_t> &fsids, std::vector<std::string> *fsgeotags,
+                          std::vector<std::string> *hosts, std::vector<FsGroup*> *sortedgroups);
 
   // ---------------------------------------------------------------------------
   //! Set an internal parameter to a value

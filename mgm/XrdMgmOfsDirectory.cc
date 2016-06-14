@@ -59,7 +59,7 @@ XrdMgmOfsDirectory::XrdMgmOfsDirectory (char *user, int MonID):
     XrdSfsDirectory (user, MonID)
 {
   dirName = "";
-  dh = 0;
+  dh.reset();
   d_pnt = &dirent_full.d_entry;
   eos::common::Mapping::Nobody (vid);
   eos::common::LogId ();
@@ -227,7 +227,7 @@ XrdMgmOfsDirectory::_open (const char *dir_path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());

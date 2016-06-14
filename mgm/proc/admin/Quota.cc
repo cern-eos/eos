@@ -36,7 +36,7 @@ ProcCommand::AdminQuota()
   {
     eos_notice("quota rmnode");
 
-    if ( (pVid->uid == 0) )
+    if (pVid->uid == 0)
     {
       std::string msg = "";
       std::string tag = "mgm.quota.space";

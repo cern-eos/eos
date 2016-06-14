@@ -22,9 +22,12 @@
 # ************************************************************************
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}	
+  ${OPENSSL_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
-  ${NCURSES_INCLUDE_DIRS})
+  ${NCURSES_INCLUDE_DIRS}
+  ${SPARSEHASH_INCLUDE_DIRS}
+  )
 
 #-------------------------------------------------------------------------------
 # Add CppUnit tests if possible
@@ -49,6 +52,9 @@ set(
   ${CMAKE_SOURCE_DIR}/common/Logging.cc)
 
 add_library(XrdMqClient SHARED ${XRDMQCLIENT_SRCS})
+
+target_compile_definitions(
+  XrdMqClient PUBLIC -DHAVE_ATOMICS=1)
 
 target_link_libraries(
   XrdMqClient

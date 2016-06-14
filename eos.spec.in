@@ -34,15 +34,13 @@ Group: Applications/File
 
 Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-
-%if 0%{distribution} == 5
-BuildRequires: cmake28 >= 2.8
-%define cmake_cmd cmake28
-%else
-BuildRequires: cmake >= 2.8
+%if %{?fedora:1}%{!?fedora:0}
+BuildRequires: cmake >= 3.3
 %define cmake_cmd cmake
+%else
+BuildRequires: cmake3 >= 3.3
+%define cmake_cmd cmake3
 %endif
-
 BuildRequires: xrootd >= %{xrootd_version}
 BuildRequires: xrootd-server-devel >= %{xrootd_version}
 BuildRequires: xrootd-private-devel >= %{xrootd_version}
@@ -266,8 +264,8 @@ The EOS fuse client.
 %defattr(-, root, root, -)
 %{_bindir}/eosd
 %{_bindir}/eosfusebind
-/sbin/mount.eos
-/sbin/umount.eos
+%{_sbindir}/mount.eos
+%{_sbindir}/umount.eos
 %{_sysconfdir}/rc.d/init.d/eosd
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 

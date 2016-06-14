@@ -139,14 +139,11 @@ XrdMgmOfs::_rem (const char *path,
   gOFS->eosViewRWMutex.LockWrite();
 
   // free the booked quota
-  eos::IFileMD* fmd = 0;
-  eos::IContainerMD* container = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> container;
   eos::IContainerMD::XAttrMap attrmap;
-
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
-
-  eos::common::FileId::fileid_t fid = 0;
 
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
   std::string aclpath;
@@ -158,8 +155,8 @@ XrdMgmOfs::_rem (const char *path,
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-              e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+	      e.getMessage().str().c_str());
   }
 
   if (fmd)
@@ -168,22 +165,22 @@ XrdMgmOfs::_rem (const char *path,
     owner_gid = fmd->getCGid();
     fid = fmd->getId();
 
-    eos_info("got fmd=%lld", (unsigned long long) fmd);
+    eos_info("got fmd=%lld", (unsigned long long) fmd.get());
     try
     {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-      aclpath = gOFS->eosView->getUri(container);
-      eos_info("got container=%lld", (unsigned long long) container);
+      aclpath = gOFS->eosView->getUri(container.get());
+      eos_info("got container=%lld", (unsigned long long) container.get());
     }
     catch (eos::MDException &e)
     {
-      container = 0;
+      container.reset();
     }
 
     // ACL and permission check
     Acl acl(aclpath.c_str(), error, vid, attrmap, false);
-
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
+
     if (vid.uid && !acl.IsMutable())
     {
       errno = EPERM;
@@ -268,11 +265,11 @@ XrdMgmOfs::_rem (const char *path,
         {
           try
           {
-            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container);
-            eos_info("got quot anode=%lld", (unsigned long long) ns_quota);
+            eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
+            eos_info("got quota node=%lld", (unsigned long long) ns_quota);
 
             if (ns_quota)
-              ns_quota->removeFile(fmd);
+              ns_quota->removeFile(fmd.get());
           }
           catch (eos::MDException &e) { }
         }
@@ -288,16 +285,21 @@ XrdMgmOfs::_rem (const char *path,
       {
         eos_info("unlinking from view %s", path);
         gOFS->eosView->unlinkFile(path);
+	// Reload file object that was modifed in the unlinkFile method
+	// TODO: this can be dropped if you use the unlinkFile which takes
+	// as argument the IFileMD object
+	fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+
         if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
         {
-          gOFS->eosView->removeFile(fmd);
+          gOFS->eosView->removeFile(fmd.get());
         }
 
         if (container)
-        {
-          container->setMTimeNow();
-          container->notifyMTimeChange(gOFS->eosDirectoryService);
-          eosView->updateContainerStore(container);
+        {        
+	  container->setMTimeNow();
+	  container->notifyMTimeChange( gOFS->eosDirectoryService );
+	  eosView->updateContainerStore(container.get());
         }
       }
       errno = 0;
@@ -305,25 +307,23 @@ XrdMgmOfs::_rem (const char *path,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                 e.getErrno(), e.getMessage().str().c_str());
-    };
+    }
   }
 
   if (doRecycle && (!simulate))
   {
     // Two-step deletion recycle logic
     XrdOucString recyclePath;
-    std::unique_ptr<eos::IFileMD> fmd_cpy{fmd->clone()};
-    fmd = (eos::IFileMD*)(0);
     gOFS->eosViewRWMutex.UnLockWrite();
     // -------------------------------------------------------------------------
     std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
 
     if (Quota::ExistsResponsible(recycle_space))
     {
-      if (!Quota::Check(recycle_space, fmd_cpy->getCUid(), fmd_cpy->getCGid(),
-			fmd_cpy->getSize(), fmd_cpy->getNumLocation()))
+      if (!Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
+			fmd->getSize(), fmd->getNumLocation()))
       {
         // This is the very critical case where we have to reject the delete
         // since the recycle space is full
@@ -339,8 +339,8 @@ XrdMgmOfs::_rem (const char *path,
         int rc = 0;
 
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
-                         &vid, fmd_cpy->getCUid(), fmd_cpy->getCGid(),
-                         fmd_cpy->getId());
+                         &vid, fmd->getCUid(), fmd->getCGid(),
+                         fmd->getId());
 
         if ((rc = lRecycle.ToGarbage(epname, error)))
           return rc;

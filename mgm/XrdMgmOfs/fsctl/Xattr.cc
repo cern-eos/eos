@@ -33,18 +33,12 @@
   MAYREDIRECT;
 
   gOFS->MgmStats.Add("Fuse-XAttr", vid.uid, vid.gid, 1);
-
   eos_thread_debug("cmd=xattr subcmd=%s path=%s", env.Get("mgm.subcmd"), spath.c_str());
-
   const char* sub_cmd;
   struct stat buf;
 
   // check if it is a file or directory ....
-  int retc = lstat(spath.c_str(),
-                   &buf,
-                   error,
-                   client,
-                   0);
+  int retc = lstat(spath.c_str(), &buf, error, client, 0);
 
   if (!retc && S_ISDIR(buf.st_mode))
   { //extended attributes for directories
@@ -131,16 +125,14 @@
   else if (!retc && S_ISREG(buf.st_mode))
   {
     // Extended attributes for files
-    std::unique_ptr<eos::IFileMD> fmd_cpy;
+    std::shared_ptr<eos::IFileMD> fmd;
 
     {
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
       try
       {
-        eos::IFileMD* fmd = gOFS->eosView->getFile(spath.c_str());
-        fmd_cpy.reset(fmd->clone());
-        fmd = static_cast<eos::IFileMD*>(0);
+	fmd = gOFS->eosView->getFile(spath.c_str());
       }
       catch (eos::MDException &e)
       {
@@ -201,34 +193,34 @@
           response += "0 ";
           response += "value=";
           response += eos::common::StringConversion::GetSizeString(sizestring,
-                                                                   (unsigned long long) fmd_cpy->getContainerId());
+                                                                   (unsigned long long) fmd->getContainerId());
         }
         else if (key.find("eos.fid") != STR_NPOS)
         {
           char fid[32];
           response += "0 ";
           response += "value=";
-          snprintf(fid, 32, "%llu", (unsigned long long) fmd_cpy->getId());
+          snprintf(fid, 32, "%llu", (unsigned long long) fmd->getId());
           response += fid;
         }
         else if (key.find("eos.XStype") != STR_NPOS)
         {
           response += "0 ";
           response += "value=";
-          response += eos::common::LayoutId::GetChecksumString(fmd_cpy->getLayoutId());
+          response += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
         }
         else if (key.find("eos.XS") != STR_NPOS)
         {
           response += "0 ";
           response += "value=";
           char hb[4];
-          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd_cpy->getLayoutId());
+          size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
           for (unsigned int i = 0; i < cxlen; i++)
           {
             if ((i + 1) == cxlen)
-              sprintf(hb, "%02x ", (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)));
+              sprintf(hb, "%02x ", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
             else
-              sprintf(hb, "%02x_", (unsigned char) (fmd_cpy->getChecksum().getDataPadded(i)));
+              sprintf(hb, "%02x_", (unsigned char) (fmd->getChecksum().getDataPadded(i)));
             response += hb;
           }
 
@@ -237,7 +229,7 @@
         {
           response += "0 ";
           response += "value=";
-          response += eos::common::LayoutId::GetLayoutTypeString(fmd_cpy->getLayoutId());
+          response += eos::common::LayoutId::GetLayoutTypeString(fmd->getLayoutId());
         }
 	else 
 	{

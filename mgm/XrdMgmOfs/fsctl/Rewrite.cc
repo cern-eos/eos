@@ -69,11 +69,11 @@
   if (!errno && fid)
   {
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
-    eos::IFileMD* fmd = 0;
+
     try
     {
-      fmd = gOFS->eosFileService->getFileMD(fid);
-      fullpath = gOFS->eosView->getUri(fmd);
+      std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(fid);
+      fullpath = gOFS->eosView->getUri(fmd.get());
       spath = fullpath.c_str();
     }
     catch (eos::MDException &e)

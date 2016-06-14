@@ -1095,22 +1095,25 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
       }
       // check if the fs is available
       bool isValid = false;
-      switch(type)
+      if(std::find(unavailableFs->begin(),unavailableFs->end(),*exrepIt) == unavailableFs->end() )
       {
-        case regularRO:
-        isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        case regularRW:
-        isValid = entry->foregroundFastStruct->rWAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        case draining:
-        isValid = entry->foregroundFastStruct->drnAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        case balancing:
-        isValid = entry->foregroundFastStruct->blcAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
-        break;
-        default:
-        break;
+        switch(type)
+        {
+          case regularRO:
+          isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rOAccessTree->pNodes[*idx].fsData,&freeSlot);
+          break;
+          case regularRW:
+          isValid = entry->foregroundFastStruct->rWAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->rWAccessTree->pNodes[*idx].fsData,&freeSlot);
+          break;
+          case draining:
+          isValid = entry->foregroundFastStruct->drnAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->drnAccessTree->pNodes[*idx].fsData,&freeSlot);
+          break;
+          case balancing:
+          isValid = entry->foregroundFastStruct->blcAccessTree->pBranchComp.isValidSlot(&entry->foregroundFastStruct->blcAccessTree->pNodes[*idx].fsData,&freeSlot);
+          break;
+          default:
+          break;
+        }
       }
       if(isValid)
       {
@@ -1953,7 +1956,8 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updates)
   return true;
 }
 
-bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsids, std::vector<std::string> *fsgeotags, std::vector<FsGroup*> *sortedgroups)
+bool GeoTreeEngine::getInfosFromFsIds(const std::vector<FileSystem::fsid_t> &fsids, std::vector<std::string> *fsgeotags,
+                                       std::vector<std::string> *hosts,std::vector<FsGroup*> *sortedgroups)
 {
   bool result = true;
   if(fsgeotags) fsgeotags->reserve(fsids.size());
@@ -1967,38 +1971,47 @@ bool GeoTreeEngine::getGroupsFromFsIds(const std::vector<FileSystem::fsid_t> fsi
     {
       if(pFs2TreeMapEntry.count(*it))
       {
-	FsGroup *group = pFs2TreeMapEntry[*it]->group;
-	if(fsgeotags)
-	{
-	  const SchedTreeBase::tFastTreeIdx *idx=NULL;
-	  if(pFs2TreeMapEntry[*it]->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
-	  fsgeotags->push_back(
-	      (*pFs2TreeMapEntry[*it]->foregroundFastStruct->treeInfo)[*idx].fullGeotag
-	  );
-	  else
-	  fsgeotags->push_back("");
-	}
-	if(sortedgroups)
-	{
-	  if(!group2idx.count(group))
-	  {
-	    group2idx[group] = group2idx.size();
-	    sortedgroups->push_back(group);
-	    groupcount.push_back(make_pair(1,groupcount.size()));
-	  }
-	  else
-	  {
-	    size_t idx = group2idx[group];
-	    groupcount[idx].first++;
-	  }
-	}
+        FsGroup *group = pFs2TreeMapEntry[*it]->group;
+        if(fsgeotags || hosts)
+        {
+          const SchedTreeBase::tFastTreeIdx *idx=NULL;
+          if(pFs2TreeMapEntry[*it]->foregroundFastStruct->fs2TreeIdx->get(*it,idx))
+          {
+            if(fsgeotags) fsgeotags->push_back(
+                (*pFs2TreeMapEntry[*it]->foregroundFastStruct->treeInfo)[*idx].fullGeotag
+            );
+            if(hosts) hosts->push_back(
+                (*pFs2TreeMapEntry[*it]->foregroundFastStruct->treeInfo)[*idx].host
+            );
+          }
+          else
+          {
+            if(fsgeotags) fsgeotags->push_back("");
+            if(hosts) hosts->push_back("");
+          }
+        }
+        if(sortedgroups)
+        {
+          if(!group2idx.count(group))
+          {
+            group2idx[group] = group2idx.size();
+            sortedgroups->push_back(group);
+            groupcount.push_back(make_pair(1,groupcount.size()));
+          }
+          else
+          {
+            size_t idx = group2idx[group];
+            groupcount[idx].first++;
+          }
+        }
       }
       else
       {
-	// put an empty entry in the result vector to preserve the indexing
-	fsgeotags->push_back("");
-	// to signal that one of the fsids was not mapped to a group
-	result = false;
+        // put an empty entry in the result vector to preserve the indexing
+        if(fsgeotags) fsgeotags->push_back("");
+        if(hosts) hosts->push_back("");
+        // to signal that one of the fsids was not mapped to a group
+        result = false;
       }
     }
   }

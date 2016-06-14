@@ -886,7 +886,7 @@ client_admin_command (XrdOucString & in)
       status = client->Read(offset, 4096, buffer, nbytes);
     }
 
-    client->Close();
+    (void) client->Close();
     TIMING("stop", &mytiming);
 
     delete client;
@@ -958,7 +958,7 @@ client_user_command (XrdOucString & in)
       status = client->Read(offset, 4096, buffer, nbytes);
     }
 
-    client->Close();
+    (void) client->Close();
     TIMING("stop", &mytiming);
 
     delete client;

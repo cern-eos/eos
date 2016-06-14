@@ -848,11 +848,9 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
 
   unsigned long long fid = strtoull(key, 0, 16);
 
-  //...........................................................................
   // convert the hex inode number into decimal and retrieve path name
-  //...........................................................................
-  eos::IFileMD* fmd = 0;
-  eos::IContainerMD* cmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
   std::string recyclepath;
   XrdOucString repath;
 
@@ -862,7 +860,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     try
     {
       fmd = gOFS->eosFileService->getFileMD(fid);
-      recyclepath = gOFS->eosView->getUri(fmd);
+      recyclepath = gOFS->eosView->getUri(fmd.get());
       repath = recyclepath.c_str();
     }
     catch (eos::MDException &e)
@@ -877,7 +875,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
       try
       {
         cmd = gOFS->eosDirectoryService->getContainerMD(fid);
-        recyclepath = gOFS->eosView->getUri(cmd);
+        recyclepath = gOFS->eosView->getUri(cmd.get());
         repath = recyclepath.c_str();
       }
       catch (eos::MDException &e)
@@ -894,13 +892,10 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
 
   // reconstruct original file name
   eos::common::Path cPath(recyclepath.c_str());
-
   XrdOucString originalpath = cPath.GetName();
 
-  // demangle path
-  while (originalpath.replace("#:#", "/"))
-  {
-  }
+  // Demangle path
+  while (originalpath.replace("#:#", "/")) { }
 
   if (originalpath.endswith(Recycle::gRecyclingPostFix.c_str()))
   {
@@ -911,8 +906,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
     originalpath.erase(originalpath.length() - 16 - 1);
   }
 
-
-  // check that this is a path to recycle
+  // Check that this is a path to recycle
   if (!repath.beginswith(Recycle::gRecyclingPrefix.c_str()))
   {
     stdErr = "error: referenced object cannot be recycled\n";
@@ -920,8 +914,7 @@ Recycle::Restore (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mappi
   }
 
   eos::common::Path oPath(originalpath.c_str());
-
-  // check if the client is the owner of the object to recycle
+  // Check if the client is the owner of the object to recycle
   struct stat buf;
   XrdOucErrInfo lError;
 

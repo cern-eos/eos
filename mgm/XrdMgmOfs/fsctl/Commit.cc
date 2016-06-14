@@ -169,8 +169,8 @@
     }
 
     // get the file meta data if exists
-    eos::IFileMD *fmd = 0;
-    eos::IContainerMD *cmd = 0;
+    std::shared_ptr<eos::IFileMD> fmd;
+    std::shared_ptr<eos::IContainerMD> cmd;
     eos::IContainerMD::id_t cid = 0;
     std::string fmdname;
 
@@ -263,7 +263,7 @@
                 fmd->removeLocation((unsigned short) fsid);
                 try
                 {
-                  gOFS->eosView->updateFileStore(fmd);
+                  gOFS->eosView->updateFileStore(fmd.get());
                 }
                 catch (eos::MDException &e)
                 {
@@ -301,7 +301,7 @@
                 fmd->removeLocation((unsigned short) fsid);
                 try
                 {
-                  gOFS->eosView->updateFileStore(fmd);
+                  gOFS->eosView->updateFileStore(fmd.get());
                 }
                 catch (eos::MDException &e)
                 {
@@ -354,13 +354,13 @@
         {
 	  eos::common::Path eos_path {spath};
 	  std::string dir_path = eos_path.GetParentPath();
-	  eos::IContainerMD* dir = 0;
+	  std::shared_ptr<eos::IContainerMD> dir;
 
           try
           {
             dir = eosView->getContainer(dir_path);
             // Get symlink free dir
-            dir_path = eosView->getUri(dir);
+            dir_path = eosView->getUri(dir.get());
             dir = eosView->getContainer(dir_path);
           }
           catch (eos::MDException& e)
@@ -370,11 +370,11 @@
             return Emsg(epname, error, EIDRM, "commit file, parent contrainer removed [EIDRM]", "");
           }
 
-          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir);
+          eos::IQuotaNode* ns_quota = eosView->getQuotaNode(dir.get());
 
 	  // Free previous quota
           if (ns_quota)
-	    ns_quota->removeFile(fmd);
+	    ns_quota->removeFile(fmd.get());
 
           fmd->addLocation(fsid);
 
@@ -403,7 +403,7 @@
           }
 
           if (ns_quota)
-            ns_quota->addFile(fmd);
+            ns_quota->addFile(fmd.get());
         }
 
         if (occhunk && commitsize)
@@ -456,15 +456,15 @@
         eos_thread_debug("commit: setting size to %llu", fmd->getSize());
         try
         {
-          gOFS->eosView->updateFileStore(fmd);
+	  gOFS->eosView->updateFileStore(fmd.get());
 	  cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	  
 	  if (isUpdate)
 	  {
 	    // update parent mtime
 	    cmd->setMTimeNow();
-	    gOFS->eosView->updateContainerStore(cmd);
-	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
+	    gOFS->eosView->updateContainerStore(cmd.get());
+	    cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 	  }
         }
         catch (eos::MDException &e)
@@ -495,20 +495,21 @@
       if ((commitsize) && (fmdname != atomic_path.GetName()) && ((!occhunk) || (occhunk && ocdone)))
       {
         eos_thread_info("commit: de-atomize file %s => %s", fmdname.c_str(), atomic_path.GetName());
-        eos::IContainerMD* dir = 0;
-        eos::IContainerMD* versiondir = 0;
+	std::shared_ptr<eos::IContainerMD> dir;
+	std::shared_ptr<eos::IContainerMD> versiondir;
         XrdOucString versionedname = "";
-
-
         unsigned long long vfid = 0;
+
         {
           eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-          eos::IFileMD* versionfmd = 0;
+	  std::shared_ptr<eos::IFileMD> versionfmd;
+
           try
           {
-            dname = gOFS->eosView->getUri(fmd);
+            dname = gOFS->eosView->getUri(fmd.get());
             eos::common::Path dPath(dname.c_str());
             dname = dPath.GetParentPath();
+
             if (isVersioning)
             {
               versionfmd = gOFS->eosView->getFile(dname + atomic_path.GetPath());
@@ -527,9 +528,12 @@
         if (isVersioning)
         {
           eos_static_info("checked  %s%s vfid=%llu", dname.c_str(), atomic_path.GetPath(), vfid);
-          // we purged the versions before during open, so we just simulate a new one and do the final rename in a transaction
+          // We purged the versions before during open, so we just simulate a new
+	  // one and do the final rename in a transaction
           if (vfid)
+	  {
             gOFS->Version(vfid, error, rootvid, 0xffff, &versionedname, true);
+	  }
         }
 
         eos::common::Path version_path(versionedname.c_str());
@@ -542,7 +546,7 @@
             fmd = gOFS->eosFileService->getFileMD(fid);
             if (isVersioning)
             {
-              eos::IFileMD* versionfmd = 0;
+	      std::shared_ptr<eos::IFileMD> versionfmd;
               try
               {
                 versiondir = eosView->getContainer(version_path.GetParentPath());
@@ -551,9 +555,9 @@
                 dir->removeFile(atomic_path.GetName());
                 versionfmd->setName(version_path.GetName());
                 versionfmd->setContainerId(versiondir->getId());
-                versiondir->addFile(versionfmd);
+     	        versiondir->addFile(versionfmd.get());
 		versiondir->setMTimeNow();
-                eosView->updateFileStore(versionfmd);
+                eosView->updateFileStore(versionfmd.get());
               }
               catch (eos::MDException &e)
               {
@@ -563,7 +567,8 @@
               }
               // move to a new directory
             }
-            eos::IFileMD* pfmd = 0;
+
+	    std::shared_ptr<eos::IFileMD> pfmd;
             // rename the temporary upload path to the final path
             if ((pfmd = dir->findFile(atomic_path.GetName())))
             {
@@ -573,35 +578,36 @@
               delete_path = fmd->getName();
               delete_path += ".delete";
               eos_thread_info("msg=\"delete path\" %s", delete_path.c_str());
-              eosView->renameFile(pfmd, delete_path);
+              eosView->renameFile(pfmd.get(), delete_path);
             }
             else
             {
               eos_thread_info("msg=\"didn't find path\" %s", atomic_path.GetName());
             }
-            eosView->renameFile(fmd, atomic_path.GetName());
-            eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s final-name=%s", fmd->getId(), fmd->getName().c_str(), atomic_path.GetName());
+
+  	    eosView->renameFile(fmd.get(), atomic_path.GetName());
+            eos_thread_info("msg=\"de-atomize file\" fid=%llu atomic-name=%s "
+			    "final-name=%s", fmd->getId(), fmd->getName().c_str(),
+			    atomic_path.GetName());
           }
           catch (eos::MDException &e)
           {
+            delete_path = "";
             errno = e.getErrno();
             std::string errmsg = e.getMessage().str();
             eos_thread_err("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                            e.getErrno(), e.getMessage().str().c_str());
-            delete_path = "";
           }
         }
       }
 
-      // if there was a previous target file we have to delete the renamed
+      // If there was a previous target file we have to delete the renamed
       // atomic left-over
       if (delete_path.length())
       {
         delete_path.insert(0, dname.c_str());
-        if (gOFS->_rem(delete_path.c_str(),
-                       error,
-                       rootvid,
-                       ""))
+
+        if (gOFS->_rem(delete_path.c_str(), error, rootvid, ""))
         {
           eos_thread_err("msg=\"failed to remove atomic left-over\" path=%s",
                          delete_path.c_str());

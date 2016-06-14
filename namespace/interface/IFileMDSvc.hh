@@ -94,6 +94,7 @@ class IFileMDChangeListener
   virtual ~IFileMDChangeListener() {}
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
+  virtual bool fileMDCheck(IFileMD* obj) = 0;
 };
 
 //----------------------------------------------------------------------------
@@ -128,7 +129,7 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Configure the file service
   //------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config) = 0;
+  virtual void configure(const std::map<std::string, std::string>& config) = 0;
 
   //------------------------------------------------------------------------
   //! Finalize the file service
@@ -138,13 +139,13 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //------------------------------------------------------------------------
-  virtual IFileMD* getFileMD(IFileMD::id_t id) = 0;
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id) = 0;
 
   //------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id, the user has
   //! to fill all the remaining fields
   //------------------------------------------------------------------------
-  virtual IFileMD* createFile() = 0;
+  virtual std::shared_ptr<IFileMD> createFile() = 0;
 
   //------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the IFileMD object
@@ -165,12 +166,7 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Get number of files
   //------------------------------------------------------------------------
-  virtual uint64_t getNumFiles() const = 0;
-
-  //------------------------------------------------------------------------
-  //! Visit all the files
-  //------------------------------------------------------------------------
-  virtual void visit(IFileVisitor* visitor) = 0;
+  virtual uint64_t getNumFiles() = 0;
 
   //------------------------------------------------------------------------
   //! Add file listener that will be notified about all of the changes in
@@ -193,7 +189,12 @@ class IFileMDSvc
   //----------------------------------------------------------------------------
   //! Set container service
   //----------------------------------------------------------------------------
-  virtual void setContainerService(IContainerMDSvc* cont_svc) = 0;
+  virtual void setContMDService(IContainerMDSvc* cont_svc) = 0;
+
+  //------------------------------------------------------------------------
+  //! Visit all the files
+  //------------------------------------------------------------------------
+  virtual void visit( IFileVisitor *visitor ) = 0;
 };
 
 EOSNSNAMESPACE_END

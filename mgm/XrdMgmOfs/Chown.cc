@@ -62,8 +62,8 @@ XrdMgmOfs::_chown (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  eos::IContainerMD* cmd = 0;
-  eos::IFileMD* fmd = 0;
+  std::shared_ptr<eos::IContainerMD> cmd;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
   eos_info("path=%s uid=%u gid=%u", path, uid, gid);
@@ -72,15 +72,14 @@ XrdMgmOfs::_chown (const char *path,
   try
   {
     eos::IContainerMD::XAttrMap attrmap;
-
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path);
-    eos::common::Path pPath(gOFS->eosView->getUri(cmd).c_str());
+    eos::common::Path pPath(gOFS->eosView->getUri(cmd.get()).c_str());
     eos::IContainerMD::XAttrMap::const_iterator it;
     // ACL and permission check
     Acl acl(pPath.GetParentPath(), error, vid, attrmap, false);
-
     cmd = gOFS->eosView->getContainer(path);
+
     if (((vid.uid) && (!eos::common::Mapping::HasUid(3, vid) &&
         !eos::common::Mapping::HasGid(4, vid)) &&
         !acl.CanChown()) ||
@@ -93,23 +92,25 @@ XrdMgmOfs::_chown (const char *path,
     {
       if ( (unsigned int) uid != 0xffffffff) 
       {
-	// change the owner
+	// Change the owner
 	cmd->setCUid(uid);
       }
+
       if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) && ( (unsigned int)gid != 0xffffffff))
       {
-        // change the group
+        // Change the group
         cmd->setCGid(gid);
       }
+
       cmd->setCTimeNow();
-      eosView->updateContainerStore(cmd);
+      eosView->updateContainerStore(cmd.get());
       errno = 0;
     }
   }
   catch (eos::MDException &e)
   {
     errno = e.getErrno();
-  };
+  }
 
   if (!cmd)
   {
@@ -120,9 +121,9 @@ XrdMgmOfs::_chown (const char *path,
       eos::common::Path cPath(path);
       cmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       // Translate to path without symlinks
-      std::string uri_cmd = eosView->getUri(cmd);
+      std::string uri_cmd = eosView->getUri(cmd.get());
       cmd = eosView->getContainer(uri_cmd);
-      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd);
+      eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
       if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4))
       {
@@ -134,7 +135,7 @@ XrdMgmOfs::_chown (const char *path,
 
         // Substract the file
         if (ns_quota)
-          ns_quota->removeFile(fmd);
+          ns_quota->removeFile(fmd.get());
 
 	// Change the owner
 	if ( (unsigned int) uid != 0xffffffff) 
@@ -146,10 +147,10 @@ XrdMgmOfs::_chown (const char *path,
 
         // Re-add the file
         if (ns_quota)
-          ns_quota->addFile(fmd);
+          ns_quota->addFile(fmd.get());
 
         fmd->setCTimeNow();
-        eosView->updateFileStore(fmd);
+        eosView->updateFileStore(fmd.get());
       }
     }
     catch (eos::MDException &e)

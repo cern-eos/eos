@@ -40,7 +40,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Configure the view
   //----------------------------------------------------------------------------
-  void HierarchicalView::configure( std::map<std::string, std::string> &config )
+  void HierarchicalView::configure( const std::map<std::string, std::string> &config )
   {
     if( !pContainerSvc )
     {
@@ -84,7 +84,7 @@ namespace eos
       pRoot = pContainerSvc->createContainer();
       pRoot->setParentId( pRoot->getId() );
       if (!static_cast<ChangeLogContainerMDSvc*>(pContainerSvc)->getSlaveMode())
-	pContainerSvc->updateStore( pRoot );
+	pContainerSvc->updateStore( pRoot.get() );
     }
   }
 
@@ -99,7 +99,6 @@ namespace eos
     // Scan all the files to reattach them to containers - THIS SHOULD NOT
     // BE DONE! THE INFO NEEDS TO BE STORED WITH CONTAINERS
     //--------------------------------------------------------------------------
-
     FileVisitor visitor( pContainerSvc, pQuotaStats, this );
     pFileSvc->visit( &visitor );
   }
@@ -118,8 +117,8 @@ namespace eos
   //----------------------------------------------------------------------------
   // Retrieve a file for given uri
   //----------------------------------------------------------------------------
-  IFileMD *HierarchicalView::getFile( const std::string &uri, bool follow,
-                                      size_t* link_depths )
+  std::shared_ptr<IFileMD>
+  HierarchicalView::getFile(const std::string &uri, bool follow, size_t* link_depths)
   {
     char uriBuffer[uri.length()+1];
     strcpy( uriBuffer, uri.c_str() );
@@ -135,8 +134,8 @@ namespace eos
 
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;    
-    IContainerMD *cont = findLastContainer(elements, elements.size()-1,
-                                           position, link_depths);
+    std::shared_ptr<IContainerMD>cont = findLastContainer
+      (elements, elements.size() - 1, position, link_depths);
 
     if( position != elements.size()-1 )
     {
@@ -145,7 +144,7 @@ namespace eos
       throw e;
     }
 
-    IFileMD *file = cont->findFile( elements[position] );
+    std::shared_ptr<IFileMD> file = cont->findFile( elements[position] );
     
     if( !file )
     {
@@ -171,7 +170,7 @@ namespace eos
 	std::string link = file->getLink();
 	if (link[0] != '/')
 	{
-	  link.insert(0, getUri(cont));
+	  link.insert(0, getUri(cont.get()));
 	  absPath(link);
 	}
 	return getFile(link, true, link_depths);
@@ -184,7 +183,7 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a file for given uri
   //----------------------------------------------------------------------------
-  IFileMD*
+  std::shared_ptr<IFileMD>
   HierarchicalView::createFile( const std::string &uri, uid_t uid, gid_t gid )
   {
 
@@ -201,8 +200,8 @@ namespace eos
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;
-    IContainerMD *cont = findLastContainer(elements, elements.size()-1,
-                                           position);
+    std::shared_ptr<IContainerMD> cont = findLastContainer
+      (elements, elements.size()-1, position);
 
     if( position != elements.size()-1 )
     {
@@ -226,7 +225,7 @@ namespace eos
       throw e;
     }
 
-    IFileMD *file = pFileSvc->createFile();
+    std::shared_ptr<IFileMD> file = pFileSvc->createFile();
     
     if( !file )
     {
@@ -235,30 +234,29 @@ namespace eos
       throw e;
     }
 
-    file->setName( elements[position] );
-    file->setCUid( uid );
-    file->setCGid( gid );
+    file->setName(elements[position]);
+    file->setCUid(uid);
+    file->setCGid(gid);
     file->setCTimeNow();
     file->setMTimeNow();
     file->clearChecksum(0);
-    cont->addFile( file );
-    pFileSvc->updateStore( file );
-
+    cont->addFile(file.get());
+    pFileSvc->updateStore(file.get());
     return file;
   }
 
-  //------------------------------------------------------------------------                                                                                                                
-  //! Create a link for given uri                                                                                                                                                           
-  //------------------------------------------------------------------------                                                                                                                
+  //------------------------------------------------------------------------
+  //! Create a link for given uri
+  //------------------------------------------------------------------------
   void HierarchicalView::createLink( const std::string &uri,
 				     const std::string &linkuri,
 				     uid_t uid, gid_t gid )
   {
-    IFileMD *file = createFile(uri, uid, gid);
+    std::shared_ptr<IFileMD> file = createFile(uri, uid, gid);
 
     if (file) {
       file->setLink(linkuri);
-      pFileSvc->updateStore( file );
+      pFileSvc->updateStore(file.get());
     }
   }
 
@@ -267,7 +265,20 @@ namespace eos
   //----------------------------------------------------------------------------
   void HierarchicalView::removeLink( const std::string &uri )
   {
-    return unlinkFile ( uri );
+    return unlinkFile(uri);
+  }
+
+  //----------------------------------------------------------------------------
+  // Unlink the file
+  //----------------------------------------------------------------------------
+  void HierarchicalView::unlinkFile(eos::IFileMD* file)
+  {
+    std::shared_ptr<IContainerMD> cont =
+      pContainerSvc->getContainerMD(file->getContainerId());
+    cont->removeFile(file->getName());
+    file->setContainerId(0);
+    file->unlinkAllLocations();
+    pFileSvc->updateStore(file);
   }
 
   //----------------------------------------------------------------------------
@@ -280,8 +291,8 @@ namespace eos
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position;
-    IContainerMD *cont = findLastContainer(elements, elements.size()-1,
-                                           position);
+    std::shared_ptr<IContainerMD> cont = findLastContainer
+      (elements, elements.size() - 1, position);
 
     if( position != elements.size()-1 )
     {
@@ -290,7 +301,7 @@ namespace eos
       throw e;
     }
 
-    IFileMD *file = cont->findFile( elements[position] );
+    std::shared_ptr<IFileMD> file = cont->findFile( elements[position] );
 
     if( !file )
     {
@@ -299,10 +310,10 @@ namespace eos
       throw e;
     }
 
-    cont->removeFile( file->getName() );
-    file->setContainerId( 0 );
+    cont->removeFile(file->getName());
+    file->setContainerId(0);
     file->unlinkAllLocations();
-    pFileSvc->updateStore( file );
+    pFileSvc->updateStore(file.get());
   }
 
   //----------------------------------------------------------------------------
@@ -323,17 +334,19 @@ namespace eos
 
     if( file->getContainerId() != 0 )
     {
-      IContainerMD *cont = pContainerSvc->getContainerMD( file->getContainerId() );
+      std::shared_ptr<IContainerMD> cont =
+	pContainerSvc->getContainerMD( file->getContainerId() );
       cont->removeFile( file->getName() );
     }
-    pFileSvc->removeFile( file );
+    pFileSvc->removeFile(file);
   }
 
   //----------------------------------------------------------------------------
   // Get a container (directory)
   //----------------------------------------------------------------------------
-  IContainerMD *HierarchicalView::getContainer( const std::string &uri,
-                                                bool follow, size_t* link_depths)
+  std::shared_ptr<IContainerMD>
+  HierarchicalView::getContainer(const std::string &uri,
+				 bool follow, size_t* link_depths)
   {
     if( uri == "/" )
       return pRoot;
@@ -352,7 +365,7 @@ namespace eos
     std::vector<char*> elements;
     eos::PathProcessor::splitPath( elements, uriBuffer );
     size_t position = 0;
-    IContainerMD *cont = 0;
+    std::shared_ptr<IContainerMD> cont;
 
     if (follow)  
     {
@@ -381,12 +394,10 @@ namespace eos
   //----------------------------------------------------------------------------
   // Create a container (directory) 
   //----------------------------------------------------------------------------
-  IContainerMD *HierarchicalView::createContainer(const std::string &uri,
-                                                  bool createParents)
+  std::shared_ptr<IContainerMD>
+  HierarchicalView::createContainer(const std::string &uri, bool createParents)
   {
-    //--------------------------------------------------------------------------
     // Split the path
-    //--------------------------------------------------------------------------
     if( uri == "/" )
     {
       MDException e( EEXIST );
@@ -406,12 +417,10 @@ namespace eos
       throw e;
     }
 
-    //--------------------------------------------------------------------------
     // Look for the last existing container
-    //--------------------------------------------------------------------------
     size_t position;
-    IContainerMD *lastContainer = findLastContainer( elements, elements.size(),
-                                                    position );
+    std::shared_ptr<IContainerMD> lastContainer = findLastContainer
+      (elements, elements.size(), position);
 
     if( position == elements.size() )
     {
@@ -442,12 +451,12 @@ namespace eos
     //--------------------------------------------------------------------------
     for( size_t i = position; i < elements.size(); ++i )
     {
-      IContainerMD *newContainer = pContainerSvc->createContainer();
-      newContainer->setName( elements[i] );
+      std::shared_ptr<IContainerMD> newContainer = pContainerSvc->createContainer();
+      newContainer->setName(elements[i]);
       newContainer->setCTimeNow();
-      lastContainer->addContainer( newContainer );
+      lastContainer->addContainer(newContainer.get());
       lastContainer = newContainer;
-      pContainerSvc->updateStore( lastContainer );
+      pContainerSvc->updateStore(lastContainer.get());
     }
 
     return lastContainer;
@@ -475,7 +484,7 @@ namespace eos
     eos::PathProcessor::splitPath( elements, uriBuffer );
 
     size_t position;
-    IContainerMD *parent = findLastContainer( elements, elements.size()-1, position );
+    std::shared_ptr<IContainerMD> parent = findLastContainer( elements, elements.size()-1, position );
     if( (position != (elements.size()-1)) )
     {
       MDException e( ENOENT );
@@ -486,7 +495,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Check if the container exist and remove it
     //--------------------------------------------------------------------------
-    IContainerMD *cont = parent->findContainer( elements[elements.size()-1] );
+    std::shared_ptr<IContainerMD> cont = parent->findContainer( elements[elements.size()-1] );
     if( !cont )
     {
       MDException e( ENOENT );
@@ -505,22 +514,23 @@ namespace eos
     parent->removeContainer( cont->getName() );
 
     if( recursive )
-      cleanUpContainer( cont );
+      cleanUpContainer( cont.get() );
 
-    pContainerSvc->removeContainer( cont );
+    pContainerSvc->removeContainer( cont.get() );
 
   }
 
   //----------------------------------------------------------------------------
   // Find the last existing container in the path
   //----------------------------------------------------------------------------
-  IContainerMD *HierarchicalView::findLastContainer( std::vector<char*> &elements,
-                                                     size_t end, size_t &index,
-                                                     size_t* link_depths)
+  std::shared_ptr<IContainerMD>
+  HierarchicalView::findLastContainer(std::vector<char*> &elements,
+				      size_t end, size_t &index,
+				      size_t* link_depths)
   {
-    IContainerMD *current  = pRoot;
-    IContainerMD *found    = 0;
-    size_t       position = 0;
+    std::shared_ptr<IContainerMD> current  = pRoot;
+    std::shared_ptr<IContainerMD> found;
+    size_t position = 0;
 
     while( position < end )
     {
@@ -528,7 +538,7 @@ namespace eos
       if( !found )
       {
 	// check if link 
-	IFileMD* flink = current->findFile ( elements[position] );
+	std::shared_ptr<IFileMD> flink = current->findFile ( elements[position] );
 	if ( flink ) {
 	  if ( flink->isLink() ) 
 	  {
@@ -547,7 +557,7 @@ namespace eos
 	    std::string link = flink->getLink();
 	    if (link[0] != '/')
 	    {
-	      link.insert(0,getUri(current));
+	      link.insert(0, getUri(current.get()));
 	      absPath(link);
 	    }
 	    found = getContainer( link , false, link_depths);
@@ -578,7 +588,7 @@ namespace eos
   //----------------------------------------------------------------------------
   void HierarchicalView::cleanUpContainer( IContainerMD *cont )
   {
-    (void) cont->cleanUp(pContainerSvc, pFileSvc);
+    (void) cont->cleanUp();
   }
 
   //----------------------------------------------------------------------------
@@ -589,9 +599,10 @@ namespace eos
     if( file->getContainerId() == 0 )
       return;
 
-    IContainerMD *cont = 0;
+    std::shared_ptr<IContainerMD> cont;
     try {
-      cont = pContSvc->getContainerMD( file->getContainerId() ); }
+      cont = pContSvc->getContainerMD( file->getContainerId() );
+    }
     catch( MDException &e ) {}
 
     if( !cont )
@@ -600,7 +611,7 @@ namespace eos
     //--------------------------------------------------------------------------
     // Update quota stats
     //--------------------------------------------------------------------------
-    IQuotaNode *node = pView->getQuotaNode( cont );
+    IQuotaNode *node = pView->getQuotaNode( cont.get() );
     if( node )
       node->addFile( file );
   }
@@ -629,7 +640,7 @@ namespace eos
     while( cursor->getId() != 1 )
     {
       elements.push_back( cursor->getName() );
-      cursor = pContainerSvc->getContainerMD( cursor->getParentId() );
+      cursor = pContainerSvc->getContainerMD( cursor->getParentId() ).get();
     }
 
     //--------------------------------------------------------------------------
@@ -663,8 +674,8 @@ namespace eos
     //--------------------------------------------------------------------------
     // Get the uri
     //--------------------------------------------------------------------------
-    std::string path = getUri( pContainerSvc->getContainerMD(
-                                                    file->getContainerId() ) );
+    std::string path = getUri(
+      pContainerSvc->getContainerMD(file->getContainerId()).get());
     return path+file->getName();
   }
 
@@ -698,8 +709,8 @@ namespace eos
 
     if (search)
     {
-      while( current != pRoot && (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
-        current = pContainerSvc->getContainerMD( current->getParentId() );
+      while( current != pRoot.get() && (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+        current = pContainerSvc->getContainerMD(current->getParentId()).get();
     }
 
     //--------------------------------------------------------------------------
@@ -787,9 +798,9 @@ namespace eos
     //--------------------------------------------------------------------------
     IQuotaNode *node   = getQuotaNode( container );
     IQuotaNode *parent = 0;
-    if( container != pRoot )
-      parent = getQuotaNode( pContainerSvc->getContainerMD( container->getParentId() ),
-                             true );
+    if( container != pRoot.get() )
+      parent = getQuotaNode(pContainerSvc->getContainerMD(container->getParentId()).get(),
+			    true);
 
     container->getFlags() &= ~QUOTA_NODE_FLAG;
     updateContainerStore( container );
@@ -833,7 +844,7 @@ namespace eos
       throw ex;
     }
 
-    IContainerMD *parent = pContainerSvc->getContainerMD( container->getParentId() );
+    std::shared_ptr<IContainerMD> parent = pContainerSvc->getContainerMD( container->getParentId() );
     if( parent->findContainer( newName ) )
     {
       MDException ex;
@@ -880,7 +891,7 @@ namespace eos
       throw ex;
     }
 
-    IContainerMD *parent = pContainerSvc->getContainerMD( file->getContainerId() );
+    std::shared_ptr<IContainerMD> parent = pContainerSvc->getContainerMD( file->getContainerId() );
     if( parent->findContainer( newName ) )
     {
       MDException ex;

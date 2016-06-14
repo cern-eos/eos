@@ -54,7 +54,6 @@
 #include "common/Timing.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <stdio.h>
 /*----------------------------------------------------------------------------*/

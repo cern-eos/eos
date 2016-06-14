@@ -50,7 +50,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByUser(uid_t uid) throw(MDException)
+  uint64_t getUsedSpaceByUser(uid_t uid)
   {
     return pUserUsage[uid].space;
   }
@@ -58,7 +58,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getUsedSpaceByGroup(gid_t gid) throw(MDException)
+  uint64_t getUsedSpaceByGroup(gid_t gid)
   {
     return pGroupUsage[gid].space;
   }
@@ -66,7 +66,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByUser(uid_t uid) throw(MDException)
+  uint64_t getPhysicalSpaceByUser(uid_t uid)
   {
     return pUserUsage[uid].physicalSpace;
   }
@@ -74,7 +74,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getPhysicalSpaceByGroup(gid_t gid) throw(MDException)
+  uint64_t getPhysicalSpaceByGroup(gid_t gid)
   {
     return pGroupUsage[gid].physicalSpace;
   }
@@ -82,7 +82,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByUser(uid_t uid) throw(MDException)
+  uint64_t getNumFilesByUser(uid_t uid)
   {
     return pUserUsage[uid].files;
   }
@@ -90,7 +90,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Get the amount of space occupied by the given group
   //----------------------------------------------------------------------------
-  uint64_t getNumFilesByGroup(gid_t gid) throw(MDException)
+  uint64_t getNumFilesByGroup(gid_t gid)
   {
     return pGroupUsage[gid].files;
   }
@@ -98,7 +98,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Change the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  void changeSpaceUser(uid_t uid, int64_t delta) throw(MDException)
+  void changeSpaceUser(uid_t uid, int64_t delta)
   {
     pUserUsage[uid].space += delta;
   }
@@ -106,7 +106,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Change the amount of space occpied by the given group
   //----------------------------------------------------------------------------
-  void changeSpaceGroup(gid_t gid, int64_t delta) throw(MDException)
+  void changeSpaceGroup(gid_t gid, int64_t delta)
   {
     pGroupUsage[gid].space += delta;
   }
@@ -114,7 +114,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Change the amount of space occupied by the given user
   //----------------------------------------------------------------------------
-  void changePhysicalSpaceUser(uid_t uid, int64_t delta) throw(MDException)
+  void changePhysicalSpaceUser(uid_t uid, int64_t delta)
   {
     pUserUsage[uid].physicalSpace += delta;
   }
@@ -122,7 +122,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Change the amount of space occpied by the given group
   //----------------------------------------------------------------------------
-  void changePhysicalSpaceGroup(gid_t gid, int64_t delta) throw(MDException)
+  void changePhysicalSpaceGroup(gid_t gid, int64_t delta)
   {
     pGroupUsage[gid].physicalSpace += delta;
   }
@@ -130,7 +130,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Change the number of files owned by the given user
   //----------------------------------------------------------------------------
-  uint64_t changeNumFilesUser(uid_t uid, uint64_t delta) throw(MDException)
+  uint64_t changeNumFilesUser(uid_t uid, uint64_t delta)
   {
     return pUserUsage[uid].files += delta;
   }
@@ -138,7 +138,7 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   //! Change the number of files owned by the given group
   //----------------------------------------------------------------------------
-  uint64_t changeNumFilesGroup(gid_t gid, uint64_t delta) throw(MDException)
+  uint64_t changeNumFilesGroup(gid_t gid, uint64_t delta)
   {
     return pGroupUsage[gid].files += delta;
   }
@@ -158,6 +158,24 @@ class QuotaNode: public IQuotaNode
   //----------------------------------------------------------------------------
   void meld(const IQuotaNode* node);
 
+  //----------------------------------------------------------------------------
+  //! Get the set of uids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of uids
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long> getUids();
+
+  //----------------------------------------------------------------------------
+  //! Get the set of gids for which information is stored in the current quota
+  //! node.
+  //!
+  //! @return set of gids
+  //----------------------------------------------------------------------------
+  std::vector<unsigned long> getGids();
+
+  UserMap pUserUsage;
+  GroupMap pGroupUsage;
 };
 
 //----------------------------------------------------------------------------
@@ -177,6 +195,14 @@ class QuotaStats: public IQuotaStats
   virtual ~QuotaStats();
 
   //----------------------------------------------------------------------------
+  //! Get the set of all quota node ids. The quota node id corresponds to the
+  //! container id.
+  //!
+  //! @return set of quota node ids
+  //----------------------------------------------------------------------------
+  std::set<std::string> getAllIds();
+
+  //----------------------------------------------------------------------------
   //! Get a quota node associated to the container id
   //----------------------------------------------------------------------------
   IQuotaNode* getQuotaNode(IContainerMD::id_t nodeId);
@@ -190,6 +216,9 @@ class QuotaStats: public IQuotaStats
   //! Remove quota node
   //----------------------------------------------------------------------------
   void removeNode(IContainerMD::id_t nodeId) throw(MDException);
+
+private:
+  std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
 };
 
 EOSNSNAMESPACE_END

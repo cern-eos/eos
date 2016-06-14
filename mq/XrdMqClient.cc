@@ -82,7 +82,7 @@ XrdMqClient::XrdMqClient(const char* clientid, const char* brokerurl,
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
 
-  if (!AddBroker(brokerurl))
+  if (brokerurl && !AddBroker(brokerurl))
   {
     fprintf(stderr, "error: [XrdMqClient] cannot add broker %s\n", brokerurl);
   }

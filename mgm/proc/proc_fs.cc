@@ -89,10 +89,10 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
     eos::common::RWMutexReadLock nslock(gOFS->eosViewRWMutex);
     try
     {
-      eos::IFileMD* fmd = 0;
+      std::shared_ptr<eos::IFileMD> fmd;
       const eos::IFsView::FileList& filelist = gOFS->eosFsView->getFileList(fsid);
-      eos::IFsView::FileIterator it;
-      for (it = filelist.begin(); it != filelist.end(); ++it)
+
+      for (auto it = filelist.begin(); it != filelist.end(); ++it)
       {
         std::string env;
         fmd = gOFS->eosFileService->getFileMD(*it);
@@ -110,7 +110,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
             stdOut += senv.c_str();
             if (monitor)
             {
-              std::string fullpath = gOFS->eosView->getUri(fmd);
+              std::string fullpath = gOFS->eosView->getUri(fmd.get());
               eos::common::Path cPath(fullpath.c_str());
               stdOut += "&container=";
 	      XrdOucString safepath = cPath.GetParentPath();
@@ -123,7 +123,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
           {
             if (dumppath)
             {
-              std::string fullpath = gOFS->eosView->getUri(fmd);
+              std::string fullpath = gOFS->eosView->getUri(fmd.get());
 	      XrdOucString safepath = fullpath.c_str();
 	      while (safepath.replace("&","#AND#")){}
               stdOut += "path=";
@@ -153,7 +153,7 @@ proc_fs_dumpmd (std::string &fsidst, XrdOucString &option, XrdOucString &dp, Xrd
       {
         // also add files which have still to be unlinked
         const eos::IFsView::FileList& unlinkedfilelist = gOFS->eosFsView->getUnlinkedFileList(fsid);
-        for (it = unlinkedfilelist.begin(); it != unlinkedfilelist.end(); ++it)
+        for (auto it = unlinkedfilelist.begin(); it != unlinkedfilelist.end(); ++it)
         {
           std::string env;
           fmd = gOFS->eosFileService->getFileMD(*it);
@@ -931,7 +931,8 @@ proc_fs_rm (std::string &nodename, std::string &mountpoint, std::string &id, Xrd
 
 /*----------------------------------------------------------------------------*/
 int
-proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdErr, std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in)
+proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdErr,
+		      std::string &tident, eos::common::Mapping::VirtualIdentity &vid_in)
 {
   int retc = 0;
   eos::common::FileSystem::fsid_t fsid = 0;
@@ -949,17 +950,15 @@ proc_fs_dropdeletion (std::string &id, XrdOucString &stdOut, XrdOucString &stdEr
     else
     {
       eos::common::RWMutexWriteLock nslock(gOFS->eosViewRWMutex);
-      try
+
+      if (gOFS->eosFsView->clearUnlinkedFileList(fsid))
       {
-        eos::IFsView::FileList& unlinklist = gOFS->eosFsView->getUnlinkedFileList(fsid);
-        unlinklist.clear();
-        unlinklist.resize(0);
         stdOut += "success: dropped deletions on fsid=";
         stdOut += id.c_str();
       }
-      catch (eos::MDException &e)
+      else
       {
-        stdErr = "error: there is no deletion list for fsid=";
+	stdErr = "error: there is no deletion list for fsid=";
         stdErr += id.c_str();
       }
     }

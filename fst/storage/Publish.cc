@@ -174,7 +174,6 @@ Storage::Publish ()
           {
             std::map<unsigned int, std::set<unsigned long long>> Rhotfiles;
             std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
-	    
 	    {
 	      XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
 	      if (gOFS.ROpenFid.count(fsid))
@@ -321,7 +320,7 @@ Storage::Publish ()
 
 	  success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", used_files);
 
-          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetString("stat.boot").c_str());
+          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
           struct timeval tvfs;
           gettimeofday(&tvfs, &tz);

@@ -171,7 +171,7 @@ Master::Init()
   XrdSysThread::Run(&fThread, Master::StaticSupervisor, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "Master Supervisor Thread");
 
   // get sync up if it is not up
-  eos::common::ShellCmd scmd1(". /etc/sysconfig/eos; service eos status sync || service eos start sync");
+  eos::common::ShellCmd scmd1("service --skip-redirect eos status sync || service --skip-redirect eos start sync");
   eos::common::cmd_status rc = scmd1.wait(30);
 
   if (rc.exit_code)
@@ -181,7 +181,7 @@ Master::Init()
   }
 
   // get eossync up if it is not up
-  eos::common::ShellCmd scmd2(". /etc/sysconfig/eos; service eossync status || service eossync start ");
+  eos::common::ShellCmd scmd2("service --skip-redirect eossync status || service --skip-redirect eossync start ");
   rc = scmd2.wait(30);
 
   if (rc.exit_code)
@@ -1396,12 +1396,12 @@ Master::Slave2Master()
   // -----------------------------------------------------------
   // take the sync service down
   // -----------------------------------------------------------
-  eos::common::ShellCmd scmd1(". /etc/sysconfig/eos; service eos status sync && service eos stop sync");
+  eos::common::ShellCmd scmd1("service --skip-redirect eos status sync && service --skip-redirect eos stop sync");
   eos::common::cmd_status rc = scmd1.wait(30);
 
   if (rc.exit_code)
   {
-    if ( (rc.exit_code == -1 ) )
+    if (rc.exit_code == -1)
     {
       MasterLog(eos_warning("system command failed due to memory pressure - cannot check the sync service"));
     }
@@ -1417,7 +1417,7 @@ Master::Slave2Master()
     MasterLog(eos_crit("slave=>master transition aborted since sync was down"));
     fRunningState = Run::State::kIsNothing;
 
-    eos::common::ShellCmd scmd2(". /etc/sysconfig/eos; service eos start sync");
+    eos::common::ShellCmd scmd2("service --skip-redirect eos start sync");
     rc = scmd2.wait(30);
 
     if (rc.exit_code)
@@ -1605,7 +1605,7 @@ Master::Slave2Master()
     MasterLog(eos_crit("slave=>master transition returned ec=%d %s",
 		       e.getErrno(), e.getMessage().str().c_str()));
     fRunningState = Run::State::kIsNothing;
-    eos::common::ShellCmd scmd3(". /etc/sysconfig/eos; service eos start sync");
+    eos::common::ShellCmd scmd3("service --skip-redirect eos start sync");
     rc = scmd3.wait(30);
 
     if (rc.exit_code)
@@ -1617,8 +1617,7 @@ Master::Slave2Master()
   }
 
   fRunningState = Run::State::kIsRunningMaster;
-  eos::common::ShellCmd scmd3(". /etc/sysconfig/eos; service eos start sync");
-
+  eos::common::ShellCmd scmd3("service --skip-redirect eos start sync");
   rc = scmd3.wait(30);
   if (rc.exit_code)
   {
@@ -2021,6 +2020,8 @@ Master::BootNamespace()
   //-------------------------------------------
   try
   {
+    gOFS->eosDirectoryService->setFileMDService(gOFS->eosFileService);
+    gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
     gOFS->eosFileService->configure(fileSettings);
     gOFS->eosDirectoryService->configure(contSettings);
     gOFS->eosView->setContainerMDSvc(gOFS->eosDirectoryService);
@@ -2044,7 +2045,7 @@ Master::BootNamespace()
 
     if (eos_chlog_filesvc && eos_chlog_dirsvc)
     {
-      gOFS->eosFileService->setContainerService(gOFS->eosDirectoryService);
+      gOFS->eosFileService->setContMDService(gOFS->eosDirectoryService);
 
       if (!IsMaster())
       {

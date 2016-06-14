@@ -172,29 +172,8 @@
     source_fs->SnapShotFileSystem(source_snapshot);
 
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-
-    eos::IFsView::FileList source_filelist;
-    eos::IFsView::FileList target_filelist;
-
-    try
-    {
-      source_filelist = gOFS->eosFsView->getFileList(source_fsid);
-    }
-    catch (eos::MDException &e)
-    {
-      source_filelist.set_deleted_key(0);
-      source_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
-    try
-    {
-      target_filelist = gOFS->eosFsView->getFileList(target_fsid);
-    }
-    catch (eos::MDException &e)
-    {
-      target_filelist.set_deleted_key(0);
-      target_filelist.set_empty_key(0xffffffffffffffff);
-    }
+    eos::IFsView::FileList source_filelist = gOFS->eosFsView->getFileList(source_fsid);
+    eos::IFsView::FileList target_filelist = gOFS->eosFsView->getFileList(target_fsid);
 
     unsigned long long nfids = (unsigned long long) source_filelist.size();
 
@@ -246,7 +225,7 @@
         }
         else
         {
-          eos::IFileMD* fmd = 0;
+	  std::shared_ptr<eos::IFileMD> fmd;
           unsigned long long cid = 0;
           unsigned long long size = 0;
           long unsigned int lid = 0;
@@ -257,7 +236,7 @@
           try
           {
             fmd = gOFS->eosFileService->getFileMD(fid);
-            fullpath = gOFS->eosView->getUri(fmd);
+            fullpath = gOFS->eosView->getUri(fmd.get());
 	    XrdOucString savepath=fullpath.c_str();
 	    while (savepath.replace("&", "#AND#")){}
 	    fullpath = savepath.c_str();
@@ -270,7 +249,7 @@
           }
           catch (eos::MDException &e)
           {
-            fmd = 0;
+            fmd.reset();
           }
 
           if (fmd)

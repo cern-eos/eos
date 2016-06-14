@@ -54,7 +54,8 @@
       return Emsg(epname, error, EINVAL, "unable to schedule - node is not existing");
     }
 
-    for (auto set_it = FsView::gFsView.mNodeView[snodename]->begin(); set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
+    for (auto set_it = FsView::gFsView.mNodeView[snodename]->begin();
+	 set_it != FsView::gFsView.mNodeView[snodename]->end(); ++set_it)
     {
       fslist.push_back(*set_it);
     }

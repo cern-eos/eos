@@ -132,6 +132,14 @@ add_library(
 #-------------------------------------------------------------------------------
 add_dependencies(XrdEosMgm EosAuthProto)
 
+target_compile_definitions(
+  XrdEosMgm PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
+
+if (MICROHTTPD_FOUND)
+  target_compile_definitions(
+    XrdEosMgm PUBLIC -DEOS_MICRO_HTTPD=1)
+endif()
+
 target_link_libraries(
   XrdEosMgm
   eosCommon
@@ -164,6 +172,9 @@ add_executable(
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
 
+target_compile_definitions(
+  testmgmview PUBLIC -DEOSMGMFSVIEWTEST)
+
 target_link_libraries(
   testmgmview
   eosCommon
@@ -193,8 +204,6 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-set_target_properties(testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST")
 
 install(
   TARGETS XrdEosMgm

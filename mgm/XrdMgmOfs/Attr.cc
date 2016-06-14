@@ -248,12 +248,10 @@ XrdMgmOfs::_attr_ls (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_ls";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrLs");
-
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------
@@ -271,7 +269,7 @@ XrdMgmOfs::_attr_ls (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -282,15 +280,17 @@ XrdMgmOfs::_attr_ls (const char *path,
     {
       fmd = gOFS->eosView->getFile(path);
       eos::IFileMD::XAttrMap::const_iterator it;
+
       for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it)
       {
         map[it->first] = it->second;
       }
+
       errno = 0;
     }
     catch (eos::MDException &e)
     {
-      fmd = 0;
+      fmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }
@@ -315,7 +315,7 @@ XrdMgmOfs::_attr_ls (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh = 0;
+      dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }
@@ -359,12 +359,10 @@ XrdMgmOfs::_attr_set (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_set";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrSet");
-
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
 
   if (!key || !value)
@@ -411,14 +409,14 @@ XrdMgmOfs::_attr_set (const char *path,
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
-        eosView->updateContainerStore(dh);
+        eosView->updateContainerStore(dh.get());
         errno = 0;
       }
     }
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -430,8 +428,11 @@ XrdMgmOfs::_attr_set (const char *path,
     {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
+
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-        errno = EPERM;
+      {
+	errno = EPERM;
+      }
       else
       {
         // check permissions in case of user attributes
@@ -447,14 +448,14 @@ XrdMgmOfs::_attr_set (const char *path,
 	  eos::common::SymKey::DeBase64(val64, val);
           fmd->setAttribute(key, val.c_str());
           fmd->setMTimeNow();
-          eosView->updateFileStore(fmd);
+          eosView->updateFileStore(fmd.get());
           errno = 0;
         }
       }
     }
     catch (eos::MDException &e)
     {
-      fmd = 0;
+      fmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
@@ -496,12 +497,10 @@ XrdMgmOfs::_attr_get (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_get";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrGet");
-
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
 
   if (!key)
@@ -537,7 +536,7 @@ XrdMgmOfs::_attr_get (const char *path,
     }
     catch (eos::MDException &e)
     {
-      dh = 0;
+      dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
@@ -596,12 +595,10 @@ XrdMgmOfs::_attr_rem (const char *path,
 /*----------------------------------------------------------------------------*/
 {
   static const char *epname = "attr_rm";
-  eos::IContainerMD *dh = 0;
-  eos::IFileMD *fmd = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
-
   EXEC_TIMING_BEGIN("AttrRm");
-
   gOFS->MgmStats.Add("AttrRm", vid.uid, vid.gid, 1);
 
   if (!key)
@@ -613,8 +610,11 @@ XrdMgmOfs::_attr_rem (const char *path,
   {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
+
     if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+    {
       errno = EPERM;
+    }
     else
     {
       // TODO: REVIEW: check permissions
@@ -624,21 +624,21 @@ XrdMgmOfs::_attr_rem (const char *path,
       }
       else
       {
-        if (dh->hasAttribute(key))
-        {
-          dh->removeAttribute(key);
-          eosView->updateContainerStore(dh);
-        }
-        else
-        {
-          errno = ENODATA;
-        }
+	if (dh->hasAttribute(key))
+	{
+	  dh->removeAttribute(key);
+	  eosView->updateContainerStore(dh.get());
+	}
+	else
+	{
+	  errno = ENODATA;
+	}
       }
     }
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
   }
@@ -649,34 +649,37 @@ XrdMgmOfs::_attr_rem (const char *path,
     {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
+
       if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-        errno = EPERM;
+      {
+	errno = EPERM;
+      }
       else
       {
-        // check permissions
-        if (vid.uid && (fmd->getCUid() != vid.uid))
-        {
-          // TODO: REVIEW: only owner can set file attributes
-          errno = EPERM;
-        }
-        else
-        {
-          if (fmd->hasAttribute(key))
-          {
-            fmd->removeAttribute(key);
-            eosView->updateFileStore(fmd);
-            errno = 0;
-          }
-          else
-          {
-            errno = ENODATA;
-          }
-        }
+	// check permissions
+	if (vid.uid && (fmd->getCUid() != vid.uid))
+	{
+	  // TODO: REVIEW: only owner can set file attributes
+	  errno = EPERM;
+	}
+	else
+	{
+	  if (fmd->hasAttribute(key))
+	  {
+	    fmd->removeAttribute(key);
+	    eosView->updateFileStore(fmd.get());
+	    errno = 0;
+	  }
+	  else
+	  {
+	    errno = ENODATA;
+	  }
+	}
       }
     }
     catch (eos::MDException &e)
     {
-      dh = 0;
+      dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
     }

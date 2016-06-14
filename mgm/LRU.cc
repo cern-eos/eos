@@ -403,15 +403,13 @@ LRU::AgeExpire (const char* dir,
 
   std::vector<std::string> lDeleteList;
   {
-    // -------------------------------------------------------------------------
-    // check the directory contents
-    // -------------------------------------------------------------------------
-    eos::IContainerMD* cmd = 0;
+    // Check the directory contents
+    std::shared_ptr<eos::IContainerMD> cmd;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      eos::IFileMD* fmd = 0;
+      std::shared_ptr<eos::IFileMD> fmd;
       std::set<std::string> fnames = cmd->getNameFiles();
 
       for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -451,7 +449,7 @@ LRU::AgeExpire (const char* dir,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      cmd = 0;
+      cmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                      e.getErrno(), e.getMessage().str().c_str());
     }
@@ -461,8 +459,7 @@ LRU::AgeExpire (const char* dir,
   {
     if (gOFS->_rem(it->c_str(), mError, mRootVid, ""))
     {
-      eos_static_err("msg=\"failed to expire file\" "
-                     "path=\"%s\"", it->c_str());
+      eos_static_err("msg=\"failed to expire file\" path=\"%s\"", it->c_str());
     }
   }
 }
@@ -697,12 +694,12 @@ LRU::ConvertMatch (const char* dir,
     // -------------------------------------------------------------------------
     // check the directory contents
     // -------------------------------------------------------------------------
-    eos::IContainerMD* cmd = 0;
+    std::shared_ptr<eos::IContainerMD> cmd;
     RWMutexReadLock lock(gOFS->eosViewRWMutex);
     try
     {
       cmd = gOFS->eosView->getContainer(dir);
-      eos::IFileMD* fmd = 0;
+      std::shared_ptr<eos::IFileMD> fmd;
       std::set<std::string> fnames = cmd->getNameFiles();
 
       for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -718,23 +715,21 @@ LRU::ConvertMatch (const char* dir,
 
           XrdOucString fname = fmd->getName().c_str();
           eos_static_debug("%s %d", mit->first.c_str(), fname.matches(mit->first.c_str()));
+
           if (fname.matches(mit->first.c_str()))
           {
-            // -----------------------------------------------------------------
-            // full match check the age policy
-            // ----------------------------------------------------------------
+            // Full match check the age policy
             eos::IFileMD::ctime_t ctime;
             fmd->getCTime(ctime);
             time_t age = mit->second;
+
             if ((ctime.tv_sec + age) < now)
             {
               std::string conv_attr = "sys.conversion.";
               conv_attr += mit->first;
 
-              // ---------------------------------------------------------------
-              // check if this file has already the proper layout
-              // ---------------------------------------------------------------
-              std::string conversion = map[conv_attr];
+              // Check if this file has already the proper layout
+	      std::string conversion = map[conv_attr];
               std::string plctplcy;
               if(((int)conversion.find("|"))!=STR_NPOS)
                 eos::common::StringConversion::SplitKeyValue(conversion, conversion,plctplcy, "|");
@@ -747,9 +742,7 @@ LRU::ConvertMatch (const char* dir,
                 continue;
               }
 
-              // ---------------------------------------------------------------
-              // this entry can be converted
-              // ---------------------------------------------------------------
+              // This entry can be converted
               eos_static_notice("msg=\"convert expired file\" path=\"%s\" "
                                 "ctime=%u policy-age=%u age=%u fid=%llu "
                                 "layout=\"%s\"",
@@ -771,7 +764,7 @@ LRU::ConvertMatch (const char* dir,
     catch (eos::MDException &e)
     {
       errno = e.getErrno();
-      cmd = 0;
+      cmd.reset();
       eos_static_err("msg=\"exception\" ec=%d emsg=\"%s\"",
                      e.getErrno(), e.getMessage().str().c_str());
     }
@@ -781,6 +774,7 @@ LRU::ConvertMatch (const char* dir,
   {
     std::string conversion = it->second;
     std::string plctplcy;
+
     if(((int)conversion.find("|"))!=STR_NPOS)
     {
       eos::common::StringConversion::SplitKeyValue(conversion, conversion,plctplcy, "|");

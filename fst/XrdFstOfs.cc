@@ -50,7 +50,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/types.h>
-#include <sys/fsuid.h>
+//#include <sys/fsuid.h>
 #include <sys/wait.h>
 #include <math.h>
 #include <stdio.h>
@@ -721,7 +721,11 @@ XrdFstOfs::stat (const char* path,
   if (!XrdOfsOss->Stat(path, buf))
   {
     // we store the mtime.ns time in st_dev ... sigh@Xrootd ... 
+#ifdef __APPLE__
+    unsigned long nsec = buf->st_mtimespec.tv_nsec;
+#else
     unsigned long nsec = buf->st_mtim.tv_nsec;
+#endif
     // mask for 10^9
     nsec &= 0x7fffffff;
     // enable bit 32 as indicator

@@ -67,10 +67,14 @@ void HierarchicalViewTest::reloadTest()
 {
   try
   {
-    eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-    eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-    eos::IView*                   view    = new eos::HierarchicalView;
-    fileSvc->setContainerService(contSvc);
+    std::shared_ptr<eos::IContainerMDSvc> contSvc =
+      std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+    std::shared_ptr<eos::IFileMDSvc> fileSvc =
+      std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+    std::shared_ptr<eos::IView> view =
+      std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+    fileSvc->setContMDService(contSvc.get());
+    contSvc->setFileMDService(fileSvc.get());
     std::map<std::string, std::string> fileSettings;
     std::map<std::string, std::string> contSettings;
     std::map<std::string, std::string> settings;
@@ -80,17 +84,17 @@ void HierarchicalViewTest::reloadTest()
     fileSettings["changelog_path"] = fileNameFileMD;
     fileSvc->configure(fileSettings);
     contSvc->configure(contSettings);
-    view->setContainerMDSvc(contSvc);
-    view->setFileMDSvc(fileSvc);
+    view->setContainerMDSvc(contSvc.get());
+    view->setFileMDSvc(fileSvc.get());
     view->configure(settings);
     view->initialize();
-    eos::IContainerMD* cont1 = view->createContainer("/test/embed/embed1", true);
-    eos::IContainerMD* cont2 = view->createContainer("/test/embed/embed2", true);
-    eos::IContainerMD* cont3 = view->createContainer("/test/embed/embed3", true);
-    eos::IContainerMD* cont4 = view->createContainer("/test/embed/embed4", true);
-    eos::IContainerMD* root  = view->getContainer("/");
-    eos::IContainerMD* test  = view->getContainer("/test");
-    eos::IContainerMD* embed = view->getContainer("/test/embed");
+    std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
+    std::shared_ptr<eos::IContainerMD> cont2 = view->createContainer("/test/embed/embed2", true);
+    std::shared_ptr<eos::IContainerMD> cont3 = view->createContainer("/test/embed/embed3", true);
+    std::shared_ptr<eos::IContainerMD> cont4 = view->createContainer("/test/embed/embed4", true);
+    std::shared_ptr<eos::IContainerMD> root  = view->getContainer("/");
+    std::shared_ptr<eos::IContainerMD> test  = view->getContainer("/test");
+    std::shared_ptr<eos::IContainerMD> embed = view->getContainer("/test/embed");
     CPPUNIT_ASSERT(root != 0);
     CPPUNIT_ASSERT(root->getId() == root->getParentId());
     CPPUNIT_ASSERT(test != 0);
@@ -109,7 +113,7 @@ void HierarchicalViewTest::reloadTest()
     view->createFile("/test/embed/embed1/file1");
     view->createFile("/test/embed/embed1/file2");
     view->createFile("/test/embed/embed1/file3");
-    eos::IFileMD* fileR = view->createFile("/test/embed/embed1/fileR");
+    std::shared_ptr<eos::IFileMD> fileR = view->createFile("/test/embed/embed1/fileR");
     CPPUNIT_ASSERT(view->getFile("/test/embed/file1"));
     CPPUNIT_ASSERT(view->getFile("/test/embed/file2"));
     CPPUNIT_ASSERT(view->getFile("/test/embed/embed1/file1"));
@@ -118,32 +122,32 @@ void HierarchicalViewTest::reloadTest()
     //--------------------------------------------------------------------------
     // Rename
     //--------------------------------------------------------------------------
-    CPPUNIT_ASSERT_NO_THROW(view->renameContainer(cont4, "embed4.renamed"));
+    CPPUNIT_ASSERT_NO_THROW(view->renameContainer(cont4.get(), "embed4.renamed"));
     CPPUNIT_ASSERT(cont4->getName() == "embed4.renamed");
-    CPPUNIT_ASSERT_THROW(view->renameContainer(cont4, "embed1"), eos::MDException);
-    CPPUNIT_ASSERT_THROW(view->renameContainer(cont4, "embed1/asd"),
+    CPPUNIT_ASSERT_THROW(view->renameContainer(cont4.get(), "embed1"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameContainer(cont4.get(), "embed1/asd"),
                          eos::MDException);
     CPPUNIT_ASSERT_NO_THROW(view->getContainer("/test/embed/embed4.renamed"));
-    CPPUNIT_ASSERT_NO_THROW(view->renameFile(fileR, "fileR.renamed"));
+    CPPUNIT_ASSERT_NO_THROW(view->renameFile(fileR.get(), "fileR.renamed"));
     CPPUNIT_ASSERT(fileR->getName() == "fileR.renamed");
-    CPPUNIT_ASSERT_THROW(view->renameFile(fileR, "file1"), eos::MDException);
-    CPPUNIT_ASSERT_THROW(view->renameFile(fileR, "file1/asd"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameFile(fileR.get(), "file1"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameFile(fileR.get(), "file1/asd"), eos::MDException);
     CPPUNIT_ASSERT_NO_THROW(view->getFile("/test/embed/embed1/fileR.renamed"));
-    CPPUNIT_ASSERT_THROW(view->renameContainer(root, "rename"), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->renameContainer(root.get(), "rename"), eos::MDException);
     //--------------------------------------------------------------------------
     // Test the "reverse" lookup
     //--------------------------------------------------------------------------
-    eos::IFileMD*      file = view->getFile("/test/embed/embed1/file3");
-    eos::IContainerMD* container = view->getContainer("/test/embed/embed1");
-    CPPUNIT_ASSERT(view->getUri(container) == "/test/embed/embed1/");
-    CPPUNIT_ASSERT(view->getUri(file) == "/test/embed/embed1/file3");
+    std::shared_ptr<eos::IFileMD> file = view->getFile("/test/embed/embed1/file3");
+    std::shared_ptr<eos::IContainerMD> container = view->getContainer("/test/embed/embed1");
+    CPPUNIT_ASSERT(view->getUri(container.get()) == "/test/embed/embed1/");
+    CPPUNIT_ASSERT(view->getUri(file.get()) == "/test/embed/embed1/file3");
     CPPUNIT_ASSERT_THROW(view->getUri((eos::IFileMD*)0), eos::MDException);
-    eos::IFileMD* toBeDeleted = view->getFile("/test/embed/embed1/file2");
+    std::shared_ptr<eos::IFileMD> toBeDeleted = view->getFile("/test/embed/embed1/file2");
     toBeDeleted->addLocation(12);
     //--------------------------------------------------------------------------
     // This should not succeed since the file should have a replica
     //--------------------------------------------------------------------------
-    CPPUNIT_ASSERT_THROW(view->removeFile(toBeDeleted), eos::MDException);
+    CPPUNIT_ASSERT_THROW(view->removeFile(toBeDeleted.get()), eos::MDException);
     //--------------------------------------------------------------------------
     // We unlink the file - at this point the file should not be attached to the
     // hierarchy bu should still be accessible by id and thus the md pointer
@@ -158,9 +162,8 @@ void HierarchicalViewTest::reloadTest()
     //--------------------------------------------------------------------------
     eos::IFileMD::id_t id = toBeDeleted->getId();
     toBeDeleted->clearUnlinkedLocations();
-    CPPUNIT_ASSERT_NO_THROW(view->removeFile(toBeDeleted));
-    CPPUNIT_ASSERT_THROW(view->getFileMDSvc()->getFileMD(id),
-                         eos::MDException);
+    CPPUNIT_ASSERT_NO_THROW(view->removeFile(toBeDeleted.get()));
+    CPPUNIT_ASSERT_THROW(view->getFileMDSvc()->getFileMD(id), eos::MDException);
     view->finalize();
     view->initialize();
     CPPUNIT_ASSERT(view->getContainer("/"));
@@ -176,9 +179,6 @@ void HierarchicalViewTest::reloadTest()
     view->finalize();
     unlink(fileNameFileMD.c_str());
     unlink(fileNameContMD.c_str());
-    delete view;
-    delete contSvc;
-    delete fileSvc;
   }
   catch (eos::MDException& e)
   {
@@ -207,24 +207,24 @@ static uint64_t mapSize(const eos::IFileMD* file)
 // Create files at given path
 //------------------------------------------------------------------------------
 static void createFiles(const std::string&                          path,
-                        eos::IView*                                 view,
+                        std::shared_ptr<eos::IView>                 view,
                         std::map<uid_t, eos::QuotaNode::UsageInfo>& users,
                         std::map<gid_t, eos::QuotaNode::UsageInfo>& groups)
 {
-  eos::IQuotaNode* node = view->getQuotaNode(view->getContainer(path));
+  eos::IQuotaNode* node = view->getQuotaNode(view->getContainer(path).get());
 
   for (int i = 0; i < 1000; ++i)
   {
     std::ostringstream p;
     p << path << "file" << i;
-    eos::IFileMD* file = view->createFile(p.str());
+    std::shared_ptr<eos::IFileMD> file = view->createFile(p.str());
     file->setCUid(random() % 10 + 1);
     file->setCGid(random() % 3 + 1);
     file->setSize(random() % 1000000 + 1);
     file->setLayoutId(random() % 3 + 1);
-    view->updateFileStore(file);
-    node->addFile(file);
-    uint64_t size = mapSize(file);
+    view->updateFileStore(file.get());
+    node->addFile(file.get());
+    uint64_t size = mapSize(file.get());
     eos::IQuotaNode::UsageInfo& user  = users[file->getCUid()];
     eos::IQuotaNode::UsageInfo& group = groups[file->getCGid()];
     user.space += file->getSize();
@@ -245,10 +245,14 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Initialize the system
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   view    = new eos::HierarchicalView;
-  fileSvc->setContainerService(contSvc);
+  std::shared_ptr<eos::IContainerMDSvc> contSvc =
+    std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvc =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> view =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvc->setContMDService(contSvc.get());
+  contSvc->setFileMDService(fileSvc.get());
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
@@ -258,8 +262,8 @@ void HierarchicalViewTest::quotaTest()
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure(contSettings);
   contSvc->configure(fileSettings);
-  view->setContainerMDSvc(contSvc);
-  view->setFileMDSvc(fileSvc);
+  view->setContainerMDSvc(contSvc.get());
+  view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->getQuotaStats()->registerSizeMapper(mapSize);
   CPPUNIT_ASSERT_NO_THROW(view->initialize());
@@ -288,15 +292,15 @@ void HierarchicalViewTest::quotaTest()
 
     if (random() % 3)
     {
-      meldNode1->changeSpaceUser(uid, userSpace);
-      meldNode1->changePhysicalSpaceUser(uid, userPhysicalSpace);
-      meldNode1->changeNumFilesUser(uid, userFiles);
+      static_cast<eos::QuotaNode*>(meldNode1)->changeSpaceUser(uid, userSpace);
+      static_cast<eos::QuotaNode*>(meldNode1)->changePhysicalSpaceUser(uid, userPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode1)->changeNumFilesUser(uid, userFiles);
       user.space          += userSpace;
       user.physicalSpace  += userPhysicalSpace;
       user.files          += userFiles;
-      meldNode1->changeSpaceGroup(gid, groupSpace);
-      meldNode1->changePhysicalSpaceGroup(gid, groupPhysicalSpace);
-      meldNode1->changeNumFilesGroup(gid, groupFiles);
+      static_cast<eos::QuotaNode*>(meldNode1)->changeSpaceGroup(gid, groupSpace);
+      static_cast<eos::QuotaNode*>(meldNode1)->changePhysicalSpaceGroup(gid, groupPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode1)->changeNumFilesGroup(gid, groupFiles);
       group.space         += groupSpace;
       group.physicalSpace += groupPhysicalSpace;
       group.files         += groupFiles;
@@ -304,15 +308,15 @@ void HierarchicalViewTest::quotaTest()
 
     if (random() % 3)
     {
-      meldNode2->changeSpaceUser(uid, userSpace);
-      meldNode2->changePhysicalSpaceUser(uid, userPhysicalSpace);
-      meldNode2->changeNumFilesUser(uid, userFiles);
+      static_cast<eos::QuotaNode*>(meldNode2)->changeSpaceUser(uid, userSpace);
+      static_cast<eos::QuotaNode*>(meldNode2)->changePhysicalSpaceUser(uid, userPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode2)->changeNumFilesUser(uid, userFiles);
       user.space          += userSpace;
       user.physicalSpace  += userPhysicalSpace;
       user.files          += userFiles;
-      meldNode2->changeSpaceGroup(gid, groupSpace);
-      meldNode2->changePhysicalSpaceGroup(gid, groupPhysicalSpace);
-      meldNode2->changeNumFilesGroup(gid, groupFiles);
+      static_cast<eos::QuotaNode*>(meldNode2)->changeSpaceGroup(gid, groupSpace);
+      static_cast<eos::QuotaNode*>(meldNode2)->changePhysicalSpaceGroup(gid, groupPhysicalSpace);
+      static_cast<eos::QuotaNode*>(meldNode2)->changeNumFilesGroup(gid, groupFiles);
       group.space         += groupSpace;
       group.physicalSpace += groupPhysicalSpace;
       group.files         += groupFiles;
@@ -346,23 +350,23 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Create some structures, insert quota nodes and test their correctness
   //----------------------------------------------------------------------------
-  eos::IContainerMD* cont1 = view->createContainer("/test/embed/embed1", true);
-  eos::IContainerMD* cont2 = view->createContainer("/test/embed/embed2", true);
-  eos::IContainerMD* cont3 = view->createContainer("/test/embed/embed3", true);
-  eos::IContainerMD* cont4 = view->getContainer("/test/embed");
-  eos::IContainerMD* cont5 = view->getContainer("/test");
-  eos::IQuotaNode* qnCreated1 = view->registerQuotaNode(cont1);
-  eos::IQuotaNode* qnCreated2 = view->registerQuotaNode(cont3);
-  eos::IQuotaNode* qnCreated3 = view->registerQuotaNode(cont5);
-  CPPUNIT_ASSERT_THROW(view->registerQuotaNode(cont1), eos::MDException);
+  std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 = view->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 = view->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont4 = view->getContainer("/test/embed");
+  std::shared_ptr<eos::IContainerMD> cont5 = view->getContainer("/test");
+  eos::IQuotaNode* qnCreated1 = view->registerQuotaNode(cont1.get());
+  eos::IQuotaNode* qnCreated2 = view->registerQuotaNode(cont3.get());
+  eos::IQuotaNode* qnCreated3 = view->registerQuotaNode(cont5.get());
+  CPPUNIT_ASSERT_THROW(view->registerQuotaNode(cont1.get()), eos::MDException);
   CPPUNIT_ASSERT(qnCreated1);
   CPPUNIT_ASSERT(qnCreated2);
   CPPUNIT_ASSERT(qnCreated3);
-  eos::IQuotaNode* qn1 = view->getQuotaNode(cont1);
-  eos::IQuotaNode* qn2 = view->getQuotaNode(cont2);
-  eos::IQuotaNode* qn3 = view->getQuotaNode(cont3);
-  eos::IQuotaNode* qn4 = view->getQuotaNode(cont4);
-  eos::IQuotaNode* qn5 = view->getQuotaNode(cont5);
+  eos::IQuotaNode* qn1 = view->getQuotaNode(cont1.get());
+  eos::IQuotaNode* qn2 = view->getQuotaNode(cont2.get());
+  eos::IQuotaNode* qn3 = view->getQuotaNode(cont3.get());
+  eos::IQuotaNode* qn4 = view->getQuotaNode(cont4.get());
+  eos::IQuotaNode* qn5 = view->getQuotaNode(cont5.get());
   CPPUNIT_ASSERT(qn1);
   CPPUNIT_ASSERT(qn2);
   CPPUNIT_ASSERT(qn3);
@@ -391,8 +395,8 @@ void HierarchicalViewTest::quotaTest()
   //----------------------------------------------------------------------------
   // Verify correctness
   //----------------------------------------------------------------------------
-  eos::IQuotaNode* node1 = view->getQuotaNode(view->getContainer(path1));
-  eos::IQuotaNode* node2 = view->getQuotaNode(view->getContainer(path2));
+  eos::IQuotaNode* node1 = view->getQuotaNode(view->getContainer(path1).get());
+  eos::IQuotaNode* node2 = view->getQuotaNode(view->getContainer(path2).get());
 
   for (int i = 1; i <= 10; ++i)
   {
@@ -422,8 +426,8 @@ void HierarchicalViewTest::quotaTest()
   view->setQuotaStats(new eos::QuotaStats);
   view->getQuotaStats()->registerSizeMapper(mapSize);
   CPPUNIT_ASSERT_NO_THROW(view->initialize());
-  node1 = view->getQuotaNode(view->getContainer(path1));
-  node2 = view->getQuotaNode(view->getContainer(path2));
+  node1 = view->getQuotaNode(view->getContainer(path1).get());
+  node2 = view->getQuotaNode(view->getContainer(path2).get());
   CPPUNIT_ASSERT(node1);
   CPPUNIT_ASSERT(node2);
 
@@ -452,9 +456,9 @@ void HierarchicalViewTest::quotaTest()
   // and check if the on /test has been updated
   //----------------------------------------------------------------------------
   eos::IQuotaNode* parentNode = 0;
-  CPPUNIT_ASSERT_NO_THROW(parentNode = view->getQuotaNode(
-                                         view->getContainer("/test")));
-  CPPUNIT_ASSERT_NO_THROW(view->removeQuotaNode(view->getContainer(path1)));
+  CPPUNIT_ASSERT_NO_THROW(parentNode = 
+			  view->getQuotaNode(view->getContainer("/test").get()));
+  CPPUNIT_ASSERT_NO_THROW(view->removeQuotaNode(view->getContainer(path1).get()));
 
   for (int i = 1; i <= 10; ++i)
   {
@@ -476,8 +480,8 @@ void HierarchicalViewTest::quotaTest()
                    groups1[i].files + groups2[i].files);
   }
 
-  CPPUNIT_ASSERT_NO_THROW(view->removeQuotaNode(view->getContainer(path3)));
-  CPPUNIT_ASSERT_THROW(view->removeQuotaNode(view->getContainer(path3)),
+  CPPUNIT_ASSERT_NO_THROW(view->removeQuotaNode(view->getContainer(path3).get()));
+  CPPUNIT_ASSERT_THROW(view->removeQuotaNode(view->getContainer(path3).get()),
                        eos::MDException);
 
   for (int i = 1; i <= 10; ++i)
@@ -503,9 +507,6 @@ void HierarchicalViewTest::quotaTest()
   CPPUNIT_ASSERT_NO_THROW(view->finalize());
   unlink(fileNameFileMD.c_str());
   unlink(fileNameContMD.c_str());
-  delete view;
-  delete contSvc;
-  delete fileSvc;
 }
 
 //------------------------------------------------------------------------------
@@ -516,10 +517,14 @@ void HierarchicalViewTest::lostContainerTest()
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   view    = new eos::HierarchicalView;
-  fileSvc->setContainerService(contSvc);
+  std::shared_ptr<eos::IContainerMDSvc> contSvc =
+    std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvc =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> view =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvc->setContMDService(contSvc.get());
+  contSvc->setFileMDService(fileSvc.get());
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
@@ -529,17 +534,17 @@ void HierarchicalViewTest::lostContainerTest()
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure(contSettings);
   contSvc->configure(fileSettings);
-  view->setContainerMDSvc(contSvc);
-  view->setFileMDSvc(fileSvc);
+  view->setContainerMDSvc(contSvc.get());
+  view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->initialize();
-  eos::IContainerMD* cont1 = view->createContainer("/test/embed/embed1", true);
-  eos::IContainerMD* cont2 = view->createContainer("/test/embed/embed2", true);
-  eos::IContainerMD* cont3 = view->createContainer("/test/embed/embed3", true);
-  eos::IContainerMD* cont4 =
+  std::shared_ptr<eos::IContainerMD> cont1 = view->createContainer("/test/embed/embed1", true);
+  std::shared_ptr<eos::IContainerMD> cont2 = view->createContainer("/test/embed/embed2", true);
+  std::shared_ptr<eos::IContainerMD> cont3 = view->createContainer("/test/embed/embed3", true);
+  std::shared_ptr<eos::IContainerMD> cont4 =
     view->createContainer("/test/embed/embed1/embedembed", true);
-  eos::IContainerMD* cont5 = view->createContainer("/test/embed/embed3.conflict",
-                             true);
+  std::shared_ptr<eos::IContainerMD> cont5 = view->createContainer("/test/embed/embed3.conflict",
+								   true);
 
   //----------------------------------------------------------------------------
   // Create some files
@@ -558,15 +563,15 @@ void HierarchicalViewTest::lostContainerTest()
     s5 << "/test/embed/embed3.conflict/file" << i;
     std::ostringstream s6;
     s6 << "/test/embed/embed2/conflict_file" << i;
-    view->createFile(s1.str());
-    view->createFile(s2.str());
-    view->createFile(s3.str());
-    view->createFile(s4.str());
-    view->createFile(s5.str());
-    view->createFile(s6.str());
-    eos::IFileMD* file = view->getFile(s6.str());
+    (void) view->createFile(s1.str());
+    (void) view->createFile(s2.str());
+    (void) view->createFile(s3.str());
+    (void) view->createFile(s4.str());
+    (void) view->createFile(s5.str());
+    (void) view->createFile(s6.str());
+    std::shared_ptr<eos::IFileMD> file = view->getFile(s6.str());
     file->setName("conflict_file");
-    view->updateFileStore(file);
+    view->updateFileStore(file.get());
   }
 
   //----------------------------------------------------------------------------
@@ -577,9 +582,9 @@ void HierarchicalViewTest::lostContainerTest()
   eos::IContainerMD::id_t removedEmbId     = cont4->getId();
   eos::IContainerMD::id_t conflictId       = cont3->getId();
   eos::IContainerMD::id_t conflictParentId = cont5->getParentId();
-  view->getContainerMDSvc()->removeContainer(cont1);
+  view->getContainerMDSvc()->removeContainer(cont1.get());
   cont5->setName("embed3");
-  view->getContainerMDSvc()->updateStore(cont5);
+  view->getContainerMDSvc()->updateStore(cont5.get());
   //----------------------------------------------------------------------------
   // Reboot
   //----------------------------------------------------------------------------
@@ -601,7 +606,7 @@ void HierarchicalViewTest::lostContainerTest()
   CPPUNIT_ASSERT_NO_THROW(cont3 = view->getContainer("/test/embed/embed3"));
   CPPUNIT_ASSERT_NO_THROW(cont4 = view->getContainer(s2.str()));
   CPPUNIT_ASSERT_NO_THROW(cont5 = view->getContainer(s3.str()));
-  eos::IContainerMD* cont6 = 0;
+  std::shared_ptr<eos::IContainerMD> cont6;
   std::ostringstream s4;
   s4 << "/lost+found/name_conflicts/";
   s4 << cont2->getId();
@@ -618,9 +623,6 @@ void HierarchicalViewTest::lostContainerTest()
   view->finalize();
   unlink(fileNameFileMD.c_str());
   unlink(fileNameContMD.c_str());
-  delete view;
-  delete contSvc;
-  delete fileSvc;
 }
 
 //------------------------------------------------------------------------------
@@ -643,14 +645,13 @@ void* compactThread(void* arg)
 //------------------------------------------------------------------------------
 // Check if everything is as expected
 //------------------------------------------------------------------------------
-void CheckOnlineComp(eos::IView* view,
-                     uint32_t    totalFiles,
-                     uint32_t    changedFiles)
+void CheckOnlineComp(std::shared_ptr<eos::IView> view, uint32_t totalFiles,
+                     uint32_t changedFiles)
 {
-  eos::IContainerMD* cont = 0;
+  std::shared_ptr<eos::IContainerMD> cont;
   CPPUNIT_ASSERT_NO_THROW(cont = view->getContainer("/test/"));
   uint32_t changedFound = 0;
-  eos::IFileMD* fmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
 
   for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -673,10 +674,14 @@ void HierarchicalViewTest::onlineCompactingTest()
   //----------------------------------------------------------------------------
   // Initializer
   //----------------------------------------------------------------------------
-  eos::ChangeLogContainerMDSvc* contSvc = new eos::ChangeLogContainerMDSvc;
-  eos::ChangeLogFileMDSvc*      fileSvc = new eos::ChangeLogFileMDSvc;
-  eos::IView*                   view    = new eos::HierarchicalView;
-  fileSvc->setContainerService(contSvc);
+  std::shared_ptr<eos::IContainerMDSvc> contSvc =
+    std::shared_ptr<eos::IContainerMDSvc>(new eos::ChangeLogContainerMDSvc());
+  std::shared_ptr<eos::IFileMDSvc> fileSvc =
+    std::shared_ptr<eos::IFileMDSvc>(new eos::ChangeLogFileMDSvc());
+  std::shared_ptr<eos::IView> view =
+    std::shared_ptr<eos::IView>(new eos::HierarchicalView());
+  fileSvc->setContMDService(contSvc.get());
+  contSvc->setFileMDService(fileSvc.get());
   std::map<std::string, std::string> fileSettings;
   std::map<std::string, std::string> contSettings;
   std::map<std::string, std::string> settings;
@@ -686,14 +691,14 @@ void HierarchicalViewTest::onlineCompactingTest()
   contSvc->configure(contSettings);
   fileSettings["changelog_path"] = fileNameFileMD;
   fileSvc->configure(fileSettings);
-  view->setContainerMDSvc(contSvc);
-  view->setFileMDSvc(fileSvc);
+  view->setContainerMDSvc(contSvc.get());
+  view->setFileMDSvc(fileSvc.get());
   view->configure(settings);
   view->initialize();
   //----------------------------------------------------------------------------
   // Create some files
   //----------------------------------------------------------------------------
-  eos::IContainerMD* cont = 0;
+  std::shared_ptr<eos::IContainerMD> cont;
   CPPUNIT_ASSERT_NO_THROW(cont = view->createContainer("/test/", true));
 
   for (int i = 0; i < 10000; ++i)
@@ -716,7 +721,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   {
     std::ostringstream s;
     s << "/test/file" << *it;
-    CPPUNIT_ASSERT_NO_THROW(view->removeFile(view->getFile(s.str())));
+    CPPUNIT_ASSERT_NO_THROW(view->removeFile(view->getFile(s.str()).get()));
   }
 
   std::string newFileLogName = getTempName("/tmp", "eosns");
@@ -744,7 +749,7 @@ void HierarchicalViewTest::onlineCompactingTest()
   }
 
   int changed = 0;
-  eos::IFileMD* fmd = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
   std::set<std::string> fnames = cont->getNameFiles();
 
   for (auto fit = fnames.begin(); fit != fnames.end(); ++fit)
@@ -753,7 +758,7 @@ void HierarchicalViewTest::onlineCompactingTest()
     {
       fmd = cont->findFile(*fit);
       fmd->setSize(99999);
-      CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd));
+      CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
       changed++;
     }
   }
@@ -781,7 +786,7 @@ void HierarchicalViewTest::onlineCompactingTest()
       if (random() % 100 < 10)
       {
         fmd->setSize(99999);
-        CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd));
+        CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
         changed++;
       }
     }
@@ -811,7 +816,7 @@ void HierarchicalViewTest::onlineCompactingTest()
       if (random() % 100 < 10)
       {
         fmd->setSize(99999);
-        CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd));
+        CPPUNIT_ASSERT_NO_THROW(view->updateFileStore(fmd.get()));
         changed++;
       }
     }
@@ -833,7 +838,4 @@ void HierarchicalViewTest::onlineCompactingTest()
   unlink(fileNameFileMD.c_str());
   unlink(fileNameContMD.c_str());
   unlink(newFileLogName.c_str());
-  delete view;
-  delete contSvc;
-  delete fileSvc;
 }

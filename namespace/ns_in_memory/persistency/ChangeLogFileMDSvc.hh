@@ -47,6 +47,7 @@ class ChangeLogContainerMDSvc;
 class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
 {
   friend class FileMDFollower;
+  friend class ConvertFileMDSvc;
  public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -88,7 +89,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   //! Configure the file service
   //----------------------------------------------------------------------------
-  virtual void configure(std::map<std::string, std::string>& config);
+  virtual void configure(const std::map<std::string, std::string>& config);
 
   //----------------------------------------------------------------------------
   //! Finalize the file service
@@ -98,12 +99,12 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
   //----------------------------------------------------------------------------
-  virtual IFileMD* getFileMD(IFileMD::id_t id);
+  virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id);
 
   //----------------------------------------------------------------------------
   //! Create new file metadata object with an assigned id
   //----------------------------------------------------------------------------
-  virtual IFileMD* createFile();
+  virtual std::shared_ptr<IFileMD> createFile();
 
   //----------------------------------------------------------------------------
   //! Update the file metadata in the backing store after the FileMD object
@@ -124,7 +125,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
-  virtual uint64_t getNumFiles() const
+  virtual uint64_t getNumFiles()
   {
     return pIdMap.size();
   }
@@ -218,7 +219,7 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //!
   //! @param cont_svc container service
   //----------------------------------------------------------------------------
-  void setContainerService(IContainerMDSvc* cont_svc);
+  virtual void setContMDService(IContainerMDSvc* cont_svc);
 
   //----------------------------------------------------------------------------
   //! Get the change log
@@ -265,9 +266,9 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   void setQuotaStats(IQuotaStats* quota_stats);
 
-  //------------------------------------------------------------------------
-  //! Get id map reservation size                                                                                                                            
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Get id map reservation size
+  //----------------------------------------------------------------------------
   uint64_t getResSize() const
   {
     return pResSize;
@@ -291,16 +292,16 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   //----------------------------------------------------------------------------
   struct DataInfo
   {
-    DataInfo(): logOffset(0), ptr(0),
-                buffer(0) {} // for some reason needed by sparse_hash_map::erase
-    DataInfo(uint64_t logOffset, IFileMD* ptr)
+    DataInfo(): logOffset(0), ptr((IFileMD*)0),
+		buffer(0) {} // for some reason needed by sparse_hash_map::erase
+    DataInfo(uint64_t logOffset, std::shared_ptr<IFileMD> ptr)
     {
       this->logOffset = logOffset;
-      this->ptr       = ptr;
-      this->buffer    = 0;
+      this->ptr = ptr;
+      this->buffer= 0;
     }
     uint64_t logOffset;
-    IFileMD* ptr;
+    std::shared_ptr<IFileMD> ptr;
     Buffer*  buffer;
   };
 
@@ -314,10 +315,10 @@ class ChangeLogFileMDSvc: public IFileMDSvc, public IChLogFileMDSvc
   {
    public:
     FileMDScanner(IdMap& idMap, bool slaveMode):
-        pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+	pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
     {}
     virtual bool processRecord(uint64_t offset, char type,
-                               const Buffer& buffer);
+			       const Buffer& buffer);
     uint64_t getLargestId() const
     {
       return pLargestId;

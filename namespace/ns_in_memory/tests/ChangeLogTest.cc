@@ -71,21 +71,25 @@ CPPUNIT_TEST_SUITE_REGISTRATION( ChangeLogTest );
 //------------------------------------------------------------------------------
 class DummyFileMDSvc: public eos::IFileMDSvc
 {
-  public:
-    virtual void initialize() {}
-    virtual void configure( std::map<std::string, std::string> &config ) {}
-    virtual void finalize() throw( eos::MDException ) {}
-    virtual eos::IFileMD *getFileMD( eos::IFileMD::id_t id ) { return 0; }
-    virtual eos::IFileMD *createFile() { return 0; }
-    virtual void updateStore( eos::IFileMD *obj ) {}
-    virtual void removeFile( eos::IFileMD *obj ) {}
-    virtual void removeFile( eos::IFileMD::id_t fileId ) {}
-    virtual uint64_t getNumFiles() const { return 0; }
-    virtual void visit( eos::IFileVisitor *visitor ) {}
-    virtual void addChangeListener( eos::IFileMDChangeListener *listener ) {}
-    virtual void notifyListeners( eos::IFileMDChangeListener::Event *event ) {}
-    virtual void setContainerService(eos::IContainerMDSvc* contSvc) {};
-    virtual void setQuotaStats(eos::IQuotaStats* quota_stats) {};
+public:
+  virtual void initialize() {}
+  virtual void configure(const std::map<std::string, std::string> &config ) {}
+  virtual void finalize() throw( eos::MDException ) {}
+  virtual std::shared_ptr<eos::IFileMD> getFileMD( eos::IFileMD::id_t id ) {
+    return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0); }
+  virtual std::shared_ptr<eos::IFileMD> createFile() {
+    return std::shared_ptr<eos::IFileMD>((eos::IFileMD*)0); }
+  virtual void updateStore( eos::IFileMD *obj ) {}
+  virtual void removeFile( eos::IFileMD *obj ) {}
+  virtual void removeFile( eos::IFileMD::id_t fileId ) {}
+  virtual uint64_t getNumFiles() const { return 0; }
+  virtual void visit( eos::IFileVisitor *visitor ) {}
+  virtual void addChangeListener( eos::IFileMDChangeListener *listener ) {}
+  virtual void notifyListeners( eos::IFileMDChangeListener::Event *event ) {}
+  virtual void setContainerService(eos::IContainerMDSvc* contSvc) {}
+  virtual void setQuotaStats(eos::IQuotaStats* quota_stats) {}
+  virtual uint64_t getNumFiles() { return 0; }
+  virtual void setContMDService(eos::IContainerMDSvc* cont_svc) { return; }
 };
 
 //------------------------------------------------------------------------------

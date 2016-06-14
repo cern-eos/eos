@@ -325,14 +325,13 @@ public:
 //! Macro to place a measurement throughout the code
 // ---------------------------------------------------------------------------
 #define COMMONTIMING( __ID__,__LIST__)                                \
-  do {								\
-    struct timeval tp;						\
-    struct timezone tz;						\
+  do {	   				                        \
+    struct timeval tp = {0};					\
+    struct timezone tz = {0};					\
     gettimeofday(&tp, &tz);					\
     (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);	\
     (__LIST__)->ptr = (__LIST__)->ptr->next;			\
-  } while(0);							
-
+  } while(false);
 
 EOSCOMMONNAMESPACE_END
 

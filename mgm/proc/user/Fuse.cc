@@ -139,8 +139,8 @@ ProcCommand::Fuse ()
       eos::common::Path cPath(statpath.c_str());
 
       // attach MD to get inode number
-      eos::IFileMD* fmd = 0;
-      eos::IContainerMD* dir = 0;
+      std::shared_ptr<eos::IFileMD> fmd;
+      std::shared_ptr<eos::IContainerMD> dir;
       inode = 0;
 
       //-------------------------------------------
@@ -162,7 +162,6 @@ ProcCommand::Fuse ()
       // check if that is a directory in case
       if (!fmd)
       {
-        //-------------------------------------------
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
         try
         {
@@ -171,10 +170,9 @@ ProcCommand::Fuse ()
         }
         catch (eos::MDException &e)
         {
-          dir = 0;
+          dir = std::shared_ptr<IContainerMD>((IContainerMD*)0);
           eos_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
         }
-        //-------------------------------------------
       }
       sprintf(inodestr, "%lld", inode);
       if ((!isdot) && (!isdotdot) && inode)

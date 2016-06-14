@@ -21,16 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories( 
+include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${Z_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
-  ${CURL_INCLUDE_DIRS}
-  ${LEVELDB_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
-  ${SPARSEHASH_INCLUDE_DIRS})
+  ${SPARSEHASH_INCLUDE_DIRS}
+  ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -54,14 +53,23 @@ set(
   GlobalConfig.cc
   Report.cc
   ZMQ.cc
-  ShellExecutor.cc
-  ShellCmd.cc
   StringTokenizer.cc
   StringConversion.cc
   CommentLog.cc
   RWMutex.cc)
 
 add_library(eosCommon SHARED ${EOSCOMMON_SRCS})
+
+# !!!!!
+# TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
+# use std::atomic and the <atomic> header.
+# !!!!!
+target_compile_definitions(
+  eosCommon
+  PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+target_include_directories(
+  eosCommon PUBLIC ${CURL_INCLUDE_DIRS})
 
 if(MacOSX)
   target_link_libraries(
@@ -77,8 +85,6 @@ if(MacOSX)
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY})
 else()
-  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
-
   target_link_libraries(
     eosCommon
     XrdMqClient
@@ -95,6 +101,8 @@ else()
 
   add_library(
     eosCommonServer SHARED
+    ShellExecutor.cc
+    ShellCmd.cc
     FileSystem.cc
     TransferQueue.cc
     TransferJob.cc
@@ -108,6 +116,9 @@ else()
     http/HttpResponse.cc
     http/s3/S3Handler.cc
     stringencoders/modp_numtoa.c)
+
+  target_include_directories(
+   eosCommonServer PUBLIC ${LEVELDB_INCLUDE_DIRS})
 
   target_link_libraries(
     eosCommonServer
@@ -141,6 +152,25 @@ else()
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
+  add_library(eosCommon-Static STATIC ${EOSCOMMON_SRCS})
+
+  target_include_directories(
+    eosCommon-Static PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR};${CURL_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:include>)
+
+  # !!!!!
+  # TODO: the HAVE_ATOMICS flags should be removed and the code in RWMutex should
+  # use std::atomic and the <atomic> header.
+  # !!!!!
+  target_compile_definitions(
+    eosCommon-Static
+    PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID} -DHAVE_ATOMICS=1)
+
+  target_compile_options(
+    eosCommon-Static
+    PUBLIC -fPIC)
+
   target_link_libraries(
     eosCommon-Static
     XrdMqClient-Static
@@ -152,9 +182,8 @@ else()
     ${CURL_LIBRARIES}
     ${XROOTD_CL_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
-    ${OPENSSL_CRYPTO_LIBRARY})
-
-  set_target_properties(eosCommon-Static PROPERTIES COMPILE_FLAGS "-fPIC")
+    ${OPENSSL_CRYPTO_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
 endif()
 
 set_target_properties(
@@ -206,12 +235,17 @@ add_library(
   plugin_manager/PluginManager.cc   plugin_manager/PluginManager.hh
   plugin_manager/DynamicLibrary.cc  plugin_manager/DynamicLibrary.hh)
 
+target_link_libraries(
+  EosPluginManager
+  ${XROOTD_UTILS_LIBRARY})
+
 set_target_properties(
   EosPluginManager
   PROPERTIES
   VERSION ${VERSION}
   SOVERSION ${VERSION_MAJOR}
   INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
   MACOSX_RPATH TRUE)
 
 install(

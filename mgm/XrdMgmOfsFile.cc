@@ -147,7 +147,7 @@ XrdMgmOfsFile::open (const char *inpath,
     try
     {
       fmd = gOFS->eosFileService->getFileMD(fid);
-      spath = gOFS->eosView->getUri(fmd).c_str();
+      spath = gOFS->eosView->getUri(fmd.get()).c_str();
       eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
       path = spath.c_str();
     }
@@ -470,18 +470,16 @@ XrdMgmOfsFile::open (const char *inpath,
   bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
 
   // get the directory meta data if exists
-  eos::IContainerMD* dmd = 0;
+  std::shared_ptr<eos::IContainerMD> dmd =
+      std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
   eos::IContainerMD::XAttrMap attrmap;
   Acl acl;
   Workflow workflow;
 
   bool stdpermcheck = false;
-
   int versioning = 0;
-
   uid_t d_uid = vid.uid;
   gid_t d_gid = vid.gid;
-
   std::string creation_path = path;
 
   {
@@ -491,34 +489,30 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       // get the attributes out
-      gOFS->_attr_ls(gOFS->eosView->getUri(dmd).c_str(),
-                     error,
-                     vid,
-                     0,
-                     attrmap,
-                     false);
+      gOFS->_attr_ls(gOFS->eosView->getUri(dmd.get()).c_str(), error, vid, 0,
+		     attrmap, false);
 
       // extract workflows
       workflow.Init(&attrmap);
 
       if (dmd)
       {
-        try
-        {
-          if (ocUploadUuid.length())
-          {
-            eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
-            fmd = gOFS->eosView->getFile(aPath.GetPath());
-          }
-          else
-          {
-            fmd = gOFS->eosView->getFile(cPath.GetPath());
-          }
-        }
-        catch (eos::MDException &e)
-        {
-          fmd = 0;
-        }
+	try
+	{
+	  if (ocUploadUuid.length())
+	  {
+	    eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"), ocUploadUuid));
+	    fmd = gOFS->eosView->getFile(aPath.GetPath());
+	  }
+	  else
+	  {
+	    fmd = gOFS->eosView->getFile(cPath.GetPath());
+	  }
+	}
+	catch (eos::MDException &e)
+	{
+	  fmd.reset();
+	}
 
         if (!fmd)
         {
@@ -541,12 +535,14 @@ XrdMgmOfsFile::open (const char *inpath,
         d_gid = dmd->getCGid();
       }
       else
-        fmd = 0;
+      {
+        fmd.reset();
+      }
 
     }
     catch (eos::MDException &e)
     {
-      dmd = 0;
+      dmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                 e.getErrno(), e.getMessage().str().c_str());
@@ -571,17 +567,12 @@ XrdMgmOfsFile::open (const char *inpath,
         {
           dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
           // get the attributes out
-          gOFS->_attr_ls(cPath.GetSubPath(2),
-                         error,
-                         vid,
-                         0,
-                         attrmap,
-                         false);
+          gOFS->_attr_ls(cPath.GetSubPath(2), error, vid, 0, attrmap, false);
 
         }
         catch (eos::MDException &e)
         {
-          dmd = 0;
+          dmd.reset();
           errno = e.getErrno();
           eos_debug("msg=\"exception\" ec=%d emsg=%s\n",
                     e.getErrno(), e.getMessage().str().c_str());
@@ -707,9 +698,7 @@ XrdMgmOfsFile::open (const char *inpath,
     }
 
     if (((!isSharedFile) || (isSharedFile && isRW)) && stdpermcheck
-        && (!dmd->access(vid.uid,
-                         vid.gid,
-                         (isRW) ? W_OK | X_OK : R_OK | X_OK)))
+        && (!dmd->access(vid.uid, vid.gid, (isRW) ? W_OK | X_OK : R_OK | X_OK)))
     {
       if (!((vid.uid == DAEMONUID) && (isPioReconstruct)))
       {
@@ -855,7 +844,7 @@ XrdMgmOfsFile::open (const char *inpath,
 
       if (!ocUploadUuid.length())
       {
-        fmd = 0;
+        fmd.reset();
       }
       else
       {
@@ -933,15 +922,14 @@ XrdMgmOfsFile::open (const char *inpath,
             // oc chunks start with flags=0
 
             cid = fmd->getContainerId();
-
-	    eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+	    std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	    cmd->setMTimeNow();
 	    cmd->notifyMTimeChange( gOFS->eosDirectoryService );
-	    gOFS->eosView->updateContainerStore(cmd);
+	    gOFS->eosView->updateContainerStore(cmd.get());
           }
           catch (eos::MDException &e)
           {
-            fmd = 0;
+            fmd.reset();
             errno = e.getErrno();
             eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                       e.getErrno(), e.getMessage().str().c_str());
@@ -1126,13 +1114,14 @@ XrdMgmOfsFile::open (const char *inpath,
 
     {
       eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-      eos::IFileMD* fmdnew = 0;
+      std::shared_ptr<eos::IFileMD> fmdnew;
       try
       {
         fmdnew = gOFS->eosView->getFile(path);
       }
       catch (eos::MDException &e)
       {
+	// TODO: this should be review to see if it is possible
         if ((!isAtomicUpload) && (fmdnew != fmd))
         {
           // file has been recreated in the meanwhile
@@ -1166,26 +1155,25 @@ XrdMgmOfsFile::open (const char *inpath,
       }
       try
       {
-        gOFS->eosView->updateFileStore(fmd);
-	eos::IContainerMD* cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+        gOFS->eosView->updateFileStore(fmd.get());
+	std::shared_ptr<eos::IContainerMD> cmd = gOFS->eosDirectoryService->getContainerMD(cid);
 	cmd->setMTimeNow();
 	cmd->notifyMTimeChange( gOFS->eosDirectoryService );
-	gOFS->eosView->updateContainerStore(cmd);
+	gOFS->eosView->updateContainerStore(cmd.get());
 
 	if (isCreation || (!fmd->getNumLocation())) 
 	{
-	  std::string uri = gOFS->eosView->getUri(fmd);
+	  std::string uri = gOFS->eosView->getUri(fmd.get());
 	  eos::common::Path eos_path {uri.c_str()};
 	  std::string dir_path = eos_path.GetParentPath();
-	  eos::IContainerMD* dir = gOFS->eosView->getContainer(dir_path);
+	  std::shared_ptr<eos::IContainerMD> dir = gOFS->eosView->getContainer(dir_path);
 	  // Get symlink free dir
-	  dir_path = gOFS->eosView->getUri(dir);
+	  dir_path = gOFS->eosView->getUri(dir.get());
 	  dir = gOFS->eosView->getContainer(dir_path);
-
-	  eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir);
+	  eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(dir.get());
 
 	  if (ns_quota)
-	    ns_quota->addFile(fmd);
+	    ns_quota->addFile(fmd.get());
         }
       }
       catch (eos::MDException &e)
@@ -1388,7 +1376,12 @@ XrdMgmOfsFile::open (const char *inpath,
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
       // ----------------------------------------------------------------------
+<<<<<<< HEAD
       if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1 * 1024 * 1024 * 1024)))
+=======
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") &&
+	  (fmd->getSize() < (1*1024*1024*1024)))
+>>>>>>> master
       {
         int nmaxheal = 3;
         if (attrmap.count("sys.heal.unavailable"))
@@ -1626,7 +1619,7 @@ XrdMgmOfsFile::open (const char *inpath,
             {
               fmd->addLocation(selectedfs[i]);
             }
-            gOFS->eosView->updateFileStore(fmd);
+            gOFS->eosView->updateFileStore(fmd.get());
           }
           catch (eos::MDException &e)
           {
@@ -2252,7 +2245,7 @@ XrdMgmOfsFile::open (const char *inpath,
         {
           // only update within the resolution of the access tracking
           fmd->setCTimeNow();
-          gOFS->eosView->updateFileStore(fmd);
+          gOFS->eosView->updateFileStore(fmd.get());
         }
         errno = 0;
       }

@@ -21,7 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR})
+#-------------------------------------------------------------------------------
+# Build the libfmt for fast convertions
+#-------------------------------------------------------------------------------
+add_subdirectory(utils/fmt)
 
 #-------------------------------------------------------------------------------
 # EosNsCommon library sources
@@ -29,7 +32,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 set(
   EOS_NS_COMMON_SRCS
   MDException.hh
-  Constants.cc   Constants.hh
+  Constants.cc
 
   # Namespace interface
   interface/IView.hh
@@ -44,22 +47,28 @@ set(
   utils/DataHelper.cc
   utils/Descriptor.cc
   utils/ThreadUtils.cc
+  utils/TestHelpers.cc
   utils/Buffer.hh)
 
 add_library(
   EosNsCommon SHARED
   ${EOS_NS_COMMON_SRCS})
 
+target_include_directories(
+  EosNsCommon PUBLIC
+  $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils/fmt>
+  $<INSTALL_INTERFACE:include>)
+
 target_link_libraries(
-  EosNsCommon
-  ${Z_LIBRARY})
+  EosNsCommon PUBLIC
+  ${Z_LIBRARY} fmt)
 
 set_target_properties(
   EosNsCommon
   PROPERTIES
   VERSION ${VERSION}
-  SOVERSION ${VERSION_MAJOR}
-  INTERFACE_LINK_LIBRARIES "")
+  SOVERSION ${VERSION_MAJOR})
 
 install(
   TARGETS EosNsCommon
@@ -74,9 +83,15 @@ if (Linux)
     EosNsCommon-Static STATIC
     ${EOS_NS_COMMON_SRCS})
 
+  target_include_directories(
+    EosNsCommon-Static PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils/fmt>
+    $<INSTALL_INTERFACE:include>)
+
   target_link_libraries(
-    EosNsCommon-Static
-    ${Z_LIBRARY_STATIC})
+    EosNsCommon-Static PUBLIC
+    ${Z_LIBRARY_STATIC} fmt)
 
   set_target_properties(
     EosNsCommon-Static
@@ -84,6 +99,32 @@ if (Linux)
     POSITION_INDEPENDENT_CODE True)
 endif ()
 
+#-------------------------------------------------------------------------------
+# text-runner used for running CPPUnit tests
+#-------------------------------------------------------------------------------
+if (CPPUNIT_FOUND)
+  add_executable(
+    text-runner
+    utils/TextRunner.cc)
+
+  target_include_directories(
+    text-runner PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CPPUNIT_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:include>)
+
+  target_link_libraries(
+    text-runner PUBLIC
+    ${CPPUNIT_LIBRARIES}
+    ${GLIBC_DL_LIBRARY}
+    ${CMAKE_THREAD_LIBS_INIT})
+endif()
 
 add_subdirectory(ns_in_memory)
-#add_subdirectory(ns_on_filesystem)
+
+# Build ns_on_redis if Redox client library available
+if (REDOX_FOUND)
+  add_subdirectory(ns_on_redis)
+endif()
+
+#add_subdirectory(ns_on_ramcloud)

@@ -107,8 +107,8 @@ XrdMgmOfs::_access (const char *path,
 
   eos::common::Path cPath(path);
 
-  eos::IContainerMD* dh = 0;
-  eos::IFileMD* fh = 0;
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fh;
   bool permok = false;
   uint16_t flags = 0;
   uid_t fuid = 99;
@@ -151,7 +151,7 @@ XrdMgmOfs::_access (const char *path,
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh)
       {
-        uri = gOFS->eosView->getUri(fh);
+        uri = gOFS->eosView->getUri(fh.get());
       }
       else
       {
@@ -159,7 +159,6 @@ XrdMgmOfs::_access (const char *path,
       }
 
       eos::common::Path pPath(uri.c_str());
-
       dh = gOFS->eosView->getContainer(pPath.GetParentPath());
       attr_path = pPath.GetParentPath();
     }
@@ -238,14 +237,13 @@ XrdMgmOfs::_access (const char *path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  // check permissions
-
+  // Check permissions
   if (!dh)
   {
     eos_debug("msg=\"access\" errno=ENOENT");
@@ -318,10 +316,8 @@ XrdMgmOfs::acc_access (const char* path,
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
 
   eos::common::Path cPath(path);
-
-  eos::IContainerMD* dh = 0;
-  eos::IFileMD* fh = 0;
-
+  std::shared_ptr<eos::IContainerMD> dh;
+  std::shared_ptr<eos::IFileMD> fh;
   std::string attr_path = cPath.GetPath();
   bool r_ok = false;
   bool w_ok = false;
@@ -359,7 +355,7 @@ XrdMgmOfs::acc_access (const char* path,
       // if this is a file or a not existing directory we check the access on the parent directory
       if (fh)
       {
-        uri = gOFS->eosView->getUri(fh);
+        uri = gOFS->eosView->getUri(fh.get());
       }
       else
       {
@@ -367,7 +363,6 @@ XrdMgmOfs::acc_access (const char* path,
       }
 
       eos::common::Path pPath(uri.c_str());
-
       dh = gOFS->eosView->getContainer(pPath.GetParentPath());
       attr_path = pPath.GetParentPath();
     }
@@ -386,11 +381,7 @@ XrdMgmOfs::acc_access (const char* path,
       x_ok = true;
 
     // ACL and permission check
-    Acl acl(attr_path.c_str(),
-            error,
-            vid,
-            attrmap,
-            false);
+    Acl acl(attr_path.c_str(), error, vid, attrmap, false);
 
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
@@ -426,7 +417,7 @@ XrdMgmOfs::acc_access (const char* path,
   }
   catch (eos::MDException &e)
   {
-    dh = 0;
+    dh = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
@@ -440,9 +431,10 @@ XrdMgmOfs::acc_access (const char* path,
   }
 
   // return the OC string;
-  accperm == "R";
   if (r_ok)
+  {
     accperm += "R";
+  }
   if (w_ok)
   {
     accperm += "WCKNV";

@@ -49,8 +49,8 @@ XrdMgmOfs::merge (
 {
   eos::common::Mapping::VirtualIdentity rootvid;
   eos::common::Mapping::Root(rootvid);
-  eos::IFileMD* src_fmd = 0;
-  eos::IFileMD* dst_fmd = 0;
+  std::shared_ptr<eos::IFileMD> src_fmd;
+  std::shared_ptr<eos::IFileMD> dst_fmd;
 
   if (!src || !dst)
   {
@@ -80,7 +80,7 @@ XrdMgmOfs::merge (
       dst_fmd->getCTime(ctime);
       src_fmd->setCTime(ctime);
       // change the owner of the source file
-      eosView->updateFileStore(src_fmd);
+      eosView->updateFileStore(src_fmd.get());
     }
     catch (eos::MDException &e)
     {
@@ -96,21 +96,11 @@ XrdMgmOfs::merge (
   if (src_fmd && dst_fmd)
   {
     // remove the destination file
-    rc |= gOFS->_rem(dst_path.c_str(),
-                     error,
-                     rootvid,
-                     "");
+    rc |= gOFS->_rem(dst_path.c_str(), error, rootvid, "");
 
     // rename the source to destination
-    rc |= gOFS->_rename(src_path.c_str(),
-                        dst_path.c_str(),
-                        error,
-                        rootvid,
-                        "",
-                        "",
-                        true,
-                        false
-                        );
+    rc |= gOFS->_rename(src_path.c_str(), dst_path.c_str(), error, rootvid, "",
+                        "", true, false);
   }
   else
   {

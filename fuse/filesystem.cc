@@ -57,7 +57,6 @@
 #include "FuseCache/CacheEntry.hh"
 #include "common/XrdErrorMap.hh"
 #include "filesystem.hh"
-#include "SyncResponseHandler.hh"
 
 #ifndef __macos__
 #define OSPAGESIZE 4096
@@ -640,8 +639,15 @@ filesystem::dir_cache_get (unsigned long long inode,
      dir->GetDirbuf (*b);
      retc = 1; // found
    }
+   else 
+   {
+     eos_static_debug("entry expired %llu %llu %llu %llu", mtime.tv_sec+ctime.tv_sec, oldtime.tv_sec, mtime.tv_nsec+ctime.tv_nsec,oldtime.tv_nsec);
+   }
  }
-
+ else
+ {
+   eos_static_debug("not in cache");
+ }
  return retc;
 }
 
@@ -842,7 +848,6 @@ filesystem::force_rwopen (
                          uid_t uid, gid_t gid, pid_t pid
                          )
 {
-  int fd = -1;
   std::ostringstream sstr;
   sstr << inode << ":" << get_login (uid, gid, pid);
 
@@ -852,9 +857,6 @@ filesystem::force_rwopen (
   // If there is already an entry for the current user and the current inode
   if (iter_fd != inodexrdlogin2fds.end ())
   {
-    fd = *iter_fd->second.begin ();
-    auto iter_file = fd2fabst.find (fd); //all the fd ti a same file share the same fabst
-
     for (auto fdit = iter_fd->second.begin (); fdit != iter_fd->second.end (); fdit++)
     {
       if ( fd2count[*fdit] > 0)
@@ -1220,11 +1222,7 @@ filesystem::rmxattr (const char* path,
 
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("GETPLUGIN", &rmxattrtiming);
  errno = 0;
 
@@ -1308,11 +1306,7 @@ filesystem::setxattr (const char* path,
 
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("GETPLUGIN", &setxattrtiming);
  errno = 0;
 
@@ -1390,11 +1384,7 @@ filesystem::getxattr (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("GETPLUGIN", &getxattrtiming);
  errno = 0;
 
@@ -1475,11 +1465,7 @@ filesystem::listxattr (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("GETPLUGIN", &listxattrtiming);
  errno = 0;
 
@@ -1690,13 +1676,8 @@ filesystem::stat (const char* path,
  eos_static_debug ("stat url is %s", surl.c_str ());
  XrdCl::URL Url (surl.c_str ());
  XrdCl::FileSystem fs (Url);
-
  eos_static_debug ("arg = %s", arg.ToString ().c_str ());
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("GETPLUGIN", &stattiming);
 
  if (status.IsOK ())
@@ -1869,11 +1850,7 @@ filesystem::statfs (const char* path, struct statvfs* stbuf,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  errno = 0;
 
  if (status.IsOK ())
@@ -1963,11 +1940,7 @@ filesystem::chmod (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("END", &chmodtiming);
  errno = 0;
 
@@ -2078,11 +2051,7 @@ filesystem::utimes (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("END", &utimestiming);
  errno = 0;
 
@@ -2153,11 +2122,7 @@ filesystem::symlink (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("STOP", &symlinktiming);
  errno = 0;
 
@@ -2218,11 +2183,7 @@ filesystem::readlink (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("END", &readlinktiming);
  errno = 0;
 
@@ -2322,11 +2283,7 @@ filesystem::access (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("STOP", &accesstiming);
  errno = 0;
 
@@ -2417,33 +2374,14 @@ filesystem::inodirlist (unsigned long long dirinode,
  unsigned int nbytes = 0;
  value = (char*) malloc (PAGESIZE + 1);
  COMMONTIMING ("READSTSTREAM", &inodirtiming);
-
- {
-   SyncResponseHandler handler;
-   XrdCl::ChunkInfo *chunkInfo = 0;
-   file->Read (offset, PAGESIZE, value + offset, &handler);
-   status = handler.Sync(chunkInfo);
-   if (chunkInfo)
-   {
-     nbytes = chunkInfo->length;
-     delete chunkInfo;
-   }
- }
+ status = file->Read (offset, PAGESIZE, value + offset, nbytes);
 
  while ((status.IsOK ()) && (nbytes == PAGESIZE))
  {
-   SyncResponseHandler handler;
-   XrdCl::ChunkInfo *chunkInfo = 0;
    npages++;
    value = (char*) realloc (value, npages * PAGESIZE + 1);
    offset += PAGESIZE;
-   file->Read (offset, PAGESIZE, value + offset, &handler);
-   status = handler.Sync(chunkInfo);
-   if (chunkInfo)
-   {
-     nbytes = chunkInfo->length;
-     delete chunkInfo;
-   }
+   status = file->Read (offset, PAGESIZE, value + offset, nbytes);
  }
 
  if (status.IsOK ()) offset += nbytes;
@@ -2789,11 +2727,7 @@ filesystem::mkdir (const char* path,
  surl += strongauth_cgi (pid);
  XrdCl::URL Url (surl);
  XrdCl::FileSystem fs (Url);
-
- SyncResponseHandler handler;
- fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
- XrdCl::XRootDStatus status = handler.Sync(response);
-
+ XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
  COMMONTIMING ("GETPLUGIN", &mkdirtiming);
 
  if (status.IsOK ())
@@ -3111,7 +3045,6 @@ filesystem::open (const char* path,
  {
    XrdCl::Buffer arg;
    XrdCl::Buffer* response = 0;
-   XrdCl::XRootDStatus status;
    std::string file_path = path;
    size_t spos = file_path.rfind ("//");
 
@@ -3127,10 +3060,7 @@ filesystem::open (const char* path,
    surl += strongauth_cgi (pid);
    XrdCl::URL Url (surl);
    XrdCl::FileSystem fs (Url);
-
-   SyncResponseHandler handler;
-   fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-   status = handler.Sync(response);
+   XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
 
    if (status.IsOK ())
    {
@@ -4384,17 +4314,11 @@ bool filesystem::get_features(const std::string &url, std::map<std::string,std::
 {
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
-  XrdCl::XRootDStatus status;
-
   std::string request = "/?mgm.pcmd=version&mgm.version.features=1&eos.app=fuse";
   arg.FromString (request.c_str());
-
   XrdCl::URL Url (url.c_str());
   XrdCl::FileSystem fs (Url);
-
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  status = handler.Sync(response);
+  XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
 
   if (!status.IsOK ())
   {
@@ -4795,7 +4719,6 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 
  authidmanager.setAuth (use_user_krb5cc, use_user_gsiproxy, use_unsafe_krk5, fallback2nobody, tryKrb5First);
 
-
  if (getenv("EOS_FUSE_MODE_OVERLAY"))
  {
    mode_overlay = (mode_t)strtol(getenv("EOS_FUSE_MODE_OVERLAY"),0,8);
@@ -4805,10 +4728,11 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    mode_overlay = 0;
  }
 
+#ifndef __APPLE__
  // get uid and pid specificities of the system
  {
    FILE *f = fopen ("/proc/sys/kernel/pid_max", "r");
-   if (f && fscanf (f, "%lu", &pid_max))
+   if (f && fscanf (f, "%llu", (unsigned long long*)&pid_max))
      eos_static_notice ("pid_max is %llu", pid_max);
    else
    {
@@ -4828,7 +4752,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
      auto comment_tag = strstr (line, "#");
      if (comment_tag && comment_tag < keyword) continue; // commented line with the keyword
      char buffer[4096];
-     if (sscanf (line, "%s %lu", buffer, &uid_max) != 2)
+     if (sscanf (line, "%s %llu", buffer, (unsigned long long*)&uid_max) != 2)
      {
        eos_static_err ("could not parse line %s in /etc/login.defs", line);
        uid_max = 0;
@@ -4848,6 +4772,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    }
    if (f) fclose (f);
  }
+
+#endif
+
  authidmanager.resize (pid_max + 1);
 
  // Get parameters about strong authentication
@@ -4855,7 +4782,6 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
    link_pidmap = true;
  else
    link_pidmap = false;
-
 
  eos_static_notice ("krb5=%d", use_user_krb5cc ? 1 : 0);
 }
@@ -4867,9 +4793,9 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
 size_t
 strlcat (char *dst, const char *src, size_t siz)
 {
- register char *d = dst;
- register const char *s = src;
- register size_t n = siz;
+ char *d = dst;
+ const char *s = src;
+ size_t n = siz;
  size_t dlen;
 
  /* Find the end of dst and adjust bytes left but don't go past end */

@@ -147,7 +147,7 @@ private:
   //!
   //! @warning Caller needs to hold a lock on mMutex
   //----------------------------------------------------------------------------
-  void  ResetQuota(unsigned long tag, unsigned long id);
+  void ResetQuota(unsigned long tag, unsigned long id);
 
   //----------------------------------------------------------------------------
   //! Add quota
@@ -161,9 +161,9 @@ private:
   void AddQuota(unsigned long tag, unsigned long id, long long value);
 
   //----------------------------------------------------------------------------
-  //! Import ns quota values into current space quota
+  //! Account ns quota values into the space quota view.
   //----------------------------------------------------------------------------
-  void NsQuotaToSpaceQuota();
+  void AccountNsToSpace();
 
   //----------------------------------------------------------------------------
   //! Update quota from the ns quota node for the given identity only if the

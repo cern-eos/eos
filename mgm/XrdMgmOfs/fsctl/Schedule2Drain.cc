@@ -75,17 +75,17 @@
     auto it = sZeroMove.begin();
     while (it != sZeroMove.end())
     {
-      eos::IFileMD* fmd = 0;
+      std::shared_ptr<eos::IFileMD> fmd;
       try
       {
         fmd = gOFS->eosFileService->getFileMD(it->first);
-	std::string fullpath = gOFS->eosView->getUri(fmd);
+	std::string fullpath = gOFS->eosView->getUri(fmd.get());
         if (!fmd->getSize())
         {
           fmd->unlinkLocation(it->second.first);
           fmd->removeLocation(it->second.first);
           fmd->addLocation(it->second.second);
-          gOFS->eosView->updateFileStore(fmd);
+          gOFS->eosView->updateFileStore(fmd.get());
           eos_info("msg=\"drained 0-size file\" fxid=%llx source-fsid=%u "
                    "target-fsid=%u", it->first, it->second.first, it->second.second);
         }
@@ -96,7 +96,7 @@
 	  {
 	    fmd->unlinkLocation(it->second.first);
 	    fmd->removeLocation(it->second.first);
-	    gOFS->eosView->updateFileStore(fmd);
+	    gOFS->eosView->updateFileStore(fmd.get());
 	    eos_info("msg=\"drained(unlinked) atomic upload file\" fxid=%llx source-fsid=%u "
 		     "target-fsid=%u", it->first, it->second.first, it->second.second);
 	  }
@@ -220,29 +220,8 @@
     // the ScheduledToDrainFidMutex
     eos::common::RWMutexReadLock nsLock(gOFS->eosViewRWMutex);
 
-    eos::IFsView::FileList source_filelist;
-    eos::IFsView::FileList target_filelist;
-
-    try
-    {
-      source_filelist = gOFS->eosFsView->getFileList(source_fsid);
-    }
-    catch (eos::MDException &e)
-    {
-      source_filelist.set_deleted_key(0);
-      source_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
-    try
-    {
-      target_filelist = gOFS->eosFsView->getFileList(target_fsid);
-    }
-    catch (eos::MDException &e)
-    {
-      target_filelist.set_deleted_key(0);
-      target_filelist.set_empty_key(0xffffffffffffffff);
-    }
-
+    eos::IFsView::FileList source_filelist = gOFS->eosFsView->getFileList(source_fsid);
+    eos::IFsView::FileList target_filelist = gOFS->eosFsView->getFileList(target_fsid);
     unsigned long long nfids = (unsigned long long) source_filelist.size();
 
     eos_thread_debug("group=%s cycle=%lu source_fsid=%u target_fsid=%u n_source_fids=%llu",
@@ -295,40 +274,38 @@
         else
 	{
 	  std::string fullpath = "";
-	  std::unique_ptr<eos::IFileMD> fmd_cpy;
+	  std::shared_ptr<eos::IFileMD> fmd;
 
-          try
-          {
-            eos::IFileMD* fmd = gOFS->eosFileService->getFileMD(fid);
-            fullpath = gOFS->eosView->getUri(fmd);
-            XrdOucString savepath = fullpath.c_str();
-            while (savepath.replace("&", "#AND#")){}
-            fullpath = savepath.c_str();
-            fmd = gOFS->eosFileService->getFileMD(fid);
-            fmd_cpy.reset(fmd->clone());
-            fmd = (eos::IFileMD*)(0);
-          }
-          catch (eos::MDException &e)
-          {
-            fit++;
-            continue;
-          }
-
-	  if (fmd_cpy.get() == 0)
+	  try
+	  {
+	    fmd = gOFS->eosFileService->getFileMD(fid);
+	    fullpath = gOFS->eosView->getUri(fmd.get());
+	    XrdOucString savepath = fullpath.c_str();
+	    while (savepath.replace("&", "#AND#")){}
+	    fullpath = savepath.c_str();
+	    fmd = gOFS->eosFileService->getFileMD(fid);
+	  }
+	  catch (eos::MDException &e)
+	  {
+	    fit++;
+	    continue;
+	  }
+	
+	  if (!fmd)
           {
 	      fit++;
 	      continue;
 	  }
 
 	  std::vector<unsigned int> locationfs;
-	  long unsigned int lid = fmd_cpy->getLayoutId();
-	  unsigned long long cid = fmd_cpy->getContainerId();
-	  unsigned long long size = fmd_cpy->getSize();
-	  uid_t uid = fmd_cpy->getCUid();
-	  gid_t gid = fmd_cpy->getCGid();
+	  long unsigned int lid = fmd->getLayoutId();
+	  unsigned long long cid = fmd->getContainerId();
+	  unsigned long long size = fmd->getSize();
+	  uid_t uid = fmd->getCUid();
+	  gid_t gid = fmd->getCGid();
 	    
 	  eos::IFileMD::LocationVector::const_iterator lociter;
-	  eos::IFileMD::LocationVector loc_vect = fmd_cpy->getLocations();
+	  eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
 	  for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
           {
 	    // ignore filesystem id 0

@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/StringConversion.hh"
+#include "StringConversion.hh"
 #include "common/Logging.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
@@ -31,20 +31,13 @@ EOSCOMMONNAMESPACE_BEGIN
 char StringConversion::pAscii2HexLkup[256];
 char StringConversion::pHex2AsciiLkup[16];
 
-
-// ---------------------------------------------------------------------------
-/**
- * Tokenize a string
- *
- * @param str string to be tokenized
- * @param tokens  returned list of seperated string tokens
- * @param delimiters delimiter used for tokenizing
- */
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Tokenize a string
+//------------------------------------------------------------------------------
 void
-StringConversion::Tokenize (const std::string& str,
-                            std::vector<std::string>& tokens,
-                            const std::string& delimiters)
+StringConversion::Tokenize(const std::string& str,
+                           std::vector<std::string>& tokens,
+                           const std::string& delimiters)
 {
   // Skip delimiters at beginning.
   std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
@@ -62,20 +55,13 @@ StringConversion::Tokenize (const std::string& str,
   }
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
- *
- * @param str string to be tokenized
- * @param tokens  returned list of seperated string tokens
- * @param delimiters delimiter used for tokenizing
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Tokenize a string accepting also empty members e.g. a||b is returning 3 fields
+//------------------------------------------------------------------------------
 void
-StringConversion::EmptyTokenize (const std::string& str,
-                                 std::vector<std::string>& tokens,
-                                 const std::string& delimiters)
+StringConversion::EmptyTokenize(const std::string& str,
+                                std::vector<std::string>& tokens,
+                                const std::string& delimiters)
 {
   // Skip delimiters at beginning.
   std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
@@ -88,40 +74,33 @@ StringConversion::EmptyTokenize (const std::string& str,
     tokens.push_back(str.substr(lastPos, pos - lastPos));
     // Skip delimiters.  Note the "not_of"
     lastPos = str.find_first_of(delimiters, pos);
+
     if (lastPos != std::string::npos)
       lastPos++;
+
     // Find next "non-delimiter"
     pos = str.find_first_of(delimiters, lastPos);
   }
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a long long value into time s,m,h,d  scale
- *
- * @param sizestring returned XrdOuc string representation
- * @param seconds number to convert
- *
- * @return sizestring.c_str()
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a long long value into time s,m,h,d  scale
+//------------------------------------------------------------------------------
 const char*
-StringConversion::GetReadableAgeString (XrdOucString& sizestring,
-                      unsigned long long age)
+StringConversion::GetReadableAgeString(XrdOucString& sizestring,
+                                       unsigned long long age)
 {
   char formsize[1024];
+
   if (age > 86400)
   {
     sprintf(formsize, "%llud", age / 86400);
   }
-  else
-    if (age > 3600)
+  else if (age > 3600)
   {
     sprintf(formsize, "%lluh", age / 3600);
   }
-  else
-    if (age > 60)
+  else if (age > 60)
   {
     sprintf(formsize, "%llum", age / 60);
   }
@@ -129,27 +108,22 @@ StringConversion::GetReadableAgeString (XrdOucString& sizestring,
   {
     sprintf(formsize, "%llus", age);
   }
+
   sizestring = formsize;
   return sizestring.c_str();
 }
 
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a long long value into K,M,G,T,P,E byte scale
- *
- * @param sizestring returned XrdOuc string representation
- * @param insize number to convert
- * @param unit unit to display e.g. B for bytes
- *
- * @return sizestring.c_str()
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a long long value into K,M,G,T,P,E byte scale
+//------------------------------------------------------------------------------
 const char*
-StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long long insize, const char* unit)
+StringConversion::GetReadableSizeString(XrdOucString& sizestring,
+                                        unsigned long long insize,
+                                        const char* unit)
 {
   char formsize[1024];
+
   if (insize >= 10000)
   {
     if (insize >= (1000 * 1000))
@@ -161,31 +135,29 @@ StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long
           if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll))
           {
             if (insize >= (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll))
-            {
-              // EB
-              sprintf(formsize, "%.02f E%s", insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
+            { // EB
+              sprintf(formsize, "%.02f E%s",
+                      insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
             }
             else
-            {
-              // PB
-              sprintf(formsize, "%.02f P%s", insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
+            { // PB
+              sprintf(formsize, "%.02f P%s",
+                      insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll * 1000ll), unit);
             }
           }
           else
-          {
-            // TB
-            sprintf(formsize, "%.02f T%s", insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll), unit);
+          { // TB
+            sprintf(formsize, "%.02f T%s",
+                    insize * 1.0 / (1000ll * 1000ll * 1000ll * 1000ll), unit);
           }
         }
         else
-        {
-          // GB
+        { // GB
           sprintf(formsize, "%.02f G%s", insize * 1.0 / (1000ll * 1000ll * 1000ll), unit);
         }
       }
       else
-      {
-        // MB
+      { // MB
         sprintf(formsize, "%.02f M%s", insize * 1.0 / (1000 * 1000), unit);
       }
     }
@@ -202,27 +174,19 @@ StringConversion::GetReadableSizeString (XrdOucString& sizestring, unsigned long
     }
     else
     {
-
       sprintf(formsize, "%llu", insize);
     }
   }
-  sizestring = formsize;
 
+  sizestring = formsize;
   return sizestring.c_str();
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a readable string into a number
- *
- * @param sizestring readable string like 4 KB or 1000 GB
- *
- * @return number
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a readable string into a number
+//------------------------------------------------------------------------------
 unsigned long long
-StringConversion::GetSizeFromString (const char* instring)
+StringConversion::GetSizeFromString(const char* instring)
 {
   if (!instring)
   {
@@ -234,6 +198,7 @@ StringConversion::GetSizeFromString (const char* instring)
   errno = 0;
   unsigned long long convfactor;
   convfactor = 1ll;
+
   if (!sizestring.length())
   {
     errno = EINVAL;
@@ -280,7 +245,8 @@ StringConversion::GetSizeFromString (const char* instring)
     convfactor = 1ll;
   }
 
-  if ((sizestring.length() > 3) && (sizestring.endswith("MIN") || sizestring.endswith("min")))
+  if ((sizestring.length() > 3) && (sizestring.endswith("MIN")
+                                    || sizestring.endswith("min")))
   {
     convfactor = 60ll;
   }
@@ -300,7 +266,8 @@ StringConversion::GetSizeFromString (const char* instring)
     convfactor = 7 * 86400ll;
   }
 
-  if ((sizestring.length() > 2) && (sizestring.endswith("MO") || sizestring.endswith("mo")))
+  if ((sizestring.length() > 2) && (sizestring.endswith("MO")
+                                    || sizestring.endswith("mo")))
   {
     convfactor = 31 * 86400ll;
   }
@@ -315,32 +282,22 @@ StringConversion::GetSizeFromString (const char* instring)
 
   if ((sizestring.find(".")) != STR_NPOS)
   {
-    return ((unsigned long long) (strtod(sizestring.c_str(), NULL) * convfactor));
+    return ((unsigned long long)(strtod(sizestring.c_str(), NULL) * convfactor));
   }
   else
   {
-
     return (strtoll(sizestring.c_str(), 0, 10) * convfactor);
   }
 }
 
-
-// ---------------------------------------------------------------------------
-/**
- * Convert a long long value into K,M,G,T,P,E byte scale
- *
- * @param sizestring returned standard string representation
- * @param insize number to convert
- * @param unit unit to display e.g. B for bytes
- *
- * @return sizestring.c_str()
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a long long value into K,M,G,T,P,E byte scale
+//------------------------------------------------------------------------------
 const char*
-StringConversion::GetReadableSizeString (std::string& sizestring, unsigned long long insize, const char* unit)
+StringConversion::GetReadableSizeString(std::string& sizestring,
+                                        unsigned long long insize,
+                                        const char* unit)
 {
-
   const char* ptr = 0;
   XrdOucString oucsizestring = "";
   ptr = GetReadableSizeString(oucsizestring, insize, unit);
@@ -348,117 +305,75 @@ StringConversion::GetReadableSizeString (std::string& sizestring, unsigned long 
   return ptr;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a long long number into a std::string
- *
- * @param sizestring returned string
- * @param insize number
- *
- * @return sizestring.c_str()
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a long long number into a std::string
+//------------------------------------------------------------------------------
 const char*
-StringConversion::GetSizeString (std::string& sizestring, unsigned long long insize)
+StringConversion::GetSizeString(std::string& sizestring,
+                                unsigned long long insize)
 {
-
   char buffer[1024];
   sprintf(buffer, "%llu", insize);
   sizestring = buffer;
   return sizestring.c_str();
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a number into a XrdOuc string
- *
- * @param sizestring returned XrdOuc string
- * @param insize number
- *
- * @return sizestring.c_str()
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a number into a XrdOuc string
+//------------------------------------------------------------------------------
 const char*
-StringConversion::GetSizeString (XrdOucString& sizestring, unsigned long long insize)
+StringConversion::GetSizeString(XrdOucString& sizestring,
+                                unsigned long long insize)
 {
-
   char buffer[1024];
   sprintf(buffer, "%llu", insize);
   sizestring = buffer;
   return sizestring.c_str();
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a floating point number into a string
- *
- * @param sizestring returned string
- * @param insize floating point number
- *
- * @return sizestring.c_str()
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a floating point number into a string
+//------------------------------------------------------------------------------
 const char*
-StringConversion::GetSizeString (XrdOucString& sizestring, double insize)
+StringConversion::GetSizeString(XrdOucString& sizestring, double insize)
 {
-
   char buffer[1024];
   sprintf(buffer, "%.02f", insize);
   sizestring = buffer;
   return sizestring.c_str();
 }
 
-// ---------------------------------------------------------------------------
-/** A
- * Split a 'key:value' definition into key + value
- *
- * @param keyval key-val string 'key:value'
- * @param key returned key
- * @param split split character
- * @param value return value
- *
- * @return true if parsing ok, false if wrong format
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Split a 'key:value' definition into key + value
+//------------------------------------------------------------------------------
 bool
-StringConversion::SplitKeyValue (std::string keyval, std::string &key, std::string &value, std::string split)
+StringConversion::SplitKeyValue(std::string keyval, std::string& key,
+                                std::string& value, std::string split)
 {
   int equalpos = keyval.find(split.c_str());
+
   if (equalpos != STR_NPOS)
   {
     key.assign(keyval, 0, equalpos);
-    value.assign(keyval, equalpos + 1, keyval.length()-(equalpos + 1));
+    value.assign(keyval, equalpos + 1, keyval.length() - (equalpos + 1));
     return true;
   }
   else
   {
-
     key = value = "";
     return false;
   }
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Split a 'key:value' definition into key + value
- *
- * @param keyval key-val string 'key:value'
- * @param key returned key
- * @param split split character
- * @param value return value
- *
- * @return true if parsing ok, false if wrong format
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Split a 'key:value' definition into key + value
+//------------------------------------------------------------------------------
 bool
-StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucString &value, XrdOucString split)
+StringConversion::SplitKeyValue(XrdOucString keyval, XrdOucString& key,
+                                XrdOucString& value, XrdOucString split)
 {
   int equalpos = keyval.find(split.c_str());
+
   if (equalpos != STR_NPOS)
   {
     key.assign(keyval, 0, equalpos - 1);
@@ -467,32 +382,20 @@ StringConversion::SplitKeyValue (XrdOucString keyval, XrdOucString &key, XrdOucS
   }
   else
   {
-
     key = value = "";
     return false;
   }
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Split a comma seperated key:val list and fill it into a map
- *
- * @param mapstring map string to parse
- * @param map return map after parsing if ok
- * @param split seperator used to seperate key from value default ":"
- * @param delimiter seperator used to seperate individual key value pairs
- * @param keyvector returns optional the order of the keys in a vector
- * @return true if format ok, otherwise false
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Split a comma seperated key:val list and fill it into a map
+//------------------------------------------------------------------------------
 bool
-StringConversion::GetKeyValueMap (const char* mapstring,
-                                  std::map<std::string, std::string> &map,
-                                  const char* split,
-                                  const char* sdelimiter,
-                                  std::vector<std::string>* keyvector
-                                  )
+StringConversion::GetKeyValueMap(const char* mapstring,
+                                 std::map<std::string, std::string>& map,
+                                 const char* split,
+                                 const char* sdelimiter,
+                                 std::vector<std::string>* keyvector)
 {
   if (!mapstring)
     return false;
@@ -508,10 +411,12 @@ StringConversion::GetKeyValueMap (const char* mapstring,
   }
 
   size_t keyvectorindex = 0;
+
   for (auto it = slist.begin(); it != slist.end(); it++)
   {
     std::string key;
     std::string val;
+
     if (SplitKeyValue(*it, key, val, split))
     {
       if (keyvector && !map.count(key))
@@ -519,95 +424,80 @@ StringConversion::GetKeyValueMap (const char* mapstring,
         if (std::find(keyvector->begin(), keyvector->end(), key) == keyvector->end())
         {
           std::vector<std::string>::iterator it = keyvector->begin();
-
           std::advance(it, keyvectorindex);
           keyvector->insert(it, key);
         }
       }
+
       keyvectorindex++;
       map[key] = val;
     }
     else
     {
-
       return false;
     }
   }
+
   return true;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Specialized splitting function returning the host part out of a queue name
- *
- * @param queue name of a queue e.g. /eos/host:port/role
- *
- * @return string containing the host
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Specialized splitting function returning the host part out of a queue name
+//------------------------------------------------------------------------------
 XrdOucString
-StringConversion::GetHostPortFromQueue (const char* queue)
+StringConversion::GetHostPortFromQueue(const char* queue)
 {
   XrdOucString hostport = queue;
   int pos = hostport.find("/", 2);
+
   if (pos != STR_NPOS)
   {
     hostport.erase(0, pos + 1);
     pos = hostport.find("/");
+
     if (pos != STR_NPOS)
     {
-
       hostport.erase(pos);
     }
   }
+
   return hostport;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Specialized splitting function returning the host:port part out of a queue name
- *
- * @param queue name of a queue e.g. /eos/host:port/role
- *
- * @return string containing host:port
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Specialized splitting function returning the host:port part out of a queue name
+//------------------------------------------------------------------------------
 std::string
-StringConversion::GetStringHostPortFromQueue (const char* queue)
+StringConversion::GetStringHostPortFromQueue(const char* queue)
 {
   std::string hostport = queue;
   int pos = hostport.find("/", 2);
+
   if (pos != STR_NPOS)
   {
     hostport.erase(0, pos + 1);
     pos = hostport.find("/");
+
     if (pos != STR_NPOS)
     {
-
       hostport.erase(pos);
     }
   }
+
   return hostport;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Split 'a.b' into a and b
- *
- * @param in 'a.b'
- * @param pre string before .
- * @param post string after .
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Split 'a.b' into a and b
+//------------------------------------------------------------------------------
 void
-StringConversion::SplitByPoint (std::string in, std::string &pre, std::string &post)
+StringConversion::SplitByPoint(std::string in, std::string& pre,
+                               std::string& post)
 {
   std::string::size_type dpos = 0;
   pre = in;
   post = in;
+
   if ((dpos = in.find(".")) != std::string::npos)
   {
     std::string s = in;
@@ -616,26 +506,20 @@ StringConversion::SplitByPoint (std::string in, std::string &pre, std::string &p
   }
   else
   {
-
     post = "";
   }
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Convert a string into a line-wise map
- *
- * @param in char*
- * @param out vector with std::string lines
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Convert a string into a line-wise map
+//------------------------------------------------------------------------------
 void
-StringConversion::StringToLineVector (char* in, std::vector<std::string> &out)
+StringConversion::StringToLineVector(char* in, std::vector<std::string>& out)
 {
   char* pos = in;
   char* old_pos = in;
   int len = strlen(in);
+
   while ((pos = strchr(pos, '\n')))
   {
     *pos = 0;
@@ -650,23 +534,18 @@ StringConversion::StringToLineVector (char* in, std::vector<std::string> &out)
   }
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,std::set<unsigned long long>'
- *
- * @param in char*
- * @param tag string
- * @param id unsigned long
- * @param set std::set<unsigned long long>
- * @return true if parsed, false if format error
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Split a string of type '<string>@<int>[:<0xXXXXXXXX] into string,int,
+// std::set<unsigned long long>'
+//------------------------------------------------------------------------------
 bool
-StringConversion::ParseStringIdSet (char* in, std::string& tag, unsigned long& id, std::set<unsigned long long> &set)
+StringConversion::ParseStringIdSet(char* in, std::string& tag,
+                                   unsigned long& id,
+                                   std::set<unsigned long long>& set)
 {
   char* ptr = in;
   char* add = strchr(in, '@');
+
   if (!add)
     return false;
 
@@ -675,6 +554,7 @@ StringConversion::ParseStringIdSet (char* in, std::string& tag, unsigned long& i
   if (!colon)
   {
     id = strtoul(add + 1, 0, 10);
+
     if (id)
     {
       return true;
@@ -694,11 +574,12 @@ StringConversion::ParseStringIdSet (char* in, std::string& tag, unsigned long& i
   *add = 0;
   tag = ptr;
   *add = '@';
-
   ptr = colon + 1;
+
   do
   {
     char* nextcolon = strchr(ptr, ':');
+
     // get a set member
     if (nextcolon)
     {
@@ -715,74 +596,56 @@ StringConversion::ParseStringIdSet (char* in, std::string& tag, unsigned long& i
       return true;
     }
   }
-
   while (1);
+
   return false;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Load a text file <name> into a string
- *
- * @param filename from where to load the contents
- * @param out string where to inject the file contents
- * @return (const char*) pointer to loaded string
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Load a text file <name> into a string
+//------------------------------------------------------------------------------
 const char*
-StringConversion::LoadFileIntoString (const char* filename, std::string &out)
+StringConversion::LoadFileIntoString(const char* filename, std::string& out)
 {
-
   std::ifstream load(filename);
   std::stringstream buffer;
-
   buffer << load.rdbuf();
   out = buffer.str();
   return out.c_str();
 }
 
-
-// ---------------------------------------------------------------------------
-/**
- * Read a long long number as output of a shell command - this is not usefull in multi-threaded environments
- *
- * @param shellcommand to execute
- * @return long long value of converted shell output
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Read a long long number as output of a shell command - this is not usefull
+// in multi-threaded environments.
+//------------------------------------------------------------------------------
 long long
-StringConversion::LongLongFromShellCmd (const char* shellcommand)
+StringConversion::LongLongFromShellCmd(const char* shellcommand)
 {
   FILE* fd = popen(shellcommand, "r");
+
   if (fd)
   {
     char buffer[1025];
     buffer[0] = 0;
     int nread = fread((void*) buffer, 1, 1024, fd);
     pclose(fd);
+
     if ((nread > 0) && (nread < 1024))
     {
-
       buffer[nread] = 0;
       return strtoll(buffer, 0, 10);
     }
   }
+
   return LLONG_MAX;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Read a string as output of a shell command - this is not usefull in multi-threaded environments
- *
- * @param shellcommand to execute
- * @return XrdOucString
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Read a string as output of a shell command - this is not usefull in
+// multi-threaded environments.
+//------------------------------------------------------------------------------
 std::string
-StringConversion::StringFromShellCmd (const char* shellcommand)
+StringConversion::StringFromShellCmd(const char* shellcommand)
 {
   FILE* fd = popen(shellcommand, "r");
   std::string shellstring;
@@ -801,47 +664,39 @@ StringConversion::StringFromShellCmd (const char* shellcommand)
       if (nread != 1024)
         break;
     }
+
     pclose(fd);
     return shellstring;
   }
+
   return "<none>";
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Return the time as <seconds>.<nanoseconds> in a string
- * @param stime XrdOucString where to store the time as text
- * @return const char* to XrdOucString object passed
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Return the time as <seconds>.<nanoseconds> in a string
+//------------------------------------------------------------------------------
 const char*
-StringConversion::TimeNowAsString (XrdOucString& stime)
+StringConversion::TimeNowAsString(XrdOucString& stime)
 {
-
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
   char tb[128];
-  snprintf(tb, sizeof (tb) - 1, "%lu.%lu", ts.tv_sec, ts.tv_nsec);
+  snprintf(tb, sizeof(tb) - 1, "%lu.%lu", ts.tv_sec, ts.tv_nsec);
   stime = tb;
   return stime.c_str();
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Mask a tag 'key=val' as 'key=<...>' in an opaque string
- * @param XrdOucString where to mask
- * @return pointer to string where the masked string is stored
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Mask a tag 'key=val' as 'key=<...>' in an opaque string
+//------------------------------------------------------------------------------
 const char*
-StringConversion::MaskTag (XrdOucString& line, const char* tag)
+StringConversion::MaskTag(XrdOucString& line, const char* tag)
 {
   XrdOucString smask = tag;
   smask += "=";
   int spos = line.find(smask.c_str());
   int epos = line.find("&", spos + 1);
+
   if (spos != STR_NPOS)
   {
     if (epos != STR_NPOS)
@@ -850,32 +705,27 @@ StringConversion::MaskTag (XrdOucString& line, const char* tag)
     }
     else
     {
-
       line.erase(spos);
     }
+
     smask += "<...>";
     line.insert(smask.c_str(), spos);
   }
+
   return line.c_str();
 }
 
-
-// ---------------------------------------------------------------------------
-/**
- * Parse a string as an URL (does not deal with opaque information)
- * @param url string to parse
- * @param &protocol - return of the protocol identifier
- * @param &hostport - return of the host(port) identifier
- * @return pointer to file path inside the url
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Parse a string as an URL (does not deal with opaque information)
+//------------------------------------------------------------------------------
 const char*
-StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucString& hostport)
+StringConversion::ParseUrl(const char* url, XrdOucString& protocol,
+                           XrdOucString& hostport)
 {
   protocol = url;
   hostport = url;
   int ppos = protocol.find(":/");
+
   if (ppos != STR_NPOS)
   {
     protocol.erase(ppos);
@@ -891,6 +741,7 @@ StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucStrin
       protocol = "file";
     }
   }
+
   if (protocol == "file")
   {
     if (hostport.beginswith("file:"))
@@ -904,13 +755,16 @@ StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucStrin
       return url;
     }
   }
+
   if (protocol == "root")
   {
     int spos = hostport.find("//", ppos + 2);
+
     if (spos == STR_NPOS)
     {
       return 0;
     }
+
     hostport.erase(spos);
     hostport.erase(0, 7);
     return (url + spos + 1);
@@ -922,6 +776,7 @@ StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucStrin
     {
       // as3://<hostname>/<bucketname>/<filename> like in ROOT
       int spos = hostport.find("/", 6);
+
       if (spos != STR_NPOS)
       {
         hostport.erase(spos);
@@ -939,67 +794,69 @@ StringConversion::ParseUrl (const char* url, XrdOucString& protocol, XrdOucStrin
       hostport = "";
       return (url + 4);
     }
-
   }
+
   if (protocol == "http")
   {
     // http://<hostname><path>
     int spos = hostport.find("/", 7);
+
     if (spos == STR_NPOS)
     {
       return 0;
     }
+
     hostport.erase(spos);
     hostport.erase(0, 7);
     return (url + spos);
   }
+
   if (protocol == "https")
   {
     // http://<hostname><path>
     int spos = hostport.find("/", 8);
+
     if (spos == STR_NPOS)
     {
       return 0;
     }
+
     hostport.erase(spos);
     hostport.erase(0, 7);
     return (url + spos);
   }
+
   if (protocol == "gsiftp")
   {
     // gsiftp://<hostname><path>
     int spos = hostport.find("/", 9);
+
     if (spos == STR_NPOS)
     {
-
       return 0;
     }
+
     hostport.erase(spos);
     hostport.erase(0, 9);
     return (url + spos);
   }
+
   return 0;
 }
 
-// ---------------------------------------------------------------------------
-/**
- * Create an Url
- * @param protocol - name of the protocol
- * @param hostport - host[+port] Ï
- * @param path     - path name
- * @param @url     - returned URL string
- * @return char* to returned URL string
- */
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
+// Create an Url
+//------------------------------------------------------------------------------
 const char*
-StringConversion::CreateUrl (const char* protocol, const char* hostport, const char* path, XrdOucString& url)
+StringConversion::CreateUrl(const char* protocol, const char* hostport,
+                            const char* path, XrdOucString& url)
 {
   if (!strcmp(protocol, "file"))
   {
     url = path;
     return url.c_str();
   }
+
   if (!strcmp(protocol, "root"))
   {
     url = "root://";
@@ -1025,6 +882,7 @@ StringConversion::CreateUrl (const char* protocol, const char* hostport, const c
       return url.c_str();
     }
   }
+
   if (!strcmp(protocol, "http"))
   {
     url = "http://";
@@ -1032,38 +890,39 @@ StringConversion::CreateUrl (const char* protocol, const char* hostport, const c
     url += path;
     return url.c_str();
   }
+
   if (!strcmp(protocol, "gsiftp"))
   {
-
     url = "gsiftp://";
     url += hostport;
     url += path;
     return url.c_str();
   }
+
   url = "";
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Check if string is hex number
+//------------------------------------------------------------------------------
 bool
-StringConversion::IsHexNumber (const char* hexstring, const char* format)
+StringConversion::IsHexNumber(const char* hexstring, const char* format)
 {
-
   if (!hexstring)
     return false;
 
   unsigned long long number = strtoull(hexstring, 0, 16);
   char controlstring[256];
-  snprintf(controlstring, sizeof (controlstring) - 1, format, number);
-
+  snprintf(controlstring, sizeof(controlstring) - 1, format, number);
   return !strcmp(hexstring, controlstring);
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Convert numeric value to string in a pretty way using KB, MB etc. symbols
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
 std::string
-StringConversion::GetPrettySize (float size)
+StringConversion::GetPrettySize(float size)
 {
   float fsize = 0;
   std::string ret_str;
@@ -1075,23 +934,20 @@ StringConversion::GetPrettySize (float size)
   else if ((fsize = size / MB) >= 1) size_unit = "MB";
   else
   {
-
     fsize = size / KB;
     size_unit = "KB";
   }
 
   char msg[30];
   sprintf(msg, "%.1f %s", fsize, size_unit.c_str());
-
   ret_str = msg;
   return ret_str;
 }
 
-
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // CURL init/cleanup using local storage
-// ---------------------------------------------------------------------------
-void StringConversion::tlCurlFree( void *arg)
+//------------------------------------------------------------------------------
+void StringConversion::tlCurlFree(void* arg)
 {
   eos_static_debug("destroying thread specific CURL session");
   // delete the buffer
@@ -1102,72 +958,91 @@ CURL* StringConversion::tlCurlInit()
 {
   eos_static_debug("allocating thread specific CURL session");
   CURL* buf = curl_easy_init();
-  if(!buf)
+
+  if (!buf)
     eos_static_crit("error initialising CURL easy session");
-  if(buf && pthread_setspecific(sPthreadKey, buf))
-    eos_static_crit("error registering thread-local buffer located at %p for cleaning up : memory will be leaked when thread is terminated",buf);
+
+  if (buf && pthread_setspecific(sPthreadKey, buf))
+    eos_static_crit("error registering thread-local buffer located at %p for "
+                    "cleaning up : memory will be leaked when thread is "
+                    "terminated", buf);
+
   return buf;
 }
+
 void StringConversion::tlInitThreadKey()
 {
   curl_global_init(CURL_GLOBAL_DEFAULT);
   pthread_key_create(&sPthreadKey, StringConversion::tlCurlFree);
 }
-__thread CURL* StringConversion::curl=NULL;
+
+__thread CURL* StringConversion::curl = NULL;
 pthread_key_t  StringConversion::sPthreadKey;
 pthread_once_t StringConversion::sTlInit = PTHREAD_ONCE_INIT;
-// ---------------------------------------------------------------------------
 
-
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Escape string using CURL
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 std::string
-StringConversion::curl_escaped(const std::string &str)
+StringConversion::curl_escaped(const std::string& str)
 {
-  pthread_once(&sTlInit,tlInitThreadKey);
-  std::string ret_str="<no-encoding>";
+  pthread_once(&sTlInit, tlInitThreadKey);
+  std::string ret_str = "<no-encoding>";
+
   // encode the key
-  if(!curl) curl = tlCurlInit();
-  if(curl) {
-    char *output = curl_easy_escape(curl, str.c_str(), str.length());
-    if(output) {
+  if (!curl) curl = tlCurlInit();
+
+  if (curl)
+  {
+    char* output = curl_easy_escape(curl, str.c_str(), str.length());
+
+    if (output)
+    {
       ret_str = output;
       curl_free(output);
       // dont't escape '/'
       XrdOucString no_slash = ret_str.c_str();
-      while (no_slash.replace("%2F","/")){}
+
+      while (no_slash.replace("%2F", "/")) {}
+
       // this is a hack to avoid decoding a pathname twice
-      no_slash.insert("/#curl#",0);
+      no_slash.insert("/#curl#", 0);
       ret_str = no_slash.c_str();
     }
   }
+
   return ret_str;
 }
 
-// ---------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Unscape string using CURL
-// ---------------------------------------------------------------------------
-
+//------------------------------------------------------------------------------
 std::string
-StringConversion::curl_unescaped(const std::string &str)
+StringConversion::curl_unescaped(const std::string& str)
 {
-  pthread_once(&sTlInit,tlInitThreadKey);
-  std::string ret_str="<no-encoding>";
+  pthread_once(&sTlInit, tlInitThreadKey);
+  std::string ret_str = "<no-encoding>";
+
   // encode the key
-  if(!curl) curl = tlCurlInit();
-  if(curl) {
-    if(strncmp(str.c_str(),"/#curl#",7))
+  if (!curl) curl = tlCurlInit();
+
+  if (curl)
+  {
+    if (strncmp(str.c_str(), "/#curl#", 7))
     {
       // the string has already been decoded
       return str;
     }
-    char *output = curl_easy_unescape(curl, str.c_str()+7, str.length()-7, 0);
-    if(output) {
+
+    char* output = curl_easy_unescape(curl, str.c_str() + 7, str.length() - 7, 0);
+
+    if (output)
+    {
       ret_str = output;
       curl_free(output);
     }
   }
+
   return ret_str;
 }
 

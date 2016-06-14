@@ -52,11 +52,8 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
 {
   static const char *epname = "version";
   EXEC_TIMING_BEGIN("Version");
-
   gOFS->MgmStats.Add("Versioning", vid.uid, vid.gid, 1);
-
-
-  eos::IFileMD* fmd;
+  std::shared_ptr<eos::IFileMD> fmd;
   std::string path;
   std::string vpath;
   std::string bname;
@@ -70,7 +67,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
     try
     {
       fmd = gOFS->eosFileService->getFileMD(fid);
-      path = gOFS->eosView->getUri(fmd).c_str();
+      path = gOFS->eosView->getUri(fmd.get()).c_str();
       eos::common::Path cPath(path.c_str());
       bool noversion;
       cPath.DecodeAtomicPath(noversion);
@@ -93,8 +90,7 @@ XrdMgmOfs::Version (eos::common::FileId::fileid_t fid,
     }
   }
 
-  if ((fidvid.uid != vid.uid) &&
-      (vid.uid))
+  if ((fidvid.uid != vid.uid) && (vid.uid))
   {
     return Emsg(epname, error, EPERM, "create version - you are not the owner of this file", path.c_str());
   }
