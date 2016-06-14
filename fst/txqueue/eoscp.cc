@@ -42,6 +42,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
+#include "common/XrdErrorMap.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
@@ -1731,7 +1732,9 @@ main (int argc, char* argv[])
 
       if (retc)
       {
-	fprintf(stderr,"error: failed to \n");
+	eos::common::error_retc_map(file->GetLastErrNo());
+	fprintf(stderr, "error: source file open failed - ernno=%d : %s\n", errno, strerror(errno));
+	exit(-errno);
       }
       src_handler.push_back(std::make_pair(0, (void*)file));
     }
@@ -1963,10 +1966,9 @@ main (int argc, char* argv[])
 
       if (retc)
       {
-        std::string errmsg;
-        errmsg = status.GetErrorMessage();
-        fprintf(stderr, "error: %s\n", status.ToStr().c_str());
-        exit(-status.errNo?-status.errNo:-EIO);
+	eos::common::error_retc_map(file->GetLastErrNo());
+	fprintf(stderr, "error: target file open failed - ernno=%d : %s\n", errno, strerror(errno));
+	exit(-errno);
       }
 
       dst_handler.push_back(std::make_pair(0, file));
@@ -2009,8 +2011,9 @@ main (int argc, char* argv[])
 
       if (retc)
       {
-        fprintf(stderr, "error: target file open failed - retc=%d\n", retc);
-	exit(-retc);
+	eos::common::error_retc_map(file->GetLastErrNo());
+	fprintf(stderr, "error: target file open failed - ernno=%d : %s\n", errno, strerror(errno));
+	exit(-errno);
       }
 
       dst_handler.push_back(std::make_pair(0, file));
