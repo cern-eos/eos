@@ -1607,6 +1607,7 @@ ProcCommand::File ()
               plctargs.bookingsize=fmd_cpy->getSize();
               plctargs.forced_scheduling_group_index=forcedsubgroup;
               plctargs.lid=layoutId;
+              plctargs.inode=(ino64_t) fmd_cpy->getId();
               plctargs.path=spath.c_str();
               plctargs.plctTrgGeotag=&targetgeotag;
               plctargs.plctpolicy=plctplcy;
@@ -1630,6 +1631,7 @@ ProcCommand::File ()
                 acsargs.fsindex=&fsIndex;
                 acsargs.isRW=false;
                 acsargs.lid=(unsigned long) fmd_cpy->getLayoutId();
+                acsargs.inode=(ino64_t) fmd_cpy->getId();
                 acsargs.locationsfs=&sourcefs;
                 acsargs.tried_cgi=&tried_cgi;
                 acsargs.unavailfs=&unavailfs;

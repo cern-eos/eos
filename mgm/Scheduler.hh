@@ -72,6 +72,8 @@ public:
     const char* grouptag;
     //! layout to be placed
     unsigned long lid;
+    //! file inode
+    ino64_t inode;
     //! indicates if placement should be local/spread/hybrid
     tPlctPolicy plctpolicy;
     //! indicates close to which Geotag collocated stripes should be placed
@@ -101,6 +103,7 @@ public:
     path(0),
     grouptag(0),
     lid(0),
+    inode(0),
     plctpolicy(kScattered),
     plctTrgGeotag(),
     truncate(false),
@@ -149,6 +152,8 @@ public:
     const std::string *tried_cgi;
     //! layout of the file
     unsigned long lid;
+    //! file inode
+    ino64_t inode;
     //! indicate pure read or rd/wr access
     bool isRW;
     //! size to book additionally for rd/wr access
@@ -178,6 +183,7 @@ public:
     forcedspace(0),
     tried_cgi(),
     lid(0),
+    inode(0),
     isRW(false),
     bookingsize(0),
     overridegeoloc(),

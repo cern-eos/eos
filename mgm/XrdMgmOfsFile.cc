@@ -1331,6 +1331,7 @@ XrdMgmOfsFile::open (const char *inpath,
     plctargs.forced_scheduling_group_index=forcedGroup;
     plctargs.grouptag=containertag;
     plctargs.lid=layoutId;
+    plctargs.inode=(ino64_t) fmd->getId();
     plctargs.path=path;
     plctargs.plctTrgGeotag=&targetgeotag;
     plctargs.plctpolicy=plctplcy;
@@ -1380,6 +1381,7 @@ XrdMgmOfsFile::open (const char *inpath,
     acsargs.fsindex=&fsIndex;
     acsargs.isRW=isPioReconstruct ? false : isRW;;
     acsargs.lid=layoutId;
+    acsargs.inode=(ino64_t) fmd->getId();
     acsargs.locationsfs=&selectedfs;
     acsargs.tried_cgi=&tried_cgi;
     acsargs.unavailfs=&unavailfs;
@@ -1966,6 +1968,7 @@ XrdMgmOfsFile::open (const char *inpath,
       plctargs.forced_scheduling_group_index=forcedGroup;
       plctargs.grouptag=containertag;
       plctargs.lid=plainLayoutId;
+      plctargs.inode=(ino64_t) fmd->getId();
       plctargs.path=path;
       plctargs.plctTrgGeotag=&targetgeotag;
       plctargs.plctpolicy=plctplcy;

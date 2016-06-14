@@ -176,6 +176,7 @@ Scheduler::FilePlacement(PlacementArguments *args)
     bool placeRes = gGeoTreeEngine.placeNewReplicasOneGroup(
         group, nfilesystems,
         args->selected_filesystems,
+        args->inode,
         args->dataproxys,
         args->firewallentpts,
         GeoTreeEngine::regularRW,
@@ -258,6 +259,7 @@ int Scheduler::FileAccess(AccessArguments *args)
 
   return gGeoTreeEngine.accessHeadReplicaMultipleGroup(nReqStripes, *args->fsindex,
       args->locationsfs,
+      args->inode,
       args->dataproxys,
       args->firewallentpts,
       st,

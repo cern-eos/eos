@@ -72,7 +72,8 @@ GeoTreeEngine::sfgInratemib = 1 << 15,
 GeoTreeEngine::sfgOutratemib = 1 << 16,
 GeoTreeEngine::sfgErrc = 1 << 17,
 GeoTreeEngine::sfgPubTmStmp = 1 << 18,
-GeoTreeEngine::sfgPxyGrp = 1 << 19;
+GeoTreeEngine::sfgPxyGrp = 1 << 19,
+GeoTreeEngine::sfgFileStickPxy = 1 << 20;
 
 set<string> GeoTreeEngine::gWatchedKeys;
 set<string> GeoTreeEngine::gWatchedKeysGw;
@@ -101,7 +102,8 @@ const map<string,int> GeoTreeEngine::gNotifKey2Enum =
   make_pair("stat.net.outratemib",sfgOutratemib),
   make_pair("stat.errc",sfgErrc),
   make_pair("stat.publishtimestamp",sfgPubTmStmp),
-  make_pair("proxygroup",sfgPxyGrp)
+  make_pair("proxygroup",sfgPxyGrp),
+  make_pair("filestickyproxydepth",sfgFileStickPxy)
 };
 
 const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
@@ -758,6 +760,7 @@ void GeoTreeEngine::printInfo(std::string &info,
 
 bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
     vector<FileSystem::fsid_t> *newReplicas,
+    ino64_t inode,
     std::vector<std::string> *dataProxys,
     std::vector<std::string> *firewallEntryPoint,
     SchedType type,
@@ -919,10 +922,23 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   if(dataProxys || firewallEntryPoint )
     entries.assign(newReplicasIdx.size(),entry);
 
+  // find proxy for filesticky scheduling
+  if(dataProxys)
+  {
+    if(!findProxy(newReplicasIdx, entries, inode,dataProxys,"",pProxyCloseToFs?"":clientGeoTag,filesticky))
+    {
+      success = false;
+      goto cleanup;
+    }
+  }
+
   // find the firewall entry point if needed
   if(firewallEntryPoint)
   {
-    if(!findProxy(newReplicasIdx, entries, firewallEntryPoint,"firewallentrypoint",pProxyCloseToFs?"":clientGeoTag))
+    // use the dataproxys as entrypoints if possible
+    if(dataProxys)
+      *firewallEntryPoint=*dataProxys;
+    if(!findProxy(newReplicasIdx, entries, inode, firewallEntryPoint,"firewallentrypoint",pProxyCloseToFs?"":clientGeoTag,any))
     {
       success = false;
       goto cleanup;
@@ -933,9 +949,10 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   if(dataProxys)
   {
     // if we already have some firewall entry points, pass them to the findProxy procedure to check if it's needed to find a distinct data proxy
+    // use the entrypoints as dataproxy if possible
     if(firewallEntryPoint)
       *dataProxys=*firewallEntryPoint;
-    if(!findProxy(newReplicasIdx, entries, dataProxys,"",pProxyCloseToFs?"":clientGeoTag))
+    if(!findProxy(newReplicasIdx, entries, inode, dataProxys,"",pProxyCloseToFs?"":clientGeoTag,regular))
     {
       success = false;
       goto cleanup;
@@ -954,7 +971,13 @@ bool GeoTreeEngine::placeNewReplicasOneGroup( FsGroup* group, const size_t &nNew
   return success;
 }
 
-bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsIdxs, std::vector<SchedTME *> entries, std::vector<std::string> *dataProxys,const std::string &proxyGroup,const std::string &clientgeotag)
+bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsIdxs,
+                              std::vector<SchedTME *> entries,
+                              ino64_t inode,
+                              std::vector<std::string> *dataProxys,
+                              const std::string &proxyGroup,
+                              const std::string &clientgeotag,
+                              tProxySchedType proxyschedtype)
 {
   // re initialize result vector
   dataProxys->resize(fsIdxs.size());
@@ -1069,20 +1092,69 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
     // get the closest node from the filesystem
     SchedTreeBase::tFastTreeIdx idx;
     idx=pxyentry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(geotag->c_str());
-    // get the proxy
-    if(!tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, true /*skipSaturated*/))
+    bool schedsuccess=false;
+    if((*pxyentry->foregroundFastStruct->treeInfo)[idx].fileStickyProxyDepth>=0 && proxyschedtype==filesticky)
     {
-      if(!tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, false /*skipSaturated*/))
+      // scheduling should consistently go through the same (firewallentrypoint,proxy)
+      // this is to do the caching of the file only on one proxy
+      // serving a same file from two proxies is not optimal but it is not mendatory neither
+
+      // first find the best proxy
+      if((schedsuccess = tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, false /*skipSaturated*/)))
       {
-        eos_err("could not find a proxy for proxygroup %s",fsproxygroup->c_str());
-        std::stringstream ss;
-        ss<<"tree is as follow\n"<<(*tree);
-        eos_err(ss.str().c_str());
-        pxyentry->doubleBufferMutex.UnLockRead();
-        AtomicDec(pxyentry->fastStructLockWaitersCount);
-        return false;
+        // then consider all the possible proxy in the same proxygroup
+        // within the subtree starting at the best proxy and going uproot by
+        // (*pxyentry->foregroundFastStruct->treeInfo)[idx].fileStickyProxyDepth
+
+        // allocate a vectors to get the proxies
+        auto s=pxyentry->foregroundFastStruct->treeInfo->size();
+        std::vector<SchedTreeBase::tFastTreeIdx> proxiesIdxs(s),upRootLevels(s),upRootLevelsIdxs(s);
+        SchedTreeBase::tFastTreeIdx upRootLevelsCount=0;
+        // get all the proxies
+        schedsuccess = tree->findFreeSlotsAll(&proxiesIdxs[0],proxiesIdxs.size(),idx,true,
+                                              SchedTreeBase::None,&upRootLevelsCount,
+                                              &upRootLevels[0],&upRootLevelsIdxs[0] );
+        // keep only the proxies within the allowed uproot level
+        if( upRootLevelsCount > (*pxyentry->foregroundFastStruct->treeInfo)[idx].fileStickyProxyDepth+1 )
+          proxiesIdxs.resize((*pxyentry->foregroundFastStruct->treeInfo)[idx].fileStickyProxyDepth+1);
+        // sort the proxies by fsid
+        struct mycomp
+        {
+          SchedTreeBase::FastTreeInfo* nodesinfo;
+          mycomp(SchedTreeBase::FastTreeInfo* infos) {nodesinfo=infos;}
+          bool operator() (const SchedTreeBase::tFastTreeIdx &a, const SchedTreeBase::tFastTreeIdx &b) const
+          { return (*nodesinfo)[a].fsId<(*nodesinfo)[b].fsId; }
+        };
+        mycomp cmp(pxyentry->foregroundFastStruct->treeInfo);
+        std::sort(proxiesIdxs.begin(),proxiesIdxs.end(),cmp);
+        // take the proxy
+        idx=proxiesIdxs[inode%proxiesIdxs.size()];
       }
     }
+    else
+    {
+      if( proxyschedtype==any
+          || ((*pxyentry->foregroundFastStruct->treeInfo)[idx].fileStickyProxyDepth<0 && proxyschedtype==regular) )
+      {
+        // get the proxy
+        if(!(schedsuccess=tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, true /*skipSaturated*/)))
+        schedsuccess=tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, false /*skipSaturated*/);
+      }
+    }
+
+    // if the scheduling failed, throw an error
+    if(!schedsuccess)
+    {
+      eos_err("could not find a proxy for proxygroup %s",fsproxygroup->c_str());
+      std::stringstream ss;
+      ss<<"tree is as follow\n"<<(*tree);
+      eos_err(ss.str().c_str());
+      pxyentry->doubleBufferMutex.UnLockRead();
+      AtomicDec(pxyentry->fastStructLockWaitersCount);
+      return false;
+    }
+    // if it succeeds, feel the corresponding element of the return vector
+    else
     (*dataProxys)[i]=(*pxyentry->foregroundFastStruct->treeInfo)[idx].host;
 
     // if dealing with one proxygroup per fs, unlock it for each new fs
@@ -1268,6 +1340,7 @@ bool GeoTreeEngine::accessReplicasOneGroup(FsGroup* group, const size_t &nAccess
 int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     unsigned long &fsIndex,
     std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+    ino64_t inode,
     std::vector<std::string> *dataProxys,
     std::vector<std::string> *firewallEntryPoint,
     SchedType type,
@@ -1564,9 +1637,20 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
     }
   }
 
+  if(dataProxys)
+  {
+    if(!findProxy(ERIdx, entries, inode, dataProxys,"",pProxyCloseToFs?"":accesserGeotag),filesticky)
+    {
+      returnCode = ENONET;
+      goto cleanup;
+    }
+  }
+
   if(firewallEntryPoint)
   {
-    if(!findProxy(ERIdx, entries, firewallEntryPoint,"firewallentrypoint",pProxyCloseToFs?"":accesserGeotag))
+    if(dataProxys)
+      *firewallEntryPoint=*dataProxys;
+    if(!findProxy(ERIdx, entries, inode, firewallEntryPoint,"firewallentrypoint",pProxyCloseToFs?"":accesserGeotag),any)
     {
       returnCode = ENONET;
       goto cleanup;
@@ -1577,7 +1661,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t &nAccessReplicas,
   {
     if(firewallEntryPoint)
       *dataProxys=*firewallEntryPoint;
-    if(!findProxy(ERIdx, entries, dataProxys,"",pProxyCloseToFs?"":accesserGeotag))
+    if(!findProxy(ERIdx, entries, inode, dataProxys,"",pProxyCloseToFs?"":accesserGeotag),regular)
     {
       returnCode = ENONET;
       goto cleanup;
@@ -1890,6 +1974,15 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_
     }
     if(ftIdx)
       (*entry->backgroundFastStruct->treeInfo)[ftIdx].proxygroup = fs->mProxyGroup;
+  }
+  if(keys&sfgFileStickPxy)
+  {
+    if(stn)
+    {
+      stn->pNodeInfo.fileStickyProxyDepth = fs->mFileStickyProxyDepth;
+    }
+    if(ftIdx)
+      (*entry->backgroundFastStruct->treeInfo)[ftIdx].fileStickyProxyDepth = fs->mFileStickyProxyDepth;
   }
   if(keys&sfgConfigstatus)
   {

@@ -125,6 +125,7 @@ public:
     std::string mHost;
     std::string mHostPort;
     std::string mProxyGroup;
+    int8_t      mFileStickyProxyDepth;
     std::string mPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;

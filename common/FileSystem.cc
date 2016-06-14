@@ -436,6 +436,9 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mHost = mHash->Get("host");
     fs.mHostPort = mHash->Get("hostport");
     fs.mProxyGroup = mHash->Get("proxygroup");
+    fs.mFileStickyProxyDepth = -1;
+    if(mHash->Get("filestickyproxydepth").size())
+    mHash->GetUInt("filestickyproxydepth");
     fs.mPort = mHash->Get("port");
 
     std::string::size_type dpos = 0;
@@ -519,6 +522,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mHost = "";
     fs.mHostPort = "";
     fs.mProxyGroup = "";
+    fs.mFileStickyProxyDepth = -1;
     fs.mPort = "";
     fs.mErrMsg = "";
     fs.mGeoTag ="";

@@ -620,6 +620,7 @@ class GeoTreeEngine : public eos::common::LogId
         SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
         slowInfo.netSpeedClass = fastInfo.netSpeedClass;
         slowInfo.proxygroup = fastInfo.proxygroup;
+        slowInfo.fileStickyProxyDepth = fastInfo.fileStickyProxyDepth;
       }
     }
 
@@ -828,7 +829,7 @@ protected:
   sfgGeotag,sfgId,sfgBoot,sfgDrain,sfgDrainer,sfgBlcingrun,sfgBlcerrun,
   sfgBalthres,sfgActive,sfgBlkavailb,sfgDiskload,
   sfgEthmib,sfgInratemib,sfgOutratemib,sfgWriteratemb,
-  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc,sfgPubTmStmp,sfgPxyGrp;
+  sfgReadratemb,sfgFsfilled,sfgNomfilled,sfgConfigstatus,sfgHost,sfgErrc,sfgPubTmStmp,sfgPxyGrp,sfgFileStickPxy;
 
   //! This mutex protects the consistency between the GeoTreeEngine state and the filesystems it contains
   //! To make any change that temporarily set an unconsistent state (mainly adding a fs, removing a fs,
@@ -1449,7 +1450,19 @@ protected:
     return ret;
   }
 
-  bool findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsidxs, std::vector<SchedTME *> entries, std::vector<std::string> *proxies, const std::string &proxyGroup="",const std::string &clientgeotag="");
+  // enum to specify the expected type of proxy scheduling
+  typedef enum {
+    filesticky, // try to map a given file as much as possible to a same proxy. This is to optimize caching in the Proxy.
+    regular,    // give priority to the closer and more idle proxy in a proxygroup
+    any         // do the regular scheduling for all the filesystems
+  } tProxySchedType;
+  bool findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fsidxs,
+                 std::vector<SchedTME *> entries,
+                 ino64_t inode,
+                 std::vector<std::string> *proxies,
+                 const std::string &proxyGroup="",
+                 const std::string &clientgeotag="",
+                 tProxySchedType proxyschedtype=regular);
   bool markPendingBranchDisablings(const std::string &group, const std::string&optype, const std::string&geotag);
   bool applyBranchDisablings(const SchedTME& entry);
   bool applyBranchDisablings(const GwTMEBase& entry);
@@ -1588,6 +1601,8 @@ public:
   // @param newReplicas
   //   vector to which fsids of new replicas are appended if the placement
   //   succeeds. They are appended in decreasing priority order
+  // @param inode
+  //   inode of the file to place, used for filesticky proxy scheduling
   // @param dataProxys
   //   if this pointer is non NULL, one proxy is returned for each filesystem returned
   //   if they have a proxygroup defined
@@ -1626,6 +1641,7 @@ public:
   // ---------------------------------------------------------------------------
   bool placeNewReplicasOneGroup( FsGroup* group, const size_t &nNewReplicas,
       std::vector<eos::common::FileSystem::fsid_t> *newReplicas,
+      ino64_t inode,
       std::vector<std::string> *dataProxys,
       std::vector<std::string> *firewallEntryPoints,
       SchedType type,
@@ -1696,6 +1712,8 @@ public:
   //   return the index of the head replica in the existingReplicas vector
   // @param existingReplicas
   //   fsids of preexisting replicas for the current file
+  // @param inode
+  //   inode of the file to place, used for filesticky proxy scheduling
   // @param dataProxys
   //   if this pointer is non NULL, one proxy is returned for each filesystem returned
   //   if they have a proxygroup defined
@@ -1724,6 +1742,7 @@ public:
   int accessHeadReplicaMultipleGroup(const size_t &nReplicas,
       unsigned long &fsIndex,
       std::vector<eos::common::FileSystem::fsid_t> *existingReplicas,
+      ino64_t inode,
       std::vector<std::string> *dataProxys,
       std::vector<std::string> *firewallEntryPoints,
       SchedType type=regularRO,
