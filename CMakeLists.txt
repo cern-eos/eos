@@ -106,7 +106,6 @@ if (NOT PACKAGEONLY)
   find_package(ZMQ REQUIRED)
   find_package(krb5 REQUIRED)
   find_package(Sphinx)
-  find_package(Kerberos5 REQUIRED)
   find_package(kineticio REQUIRED)
 
   find_package(davix)

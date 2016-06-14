@@ -69,7 +69,7 @@ void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   if (status->IsOK())
   {
     // Store the last URL we are connected after open
-    mFileIO->mLastUrl = mFileIO->mXrdFile->GetLastURL().GetURL();
+    mFileIO->mXrdFile->GetProperty("LastURL", mFileIO->mLastUrl);
   }
   mLayoutOpenHandler->HandleResponseWithHosts(status, 0, 0);
   delete this;
@@ -306,9 +306,13 @@ XrdIo::fileOpenAsync (void* io_handler,
   mXrdFile = new XrdCl::File();
   
   // Disable recovery on read and write
-  mXrdFile->EnableReadRecovery(false);
-  mXrdFile->EnableWriteRecovery(false);
-  
+  if (!mXrdFile->SetProperty("ReadRecovery", "false") ||
+      !mXrdFile->SetProperty("WriteRecovery", "false"))
+  {
+    eos_warning("failed to set XrdCl::File properties read recovery and write "
+		"recovery to false");
+  }
+
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl,

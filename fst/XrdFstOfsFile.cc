@@ -726,15 +726,13 @@ XrdFstOfsFile::open (const char* path,
   }
 
   std::string RedirectTried = RedirectManager.c_str();
-  RedirectTried += "?tried=+";
-  RedirectTried += gOFS.mHostName;
   RedirectTried += "?tried=";
   if( (val = openOpaque->Get("tried")) )
-  {
-    RedirectTried += openOpaque->Get("tried");
-    RedirectTried += ",";
-  }
-  RedirectTried += gOFS.HostName;
+    {
+      RedirectTried += openOpaque->Get("tried");
+      RedirectTried += ",";
+    }
+  RedirectTried += gOFS.mHostName;
 
   eos::common::FileId::FidPrefix2FullPath(hexfid, localPrefix.c_str(), fstPath);
   fileid = eos::common::FileId::Hex2Fid(hexfid);
@@ -1761,9 +1759,9 @@ XrdFstOfsFile::verifychecksum ()
 
 
       // we might fetch an unitialized value, so that is not to be considered a checksum error yet
-      if (fMd->fMd.checksum != "none")
+      if (fMd->fMd.checksum() != "none")
       {
-	if (calculatedchecksum != fMd->fMd.checksum.c_str())
+	if (calculatedchecksum != fMd->fMd.checksum().c_str())
 	{
 	  checksumerror = true;
 	}

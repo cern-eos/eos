@@ -307,13 +307,15 @@ Storage::Publish ()
             success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdDbMapHandler.FmdMap.count(fsid) ? gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
           }
 
+	  unsigned long long used_files = 0;
+
           {
-            eos::common::RWMutexReadLock lock(gFmdSqliteHandler.Mutex);
+            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
 	    used_files = 0;
-	    if (gFmdSqliteHandler.FmdSqliteMap.count(fsid))
+	    if (gFmdDbMapHandler.FmdSqliteMap.count(fsid))
 	    {
-	      eos::common::RWMutexReadLock flock(gFmdSqliteHandler.FmdSqliteMutexMap[fsid]);
-	      used_files = (long long) (gFmdSqliteHandler.FmdSqliteMap[fsid].size());
+	      eos::common::RWMutexReadLock flock(gFmdDbMapHandler.FmdSqliteMutexMap[fsid]);
+	      used_files = (long long) (gFmdDbMapHandler.FmdSqliteMap[fsid].size());
 	    }
 	  }
 
