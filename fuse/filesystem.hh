@@ -638,12 +638,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  //!
  //----------------------------------------------------------------------------
- int error_retc_map (int retc);
-
-
- //----------------------------------------------------------------------------
- //!
- //----------------------------------------------------------------------------
  int truncate (int fildes, off_t offset);
  int truncate2 (const char *fullpath, unsigned long inode, unsigned long truncsize, uid_t uid, gid_t gid, pid_t pid);
 

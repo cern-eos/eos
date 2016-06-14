@@ -55,6 +55,7 @@
 
 #include "MacOSXHelper.hh"
 #include "FuseCache/CacheEntry.hh"
+#include "common/XrdErrorMap.hh"
 #include "filesystem.hh"
 #include "SyncResponseHandler.hh"
 
@@ -2897,7 +2898,7 @@ filesystem::rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
  if(encode_pathname) spath+="?eos.encodepath=1";
  XrdCl::XRootDStatus status = fs.RmDir (spath);
 
- if (error_retc_map (status.errNo))
+ if (eos::common::error_retc_map (status.errNo))
  {
    if (status.GetErrorMessage ().find ("Directory not empty") != std::string::npos)
      errno = ENOTEMPTY;
@@ -2915,77 +2916,6 @@ filesystem::rmdir (const char* path, uid_t uid, gid_t gid, pid_t pid)
  return errno;
 }
 
-
-//------------------------------------------------------------------------------
-// Map open return codes to errno's
-//------------------------------------------------------------------------------
-
-int
-filesystem::error_retc_map (int retc)
-{
- if (retc) errno = retc;
- if (retc == kXR_ArgInvalid)
-   errno = EINVAL;
-
- if (retc == kXR_ArgMissing)
-   errno = EINVAL;
-
- if (retc == kXR_ArgTooLong)
-   errno = E2BIG;
-
- if (retc == kXR_FileNotOpen)
-   errno = EBADF;
-
- if (retc == kXR_FSError)
-   errno = EIO;
-
- if (retc == kXR_InvalidRequest)
-   errno = EINVAL;
-
- if (retc == kXR_IOError)
-   errno = EIO;
-
- if (retc == kXR_NoMemory)
-   errno = ENOMEM;
-
- if (retc == kXR_NoSpace)
-   errno = ENOSPC;
-
- if (retc == kXR_ServerError)
-   errno = EIO;
-
- if (retc == kXR_NotAuthorized)
-   errno = EACCES;
-
- if (retc == kXR_NotFound)
-   errno = ENOENT;
-
- if (retc == kXR_Unsupported)
-   errno = ENOTSUP;
-
- if (retc == kXR_NotFile)
-   errno = EISDIR;
-
- if (retc == kXR_isDirectory)
-   errno = EISDIR;
-
- if (retc == kXR_Cancelled)
-   errno = ECANCELED;
-
- if (retc == kXR_ChkLenErr)
-   errno = ERANGE;
-
- if (retc == kXR_ChkSumErr)
-   errno = ERANGE;
-
- if (retc == kXR_inProgress)
-   errno = EAGAIN;
-
- if (retc)
-   return -1;
-
- return 0;
-}
 //------------------------------------------------------------------------------
 // Open a file
 //------------------------------------------------------------------------------
@@ -3092,7 +3022,7 @@ filesystem::open (const char* path,
      {
        eos_static_err ("open failed for %s : error code is %d", spath.c_str (), (int) errno);
        delete file;
-       return error_retc_map (errno);
+       return eos::common::error_retc_map (errno);
      }
      else
      {
@@ -3123,7 +3053,7 @@ filesystem::open (const char* path,
      {
        eos_static_err ("open failed for %s", spath.c_str ());
        delete file;
-       return error_retc_map (errno);
+       return eos::common::error_retc_map (errno);
      }
      else
      {
@@ -3154,7 +3084,7 @@ filesystem::open (const char* path,
      {
        eos_static_err ("open failed for %s", spath.c_str ());
        delete file;
-       return error_retc_map (errno);
+       return eos::common::error_retc_map (errno);
      }
      else
      {
@@ -3255,7 +3185,7 @@ filesystem::open (const char* path,
            eos_static_err ("failed open for pio red, path=%s", spath.c_str ());
 	   delete response;
            delete file;
-           return error_retc_map (errno);
+           return eos::common::error_retc_map (errno);
          }
          else
          {
@@ -3336,7 +3266,7 @@ filesystem::open (const char* path,
  if (isRO && force_rwopen (*return_inode, uid, gid, pid) < 0)
  {
    eos_static_err("forcing rw open failed for inode %lu path %s", (unsigned long )*return_inode, path);
-   return error_retc_map (errno);
+   return eos::common::error_retc_map (errno);
  }
 
  LayoutWrapper* file = new LayoutWrapper(
@@ -3348,7 +3278,7 @@ filesystem::open (const char* path,
  {
    eos_static_err ("open failed for %s : error code is %d.", spath.c_str (), (int) errno);
    delete file;
-   return error_retc_map (errno);
+   return eos::common::error_retc_map (errno);
  }
  else
  {
@@ -4047,7 +3977,7 @@ filesystem::unlink (const char* path,
  // drop evt. the in-memory cache
  LayoutWrapper::CacheRemove(inode);
 
- if (!error_retc_map (status.errNo))
+ if (!eos::common::error_retc_map (status.errNo))
  {
    errno = 0;
  }
@@ -4101,7 +4031,7 @@ filesystem::rename (const char* oldpath,
 
  XrdCl::XRootDStatus status = fs.Mv (sOldPath.c_str (), sNewPath.c_str ());
 
- if (!error_retc_map (status.errNo))
+ if (!eos::common::error_retc_map (status.errNo))
  {
    errno = 0;
    return 0;
