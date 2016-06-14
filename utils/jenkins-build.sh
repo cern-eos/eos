@@ -156,10 +156,6 @@ if [[ ${BRANCH} == 'emerald' ]]; then
 fi
 echo -e '"""' >> eos.cfg
 
-# Prepare the mock configuration
-cat ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/${XROOTD_TAG}/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
-
-
 # Build the RPMs
 mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
