@@ -132,7 +132,7 @@ PlainLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   mLastErrNo = mFileIO->GetLastErrNo();
 
   // Get initial file size if not new file or truncated
-  if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC)))
+  if ( (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC))) && !retc)
   {
     struct stat st_info;
     int retc_stat = mFileIO->fileStat(&st_info);
