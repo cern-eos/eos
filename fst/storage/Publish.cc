@@ -282,6 +282,17 @@ Storage::Publish ()
 	    success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
 	  }
 
+    std::map<std::string, std::string> health;
+    if (fileSystemsVector[i]->getHealth(health))
+    {
+      if(health.count("color")) {
+        success &= fileSystemsVector[i]->SetString("stat.health", health["color"].c_str());
+      }
+      else {
+        success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
+      }
+    }
+
 	  long long r_open = 0;
 	  long long w_open = 0;
 	  {

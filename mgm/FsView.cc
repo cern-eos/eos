@@ -101,11 +101,10 @@ FsView::GetFileSystemFormat (std::string option)
  */
 /*----------------------------------------------------------------------------*/
 {
-
   if (option == "m")
   {
     // monitoring format
-    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|sep= |key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=oqs|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainretry:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os|sep= |key=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |key=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |key=stat.disk.iops:width=1:format=ol|sep= |key=stat.disk.bw:width=1:format=of|sep= |key=stat.geotag:width=1:format=os";
+    return "key=host:width=1:format=os|sep= |key=port:width=1:format=os|sep= |key=id:width=1:format=os|sep= |key=uuid:width=1:format=os|sep= |key=path:width=1:format=os|sep= |key=schedgroup:width=1:format=os|sep= |key=stat.boot:width=1:format=os|sep= |key=configstatus:width=1:format=os|sep= |key=headroom:width=1:format=os|sep= |key=stat.errc:width=1:format=os|sep= |key=stat.errmsg:width=1:format=oqs|sep= |key=stat.disk.load:width=1:format=of|sep= |key=stat.disk.readratemb:width=1:format=ol|sep= |key=stat.disk.writeratemb:width=1:format=ol|sep= |key=stat.net.ethratemib:width=1:format=ol|sep= |key=stat.net.inratemib:width=1:format=ol|sep= |key=stat.net.outratemib:width=1:format=ol|sep= |key=stat.ropen:width=1:format=ol|sep= |key=stat.wopen:width=1:format=ol|sep= |key=stat.statfs.freebytes:width=1:format=ol|sep= |key=stat.statfs.usedbytes:width=1:format=ol|sep= |key=stat.statfs.capacity:width=1:format=ol|sep= |key=stat.usedfiles:width=1:format=ol|sep= |key=stat.statfs.ffree:width=1:format=ol|sep= |key=stat.statfs.fused:width=1:format=ol|sep= |key=stat.statfs.files:width=1:format=ol|sep= |key=stat.drain:width=1:format=os|sep= |key=stat.drainprogress:width=1:format=ol:tag=progress|sep= |key=stat.drainfiles:width=1:format=ol|sep= |key=stat.drainbytesleft:width=1:format=ol|sep= |key=stat.drainretry:width=1:format=ol|sep= |key=graceperiod:width=1:format=ol|sep= |key=stat.timeleft:width=1:format=ol|sep= |key=stat.active:width=1:format=os|sep= |key=scaninterval:width=1:format=os|sep= |key=stat.balancer.running:width=1:format=ol:tag=stat.balancer.running|sep= |key=stat.drainer.running:width=1:format=ol:tag=stat.drainer.running|sep= |key=stat.disk.iops:width=1:format=ol|sep= |key=stat.disk.bw:width=1:format=of|sep= |key=stat.geotag:width=1:format=os|sep= |key=stat.health:width=1:format=os";
   }
 
   if (option == "io")
@@ -123,22 +122,22 @@ FsView::GetFileSystemFormat (std::string option)
   if (option == "d")
   {
     // drain format
-    return "header=1:key=host:width=24:format=S:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:tag=files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=6:format=l:tag=retry|sep= |key=stat.wopen:width=6:format=l:tag=wopen";
+    return "header=1:key=host:width=24:format=S:condition=stat.drain=!nodrain|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=32:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.drainprogress:width=12:format=l:tag=progress|sep= |key=stat.drainfiles:width=12:format=+l:tag=files|sep= |key=stat.drainbytesleft:width=12:format=+l:tag=bytes-left:unit=B|sep= |key=stat.timeleft:width=11:format=l:tag=timeleft|sep= |key=stat.drainretry:width=6:format=l:tag=retry|sep= |key=stat.wopen:width=6:format=l:tag=wopen";
 
   }
   if (option == "l")
   {
     // long format
-    return "header=1:key=host:width=24:format=-S|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=16:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s";
+    return "header=1:key=host:width=24:format=-S|sep= |key=port:width=5:format=s|sep= |key=id:width=6:format=s|sep= |key=uuid:width=36:format=s|sep= |key=path:width=32:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=headroom:width=10:format=+l|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|key=scaninterval:width=14:format=s|sep= |key=stat.health:width=8:format=s";
   }
 
   if (option == "e")
   {
     // error format
-    return "header=1:key=host:width=24:format=S:condition=stat.errc=!0|sep= |key=id:width=6:format=s|sep= |key=path:width=10:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
+    return "header=1:key=host:width=24:format=S:condition=stat.errc=!0|sep= |key=id:width=6:format=s|sep= |key=path:width=32:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.errc:width=3:format=s|sep= |key=stat.errmsg:width=0:format=s";
   }
   // default format
-  return "header=1:key=host:width=24:format=S|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=16:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s";
+  return "header=1:key=host:width=24:format=S|sep= (|key=port:width=4:format=-s|sep=) |key=id:width=6:format=s|sep= |key=path:width=32:format=s|sep= |key=schedgroup:width=16:format=s|sep= |key=stat.geotag:width=16:format=s|sep= |key=stat.boot:width=12:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.health:width=8:format=s";
 }
 
 /*----------------------------------------------------------------------------*/

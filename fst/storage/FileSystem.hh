@@ -209,11 +209,26 @@ public:
     }
 
     std::string iostats;
-    mFileIO->attrGet("sys.iostats",iostats);
+    mFileIO->attrGet("sys.iostats", iostats);
     return eos::common::StringConversion::GetKeyValueMap(iostats.c_str(), 
 							 map,
 							 "=",
 							 ",");
+  }
+
+
+  bool getHealth(std::map<std::string,std::string> &map){
+    if(!mFileIO)
+    {
+      return false;
+    }
+
+    std::string health;
+    mFileIO->attrGet("sys.health", health);
+    return eos::common::StringConversion::GetKeyValueMap(health.c_str(),
+                                                         map,
+                                                         "=",
+                                                         ",");
   }
 };
 
