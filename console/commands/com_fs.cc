@@ -938,7 +938,7 @@ com_fs_usage:
   fprintf(stdout, "                                                  boot filesystem with ID <fs-id> or name <node-queue> or all (*)\n");
   fprintf(stdout, "                                                                   --syncmgm : force an MGM resynchronization during the boot\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "fs dropfdeletion <fs-id> :\n");
+  fprintf(stdout, "fs dropdeletion <fs-id> :\n");
   fprintf(stdout, "                                                  allows to drop all pending deletions on <fs-id> \n");
   fprintf(stdout, "fs dropfiles <fs-id> [-f] :\n");
   fprintf(stdout, "                                                  allows to drop all files on <fs-id> - force\n");

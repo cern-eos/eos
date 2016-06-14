@@ -439,6 +439,11 @@ filesystem::forget_p2i (unsigned long long inode)
  }
 }
 
+
+//------------------------------------------------------------------------------
+// Redirect an inode to a new inode - repair actions change inodes, so we have two ino1,ino2=>path1 mappings
+//------------------------------------------------------------------------------
+
 void
 filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode)
 {
@@ -458,6 +463,25 @@ filesystem::redirect_p2i (unsigned long long inode, unsigned long long new_inode
    //   inode2path.erase (inode);
    inode2path[new_inode] = path;
  }
+}
+
+//------------------------------------------------------------------------------
+// Redirect an inode to the latest valid inode version - due to repair actions
+//------------------------------------------------------------------------------
+
+unsigned long long
+filesystem::redirect_i2i (unsigned long long inode)
+{
+ eos::common::RWMutexReadLock rd_lock (mutex_inode_path);
+
+ return inode;
+ if (inode2path.count (inode))
+ {
+   std::string path = inode2path[inode];
+   if (path2inode.count(path))
+     return path2inode[path];
+ }
+ return inode;
 }
 
 
@@ -884,7 +908,8 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
                          unsigned long inode,
                          uid_t uid, gid_t gid, pid_t pid,
                          bool isROfd,
-                         const char* path)
+                         const char* path,
+			 bool mknod)
 {
  eos_static_debug ("file raw ptr=%p, inode=%lu, uid=%lu",
                    raw_file, inode, (unsigned long) uid);
@@ -946,6 +971,12 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
    else
    {
      fabst->SetRawFileRW (raw_file); // sets numopenRW to 1
+     if (mknod)
+     {
+       // dec ref count, because they won't be a close referring to an mknod call
+       fabst->DecNumOpenRW();
+       fabst->DecNumRefRW();
+     }
      fabst->SetFd (fd);
    }
 
@@ -954,6 +985,9 @@ filesystem::add_fd2file (LayoutWrapper* raw_file,
 
    fd2fabst[fd] = fabst;
    fd2count[fd] = isROfd ? -1 : 1;
+   if (mknod)
+     fd2count[fd] = 0; 
+
    inodexrdlogin2fds[sstr.str ()].insert (fd);
    eos_static_debug ("inserting fd : fabst=%p  key=%s  =>  fdesc=%d file-size=%llu", fabst.get(), sstr.str ().c_str (), (int) fd, fabst->GetMaxWriteOffset());
  }
@@ -2925,7 +2959,8 @@ filesystem::open (const char* path,
                   uid_t uid,
                   gid_t gid,
                   pid_t pid,
-                  unsigned long* return_inode)
+                  unsigned long* return_inode, 
+		  bool mknod)
 {
  eos_static_info ("path=%s flags=%08x mode=%d uid=%u pid=%u", path, oflags, mode, uid, pid);
  XrdOucString spath = user_url (uid, gid, pid).c_str ();
@@ -3284,11 +3319,19 @@ filesystem::open (const char* path,
 
          {
            eos::common::RWMutexWriteLock wr_lock (mutex_inode_path);
-           path2inode.erase (path);
-           inode2path.erase (old_ino);
-           path2inode[path] = new_ino;
-           inode2path[new_ino] = path;
-           eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	   if (inode2path.count(old_ino))
+	   {
+	     std::string ipath = inode2path[old_ino];
+	     if (path2inode.count(ipath))
+	     {
+	       if (path2inode[ipath] != new_ino)
+	       {
+		 path2inode[ipath] = new_ino;
+		 inode2path[new_ino] = ipath;
+		 eos_static_info ("msg=\"inode replaced remotely\" path=%s old-ino=%lu new-ino=%lu", path, old_ino, new_ino);
+	       }
+	     }
+	   }
          }
        }
        else
@@ -3305,7 +3348,7 @@ filesystem::open (const char* path,
      eos_static_debug ("path=%s opened ino=%lu", path, (unsigned long) *return_inode);
    }
 
-   retc = add_fd2file (file, *return_inode, uid, gid, pid, isRO, path);
+   retc = add_fd2file (file, *return_inode, uid, gid, pid, isRO, path, mknod);
 
    COMMONTIMING ("END", &opentiming);
 

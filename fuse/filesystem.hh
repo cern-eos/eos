@@ -190,6 +190,12 @@ public:
  //----------------------------------------------------------------------------
 void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
 
+
+ //----------------------------------------------------------------------------
+ //! redirect inode to latest version of an inode
+ //----------------------------------------------------------------------------
+unsigned long long redirect_i2i (unsigned long long inode);
+
  //----------------------------------------------------------------------------
  //! Replace all names with a given prefix
  //----------------------------------------------------------------------------
@@ -400,7 +406,8 @@ void redirect_p2i (unsigned long long inode, unsigned long long new_inode);
               unsigned long inode,
               uid_t uid, gid_t gid, pid_t pid,
               bool isROfd,
-              const char* path = "");
+              const char* path = "",
+	      bool mknod=false);
 
  //----------------------------------------------------------------------------
  //! Force pending rw open to happen (in case of lazy open)
@@ -628,7 +635,8 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            uid_t uid,
            gid_t gid,
            pid_t pid,
-           unsigned long* return_inode);
+           unsigned long* return_inode, 
+	   bool mknod = false);
 
  //----------------------------------------------------------------------------
  //!

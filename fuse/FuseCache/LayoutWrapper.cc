@@ -24,6 +24,7 @@
 #include "../MacOSXHelper.hh"
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
+#include "../SyncResponseHandler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "fst/layout/PlainLayout.hh"
@@ -210,6 +211,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // build request to send to mgm to get redirection url
   XrdCl::Buffer arg;
   XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
   std::string request = file_path;
   std::string openflags;
 
@@ -261,7 +263,10 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
-  XrdCl::XRootDStatus status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  SyncResponseHandler handler;
+  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+  status = handler.Sync(response);
 
   if (!status.IsOK())
   {
@@ -274,13 +279,15 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_err("failed to lazy open request %s at url %s code=%d "
                        "errno=%d - repair failed", request.c_str(),
                        user_url.c_str(), status.code, status.errNo);
-        delete response;
+	errno = status.errNo;
         return -1;
       }
       else
       {
         // Reissue the open
-        status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
+	SyncResponseHandler handler;
+	fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+	status = handler.Sync(response);
 
         if (!status.IsOK())
         {
@@ -288,7 +295,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                          "errno=%d - still unwritable after repair",
                          request.c_str(), user_url.c_str(), status.code,
                          status.errNo);
-          delete response;
+	  errno = status.errNo;
           return -1;
         }
       }
@@ -298,7 +305,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       eos_static_err("failed to lazy open request %s at url %s code=%d "
                      "errno=%d", request.c_str(), user_url.c_str(),
                      status.code, status.errNo);
-      delete response;
+      errno = status.errNo;
       return -1;
     }
   }
@@ -319,7 +326,9 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   std::string fxid = m["mgm.id"];
   mOpaque += "&eos.lfn=fxid:";
   mOpaque += fxid;
-  mInode = strtoull(fxid.c_str(), 0, 16);
+
+  mInode = strtoull(fxid.c_str(), 0, 16);  
+
   std::string LazyOpaque;
   ToCGI(m, LazyOpaque);
   mLazyUrl.assign(origResponse.c_str(), qmidx);
@@ -349,8 +358,10 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
     file_path.erase(0, 1);
   }
 
-  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&eos.app=fuse&"
-                    "mgm.grab.version=-1&mgm.path=" + file_path + "&" + opaque;
+  // mgm.zzz is a workaround for a bug in the MGM which does deal properly with potential opaque info for the authentication given as xrd.*
+  // the opaque tags are sorted and mgm.zzz protects the subcmd tag which might be corrupted by the following xrd.*
+  std::string cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.zzz=ignore&eos.app=fuse&"
+                    "mgm.purge.version=-1&mgm.path=" + file_path + "&" + opaque;
   u.SetParams("");
   u.SetPath("/proc/user/");
   XrdCl::XRootDStatus status;

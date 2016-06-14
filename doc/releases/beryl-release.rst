@@ -7,6 +7,41 @@
 Beryl Release Notes
 ===================
 
+``V0.3.187 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: forward correct errno from XrdCl::Open failures
+- FUSE: fix wrong map deletion when unlink/rmdir fails (visible with rsync  --delay-updates)
+- FUSE: add mknod implementation to allow kernel NFS exports
+- MGM: fix SEGV when looking at the changelog file
+
+``V0.3.186 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: fix inode mapping after repair and follow new inode
+- FUSE: avoid to force a file open for a utimes setattr call
+- MGM: fix 'map' interface to work with encoded FUSE paths
+- CONSOLE: update 'fs dropdeletion' and deprecate 'fs dropfiles' and MGM redirection behaviour for 'fs dropdeletion'
+
+``V0.3.185 Aquamarine``
++++++++++++++++++++++++
+
+- FST: correct error codes in eoscp to flag target errors in tranfser queue jobs
+- MGM: allow 'xrd.*' to be present in proc commands (used by FUSE repair)
+
+
+``V0.3.184 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: report 1k as maximum file name length in statvfs
+- FUSE: don't trigger recovery if a file is deleted before it is actually written
+- MGM: update directory mtime when a replica drop leads to a file remove
+- FST: don't give a checksum error if a not yet fully created file is read by a second FUSE client 
+
+Bug Fix
++++++++
+
+
 ``V0.3.183 Aquamarine``
 +++++++++++++++++++++++
 
