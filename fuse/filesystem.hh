@@ -405,7 +405,8 @@ unsigned long long redirect_i2i (unsigned long long inode);
               unsigned long inode,
               uid_t uid, gid_t gid, pid_t pid,
               bool isROfd,
-              const char* path = "");
+              const char* path = "",
+	      bool mknod=false);
 
  //----------------------------------------------------------------------------
  //! Force pending rw open to happen (in case of lazy open)
@@ -633,7 +634,8 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
            uid_t uid,
            gid_t gid,
            pid_t pid,
-           unsigned long* return_inode);
+           unsigned long* return_inode, 
+	   bool mknod = false);
 
  //----------------------------------------------------------------------------
  //!

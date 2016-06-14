@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.187 Aquamarine``
++++++++++++++++++++++++
+
+- FUSE: forward correct errno from XrdCl::Open failures
+- FUSE: fix wrong map deletion when unlink/rmdir fails (visible with rsync  --delay-updates)
+- FUSE: add mknod implementation to allow kernel NFS exports
+- MGM: fix SEGV when looking at the changelog file
+
 ``V0.3.186 Aquamarine``
 +++++++++++++++++++++++
 

@@ -72,6 +72,8 @@ private:
   uid_t mOwnerUid;
   gid_t mOwnerGid;
   unsigned long long mId;
+  bool mWakeUp;
+  XrdSysMutex mWakeUpMutex;
 
 public:
 
@@ -116,6 +118,7 @@ public:
     mOwnerGid = ownerGid;
     mId = id;
     mThread = 0;
+    mWakeUp = false;
   }
 
   ~Recycle ()
@@ -183,6 +186,13 @@ public:
    * @return 0 if done, otherwise errno
    */
   static int Config (XrdOucString &stdOut, XrdOucString &stdErr, eos::common::Mapping::VirtualIdentity_t &vid, const char* arg, XrdOucString & options);
+
+
+  /**
+   * set the wake-up flag in the recycle thread to look at modified recycle bin settings
+   */
+  void WakeUp() {XrdSysMutexHelper lock(mWakeUpMutex); mWakeUp = true;}
+
 
   static std::string gRecyclingPrefix; //< prefix for all recycle bins
   static std::string gRecyclingAttribute; //< attribute key defining a recycling location
