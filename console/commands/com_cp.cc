@@ -553,12 +553,14 @@ com_cp (char* argin)
   for (size_t nfile = 0; nfile < source_list.size(); nfile++)
   {
     bool statok = false;
+    bool protok = false;
     // ------------------------------------------
     // EOS file
     // ------------------------------------------
 
     if (source_list[nfile].beginswith("/eos/"))
     {
+      protok = true;
       struct stat buf;
       XrdOucString url = serveruri.c_str();
       url += "/";
@@ -605,6 +607,7 @@ com_cp (char* argin)
     // ------------------------------------------
     if (source_list[nfile].beginswith("as3:"))
     {
+      protok = true;
       // extract evt. the hostname
       // the hostname is part of the URL like in ROOT
       XrdOucString hostport;
@@ -692,6 +695,7 @@ com_cp (char* argin)
         source_list[nfile].beginswith("https://") ||
         source_list[nfile].beginswith("gsiftp://"))
     {
+      protok = true;
       fprintf(stderr, "warning: disabling size check for http/https/gsidftp\n");
       statok = true;
       source_size.push_back(0);
@@ -699,6 +703,7 @@ com_cp (char* argin)
 
     if ((source_list[nfile].beginswith("root:")))
     {
+      protok = true;
       // ------------------------------------------
       // XRootD file
       // ------------------------------------------
@@ -737,6 +742,7 @@ com_cp (char* argin)
 
     if ((source_list[nfile].find(":/") == STR_NPOS) && (!source_list[nfile].beginswith("/eos")))
     {
+      protok = true;
       // ------------------------------------------
       // local file
       // ------------------------------------------
@@ -774,7 +780,14 @@ com_cp (char* argin)
 
     if (!statok)
     {
-      fprintf(stderr, "error: we don't support this protocol or we cannot get the file size of source file %s\n", source_list[nfile].c_str());
+      if (!protok)
+      {
+	fprintf(stderr, "error: we don't support this protocol : %s\n", source_list[nfile].c_str());
+      }
+      else
+      {
+	fprintf(stderr, "error: cannot get the file size of source file : %s\n", source_list[nfile].c_str());
+      }
       exit(-1);
     }
   }
