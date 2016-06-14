@@ -631,7 +631,7 @@ WFE::Job::DoIt ()
 
         if (executable.find("/") == std::string::npos)
         {
-          eos::IFileMD* fmd = 0;
+	  std::shared_ptr<eos::IFileMD> fmd ;
 
           // do meta replacement
           gOFS->eosViewRWMutex.LockRead();
@@ -639,7 +639,7 @@ WFE::Job::DoIt ()
           try
           {
             fmd = gOFS->eosFileService->getFileMD(mFid);
-            fullpath = gOFS->eosView->getUri(fmd);
+            fullpath = gOFS->eosView->getUri(fmd.get());
           }
           catch (eos::MDException &e)
           {
@@ -648,7 +648,7 @@ WFE::Job::DoIt ()
                                                                                                                                                                                                                                                                                                                       \
           if (fmd)
           {
-	    std::unique_ptr<eos::IFileMD> cfmd (fmd->clone());
+	    std::unique_ptr<eos::IFileMD> cfmd ( fmd.get() );
 
             gOFS->eosViewRWMutex.UnLockRead();
 

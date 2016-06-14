@@ -52,7 +52,7 @@ include_directories(
   ${XFS_INCLUDE_DIRS}
   ${KINETICIO_INCLUDE_DIR}
   ${JSONC_INCLUDE_DIR}
-  ${DAVIX_INCLUDE_DIR})
+  ${DAVIX_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
 
@@ -111,14 +111,6 @@ add_library(
   ${GFCOMPLETE_SRCS}
   ${GFCOMPLETE_HDRS})
 
-<<<<<<< HEAD
-target_link_libraries(
-  EosFstOss
-  EosFstIo
-  eosCommon
-  ${UUID_LIBRARIES}
-  ${XROOTD_SERVER_LIBRARY})
-=======
 target_compile_definitions(
   gf-complete
   PRIVATE -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -160,7 +152,6 @@ target_compile_options(
   jerasure PUBLIC -fPIC)
 
 target_link_libraries(jerasure gf-complete)
->>>>>>> master
 
 #-------------------------------------------------------------------------------
 # EosFstIo library
@@ -174,16 +165,12 @@ set(
   # File IO interface
   #-----------------------------------------------------------------------------
   io/FileIo.hh
-<<<<<<< HEAD
   io/local/LocalIo.cc	         io/local/LocalIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   ${KINETICIO_SRC}               ${KINETICIO_HDR}
   ${DAVIX_SRC}		         ${DAVIX_HDR}
   io/rados/RadosIo.cc            io/rados/RadosIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
-=======
-  io/XrdIo.cc                    io/XrdIo.hh
->>>>>>> master
   io/HeaderCRC.cc                io/HeaderCRC.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -216,10 +203,7 @@ add_library(
 target_link_libraries(
   EosFstIo
   eosCommon
-<<<<<<< HEAD
-=======
   jerasure
->>>>>>> master
   ${Z_LIBRARY}
   ${UUID_LIBRARIES}
   ${ATTR_LIBRARIES}
@@ -230,15 +214,10 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-<<<<<<< HEAD
   ${JSONC_LIBRARIES}
   ${KINETICIO_LIBRARIES}
   ${DAVIX_LIBRARIES}			
-  ${CMAKE_THREAD_LIBS_INIT})
-
-
-if(Linux)
-=======
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
 
@@ -268,7 +247,6 @@ if(MacOSX)
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 else()
->>>>>>> master
   add_library(
     EosFstIo-Static STATIC
     ${EOSFSTIO_SRCS}
@@ -423,16 +401,6 @@ install(
 #-------------------------------------------------------------------------------
 # Other executables
 #-------------------------------------------------------------------------------
-<<<<<<< HEAD
-add_executable(eoscp txqueue/eoscp.cc)
-
-set_target_properties(
-  eoscp
-  PROPERTIES
-  COMPILE_FLAGS "-D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64")
-
-=======
->>>>>>> master
 add_executable(
   eos-check-blockxs
   tools/CheckBlockXS.cc
@@ -510,7 +478,8 @@ install(
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-<<<<<<< HEAD
+
+endif()
 
 if (MacOSX)
   install(
@@ -526,6 +495,4 @@ else()
     LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-=======
->>>>>>> master
 endif()

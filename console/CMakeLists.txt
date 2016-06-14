@@ -26,7 +26,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
-  ${KINETICIO_INCLUDE_DIR} )
+  ${KINETICIO_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------

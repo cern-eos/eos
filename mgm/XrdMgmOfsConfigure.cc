@@ -1806,11 +1806,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eosmd = gOFS->eosView->getContainer(MgmProcWorkflowPath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // workflow directory is owned by daemon
-      gOFS->eosView->updateContainerStore(eosmd);
+      gOFS->eosView->updateContainerStore(eosmd.get());
     }
     catch (eos::MDException &e)
     {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)
@@ -1820,7 +1820,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         eosmd = gOFS->eosView->createContainer(MgmProcWorkflowPath.c_str(), true);
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-        gOFS->eosView->updateContainerStore(eosmd);
+        gOFS->eosView->updateContainerStore(eosmd.get());
       }
       catch (eos::MDException &e)
       {
@@ -1836,11 +1836,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eosmd = gOFS->eosView->getContainer(MgmProcLockPath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // lock directory is owned by daemon
-      gOFS->eosView->updateContainerStore(eosmd);
+      gOFS->eosView->updateContainerStore(eosmd.get());
     }
     catch (eos::MDException &e)
     {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)
@@ -1850,7 +1850,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         eosmd = gOFS->eosView->createContainer(MgmProcLockPath.c_str(), true);
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-        gOFS->eosView->updateContainerStore(eosmd);
+        gOFS->eosView->updateContainerStore(eosmd.get());
       }
       catch (eos::MDException &e)
       {
@@ -1866,11 +1866,11 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
       eosmd = gOFS->eosView->getContainer(MgmProcDelegationPath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // delegation directory is owned by daemon
-      gOFS->eosView->updateContainerStore(eosmd);
+      gOFS->eosView->updateContainerStore(eosmd.get());
     }
     catch (eos::MDException &e)
     {
-      eosmd = 0;
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
     if (!eosmd)
@@ -1880,7 +1880,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
         eosmd = gOFS->eosView->createContainer(MgmProcDelegationPath.c_str(), true);
         // set attribute inheritance
         eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-        gOFS->eosView->updateContainerStore(eosmd);
+        gOFS->eosView->updateContainerStore(eosmd.get());
       }
       catch (eos::MDException &e)
       {

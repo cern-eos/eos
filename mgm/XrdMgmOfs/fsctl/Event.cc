@@ -64,8 +64,9 @@
 
   std::string event = aevent;
 
-  eos::IFileMD* fmd = 0;
-  eos::IContainerMD* dh = 0;
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+
   Workflow workflow;
   eos::IContainerMD::XAttrMap attr;
   

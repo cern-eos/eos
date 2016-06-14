@@ -145,9 +145,12 @@ XrdMgmOfs::_rem (const char *path,
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
 
+  eos::common::FileId::fileid_t fid = 0;
+
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
   std::string aclpath;
 
+  
   try
   {
     fmd = gOFS->eosView->getFile(path, false);
