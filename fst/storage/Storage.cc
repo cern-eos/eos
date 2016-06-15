@@ -410,23 +410,21 @@ Storage::Boot (FileSystem *fs)
   // resync the SQLITE DB
   gFmdSqliteHandler.StayDirty(fsid, true); // indicate the flag to keep the DP dirty
 
-  // sync only local disks
-  if (resyncdisk && (fs->GetPath()[0] == '/'))
+  if (resyncdisk)
   {
     if (resyncmgm)
     {
-      // clean-up the DB
       if (!gFmdSqliteHandler.ResetDB(fsid))
       {
         fs->SetStatus(eos::common::FileSystem::kBootFailure);
-        fs->SetError(EFAULT, "cannot clean SQLITE DB on local disk");
+        fs->SetError(EFAULT, "cannot clean SQLITE DB");
         return;
       }
     }
     if (!gFmdSqliteHandler.ResyncAllDisk(fs->GetPath().c_str(), fsid, resyncmgm))
     {
       fs->SetStatus(eos::common::FileSystem::kBootFailure);
-      fs->SetError(EFAULT, "cannot resync the SQLITE DB from local disk");
+      fs->SetError(EFAULT, "cannot resync the SQLITE DB");
       return;
     }
     eos_info("msg=\"finished disk synchronisation\" fsid=%lu",

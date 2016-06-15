@@ -988,9 +988,8 @@ FmdSqliteHandler::ResyncDisk (const char* path,
   off_t disksize = 0;
   if (fid)
   {
-
     std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(path));
-    if (!io)
+    if (io)
     {
       struct stat buf;
       if ((!io->fileStat(&buf)) && S_ISREG(buf.st_mode))
@@ -1069,14 +1068,6 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
                                  eos::common::FileSystem::fsid_t fsid,
                                  bool flaglayouterror)
 {
-  char **paths = (char**) calloc(2, sizeof (char*));
-  paths[0] = (char*) path;
-  paths[1] = 0;
-  if (!paths)
-  {
-    return false;
-  }
-
   if (flaglayouterror)
   {
     isSyncing[fsid] = true;
@@ -1087,50 +1078,44 @@ FmdSqliteHandler::ResyncAllDisk (const char* path,
     eos_err("failed to reset the disk information before resyncing");
     return false;
   }
-  // scan all the files
-  FTS *tree = fts_open(paths, FTS_NOCHDIR, 0);
 
+  std::unique_ptr<eos::fst::FileIo> io(eos::fst::FileIoPluginHelper::GetIoObject(path));
+  if(!io)
+  {
+    eos_err("Failed obtaining io object");
+    return false;
+  }
+
+  // scan all the files
+  auto tree = io->ftsOpen();
   if (!tree)
   {
     eos_err("fts_open failed");
-    free(paths);
     return false;
   }
 
-  FTSENT *node;
   unsigned long long cnt = 0;
-  while ((node = fts_read(tree)))
+  while(1)
   {
-    if (node->fts_level > 0 && node->fts_name[0] == '.')
+    auto filePath = io->ftsRead(tree);
+    if (filePath.empty())
     {
-      fts_set(tree, node, FTS_SKIP);
+      break;
     }
-    else
+    cnt++;
+    eos_debug("file=%s", filePath.c_str());
+    ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
+    if (!(cnt % 10000))
     {
-      if (node->fts_info == FTS_F)
-      {
-        XrdOucString filePath = node->fts_accpath;
-        if (!filePath.matches("*.xsmap"))
-        {
-          cnt++;
-          eos_debug("file=%s", filePath.c_str());
-          ResyncDisk(filePath.c_str(), fsid, flaglayouterror);
-          if (!(cnt % 10000))
-          {
-            eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%lu", cnt, (unsigned long) fsid);
-          }
-        }
-      }
+      eos_info("msg=\"synced files so far\" nfiles=%llu fsid=%lu", cnt, (unsigned long) fsid);
     }
   }
-  if (fts_close(tree))
+
+  if (io->ftsClose(tree))
   {
     eos_err("fts_close failed");
-    free(paths);
     return false;
   }
-
-  free(paths);
   return true;
 }
 

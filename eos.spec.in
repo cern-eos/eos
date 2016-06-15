@@ -75,7 +75,7 @@ Requires: gdb
 Requires: zeromq
 Requires: protobuf
 Requires: jemalloc
-Requires: kineticio >= 1.0.0
+Requires: kineticio >= 1.0.194
 
 %if %{distribution} == 5
 Requires: curl
