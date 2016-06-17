@@ -778,11 +778,6 @@ output_result (XrdOucEnv* result, bool highlighting)
     rstdout.replace("[booting]", "\033[49;32m[booting]\033[0m");
     rstdout.replace("[compacting]", "\033[49;34m[compacting]\033[0m");
 
-    rstdout.replace("green", "\033[49;32mgreen\033[0m");
-    rstdout.replace("yellow", "\033[49;33myellow\033[0m");
-    rstdout.replace("orange", "\033[49;33morange\033[0m");
-    rstdout.replace("red", "\033[49;31mred\033[0m");
-
     // replication highlighting
     rstdout.replace("master-rw", "\033[49;31mmaster-rw\033[0m");
     rstdout.replace("master-ro", "\033[49;34mmaster-ro\033[0m");

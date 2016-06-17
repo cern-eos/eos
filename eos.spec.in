@@ -39,7 +39,7 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.0
 BuildRequires: redhat-rpm-config
-BuildRequires: kineticio >= 1.0.0
+BuildRequires: kineticio >= 1.1.0
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -75,7 +75,7 @@ Requires: gdb
 Requires: zeromq
 Requires: protobuf
 Requires: jemalloc
-Requires: kineticio >= 1.0.194
+Requires: kineticio >= 1.1.0
 
 %if %{distribution} == 5
 Requires: curl

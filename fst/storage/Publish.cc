@@ -285,8 +285,8 @@ Storage::Publish ()
     std::map<std::string, std::string> health;
     if (fileSystemsVector[i]->getHealth(health))
     {
-      if(health.count("color")) {
-        success &= fileSystemsVector[i]->SetString("stat.health", health["color"].c_str());
+      if(health.count("summary")) {
+        success &= fileSystemsVector[i]->SetString("stat.health", health["summary"].c_str());
       }
       else {
         success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
