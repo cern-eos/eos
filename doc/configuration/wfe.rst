@@ -8,8 +8,8 @@ WFE Engine
 ==========
 The workflow engine is a versatile event triggered storage process chain. Currently all events are created by file operations.
 The policy to emit events is described as extended attributes of a parent directory. Each workflow is named. The default workflow
-is named 'default' and used if no workflow name is provided in an URL. The workflow engine allows to create chained workflows e.g. 
-one workflow can trigger an event emission to run the workflow in the chain aso.
+is named 'default' and used if no workflow name is provided in an URL as `?eos.workflow=default`. 
+The workflow engine allows to create chained workflows e.g. one workflow can trigger an event emission to run the next workflow in the chain aso.
 
 .. epigraph::
 
@@ -24,9 +24,9 @@ one workflow can trigger an event emission to run the workflow in the chain aso.
    delete   event is triggered at the MGM when a file has been deleted
    ======== ============================================================================ =====================
 
-Currently the workflow engine implements two action targets. The **bash:shell** target is a very power-ful target.
+Currently the workflow engine implements two action targets. The **bash:shell** target is a powerful target.
 It allows you to execute any shell command as a workflow. This target provides a large set of template parameters
-which EOS can give a s input arguments to the called shell command. This is described later. The **mail** target
+which EOS can give as input arguments to the called shell command. This is described later. The **mail** target
 allows to send an email notification to a specified recipient and mostly used for demonstration.
 
 .. epigraph::
@@ -82,7 +82,7 @@ The default is to run all workflow jobs sequentially with a single thread.
    eos space config default space.wfe.ntx=10
 
 Workflows are stored in a virtual queue system. The queues display the status of each workflow. By default workflows older than 7 days are cleaned up.
-This setting cna be changed by the **wfe.keeptime** space variable. That is the time in seconds how long workflows are kept in the virtual queue system before
+This setting can be changed by the **wfe.keeptime** space variable. That is the time in seconds how long workflows are kept in the virtual queue system before
 they get deleted.
 
 .. code-block:: bash
@@ -109,7 +109,7 @@ As an example we want to send an email to a mailing list, whenever a file is dep
    # and the text in the body : a file has been written!
 
 
-The **bash:shell* workflow
+The **bash:shell** workflow
 ``````````````````````````````````````````````````
 
 Most people want to run a command whenever a file is placed, read or deleted. To invoke a shell command one configures the **bash:shell** workflow.
@@ -123,7 +123,9 @@ The template parameters ``<eos::wfe::path>`` is replaced with the full logical p
 the log file for this workflow which is found on the MGM under ``/var/log/eos/wfe/mylog.log`` 
 
 Once one uploads a file into the ``echo`` directory, the following log entry is created in ``/var/log/eos/wfe/mylog.log``
+
 .. code-block:: bash
+
    ----------------------------------------------------------------------------------------------------------------------
    1466173303 Fri Jun 17 16:21:43 CEST 2016 shell echo /eos/dev/echo/passwd
    /eos/dev/echo/passwd
@@ -218,7 +220,7 @@ The previous workflow will be scheduled three times without delay. If you want t
    eos attr set "sys.workflow.closew.default.retry.delay=3600" /eos/dev/echo/
 
 
-The virtual /proc Workflow queue directories
+Virtual /proc Workflow queue directories
 ++++++++++++++++++++++++++++++++++++++++++++
 
 The virtual directory structure for triggered workflows can be found under ``/eos/<instance>/proc/workflow``. 
