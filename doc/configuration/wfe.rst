@@ -230,16 +230,16 @@ Here is an example:
 .. code-block:: bash
 
    EOS Console [root://localhost] |/eos/dev/> eos find /eos/dev/proc/workflow/
-   /eos/danburite/proc/workflow/20160617/d/
-   /eos/danburite/proc/workflow/20160617/d/default/
-   /eos/danburite/proc/workflow/20160617/d/default/1466171933:000004f7:closew
-   /eos/danburite/proc/workflow/20160617/d/default/1466173303:000004fd:closew
-   /eos/danburite/proc/workflow/20160617/f/
-   /eos/danburite/proc/workflow/20160617/f/default/
-   /eos/danburite/proc/workflow/20160617/f/default/1466171873:000004f4:closew
-   /eos/danburite/proc/workflow/20160617/f/default/1466173183:000004fa:closew
-   /eos/danburite/proc/workflow/20160617/q/
-   /eos/danburite/proc/workflow/20160617/q/default/1466173283:000004fb:closew
+   /eos/dev/proc/workflow/20160617/d/
+   /eos/dev/proc/workflow/20160617/d/default/
+   /eos/dev/proc/workflow/20160617/d/default/1466171933:000004f7:closew
+   /eos/dev/proc/workflow/20160617/d/default/1466173303:000004fd:closew
+   /eos/dev/proc/workflow/20160617/f/
+   /eos/dev/proc/workflow/20160617/f/default/
+   /eos/dev/proc/workflow/20160617/f/default/1466171873:000004f4:closew
+   /eos/dev/proc/workflow/20160617/f/default/1466173183:000004fa:closew
+   /eos/dev/proc/workflow/20160617/q/
+   /eos/dev/proc/workflow/20160617/q/default/1466173283:000004fb:closew
 
 The virtual tree is organized with entries like ``<proc>/workflow/<year-month-day>/<queue>/<workflow>/<unix-timestamp>:<fid>:<event>``.
 Workflows are scheduled only from the **q** and **e** queues. All other entries describe a ``finale state`` and will be expired as configured by the cleanup policy described in the beginning.
