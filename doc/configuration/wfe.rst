@@ -195,6 +195,7 @@ Extended attributes of a file and it's parent container can be read with dynamic
 Here is an  example for a dynamic attribute:
 
 .. code-block:: bash
+
    # define a workflow to echo the meta blob and the acls of the parent directory when a file is written
    eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::metadata> <eos::wfe::cxattr:sys.acl>" /eos/dev/echo/
 
@@ -203,10 +204,11 @@ Configuring retry policies for  **bash:shell** workflows
 ```````````````````````````````````````````````````````
 
 If a **bash:shell** workflow failes e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each 
-workflow the number of retries and the delay for retry can be defined via extended attributes. To reschedule a workflow after a failure the shell command has to return **EGAIN** e.g. ``exit(11)``.
+workflow the number of retries and the delay for retry can be defined via extended attributes. To reschedule a workflow after a failure the shell command has to return **EAGAIN** e.g. ``exit(11)``.
 The number of retries for a failing workflow can be defined as:
 
 .. code-block:: bash
+
    # define a workflow to return EAGAIN to be retried
    eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:fail '(exit 11)'" /eos/dev/echo/
 
@@ -216,6 +218,7 @@ The number of retries for a failing workflow can be defined as:
 The previous workflow will be scheduled three times without delay. If you want to schedule a retry at a later point in time, you can define the delay for retry for a particular workflow like:
 
 .. code-block:: bash
+
    # configure a workflow retry after 1 hour
    eos attr set "sys.workflow.closew.default.retry.delay=3600" /eos/dev/echo/
 
