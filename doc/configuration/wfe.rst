@@ -199,7 +199,7 @@ Here is an  example for a dynamic attribute:
    eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::metadata> <eos::wfe::cxattr:sys.acl>" /eos/dev/echo/
 
 
-Configuring retry polcieis for  **bash:shell* workflows
+Configuring retry policies for  **bash:shell** workflows
 ```````````````````````````````````````````````````````
 
 If a **bash:shell** workflow failes e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each 
