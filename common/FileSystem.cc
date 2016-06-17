@@ -438,7 +438,7 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mProxyGroup = mHash->Get("proxygroup");
     fs.mFileStickyProxyDepth = -1;
     if(mHash->Get("filestickyproxydepth").size())
-    mHash->GetUInt("filestickyproxydepth");
+    fs.mFileStickyProxyDepth=mHash->GetLongLong("filestickyproxydepth");
     fs.mPort = mHash->Get("port");
 
     std::string::size_type dpos = 0;
@@ -582,7 +582,8 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue
   if ((hash = som->GetObject(queue.c_str(), "hash")))
   {
     host.mQueue = queue;
-    host.mHost        = hash->Get("stat.hostport");
+    host.mHost        = hash->Get("stat.host");
+    host.mHostPort      = hash->Get("stat.hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
     host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
     host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
@@ -602,7 +603,8 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue
       som->HashMutex.UnLockRead();
     }
     host.mQueue = queue;
-    //host.mHost = "";
+    host.mHost = "";
+    host.mHostPort = "";
     host.mGeoTag        = "";
     host.mPublishTimestamp = 0;
     host.mNetEthRateMiB = 0;

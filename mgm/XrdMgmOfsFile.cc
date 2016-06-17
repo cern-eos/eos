@@ -1740,14 +1740,11 @@ XrdMgmOfsFile::open (const char *inpath,
     {
       targethost = firewalleps[fsIndex].substr (0, idx).c_str ();
       targetport = atoi (firewalleps[fsIndex].substr (idx + 1, std::string::npos).c_str ());
-      eos_info("DEBUG-FIREWALLEP2 : %s|%s|%d", targethost.c_str (), proxys[fsIndex].substr (idx + 1, std::string::npos).c_str (),
-               targetport);
     }
     else
     {
       targethost = firewalleps[fsIndex].c_str ();
       targetport = 0;
-      eos_info("DEBUG-FIREWALLEP3 : %s|%d", targethost.c_str (), targetport);
     }
     std::ostringstream oss;
     oss << targethost << "?" << "eos.fstfrw=";
@@ -1770,19 +1767,16 @@ XrdMgmOfsFile::open (const char *inpath,
     else // we have a proxy to use
     {
       proxys[fsIndex].c_str();
-      eos_info("DEBUG-PROXY1 : %s",proxys[fsIndex].c_str());
       auto idx = proxys[fsIndex].rfind(":");
       if(idx!=std::string::npos)
       {
         targethost=proxys[fsIndex].substr(0,idx).c_str();
         targetport=atoi(proxys[fsIndex].substr(idx+1,std::string::npos).c_str());
-        eos_info("DEBUG-PROXY2 : %s|%s|%d",targethost.c_str(),proxys[fsIndex].substr(idx+1,std::string::npos).c_str(),targetport);
       }
       else
       {
         targethost=proxys[fsIndex].c_str();
         targetport=0;
-        eos_info("DEBUG-PROXY3 : %s|%d",targethost.c_str(),targetport);
       }
     }
     redirectionhost = targethost;
@@ -1793,11 +1787,12 @@ XrdMgmOfsFile::open (const char *inpath,
     std::string fsprefix = filesystem->GetPath();
     if(fsprefix.size())
     {
-      XrdOucString s = ("mgm.fsprefix="+fsprefix).c_str();
+      XrdOucString s = "mgm.fsprefix";
+      s+="=";
+      s+=fsprefix.c_str();
       s.replace(":","#COL#");
       redirectionhost += s;
     }
-    eos_info("DEBUG-PROXYANDFIREWALLEP : %s",redirectionhost.c_str());
   }
 
 
@@ -2109,14 +2104,11 @@ XrdMgmOfsFile::open (const char *inpath,
             {
               targethost = firewalleps[fsIndex].substr (0, idx).c_str ();
               targetport = atoi (firewalleps[fsIndex].substr (idx + 1, std::string::npos).c_str ());
-              eos_info("DEBUG-FIREWALLEP2 : %s|%s|%d", targethost.c_str (), proxys[fsIndex].substr (idx + 1, std::string::npos).c_str (),
-                       targetport);
             }
             else
             {
               targethost = firewalleps[fsIndex].c_str ();
               targetport = 0;
-              eos_info("DEBUG-FIREWALLEP3 : %s|%d", targethost.c_str (), targetport);
             }
             std::ostringstream oss;
             oss << targethost << "?" << "eos.fstfrw=";
@@ -2138,19 +2130,16 @@ XrdMgmOfsFile::open (const char *inpath,
             else // we have a proxy to use
             {
               proxys[fsIndex].c_str();
-              eos_info("DEBUG-PROXY1 : %s",proxys[fsIndex].c_str());
               auto idx = proxys[fsIndex].rfind(":");
               if(idx!=std::string::npos)
               {
                 targethost=proxys[fsIndex].substr(0,idx).c_str();
                 targetport=atoi(proxys[fsIndex].substr(idx+1,std::string::npos).c_str());
-                eos_info("DEBUG-PROXY2 : %s|%s|%d",targethost.c_str(),proxys[fsIndex].substr(idx+1,std::string::npos).c_str(),targetport);
               }
               else
               {
                 targethost=proxys[fsIndex].c_str();
                 targetport=0;
-                eos_info("DEBUG-PROXY3 : %s|%d",targethost.c_str(),targetport);
               }
             }
             redirectionhost = targethost;
@@ -2193,7 +2182,7 @@ XrdMgmOfsFile::open (const char *inpath,
         if(idx!=std::string::npos)
         {
           replicahost=proxys[i].substr(0,idx).c_str();
-          replicaport=atoi(proxys[i].substr(idx,std::string::npos).c_str());
+          replicaport=atoi(proxys[i].substr(idx+1,std::string::npos).c_str());
         }
         else
         {
@@ -2210,16 +2199,18 @@ XrdMgmOfsFile::open (const char *inpath,
       capability += i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
-      if(!proxys[fsIndex].empty ())
+      if(!proxys[i].empty ())
       {
-        std::string fsprefix = filesystem->GetPath();
+        std::string fsprefix = repfilesystem->GetPath();
         if(fsprefix.size())
         {
-          XrdOucString s = ("mgm.fsprefix="+fsprefix).c_str();
+          XrdOucString s = "mgm.fsprefix";
+          s+=i;
+          s+="=";
+          s+=fsprefix.c_str();
           s.replace(":","#COL#");
-          redirectionhost += s;
+          capability += s;
         }
-        eos_info("DEBUG-PROXYANDFIREWALLEP : %s",redirectionhost.c_str());
       }
 
       if (isPio)

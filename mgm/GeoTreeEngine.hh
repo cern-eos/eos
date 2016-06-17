@@ -611,10 +611,10 @@ class GeoTreeEngine : public eos::common::LogId
         }
         FastPlacementTree::FsData &fastState = backgroundFastStruct->placementTree->pNodes[*idx].fsData;
         SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
-        slowState.dlScore = float(fastState.dlScore)/255;
-        slowState.ulScore = float(fastState.ulScore)/255;
+        slowState.dlScore = fastState.dlScore;
+        slowState.ulScore = fastState.ulScore;
         slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
-        slowState.fillRatio = float(fastState.fillRatio)/255;
+        slowState.fillRatio = fastState.fillRatio;
         slowState.totalSpace = float(fastState.totalSpace);
         SchedTreeBase::TreeNodeInfo &fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
         SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
@@ -656,8 +656,8 @@ class GeoTreeEngine : public eos::common::LogId
         }
         FastPlacementTree::FsData &fastState = backgroundFastStruct->gWAccessTree->pNodes[*idx].fsData;
         SlowTreeNode::TreeNodeStateFloat &slowState = it->second->pNodeState;
-        slowState.dlScore = float(fastState.dlScore)/255;
-        slowState.ulScore = float(fastState.ulScore)/255;
+        slowState.dlScore = fastState.dlScore;
+        slowState.ulScore = fastState.ulScore;
         slowState.mStatus = fastState.mStatus & ~eos::mgm::SchedTreeBase::Disabled; // we don't want to back proagate the disabled bit
         SchedTreeBase::TreeNodeInfo &fastInfo = (*backgroundFastStruct->treeInfo)[*idx];
         SlowTreeNode::TreeNodeInfo &slowInfo = it->second->pNodeInfo;
@@ -992,7 +992,8 @@ protected:
   static std::map<std::string,unsigned char> gQueue2NotifType;
   /// deletions to be carried out ASAP
   /// they are delayed so that any function that is using the treemapentry can safely finish
-  std::list<SchedTME*> pPendingDeletions;
+  std::list<SchedTME*> pPendingDeletionsFs;
+  std::list<DataProxyTME*> pPendingDeletionsDp;
   /// indicate if the updater is paused
   static XrdSysSemaphore gUpdaterPauseSem;
   static bool gUpdaterPaused;
@@ -1010,14 +1011,14 @@ protected:
 
 
   /// Clean
-  void checkPendingDeletions()
+  void checkPendingDeletionsFs()
   {
     int count = 0;
-    auto lastEntry = pPendingDeletions.begin();
+    auto lastEntry = pPendingDeletionsFs.begin();
     bool eraseLastEntry = false;
-    for(auto it=pPendingDeletions.begin(); it!=pPendingDeletions.end(); it++)
+    for(auto it=pPendingDeletionsFs.begin(); it!=pPendingDeletionsFs.end(); it++)
     {
-      if(eraseLastEntry) pPendingDeletions.erase(lastEntry);
+      if(eraseLastEntry) pPendingDeletionsFs.erase(lastEntry);
       eraseLastEntry = false;
       if(!(*it)->fastStructLockWaitersCount)
       {
@@ -1027,9 +1028,31 @@ protected:
       }
       lastEntry = it;
     }
-    if(eraseLastEntry) pPendingDeletions.erase(lastEntry);
+    if(eraseLastEntry) pPendingDeletionsFs.erase(lastEntry);
 
-    eos_debug("%d pending deletions executed",count);
+    eos_debug("%d pending deletions executed for filesystems",count);
+  }
+
+  void checkPendingDeletionsDp()
+  {
+    int count = 0;
+    auto lastEntry = pPendingDeletionsDp.begin();
+    bool eraseLastEntry = false;
+    for(auto it=pPendingDeletionsDp.begin(); it!=pPendingDeletionsDp.end(); it++)
+    {
+      if(eraseLastEntry) pPendingDeletionsDp.erase(lastEntry);
+      eraseLastEntry = false;
+      if(!(*it)->fastStructLockWaitersCount)
+      {
+        delete (*it);
+        eraseLastEntry = true;
+        count++;
+      }
+      lastEntry = it;
+    }
+    if(eraseLastEntry) pPendingDeletionsDp.erase(lastEntry);
+
+    eos_debug("%d pending deletions executed for dataproxys",count);
   }
 
   /// thread-local buffer management
@@ -1495,7 +1518,7 @@ public:
   GeoTreeEngine () :
   pSkipSaturatedPlct(false),pSkipSaturatedAccess(true),
   pSkipSaturatedDrnAccess(true),pSkipSaturatedBlcAccess(true),
-  pSkipSaturatedDrnPlct(false),pSkipSaturatedBlcPlct(false),pProxyCloseToFs(false),
+  pSkipSaturatedDrnPlct(false),pSkipSaturatedBlcPlct(false),pProxyCloseToFs(true),
   pPenaltyUpdateRate(1),
   pFillRatioLimit(80),pFillRatioCompTol(100),pSaturationThres(10),
   pTimeFrameDurationMs(1000),pPublishToPenaltyDelayMs(1000),

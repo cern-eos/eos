@@ -2054,7 +2054,8 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock)
   if ((hash = som->GetObject(nodeconfigname.c_str(), "hash")))
   {
     host.mQueue = nodeconfigname;
-    host.mHost        = GetMember("hostport");
+    host.mHost        = GetMember("host");
+    host.mHostPort        = GetMember("hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
     host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
     host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
@@ -2075,6 +2076,7 @@ FsNode::SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock)
     }
     host.mQueue = nodeconfigname;
     host.mHost = mName;
+    host.mHostPort = "";
     host.mGeoTag        = "";
     host.mPublishTimestamp = 0;
     host.mNetEthRateMiB = 0;

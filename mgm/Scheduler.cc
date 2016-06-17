@@ -183,7 +183,7 @@ Scheduler::FilePlacement(PlacementArguments *args)
         args->alreadyused_filesystems,// file systems to avoid are assumed to already host a replica
         &fsidsgeotags,
         args->bookingsize,
-        *args->plctTrgGeotag,
+        args->plctTrgGeotag?*args->plctTrgGeotag:"",
         args->vid->geolocation,
         ncollocatedfs,
         NULL,
@@ -263,7 +263,7 @@ int Scheduler::FileAccess(AccessArguments *args)
       args->dataproxys,
       args->firewallentpts,
       st,
-      args->overridegeoloc->empty() ? args->vid->geolocation : *args->overridegeoloc,
+      (!args->overridegeoloc || args->overridegeoloc->empty()) ? args->vid->geolocation : *(args->overridegeoloc),
       args->forcedfsid, args->unavailfs, args->noIO);
 }
 

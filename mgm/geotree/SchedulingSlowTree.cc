@@ -182,6 +182,7 @@ SlowTreeNode* SlowTree::insert( const TreeNodeInfo *info, const TreeNodeStateFlo
   if(sepPos==partialGeotag.length())
   { // update the attributes
     startFrom->pNodeInfo.host=info->host;
+    startFrom->pNodeInfo.hostport=info->hostport;
     startFrom->pNodeInfo.fsId=info->fsId;
     startFrom->pNodeInfo.nodeType=TreeNodeInfo::fs;
     startFrom->pNodeState=*state;

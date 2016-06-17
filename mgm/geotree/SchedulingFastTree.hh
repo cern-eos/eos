@@ -95,6 +95,7 @@ class GeoTag2NodeIdxMap : public SchedTreeBase
   void
   search(const char *tag, tFastTreeIdx &startFrom) const
   {
+    eos_static_notice("tag=%s | startFrom=%d",tag,(int)startFrom);
     if (*tag == 0)
     return;
     int cmp;
@@ -520,9 +521,15 @@ public:
       tFastTreeIdx mid = (left + right) / 2;
       auto cmpRqMid = strcmp(fsid,pBuffer+mid*pStrLen);
       if (cmpRqMid<0)
-      right = mid;
+      {
+        right = mid;
+        cmpRqRight = cmpRqMid;
+      }
       else
-      left = mid;
+      {
+        left = mid;
+        cmpRqLeft = cmpRqMid;
+      }
     }
 
     if (cmpRqLeft==0)

@@ -175,6 +175,7 @@ public:
   typedef struct host_snapshot {
     std::string mQueue;
     std::string mHost;
+    std::string mHostPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;
     time_t mHeartBeatTime;
