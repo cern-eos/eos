@@ -406,6 +406,7 @@ XrdMgmOfs::_attr_set (const char *path,
         XrdOucString val64 = value;
         XrdOucString val;
         eos::common::SymKey::DeBase64(val64, val);
+	fprintf(stderr,"%s => %s\n", val64.c_str(), val.c_str());
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -446,8 +447,10 @@ XrdMgmOfs::_attr_set (const char *path,
 	  XrdOucString val64 = value;
 	  XrdOucString val;
 	  eos::common::SymKey::DeBase64(val64, val);
+  	  fprintf(stderr,"%s => %s\n", val64.c_str(), val.c_str());
           fmd->setAttribute(key, val.c_str());
           fmd->setMTimeNow();
+	  fprintf(stderr,"%s\n", fmd->getAttribute(key).c_str());
           eosView->updateFileStore(fmd.get());
           errno = 0;
         }
@@ -548,6 +551,7 @@ XrdMgmOfs::_attr_get (const char *path,
     try
     {
       fmd = gOFS->eosView->getFile(path);
+      fprintf(stderr,"getattr %s:%s %s\n", path, key, fmd->getAttribute(key).c_str());
       value = (fmd->getAttribute(key)).c_str();
       errno = 0;
     }

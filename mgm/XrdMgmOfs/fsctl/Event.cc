@@ -42,6 +42,36 @@
   char* alogid = env.Get("mgm.logid");
   char* aevent = env.Get("mgm.event");
   char* aworkflow = env.Get("mgm.workflow");
+  char* auid= env.Get("mgm.ruid");
+  char* agid= env.Get("mgm.rgid");
+  char* asec = env.Get("mgm.sec");
+
+  eos::common::Mapping::VirtualIdentity vid;
+  eos::common::Mapping::Nobody(vid);
+  int retc=0;
+
+  if (auid)
+  {
+
+    vid.uid = strtoul(auid,0,10);
+    vid.uid_string = eos::common::Mapping::UidToUserName(vid.uid, retc);
+  }
+
+  if (agid)
+  {
+    vid.gid = strtoul(agid,0,10);
+    vid.gid_string = eos::common::Mapping::GidToGroupName(vid.gid, retc);
+  }
+
+  if (asec)
+  {
+    std::map<std::string,std::string> secmap = eos::common::SecEntity::KeyToMap(std::string(asec));
+    vid.prot = secmap["prot"].c_str();
+    vid.name = secmap["name"].c_str();
+    vid.host = secmap["host"];
+    vid.grps = secmap["grps"];
+    vid.app  = secmap["app"];
+  }
 
   if (alogid)
   {
@@ -111,7 +141,7 @@
   workflow.Init(&attr, path, fid);
 
   // trigger the specified event
-  workflow.Trigger(event, aworkflow);
+  workflow.Trigger(event, aworkflow, vid);
 
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);

@@ -428,7 +428,7 @@ XrdMgmOfs::_rem (const char *path,
 
     workflow.SetFile(path, fid);
     int ret_wfe = 0;
-    if ((ret_wfe = workflow.Trigger("delete", "default")) < 0)
+    if ((ret_wfe = workflow.Trigger("delete", "default", vid)) < 0)
     {
       eos_debug("msg=\"no workflow defined for delete\"");
     }
