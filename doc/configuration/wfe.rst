@@ -259,6 +259,7 @@ The existing queues are described here:
    ../e/..                     failed workflows with retry policy appear here
    ../f/..                     failed workflows without retry appear here
    ../g/..                     workflows with 'gone' files or some global misconfiguration appear here
+   ../d/..                     successful workflows with 0 return code
    =========================== ========================================================================================
 
 
