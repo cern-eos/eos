@@ -1032,7 +1032,7 @@ WFE::Job::DoIt ()
 	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<eos::wfe::vpath>", mActions[0].mWorkflowPath.c_str()))
+            while (execargs.replace("<eos::wfe::vpath>", mWorkflowPath.c_str()))
             {
 	      int cnt=0; cnt++; if (cnt>16)break; 
             }
