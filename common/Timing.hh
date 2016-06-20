@@ -230,6 +230,42 @@ public:
   };
 
   // ---------------------------------------------------------------------------
+  //! Time Conversion Function for timestamp time strings
+  // ---------------------------------------------------------------------------
+
+  static std::string
+  UnixTimstamp_to_Day (time_t when)
+  {
+    struct tm * now = localtime(&when);
+    std::string year;
+    std::string month;
+    std::string day;
+    char sDay[4096];
+    snprintf(sDay, sizeof (sDay), "%04u%02u%02u",
+	     (unsigned int) (now->tm_year + 1900),
+	     (unsigned int) (now->tm_mon + 1),
+	     (unsigned int) (now->tm_mday));
+    return sDay;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Time Conversion Function for strings to unix time 
+  // ---------------------------------------------------------------------------
+
+  static time_t
+  Day_to_UnixTimestamp (std::string day)
+  {
+    tzset();
+    struct tm ctime;
+    memset(&ctime, 0, sizeof (struct tm));
+    strptime(day.c_str(), "%Y%m%d", &ctime);
+
+    time_t ts = mktime(&ctime) - timezone;
+    return ts;
+  }
+
+
+  // ---------------------------------------------------------------------------
   //! Wrapper Function to hide difference between Apple and Linux
   // ---------------------------------------------------------------------------
 
