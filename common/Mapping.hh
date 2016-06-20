@@ -35,6 +35,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -158,6 +159,7 @@ public:
     vid.gid_list.push_back(99);
     vid.name = "nobody";
     vid.sudoer = false;
+    vid.tident = "nobody@unknown";
   }
 
   // ---------------------------------------------------------------------------
@@ -176,6 +178,51 @@ public:
     vid.prot = "local";
     vid.tident = "service@localhost";
     vid.sudoer = false;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Function converting vid to a string representation
+  // ---------------------------------------------------------------------------
+
+  static std::string
+  VidToString (VirtualIdentity &vid)
+  {
+    char vids[4096];
+    snprintf(vids,sizeof(vids),"%u:%u:%s:%s:%s:%s:%s",
+	     vid.uid,
+	     vid.gid,
+	     vid.uid_string.c_str(),
+	     vid.gid_string.c_str(),
+	     vid.name.c_str(),
+	     vid.prot.c_str(),
+	     vid.tident.c_str());
+    return std::string(vids);
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Function converting vid frin a string representation
+  // ---------------------------------------------------------------------------
+
+  static bool 
+  VidFromString (VirtualIdentity &vid, const char* vidstring)
+  {
+    std::string svid = vidstring;
+    std::vector<std::string> tokens;
+    
+    eos::common::StringConversion::Tokenize(
+					    vidstring,
+					    tokens, 
+					    ":");
+    if (tokens.size() != 7)
+      return false;
+    vid.uid = strtoul(tokens[0].c_str(),0,10);
+    vid.gid = strtoul(tokens[1].c_str(),0,10);
+    vid.uid_string = tokens[2].c_str();
+    vid.gid_string = tokens[3].c_str();
+    vid.name = tokens[4].c_str();
+    vid.prot = tokens[5].c_str();
+    vid.tident = tokens[6].c_str();
+    return true;
   }
 
   // ---------------------------------------------------------------------------
