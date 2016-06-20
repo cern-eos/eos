@@ -1416,7 +1416,12 @@ XrdMgmOfsFile::open (const char *inpath,
       // INLINE REPAIR
       // - if files are less than 1GB we try to repair them inline - max. 3 time
       // ----------------------------------------------------------------------
+<<<<<<< HEAD
       if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") && (fmd->getSize() < (1 * 1024 * 1024 * 1024)))
+=======
+      if ((!isCreation) && isRW && attrmap.count("sys.heal.unavailable") &&
+	  (fmd->getSize() < (1*1024*1024*1024)))
+>>>>>>> 44ce6a8... Fix after merge
       {
         int nmaxheal = 3;
         if (attrmap.count("sys.heal.unavailable"))

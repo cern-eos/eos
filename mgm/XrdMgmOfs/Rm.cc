@@ -155,6 +155,7 @@ XrdMgmOfs::_rem (const char *path,
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
   std::string aclpath;
 
+  
   try
   {
     fmd = gOFS->eosView->getFile(path, false);

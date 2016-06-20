@@ -704,10 +704,16 @@ ProcCommand::File ()
         }
 
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	std::shared_ptr<eos::IFileMD> fmd;
         try
         {
+<<<<<<< HEAD
           eos::FileMD* fmd = gOFS->eosFileService->getFileMD(fid);
           spath = gOFS->eosView->getUri(fmd).c_str();
+=======
+	  fmd = gOFS->eosFileService->getFileMD(fid);
+          spath = gOFS->eosView->getUri(fmd.get()).c_str();
+>>>>>>> 44ce6a8... Fix after merge
         }
         catch (eos::MDException &e)
         {
@@ -723,9 +729,14 @@ ProcCommand::File ()
       else
       {
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+	std::shared_ptr<eos::IFileMD> fmd;
         try
         {
+<<<<<<< HEAD
           eos::FileMD* fmd = gOFS->eosView->getFile(spath.c_str());
+=======
+          fmd = gOFS->eosView->getFile(spath.c_str());
+>>>>>>> 44ce6a8... Fix after merge
           fid = fmd->getId();
         }
         catch (eos::MDException &e)

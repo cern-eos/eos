@@ -301,7 +301,12 @@ public:
   XrdScheduler* TransferScheduler; //! TransferScheduler
   XrdSysMutex TransferSchedulerMutex; //! protecting the TransferScheduler
 
+<<<<<<< HEAD
   XrdOucString eoscpTransferLog; //! eoscp.log full path
+=======
+  HttpServer* httpd; ///< embedded http server
+  const char* mHostName; ///< FST hostname
+>>>>>>> 44ce6a8... Fix after merge
 
   void SetSimulationError (const char* tag); //! allows to switch on error simulation in the OfsFile stack
 

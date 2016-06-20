@@ -64,8 +64,14 @@
 
   std::string event = aevent;
 
+<<<<<<< HEAD
   eos::FileMD* fmd = 0;
   eos::ContainerMD* dh = 0;
+=======
+  std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> dh;
+
+>>>>>>> 44ce6a8... Fix after merge
   Workflow workflow;
   eos::ContainerMD::XAttrMap attr;
   
