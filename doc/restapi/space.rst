@@ -1,3 +1,10 @@
+.. highlight:: rst
+
+.. index::
+   single: Space API
+
+
+
 space
 =====
 
