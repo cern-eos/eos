@@ -19,16 +19,17 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space&mgm.subcmd=ls
-   [&mgm.outformat=l|m|io|fsck]
-   [&mgm.selection=<match>]
+     ?mgm.cmd=space
+     &mgm.subcmd=ls
+     [&mgm.outformat=l|m|io|fsck]
+     [&mgm.selection=<match>]
 
 CLI syntax
 ++++++++++
 
 .. code-block:: text
 
-   usage: space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list
+   space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list
       -s : silent mode
       -m : monitoring key=value output format
       -l : long output - list also file systems after each space
@@ -45,11 +46,11 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=config
-   &mgm.space.name=<space>
-   &mgm.space.key=<key>
-   &mgm.space.value=<value>
+     ?mgm.cmd=space
+     &mgm.subcmd=config
+     &mgm.space.name=<space>
+     &mgm.space.key=<key>
+     &mgm.space.value=<value>
 
 CLI syntax
 ++++++++++
@@ -85,11 +86,11 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=define
-   &mgm.space=<space>
-   &mgm.space.groumod=<groupmod>
-   &mgm.space.groupsize=<groupsize>
+     ?mgm.cmd=space
+     &mgm.subcmd=define
+     &mgm.space=<space>
+     &mgm.space.groumod=<groupmod>
+     &mgm.space.groupsize=<groupsize>
 
 CLI syntax
 ++++++++++
@@ -111,10 +112,10 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=reset
-   &mgm.space=<space>
-   &[mgm.option=egroup|mapping|drain|scheduledrain|schedulebalance]
+     ?mgm.cmd=space
+     &mgm.subcmd=reset
+     &mgm.space=<space>
+     &[mgm.option=egroup|mapping|drain|scheduledrain|schedulebalance]
 
 CLI syntax
 ++++++++++
@@ -133,9 +134,9 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=status
-   &mgm.space=<space>
+     ?mgm.cmd=space
+     &mgm.subcmd=status
+     &mgm.space=<space>
 
 CLI syntax
 ++++++++++
@@ -153,10 +154,10 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=set
-   &mgm.space=<space>
-   &mgm.space.state=on|off
+     ?mgm.cmd=space
+     &mgm.subcmd=set
+     &mgm.space=<space>
+     &mgm.space.state=on|off
 
 CLI syntax
 ++++++++++
@@ -174,14 +175,14 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=rm
-   &mgm.space=<space>
+     ?mgm.cmd=space
+     &mgm.subcmd=rm
+     &mgm.space=<space>
 
 CLI syntax
 ++++++++++
 
-.. code-block::text
+.. code-block:: text
 
       space rm <space-name>                                         : remove space
 
@@ -194,15 +195,15 @@ REST syntax
 .. code-block:: text
 
    http://<host>:8000/proc/admin/
-   ?mgm.cmd=space
-   &mgm.subcmd=quota
-   &mgm.space=<space>
-   &mgm.space.quota=on|off
+     ?mgm.cmd=space
+     &mgm.subcmd=quota
+     &mgm.space=<space>
+     &mgm.space.quota=on|off
 
 CLI syntax
 ++++++++++
 
-.. code-block::text
+.. code-block:: text
 
       space quota <space-name> on|off                               : enable/disable quota
 
