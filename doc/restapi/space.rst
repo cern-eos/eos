@@ -18,7 +18,10 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=ls[&mgm.outformat=l|m|io|fsck][&mgm.selection=<match>]
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space&mgm.subcmd=ls
+   [&mgm.outformat=l|m|io|fsck]
+   [&mgm.selection=<match>]
 
 CLI syntax
 ++++++++++
@@ -41,7 +44,12 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=config&mgm.space.name=<space>&mgm.space.key=<key>&mgm.space.value=<value>
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=config
+   &mgm.space.name=<space>
+   &mgm.space.key=<key>
+   &mgm.space.value=<value>
 
 CLI syntax
 ++++++++++
@@ -76,7 +84,12 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=define&mgm.space=<space>&mgm.space.groumod=<groupmod>&mgm.space.groupsize=<groupsize>
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=define
+   &mgm.space=<space>
+   &mgm.space.groumod=<groupmod>
+   &mgm.space.groupsize=<groupsize>
 
 CLI syntax
 ++++++++++
@@ -97,7 +110,11 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=reset&mgm.space=<space>&[mgm.option=egroup|mapping|drain|scheduledrain|schedulebalance]
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=reset
+   &mgm.space=<space>
+   &[mgm.option=egroup|mapping|drain|scheduledrain|schedulebalance]
 
 CLI syntax
 ++++++++++
@@ -115,7 +132,10 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=status&mgm.space=<space>
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=status
+   &mgm.space=<space>
 
 CLI syntax
 ++++++++++
@@ -132,7 +152,11 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=set&mgm.space=<space>&mgm.space.state=on|off
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=set
+   &mgm.space=<space>
+   &mgm.space.state=on|off
 
 CLI syntax
 ++++++++++
@@ -149,7 +173,10 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=rm&mgm.space=<space>
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=rm
+   &mgm.space=<space>
 
 CLI syntax
 ++++++++++
@@ -166,7 +193,11 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/?mgm.cmd=space&mgm.subcmd=quota&mgm.space=<space>&mgm.space.quota=on|off
+   http://<host>:8000/proc/admin/
+   ?mgm.cmd=space
+   &mgm.subcmd=quota
+   &mgm.space=<space>
+   &mgm.space.quota=on|off
 
 CLI syntax
 ++++++++++
