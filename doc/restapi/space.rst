@@ -18,7 +18,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=ls
      [&mgm.outformat=l|m|io|fsck]
@@ -45,7 +45,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=config
      &mgm.space.name=<space>
@@ -85,7 +85,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=define
      &mgm.space=<space>
@@ -111,7 +111,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=reset
      &mgm.space=<space>
@@ -133,7 +133,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=status
      &mgm.space=<space>
@@ -153,7 +153,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=set
      &mgm.space=<space>
@@ -174,7 +174,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=rm
      &mgm.space=<space>
@@ -194,7 +194,7 @@ REST syntax
 
 .. code-block:: text
 
-   http://<host>:8000/proc/admin/
+   http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=quota
      &mgm.space=<space>
