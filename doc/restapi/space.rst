@@ -21,6 +21,8 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=ls
+     &eos.ruid=0
+     &eos.rgid=0
      [&mgm.outformat=l|m|io|fsck]
      [&mgm.selection=<match>]
 
@@ -48,6 +50,8 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=config
+     &eos.ruid=0
+     &eos.rgid=0
      &mgm.space.name=<space>
      &mgm.space.key=<key>
      &mgm.space.value=<value>
@@ -88,6 +92,8 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=define
+     &eos.ruid=0
+     &eos.rgid=0
      &mgm.space=<space>
      &mgm.space.groumod=<groupmod>
      &mgm.space.groupsize=<groupsize>
@@ -114,6 +120,8 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=reset
+     &eos.ruid=0
+     &eos.rgid=0
      &mgm.space=<space>
      &[mgm.option=egroup|mapping|drain|scheduledrain|schedulebalance]
 
@@ -136,6 +144,8 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=status
+     &eos.ruid=0
+     &eos.rgid=0
      &mgm.space=<space>
 
 CLI syntax
@@ -156,6 +166,8 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=set
+     &eos.ruid=0
+     &eos.rgid=0
      &mgm.space=<space>
      &mgm.space.state=on|off
 
@@ -178,6 +190,8 @@ REST syntax
      ?mgm.cmd=space
      &mgm.subcmd=rm
      &mgm.space=<space>
+     &eos.ruid=0
+     &eos.rgid=0
 
 CLI syntax
 ++++++++++
@@ -197,8 +211,11 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=space
      &mgm.subcmd=quota
+     &eos.ruid=0
+     &eos.rgid=0
      &mgm.space=<space>
      &mgm.space.quota=on|off
+
 
 CLI syntax
 ++++++++++
