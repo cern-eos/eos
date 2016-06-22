@@ -9,3 +9,4 @@ REST API
    restapi/space
    restapi/group
    restapi/node
+   restapi/fs
