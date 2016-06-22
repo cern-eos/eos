@@ -334,6 +334,7 @@ ProcCommand::Find ()
       stdErr += "error: failed to run exists on '";
       stdErr += spath.c_str();
       stdErr += "'";
+      fprintf(fstderr, "%s", stdErr.c_str());
       retc = errno;
       return SFS_OK;
     }
@@ -343,6 +344,14 @@ ProcCommand::Find ()
       {
         // if this is already a file name, we switch off to find directories
         option += "f";
+      }
+
+      if (file_exists == XrdSfsFileExistNo)
+      {
+	stdErr += "error: no such file or directory";
+	fprintf(fstderr, "%s", stdErr.c_str());
+	retc = ENOENT;
+	return SFS_OK;
       }
     }
     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found),

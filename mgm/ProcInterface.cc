@@ -905,7 +905,7 @@ ProcCommand::MakeResult ()
         // create the stderr result
         // ----------------------------------------------------------------------
         fprintf(fresultStream, "&mgm.proc.stderr=");
-        while (std::getline(inStdout, entry))
+        while (std::getline(inStderr, entry))
         {
           XrdOucString sentry = entry.c_str();
           sentry += "\n";
