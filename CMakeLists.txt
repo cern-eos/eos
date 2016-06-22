@@ -188,6 +188,8 @@ else()
   add_subdirectory (test)
   add_subdirectory (utils)
   add_subdirectory (archive)
+  add_subdirectory (selinux)
+
 endif()
 
 #-------------------------------------------------------------------------------
