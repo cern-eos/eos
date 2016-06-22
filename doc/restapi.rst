@@ -7,4 +7,5 @@ REST API
    :maxdepth: 2
 
    restapi/space
+   restapi/group
 
