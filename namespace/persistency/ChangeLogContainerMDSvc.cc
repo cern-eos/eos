@@ -274,7 +274,23 @@ namespace eos
                 // -------------------------------------------------------------
                 // copy the meta data
                 // -------------------------------------------------------------
-                (*it->second.ptr) = *currentCont;
+		(*it->second.ptr) = *currentCont;
+		{
+		  // the file and container lists are not copied in the copy constructor
+		  for (fIt = currentCont->filesBegin(); 
+		       fIt != currentCont->filesEnd(); 
+		       fIt++)
+		  {
+		    it->second.ptr->addFile(fIt->second);
+		  }
+		  for (cIt = currentCont->containersBegin(); 
+		       cIt != currentCont->containersEnd(); 
+                         cIt++)
+		  {
+		    it->second.ptr->addContainer(cIt->second);
+		  }
+		}
+		
                 // -------------------------------------------------------------
                 // add to the new parent container
                 // -------------------------------------------------------------
