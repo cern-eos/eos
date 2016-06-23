@@ -163,6 +163,10 @@ XrdMgmOfsFile::open (const char *inpath,
       eos_debug("caught exception %d %s\n",
 		e.getErrno(),
 		e.getMessage().str().c_str());
+
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+
       return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
     }
   }
