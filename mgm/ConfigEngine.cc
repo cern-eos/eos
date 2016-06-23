@@ -510,6 +510,17 @@ ConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
   };
   configlist = "Existing Configurations\n";
   configlist += "=======================\n";
+
+  if (useConfig2Redis) {
+    //getting the set from redis with the available configurations
+    redox::RedoxSet rdx_set(client, conf_set_key);
+    
+    for (auto&& elem: rdx_set.smembers()){
+      configlist += elem.c_str();
+      configlist += "\n";
+    } 
+  }
+  else {
   XrdOucString FileName = "";
   DIR* dir = opendir(configDir.c_str());
 
@@ -616,6 +627,8 @@ ConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     if (allstat) {
       free(allstat);
     }
+  }
+
   }
 
   return true;
@@ -1538,8 +1551,15 @@ ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
       changeLog.AddEntry(cl.c_str());
       currentConfigFile = name;
       changeLog.configChanges = "";
+  
+      std::string hash_key;
+      hash_key += "EOSConfig:";
+      hash_key += gOFS->MgmOfsInstanceName.c_str();
+      hash_key += ":";
+      hash_key += name;
 
-      std::string hash_key = "redox_test:configuration";//to define
+      eos_notice("HASH KEY NAME => %s",hash_key.c_str());
+
       redox::RedoxHash rdx_hash(client,hash_key);
       if (rdx_hash.hlen() > 0) {
         std::vector<std::string> resp = rdx_hash.hkeys();
@@ -1547,10 +1567,24 @@ ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
         for (auto&& elem: resp)
                 rdx_hash.hdel(elem);
 
-       }
+      }
       Mutex.Lock();
       configDefinitions.Apply(SetRedisHashConfig, &rdx_hash);
       Mutex.UnLock();
+      //adding key for timestamp
+      time_t now = time(0);
+      char dtime[1024];
+      sprintf(dtime, "%lu", now);
+  
+      rdx_hash.hset("timestamp",dtime);
+
+      //we store in redis the list of available EOSConfigs as Set
+      redox::RedoxSet rdx_set(client, conf_set_key);
+
+      //add the hash key to the set if it's not there
+      if (!rdx_set.sismember(hash_key) )
+		rdx_set.sadd(hash_key);
+
       return true;
     }
    }
