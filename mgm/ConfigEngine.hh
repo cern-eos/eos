@@ -456,13 +456,16 @@ class ConfigEngineRedis : public ConfigEngine
   bool 
   LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err);
   // ---------------------------------------------------------------------------
+  // Set a configuration from Refis
+  // ---------------------------------------------------------------------------
+  bool
+  SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err);
+  // ---------------------------------------------------------------------------
   // XrdOucHash callback function to set to an HashSet all the configuration value
   // ---------------------------------------------------------------------------
   static int 
-  SetRedisHashConfig  (const char* key, XrdOucString* def, void* Arg);
-};
-
-
+  SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg);
+}
 
 EOSMGMNAMESPACE_END
 
