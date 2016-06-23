@@ -194,6 +194,12 @@ namespace eos
         throw( MDException );
 
       //------------------------------------------------------------------------
+      //! Get real path translating existing symlink
+      //------------------------------------------------------------------------
+      virtual std::string getRealPath( const std::string &path ) 
+        throw( MDException );
+
+      //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
       virtual QuotaNode *getQuotaNode( const ContainerMD *container,

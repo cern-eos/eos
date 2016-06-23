@@ -92,6 +92,11 @@ namespace eos
       virtual FileMD *getFile( const std::string &uri, bool follow = true, size_t* link_depths = 0 ) throw( MDException ) = 0;
 
       //------------------------------------------------------------------------
+      //! Resolve all symlinks in a given uri to a real path
+      //------------------------------------------------------------------------
+      virtual std::string getRealPath( const std::string &uri) throw( MDException ) = 0;
+
+      //------------------------------------------------------------------------
       //! Update file store
       //------------------------------------------------------------------------
       virtual void updateFileStore( FileMD *file ) throw( MDException ) = 0;
