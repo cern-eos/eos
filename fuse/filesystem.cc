@@ -754,6 +754,11 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
 	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
 	 e.attr.st_size = overwrite_stat->st_size;
        }
+
+#ifdef __APPLE__
+       me.fs (). DecodeOsxBundle(e.attr);
+#endif
+
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
        retc = 1; // found
@@ -2029,6 +2034,7 @@ filesystem::utimes_if_open (unsigned long long inode,
      rwmutex_fd2fabst.UnLockRead();
 
      fabst->SetUtimes (utimes);
+     eos_static_info("ino=%ld mtime=%ld mtime.nsec=%ld",inode, utimes[1].tv_sec, utimes[1].tv_nsec);
      return 0;
    }
  }

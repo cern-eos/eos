@@ -384,6 +384,10 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
  if (!retc)
  {
+#ifdef __APPLE__
+   me.fs (). DecodeOsxBundle(stbuf);
+#endif 
+
    fuse_reply_attr (req, &stbuf, me.config.attrcachetime);
  }
  else
@@ -430,8 +434,13 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
 
  if (to_set & FUSE_SET_ATTR_MODE)
  {
+   struct stat newattr;
+   newattr.st_mode = attr->st_mode;
+#ifdef __APPLE__
+     me.fs (). EncodeOsxBundle(newattr);
+#endif
    eos_static_debug ("set attr mode ino=%lld", (long long) ino);
-   retc = me.fs ().chmod (fullpath.c_str (), attr->st_mode, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
+   retc = me.fs ().chmod (fullpath.c_str (), newattr.st_mode, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
  }
 
  if ((to_set & FUSE_SET_ATTR_UID) && (to_set & FUSE_SET_ATTR_GID))
@@ -452,8 +461,8 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
    tvp[1].tv_sec = attr->MTIMESPEC.tv_sec;
    tvp[1].tv_nsec = attr->MTIMESPEC.tv_nsec;
 
-   eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld",
-                     (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
+   eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld mtime.nsec=%ld",
+                     (long long) ino, (long) attr->st_atime, (long) attr->st_mtime, (long) attr->st_mtim.tv_nsec);
 
    if ( (retc = me.fs ().utimes_if_open (ino,
                                          tvp,
@@ -476,8 +485,24 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  if (!retc)
  {
    retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, 0/*ino*/);
+   if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
+   {
+     // return what was set by the client
+     newattr.ATIMESPEC.tv_sec = attr->ATIMESPEC.tv_sec;
+     newattr.ATIMESPEC.tv_nsec = attr->ATIMESPEC.tv_nsec;
+     newattr.MTIMESPEC.tv_sec = attr->MTIMESPEC.tv_sec;
+     newattr.MTIMESPEC.tv_nsec = attr->MTIMESPEC.tv_nsec;
+     newattr.st_ino = ino;
+     eos_static_debug("set attr ino=%lld atime=%ld atime.nsec=%ld mtime=%ld mtime.nsec=%ld",
+		      (long long) ino, (long) newattr.st_atime, (long) newattr.st_atim.tv_nsec, (long) newattr.st_mtime, (long) newattr.st_mtim.tv_nsec);
+   }
    if (!retc)
+   {
+#ifdef __APPLE__
+     me.fs (). DecodeOsxBundle(newattr);
+#endif
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
+   }
    else
      fuse_reply_err (req, errno);
  }
@@ -571,6 +596,11 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
      e.ino = e.attr.st_ino;
      me.fs ().store_p2i (e.attr.st_ino, ifullpath);
+
+#ifdef __APPLE__
+   me.fs ().DecodeOsxBundle(e.attr);
+#endif 
+
      fuse_reply_entry (req, &e);
 
      // Add entry to cached dir
@@ -899,6 +929,15 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
  e.attr_timeout = me.config.attrcachetime;
  e.entry_timeout = me.config.entrycachetime;
 
+#ifdef __APPLE__
+ {
+   struct stat attr;
+   attr.st_mode = mode;
+   me.fs (). EncodeOsxBundle(attr);
+   mode = attr.st_mode;
+ }
+#endif
+
  int retc = me.fs ().mkdir (fullpath.c_str (),
                             mode,
                             fuse_req_ctx (req)->uid,
@@ -947,6 +986,9 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
        me.fs ().dir_cache_forget (ino_gparent);
      }
 
+#ifdef __APPLE__
+   me.fs ().DecodeOsxBundle(e.attr);
+#endif 
      fuse_reply_entry (req, &e);
    }
  }
@@ -1386,7 +1428,7 @@ EosFuse::mknod (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
 
-  if (!(mode & S_IFREG))
+ if (!S_ISREG(mode))
  {
    // we only imnplement files
    fuse_reply_err (req, ENOSYS);
