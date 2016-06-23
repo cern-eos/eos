@@ -40,7 +40,188 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+// config definitions of the last loaded file
+XrdOucHash<XrdOucString> ConfigEngine::configDefinitionsFile;
+
+// config definitions currently in memory
 XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
+
+/*----------------------------------------------------------------------------*/
+ConfigEngineChangeLog::ConfigEngineChangeLog ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Constructor
+ */
+/*----------------------------------------------------------------------------*/ {
+  // do nothing
+}
+
+void
+ConfigEngineChangeLog::Init (const char* changelogfile)
+{
+  if(!map.attachLog(changelogfile, eos::common::SqliteDbLogInterface::daily, 0644))
+  {
+    eos_emerg("failed to open %s config changelog file %s",
+	      eos::common::DbMap::getDbType().c_str(), changelogfile);
+    exit(-1);
+  }
+  else {
+    this->changelogfile = changelogfile;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+ConfigEngineChangeLog::~ConfigEngineChangeLog ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Destructor
+ */
+/*----------------------------------------------------------------------------*/ {
+  // nothing to do
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::ParseTextEntry (const char *entry,
+				       std::string &key,
+				       std::string &value,
+				       std::string &action)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Parse a text line into key value pairs
+ * @param entry entry to parse
+ * @param key key parsed
+ * @param value value parsed
+ * @param action action parsed
+ */
+/*----------------------------------------------------------------------------*/
+{
+  std::stringstream ss(entry);
+  std::string tmp;
+  ss >> action;
+  ss >> tmp;
+  (action += " ") += tmp; // the action is put inside the comment
+  key = value = "";
+  if (action.compare("reset config") == 0)
+  {
+    // nothing specific
+  }
+  else if (action.compare("del config") == 0)
+  {
+    ss >> key;
+    if (key.empty()) return false; // error, should not happen
+  }
+  else if (action.compare("set config") == 0)
+  {
+    ss >> key;
+    ss >> tmp; // should be "=>"
+    getline(ss, value);
+    if (key.empty() || value.empty()) return false; // error, should not happen
+  }
+  else if (action.compare("loaded config") == 0)
+  {
+    ss >> key;
+    getline(ss, value);
+    if (key.empty() || value.empty()) return false; // error, should not happen
+  }
+  else if (action.size() >= 12)
+  {
+    if (action.substr(0, 12).compare("saved config") == 0)
+    { // to take into account the missing space after config when writing the old configchangelog file format
+      std::string k;
+      if (action.size() > 12) k = action.substr(12); // if the space is missing e.g:configNAME, the name is put in this string and space is appended
+      if (k.size()) k += " ";
+      ss >> key;
+      k += key;
+      key = k;
+      getline(ss, value);
+      action = action.substr(0, 12); // to take into account the missing space after config when writing the old configchangelog file format
+      if (key.empty() || value.empty()) return false; // error, should not happen
+    }
+  }
+  else if (action.compare("autosaved  config") == 0 || action.compare("autosaved config") == 0)
+  { // notice the double space coming from the writing procedure
+    ss >> key;
+    getline(ss, value);
+    if (key.empty() || value.empty()) return false; // error, should not happen
+  }
+  else
+  {
+    return false;
+  }
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::AddEntry (const char* info)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Add an entry to the changelog
+ * @param info add and entry to the changelog
+ */
+/*----------------------------------------------------------------------------*/
+{
+  Mutex.Lock();
+  std::string key, value, action;
+  if (!ParseTextEntry(info, key, value, action))
+  {
+    eos_warning("failed to parse new entry %s in file %s. this entry will be ignored.",
+		info, changelogfile.c_str());
+    Mutex.UnLock();
+    return false;
+  }
+  map.set(key, value, action);
+  Mutex.UnLock();
+
+  configChanges += info;
+  configChanges += "\n";
+
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Return a tail of the changelog
+ * @param nlines number of lines to return
+ * @param tail return string of the tail
+ * @return true if ok otherwise false
+ */
+/*----------------------------------------------------------------------------*/
+{
+  eos::common::DbLog logfile;
+  eos::common::DbLog::TlogentryVec qresult;
+  if (!logfile.setDbFile(changelogfile))
+  {
+    eos_err("failed to read ", changelogfile.c_str());
+    return false;
+  }
+  logfile.getTail(nlines, &qresult);
+  tail = "";
+  for (eos::common::DbLog::TlogentryVec::iterator it = qresult.begin(); it != qresult.end(); it++)
+  {
+    tail += it->timestampstr.c_str();
+    tail += " ";
+    tail += it->comment.c_str();
+    tail += " ";
+    tail += it->key.c_str();
+    tail += " ";
+    if (it->comment.compare("set config") == 0) tail += "=>  ";
+    tail += it->value.c_str();
+    tail += "\n";
+  }
+  while (tail.replace("&", " "))
+  {
+  }
+  return true;
+}
+
+//------------------------------------------------------------------------------
+//                     *** ConfigEngine class ***
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -67,6 +248,536 @@ ConfigEngine::~ConfigEngine() {
   if (useConfig2Redis) {
     client.disconnect();
   }
+}
+
+//------------------------------------------------------------------------------
+// Load a given configuration file
+//------------------------------------------------------------------------------
+bool
+ConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
+{
+  const char* name = env.Get("mgm.config.file");
+  eos_notice("loading name=%s ", name);
+
+  XrdOucString cl = "loaded config ";
+  cl += name;
+  cl += " ";
+  if (!name)
+  {
+    err = "error: you have to specify a configuration file name";
+    return false;
+  }
+
+  XrdOucString fullpath = configDir;
+  fullpath += name;
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+
+  if (::access(fullpath.c_str(), R_OK))
+  {
+    err = "error: unable to open config file ";
+    err += fullpath.c_str();
+    return false;
+  }
+
+  ResetConfig();
+
+  ifstream infile(fullpath.c_str());
+  std::string s;
+  XrdOucString allconfig = "";
+  if (infile.is_open())
+  {
+    XrdOucString config = "";
+    while (!infile.eof())
+    {
+      getline(infile, s);
+      if (s.length())
+      {
+	allconfig += s.c_str();
+	allconfig += "\n";
+      }
+      eos_notice("IN ==> %s", s.c_str());
+    }
+    infile.close();
+    if (!ParseConfig(allconfig, err))
+      return false;
+    configBroadcast = false;
+    if (!ApplyConfig(err))
+    {
+      configBroadcast = true;
+      cl += " with failure";
+      cl += " : ";
+      cl += err;
+      changeLog.AddEntry(cl.c_str());
+      return false;
+    }
+    else
+    {
+      configBroadcast = true;
+      cl += " successfully";
+      changeLog.AddEntry(cl.c_str());
+      currentConfigFile = name;
+      changeLog.configChanges = "";
+      return true;
+    }
+
+  }
+  else
+  {
+    err = "error: failed to open configuration file with name \"";
+    err += name;
+    err += "\"!";
+    return false;
+  }
+  return false;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Store the current configuration to a given file
+ */
+/*----------------------------------------------------------------------------*/
+{
+  const char* name = env.Get("mgm.config.file");
+  bool force = (bool)env.Get("mgm.config.force");
+  bool autosave = (bool)env.Get("mgm.config.autosave");
+  const char* comment = env.Get("mgm.config.comment");
+
+  XrdOucString cl = "";
+  if (autosave)
+    cl += "autosaved  config ";
+  else
+    cl += "saved config ";
+  cl += name;
+  cl += " ";
+  if (force) cl += "(force)";
+  eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
+
+  if (!name)
+  {
+    if (currentConfigFile.length())
+    {
+      name = currentConfigFile.c_str();
+      force = true;
+    }
+    else
+    {
+      err = "error: you have to specify a configuration file name";
+      return false;
+    }
+  }
+
+
+  XrdOucString sname = name;
+
+  if ((sname.find("..")) != STR_NPOS)
+  {
+    err = "error: the config name cannot contain ..";
+    errno = EINVAL;
+    return false;
+  }
+
+  if ((sname.find("/")) != STR_NPOS)
+  {
+    err = "error: the config name cannot contain /";
+    errno = EINVAL;
+    return false;
+  }
+
+  XrdOucString fullpath = configDir;
+  XrdOucString halfpath = configDir;
+  fullpath += name;
+  halfpath += name;
+
+  fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
+
+  if (!::access(fullpath.c_str(), R_OK))
+  {
+    if (!force)
+    {
+      errno = EEXIST;
+      err = "error: a configuration file with name \"";
+      err += name;
+      err += "\" exists already!";
+      return false;
+    }
+    else
+    {
+      char backupfile[4096];
+      struct stat st;
+      if (stat(fullpath.c_str(), &st))
+      {
+	err = "error: cannot stat the config file with name \"";
+	err += name;
+	err += "\"";
+	return false;
+      }
+      if (autosave)
+      {
+	sprintf(backupfile, "%s.autosave.%lu%s", halfpath.c_str(), st.st_mtime, EOSMGMCONFIGENGINE_EOS_SUFFIX);
+      }
+      else
+      {
+	sprintf(backupfile, "%s.backup.%lu%s", halfpath.c_str(), st.st_mtime, EOSMGMCONFIGENGINE_EOS_SUFFIX);
+      }
+
+      if (rename(fullpath.c_str(), backupfile))
+      {
+	err = "error: unable to move existing config file to backup version!";
+	return false;
+      }
+    }
+  }
+
+  std::ofstream outfile(fullpath.c_str());
+  if (outfile.is_open())
+  {
+    XrdOucString config = "";
+    XrdOucEnv env("");
+    if (comment)
+    {
+      // we store comments as "<unix-tst> <date> <comment>"
+      XrdOucString esccomment = comment;
+      XrdOucString configkey = "";
+      time_t now = time(0);
+      char dtime[1024];
+      sprintf(dtime, "%lu ", now);
+      XrdOucString stime = dtime;
+      stime += ctime(&now);
+      stime.erase(stime.length() - 1);
+      stime += " ";
+      while (esccomment.replace("\"", ""))
+      {
+      }
+      esccomment.insert(stime.c_str(), 0);
+      esccomment.insert("\"", 0);
+      esccomment.append("\"");
+
+      configkey += "comment-";
+      configkey += dtime;
+      configkey += ":";
+
+      configDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
+    }
+
+    DumpConfig(config, env);
+    eos::common::StringConversion::SortLines(config);
+    outfile << config.c_str();
+    outfile.close();
+  }
+  else
+  {
+    err = "error: failed to save configuration file with name \"";
+    err += name;
+    err += "\"!";
+    return false;
+  }
+
+  cl += " successfully";
+  cl += " [";
+  cl += comment;
+  cl += " ]";
+  changeLog.AddEntry(cl.c_str());
+  changeLog.configChanges = "";
+  currentConfigFile = name;
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief List the existing configurations
+ */
+/*----------------------------------------------------------------------------*/
+{
+
+  struct filestat 
+  {
+    struct stat buf;
+    char filename[1024];
+  };
+
+  configlist = "Existing Configurations\n";
+  configlist += "=======================\n";
+
+  if (useConfig2Redis) {
+	//getting the set from redis with the available configurations
+	redox::RedoxSet rdx_set(client, conf_set_key);
+	
+	for (auto&& elem: rdx_set.smembers()){
+		configlist += elem.c_str();
+	        configlist += "\n";
+	}
+
+  }
+  else {
+
+  XrdOucString FileName = "";
+
+  DIR* dir = opendir(configDir.c_str());
+  if (!dir)
+  {
+    eos_err("unable to open config directory %s", configDir.c_str());
+    return false;
+  }
+
+  long tdp = 0;
+  struct filestat* allstat = 0;
+
+  struct dirent *dp;
+  int nobjects = 0;
+
+  tdp = telldir(dir);
+
+  while ((dp = readdir(dir)) != 0)
+  {
+    FileName = dp->d_name;
+    if ((!strcmp(dp->d_name, ".")) || (!strcmp(dp->d_name, "..")) || (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX)))
+      continue;
+
+    nobjects++;
+  }
+
+  allstat = (struct filestat*) malloc(sizeof (struct filestat) * nobjects);
+
+  if (!allstat)
+  {
+    eos_err("cannot allocate sorting array");
+    if (dir)
+      closedir(dir);
+    return false;
+  }
+
+  seekdir(dir, tdp);
+
+  int i = 0;
+  while ((dp = readdir(dir)) != 0)
+  {
+    FileName = dp->d_name;
+    if ((!strcmp(dp->d_name, ".")) || (!strcmp(dp->d_name, "..")) || (!FileName.endswith(EOSMGMCONFIGENGINE_EOS_SUFFIX)))
+      continue;
+
+    char fullpath[8192];
+    sprintf(fullpath, "%s/%s", configDir.c_str(), dp->d_name);
+
+    sprintf(allstat[i].filename, "%s", dp->d_name);
+    eos_debug("stat on %s\n", dp->d_name);
+    if (stat(fullpath, &(allstat[i].buf)))
+    {
+      eos_err("cannot stat after readdir file %s", fullpath);
+    }
+    i++;
+  }
+  closedir(dir);
+  // do the sorting
+  qsort(allstat, nobjects, sizeof (struct filestat), ConfigEngine::CompareCtime);
+
+  if (allstat && (nobjects > 0))
+  {
+    for (int j = 0; j < i; j++)
+    {
+      char outline[1024];
+      time_t modified = allstat[j].buf.st_mtime;
+
+      XrdOucString fn = allstat[j].filename;
+      fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX, "");
+
+      if (fn == currentConfigFile)
+      {
+	if (changeLog.configChanges.length())
+	{
+	  fn = "!";
+	}
+	else
+	{
+	  fn = "*";
+	}
+      }
+      else
+      {
+	fn = " ";
+      }
+
+      fn += allstat[j].filename;
+      fn.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX, "");
+
+      sprintf(outline, "created: %s name: %s", ctime(&modified), fn.c_str());
+      XrdOucString removelinefeed = outline;
+      while (removelinefeed.replace('\n', ""))
+      {
+      }
+      // remove  suffix
+      removelinefeed.replace(EOSMGMCONFIGENGINE_EOS_SUFFIX, "");
+      if ((!showbackup) && ((removelinefeed.find(".backup.") != STR_NPOS) || (removelinefeed.find(".autosave.") != STR_NPOS)))
+      {
+	// don't show this ones
+      }
+      else
+      {
+	configlist += removelinefeed;
+	configlist += "\n";
+      }
+    }
+    free(allstat);
+  }
+  else
+  {
+    if (allstat)
+      free(allstat);
+  }
+
+  }
+
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+void
+ConfigEngine::ResetConfig ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Reset the configuration
+ */
+/*----------------------------------------------------------------------------*/
+{
+  configBroadcast = false;
+  XrdOucString cl = "reset  config ";
+  changeLog.AddEntry(cl.c_str());
+  changeLog.configChanges = "";
+  currentConfigFile = "";
+
+  // Cleanup the quota map
+  (void) Quota::CleanUp();
+
+  eos::common::Mapping::gMapMutex.LockWrite();
+  eos::common::Mapping::gUserRoleVector.clear();
+  eos::common::Mapping::gGroupRoleVector.clear();
+  eos::common::Mapping::gVirtualUidMap.clear();
+  eos::common::Mapping::gVirtualGidMap.clear();
+  eos::common::Mapping::gMapMutex.UnLockWrite();
+  eos::common::Mapping::gAllowedTidentMatches.clear();
+
+  Access::Reset();
+
+  gOFS->ResetPathMap();
+
+  FsView::gFsView.Reset();
+  eos::common::GlobalConfig::gConfig.Reset();
+  Mutex.Lock();
+  configDefinitions.Purge();
+  Mutex.UnLock();
+
+  // load all the quota nodes from the namespace
+  Quota::LoadNodes();
+  configBroadcast = true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngine::ApplyConfig (XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Apply a given configuration defition
+ *
+ * Apply means the configuration engine informs the corresponding objects
+ * about the new values.
+ */
+/*----------------------------------------------------------------------------*/
+{
+  err = "";
+
+  // Cleanup quota map
+  (void) Quota::CleanUp();
+
+  eos::common::Mapping::gMapMutex.LockWrite();
+  eos::common::Mapping::gUserRoleVector.clear();
+  eos::common::Mapping::gGroupRoleVector.clear();
+  eos::common::Mapping::gVirtualUidMap.clear();
+  eos::common::Mapping::gVirtualGidMap.clear();
+  eos::common::Mapping::gMapMutex.UnLockWrite();
+  eos::common::Mapping::gAllowedTidentMatches.clear();
+
+  Access::Reset();
+
+  Mutex.Lock();
+  XrdOucHash<XrdOucString> configDefinitionsCopy;
+
+  // disable the defaults in FsSpace
+  FsSpace::gDisableDefaults = true;
+
+  configDefinitions.Apply(ApplyEachConfig, &err);
+
+  // enable the defaults in FsSpace
+  FsSpace::gDisableDefaults = false;
+  Mutex.UnLock();
+
+  Access::ApplyAccessConfig();
+
+  gOFS->FsCheck.ApplyFsckConfig();
+  gOFS->IoStats.ApplyIostatConfig();
+
+  gTransferEngine.ApplyTransferEngineConfig();
+
+  if (err.length())
+  {
+    errno = EINVAL;
+    return false;
+  }
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Parse a given configuration
+ */
+/*----------------------------------------------------------------------------*/
+{
+  err = "";
+  Mutex.Lock();
+  configDefinitions.Purge();
+
+  std::istringstream streamconfig(inconfig.c_str());
+
+  int linenumber = 0;
+  std::string s;
+
+  while ((getline(streamconfig, s, '\n')))
+  {
+    linenumber++;
+
+    if (s.length())
+    {
+      XrdOucString key = s.c_str();
+      XrdOucString value;
+      int seppos;
+      seppos = key.find(" => ");
+      if (seppos == STR_NPOS)
+      {
+	Mutex.UnLock();
+	err = "parsing error in configuration file line ";
+	err += (int) linenumber;
+	err += " : ";
+	err += s.c_str();
+	errno = EINVAL;
+	return false;
+      }
+      value.assign(key, seppos + 4);
+      key.erase(seppos);
+
+      eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
+      configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+    }
+  }
+
+  Mutex.UnLock();
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -686,8 +1397,15 @@ ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
       changeLog.AddEntry(cl.c_str());
       currentConfigFile = name;
       changeLog.configChanges = "";
+  
+      std::string hash_key;
+      hash_key += "EOSConfig:";
+      hash_key += gOFS->MgmOfsInstanceName.c_str();
+      hash_key += ":";
+      hash_key += name;
 
-      std::string hash_key = "redox_test:configuration";//to define
+      eos_notice("HASH KEY NAME => %s",hash_key.c_str());
+
       redox::RedoxHash rdx_hash(client,hash_key);
       if (rdx_hash.hlen() > 0) {
         std::vector<std::string> resp = rdx_hash.hkeys();
@@ -695,10 +1413,24 @@ ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
         for (auto&& elem: resp)
         	rdx_hash.hdel(elem);
 
-       }
+      }
       Mutex.Lock();
       configDefinitions.Apply(SetRedisHashConfig, &rdx_hash);
       Mutex.UnLock();
+      //adding key for timestamp
+      time_t now = time(0);
+      char dtime[1024];
+      sprintf(dtime, "%lu", now);
+  
+      rdx_hash.hset("timestamp",dtime);
+
+      //we store in redis the list of available EOSConfigs as Set
+      redox::RedoxSet rdx_set(client, conf_set_key);
+
+      //add the hash key to the set if it's not there
+      if (!rdx_set.sismember(hash_key) )
+		rdx_set.sadd(hash_key);
+
       return true;
     }
    }

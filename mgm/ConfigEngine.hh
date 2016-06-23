@@ -134,6 +134,8 @@ public:
   int REDIS_PORT = 6379;
   //TO DO take from mgm configuration
   bool useConfig2Redis = true;
+  //TO DO take from the mgm configuration
+  std::string conf_set_key = "EOSConfig:list";
 
 public:
   // ---------------------------------------------------------------------------
