@@ -351,7 +351,8 @@ public:
              bool nofiles = false,
              time_t millisleep = 0,
              bool nscounter = true,
-             int maxdepth = 0
+             int maxdepth = 0,
+	     const char* filematch = 0
              );
 
   // ---------------------------------------------------------------------------

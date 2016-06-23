@@ -43,6 +43,7 @@ ProcCommand::Find ()
   mDoSort = true;
 
   XrdOucString spath = pOpaque->Get("mgm.path");
+  XrdOucString filematch = pOpaque->Get("mgm.find.match");
   XrdOucString option = pOpaque->Get("mgm.option");
   XrdOucString attribute = pOpaque->Get("mgm.find.attribute");
   XrdOucString maxdepth = pOpaque->Get("mgm.find.maxdepth");
@@ -355,7 +356,7 @@ ProcCommand::Find ()
       }
     }
     if (gOFS->_find(spath.c_str(), *mError, stdErr, *pVid, (*found),
-                    key.c_str(), val.c_str(), nofiles, 0, true, finddepth))
+                    key.c_str(), val.c_str(), nofiles, 0, true, finddepth, filematch.length()?filematch.c_str():0))
     {
       fprintf(fstderr, "%s", stdErr.c_str());
       fprintf(fstderr, "error: unable to run find in directory");

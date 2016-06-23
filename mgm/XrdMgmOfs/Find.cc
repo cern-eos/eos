@@ -39,7 +39,8 @@ XrdMgmOfs::_find (const char *path,
                   bool nofiles,
                   time_t millisleep,
                   bool nscounter, 
-		  int maxdepth
+		  int maxdepth, 
+		  const char* filematch
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -53,7 +54,9 @@ XrdMgmOfs::_find (const char *path,
  * @param val search for a certain value in the extended attributes (requires key)
  * @param nofiles if true returns only directories, otherwise files and directories
  * @param millisleep milli seconds to sleep between each directory scan
- *
+ * @param maxdepth is the maximum search depth
+ * @param filematch is a pattern match for file names
+
  * The find command distinuishes 'power' and 'normal' users. If the virtual
  * identity indicates the root or admin user queries are unlimited.
  * For others queries are limited to 50k directories and 100k files and an
@@ -247,18 +250,30 @@ XrdMgmOfs::_find (const char *path,
                 break;
               }
             }
-	    if (link.length()) 
+	    if (!filematch)
 	    {
-	      std::string ip = fit->second->getName();
-	      ip += " -> ";
-	      ip += link;
-            found[Path].insert(ip);
-	    } 
-	    else 
-	    {
-              found[Path].insert(fit->second->getName());
+	      if (link.length()) 
+	      {
+		std::string ip = fit->second->getName();
+		ip += " -> ";
+		ip += link;
+		found[Path].insert(ip);
+	      } 
+	      else 
+	      {
+		found[Path].insert(fit->second->getName());
+	      }
+	      filesfound++;
 	    }
-            filesfound++;
+	    else
+	    {
+	      XrdOucString name=fit->second->getName().c_str();
+	      if (name.matches(filematch))
+	      {
+		found[Path].insert(fit->second->getName());
+		filesfound++;
+	      }
+	    }
           }
         }
       }
