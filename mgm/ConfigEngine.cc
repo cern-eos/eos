@@ -289,6 +289,44 @@ ConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     return false;
   }
 
+  if (useConfig2Redis) {
+	ResetConfig();
+	std::string hash_key;
+        hash_key += "EOSConfig:";
+        hash_key += gOFS->MgmOfsInstanceName.c_str();
+        hash_key += ":";
+        hash_key += name;
+
+        eos_notice("HASH KEY NAME => %s",hash_key.c_str());
+
+        redox::RedoxHash rdx_hash(client,hash_key);
+
+	if (!SetConfigFromRedis(rdx_hash, err))
+	     return false;
+	configBroadcast = false;
+	if (!ApplyConfig(err))
+    	{
+      		configBroadcast = true;
+	      	cl += " with failure";
+	      	cl += " : ";
+      		cl += err;
+	      	changeLog.AddEntry(cl.c_str());
+      		return false;
+    	}
+    	else
+   	{
+	      configBroadcast = true;
+	      cl += " successfully";
+	      changeLog.AddEntry(cl.c_str());
+	      currentConfigFile = name;
+	      changeLog.configChanges = "";
+	      return true;
+        }
+
+
+  }
+  else {
+
   XrdOucString fullpath = configDir;
   fullpath += name;
   fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
@@ -347,7 +385,7 @@ ConfigEngine::LoadConfig(XrdOucEnv& env, XrdOucString& err)
     err += "\"!";
     return false;
   }
-
+  }
   return false;
 }
 
@@ -504,10 +542,6 @@ ConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
  */
 /*----------------------------------------------------------------------------*/
 {
-  struct filestat {
-    struct stat buf;
-    char filename[1024];
-  };
   configlist = "Existing Configurations\n";
   configlist += "=======================\n";
 
@@ -516,11 +550,27 @@ ConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     redox::RedoxSet rdx_set(client, conf_set_key);
     
     for (auto&& elem: rdx_set.smembers()){
-      configlist += elem.c_str();
+      //retrieve the timestamp value
+      redox::RedoxHash rdx_hash(client, elem);
+      if (rdx_hash.hexists("timestamp")) {
+        char outline[1024];
+        sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(), elem.c_str());
+        configlist += outline;
+      } else {
+        configlist += "name: ";
+        configlist += elem.c_str();
+      }
       configlist += "\n";
-    } 
+    }
   }
   else {
+    
+    struct filestat
+    {
+      struct stat buf;
+      char filename[1024];
+    };
+    
   XrdOucString FileName = "";
   DIR* dir = opendir(configDir.c_str());
 
@@ -759,6 +809,31 @@ ConfigEngine::ParseConfig(XrdOucString& inconfig, XrdOucString& err)
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngine::SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/**
+ *  * @brief set the configuration from Redis Hash
+ *   */
+/*----------------------------------------------------------------------------*/
+{
+  err = "";
+  Mutex.Lock();
+  configDefinitions.Purge();
+
+  for (auto&& elem: hash.hkeys()) {
+      XrdOucString key = elem.c_str();
+      if (key == "timestamp")
+	continue;
+      XrdOucString value = hash.hget(elem).c_str();
+      eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
+      configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+  }
+
+  Mutex.UnLock();
+  return true;
+}
 /*----------------------------------------------------------------------------*/
 int
 ConfigEngine::ApplyKeyDeletion(const char* key)
@@ -1569,14 +1644,12 @@ ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
 
       }
       Mutex.Lock();
-      configDefinitions.Apply(SetRedisHashConfig, &rdx_hash);
+      configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
       Mutex.UnLock();
       //adding key for timestamp
       time_t now = time(0);
-      char dtime[1024];
-      sprintf(dtime, "%lu", now);
-  
-      rdx_hash.hset("timestamp",dtime);
+      std::string stime = ctime(&now);
+      rdx_hash.hset("timestamp",stime);
 
       //we store in redis the list of available EOSConfigs as Set
       redox::RedoxSet rdx_set(client, conf_set_key);
@@ -1600,8 +1673,8 @@ ConfigEngine::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
 }
 
 /* ---------------------------------------------------------------------------*/
-int
-ConfigEngine::SetRedisHashConfig  (const char* key, XrdOucString* def, void* Arg)
+int 
+ConfigEngine::SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Callback function of XrdOucHash to set to Redox Hash each key
