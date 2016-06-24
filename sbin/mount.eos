@@ -45,8 +45,116 @@ if [ $restricted -eq 1 ]; then
   exit -1;
 fi
 
-if [ -n "$2" ]; then
-    export EOS_FUSE_WRAPPER_MOUNTDIR="$2"
+if [ -z "$1" ]; then
+    echo "error: please provide the name of your FUSE mount !"
+    exit -1;
 fi
 
-source /etc/rc.d/init.d/eosd start $1
+[ -f /etc/sysconfig/eos ] && . /etc/sysconfig/eos
+
+[ -f /etc/sysconfig/eos.$1 ] && . /etc/sysconfig/eos.$1
+
+if [ -n "$2" ]; then
+    export EOS_FUSE_MOUNTDIR=$2
+fi
+
+export EOSD=${EOSD-eosd}
+export EOS_ROOT=${EOS_ROOT-/usr/}
+export EOS_FUSE_DEBUG=${EOS_FUSE_DEBUG-0}
+export EOS_FUSE_LOWLEVEL_DEBUG=${EOS_FUSE_LOWLEVEL_DEBUG-0}
+export EOS_FUSE_NOACCESS=${EOS_FUSE_NOACCESS-1}
+export EOS_FUSE_SYNC=${EOS_FUSE_SYNC-0}
+export EOS_FUSE_KERNELCACHE=${EOS_FUSE_KERNELCACHE-1}
+export EOS_FUSE_DIRECTIO=${EOS_FUSE_DIRECTIO-0}
+export EOS_FUSE_CACHE=${EOS_FUSE_CACHE-1}
+export EOS_FUSE_CACHE_SIZE=${EOS_FUSE_CACHE_SIZE-67108864}
+export EOS_FUSE_CACHE_PAGE_SIZE=${EOS_FUSE_CACHE_PAGE_SIZE-262144}
+export EOS_FUSE_BIGWRITES=${EOS_FUSE_BIGWRITES-1}    
+export EOS_FUSE_EXEC=${EOS_FUSE_EXEC-0}
+export EOS_FUSE_NO_MT=${EOS_FUSE_NO_MT-0}
+export EOS_FUSE_USER_KRB5CC=${EOS_FUSE_USER_KRB5CC-0}
+export EOS_FUSE_USER_UNSAFEKRB5=${EOS_FUSE_USER_UNSAFEKRB5-0}
+export EOS_FUSE_USER_GSIPROXY=${EOS_FUSE_USER_GSIPROXY-0}
+export EOS_FUSE_USER_KRB5FIRST=${EOS_FUSE_USER_KRB5FIRST-0}
+export EOS_FUSE_FALLBACKTONOBODY=${EOS_FUSE_FALLBACKTONOBODY-0}
+export EOS_FUSE_PIDMAP=${EOS_FUSE_PIDMAP-0}
+export EOS_FUSE_RMLVL_PROTECT=${EOS_FUSE_RMLVL_PROTECT-1}
+export EOS_FUSE_RDAHEAD=${EOS_FUSE_RDAHEAD-0}
+export EOS_FUSE_RDAHEAD_WINDOW=${EOS_FUSE_RDAHEAD_WINDOW-131072}
+export EOS_FUSE_LAZYOPENRO=${EOS_FUSE_LAZYOPENRO-0}
+export EOS_FUSE_LAZYOPENRW=${EOS_FUSE_LAZYOPENRW-1}
+export EOS_FUSE_SHOW_SPECIAL_FILES=${EOS_FUSE_SHOW_SPECIAL_FILES-0}
+export EOS_FUSE_INLINE_REPAIR=${EOS_FUSE_INLINE_REPAIR-1}
+export EOS_FUSE_MAX_INLINE_REPAIR_SIZE=${EOS_FUSE_MAX_INLINE_REPAIR_SIZE-268435456}
+export EOS_FUSE_LOG_PREFIX=${EOS_FUSE_LOG_PREFIX-$1}
+export EOS_FUSE_ENTRY_CACHE_TIME=${EOS_FUSE_ENTRY_CACHE_TIME-10}
+export EOS_FUSE_ATTR_CACHE_TIME=${EOS_FUSE_ATTR_CACHE_TIME-10}
+export EOS_FUSE_NEG_ENTRY_CACHE_TIME=${EOS_FUSE_NEG_ENTRY_CACHE_TIME-30}
+export EOS_FUSE_CREATOR_CAP_LIFETIME=${EOS_FUSE_CREATOR_CAP_LIFETIME-30}
+export EOS_FUSE_FILE_WB_CACHE_SIZE=${EOS_FUSE_FILE_WB_CACHE_SIZE-67108864}
+export EOS_FUSE_MOUNTDIR=${EOS_FUSE_MOUNTDIR-/eos/}
+export EOS_FUSE_REMOTEDIR=${EOS_FUSE_REMOTEDIR-${EOS_FUSE_MOUNTDIR}}
+
+[[ "x$EOS_FUSE_STREAMERRORWINDOW" != "x" ]] && export XRD_STREAMERRORWINDOW=$EOS_FUSE_STREAMERRORWINDOW
+        # make sure that FUSE_OPT keeps the same default value
+export FUSE_OPT=${FUSE_OPT-"${FUSE_OPT_SAVE}"}
+
+if [ "x$EOS_FUSE_BIGWRITES" = "x1" ]; then
+    FUSE_OPT="big_writes,"${FUSE_OPT-""}
+else
+    test -n "${FUSE_OPT}" && FUSE_OPT=${FUSE_OPT}","
+fi
+
+if [ ${EOSD} == "eosd3" ]; then
+            # add write_back cache option
+    FUSE_OPT=${FUSE_OPT}"writeback_cache,"
+fi
+
+echo -n "Starting $prog for instance: $1"
+mkdir -p /var/run/eosd/
+cd /var/run/eosd/
+mkdir -p /var/run/eosd/credentials/store
+chmod 1777 /var/run/eosd/credentials
+chmod 1777 /var/run/eosd/credentials/store
+mkdir -p ${EOS_FUSE_MOUNTDIR}
+chmod 700 ${EOS_FUSE_MOUNTDIR}
+unset KRB5CCNAME
+unset X509_USER_CERT
+unset X509_USER_KEY
+ulimit -S -c ${DAEMON_COREFILE_LIMIT:-0}
+ulimit -n 65000
+
+echo "EOS_FUSE_DEBUG                   : ${EOS_FUSE_DEBUG}"
+echo "EOS_FUSE_LOWLEVEL_DEBUG          : ${EOS_FUSE_DEBUG}"
+echo "EOS_FUSE_NOACCESS                : ${EOS_FUSE_NOACCESS}"
+echo "EOS_FUSE_SYNC                    : ${EOS_FUSE_SYNC}"
+echo "EOS_FUSE_KERNELCACHE             : ${EOS_FUSE_KERNELCACHE}"
+echo "EOS_FUSE_DIRECTIO                : ${EOS_FUSE_DIRECTIO}"
+echo "EOS_FUSE_CACHE                   : ${EOS_FUSE_CACHE}"
+echo "EOS_FUSE_CACHE_SIZE              : ${EOS_FUSE_CACHE_SIZE}"
+echo "EOS_FUSE_CACHE_PAGE_SIZE         : ${EOS_FUSE_CACHE_PAGE_SIZE}"
+echo "EOS_FUSE_BIGWRITES               : ${EOS_FUSE_BIGWRITES}"
+echo "EOS_FUSE_EXEC                    : ${EOS_FUSE_EXEC}"
+echo "EOS_FUSE_NO_MT                   : ${EOS_FUSE_NO_MT}"
+echo "EOS_FUSE_USER_KRB5CC             : ${EOS_FUSE_USER_KRB5CC}"
+echo "EOS_FUSE_USER_GSIPROXY           : ${EOS_FUSE_USER_GSIPROXY}"
+echo "EOS_FUSE_USER_KRB5FIRST          : ${EOS_FUSE_USER_KRB5FIRST}"
+echo "EOS_FUSE_PIDMAP                  : ${EOS_FUSE_PIDMAP}"
+echo "EOS_FUSE_RMLVL_PROTECT           : ${EOS_FUSE_RMLVL_PROTECT}"
+echo "EOS_FUSE_RDAHEAD                 : ${EOS_FUSE_RDAHEAD}"
+echo "EOS_FUSE_RDAHEAD_WINDOW          : ${EOS_FUSE_RDAHEAD_WINDOW}"
+echo "EOS_FUSE_LAZYOPENRO              : ${EOS_FUSE_LAZYOPENRO}"
+echo "EOS_FUSE_LAZYOPENRW              : ${EOS_FUSE_LAZYOPENRW}"
+echo "EOS_FUSE_SHOW_SPECIAL_FILES      : ${EOS_FUSE_SHOW_SPECIAL_FILES}"
+echo "EOS_FUSE_INLINE_REPAIR           : ${EOS_FUSE_INLINE_REPAIR}"
+echo "EOS_FUSE_MAX_INLINE_REPAIR_SIZE  : ${EOS_FUSE_MAX_INLINE_REPAIR_SIZE}"
+echo "EOS_FUSE_ATTR_CACHE_TIME         : ${EOS_FUSE_ATTR_CACHE_TIME}"
+echo "EOS_FUSE_ENTRY_CACHE_TIME        : ${EOS_FUSE_ENTRY_CACHE_TIME}"
+echo "EOS_FUSE_NEG_ENTRY_CACHE_TIME    : ${EOS_FUSE_NEG_ENTRY_CACHE_TIME}"
+echo "EOS_FUSE_CREATOR_CAP_LIFETIME    : ${EOS_FUSE_CREATOR_CAP_LIFETIME}"
+echo "EOS_FUSE_FILE_WB_CACHE_SIZE      : ${EOS_FUSE_FILE_WB_CACHE_SIZE}"
+echo "EOS_FUSE_LOG_PREFIX              : ${EOS_FUSE_LOG_PREFIX}"
+echo "EOS_FUSE_MOUNTDIR                : ${EOS_FUSE_MOUNTDIR}"
+echo "EOS_FUSE_REMOTEDIR               : ${EOS_FUSE_REMOTEDIR}"
+
+${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$1,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR} >& /dev/null 

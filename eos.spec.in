@@ -247,6 +247,22 @@ The EOS shell client.
 # Package eos-fuse
 #-------------------------------------------------------------------------------
 %package -n eos-fuse
+Summary: The EOS fuse client with init.d and mount script
+Group: Applications/File
+
+Requires: eos-fuse-core
+Requires: eos-fuse-sysv
+
+%description -n eos-fuse
+The EOS fuse client bundle.
+
+%files -n eos-fuse
+%defattr(-, root, root, -)
+
+#-------------------------------------------------------------------------------
+# Package eos-fuse-core
+#-------------------------------------------------------------------------------
+%package -n eos-fuse-core
 Summary: The EOS fuse client
 Group: Applications/File
 
@@ -254,16 +270,16 @@ Requires: xrootd-client >= %{xrootd_version}
 Requires: fuse
 Requires: jemalloc
 
-%description -n eos-fuse
-The EOS fuse client.
+%description -n eos-fuse-core
+The EOS fuse core containing eosd and mount scripts.
 
-%files -n eos-fuse
+%files -n eos-fuse-core
 %defattr(-, root, root, -)
 %{_bindir}/eosd
-%{_bindir}/eosfusebind
-%{_sbindir}/mount.eos
-%{_sbindir}/umount.eos
-%{_sysconfdir}/rc.d/init.d/eosd
+/sbin/mount.eos
+/usr/share/selinux/targeted/eosfuse.pp
+/usr/share/selinux/mls/eosfuse.pp
+/usr/share/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
@@ -273,13 +289,50 @@ The EOS fuse client.
 %{_sysconfdir}/fuse.conf.eos
 %endif
 
-%post -n eos-fuse
+%post -n eos-fuse-core
+for selinuxvariant in mls strict targeted
+do
+  /usr/sbin/semodule -s ${selinuxvariant} -i \
+    /usr/share/selinux/${selinuxvariant}/eosfuse.pp &> /dev/null || :
+done
+
+%preun -n eos-fuse-core
+if [ $1 = 0 ] ; then
+  for variant in mls strict targeted ; do
+    /usr/sbin/semodule -s ${variant} -r eosfuse &> /dev/null || :
+  done
+fi
+
+%postun -n eos-fuse-core
+if [ $1 -eq 0 ]; then
+  for variant in mls strict targeted ; do
+    /usr/sbin/semodule -u /usr/share/selinux/${variant}/eosfuse.pp || :
+  done
+fi
+
+#-------------------------------------------------------------------------------
+# Package eos-fuse-sysv
+#-------------------------------------------------------------------------------
+%package -n eos-fuse-sysv
+Summary: The EOS fuse client
+Group: Applications/File
+
+Requires: eos-fuse-core
+
+%description -n eos-fuse-sysv
+The EOS fuse SYSV init scripts.
+
+%files -n eos-fuse-sysv
+%defattr(-, root, root, -)
+%{_sysconfdir}/rc.d/init.d/eosd
+
+%post -n eos-fuse-sysv
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 echo "Skipping chkconfig for eosd"
 %else
 /sbin/chkconfig --add eosd
 %endif
-%preun -n eos-fuse
+%preun -n eos-fuse-sysv
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 echo "Skipping chkconfig for eosd"
 %else

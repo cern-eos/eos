@@ -1,0 +1,19 @@
+
+module eosfuse 1.0;
+
+require {
+	type var_log_t;
+	type var_run_t;
+	type mount_t;
+	class lnk_file { read getattr };
+	class file setattr;
+}
+
+#============= mount_t ==============
+
+#!!!! This avc is allowed in the current policy
+allow mount_t var_log_t:file setattr;
+
+#!!!! This avc is allowed in the current policy
+allow mount_t var_run_t:lnk_file getattr;
+allow mount_t var_run_t:lnk_file read;
