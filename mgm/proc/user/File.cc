@@ -544,7 +544,9 @@ ProcCommand::File ()
 	std::string httpunenc = sharepath;
 	httpunenc.erase(qpos);
 	std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
-	
+
+	// remove /#curl#
+	httpenc.erase(0,7);
 	httppath += httpenc.c_str();
 
 	XrdOucString cgi = sharepath.c_str();
