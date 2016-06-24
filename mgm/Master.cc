@@ -1977,6 +1977,8 @@ Master::BootNamespace ()
     gOFS->eosFileService->setQuotaStats(gOFS->eosView->getQuotaStats());
     gOFS->eosDirectoryService->setQuotaStats(gOFS->eosView->getQuotaStats());
 
+    gOFS->eosDirectoryService->setContainerAccounting(gOFS->eosContainerAccounting);
+
     if (gOFS->eosSyncTimeAccounting)
       gOFS->eosDirectoryService->addChangeListener(gOFS->eosSyncTimeAccounting);
 

@@ -103,6 +103,46 @@ namespace eos
     } 
   }
 
+  //------------------------------------------------------------------------                                                                                                                                                                                
+  //! Add Tree                                                                                                                                                                                                                                              
+  //------------------------------------------------------------------------                                                                                                                                                                                
+  void ContainerAccounting::AddTree( ContainerMD* obj , int64_t dsize )
+  {
+    size_t deepness = 0;
+    if (!obj)
+      return;
+    ContainerMD::id_t iId = obj->getId();
+
+    while ( (iId > 1 ) && (deepness < 255) )
+    {
+      ContainerMD* iCont = 0;
+      try
+      {
+	iCont = pContainerMDSvc->getContainerMD(iId);
+      }
+      catch( MDException &e )
+      {
+	
+      }
+
+      if (!iCont)
+        return;
+
+      iCont->addTreeSize(dsize);
+      iId = iCont->getParentId();
+      deepness++;
+    }
+  }
+
+  //------------------------------------------------------------------------                                                                                                                                                                                
+  //! Remove Tree                                                                                                                                                                                                                                           
+  //------------------------------------------------------------------------                                                                                                                                                                                
+  void ContainerAccounting::RemoveTree( ContainerMD* obj , int64_t dsize )
+  {
+    AddTree(obj, -dsize);
+  }
+
+
   //----------------------------------------------------------------------------
   // Notify me about files when recovering from changelog
   //----------------------------------------------------------------------------
