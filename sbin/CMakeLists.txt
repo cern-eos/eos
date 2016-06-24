@@ -22,5 +22,5 @@
 # ************************************************************************
 
 install(
-  FILES mount.eos DESTINATION ${CMAKE_INSTALL_PRREFIX}/../sbin/
+  FILES mount.eos DESTINATION ${CMAKE_INSTALL_PREFIX}/../sbin/
   PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
