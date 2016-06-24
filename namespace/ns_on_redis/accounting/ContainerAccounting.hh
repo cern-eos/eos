@@ -78,6 +78,16 @@ public:
     return true;
   }
 
+  //----------------------------------------------------------------------------
+  //! Add tree - TODO(esindril): review this
+  //----------------------------------------------------------------------------
+  void AddTree(IContainerMD* obj, int64_t dsize) {};
+
+  //----------------------------------------------------------------------------
+  //! Remove tree - TODO(esindril): review this
+  //----------------------------------------------------------------------------
+  void RemoveTree(IContainerMD* obj, int64_t dsize) {};
+
 private:
   IContainerMDSvc* pContainerMDSvc; ///< container MD service
 
