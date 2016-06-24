@@ -394,7 +394,7 @@ bool
 ConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 /*----------------------------------------------------------------------------*/
 /**
- * @brief Store the current configuration to a given file
+ * @brief Store the current configuration to a given file or Redis 
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -419,8 +419,54 @@ ConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
 
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
-  if (!name) {
-    if (currentConfigFile.length()) {
+  if (useConfig2Redis) 
+  {
+    //TO DO  backups?
+    //TO DO how to save comments
+    if (!name)
+    {  
+	  err = "error: you have to specify a configuration  name";
+	  return false;
+    }
+    //store a new hash
+    std::string hash_key;
+    hash_key += "EOSConfig:";
+    hash_key += gOFS->MgmOfsInstanceName.c_str();
+    hash_key += ":";
+    hash_key += name;
+    eos_notice("HASH KEY NAME => %s",hash_key.c_str());
+
+    redox::RedoxHash rdx_hash(client,hash_key);
+
+    if (force && rdx_hash.hlen() > 0)
+    {
+    	std::vector<std::string> resp = rdx_hash.hkeys();
+      	for (auto&& elem: resp)
+          rdx_hash.hdel(elem);
+
+    }
+    Mutex.Lock();
+    configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
+    Mutex.UnLock();
+    //adding key for timestamp
+    time_t now = time(0);
+    std::string stime = ctime(&now);
+    rdx_hash.hset("timestamp",stime);
+      
+    //we store in redis the list of available EOSConfigs as Set
+    redox::RedoxSet rdx_set(client, conf_set_key);
+    //add the hash key to the set if it's not there
+    if (!rdx_set.sismember(hash_key) )
+    rdx_set.sadd(hash_key);
+	
+  }
+  else 
+  {
+
+  if (!name)
+  {
+    if (currentConfigFile.length())
+    {
       name = currentConfigFile.c_str();
       force = true;
     } else {
@@ -521,6 +567,8 @@ ConfigEngine::SaveConfig(XrdOucEnv& env, XrdOucString& err)
     err += name;
     err += "\"!";
     return false;
+  }
+
   }
 
   cl += " successfully";
