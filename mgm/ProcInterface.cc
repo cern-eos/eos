@@ -849,10 +849,26 @@ ProcCommand::MakeResult ()
       // ------------------------------------------------------------------------
       if (!stdJson.length())
       {
-        stdJson = "{\n  \"error\": \"command does not provide JSON output\",\n  \"errc\": 93\n}";
+	std::string sstdOut = stdOut.c_str();
+	std::string sstdErr = stdErr.c_str();
+	mResultStream = "{\n";
+	mResultStream += "  \"stdout\": \"";
+	mResultStream += eos::common::StringConversion::json_encode(sstdOut).c_str();
+	mResultStream += "\",\n";
+	mResultStream += "  \"stderr\": \"";
+	mResultStream += eos::common::StringConversion::json_encode(sstdErr).c_str();
+      	mResultStream += "\",\n";
+	mResultStream += "  \"retc\": ";
+	std::string sretc;
+	mResultStream += eos::common::StringConversion::GetSizeString(sretc, (unsigned long long) retc);
+	mResultStream += "\n";
+	mResultStream += "}\n";
+    }
+      else
+      {
+	mResultStream = "mgm.proc.json=";
+	mResultStream += stdJson;
       }
-      mResultStream = "mgm.proc.json=";
-      mResultStream += stdJson;
     }
     if (!mResultStream.endswith('\n'))
     {
