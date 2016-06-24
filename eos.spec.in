@@ -276,7 +276,8 @@ The EOS fuse core containing eosd and mount scripts.
 %files -n eos-fuse-core
 %defattr(-, root, root, -)
 %{_bindir}/eosd
-%{_sbindir}/mount.eos
+%{_bindir}/eosfusebind
+/sbin/mount.eos
 /usr/share/selinux/targeted/eosfuse.pp
 /usr/share/selinux/mls/eosfuse.pp
 /usr/share/selinux/strict/eosfuse.pp
@@ -292,21 +293,21 @@ The EOS fuse core containing eosd and mount scripts.
 %post -n eos-fuse-core
 for selinuxvariant in mls strict targeted
 do
-  /usr/sbin/semodule -s ${selinuxvariant} -i \
-    /usr/share/selinux/${selinuxvariant}/eosfuse.pp &> /dev/null || :
+  /usr/sbin/semodule -s $selinuxvariant -i \
+    /usr/share/selinux/$selinuxvariant/eosfuse.pp &> /dev/null || :
 done
 
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
   for variant in mls strict targeted ; do
-    /usr/sbin/semodule -s ${variant} -r eosfuse &> /dev/null || :
+    /usr/sbin/semodule -s $variant -r eosfuse &> /dev/null || :
   done
 fi
 
 %postun -n eos-fuse-core
 if [ $1 -eq 0 ]; then
   for variant in mls strict targeted ; do
-    /usr/sbin/semodule -u /usr/share/selinux/${variant}/eosfuse.pp || :
+    /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
   done
 fi
 
