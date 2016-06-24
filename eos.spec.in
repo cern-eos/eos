@@ -276,7 +276,7 @@ The EOS fuse core containing eosd and mount scripts.
 %files -n eos-fuse-core
 %defattr(-, root, root, -)
 %{_bindir}/eosd
-/sbin/mount.eos
+%{_sbindir}/mount.eos
 /usr/share/selinux/targeted/eosfuse.pp
 /usr/share/selinux/mls/eosfuse.pp
 /usr/share/selinux/strict/eosfuse.pp
