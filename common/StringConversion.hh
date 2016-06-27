@@ -281,6 +281,24 @@ public:
 		  std::vector<std::string>* keyvector=0);
 
 
+  // ---------------------------------------------------------------------------
+  /**
+   * Replace a key in a string,string map
+   * 
+   * @return true if replaced
+   */
+  // ---------------------------------------------------------------------------
+  static bool
+  ReplaceMapKey (std::map<std::string,std::string> &map, const char* oldk, const char* newk)
+  {
+    if (map.count(oldk))
+    {
+      map[newk]=map[oldk];
+      map.erase(oldk);
+      return true;
+    }
+    return false;
+  }
   // ---------------------------------------------------------------------------  
   /** 
    * Specialized splitting function returning the host part out of a queue name
