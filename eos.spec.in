@@ -37,6 +37,7 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel
 BuildRequires: redhat-rpm-config
+BuildRequires: jsoncpp 
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -72,6 +73,7 @@ Requires: gdb
 Requires: zeromq
 Requires: protobuf
 Requires: jemalloc
+Requires: jsoncpp
 
 %if %{distribution} == 5
 Requires: curl
