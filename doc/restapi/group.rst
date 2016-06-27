@@ -23,6 +23,7 @@ REST syntax
      &mgm.subcmd=ls
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      [&mgm.outformat=l|m|io|IO]
      [&mgm.outhost=brief]
      [&mgm.selection=<match>]
@@ -55,6 +56,7 @@ REST syntax
      &mgm.subcmd=rm
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.group=<group>
 
 CLI syntax
@@ -79,6 +81,7 @@ REST syntax
      &mgm.subcmd=set
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.group=<group>
      &mgm.group.state=on|off
 

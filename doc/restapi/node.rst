@@ -23,6 +23,7 @@ REST syntax
      &mgm.subcmd=ls
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      [&mgm.outformat=l|m|io|sys|fsck]
      [&mgm.outhost=brief]
      [&mgm.selection=<match>]
@@ -56,6 +57,7 @@ REST syntax
      &mgm.subcmd=config
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.node.name=<node>
      &mgm.node.key=<key>
      &mgm.node.value=<value>
@@ -94,6 +96,7 @@ REST syntax
      &mgm.subcmd=set
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.node=<node>
      &mgm.node.state=on|off
 
@@ -119,6 +122,7 @@ REST syntax
      &mgm.subcmd=rm
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.node=<node>
 
 CLI syntax
@@ -143,6 +147,7 @@ REST syntax
      &mgm.subcmd=register
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.node.name=<node>
      &mgm.node.path2register=<path2register>
      &mgm.node.space2register=<space2register>
@@ -172,9 +177,10 @@ REST syntax
 
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=node
-     &mgm.subcmd=GW
+     &mgm.subcmd=gw
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.node=<node>
      &mgm.node.txgw=on|off
 
@@ -198,6 +204,7 @@ REST syntax
    http://<host>:8000/proc/admin/ | root://<host>//proc/admin/
      ?mgm.cmd=node
      &mgm.subcmd=status
+     &mgm.format=json
      &eos.ruid=0
      &eos.rgid=0
      &mgm.node=<node>

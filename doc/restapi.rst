@@ -11,6 +11,7 @@ REST API
    restapi/group
    restapi/node
    restapi/fs
+   restapi/version
    restapi/who
    restapi/ns
-
+   

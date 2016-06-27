@@ -23,6 +23,7 @@ REST syntax
      &mgm.subcmd=ls
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      [&mgm.outformat=l|m|io|fsck]
      [&mgm.selection=<match>]
 
@@ -52,6 +53,7 @@ REST syntax
      &mgm.subcmd=config
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.space.name=<space>
      &mgm.space.key=<key>
      &mgm.space.value=<value>
@@ -94,6 +96,7 @@ REST syntax
      &mgm.subcmd=define
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.space=<space>
      &mgm.space.groumod=<groupmod>
      &mgm.space.groupsize=<groupsize>
@@ -122,6 +125,7 @@ REST syntax
      &mgm.subcmd=reset
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.space=<space>
      &[mgm.option=egroup|mapping|drain|scheduledrain|schedulebalance]
 
@@ -146,6 +150,7 @@ REST syntax
      &mgm.subcmd=status
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.space=<space>
 
 CLI syntax
@@ -168,6 +173,7 @@ REST syntax
      &mgm.subcmd=set
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.space=<space>
      &mgm.space.state=on|off
 
@@ -190,6 +196,7 @@ REST syntax
      ?mgm.cmd=space
      &mgm.subcmd=rm
      &mgm.space=<space>
+     &mgm.format=json
      &eos.ruid=0
      &eos.rgid=0
 
@@ -213,6 +220,7 @@ REST syntax
      &mgm.subcmd=quota
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.space=<space>
      &mgm.space.quota=on|off
 

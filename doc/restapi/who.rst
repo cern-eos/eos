@@ -19,6 +19,7 @@ REST syntax
      ?mgm.cmd=who
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.option=[cnzas]m
 
 CLI syntax

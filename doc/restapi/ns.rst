@@ -23,6 +23,7 @@ REST syntax
      &mgm.subcmd=stat
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      &mgm.option=[anr]m
 
 CLI syntax

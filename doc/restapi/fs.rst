@@ -21,6 +21,7 @@ REST syntax
      &mgm.subcmd=ls
      &eos.ruid=0
      &eos.rgid=0
+     &mgm.format=json
      [&mgm.outformat=l|m|e|d|io|fsck]
      [&mgm.outhost=brief]
      [&mgm.selection=<match>]
@@ -120,7 +121,7 @@ CLI syntax
 fs config
 --------
 
-List configured filesystems.
+Configure filesystems.
 
 REST syntax
 +++++++++++
