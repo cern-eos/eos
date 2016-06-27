@@ -1289,6 +1289,8 @@ XrdMgmOfsFile::open (const char *inpath,
   eos::mgm::FileSystem* filesystem = 0;
 
   std::vector<unsigned int> selectedfs;
+  std::vector<std::string> proxys;
+  std::vector<std::string> firewalleps;
   // file systems which are unavailable during a read operation
   std::vector<unsigned int> unavailfs;
   // file systems which have been replaced with a new reconstructed stripe
@@ -1305,20 +1307,35 @@ XrdMgmOfsFile::open (const char *inpath,
     if (attrmap.count("user.tag"))
       containertag = attrmap["user.tag"].c_str();
 
-    if (fmd->getNumUnlinkedLocation())
+    /// ###############
+    // if the client should go through a firewall entrypoint, try to get it
+    // if the scheduled fs need to be accessed through a dataproxy, try to get it
+    // if any of the two fails, the scheduling operation fails
+    Scheduler::PlacementArguments plctargs;
+    plctargs.alreadyused_filesystems=&selectedfs;
+    plctargs.bookingsize=bookingsize;
+    plctargs.dataproxys=&proxys;
+    plctargs.firewallentpts=(vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL;
+    plctargs.forced_scheduling_group_index=forcedGroup;
+    plctargs.grouptag=containertag;
+    plctargs.lid=layoutId;
+    plctargs.inode=(ino64_t) fmd->getId();
+    plctargs.path=path;
+    plctargs.plctTrgGeotag=&targetgeotag;
+    plctargs.plctpolicy=plctplcy;
+    plctargs.selected_filesystems=&selectedfs;
+    std::string spacename=space.c_str();
+    plctargs.spacename=&spacename;
+    plctargs.truncate=open_mode & SFS_O_TRUNC;
+    plctargs.vid=&vid;
+
+    if (!plctargs.isValid())
     {
-      eos::IFileMD::LocationVector loc = fmd->getUnlinkedLocations();
-      eos::IFileMD::LocationVector::const_iterator it;
-      for (it = loc.begin(); it != loc.end(); ++it)
-      {
-        // file systems with pending deletions cannot be re-selected for injection
-        unavailfs.push_back(*it);
-      }
+      // there is something wrong in the arguments of file placement
+      return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
     }
 
-    retc = Quota::FilePlacement(space.c_str(), path, vid, containertag, layoutId,
-				selectedfs, selectedfs, plctplcy, targetgeotag,
-				open_mode & SFS_O_TRUNC, forcedGroup, bookingsize);
+    retc = Quota::FilePlacement(&plctargs);
   }
   else
   {
@@ -1337,10 +1354,34 @@ XrdMgmOfsFile::open (const char *inpath,
       return Emsg(epname, error, ENODEV, "open - no replica exists", path);
     }
 
-    // Reconstruction opens files in RW mode but we actually need RO mode in this case
-    retc = Quota::FileAccess(vid, forcedFsId, space.c_str(), tried_cgi, layoutId,
-			     selectedfs, fsIndex, isPioReconstruct ? false : isRW,
-			     fmd->getSize(), unavailfs);
+    /// ###############
+    // reconstruction opens files in RW mode but we actually need RO mode in this case
+    /// ###############
+    // if the client should go through a firewall entrypoint, try to get it
+    // if the scheduled fs need to be accessed through a dataproxy, try to get it
+    // if any of the two fails, the scheduling operation fails
+    Scheduler::AccessArguments acsargs;
+    acsargs.bookingsize=fmd->getSize();
+    acsargs.dataproxys=&proxys;
+    acsargs.firewallentpts=(vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL;
+    acsargs.forcedfsid=forcedFsId;
+    acsargs.forcedspace=space.c_str();
+    acsargs.fsindex=&fsIndex;
+    acsargs.isRW=isPioReconstruct ? false : isRW;;
+    acsargs.lid=layoutId;
+    acsargs.inode=(ino64_t) fmd->getId();
+    acsargs.locationsfs=&selectedfs;
+    acsargs.tried_cgi=&tried_cgi;
+    acsargs.unavailfs=&unavailfs;
+    acsargs.vid=&vid;
+
+    if (!acsargs.isValid())
+    {
+      // there is something wrong in the arguments of file access
+      return Emsg(epname, error, EINVAL, "open - invalid access argument", path);
+    }
+
+    retc = Quota::FileAccess(&acsargs);
 
     if (retc == EXDEV)
     {
@@ -1348,6 +1389,24 @@ XrdMgmOfsFile::open (const char *inpath,
       retc = 0; // TODO: we currently don't support repair on the fly mode
     }
   }
+
+  /// ###############
+  if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
+  {
+    std::stringstream strstr;
+    strstr << "\nselectedfs are : ";
+    for (auto it = selectedfs.begin (); it != selectedfs.end (); it++)
+      strstr << *it << "  ";
+    strstr << "\nproxys are : ";
+    for (auto it = proxys.begin (); it != proxys.end (); it++)
+      strstr << *it << "  ";
+    strstr << "\nfirewallentrypoints are : ";
+    for (auto it = firewalleps.begin (); it != firewalleps.end (); it++)
+      strstr << *it << "  ";
+    strstr << "  and retc=" << retc;
+    eos_static_debug(strstr.str ().c_str ());
+  }
+  /// ###############
 
   if (retc)
   {
@@ -1698,26 +1757,73 @@ XrdMgmOfsFile::open (const char *inpath,
     return Emsg(epname, error, ENONET,
                 "received non-existent filesystem", path);
 
-  // Set the FST gateway if this is available otherwise the actual FST but do
-  // this only for clients who are geotagged with default
-  if ((vid.geolocation == eos::common::Mapping::PROXY_GEOTAG) &&
-      !gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
+  // Set the FST gateway for clients who are geotagged with default
+  // Do this with forwarding proxy syntax only if the firewall entrypoint is different from the endpoint
+  if ( (vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)
+      && ( (!proxys[fsIndex].empty () && firewalleps[fsIndex] != proxys[fsIndex])
+          || (firewalleps[fsIndex] != filesystem->GetString ("hostport").c_str ()) ) )
   {
     // Build the URL for the forwarding proxy and must have the following
-    // signature: xroot://proxy:port//xroot://endpoint:port/abspath
-    targetport = gOFS->mFstGwPort;
-    targethost = gOFS->mFstGwHost.c_str();
+    // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
+
+    auto idx = firewalleps[fsIndex].rfind (":");
+    if (idx != std::string::npos)
+    {
+      targethost = firewalleps[fsIndex].substr (0, idx).c_str ();
+      targetport = atoi (firewalleps[fsIndex].substr (idx + 1, std::string::npos).c_str ());
+    }
+    else
+    {
+      targethost = firewalleps[fsIndex].c_str ();
+      targetport = 0;
+    }
     std::ostringstream oss;
-    oss << targethost << "?" << "eos.fstfrw=" << filesystem->GetString("host").c_str()
-            << ":" << filesystem->GetString("port").c_str();
-    redirectionhost = oss.str().c_str();
+    oss << targethost << "?" << "eos.fstfrw=";
+    // check if we have to redirect to the fs host or to a proxy
+    if (proxys[fsIndex].empty ())
+      oss << filesystem->GetString ("host").c_str () << ":" << filesystem->GetString ("port").c_str ();
+    else
+      oss << proxys[fsIndex];
+
+    redirectionhost = oss.str ().c_str ();
+    redirectionhost += "&";
   }
   else
   {
-    targethost = filesystem->GetString("host").c_str();
-    targetport = atoi(filesystem->GetString("port").c_str());
+    if (proxys[fsIndex].empty ()) // there is no proxy to use
+    {
+      targethost  = filesystem->GetString ("host").c_str ();
+      targetport  = atoi (filesystem->GetString ("port").c_str ());
+    }
+    else // we have a proxy to use
+    {
+      proxys[fsIndex].c_str();
+      auto idx = proxys[fsIndex].rfind(":");
+      if(idx!=std::string::npos)
+      {
+        targethost=proxys[fsIndex].substr(0,idx).c_str();
+        targetport=atoi(proxys[fsIndex].substr(idx+1,std::string::npos).c_str());
+      }
+      else
+      {
+        targethost=proxys[fsIndex].c_str();
+        targetport=0;
+      }
+    }
     redirectionhost = targethost;
     redirectionhost += "?";
+  }
+  if(!proxys[fsIndex].empty ())
+  {
+    std::string fsprefix = filesystem->GetPath();
+    if(fsprefix.size())
+    {
+      XrdOucString s = "mgm.fsprefix";
+      s+="=";
+      s+=fsprefix.c_str();
+      s.replace(":","#COL#");
+      redirectionhost += s;
+    }
   }
 
 
@@ -1876,10 +1982,52 @@ XrdMgmOfsFile::open (const char *inpath,
       eos::common::Mapping::VirtualIdentity rootvid;
       eos::common::Mapping::Root(rootvid);
 
-      retc = Quota::FilePlacement(space.c_str(), path, rootvid, containertag,
-				  plainLayoutId, selectedfs, PioReplacementFsList,
-				  plctplcy, targetgeotag, false, forcedGroup,
-				  plainBookingSize);
+      /// ###############
+      // if the client should go through a firewall entrypoint, try to get it
+      // if the scheduled fs need to be accessed through a dataproxy, try to get it
+      // if any of the two fails, the scheduling operation fails
+      Scheduler::PlacementArguments plctargs;
+      plctargs.alreadyused_filesystems=&selectedfs;
+      plctargs.bookingsize=plainBookingSize;
+      plctargs.dataproxys=&proxys;
+      plctargs.firewallentpts=(vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)?&firewalleps:NULL;
+      plctargs.forced_scheduling_group_index=forcedGroup;
+      plctargs.grouptag=containertag;
+      plctargs.lid=plainLayoutId;
+      plctargs.inode=(ino64_t) fmd->getId();
+      plctargs.path=path;
+      plctargs.plctTrgGeotag=&targetgeotag;
+      plctargs.plctpolicy=plctplcy;
+      plctargs.selected_filesystems=&PioReplacementFsList;
+      std::string spacename=space.c_str();
+      plctargs.spacename=&spacename;
+      plctargs.truncate=false;
+      plctargs.vid=&rootvid;
+
+      if (!plctargs.isValid())
+      {
+        // there is something wrong in the arguments of file placement
+        return Emsg(epname, error, EIO, "open - invalid placement argument", path);
+      }
+
+      retc = Quota::FilePlacement(&plctargs);
+      /// ###############
+      if (eos::common::Logging::gLogMask & LOG_MASK(LOG_DEBUG))
+      {
+        std::stringstream strstr;
+        strstr << "\nselectedfs are : ";
+        for (auto it = selectedfs.begin (); it != selectedfs.end (); it++)
+          strstr << *it << "  ";
+        strstr << "\nproxys are : ";
+        for (auto it = proxys.begin (); it != proxys.end (); it++)
+          strstr << *it << "  ";
+        strstr << "\nfirewallentrypoints are : ";
+        for (auto it = firewalleps.begin (); it != firewalleps.end (); it++)
+          strstr << *it << "  ";
+        strstr << "  and retc=" << retc;
+        eos_static_debug(strstr.str ().c_str ());
+      }
+      /// ###############
 
       if (retc)
       {
@@ -1971,25 +2119,60 @@ XrdMgmOfsFile::open (const char *inpath,
       {
         if (replace)
         {
+          // point at the right vector entry
+          fsIndex = i;
+
           // Set the FST gateway if this is available otherwise the actual FST
-          if ((vid.geolocation == eos::common::Mapping::PROXY_GEOTAG) &&
-              !gOFS->mFstGwHost.empty() && gOFS->mFstGwPort)
+          if ( (vid.geolocation == eos::common::Mapping::PROXY_GEOTAG)
+              && ( (!proxys[fsIndex].empty () && firewalleps[fsIndex] != proxys[fsIndex])
+                  || (firewalleps[fsIndex] != filesystem->GetString ("hostport").c_str ()) ) )
           {
             // Build the URL for the forwarding proxy and must have the following
-            // signature: xroot://proxy:port//xroot://endpoint:port/abspath
-            targetport = gOFS->mFstGwPort;
+            // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
+
+            auto idx = firewalleps[fsIndex].rfind (":");
+            if (idx != std::string::npos)
+            {
+              targethost = firewalleps[fsIndex].substr (0, idx).c_str ();
+              targetport = atoi (firewalleps[fsIndex].substr (idx + 1, std::string::npos).c_str ());
+            }
+            else
+            {
+              targethost = firewalleps[fsIndex].c_str ();
+              targetport = 0;
+            }
             std::ostringstream oss;
-            oss << gOFS->mFstGwHost.c_str() << "?eos.fstfrw="
-                    << filesystem->GetString("host").c_str() << ":"
-                    << filesystem->GetString("port").c_str();
-            targethost = oss.str().c_str();
-            redirectionhost = targethost;
+            oss << targethost << "?" << "eos.fstfrw=";
+            // check if we have to redirect to the fs host or to a proxy
+            if (proxys[fsIndex].empty ())
+              oss << filesystem->GetString ("host").c_str () << ":" << filesystem->GetString ("port").c_str ();
+            else
+              oss << proxys[fsIndex];
+
+            redirectionhost = oss.str ().c_str ();
           }
           else
           {
-            // We now have a new target host which will do the reconstruction
-            targethost = repfilesystem->GetString("host").c_str();
-            targetport = atoi(repfilesystem->GetString("port").c_str());
+            if (proxys[fsIndex].empty ()) // there is no proxy to use
+            {
+              targethost  = filesystem->GetString ("host").c_str ();
+              targetport  = atoi (filesystem->GetString ("port").c_str ());
+            }
+            else // we have a proxy to use
+            {
+              proxys[fsIndex].c_str();
+              auto idx = proxys[fsIndex].rfind(":");
+              if(idx!=std::string::npos)
+              {
+                targethost=proxys[fsIndex].substr(0,idx).c_str();
+                targetport=atoi(proxys[fsIndex].substr(idx+1,std::string::npos).c_str());
+              }
+              else
+              {
+                targethost=proxys[fsIndex].c_str();
+                targetport=0;
+              }
+            }
             redirectionhost = targethost;
             redirectionhost += "?";
           }
@@ -2008,28 +2191,36 @@ XrdMgmOfsFile::open (const char *inpath,
       // -----------------------------------------------------------------------
       // Logic to mask 'offline' filesystems
       // -----------------------------------------------------------------------
-      bool exclude = false;
       for (size_t k = 0; k < unavailfs.size(); k++)
       {
         if (selectedfs[i] == unavailfs[k])
         {
-          exclude = true;
+          replicahost = "__offline_";
           break;
         }
       }
 
-      if (exclude)
+      if (proxys[i].empty ()) // there is no proxy to use
       {
-        replicahost = "__offline_";
-        replicahost += repfilesystem->GetString("host").c_str();
+        replicahost += repfilesystem->GetString ("host").c_str ();
+        replicaport = atoi (repfilesystem->GetString ("port").c_str ());
+
       }
-      else
+      else // we have a proxy to use
       {
-        replicahost = repfilesystem->GetString("host").c_str();
+        proxys[i].c_str();
+        auto idx = proxys[i].rfind(":");
+        if(idx!=std::string::npos)
+        {
+          replicahost=proxys[i].substr(0,idx).c_str();
+          replicaport=atoi(proxys[i].substr(idx+1,std::string::npos).c_str());
+        }
+        else
+        {
+          replicahost=proxys[i].c_str();
+          replicaport=0;
+        }
       }
-
-      replicaport = atoi(repfilesystem->GetString("port").c_str());
-
       capability += replicahost;
       capability += ":";
       capability += replicaport;
@@ -2039,6 +2230,19 @@ XrdMgmOfsFile::open (const char *inpath,
       capability += i;
       capability += "=";
       capability += (int) repfilesystem->GetId();
+      if(!proxys[i].empty ())
+      {
+        std::string fsprefix = repfilesystem->GetPath();
+        if(fsprefix.size())
+        {
+          XrdOucString s = "mgm.fsprefix";
+          s+=i;
+          s+="=";
+          s+=fsprefix.c_str();
+          s.replace(":","#COL#");
+          capability += s;
+        }
+      }
 
       if (isPio)
       {

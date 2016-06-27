@@ -45,7 +45,8 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-class ScanDir : eos::common::LogId {
+class ScanDir : eos::common::LogId
+{
   // ---------------------------------------------------------------------------
   //! This class scan's a directory tree and checks checksums (and blockchecksums if present)
   //! in a defined interval with limited bandwidth

@@ -28,9 +28,9 @@
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 /*----------------------------------------------------------------------------*/
-#include <vector>
-#include <set>
-#include <stdint.h>
+#include <google/dense_hash_map>
+#include <google/sparsehash/densehashtable.h>
+/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -541,6 +541,8 @@ public:
   //! @param lid layout to be placed
   //! @param alreadyused_filsystems filesystems to avoid
   //! @param selected_filesystems filesystems selected by scheduler
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param plctpolicy indicates if placement should be local/spread/hybrid
   //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
   //!                      should be placed
@@ -555,19 +557,7 @@ public:
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   static
-  int FilePlacement(const std::string& space,
-		    const char* path,
-		    eos::common::Mapping::VirtualIdentity_t& vid,
-		    const char* grouptag,
-		    unsigned long lid,
-		    std::vector<unsigned int>& alreadyused_filesystems,
-		    std::vector<unsigned int>& selected_filesystems,
-		    Scheduler::tPlctPolicy plctpolicy,
-		    const std::string& plctTrgGeotag,
-		    bool truncate = false,
-		    int forced_scheduling_group_index = -1,
-		    unsigned long long bookingsize = 1024 * 1024 * 1024ll,
-		    eos::mgm::Scheduler::tSchedType schedtype=eos::mgm::Scheduler::regular);
+  int FilePlacement(Scheduler::PlacementArguments *args);
 
   //----------------------------------------------------------------------------
   //! Take the decision from where to access a file. The core of the
@@ -579,6 +569,8 @@ public:
   //! @param tried_cgi cgi containing already tried hosts
   //! @param lid layout fo the file
   //! @param locationsfs filesystem ids where layout is stored
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param fsindex return index pointing to layout entry filesystem
   //! @param isRW indicate pure read or rd/wr access
   //! @param bookingsize size to book additionally for rd/wr access
@@ -591,21 +583,7 @@ public:
   //! @return 0 if successful, otherwise a non-zero value
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
-			unsigned long forcedfsid,
-			const char* forcedspace,
-			std::string tried_cgi,
-			unsigned long lid,
-			std::vector<unsigned int>& locationsfs,
-			unsigned long& fsindex,
-			 bool isRW,
-			unsigned long long bookingsize,
-			std::vector<unsigned int>& unavailfs,
-			eos::common::FileSystem::fsstatus_t min_fsstatus =
-			eos::common::FileSystem::kDrain,
-			std::string overridegeoloc = "",
-			bool noIO = false,
-			eos::mgm::Scheduler::tSchedType schedtype=eos::mgm::Scheduler::regular);
+  static int FileAccess(Scheduler::AccessArguments *args);
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota

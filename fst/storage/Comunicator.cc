@@ -49,6 +49,7 @@ Storage::Communicator ()
   std::string watch_gateway_rate = "gw.rate";
   std::string watch_gateway_ntx = "gw.ntx";
   std::string watch_error_simulation = "error.simulation";
+  std::string watch_kinetic_reload = "kinetic.reload";
   std::string watch_regex = ".*";
 
   bool ok = true;
@@ -63,6 +64,7 @@ Storage::Communicator ()
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_gateway_rate,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_gateway_ntx,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
   ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_error_simulation,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
+  ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator",watch_kinetic_reload,XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
 
   ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator",watch_regex,XrdMqSharedObjectChangeNotifier::kMqSubjectCreation);
   if(!ok)
