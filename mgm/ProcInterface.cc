@@ -854,7 +854,7 @@ ProcCommand::MakeResult ()
 	Json::Value jsonresult;
 	json["errormsg"] = stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
 	std::string sretc;
-	json["retc"] = eos::common::StringConversion::GetSizeString(sretc, (unsigned long long) retc);
+	json["retc"] = (long long) retc;
 
 
 	std::string line;
@@ -898,7 +898,7 @@ ProcCommand::MakeResult ()
 	    else
 	      value = "NULL";
 
-	    if (errno || (!val && (conv  == it->second.c_str())))
+	    if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
 	    {
 	      // non numeric
 	      if (token.size()==1)
@@ -941,8 +941,16 @@ ProcCommand::MakeResult ()
 	  }
 	  jsonresult.append(jsonentry);
 	} while (1);
-
-	json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
+	
+	if (mCmd.length())
+	{
+	  if (mSubCmd.length())
+	    json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
+	  else
+	    json[mCmd.c_str()] = jsonresult;
+	}
+	else
+	  json["result"] = jsonresult;
 
 	std::stringstream r;
 	r << json;
