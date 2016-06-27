@@ -38,7 +38,7 @@ EOSMGMNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 
 int
-Workflow::Trigger (std::string event, std::string workflow)
+Workflow::Trigger (std::string event, std::string workflow, eos::common::Mapping::VirtualIdentity &vid)
 {
   eos_static_info("event=\"%s\" workflow=\"%s\"", event.c_str(), workflow.c_str());
 
@@ -54,7 +54,7 @@ Workflow::Trigger (std::string event, std::string workflow)
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      bool ok = Create();
+      bool ok = Create(vid);
       if (ok)
       {
         if ((workflow == "enonet"))
@@ -80,7 +80,7 @@ Workflow::Trigger (std::string event, std::string workflow)
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      return Create();
+      return Create(vid);
     }
   }
   if (event == "closew")
@@ -92,7 +92,7 @@ Workflow::Trigger (std::string event, std::string workflow)
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      return Create();
+      return Create(vid);
     }
   }
 
@@ -105,7 +105,7 @@ Workflow::Trigger (std::string event, std::string workflow)
       mEvent = event;
       mWorkflow = workflow;
       mAction = (*mAttr)[key];
-      return Create();
+      return Create(vid);
     }
   }
   // not defined
@@ -152,10 +152,10 @@ Workflow::Attach (const char* path)
 
 /*----------------------------------------------------------------------------*/
 bool
-Workflow::Create ()
+Workflow::Create (eos::common::Mapping::VirtualIdentity &vid)
 {
 
-  WFE::Job job(mFid);
+  WFE::Job job(mFid, vid);
 
   time_t t = time(0);
   job.AddAction(mAction, mEvent, t, mWorkflow, "q");

@@ -91,8 +91,6 @@ mIsOpen (false)
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("TimeoutResolution", 1);
 
-  std::string lFilePath = mFilePath;
-
   size_t qpos;
   //............................................................................
   // Opaque info can be part of the 'path'
@@ -100,7 +98,6 @@ mIsOpen (false)
   if (((qpos = mFilePath.find("?")) != std::string::npos))
   {
     mOpaque = mFilePath.substr(qpos + 1);
-    lFilePath.erase(qpos);
   }
   else
   {
@@ -176,8 +173,6 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
 
   std::string lOpaque;
 
-  std::string lFilePath = mFilePath;
-
   XrdOucEnv open_opaque(mOpaque.c_str());
 
   //............................................................................
@@ -202,8 +197,18 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   }
 
   request = mFilePath;
-  request += "?";
-  request += opaque;
+  if (opaque.length())
+  {
+    if ( (mFilePath.find("?")) != std::string::npos)
+    {
+      request += "?";
+    }
+    else
+    {
+      request += "&";
+    }
+    request += opaque;
+  }
 
   if(mXrdFile)
   {

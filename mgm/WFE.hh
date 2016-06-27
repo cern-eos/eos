@@ -27,6 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Mapping.hh"
+#include "common/Timing.hh"
 #include "namespace/interface/IView.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
@@ -129,20 +130,9 @@ public:
         mTime = when;
         mWorkflow = workflow;
         mQueue = queue;
-
-        std::string tst;
-        mWhen = eos::common::StringConversion::GetSizeString(tst, (unsigned long long) when);
-
-        struct tm * now = localtime(&when);
-        std::string year;
-        std::string month;
-        std::string day;
-        char sDay[4096];
-        snprintf(sDay, sizeof (sDay), "%04u%02u%02u",
-                 (unsigned int) (now->tm_year + 1900),
-                 (unsigned int) (now->tm_mon + 1),
-                 (unsigned int) (now->tm_mday));
-        mDay += sDay;
+	XrdOucString tst;
+	mWhen = eos::common::StringConversion::GetSizeString(tst, (unsigned long long) when);
+	mDay = eos::common::Timing::UnixTimstamp_to_Day(when);
       }
 
       std::string mAction;
@@ -157,11 +147,13 @@ public:
     Job ()
     {
       mFid = 0;
+      mRetry = 0;
     }
 
-    Job (eos::common::FileId::fileid_t fid)
+    Job (eos::common::FileId::fileid_t fid, eos::common::Mapping::VirtualIdentity &vid)
     {
       mFid = fid;
+      eos::common::Mapping::Copy(vid,mVid);
     }
 
     ~Job ()
@@ -182,11 +174,11 @@ public:
     // -------------------------------------------------------------------------
     // persistency related methods
     // -------------------------------------------------------------------------
-    int Save (std::string queue, bool time_now = false, int action = 0);
+    int Save (std::string queue, time_t when = 0, int action = 0, int retry = 0);
 
     int Load (std::string path2entry);
 
-    int Move (std::string from_queue, std::string to_queue, bool time_now = false);
+    int Move (std::string from_queue, std::string to_queue, time_t when = 0, int retry = 0);
 
     int Delete (std::string queue);
 
@@ -201,6 +193,7 @@ public:
       Action thisaction(action, event, when, workflow, queue);
       mActions.push_back(thisaction);
       mDescription += action;
+      mDescription += " ";
       mDescription += "/";
       mDescription += event;
       mDescription += "/";
@@ -217,6 +210,9 @@ public:
     std::vector<Action> mActions;
     eos::common::FileId::fileid_t mFid;
     std::string mDescription;
+    eos::common::Mapping::VirtualIdentity mVid;
+    std::string mWorkflowPath;
+    int mRetry;///! number of retries
   };
 
   XrdSysCondVar * GetSignal ()

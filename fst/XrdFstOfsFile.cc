@@ -2478,6 +2478,13 @@ XrdFstOfsFile::close ()
     capOpaqueFile += "&mgm.logid=";
     capOpaqueFile += logId;
 
+    capOpaqueFile += "&mgm.ruid=";
+    capOpaqueFile += capOpaque->Get("mgm.ruid");
+    capOpaqueFile += "&mgm.rgid=";
+    capOpaqueFile += capOpaque->Get("mgm.rgid");
+    capOpaqueFile += "&mgm.sec=";
+    capOpaqueFile += capOpaque->Get("mgm.sec");
+
     if (eventWorkflow.length())
     {
       capOpaqueFile += "&mgm.workflow=";

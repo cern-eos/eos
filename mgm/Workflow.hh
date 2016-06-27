@@ -61,7 +61,7 @@ public:
     if (fid)
       mFid = fid;
   }
-  int Trigger (std::string event, std::string workflow);
+  int Trigger (std::string event, std::string workflow, eos::common::Mapping::VirtualIdentity &vid);
 
   std::string getCGICloseW (std::string workflow);
 
@@ -80,7 +80,7 @@ public:
     mAttr = 0;
     mAction = "";
   }
-  bool Create ();
+  bool Create (eos::common::Mapping::VirtualIdentity &vid);
   bool Attach (const char* path);
   bool Delete ();
 

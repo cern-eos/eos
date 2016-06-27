@@ -42,7 +42,7 @@ XrdScheduler* eos::mgm::WFE::gScheduler;
 /*----------------------------------------------------------------------------*/
 extern XrdSysError gMgmOfsEroute;
 extern XrdOucTrace gMgmOfsTrace;
-/*----------------------------------------------------------------------------*/
+/*-----------------sEAGAIN-----------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 ;
@@ -153,6 +153,7 @@ WFE::WFEr ()
 
   time_t snoozetime = 10;
   size_t lWFEntx = 0;
+  time_t cleanuptime = 0;
 
   eos_static_info("msg=\"async WFE thread started\"");
   while (1)
@@ -166,6 +167,8 @@ WFE::WFEr ()
     time_t lWFEInterval;
     time_t lStartTime = time(NULL);
     time_t lStopTime;
+    time_t lKeepTime = 7 * 86400;
+
     std::map<std::string, std::set<std::string> > wfedirs;
     XrdOucString stdErr;
 
@@ -181,6 +184,10 @@ WFE::WFEr ()
                 atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe.interval").c_str());
 	lWFEntx =
 	  atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe.ntx").c_str());
+	
+	lKeepTime = atoi(FsView::gFsView.mSpaceView["default"]->GetConfigMember("wfe.keepTIME").c_str());
+	if (!lKeepTime)
+	  lKeepTime = 7 * 86400;
       }
       else
       {
@@ -205,23 +212,58 @@ WFE::WFEr ()
 
       EXEC_TIMING_BEGIN("WFEFind");
 
-      if (!gOFS->_find(gOFS->MgmProcWorkflowPath.c_str(),
-                       mError,
-                       stdErr,
-                       mRootVid,
-                       wfedirs,
-                       0,
-                       0,
-                       false,
-                       0,
-                       false,
-                       0
-                       )
-          )
+      // prepare four queries today, yestereday for queued and error jobs
+
+      std::string queries[4];
+      for (size_t i=0; i< 4; ++i)
+      {
+	queries[i] = gOFS->MgmProcWorkflowPath.c_str();
+	queries[i] += "/";
+      }
+
+      {
+	// today
+	time_t when = time(NULL);
+
+	std::string day = eos::common::Timing::UnixTimstamp_to_Day(when);
+	queries[0] += day;
+	queries[0] += "/q/";
+	queries[1] += day;
+	queries[1] += "/e/";
+
+	//yesterday
+	when -= (24*3600);
+	day = eos::common::Timing::UnixTimstamp_to_Day(when);
+	queries[2] += day;
+	queries[2] += "/q/";
+	queries[3] += day;
+	queries[3] += "/e/";
+      }
+      
+
+      for (size_t i=0; i<4; ++i)
+      {
+	eos_static_info("query-path=%s", queries[i].c_str());
+	gOFS->_find(queries[i].c_str(),
+		    mError,
+		    stdErr,
+		    mRootVid,
+		    wfedirs,
+		    0,
+		    0,
+		    false,
+		    0,
+		    false,
+		    0
+		    );
+      }
+
       {
         eos_static_info("msg=\"finished WFE find\" WFE-dirs=%llu %s",
                         wfedirs.size(), stdErr.c_str()
                         );
+
+	time_t now = time(NULL);
 
         for (auto it = wfedirs.begin(); it != wfedirs.end(); it++)
         {
@@ -234,6 +276,7 @@ WFE::WFEr ()
             for (auto wit = it->second.begin(); wit != it->second.end(); ++wit)
             {
               eos_static_info("wfe-dir=\"%s\" wfe-job=\"%s\"", it->first.c_str(), wit->c_str());
+
               std::string f = it->first;
               f += *wit;
               Job* job = new Job();
@@ -245,6 +288,12 @@ WFE::WFEr ()
               }
               else
               {
+		// don't schedule jobs for the future
+		if (now < job->mActions[0].mTime)
+		{
+		  delete job;
+		  continue;
+		}
                 // stop scheduling if there are too many jobs running
                 if ((lWFEntx - GetActiveJobs()) <= 0)
                 {
@@ -303,6 +352,47 @@ WFE::WFEr ()
         }
       }
     }
+
+    if (!cleanuptime || (cleanuptime < time(NULL) ))
+    {
+      time_t now = time(NULL);
+      eos_static_info("msg=\"clean old workflows\"");
+      XrdMgmOfsDirectory dir;
+      dir.open(gOFS->MgmProcWorkflowPath.c_str(), mRootVid,"");
+      const char* entry;
+      while ( (entry= dir.nextEntry()) )
+      {
+	std::string when = entry;
+	if ( (when == ".") ||
+	     (when == "..") )
+	  continue;
+
+	time_t tst = eos::common::Timing::Day_to_UnixTimestamp(when);
+	if ( !tst || ( tst < (now - lKeepTime) ))
+	{
+	  eos_static_info("msg=\"cleaninig\" dir=\"%s\"", entry);
+	  ProcCommand Cmd;
+	  XrdOucString info;
+	  XrdOucString out;
+	  XrdOucString err;
+	  info = "mgm.cmd=rm&eos.ruid=0&eos.rgid=0&mgm.deletion=deep&mgm.option=r&mgm.path=";
+	  info += gOFS->MgmProcWorkflowPath;
+	  info += "/";
+	  info += entry;
+	  Cmd.open("/proc/user", info.c_str(), mRootVid, &mError);
+	  Cmd.AddOutput(out, err);
+	  if (err.length()) 
+	  {
+	    eos_static_err("msg=\"cleaining failed\" errmsg=\"%s\"", err.c_str());
+	  }
+	  else
+	    eos_static_info("msg=\"cleaned\" dri=\"%s\"");
+	  
+	  Cmd.close();
+	}
+      }
+      cleanuptime = now + 3600;
+    }
   };
   return 0;
 }
@@ -315,7 +405,7 @@ int
  * @return SFS_OK if success
  */
 /*----------------------------------------------------------------------------*/
-WFE::Job::Save (std::string queue, bool time_now, int action)
+WFE::Job::Save (std::string queue, time_t when, int action, int retry)
 {
 
   if (mActions.size() != 1)
@@ -323,11 +413,11 @@ WFE::Job::Save (std::string queue, bool time_now, int action)
 
   std::string workflowdir = gOFS->MgmProcWorkflowPath.c_str();
   workflowdir += "/";
-  workflowdir += mActions[action].mWorkflow;
-  workflowdir += "/";
   workflowdir += mActions[action].mDay;
   workflowdir += "/";
   workflowdir += queue;
+  workflowdir += "/";
+  workflowdir += mActions[action].mWorkflow;
   workflowdir += "/";
 
   std::string entry;
@@ -336,7 +426,7 @@ WFE::Job::Save (std::string queue, bool time_now, int action)
   eos::common::FileId::Fid2Hex(mFid, hexfid);
   entry = hexfid.c_str();
 
-  eos_static_info("workflowdir=\"%s\"", workflowdir.c_str());
+  eos_static_info("workflowdir=\"%s\" retry=%d when=%u", workflowdir.c_str(), retry, when);
 
   XrdOucErrInfo lError;
   eos::common::Mapping::VirtualIdentity rootvid;
@@ -366,14 +456,15 @@ WFE::Job::Save (std::string queue, bool time_now, int action)
   std::string workflowpath = workflowdir;
 
   // evt. store with the current time
-  if (time_now)
+  if (!when)
   {
     std::string tst;
     workflowpath += eos::common::StringConversion::GetSizeString(tst, (unsigned long long) time(NULL));
   }
   else
   {
-    workflowpath += mActions[action].mWhen;
+    XrdOucString tst;
+    workflowpath += eos::common::StringConversion::GetSizeString(tst, (unsigned long long) when);
   }
 
   workflowpath += ":";
@@ -381,6 +472,8 @@ WFE::Job::Save (std::string queue, bool time_now, int action)
 
   workflowpath += ":";
   workflowpath += mActions[action].mEvent;
+
+  mWorkflowPath = workflowpath;
 
   if (gOFS->_touch(workflowpath.c_str(), lError, rootvid, 0))
   {
@@ -400,6 +493,37 @@ WFE::Job::Save (std::string queue, bool time_now, int action)
                    mActions[0].mAction.c_str());
     return -1;
   }
+  
+  std::string vids = eos::common::Mapping::VidToString(mVid).c_str();
+  if (gOFS->_attr_set(workflowpath.c_str(),
+                      lError,
+                      rootvid,
+                      0,
+                      "sys.vid",
+		      vids.c_str()))
+  {
+    eos_static_err("msg=\"failed to store workflow vid\" path=\"%s\" vid=\"%s\"",
+		   workflowpath.c_str(),
+		   vids.c_str());
+    return -1;
+  }
+
+  XrdOucString sretry; sretry += (int) retry;
+
+  if (gOFS->_attr_set(workflowpath.c_str(), 
+		      lError,
+		      rootvid,
+		      0,
+		      "sys.wfe.retry",
+		      sretry.c_str()))
+  {
+    eos_static_err("msg=\"failed to store workflow retry count\" path=\"%s\" retry=\"%d\"",
+		   workflowpath.c_str(),
+		   retry);
+    return -1;
+  }
+  mRetry = retry;
+
   return SFS_OK;
 }
 
@@ -419,13 +543,14 @@ WFE::Job::Load (std::string path2entry)
 
   std::string f = path2entry;
   f.erase(0, path2entry.rfind("/") + 1);
-  std::string q = path2entry;
-  q.erase(path2entry.rfind("/"));
-  q.erase(0, q.rfind("/") + 1);
-
   std::string workflow = path2entry;
-  workflow.erase(0, gOFS->MgmProcWorkflowPath.length() + 1);
-  workflow.erase(workflow.find("/"));
+  workflow.erase(path2entry.rfind("/"));
+  workflow.erase(0, workflow.rfind("/") + 1);
+
+  std::string q = path2entry;
+  q.erase(q.rfind("/"));
+  q.erase(q.rfind("/"));
+  q.erase(0, q.rfind("/") + 1);
 
   std::string when;
   std::string idevent;
@@ -434,6 +559,8 @@ WFE::Job::Load (std::string path2entry)
 
   bool s1 = eos::common::StringConversion::SplitKeyValue(f, when, idevent, ":");
   bool s2 = eos::common::StringConversion::SplitKeyValue(idevent, id, event, ":");
+
+  mWorkflowPath = path2entry;
 
   if (s1 && s2)
   {
@@ -455,6 +582,42 @@ WFE::Job::Load (std::string path2entry)
     {
       eos_static_err("msg=\"no action stored\" path=\"%s\"", f.c_str());
     }
+
+    XrdOucString vidstring;
+    if (!gOFS->_attr_get(path2entry.c_str(),
+                         lError,
+                         rootvid,
+                         0,
+                         "sys.vid",
+                         vidstring, false))
+    {
+      if (!eos::common::Mapping::VidFromString(mVid,vidstring.c_str()))
+      {
+	eos_static_crit("parsing of %s failed - setting nobody\n", vidstring.c_str());
+	eos::common::Mapping::Nobody(mVid);
+      }
+    }
+    else
+    {
+      eos::common::Mapping::Nobody(mVid);
+      eos_static_err("msg=\"no vid stored\" path=\"%s\"", f.c_str());
+    }
+
+    XrdOucString sretry;
+    if (!gOFS->_attr_get(path2entry.c_str(),
+                         lError,
+                         rootvid,
+                         0,
+                         "sys.wfe.retry",
+                         sretry, false))
+    {
+      mRetry = (int)strtoul(sretry.c_str(), 0, 10);
+    }
+    else
+    {
+      eos_static_err("msg=\"no retry stored\" path=\"%s\"", f.c_str());
+    }
+
   }
   else
   {
@@ -466,7 +629,7 @@ WFE::Job::Load (std::string path2entry)
 
 /*----------------------------------------------------------------------------*/
 int
-WFE::Job::Move (std::string from_queue, std::string to_queue, bool time_now)
+WFE::Job::Move (std::string from_queue, std::string to_queue, time_t when, int retry)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief move workflow jobs between qeueus
@@ -474,9 +637,9 @@ WFE::Job::Move (std::string from_queue, std::string to_queue, bool time_now)
  */
 /*----------------------------------------------------------------------------*/
 {
-  if (Save(to_queue, time_now) == SFS_OK)
+  if (Save(to_queue, when, 0, retry) == SFS_OK)
   {
-    if (Delete(from_queue) == SFS_ERROR)
+    if ( (from_queue != to_queue) && (Delete(from_queue) == SFS_ERROR) )
     {
       eos_static_err("msg=\"failed to remove for move from queue\" queue=\"%s\"",
                      from_queue.c_str());
@@ -506,11 +669,11 @@ WFE::Job::Delete (std::string queue)
 
   std::string workflowdir = gOFS->MgmProcWorkflowPath.c_str();
   workflowdir += "/";
-  workflowdir += mActions[0].mWorkflow;
-  workflowdir += "/";
   workflowdir += mActions[0].mDay;
   workflowdir += "/";
   workflowdir += queue;
+  workflowdir += "/";
+  workflowdir += mActions[0].mWorkflow;
   workflowdir += "/";
 
   std::string entry;
@@ -564,8 +727,12 @@ WFE::Job::DoIt ()
   std::string method;
   std::string args;
 
+  eos::common::Mapping::VirtualIdentity lRootVid; 
+  XrdOucErrInfo lError;  
+  eos::common::Mapping::Root(lRootVid);
+  
   eos_static_info("queue=\"%s\"", mActions[0].mQueue.c_str());
-  if (mActions[0].mQueue == "q")
+  if (mActions[0].mQueue == "q" || mActions[0].mQueue == "e")
   {
     if (eos::common::StringConversion::SplitKeyValue(mActions[0].mAction, method, args, ":"))
     {
@@ -628,10 +795,12 @@ WFE::Job::DoIt ()
         XrdOucString execargs = executableargs.c_str();
 
         std::string fullpath;
+	bool format_error = false;
 
         if (executable.find("/") == std::string::npos)
         {
 	  std::shared_ptr<eos::IFileMD> fmd ;
+	  std::shared_ptr<eos::IContainerMD> cmd ;
 
           // do meta replacement
           gOFS->eosViewRWMutex.LockRead();
@@ -639,6 +808,7 @@ WFE::Job::DoIt ()
           try
           {
             fmd = gOFS->eosFileService->getFileMD(mFid);
+	    cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
             fullpath = gOFS->eosView->getUri(fmd.get());
           }
           catch (eos::MDException &e)
@@ -646,9 +816,10 @@ WFE::Job::DoIt ()
             eos_static_debug("caught exception %d %s\n", e.getErrno(), e.getMessage().str().c_str());
           }
                                                                                                                                                                                                                                                                                                                       \
-          if (fmd)
+          if (fmd.get() && cmd.get())
           {
-	    std::unique_ptr<eos::IFileMD> cfmd ( fmd.get() );
+	    std::shared_ptr<eos::IFileMD> cfmd  = fmd;
+	    std::shared_ptr<eos::IContainerMD> ccmd = cmd;
 
             gOFS->eosViewRWMutex.UnLockRead();
 
@@ -683,172 +854,406 @@ WFE::Job::DoIt ()
 	    if (errc)
 	      group_name="nobody";
 
-            while (execargs.replace("<path>", fullpath.c_str()))
+            while (execargs.replace("<eos::wfe::path>", fullpath.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break;
             }
 
-            while (execargs.replace("<uid>",
-                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCUid())))
+	    while (execargs.replace("<eos::wfe::uid>",
+				    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCUid())))
+	    {
+	      int cnt=0; cnt++; if (cnt>16)break;
+	    }
+	      
+	      
+	    while (execargs.replace("<eos::wfe::gid>",
+				    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCGid())))
+	    {
+	      int cnt=0; cnt++; if (cnt>16)break;
+	    }
+
+            while (execargs.replace("<eos::wfe::ruid>",
+                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) mVid.uid)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break;
             }
 
-            while (execargs.replace("<gid>",
-                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getCGid())))
+            while (execargs.replace("<eos::wfe::rgid>",
+                                    eos::common::StringConversion::GetSizeString(cv, (unsigned long long) mVid.gid)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break;
             }
 
-            while (execargs.replace("<username>",
-                                    user_name.c_str()))
+            while (execargs.replace("<eos::wfe::rusername>",
+                                    mVid.uid_string.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break;
             }
 
-            while (execargs.replace("<groupname>",
-				    group_name.c_str()))
+            while (execargs.replace("<eos::wfe::rgroupname>",
+				    mVid.gid_string.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break;
             }
 
-	    while (execargs.replace("<instance>",
-				    gOFS->MgmOfsInstanceName));
+            while (execargs.replace("<eos::wfe::host>",
+				    mVid.host.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
 
-            while (execargs.replace("<ctime.s>",
+
+            while (execargs.replace("<eos::wfe::sec.app>",
+				    mVid.app.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+
+            while (execargs.replace("<eos::wfe::sec.name>",
+				    mVid.name.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+
+            while (execargs.replace("<eos::wfe::sec.prot>",
+				    mVid.prot.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+
+            while (execargs.replace("<eos::wfe::sec.grps>",
+				    mVid.grps.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+
+
+	    while (execargs.replace("<eos::wfe::instance>",
+				    gOFS->MgmOfsInstanceName))
+	    {
+	      int cnt=0; cnt++; if (cnt>16)break; 
+	    }
+
+            while (execargs.replace("<eos::wfe::ctime.s>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_sec)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<mtime.s>",
+            while (execargs.replace("<eos::wfe::mtime.s>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_sec)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<ctime.ns>",
+            while (execargs.replace("<eos::wfe::ctime.ns>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_nsec)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<mtime.ns>",
+            while (execargs.replace("<eos::wfe::mtime.ns>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_nsec)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<ctime>",
+            while (execargs.replace("<eos::wfe::ctime>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_sec)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<mtime>",
+            while (execargs.replace("<eos::wfe::mtime>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) ctime.tv_sec)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<size>",
+            while (execargs.replace("<eos::wfe::size>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getSize())))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<cid>",
+            while (execargs.replace("<eos::wfe::cid>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getContainerId())))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<fid>",
+            while (execargs.replace("<eos::wfe::fid>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) mFid)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
             XrdOucString hexfid;
             eos::common::FileId::Fid2Hex(mFid, hexfid);
 
-            while (execargs.replace("<fxid>",
+            while (execargs.replace("<eos::wfe::fxid>",
                                     hexfid))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<name>", cfmd->getName().c_str()))
+            while (execargs.replace("<eos::wfe::name>", cfmd->getName().c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<link>", cfmd->getLink().c_str()))
+            while (execargs.replace("<eos::wfe::link>", cfmd->getLink().c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<checksum>", checksum.c_str()))
+            while (execargs.replace("<eos::wfe::checksum>", checksum.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-	    while (execargs.replace("<checksumtype>",  eos::common::LayoutId::GetChecksumString(cfmd->getLayoutId())))
+	    while (execargs.replace("<eos::wfe::checksumtype>",  eos::common::LayoutId::GetChecksumString(cfmd->getLayoutId())))
 	    {
+	      int cnt=0; cnt++; if (cnt>16)break; 
 	    }
 
-            while (execargs.replace("<event>", mActions[0].mEvent.c_str()))
+            while (execargs.replace("<eos::wfe::event>", mActions[0].mEvent.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<queue>", mActions[0].mQueue.c_str()));
+            while (execargs.replace("<eos::wfe::queue>", mActions[0].mQueue.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<workflow>", mActions[0].mWorkflow.c_str()));
+            while (execargs.replace("<eos::wfe::workflow>", mActions[0].mWorkflow.c_str()))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
+            }
+
+            while (execargs.replace("<eos::wfe::vpath>", mWorkflowPath.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
             time_t now = time(NULL);
-            while (execargs.replace("<now>",
+            while (execargs.replace("<eos::wfe::now>",
                                     eos::common::StringConversion::GetSizeString(cv, (unsigned long long) now)))
             {
+	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            execargs.replace("<action>", mActions[0].mAction.c_str());
+	    int xstart=0;
+	    while ( (xstart=execargs.find("<eos::wfe::fxattr:")) != STR_NPOS)
+	    {
+	      int cnt=0; cnt++; if (cnt>256)break; 
+
+	      int xend = execargs.find(">", xstart);
+	      if (xend == STR_NPOS)
+	      {
+		format_error = true;
+		break;
+	      }
+	      else
+	      {
+		std::string key;
+		key.assign(execargs.c_str() + xstart + 18, xend-xstart-18);
+		execargs.erase(xstart, xend+1-xstart);
+		try 
+		{
+		  std::string value = cfmd->getAttribute(key);
+		  if (xstart == execargs.length())
+		    execargs += value.c_str();
+		  else
+		    execargs.insert(value.c_str(),xstart);
+		}
+		catch (eos::MDException &e)
+		{
+		  execargs.insert("UNDEF", xstart);
+		}
+	      }
+	    }
+
+	    
+	    xstart=0;
+	    while ( (xstart=execargs.find("<eos::wfe::cxattr:")) != STR_NPOS)
+	    {
+	      int cnt=0; cnt++; if (cnt>256)break; 
+	      int xend = execargs.find(">", xstart);
+	      if (xend == STR_NPOS)
+	      {
+		format_error = true;
+		break;
+	      }
+	      else
+	      {
+		std::string key;
+		key.assign(execargs.c_str() + xstart + 18, xend-xstart-18);
+		execargs.erase(xstart, xend+1-xstart);
+		try 
+		{
+		  std::string value = ccmd->getAttribute(key);
+		  if (xstart == execargs.length())
+		    execargs += value.c_str();
+		  else
+		    execargs.insert(value.c_str(),xstart);
+		}
+		catch (eos::MDException &e)
+		{
+		  execargs.insert("UNDEF", xstart);
+		}
+	      }
+	    }
+
+	    // metadata is the lats tag to replace because it dumps parent xattributes which contain tags of the workflow trigger
+	    if (execargs.find("<eos::wfe::metadata>") != STR_NPOS)
+	    {
+	      XrdOucString out="";
+	      XrdOucString err="";
+	      
+	      // ---------------------------------------------------------------------------------
+	      // run file info to get file md
+	      // ---------------------------------------------------------------------------------
+	      XrdOucString file_metadata;
+
+	      ProcCommand Cmd;
+	      XrdOucString info;
+	      info = "mgm.cmd=fileinfo&mgm.path=fid:";
+	      info += eos::common::StringConversion::GetSizeString(cv, (unsigned long long) mFid);
+	      info += "&mgm.file.info.option=-m";
+	      Cmd.open("/proc/user", info.c_str(), lRootVid, &lError);
+	      Cmd.AddOutput(out, err);
+	      Cmd.close();
+	      file_metadata = out;
+	      if (err.length())
+	      {
+		eos_static_err("msg=\"file info returned error\" err=\"%s\"", err.c_str());
+	      }
+
+	      while(file_metadata.replace("\"","'")){int cnt=0; cnt++; if (cnt>16)break; }
+	      out=err="";
+	      // ---------------------------------------------------------------------------------
+	      // run container info to get container md
+	      // ---------------------------------------------------------------------------------
+	      XrdOucString container_metadata;
+
+	      info = "mgm.cmd=fileinfo&mgm.path=pid:";
+	      info += eos::common::StringConversion::GetSizeString(cv, (unsigned long long) cfmd->getContainerId());
+	      info += "&mgm.file.info.option=-m";
+	      Cmd.open("/proc/user", info.c_str(), lRootVid, &lError);
+	      Cmd.AddOutput(out, err);
+	      Cmd.close();
+	      container_metadata = out;
+	      if (err.length())
+	      {
+		eos_static_err("msg=\"container info returned error\" err=\"%s\"", err.c_str());
+	      }
+
+	      while(container_metadata.replace("\"","'")){int cnt=0; cnt++; if (cnt>16)break; }
+	      std::string metadata = "\"fmd={ ";
+	      metadata += file_metadata.c_str();
+	      metadata += "} dmd={ ";
+	      metadata += container_metadata.c_str();
+	      metadata += "}\"";
+	      execargs.replace("<eos::wfe::metadata>",metadata.c_str());
+	    }
+
+            execargs.replace("<eos::wfe::action>", mActions[0].mAction.c_str());
 
             std::string bashcmd = EOS_WFE_BASH_PREFIX + executable + " " + execargs.c_str();
 
-            eos::common::ShellCmd cmd(bashcmd.c_str());
-            eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
-            eos::common::cmd_status rc = cmd.wait(1800);
-            if (rc.exit_code)
-            {
-              eos_static_err("msg=\"failed to run bash workflow\" job=\"%s\"",
-                             mDescription.c_str());
-              Move("q", "e");
-            }
-            else
-            {
-              eos_static_info("msg=\"done bash workflow\" job=\"%s\"",
-                              mDescription.c_str());
-              Move("q", "d");
-            }
+	    if (!format_error)
+	    {
+	      eos::common::ShellCmd cmd(bashcmd.c_str());
+	      eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
+	      eos::common::cmd_status rc = cmd.wait(1800);
+	      if (rc.exit_code)
+	      {
+		Move(mActions[0].mQueue, "r", mActions[0].mTime, mRetry);
+		eos_static_err("msg=\"failed to run bash workflow\" job=\"%s\" retc=%d",
+			       mDescription.c_str(), rc.exit_code);
+		int retry = 0;
+		time_t delay = 0;
+		if (rc.exit_code == EAGAIN)
+		{
+		  try 
+		  {
+		    std::string retryattr = "sys.workflow." + mActions[0].mEvent + "." + mActions[0].mWorkflow + ".retry.max";
+		    std::string delayattr = "sys.workflow." + mActions[0].mEvent + "." + mActions[0].mWorkflow + ".retry.delay";
+		    eos_static_info("%s %s", retryattr.c_str(), delayattr.c_str());
+		    std::string value = ccmd->getAttribute(retryattr);
+		    retry = (int)strtoul(value.c_str(),0,10);
+		    value = ccmd->getAttribute(delayattr);
+		    delay = (int)strtoul(value.c_str(),0,10);
+		  }
+		  catch (eos::MDException &e)
+		  {
+		    execargs.insert("UNDEF", xstart);
+		  }
+
+		  if (mRetry < retry)
+		  {
+		    // can retry
+		    Move("r", "e", mActions[0].mTime + delay, ++mRetry);
+		  }
+		  else
+		  {
+		    // can not retry
+		    Move("r", "f", mActions[0].mTime, mRetry);
+		  }
+		}
+		else
+		{	
+		  // can not retry
+		  Move(mActions[0].mQueue, "f");
+		}
+	      }
+	      else
+	      {
+		eos_static_info("msg=\"done bash workflow\" job=\"%s\"",
+				mDescription.c_str());
+		Move(mActions[0].mQueue, "d");
+	      }
+	    }
+	    else
+	    {
+	      // cannot retry
+	      Move(mActions[0].mQueue, "f");
+	    }
           }
           else
           {
             gOFS->eosViewRWMutex.UnLockRead();
             eos_static_err("msg=\"failed to run bash workflow - file gone\" job=\"%s\"",
                            mDescription.c_str());
-            Move("q", "g");
+            Move(mActions[0].mQueue, "g");
           }
         }
         else
         {
           eos_static_err("msg=\"failed to run bash workflow - executable name modifies path\" job=\"%s\"",
                          mDescription.c_str());
-          Move("q", "g");
+          Move(mActions[0].mQueue, "g");
         }
       }
       else
       {
         eos_static_err("msg=\"moving unkown workflow\" job=\"%s\"",
                        mDescription.c_str());
-        Move("q", "g");
+        Move(mActions[0].mQueue, "g");
       }
     }
     else
     {
       eos_static_err("msg=\"moving illegal workflow\" job=\"%s\"",
                      mDescription.c_str());
-      Move("q", "g");
+      Move(mActions[0].mQueue, "g");
     }
   }
   else
   {
-    Delete(mActions[0].mQueue);
+    //Delete(mActions[0].mQueue);
   }
 
   gOFS->WFEd.GetSignal()->Signal();

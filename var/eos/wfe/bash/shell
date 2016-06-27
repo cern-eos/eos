@@ -10,9 +10,11 @@ echo -n  `date +%s` `date`  >> $tmplogfile
 echo " $bn $*" >> $tmplogfile
 
 eval $* >>  $tmplogfile
-
+retc=$?
+echo "retc=$retc" >> $tmplogfile
 cat $tmplogfile >> $logfile
 unlink $tmplogfile
 
+exit $retc
 
 
