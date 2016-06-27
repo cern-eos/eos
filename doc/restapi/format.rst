@@ -9,6 +9,7 @@ Formatting
 ==========
 
 EOS distinguish user and admin queries. User relevant queries require not particular role in EOS. Admin queries require to have the admin role or some even require the root role.
+
 Admin Queries
 ++++++++++++++
 
