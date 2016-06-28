@@ -394,7 +394,7 @@ ProcCommand::open (const char* inpath,
     {
       // figure out if this is a real separator or 
       XrdOucString follow=sinfo.c_str()+i+1;
-      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) && (!follow.beginswith("xrd.")))
+      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) && (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")))
       {
 	sinfo.erase(i,1);
 	sinfo.insert("#AND#",i);
@@ -417,6 +417,9 @@ ProcCommand::open (const char* inpath,
   mOutFormat = pOpaque->Get("mgm.outformat");
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
+  mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
+
+  eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(), sinfo.c_str());
   int envlen = 0;
   mArgs = pOpaque->Env(envlen);
 
@@ -450,6 +453,11 @@ ProcCommand::open (const char* inpath,
   mOffset = 0;
   mLen = 0;
   mDoSort = true;
+
+  if (mJsonCallback.length())
+  {
+    mJsonFormat = true;
+  }
 
   // ----------------------------------------------------------------------------
   // admin command section
@@ -954,7 +962,19 @@ ProcCommand::MakeResult ()
 
 	std::stringstream r;
 	r << json;
-	mResultStream = r.str().c_str();
+	if (mJsonCallback.length())
+	{
+	  // JSONP
+	  mResultStream = mJsonCallback;
+	  mResultStream += "([\n";
+	  mResultStream += r.str().c_str();
+	  mResultStream += "\n]);";
+	}
+	else 
+	{
+	  // JSON
+	  mResultStream = r.str().c_str();
+	}
       }
       else
       {
