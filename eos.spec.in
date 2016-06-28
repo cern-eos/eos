@@ -261,6 +261,13 @@ do
     /usr/share/selinux/$selinuxvariant/eosfuse.pp &> /dev/null || :
 done
 
+# create the fuse log directory
+mkdir -p /var/log/eos/fuse/
+chown daemon:daemon /var/log/eos/
+chown daemon:daemon /var/log/eos/fuse/
+chmod 755 /var/log/eos/
+chmod 755 /var/log/eos/fuse/
+
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
   for variant in mls strict targeted ; do
