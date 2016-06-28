@@ -35,7 +35,7 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
-BuildRequires: libmicrohttpd, libmicrohttpd-devel
+BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: jsoncpp, jsoncpp-devel
 
