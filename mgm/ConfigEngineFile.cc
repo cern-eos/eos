@@ -614,6 +614,209 @@ ConfigEngineFile::ListConfigs (XrdOucString &configlist, bool showbackup)
   return true;
 }
 
+/*----------------------------------------------------------------------------*/
+void
+ConfigEngineFile::ResetConfig ()
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Reset the configuration
+ */
+/*----------------------------------------------------------------------------*/
+{
+  configBroadcast = false;
+  XrdOucString cl = "reset  config ";
+  changeLog.AddEntry(cl.c_str());
+  changeLog.configChanges = "";
+  currentConfigFile = "";
+
+  // Cleanup the quota map
+  (void) Quota::CleanUp();
+
+  eos::common::Mapping::gMapMutex.LockWrite();
+  eos::common::Mapping::gUserRoleVector.clear();
+  eos::common::Mapping::gGroupRoleVector.clear();
+  eos::common::Mapping::gVirtualUidMap.clear();
+  eos::common::Mapping::gVirtualGidMap.clear();
+  eos::common::Mapping::gMapMutex.UnLockWrite();
+  eos::common::Mapping::gAllowedTidentMatches.clear();
+
+  Access::Reset();
+
+  gOFS->ResetPathMap();
+
+  FsView::gFsView.Reset();
+  eos::common::GlobalConfig::gConfig.Reset();
+  Mutex.Lock();
+  configDefinitions.Purge();
+  Mutex.UnLock();
+
+  // load all the quota nodes from the namespace
+  Quota::LoadNodes();
+  configBroadcast = true;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+ConfigEngineFile::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Parse a given configuration
+ */
+/*----------------------------------------------------------------------------*/
+{
+  err = "";
+  Mutex.Lock();
+  configDefinitions.Purge();
+
+  std::istringstream streamconfig(inconfig.c_str());
+
+  int linenumber = 0;
+  std::string s;
+
+  while ((getline(streamconfig, s, '\n')))
+  {
+    linenumber++;
+
+    if (s.length())
+    {
+      XrdOucString key = s.c_str();
+      XrdOucString value;
+      int seppos;
+      seppos = key.find(" => ");
+      if (seppos == STR_NPOS)
+      {
+	Mutex.UnLock();
+	err = "parsing error in configuration file line ";
+	err += (int) linenumber;
+	err += " : ";
+	err += s.c_str();
+	errno = EINVAL;
+	return false;
+      }
+      value.assign(key, seppos + 4);
+      key.erase(seppos);
+
+      eos_notice("setting config key=%s value=%s", key.c_str(), value.c_str());
+      configDefinitions.Add(key.c_str(), new XrdOucString(value.c_str()));
+    }
+  }
+
+  Mutex.UnLock();
+  return true;
+}
+
+/*----------------------------------------------------------------------------*/
+int
+ConfigEngineFile::ApplyKeyDeletion (const char* key)
+/*----------------------------------------------------------------------------*/
+/**
+ *  @brief Deletion of a configuration key to the responsible object
+ */
+/*----------------------------------------------------------------------------*/
+{
+  XrdOucString skey = key;
+
+  eos_static_info("key=%s ", skey.c_str());
+
+  if (skey.beginswith("global:"))
+  {
+    //
+    return 0;
+  }
+
+  if (skey.beginswith("map:"))
+  {
+    skey.erase(0, 4);
+    eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
+
+    if (gOFS->PathMap.count(skey.c_str()))
+    {
+      gOFS->PathMap.erase(skey.c_str());
+    }
+  }
+
+  if (skey.beginswith("quota:"))
+  {
+    // set a quota definition
+    skey.erase(0, 6);
+    int spaceoffset = 0;
+    int ugoffset = 0;
+    int ugequaloffset = 0;
+    int tagoffset = 0;
+    ugoffset = skey.find(':', spaceoffset + 1);
+    ugequaloffset = skey.find('=', ugoffset + 1);
+    tagoffset = skey.find(':', ugequaloffset + 1);
+
+    if ((ugoffset == STR_NPOS) ||
+	(ugequaloffset == STR_NPOS) ||
+	(tagoffset == STR_NPOS))
+    {
+      return 0;
+    }
+
+    XrdOucString space = "";
+    XrdOucString ug = "";
+    XrdOucString ugid = "";
+    XrdOucString tag = "";
+    space.assign(skey, 0, ugoffset - 1);
+    ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
+    ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
+    tag.assign(skey, tagoffset + 1);
+    long id = strtol(ugid.c_str(), 0, 10);
+
+    if (id > 0 || (ugid == "0"))
+    {
+      if (!Quota::RmQuotaForTag(space.c_str(), tag.c_str(), id))
+	eos_static_err("failed to remove quota %s for id=%ll", tag.c_str(), id);
+    }
+
+    return 0;
+  }
+
+  if (skey.beginswith("policy:"))
+  {
+    // set a policy
+    skey.erase(0, 7);
+    return 0;
+  }
+
+  if (skey.beginswith("vid:"))
+  {
+    XrdOucString vidstr = "mgm.vid.key=";
+    XrdOucString stdOut;
+    XrdOucString stdErr;
+    int retc = 0;
+    vidstr += skey.c_str();
+    XrdOucEnv videnv(vidstr.c_str());
+    // remove vid entry
+    Vid::Rm(videnv, retc, stdOut, stdErr, false);
+    return 0;
+  }
+
+  if (skey.beginswith("fs:"))
+  {
+    XrdOucString stdOut;
+    XrdOucString stdErr;
+    std::string tident;
+    std::string id;
+    eos::common::Mapping::VirtualIdentity rootvid;
+    eos::common::Mapping::Root(rootvid);
+
+    skey.erase(0,3);
+    int spos1 = skey.find("/",1);
+    int spos2 = skey.find("/",spos1+1);
+    int spos3 = skey.find("/",spos2+1);
+    std::string nodename = skey.c_str();
+    std::string mountpoint = skey.c_str();
+    nodename.erase(spos3);
+    mountpoint.erase(0,spos3);
+
+    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+    proc_fs_rm (nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
+  }
+
+  return 0;
+}
 
 /*----------------------------------------------------------------------------*/
 bool
@@ -936,5 +1139,24 @@ ConfigEngineFile::DeleteConfigValue (const char* prefix,
   eos_static_debug("%s", key);
 }
 
+/*----------------------------------------------------------------------------*/
+void
+ConfigEngineFile::DeleteConfigValueByMatch (const char* prefix,
+					const char* match)
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Delete configuration values matching a pattern
+ * @prefix identifies the type of configuration parameter (module)
+ * @match is a match pattern as used in DeleteConfigByMatch
+ */
+/*----------------------------------------------------------------------------*/
+{
+  Mutex.Lock();
+  XrdOucString smatch = prefix;
+  smatch += ":";
+  smatch += match;
+  configDefinitions.Apply(DeleteConfigByMatch, &smatch);
+  Mutex.UnLock();
+}
 
 EOSMGMNAMESPACE_END

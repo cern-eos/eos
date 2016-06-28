@@ -127,17 +127,12 @@ public:
   // ---------------------------------------------------------------------------
   virtual bool SaveConfig (XrdOucEnv& env, XrdOucString &err) {return true;};
 
-  redox::Redox client;
-  //TO DO take from mgm configuration
-  std::string REDIS_HOST="localhost";
-  //TO DO take from mgm configuration
-  int REDIS_PORT = 6379;
-  //TO DO take from mgm configuration
-  bool useConfig2Redis = true;
-  //TO DO take from the mgm configuration
-  std::string conf_set_key = "EOSConfig:list";
+  // ---------------------------------------------------------------------------
+  // List all configurations
+  // ---------------------------------------------------------------------------
+  virtual bool ListConfigs (XrdOucString &configlist, bool showbackups = false)
+  { return true;}
 
-public:
   // ---------------------------------------------------------------------------
   // Dump a configuration
   // ---------------------------------------------------------------------------
@@ -147,14 +142,8 @@ public:
   // ---------------------------------------------------------------------------
   // Reset the current configuration
   // ---------------------------------------------------------------------------
-  void ResetConfig ();
+  virtual void ResetConfig () {};
 
-  // ---------------------------------------------------------------------------
-  // Parse a configuration
-  // ---------------------------------------------------------------------------
-  bool ParseConfig (XrdOucString &broadcast, XrdOucString &err);
-  
-  
   // ---------------------------------------------------------------------------
   //! Set the autosave mode
   // ---------------------------------------------------------------------------
@@ -206,10 +195,10 @@ public:
   // ---------------------------------------------------------------------------
   // Function applying a deletion of a configuration key to the responsible
   // ---------------------------------------------------------------------------
-  int ApplyKeyDeletion (const char* key);
+  virtual int ApplyKeyDeletion (const char* key) {return 0;};
 
-  void
-  DeleteConfigValueByMatch (const char* prefix, const char* match);
+  virtual void
+  DeleteConfigValueByMatch (const char* prefix, const char* match) {};
 
   // ---------------------------------------------------------------------------
   // XrdOucHash callback function to apply a configuration value
@@ -245,14 +234,6 @@ protected:
     XrdOucString* out; ///< output string
     XrdOucString option; ///< option for printing
   }; 
-  // directory where configuration files are stored
-  XrdOucString configDir;
-
- //
- // broadcasting flag - if enabled all changes are broadcasted into the MGM
- // configuration queue (config/<instance>/mgm)
-  bool configBroadcast;
-  
 };
 
 //-------------------------------------------------------------------------------
@@ -261,9 +242,15 @@ protected:
 class ConfigEngineFile : public ConfigEngine  
 {
   private:
+  // directory where configuration files are stored
+  XrdOucString configDir;
   
   // Changelog class
   ConfigEngineChangeLog changeLog;
+  //
+  // broadcasting flag - if enabled all changes are broadcasted into the MGM
+  // configuration queue (config/<instance>/mgm)
+  bool configBroadcast;
   
   public:
   // ---------------------------------------------------------------------------
@@ -295,6 +282,12 @@ class ConfigEngineFile : public ConfigEngine
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
 
+  void DeleteConfigValueByMatch (const char* prefix, const char* match);
+
+  // ---------------------------------------------------------------------------
+  // Function applying a deletion of a configuration key to the responsible
+  // ---------------------------------------------------------------------------
+  int ApplyKeyDeletion (const char* key);
 
   void
   SetConfigDir (const char* configdir)
@@ -344,16 +337,23 @@ class ConfigEngineFile : public ConfigEngine
   }
 
   // ---------------------------------------------------------------------------
-  //! Print the current configuration
+  // Parse a configuration
   // ---------------------------------------------------------------------------
-
   void
-  PrintConfig ()
-  {
-    Mutex.Lock ();
-    configDefinitions.Apply (PrintEachConfig, NULL);
-    Mutex.UnLock ();
-  }
+    SetConfigValue (const char* prefix,
+                   const char* fsname,
+                   const char* def,
+                   bool tochangelog = true);
+  
+  // ---------------------------------------------------------------------------
+  // Reset the current configuration
+  // ---------------------------------------------------------------------------
+  bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
+
+  // ---------------------------------------------------------------------------
+  // Save a configuration
+  // ---------------------------------------------------------------------------
+  bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
 
   
   // ---------------------------------------------------------------------------
@@ -383,8 +383,8 @@ class ConfigEngineFile : public ConfigEngine
 class ConfigEngineRedis : public ConfigEngine 
 {
   public:
- 
-  ConfigEngineRedis (const char* configdir);
+
+  ConfigEngineRedis ();
 
   ~ConfigEngineRedis();
 
@@ -408,6 +408,29 @@ class ConfigEngineRedis : public ConfigEngine
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
 
+  // ---------------------------------------------------------------------------
+  // Reset the current configuration
+  // ---------------------------------------------------------------------------
+  void ResetConfig ();
+
+  // ---------------------------------------------------------------------------
+  // set config folder
+  // ---------------------------------------------------------------------------
+    void
+  SetConfigDir (const char* configdir)
+  {
+    //nothing for Redis
+  }
+
+  // ---------------------------------------------------------------------------
+  // Function applying a deletion of a configuration key to the responsible
+  // ---------------------------------------------------------------------------
+  int ApplyKeyDeletion (const char* key);
+
+>>>>>>> added abstract class for ConfigEngine, with 2 implementations, File and Redis ( to complete)
+  void
+    DeleteConfigValueByMatch (const char* prefix, const char* match);
+
   //----------------------------------------------------------------------------
   // Redis conf specific functions
   //----------------------------------------------------------------------------
@@ -428,44 +451,32 @@ class ConfigEngineRedis : public ConfigEngine
   static int
   SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg);
 
-  void
-  SetConfigDir (const char* configdir)
-  {
-    configDir = configdir;
-    currentConfigFile = "default";
-  }
-
-
   bool
     AutoSave ();
 
   void DeleteConfigValue (const char* prefix,
                       const char* fsname,
-                      bool noBroadcast = true);
+                      bool tochangelog = true);
 
   void
-  DeleteConfigValueByMatch (const char* prefix, const char* match);
+    SetConfigValue (const char* prefix,
+                   const char* fsname,
+                   const char* def,
+                   bool tochangelog = true);
 
-  //----------------------------------------------------------------------------
-  // Redis conf specific functions
-  //----------------------------------------------------------------------------
+  private:
 
-  // ---------------------------------------------------------------------------
-  // Load a configuration to Redis
-  // ---------------------------------------------------------------------------
-  bool 
-  LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err);
-  // ---------------------------------------------------------------------------
-  // Set a configuration from Refis
-  // ---------------------------------------------------------------------------
-  bool
-  SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err);
-  // ---------------------------------------------------------------------------
-  // XrdOucHash callback function to set to an HashSet all the configuration value
-  // ---------------------------------------------------------------------------
-  static int 
-  SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg);
-}
+  redox::Redox client;
+  //TO DO take from mgm configuration
+  std::string REDIS_HOST="localhost";
+  //TO DO take from mgm configuration
+  int REDIS_PORT = 6379;
+  //TO DO take from mgm configuration
+  bool useConfig2Redis = true;
+  //TO DO take from the mgm configuration
+  std::string conf_set_key = "EOSConfig:list";
+
+};
 
 EOSMGMNAMESPACE_END
 

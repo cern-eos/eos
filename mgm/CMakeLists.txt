@@ -169,7 +169,8 @@ target_link_libraries(
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
-  ${REDOX_LIBRARIES})
+  ${REDOX_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part

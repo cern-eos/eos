@@ -1366,16 +1366,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.configdir: ", MgmConfigDir.c_str(), "");
   }
 
-  // Start the config engine
-  if (MgmOfsConfigEngineType == "file") 
-    ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
-  else if (MgmOfsConfigEngineType == "redis") 
-    ConfEngine = new ConfigEngineRedis(MgmConfigDir.c_str());	  
-  else {
-    Eroute.Emsg("Config", "Invalid Config Engine Type!",
-                MgmOfsConfigEngineType.c_str());
-    NoGo = 1;
-  }
+  // Start the config enging
+  //TODo depending on the conf use ConfigEngineFile or ConfigEnfineRedis
+
+  ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
+  //ConfEngine = new ConfigEngineRedis();
   commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
 
   // Create comment log
