@@ -44,6 +44,8 @@ add_library(
   XrdEosMgm MODULE
   Access.cc
   ConfigEngine.cc
+  ConfigEngineFile.cc
+  ConfigEngineRedis.cc
   GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc
@@ -159,6 +161,8 @@ target_link_libraries(
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${GLIBC_DL_LIBRARY}
+  ${LIBEV_LIBRARIES}
+  ${REDOX_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}

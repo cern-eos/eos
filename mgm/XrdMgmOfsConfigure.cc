@@ -1226,7 +1226,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // Start the config enging
-  ConfEngine = new ConfigEngine(MgmConfigDir.c_str());
+  //TODo depending on the conf use ConfigEngineFile or ConfigEnfineRedis
+
+  ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
+  //ConfEngine = new ConfigEngineRedis();
   commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
 
   // Create comment log
