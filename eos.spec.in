@@ -268,6 +268,13 @@ chown daemon:daemon /var/log/eos/fuse/
 chmod 755 /var/log/eos/
 chmod 755 /var/log/eos/fuse/
 
+# create the credential store
+mkdir -p /var/run/eosd/
+cd /var/run/eosd/
+mkdir -p /var/run/eosd/credentials/store
+chmod 1777 /var/run/eosd/credentials
+chmod 1777 /var/run/eosd/credentials/store
+
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
   for variant in mls strict targeted ; do

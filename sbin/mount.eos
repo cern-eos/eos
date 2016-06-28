@@ -111,13 +111,10 @@ if [ ${EOSD} == "eosd3" ]; then
 fi
 
 echo -n "Starting $prog for instance: $1"
-mkdir -p /var/run/eosd/
+
 cd /var/run/eosd/
-mkdir -p /var/run/eosd/credentials/store
-chmod 1777 /var/run/eosd/credentials
-chmod 1777 /var/run/eosd/credentials/store
-mkdir -p ${EOS_FUSE_MOUNTDIR}
 chmod 700 ${EOS_FUSE_MOUNTDIR}
+
 unset KRB5CCNAME
 unset X509_USER_CERT
 unset X509_USER_KEY
