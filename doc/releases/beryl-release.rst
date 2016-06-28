@@ -7,6 +7,20 @@
 Beryl Release Notes
 ===================
 
+``V0.3.190 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix memory leak when returning readdir from in-memory cache
+
+New Features
+++++++++++++
+
+- FUSE: update SELINUX policies
+- FUSE: create /var/run/eosd and /var/log/eos/fuse/ directories in eos-fuse-core
+
 ``V0.3.189 Aquamarine``
 +++++++++++++++++++++++
 
