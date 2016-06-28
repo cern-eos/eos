@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.189 Aquamarine``
++++++++++++++++++++++++
+
+New Features
+++++++++++++
+
+- MGM: add JSONP response object format when 'callback=...' is specified in a query URL
+
 ``V0.3.188 Aquamarine``
 +++++++++++++++++++++++
 
