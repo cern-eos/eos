@@ -193,7 +193,6 @@ filesystem::log_settings ()
  XrdOucString fbcs;
  fbcs += (int) (file_write_back_cache_size / 1024 * 1024);
  s += fbcs.c_str ();
- s += " MB";
  log ("WARNING", s.c_str ());
 
  eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
