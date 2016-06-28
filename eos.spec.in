@@ -269,11 +269,18 @@ chmod 755 /var/log/eos/
 chmod 755 /var/log/eos/fuse/
 
 # create the credential store
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+# create tmpfiles.d entry
+echo "d /run/eosd 755 root root" > /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials/store 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+%else
 mkdir -p /var/run/eosd/
-cd /var/run/eosd/
 mkdir -p /var/run/eosd/credentials/store
 chmod 1777 /var/run/eosd/credentials
 chmod 1777 /var/run/eosd/credentials/store
+%endif
+
 
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
@@ -288,6 +295,11 @@ if [ $1 -eq 0 ]; then
     /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
   done
 fi
+
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+unlink /etc/tmpfiles.d/eosd.conf
+rm -rf /var/run/eosd/ >& /dev/null
+%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-fuse-sysv
