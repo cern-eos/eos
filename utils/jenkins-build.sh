@@ -157,7 +157,7 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 
 # Prepare the mock configuration
 head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
-if [[ ${BRANCH} == 'emerald' ]]; then
+if [[ ${BRANCH} == 'emerald' || ${BRANCH} == 'danburite' ]]; then
     # Add kineticio and kineticio dependency repos
     echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
     echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
@@ -173,7 +173,7 @@ mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --r
 
 
 # List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine' 'emerald')
+BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
