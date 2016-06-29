@@ -47,8 +47,9 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConfigEngineRedis::ConfigEngineRedis ()
+ConfigEngineRedis::ConfigEngineRedis (const char* configdir)
 {
+  SetConfigDir(configdir);
   currentConfigFile = "default";
   autosave = false;
   REDIS_HOST = gOFS->MgmOfsConfigEngineRedisHost.c_str();
@@ -226,120 +227,6 @@ ConfigEngineRedis::SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err
 }
 
 /*----------------------------------------------------------------------------*/
-int
-ConfigEngineRedis::ApplyKeyDeletion (const char* key)
-/*----------------------------------------------------------------------------*/
-/**
- *  @brief Deletion of a configuration key to the responsible object
- */
-/*----------------------------------------------------------------------------*/
-{
-  XrdOucString skey = key;
-
-  eos_static_info("key=%s ", skey.c_str());
-
-  if (skey.beginswith("global:"))
-  {
-    //
-    return 0;
-  }
-
-  if (skey.beginswith("map:"))
-  {
-    skey.erase(0, 4);
-    eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
-
-    if (gOFS->PathMap.count(skey.c_str()))
-    {
-      gOFS->PathMap.erase(skey.c_str());
-    }
-  }
-
-  if (skey.beginswith("quota:"))
-  {
-    // set a quota definition
-    skey.erase(0, 6);
-    int spaceoffset = 0;
-    int ugoffset = 0;
-    int ugequaloffset = 0;
-    int tagoffset = 0;
-    ugoffset = skey.find(':', spaceoffset + 1);
-    ugequaloffset = skey.find('=', ugoffset + 1);
-    tagoffset = skey.find(':', ugequaloffset + 1);
-
-    if ((ugoffset == STR_NPOS) ||
-	(ugequaloffset == STR_NPOS) ||
-	(tagoffset == STR_NPOS))
-    {
-      return 0;
-    }
-
-    XrdOucString space = "";
-    XrdOucString ug = "";
-    XrdOucString ugid = "";
-    XrdOucString tag = "";
-    space.assign(skey, 0, ugoffset - 1);
-    ug.assign(skey, ugoffset + 1, ugequaloffset - 1);
-    ugid.assign(skey, ugequaloffset + 1, tagoffset - 1);
-    tag.assign(skey, tagoffset + 1);
-    long id = strtol(ugid.c_str(), 0, 10);
-
-    if (id > 0 || (ugid == "0"))
-    {
-      if (!Quota::RmQuotaForTag(space.c_str(), tag.c_str(), id))
-	eos_static_err("failed to remove quota %s for id=%ll", tag.c_str(), id);
-    }
-
-    return 0;
-  }
-
-  if (skey.beginswith("policy:"))
-  {
-    // set a policy
-    skey.erase(0, 7);
-    return 0;
-  }
-
-  if (skey.beginswith("vid:"))
-  {
-    XrdOucString vidstr = "mgm.vid.key=";
-    XrdOucString stdOut;
-    XrdOucString stdErr;
-    int retc = 0;
-    vidstr += skey.c_str();
-    XrdOucEnv videnv(vidstr.c_str());
-    // remove vid entry
-    Vid::Rm(videnv, retc, stdOut, stdErr, false);
-    return 0;
-  }
-
-  if (skey.beginswith("fs:"))
-  {
-    XrdOucString stdOut;
-    XrdOucString stdErr;
-    std::string tident;
-    std::string id;
-    eos::common::Mapping::VirtualIdentity rootvid;
-    eos::common::Mapping::Root(rootvid);
-
-    skey.erase(0,3);
-    int spos1 = skey.find("/",1);
-    int spos2 = skey.find("/",spos1+1);
-    int spos3 = skey.find("/",spos2+1);
-    std::string nodename = skey.c_str();
-    std::string mountpoint = skey.c_str();
-    nodename.erase(spos3);
-    mountpoint.erase(0,spos3);
-
-    eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-    proc_fs_rm (nodename, mountpoint, id, stdOut, stdErr, tident, rootvid);
-  }
-
-  return 0;
-}
-
-
-/*----------------------------------------------------------------------------*/
 bool
 ConfigEngineRedis::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 /*----------------------------------------------------------------------------*/
@@ -410,8 +297,49 @@ ConfigEngineRedis::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
     }
   }
   else
-  {
-    // dump from stored config file
+  { 
+    std::string hash_key;
+    hash_key += "EOSConfig:";
+    hash_key += gOFS->MgmOfsInstanceName.c_str();
+    hash_key += ":";
+    hash_key += name;
+    redox::RedoxHash rdx_hash(client, hash_key);
+
+    std::vector<std::string> resp = rdx_hash.hkeys();
+    for (auto&& key: resp)
+    {
+      std::string _value = rdx_hash.hget(key);
+      XrdOucString value = _value.c_str();
+
+      // filter according to user specification
+      bool filtered = false;
+      if ((pinfo.option.find("v") != STR_NPOS) && (value.beginswith("vid:")))
+        filtered = true;
+      if ((pinfo.option.find("f") != STR_NPOS) && (value.beginswith("fs:")))
+        filtered = true;
+      if ((pinfo.option.find("q") != STR_NPOS) && (value.beginswith("quota:")))
+        filtered = true;
+      if ((pinfo.option.find("c") != STR_NPOS) && (value.beginswith("comment-")))
+        filtered = true;
+      if ((pinfo.option.find("p") != STR_NPOS) && (value.beginswith("policy:")))
+        filtered = true;
+      if ((pinfo.option.find("g") != STR_NPOS) && (value.beginswith("global:")))
+        filtered = true;
+      if ((pinfo.option.find("m") != STR_NPOS) && (value.beginswith("map:")))
+        filtered = true;
+      if ((pinfo.option.find("s") != STR_NPOS) && (value.beginswith("geosched:")))
+        filtered = true;
+
+      if (filtered)
+      {
+
+        out += key.c_str();
+        out += " => ";
+        out += value;
+        out += "\n";
+      }
+    }
+
   }
   return true;
 }
@@ -424,7 +352,8 @@ ConfigEngineRedis::AutoSave ()
  * @brief Do an autosave
  */
 /*----------------------------------------------------------------------------*/
-{
+{ //TODO
+  /*
   if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
   {
     int aspos = 0;
@@ -451,7 +380,7 @@ ConfigEngineRedis::AutoSave ()
       return false;
     }
     return true;
-  }
+  }*/
   return false;
 }
 
@@ -470,7 +399,6 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
  */
 /*----------------------------------------------------------------------------*/
 {
-  /*
   XrdOucString cl = "set config ";
   if (prefix)
   {
@@ -487,8 +415,6 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
 
   cl += " => ";
   cl += val;
-  if (tochangelog)
-    changeLog.AddEntry(cl.c_str());
 
   XrdOucString configname;
   if (prefix)
@@ -508,6 +434,8 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
 
   eos_static_debug("%s => %s", key, val);
 
+  //TODO implement broadcast
+  /*
   if (configBroadcast && gOFS->MgmMaster.IsMaster() )
   {
     // make this value visible between MGM's
@@ -522,8 +450,12 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
       }
       hash->Set(configname.c_str(), repval.c_str());
     }
-  }
+  }*/
 
+
+  //TO DO implement autosave
+
+  /*
   if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
   {
     int aspos = 0;
@@ -565,7 +497,6 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
  */
 /*----------------------------------------------------------------------------*/
 {
-  /*
   XrdOucString cl = "del config ";
   XrdOucString configname;
 
@@ -584,6 +515,8 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
     configname = key;
   }
 
+  //TODO implement broadcast
+  /*
   if (configBroadcast && gOFS->MgmMaster.IsMaster() )
   {
     eos_static_info("Deleting %s", configname.c_str());
@@ -596,14 +529,13 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
       eos_static_info("Deleting on hash %s", configname.c_str());
       hash->Delete(configname.c_str(), true);
     }
-  }
+  }*/
 
   Mutex.Lock();
   configDefinitions.Del(configname.c_str());
 
-  if (tochangelog)
-    changeLog.AddEntry(cl.c_str());
-
+  //TODO implement autosave
+  /*
   if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
   {
     int aspos = 0;
@@ -627,30 +559,9 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
 
       eos_static_err("%s\n", err.c_str());
     }
-  }
+  }*/
   Mutex.UnLock();
   eos_static_debug("%s", key);
-  */
-}
-
-/*----------------------------------------------------------------------------*/
-void
-ConfigEngineRedis::DeleteConfigValueByMatch (const char* prefix,
-					const char* match)
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Delete configuration values matching a pattern
- * @prefix identifies the type of configuration parameter (module)
- * @match is a match pattern as used in DeleteConfigByMatch
- */
-/*----------------------------------------------------------------------------*/
-{
-  Mutex.Lock();
-  XrdOucString smatch = prefix;
-  smatch += ":";
-  smatch += match;
-  configDefinitions.Apply(DeleteConfigByMatch, &smatch);
-  Mutex.UnLock();
 }
 
 /* ---------------------------------------------------------------------------*/
@@ -662,7 +573,7 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
  */
 /*----------------------------------------------------------------------------*/
 {
-  /*
+  
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
 
@@ -707,23 +618,17 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
     infile.close();
     if (!ParseConfig(allconfig, err))
       return false;
-    configBroadcast = false;
     if (!ApplyConfig(err))
     {
-      configBroadcast = true;
       cl += " with failure";
       cl += " : ";
       cl += err;
-      changeLog.AddEntry(cl.c_str());
       return false;
     }
     else
     {
-      configBroadcast = true;
       cl += " successfully";
-      changeLog.AddEntry(cl.c_str());
       currentConfigFile = name;
-      changeLog.configChanges = "";
   
       std::string hash_key;
       hash_key += "EOSConfig:";
@@ -766,7 +671,6 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
     err += "\"!";
     return false;
   }
-  */
   return false;
 
 }
@@ -787,41 +691,5 @@ ConfigEngineRedis::SetConfigToRedisHash  (const char* key, XrdOucString* def, vo
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
-void
-ConfigEngineRedis::ResetConfig ()
-/*----------------------------------------------------------------------------*/
-/**
- * @brief Reset the configuration
- */
-/*----------------------------------------------------------------------------*/
-{
-  XrdOucString cl = "reset  config ";
-  currentConfigFile = "";
-
-  // Cleanup the quota map
-  (void) Quota::CleanUp();
-
-  eos::common::Mapping::gMapMutex.LockWrite();
-  eos::common::Mapping::gUserRoleVector.clear();
-  eos::common::Mapping::gGroupRoleVector.clear();
-  eos::common::Mapping::gVirtualUidMap.clear();
-  eos::common::Mapping::gVirtualGidMap.clear();
-  eos::common::Mapping::gMapMutex.UnLockWrite();
-  eos::common::Mapping::gAllowedTidentMatches.clear();
-
-  Access::Reset();
-
-  gOFS->ResetPathMap();
-
-  FsView::gFsView.Reset();
-  eos::common::GlobalConfig::gConfig.Reset();
-  Mutex.Lock();
-  configDefinitions.Purge();
-  Mutex.UnLock();
-
-  // load all the quota nodes from the namespace
-  Quota::LoadNodes();
-}
 
 EOSMGMNAMESPACE_END

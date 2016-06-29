@@ -142,8 +142,14 @@ public:
   // ---------------------------------------------------------------------------
   // Reset the current configuration
   // ---------------------------------------------------------------------------
-  virtual void ResetConfig () {};
+  void ResetConfig ();
 
+  // ---------------------------------------------------------------------------
+  // Parse a configuration
+  // ---------------------------------------------------------------------------
+  bool ParseConfig (XrdOucString &broadcast, XrdOucString &err);
+  
+  
   // ---------------------------------------------------------------------------
   //! Set the autosave mode
   // ---------------------------------------------------------------------------
@@ -195,10 +201,10 @@ public:
   // ---------------------------------------------------------------------------
   // Function applying a deletion of a configuration key to the responsible
   // ---------------------------------------------------------------------------
-  virtual int ApplyKeyDeletion (const char* key) {return 0;};
+  int ApplyKeyDeletion (const char* key);
 
-  virtual void
-  DeleteConfigValueByMatch (const char* prefix, const char* match) {};
+  void
+  DeleteConfigValueByMatch (const char* prefix, const char* match);
 
   // ---------------------------------------------------------------------------
   // XrdOucHash callback function to apply a configuration value
@@ -234,6 +240,14 @@ protected:
     XrdOucString* out; ///< output string
     XrdOucString option; ///< option for printing
   }; 
+  // directory where configuration files are stored
+  XrdOucString configDir;
+
+ //
+ // broadcasting flag - if enabled all changes are broadcasted into the MGM
+ // configuration queue (config/<instance>/mgm)
+  bool configBroadcast;
+  
 };
 
 //-------------------------------------------------------------------------------
@@ -242,15 +256,9 @@ protected:
 class ConfigEngineFile : public ConfigEngine  
 {
   private:
-  // directory where configuration files are stored
-  XrdOucString configDir;
   
   // Changelog class
   ConfigEngineChangeLog changeLog;
-  //
-  // broadcasting flag - if enabled all changes are broadcasted into the MGM
-  // configuration queue (config/<instance>/mgm)
-  bool configBroadcast;
   
   public:
   // ---------------------------------------------------------------------------
@@ -282,12 +290,6 @@ class ConfigEngineFile : public ConfigEngine
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
 
-  void DeleteConfigValueByMatch (const char* prefix, const char* match);
-
-  // ---------------------------------------------------------------------------
-  // Function applying a deletion of a configuration key to the responsible
-  // ---------------------------------------------------------------------------
-  int ApplyKeyDeletion (const char* key);
 
   void
   SetConfigDir (const char* configdir)
@@ -337,6 +339,7 @@ class ConfigEngineFile : public ConfigEngine
   }
 
   // ---------------------------------------------------------------------------
+<<<<<<< HEAD
   // Parse a configuration
   // ---------------------------------------------------------------------------
   void
@@ -352,6 +355,9 @@ class ConfigEngineFile : public ConfigEngine
 
   // ---------------------------------------------------------------------------
   // Save a configuration
+=======
+  //! Print the current configuration
+>>>>>>> moved common functions to ConfigEngine, implemented Config Dump in Redis
   // ---------------------------------------------------------------------------
   bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
 
@@ -383,8 +389,8 @@ class ConfigEngineFile : public ConfigEngine
 class ConfigEngineRedis : public ConfigEngine 
 {
   public:
-
-  ConfigEngineRedis ();
+ 
+  ConfigEngineRedis (const char* configdir);
 
   ~ConfigEngineRedis();
 
@@ -408,6 +414,7 @@ class ConfigEngineRedis : public ConfigEngine
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
 
+<<<<<<< HEAD
   // ---------------------------------------------------------------------------
   // Reset the current configuration
   // ---------------------------------------------------------------------------
@@ -431,6 +438,8 @@ class ConfigEngineRedis : public ConfigEngine
   void
     DeleteConfigValueByMatch (const char* prefix, const char* match);
 
+=======
+>>>>>>> moved common functions to ConfigEngine, implemented Config Dump in Redis
   //----------------------------------------------------------------------------
   // Redis conf specific functions
   //----------------------------------------------------------------------------
@@ -450,6 +459,13 @@ class ConfigEngineRedis : public ConfigEngine
   // ---------------------------------------------------------------------------
   static int
   SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg);
+
+  void
+  SetConfigDir (const char* configdir)
+  {
+    configDir = configdir;
+    currentConfigFile = "default";
+  }
 
   bool
     AutoSave ();
