@@ -561,13 +561,19 @@ class ArchiveFile(object):
                     idx_xsval = self.header["file_meta"].index("xs") + 2
 
                     if (meta_info[idx_size] != entry[idx_size] or
-                            meta_info[idx_xstype] != entry[idx_xstype] or
-                            meta_info[idx_xsval] != entry[idx_xsval]):
+                        meta_info[idx_xstype] != entry[idx_xstype] or
+                        meta_info[idx_xsval] != entry[idx_xsval]):
                         err_msg = ("Partial verify failed for entry={0} expect={1} got={2}"
                                    "").format(dst, entry, meta_info)
                         self.logger.error(err_msg)
                         raise CheckEntryException("failed metainfo partial match")
                 else:
+                    # TODO:(esindril) Fix ctime propagation in EOS. For the time
+                    # being remove it from the comparison.
+                    idx_ctime = self.header["file_meta"].index("ctime") + 2
+                    del meta_info[idx_ctime]
+                    del entry[idx_ctime]
+
                     if not meta_info == entry:
                         err_msg = ("Verify failed for entry={0} expect={1} got={2}"
                                    "").format(dst, entry, meta_info)
