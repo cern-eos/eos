@@ -20,6 +20,7 @@ New Features
 
 - FUSE: update SELINUX policies
 - FUSE: create /var/run/eosd and /var/log/eos/fuse/ directories in eos-fuse-core
+- MGM: allow to change the find query limitations (by default 100k/50k files/dirs) via the 'access' interface. See 'eos access -h'.
 
 ``V0.3.189 Aquamarine``
 +++++++++++++++++++++++
