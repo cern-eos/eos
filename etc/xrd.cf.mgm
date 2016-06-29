@@ -60,7 +60,7 @@ mgmofs.autoloadconfig default
 mgmofs.autosaveconfig true
 
 #-------------------------------------------------------------------------------
-# ConfigEnfine Configuration
+# Config Engine Configuration
 #-------------------------------------------------------------------------------
 mgmofs.cfgtype file
 mgmofs.cfgredisport 6379
