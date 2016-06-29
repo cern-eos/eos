@@ -151,6 +151,9 @@ head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed
 echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
+echo "Content of eos.cfg:"
+cat eos.cfg
+
 ## Build the RPMs (with yum repo rpms)
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
