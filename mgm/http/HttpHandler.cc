@@ -171,7 +171,7 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
           // no permission
           eos_static_info("method=GET error=EPERM path=%s",
                           url.c_str());
-          response = HttpServer::HttpError("No such file or directory",
+          response = HttpServer::HttpError("Permission Denied",
                                            response->FORBIDDEN);
           return response;
         }
@@ -182,6 +182,22 @@ HttpHandler::Get (eos::common::HttpRequest *request, bool isHEAD)
         response->AddHeader("X-Accel-Redirect", link.c_str());
         response->AddHeader("X-Sendfile", link.c_str());
         return response;
+      }
+      else
+      {
+	if (gOFS->access(url.c_str(),
+			 R_OK,
+			 error,
+			 &client,
+			 ""))
+	{
+	  // no permission
+	  eos_static_info("method=GET error=EPERM path=%s",
+			  url.c_str());
+	  response = HttpServer::HttpError("Permission Denied",
+					   response->FORBIDDEN);
+	  return response;
+	}
       }
     }
 
