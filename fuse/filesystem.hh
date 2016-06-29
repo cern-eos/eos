@@ -1000,6 +1000,7 @@ private:
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
  bool encode_pathname; ///< indicated if filename should be encoded
  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
+ bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
  XrdOucString gMgmHost; ///< host name of the FUSE contact point
 
