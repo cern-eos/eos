@@ -51,6 +51,8 @@ ConfigEngineRedis::ConfigEngineRedis ()
 {
   currentConfigFile = "default";
   autosave = false;
+  REDIS_HOST = gOFS->MgmOfsConfigEngineRedisHost.c_str();
+  REDIS_PORT = gOFS->MgmOfsConfigEngineRedisPort;
   client.connect(REDIS_HOST, REDIS_PORT);
 }
 
