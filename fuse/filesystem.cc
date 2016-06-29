@@ -755,7 +755,7 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
        }
 
 #ifdef __APPLE__
-       me.fs (). DecodeOsxBundle(e.attr);
+       DecodeOsxBundle(e.attr);
 #endif
 
        store_p2i (entry_inode, efullpath);

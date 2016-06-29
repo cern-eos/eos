@@ -462,7 +462,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
    tvp[1].tv_nsec = attr->MTIMESPEC.tv_nsec;
 
    eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld mtime.nsec=%ld",
-                     (long long) ino, (long) attr->st_atime, (long) attr->st_mtime, (long) attr->st_mtim.tv_nsec);
+                     (long long) ino, (long) attr->ATIMESPEC.tv_sec, (long) attr->MTIMESPEC.tv_sec, (long) attr->MTIMESPEC.tv_nsec);
 
    if ( (retc = me.fs ().utimes_if_open (ino,
                                          tvp,
@@ -494,7 +494,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
      newattr.MTIMESPEC.tv_nsec = attr->MTIMESPEC.tv_nsec;
      newattr.st_ino = ino;
      eos_static_debug("set attr ino=%lld atime=%ld atime.nsec=%ld mtime=%ld mtime.nsec=%ld",
-		      (long long) ino, (long) newattr.st_atime, (long) newattr.st_atim.tv_nsec, (long) newattr.st_mtime, (long) newattr.st_mtim.tv_nsec);
+		      (long long) ino, (long) newattr.ATIMESPEC.tv_sec, (long) newattr.ATIMESPEC.tv_nsec, (long) newattr.MTIMESPEC.tv_sec, (long) newattr.MTIMESPEC.tv_nsec);
    }
    if (!retc)
    {
