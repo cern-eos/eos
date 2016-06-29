@@ -1370,13 +1370,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   if (MgmOfsConfigEngineType == "file") 
     ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
   else if (MgmOfsConfigEngineType == "redis") 
-    ConfEngine = new ConfigEngineRedis();	  
+    ConfEngine = new ConfigEngineRedis(MgmConfigDir.c_str());	  
   else {
     Eroute.Emsg("Config", "Invalid Config Engine Type!",
                 MgmOfsConfigEngineType.c_str());
     NoGo = 1;
   }
-  //ConfEngine = new ConfigEngineRedis();
   commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
 
   // Create comment log
