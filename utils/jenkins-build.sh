@@ -56,7 +56,7 @@ function getLocalBranchAndDistTag()
   fi
 
   local BRANCH_OR_TAG=${1}
-  local PLATORM=${2}
+  local PLATFORM=${2}
   local TAG_REGEX="^[04]+\..*$"
   local TAG_REGEX_AQUAMARINE="^0.3.*$"
   local TAG_REGEX_CITRINE="^4.*$"
