@@ -1309,7 +1309,17 @@ filesystem::setxattr (const char* path,
 
  request += "&";
  request += "mgm.xattrvalue=";
- request += std::string (xattr_value, size);
+
+ XrdOucString key(xattr_name);
+ XrdOucString value(xattr_value, size);
+ if (key.beginswith("com.apple"))
+ {
+   XrdOucString b64value;
+   eos::common::SymKey::Base64(value, b64value);
+   value = b64value;
+ }
+
+ request += value.c_str();
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -1424,9 +1434,13 @@ filesystem::getxattr (const char* path,
        }
      }
 
-     *size = strlen (rval);
+     XrdOucString value64 = rval;
+     XrdOucString value;
+     eos::common::SymKey::DeBase64(value64, value);
+
+     *size = value.length();
      *xattr_value = (char*) calloc ((*size) + 1, sizeof ( char));
-     *xattr_value = strncpy (*xattr_value, rval, *size);
+     *xattr_value = strncpy (*xattr_value, value.c_str(), *size);
      errno = retc;
    }
  }
