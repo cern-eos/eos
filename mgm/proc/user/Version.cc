@@ -35,21 +35,44 @@ ProcCommand::Version ()
 {
   gOFS->MgmStats.Add("Version", pVid->uid, pVid->gid, 1);
   eos_info("version");
-  stdOut += "EOS_INSTANCE=";
-  stdOut += gOFS->MgmOfsInstanceName;
-  stdOut += "\nEOS_SERVER_VERSION=";
-  stdOut += VERSION;
-  stdOut += " EOS_SERVER_RELEASE=";
-  stdOut += RELEASE;
-  if(pOpaque->Get("mgm.option") && !strcmp(pOpaque->Get("mgm.option"),"f"))
+
+  XrdOucString option = pOpaque->Get("mgm.option");
+
+  if (option.find("m") != STR_NPOS)
   {
-    stdOut += "\nEOS_SERVER_FEATURES=";
+    stdOut += "eos.instance.name=";
+    stdOut +=  gOFS->MgmOfsInstanceName;
+    stdOut += " eos.instance.version=";
+    stdOut += VERSION;
+    stdOut += " eos.instance.release=";
+    stdOut += RELEASE;
+    stdOut += " ";
     for(auto it = Features::sMap.begin(); it!=Features::sMap.end(); it++)
     {
-      stdOut += "\n";
       stdOut += it->first.c_str();
-      stdOut += "  =>  ";
+      stdOut += "=";
       stdOut += it->second.c_str();
+      stdOut += " ";
+    }
+  }
+  else
+  {
+    stdOut += "EOS_INSTANCE=";
+    stdOut += gOFS->MgmOfsInstanceName;
+    stdOut += "\nEOS_SERVER_VERSION=";
+    stdOut += VERSION;
+    stdOut += " EOS_SERVER_RELEASE=";
+    stdOut += RELEASE;
+    if (option.find("f") != STR_NPOS)
+    {
+      stdOut += "\nEOS_SERVER_FEATURES=";
+      for(auto it = Features::sMap.begin(); it!=Features::sMap.end(); it++)
+      {
+	stdOut += "\n";
+	stdOut += it->first.c_str();
+	stdOut += "  =>  ";
+	stdOut += it->second.c_str();
+      }
     }
   }
   return SFS_OK;

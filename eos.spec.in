@@ -53,9 +53,10 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
-BuildRequires: libmicrohttpd, libmicrohttpd-devel
+BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: jsoncpp, jsoncpp-devel
 
 %if 0%{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -96,6 +97,7 @@ Requires: acl
 Requires: gdb
 Requires: protobuf
 Requires: jemalloc
+Requires: jsoncpp
 
 %if 0%{distribution} == 5
 Requires: zeromq
@@ -297,6 +299,27 @@ do
     /usr/share/selinux/$selinuxvariant/eosfuse.pp &> /dev/null || :
 done
 
+# create the fuse log directory
+mkdir -p /var/log/eos/fuse/
+chown daemon:daemon /var/log/eos/
+chown daemon:daemon /var/log/eos/fuse/
+chmod 755 /var/log/eos/
+chmod 755 /var/log/eos/fuse/
+
+# create the credential store
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+# create tmpfiles.d entry
+echo "d /run/eosd 755 root root" > /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials/store 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+%else
+mkdir -p /var/run/eosd/
+mkdir -p /var/run/eosd/credentials/store
+chmod 1777 /var/run/eosd/credentials
+chmod 1777 /var/run/eosd/credentials/store
+%endif
+
+
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
   for variant in mls strict targeted ; do
@@ -310,6 +333,11 @@ if [ $1 -eq 0 ]; then
     /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
   done
 fi
+
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+unlink /etc/tmpfiles.d/eosd.conf
+rm -rf /var/run/eosd/ >& /dev/null
+%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-fuse-sysv

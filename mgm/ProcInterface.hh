@@ -137,6 +137,7 @@ private:
   bool mJsonFormat; //< indicates JSON format
   bool mHttpFormat; //< indicates HTTP format
   bool mClosed; //< indicates the proc command has been closed already
+  XrdOucString mJsonCallback; //< sets the JSONP callback namein a response
 
   //----------------------------------------------------------------------------
   //! Create archive file. If successful then the archive file is copied to the 

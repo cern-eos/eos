@@ -192,7 +192,6 @@ filesystem::log_settings ()
  XrdOucString fbcs;
  fbcs += (int) (file_write_back_cache_size / 1024 * 1024);
  s += fbcs.c_str ();
- s += " MB";
  log ("WARNING", s.c_str ());
 
  eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
@@ -762,7 +761,7 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
        }
 
 #ifdef __APPLE__
-       me.fs (). DecodeOsxBundle(e.attr);
+       DecodeOsxBundle(e.attr);
 #endif
 
        store_p2i (entry_inode, efullpath);
