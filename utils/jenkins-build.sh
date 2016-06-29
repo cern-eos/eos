@@ -122,12 +122,20 @@ echo "Build architecture:   ${ARCHITECTURE}"
 echo "Destination path:     ${DST_PATH}"
 echo "Running in directory: $(pwd)"
 
+# Exit script immediately if a command exists with a non-zero status
+set -e
+
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
 # Create cmake build directory and build without dependencies
 cd ..; mkdir build; cd build
-cmake .. -DPACKAGEONLY=1
+# Use cmake3 if installed, otherwise fallback to cmake command
+CMAKE_EX="$(which cmake3)"
+if test x"${CMAKE_EX}" == x -o ! -x "${CMAKE_EX}"; then
+  CMAKE_EX=cmake
+fi
+${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
 # Build the source RPM
@@ -143,7 +151,9 @@ head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed
 echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
-# Build the RPMs
+## Build the RPMs (with yum repo rpms)
+#mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
+# Build the RPMs (without yum repo rpms)
 mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
