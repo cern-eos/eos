@@ -148,7 +148,7 @@ git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
 # Prepare the mock configuration
 head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
 # Add eos dependencies repos
-echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
+echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
 echo "Content of eos.cfg:"
