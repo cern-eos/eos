@@ -2022,7 +2022,7 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
      if (init_size < size)
        fuse_reply_err (req, ERANGE);
      else
-       fuse_reply_buf (req, xattr_list, size + 1);
+       fuse_reply_buf (req, xattr_list, size );
    }
    else
      fuse_reply_xattr (req, size);
