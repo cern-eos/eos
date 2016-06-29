@@ -315,6 +315,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmOfsAlias = "";
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
+  MgmOfsConfigEngineType = "file";
+  MgmOfsConfigEngineRedisHost = "localhost";
+  MgmOfsConfigEngineRedisPort = 6379;
   MgmConfigDir = "";
   MgmMetaLogDir = "";
   MgmTxDir = "";
@@ -488,486 +491,624 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
 
-      if (!strncmp(var, "mgmofs.", 7)) {
-        var += 7;
+      if (!strncmp(var, "mgmofs.", 7))
+      {
+	var += 7;
 
-        if (!strcmp("fs", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for fs invalid.");
+	if (!strcmp("fs", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for fs invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    Eroute.Say("=====> mgmofs.fs: ", val, "");
+	    MgmOfsName = val;
+	  }
+	}
+        //added conf for ConfigEngine
+        if (!strcmp("cfgtype", var))
+        {
+	  if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for cfgtype invalid.");
             NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.fs: ", val, "");
-            MgmOfsName = val;
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.cfgtype: ", val, "");
+            MgmOfsConfigEngineType = val;
           }
         }
-
-        if (!strcmp("targetport", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for fs invalid.");
+     
+        if (!strcmp("cfgredishost", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for cfgredishost invalid.");
             NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.targetport: ", val, "");
-            MgmOfsTargetPort = val;
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.cfgredishost: ", val, "");
+            MgmOfsConfigEngineRedisHost = val;
           }
         }
-
-        if (!strcmp("capability", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config",
-                        "argument 2 for capbility missing. Can be true/lazy/1 or false/0");
+    
+        if (!strcmp("cfgredisport", var))
+        {
+          if (!(val = Config.GetWord()))
+          {
+            Eroute.Emsg("Config", "argument for cfgredisport invalid.");
             NoGo = 1;
-          } else {
-            if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))
-                || (!(strcmp(val, "lazy")))) {
-              IssueCapability = true;
-            } else {
-              if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0")))) {
-                IssueCapability = false;
-              } else {
-                Eroute.Emsg("Config",
-                            "argument 2 for capbility invalid. Can be <true>/1 or <false>/0");
-                NoGo = 1;
-              }
-            }
+          }
+          else
+          {
+            Eroute.Say("=====> mgmofs.cfgredisport: ", val, "");
+            MgmOfsConfigEngineRedisPort = atoi(val);
           }
         }
 
-        if (!strcmp("broker", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config",
-                        "argument 2 for broker missing. Should be URL like root://<host>/<queue>/");
-            NoGo = 1;
-          } else {
-            if (getenv("EOS_BROKER_URL")) {
-              MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
-            } else {
-              MgmOfsBrokerUrl = val;
-            }
-          }
-        }
+	if (!strcmp("targetport", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for fs invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    Eroute.Say("=====> mgmofs.targetport: ", val, "");
+	    MgmOfsTargetPort = val;
+	  }
+	}
 
-        if (!strcmp("instance", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config",
-                        "argument 2 for instance missing. Should be the name of the EOS cluster");
-            NoGo = 1;
-          } else {
-            if (getenv("EOS_INSTANCE_NAME")) {
-              MgmOfsInstanceName = getenv("EOS_INSTANCE_NAME");
-            } else {
-              MgmOfsInstanceName = val;
-            }
-          }
+	if (!strcmp("capability", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config",
+			"argument 2 for capbility missing. Can be true/lazy/1 or false/0");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))
+		|| (!(strcmp(val, "lazy"))))
+	    {
+	      IssueCapability = true;
+	    }
+	    else
+	    {
+	      if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0"))))
+	      {
+		IssueCapability = false;
+	      }
+	      else
+	      {
+		Eroute.Emsg("Config",
+			    "argument 2 for capbility invalid. Can be <true>/1 or <false>/0");
+		NoGo = 1;
+	      }
+	    }
+	  }
+	}
 
-          Eroute.Say("=====> mgmofs.instance : ", MgmOfsInstanceName.c_str(), "");
-        }
+	if (!strcmp("broker", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config",
+			"argument 2 for broker missing. Should be URL like root://<host>/<queue>/");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if (getenv("EOS_BROKER_URL"))
+	    {
+	      MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
+	    }
+	    else
+	    {
+	      MgmOfsBrokerUrl = val;
+	    }
+	  }
+	}
 
-        if (!strcmp("nslib", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "no namespace library path provided");
-            NoGo = 1;
-          } else {
-            ns_lib_path = val;
-          }
+	if (!strcmp("instance", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config",
+			"argument 2 for instance missing. Should be the name of the EOS cluster");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if (getenv("EOS_INSTANCE_NAME"))
+	    {
+	      MgmOfsInstanceName = getenv("EOS_INSTANCE_NAME");
+	    }
+	    else
+	    {
+	      MgmOfsInstanceName = val;
+	    }
+	  }
+	  Eroute.Say("=====> mgmofs.instance : ", MgmOfsInstanceName.c_str(), "");
+	}
 
-          Eroute.Say("=====> mgmofs.nslib : ", ns_lib_path.c_str());
-        }
+	if (!strcmp("nslib", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "no namespace library path provided");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    ns_lib_path = val;
+	  }
 
-        if (!strcmp("authlib", var)) {
-          if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
-            Eroute.Emsg("Config", "I cannot acccess you authorization library!");
-            NoGo = 1;
-          } else {
-            AuthLib = val;
-          }
+	  Eroute.Say("=====> mgmofs.nslib : ", ns_lib_path.c_str());
+	}
+	if (!strcmp("authlib", var))
+	{
+	  if ((!(val = Config.GetWord())) || (::access(val, R_OK)))
+	  {
+	    Eroute.Emsg("Config", "I cannot acccess you authorization library!");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    AuthLib = val;
+	  }
+	  Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
+	}
 
-          Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
-        }
+	if (!strcmp("authorize", var))
+	{
+	  if ((!(val = Config.GetWord())) ||
+	      (strcmp("true", val) && strcmp("false", val) &&
+	       strcmp("1", val) && strcmp("0", val)))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
+			"Must be <true>, <false>, <1> or <0>!");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if ((!strcmp("true", val) || (!strcmp("1", val))))
+	    {
+	      authorize = true;
+	    }
+	  }
 
-        if (!strcmp("authorize", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
-                        "Must be <true>, <false>, <1> or <0>!");
-            NoGo = 1;
-          } else {
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              authorize = true;
-            }
-          }
+	  if (authorize)
+	    Eroute.Say("=====> mgmofs.authorize : true");
+	  else
+	    Eroute.Say("=====> mgmofs.authorize : false");
+	}
 
-          if (authorize) {
-            Eroute.Say("=====> mgmofs.authorize : true");
-          } else {
-            Eroute.Say("=====> mgmofs.authorize : false");
-          }
-        }
+	if (!strcmp("errorlog", var))
+	{
+	  if ((!(val = Config.GetWord())) ||
+	      (strcmp("true", val) && strcmp("false", val) &&
+	       strcmp("1", val) && strcmp("0", val)))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
+			"Must be <true>, <false>, <1> or <0>!");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if ((!strcmp("true", val) || (!strcmp("1", val))))
+	    {
+	      ErrorLog = true;
+	    }
+	    else
+	    {
+	      ErrorLog = false;
+	    }
+	  }
+	  if (ErrorLog)
+	    Eroute.Say("=====> mgmofs.errorlog : true");
+	  else
+	    Eroute.Say("=====> mgmofs.errorlog : false");
+	}
 
-        if (!strcmp("errorlog", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
-                        "Must be <true>, <false>, <1> or <0>!");
-            NoGo = 1;
-          } else {
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              ErrorLog = true;
-            } else {
-              ErrorLog = false;
-            }
-          }
+	if (!strcmp("redirector", var))
+	{
+	  if ((!(val = Config.GetWord())) ||
+	      (strcmp("true", val) && strcmp("false", val) &&
+	       strcmp("1", val) && strcmp("0", val)))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
+			"Must be <true>,<false>,<1> or <0>!");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if ((!strcmp("true", val) || (!strcmp("1", val))))
+	    {
+	      MgmRedirector = true;
+	    }
+	    else
+	    {
+	      MgmRedirector = false;
+	    }
+	  }
 
-          if (ErrorLog) {
-            Eroute.Say("=====> mgmofs.errorlog : true");
-          } else {
-            Eroute.Say("=====> mgmofs.errorlog : false");
-          }
-        }
+	  if (ErrorLog)
+	    Eroute.Say("=====> mgmofs.errorlog   : true");
+	  else
+	    Eroute.Say("=====> mgmofs.errorlog   : false");
+	}
 
-        if (!strcmp("redirector", var)) {
-          if ((!(val = Config.GetWord())) ||
-              (strcmp("true", val) && strcmp("false", val) &&
-               strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
-                        "Must be <true>,<false>,<1> or <0>!");
-            NoGo = 1;
-          } else {
-            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              MgmRedirector = true;
-            } else {
-              MgmRedirector = false;
-            }
-          }
+	if (!strcmp("configdir", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for configdir invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmConfigDir = val;
 
-          if (ErrorLog) {
-            Eroute.Say("=====> mgmofs.errorlog   : true");
-          } else {
-            Eroute.Say("=====> mgmofs.errorlog   : false");
-          }
-        }
+	    if (!MgmConfigDir.endswith("/"))
+	      MgmConfigDir += "/";
+	  }
+	}
 
-        if (!strcmp("configdir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for configdir invalid.");
-            NoGo = 1;
-          } else {
-            MgmConfigDir = val;
+	if (!strcmp("archivedir", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for archivedir invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmArchiveDir = val;
 
-            if (!MgmConfigDir.endswith("/")) {
-              MgmConfigDir += "/";
-            }
-          }
-        }
+	    if (!MgmArchiveDir.endswith("/"))
+	      MgmArchiveDir += "/";
+	  }
+	}
 
-        if (!strcmp("archivedir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for archivedir invalid.");
-            NoGo = 1;
-          } else {
-            MgmArchiveDir = val;
+	if (!strcmp("autosaveconfig", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config",
+			"argument 2 for autosaveconfig missing. Can be true/1 or false/0");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1"))))
+	    {
+	      ConfigAutoSave = true;
+	    }
+	    else
+	    {
+	      if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0"))))
+	      {
+		ConfigAutoSave = false;
+	      }
+	      else
+	      {
+		Eroute.Emsg("Config",
+			    "argument 2 for autosaveconfig invalid. Can be <true>/1 or <false>/0");
+		NoGo = 1;
+	      }
+	    }
+	  }
+	}
 
-            if (!MgmArchiveDir.endswith("/")) {
-              MgmArchiveDir += "/";
-            }
-          }
-        }
+	if (!strcmp("autoloadconfig", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for autoloadconfig invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmConfigAutoLoad = val;
+	  }
+	}
 
-        if (!strcmp("autosaveconfig", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config",
-                        "argument 2 for autosaveconfig missing. Can be true/1 or false/0");
-            NoGo = 1;
-          } else {
-            if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))) {
-              ConfigAutoSave = true;
-            } else {
-              if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0")))) {
-                ConfigAutoSave = false;
-              } else {
-                Eroute.Emsg("Config",
-                            "argument 2 for autosaveconfig invalid. Can be <true>/1 or <false>/0");
-                NoGo = 1;
-              }
-            }
-          }
-        }
+	if (!strcmp("alias", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for alias missing.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmOfsAlias = val;
+	  }
+	}
 
-        if (!strcmp("autoloadconfig", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for autoloadconfig invalid.");
-            NoGo = 1;
-          } else {
-            MgmConfigAutoLoad = val;
-          }
-        }
+	if (!strcmp("metalog", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for metalog missing");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmMetaLogDir = val;
+	    // just try to create it in advance
+	    XrdOucString makeit = "mkdir -p ";
+	    makeit += MgmMetaLogDir;
+	    int src = system(makeit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", makeit.c_str(), src);
+	    XrdOucString chownit = "chown -R daemon ";
+	    chownit += MgmMetaLogDir;
+	    src = system(chownit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", chownit.c_str(), src);
 
-        if (!strcmp("alias", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for alias missing.");
-            NoGo = 1;
-          } else {
-            MgmOfsAlias = val;
-          }
-        }
+	    if (::access(MgmMetaLogDir.c_str(), W_OK | R_OK | X_OK))
+	    {
+	      Eroute.Emsg("Config", "cannot acccess the meta data changelog "
+			  "directory for r/w!", MgmMetaLogDir.c_str());
+	      NoGo = 1;
+	    }
+	    else
+	    {
+	      Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(), "");
+	    }
+	  }
+	}
 
-        if (!strcmp("metalog", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument 2 for metalog missing");
-            NoGo = 1;
-          } else {
-            MgmMetaLogDir = val;
-            // just try to create it in advance
-            XrdOucString makeit = "mkdir -p ";
-            makeit += MgmMetaLogDir;
-            int src = system(makeit.c_str());
+	if (!strcmp("txdir", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for txdir missing");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmTxDir = val;
+	    // just try to create it in advance
+	    XrdOucString makeit = "mkdir -p ";
+	    makeit += MgmTxDir;
+	    int src = system(makeit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", makeit.c_str(), src);
+	    XrdOucString chownit = "chown -R daemon ";
+	    chownit += MgmTxDir;
+	    src = system(chownit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", chownit.c_str(), src);
 
-            if (src) {
-              eos_err("%s returned %d", makeit.c_str(), src);
-            }
+	    if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK))
+	    {
+	      Eroute.Emsg("Config", "cannot acccess the transfer directory for r/w:",
+			  MgmTxDir.c_str());
+	      NoGo = 1;
+	    }
+	    else
+	    {
+	      Eroute.Say("=====> mgmofs.txdir:   ", MgmTxDir.c_str(), "");
+	    }
+	  }
+	}
 
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += MgmMetaLogDir;
-            src = system(chownit.c_str());
+	if (!strcmp("authdir", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for authdir missing");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    MgmAuthDir = val;
+	    // just try to create it in advance
+	    XrdOucString makeit = "mkdir -p ";
+	    makeit += MgmAuthDir;
+	    int src = system(makeit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", makeit.c_str(), src);
+	    XrdOucString chownit = "chown -R daemon ";
+	    chownit += MgmAuthDir;
+	    src = system(chownit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", chownit.c_str(), src);
 
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
-            }
+	    if ((src = ::chmod(MgmAuthDir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR)))
+	    {
+	      eos_err("chmod 700 %s returned %d", MgmAuthDir.c_str(), src);
+	      NoGo = 1;
+	    }
 
-            if (::access(MgmMetaLogDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the meta data changelog "
-                          "directory for r/w!", MgmMetaLogDir.c_str());
-              NoGo = 1;
-            } else {
-              Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(), "");
-            }
-          }
-        }
+	    if (::access(MgmAuthDir.c_str(), W_OK | R_OK | X_OK))
+	    {
+	      Eroute.Emsg("Config", "cannot acccess the authentication directory "
+			  "for r/w:", MgmAuthDir.c_str());
+	      NoGo = 1;
+	    }
+	    else
+	    {
+	      Eroute.Say("=====> mgmofs.authdir:   ", MgmAuthDir.c_str(), "");
+	    }
+	  }
+	}
 
-        if (!strcmp("txdir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument 2 for txdir missing");
-            NoGo = 1;
-          } else {
-            MgmTxDir = val;
-            // just try to create it in advance
-            XrdOucString makeit = "mkdir -p ";
-            makeit += MgmTxDir;
-            int src = system(makeit.c_str());
+	if (!strcmp("reportstorepath", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument 2 for reportstorepath missing");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    IoReportStorePath = val;
+	    // just try to create it in advance
+	    XrdOucString makeit = "mkdir -p ";
+	    makeit += IoReportStorePath;
+	    int src = system(makeit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", makeit.c_str(), src);
+	    XrdOucString chownit = "chown -R daemon ";
+	    chownit += IoReportStorePath;
+	    src = system(chownit.c_str());
+	    if (src)
+	      eos_err("%s returned %d", chownit.c_str(), src);
 
-            if (src) {
-              eos_err("%s returned %d", makeit.c_str(), src);
-            }
+	    if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK))
+	    {
+	      Eroute.Emsg("Config", "cannot acccess the reportstore directory "
+			  "for r/w:", IoReportStorePath.c_str());
+	      NoGo = 1;
+	    }
+	    else
+	    {
+	      Eroute.Say("=====> mgmofs.reportstorepath: ", IoReportStorePath.c_str(), "");
+	    }
+	  }
+	}
 
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += MgmTxDir;
-            src = system(chownit.c_str());
+	// Get the fst gateway hostname and port
+	if (!strcmp("fstgw", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "fst gateway value not specified");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    mFstGwHost = val;
+	    size_t pos = mFstGwHost.find(':');
 
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
-            }
+	    if (pos == std::string::npos)
+	    {
+	      // Use a default value if no port is specified
+	      mFstGwPort = 1094;
+	    }
+	    else
+	    {
+	      mFstGwPort = atoi(mFstGwHost.substr(pos + 1).c_str());
+	      mFstGwHost = mFstGwHost.erase(pos);
+	    }
 
-            if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the transfer directory for r/w:",
-                          MgmTxDir.c_str());
-              NoGo = 1;
-            } else {
-              Eroute.Say("=====> mgmofs.txdir:   ", MgmTxDir.c_str(), "");
-            }
-          }
-        }
+	    Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
+		       std::to_string((long long int)mFstGwPort).c_str());
+	  }
+	}
 
-        if (!strcmp("authdir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument 2 for authdir missing");
-            NoGo = 1;
-          } else {
-            MgmAuthDir = val;
-            // just try to create it in advance
-            XrdOucString makeit = "mkdir -p ";
-            makeit += MgmAuthDir;
-            int src = system(makeit.c_str());
+	if (!strcmp("trace", var))
+	{
+	  static struct traceopts
+	  {
+	    const char *opname;
+	    int opval;
+	  } tropts[] =
+	  {
+	    {"aio", TRACE_aio},
+	    {"all", TRACE_ALL},
+	    {"chmod", TRACE_chmod},
+	    {"close", TRACE_close},
+	    {"closedir", TRACE_closedir},
+	    {"debug", TRACE_debug},
+	    {"delay", TRACE_delay},
+	    {"dir", TRACE_dir},
+	    {"exists", TRACE_exists},
+	    {"getstats", TRACE_getstats},
+	    {"fsctl", TRACE_fsctl},
+	    {"io", TRACE_IO},
+	    {"mkdir", TRACE_mkdir},
+	    {"most", TRACE_MOST},
+	    {"open", TRACE_open},
+	    {"opendir", TRACE_opendir},
+	    {"qscan", TRACE_qscan},
+	    {"read", TRACE_read},
+	    {"readdir", TRACE_readdir},
+	    {"redirect", TRACE_redirect},
+	    {"remove", TRACE_remove},
+	    {"rename", TRACE_rename},
+	    {"sync", TRACE_sync},
+	    {"truncate", TRACE_truncate},
+	    {"write", TRACE_write},
+	    {"authorize", TRACE_authorize},
+	    {"map", TRACE_map},
+	    {"role", TRACE_role},
+	    {"access", TRACE_access},
+	    {"attributes", TRACE_attributes},
+	    {"allows", TRACE_allows}
+	  };
+	  int i, neg, trval = 0, numopts = sizeof (tropts) / sizeof (struct traceopts);
 
-            if (src) {
-              eos_err("%s returned %d", makeit.c_str(), src);
-            }
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "trace option not specified");
+	    return 1;
+	  }
 
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += MgmAuthDir;
-            src = system(chownit.c_str());
+	  while (val)
+	  {
+	    Eroute.Say("=====> mgmofs.trace: ", val, "");
+	    if (!strcmp(val, "off")) trval = 0;
+	    else
+	    {
+	      if ((neg = (val[0] == '-' && val[1]))) val++;
+	      for (i = 0; i < numopts; i++)
+	      {
+		if (!strcmp(val, tropts[i].opname))
+		{
+		  if (neg) trval &= ~tropts[i].opval;
+		  else trval |= tropts[i].opval;
+		  break;
+		}
+	      }
+	      if (i >= numopts)
+		Eroute.Say("Config warning: ignoring invalid trace option '", val, "'.");
+	    }
+	    val = Config.GetWord();
+	  }
 
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
-            }
+	  gMgmOfsTrace.What = trval;
+	}
+	if (!strcmp("auththreads", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    Eroute.Say("=====> mgmofs.auththreads: ", val, "");
+	    mNumAuthThreads = atoi(val);
+	  }
+	}
 
-            if ((src = ::chmod(MgmAuthDir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR))) {
-              eos_err("chmod 700 %s returned %d", MgmAuthDir.c_str(), src);
-              NoGo = 1;
-            }
-
-            if (::access(MgmAuthDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the authentication directory "
-                          "for r/w:", MgmAuthDir.c_str());
-              NoGo = 1;
-            } else {
-              Eroute.Say("=====> mgmofs.authdir:   ", MgmAuthDir.c_str(), "");
-            }
-          }
-        }
-
-        if (!strcmp("reportstorepath", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument 2 for reportstorepath missing");
-            NoGo = 1;
-          } else {
-            IoReportStorePath = val;
-            // just try to create it in advance
-            XrdOucString makeit = "mkdir -p ";
-            makeit += IoReportStorePath;
-            int src = system(makeit.c_str());
-
-            if (src) {
-              eos_err("%s returned %d", makeit.c_str(), src);
-            }
-
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += IoReportStorePath;
-            src = system(chownit.c_str());
-
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
-            }
-
-            if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot acccess the reportstore directory "
-                          "for r/w:", IoReportStorePath.c_str());
-              NoGo = 1;
-            } else {
-              Eroute.Say("=====> mgmofs.reportstorepath: ", IoReportStorePath.c_str(), "");
-            }
-          }
-        }
-
-        // Get the fst gateway hostname and port
-        if (!strcmp("fstgw", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "fst gateway value not specified");
-            NoGo = 1;
-          } else {
-            mFstGwHost = val;
-            size_t pos = mFstGwHost.find(':');
-
-            if (pos == std::string::npos) {
-              // Use a default value if no port is specified
-              mFstGwPort = 1094;
-            } else {
-              mFstGwPort = atoi(mFstGwHost.substr(pos + 1).c_str());
-              mFstGwHost = mFstGwHost.erase(pos);
-            }
-
-            Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
-                       std::to_string((long long int)mFstGwPort).c_str());
-          }
-        }
-
-        if (!strcmp("trace", var)) {
-          static struct traceopts {
-            const char* opname;
-            int opval;
-          } tropts[] = {
-            {"aio", TRACE_aio},
-            {"all", TRACE_ALL},
-            {"chmod", TRACE_chmod},
-            {"close", TRACE_close},
-            {"closedir", TRACE_closedir},
-            {"debug", TRACE_debug},
-            {"delay", TRACE_delay},
-            {"dir", TRACE_dir},
-            {"exists", TRACE_exists},
-            {"getstats", TRACE_getstats},
-            {"fsctl", TRACE_fsctl},
-            {"io", TRACE_IO},
-            {"mkdir", TRACE_mkdir},
-            {"most", TRACE_MOST},
-            {"open", TRACE_open},
-            {"opendir", TRACE_opendir},
-            {"qscan", TRACE_qscan},
-            {"read", TRACE_read},
-            {"readdir", TRACE_readdir},
-            {"redirect", TRACE_redirect},
-            {"remove", TRACE_remove},
-            {"rename", TRACE_rename},
-            {"sync", TRACE_sync},
-            {"truncate", TRACE_truncate},
-            {"write", TRACE_write},
-            {"authorize", TRACE_authorize},
-            {"map", TRACE_map},
-            {"role", TRACE_role},
-            {"access", TRACE_access},
-            {"attributes", TRACE_attributes},
-            {"allows", TRACE_allows}
-          };
-          int i, neg, trval = 0, numopts = sizeof(tropts) / sizeof(struct traceopts);
-
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "trace option not specified");
-            return 1;
-          }
-
-          while (val) {
-            Eroute.Say("=====> mgmofs.trace: ", val, "");
-
-            if (!strcmp(val, "off")) {
-              trval = 0;
-            } else {
-              if ((neg = (val[0] == '-' && val[1]))) {
-                val++;
-              }
-
-              for (i = 0; i < numopts; i++) {
-                if (!strcmp(val, tropts[i].opname)) {
-                  if (neg) {
-                    trval &= ~tropts[i].opval;
-                  } else {
-                    trval |= tropts[i].opval;
-                  }
-
-                  break;
-                }
-              }
-
-              if (i >= numopts) {
-                Eroute.Say("Config warning: ignoring invalid trace option '", val, "'.");
-              }
-            }
-
-            val = Config.GetWord();
-          }
-
-          gMgmOfsTrace.What = trval;
-        }
-
-        if (!strcmp("auththreads", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
-            NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.auththreads: ", val, "");
-            mNumAuthThreads = atoi(val);
-          }
-        }
-
-        // Configure frontend port number on which clients submit requests
-        if (!strcmp("authport", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for frontend port invalid.");
-            NoGo = 1;
-          } else {
-            Eroute.Say("=====> mgmofs.authport: ", val, "");
-            mFrontendPort = atoi(val);
-          }
-        }
+	// Configure frontend port number on which clients submit requests
+	if (!strcmp("authport", var))
+	{
+	  if (!(val = Config.GetWord()))
+	  {
+	    Eroute.Emsg("Config", "argument for frontend port invalid.");
+	    NoGo = 1;
+	  }
+	  else
+	  {
+	    Eroute.Say("=====> mgmofs.authport: ", val, "");
+	    mFrontendPort = atoi(val);
+	  }
+	}
       }
     }
   }
@@ -1225,10 +1366,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.configdir: ", MgmConfigDir.c_str(), "");
   }
 
-  // Start the config enging
-  //TODo depending on the conf use ConfigEngineFile or ConfigEnfineRedis
-
-  ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
+  // Start the config engine
+  if (MgmOfsConfigEngineType == "file") 
+    ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
+  else if (MgmOfsConfigEngineType == "redis") 
+    ConfEngine = new ConfigEngineRedis();	  
+  else {
+    Eroute.Emsg("Config", "Invalid Config Engine Type!",
+                MgmOfsConfigEngineType.c_str());
+    NoGo = 1;
+  }
   //ConfEngine = new ConfigEngineRedis();
   commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
 

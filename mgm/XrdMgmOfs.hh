@@ -1074,8 +1074,11 @@ public:
   XrdOucString ManagerIp; //< manager ip in <xxx.yyy.zzz.vvv> format
   int ManagerPort; //< manager port as number e.g. 1094
 
-  eos::common::LinuxStat::linux_stat_t
-  LinuxStatsStartup; // => process state after namespace load time
+  XrdOucString MgmOfsConfigEngineType; ///< Type of ConfigEngine (file or redis)
+  XrdOucString MgmOfsConfigEngineRedisHost; ///< Redis host 
+  int MgmOfsConfigEngineRedisPort; ///< Redis port
+  //! Process state after namespace load time
+  eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; 
 
   std::map<eos::common::FileSystem::fsid_t, time_t>
   ScheduledToDrainFid; // map with scheduled fids for draining

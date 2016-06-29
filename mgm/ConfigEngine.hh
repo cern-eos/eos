@@ -470,13 +470,11 @@ class ConfigEngineRedis : public ConfigEngine
   private:
 
   redox::Redox client;
-  //TO DO take from mgm configuration
-  std::string REDIS_HOST="localhost";
-  //TO DO take from mgm configuration
-  int REDIS_PORT = 6379;
-  //TO DO take from mgm configuration
-  bool useConfig2Redis = true;
-  //TO DO take from the mgm configuration
+  
+  std::string REDIS_HOST;
+
+  int REDIS_PORT;
+
   std::string conf_set_key = "EOSConfig:list";
 
 };

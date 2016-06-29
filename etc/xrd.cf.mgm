@@ -59,6 +59,13 @@ mgmofs.autoloadconfig default
 # this enables that every change get's immedeatly stored to the active configuration - can be overwritten by EOS_AUTOSAVE_CONFIG defined in /etc/sysconfig/eos
 mgmofs.autosaveconfig true
 
+#-------------------------------------------------------------------------------
+# ConfigEnfine Configuration
+#-------------------------------------------------------------------------------
+mgmofs.cfgtype file
+mgmofs.cfgredisport 6379
+mgmofs.cfgredishost localhost
+
 # this has to be defined if we have a failover configuration via alias - can be overwritten by EOS_MGM_ALIAS in /etc/sysconfig/eos
 #mgmofs.alias eosdev.cern.ch
 
