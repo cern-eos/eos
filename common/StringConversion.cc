@@ -1046,6 +1046,50 @@ StringConversion::curl_unescaped(const std::string& str)
   return ret_str;
 }
 
+// ---------------------------------------------------------------------------
+// Escape JSON string 
+// ---------------------------------------------------------------------------  
+std::string
+StringConversion::json_encode(const std::string &s)
+{
+  std::string output;
+  output.reserve(s.length());
+
+  for (size_t i = 0; i != s.length(); i++) {
+    char c = s.at(i);
+    switch (c) {
+    case '"':
+      output += "\\\"";
+      break;
+    case '/':
+      output += "\\/";
+      break;
+    case '\b':
+      output += "\\b";
+      break;
+    case '\f':
+      output += "\\f";
+      break;
+    case '\n':
+      output += "\\n";
+      break;
+    case '\r':
+      output += "\\r";
+      break;
+    case '\t':
+      output += "\\t";
+      break;
+    case '\\':
+      output += "\\\\";
+      break;
+    default:
+      output += c;
+      break;
+    }
+  }
+  return output;
+}
+
 //------------------------------------------------------------------------------
 // Sort lines alphabetically in-place
 //------------------------------------------------------------------------------

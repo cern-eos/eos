@@ -1,0 +1,25 @@
+
+module eosfuse 1.1;
+
+require {
+	type initrc_tmp_t;
+	type var_log_t;
+	type var_run_t;
+	type automount_t;
+	type mount_t;
+	class lnk_file { read getattr };
+	class dir add_name;
+	class file { write read create setattr };
+}
+
+#============= automount_t ==============
+allow automount_t initrc_tmp_t:file write;
+
+#============= mount_t ==============
+allow mount_t var_log_t:dir add_name;
+allow mount_t var_log_t:file create;
+
+allow mount_t var_log_t:file setattr;
+
+allow mount_t var_run_t:lnk_file getattr;
+allow mount_t var_run_t:lnk_file read;

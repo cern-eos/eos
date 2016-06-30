@@ -38,8 +38,9 @@ XrdMgmOfs::_find (const char *path,
                   const char* val,
                   bool nofiles,
                   time_t millisleep,
-                  bool nscounter,
-                  int maxdepth
+                  bool nscounter, 
+		  int maxdepth, 
+		  const char* filematch
                   )
 /*----------------------------------------------------------------------------*/
 /*
@@ -53,13 +54,19 @@ XrdMgmOfs::_find (const char *path,
  * @param val search for a certain value in the extended attributes (requires key)
  * @param nofiles if true returns only directories, otherwise files and directories
  * @param millisleep milli seconds to sleep between each directory scan
- *
+ * @param maxdepth is the maximum search depth
+ * @param filematch is a pattern match for file names
+
  * The find command distinuishes 'power' and 'normal' users. If the virtual
  * identity indicates the root or admin user queries are unlimited.
- * For others queries are limited to 50k directories and 100k files and an
- * appropriate error/warning message is written to stdErr. Note that currently
- * find does not do a 'full' permission check including ACLs in every
- * subdirectory but checks only the POSIX permission R_OK/X_OK bits.
+ * For others queries are by dfeault limited to 50k directories and 100k files and an
+ * appropriate error/warning message is written to stdErr. 
+ * Find limits can be (re-)defined in the access interface by using global rules
+ * => access set limit 100000 rate:user:*:FindFiles
+ * => access set limit 50000 rate:user:*:FindDirs
+ * or individual rules
+ * => access set limit 100000000 rate:user:eosprod:FindFiles
+ * => access set limit 100000000 rate:user:eosprod:FindDirs
  * If 'key' contains a wildcard character in the end find produces a list of
  * directories containing an attribute starting with that key match like
  * var=sys.policy.*
@@ -93,10 +100,65 @@ XrdMgmOfs::_find (const char *path,
   found_dirs[0][0] = Path.c_str();
   int deepness = 0;
 
-  // users cannot return more than 100k files and 50k dirs with one find
+  // users cannot return more than 100k files and 50k dirs with one find, 
+  // unless there is an access rule allowing deeper queries
 
   static unsigned long long finddiruserlimit = 50000;
   static unsigned long long findfileuserlimit = 100000;
+
+  {
+    // see if there are special access settings
+    eos::common::RWMutexReadLock lock(Access::gAccessMutex);
+    if (Access::gStallUserGroup)
+    {
+      std::string usermatchfiles = "rate:user:";
+      usermatchfiles += vid.uid_string;
+      usermatchfiles += "FindFiles";
+      usermatchfiles += ":";
+      std::string groupmatchfiles = "rate:group:";
+      groupmatchfiles += vid.gid_string;
+      groupmatchfiles += ":";
+      groupmatchfiles += "FindFiles";
+      std::string userwildcardmatchfiles = "rate:user:*:FindFiles";
+      
+      if (Access::gStallRules.count(usermatchfiles))
+      {
+	findfileuserlimit = strtoul(Access::gStallRules[usermatchfiles].c_str(), 0, 10);
+      }
+      else if (Access::gStallRules.count(groupmatchfiles))
+      {
+	findfileuserlimit = strtoul(Access::gStallRules[groupmatchfiles].c_str(), 0, 10);
+      }
+      else if (Access::gStallRules.count(userwildcardmatchfiles))
+      {
+	findfileuserlimit = strtoul(Access::gStallRules[userwildcardmatchfiles].c_str(), 0, 10);
+      }
+
+      std::string usermatchdirs = "rate:user:";
+      usermatchdirs += vid.uid_string;
+      usermatchdirs += "FindDirs";
+      usermatchdirs += ":";
+      std::string groupmatchdirs = "rate:group:";
+      groupmatchdirs += vid.gid_string;
+      groupmatchdirs += ":";
+      groupmatchdirs += "FindDirs";
+      std::string userwildcardmatchdirs = "rate:user:*:FindDirs";
+      
+      if (Access::gStallRules.count(usermatchdirs))
+      {
+	finddiruserlimit = strtoul(Access::gStallRules[usermatchdirs].c_str(), 0, 10);
+      }
+      else if (Access::gStallRules.count(groupmatchdirs))
+      {
+	finddiruserlimit = strtoul(Access::gStallRules[groupmatchdirs].c_str(), 0, 10);
+      }
+      else if (Access::gStallRules.count(userwildcardmatchdirs))
+      {
+	finddiruserlimit = strtoul(Access::gStallRules[userwildcardmatchdirs].c_str(), 0, 10);
+      }
+    }
+  }
+
 
   unsigned long long filesfound = 0;
   unsigned long long dirsfound = 0;
@@ -214,7 +276,7 @@ XrdMgmOfs::_find (const char *path,
               // apply the user limits for non root/admin/sudoers
               if (dirsfound >= finddiruserlimit)
               {
-                stdErr += "warning: find results are limited for users to ndirs=";
+                stdErr += "warning: find results are limited for you to ndirs=";
                 stdErr += (int) finddiruserlimit;
                 stdErr += " -  result is truncated!\n";
                 limited = true;
@@ -248,27 +310,37 @@ XrdMgmOfs::_find (const char *path,
               // apply the user limits for non root/admin/sudoers
               if (filesfound >= findfileuserlimit)
               {
-                stdErr += "warning: find results are limited for users to nfiles=";
+                stdErr += "warning: find results are limited for you to nfiles=";
                 stdErr += (int) findfileuserlimit;
                 stdErr += " -  result is truncated!\n";
                 limited = true;
                 break;
               }
             }
-
-	    if (link.length()) 
+	    if (!filematch)
 	    {
-	      std::string ip = fmd->getName();
-	      ip += " -> ";
-	      ip += link;
-              found[Path].insert(ip);
-	    } 
-	    else 
-	    {
-              found[Path].insert(fmd->getName());
+	      if (link.length()) 
+	      {
+		std::string ip = *fit;
+		ip += " -> ";
+		ip += link;
+		found[Path].insert(ip);
+	      } 
+	      else 
+	      {
+		found[Path].insert(*fit);
+	      }
+	      filesfound++;
 	    }
-
-            filesfound++;
+	    else
+	    {
+	      XrdOucString name = fit->c_str();
+	      if (name.matches(filematch))
+	      {
+		found[Path].insert(*fit);
+		filesfound++;
+	      }
+	    }
           }
         }
       }

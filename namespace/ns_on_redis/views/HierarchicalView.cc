@@ -677,6 +677,51 @@ HierarchicalView::getUri(const IFileMD* file) const
   return path + file->getName();
 }
 
+//------------------------------------------------------------------------
+// Get real path translating existing symlink
+//------------------------------------------------------------------------
+std::string HierarchicalView::getRealPath( const std::string &uri )
+{
+  size_t link_depths=0;
+  char uriBuffer[uri.length()+1];
+  strcpy( uriBuffer, uri.c_str() );
+  std::vector<char*> elements;
+
+  if (uri == "/")
+  {
+    MDException e( ENOENT );
+    e.getMessage() << " is not a file";
+    throw e;
+  }
+
+  eos::PathProcessor::splitPath( elements, uriBuffer );
+  size_t position;
+
+  auto cont = findLastContainer( elements, elements.size()-1, position,
+				 &link_depths);
+
+  if( position != elements.size()-1 )
+  {
+    MDException e( ENOENT );
+    e.getMessage() << "Container does not exist";
+    throw e;
+  }
+
+  // replace the last existing container with the resolved container path
+  std::string newcontainer = getUri(cont.get());
+  size_t oldlength=0;
+
+  for (size_t i=0; i< position; i++)
+  {
+    oldlength += strlen(elements[i])+1;
+  }
+
+  std::string newpath = uri;
+  newpath.erase(0,oldlength+1);
+  newpath.insert(0,newcontainer);
+  return newpath;
+}
+
 //------------------------------------------------------------------------------
 // Get quota node id concerning given container
 //------------------------------------------------------------------------------

@@ -442,6 +442,10 @@ com_cp (char* argin)
         l += "\"file:";
 
       }
+      else
+      {
+	l += "\"";
+      }
 
       l += source_find_list[nfile];
 

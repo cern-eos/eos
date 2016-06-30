@@ -154,8 +154,12 @@ XrdMgmOfsFile::open (const char *inpath,
     catch (eos::MDException &e)
     {
       eos_debug("caught exception %d %s\n",
-                e.getErrno(),
-                e.getMessage().str().c_str());
+		e.getErrno(),
+		e.getMessage().str().c_str());
+
+      MAYREDIRECT_ENOENT;
+      MAYSTALL_ENOENT;
+
       return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
     }
   }
@@ -298,6 +302,25 @@ XrdMgmOfsFile::open (const char *inpath,
     if ((val = openOpaque->Get("eos.workflow")))
     {
       currentWorkflow = val;
+    }
+  }
+
+  if (!isFuse && isRW) 
+  {
+    // resolve symbolic links
+    try
+    {
+      std::string s_path = path;
+      spath = gOFS->eosView->getRealPath(s_path).c_str();
+      eos_info("msg=\"rewrote symlinks\" sym-path=%s realpath=%s", s_path.c_str(),spath.c_str());
+      path = spath.c_str();
+    }
+    catch (eos::MDException &e)
+    {
+      eos_debug("caught exception %d %s\n",
+		e.getErrno(),
+		e.getMessage().str().c_str());
+      // will throw the error later
     }
   }
 

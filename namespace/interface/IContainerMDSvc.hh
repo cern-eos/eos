@@ -25,6 +25,7 @@
 #define EOS_NS_I_CONTAINER_MD_SVC_HH
 
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/MDException.hh"
 #include <map>
 #include <string>
@@ -143,6 +144,12 @@ class IContainerMDSvc
   //! Set file metadata service
   //----------------------------------------------------------------------------
   virtual void setFileMDService(IFileMDSvc* file_svc) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Set container accounting
+  //---------------------------------------------------------------------------
+  virtual void
+  setContainerAccounting (IFileMDChangeListener* containerAccounting) = 0;
 };
 
 EOSNSNAMESPACE_END

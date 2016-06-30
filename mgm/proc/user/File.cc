@@ -564,10 +564,14 @@ ProcCommand::File ()
         httppath += gOFS->HostName;
         httppath += ":8000/";
 
-        size_t qpos = sharepath.find("?");
-        std::string httpunenc = sharepath;
-        httpunenc.erase(qpos);
-        std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
+	size_t qpos = sharepath.find("?");
+	std::string httpunenc = sharepath;
+	httpunenc.erase(qpos);
+	std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
+
+	// remove /#curl#
+	httpenc.erase(0,7);
+	httppath += httpenc.c_str();
 
         httppath += httpenc.c_str();
 

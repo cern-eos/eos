@@ -97,4 +97,43 @@ void ContainerAccounting::Account(IFileMD* obj , int64_t dsize)
   }
 }
 
+//------------------------------------------------------------------------------
+// Add tree
+//------------------------------------------------------------------------------
+void ContainerAccounting::AddTree( IContainerMD* obj , int64_t dsize )
+{
+  size_t deepness = 0;
+
+  if (!obj) {
+    return;
+  }
+
+  ContainerMD::id_t iId = obj->getId();
+
+  while ( (iId > 1 ) && (deepness < 255) )
+  {
+    std::shared_ptr<IContainerMD> iCont;
+    try
+    {
+      iCont = pContainerMDSvc->getContainerMD(iId);
+    }
+    catch( MDException &e ) {}
+
+    if (!iCont)
+      return;
+
+    iCont->addTreeSize(dsize);
+    iId = iCont->getParentId();
+    deepness++;
+  }
+}
+
+//------------------------------------------------------------------------------
+//! Remove tree
+//------------------------------------------------------------------------------
+void ContainerAccounting::RemoveTree( IContainerMD* obj , int64_t dsize )
+{
+  AddTree(obj, -dsize);
+}
+
 EOSNSNAMESPACE_END

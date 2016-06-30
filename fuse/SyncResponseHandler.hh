@@ -25,7 +25,7 @@
 #ifndef FUSE_SYNCRESPONSEHANDLER_HH_
 #define FUSE_SYNCRESPONSEHANDLER_HH_
 
-#include "xrootd/XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 
 class SyncResponseHandler : public XrdCl::ResponseHandler
 {

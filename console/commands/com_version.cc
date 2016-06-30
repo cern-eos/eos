@@ -48,6 +48,10 @@ com_version (char *arg)
     {
       options += "f";
     }
+    else if (option == "-m")
+    {
+      options += "m";
+    }
     else
     {
       goto com_version_usage;
@@ -65,8 +69,9 @@ com_version (char *arg)
   return (0);
 
 com_version_usage:
-  fprintf(stdout, "usage: version [-f]                                                  :  print EOS version number\n");
+  fprintf(stdout, "usage: version [-f] [-m]                                             :  print EOS version number\n");
   fprintf(stdout, "                -f                                                   -  print the list of supported features\n");
+  fprintf(stdout, "                -m                                                   -  print in monitoring format\n");
   return (0);
 }
 

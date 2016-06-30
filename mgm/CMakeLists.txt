@@ -27,6 +27,7 @@ include_directories(
   ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${Z_INCLUDE_DIRS}
   ${ZMQ_INCLUDE_DIRS}
+  ${JSONCPP_INCLUDE_DIR}
   ${LDAP_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
   ${NCURSES_INCLUDE_DIRS}
@@ -159,7 +160,8 @@ target_link_libraries(
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${JSONCPP_LIBRARIES})
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
@@ -189,7 +191,8 @@ target_link_libraries(
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
-  ${CMAKE_THREAD_LIBS_INIT})
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${JSONCPP_LIBRARIES})
 
 target_link_libraries(
   testschedulingtree

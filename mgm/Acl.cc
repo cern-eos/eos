@@ -393,13 +393,13 @@ Acl::IsValid (const std::string value,
   int regexErrorCode;
   int result;
   regex_t regex;
-  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|"
+  std::string regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-_]+)))|"
           "(egroup:([\\.[:alnum:]-]+))):"
           "(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
 
   if (sysacl)
   {
-    regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-]+)))|"
+    regexString = "^(((((u|g):(([0-9]+)|([\\.[:alnum:]-_]+)))|"
             "(egroup:([\\.[:alnum:]-]+))|"
             "(z)):(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c)+)[,]?)*$";
   }

@@ -201,6 +201,11 @@ namespace eos
       virtual std::string getUri( const IFileMD *file ) const;
 
       //------------------------------------------------------------------------
+      //! Get real path translating existing symlink
+      //------------------------------------------------------------------------
+      virtual std::string getRealPath( const std::string &path );
+
+      //------------------------------------------------------------------------
       //! Get quota node id concerning given container
       //------------------------------------------------------------------------
       virtual IQuotaNode *getQuotaNode( const IContainerMD *container,

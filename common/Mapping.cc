@@ -1331,10 +1331,30 @@ Mapping::UidToUserName (uid_t uid, int &errc)
 
   if (pwbufp == NULL)
   {
-    char suid[1024];
-    snprintf(suid, sizeof (suid) - 1, "%u", uid);
-    uid_string = suid;
-    errc = EINVAL;
+    char buffer[131072];
+    int buflen = sizeof (buffer);
+    std::string uid_string = "";
+    struct passwd pwbuf;
+    struct passwd *pwbufp = 0;
+    {
+      if (getpwuid_r(uid, &pwbuf, buffer, buflen, &pwbufp) || (!pwbufp))
+      {
+        char suid[1024];
+        snprintf(suid, sizeof (suid) - 1, "%u", uid);
+        uid_string = suid;
+        errc = EINVAL;
+	return uid_string; // don't cache this one
+      }
+      else
+      {
+        uid_string = pwbuf.pw_name;
+        errc = 0;
+      }
+    }
+    XrdSysMutexHelper cMutex(gPhysicalNameCacheMutex);
+    gPhysicalUserNameCache[uid] = uid_string;
+    gPhysicalUserIdCache[uid_string] = uid;
+    return uid_string;
   }
   else
   {
@@ -1385,6 +1405,7 @@ Mapping::GidToGroupName (gid_t gid, int &errc)
       snprintf(sgid, sizeof (sgid) - 1, "%u", gid);
       gid_string = sgid;
       errc = EINVAL;
+      return gid_string; // don't cache this one
     }
     else
     {

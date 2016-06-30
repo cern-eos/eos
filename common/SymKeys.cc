@@ -304,6 +304,52 @@ SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
   return false;
 }
 
+bool
+SymKey::Base64 (XrdOucString &in, XrdOucString &out)
+{
+  if (in.beginswith("base64:"))
+  {
+    out = in;
+    return false;
+  }
+  bool done = Base64Encode((char*) in.c_str(), in.length() + 1, out);
+  if (done)
+  {
+    out.insert("base64:", 0);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool
+SymKey::DeBase64 (XrdOucString &in, XrdOucString &out)
+{
+  if (!in.beginswith("base64:"))
+  {
+    out = in;
+    return true;
+  }
+
+  XrdOucString in64 = in;
+
+  in64.erase(0, 7);
+
+  char* valout = 0;
+  unsigned int valout_len = 0;
+
+  eos::common::SymKey::Base64Decode(in64, valout, valout_len);
+  if (valout)
+  {
+    out.assign(valout, 0, valout_len - 1);
+    free(valout);
+    return true;
+  }
+  return false;
+}
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------

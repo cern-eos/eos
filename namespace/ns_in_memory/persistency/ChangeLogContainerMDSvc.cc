@@ -28,6 +28,7 @@
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/ContainerMD.hh"
+#include "namespace/ns_in_memory/accounting/ContainerAccounting.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include <set>
@@ -46,6 +47,7 @@ namespace eos
       {
 	pFileSvc = pContSvc->pFileSvc;
 	pQuotaStats = pContSvc->pQuotaStats;
+	pContainerAccounting = pContSvc->pContainerAccounting;
       }
 
       //------------------------------------------------------------------------
@@ -315,6 +317,15 @@ namespace eos
 		// -------------------------------------------------------------
 		dirTree.clear();
 	      }
+
+	      if (pContainerAccounting)
+	      {
+		// move subtree accouting from source to destination
+		((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr.get(),
+								      currentCont->getTreeSize());
+		((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr.get(), 
+									 currentCont->getTreeSize());
+	      }
 	    }
 	  }
 	}
@@ -366,7 +377,8 @@ namespace eos
       std::set<eos::IContainerMD::id_t> pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
       eos::IFileMDSvc*                  pFileSvc;
-      IQuotaStats                      *pQuotaStats;
+      IQuotaStats*                      pQuotaStats;
+      IFileMDChangeListener*            pContainerAccounting;
   };
 }
 

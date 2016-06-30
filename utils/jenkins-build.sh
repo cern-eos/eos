@@ -56,7 +56,7 @@ function getLocalBranchAndDistTag()
   fi
 
   local BRANCH_OR_TAG=${1}
-  local PLATORM=${2}
+  local PLATFORM=${2}
   local TAG_REGEX="^[034]+\..*$"
   local TAG_REGEX_AQUAMARINE="^0.3.*$"
   local TAG_REGEX_EMERALD="^3.*$"
@@ -162,6 +162,8 @@ if [[ ${BRANCH} == 'emerald' ]]; then
     echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
     echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
 fi
+# Add eos dependencies repos
+echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
 echo -e '"""' >> eos.cfg
 
 ## Build the RPMs (with yum repo rpms)

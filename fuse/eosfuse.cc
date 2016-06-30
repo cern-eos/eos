@@ -378,7 +378,8 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
  if (!name || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   eos_static_err("name=%s checkpathname=%d", name, checkpathname(name));
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -395,6 +396,10 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
  if (!retc)
  {
+#ifdef __APPLE__
+   me.fs (). DecodeOsxBundle(stbuf);
+#endif 
+
    fuse_reply_attr (req, &stbuf, me.config.attrcachetime);
  }
  else
@@ -430,7 +435,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  // the root is inode 1
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -441,8 +446,13 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
 
  if (to_set & FUSE_SET_ATTR_MODE)
  {
+   struct stat newattr;
+   newattr.st_mode = attr->st_mode;
+#ifdef __APPLE__
+     me.fs (). EncodeOsxBundle(newattr);
+#endif
    eos_static_debug ("set attr mode ino=%lld", (long long) ino);
-   retc = me.fs ().chmod (fullpath.c_str (), attr->st_mode, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
+   retc = me.fs ().chmod (fullpath.c_str (), newattr.st_mode, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
  }
 
  if ((to_set & FUSE_SET_ATTR_UID) && (to_set & FUSE_SET_ATTR_GID))
@@ -463,8 +473,8 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
    tvp[1].tv_sec = attr->MTIMESPEC.tv_sec;
    tvp[1].tv_nsec = attr->MTIMESPEC.tv_nsec;
 
-   eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld",
-                     (long long) ino, (long) attr->st_atime, (long) attr->st_mtime);
+   eos_static_debug ("set attr time ino=%lld atime=%ld mtime=%ld mtime.nsec=%ld",
+                     (long long) ino, (long) attr->ATIMESPEC.tv_sec, (long) attr->MTIMESPEC.tv_sec, (long) attr->MTIMESPEC.tv_nsec);
 
    if ( (retc = me.fs ().utimes_if_open (ino,
                                          tvp,
@@ -487,8 +497,24 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  if (!retc)
  {
    retc = me.fs ().stat (fullpath.c_str (), &newattr, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid, 0/*ino*/);
+   if ((to_set & FUSE_SET_ATTR_ATIME) && (to_set & FUSE_SET_ATTR_MTIME))
+   {
+     // return what was set by the client
+     newattr.ATIMESPEC.tv_sec = attr->ATIMESPEC.tv_sec;
+     newattr.ATIMESPEC.tv_nsec = attr->ATIMESPEC.tv_nsec;
+     newattr.MTIMESPEC.tv_sec = attr->MTIMESPEC.tv_sec;
+     newattr.MTIMESPEC.tv_nsec = attr->MTIMESPEC.tv_nsec;
+     newattr.st_ino = ino;
+     eos_static_debug("set attr ino=%lld atime=%ld atime.nsec=%ld mtime=%ld mtime.nsec=%ld",
+		      (long long) ino, (long) newattr.ATIMESPEC.tv_sec, (long) newattr.ATIMESPEC.tv_nsec, (long) newattr.MTIMESPEC.tv_sec, (long) newattr.MTIMESPEC.tv_nsec);
+   }
    if (!retc)
+   {
+#ifdef __APPLE__
+     me.fs (). DecodeOsxBundle(newattr);
+#endif
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
+   }
    else
      fuse_reply_err (req, errno);
  }
@@ -526,7 +552,8 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (!parentpath || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   eos_static_err("pathname=%s checkpathname=%d", parentpath, checkpathname(name));
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -582,6 +609,11 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
      e.ino = e.attr.st_ino;
      me.fs ().store_p2i (e.attr.st_ino, ifullpath);
+
+#ifdef __APPLE__
+   me.fs ().DecodeOsxBundle(e.attr);
+#endif 
+
      fuse_reply_entry (req, &e);
 
      // Add entry to cached dir
@@ -636,7 +668,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    return;
  }
 
@@ -710,29 +742,29 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
 
      unsigned long long in;
 
-      while ((in = me.fs ().dirview_entry (ino, cnt, 0)))
-      {
-        std::string bname = me.fs ().base_name (in);
-        if (cnt == 0)
-        {
-          // this is the '.' directory
-          bname = ".";
-        }
-        else if (cnt == 1)
-        {
-          // this is the '..' directory
-          bname = "..";
-        }
-        if (bname.length ())
-        {
-          struct stat *buf = NULL;
-          if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
-          dirbuf_add (req, b, bname.c_str (), (fuse_ino_t) in, buf);
-        }
-        else
+     while ((in = me.fs ().dirview_entry (ino, cnt, 0)))
+     {
+       std::string bname = me.fs ().base_name (in);
+       if (cnt == 0)
+       {
+	 // this is the '.' directory
+	 bname = ".";
+       }
+       else if (cnt == 1)
+       {
+	 // this is the '..' directory
+	 bname = "..";
+       }
+       if (bname.length ())
+       {
+	 struct stat *buf = NULL;
+	 if (entriesstats && entriesstats[cnt].attr.st_ino > 0) buf = &entriesstats[cnt].attr;
+	 dirbuf_add (req, b, bname.c_str (), (fuse_ino_t) in, buf);
+       }
+       else
           eos_static_err("failed for inode=%llu", in);
-        cnt++;
-      }
+       cnt++;
+     }
 
      //........................................................................
      // Add directory to cache or update it
@@ -769,6 +801,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      b->p = (char*) calloc (b->size, sizeof ( char));
      b->p = (char*) memcpy (b->p, tmp_buf->p, b->size);
      me.fs ().unlock_r_dirview (); // <=
+     free(tmp_buf->p);
      free (tmp_buf);
    }
  }
@@ -889,7 +922,7 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
 
  if (!tmp || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -909,6 +942,15 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
  memset (&e, 0, sizeof ( e));
  e.attr_timeout = me.config.attrcachetime;
  e.entry_timeout = me.config.entrycachetime;
+
+#ifdef __APPLE__
+ {
+   struct stat attr;
+   attr.st_mode = mode;
+   me.fs (). EncodeOsxBundle(attr);
+   mode = attr.st_mode;
+ }
+#endif
 
  int retc = me.fs ().mkdir (fullpath.c_str (),
                             mode,
@@ -958,6 +1000,9 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
        me.fs ().dir_cache_forget (ino_gparent);
      }
 
+#ifdef __APPLE__
+   me.fs ().DecodeOsxBundle(e.attr);
+#endif 
      fuse_reply_entry (req, &e);
    }
  }
@@ -1003,7 +1048,7 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (!parentpath || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1077,7 +1122,7 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
 
  if (!parentpath || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1160,7 +1205,7 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
 
  if (!parentpath || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1169,7 +1214,7 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
 
  if (!newparentpath || !checkpathname(newname) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1259,7 +1304,7 @@ EosFuse::access (fuse_req_t req, fuse_ino_t ino, int mask)
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1328,7 +1373,7 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1399,7 +1444,7 @@ EosFuse::mknod (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
 
-  if (!(mode & S_IFREG))
+ if (!S_ISREG(mode))
  {
    // we only imnplement files
    fuse_reply_err (req, ENOSYS);
@@ -1442,11 +1487,14 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
    UPDATEPROCCACHE;
 
    me.fs ().lock_r_p2i (); // =>
+
+
+
    parentpath = me.fs ().path ((unsigned long long) parent);
 
    if (!parentpath || !checkpathname(parentpath) || !checkpathname(name))
    {
-     fuse_reply_err (req, ENXIO);
+     fuse_reply_err (req, ENOENT);
      me.fs ().unlock_r_p2i (); // <=
      return;
    }
@@ -1458,6 +1506,18 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
      sprintf (ifullpath, "/%s", name);
    else
      sprintf (ifullpath, "%s/%s", parentpath, name);
+
+#ifdef __APPLE__
+   // OSX calls several creates and we have to do the EEXIST check here
+   eos_static_info("apple check");
+   if (me.fs().inode(ifullpath))
+   {
+   eos_static_info("apple check - EEXIST");
+     fuse_reply_err (req, EEXIST);
+     me.fs ().unlock_r_p2i (); // <=
+     return;
+   }
+#endif
 
    me.fs ().unlock_r_p2i (); // <=
 
@@ -1832,7 +1892,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1848,7 +1908,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
                            fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
  if (retc)
-   fuse_reply_err (req, ENOATTR);
+   fuse_reply_err (req, ENODATA);
  else
  {
    if (init_size)
@@ -1884,7 +1944,6 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  eos_static_debug ("");
 
  XrdOucString xa = xattr_name;
- XrdOucString xv = xattr_value;
 
  // exclude security attributes                                                                                                                                                                                                                              
  if (xa.beginswith("security."))
@@ -1899,18 +1958,21 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
    return;
  }
 
- if (!xv.length())
+#ifdef __APPLE__
+ if (xa.beginswith("com.apple"))
  {
-   // TODO this is a workaround to get the APPLE finder working which wants to set empty values - needs a server side fix
-   xv ="\"\"";
+   fuse_reply_err (req, 0);
+   return;
  }
+#endif
+
  EosFuse& me = instance ();
 
  // re-resolve the inode
  ino = me.fs().redirect_i2i(ino);
 
  // concurrency monitor
- filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+ filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
 
  int retc = 0;
  std::string fullpath;
@@ -1923,7 +1985,7 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1935,7 +1997,7 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  eos_static_debug ("inode=%lld path=%s",
                    (long long) ino, fullpath.c_str ());
 
- retc = me.fs ().setxattr (fullpath.c_str (), xattr_name, xv.c_str(), size,
+ retc = me.fs ().setxattr (fullpath.c_str (), xattr_name, xattr_value, size,
                            fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
  eos_static_debug ("setxattr_retc=%i", retc);
  fuse_reply_err (req, retc);
@@ -1953,9 +2015,6 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
  COMMONTIMING ("_start_", &timing);
  eos_static_debug ("");
 
- static XrdSysMutex lListCacheMutex;
- static std::map<fuse_ino_t, std::pair<size_t, char*>> lListCache;
-
  EosFuse& me = instance ();
 
  // re-resolve the inode
@@ -1971,40 +2030,12 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 
  UPDATEPROCCACHE;
 
- char* xattr_list = NULL;
-
- if (init_size)
- {
-   XrdSysMutexHelper cLock(lListCacheMutex);
-   if (lListCache.count(ino))
-   {
-     size = lListCache[ino].first;
-     xattr_list = lListCache[ino].second;
-     lListCache.erase(ino);
-   
-     if (init_size < size)
-       fuse_reply_err (req, ERANGE);
-     else
-       fuse_reply_buf (req, xattr_list, size );
-     
-     if (xattr_list)
-     {
-       free (xattr_list);
-       eos_static_debug("free=%x", xattr_list);
-     }
-
-     return;
-   }
- }
-
-
-
  me.fs ().lock_r_p2i (); // =>
  name = me.fs ().path ((unsigned long long) ino);
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2016,34 +2047,27 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
  eos_static_debug ("inode=%lld path=%s",
                    (long long) ino, fullpath.c_str ());
 
+ char* xattr_list = NULL;
  retc = me.fs ().listxattr (fullpath.c_str (), &xattr_list, &size, fuse_req_ctx (req)->uid,
                             fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
- eos_static_debug("retc=%d init-size=%d size=%d", retc, init_size, size);
  if (retc)
    fuse_reply_err (req, retc);
  else
  {
-   eos_static_debug("alloc=%x", xattr_list);
-   XrdSysMutexHelper cLock(lListCacheMutex);
    if (init_size)
    {
      if (init_size < size)
        fuse_reply_err (req, ERANGE);
      else
-       fuse_reply_buf (req, xattr_list, size);
-
-     if (xattr_list) {
-       free (xattr_list);
-       eos_static_debug("free=%x", xattr_list);
-     }
+       fuse_reply_buf (req, xattr_list, size );
    }
-   else 
-   {
-     lListCache[ino] = std::make_pair(size,xattr_list);
+   else
      fuse_reply_xattr (req, size);
-   }
  }
+
+ if (xattr_list)
+   free (xattr_list);
 
  COMMONTIMING ("_stop_", &timing);
 
@@ -2092,7 +2116,7 @@ EosFuse::removexattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
 
  if (!name || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2141,7 +2165,7 @@ EosFuse::readlink (fuse_req_t req, fuse_ino_t ino)
 
  if (!name || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2198,7 +2222,7 @@ EosFuse::symlink (fuse_req_t req, const char *link, fuse_ino_t parent, const cha
 
  if (!parentpath || !checkpathname(parentpath) || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }

@@ -836,7 +836,7 @@ class Transfer(object):
 
 
     def prepare2get(self, err_entry=None, found_checkpoint=False):
-        """This method is only executed for GET operations and it's purpose is
+        """This method is only executed for GET operations and its purpose is
         to issue the Prepapre2Get commands for the files in the archive which
         will later on be copied back to EOS.
 

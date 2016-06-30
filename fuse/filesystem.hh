@@ -814,6 +814,31 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  int is_toplevel_rm (pid_t pid, const char* local_dir);
 
+
+#ifdef __APPLE__
+ //----------------------------------------------------------------------------
+ //! mode transformation functions to support OSX bundles
+ //----------------------------------------------------------------------------
+
+ void EncodeOsxBundle(struct stat &attr) 
+  {
+   if (attr.st_mode & S_IFBLK)
+   {
+     attr.st_mode |= 0x10000000;
+     attr.st_mode &= (~S_IFBLK);
+   }
+ }
+
+ void DecodeOsxBundle(struct stat &attr)
+ {
+   if (attr.st_mode & 0x10000000)
+   {
+     attr.st_mode |= S_IFBLK;
+     attr.st_mode &= (~0x10000000);
+   }
+ }
+#endif
+
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------
@@ -968,7 +993,7 @@ private:
  int file_write_back_cache_size; ///< max temporary write-back cache per file size in bytes
  bool encode_pathname; ///< indicated if filename should be encoded
  bool hide_special_files; ///< indicate if we show atomic entries, version, backup files etc.
-
+ bool show_eos_attributes; ///< show all sys.* and emulated user.eos attributes when listing xattributes
  mode_t mode_overlay; ///< mask which is or'ed into the retrieved mode
 
  XrdOucString gMgmHost; ///< host name of the FUSE contact point

@@ -515,6 +515,26 @@ runtest "### fio-1M-rd32" unix 0 "" shell "fio --rw=randwrite --name=1m-4k-32-rd
 runtest "### Rm-rf     " unix 0 "" shell "rm -rf /eos/$EOS_TEST_INSTANCE/fusetest/workspace/fio"
 runtest "### Stat      " unix 1 "" shell "stat /eos/$EOS_TEST_INSTANCE?fusetest/workspace/fio"
 
+# --------------------------------------------------------------------------------------------------------------
+categorie="xattr"
+# --------------------------------------------------------------------------------------------------------------
+runtest "### Mkdir     " unix 0 "" shell "mkdir -p /var/tmp/fuse-test-in/xattr"
+runtest "### Mkdir     " unix 0 "" shell "mkdir -p /var/tmp/fuse-test-out/"
+runtest "### Cp        " unix 0 "" shell "cp /etc/passwd /var/tmp/fuse-test-in/xattr/"
+runtest "### Set-Xattr " unix 0 "" shell "setfattr -n user.dirfoo -v bar /var/tmp/fuse-test-in/xattr"
+runtest "### Set-Xattr " unix 0 "" shell "setfattr -n user.filefoo -v bar /var/tmp/fuse-test-in/xattr/passwd"
+runtest "### Mkdir     " unix 0 "" shell "mkdir -p /eos/$EOS_TEST_INSTANCE/fusetest/workspace/xattr/"
+runtest "### Cp-a-fw   " unix 0 "" shell "cp -a /var/tmp/fuse-test-in/xattr /eos/$EOS_TEST_INSTANCE/fusetest/workspace/xattr/"
+runtest "### Cp-a-bw   " unix 0 "" shell "cp -a /eos/$EOS_TEST_INSTANCE/fusetest/workspace/xattr/xattr /var/tmp/fuse-test-out/"
+runtest "### Get-Xattr " unix 0 "" shell "getfattr -n user.dirfoo /eos/$EOS_TEST_INSTANCE/fusetest/workspace/xattr/xattr" 
+runtest "### Get-Xattr " unix 0 "" shell "getfattr -n user.filefoo /eos/$EOS_TEST_INSTANCE/fusetest/workspace/xattr/xattr/passwd"
+runtest "### Get-Xattr " unix 0 "" shell "getfattr -n user.dirfoo /var/tmp/fuse-test-in/xattr" 
+runtest "### Get-Xattr " unix 0 "" shell "getfattr -n user.filefoo /var/tmp/fuse-test-in/xattr/passwd" 
+runtest "### Get-Xattr " unix 0 "" shell "getfattr -n user.dirfoo /var/tmp/fuse-test-out/xattr" 
+runtest "### Get-Xattr " unix 0 "" shell "getfattr -n user.filefoo /var/tmp/fuse-test-out/xattr/passwd" 
+runtest "### Rm-rf     " unix 0 "" shell "rm -rf /eos/$EOS_TEST_INSTANCE/fusetest/workspace/xattr/"
+runtest "### Rm-rf     " unix 0 "" shell "rm -rf /var/tmp/fuse-test/in/"
+runtest "### Rm-rf     " unix 0 "" shell "rm -rf /var/tmp/fuse-test/out/"
 
 ################################################################################################################
 # FINAL CLEANUP 

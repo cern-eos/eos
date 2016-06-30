@@ -73,6 +73,16 @@ class ContainerAccounting : public IFileMDChangeListener
   //----------------------------------------------------------------------------
   virtual bool fileMDCheck(IFileMD* file) { return true; }
 
+  //----------------------------------------------------------------------------
+  //! Add tree - TODO(esindril): review this
+  //----------------------------------------------------------------------------
+  void AddTree( IContainerMD* obj , int64_t dsize );
+
+  //----------------------------------------------------------------------------
+  //! Remove tree - TODO(esindril): review this
+  //----------------------------------------------------------------------------
+  void RemoveTree( IContainerMD* obj , int64_t dsize );
+
  private:
 
   IContainerMDSvc* pContainerMDSvc; ///< container MD service
@@ -84,7 +94,6 @@ class ContainerAccounting : public IFileMDChangeListener
   //! @param dsize size change
   //----------------------------------------------------------------------------
   void Account(IFileMD* obj , int64_t dsize);
-
 };
 
 EOSNSNAMESPACE_END

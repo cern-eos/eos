@@ -740,15 +740,68 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
   }
   if (details)
   {
-    if (!monitoring)
-    {
-      out += "# -----------------------------------------------------------------------------------------------------------\n";
-    }
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg > >::iterator tuit;
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg > >::iterator tgit;
     google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt > >::iterator tuit_ext;
     google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt > >::iterator tgit_ext;
 
+    Mutex.UnLock();
+
+    // -----------------------------------------------------------------------------------------------------------
+    // don't translate names with a mutex lock
+    // -----------------------------------------------------------------------------------------------------------
+    std::map<uid_t, std::string> umap;
+    std::map<gid_t, std::string> gmap;
+
+    for (tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++)
+    {
+      google::sparse_hash_map<uid_t, StatAvg>::iterator it;
+      for (it = tuit->second.begin(); it != tuit->second.end(); ++it)
+      {
+	int terrc = 0;
+	std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
+	umap[it->first] = username;
+      }
+    }
+
+    for (tuit_ext = StatExtUid.begin(); tuit_ext != StatExtUid.end(); tuit_ext++)
+    {
+      google::sparse_hash_map<uid_t, StatExt>::iterator it;
+      for (it = tuit_ext->second.begin(); it != tuit_ext->second.end(); ++it)
+      {
+	int terrc = 0;
+	std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
+	umap[it->first] = username;
+      }
+    }
+
+    for (tgit = StatAvgGid.begin(); tgit != StatAvgGid.end(); tgit++)
+    {
+      google::sparse_hash_map<gid_t, StatAvg>::iterator it;
+      for (it = tgit->second.begin(); it != tgit->second.end(); ++it)
+      {
+	int terrc = 0;
+	std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+	gmap[it->first] = groupname;
+      }
+    }
+
+    for (tgit_ext = StatExtGid.begin(); tgit_ext != StatExtGid.end(); tgit_ext++)
+    {
+      google::sparse_hash_map<gid_t, StatExt>::iterator it;
+      for (it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it)
+      {
+	int terrc = 0;
+	std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+	gmap[it->first] = groupname;
+      }
+    }
+
+    Mutex.Lock();
+    if (!monitoring)
+    {
+      out += "# -----------------------------------------------------------------------------------------------------------\n";
+    }
     std::vector <std::string> uidout;
     std::vector <std::string> gidout;
 
@@ -774,8 +827,7 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
         }
         else
         {
-          int terrc = 0;
-          std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
+          std::string username = umap.count(it->first)?umap[it->first]:eos::common::StringConversion::GetSizeString(username,(unsigned long long)it->first);
           if (monitoring)
             snprintf(identifier, 1023, "uid=%s", username.c_str());
           else
@@ -876,8 +928,7 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
         }
         else
         {
-          int terrc = 0;
-          std::string username = eos::common::Mapping::UidToUserName(it->first, terrc);
+          std::string username = umap.count(it->first)?umap[it->first]:eos::common::StringConversion::GetSizeString(username,(unsigned long long)it->first);
           if (monitoring)
             snprintf(identifier, 1023, "uid=%s", username.c_str());
           else
@@ -938,8 +989,7 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
         }
         else
         {
-          int terrc = 0;
-          std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+	  std::string groupname = gmap.count(it->first)?gmap[it->first]:eos::common::StringConversion::GetSizeString(groupname,(unsigned long long)it->first);
           if (monitoring)
             snprintf(identifier, 1023, "gid=%s", groupname.c_str());
           else
@@ -1038,8 +1088,7 @@ Stat::PrintOutTotal (XrdOucString &out, bool details, bool monitoring, bool nume
         }
         else
         {
-          int terrc = 0;
-          std::string groupname = eos::common::Mapping::GidToGroupName(it->first, terrc);
+          std::string groupname = gmap.count(it->first)?gmap[it->first]:eos::common::StringConversion::GetSizeString(groupname,(unsigned long long)it->first);
           if (monitoring)
             snprintf(identifier, 1023, "gid=%s", groupname.c_str());
           else

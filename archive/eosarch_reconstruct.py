@@ -78,11 +78,13 @@ class ArchReconstruct(object):
                         gid (string): GID of archive owner in numeric format
                         svc_class (string): Service class used for retrieving the
                             archived data
+                        skip_no_xs (bool): Skip files that don't have a checksum
         """
         self.src_url = surl
         self.dst_url = durl
         self.uid, self.gid = args.uid, args.gid
         self.svc_class = args.svc_class
+        self.skip_no_xs = args.skip_no_xs
         self.ffiles = tempfile.TemporaryFile(mode='w+')
         self.fdirs = tempfile.TemporaryFile(mode='w+')
         self.farchive = tempfile.NamedTemporaryFile(mode='w+', delete=False)
@@ -159,15 +161,19 @@ class ArchReconstruct(object):
                     print(dir_format.format(rel_path, self.uid, self.gid, dir_mode,
                                             replica_attr), file=self.fdirs)
                 else:
-                    num_files += 1
                     full_path = ''.join([path, elem.name])
                     rel_path = full_path.replace(root_path, "")
                     st, xs_resp = fs.query(QueryCode.CHECKSUM, full_path)
 
                     if not st.ok:
+                        # If requested then skip the files that don't have a checksum
+                        if self.skip_no_xs:
+                            continue
+
                         msg = "File={0} failed xs query".format(full_path)
                         raise TapeAccessException(msg)
 
+                    num_files += 1
                     # Result has an annoying \x00 character at the end and it
                     # contains the xs type (adler32) and the xs value
                     resp = xs_resp.strip('\x00\0\n ').split()
@@ -313,6 +319,8 @@ def main():
                         help="Service class used for getting the files from tape")
     parser.add_argument("-u", "--uid", default="0", help="User UID (numeric)")
     parser.add_argument("-g", "--gid", default="0", help="User GID (numeric)")
+    parser.add_argument("-x", "--skip_no_xs", default=False, action="store_true",
+                        help="Skip files that don't have a checksum")
     args = parser.parse_args()
 
     try:

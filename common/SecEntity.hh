@@ -53,7 +53,7 @@ public:
   static std::string ToKey(const XrdSecEntity* entity, const char* app) {
     std::string s="";
     if (entity) {
-      s+= (entity->prot)?entity->prot:"";
+      s+= entity->prot;
       s+= "|";
       s+= (entity->name)?entity->name:"";
       s+= "|";
@@ -82,7 +82,7 @@ public:
   static std::string ToString(const XrdSecEntity* entity, const char* app) {
     std::string s="sec.prot=";
     if (entity) {
-      s+= (entity->prot)?entity->prot:"";
+      s+= entity->prot;
       s+= " sec.name=\"";
       s+= (entity->name)?entity->name:"";
       s+= "\" sec.host=\"";

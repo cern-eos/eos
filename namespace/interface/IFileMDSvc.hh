@@ -61,26 +61,26 @@ class IFileMDChangeListener
   struct Event
   {
     Event(IFileMD* _file, Action _action,
-          IFileMD::location_t _location = 0,
-          IFileMD::location_t _oldLocation = 0,
-          int64_t _changed_size = 0):
-        file(_file),
-        fileId(0),
-        action(_action),
-        location(_location),
-        oldLocation(_oldLocation),
-        sizeChange(_changed_size) {}
+	  IFileMD::location_t _location = 0,
+	  IFileMD::location_t _oldLocation = 0,
+	  int64_t _changed_size = 0):
+	file(_file),
+	fileId(0),
+	action(_action),
+	location(_location),
+	oldLocation(_oldLocation),
+	sizeChange(_changed_size) {}
 
     Event(IFileMD::id_t _fileId, Action _action,
-          IFileMD::location_t _location = 0,
-          IFileMD::location_t _oldLocation = 0,
-          int64_t _changed_size = 0):
-        file(0),
-        fileId(_fileId),
-        action(_action),
-        location(_location),
-        oldLocation(_oldLocation),
-        sizeChange(_changed_size) {}
+	  IFileMD::location_t _location = 0,
+	  IFileMD::location_t _oldLocation = 0,
+	  int64_t _changed_size = 0):
+	file(0),
+	fileId(_fileId),
+	action(_action),
+	location(_location),
+	oldLocation(_oldLocation),
+	sizeChange(_changed_size) {}
 
 
     IFileMD*             file;
@@ -95,6 +95,8 @@ class IFileMDChangeListener
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
   virtual bool fileMDCheck(IFileMD* obj) = 0;
+  virtual void AddTree(IContainerMD* obj , int64_t dsize) = 0;
+  virtual void RemoveTree(IContainerMD* obj , int64_t dsize) = 0;
 };
 
 //----------------------------------------------------------------------------

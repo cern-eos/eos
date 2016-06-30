@@ -110,7 +110,7 @@ public:
   //! Create container in parent
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-                                               IContainerMD* parent);
+					       IContainerMD* parent);
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -138,6 +138,14 @@ public:
   setQuotaStats(IQuotaStats* quotaStats)
   {
     pQuotaStats = quotaStats;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set container accounting
+  //----------------------------------------------------------------------------
+  void setContainerAccounting(IFileMDChangeListener* containerAccounting)
+  {
+    // TODO(esindril): add implementation
   }
 
 private:

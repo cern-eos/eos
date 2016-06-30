@@ -29,6 +29,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IChLogContainerMDSvc.hh"
+#include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFile.hh"
 #include "namespace/ns_in_memory/accounting/QuotaStats.hh"
 
@@ -60,9 +61,9 @@ public:
   //! Constructor
   //--------------------------------------------------------------------------
   ChangeLogContainerMDSvc(): pFirstFreeId(0), pSlaveLock(0),
-                             pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
-                             pFollowStart( 0 ), pQuotaStats( 0 ), pFileSvc(NULL),
-			     pAutoRepair( 0 ), pResSize( 1000000 )
+			     pSlaveMode(false), pSlaveStarted(false), pSlavePoll(1000),
+			     pFollowStart( 0 ), pQuotaStats( 0 ), pFileSvc(NULL),
+			     pAutoRepair( 0 ), pResSize( 1000000 ), pContainerAccounting(0)
   {
     pIdMap.set_deleted_key(0);
     pIdMap.set_empty_key( std::numeric_limits<IContainerMD::id_t>::max() );
@@ -280,7 +281,7 @@ public:
   //------------------------------------------------------------------------
   //! Get id map reservation size
   //------------------------------------------------------------------------
-  uint64_t getResSize() const 
+  uint64_t getResSize() const
   {
     return pResSize;
   }
@@ -297,6 +298,14 @@ public:
   //--------------------------------------------------------------------------
   void clearWarningMessages();
 
+  //------------------------------------------------------------------------
+  //! Set container accounting
+  //------------------------------------------------------------------------
+  void setContainerAccounting ( IFileMDChangeListener* containerAccounting )
+  {
+    pContainerAccounting = containerAccounting;
+  }
+
  private:
   //--------------------------------------------------------------------------
   // Placeholder for the record info
@@ -304,7 +313,7 @@ public:
   struct DataInfo
   {
     DataInfo(): logOffset(0),
-                ptr((IContainerMD*)0) {}
+		ptr((IContainerMD*)0) {}
     DataInfo(uint64_t logOffset, std::shared_ptr<IContainerMD> ptr)
     {
       this->logOffset = logOffset;
@@ -325,10 +334,10 @@ public:
   {
    public:
     ContainerMDScanner(IdMap& idMap, bool slaveMode):
-        pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
+	pIdMap(idMap), pLargestId(0), pSlaveMode(slaveMode)
     {}
     virtual bool processRecord(uint64_t offset, char type,
-                               const Buffer& buffer);
+			       const Buffer& buffer);
     IContainerMD::id_t getLargestId() const
     {
       return pLargestId;
@@ -375,6 +384,7 @@ public:
   IFileMDSvc*        pFileSvc;
   bool               pAutoRepair;
   uint64_t           pResSize;
+  IFileMDChangeListener* pContainerAccounting;
 };
 
 EOSNSNAMESPACE_END
