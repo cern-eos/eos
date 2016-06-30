@@ -151,6 +151,15 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    # Configure FUSE read-ahead window (default 128k)
    # export EOS_FUSE_RDAHEAD_WINDOW=131072
 
+   # Show hidden files from atomic/versioning and backup entries (default off)
+   # export EOS_FUSE_SHOW_SPECIAL_FILES=0
+
+   # Show extended attributes related to EOS itself - this are sys.* and emulated user.eos.* attributes for files (default off)
+   # export EOS_FUSE_SHOW_EOS_ATTRIBUTES=0
+
+   # Add(OR) an additional mode mask to the mode shown (default off)
+   # export EOS_FUSE_MODE_OVERLAY=000     (use 007 to show things are rwx for w)
+
    # Enable lazy open on read-only files (default off)
    # export EOS_FUSE_LAZYOPENRO=1
 
