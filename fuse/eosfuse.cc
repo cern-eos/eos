@@ -1945,6 +1945,14 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
    return;
  }
 
+#ifdef __APPLE__
+ if (xa.beginswith("com.apple"))
+ {
+   fuse_reply_err (req, 0);
+   return;
+ }
+#endif
+
  EosFuse& me = instance ();
 
  // re-resolve the inode
