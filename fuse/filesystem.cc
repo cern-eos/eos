@@ -1311,7 +1311,20 @@ filesystem::setxattr (const char* path,
 
  request += "&";
  request += "mgm.xattrvalue=";
- request += std::string (xattr_value, size);
+
+ XrdOucString key(xattr_name);
+ XrdOucString value;
+
+ if (key.beginswith("com.apple"))
+ {
+   XrdOucString b64value;
+   eos::common::SymKey::Base64Encode ((char*)xattr_value, size, b64value);
+   value = "base64:";
+   value += b64value;
+ }
+
+ request += value.c_str();
+
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -1434,9 +1447,22 @@ filesystem::getxattr (const char* path,
        }
      }
 
-     *size = strlen (rval);
-     *xattr_value = (char*) calloc ((*size) + 1, sizeof ( char));
-     *xattr_value = strncpy (*xattr_value, rval, *size);
+     XrdOucString value64 = rval;
+     if (value64.beginswith("base64:"))
+     {
+       value64.erase(0,7);
+       unsigned int ret_size;
+       eos::common::SymKey::Base64Decode(value64, *xattr_value, ret_size);
+       *size = ret_size;
+       eos_static_info("xattr-name=%s xattr-value=%s", xattr_name, *xattr_value);
+     }
+     else
+     {
+       eos_static_info("xattr-name=%s xattr-value=%s", xattr_name, value64.c_str());
+       *size = value64.length();
+       *xattr_value = (char*) calloc ((*size) + 1, sizeof ( char));
+       *xattr_value = strncpy (*xattr_value, value64.c_str(), *size);
+     }
      errno = retc;
    }
  }
@@ -3351,6 +3377,10 @@ filesystem::open (const char* path,
  if (oflags & (O_RDWR | O_WRONLY))
  {
    open_cgi += "&eos.bookingsize=0";
+ }
+ else
+ {
+   open_cgi += "&eos.checksum=ignore";
  }
 
  if (do_rdahead)
