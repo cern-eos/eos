@@ -138,7 +138,7 @@ com_fuse (char* arg1)
 
 
 #ifdef __APPLE__
-   params += ",noappledouble,defer_permissions,negative_vncache,volname=EOS,iosize=65536,fsname=eos@cern.ch";
+   params += ",noappledouble,noapplexattr,allow_root,defer_permissions,volname=EOS,iosize=65536,fsname=eos@cern.ch";
 #endif
 
    params += ",url=";
