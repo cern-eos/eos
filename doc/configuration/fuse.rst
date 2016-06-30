@@ -21,7 +21,7 @@ There a two FUSE client modes available:
    ========= ===================================================================
 
 
-**eosfsd** End-User mount
+**eosd** End-User mount
 -------------------------
 The end user mount supports the strong authentication methods in EOS:
 
