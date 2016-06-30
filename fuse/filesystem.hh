@@ -829,7 +829,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
 
  void EncodeOsxBundle(struct stat &attr) 
   {
-    return;
    if (attr.st_mode & S_IFBLK)
    {
      attr.st_mode |= 0x10000000;
@@ -839,7 +838,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
 
  void DecodeOsxBundle(struct stat &attr)
  {
-   return;
    if (attr.st_mode & 0x10000000)
    {
      attr.st_mode |= S_IFBLK;
