@@ -378,7 +378,8 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
  if (!name || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   eos_static_err("name=%s checkpathname=%d", name, checkpathname(name));
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -434,7 +435,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  // the root is inode 1
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -551,7 +552,8 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (!parentpath || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   eos_static_err("pathname=%s checkpathname=%d", parentpath, checkpathname(name));
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -666,7 +668,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    return;
  }
 
@@ -920,7 +922,7 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
 
  if (!tmp || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1046,7 +1048,7 @@ EosFuse::unlink (fuse_req_t req, fuse_ino_t parent, const char *name)
 
  if (!parentpath || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1120,7 +1122,7 @@ EosFuse::rmdir (fuse_req_t req, fuse_ino_t parent, const char * name)
 
  if (!parentpath || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1203,7 +1205,7 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
 
  if (!parentpath || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1212,7 +1214,7 @@ EosFuse::rename (fuse_req_t req, fuse_ino_t parent, const char *name, fuse_ino_t
 
  if (!newparentpath || !checkpathname(newname) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1302,7 +1304,7 @@ EosFuse::access (fuse_req_t req, fuse_ino_t ino, int mask)
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1371,7 +1373,7 @@ EosFuse::open (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info * fi)
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1485,11 +1487,14 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
    UPDATEPROCCACHE;
 
    me.fs ().lock_r_p2i (); // =>
+
+
+
    parentpath = me.fs ().path ((unsigned long long) parent);
 
    if (!parentpath || !checkpathname(parentpath) || !checkpathname(name))
    {
-     fuse_reply_err (req, ENXIO);
+     fuse_reply_err (req, ENOENT);
      me.fs ().unlock_r_p2i (); // <=
      return;
    }
@@ -1501,6 +1506,18 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
      sprintf (ifullpath, "/%s", name);
    else
      sprintf (ifullpath, "%s/%s", parentpath, name);
+
+#ifdef __APPLE__
+   // OSX calls several creates and we have to do the EEXIST check here
+   eos_static_info("apple check");
+   if (me.fs().inode(ifullpath))
+   {
+   eos_static_info("apple check - EEXIST");
+     fuse_reply_err (req, EEXIST);
+     me.fs ().unlock_r_p2i (); // <=
+     return;
+   }
+#endif
 
    me.fs ().unlock_r_p2i (); // <=
 
@@ -1875,7 +1892,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -1947,7 +1964,7 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
  ino = me.fs().redirect_i2i(ino);
 
  // concurrency monitor
- filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino);
+ filesystem::Track::Monitor mon (__func__, me.fs ().iTrack, ino, true);
 
  int retc = 0;
  std::string fullpath;
@@ -1960,7 +1977,7 @@ EosFuse::setxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, const
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2010,7 +2027,7 @@ EosFuse::listxattr (fuse_req_t req, fuse_ino_t ino, size_t size)
 
  if (!name || !checkpathname(name) )
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2091,7 +2108,7 @@ EosFuse::removexattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name)
 
  if (!name || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2140,7 +2157,7 @@ EosFuse::readlink (fuse_req_t req, fuse_ino_t ino)
 
  if (!name || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
@@ -2197,7 +2214,7 @@ EosFuse::symlink (fuse_req_t req, const char *link, fuse_ino_t parent, const cha
 
  if (!parentpath || !checkpathname(parentpath) || !checkpathname(name))
  {
-   fuse_reply_err (req, ENXIO);
+   fuse_reply_err (req, ENOENT);
    me.fs ().unlock_r_p2i (); // <=
    return;
  }
