@@ -178,6 +178,7 @@ public:
     std::string mHostPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;
+    fsactive_t mActiveStatus;
     time_t mHeartBeatTime;
     double mNetEthRateMiB;
     double mNetInRateMiB;

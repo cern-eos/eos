@@ -2139,9 +2139,9 @@ bool
 FsNode::SetActiveStatus (eos::common::FileSystem::fsactive_t active)
 {
   if (active == eos::common::FileSystem::kOnline)
-  return SetConfigMember("stat.active","online",true,mName.c_str(),false);
+  return SetConfigMember("stat.active","online",true,mName.c_str(),true);
   else
-    return SetConfigMember("stat.active","offline",true,mName.c_str(),false);
+    return SetConfigMember("stat.active","offline",true,mName.c_str(),true);
 }
 
 //------------------------------------------------------------------------------

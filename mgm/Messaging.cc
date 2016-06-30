@@ -113,10 +113,12 @@ Messaging::Update (XrdAdvisoryMqMessage* advmsg)
         if (advmsg->kOnline)
         {
           FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
+          FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::FileSystem::kOnline);
         }
         else
         {
           FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
+          FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::FileSystem::kOffline);
           // propagate into filesystem states
           eos::mgm::BaseView::const_iterator it;
           for (it = FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++)
@@ -147,10 +149,12 @@ Messaging::Update (XrdAdvisoryMqMessage* advmsg)
       if (advmsg->kOnline)
       {
         FsView::gFsView.mNodeView[nodequeue]->SetStatus("online");
+        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::FileSystem::kOnline);
       }
       else
       {
         FsView::gFsView.mNodeView[nodequeue]->SetStatus("offline");
+        FsView::gFsView.mNodeView[nodequeue]->SetActiveStatus(eos::common::FileSystem::kOffline);
         // propagate into filesystem states
         eos::mgm::BaseView::const_iterator it;
         for (it = FsView::gFsView.mNodeView[nodequeue]->begin(); it != FsView::gFsView.mNodeView[nodequeue]->end(); it++)

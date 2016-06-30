@@ -586,6 +586,7 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue
     host.mHostPort      = hash->Get("stat.hostport");
     host.mGeoTag        = hash->Get("stat.geotag");
     host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
+    host.mActiveStatus = GetActiveStatusFromString(hash->Get("stat.active").c_str());
     host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
     host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
     host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
@@ -607,6 +608,7 @@ FileSystem::SnapShotHost(XrdMqSharedObjectManager *som, const std::string &queue
     host.mHostPort = "";
     host.mGeoTag        = "";
     host.mPublishTimestamp = 0;
+    host.mActiveStatus = kOffline;
     host.mNetEthRateMiB = 0;
     host.mNetInRateMiB  = 0;
     host.mNetOutRateMiB = 0;

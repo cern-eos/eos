@@ -110,6 +110,7 @@ const map<string,int> GeoTreeEngine::gNotifKey2EnumGw =
 {
   make_pair("stat.hostport",sfgHost),
   make_pair("stat.geotag",sfgGeotag),
+  make_pair("stat.active",sfgActive),
   make_pair("stat.net.ethratemib",sfgEthmib),
   make_pair("stat.net.inratemib",sfgInratemib),
   make_pair("stat.net.outratemib",sfgOutratemib),
@@ -2029,6 +2030,12 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry, eos::common::FileSystem::fs_
 
     FileSystem::fsactive_t statactive = fs->mActiveStatus;
 
+    eos_debug("fs %lu available recompute  boot=%s  errcode=%d  active=%s",
+              (unsigned long) fs->mId,
+              eos::common::FileSystem::GetStatusAsString(statboot),
+              errc,
+              (statactive==eos::common::FileSystem::kOnline)?"online":"offline");
+
     if( (statboot==FileSystem::kBooted) &&
 	(errc == 0) &&		// this we probably don't need
 	(statactive==FileSystem::kOnline)// this checks the heartbeat and the group & node are enabled
@@ -2391,7 +2398,21 @@ bool GeoTreeEngine::updateTreeInfo(GwTMEBase* entry, eos::common::FileSystem::ho
       lstat->update();
     }
   }
-
+  if(keys&(sfgActive))
+  {
+    if( hs->mActiveStatus==eos::common::FileSystem::kOnline )
+    { // the node is available
+      eos_debug("node %s is getting available  ftidx=%d  stn=%p",hs->mHostPort.c_str(),(int)ftIdx,stn);
+      if(ftIdx) setOneStateVarStatusInAllFastTrees(SchedTreeBase::Available);
+      if(stn) stn->pNodeState.mStatus |= SchedTreeBase::Available;
+    }
+    else
+    { // the fs is unavailable
+      eos_debug("node %s is getting unavailable  ftidx=%d  stn=%p",hs->mHostPort.c_str(),(int)ftIdx,stn);
+      if(ftIdx) unsetOneStateVarStatusInAllFastTrees(SchedTreeBase::Available);
+      if(stn) stn->pNodeState.mStatus &= ~SchedTreeBase::Available;
+    }
+  }
   if(keys&(sfgInratemib))
   {
     double dlScore = (1.0 - ((hs->mNetEthRateMiB) ? (hs->mNetInRateMiB / hs->mNetEthRateMiB) : 0.0));
@@ -2555,7 +2576,7 @@ bool GeoTreeEngine::updateTreeInfo(const map<string,int> &updatesFs, const map<s
     AtomicInc(entry->fastStructLockWaitersCount);
     pTreeMapMutex.UnLockRead();
 
-    eos_debug("CHANGE BITFIELD %x",it->second);
+    eos_debug("CHANGE BITFIELD %s => %x",it->first.c_str(),it->second);
 
     // update only the fast structures because even if a fast structure rebuild is needed from the slow tree
     // its information and state is updated from the fast structures
