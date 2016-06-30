@@ -711,14 +711,31 @@ class FsNode : public BaseView
   static std::string gManagerId; ///< Name of the responsible manager
   eos::common::TransferQueue* mGwQueue; ///< Gateway transfer queue
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //! @param name nodeview name
-  //----------------------------------------------------------------------------
-  FsNode(const char* name)
+  // Snapshoting
+  bool SnapShotHost(FileSystem::host_snapshot_t &host, bool dolock);
+
+  // check heartbeat
+  bool HasHeartBeat ( eos::common::FileSystem::host_snapshot_t &fs);
+
+  // get active status
+  eos::common::FileSystem::fsactive_t GetActiveStatus ();
+
+  // set active status
+  bool SetActiveStatus (eos::common::FileSystem::fsactive_t active);
+
+
+  // ---------------------------------------------------------------------------
+  /** 
+   * @brief Constructor
+   * @param name nodeview name 
+   */
+  // ---------------------------------------------------------------------------
+
+  FsNode (const char* name)
   {
     mName = name;
     mType = "nodesview";
+    SetConfigMember("stat.hostport",GetMember("hostport"),true,mName.c_str(),false);
     std::string n = mName.c_str();
     n += "/gw";
     mGwQueue = new eos::common::TransferQueue(
@@ -781,8 +798,17 @@ class FsNode : public BaseView
     {
       SetConfigMember("txgw", "off", true, mName.c_str(), true);
     }
-
-    // Set by default 10 transfers per gateway node
+    // set by default as no dataproxy
+    if ((GetConfigMember("dataproxy") != "on") && (GetConfigMember("dataproxy") != "off"))
+    {
+      SetConfigMember("dataproxy", "on", true, mName.c_str(), true);
+    }
+    // set by default as no data entry point
+    if ((GetConfigMember("dataep") != "on") && (GetConfigMember("dataep") != "off"))
+    {
+      SetConfigMember("dataep", "on", true, mName.c_str(), true);
+    }
+    // set by default 10 transfers per gateway node
     if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
         (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX))
     {

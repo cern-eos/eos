@@ -29,8 +29,6 @@
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/io/FileIoPluginCommon.hh"
-#ifndef _NOOFS
-#endif
 /*----------------------------------------------------------------------------*/
 #include <cstdlib>
 #include <cstring>

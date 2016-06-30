@@ -2130,6 +2130,8 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     }
   }
 
+  // to be sure not to miss any notification while everything is starting up
+  //gGeoTreeEngine.forceRefresh();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

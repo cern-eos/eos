@@ -375,11 +375,28 @@
 		 (eos::common::LayoutId::GetLayoutType(lid) != eos::common::LayoutId::kRaid6)))
             {
 	      std::string tried_cgi;
-	      if (Quota::FileAccess(h_vid, (long unsigned int) 0, (const char*) 0,
-				    tried_cgi, lid, locationfs, fsindex,
-				    false, (long long unsigned) 0, unavailfs,
-	                            eos::common::FileSystem::kDrain,
-	                            "",false,eos::mgm::Scheduler::draining))
+	      Scheduler::AccessArguments acsargs;
+	      acsargs.bookingsize=0;
+	      acsargs.fsindex=&fsindex;
+	      acsargs.isRW=false;
+	      acsargs.lid=lid;
+	      acsargs.locationsfs=&locationfs;
+	      acsargs.tried_cgi=&tried_cgi;
+	      acsargs.unavailfs=&unavailfs;
+	      acsargs.vid=&h_vid;
+	      acsargs.schedtype=Scheduler::draining;
+
+	      if (!acsargs.isValid())
+	      {
+	        // there is something wrong in the arguments of file access
+                // inaccessible files we retry after 60 seconds
+                eos_thread_err("cmd=schedule2drain msg=\"invalid argument to FileAccess %llx retc=%d\"", fid, retc);
+                ScheduledToDrainFid[fid] = time(NULL) + 60;
+                // try with next file
+                fit++;
+                continue;
+	      }
+	      else if (Quota::FileAccess(&acsargs))
               {
 		// inaccessible files we retry after 60 seconds
 		eos_thread_err("cmd=schedule2drain msg=\"no access to file %llx retc=%d\"", fid, retc);

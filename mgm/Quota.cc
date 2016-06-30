@@ -1782,43 +1782,31 @@ Quota::CleanUp()
 // implementation is in the Scheduler and GeoTreeEngine.
 //------------------------------------------------------------------------------
 int
-Quota::FilePlacement(const std::string& space,
-		     const char* path,
-		     eos::common::Mapping::VirtualIdentity_t& vid,
-		     const char* grouptag,
-		     unsigned long lid,
-		     std::vector<unsigned int>& alreadyused_filesystems,
-		     std::vector<unsigned int>& selected_filesystems,
-		     Scheduler::tPlctPolicy plctpolicy,
-		     const std::string& plctTrgGeotag,
-		     bool truncate,
-		     int forced_scheduling_group_index,
-		     unsigned long long bookingsize,
-		     eos::mgm::Scheduler::tSchedType schedtype)
+Quota::FilePlacement(Scheduler::PlacementArguments *args)
 {
   // 0 = 1 replica !
-  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(lid) + 1;
+  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(args->lid) + 1;
   // First figure out how many filesystems we need
-  eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u", vid.uid,
-		   vid.gid, grouptag, nfilesystems);
+  eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u", args->vid->uid,
+                   args->vid->gid, args->grouptag, nfilesystems);
 
   // Check if quota enabled for current space
-  if (FsView::gFsView.IsQuotaEnabled(space))
+  if (FsView::gFsView.IsQuotaEnabled(*args->spacename))
   {
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-    SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+    SpaceQuota* squota = GetResponsibleSpaceQuota(args->path);
 
     if (squota)
     {
       bool has_quota = false;
-      long long desired_vol = 1ll * nfilesystems * bookingsize;
-      has_quota = squota->CheckWriteQuota(vid.uid, vid.gid, desired_vol,
+      long long desired_vol = 1ll * nfilesystems * args->bookingsize;
+      has_quota = squota->CheckWriteQuota(args->vid->uid, args->vid->gid, desired_vol,
 					  nfilesystems);
 
       if (!has_quota)
       {
 	eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
-			 "has no quota left!", vid.uid, vid.gid, grouptag,
+			 "has no quota left!", args->vid->uid, args->vid->gid, args->grouptag,
 			 nfilesystems);
 	return EDQUOT;
       }
@@ -1826,21 +1814,18 @@ Quota::FilePlacement(const std::string& space,
   }
   else
   {
-    eos_static_debug("quota is disabled for space=%s", space.c_str());
+    eos_static_debug("quota is disabled for space=%s", args->spacename->c_str());
   }
 
-  if (!FsView::gFsView.mSpaceGroupView.count(space))
+  if (!FsView::gFsView.mSpaceGroupView.count(*args->spacename))
   {
-    eos_static_err("msg=\"no filesystem in space\" space=\"%s\"", space.c_str());
-    selected_filesystems.clear();
+    eos_static_err("msg=\"no filesystem in space\" space=\"%s\"", args->spacename->c_str());
+    args->selected_filesystems->clear();
     return ENOSPC;
   }
 
   // Call the scheduler implementation
-  return Scheduler::FilePlacement(space, path, vid, grouptag, lid,
-				  alreadyused_filesystems,
-				  selected_filesystems, plctpolicy, plctTrgGeotag,
-				  truncate, forced_scheduling_group_index, bookingsize,schedtype);
+  return Scheduler::FilePlacement(args);
 }
 
 //------------------------------------------------------------------------------
@@ -1848,24 +1833,9 @@ Quota::FilePlacement(const std::string& space,
 // implementation is in the Scheduler and GeoTreeEngine.
 //------------------------------------------------------------------------------
 int
-Quota::FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
-		  unsigned long forcedfsid,
-		  const char* forcedspace,
-		  std::string tried_cgi,
-		  unsigned long lid,
-		  std::vector<unsigned int>& locationsfs,
-		  unsigned long& fsindex,
-		  bool isRW,
-		  unsigned long long bookingsize,
-		  std::vector<unsigned int>& unavailfs,
-		  eos::common::FileSystem::fsstatus_t min_fsstatus,
-		  std::string overridegeoloc,
-		  bool noIO,
-		  eos::mgm::Scheduler::tSchedType schedtype)
+Quota::FileAccess(Scheduler::AccessArguments *args)
 {
-  return Scheduler::FileAccess(vid, forcedfsid, forcedspace, tried_cgi, lid,
-			       locationsfs, fsindex, isRW, bookingsize, unavailfs,
-			       min_fsstatus, overridegeoloc, noIO,schedtype);
+  return Scheduler::FileAccess(args);
 }
 
 //------------------------------------------------------------------------------

@@ -1621,25 +1621,53 @@ ProcCommand::File ()
 
               // We don't know the container tag here, but we don't really
               // care since we are scheduled as root
-              if (!(errno = Quota::FilePlacement(space.c_str(), spath.c_str(),
-                                                 *pVid, 0, layoutId, sourcefs,
-                                                 selectedfs, plctplcy, targetgeotag,
-                                                 SFS_O_TRUNC, forcedsubgroup,
-                                                 fmd->getSize())))
+              Scheduler::PlacementArguments plctargs;
+              plctargs.alreadyused_filesystems=&sourcefs;
+              plctargs.bookingsize=fmd->getSize();
+              plctargs.forced_scheduling_group_index=forcedsubgroup;
+              plctargs.lid=layoutId;
+              plctargs.inode=(ino64_t) fmd->getId();
+              plctargs.path=spath.c_str();
+              plctargs.plctTrgGeotag=&targetgeotag;
+              plctargs.plctpolicy=plctplcy;
+              plctargs.selected_filesystems=&selectedfs;
+              std::string spacename=space.c_str();
+              plctargs.spacename=&spacename;
+              plctargs.truncate=true;
+              plctargs.vid=pVid;
+
+              if (!plctargs.isValid())
               {
+                // there is something wrong in the arguments of file placement
+                retc = EINVAL;
+                stdErr += "error: invalid argument for file placement";
+              }
+              else if (!(errno = retc = Quota::FilePlacement(&plctargs)))
+              {
+                Scheduler::AccessArguments acsargs;
+                acsargs.bookingsize=0;
+                acsargs.forcedspace=space.c_str();
+                acsargs.fsindex=&fsIndex;
+                acsargs.isRW=false;
+                acsargs.lid=(unsigned long) fmd->getLayoutId();
+                acsargs.inode=(ino64_t) fmd->getId();
+                acsargs.locationsfs=&sourcefs;
+                acsargs.tried_cgi=&tried_cgi;
+                acsargs.unavailfs=&unavailfs;
+                acsargs.vid=pVid;
+
+                if (!acsargs.isValid())
+                {
+                  // there is something wrong in the arguments of file access
+                  retc = EINVAL;
+                  stdErr += "error: invalid argument for file access";
+                }
+                else
+                {
                 // We got a new replication vector
                 for (unsigned int i = 0; i < selectedfs.size(); i++)
                 {
-                  if (!(errno = Quota::FileAccess(*pVid,
-                                                  (unsigned long) 0,
-                                                  space.c_str(),
-                                                  tried_cgi,
-                                                  (unsigned long) fmd->getLayoutId(),
-                                                  sourcefs,
-                                                  fsIndex,
-                                                  false,
-                                                  (long long unsigned) 0,
-                                                  unavailfs)))
+                  if (!(errno = Quota::FileAccess(&acsargs)))
                   {
                     // This is now our source filesystem
                     unsigned int sourcefsid = sourcefs[fsIndex];
@@ -1675,6 +1703,7 @@ ProcCommand::File ()
                     retc = ENOSPC;
                   }
                 }
+              }
               }
               else
               {

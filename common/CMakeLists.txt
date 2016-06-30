@@ -141,6 +141,7 @@ else()
   set_target_properties(
     eosCommonServer
     PROPERTIES
+    INTERFACE_LINK_LIBRARIES "${OPENSSL_CRYPTO_LIBRARY}"
     VERSION ${VERSION}
     SOVERSION ${VERSION_MAJOR}
     CLEAN_DIRECT_OUTPUT 1
