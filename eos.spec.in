@@ -37,9 +37,10 @@ BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: leveldb-devel
-BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.0
+BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: kineticio >= 1.1.0
+BuildRequires: jsoncpp, jsoncpp-devel
 
 %if %{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -76,6 +77,7 @@ Requires: zeromq
 Requires: protobuf
 Requires: jemalloc
 Requires: kineticio >= 1.1.0
+Requires: jsoncpp
 
 %if %{distribution} == 5
 Requires: curl
@@ -213,6 +215,22 @@ The EOS shell client.
 # Package eos-fuse
 #-------------------------------------------------------------------------------
 %package -n eos-fuse
+Summary: The EOS fuse client with init.d and mount script
+Group: Applications/File
+
+Requires: eos-fuse-core
+Requires: eos-fuse-sysv
+
+%description -n eos-fuse
+The EOS fuse client bundle.
+
+%files -n eos-fuse
+%defattr(-, root, root, -)
+
+#-------------------------------------------------------------------------------
+# Package eos-fuse-core
+#-------------------------------------------------------------------------------
+%package -n eos-fuse-core
 Summary: The EOS fuse client
 Group: Applications/File
 
@@ -221,15 +239,16 @@ Requires: eos-client
 Requires: fuse
 Requires: jemalloc
 
-%description -n eos-fuse
-The EOS fuse client.
+%description -n eos-fuse-core
+The EOS fuse core containing eosd and mount scripts.
 
-%files -n eos-fuse
+%files -n eos-fuse-core
 %defattr(-, root, root, -)
 %{_bindir}/eosd
 /sbin/mount.eos
-/sbin/umount.eos
-%{_sysconfdir}/rc.d/init.d/eosd
+/usr/share/selinux/targeted/eosfuse.pp
+/usr/share/selinux/mls/eosfuse.pp
+/usr/share/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
 
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
@@ -239,7 +258,70 @@ The EOS fuse client.
 %{_sysconfdir}/fuse.conf.eos
 %endif
 
-%post -n eos-fuse
+%post -n eos-fuse-core
+for selinuxvariant in mls strict targeted
+do
+  /usr/sbin/semodule -s $selinuxvariant -i \
+    /usr/share/selinux/$selinuxvariant/eosfuse.pp &> /dev/null || :
+done
+
+# create the fuse log directory
+mkdir -p /var/log/eos/fuse/
+chown daemon:daemon /var/log/eos/
+chown daemon:daemon /var/log/eos/fuse/
+chmod 755 /var/log/eos/
+chmod 755 /var/log/eos/fuse/
+
+# create the credential store
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+# create tmpfiles.d entry
+echo "d /run/eosd 755 root root" > /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials/store 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+%else
+mkdir -p /var/run/eosd/
+mkdir -p /var/run/eosd/credentials/store
+chmod 1777 /var/run/eosd/credentials
+chmod 1777 /var/run/eosd/credentials/store
+%endif
+
+
+%preun -n eos-fuse-core
+if [ $1 = 0 ] ; then
+  for variant in mls strict targeted ; do
+    /usr/sbin/semodule -s $variant -r eosfuse &> /dev/null || :
+  done
+fi
+
+%postun -n eos-fuse-core
+if [ $1 -eq 0 ]; then
+  for variant in mls strict targeted ; do
+    /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
+  done
+fi
+
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+unlink /etc/tmpfiles.d/eosd.conf
+rm -rf /var/run/eosd/ >& /dev/null
+%endif
+
+#-------------------------------------------------------------------------------
+# Package eos-fuse-sysv
+#-------------------------------------------------------------------------------
+%package -n eos-fuse-sysv
+Summary: The EOS fuse client
+Group: Applications/File
+
+Requires: eos-fuse-core
+
+%description -n eos-fuse-sysv
+The EOS fuse SYSV init scripts.
+
+%files -n eos-fuse-sysv
+%defattr(-, root, root, -)
+%{_sysconfdir}/rc.d/init.d/eosd
+
+%post -n eos-fuse-sysv
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 echo "Skipping chkconfig for eosd"
 %else
@@ -248,7 +330,7 @@ echo "Starting conditional EOS FUSE services"
 sleep 2
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %endif
-%preun -n eos-fuse
+%preun -n eos-fuse-sysv
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 echo "Skipping chkconfig for eosd"
 %else

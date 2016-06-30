@@ -70,6 +70,7 @@ filesystem::filesystem ()
  lazy_open_rw = false;
  lazy_open_disabled = false;
  hide_special_files = true;
+ show_eos_attributes = false;
 
  do_rdahead = false;
  rdahead_window = "131072";
@@ -146,6 +147,12 @@ filesystem::log_settings ()
    s += "false";
  log ("WARNING", s.c_str ());
 
+ s = "show-eos-attributes    := ";
+ if (show_eos_attributes)
+   s+= "true";
+ else
+   s+= "false";
+ log ("WARNING", s.c_str ());
 
  if (mode_overlay)
  {
@@ -193,7 +200,6 @@ filesystem::log_settings ()
  XrdOucString fbcs;
  fbcs += (int) (file_write_back_cache_size / 1024 * 1024);
  s += fbcs.c_str ();
- s += " MB";
  log ("WARNING", s.c_str ());
 
  eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
@@ -753,6 +759,11 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
 	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
 	 e.attr.st_size = overwrite_stat->st_size;
        }
+
+#ifdef __APPLE__
+       DecodeOsxBundle(e.attr);
+#endif
+
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
        retc = 1; // found
@@ -1298,7 +1309,20 @@ filesystem::setxattr (const char* path,
 
  request += "&";
  request += "mgm.xattrvalue=";
- request += std::string (xattr_value, size);
+
+ XrdOucString key(xattr_name);
+ XrdOucString value;
+
+ if (key.beginswith("com.apple"))
+ {
+   XrdOucString b64value;
+   eos::common::SymKey::Base64Encode ((char*)xattr_value, size, b64value);
+   value = "base64:";
+   value += b64value;
+ }
+
+ request += value.c_str();
+
  arg.FromString (request);
 
  std::string surl = user_url (uid, gid, pid);
@@ -1421,9 +1445,22 @@ filesystem::getxattr (const char* path,
        }
      }
 
-     *size = strlen (rval);
-     *xattr_value = (char*) calloc ((*size) + 1, sizeof ( char));
-     *xattr_value = strncpy (*xattr_value, rval, *size);
+     XrdOucString value64 = rval;
+     if (value64.beginswith("base64:"))
+     {
+       value64.erase(0,7);
+       unsigned int ret_size;
+       eos::common::SymKey::Base64Decode(value64, *xattr_value, ret_size);
+       *size = ret_size;
+       eos_static_info("xattr-name=%s xattr-value=%s", xattr_name, *xattr_value);
+     }
+     else
+     {
+       eos_static_info("xattr-name=%s xattr-value=%s", xattr_name, value64.c_str());
+       *size = value64.length();
+       *xattr_value = (char*) calloc ((*size) + 1, sizeof ( char));
+       *xattr_value = strncpy (*xattr_value, value64.c_str(), *size);
+     }
      errno = retc;
    }
  }
@@ -1487,25 +1524,57 @@ filesystem::listxattr (const char* path,
    int retc = 0;
    int items = 0;
    char tag[1024];
-   char rval[16384];
+   char rval[65536];
    // Parse output
    items = sscanf (response->GetBuffer (), "%s retc=%i %s", tag, &retc, rval);
 
+   eos_static_info("retc=%d tag=%s response=%s", retc, tag, rval);
    if ((items != 3) || (strcmp (tag, "lsxattr:")))
      errno = ENOENT;
    else
    {
-     *size = strlen (rval);
      char* ptr = rval;
-
+     *size = strlen(rval);
+     std::vector<std::string> xattrkeys;
+     char* sptr=ptr;
+     char* eptr=ptr;
+     size_t attr_size=0;
      for (unsigned int i = 0; i < (*size); i++, ptr++)
      {
-       if (*ptr == '&')
+       if (*ptr == '&') 
+       {
          *ptr = '\0';
+	 eptr = ptr;
+	 std::string xkey;
+
+	 xkey.assign(sptr, eptr-sptr);
+
+	 XrdOucString sxkey=xkey.c_str();
+
+	 if (!show_eos_attributes &&
+	     ( sxkey.beginswith("user.admin.")  ||
+	       sxkey.beginswith("user.eos.") ) )
+	 {
+	   sptr = eptr+1;
+	   continue;
+	 }
+
+	 attr_size += xkey.length()+1;
+	 xattrkeys.push_back (xkey);
+	 sptr = eptr+1;
+       }
      }
 
-     *xattr_list = (char*) calloc ((*size) + 1, sizeof ( char));
-     *xattr_list = (char*) memcpy (*xattr_list, rval, *size);
+     *xattr_list = (char*) calloc (attr_size, sizeof ( char));
+     ptr = *xattr_list;
+     for (size_t i=0; i<xattrkeys.size(); i++)
+     {
+       memcpy (ptr, xattrkeys[i].c_str(), xattrkeys[i].length());
+       ptr+= xattrkeys[i].length();
+       *ptr = '\0';
+       ptr++;
+     }
+     *size = attr_size;
      errno = retc;
    }
  }
@@ -2028,6 +2097,7 @@ filesystem::utimes_if_open (unsigned long long inode,
      rwmutex_fd2fabst.UnLockRead();
 
      fabst->SetUtimes (utimes);
+     eos_static_info("ino=%ld mtime=%ld mtime.nsec=%ld",inode, utimes[1].tv_sec, utimes[1].tv_nsec);
      return 0;
    }
  }
@@ -3307,6 +3377,10 @@ filesystem::open (const char* path,
  if (oflags & (O_RDWR | O_WRONLY))
  {
    open_cgi += "&eos.bookingsize=0";
+ }
+ else
+ {
+   open_cgi += "&eos.checksum=ignore";
  }
 
  if (do_rdahead)
@@ -4719,6 +4793,13 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  {
    hide_special_files = true;
  }
+
+ if (getenv("EOS_FUSE_SHOW_EOS_ATTRIBUTES") && (!strcmp(getenv("EOS_FUSE_SHOW_EOS_ATTRIBUTES"),"1")))
+ {
+   show_eos_attributes = true;
+ }
+ else
+   show_eos_attributes = false;
 
  if (features && !features->count("eos.lazyopen"))
  {

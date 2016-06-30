@@ -245,7 +245,7 @@ namespace eos
       //------------------------------------------------------------------------
       uint64_t removeTreeSize( uint64_t removesize)
       {
-	pTreeSize += removesize;
+	pTreeSize -= removesize;
         return pTreeSize;
       }
 

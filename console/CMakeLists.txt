@@ -21,21 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-<<<<<<< HEAD
-include_directories( ${CMAKE_SOURCE_DIR}
-		     ${XROOTD_INCLUDE_DIR} 
-		     ${XROOTD_PRIVATE_INCLUDE_DIR} 
-		     ${SPARSEHASH_INCLUDE_DIR}
-         ${KINETICIO_INCLUDE_DIR} )
-=======
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
-  ${XROOTD_INCLUDE_DIRS}
+  ${XROOTD_INCLUDE_DIR}
+  ${XROOTD_PRIVATE_INCLUDE_DIR}
   ${KINETICIO_INCLUDE_DIR}
+  ${SPARSEHASH_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIRS})
->>>>>>> 44ce6a8... Fix after merge
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR}
 		  ${XROOTD_LIB_DIR} )

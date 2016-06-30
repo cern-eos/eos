@@ -27,6 +27,7 @@
 #include "namespace/ContainerMD.hh"
 #include "namespace/MDException.hh"
 #include "namespace/IContainerMDSvc.hh"
+#include "namespace/IFileMDSvc.hh"
 #include "namespace/persistency/ChangeLogFile.hh"
 #include "namespace/accounting/QuotaStats.hh"
 
@@ -40,7 +41,6 @@
 namespace eos
 {
   class LockHandler;
-
   //----------------------------------------------------------------------------
   //! ChangeLog based container metadata service
   //----------------------------------------------------------------------------
@@ -54,7 +54,7 @@ namespace eos
       //------------------------------------------------------------------------
       ChangeLogContainerMDSvc(): pFirstFreeId( 0 ), pSlaveLock( 0 ),
         pSlaveMode( false ), pSlaveStarted( false ), pSlavePoll( 1000 ),
-        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pResSize( 1000000 )
+        pFollowStart( 0 ), pQuotaStats( 0 ), pAutoRepair( 0 ), pContainerAccounting ( 0 ), pResSize( 1000000 )
       {
         pIdMap.set_deleted_key( 0 );
         pIdMap.set_empty_key( std::numeric_limits<ContainerMD::id_t>::max() );
@@ -282,6 +282,14 @@ namespace eos
 	return pResSize;
       }
 
+      //------------------------------------------------------------------------
+      //! Set container Accounting
+      //------------------------------------------------------------------------
+      void setContainerAccounting ( IFileMDChangeListener* containerAccounting ) 
+      {
+	pContainerAccounting = containerAccounting;
+      }
+	
     private:
       //------------------------------------------------------------------------
       // Placeholder for the record info
@@ -363,7 +371,9 @@ namespace eos
       uint64_t           pFollowStart;
       QuotaStats        *pQuotaStats;
       bool               pAutoRepair;
+      IFileMDChangeListener *pContainerAccounting;
       uint64_t           pResSize;
+
   };
 }
 

@@ -47,6 +47,7 @@ com_find (char* arg1)
   XrdOucString filter = "";
   XrdOucString stripes = "";
   XrdOucString versions = "";
+  XrdOucString filematch = "";
 
   XrdOucString in = "mgm.cmd=find&";
   bool valid = false;
@@ -314,6 +315,15 @@ com_find (char* arg1)
 	goto com_find_usage;
     }
 
+    if (s1 == "-name")
+    {
+      valid = true;
+      filematch =subtokenizer.GetToken();
+      option += "f";
+      if (!filematch.length())
+	goto com_find_usage;
+    }
+    
     if (s1 == "-layoutstripes")
     {
       valid = true;
@@ -739,6 +749,12 @@ com_find (char* arg1)
     in += versions;
   }
 
+  if (filematch.length())
+  {
+    in += "&mgm.find.match=";
+    in += filematch;
+  }
+
   if (printkey.length())
   {
     in += "&mgm.find.printkey=";
@@ -765,8 +781,9 @@ com_find (char* arg1)
   return (0);
 
 com_find_usage:
-  fprintf(stdout, "usage: find [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  fprintf(stdout, "usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
   fprintf(stdout, "                                                                        -f -d :  find files(-f) or directories (-d) in <path>\n");
+  fprintf(stdout, "                                                              -name <pattern> :  find by name or wildcard match\n");
   fprintf(stdout, "                                                               -x <key>=<val> :  find entries with <key>=<val>\n");
   fprintf(stdout, "                                                                           -0 :  find 0-size files \n");
   fprintf(stdout, "                                                                           -g :  find files with mixed scheduling groups\n");

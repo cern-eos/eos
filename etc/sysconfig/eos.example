@@ -194,6 +194,10 @@ export EOS_FUSE_MGM_ALIAS=eosdev.cern.ch
 #    By default this option is disabled
 # export EOS_FUSE_SHOW_SPECIAL_FILES=0
 
+# Show extended attributes related to EOS itself - this are sys.* and emulated user.eos.* attributes for files
+#    By default this option is diabled
+# export EOS_FUSE_SHOW_EOS_ATTRIBUTES=0
+
 # Add(OR) an additional mode mask to the mode shown
 #    By default this option is off
 # export EOS_FUSE_MODE_OVERLAY=000     (use 007 to show things are rwx for w)

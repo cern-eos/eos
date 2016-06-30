@@ -631,11 +631,7 @@ WFE::Job::DoIt ()
 
         if (executable.find("/") == std::string::npos)
         {
-<<<<<<< HEAD
           eos::FileMD* fmd = 0;
-=======
-	  std::shared_ptr<eos::IFileMD> fmd ;
->>>>>>> 44ce6a8... Fix after merge
 
           // do meta replacement
           gOFS->eosViewRWMutex.LockRead();
@@ -643,7 +639,7 @@ WFE::Job::DoIt ()
           try
           {
             fmd = gOFS->eosFileService->getFileMD(mFid);
-            fullpath = gOFS->eosView->getUri(fmd.get());
+            fullpath = gOFS->eosView->getUri(fmd);
           }
           catch (eos::MDException &e)
           {
@@ -652,12 +648,8 @@ WFE::Job::DoIt ()
                                                                                                                                                                                                                                                                                                                       \
           if (fmd)
           {
-<<<<<<< HEAD
             eos::FileMD fmdCopy(*fmd);
             fmd = &fmdCopy;
-=======
-	    std::unique_ptr<eos::IFileMD> cfmd ( fmd.get() );
->>>>>>> 44ce6a8... Fix after merge
 
             gOFS->eosViewRWMutex.UnLockRead();
 

@@ -51,6 +51,7 @@
 #include <map>
 #include <string>
 #include <math.h>
+#include <jsoncpp/json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -398,7 +399,7 @@ ProcCommand::open (const char* inpath,
 
       // figure out if this is a real separator or 
       XrdOucString follow=sinfo.c_str()+i+1;
-      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) && (!follow.beginswith("xrd.")))
+      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) && (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")))
       {
         sinfo.erase(i, 1);
         sinfo.insert("#AND#", i);
@@ -421,6 +422,9 @@ ProcCommand::open (const char* inpath,
   mOutFormat = pOpaque->Get("mgm.outformat");
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
+  mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
+
+  eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(), sinfo.c_str());
   int envlen = 0;
   mArgs = pOpaque->Env(envlen);
 
@@ -461,6 +465,11 @@ ProcCommand::open (const char* inpath,
   if (encoding == "b64")
   {
     mBase64Encoding = true;
+  }
+
+  if (mJsonCallback.length())
+  {
+    mJsonFormat = true;
   }
 
   // ----------------------------------------------------------------------------
@@ -880,10 +889,129 @@ ProcCommand::MakeResult ()
       // ------------------------------------------------------------------------
       if (!stdJson.length())
       {
-        stdJson = "{\n  \"error\": \"command does not provide JSON output\",\n  \"errc\": 93\n}";
+	Json::Value json;
+	Json::Value jsonresult;
+	json["errormsg"] = stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
+	std::string sretc;
+	json["retc"] = (long long) retc;
+
+
+	std::string line;
+	std::stringstream ss;
+	ss.str(stdOut.c_str());
+	do
+	{
+	  Json::Value jsonentry;
+	  line.clear();
+	  if (!std::getline(ss,line))
+	    break;
+
+	  if (!line.length())
+	    continue;
+
+	  std::map <std::string , std::string> map;
+	  
+	  eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
+	  // these values violate the JSON hierarchy and have to be rewritten
+	  
+	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
+	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
+	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
+	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
+	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
+	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
+	  
+	  for (auto it=map.begin(); it!=map.end(); ++it)
+	  {
+
+	    std::vector<std::string> token;
+	    eos::common::StringConversion::Tokenize(it->first, token, ".");
+
+	    char* conv;
+	    double val;
+	    errno = 0;
+	    val = strtod(it->second.c_str(), &conv);
+	    std::string value;
+	    if (it->second.length())
+	      value = it->second.c_str();
+	    else
+	      value = "NULL";
+
+	    if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
+	    {
+	      // non numeric
+	      if (token.size()==1)
+	      {
+		jsonentry[token[0]] = value;
+	      }
+	      if (token.size()==2)
+	      {
+		jsonentry[token[0]][token[1]] = value;
+	      }
+	      if (token.size()==3)
+	      {
+		jsonentry[token[0]][token[1]][token[2]] = value;
+	      }
+	      if (token.size()==4)
+	      {
+		jsonentry[token[0]][token[1]][token[2]][token[3]] = value;
+	      }
+	    }
+	    else
+	    {
+	      // numeric
+	      if (token.size()==1)
+	      {
+		jsonentry[token[0]] = val;
+	      }
+	      if (token.size()==2)
+	      {
+		jsonentry[token[0]][token[1]] = val;
+	      }
+	      if (token.size()==3)
+	      {
+		jsonentry[token[0]][token[1]][token[2]] = val;
+	      }
+	      if (token.size()==4)
+	      {
+		jsonentry[token[0]][token[1]][token[2]][token[3]] = val;
+	      }
+	    }
+	  }
+	  jsonresult.append(jsonentry);
+	} while (1);
+	
+	if (mCmd.length())
+	{
+	  if (mSubCmd.length())
+	    json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
+	  else
+	    json[mCmd.c_str()] = jsonresult;
+	}
+	else
+	  json["result"] = jsonresult;
+
+	std::stringstream r;
+	r << json;
+	if (mJsonCallback.length())
+	{
+	  // JSONP
+	  mResultStream = mJsonCallback;
+	  mResultStream += "([\n";
+	  mResultStream += r.str().c_str();
+	  mResultStream += "\n]);";
+	}
+	else 
+	{
+	  // JSON
+	  mResultStream = r.str().c_str();
+	}
       }
-      mResultStream = "mgm.proc.json=";
-      mResultStream += stdJson;
+      else
+      {
+	mResultStream = "mgm.proc.json=";
+	mResultStream += stdJson;
+      }
     }
     if (!mResultStream.endswith('\n'))
     {
@@ -937,7 +1065,7 @@ ProcCommand::MakeResult ()
         // create the stderr result
         // ----------------------------------------------------------------------
         fprintf(fresultStream, "&mgm.proc.stderr=");
-        while (std::getline(inStdout, entry))
+        while (std::getline(inStderr, entry))
         {
           XrdOucString sentry = entry.c_str();
           sentry += "\n";

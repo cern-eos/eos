@@ -570,10 +570,14 @@ ProcCommand::File ()
         httppath += gOFS->HostName;
         httppath += ":8000/";
 
-        size_t qpos = sharepath.find("?");
-        std::string httpunenc = sharepath;
-        httpunenc.erase(qpos);
-        std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
+	size_t qpos = sharepath.find("?");
+	std::string httpunenc = sharepath;
+	httpunenc.erase(qpos);
+	std::string httpenc = eos::common::StringConversion::curl_escaped(httpunenc);
+
+	// remove /#curl#
+	httpenc.erase(0,7);
+	httppath += httpenc.c_str();
 
         httppath += httpenc.c_str();
 
@@ -704,16 +708,11 @@ ProcCommand::File ()
         }
 
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	std::shared_ptr<eos::IFileMD> fmd;
+
         try
         {
-<<<<<<< HEAD
           eos::FileMD* fmd = gOFS->eosFileService->getFileMD(fid);
           spath = gOFS->eosView->getUri(fmd).c_str();
-=======
-	  fmd = gOFS->eosFileService->getFileMD(fid);
-          spath = gOFS->eosView->getUri(fmd.get()).c_str();
->>>>>>> 44ce6a8... Fix after merge
         }
         catch (eos::MDException &e)
         {
@@ -729,14 +728,9 @@ ProcCommand::File ()
       else
       {
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-	std::shared_ptr<eos::IFileMD> fmd;
         try
         {
-<<<<<<< HEAD
           eos::FileMD* fmd = gOFS->eosView->getFile(spath.c_str());
-=======
-          fmd = gOFS->eosView->getFile(spath.c_str());
->>>>>>> 44ce6a8... Fix after merge
           fid = fmd->getId();
         }
         catch (eos::MDException &e)

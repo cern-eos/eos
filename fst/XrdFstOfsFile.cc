@@ -1611,7 +1611,7 @@ XrdFstOfsFile::verifychecksum ()
     else
     {
       eos_debug("isrw=%d max-offset=%lld opensize=%lld", isRW, checkSum->GetMaxOffset(), openSize);
-      if (((!isRW) && (checkSum->GetMaxOffset() != openSize)))
+      if (((!isRW) && ( (checkSum->GetMaxOffset() != openSize) || (!checkSum->GetMaxOffset()))))
       {
         eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
                   "partial sequential read IO from the beginning...\"");

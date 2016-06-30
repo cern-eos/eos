@@ -180,6 +180,54 @@ namespace eos
     return file;
   }
 
+  //------------------------------------------------------------------------                                                                                                                    
+  //! Get real path translating existing symlink                                                                                                                                                
+  //------------------------------------------------------------------------                                                                                                                    
+  std::string HierarchicalView::getRealPath( const std::string &uri )
+    throw( MDException )
+  {
+    size_t link_depths=0;
+    char uriBuffer[uri.length()+1];
+    strcpy( uriBuffer, uri.c_str() );
+    std::vector<char*> elements;
+
+    if (uri == "/")
+    {
+      MDException e( ENOENT );
+      e.getMessage() << " is not a file";
+      throw e;
+    }
+
+    eos::PathProcessor::splitPath( elements, uriBuffer );
+    size_t position;    
+
+    ContainerMD *cont = findLastContainer( elements, elements.size()-1,
+                                           position,
+					   &link_depths);
+
+    if( position != elements.size()-1 )
+    {
+      MDException e( ENOENT );
+      e.getMessage() << "Container does not exist";
+      throw e;
+    }
+
+    // replace the last existing container with the resolved container path
+    std::string newcontainer = getUri(cont);
+    size_t oldlength=0;
+
+    for (size_t i=0; i< position; i++)
+    {
+      oldlength += strlen(elements[i])+1;
+    }
+    
+    std::string newpath = uri;
+    newpath.erase(0,oldlength+1);
+    newpath.insert(0,newcontainer);
+    return newpath;
+  }
+
+
   //----------------------------------------------------------------------------
   // Create a file for given uri
   //----------------------------------------------------------------------------

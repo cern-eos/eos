@@ -30,6 +30,7 @@ include_directories( ../
                      ${LDAP_INCLUDE_DIR}
                      ${Z_INCLUDE_DIR}
 		     ${ZMQ_INCLUDE_DIR}
+		     ${JSONCPP_INCLUDE_DIR}
 )
 
 link_directories( ${CMAKE_INSTALL_FULL_LIBDIR} 
@@ -131,6 +132,7 @@ target_link_libraries( XrdEosMgm
 		       ${LDAP_LIBRARIES}    ${NCURSES_LIBRARIES} 
 		       ${ZMQ_LIBRARIES}     ${Z_LIBRARIES}
                        ${UUID_LIBRARIES}    ${CMAKE_THREAD_LIBS_INIT}
+		       ${JSONCPP_LIBRARIES}
                      )
 
 add_executable ( testmgmview
@@ -146,7 +148,8 @@ target_link_libraries ( testmgmview
                         crypto            ${NCURSES_LIBRARIES}
                         dl                
 			${ZMQ_LIBRARIES}  ${Z_LIBRARIES}
-                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+                        ${UUID_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
+			${JSONCPP_LIBRARIES})
 
 set_target_properties ( testmgmview PROPERTIES COMPILE_FLAGS "-DEOSMGMFSVIEWTEST" )
 

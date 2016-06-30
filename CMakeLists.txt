@@ -87,7 +87,8 @@ if (NOT PACKAGEONLY)
     find_package(httpd)
     find_package(xfs REQUIRED)
     find_package(attr REQUIRED)
-  endif()
+    find_package(jsoncpp REQUIRED)
+   endif()
 else()
   message(STATUS "Runing CMake in package only mode")
   # Fake function for building the SRPMS in build system
@@ -200,6 +201,8 @@ else()
   add_subdirectory (test)
   add_subdirectory (utils)
   add_subdirectory (archive)
+  add_subdirectory (selinux)
+
 endif()
 
 #-------------------------------------------------------------------------------

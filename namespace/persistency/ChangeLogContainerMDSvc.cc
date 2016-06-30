@@ -23,6 +23,7 @@
 
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogConstants.hh"
+#include "namespace/accounting/ContainerAccounting.hh"
 #include "namespace/utils/Locking.hh"
 #include "namespace/utils/ThreadUtils.hh"
 #include "namespace/Constants.hh"
@@ -43,6 +44,7 @@ namespace eos
         pContSvc( contSvc ) 
       {
         pQuotaStats = pContSvc->pQuotaStats;
+	pContainerAccounting = pContSvc->pContainerAccounting;
       }
 
       //------------------------------------------------------------------------
@@ -274,7 +276,23 @@ namespace eos
                 // -------------------------------------------------------------
                 // copy the meta data
                 // -------------------------------------------------------------
-                (*it->second.ptr) = *currentCont;
+		(*it->second.ptr) = *currentCont;
+		{
+		  // the file and container lists are not copied in the copy constructor
+		  for (fIt = currentCont->filesBegin(); 
+		       fIt != currentCont->filesEnd(); 
+		       fIt++)
+		  {
+		    it->second.ptr->addFile(fIt->second);
+		  }
+		  for (cIt = currentCont->containersBegin(); 
+		       cIt != currentCont->containersEnd(); 
+                         cIt++)
+		  {
+		    it->second.ptr->addContainer(cIt->second);
+		  }
+		}
+		
                 // -------------------------------------------------------------
                 // add to the new parent container
                 // -------------------------------------------------------------
@@ -314,11 +332,19 @@ namespace eos
                   }
                   deepness++;
                 }
+
                 // -------------------------------------------------------------
                 // all done - clean up
                 // -------------------------------------------------------------
                 dirTree.clear();
-              }
+		
+		if (pContainerAccounting)
+		{
+		  // move subtree accouting from source to destination
+		  ((ContainerAccounting*)pContainerAccounting)->AddTree(itNP->second.ptr, currentCont->getTreeSize());
+		  ((ContainerAccounting*)pContainerAccounting)->RemoveTree(itP->second.ptr,currentCont->getTreeSize());
+		}
+	      }
             }
           }
         }
@@ -374,6 +400,7 @@ namespace eos
       std::set<eos::ContainerMD::id_t>  pDeleted;
       eos::ChangeLogContainerMDSvc     *pContSvc;
       QuotaStats                       *pQuotaStats;
+      IFileMDChangeListener            *pContainerAccounting;
   };
 }
 
@@ -749,6 +776,7 @@ namespace eos
     it = config.find( "auto_repair" );
     if (it != config.end() && it->second == "true" )
       pAutoRepair = true;
+
   }
 
   //----------------------------------------------------------------------------

@@ -1,6 +1,5 @@
-#!/bin/bash
 # ----------------------------------------------------------------------
-# File: umount.eos
+# File: CMakeLists.txt
 # Author: Andreas-Joachim Peters - CERN
 # ----------------------------------------------------------------------
 
@@ -22,27 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-case $1 in
-  -h|--help|-?)
-      echo "mount.eos is a private mount(8) wrapper for EOS."
-      echo "Don't use it directly!"
-      exit 1
-      ;;
-esac
+INSTALL ( DIRECTORY DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/selinux/targeted )
+INSTALL ( DIRECTORY DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/selinux/mls )
+INSTALL ( DIRECTORY DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/selinux/strict )
 
-restricted=1
-
-if [ $UID -eq 0 ] && [ $UID -eq $EUID ]; then
-  restricted=0
-fi
-
-# mount(8) in restricted mode (for non-root users) does not allow to use any
-# mount options, 
-# we fail for users
-
-if [ $restricted -eq 1 ]; then
-  echo "error: non-root mount attempted !"
-  exit -1;
-fi
-
-source /etc/rc.d/init.d/eosd stop $@
+INSTALL ( FILES eosfuse.pp DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/selinux/targeted/ PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eosfuse.pp DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/selinux/mls/ PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )
+INSTALL ( FILES eosfuse.pp DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATAROOTDIR}/selinux/strict/ PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE )

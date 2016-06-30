@@ -7,6 +7,59 @@
 Beryl Release Notes
 ===================
 
+``V0.3.190 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix memory leak when returning readdir from in-memory cache
+
+New Features
+++++++++++++
+
+- FUSE: update SELINUX policies
+- FUSE: create /var/run/eosd and /var/log/eos/fuse/ directories in eos-fuse-core
+- MGM: allow to change the find query limitations (by default 100k/50k files/dirs) via the 'access' interface. See 'eos access -h'.
+
+``V0.3.189 Aquamarine``
++++++++++++++++++++++++
+
+New Features
+++++++++++++
+
+- MGM: add JSONP response object format when 'callback=...' is specified in a query URL
+
+``V0.3.188 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: wake up the recycle thread if there is a change of the recycle policy
+- MGM: don't cache unresolved uid/gid with their number, since sssd translation is not 100% successful
+- MGM: allow underscore in user/group names (ACL parsing)
+- MGM: forward errors from find (like query limitation etc.)
+- MGM: don't keep the Stat mutex when translating uid/gids
+- MGM: fix slave follower bug when moving a subtree
+- MGM: fix recursive accounting on slave
+- MGM: resolve symlink when opening a file via non-FUSE clients to resolve to the right quota node
+- MGM: fix bug in creation of shared URLs after introduction of URL encoding
+- CONSOLE: fix recursive copy bug in eos cp
+
+New Features
+++++++++++++
+
+- FUSE: refactor FUSE rpms into eos-fuse-core & eos-fuse-sysv. The core has only mount scripts and not sysv scripts anymore
+- FUSE: add SELINUX policies in the eos-fuse-core postinstall script
+- MGM: add JSON output formatting for all REST commands
+
+Documentation
++++++++++++++
+
+- WFE: document workflow engine 
+- REST: document rest api for space, node, group and fs calls
+
 ``V0.3.187 Aquamarine``
 +++++++++++++++++++++++
 
@@ -38,8 +91,6 @@ Beryl Release Notes
 - MGM: update directory mtime when a replica drop leads to a file remove
 - FST: don't give a checksum error if a not yet fully created file is read by a second FUSE client 
 
-Bug Fix
-+++++++
 
 
 ``V0.3.183 Aquamarine``

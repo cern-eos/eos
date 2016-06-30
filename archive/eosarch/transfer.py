@@ -349,7 +349,7 @@ class Transfer(object):
         self.set_status("verifying")
         check_ok, __ = self.archive.verify(False)
 
-        # For PUT operations what that all the files are on tape
+        # For PUT operations wait that all the files are on tape
         # TODO: enable this when we run with XRootD 4.* and have the
         # BACKUP_EXISTS flag
         # if self.archive.d2t:
@@ -836,7 +836,7 @@ class Transfer(object):
 
 
     def prepare2get(self, err_entry=None, found_checkpoint=False):
-        """This method is only executed for GET operations and it's purpose is
+        """This method is only executed for GET operations and its purpose is
         to issue the Prepapre2Get commands for the files in the archive which
         will later on be copied back to EOS.
 

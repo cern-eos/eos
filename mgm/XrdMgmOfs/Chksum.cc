@@ -59,7 +59,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
 
-  XrdSecEntity mappedclient;
+  eos::common::Mapping::IdMap(client, ininfo, tident, vid);
 
   char buff[MAXPATHLEN + 8];
   int rc;
