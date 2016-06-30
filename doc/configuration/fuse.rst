@@ -379,6 +379,9 @@ For convenience make sure that you enable browsing in ``/etc/autofst.conf``:
 
    Enable **autofs** with ``service autofs start``   
 
+Exporting FUSE filesystems
+--------------------------
+
 
 FUSE export with NFS4
 +++++++++++++++++++++
