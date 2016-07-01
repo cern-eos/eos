@@ -229,13 +229,18 @@ std::string
 KineticIo::ftsRead(FileIo::FtsHandle* fts_handle)
 {
   eos_debug("");
+  if(!fts_handle){
+    eos_err("handle nullpointer supplied.");
+    return "";
+  }
 
-  auto handle = dynamic_cast<FtsHandle*>(fts_handle);
+  auto handle = dynamic_cast<KineticIo::FtsHandle*>(fts_handle);
+
   if (handle->cached.size() > handle->current_index) {
     return handle->cached.at(handle->current_index++);
   }
 
-  if (handle->cached.size() != 100 && handle->cached.back() != mFilePath) {
+  if (handle->cached.empty() || (handle->cached.size() != 100 && handle->cached.back() != mFilePath)) {
     return "";
   }
 

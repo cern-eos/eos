@@ -157,4 +157,3 @@ echo "EOS_FUSE_MOUNTDIR                : ${EOS_FUSE_MOUNTDIR}"
 echo "EOS_FUSE_REMOTEDIR               : ${EOS_FUSE_REMOTEDIR}"
 
 ${EOS_ROOT}/bin/${EOSD} ${EOS_FUSE_MOUNTDIR} -o${FUSE_OPT-""}max_readahead=131072,max_write=4194304,fsname=eos$1,allow_other,url=root://${EOS_FUSE_MGM_ALIAS-localhost}/${EOS_FUSE_REMOTEDIR} >& /dev/null 
->>>>>>> master

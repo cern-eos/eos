@@ -140,7 +140,7 @@ private:
   bool mHttpFormat; //< indicates HTTP format
   bool mClosed; //< indicates the proc command has been closed already
   bool mBase64Encoding; //< indicates base64 encoding of response
-  XrdOucString mJsonCallback; //< sets the JSONP callback namein 
+  XrdOucString mJsonCallback; //< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------
   //! Create archive file. If successful then the archive file is copied to the

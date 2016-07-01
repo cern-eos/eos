@@ -159,7 +159,6 @@ XrdMgmOfsFile::open (const char *inpath,
 
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
-
       return Emsg(epname, error, ENOENT, "open - you specified a not existing inode number", path);
     }
   }

@@ -128,6 +128,13 @@ XrdMgmOfs::_utimes (const char *path,
     try
     {
       fmd = gOFS->eosView->getFile(path, false);
+
+      // Set the ctime only if different from 0.0
+      if (tvp[0].tv_sec != 0 || tvp[0].tv_nsec != 0)
+      {
+        fmd->setCTime(tvp[0]);
+      }
+
       fmd->setMTime(tvp[1]);
       eosView->updateFileStore(fmd.get());
     }
@@ -142,4 +149,3 @@ XrdMgmOfs::_utimes (const char *path,
   EXEC_TIMING_END("Utimes");
   return SFS_OK;
 }
-

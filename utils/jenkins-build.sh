@@ -165,8 +165,11 @@ if [[ ${BRANCH} == 'emerald' || ${BRANCH} == 'danburite' ]]; then
     echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
 fi
 # Add eos dependencies repos
-echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
+echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
 echo -e '"""' >> eos.cfg
+
+echo "Content of eos.cfg:"
+cat eos.cfg
 
 ## Build the RPMs (with yum repo rpms)
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
@@ -184,9 +187,9 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
   # Get the release string length
   RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 | awk -F "-" '{print $3;}' | awk -F "." '{print length($1);}')
-  COMMIT_LEN=18
+  COMMIT_LEN=24
 
-  # For not tagged builds the release string is 18 characters i.e date + git + commit_hash
+  # For not tagged builds the release string is 24 characters i.e date + git + commit_hash
   if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
     BUILD_TYPE="commit"
   else

@@ -702,6 +702,7 @@ ProcCommand::File ()
         }
 
         eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+
 	std::shared_ptr<eos::IFileMD> fmd;
         try
         {

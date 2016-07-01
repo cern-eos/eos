@@ -17,5 +17,6 @@ yum install -y xfsprogs xfsprogs-devel
 yum install -y e2fsprogs-devel
 yum install -y perl-Time-HiRes
 yum install -y json-c json-c-devel
+yum install -y jsoncpp jsoncpp-devel
 ( cd /tmp/; git clone  https://github.com/zeromq/cppzmq; cp cppzmq/zmq.hpp /usr/include/ )
 

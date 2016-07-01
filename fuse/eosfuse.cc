@@ -396,10 +396,6 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 
  if (!retc)
  {
-#ifdef __APPLE__
-   me.fs (). DecodeOsxBundle(stbuf);
-#endif 
-
    fuse_reply_attr (req, &stbuf, me.config.attrcachetime);
  }
  else
@@ -448,9 +444,6 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
  {
    struct stat newattr;
    newattr.st_mode = attr->st_mode;
-#ifdef __APPLE__
-     me.fs (). EncodeOsxBundle(newattr);
-#endif
    eos_static_debug ("set attr mode ino=%lld", (long long) ino);
    retc = me.fs ().chmod (fullpath.c_str (), newattr.st_mode, fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
  }
@@ -510,9 +503,6 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
    }
    if (!retc)
    {
-#ifdef __APPLE__
-     me.fs (). DecodeOsxBundle(newattr);
-#endif
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
    }
    else
@@ -609,10 +599,6 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
 
      e.ino = e.attr.st_ino;
      me.fs ().store_p2i (e.attr.st_ino, ifullpath);
-
-#ifdef __APPLE__
-   me.fs ().DecodeOsxBundle(e.attr);
-#endif 
 
      fuse_reply_entry (req, &e);
 
@@ -943,15 +929,6 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
  e.attr_timeout = me.config.attrcachetime;
  e.entry_timeout = me.config.entrycachetime;
 
-#ifdef __APPLE__
- {
-   struct stat attr;
-   attr.st_mode = mode;
-   me.fs (). EncodeOsxBundle(attr);
-   mode = attr.st_mode;
- }
-#endif
-
  int retc = me.fs ().mkdir (fullpath.c_str (),
                             mode,
                             fuse_req_ctx (req)->uid,
@@ -1000,9 +977,6 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
        me.fs ().dir_cache_forget (ino_gparent);
      }
 
-#ifdef __APPLE__
-   me.fs ().DecodeOsxBundle(e.attr);
-#endif 
      fuse_reply_entry (req, &e);
    }
  }
@@ -1908,7 +1882,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
                            fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
  if (retc)
-   fuse_reply_err (req, ENODATA);
+   fuse_reply_err (req, ENOATTR);
  else
  {
    if (init_size)

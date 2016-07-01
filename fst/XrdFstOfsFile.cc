@@ -165,7 +165,14 @@ XrdFstOfsFile::openofs (const char* path,
                         const XrdSecEntity* client,
                         const char* opaque)
 {
-  return XrdOfsFile::open(path, open_mode, create_mode, client, opaque);
+  int retc = 0;
+  while ( (retc =  XrdOfsFile::open(path, open_mode, create_mode, client, opaque)) > 0)
+  {
+    eos_static_notice("msg\"xrootd-lock-table busy - snoozing & retry\" delay=%d errno=%d", retc, errno);
+    XrdSysTimer sleeper;
+    sleeper.Snooze(retc);
+  }
+  return retc;
 }
 
 //------------------------------------------------------------------------------
@@ -1567,7 +1574,7 @@ XrdFstOfsFile::verifychecksum ()
     else
     {
       eos_debug("isrw=%d max-offset=%lld opensize=%lld", isRW, checkSum->GetMaxOffset(), openSize);
-      if (((!isRW) && (checkSum->GetMaxOffset() != openSize)))
+      if (((!isRW) && ( (checkSum->GetMaxOffset() != openSize) || (!checkSum->GetMaxOffset()))))
       {
         eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
                   "partial sequential read IO from the beginning...\"");

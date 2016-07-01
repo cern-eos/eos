@@ -19,7 +19,7 @@ extern int com_space(char*);
 #include <iostream>
 #include <unistd.h>
 #include <signal.h>
-#include <string>
+#include <stdexcept>
 
 namespace {
 
@@ -36,6 +36,7 @@ struct Configuration {
   std::string space;
   int numthreads;
   int verbosity;
+  int numbench;
   bool monitoring;
 };
 
@@ -76,19 +77,21 @@ int kinetic_help()
   fprintf(stdout, "           the name of target cluster (see kinetic config)\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       <operation> \n");
-  fprintf(stdout, "           status : show health status of cluster\n");
   fprintf(stdout, "           count  : count number of keys existing in the cluster\n");
   fprintf(stdout, "           scan   : check keys and display their status information\n");
   fprintf(stdout, "           repair : check keys, repair as required, display key status information\n");
   fprintf(stdout, "           reset  : force remove keys (Warning: Data will be lost!)\n");
+  fprintf(stdout, "           status : show health status of cluster. \n");
   fprintf(stdout, "\n");
   fprintf(stdout, "    OPTIONS\n");
-  fprintf(stdout, "\n");
   fprintf(stdout, "       --target data|metadata|attribute|indicator  \n");
   fprintf(stdout, "           Operations can be limited to a specific key-type. Setting the 'indicator' type will \n");
-  fprintf(stdout, "           perform the operation on keys of any type that have been marked as requiring repair.\n");
-  fprintf(stdout, "           In most cases this is sufficient and much faster. Use full scan / repair operations \n");
+  fprintf(stdout, "           perform the operation on keys of any type that have been marked as problematic. In \n");
+  fprintf(stdout, "           most cases this is sufficient and much faster. Use full scan / repair operations \n");
   fprintf(stdout, "           after a drive replacement or cluster-wide power loss event. \n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       --threads <number> \n");
+  fprintf(stdout, "           Specify the number of background io threads used for a scan/repair/reset operation. \n");
   fprintf(stdout, "\n");
 #ifdef EOS
   fprintf(stdout, "       --space <name> \n");
@@ -100,8 +103,9 @@ int kinetic_help()
   fprintf(stdout, "           Specify verbosity level. Messages are printed to stdout (warning set as default). \n");
   fprintf(stdout, "\n");
 #endif
-  fprintf(stdout, "       --threads <number> \n");
-  fprintf(stdout, "           Specify the number of background io threads used for the operation. \n");
+  fprintf(stdout, "       --bench <number>\n");
+  fprintf(stdout, "           Only for status operation. Benchmark put/get/delete performance for each  connection \n");
+  fprintf(stdout, "           using <number> 1MB keys to get rough per-connection throughput. \n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       -m : monitoring key=value output format\n");
   fprintf(stdout, "------------------------------------------------------------------------------------------------\n");
@@ -112,6 +116,7 @@ bool parseArguments(const std::vector<std::string>& arguments, Configuration& co
 {
   config.op = Operation::INVALID;
   config.numthreads = 1;
+  config.numbench = 0;
   config.verbosity = LOG_WARNING;
   config.monitoring = false;
   config.space = "default";
@@ -190,6 +195,9 @@ bool parseArguments(const std::vector<std::string>& arguments, Configuration& co
     }
     else if (arguments[i] == "--threads") {
       config.numthreads = atoi(arguments[++i].c_str());
+    }
+    else if (arguments[i] == "--bench") {
+      config.numbench = atoi(arguments[++i].c_str());;
     }
   }
 
@@ -399,7 +407,7 @@ int do_operation(Configuration& config)
     auto ac = kio::KineticIoFactory::makeAdminCluster(config.id.c_str());
 
     if (config.op == Operation::STATUS) {
-      auto v = ac->status();
+      auto v = ac->status(config.numbench);
       if (config.monitoring) {
         fprintf(stdout, "kinetic.connections.total=%u kinetic.connections.failed=%u\n", v.drives_total,
                 v.drives_failed);
@@ -527,5 +535,8 @@ int main(int argc, char** argv)
   );
   return do_operation(config);
 }
+
 #endif
+
+
 #endif
