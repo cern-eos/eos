@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.191 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FST: honour (rare) xrootd XOFF send on open to retry after <n> seconds to open a file due to contention on xrootd tables
+
 ``V0.3.190 Aquamarine``
 +++++++++++++++++++++++
 
