@@ -162,6 +162,7 @@ XrdFstOfsFile::openofs (const char* path,
     XrdSysTimer sleeper;
     sleeper.Snooze(retc);
   }
+  return retc;
 }
 
 //------------------------------------------------------------------------------
