@@ -821,31 +821,6 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  int is_toplevel_rm (pid_t pid, const char* local_dir);
 
-
-#ifdef __APPLE__
- //----------------------------------------------------------------------------
- //! mode transformation functions to support OSX bundles
- //----------------------------------------------------------------------------
-
- void EncodeOsxBundle(struct stat &attr) 
-  {
-   if (attr.st_mode & S_IFBLK)
-   {
-     attr.st_mode |= 0x10000000;
-     attr.st_mode &= (~S_IFBLK);
-   }
- }
-
- void DecodeOsxBundle(struct stat &attr)
- {
-   if (attr.st_mode & 0x10000000)
-   {
-     attr.st_mode |= S_IFBLK;
-     attr.st_mode &= (~0x10000000);
-   }
- }
-#endif
-
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------
