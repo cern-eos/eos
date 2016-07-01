@@ -259,10 +259,10 @@ The EOS fuse core containing eosd and mount scripts.
 %endif
 
 %post -n eos-fuse-core
-for selinuxvariant in mls strict targeted
+for variant in mls strict targeted
 do
-  /usr/sbin/semodule -s $selinuxvariant -i \
-    /usr/share/selinux/$selinuxvariant/eosfuse.pp &> /dev/null || :
+  /usr/sbin/semodule -s $variant -i \
+    /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
 # create the fuse log directory
@@ -275,9 +275,9 @@ chmod 755 /var/log/eos/fuse/
 # create the credential store
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 # create tmpfiles.d entry
-echo "d /run/eosd 755 root root" > /etc/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials 1777 root root" >> /etc/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials/store 1777 root root" >> /etc/tmpfiles.d/eosd.conf
+echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 %else
 mkdir -p /var/run/eosd/
 mkdir -p /var/run/eosd/credentials/store
@@ -301,7 +301,7 @@ if [ $1 -eq 0 ]; then
 fi
 
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-unlink /etc/tmpfiles.d/eosd.conf
+unlink /usr/lib/tmpfiles.d/eosd.conf
 rm -rf /var/run/eosd/ >& /dev/null
 %endif
 
