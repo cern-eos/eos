@@ -463,6 +463,8 @@ ProcCommand::open (const char* inpath,
   if (encoding == "b64")
   {
     mBase64Encoding = true;
+  }
+
   if (mJsonCallback.length())
   {
     mJsonFormat = true;

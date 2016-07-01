@@ -98,11 +98,8 @@ Requires: acl
 Requires: gdb
 Requires: protobuf
 Requires: jemalloc
-<<<<<<< HEAD
 Requires: kineticio >= 1.0.0
-=======
 Requires: jsoncpp
->>>>>>> master
 
 %if 0%{distribution} == 5
 Requires: zeromq
