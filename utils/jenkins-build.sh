@@ -167,9 +167,9 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
   # Get the release string length
   RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 | awk -F "-" '{print $3;}' | awk -F "." '{print length($1);}')
-  COMMIT_LEN=18
+  COMMIT_LEN=24
 
-  # For not tagged builds the release string is 18 characters i.e date + git + commit_hash
+  # For not tagged builds the release string is 24 characters i.e date + git + commit_hash
   if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then
     BUILD_TYPE="commit"
   else
