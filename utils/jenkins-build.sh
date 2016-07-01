@@ -163,7 +163,6 @@ if [[ ${BRANCH} == 'emerald' ]]; then
     echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
     echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
 fi
-echo -e '"""' >> eos.cfg
 # Add eos dependencies repos
 echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
 echo -e '"""' >> eos.cfg
