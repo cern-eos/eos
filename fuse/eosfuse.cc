@@ -1895,7 +1895,7 @@ EosFuse::getxattr (fuse_req_t req, fuse_ino_t ino, const char *xattr_name, size_
                            fuse_req_ctx (req)->uid, fuse_req_ctx (req)->gid, fuse_req_ctx (req)->pid);
 
  if (retc)
-   fuse_reply_err (req, ENODATA);
+   fuse_reply_err (req, ENOATTR);
  else
  {
    if (init_size)
