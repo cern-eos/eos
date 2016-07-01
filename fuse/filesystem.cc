@@ -761,11 +761,6 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
 	 e.attr.st_mtime = overwrite_stat->MTIMESPEC.tv_sec;
 	 e.attr.st_size = overwrite_stat->st_size;
        }
-
-#ifdef __APPLE__
-       DecodeOsxBundle(e.attr);
-#endif
-
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
        retc = 1; // found
