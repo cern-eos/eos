@@ -293,10 +293,10 @@ The EOS fuse core containing eosd and mount scripts.
 %endif
 
 %post -n eos-fuse-core
-for selinuxvariant in mls strict targeted
+for variant in mls strict targeted
 do
-  /usr/sbin/semodule -s -i $selinuxvariant \
-    /usr/share/selinux/$selinuxvariant/eosfuse.pp &> /dev/null || :
+  /usr/sbin/semodule -s $variant -i \
+    /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
 # create the fuse log directory
