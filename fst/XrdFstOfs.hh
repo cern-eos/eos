@@ -391,8 +391,6 @@ public:
   bool Simulate_XS_write_error; ///< simulate a checksum error on write
   bool Simulate_FMD_open_error; //! simulate a fmd mismatch error on open
 
-  XrdOucString eoscpTransferLog; //! eoscp.log full path
-
   static XrdSysMutex ShutdownMutex; ///< protecting Shutdown variable
   static bool Shutdown; ///< indicating if a shutdown procedure is running
 
