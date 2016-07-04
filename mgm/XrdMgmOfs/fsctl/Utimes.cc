@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 // -----------------------------------------------------------------------
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
@@ -47,17 +46,14 @@
   struct timespec tvp[2];
   if (tv1_sec && tv1_nsec && tv2_sec && tv2_nsec)
   {
+    // ctime
     tvp[0].tv_sec = strtol(tv1_sec, 0, 10);
     tvp[0].tv_nsec = strtol(tv1_nsec, 0, 10);
+    // mtime
     tvp[1].tv_sec = strtol(tv2_sec, 0, 10);
     tvp[1].tv_nsec = strtol(tv2_nsec, 0, 10);
-    
-    int retc = utimes(spath.c_str(),
-		      tvp,
-		      error,
-		      client,
-		      0);
-    
+
+    int retc = utimes(spath.c_str(), tvp, error, client, 0);
     XrdOucString response = "utimes: retc=";
     response += retc;
     error.setErrInfo(response.length() + 1, response.c_str());

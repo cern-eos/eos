@@ -21,7 +21,7 @@ There a two FUSE client modes available:
    ========= ===================================================================
 
 
-**eosfsd** End-User mount
+**eosd** End-User mount
 -------------------------
 The end user mount supports the strong authentication methods in EOS:
 
@@ -175,6 +175,15 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
 
    # Configure FUSE read-ahead window (default 128k)
    # export EOS_FUSE_RDAHEAD_WINDOW=131072
+
+   # Show hidden files from atomic/versioning and backup entries (default off)
+   # export EOS_FUSE_SHOW_SPECIAL_FILES=0
+
+   # Show extended attributes related to EOS itself - this are sys.* and emulated user.eos.* attributes for files (default off)
+   # export EOS_FUSE_SHOW_EOS_ATTRIBUTES=0
+
+   # Add(OR) an additional mode mask to the mode shown (default off)
+   # export EOS_FUSE_MODE_OVERLAY=000     (use 007 to show things are rwx for w)
 
    # Enable lazy open on read-only files (default off)
    # export EOS_FUSE_LAZYOPENRO=1
@@ -476,6 +485,42 @@ For convenience make sure that you enable browsing in ``/etc/autofst.conf``:
 
    Enable **autofs** with ``service autofs start``   
 
+Exporting FUSE filesystems
+--------------------------
 
 
+FUSE export with NFS4
++++++++++++++++++++++
+
+To export FUSE via NFS4 you have to disable(shorten) the attribute caching in the FUSE configuration file:
+
+.. code-block:: bash
+  
+   export EOS_FUSE_ATTR_CACHE_TIME=0.0000000000000001
+
+If you mount an instance as /eos you have to configure an NFS export like this in /etc/exports:
+
+   /eos *.cern.ch(fsid=131,rw,insecure,subtree_check,async,root_squash)
+
+You have to start/reload your nfs4 server and then you should be able to access the NFS volume using
+
+.. code-block:: bash
+
+   mount -t nfs4 <server> <localhost>
+
+FUSE export with CIFS/Samba
++++++++++++++++++++++++++++
+
+To export FUSE via Samba you have only to enable a mode overlay to avoid messages about permission problems during browsing in the FUSE configuration file:
+
+.. code-block:: bash
  
+   export EOS_FUSE_MODE_OVERLAY=077
+
+
+The rest of the CIFS server configuration is idential to a local filesystem Samba export.
+
+
+
+
+
