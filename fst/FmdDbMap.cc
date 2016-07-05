@@ -257,9 +257,8 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
   {
     Fmd valfmd;
     {
-    eos::common::RWMutexReadLock rLock(FmdSqliteMutexMap[fsid]);
+    FmdSqliteMutexMap[fsid].LockRead();
     bool entryexist=ExistFmd(fid,fsid);
-    valfmd=RetrieveFmd(fid,fsid);
 
     if (dbmap.count(fsid) && entryexist)
     {
@@ -267,11 +266,12 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
       FmdHelper* fmd = new FmdHelper();
       if (!fmd)
       {
-        Mutex.UnLockRead();
+        FmdSqliteMutexMap[fsid].UnLockRead();
         return 0;
       }
 
       // make a copy of the current record
+      valfmd=RetrieveFmd(fid,fsid);
       fmd->Replicate(valfmd);
 
       if (fmd->fMd.fid() != fid)
@@ -279,7 +279,7 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
         // fatal this is somehow a wrong record!
         eos_crit("unable to get fmd for fid %llu on fs %lu - file id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fid());
         delete fmd;
-        Mutex.UnLockRead();
+        FmdSqliteMutexMap[fsid].UnLockRead();
         return 0;
       }
 
@@ -288,7 +288,7 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
         // fatal this is somehow a wrong record!
         eos_crit("unable to get fmd for fid %llu on fs %lu - filesystem id mismatch in meta data block (%llu)", fid, (unsigned long) fsid, fmd->fMd.fsid());
         delete fmd;
-        Mutex.UnLockRead();
+        FmdSqliteMutexMap[fsid].UnLockRead();
         return 0;
       }
 
@@ -308,6 +308,7 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
             eos_crit("msg=\"size mismatch disk/mgm vs memory\" fid=%08llx fsid=%lu size=%llu disksize=%llu mgmsize=%llu",
 		     fid, (unsigned long) fsid, fmd->fMd.size(), fmd->fMd.disksize(), fmd->fMd.mgmsize());
             delete fmd;
+            FmdSqliteMutexMap[fsid].UnLockRead();
             return 0;
           }
 
@@ -323,12 +324,14 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
 		     fmd->fMd.diskchecksum().c_str(), fmd->fMd.mgmchecksum().c_str());
 
 	    delete fmd;
+            FmdSqliteMutexMap[fsid].UnLockRead();
 	    return 0;
 	  }
 	}
       }
 
       // return the new entry
+      FmdSqliteMutexMap[fsid].UnLockRead();
       return fmd;
     }
     }
@@ -342,8 +345,10 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
 
       gettimeofday(&tv, &tz);
 
+      FmdSqliteMutexMap[fsid].UnLockRead(); 
  
-      eos::common::RWMutexWriteLock wlock(FmdSqliteMutexMap[fsid]);
+	eos::common::RWMutexWriteLock lock(FmdSqliteMutexMap[fsid]); // --> (return)
+
       valfmd.set_uid(uid);
       valfmd.set_gid(gid);
       valfmd.set_lid(layoutid);
@@ -384,6 +389,7 @@ FmdDbMapHandler::GetFmd (eos::common::FileId::fileid_t fid, eos::common::FileSys
     else
     {
       eos_warning("unable to get fmd for fid %llu on fs %lu - record not found", fid, (unsigned long) fsid);
+      FmdSqliteMutexMap[fsid].UnLockRead();
       return 0;
     }
   }
@@ -476,8 +482,8 @@ FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
     // update in-memory
     if (lockit)
     {
-      Mutex.UnLockWrite(); // <----
       FmdSqliteMutexMap[fsid].UnLockWrite();
+      Mutex.UnLockRead(); // <----
     }
     return PutFmd(fid,fsid,fmd->fMd);
   }
@@ -486,8 +492,8 @@ FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
     eos_crit("no %s DB open for fsid=%llu", eos::common::DbMap::getDbType().c_str(), (unsigned long) fsid);
     if (lockit)
     {
-      Mutex.UnLockRead(); // <----
       FmdSqliteMutexMap[fsid].UnLockWrite();
+      Mutex.UnLockRead(); // <----
     }
   }
 
@@ -513,7 +519,8 @@ FmdDbMapHandler::Commit (FmdHelper* fmd, bool lockit)
 bool
 FmdDbMapHandler::UpdateFromDisk (eos::common::FileSystem::fsid_t fsid, eos::common::FileId::fileid_t fid, unsigned long long disksize, std::string diskchecksum, unsigned long checktime, bool filecxerror, bool blockcxerror, bool flaglayouterror)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
 
   eos_debug("fsid=%lu fid=%08llx disksize=%llu diskchecksum=%s checktime=%llu fcxerror=%d bcxerror=%d flaglayouterror=%d", (unsigned long) fsid, fid, disksize, diskchecksum.c_str(), checktime, filecxerror, blockcxerror, flaglayouterror);
 
@@ -688,7 +695,8 @@ FmdDbMapHandler::ResetDiskInformation (eos::common::FileSystem::fsid_t fsid)
 bool
 FmdDbMapHandler::ResetMgmInformation (eos::common::FileSystem::fsid_t fsid)
 {
-  eos::common::RWMutexWriteLock lock(Mutex);
+  eos::common::RWMutexReadLock lock(Mutex);
+  eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
 
   if (dbmap.count(fsid))
   {
@@ -1061,6 +1069,9 @@ FmdDbMapHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char*
   std::ifstream inFile(tmpfile);
   std::string dumpentry;
 
+  // unlink the temporary file
+  unlink(tmpfile);
+
   unsigned long long cnt = 0;
   while (std::getline(inFile, dumpentry))
   {
@@ -1112,8 +1123,6 @@ FmdDbMapHandler::ResyncAllMgm (eos::common::FileSystem::fsid_t fsid, const char*
 
   isSyncing[fsid] = false;
 
-  // remove the temporary file
-  unlink(tmpfile);
   free(tmpfile);
   return true;
 }
@@ -1195,6 +1204,7 @@ FmdDbMapHandler::GetInconsistencyStatistics (eos::common::FileSystem::fsid_t fsi
     const eos::common::DbMapTypes::Tkey *k;
     const eos::common::DbMapTypes::Tval *v;
     eos::common::DbMapTypes::Tval val;
+    eos::common::RWMutexReadLock vlock(FmdSqliteMutexMap[fsid]);
 
     // we report values only when we are not in the sync phase from disk/mgm
     for ( dbmap[fsid]->beginIter(); dbmap[fsid]->iterate(&k, &v);) {
@@ -1293,6 +1303,7 @@ FmdDbMapHandler::ResetDB (eos::common::FileSystem::fsid_t fsid)
   // erase the hash entry
   if (dbmap.count(fsid))
   {
+    eos::common::RWMutexWriteLock vlock(FmdSqliteMutexMap[fsid]);
     // delete in the in-memory hash
     if(!dbmap[fsid]->clear())
     {
