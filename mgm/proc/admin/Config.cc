@@ -111,7 +111,12 @@ ProcCommand::Config ()
 
  if (mSubCmd == "load2Redis")
  {
-   if (pVid->uid == 0)
+   if (gOFS->MgmOfsConfigEngineType == "file")
+   {
+        retc = EINVAL;
+        stdErr = "error: this command is available only with ConfigEngine type 'redis'";
+   }
+   else if (pVid->uid == 0)
    {
      eos_notice("config load2Redis: %s", pOpaque->Env(envlen));
      ConfigEngineRedis* redis_conf = dynamic_cast<ConfigEngineRedis*> (gOFS->ConfEngine);
@@ -185,22 +190,40 @@ ProcCommand::Config ()
  }
 
  if (mSubCmd == "diff")
- {
-   eos_notice("config diff");
-   ConfigEngineFile* file_conf = dynamic_cast<ConfigEngineFile*> (gOFS->ConfEngine);
-   file_conf->Diffs(stdOut);
+ { 
+   if (gOFS->MgmOfsConfigEngineType == "redis")
+   {
+     retc = EINVAL;
+     stdErr = "error: this command is available only with ConfigEngine type 'file'";
+   } 
+   else 
+   {
+     eos_notice("config diff");
+     ConfigEngineFile* file_conf = dynamic_cast<ConfigEngineFile*> (gOFS->ConfEngine);
+     file_conf->Diffs(stdOut);
+   }
  }
 
  if (mSubCmd == "changelog")
  {
    if (gOFS->MgmOfsConfigEngineType == "redis")
    {
-     nlines = atoi(val);
-     if (nlines < 1) nlines = 1;
-   }
-   ConfigEngineFile* file_conf = dynamic_cast<ConfigEngineFile*> (gOFS->ConfEngine);
-   file_conf->GetChangeLog()->Tail(nlines, stdOut);
-   eos_notice("config changelog");
+     retc = EINVAL;
+     stdErr = "error: this command is available only with ConfigEngine type 'file'";
+   } 
+   else 
+   {
+     int nlines = 5;
+     char* val;
+     if ((val = pOpaque->Get("mgm.config.lines")))
+     {
+       nlines = atoi(val);
+       if (nlines < 1) nlines = 1;
+     }
+     ConfigEngineFile* file_conf = dynamic_cast<ConfigEngineFile*> (gOFS->ConfEngine);
+     file_conf->GetChangeLog()->Tail(nlines, stdOut);
+     eos_notice("config changelog");
+  }
  }
  return SFS_OK;
 }

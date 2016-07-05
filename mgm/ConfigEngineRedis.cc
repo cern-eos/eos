@@ -97,9 +97,11 @@ ConfigEngineRedis::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 	     return false;
   if (!ApplyConfig(err))
      	return false;
-  else
+  else {
+	currentConfigFile = name;
 	return true;
-
+  }
+  
   return false;
 }
 
@@ -176,24 +178,34 @@ ConfigEngineRedis::ListConfigs (XrdOucString &configlist, bool showbackup)
  */
 /*----------------------------------------------------------------------------*/
 {
-  configlist = "Existing Configurations\n";
-  configlist += "=======================\n";
+  configlist = "Existing Configurations on Redis\n";
+  configlist += "================================\n";
 
   //getting the set from redis with the available configurations
   redox::RedoxSet rdx_set(client, conf_set_key);
 	
   for (auto&& elem: rdx_set.smembers()){
-    //retrieve the timestamp value
     redox::RedoxHash rdx_hash(client, elem);
+
+    //strip the prefix
+    XrdOucString key = elem.c_str();
+    int pos = key.rfind(":");
+    if (pos != -1) 
+	key.erasefromstart(pos+1);
+    //retrieve the timestamp value
     if (rdx_hash.hexists("timestamp")) {
-     		char outline[1024];
-		sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(), elem.c_str());
-		configlist += outline;
-	} else {
-		configlist += "name: ";
-		configlist += elem.c_str();
-	}
-        configlist += "\n";
+     	char outline[1024];
+	sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(), key.c_str());
+	configlist += outline;
+    } else {
+	configlist += "name: ";
+	configlist += key.c_str();
+    }
+    eos_notice("KEY NAME => %s",key.c_str());
+    eos_notice("Current name => %s",currentConfigFile.c_str());
+    if (key == currentConfigFile)
+	configlist += " *";
+    configlist += "\n";
   }
   return true;
 }
@@ -352,20 +364,9 @@ ConfigEngineRedis::AutoSave ()
  * @brief Do an autosave
  */
 /*----------------------------------------------------------------------------*/
-{ //TODO
-  /*
-  if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
+{ 
+  if (autosave && currentConfigFile.length())
   {
-    int aspos = 0;
-    if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
-    {
-      currentConfigFile.erase(aspos);
-    }
-    if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
-    {
-      currentConfigFile.erase(aspos);
-    }
-
     XrdOucString envstring = "mgm.config.file=";
     envstring += currentConfigFile;
     envstring += "&mgm.config.force=1";
@@ -380,7 +381,7 @@ ConfigEngineRedis::AutoSave ()
       return false;
     }
     return true;
-  }*/
+  }
   return false;
 }
 
@@ -453,21 +454,8 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
   }*/
 
 
-  //TO DO implement autosave
-
-  /*
-  if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
+  if ( autosave && currentConfigFile.length())
   {
-    int aspos = 0;
-    if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
-    {
-      currentConfigFile.erase(aspos);
-    }
-    if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
-    {
-      currentConfigFile.erase(aspos);
-    }
-
     XrdOucString envstring = "mgm.config.file=";
     envstring += currentConfigFile;
     envstring += "&mgm.config.force=1";
@@ -481,7 +469,6 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
       eos_static_err("%s\n", err.c_str());
     }
   }
-  */
 }
 
 /*----------------------------------------------------------------------------*/
@@ -534,20 +521,8 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
   Mutex.Lock();
   configDefinitions.Del(configname.c_str());
 
-  //TODO implement autosave
-  /*
-  if (gOFS->MgmMaster.IsMaster() && autosave && currentConfigFile.length())
+  if (autosave && currentConfigFile.length())
   {
-    int aspos = 0;
-    if ((aspos = currentConfigFile.find(".autosave")) != STR_NPOS)
-    {
-      currentConfigFile.erase(aspos);
-    }
-    if ((aspos = currentConfigFile.find(".backup")) != STR_NPOS)
-    {
-      currentConfigFile.erase(aspos);
-    }
-
     XrdOucString envstring = "mgm.config.file=";
     envstring += currentConfigFile;
     envstring += "&mgm.config.force=1";
@@ -559,7 +534,7 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
 
       eos_static_err("%s\n", err.c_str());
     }
-  }*/
+  }
   Mutex.UnLock();
   eos_static_debug("%s", key);
 }
