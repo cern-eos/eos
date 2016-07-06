@@ -53,7 +53,6 @@ set(
   GlobalConfig.cc
   Attr.cc
   Report.cc
-  ZMQ.cc
   StringTokenizer.cc
   StringConversion.cc
   CommentLog.cc
@@ -77,7 +76,6 @@ if(MacOSX)
     eosCommon
     XrdMqClient
     ${Z_LIBRARY}
-    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
@@ -90,7 +88,6 @@ else()
     eosCommon
     XrdMqClient
     ${Z_LIBRARY}
-    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
@@ -107,6 +104,7 @@ else()
     FileSystem.cc
     TransferQueue.cc
     TransferJob.cc
+    ZMQ.cc
     sqlite/sqlite3.c
     DbMap.cc
     DbMapSqlite.cc
@@ -125,6 +123,7 @@ else()
     eosCommonServer
     XrdMqClient
     ${Z_LIBRARY}
+    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
@@ -176,7 +175,6 @@ else()
     eosCommon-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
-    ${ZMQ_LIBRARIES}
     ${UUID_LIBRARIES}
     ${ATTR_LIBRARIES}
     ${NCURSES_LIBRARY}
