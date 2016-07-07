@@ -50,30 +50,32 @@ ProcCommand::Space ()
 
   if (mSubCmd == "status")
   {
+    bool mformat = (mOutFormat=="m");
+    const char *fmtstr=mformat?"%s=%s ":"%-32s := %s\n";
     std::string space = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
     if (FsView::gFsView.mSpaceView.count(space))
     {
-      stdOut += "# ------------------------------------------------------------------------------------\n";
-      stdOut += "# Space Variables\n";
-      stdOut += "# ....................................................................................\n";
+      if(!mformat) stdOut += "# ------------------------------------------------------------------------------------\n";
+      if(!mformat)       stdOut += "# Space Variables\n";
+      if(!mformat) stdOut += "# ....................................................................................\n";
       std::vector<std::string> keylist;
       FsView::gFsView.mSpaceView[space]->GetConfigKeys(keylist);
       std::sort(keylist.begin(), keylist.end());
       for (size_t i = 0; i < keylist.size(); i++)
       {
-        char line[1024];
-        if ((keylist[i] == "nominalsize") ||
-            (keylist[i] == "headroom"))
+        char line[32678];
+        if ( ( (keylist[i] == "nominalsize") ||
+            (keylist[i] == "headroom") ) && !mformat)
         {
           XrdOucString sizestring;
           // size printout
-          snprintf(line, sizeof (line) - 1, "%-32s := %s\n", keylist[i].c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str(), 0, 10), "B"));
+          snprintf(line, sizeof (line) - 1, fmtstr, keylist[i].c_str(), eos::common::StringConversion::GetReadableSizeString(sizestring, strtoull(FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str(), 0, 10), "B"));
         }
         else
         {
-          snprintf(line, sizeof (line) - 1, "%-32s := %s\n", keylist[i].c_str(), FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str());
+          snprintf(line, sizeof (line) - 1, fmtstr, keylist[i].c_str(), FsView::gFsView.mSpaceView[space]->GetConfigMember(keylist[i].c_str()).c_str());
         }
         stdOut += line;
       }
