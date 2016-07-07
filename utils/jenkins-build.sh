@@ -138,10 +138,10 @@ fi
 ${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
-# Build the source RPM
-rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-*.tar.gz
-# Move the source RPM
-mv rpmbuild/SRPMS/eos-*.src.rpm .
+# Build the source RPMs and move them
+make srpm | grep Wrote | awk '{ print$2}' |  xargs -I % mv % .
+SRC_RPM=$(ls *.src.rpm | grep -v clientsonly)
+SRC_RPM_CLT=$(ls *.src.rpm | grep clientsonly)
 
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
@@ -157,9 +157,9 @@ cat eos.cfg
 ## Build the RPMs (with yum repo rpms)
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}"
-
-
+mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
+# move the clients only srpm to the results dir
+mv ./${SRC_RPM_CLT} ../rpms
 
 
 # List of branches for CI YUM repo
