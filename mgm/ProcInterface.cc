@@ -906,45 +906,23 @@ ProcCommand::MakeResult ()
 	    else
 	      value = "NULL";
 
+	    if(token.empty()) continue;
+
+            auto *jep = &(jsonentry[token[0]]);
+            for(int i=1;i<(int)token.size();i++)
+            {
+              jep = &((*jep)[token[i]]);
+            }
+
 	    if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
 	    {
 	      // non numeric
-	      if (token.size()==1)
-	      {
-		jsonentry[token[0]] = value;
-	      }
-	      if (token.size()==2)
-	      {
-		jsonentry[token[0]][token[1]] = value;
-	      }
-	      if (token.size()==3)
-	      {
-		jsonentry[token[0]][token[1]][token[2]] = value;
-	      }
-	      if (token.size()==4)
-	      {
-		jsonentry[token[0]][token[1]][token[2]][token[3]] = value;
-	      }
+              (*jep) = value;
 	    }
 	    else
 	    {
 	      // numeric
-	      if (token.size()==1)
-	      {
-		jsonentry[token[0]] = val;
-	      }
-	      if (token.size()==2)
-	      {
-		jsonentry[token[0]][token[1]] = val;
-	      }
-	      if (token.size()==3)
-	      {
-		jsonentry[token[0]][token[1]][token[2]] = val;
-	      }
-	      if (token.size()==4)
-	      {
-		jsonentry[token[0]][token[1]][token[2]][token[3]] = val;
-	      }
+	      (*jep) = val;
 	    }
 	  }
 	  jsonresult.append(jsonentry);
