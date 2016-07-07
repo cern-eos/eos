@@ -51,7 +51,7 @@
 #include <map>
 #include <string>
 #include <math.h>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
 
