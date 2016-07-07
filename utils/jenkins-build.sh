@@ -140,10 +140,6 @@ ${CMAKE_EX} .. -DPACKAGEONLY=1
 make dist
 # Build the source RPMs and move them
 make srpm | grep Wrote | awk '{ print$2}' |  xargs -I % mv % .
-# Rename the client as it is wrongly named by CPack
-SRC_RPM_CLT=$(ls *.src.rpm | grep clientsonly)
-WRONGPLATFORM=$(ls *clientsonly*.src.rpm | grep -oh '[^.]*\.cern' | tr '.' ' ' | awk '{ print $1}')
-mv ${SRC_RPM_CLT} $(echo ${SRC_RPM_CLT} | sed 's/\.'${WRONGPLATFORM}'\./\.'${PLATFORM}'\./g')
 SRC_RPM=$(ls *.src.rpm | grep -v clientsonly)
 SRC_RPM_CLT=$(ls *.src.rpm | grep clientsonly)
 
@@ -162,8 +158,8 @@ cat eos.cfg
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
 mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
-# move the clients only srpm to the results dir
-mv ./${SRC_RPM_CLT} ../rpms
+# move the clients only srpm to the results dir and rename it after the one mock by rpmbuild as it is wrongly named by CPack
+mv ./${SRC_RPM_CLT} ../rpms/$( cd ../rpms && ls *.src.rpm | sed 's/eos\-/eos\-clientsonly\-/g' )
 
 
 # List of branches for CI YUM repo
