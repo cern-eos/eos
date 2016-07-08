@@ -887,14 +887,19 @@ ProcCommand::MakeResult ()
 	  std::map <std::string , std::string> map;
 	  
 	  eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
-	  // these values violate the JSON hierarchy and have to be rewritten
+          // these values violate the JSON hierarchy and have to be rewritten
 	  
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "balancer","balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "converter","balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer","geotagbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "geobalancer","geobalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer","groupbalancer.status");
 	  
 	  for (auto it=map.begin(); it!=map.end(); ++it)
 	  {
