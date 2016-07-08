@@ -63,8 +63,9 @@ BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 BuildRequires: leveldb-devel
+BuildRequires: libattr-devel
 %if ! %{clientsonly}
-BuildRequires: libattr-devel, openldap-devel
+BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel, xfsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: jsoncpp, jsoncpp-devel
