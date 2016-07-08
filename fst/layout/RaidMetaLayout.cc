@@ -91,6 +91,7 @@ RaidMetaLayout::~RaidMetaLayout ()
  {
    FileIo* file = mStripe.back();
    mStripe.pop_back();
+   if(file==mFileIO) mFileIO=NULL;
    delete file;
  }
 
