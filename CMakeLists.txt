@@ -191,11 +191,11 @@ set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_fi
 
 add_custom_target(
   srpm-all
-  COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
+  COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz --define "_srcrpmdir ${CMAKE_BINARY_DIR}")
 
 add_custom_target(
   srpm-clientsonly
-  COMMAND rpmbuild --define "eos_clientrpmsonly 1" ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-clientsonly-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
+  COMMAND rpmbuild --define "eos_clientrpmsonly 1" ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-clientsonly-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz --define "_srcrpmdir ${CMAKE_BINARY_DIR}")
 
 add_custom_target(
   rpm

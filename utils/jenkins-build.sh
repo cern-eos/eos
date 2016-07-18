@@ -139,14 +139,7 @@ ${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
 # Build the source RPMs
-make srpm >& makesrpm.out 
-# ... and move them ...
-echo "Output of srpm:"
-cat makesrpm.out
-cat makesrpm.out | grep Wrote | awk '{ print $2;}' |  xargs -I % ls -lrt %
-cat makesrpm.out | grep Wrote | awk '{ print $2;}' |  xargs -I % mv % .
-unlink makesrpm.out
-
+make srpm
 SRC_RPM=$(ls *.src.rpm | grep -v clientsonly)
 SRC_RPM_CLT=$(ls *.src.rpm | grep clientsonly)
 
