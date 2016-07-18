@@ -141,7 +141,10 @@ make dist
 # Build the source RPMs
 make srpm >& makesrpm.out 
 # ... and move them ...
-cat makesrpm.out | grep Wrote | awk '{ print$2}' |  xargs -I % mv % .
+echo "Output of srpm:"
+cat makesrpm.out
+cat makesrpm.out | grep Wrote | awk '{ print $2;}' |  xargs -I % ls -lrt %
+cat makesrpm.out | grep Wrote | awk '{ print $2;}' |  xargs -I % mv % .
 unlink makesrpm.out
 
 SRC_RPM=$(ls *.src.rpm | grep -v clientsonly)
