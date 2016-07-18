@@ -917,14 +917,19 @@ ProcCommand::MakeResult ()
 	  std::map <std::string , std::string> map;
 	  
 	  eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
-	  // these values violate the JSON hierarchy and have to be rewritten
+          // these values violate the JSON hierarchy and have to be rewritten
 	  
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
-	  eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "balancer","balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "converter","balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer","geotagbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "geobalancer","geobalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer","groupbalancer.status");
 	  
 	  for (auto it=map.begin(); it!=map.end(); ++it)
 	  {
@@ -942,45 +947,23 @@ ProcCommand::MakeResult ()
 	    else
 	      value = "NULL";
 
+	    if(token.empty()) continue;
+
+            auto *jep = &(jsonentry[token[0]]);
+            for(int i=1;i<(int)token.size();i++)
+            {
+              jep = &((*jep)[token[i]]);
+            }
+
 	    if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
 	    {
 	      // non numeric
-	      if (token.size()==1)
-	      {
-		jsonentry[token[0]] = value;
-	      }
-	      if (token.size()==2)
-	      {
-		jsonentry[token[0]][token[1]] = value;
-	      }
-	      if (token.size()==3)
-	      {
-		jsonentry[token[0]][token[1]][token[2]] = value;
-	      }
-	      if (token.size()==4)
-	      {
-		jsonentry[token[0]][token[1]][token[2]][token[3]] = value;
-	      }
+              (*jep) = value;
 	    }
 	    else
 	    {
 	      // numeric
-	      if (token.size()==1)
-	      {
-		jsonentry[token[0]] = val;
-	      }
-	      if (token.size()==2)
-	      {
-		jsonentry[token[0]][token[1]] = val;
-	      }
-	      if (token.size()==3)
-	      {
-		jsonentry[token[0]][token[1]][token[2]] = val;
-	      }
-	      if (token.size()==4)
-	      {
-		jsonentry[token[0]][token[1]][token[2]][token[3]] = val;
-	      }
+	      (*jep) = val;
 	    }
 	  }
 	  jsonresult.append(jsonentry);

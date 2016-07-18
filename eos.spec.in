@@ -18,6 +18,12 @@
     %endif
 %endif
 
+%if %{?eos_clientrpmsonly:1}%{!?eos_clientrpmsonly:0}
+    %define clientsonly 1
+%else
+    %define clientsonly 0
+%endif
+
 %define xrootd_version 4.0.0
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
@@ -25,7 +31,11 @@
 # Package definitions
 #-------------------------------------------------------------------------------
 Summary: The EOS project
+%if %{clientsonly}
+Name: @CPACK_PACKAGE_NAME@-clientsonly
+%else
 Name: @CPACK_PACKAGE_NAME@
+%endif
 Version: @CPACK_PACKAGE_VERSION@
 Release: @CPACK_PACKAGE_RELEASE@%{dist}
 Prefix: /usr
@@ -42,22 +52,25 @@ BuildRequires: cmake3 >= 3.3
 %define cmake_cmd cmake3
 %endif
 BuildRequires: xrootd >= %{xrootd_version}
+BuildRequires: xrootd-client-devel >= %{xrootd_version}
 BuildRequires: xrootd-server-devel >= %{xrootd_version}
 BuildRequires: xrootd-private-devel >= %{xrootd_version}
-BuildRequires: xrootd-client-devel >= %{xrootd_version}
 BuildRequires: git, readline-devel
-BuildRequires: libattr-devel, openldap-devel
-BuildRequires: e2fsprogs-devel, xfsprogs-devel
 BuildRequires: openssl, openssl-devel
 BuildRequires: ncurses, ncurses-devel
 BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
-BuildRequires: leveldb-devel
-BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 BuildRequires: kineticio >= 1.1.0
+BuildRequires: leveldb-devel
+BuildRequires: libattr-devel, xfsprogs-devel
+%if ! %{clientsonly}
+BuildRequires: openldap-devel
+BuildRequires: e2fsprogs-devel
+BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
 BuildRequires: jsoncpp, jsoncpp-devel
+%endif
 
 %if 0%{distribution} == 5
 BuildRequires: gcc44, gcc44-c++, sparsehash, uuid, uuid-devel,
@@ -83,6 +96,38 @@ Requires: initscripts
 %description
 The EOS software package.
 
+
+%prep
+%setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
+
+%build
+test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
+
+%if 0%{distribution} == 5
+export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
+%endif
+
+mkdir -p build
+cd build
+%if %{clientsonly}
+%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1
+%else
+%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+%endif
+%{__make} %{_smp_mflags}
+
+%install
+cd build
+%{__make} install DESTDIR=$RPM_BUILD_ROOT
+echo "Installed!"
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+
+
+%if ! %{clientsonly}
 #-------------------------------------------------------------------------------
 # Package eos-server
 #-------------------------------------------------------------------------------
@@ -115,30 +160,6 @@ BuildRequires: zeromq, zeromq-devel, cppzmq-devel
 
 %description -n eos-server
 The EOS server installation containing MGM, FST & MQ service.
-
-%prep
-
-%setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
-
-%build
-test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
-
-%if 0%{distribution} == 5
-export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
-%endif
-
-mkdir -p build
-cd build
-%{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
-%{__make} %{_smp_mflags}
-
-%install
-cd build
-%{__make} install DESTDIR=$RPM_BUILD_ROOT
-echo "Installed!"
-
-%clean
-rm -rf $RPM_BUILD_ROOT
 
 %files -n eos-server
 %defattr(-, root, root, -)
@@ -219,6 +240,7 @@ if [ $1 = 0 ]; then
 	/sbin/chkconfig --del eos
 	/sbin/chkconfig --del eosslave
 fi
+%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-client
@@ -375,6 +397,7 @@ if [ $1 = 0 ]; then
 fi
 %endif
 
+%if ! %{clientsonly}
 #-------------------------------------------------------------------------------
 # Package eos-srm
 #-------------------------------------------------------------------------------
@@ -574,6 +597,7 @@ Contains a yum configuration file for the development EOS EL7 repo
 %files -n eos-repo-el7-dev
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
+%endif
 
 %endif
 

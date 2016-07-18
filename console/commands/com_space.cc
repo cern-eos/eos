@@ -224,7 +224,17 @@ com_space (char* arg1)
   {
     in = "mgm.cmd=space&mgm.subcmd=status";
     XrdOucString spacename = subtokenizer.GetToken();
-
+    XrdOucString option = subtokenizer.GetToken();
+    if (option.length())
+    {
+      if (option == "-m")
+      {
+        in += "&mgm.outformat=m";
+        ok = true;
+      }
+      if (!ok)
+        printusage = true;
+    }
     if (!spacename.length())
       printusage = true;
     in += "&mgm.space=";
@@ -468,7 +478,7 @@ com_space_usage:
   fprintf(stdout, "                                                                     : if the value for <node.key> is identical for all nodes in the referenced space, it is dumped only once, otherwise the value is dumped for each node separately\n");
   fprintf(stdout, "       space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance] \n");
   fprintf(stdout, "                                                                     : reset a space e.g. recompute the drain state machine\n");
-  fprintf(stdout, "       space status <space-name>                                     : print's all defined variables for space\n");
+  fprintf(stdout, "       space status <space-name> [-m]                                : print's all defined variables for space\n");
   fprintf(stdout, "       space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !) \n");
   fprintf(stdout, "       space rm <space-name>                                         : remove space\n");
   fprintf(stdout, "\n");
