@@ -147,8 +147,8 @@ fi
 ${CMAKE_EX} .. -DPACKAGEONLY=1
 # Create tarball
 make dist
-# Build the source RPMs and move them
-make srpm | grep Wrote | awk '{ print$2}' |  xargs -I % mv % .
+# Build the source RPMs
+make srpm
 SRC_RPM=$(ls *.src.rpm | grep -v clientsonly)
 SRC_RPM_CLT=$(ls *.src.rpm | grep clientsonly)
 

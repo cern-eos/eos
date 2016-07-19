@@ -30,6 +30,9 @@ install(DIRECTORY DESTINATION /var/log/eos)
 install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
 install(DIRECTORY DESTINATION /var/log/eos/httpd/)
 install(DIRECTORY DESTINATION /var/share/eos/)
+install(DIRECTORY DESTINATION /var/run/eosd )
+install(DIRECTORY DESTINATION /var/run/eosd/credentials ) 
+install(DIRECTORY DESTINATION /var/run/eosd/credentials/store )
 
 install(
   FILES
