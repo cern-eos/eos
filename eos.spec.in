@@ -246,6 +246,9 @@ The EOS fuse core containing eosd and mount scripts.
 /usr/share/selinux/mls/eosfuse.pp
 /usr/share/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
+%dir %attr(0755, root, root) /var/run/eosd/
+%dir %attr(1777, root, root) /var/run/eosd/credentials/
+%dir %attr(1777, root, root) /var/run/eosd/credentials/store
 
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 %{_sysconfdir}/fuse.conf.eos 
@@ -274,11 +277,6 @@ chmod 755 /var/log/eos/fuse/
 echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
 echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-%else
-mkdir -p /var/run/eosd/
-mkdir -p /var/run/eosd/credentials/store
-chmod 1777 /var/run/eosd/credentials
-chmod 1777 /var/run/eosd/credentials/store
 %endif
 
 
@@ -298,7 +296,6 @@ fi
 
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 unlink /usr/lib/tmpfiles.d/eosd.conf
-rm -rf /var/run/eosd/ >& /dev/null
 %endif
 
 #-------------------------------------------------------------------------------
