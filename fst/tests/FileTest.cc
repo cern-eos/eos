@@ -24,10 +24,11 @@
 /*----------------------------------------------------------------------------*/
 #include "FileTest.hh"
 #include "common/LayoutId.hh"
+#include "fst/checksum/CRC32C.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
-#include "fst/checksum/CRC32C.hh"
+#include "fst/io/XrdIo.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -42,7 +43,6 @@ FileTest::setUp()
   mEnv = new eos::fst::test::TestEnv();
 }
 
-
 //------------------------------------------------------------------------------
 // tearDown function
 //------------------------------------------------------------------------------
@@ -52,7 +52,6 @@ FileTest::tearDown()
   delete mEnv;
   mEnv = 0;
 }
-
 
 //------------------------------------------------------------------------------
 // Write test
@@ -102,7 +101,6 @@ FileTest::WriteTest()
   mFile = 0;
   delete[] buff_write;
 }
-
 
 //------------------------------------------------------------------------------
 // Vector read test
@@ -437,4 +435,36 @@ FileTest::DeleteFlagTest()
   delete[] buffer;
   delete mFile;
   mFile = 0;
+}
+
+//------------------------------------------------------------------------------
+// Read async test
+//------------------------------------------------------------------------------
+void
+FileTest::ReadAsyncTest()
+{
+  std::string address = "root://root@" + mEnv->GetMapping("server");
+  std::string file_path = mEnv->GetMapping("plain_file");
+  XrdCl::URL url(address);
+  CPPUNIT_ASSERT(url.IsValid());
+  std::string file_url = address + "/" + file_path;
+  eos::fst::XrdIo* file = new eos::fst::XrdIo();
+  std::cerr << "File url: " << file_url << std::endl;
+  CPPUNIT_ASSERT(!file->Open(file_url, SFS_O_RDONLY));
+  // Get file size
+  struct stat buff;
+  CPPUNIT_ASSERT(!file->Stat(&buff));
+  uint64_t file_size = buff.st_size;
+  off_t buff_size = 1025*4;
+  char buffer [buff_size];
+  uint64_t offset = 0;
+
+  while (offset <= file_size)
+  {
+    CPPUNIT_ASSERT(file->ReadAsync(offset, buffer, buff_size, false) == buff_size);
+    offset += buff_size;
+  }
+
+  CPPUNIT_ASSERT(file->Close());
+  delete file;
 }
