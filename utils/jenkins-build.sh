@@ -141,8 +141,8 @@ ${CMAKE_EX} .. -DPACKAGEONLY=1
 
 # Build the source RPMs
 make srpm-all
-SRC_RPM=$(ls *.src.rpm | grep -v clients)
-SRC_RPM_CLT=$(ls *.src.rpm | grep clients)
+SRC_RPM=$(find ./SRPMS -name "eos-[[:digit:]]*.src.rpm" -print0)
+SRC_RPM_CLIENTS=$(find ./SRPMS -name "eos-clients-*.src.rpm" -print0)
 
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
@@ -156,9 +156,9 @@ echo -e '"""' >> eos.cfg
 ## Build the RPMs (with yum repo rpms)
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}" --with=server
+mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"  --with=server
 # Move the eos-client SRPM to results rpm directory
-mv ./${SRC_RPM_CLT} ../rpms/
+mv ./${SRC_RPM_CLIENTS} ../rpms/
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine')

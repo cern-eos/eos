@@ -172,15 +172,15 @@ set (EOS_CLIENTS_ARCHIVE "${CMAKE_PROJECT_NAME}-clients-${CPACK_PACKAGE_VERSION}
 add_custom_target(
   srpm-client
   COMMAND cp ${EOS_ARCHIVE} ${EOS_CLIENTS_ARCHIVE}
-  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_CLIENTS_ARCHIVE} --define "_srcrpmdir ${CMAKE_BINARY_DIR}")
+  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_CLIENTS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}")
 
 add_custom_target(
   srpm
-  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_ARCHIVE} --define "_srcrpmdir ${CMAKE_BINARY_DIR}" --with server)
+  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
 
 add_custom_target(
   rpm
-  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --with server)
+  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
 
 add_custom_target(srpm-all)
 
