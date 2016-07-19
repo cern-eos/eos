@@ -496,26 +496,14 @@ ReplicaParLayout::Close ()
     // Wait for any async requests before closing
     if (mReplicaFile[i])
     {
-      AsyncMetaHandler* ptr_handler =
-              static_cast<AsyncMetaHandler*> (mReplicaFile[i]->GetAsyncHandler());
+      rc_close = mReplicaFile[i]->Close(mTimeout);
+      rc += rc_close;
 
-      if (ptr_handler)
+      if (rc_close != SFS_OK)
       {
-        if (ptr_handler->WaitOK() != XrdCl::errNone)
-        {
-          eos_err("error=async requests failed for replica %s", mReplicaUrl[i].c_str());
-          rc = SFS_ERROR;
-        }
+	if (i != 0) errno = EREMOTEIO;
+	eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
       }
-    }
-
-    rc_close = mReplicaFile[i]->Close(mTimeout);
-    rc += rc_close;
-
-    if (rc_close != SFS_OK)
-    {
-      if (i != 0) errno = EREMOTEIO;
-      eos_err("error=failed to close replica %s", mReplicaUrl[i].c_str());
     }
   }
 
