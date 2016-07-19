@@ -77,7 +77,7 @@ DrainJob::ResetCounter ()
     fs = FsView::gFsView.mIdView[mFsId];
     if (fs)
     {
-      //    fs->OpenTransaction();
+      fs->OpenTransaction();
       fs->SetLongLong("stat.drainbytesleft", 0);
       fs->SetLongLong("stat.drainfiles", 0);
       fs->SetLongLong("stat.timeleft", 0);
