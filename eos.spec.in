@@ -30,11 +30,7 @@
 # Package definitions
 #-------------------------------------------------------------------------------
 Summary: The EOS project
-%if %{?_with_server:1}%{!?_with_server:0}
 Name: @CPACK_PACKAGE_NAME@
-%else
-Name: @CPACK_PACKAGE_NAME@-clients
-%endif
 Version: @CPACK_PACKAGE_VERSION@
 Release: @CPACK_PACKAGE_RELEASE@%{dist}
 Prefix: /usr

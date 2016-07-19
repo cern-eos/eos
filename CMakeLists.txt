@@ -90,6 +90,7 @@ if (CLIENT)
   add_subdirectory (etc)
   add_subdirectory (selinux)
   add_subdirectory (sbin)
+  add_subdirectory (var)
 else()
   add_subdirectory (mq)
   add_subdirectory (common)
@@ -102,7 +103,6 @@ else()
   add_subdirectory (sync)
   add_subdirectory (fuse)
   add_subdirectory (srm)
-  add_subdirectory (var)
   add_subdirectory (sbin)
   add_subdirectory (man)
   add_subdirectory (test)
@@ -170,24 +170,20 @@ set (EOS_ARCHIVE         "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK
 set (EOS_CLIENTS_ARCHIVE "${CMAKE_PROJECT_NAME}-clients-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
 
 add_custom_target(
-  srpm-client
-  COMMAND cp ${EOS_ARCHIVE} ${EOS_CLIENTS_ARCHIVE}
-  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_CLIENTS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}")
-
-add_custom_target(
   srpm
   COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
+
+add_custom_target(
+  rpm-client
+  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}")
 
 add_custom_target(
   rpm
   COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
 
-add_custom_target(srpm-all)
-
-add_dependencies(rpm dist)
 add_dependencies(srpm dist)
-add_dependencies(srpm-client dist)
-add_dependencies(srpm-all srpm-client srpm)
+add_dependencies(rpm dist)
+add_dependencies(rpm-client dist)
 
 #-------------------------------------------------------------------------------
 # Custom target to build on OSX

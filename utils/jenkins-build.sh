@@ -137,12 +137,12 @@ if test x"${CMAKE_EX}" == x -o ! -x "${CMAKE_EX}"; then
   CMAKE_EX=cmake
 fi
 
+# Run cmake in package_only mode
 ${CMAKE_EX} .. -DPACKAGEONLY=1
 
-# Build the source RPMs
-make srpm-all
-SRC_RPM=$(find ./SRPMS -name "eos-[[:digit:]]*.src.rpm" -print0)
-SRC_RPM_CLIENTS=$(find ./SRPMS -name "eos-clients-*.src.rpm" -print0)
+# Build the SRPMs
+make srpm
+SRC_RPM=$(find ./SRPMS -name "eos-*.src.rpm" -print0)
 
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
@@ -157,8 +157,6 @@ echo -e '"""' >> eos.cfg
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
 mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"  --with=server
-# Move the eos-client SRPM to results rpm directory
-mv ./${SRC_RPM_CLIENTS} ../rpms/
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine')
@@ -168,7 +166,7 @@ if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
   # Get the release string length
   COMMIT_LEN=24
-  RELEASE_LEN=$(find . -name "eos-[[:digit:]]*.src.rpm" -print0 \
+  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
       | awk -F "-" '{print $3;}' \
       | awk -F "." '{print length($1);}')
 
