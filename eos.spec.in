@@ -18,12 +18,11 @@
     %endif
 %endif
 
-%if %{?eos_clientrpmsonly:1}%{!?eos_clientrpmsonly:0}
-    %define clientsonly 1
-%else
-    %define clientsonly 0
-%endif
+# By default we build the eos client SRPMS, if the entire build is required
+# then pass the "--with server" flag to the rpmbuild command
+%bcond_without server
 
+# Define minimum required dependency for XRootD
 %define xrootd_version 4.0.0
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 
@@ -31,10 +30,10 @@
 # Package definitions
 #-------------------------------------------------------------------------------
 Summary: The EOS project
-%if %{clientsonly}
-Name: @CPACK_PACKAGE_NAME@-clientsonly
-%else
+%if %{?_with_server:1}%{!?_with_server:0}
 Name: @CPACK_PACKAGE_NAME@
+%else
+Name: @CPACK_PACKAGE_NAME@-clients
 %endif
 Version: @CPACK_PACKAGE_VERSION@
 Release: @CPACK_PACKAGE_RELEASE@%{dist}
@@ -64,7 +63,8 @@ BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
-%if ! %{clientsonly}
+
+%if %{?_with_server:1}%{!?_with_server:0}
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
 BuildRequires: libmicrohttpd, libmicrohttpd-devel >= 0.9.38
@@ -95,7 +95,6 @@ Requires: initscripts
 %description
 The EOS software package.
 
-
 %prep
 %setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 
@@ -108,7 +107,7 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
-%if %{clientsonly}
+%if %{?_with_server:0}%{!?_with_server:1}
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCLIENT=1
 %else
 %{cmake_cmd} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -123,10 +122,7 @@ echo "Installed!"
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-
-
-
-%if ! %{clientsonly}
+%if %{?_with_server:1}%{!?_with_server:0}
 #-------------------------------------------------------------------------------
 # Package eos-server
 #-------------------------------------------------------------------------------
@@ -228,14 +224,14 @@ sleep 2
 
 %preun -n eos-server
 if [ $1 = 0 ]; then
-	echo "Stopping EOS services"
-	/sbin/service eosha stop > /dev/null 2>&1
-	/sbin/service eosd stop > /dev/null 2>&1
-	/sbin/service eos stop > /dev/null 2>&1 || :
-	/sbin/service eossync stop > /dev/null 2>&1
-	/sbin/service eosslave stop > /dev/null 2>&1
-	/sbin/chkconfig --del eos
-	/sbin/chkconfig --del eosslave
+  echo "Stopping EOS services"
+  /sbin/service eosha stop > /dev/null 2>&1
+  /sbin/service eosd stop > /dev/null 2>&1
+  /sbin/service eos stop > /dev/null 2>&1 || :
+  /sbin/service eossync stop > /dev/null 2>&1
+  /sbin/service eosslave stop > /dev/null 2>&1
+  /sbin/chkconfig --del eos
+  /sbin/chkconfig --del eosslave
 fi
 %endif
 
@@ -318,27 +314,26 @@ The EOS fuse core containing eosd and mount scripts.
 %endif
 
 %post -n eos-fuse-core
+
 for variant in mls strict targeted
 do
   /usr/sbin/semodule -s $variant -i \
-    /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
+  /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
-# create the fuse log directory
+# Create the fuse log directory
 mkdir -p /var/log/eos/fuse/
 chown daemon:daemon /var/log/eos/
 chown daemon:daemon /var/log/eos/fuse/
 chmod 755 /var/log/eos/
 chmod 755 /var/log/eos/fuse/
 
-# create the credential store
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-# create tmpfiles.d entry
+# Create the credential store i.e tmpfiles.d entry
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
 echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
 echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 %endif
-
 
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
@@ -375,23 +370,24 @@ The EOS fuse SYSV init scripts.
 %{_sysconfdir}/rc.d/init.d/eosd
 
 %post -n eos-fuse-sysv
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-echo "Skipping chkconfig for eosd"
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+  echo "Skipping chkconfig for eosd"
 %else
-/sbin/chkconfig --add eosd
-%endif
-%preun -n eos-fuse-sysv
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-echo "Skipping chkconfig for eosd"
-%else
-if [ $1 = 0 ]; then
-	echo "Stopping EOS FUSE services"
-	/sbin/service eosd stop > /dev/null 2>&1 || :
-	/sbin/chkconfig --del eosd
-fi
+  /sbin/chkconfig --add eosd
 %endif
 
-%if ! %{clientsonly}
+%preun -n eos-fuse-sysv
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+  echo "Skipping chkconfig for eosd"
+%else
+  if [ $1 = 0 ]; then
+    echo "Stopping EOS FUSE services"
+    /sbin/service eosd stop > /dev/null 2>&1 || :
+    /sbin/chkconfig --del eosd
+  fi
+%endif
+
+%if %{?_with_server:1}%{!?_with_server:0}
 #-------------------------------------------------------------------------------
 # Package eos-srm
 #-------------------------------------------------------------------------------
@@ -457,9 +453,9 @@ sleep 2
 
 %preun -n eos-archive
 if [ $1 = 0 ]; then
-	echo "Stopping EOS archive services"
-	/sbin/service eosarchvied stop > /dev/null 2>&1 || :
-	/sbin/chkconfig --del eosarchived
+  echo "Stopping EOS archive services"
+  /sbin/service eosarchvied stop > /dev/null 2>&1 || :
+  /sbin/chkconfig --del eosarchived
 fi
 %endif
 
@@ -513,9 +509,7 @@ Contains an clean-up scripts to remove 'left-overs' of an EOS instance for FST/M
 %{_sbindir}/eos-fst-clean
 %{_sbindir}/eos-mgm-clean
 
-
 %if %{?yumrpm:1}%{!?yumrpm:0} == 1
-
 #-------------------------------------------------------------------------------
 # Package eos-repo-el6
 #-------------------------------------------------------------------------------
@@ -592,6 +586,4 @@ Contains a yum configuration file for the development EOS EL7 repo
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
 %endif
-
 %endif
-
