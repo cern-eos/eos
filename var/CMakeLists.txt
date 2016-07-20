@@ -33,11 +33,6 @@ install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
 install(DIRECTORY DESTINATION /usr/lib/)
 install(DIRECTORY DESTINATION /usr/lib/tmpfile.d/)
 
-execute_process(
-  COMMAND "chmod 0775 /var/run/eosd"
-  COMMAND "chmod 1777 /var/run/eosd/credentials"
-  COMMAND "chmod 1777 /var/run/eosd/credentials/store")
-
 install(
   FILES
   eos/html/error.html
@@ -49,3 +44,10 @@ install(
   eosd.conf
   DESTINATION /usr/lib/tmpfile.d/eosd.conf
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+
+install(
+  CODE
+  "execute_process(
+     COMMAND chmod 0775 /var/run/eosd
+     COMMAND chmod 1777 /var/run/eosd/credentials
+     COMMAND chmod 1777 /var/run/eosd/credentials/store)")
