@@ -79,11 +79,6 @@ TransferQueue::TransferQueue (const char* queue, const char* queuepath, const ch
       {
         mSom->HashMutex.LockRead();
         mHashQueue = (XrdMqSharedQueue*) mSom->GetObject(mFullQueue.c_str(), "queue");
-        //        if (mHashQueue) {
-        //          mHashQueue->OpenTransaction();
-        //          mHashQueue->CloseTransaction();
-        //        }           
-
         mSom->HashMutex.UnLockRead();
       }
       else

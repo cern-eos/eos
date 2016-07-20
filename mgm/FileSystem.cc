@@ -116,8 +116,8 @@ FileSystem::SetConfigStatus (eos::common::FileSystem::fsstatus_t status)
     {
       delete mDrainJob;
       mDrainJob = 0;
-      mDrainJobMutex.UnLock();
       SetDrainStatus(eos::common::FileSystem::kNoDrain);
+      mDrainJobMutex.UnLock();
     }
     else
     {

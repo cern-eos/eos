@@ -782,7 +782,7 @@ class Transfer(object):
 
             if not xrd_st.ok:
                 __ = metahandler.wait(oper)
-                err_msg = "Failed query chmod for path={0}".format(surl)
+                err_msg = "Failed query utimes for path={0}".format(surl)
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
 

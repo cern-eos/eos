@@ -46,7 +46,7 @@
 #include <map>
 #include <string>
 #include <math.h>
-#include <jsoncpp/json/json.h>
+#include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -914,6 +914,14 @@ ProcCommand::MakeResult ()
 	  if (!line.length())
 	    continue;
 
+
+	  size_t fpos; 
+
+	  XrdOucString sline = line.c_str();
+	  while (sline.replace("<n>","n")){}
+	  while (sline.replace("?configstatus@rw","_rw")) {}
+	  line = sline.c_str();
+
 	  std::map <std::string , std::string> map;
 	  
 	  eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
@@ -926,7 +934,7 @@ ProcCommand::MakeResult ()
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
           eos::common::StringConversion::ReplaceMapKey(map, "balancer","balancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "converter","balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "converter","converter.status");
           eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer","geotagbalancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "geobalancer","geobalancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer","groupbalancer.status");
