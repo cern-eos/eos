@@ -109,7 +109,7 @@ ProcCommand::Config ()
    }
  }
 
- if (mSubCmd == "load2Redis")
+ if (mSubCmd == "export")
  {
    if (gOFS->MgmOfsConfigEngineType == "file")
    {

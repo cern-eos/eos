@@ -453,6 +453,7 @@ class ConfigEngineRedis : public ConfigEngine
   int REDIS_PORT;
 
   std::string conf_set_key = "EOSConfig:list";
+  std::string conf_hash_key_prefix = "EOSConfig";
 
 };
 

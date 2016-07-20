@@ -84,8 +84,7 @@ ConfigEngineRedis::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 
   ResetConfig();
   std::string hash_key;
-  hash_key += "EOSConfig:";
-  hash_key += gOFS->MgmOfsInstanceName.c_str();
+  hash_key += conf_hash_key_prefix.c_str();
   hash_key += ":";
   hash_key += name;
 
@@ -137,8 +136,7 @@ ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
   }
   //store a new hash
   std::string hash_key;
-  hash_key += "EOSConfig:";
-  hash_key += gOFS->MgmOfsInstanceName.c_str();
+  hash_key += conf_hash_key_prefix.c_str();
   hash_key += ":";
   hash_key += name;
   eos_notice("HASH KEY NAME => %s",hash_key.c_str());
@@ -314,8 +312,7 @@ ConfigEngineRedis::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
   else
   { 
     std::string hash_key;
-    hash_key += "EOSConfig:";
-    hash_key += gOFS->MgmOfsInstanceName.c_str();
+    hash_key += conf_hash_key_prefix.c_str();
     hash_key += ":";
     hash_key += name;
     redox::RedoxHash rdx_hash(client, hash_key);
@@ -608,8 +605,7 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
       currentConfigFile = name;
   
       std::string hash_key;
-      hash_key += "EOSConfig:";
-      hash_key += gOFS->MgmOfsInstanceName.c_str();
+      hash_key += conf_hash_key_prefix.c_str();
       hash_key += ":";
       hash_key += name;
 
@@ -628,8 +624,9 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
       Mutex.UnLock();
       //adding key for timestamp
       time_t now = time(0);
-      std::string stime = ctime(&now);
-      rdx_hash.hset("timestamp",stime);
+      XrdOucString stime = ctime(&now);
+      stime.erase(stime.length() - 1);
+      rdx_hash.hset("timestamp",stime.c_str());
 
       //we store in redis the list of available EOSConfigs as Set
       redox::RedoxSet rdx_set(client, conf_set_key);

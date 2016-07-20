@@ -141,9 +141,9 @@ com_config (char* arg1)
     return (0);
   }
 
-  if (subcommand == "load2Redis")
+  if (subcommand == "export")
   {
-    XrdOucString in = "mgm.cmd=config&mgm.subcmd=load2Redis&mgm.config.file=";
+    XrdOucString in = "mgm.cmd=config&mgm.subcmd=export&mgm.config.file=";
     if (!arg.length())
       goto com_config_usage;
 
@@ -299,6 +299,8 @@ com_config_usage:
   fprintf(stdout, "                                                  reset all configuration to empty state\n");
   fprintf(stdout, "config autosave [on|off] :\n");
   fprintf(stdout, "                                                  without on/off just prints the state otherwise set's autosave to on or off\n");
+  fprintf(stdout, "config export :\n");
+  fprintf(stdout, "                                                  export a configuration stored on file to Redis\n");
 
   return (0);
 }
