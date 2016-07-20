@@ -192,9 +192,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosAuthProto.so
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so
-%attr(700,daemon,daemon) /var/eos
-%attr(755,daemon,daemon) /var/log/eos/
-%attr(755,daemon,daemon) /var/log/eos/fuse/
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
@@ -210,6 +207,9 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sysconfdir}/cron.d/eos-logs
 %{_sysconfdir}/cron.d/eos-reports
 %{_sysconfdir}/logrotate.d/eos-logs
+%dir %attr(700,daemon,daemon) /var/eos
+%dir %attr(755,daemon,daemon) /var/log/eos
+%dir %attr(755,daemon,daemon) /var/log/eos/fuse
 
 %post -n eos-server
 /sbin/chkconfig --add eos
@@ -295,13 +295,19 @@ The EOS fuse core containing eosd and mount scripts.
 %{_bindir}/eosd
 %{_bindir}/eosfusebind
 /sbin/mount.eos
-/usr/share/selinux/targeted/eosfuse.pp
-/usr/share/selinux/mls/eosfuse.pp
-/usr/share/selinux/strict/eosfuse.pp
+%{_datarootdir}/selinux/targeted/eosfuse.pp
+%{_datarootdir}/selinux/mls/eosfuse.pp
+%{_datarootdir}/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
+
+# Create the credential store
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+%{_usr}/lib/tmpfiles.d/eosd.conf
+%else
 %dir %attr(0755, root, root) /var/run/eosd/
 %dir %attr(1777, root, root) /var/run/eosd/credentials/
 %dir %attr(1777, root, root) /var/run/eosd/credentials/store
+%endif
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
@@ -311,32 +317,11 @@ The EOS fuse core containing eosd and mount scripts.
 %endif
 
 %post -n eos-fuse-core
-
 for variant in mls strict targeted
 do
   /usr/sbin/semodule -s $variant -i \
   /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
-
-<<<<<<< HEAD
-# Create the fuse log directory
-mkdir -p /var/log/eos/fuse/
-chown daemon:daemon /var/log/eos/
-chown daemon:daemon /var/log/eos/fuse/
-chmod 755 /var/log/eos/
-chmod 755 /var/log/eos/fuse/
-
-# Create the credential store i.e tmpfiles.d entry
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-=======
-# create the credential store
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-# create tmpfiles.d entry
->>>>>>> 55e517e... BUILD: remove scripting of /var/log/eos/fuse directory and unly call unlink on package remove
-echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-%endif
 
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
@@ -351,12 +336,6 @@ if [ $1 -eq 0 ]; then
     /usr/sbin/semodule -u /usr/share/selinux/$variant/eosfuse.pp || :
   done
 fi
-
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-if [ $1 -eq 0 ]; then
-  unlink /usr/lib/tmpfiles.d/eosd.conf
-fi
-%endif
 
 #-------------------------------------------------------------------------------
 # Package eos-fuse-sysv
