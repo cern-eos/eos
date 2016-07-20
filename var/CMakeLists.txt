@@ -47,5 +47,5 @@ install(
 install(
   FILES
   eosd.conf
-  DESTINATION /usr/lib/tmpfiles.d/eosd.conf
+  DESTINATION /usr/lib/tmpfile.d/eosd.conf
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
