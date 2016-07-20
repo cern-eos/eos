@@ -27,6 +27,7 @@ install( DIRECTORY DESTINATION /var/eos/wfe/bash/ )
 install( DIRECTORY DESTINATION /var/eos/kinetic/ )
 
 install(DIRECTORY DESTINATION /var/log/eos)
+install(DIRECTORY DESTINATION /var/log/eos/fuse)
 install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
 install(DIRECTORY DESTINATION /var/log/eos/httpd/)
 install(DIRECTORY DESTINATION /var/share/eos/)

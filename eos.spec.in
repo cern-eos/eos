@@ -205,6 +205,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
+%attr(755,daemon,daemon) /var/log/eos/fuse/
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
@@ -327,13 +328,6 @@ do
     /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
-# create the fuse log directory
-mkdir -p /var/log/eos/fuse/
-chown daemon:daemon /var/log/eos/
-chown daemon:daemon /var/log/eos/fuse/
-chmod 755 /var/log/eos/
-chmod 755 /var/log/eos/fuse/
-
 # create the credential store
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
 # create tmpfiles.d entry
@@ -358,7 +352,9 @@ if [ $1 -eq 0 ]; then
 fi
 
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-unlink /usr/lib/tmpfiles.d/eosd.conf
+if [ $1 -eq 0 ]; then
+  unlink /usr/lib/tmpfiles.d/eosd.conf
+fi
 %endif
 
 #-------------------------------------------------------------------------------
