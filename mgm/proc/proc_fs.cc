@@ -439,9 +439,6 @@ proc_fs_add (std::string &sfsid, std::string &uuid, std::string &nodename, std::
             fs = new FileSystem(queuepath.c_str(), nodename.c_str(), &gOFS->ObjectManager);
           }
 
-          // we want one atomic update with all the parameters defined
-          fs->OpenTransaction();
-
           XrdOucString sizestring;
 
           stdOut += "success:   mapped '";
@@ -450,6 +447,8 @@ proc_fs_add (std::string &sfsid, std::string &uuid, std::string &nodename, std::
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fsid);
           if (fs)
           {
+	    // we want one atomic update with all the parameters defined
+	    fs->OpenTransaction();
             fs->SetId(fsid);
             fs->SetString("uuid", uuid.c_str());
             fs->SetString("configstatus", configstatus.c_str());
