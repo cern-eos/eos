@@ -21,8 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+
 install(DIRECTORY DESTINATION /var/eos)
 install(DIRECTORY DESTINATION /var/log/eos)
+install(DIRECTORY DESTINATION /var/log/eos/fuse)
 install(DIRECTORY DESTINATION /var/www/eos/cgi-bin)
 install(DIRECTORY DESTINATION /var/log/eos/httpd/)
 install(DIRECTORY DESTINATION /var/share/eos/)
