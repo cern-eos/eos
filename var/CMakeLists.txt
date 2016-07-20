@@ -31,7 +31,7 @@ install(DIRECTORY DESTINATION /var/run/eosd)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
 install(DIRECTORY DESTINATION /usr/lib/)
-install(DIRECTORY DESTINATION /usr/lib/tmpfile.d/)
+install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
 
 install(
   FILES
@@ -42,7 +42,7 @@ install(
 install(
   FILES
   eosd.conf
-  DESTINATION /usr/lib/tmpfile.d/eosd.conf
+  DESTINATION /usr/lib/tmpfiles.d/eosd.conf
   PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install(

@@ -299,13 +299,16 @@ The EOS fuse core containing eosd and mount scripts.
 %{_datarootdir}/selinux/mls/eosfuse.pp
 %{_datarootdir}/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
+%dir %attr(700,daemon,daemon) /var/eos
+%dir %attr(755,daemon,daemon) /var/log/eos
+%dir %attr(755,daemon,daemon) /var/log/eos/fuse
 %dir %attr(0755, root, root) /var/run/eosd/
 %dir %attr(1777, root, root) /var/run/eosd/credentials/
 %dir %attr(1777, root, root) /var/run/eosd/credentials/store
 
 # Create the credential store
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-%{_usr}/lib/tmpfile.d/eosd.conf
+%{_usr}/lib/tmpfiles.d/eosd.conf
 %endif
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
