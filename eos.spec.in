@@ -325,8 +325,18 @@ do
   /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
+# TODO: remove this section after 4.0.29
+# If this is an upgrade then we need to recreate the /var/run/eosd/credentials/store
+# hierarcy as it is deleted by the pervious package %postun section
+if [ $1 -eq 2 ]; then
+mkdir -p /var/run/eosd/
+mkdir -p /var/run/eosd/credentials/store
+chmod 1777 /var/run/eosd/credentials
+chmod 1777 /var/run/eosd/credentials/store
+fi
+
 %preun -n eos-fuse-core
-if [ $1 = 0 ] ; then
+if [ $1 -eq  0 ] ; then
   for variant in mls strict targeted ; do
     /usr/sbin/semodule -s $variant -r eosfuse &> /dev/null || :
   done
