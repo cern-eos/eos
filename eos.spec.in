@@ -305,7 +305,7 @@ The EOS fuse core containing eosd and mount scripts.
 
 # Create the credential store
 %if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
-%{_usr}/lib/tmpfiles.d/eosd.conf
+%{_usr}/lib/tmpfile.d/eosd.conf
 %endif
 
 %if 0%{distribution} == 5 || 0%{distribution} == 6
