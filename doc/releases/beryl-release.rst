@@ -19,11 +19,6 @@ Bug Fix
 - FST: wait for pending async requests in the close method
 - SPEC: remove directory creation scripting from spec files
 
-New Features
-++++++++++++
-
-- RPM: build one source RPM which creates by default only client RPMs with less dependencies
-
 ``V0.3.192 Aquamarine``
 +++++++++++++++++++++++
 
