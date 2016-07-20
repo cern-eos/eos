@@ -325,10 +325,11 @@ do
   /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
+%posttrans -n eos-fuse-core
 # TODO: remove this section after 4.0.29
 # If this is an upgrade then we need to recreate the /var/run/eosd/credentials/store
 # hierarcy as it is deleted by the pervious package %postun section
-if [ $1 -eq 2 ]; then
+if [ $1 -eq 0 ]; then
 mkdir -p /var/run/eosd/
 mkdir -p /var/run/eosd/credentials/store
 chmod 1777 /var/run/eosd/credentials
