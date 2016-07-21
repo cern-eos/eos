@@ -26,6 +26,16 @@ Consolidation
 New Features
 ------------
 
+``V0.4.30 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- SPEC: Add workaround in the %posttrans section of the eos-fuse-core package
+        to keep all the necessary files and directories when doing an update.
+- CMAKE: Remove the /var/eos directory from the eos-fuse-core package and fix
+        type in directory name.
 
 ``V0.4.29 Aquamarine``
 +++++++++++++++++++++++
