@@ -30,7 +30,6 @@ install(DIRECTORY DESTINATION /var/share/eos)
 install(DIRECTORY DESTINATION /var/run/eosd)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials)
 install(DIRECTORY DESTINATION /var/run/eosd/credentials/store)
-install(DIRECTORY DESTINATION /usr/lib/)
 install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
 
 install(
