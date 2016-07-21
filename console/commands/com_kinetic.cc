@@ -26,7 +26,7 @@ namespace {
 typedef kio::AdminClusterInterface::OperationTarget OperationTarget;
 
 enum class Operation {
-  STATUS, COUNT, SCAN, REPAIR, RESET, INVALID, CONFIG_SHOW, CONFIG_PUBLISH
+  STATUS, COUNT, SCAN, REPAIR, RESET, INVALID, CONFIG_SHOW, CONFIG_PUBLISH, CONFIG_UPLOAD
 };
 
 struct Configuration {
@@ -34,6 +34,8 @@ struct Configuration {
   std::vector<OperationTarget> targets;
   std::string id;
   std::string space;
+  std::string file;
+  std::string tag;
   int numthreads;
   int verbosity;
   int numbench;
@@ -61,14 +63,18 @@ int kinetic_help()
 {
   fprintf(stdout, "------------------------------------------------------------------------------------------------\n");
 #ifdef EOS
-  fprintf(stdout, "usage: kinetic config [--publish] [--space <name>]\n");
+  fprintf(stdout, "usage: kinetic config [--publish | --upload ] [--space <name>] [ --security | --cluster | --location] [--file <local-json-file>\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       kinetic config [--space <name> ]\n");
+  fprintf(stdout, "       kinetic config [--space <name> ] [--security | --cluster | --location] \n");
   fprintf(stdout, "             shows the currently deployed kinetic configuration - by default 'default' space\n");
+  fprintf(stdout, "             --security, --cluster, --location selects only the relevant entry for the given fieldn\n");
   fprintf(stdout, "\n");
   fprintf(stdout, "       kinetic config --publish [--space <name>]\n");
   fprintf(stdout, "             publishes the configuration files under <mgm>:/var/eos/kinetic/ to all currently\n");
   fprintf(stdout, "             existing FSTs in default or referenced space\n");
+  fprintf(stdout, "\n");
+  fprintf(stdout, "       kinetic config --upload {--cluster | --security| --location} --file <local-json-file>  [--space <name>]\n");
+  fprintf(stdout, "             uploads the local configuration file as current version <mgm>:/var/eos/kinetic/ for the dedicated space and security,cluster or location description\n");
   fprintf(stdout, "\n");
 #endif
   fprintf(stdout, "usage: kinetic --id <name> <operation> [OPTIONS] \n");
@@ -143,6 +149,22 @@ bool parseArguments(const std::vector<std::string>& arguments, Configuration& co
         i++;
         config.op = Operation::CONFIG_PUBLISH;
       }
+      if (i + 1 < arguments.size() && arguments[i+1] == "--upload") {
+        i++;
+        config.op = Operation::CONFIG_UPLOAD;
+      }
+      if (i + 1 < arguments.size() && arguments[i+1] == "--security") {
+        i++;
+        config.tag = "security";
+      }
+      if (i + 1 < arguments.size() && arguments[i+1] == "--location") {
+        i++;
+        config.tag = "location";
+      }
+      if (i + 1 < arguments.size() && arguments[i+1] == "--cluster") {
+        i++;
+        config.tag = "cluster";
+      }
     }
     else if (arguments[i] == "-m") {
       config.monitoring = true;
@@ -193,6 +215,9 @@ bool parseArguments(const std::vector<std::string>& arguments, Configuration& co
     else if (arguments[i] == "--space") {
       config.space = std::string(arguments[++i]);
     }
+    else if (arguments[i] == "--file") {
+      config.file = std::string(arguments[++i]);
+    }
     else if (arguments[i] == "--threads") {
       config.numthreads = atoi(arguments[++i].c_str());
     }
@@ -208,7 +233,11 @@ bool parseArguments(const std::vector<std::string>& arguments, Configuration& co
   if (config.op == Operation::INVALID){
     return false;
   }
-  if (config.id.empty() && !(config.op == Operation::CONFIG_PUBLISH || config.op == Operation::CONFIG_SHOW)){
+  if (config.id.empty() && !(config.op == Operation::CONFIG_PUBLISH || config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_UPLOAD)){
+    return false;
+  }
+
+  if (config.tag.empty() && config.op == Operation::CONFIG_UPLOAD) {
     return false;
   }
   return true;
@@ -271,9 +300,21 @@ doConfig(Configuration& config)
     cmd3 += " kinetic.security.";
     cmd3 += config.space.c_str();
 
-    com_space((char*) cmd1.c_str());
-    com_space((char*) cmd2.c_str());
-    com_space((char*) cmd3.c_str());
+    if (config.tag.empty())
+    {
+      com_space((char*) cmd1.c_str());
+      com_space((char*) cmd2.c_str());
+      com_space((char*) cmd3.c_str());
+    }
+    else
+    {
+      if (config.tag == "cluster")
+	com_space((char*) cmd1.c_str());
+      if (config.tag == "location")
+	com_space((char*) cmd2.c_str());
+      if (config.tag == "security")
+	com_space((char*) cmd3.c_str());
+    }
   }
   if (config.op == Operation::CONFIG_PUBLISH) {
     XrdOucString cmd1 = "node-set ";
@@ -311,6 +352,16 @@ doConfig(Configuration& config)
     com_space((char*) cmd2.c_str());
     com_space((char*) cmd3.c_str());
     com_space((char*) cmd4.c_str());
+  }
+
+  if (config.op == Operation::CONFIG_UPLOAD) {
+    XrdOucString cmd = "kinetic-json-store ";
+    cmd += config.space.c_str();
+    cmd += " "; 
+    cmd += config.tag.c_str();
+    cmd += " " ;
+    cmd += config.file.c_str();
+    com_space((char*) cmd.c_str());
   }
   return;
 }
@@ -509,10 +560,12 @@ com_kinetic(char* arg)
     kinetic_help();
     return EXIT_FAILURE;
   }
-  if (config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_PUBLISH) {
+  if (config.op == Operation::CONFIG_SHOW || config.op == Operation::CONFIG_PUBLISH || config.op == Operation::CONFIG_UPLOAD)
+  {
     doConfig(config);
     return EXIT_SUCCESS;
   }
+
   setEnvironmentVariables(config);
   return do_operation(config);
 }

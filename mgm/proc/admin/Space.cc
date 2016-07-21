@@ -236,6 +236,64 @@ ProcCommand::Space ()
   }
 
 
+  if (mSubCmd == "kinetic-json-store")
+  {
+    if (pVid->uid == 0)
+    {
+      std::string spacename = (pOpaque->Get("mgm.space")) ? pOpaque->Get("mgm.space") : "";
+      std::string key = (pOpaque->Get("mgm.space.kinetic-json-store.key")) ? pOpaque->Get("mgm.space.kinetic-json-store.key") : "";
+      XrdOucString val = (pOpaque->Get("mgm.space.kinetic-json-store.val")) ? pOpaque->Get("mgm.space.kinetic-json-store.val") : "";
+
+      if ((!spacename.length()) || (!key.length()) || (!val.length()) ||
+	  ( (key != "cluster") && (key != "location") && key != "security") )
+      {
+        stdErr = "error: illegal parameters";
+        retc = EINVAL;
+      }
+      else
+      {
+        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        if (!FsView::gFsView.mSpaceView.count(spacename))
+        {
+          stdErr = "error: no such space - define one using 'space define' or add a filesystem under that space!";
+          retc = EINVAL;
+        }
+        else
+        {
+          {
+	    XrdOucString file = "/var/eos/kinetic/kinetic-";
+	    file += key.c_str();
+	    file += "-";
+	    file += spacename.c_str();
+	    file += ".json";
+
+	    XrdOucString valun64;
+	    // base64 decode the configuration
+	    eos::common::SymKey::DeBase64(val, valun64);
+	    std::ofstream ofs(file.c_str(), std::ios::out | std::ios::binary);
+	    if (!ofs)
+	    {
+	      stdErr = "error: cannot store requested file=";
+	      stdErr += file.c_str();
+	      retc = EINVAL;
+	    }
+	    else
+	    {
+	      ofs << valun64.c_str();
+	      ofs.close();
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
+
   if (mSubCmd == "node-get")
   {
     if (pVid->uid == 0)
