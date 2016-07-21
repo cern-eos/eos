@@ -341,12 +341,19 @@ fi
 %posttrans -n eos-fuse-core
 # TODO: remove this section after 4.0.30
 # If this is an upgrade then we need to recreate the /var/run/eosd/credentials/store
-# hierarcy as it is deleted by the pervious package %postun section
+# hierarcy as it is deleted by the pervious package %postun section and the eosd.conf
 if [ $1 -eq 0 ]; then
 mkdir -p /var/run/eosd/
 mkdir -p /var/run/eosd/credentials/store
 chmod 1777 /var/run/eosd/credentials
 chmod 1777 /var/run/eosd/credentials/store
+
+# Create the credential store i.e tmpfiles.d entry
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
+%endif
 fi
 
 #-------------------------------------------------------------------------------
