@@ -26,7 +26,17 @@ Consolidation
 New Features
 ------------
 
-``V0.4.30 Aquamarine``
+``V0.4.30 Citrine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: when using krb5 or x509, allow both krb5/x509 and unix so that authentication
+        does not fail on the fst (using only unix) when using XRootD >= 4.4
+
+
+``V0.4.30 Citrine``
 +++++++++++++++++++++++
 
 Bug Fix
@@ -37,7 +47,7 @@ Bug Fix
 - CMAKE: Remove the /var/eos directory from the eos-fuse-core package and fix
         type in directory name.
 
-``V0.4.29 Aquamarine``
+``V0.4.29 Citrine``
 +++++++++++++++++++++++
 
 Bug Fix
