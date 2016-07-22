@@ -4207,19 +4207,19 @@ filesystem::strongauth_cgi (pid_t pid)
    {
      str += "xrd.k5ccname=";
      str += (authmet.c_str () + 5);
-     str += "&xrd.wantprot=krb5";
+     str += "&xrd.wantprot=krb5,unix";
    }
    else if (authmet.compare (0, 5, "krk5:") == 0)
    {
      str += "xrd.k5ccname=";
      str += (authmet.c_str () + 5);
-     str += "&xrd.wantprot=krb5";
+     str += "&xrd.wantprot=krb5,unix";
    }
    else if (authmet.compare (0, 5, "x509:") == 0)
    {
      str += "xrd.gsiusrpxy=";
      str += authmet.c_str () + 5;
-     str += "&xrd.wantprot=gsi";
+     str += "&xrd.wantprot=gsi,unix";
    }
    else if (authmet.compare (0, 5, "unix:") == 0)
    {
