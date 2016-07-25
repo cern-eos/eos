@@ -128,12 +128,44 @@ ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
   if (force) cl += "(force)";
   eos_notice("saving config name=%s comment=%s force=%d", name, comment, force);
 
-  //TO DO  backups?
-  //TO DO how to save comments
   if (!name)
   {  
+    if (currentConfigFile.length())
+    {
+      name = currentConfigFile.c_str();
+      force = true;
+    }
+    else
+    {
     err = "error: you have to specify a configuration  name";
 	  return false;
+    }
+  }
+  //comments
+  if (comment)
+  {
+    // we store comments as "<unix-tst> <date> <comment>"
+    XrdOucString esccomment = comment;
+    XrdOucString configkey = "";
+    time_t now = time(0);
+    char dtime[1024];
+    sprintf(dtime, "%lu ", now);
+    XrdOucString stime = dtime;
+    stime += ctime(&now);
+    stime.erase(stime.length() - 1);
+    stime += " ";
+    while (esccomment.replace("\"", ""))
+    {
+    }
+    esccomment.insert(stime.c_str(), 0);
+    esccomment.insert("\"", 0);
+    esccomment.append("\"");
+
+    configkey += "comment-";
+    configkey += dtime;
+    configkey += ":";
+
+    configDefinitions.Add(configkey.c_str(), new XrdOucString(esccomment.c_str()));
   }
   //store a new hash
   std::string hash_key;
@@ -144,11 +176,46 @@ ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 
   redox::RedoxHash rdx_hash(client,hash_key);
 
-  if (force && rdx_hash.hlen() > 0)
+  if (rdx_hash.hlen() > 0)
   {
-    	std::vector<std::string> resp = rdx_hash.hkeys();
-      	for (auto&& elem: resp)
-          rdx_hash.hdel(elem);
+    if (force)
+    {
+      //create backup
+    
+      time_t now = time(0);
+
+      std::string hash_key_backup;
+      hash_key_backup += conf_backup_hash_key_prefix.c_str();
+      hash_key_backup += ":";
+      hash_key_backup += name;
+      hash_key_backup += "-";
+      hash_key_backup +=  ctime(&now);   
+
+      eos_notice("HASH KEY NAME => %s",hash_key_backup.c_str());
+      //backup hash
+      redox::RedoxHash rdx_hash_backup(client,hash_key_backup);
+      std::vector<std::string> resp = rdx_hash.hkeys();
+   
+      for (auto&& elem: resp)
+         rdx_hash_backup.hset(elem, rdx_hash.hget(elem));
+      //clear 
+      for (auto&& elem: resp)
+         rdx_hash.hdel(elem); 
+
+      //add hash to backup set
+      redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
+      //add the hash key to the set if it's not there
+      rdx_set_backup.sadd(hash_key_backup);
+  
+    }
+    else
+    {
+      errno = EEXIST;
+      err = "error: a configuration with name \"";
+      err += name;
+      err += "\" exists already!";
+      return false;
+    }  
   }
   Mutex.Lock();
   configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
@@ -199,11 +266,34 @@ ConfigEngineRedis::ListConfigs (XrdOucString &configlist, bool showbackup)
 	configlist += "name: ";
 	configlist += key.c_str();
     }
-    eos_notice("KEY NAME => %s",key.c_str());
-    eos_notice("Current name => %s",currentConfigFile.c_str());
     if (key == currentConfigFile)
 	configlist += " *";
     configlist += "\n";
+  }
+
+  if (showbackup) { 
+    configlist += "================================\n";
+    configlist += "Existing Backup Configurations on Redis\n";
+    configlist += "================================\n";
+    redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
+    
+    
+    for (auto&& elem: rdx_set_backup.smembers()){
+      redox::RedoxHash rdx_hash(client, elem);
+      XrdOucString key = elem.c_str();
+      int pos = key.rfind(":");
+      if (pos != -1)
+         key.erasefromstart(pos+1);
+      if (rdx_hash.hexists("timestamp")) {
+        char outline[1024];
+        sprintf(outline, "created: %s name: %s", rdx_hash.hget("timestamp").c_str(), key.c_str());
+        configlist += outline;
+      } else {
+        configlist += "name: ";
+        configlist += key.c_str();
+      }
+    configlist += "\n";
+    }
   }
   return true;
 }
@@ -432,9 +522,7 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
 
   eos_static_debug("%s => %s", key, val);
 
-  //TODO implement broadcast
-  /*
-  if (configBroadcast && gOFS->MgmMaster.IsMaster() )
+  if (configBroadcast )
   {
     // make this value visible between MGM's
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
@@ -448,7 +536,7 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
       }
       hash->Set(configname.c_str(), repval.c_str());
     }
-  }*/
+  }
 
 
   if ( autosave && currentConfigFile.length())
@@ -499,9 +587,7 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
     configname = key;
   }
 
-  //TODO implement broadcast
-  /*
-  if (configBroadcast && gOFS->MgmMaster.IsMaster() )
+  if (configBroadcast)
   {
     eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
@@ -513,7 +599,7 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
       eos_static_info("Deleting on hash %s", configname.c_str());
       hash->Delete(configname.c_str(), true);
     }
-  }*/
+  }
 
   Mutex.Lock();
   configDefinitions.Del(configname.c_str());
