@@ -58,14 +58,7 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
 
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
-  NAMESPACEMAP;
-
-  EXEC_TIMING_BEGIN("IdMap");
-  eos::common::Mapping::IdMap(client, info, tident, vid);
-  EXEC_TIMING_END("IdMap");
-
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  eos::common::Mapping::Nobody(vid);
 
   char buff[MAXPATHLEN + 8];
   int rc;
@@ -98,6 +91,14 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
       return SFS_ERROR;
     }
   }
+
+  NAMESPACEMAP;
+
+  EXEC_TIMING_BEGIN("IdMap");
+  eos::common::Mapping::IdMap(client, info, tident, vid);
+  EXEC_TIMING_END("IdMap");
+
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
 
   gOFS->MgmStats.Add("Checksum", vid.uid, vid.gid, 1);
 
