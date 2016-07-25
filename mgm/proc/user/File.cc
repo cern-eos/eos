@@ -673,6 +673,7 @@ ProcCommand::File ()
     // -------------------------------------------------------------------------
     if (mSubCmd == "workflow")
     {
+      cmdok=true;
       XrdOucString event = pOpaque->Get("mgm.event");
       XrdOucString workflow = pOpaque->Get("mgm.workflow");
       unsigned long long fid = 0;
