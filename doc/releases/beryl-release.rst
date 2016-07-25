@@ -7,6 +7,18 @@
 Beryl Release Notes
 ===================
 
+``V0.3.193 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: add monitoring switch to space,group status function
+- MGM: draing mutex fix and fix double unlock when restarting a drain job
+- MGM: fixes in JSON formatting, reencoding of non-http friendly tags/letters like <>?@
+- FST: wait for pending async requests in the close method
+- SPEC: remove directory creation scripting from spec files
+
 ``V0.3.192 Aquamarine``
 +++++++++++++++++++++++
 

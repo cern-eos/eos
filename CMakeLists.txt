@@ -90,6 +90,7 @@ if (CLIENT)
   add_subdirectory (etc)
   add_subdirectory (selinux)
   add_subdirectory (sbin)
+  add_subdirectory (var)
 else()
   add_subdirectory (mq)
   add_subdirectory (common)
@@ -102,8 +103,8 @@ else()
   add_subdirectory (sync)
   add_subdirectory (fuse)
   add_subdirectory (srm)
-  add_subdirectory (var)
   add_subdirectory (sbin)
+  add_subdirectory (var)
   add_subdirectory (man)
   add_subdirectory (test)
   add_subdirectory (utils)
@@ -140,7 +141,6 @@ set(CPACK_SOURCE_IGNORE_FILES
 /CMakeFiles/;Makefile;/_CPack_Packages/;.tar.gz$;.tar.bz2;CMakeCache.txt;\
 ApMon;build;install_manifest.txt;/lib/;/.git/;${CPACK_SOURCE_IGNORE_FILES};")
 
-
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
@@ -150,7 +150,7 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
 	  "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
-	  
+
 add_custom_target(
   dist
   COMMAND ${CMAKE_MAKE_PROGRAM} package_source
@@ -163,50 +163,35 @@ add_custom_command(
 
 include(CPack)
 
-add_custom_target(dist-clientsonly
-  COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/clientsonly && cd ${CMAKE_CURRENT_BINARY_DIR}/clientsonly 
-          && tar zxf ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
-          && cd ${CMAKE_CURRENT_BINARY_DIR}/clientsonly/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}
-          && echo '%define eos_clientrpmsonly 1' | cat - eos.spec > eos-clientsonly.spec
-          && rm -f eos.spec && cd .. 
-          && mv ${CMAKE_CURRENT_BINARY_DIR}/clientsonly/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE} ${CMAKE_CURRENT_BINARY_DIR}/clientsonly/${CMAKE_PROJECT_NAME}-clientsonly-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}
-          && tar zcf ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-clientsonly-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz ${CMAKE_PROJECT_NAME}-clientsonly-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}
-          && rm -rf ${CMAKE_CURRENT_BINARY_DIR}/clientsonly
-  )
-  
-add_dependencies(dist-clientsonly dist)
-
-add_custom_target(gitdist
-  COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}/ HEAD
-  | gzip > ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-
-add_custom_target(osx
-  COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
-
 #-------------------------------------------------------------------------------
 # Source and binary rpms
 #-------------------------------------------------------------------------------
 set (RPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
+set (EOS_ARCHIVE         "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
+set (EOS_CLIENTS_ARCHIVE "${CMAKE_PROJECT_NAME}-clients-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
 
 add_custom_target(
-  srpm-all
-  COMMAND rpmbuild ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz --define "_srcrpmdir ${CMAKE_BINARY_DIR}")
+  srpm
+  COMMAND rpmbuild ${RPM_DEFINE} -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
 
 add_custom_target(
-  srpm-clientsonly
-  COMMAND rpmbuild --define "eos_clientrpmsonly 1" ${RPM_DEFINE} -ts ${CMAKE_PROJECT_NAME}-clientsonly-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz --define "_srcrpmdir ${CMAKE_BINARY_DIR}")
+  rpm-client
+  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}")
 
 add_custom_target(
   rpm
-  COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz)
+  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" --with server)
 
-add_custom_target(srpm)
-
+add_dependencies(srpm dist)
 add_dependencies(rpm dist)
-add_dependencies(srpm-all dist)
-add_dependencies(srpm-clientsonly dist-clientsonly)
-add_dependencies(srpm srpm-all srpm-clientsonly)
+add_dependencies(rpm-client dist)
+
+#-------------------------------------------------------------------------------
+# Custom target to build on OSX
+#-------------------------------------------------------------------------------
+add_custom_target(
+  osx
+  COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
 
 #-------------------------------------------------------------------------------
 # Print project summary

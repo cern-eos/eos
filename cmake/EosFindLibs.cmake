@@ -29,7 +29,13 @@ option(CLIENT "Build only client packages" OFF)
 option(ENABLE_REDOX "Enable Redox support" OFF)
 
 if (NOT PACKAGEONLY)
+if( MacOSX )
+else ( MacOSX )
   find_package(attr REQUIRED)
+  find_package(xfs REQUIRED)
+  find_package(rt REQUIRED)
+endif ( MacOSX )
+
   find_package(PythonSitePkg REQUIRED)
   find_package(XRootD REQUIRED)
   find_package(fuse REQUIRED)

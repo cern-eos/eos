@@ -186,12 +186,12 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
  if (mStoreRecovery)
  {
    flags = SFS_O_RDWR;
-   mIsRw=true;
+   mIsRw = true;
  }
  else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
  {
    mStoreRecovery = true;
-   mIsRw=true;
+   mIsRw = true;
    flags |= (SFS_O_RDWR | SFS_O_TRUNC);
  }
 
@@ -299,8 +299,8 @@ RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
          remoteOpenOpaque += static_cast<int> (i);
        }
        
-       //       if (mStoreRecovery)
-       //	 remoteOpenOpaque += "&fst.store=1";
+       // if (mStoreRecovery)
+       //   remoteOpenOpaque += "&fst.store=1";
 
        stripe_urls[i] += remoteOpenOpaque.c_str();
        int ret = -1;
@@ -437,12 +437,12 @@ RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
  {
    mIsRw = true;
    mStoreRecovery = true;
-   eos_debug( "Write case." );
+   eos_debug("Write case");
  }
  else
  {
    mode = 0;
-   eos_debug("Read case.");
+   eos_debug("Read case");
  }
 
  // Open stripes

@@ -24,7 +24,6 @@
 #include "../MacOSXHelper.hh"
 #include "LayoutWrapper.hh"
 #include "FileAbstraction.hh"
-#include "../SyncResponseHandler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "fst/layout/PlainLayout.hh"
@@ -263,10 +262,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
   // Send the request for FsCtl
   u = XrdCl::URL(user_url);
   XrdCl::FileSystem fs(u);
-
-  SyncResponseHandler handler;
-  fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-  status = handler.Sync(response);
+  status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
 
   if (!status.IsOK())
   {
@@ -285,9 +281,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
       else
       {
         // Reissue the open
-	SyncResponseHandler handler;
-	fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-	status = handler.Sync(response);
+	status = fs.Query (XrdCl::QueryCode::OpaqueFile, arg, response);
 
         if (!status.IsOK())
         {
@@ -296,6 +290,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                          request.c_str(), user_url.c_str(), status.code,
                          status.errNo);
 	  errno = status.errNo;
+	  delete response;
           return -1;
         }
       }
@@ -306,6 +301,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                      "errno=%d", request.c_str(), user_url.c_str(),
                      status.code, status.errNo);
       errno = status.errNo;
+      delete response;
       return -1;
     }
   }

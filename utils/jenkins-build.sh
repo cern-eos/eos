@@ -128,7 +128,7 @@ echo "Build architecture:   ${ARCHITECTURE}"
 echo "Destination path:     ${DST_PATH}"
 echo "Running in directory: $(pwd)"
 
-# Exit script immediately if a command exists with a non-zero status
+# Exit script immediately if a command exits with a non-zero status
 set -e
 
 # Get local branch and dist tag for the RPMS
@@ -141,16 +141,17 @@ set -e
 cd ..; mkdir build; cd build
 # Use cmake3 if installed, otherwise fallback to cmake command
 CMAKE_EX="$(which cmake3)"
+
 if test x"${CMAKE_EX}" == x -o ! -x "${CMAKE_EX}"; then
   CMAKE_EX=cmake
 fi
+
+# Run cmake in package_only mode
 ${CMAKE_EX} .. -DPACKAGEONLY=1
-# Create tarball
-make dist
-# Build the source RPMs
+
+# Build the SRPMs
 make srpm
-SRC_RPM=$(ls *.src.rpm | grep -v clientsonly)
-SRC_RPM_CLT=$(ls *.src.rpm | grep clientsonly)
+SRC_RPM=$(find ./SRPMS -name "eos-*.src.rpm" -print0)
 
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
@@ -165,19 +166,14 @@ if [[ ${BRANCH} == 'emerald' || ${BRANCH} == 'danburite' ]]; then
     echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
 fi
 # Add eos dependencies repos
+# TODO: move these dependencies inside the dss-ci-mock repository
 echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
 echo -e '"""' >> eos.cfg
-
-echo "Content of eos.cfg:"
-cat eos.cfg
 
 ## Build the RPMs (with yum repo rpms)
 #mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./eos-*.src.rpm --resultdir ../rpms -D "dist ${DIST}" -D "yumrpm 1"
 # Build the RPMs (without yum repo rpms)
-mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
-# move the clients only srpm to the results dir and rename it after the one mock by rpmbuild as it is wrongly named by CPack
-mv ./${SRC_RPM_CLT} ../rpms/$( cd ../rpms && ls *.src.rpm | sed 's/eos\-/eos\-clientsonly\-/g' )
-
+mock --yum --init --uniqueext="eos01" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"  --with=server
 
 # List of branches for CI YUM repo
 BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
@@ -186,8 +182,10 @@ BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then
   cd ../rpms/
   # Get the release string length
-  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 | awk -F "-" '{print $3;}' | awk -F "." '{print length($1);}')
   COMMIT_LEN=24
+  RELEASE_LEN=$(find . -name "eos-*.src.rpm" -print0 \
+      | awk -F "-" '{print $3;}' \
+      | awk -F "." '{print length($1);}')
 
   # For not tagged builds the release string is 24 characters i.e date + git + commit_hash
   if [[ ${RELEASE_LEN} -eq ${COMMIT_LEN} ]]; then

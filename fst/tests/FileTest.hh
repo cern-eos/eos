@@ -21,16 +21,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
 #ifndef __EOSFSTTEST_FILETEST_HH__
 #define __EOSFSTTEST_FILETEST_HH__
 
-/*----------------------------------------------------------------------------*/
 #include <cppunit/extensions/HelperMacros.h>
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 #include "TestEnv.hh"
-/*----------------------------------------------------------------------------*/
 
 //! Ugly hack to expose the private functions for testing
 #define protected public
@@ -46,47 +42,47 @@
 class FileTest: public CppUnit::TestCase
 {
   CPPUNIT_TEST_SUITE(FileTest);
+    CPPUNIT_TEST(ReadAsyncTest);
     CPPUNIT_TEST(WriteTest);
     CPPUNIT_TEST(ReadVTest);
     CPPUNIT_TEST(SplitReadVTest);
     CPPUNIT_TEST(AlignBufferTest);
     CPPUNIT_TEST(DeleteFlagTest);
   CPPUNIT_TEST_SUITE_END();
-  
- public:
 
+public:
   //----------------------------------------------------------------------------
   //! setUp function
   //----------------------------------------------------------------------------
   void setUp(void);
 
-  
   //----------------------------------------------------------------------------
   //! tearDown function
   //----------------------------------------------------------------------------
   void tearDown(void);
-  
- protected:
-  
+
+protected:
+  //----------------------------------------------------------------------------
+  //! Read async test
+  //----------------------------------------------------------------------------
+  void ReadAsyncTest();
+
   //----------------------------------------------------------------------------
   //! ReadV test
   //----------------------------------------------------------------------------
   void ReadVTest();
 
-  
   //----------------------------------------------------------------------------
   //! SplitReadV test used for the RAIN like files to distribute the inital
   //! readV request to all the corresponding stripe files
   //----------------------------------------------------------------------------
   void SplitReadVTest();
 
-  
   //----------------------------------------------------------------------------
   //! Test the align method used in ht XrdFstOssFile to align requests to the
   //! block checksum size
   //----------------------------------------------------------------------------
   void AlignBufferTest();
-
 
   //----------------------------------------------------------------------------
   //! Test the deletion of a file to which the delete flag is sent using the
@@ -94,17 +90,15 @@ class FileTest: public CppUnit::TestCase
   //----------------------------------------------------------------------------
   void DeleteFlagTest();
 
-
   //----------------------------------------------------------------------------
-  // Write test
+  //! Write test
   //----------------------------------------------------------------------------
   void WriteTest();
-  
-  
- private:
-  
+
+private:
+
   XrdCl::File* mFile; ///< XrdCl::File instance used in the tests
-  eos::fst::test::TestEnv* mEnv; ///< test environment object
+  eos::fst::test::TestEnv* mEnv; ///< Test environment object
 };
 
 #endif // __EOSFSTTEST_FILETEST_HH__

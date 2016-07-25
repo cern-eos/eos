@@ -25,3 +25,41 @@ Consolidation
 
 New Features
 ------------
+
+``V0.4.30 Citrine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: when using krb5 or x509, allow both krb5/x509 and unix so that authentication
+        does not fail on the fst (using only unix) when using XRootD >= 4.4
+
+
+``V0.4.30 Citrine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- SPEC: Add workaround in the %posttrans section of the eos-fuse-core package
+        to keep all the necessary files and directories when doing an update.
+- CMAKE: Remove the /var/eos directory from the eos-fuse-core package and fix
+        type in directory name.
+
+``V0.4.29 Citrine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- MGM: add monitoring switch to space,group status function
+- MGM: draing mutex fix and fix double unlock when restarting a drain job
+- MGM: fixes in JSON formatting, reencoding of non-http friendly tags/letters like <>?@
+- FST: wait for pending async requests in the close method
+- SPEC: remove directory creation scripting from spec files
+
+New Features
+++++++++++++
+
+- RPM: build one source RPM which creates by default only client RPMs with less dependencies
