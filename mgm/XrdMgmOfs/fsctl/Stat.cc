@@ -44,8 +44,7 @@
 
   if (retc == SFS_OK)
   {
-    char statinfo[16384];
-    // convert into a char stream
+    char* statinfo = static_cast<char*>(malloc(16384));
     sprintf(statinfo, "stat: %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu\n",
             (unsigned long long) buf.st_dev,
             (unsigned long long) buf.st_ino,
@@ -74,7 +73,10 @@
 #endif
             );
 
-    error.setErrInfo(strlen(statinfo) + 1, statinfo);
+    // Ownership of statinfo is taked by xrd_buff and error then takes
+    // ownership of the xrd_buff object.
+    XrdOucBuffer* xrd_buff = new XrdOucBuffer(statinfo, strlen(statinfo));
+    error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
     return SFS_DATA;
   }
   else
