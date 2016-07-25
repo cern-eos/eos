@@ -329,7 +329,7 @@ PlainLayout::Stat (struct stat* buf)
 int
 PlainLayout::Close ()
 {
-  return mPlainFile->Close(mTimeout);
+  return mFileIO->fileClose(mTimeout);
 }
 
 //------------------------------------------------------------------------------
