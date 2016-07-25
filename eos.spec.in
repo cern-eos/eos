@@ -195,12 +195,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosAuthProto.so
 %{_libdir}/libXrdEosMgm.so
 %{_libdir}/libXrdMqOfs.so
-<<<<<<< HEAD
-%attr(700,daemon,daemon) /var/eos
-%attr(755,daemon,daemon) /var/log/eos/
-%attr(755,daemon,daemon) /var/log/eos/fuse/
-=======
->>>>>>> master
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
@@ -333,18 +327,6 @@ do
   /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
 
-<<<<<<< HEAD
-# create the credential store
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-# create tmpfiles.d entry
-echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-%endif
-
-
-=======
->>>>>>> master
 %preun -n eos-fuse-core
 if [ $1 -eq  0 ] ; then
   for variant in mls strict targeted ; do
@@ -359,15 +341,6 @@ if [ $1 -eq 0 ]; then
   done
 fi
 
-<<<<<<< HEAD
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-if [ $1 -eq 0 ]; then
-  unlink /usr/lib/tmpfiles.d/eosd.conf
-fi
-%endif
-
-=======
->>>>>>> master
 #-------------------------------------------------------------------------------
 # Package eos-fuse-sysv
 #-------------------------------------------------------------------------------
