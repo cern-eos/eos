@@ -875,6 +875,16 @@ XrdIo::fileClose (uint16_t timeout)
     }
   }
 
+  if (mMetaHandler)
+  {
+    if (mMetaHandler->WaitOK() != XrdCl::errNone)
+    {
+      eos_err("error=async requests failed for file path=%s", mPath.c_str());
+      async_ok = false;
+    }
+  }
+  
+
   XrdCl::XRootDStatus status = mXrdFile->Close(timeout);
 
   if (!status.IsOK())
