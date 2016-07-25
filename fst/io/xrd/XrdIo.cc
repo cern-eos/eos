@@ -879,7 +879,7 @@ XrdIo::fileClose (uint16_t timeout)
   {
     if (mMetaHandler->WaitOK() != XrdCl::errNone)
     {
-      eos_err("error=async requests failed for file path=%s", mPath.c_str());
+      eos_err("error=async requests failed for file path=%s", mFilePath.c_str());
       async_ok = false;
     }
   }
