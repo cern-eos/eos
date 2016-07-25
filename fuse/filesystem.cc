@@ -1764,7 +1764,7 @@ filesystem::stat (const char* path,
 
  COMMONTIMING ("GETPLUGIN", &stattiming);
 
- if (status.IsOK ())
+ if (status.IsOK () && response)
  {
    unsigned long long sval[10];
    unsigned long long ival[6];
@@ -1836,7 +1836,15 @@ filesystem::stat (const char* path,
  }
  else
  {
-   eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
+   if (!response)
+   {
+     eos_static_err ("no response received");
+   }
+   else
+   {
+     eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
+   }
+
    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
  }
 
