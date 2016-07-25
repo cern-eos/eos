@@ -337,6 +337,12 @@ ProcCommand::Find ()
       stdErr += "'";
       fprintf(fstderr, "%s", stdErr.c_str());
       retc = errno;
+
+      if (deepquery)
+	deepQueryMutex.UnLock();
+      else
+	delete found;
+
       return SFS_OK;
     }
     else
@@ -352,6 +358,12 @@ ProcCommand::Find ()
 	stdErr += "error: no such file or directory";
 	fprintf(fstderr, "%s", stdErr.c_str());
 	retc = ENOENT;
+
+	if (deepquery)
+	  deepQueryMutex.UnLock();
+	else
+	  delete found;
+	
 	return SFS_OK;
       }
     }
@@ -361,6 +373,12 @@ ProcCommand::Find ()
       fprintf(fstderr, "%s", stdErr.c_str());
       fprintf(fstderr, "error: unable to run find in directory");
       retc = errno;
+
+      if (deepquery)
+	deepQueryMutex.UnLock();
+      else
+	delete found;
+
       return SFS_OK;
     }
     else
