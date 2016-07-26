@@ -180,11 +180,8 @@ ProcCommand::Attr ()
                 stdOut += "success: set attribute ";
                 stdOut += key;
                 stdOut += "=\"";
-                XrdOucString valu64;
-                XrdOucString value = val;
-                eos::common::SymKey::DeBase64(val, valu64);
-                stdOut += valu64.c_str();
-                stdOut += "\" in directory ";
+                stdOut += val;
+                stdOut += "\" in file/directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
               }
@@ -204,7 +201,7 @@ ProcCommand::Attr ()
               {
                 stdErr += "error: unable to get attribute ";
                 stdErr += key;
-                stdErr += " in directory ";
+                stdErr += " in file/directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
@@ -223,7 +220,7 @@ ProcCommand::Attr ()
               {
                 stdErr += "error: unable to remove attribute '";
                 stdErr += key;
-                stdErr += "' in directory ";
+                stdErr += "' in file/directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
@@ -231,12 +228,11 @@ ProcCommand::Attr ()
               {
                 stdOut += "success: removed attribute '";
                 stdOut += key;
-                stdOut += "' from directory ";
+                stdOut += "' from file/directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
               }
             }
-
             if (mSubCmd == "fold")
             {
               int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
@@ -245,7 +241,7 @@ ProcCommand::Attr ()
 
               if (retc)
               {
-                stdErr += "error: unable to list attributes in directory ";
+                stdErr += "error: unable to list attributes in file/directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }

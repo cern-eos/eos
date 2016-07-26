@@ -406,11 +406,15 @@ XrdMgmOfs::_attr_set (const char *path,
             return SFS_ERROR;
           }
         }
-	fprintf(stderr,"%s => %s\n", val64.c_str(), val.c_str());
+
+        XrdOucString val64 = value;
+        XrdOucString val;
+        eos::common::SymKey::DeBase64(val64, val);
+
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
-        eosView->updateContainerStore(dh.get());
+        eosView->updateContainerStore(dh);
         errno = 0;
       }
     }
@@ -447,13 +451,12 @@ XrdMgmOfs::_attr_set (const char *path,
 	  XrdOucString val64 = value;
 	  XrdOucString val;
 	  eos::common::SymKey::DeBase64(val64, val);
-  	  fprintf(stderr,"%s => %s\n", val64.c_str(), val.c_str());
-          fmd->setAttribute(key, val.c_str());
-          fmd->setMTimeNow();
-	  fprintf(stderr,"%s\n", fmd->getAttribute(key).c_str());
-          eosView->updateFileStore(fmd.get());
-          errno = 0;
-        }
+
+	  fmd->setAttribute(key, val.c_str());
+	  fmd->setMTimeNow();
+	  eosView->updateFileStore(fmd.get());
+	  errno = 0;
+	}
       }
     }
     catch (eos::MDException &e)
@@ -512,6 +515,17 @@ XrdMgmOfs::_attr_get (const char *path,
   value = "";
   XrdOucString link;
 
+  bool b64=false;
+
+  if (info)
+  {
+    XrdOucEnv env(info);
+    if (env.Get("eos.attr.val.encoding") && (std::string(env.Get("eos.attr.val.encoding")) == "base64"))
+    {
+      b64=true;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   if (!islocked) gOFS->eosViewRWMutex.LockRead();
   try
@@ -564,6 +578,18 @@ XrdMgmOfs::_attr_get (const char *path,
   }
 
   if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
+
+  // we always decode attributes here, even if they are stored as base64:
+
+  XrdOucString val64=value;
+  eos::common::SymKey::DeBase64(val64, value);
+
+  if (b64)
+  {
+    // on request do base64 encoding                                                                                                                                                                                                                                                               
+    XrdOucString nb64 = value;
+    eos::common::SymKey::Base64(nb64, value);
+  }
 
   EXEC_TIMING_END("AttrGet");
 

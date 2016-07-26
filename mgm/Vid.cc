@@ -123,7 +123,7 @@ Vid::Set (const char* value,
       else
       {
         // this in fact is deletion of the right
-        eos::common::Mapping::gSudoerMap.erase(0);
+        eos::common::Mapping::gSudoerMap.erase(uid);
         if (storeConfig) gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
         return true;
       }
