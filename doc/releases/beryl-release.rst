@@ -19,6 +19,8 @@ Bug Fix
 - MGM: fix possible lock problem in 'eos find' mgm iplementation
 - MGM: fix memory leak in fs.Ping (xrootd3 mem leak)
 - MGM: fix bug when revoking sudo priviledges 
+- MGM: decode all base64 prefixed attr values before storing in attr_set
+- MGM: return base64 encoded attributes in attr_get when called via FUSE
 - NS:  handled uncatched exception in the slave follower when looking for a quota node
 - FST: wait for pending async requests in the close method
 - SPEC: remove directory creation scripting from spec files
