@@ -234,8 +234,6 @@ ProcCommand::Attr ()
                 stdOut += "\n";
               }
             }
-<<<<<<< HEAD
-
             if (mSubCmd == "fold")
             {
               int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
@@ -244,19 +242,7 @@ ProcCommand::Attr ()
 
               if (retc)
               {
-                stdErr += "error: unable to list attributes in directory ";
-=======
-	    
-	    if (mSubCmd == "fold")
-	    {
-	      int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
-	      if ( (!retc) && map.count("sys.attr.link"))
-		retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid, (const char*) 0, linkmap, true, true);
-	      
-	      if (retc)
-	      {
                 stdErr += "error: unable to list attributes in file/directory ";
->>>>>>> beryl_aquamarine
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
