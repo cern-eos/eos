@@ -1308,14 +1308,11 @@ filesystem::setxattr (const char* path,
  XrdOucString key(xattr_name);
  XrdOucString value;
 
- if (key.beginswith("com.apple"))
- {
-   XrdOucString b64value;
-   eos::common::SymKey::Base64Encode ((char*)xattr_value, size, b64value);
-   value = "base64:";
-   value += b64value;
- }
-
+ // use base64 encoding for all attributes
+ XrdOucString b64value;
+ eos::common::SymKey::Base64Encode ((char*)xattr_value, size, b64value);
+ value = "base64:";
+ value += b64value;
  request += value.c_str();
 
  arg.FromString (request);
@@ -1762,7 +1759,7 @@ filesystem::stat (const char* path,
 
  COMMONTIMING ("GETPLUGIN", &stattiming);
 
- if (status.IsOK ())
+ if (status.IsOK () && response)
  {
    unsigned long long sval[10];
    unsigned long long ival[6];
@@ -1834,7 +1831,15 @@ filesystem::stat (const char* path,
  }
  else
  {
-   eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
+   if (!response)
+   {
+     eos_static_err ("no response received");
+   }
+   else
+   {
+     eos_static_err ("status is NOT ok : %s", status.ToString ().c_str ());
+   }
+
    errno = (status.code == XrdCl::errAuthFailed) ? EPERM : EFAULT;
  }
 
@@ -4210,19 +4215,19 @@ filesystem::strongauth_cgi (pid_t pid)
    {
      str += "xrd.k5ccname=";
      str += (authmet.c_str () + 5);
-     str += "&xrd.wantprot=krb5";
+     str += "&xrd.wantprot=krb5,unix";
    }
    else if (authmet.compare (0, 5, "krk5:") == 0)
    {
      str += "xrd.k5ccname=";
      str += (authmet.c_str () + 5);
-     str += "&xrd.wantprot=krb5";
+     str += "&xrd.wantprot=krb5,unix";
    }
    else if (authmet.compare (0, 5, "x509:") == 0)
    {
      str += "xrd.gsiusrpxy=";
      str += authmet.c_str () + 5;
-     str += "&xrd.wantprot=gsi";
+     str += "&xrd.wantprot=gsi,unix";
    }
    else if (authmet.compare (0, 5, "unix:") == 0)
    {
@@ -4863,7 +4868,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  {
    rm_watch_relpath = false;
    char rm_cmd[PATH_MAX];
-   FILE *f = popen ("`which which` --skip-alias --skip-functions --skip-dot rm", "r");
+   FILE *f = popen ("exec bash -c 'type -P rm'", "r");
    if (!f)
    {
      eos_static_err ("could not run the system wide rm command procedure");

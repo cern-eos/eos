@@ -413,10 +413,19 @@ namespace eos
         //----------------------------------------------------------------------
         const ContainerMD *current = container;
 
-        while( current->getId() != 1 &&
-               (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
-          current = pContSvc->getContainerMD( current->getParentId() );
-
+	try 
+	{
+	  while( current->getId() != 1 &&
+		 (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
+	    current = pContSvc->getContainerMD( current->getParentId() );
+	}
+	catch( MDException &e ) {}
+	{
+	  // The corresponding container is not there (yet).
+	  // We catch this exception and accept this extremely rare condition and resulting miscounting
+	  // since the logic to wait for the container to arrive is difficult to implement at this stage.
+	  return 0;
+	}
         //----------------------------------------------------------------------
         // We have either found a quota node or reached root without finding one
         // so we need to double check whether the current container has an

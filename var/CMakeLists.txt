@@ -21,6 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+
 INSTALL ( DIRECTORY DESTINATION /var/eos )
 INSTALL ( DIRECTORY DESTINATION /var/eos/wfe/ )
 INSTALL ( DIRECTORY DESTINATION /var/eos/wfe/bash/ )
@@ -36,3 +37,17 @@ INSTALL ( DIRECTORY DESTINATION /var/run/eosd )
 INSTALL ( DIRECTORY DESTINATION /var/run/eosd/credentials ) 
 INSTALL ( DIRECTORY DESTINATION /var/run/eosd/credentials/store )
 INSTALL ( FILES eos/kinetic/kinetic-cluster-example.json eos/kinetic/kinetic-location-example.json eos/kinetic/kinetic-security-example.json DESTINATION /${CMAKE_INSTALL_LOCALSTATEDIR}/eos/kinetic/ PERMISSIONS OWNER_READ OWNER_EXECUTE )
+INSTALL ( DIRECTORY DESTINATION /usr/lib/tmpfiles.d/ )
+
+INSTALL (
+  FILES
+  eosd.conf
+  DESTINATION /usr/lib/tmpfiles.d/
+  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+
+INSTALL (
+  CODE
+  "execute_process(
+	COMMAND chmod 0775 /var/run/eosd
+	COMMAND chmod 1777 /var/run/eosd/credentials
+	COMMAND chmod 1777 /var/run/eosd/credentials/store)")

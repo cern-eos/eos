@@ -182,7 +182,7 @@ ProcCommand::Attr ()
                 XrdOucString value = val;
                 eos::common::SymKey::DeBase64(val, valu64);
                 stdOut += valu64.c_str();
-                stdOut += "\" in directory ";
+                stdOut += "\" in file/directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
               }
@@ -202,7 +202,7 @@ ProcCommand::Attr ()
               {
                 stdErr += "error: unable to get attribute ";
                 stdErr += key;
-                stdErr += " in directory ";
+                stdErr += " in file/directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
@@ -221,7 +221,7 @@ ProcCommand::Attr ()
               {
                 stdErr += "error: unable to remove attribute '";
                 stdErr += key;
-                stdErr += "' in directory ";
+                stdErr += "' in file/directory ";
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }
@@ -229,11 +229,12 @@ ProcCommand::Attr ()
               {
                 stdOut += "success: removed attribute '";
                 stdOut += key;
-                stdOut += "' from directory ";
+                stdOut += "' from file/directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
               }
             }
+<<<<<<< HEAD
 
             if (mSubCmd == "fold")
             {
@@ -244,6 +245,18 @@ ProcCommand::Attr ()
               if (retc)
               {
                 stdErr += "error: unable to list attributes in directory ";
+=======
+	    
+	    if (mSubCmd == "fold")
+	    {
+	      int retc = gOFS->_attr_ls(foundit->first.c_str(), *mError, *pVid, (const char*) 0, map, true, false);
+	      if ( (!retc) && map.count("sys.attr.link"))
+		retc |= gOFS->_attr_ls(map["sys.attr.link"].c_str(), *mError, *pVid, (const char*) 0, linkmap, true, true);
+	      
+	      if (retc)
+	      {
+                stdErr += "error: unable to list attributes in file/directory ";
+>>>>>>> beryl_aquamarine
                 stdErr += foundit->first.c_str();
                 retc = errno;
               }

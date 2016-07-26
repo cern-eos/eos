@@ -147,6 +147,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libXrdMqOfs.so
 %attr(700,daemon,daemon) /var/eos
 %attr(755,daemon,daemon) /var/log/eos/
+%attr(755,daemon,daemon) /var/log/eos/fuse/
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
 %config(noreplace) %{_sysconfdir}/xrd.cf.mq
@@ -250,14 +251,21 @@ The EOS fuse core containing eosd and mount scripts.
 /usr/share/selinux/mls/eosfuse.pp
 /usr/share/selinux/strict/eosfuse.pp
 %{_sysconfdir}/logrotate.d/eos-fuse-logs
+%attr(755,daemon,daemon) /var/log/eos/
+%attr(755,daemon,daemon) /var/log/eos/fuse/
 %dir %attr(0755, root, root) /var/run/eosd/
 %dir %attr(1777, root, root) /var/run/eosd/credentials/
 %dir %attr(1777, root, root) /var/run/eosd/credentials/store
 
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-%{_sysconfdir}/fuse.conf.eos 
-%else
+#Create the credential store
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+%{_usr}/lib/tmpfiles.d/eosd.conf
+%endif
+
+%if 0%{distribution} == 5 || 0%{distribution} == 6
 %config(noreplace) %{_sysconfdir}/fuse.conf
+%{_sysconfdir}/fuse.conf.eos
+%else
 %{_sysconfdir}/fuse.conf.eos
 %endif
 
@@ -265,24 +273,8 @@ The EOS fuse core containing eosd and mount scripts.
 for variant in mls strict targeted
 do
   /usr/sbin/semodule -s $variant -i \
-    /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
+  /usr/share/selinux/$variant/eosfuse.pp &> /dev/null || :
 done
-
-# create the fuse log directory
-mkdir -p /var/log/eos/fuse/
-chown daemon:daemon /var/log/eos/
-chown daemon:daemon /var/log/eos/fuse/
-chmod 755 /var/log/eos/
-chmod 755 /var/log/eos/fuse/
-
-# create the credential store
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-# create tmpfiles.d entry
-echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
-%endif
-
 
 %preun -n eos-fuse-core
 if [ $1 = 0 ] ; then
@@ -298,9 +290,23 @@ if [ $1 -eq 0 ]; then
   done
 fi
 
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
-unlink /usr/lib/tmpfiles.d/eosd.conf
+%posttrans -n eos-fuse-core
+# TODO: remove this section after 0.3.193
+# If this is an upgrade then we need to recreate the /var/run/eosd/credentials/store
+# hierarcy as it is deleted by the pervious package %postun section
+if [ $1 -eq 0 ]; then
+mkdir -p /var/run/eosd/
+mkdir -p /var/run/eosd/credentials/store
+chmod 1777 /var/run/eosd/credentials
+chmod 1777 /var/run/eosd/credentials/store
+
+#Create the credential store i.e tmpfiles.d entry
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
+echo "d /run/eosd 755 root root" > /usr/lib/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
+echo "d /run/eosd/credentials/store 1777 root root" >> /usr/lib/tmpfiles.d/eosd.conf
 %endif
+fi
 
 #-------------------------------------------------------------------------------
 # Package eos-fuse-sysv
@@ -319,7 +325,7 @@ The EOS fuse SYSV init scripts.
 %{_sysconfdir}/rc.d/init.d/eosd
 
 %post -n eos-fuse-sysv
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
 echo "Skipping chkconfig for eosd"
 %else
 /sbin/chkconfig --add eosd
@@ -328,7 +334,7 @@ sleep 2
 /sbin/service eosd condrestart > /dev/null 2>&1 || :
 %endif
 %preun -n eos-fuse-sysv
-%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1 
+%if %{?fedora:1}%{!?fedora:0} || 0%{?rhel} >= 7 || 0%{?el7} == 1
 echo "Skipping chkconfig for eosd"
 %else
 if [ $1 = 0 ]; then
@@ -536,5 +542,3 @@ Contains a yum configuration file for the development EOS EL7 repo
 %defattr(-, root, root, -)
 %{_sysconfdir}/yum.repos.d/eos-el7-dev.repo
 %endif
-
-
