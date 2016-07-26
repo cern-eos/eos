@@ -49,6 +49,67 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------
+//! handler to fix memory leak in xrootd 3 - don't merge for xrootd 4
+//------------------------------------------------------------------------
+class SyncResponseHandler : public XrdCl::ResponseHandler
+{
+public:
+
+  SyncResponseHandler():
+    pStatus(0),
+    pResponse(0),
+    pSem( new XrdSysSemaphore(0) ) {}
+
+  virtual ~SyncResponseHandler()
+  {
+    if (pResponse)
+      delete pResponse;
+    delete pSem;
+  }
+
+  virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                               XrdCl::AnyObject    *response )
+  {
+    pStatus = status;
+    pResponse = response;
+    pSem->Post();
+  }
+
+  XrdCl::XRootDStatus *GetStatus()
+  {
+    return pStatus;
+  }
+
+  XrdCl::AnyObject *GetResponse()
+  {
+    return pResponse;
+  }
+
+  void WaitForResponse()
+  {
+    pSem->Wait();
+  }
+
+  template<class Type>
+  XrdCl::XRootDStatus Sync(Type *&response)
+  {
+    WaitForResponse();
+
+    XrdCl::XRootDStatus *status = GetStatus();
+    XrdCl::XRootDStatus ret( *status );
+    delete status;
+
+    return ret;
+  }
+
+private:
+  XrdCl::XRootDStatus    *pStatus;
+  XrdCl::AnyObject       *pResponse;
+  XrdSysSemaphore *pSem;
+};
+
+
 /* -------------------------------------------------------------------------- */
 Master::Master ()
 {
@@ -341,9 +402,20 @@ Master::Supervisor ()
       bool remoteMgmUp = false;
       bool remoteMqUp = false;
 
+      XrdCl::Buffer* responseMgm=0;
+      XrdCl::Buffer* responseMq=0;
+      SyncResponseHandler handlerMgm;
+      SyncResponseHandler handlerMq;
+
+      FsMgm.Ping(&handlerMgm,1);
+      FsMq.Ping(&handlerMq,1);
+
       // ping the two guys with short timeouts e.g. MGM & MQ
-      XrdCl::XRootDStatus mgmStatus = FsMgm.Ping(1);
-      XrdCl::XRootDStatus mqStatus = FsMq.Ping(1);
+      XrdCl::XRootDStatus mgmStatus = handlerMgm.Sync(responseMgm);
+      XrdCl::XRootDStatus mqStatus = handlerMq.Sync(responseMq);
+      
+      delete responseMgm;
+      delete responseMq;
 
       if (mgmStatus.IsOK())
       {
