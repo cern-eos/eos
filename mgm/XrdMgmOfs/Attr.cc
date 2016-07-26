@@ -407,10 +407,6 @@ XrdMgmOfs::_attr_set (const char *path,
           }
         }
 
-        XrdOucString val64 = value;
-        XrdOucString val;
-        eos::common::SymKey::DeBase64(val64, val);
-
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
