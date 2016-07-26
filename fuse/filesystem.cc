@@ -4865,7 +4865,7 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  {
    rm_watch_relpath = false;
    char rm_cmd[PATH_MAX];
-   FILE *f = popen ("`which which` --skip-alias --skip-functions --skip-dot rm", "r");
+   FILE *f = popen ("exec bash -c 'type -P rm'", "r");
    if (!f)
    {
      eos_static_err ("could not run the system wide rm command procedure");
