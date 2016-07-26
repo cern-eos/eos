@@ -410,7 +410,7 @@ XrdMgmOfs::_attr_set (const char *path,
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
         dh->notifyMTimeChange(gOFS->eosDirectoryService);
-        eosView->updateContainerStore(dh);
+        eosView->updateContainerStore(dh.get());
         errno = 0;
       }
     }
