@@ -28,7 +28,7 @@
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
-#include "fst/io/XrdIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -448,12 +448,12 @@ FileTest::ReadAsyncTest()
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
   std::string file_url = address + "/" + file_path;
-  eos::fst::XrdIo* file = new eos::fst::XrdIo();
+  eos::fst::XrdIo* file = new eos::fst::XrdIo(file_url);
   std::cerr << "File url: " << file_url << std::endl;
-  CPPUNIT_ASSERT(!file->Open(file_url, SFS_O_RDONLY));
+  CPPUNIT_ASSERT(!file->fileOpen(SFS_O_RDONLY));
   // Get file size
   struct stat buff;
-  CPPUNIT_ASSERT(!file->Stat(&buff));
+  CPPUNIT_ASSERT(!file->fileStat(&buff));
   uint64_t file_size = buff.st_size;
   off_t buff_size = 1025*4;
   char buffer [buff_size];
@@ -461,10 +461,10 @@ FileTest::ReadAsyncTest()
 
   while (offset <= file_size)
   {
-    CPPUNIT_ASSERT(file->ReadAsync(offset, buffer, buff_size, false) == buff_size);
+    CPPUNIT_ASSERT(file->fileReadAsync(offset, buffer, buff_size, false) == buff_size);
     offset += buff_size;
   }
 
-  CPPUNIT_ASSERT(file->Close());
+  CPPUNIT_ASSERT(file->fileClose());
   delete file;
 }
