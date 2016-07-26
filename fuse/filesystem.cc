@@ -1310,14 +1310,11 @@ filesystem::setxattr (const char* path,
  XrdOucString key(xattr_name);
  XrdOucString value;
 
- if (key.beginswith("com.apple"))
- {
-   XrdOucString b64value;
-   eos::common::SymKey::Base64Encode ((char*)xattr_value, size, b64value);
-   value = "base64:";
-   value += b64value;
- }
-
+ // use base64 encoding for all attributes
+ XrdOucString b64value;
+ eos::common::SymKey::Base64Encode ((char*)xattr_value, size, b64value);
+ value = "base64:";
+ value += b64value;
  request += value.c_str();
 
  arg.FromString (request);
