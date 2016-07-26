@@ -18,6 +18,7 @@ Bug Fix
 - MGM: fixes in JSON formatting, reencoding of non-http friendly tags/letters like <>?@
 - MGM: fix possible lock problem in 'eos find' mgm iplementation
 - MGM: fix memory leak in fs.Ping (xrootd3 mem leak)
+- MGM: fix bug when revoking sudo priviledges 
 - NS:  handled uncatched exception in the slave follower when looking for a quota node
 - FST: wait for pending async requests in the close method
 - SPEC: remove directory creation scripting from spec files
