@@ -511,6 +511,17 @@ XrdMgmOfs::_attr_get (const char *path,
   value = "";
   XrdOucString link;
 
+  bool b64=false;
+
+  if (info)
+  {
+    XrdOucEnv env(info);
+    if (env.Get("eos.attr.val.encoding") && (std::string(env.Get("eos.attr.val.encoding")) == "base64"))
+    {
+      b64=true;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   if (!islocked) gOFS->eosViewRWMutex.LockRead();
   try
@@ -562,6 +573,18 @@ XrdMgmOfs::_attr_get (const char *path,
   }
 
   if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
+
+  // we always decode attributes here, even if they are stored as base64:
+
+  XrdOucString val64=value;
+  eos::common::SymKey::DeBase64(val64, value);
+
+  if (b64)
+  {
+    // on request do base64 encoding                                                                                                                                                                                                                                                               
+    XrdOucString nb64 = value;
+    eos::common::SymKey::Base64(nb64, value);
+  }
 
   EXEC_TIMING_END("AttrGet");
 
