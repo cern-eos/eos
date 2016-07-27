@@ -199,7 +199,7 @@ XrdIo::fileOpen (XrdSfsFileOpenMode flags,
   request = mFilePath;
   if (opaque.length())
   {
-    if ( (mFilePath.find("?")) != std::string::npos)
+    if ( (mFilePath.find("?")) == std::string::npos)
     {
       request += "?";
     }
