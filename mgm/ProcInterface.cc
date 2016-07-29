@@ -928,6 +928,7 @@ ProcCommand::MakeResult ()
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "stat.health","stat.health.status");
           eos::common::StringConversion::ReplaceMapKey(map, "balancer","balancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "converter","converter.status");
           eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer","geotagbalancer.status");
