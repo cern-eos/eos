@@ -884,6 +884,18 @@ WFE::Job::DoIt ()
 	      int cnt=0; cnt++; if (cnt>16)break;
             }
 
+            while (execargs.replace("<eos::wfe::username>",
+                                    user_name.c_str()));
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+
+            while (execargs.replace("<eos::wfe::groupname>",
+				    group_name.c_str()));
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+
             while (execargs.replace("<eos::wfe::rusername>",
                                     mVid.uid_string.c_str()))
             {
