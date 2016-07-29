@@ -1206,7 +1206,7 @@ WFE::Job::DoIt ()
 		else
 		{	
 		  // can not retry
-		  Move(mActions[0].mQueue, "f");
+		  Move("r", "f");
 		}
 	      }
 	      else
