@@ -180,15 +180,15 @@ ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
     if (force)
     {
       //create backup
-    
-      time_t now = time(0);
-
+      char buff[20];
+      time_t now = time(NULL);
+      strftime(buff, 20, "%Y%m%d%H%M%S", localtime(&now));
       std::string hash_key_backup;
       hash_key_backup += conf_backup_hash_key_prefix.c_str();
       hash_key_backup += ":";
       hash_key_backup += name;
       hash_key_backup += "-";
-      hash_key_backup +=  ctime(&now);   
+      hash_key_backup += buff;
 
       eos_notice("HASH KEY NAME => %s",hash_key_backup.c_str());
       //backup hash
@@ -219,11 +219,11 @@ ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
   Mutex.Lock();
   configDefinitions.Apply(SetConfigToRedisHash, &rdx_hash);
   Mutex.UnLock();
-  //adding key for timestamp
   time_t now = time(0);
-  std::string stime = ctime(&now);
-  rdx_hash.hset("timestamp",stime);
-      
+  XrdOucString stime = ctime(&now);
+  stime.erase(stime.length() - 1);
+  rdx_hash.hset("timestamp", stime.c_str());
+
   //we store in redis the list of available EOSConfigs as Set
   redox::RedoxSet rdx_set(client, conf_set_key);
   //add the hash key to the set if it's not there
@@ -273,9 +273,9 @@ ConfigEngineRedis::ListConfigs (XrdOucString &configlist, bool showbackup)
   }
 
   if (showbackup) { 
-    configlist += "================================\n";
+    configlist += "=======================================\n";
     configlist += "Existing Backup Configurations on Redis\n";
-    configlist += "================================\n";
+    configlist += "=======================================\n";
     redox::RedoxSet rdx_set_backup(client, conf_set_backup_key);
     
     
@@ -404,39 +404,41 @@ ConfigEngineRedis::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
     hash_key += conf_hash_key_prefix.c_str();
     hash_key += ":";
     hash_key += name;
+
+    eos_notice("HASH KEY NAME => %s",hash_key.c_str());
+
     redox::RedoxHash rdx_hash(client, hash_key);
 
     std::vector<std::string> resp = rdx_hash.hkeys();
     for (auto&& key: resp)
     {
       std::string _value = rdx_hash.hget(key);
-      XrdOucString value = _value.c_str();
-
+      XrdOucString _key = key.c_str();
+      
       // filter according to user specification
       bool filtered = false;
-      if ((pinfo.option.find("v") != STR_NPOS) && (value.beginswith("vid:")))
+      if ((pinfo.option.find("v") != STR_NPOS) && (_key.beginswith("vid:")))
         filtered = true;
-      if ((pinfo.option.find("f") != STR_NPOS) && (value.beginswith("fs:")))
+      if ((pinfo.option.find("f") != STR_NPOS) && (_key.beginswith("fs:")))
         filtered = true;
-      if ((pinfo.option.find("q") != STR_NPOS) && (value.beginswith("quota:")))
+      if ((pinfo.option.find("q") != STR_NPOS) && (_key.beginswith("quota:")))
         filtered = true;
-      if ((pinfo.option.find("c") != STR_NPOS) && (value.beginswith("comment-")))
+      if ((pinfo.option.find("c") != STR_NPOS) && (_key.beginswith("comment-")))
         filtered = true;
-      if ((pinfo.option.find("p") != STR_NPOS) && (value.beginswith("policy:")))
+      if ((pinfo.option.find("p") != STR_NPOS) && (_key.beginswith("policy:")))
         filtered = true;
-      if ((pinfo.option.find("g") != STR_NPOS) && (value.beginswith("global:")))
+      if ((pinfo.option.find("g") != STR_NPOS) && (_key.beginswith("global:")))
         filtered = true;
-      if ((pinfo.option.find("m") != STR_NPOS) && (value.beginswith("map:")))
+      if ((pinfo.option.find("m") != STR_NPOS) && (_key.beginswith("map:")))
         filtered = true;
-      if ((pinfo.option.find("s") != STR_NPOS) && (value.beginswith("geosched:")))
+      if ((pinfo.option.find("s") != STR_NPOS) && (_key.beginswith("geosched:")))
         filtered = true;
 
       if (filtered)
       {
-
         out += key.c_str();
         out += " => ";
-        out += value;
+        out += _value.c_str();
         out += "\n";
       }
     }
