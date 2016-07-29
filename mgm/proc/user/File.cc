@@ -29,6 +29,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Policy.hh"
 #include "common/LayoutId.hh"
+#include "common/SecEntity.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClCopyProcess.hh"
 /*----------------------------------------------------------------------------*/
@@ -759,6 +760,7 @@ ProcCommand::File ()
         XrdSfsFSctl args;
         XrdOucString opaque = "mgm.pcmd=event&mgm.fid=";
         XrdOucString hexfid;
+	XrdOucString lSec;
         eos::common::FileId::Fid2Hex(fid, hexfid);
         opaque += hexfid;
 
@@ -770,16 +772,26 @@ ProcCommand::File ()
         opaque += workflow.c_str();
         opaque += "&mgm.path=";
         opaque += spath.c_str();
-
-        args.Arg1 = spath.c_str();
-        args.Arg1Len = spath.length();
-        args.Arg2 = opaque.c_str();
-        args.Arg2Len = opaque.length();
+	opaque += "&mgm.ruid=";
+	opaque += (int) vid.uid;
+	opaque += "&mgm.rgid=";
+	opaque += (int) vid.gid;
 
         XrdSecEntity lClient(pVid->prot.c_str());
         lClient.name = (char*) pVid->name.c_str();
         lClient.tident = (char*) pVid->tident.c_str();
         lClient.host = (char*) pVid->host.c_str();
+
+	lSec = "&mgm.sec=";
+	lSec += eos::common::SecEntity::ToKey(&lClient,
+					      "eos").c_str();
+
+	opaque += lSec;
+
+        args.Arg1 = spath.c_str();
+        args.Arg1Len = spath.length();
+        args.Arg2 = opaque.c_str();
+        args.Arg2Len = opaque.length();
 
         if (gOFS->FSctl(SFS_FSCTL_PLUGIN,
                         args,
