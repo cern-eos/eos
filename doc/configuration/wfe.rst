@@ -135,45 +135,45 @@ The full list of static template arguments is given here:
 
 .. epigraph::
 
-   ====================== =============================================================================================
-   Template               Description
-   ====================== =============================================================================================
-   <eos.wfe.uid>          user id of the file owner
-   <eos.wfe.gid>          group id of the file owner
-   <eos.wfe.username>     user name of the file owner
-   <eos.wfe.groupname>    group name of the file owner
-   <eos.wfe.ruid>         user id invoking the workflow
-   <eos.wfe.rgid>         group id invoking the workflow
-   <eos.wfe.rusername>    user name invoking the workflow
-   <eos.wfe.rgroupname>   group name invoking the workflow
-   <eos.wfe.path>         full absolute file path which has triggered the workflow
-   <eos.wfe.host>         client host name triggering the workflow
-   <eos.wfe.sec.app>      client application triggering the workflow (this is defined externally via the CGI ``?eos.app=myapp``)
-   <eos.wfe.sec.name>     client security credential name triggering the workflow
-   <eos.wfe.sec.prot>     client security protocol triggering the workflow
-   <eos.wfe.sec.grps>     client security groups triggering the workflow
-   <eos.wfe.instance>     EOS instance name
-   <eos.wfe.ctime.s>      file creation time seconds
-   <eos.wfe.ctime.ns>     file creation time nanoseconds
-   <eos.wfe.mtime.s>      file modification time seconds
-   <eos.wfe.mtime.ns>     file modification time nanoseconds
-   <eos.wfe.size>         file size
-   <eos.wfe.cid>          parent container id
-   <eos.wfe.fid>          file id (decimal)
-   <eos.wfe.fxid>         file id (hexacdecimal)
-   <eos.wfe.name>         basename of the file
-   <eos.wfe.link>         resolved symlink path if the original file path is a symbolic link to a file
-   <eos.wfe.checksum>     checksum string
-   <eos.wfe.checksumtyp>  checksum type string
-   <eos.wfe.event>        event name triggering this workflow (e.g. closew)
-   <eos.wfe.queue>        queue name triggering this workflow (e.g. can be 'q' or 'e')
-   <eos.wfe.workflow>     workflow name triggering this workflow (e.g. default)
-   <eos.wfe.now>          current unix timestamp when running this workflow
-   <eos.wfe.when>         scheduling unix timestamp when to run this workflow
-   <eos.wfe.metadata>     a full meta data blop witt all file metadata and parent metadata including extended attributes
-   <eos.wfe.vpath>        the path of the workflow file in the virtual workflow directory when the workflow is executed
+   ======================== =============================================================================================
+   Template                 Description
+   ======================== =============================================================================================
+   <eos::wfe::uid>          user id of the file owner
+   <eos::wfe::gid>          group id of the file owner
+   <eos::wfe::username>     user name of the file owner
+   <eos::wfe::groupname>    group name of the file owner
+   <eos::wfe::ruid>         user id invoking the workflow
+   <eos::wfe::rgid>         group id invoking the workflow
+   <eos::wfe::rusername>    user name invoking the workflow
+   <eos::wfe::rgroupname>   group name invoking the workflow
+   <eos::wfe::path>         full absolute file path which has triggered the workflow
+   <eos::wfe::host>         client host name triggering the workflow
+   <eos::wfe::sec.app>      client application triggering the workflow (this is defined externally via the CGI ``?eos.app=myapp``)
+   <eos::wfe::sec.name>     client security credential name triggering the workflow
+   <eos::wfe::sec.prot>     client security protocol triggering the workflow
+   <eos::wfe::sec.grps>     client security groups triggering the workflow
+   <eos::wfe::instance>     EOS instance name
+   <eos::wfe::ctime.s>      file creation time seconds
+   <eos::wfe::ctime.ns>     file creation time nanoseconds
+   <eos::wfe::mtime.s>      file modification time seconds
+   <eos::wfe::mtime.ns>     file modification time nanoseconds
+   <eos::wfe::size>         file size
+   <eos::wfe::cid>          parent container id
+   <eos::wfe::fid>          file id (decimal)
+   <eos::wfe::fxid>         file id (hexacdecimal)
+   <eos::wfe::name>         basename of the file
+   <eos::wfe::link>         resolved symlink path if the original file path is a symbolic link to a file
+   <eos::wfe::checksum>     checksum string
+   <eos::wfe::checksumtype> checksum type string
+   <eos::wfe::event>        event name triggering this workflow (e.g. closew)
+   <eos::wfe::queue>        queue name triggering this workflow (e.g. can be 'q' or 'e')
+   <eos::wfe::workflow>     workflow name triggering this workflow (e.g. default)
+   <eos::wfe::now>          current unix timestamp when running this workflow
+   <eos::wfe::when>         scheduling unix timestamp when to run this workflow
+   <eos::wfe::metadata>     a full meta data blop witt all file metadata and parent metadata including extended attributes
+   <eos::wfe::vpath>        the path of the workflow file in the virtual workflow directory when the workflow is executed
                           - you can use this to attach messages/log as an extended attribute to a workflow if desired
-   ====================== =============================================================================================
+   ======================== =============================================================================================
 
 
 Extended attributes of a file and it's parent container can be read with dynamic template arguments:
@@ -183,9 +183,9 @@ Extended attributes of a file and it's parent container can be read with dynamic
    =========================== ========================================================================================
    Template                    Description
    =========================== ========================================================================================
-   <eos.wfe.fxattr:<key>>      Retrieves the value of the extended attribute of the triggering file with name <key>
-                               - sets UNDEF if not existing
-   <eos.wfe.cxattr:<key>>      Retrieves the value of the extended attribute of parent directory of the triggering file
+   <eos::wfe::fxattr:<key>>     Retrieves the value of the extended attribute of the triggering file with name <key>
+                             - sets UNDEF if not existing
+   <eos::wfe::cxattr:<key>>     Retrieves the value of the extended attribute of parent directory of the triggering file
                                - sets UNDEF if not existing
    =========================== ========================================================================================
 
