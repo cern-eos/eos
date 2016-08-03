@@ -25,9 +25,7 @@
 #ifndef __EOSFST_LOCALFILEIO__HH__
 #define __EOSFST_LOCALFILEIO__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 

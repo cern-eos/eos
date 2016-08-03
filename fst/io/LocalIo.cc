@@ -21,14 +21,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "fst/XrdFstOfsFile.hh"
 #include "fst/io/LocalIo.hh"
-/*----------------------------------------------------------------------------*/
+
 #ifndef __APPLE__
 #include <xfs/xfs.h>
 #endif
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -40,29 +38,25 @@ LocalIo::LocalIo (XrdFstOfsFile* file,
     FileIo(),
     mLogicalFile(file),
     mSecEntity(client)
-{  
+{
   // In this case the logical file is the same as the local physical file
 }
-
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 LocalIo::~LocalIo ()
 {
-  //empty
+  if (mIsOpen)
+    Close();
 }
-
 
 //------------------------------------------------------------------------------
 // Open file
 //------------------------------------------------------------------------------
 int
-LocalIo::Open (const std::string& path,
-                   XrdSfsFileOpenMode flags,
-                   mode_t mode,
-                   const std::string& opaque,
-                   uint16_t timeout)
+LocalIo::Open (const std::string& path,  XrdSfsFileOpenMode flags,
+               mode_t mode, const std::string& opaque, uint16_t timeout)
 {
   if (!mLogicalFile)
   {
@@ -74,31 +68,33 @@ LocalIo::Open (const std::string& path,
   errno = 0;
   eos_info("flags=%x", flags);
   int retc = mLogicalFile->openofs(mFilePath.c_str(),
-				   flags,
-				   mode,
-				   mSecEntity,
-				   opaque.c_str());
-  if (retc != SFS_OK) 
+                                   flags,
+                                   mode,
+                                   mSecEntity,
+                                   opaque.c_str());
+  if (retc != SFS_OK)
+  {
     eos_err("error= openofs failed errno=%d retc=%d", errno, retc);
+  }
+  else
+  {
+    mIsOpen = true;
+  }
   return retc;
 }
-
 
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::Read (XrdSfsFileOffset offset,
-                   char* buffer,
-                   XrdSfsXferSize length,
-                   uint16_t timeout)
+LocalIo::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
+               uint16_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t> (offset),
             static_cast<int64_t> (length));
   return mLogicalFile->readofs(offset, buffer, length);
 }
-
 
 //------------------------------------------------------------------------------
 // Vector read - sync
@@ -139,10 +135,8 @@ LocalIo::ReadVAsync (XrdCl::ChunkList& chunkList,
 // Write to file - sync
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::Write (XrdSfsFileOffset offset,
-                const char* buffer,
-                XrdSfsXferSize length,
-                uint16_t timeout)
+LocalIo::Write (XrdSfsFileOffset offset, const char* buffer,
+                XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset = %lld, length = %lld",
             static_cast<int64_t> (offset),
@@ -150,33 +144,25 @@ LocalIo::Write (XrdSfsFileOffset offset,
   return mLogicalFile->writeofs(offset, buffer, length);
 }
 
-
 //------------------------------------------------------------------------------
 // Read from file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::ReadAsync (XrdSfsFileOffset offset,
-                    char* buffer,
-                    XrdSfsXferSize length,
-                    bool readahead,
-                    uint16_t timeout)
+LocalIo::ReadAsync (XrdSfsFileOffset offset, char* buffer,
+                    XrdSfsXferSize length, bool readahead, uint16_t timeout)
 {
   return Read(offset, buffer, length, timeout);
 }
-
 
 //------------------------------------------------------------------------------
 // Write to file async - falls back on synchronous mode
 //------------------------------------------------------------------------------
 int64_t
-LocalIo::WriteAsync (XrdSfsFileOffset offset,
-                     const char* buffer,
-                     XrdSfsXferSize length,
-                     uint16_t timeout)
+LocalIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer,
+                     XrdSfsXferSize length, uint16_t timeout)
 {
   return Write(offset, buffer, length, timeout);
 }
-
 
 //------------------------------------------------------------------------------
 // Truncate file
@@ -186,7 +172,6 @@ LocalIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 {
   return mLogicalFile->truncateofs(offset);
 }
-
 
 //------------------------------------------------------------------------------
 // Allocate space for file
@@ -223,13 +208,11 @@ LocalIo::Fallocate (XrdSfsFileOffset length)
   return SFS_ERROR;
 }
 
-
 //------------------------------------------------------------------------------
 // Deallocate space reserved for file
 //------------------------------------------------------------------------------
 int
-LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
-                      XrdSfsFileOffset toOffset)
+LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
   eos_debug("fdeallocate from = %lli to = %lli", fromOffset, toOffset);
   XrdOucErrInfo error;
@@ -263,7 +246,6 @@ LocalIo::Fdeallocate (XrdSfsFileOffset fromOffset,
 #endif
 }
 
-
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
@@ -272,7 +254,6 @@ LocalIo::Sync (uint16_t timeout)
 {
   return mLogicalFile->syncofs();
 }
-
 
 //------------------------------------------------------------------------------
 // Get stats about the file
@@ -284,16 +265,15 @@ LocalIo::Stat (struct stat* buf, uint16_t timeout)
   return pOfsFile->XrdOfsFile::stat(buf);
 }
 
-
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
 int
 LocalIo::Close (uint16_t timeout)
 {
+  mIsOpen = false;
   return mLogicalFile->closeofs();
 }
-
 
 //------------------------------------------------------------------------------
 // Remove file
@@ -312,9 +292,8 @@ LocalIo::Remove (uint16_t timeout)
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
-// Get pointer to async meta handler object 
+// Get pointer to async meta handler object
 //------------------------------------------------------------------------------
 void*
 LocalIo::GetAsyncHandler ()
@@ -323,5 +302,3 @@ LocalIo::GetAsyncHandler ()
 }
 
 EOSFSTNAMESPACE_END
-
-
