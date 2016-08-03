@@ -55,6 +55,7 @@ ConfigEngineRedis::ConfigEngineRedis (const char* configdir)
   REDIS_HOST = gOFS->MgmOfsConfigEngineRedisHost.c_str();
   REDIS_PORT = gOFS->MgmOfsConfigEngineRedisPort;
   client.connect(REDIS_HOST, REDIS_PORT);
+  configBroadcast = true;
 }
 
 //------------------------------------------------------------------------------
@@ -479,13 +480,14 @@ void
 ConfigEngineRedis::SetConfigValue (const char* prefix,
 			      const char* key,
 			      const char* val,
-			      bool tochangelog)
+			      bool noBroadcast)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Set a configuration value
  * @prefix identifies the type of configuration parameter (module)
  * @key key of the configuration value
  * @val definition=value of the configuration
+ * @noBroadcast if this change is coming from a broacast or not
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -523,10 +525,13 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
   configDefinitions.Rep(configname.c_str(), sdef);
 
   eos_static_debug("%s => %s", key, val);
-
-  if (configBroadcast )
+  
+  //in case the change is not coming from a broacast we can can broadcast it
+  if (configBroadcast && noBroadcast)
   {
     // make this value visible between MGM's
+    eos_notice("Setting %s", configname.c_str());
+
     XrdMqRWMutexReadLock lock(eos::common::GlobalConfig::gConfig.SOM()->HashMutex);
     XrdMqSharedHash* hash =
       eos::common::GlobalConfig::gConfig.Get(gOFS->MgmConfigQueue.c_str());
@@ -540,8 +545,8 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
     }
   }
 
-
-  if ( autosave && currentConfigFile.length())
+  //in case the change is not coming from a broacast we can can save it ( if autosave is enabled)
+  if ( autosave && noBroadcast && currentConfigFile.length())
   {
     XrdOucString envstring = "mgm.config.file=";
     envstring += currentConfigFile;
@@ -562,12 +567,13 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
 void
 ConfigEngineRedis::DeleteConfigValue (const char* prefix,
 				 const char* key,
-				 bool tochangelog)
+				 bool noBroadcast)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Delete configuration key
  * @prefix identifies the type of configuration parameter (module)
  * key of the configuration value to delete
+ * nobroadcast if this change is coming from a broacast or not
  */
 /*----------------------------------------------------------------------------*/
 {
@@ -589,7 +595,8 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
     configname = key;
   }
 
-  if (configBroadcast)
+  //in case the change is not coming from a broacast we can can broadcast it
+  if (configBroadcast && noBroadcast)
   {
     eos_static_info("Deleting %s", configname.c_str());
     // make this value visible between MGM's
@@ -605,8 +612,9 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
 
   Mutex.Lock();
   configDefinitions.Del(configname.c_str());
+  //in case the change is not coming from a broacast we can can save it ( if autosave is enabled)
 
-  if (autosave && currentConfigFile.length())
+  if (autosave && noBroadcast && currentConfigFile.length())
   {
     XrdOucString envstring = "mgm.config.file=";
     envstring += currentConfigFile;

@@ -472,13 +472,13 @@ class ConfigEngineRedis : public ConfigEngine
 
   void DeleteConfigValue (const char* prefix,
                       const char* fsname,
-                      bool tochangelog = true);
+                      bool noBroadcast = true);
 
   void
     SetConfigValue (const char* prefix,
                    const char* fsname,
                    const char* def,
-                   bool tochangelog = true);
+                   bool noBroadcast = true);
 
   private:
 
