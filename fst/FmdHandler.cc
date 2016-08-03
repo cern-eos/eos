@@ -25,7 +25,7 @@
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttrMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/Fmd.hh"

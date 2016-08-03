@@ -84,7 +84,7 @@ FileSystem::~FileSystem ()
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
 
-  gFmdDbMapHandler.ShutdownDB(GetId());
+  gFmdAttrMapHandler.ShutdownDB(GetId());
 
   // ----------------------------------------------------------------------------
   // @todo we accept this tiny memory leak to be able to let running
@@ -222,7 +222,7 @@ FileSystem::CleanTransactions ()
 
 	  FmdHelper* fMd = 0;
 
-	  fMd = gFmdDbMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+	  fMd = gFmdAttrMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
 	  if (fMd) 
 	  {
@@ -300,7 +300,7 @@ FileSystem::SyncTransactions (const char* manager)
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 
 	// try to sync this file from the MGM
-	if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager))
+	if (gFmdAttrMapHandler.ResyncMgm(GetId(), fid, manager))
         {
 	  eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
 	}

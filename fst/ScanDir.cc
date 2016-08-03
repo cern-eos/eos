@@ -323,11 +323,11 @@ ScanDir::CheckFile (const char* filepath)
         {
           XrdOucString manager = "";
           // ask the meta data handling class to update the error flags for this file
-          gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
+          gFmdAttrMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
             XrdOucString manager = "";
             // ask the meta data handling class to update the error flags for this file
-            gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
+            gFmdAttrMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
             {
               XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
               manager = eos::fst::Config::gConfig.Manager.c_str();
@@ -341,7 +341,7 @@ ScanDir::CheckFile (const char* filepath)
               {
                 // call the autorepair method on the MGM
                 // if the MGM has autorepair disabled it won't do anything
-                gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
+                gFmdAttrMapHandler.CallAutoRepair(manager.c_str(), fid);
               }
             }
           }

@@ -246,7 +246,7 @@ XrdFstOfs::xrdfstofs_shutdown (int sig)
   eos_static_warning("op=shutdown msg=\"stop messaging\"");
 
   eos_static_warning("%s", "op=shutdown msg=\"shutdown fmddbmap handler\"");
-  gFmdDbMapHandler.Shutdown();
+  gFmdAttrMapHandler.Shutdown();
   kill(watchdog, 9);
 
   int wstatus = 0;
@@ -1191,7 +1191,7 @@ XrdFstOfs::_rem (const char* path,
     }
   }
     
-  if (!gFmdDbMapHandler.DeleteFmd(fid, fsid))
+  if (!gFmdAttrMapHandler.DeleteFmd(fid, fsid))
   {
     eos_notice("unable to delete fmd for fid %llu on filesystem %lu", fid, fsid);
     return gOFS.Emsg(epname, error, EIO, "delete file meta data ", fstPath.c_str());
@@ -1321,7 +1321,7 @@ XrdFstOfs::FSctl (const int cmd,
 
       unsigned long long fileid = eos::common::FileId::Hex2Fid(afid);
       unsigned long fsid = atoi(afsid);
-      FmdHelper* fmd = gFmdDbMapHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
+      FmdHelper* fmd = gFmdAttrMapHandler.GetFmd(fileid, fsid, 0, 0, 0, false, true);
 
       if (!fmd)
       {

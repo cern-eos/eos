@@ -93,7 +93,7 @@ Storage::Verify ()
 
     {
       FmdHelper* fMd = 0;
-      fMd = gFmdDbMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
+      fMd = gFmdAttrMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, 0, true);
       if (fMd)
       {
         // force a resync of meta data from the MGM
@@ -122,7 +122,7 @@ Storage::Verify ()
     // even if the stat failed, we run this code to tag the file as is ...
     // attach meta data
     FmdHelper* fMd = 0;
-    fMd = gFmdDbMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
+    fMd = gFmdAttrMapHandler.GetFmd(verifyfile->fId, verifyfile->fsId, 0, 0, 0, verifyfile->commitFmd, true);
     bool localUpdate = false;
     if (!fMd)
     {
@@ -228,7 +228,7 @@ Storage::Verify ()
         eos::common::Path cPath(verifyfile->path.c_str());
 
         // commit local
-        if (localUpdate && (!gFmdDbMapHandler.Commit(fMd)))
+        if (localUpdate && (!gFmdAttrMapHandler.Commit(fMd)))
         {
           eos_static_err("unable to verify file id=%llu on fs=%u path=%s - commit to local MD storage failed", verifyfile->fId, verifyfile->fsId, fstPath.c_str());
         }

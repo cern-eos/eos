@@ -28,7 +28,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fst/Load.hh"
 #include "fst/Namespace.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttrMap.hh"
 #include "common/Logging.hh"
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"

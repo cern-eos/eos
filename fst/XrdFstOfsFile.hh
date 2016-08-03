@@ -40,7 +40,7 @@
 #include "common/SecEntity.hh"
 #include "fst/Namespace.hh"
 #include "fst/checksum/CheckSum.hh"
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttrMap.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsTrace.hh"

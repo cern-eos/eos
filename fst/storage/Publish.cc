@@ -237,7 +237,7 @@ Storage::Publish ()
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = now;
               XrdSysMutexHelper ISLock(fileSystemsVector[i]->InconsistencyStatsMutex);
-              gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
+              gFmdAttrMapHandler.GetInconsistencyStatistics(fsid,
                  *fileSystemsVector[i]->GetInconsistencyStats(),
                  *fileSystemsVector[i]->GetInconsistencySets());
 
@@ -285,17 +285,17 @@ Storage::Publish ()
 	    success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
 	  }
 
-    std::map<std::string, std::string> health;
-    if (fileSystemsVector[i]->getHealth(health))
-    {
-      if(health.count("summary")) {
-        success &= fileSystemsVector[i]->SetString("stat.health", health["summary"].c_str());
-      }
-      else {
-        success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
-      }
-    }
-
+	  std::map<std::string, std::string> health;
+	  if (fileSystemsVector[i]->getHealth(health))
+	  {
+	    if(health.count("summary")) {
+	      success &= fileSystemsVector[i]->SetString("stat.health", health["summary"].c_str());
+	    }
+	    else {
+	      success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
+	    }
+	  }
+	  
 	  long long r_open = 0;
 	  long long w_open = 0;
 	  {
@@ -311,23 +311,9 @@ Storage::Publish ()
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes", (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") - fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
           success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled", 100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") - fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) / (1 + fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
           success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity", fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused", (fileSystemsVector[i]->GetLongLong("stat.statfs.files") - fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          {
-            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
-            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", (long long) (gFmdDbMapHandler.FmdMap.count(fsid) ? gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
-          }
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",(fileSystemsVector[i]->GetLongLong("stat.statfs.files") - fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize")); 
 
-	  unsigned long long used_files = 0;
-
-          {
-            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
-	    used_files = 0;
-	    if (gFmdDbMapHandler.FmdSqliteMap.count(fsid))
-	    {
-	      eos::common::RWMutexReadLock flock(gFmdDbMapHandler.FmdSqliteMutexMap[fsid]);
-	      used_files = (long long) (gFmdDbMapHandler.FmdSqliteMap[fsid].size());
-	    }
-	  }
+	  unsigned long long used_files = (fileSystemsVector[i]->GetLongLong("stat.statfs.files") - fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize");
 
 	  success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", used_files);
 

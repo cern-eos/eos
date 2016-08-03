@@ -1022,18 +1022,24 @@ XrdFstOfsFile::open (const char* path,
   SetLogId(logId, vid, tident);
   eos_info("fstpath=%s", fstPath.c_str());
 
+  {
+    // the fmd interface needs to acccess this prefix
+    std::string lp = localPrefix.c_str();
+    gFmdAttrMapHandler.StorePrefix(fsid, lp);
+  }
+
   // Attach meta data
-  fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+  fMd = gFmdAttrMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
 
   if ( (!fMd) || gOFS.Simulate_FMD_open_error )
   {
     if( !gOFS.Simulate_FMD_open_error )
     {
       // try to resync from the MGM and repair on the fly
-      if (gFmdDbMapHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str()))
+      if (gFmdAttrMapHandler.ResyncMgm(fsid, fileid, RedirectManager.c_str()))
       {
         eos_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) fsid, fileid);
-        fMd = gFmdDbMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
+        fMd = gFmdAttrMapHandler.GetFmd(fileid, fsid, vid.uid, vid.gid, lid, isRW);
       }
       else
       {
@@ -2006,7 +2012,7 @@ XrdFstOfsFile::close ()
               fMd->fMd.set_gid(atoi(capOpaque->Get("mgm.source.rgid")));
 
             // Commit local
-            if (!gFmdDbMapHandler.Commit(fMd))
+            if (!gFmdAttrMapHandler.Commit(fMd))
               rc = gOFS.Emsg(epname, this->error, EIO, "close - unable to commit meta data",
                              Path.c_str());
 

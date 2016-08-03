@@ -25,7 +25,7 @@
 #include "fst/ScanDir.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 
-#include "fst/FmdDbMap.hh"
+#include "fst/FmdAttrMap.hh"
 
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
@@ -34,7 +34,7 @@
 #include <fcntl.h>
 
 
-eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
+eos::fst::FmdAttrMapHandler gFmdAttrMapHandler; // needed for compilation
 eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
 
 /*----------------------------------------------------------------------------*/

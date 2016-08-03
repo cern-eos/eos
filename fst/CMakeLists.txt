@@ -332,7 +332,7 @@ set(
   txqueue/TransferQueue.cc
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
-  FmdDbMap.cc          FmdDbMap.hh
+  FmdAttrMap.cc        FmdAttrMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
@@ -398,7 +398,7 @@ add_executable(
   eos-scan-fs
   ScanDir.cc             Load.cc
   Fmd.cc                 FmdHandler.cc
-  FmdDbMap.cc
+  FmdAttrMap.cc
   FmdClient.cc           tools/ScanXS.cc
   checksum/Adler.cc      checksum/CheckSum.cc
   checksum/crc32c.cc     checksum/crc32ctables.cc

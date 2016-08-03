@@ -39,9 +39,7 @@ Storage::Trim ()
     // sleep for a month
     XrdSysTimer sleeper;
     sleeper.Snooze(30 * 86400);
-    std::map<eos::common::FileSystem::fsid_t, sqlite3*>::iterator it;
-
-    gFmdDbMapHandler.TrimDB();
+    gFmdAttrMapHandler.TrimDB();
   }
 }
 
