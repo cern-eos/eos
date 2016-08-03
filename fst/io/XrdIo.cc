@@ -21,15 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include <stdint.h>
 #include <cstdlib>
-/*----------------------------------------------------------------------------*/
 #include "fst/io/XrdIo.hh"
 #include "fst/io/ChunkHandler.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClDefaultEnv.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -51,6 +47,7 @@ void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   {
     // Store the last URL we are connected after open
     mFileIo->mLastUrl = mFileIo->mXrdFile->GetLastURL().GetURL();
+    mFileIo->mIsOpen = true;
   }
 
   mLayoutOpenHandler->HandleResponseWithHosts(status, 0, 0);
@@ -61,13 +58,13 @@ void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
 // Constructor
 //------------------------------------------------------------------------------
 XrdIo::XrdIo () :
-FileIo(),
-mDoReadahead (false),
-mBlocksize (ReadaheadBlock::sDefaultBlocksize),
-mXrdFile (NULL),
-mMetaHandler(new AsyncMetaHandler())
+    FileIo(),
+    mDoReadahead (false),
+    mBlocksize (ReadaheadBlock::sDefaultBlocksize),
+    mXrdFile (NULL),
+    mMetaHandler(new AsyncMetaHandler())
 {
-  // Set the TimeoutResolution to 1 
+  // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt( "TimeoutResolution", 1 );
 }
@@ -77,6 +74,11 @@ mMetaHandler(new AsyncMetaHandler())
 //------------------------------------------------------------------------------
 XrdIo::~XrdIo ()
 {
+  // Make sure the file is properly closed
+  if (mIsOpen) {
+    Close();
+  }
+
   if (mDoReadahead)
   {
     while (!mQueueBlocks.empty())
@@ -93,10 +95,11 @@ XrdIo::~XrdIo ()
     }
   }
 
-  delete mMetaHandler;  
-  
-  if (mXrdFile)
+  delete mMetaHandler;
+
+  if (mXrdFile) {
     delete mXrdFile;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -112,11 +115,11 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   size_t qpos = 0;
   mFilePath = path;
 
-  // Opaque info can be part of the 'path' 
+  // Opaque info can be part of the 'path'
   if ( ( (qpos = path.find("?")) != std::string::npos) ) {
     lOpaque = path.substr(qpos+1);
     mFilePath.erase(qpos);
-  } 
+  }
   else
   {
     lOpaque = opaque;
@@ -150,7 +153,7 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   request += "?";
   request += lOpaque;
   if(mXrdFile)
-  {    
+  {
     delete mXrdFile;
     mXrdFile = NULL;
   }
@@ -159,7 +162,7 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   // Disable recovery on read and write
   mXrdFile->EnableReadRecovery(false);
   mXrdFile->EnableWriteRecovery(false);
-  
+
   XrdCl::OpenFlags::Flags flags_xrdcl = eos::common::LayoutId::MapFlagsSfs2XrdCl(flags);
   XrdCl::Access::Mode mode_xrdcl = eos::common::LayoutId::MapModeSfs2XrdCl(mode);
   XrdCl::XRootDStatus status = mXrdFile->Open(request, flags_xrdcl, mode_xrdcl, timeout);
@@ -176,6 +179,7 @@ XrdIo::Open (const std::string& path, XrdSfsFileOpenMode flags, mode_t mode,
   }
   else
   {
+    mIsOpen = true;
     errno = 0;
   }
 
@@ -234,7 +238,7 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
   request += "?";
   request += lOpaque;
   if(mXrdFile)
-  {    
+  {
     delete mXrdFile;
     mXrdFile = NULL;
   }
@@ -266,11 +270,8 @@ XrdIo::OpenAsync (const std::string& path, XrdCl::ResponseHandler* io_handler,
 //------------------------------------------------------------------------------
 // Read from file - sync
 //------------------------------------------------------------------------------
-
 int64_t
-XrdIo::Read (XrdSfsFileOffset offset,
-             char* buffer,
-             XrdSfsXferSize length,
+XrdIo::Read (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
              uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu",
@@ -303,16 +304,12 @@ XrdIo::Read (XrdSfsFileOffset offset,
   return bytes_read;
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file - sync
 //------------------------------------------------------------------------------
-
 int64_t
-XrdIo::Write (XrdSfsFileOffset offset,
-    const char* buffer,
-    XrdSfsXferSize length,
-    uint16_t timeout)
+XrdIo::Write (XrdSfsFileOffset offset, const char* buffer,
+              XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu",
       static_cast<uint64_t> (offset),
@@ -341,16 +338,12 @@ XrdIo::Write (XrdSfsFileOffset offset,
   return length;
 }
 
-
 //------------------------------------------------------------------------------
 // Read from file - async
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::ReadAsync (XrdSfsFileOffset offset,
-                  char* buffer,
-                  XrdSfsXferSize length,
-                  bool readahead,
-                  uint16_t timeout)
+XrdIo::ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
+                  bool readahead, uint16_t timeout)
 {
   eos_debug("offset=%llu length=%llu",
       static_cast<uint64_t> (offset),
@@ -528,14 +521,13 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset,
 
       // If previous read requests failed then we won't get a new handler
       // and we return directly an error
-      if (!handler)
-      return SFS_ERROR;
+      if (!handler) {
+        return SFS_ERROR;
+      }
 
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
-          static_cast<uint32_t> (length),
-          pBuff,
-          handler,
-          timeout);
+                              static_cast<uint32_t> (length),
+                              pBuff, handler, timeout);
       if (!status.IsOK())
       {
         //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -594,15 +586,12 @@ XrdIo::FindBlock(uint64_t offset)
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Write to file - async
 //------------------------------------------------------------------------------
 int64_t
-XrdIo::WriteAsync (XrdSfsFileOffset offset,
-                   const char* buffer,
-                   XrdSfsXferSize length,
-                   uint16_t timeout)
+XrdIo::WriteAsync (XrdSfsFileOffset offset, const char* buffer,
+                   XrdSfsXferSize length, uint16_t timeout)
 {
   eos_debug("offset=%llu length=%i", static_cast<uint64_t>(offset), length);
 
@@ -621,15 +610,13 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
   // and we return directly an error
   if (!handler)
   {
-    return SFS_ERROR;    
+    return SFS_ERROR;
   }
-  
+
   // Obs: Use the handler buffer for write requests
   status = mXrdFile->Write(static_cast<uint64_t> (offset),
                            static_cast<uint32_t> (length),
-                           handler->GetBuffer(),
-                           handler,
-                           timeout);
+                           handler->GetBuffer(), handler, timeout);
 
   if (!status.IsOK())
   {
@@ -639,7 +626,6 @@ XrdIo::WriteAsync (XrdSfsFileOffset offset,
 
   return length;
 }
-
 
 //------------------------------------------------------------------------------
 // Truncate file
@@ -655,7 +641,7 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 
   XrdCl::XRootDStatus status = mXrdFile->Truncate(static_cast<uint64_t> (offset),
                                                   timeout);
-  
+
   if (!status.IsOK())
   {
     errno = status.errNo;
@@ -667,7 +653,6 @@ XrdIo::Truncate (XrdSfsFileOffset offset, uint16_t timeout)
 
   return SFS_OK;
 }
-
 
 //------------------------------------------------------------------------------
 // Sync file to disk
@@ -695,7 +680,6 @@ XrdIo::Sync (uint16_t timeout)
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Get stats about the file
 //------------------------------------------------------------------------------
@@ -710,7 +694,6 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
 
   int rc = SFS_ERROR;
   XrdCl::StatInfo* stat = 0;
-  //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Stat(true, stat, timeout);
 
   if (!status.IsOK())
@@ -737,7 +720,6 @@ XrdIo::Stat (struct stat* buf, uint16_t timeout)
   return rc;
 }
 
-
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
@@ -754,9 +736,7 @@ XrdIo::Close (uint16_t timeout)
 
   if (mDoReadahead)
   {
-    //..........................................................................
     // Wait for any requests on the fly and then close
-    //..........................................................................
     while (!mMapBlocks.empty())
     {
       SimpleHandler* shandler = mMapBlocks.begin()->second->handler;
@@ -768,7 +748,7 @@ XrdIo::Close (uint16_t timeout)
       mMapBlocks.erase(mMapBlocks.begin());
     }
   }
-  
+
   // Wait for any async requests before closing
   if (mMetaHandler)
   {
@@ -799,7 +779,6 @@ XrdIo::Close (uint16_t timeout)
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
@@ -812,9 +791,7 @@ XrdIo::Remove (uint16_t timeout)
     return SFS_ERROR;
   }
 
-  //............................................................................
   // Remove the file by truncating using the special value offset
-  //............................................................................
   XrdCl::XRootDStatus status = mXrdFile->Truncate(EOS_FST_DELETE_FLAG_VIA_TRUNCATE_LEN, timeout);
 
   if (!status.IsOK())
@@ -827,17 +804,16 @@ XrdIo::Remove (uint16_t timeout)
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Prefetch block using the readahead mechanism
 //------------------------------------------------------------------------------
-bool 
+bool
 XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 {
   bool done = true;
   XrdCl::XRootDStatus status;
   ReadaheadBlock* block = NULL;
-  
+
   eos_debug("try to prefetch with offset: %lli, length: %4u",
             offset, mBlocksize);
 
@@ -853,10 +829,7 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
   }
 
   block->handler->Update(offset, mBlocksize, isWrite);
-  status = mXrdFile->Read(offset,
-                          mBlocksize,
-                          block->buffer,
-                          block->handler,
+  status = mXrdFile->Read(offset, mBlocksize, block->buffer, block->handler,
                           timeout);
 
   if (!status.IsOK())
@@ -877,7 +850,7 @@ XrdIo::PrefetchBlock (int64_t offset, bool isWrite, uint16_t timeout)
 
 
 //------------------------------------------------------------------------------
-// Get pointer to async meta handler object 
+// Get pointer to async meta handler object
 //------------------------------------------------------------------------------
 void*
 XrdIo::GetAsyncHandler ()
@@ -886,4 +859,3 @@ XrdIo::GetAsyncHandler ()
 }
 
 EOSFSTNAMESPACE_END
-

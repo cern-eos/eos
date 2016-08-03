@@ -25,13 +25,10 @@
 #ifndef __EOSFST_XRDFILEIO_HH__
 #define __EOSFST_XRDFILEIO_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/io/FileIo.hh"
 #include "fst/io/SimpleHandler.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
-/*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -56,13 +53,11 @@ struct ReadaheadBlock
   //! @param blocksize the size of the readahead
   //!
   //----------------------------------------------------------------------------
-
   ReadaheadBlock(uint64_t blocksize = sDefaultBlocksize)
   {
     buffer = new char[blocksize];
     handler = new SimpleHandler();
   }
-
 
   //----------------------------------------------------------------------------
   //! Update current request
@@ -72,17 +67,14 @@ struct ReadaheadBlock
   //! @param isWrite true if write request, otherwise false
   //!
   //----------------------------------------------------------------------------
-
   void Update(uint64_t offset, uint32_t length, bool isWrite)
   {
     handler->Update(offset, length, isWrite);
   }
 
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-
   virtual ~ReadaheadBlock()
   {
     delete[] buffer;
@@ -151,12 +143,10 @@ public:
   //----------------------------------------------------------------------------
   XrdIo ();
 
-
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~XrdIo ();
-
 
   //----------------------------------------------------------------------------
   //! Open file - synchronously
@@ -209,7 +199,6 @@ public:
                         XrdSfsXferSize length,
                         uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Write to file - sync
   //!
@@ -225,7 +214,6 @@ public:
                          const char* buffer,
                          XrdSfsXferSize length,
                          uint16_t timeout = 0);
-
 
   //--------------------------------------------------------------------------
   //! Read from file - async
@@ -245,7 +233,6 @@ public:
                              bool readahead = false,
                              uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Write to file - async
   //!
@@ -261,7 +248,6 @@ public:
                               const char* buffer,
                               XrdSfsXferSize length,
                               uint16_t timeout = 0);
-  
 
   //--------------------------------------------------------------------------
   //! Truncate
@@ -275,7 +261,6 @@ public:
   virtual int Truncate (XrdSfsFileOffset offset,
                         uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Remove file
   //!
@@ -285,7 +270,6 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Remove (uint16_t timeout = 0);
-
 
   //--------------------------------------------------------------------------
   //! Sync file to disk
@@ -297,7 +281,6 @@ public:
   //--------------------------------------------------------------------------
   virtual int Sync (uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Close file
   //!
@@ -307,7 +290,6 @@ public:
   //!
   //--------------------------------------------------------------------------
   virtual int Close (uint16_t timeout = 0);
-
 
   //--------------------------------------------------------------------------
   //! Get stats about the file
@@ -320,11 +302,10 @@ public:
   //--------------------------------------------------------------------------
   virtual int Stat (struct stat* buf, uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
-  //! Get pointer to async meta handler object 
+  //! Get pointer to async meta handler object
   //!
-  //! @return pointer to async handler, NULL otherwise 
+  //! @return pointer to async handler, NULL otherwise
   //!
   //--------------------------------------------------------------------------
   virtual void* GetAsyncHandler ();
@@ -339,7 +320,7 @@ private:
   PrefetchMap mMapBlocks; ///< map of block read/prefetched
   std::queue<ReadaheadBlock*> mQueueBlocks; ///< queue containing available blocks
   XrdSysMutex mPrefetchMutex; ///< mutex to serialise the prefetch step
-  
+
   //--------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
   //!
@@ -354,7 +335,6 @@ private:
                       bool isWrite,
                       uint16_t timeout = 0);
 
-
   //--------------------------------------------------------------------------
   //! Try to find a block in cache with contains the provided offset
   //!
@@ -365,22 +345,18 @@ private:
   //!
   //--------------------------------------------------------------------------
   PrefetchMap::iterator FindBlock(uint64_t offset);
-  
 
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
   XrdIo (const XrdIo&) = delete;
 
-
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
   XrdIo& operator = (const XrdIo&) = delete;
-
 };
 
 EOSFSTNAMESPACE_END
 
 #endif  // __EOSFST_XRDFILEIO_HH__
-

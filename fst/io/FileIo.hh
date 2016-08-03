@@ -65,7 +65,8 @@ public:
   eos::common::LogId (),
   mFilePath (""),
   mLastUrl(""),
-  mLastErrMsg("")
+  mLastErrMsg(""),
+  mIsOpen(false)
   {
     //empty
   }
@@ -329,6 +330,7 @@ protected:
   std::string mLastErrMsg; ///< last error stored
   int mLastErrCode; ///< last error code
   int mLastErrNo; ///< last error no
+  bool mIsOpen; ///< Mark if file is opened, so that we close it properly
 };
 
 EOSFSTNAMESPACE_END
