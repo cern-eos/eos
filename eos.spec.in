@@ -211,8 +211,11 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sysconfdir}/cron.d/eos-reports
 %{_sysconfdir}/logrotate.d/eos-logs
 %dir %attr(700,daemon,daemon) /var/eos
+%dir %attr(700,daemon,daemon) /var/eos/wfe
+%dir %attr(700,daemon,daemon) /var/eos/wfe/bash/
 %dir %attr(755,daemon,daemon) /var/log/eos
 %dir %attr(755,daemon,daemon) /var/log/eos/fuse
+%attr(555,daemon,daemon) /var/eos/wfe/bash/shell
 
 %post -n eos-server
 /sbin/chkconfig --add eos
