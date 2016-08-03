@@ -73,7 +73,7 @@
 #endif
             );
 
-    // Ownership of statinfo is taked by xrd_buff and error then takes
+    // Ownership of statinfo is taken by xrd_buff and error then takes
     // ownership of the xrd_buff object.
     XrdOucBuffer* xrd_buff = new XrdOucBuffer(statinfo, strlen(statinfo));
     error.setErrInfo(xrd_buff->BuffSize(), xrd_buff);
