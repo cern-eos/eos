@@ -854,7 +854,17 @@ WFE::Job::DoIt ()
 	    if (errc)
 	      group_name="nobody";
 
-            while (execargs.replace("<eos::wfe::path>", fullpath.c_str()))
+	    XrdOucString unbase64;
+	    XrdOucString base64;
+
+	    unbase64 = fullpath.c_str();
+	    eos::common::SymKey::Base64(unbase64,base64);
+
+            while (execargs.replace("<eos::wfe::path>", unbase64.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break;
+            }
+            while (execargs.replace("<eos::wfe::base64:path>", base64.c_str()))
             {
 	      int cnt=0; cnt++; if (cnt>16)break;
             }
@@ -1009,12 +1019,28 @@ WFE::Job::DoIt ()
 	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<eos::wfe::name>", cfmd->getName().c_str()))
+	    unbase64 = cfmd->getName().c_str();
+	    eos::common::SymKey::Base64(unbase64,base64);
+
+            while (execargs.replace("<eos::wfe::name>", unbase64.c_str()))
             {
 	      int cnt=0; cnt++; if (cnt>16)break; 
             }
 
-            while (execargs.replace("<eos::wfe::link>", cfmd->getLink().c_str()))
+            while (execargs.replace("<eos::wfe::base64:name>", base64.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break; 
+            }
+
+	    unbase64 = cfmd->getLink().c_str();
+	    eos::common::SymKey::Base64(unbase64,base64);
+
+            while (execargs.replace("<eos::wfe::link>", unbase64.c_str()))
+            {
+	      int cnt=0; cnt++; if (cnt>16)break; 
+            }
+
+            while (execargs.replace("<eos::wfe::base64:link>", base64.c_str()))
             {
 	      int cnt=0; cnt++; if (cnt>16)break; 
             }
@@ -1069,12 +1095,25 @@ WFE::Job::DoIt ()
 	      }
 	      else
 	      {
+		bool b64encode=false;
 		std::string key;
 		key.assign(execargs.c_str() + xstart + 18, xend-xstart-18);
 		execargs.erase(xstart, xend+1-xstart);
+		XrdOucString skey=key.c_str();
+		if (skey.beginswith("base64:"))
+		{
+		  key.erase(0,7);
+		  b64encode=true;
+		}
 		try 
 		{
 		  std::string value = cfmd->getAttribute(key);
+		  if (b64encode)
+		  {
+		    unbase64=value.c_str();
+		    eos::common::SymKey::Base64(unbase64,base64);
+		    value = base64.c_str();
+		  }
 		  if (xstart == execargs.length())
 		    execargs += value.c_str();
 		  else
@@ -1100,12 +1139,25 @@ WFE::Job::DoIt ()
 	      }
 	      else
 	      {
+		bool b64encode=false;
 		std::string key;
 		key.assign(execargs.c_str() + xstart + 18, xend-xstart-18);
 		execargs.erase(xstart, xend+1-xstart);
+		XrdOucString skey=key.c_str();
+		if (skey.beginswith("base64:"))
+		{
+		  key.erase(0,7);
+		  b64encode=true;
+		}
 		try 
 		{
 		  std::string value = ccmd->getAttribute(key);
+		  if (b64encode)
+		  {
+		    unbase64=value.c_str();
+		    eos::common::SymKey::Base64(unbase64,base64);
+		    value = base64.c_str();
+		  }
 		  if (xstart == execargs.length())
 		    execargs += value.c_str();
 		  else
@@ -1118,8 +1170,7 @@ WFE::Job::DoIt ()
 	      }
 	    }
 
-	    // metadata is the lats tag to replace because it dumps parent xattributes which contain tags of the workflow trigger
-	    if (execargs.find("<eos::wfe::metadata>") != STR_NPOS)
+	    if (execargs.find("<eos::wfe::base64:metadata>") != STR_NPOS)
 	    {
 	      XrdOucString out="";
 	      XrdOucString err="";
@@ -1168,7 +1219,10 @@ WFE::Job::DoIt ()
 	      metadata += "} dmd={ ";
 	      metadata += container_metadata.c_str();
 	      metadata += "}\"";
-	      execargs.replace("<eos::wfe::metadata>",metadata.c_str());
+	      unbase64=metadata.c_str();
+	      eos::common::SymKey::Base64(unbase64,base64);
+	      
+	      execargs.replace("<eos::wfe::base64:metadata>",base64.c_str());
 	    }
 
             execargs.replace("<eos::wfe::action>", mActions[0].mAction.c_str());
@@ -1180,6 +1234,106 @@ WFE::Job::DoIt ()
 	      eos::common::ShellCmd cmd(bashcmd.c_str());
 	      eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
 	      eos::common::cmd_status rc = cmd.wait(1800);
+
+	      // retrieve the stderr of this command
+	      XrdOucString outerr;
+	      char buff[65536];
+	      int end;
+	      while ( (end = ::read(cmd.errfd, buff, sizeof(buff))) > 0)
+	      {
+		outerr += buff;
+	      }
+
+	      eos_static_info("shell-cmd-stderr=%s", outerr.c_str());
+
+	      // scan for result tags referencing the trigger path
+	      xstart=0;
+	      while ((xstart=outerr.find("<eos::wfe::path::fxattr:",xstart)) != STR_NPOS)
+	      {
+		int cnt=0; cnt++; if (cnt>256)break; 
+		int xend = outerr.find(">", xstart);
+		if (xend == STR_NPOS)
+		{
+		  eos_static_err("malformed shell stderr tag");
+		  break;
+		}
+		else
+		{
+		  std::string key;
+		  std::string value;
+		  key.assign(outerr.c_str() + xstart + 24, xend-xstart-24);
+		  int vend = outerr.find(" ", xend+1);
+		  if (vend>0)
+		    value.assign(outerr.c_str(),xend+1, vend-(xend+1));
+		  else
+		    value.assign(outerr.c_str(), xend+1, string::npos);
+
+		  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex); 
+		  try
+		  {
+		    fmd = gOFS->eosFileService->getFileMD(mFid);
+		    base64 = value.c_str();
+		    
+		    eos::common::SymKey::DeBase64(base64, unbase64);
+
+		    fmd->setAttribute(key.c_str(), unbase64.c_str());
+		    fmd->setMTimeNow();
+		    gOFS->eosView->updateFileStore(fmd.get());
+		    errno = 0;
+		    eos_static_info("msg=\"stored extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
+		  }
+		  catch (eos::MDException &e)
+		  {
+		    eos_static_err("msg=\"failed set extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
+		  }
+		}
+		xstart++;
+	      }
+
+	      // scan for result tags referencing the workflow path
+	      xstart=0;
+	      while ((xstart=outerr.find("<eos::wfe::vpath::fxattr:",xstart)) != STR_NPOS)
+	      {
+		int cnt=0; cnt++; if (cnt>256)break; 
+		int xend = outerr.find(">", xstart);
+		if (xend == STR_NPOS)
+		{
+		  eos_static_err("malformed shell stderr tag");
+		  break;
+		}
+		else
+		{
+		  std::string key;
+		  std::string value;
+		  key.assign(outerr.c_str() + xstart + 25, xend-xstart-25);
+		  int vend = outerr.find(" ", xend+1);
+		  if (vend>0)
+		    value.assign(outerr.c_str(),xend+1, vend-(xend+1));
+		  else
+		    value.assign(outerr.c_str(), xend+1, string::npos);
+
+		  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex); 
+		  try
+		  {
+		    fmd = gOFS->eosView->getFile(mWorkflowPath.c_str());
+		    base64 = value.c_str();
+		    
+		    eos::common::SymKey::DeBase64(base64, unbase64);
+
+		    fmd->setAttribute(key.c_str(), unbase64.c_str());
+		    fmd->setMTimeNow();
+		    gOFS->eosView->updateFileStore(fmd.get());
+		    errno = 0;
+		    eos_static_info("msg=\"stored extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
+		  }
+		  catch (eos::MDException &e)
+		  {
+		    eos_static_err("msg=\"failed set extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
+		  }
+		}
+		xstart++;
+	      }
+
 	      if (rc.exit_code)
 	      {
 		Move(mActions[0].mQueue, "r", mActions[0].mTime, mRetry);

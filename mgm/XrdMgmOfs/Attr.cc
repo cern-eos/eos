@@ -561,7 +561,6 @@ XrdMgmOfs::_attr_get (const char *path,
     try
     {
       fmd = gOFS->eosView->getFile(path);
-      fprintf(stderr,"getattr %s:%s %s\n", path, key, fmd->getAttribute(key).c_str());
       value = (fmd->getAttribute(key)).c_str();
       errno = 0;
     }
