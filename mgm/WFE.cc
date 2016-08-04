@@ -1232,6 +1232,9 @@ WFE::Job::DoIt ()
 	    if (!format_error)
 	    {
 	      eos::common::ShellCmd cmd(bashcmd.c_str());
+
+	      Move(mActions[0].mQueue, "r", mActions[0].mTime, mRetry);
+
 	      eos_static_info("shell-cmd=\"%s\"", bashcmd.c_str());
 	      eos::common::cmd_status rc = cmd.wait(1800);
 
@@ -1290,53 +1293,8 @@ WFE::Job::DoIt ()
 		xstart++;
 	      }
 
-	      // scan for result tags referencing the workflow path
-	      xstart=0;
-	      while ((xstart=outerr.find("<eos::wfe::vpath::fxattr:",xstart)) != STR_NPOS)
-	      {
-		int cnt=0; cnt++; if (cnt>256)break; 
-		int xend = outerr.find(">", xstart);
-		if (xend == STR_NPOS)
-		{
-		  eos_static_err("malformed shell stderr tag");
-		  break;
-		}
-		else
-		{
-		  std::string key;
-		  std::string value;
-		  key.assign(outerr.c_str() + xstart + 25, xend-xstart-25);
-		  int vend = outerr.find(" ", xend+1);
-		  if (vend>0)
-		    value.assign(outerr.c_str(),xend+1, vend-(xend+1));
-		  else
-		    value.assign(outerr.c_str(), xend+1, string::npos);
-
-		  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex); 
-		  try
-		  {
-		    fmd = gOFS->eosView->getFile(mWorkflowPath.c_str());
-		    base64 = value.c_str();
-		    
-		    eos::common::SymKey::DeBase64(base64, unbase64);
-
-		    fmd->setAttribute(key.c_str(), unbase64.c_str());
-		    fmd->setMTimeNow();
-		    gOFS->eosView->updateFileStore(fmd.get());
-		    errno = 0;
-		    eos_static_info("msg=\"stored extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
-		  }
-		  catch (eos::MDException &e)
-		  {
-		    eos_static_err("msg=\"failed set extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
-		  }
-		}
-		xstart++;
-	      }
-
 	      if (rc.exit_code)
 	      {
-		Move(mActions[0].mQueue, "r", mActions[0].mTime, mRetry);
 		eos_static_err("msg=\"failed to run bash workflow\" job=\"%s\" retc=%d",
 			       mDescription.c_str(), rc.exit_code);
 		int retry = 0;
@@ -1381,13 +1339,56 @@ WFE::Job::DoIt ()
 				mDescription.c_str());
 		Move(mActions[0].mQueue, "d");
 	      }
+	      // scan for result tags referencing the workflow path
+	      xstart=0;
+	      while ((xstart=outerr.find("<eos::wfe::vpath::fxattr:",xstart)) != STR_NPOS)
+	      {
+		int cnt=0; cnt++; if (cnt>256)break; 
+		int xend = outerr.find(">", xstart);
+		if (xend == STR_NPOS)
+		{
+		  eos_static_err("malformed shell stderr tag");
+		  break;
+		}
+		else
+		{
+		  std::string key;
+		  std::string value;
+		  key.assign(outerr.c_str() + xstart + 25, xend-xstart-25);
+		  int vend = outerr.find(" ", xend+1);
+		  if (vend>0)
+		    value.assign(outerr.c_str(),xend+1, vend-(xend+1));
+		  else
+		    value.assign(outerr.c_str(), xend+1, string::npos);
+		  
+		  eos::common::RWMutexWriteLock nsLock(gOFS->eosViewRWMutex); 
+		  try
+		  {
+		    fmd = gOFS->eosView->getFile(mWorkflowPath.c_str());
+		    base64 = value.c_str();
+		    
+		    eos::common::SymKey::DeBase64(base64, unbase64);
+		    
+		    fmd->setAttribute(key.c_str(), unbase64.c_str());
+		    fmd->setMTimeNow();
+		    gOFS->eosView->updateFileStore(fmd.get());
+		    errno = 0;
+		    eos_static_info("msg=\"stored extended attribute on vpath\" vpath=%s key=%s value=%s", mWorkflowPath.c_str(), key.c_str(), value.c_str());
+		  }
+		  catch (eos::MDException &e)
+		  {
+		    eos_static_err("msg=\"failed set extended attribute\" key=%s value=%s", key.c_str(), value.c_str());
+		  }
+		}
+		xstart++;
+	      }
 	    }
 	    else
 	    {
 	      // cannot retry
 	      Move(mActions[0].mQueue, "f");
 	    }
-          }
+	  }
           else
           {
             gOFS->eosViewRWMutex.UnLockRead();
