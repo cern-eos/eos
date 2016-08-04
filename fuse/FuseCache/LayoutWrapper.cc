@@ -605,8 +605,13 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         sopaque.append (',');
 #endif
       }
-      else // async open ok, don't need a sync open
+      else
+      {
+        // Async open ok, don't need a sync open
         retry = false;
+      }
+
+      mDoneAsyncOpen = false;
     }
 
     std::string _lasturl,_path(path);
@@ -932,6 +937,13 @@ int LayoutWrapper::Sync()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Close()
 {
+  // Wait for any async open in-flight
+  if (mDoneAsyncOpen)
+  {
+    (void) static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync();
+    mDoneAsyncOpen = false;
+  }
+
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("closing file %s ", mPath.c_str());;
 
