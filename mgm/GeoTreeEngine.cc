@@ -1213,9 +1213,15 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
       {
         // get the proxy
         if(!(schedsuccess=tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, true /*skipSaturated*/)))
-        if((schedsuccess=tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, false /*skipSaturated*/)))
-          // if it succeeds, feel the corresponding element of the return vector
+	{
           (*dataProxys)[i]=(*pxyentry->foregroundFastStruct->treeInfo)[idx].hostport;
+	}
+	else
+	{
+	  if((schedsuccess=tree->findFreeSlot(idx, idx, true /*allow uproot if necessary*/, false, false /*skipSaturated*/)))
+	    // if it succeeds, feel the corresponding element of the return vector
+	    (*dataProxys)[i]=(*pxyentry->foregroundFastStruct->treeInfo)[idx].hostport;
+	}
       }
       else
         schedsuccess = true; // nothing to do
@@ -3196,6 +3202,9 @@ bool GeoTreeEngine::setParameter( std::string param, const std::string &value,in
         list.erase(idxl,std::string::npos);
       }
     }
+  } else if (param == "proxyclosetofs")
+  {
+    ok = gGeoTreeEngine.setProxyCloseToFs((bool)ival,setconfig);
   }
   return ok;
 }

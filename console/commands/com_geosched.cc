@@ -37,12 +37,12 @@ com_geosched (char* arg1)
   XrdOucString cmd = subtokenizer.GetToken();
 
   std::set<std::string> supportedParam = {"skipSaturatedPlct","skipSaturatedAccess",
-      "skipSaturatedDrnAccess","skipSaturatedBlcAccess",
-      "skipSaturatedDrnPlct","skipSaturatedBlcPlct",
-      "plctDlScorePenalty","plctUlScorePenalty",
-      "accessDlScorePenalty","accessUlScorePenalty",
-      "fillRatioLimit","fillRatioCompTol","saturationThres",
-      "timeFrameDurationMs","penaltyUpdateRate"};
+					  "skipSaturatedDrnAccess","skipSaturatedBlcAccess",
+					  "skipSaturatedDrnPlct","skipSaturatedBlcPlct",
+					  "plctDlScorePenalty","plctUlScorePenalty",
+					  "accessDlScorePenalty","accessUlScorePenalty",
+					  "fillRatioLimit","fillRatioCompTol","saturationThres",
+					  "timeFrameDurationMs","penaltyUpdateRate","proxyCloseToFs"};
 
   XrdOucString in = "";
 
