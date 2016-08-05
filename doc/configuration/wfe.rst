@@ -175,7 +175,7 @@ The full list of static template arguments is given here:
    <eos::wfe::when>            scheduling unix timestamp when to run this workflow
    <eos::wfe::base64:metadata> a full base64 encoded meta data blop with all file metadata and parent metadata including extended attributes
    <eos::wfe::vpath>           the path of the workflow file in the virtual workflow directory when the workflow is executed
-                          -    you can use this to attach messages/log as an extended attribute to a workflow if desired
+                               - you can use this to attach messages/log as an extended attribute to a workflow if desired
    =========================== =============================================================================================
 
 
