@@ -24,17 +24,13 @@
 #ifndef __EOSMGM_PROCINTERFACE__HH__
 #define __EOSMGM_PROCINTERFACE__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
 #include "proc/proc_fs.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -63,8 +59,120 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class handling proc command execution
 //------------------------------------------------------------------------------
-class ProcCommand : public eos::common::LogId
+class ProcCommand: public eos::common::LogId
 {
+public:
+
+  //----------------------------------------------------------------------------
+  //! The open function calls the requested cmd/subcmd and builds the result
+  //----------------------------------------------------------------------------
+  int open (const char* path, const char* info,
+            eos::common::Mapping::VirtualIdentity &vid, XrdOucErrInfo *error);
+
+  //----------------------------------------------------------------------------
+  //! Read a part of the result stream created during open
+  //----------------------------------------------------------------------------
+  int read (XrdSfsFileOffset offset, char *buff, XrdSfsXferSize blen);
+
+  //----------------------------------------------------------------------------
+  //! Get the size of the result stream
+  //----------------------------------------------------------------------------
+  int stat (struct stat* buf);
+
+  //----------------------------------------------------------------------------
+  //! Close a proc command
+  //----------------------------------------------------------------------------
+  int close ();
+
+  //----------------------------------------------------------------------------
+  //! Add stdout,stderr to an external stdout,stderr variable
+  //----------------------------------------------------------------------------
+  void
+  AddOutput (XrdOucString &lStdOut, XrdOucString &lStdErr)
+  {
+    lStdOut += stdOut;
+    lStdErr += stdErr;
+  }
+
+  //----------------------------------------------------------------------------
+  //! open temporary outputfiles for find commands
+  //----------------------------------------------------------------------------
+  bool OpenTemporaryOutputFiles ();
+
+  //----------------------------------------------------------------------------
+  //! get the return code of a proc command
+  //----------------------------------------------------------------------------
+  int
+  GetRetc ()
+  {
+    return retc;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get result file name
+  //----------------------------------------------------------------------------
+  inline const char* GetResultFn() const
+  {
+    return fresultStreamfilename.c_str();
+  }
+
+  //----------------------------------------------------------------------------
+  //! List of user proc commands
+  //----------------------------------------------------------------------------
+  int Attr ();
+  int Archive();
+  int Backup();
+  int Cd ();
+  int Chmod ();
+  int DirInfo (const char* path);
+  int Find ();
+  int File ();
+  int Fileinfo ();
+  int FileInfo (const char* path);
+  int Fuse ();
+  int Ls ();
+  int Map ();
+  int Member ();
+  int Mkdir ();
+  int Motd ();
+  int Quota ();
+  int Recycle ();
+  int Rm ();
+  int Rmdir ();
+  int Version ();
+  int Who ();
+  int Whoami ();
+
+  //----------------------------------------------------------------------------
+  //! List of admin proc commands
+  //----------------------------------------------------------------------------
+  int Access ();
+  int Chown ();
+  int Config ();
+  int Debug ();
+  int Fs ();
+  int Fsck ();
+  int Group ();
+  int Io ();
+  int Node ();
+  int Ns ();
+  int AdminQuota ();
+  int Rtlog ();
+  int Space ();
+  int Transfer ();
+  int Vid ();
+  int Vst ();
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ProcCommand ();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ProcCommand ();
+
 private:
 
   //----------------------------------------------------------------------------
@@ -103,11 +211,10 @@ private:
   const char* mSelection; //< selection argument from the opaque request
   XrdOucString mOutFormat; //< output format type e.g. fuse or json
 
-
-  // -------------------------------------------------------------------------
-  //! the 'find' command does not keep results in memory but writes to
+  //----------------------------------------------------------------------------
+  //! The 'find' command does not keep results in memory but writes to
   //! a temporary output file which is streamed to the client
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   FILE* fstdout;
   FILE* fstderr;
   FILE* fresultStream;
@@ -121,14 +228,6 @@ private:
 
   size_t mLen; //< len of the result stream
   off_t mOffset; //< offset from where to read in the result stream
-
-  // -------------------------------------------------------------------------
-  //! Create a result stream from stdOut, stdErr & retc
-  // -------------------------------------------------------------------------
-  void MakeResult ();
-
-  // helper function able to detect key value pair output and convert to http table format
-  bool KeyValToHttpTable(XrdOucString &stdOut);
   bool mAdminCmd; // < indicates an admin command
   bool mUserCmd; //< indicates a user command
 
@@ -139,7 +238,7 @@ private:
   XrdOucString mJsonCallback; //< sets the JSONP callback namein a response
 
   //----------------------------------------------------------------------------
-  //! Create archive file. If successful then the archive file is copied to the 
+  //! Create archive file. If successful then the archive file is copied to the
   //! arch_dir location. If not it sets the retc and stdErr string accordingly.
   //!
   //! @param arch_dir directory for which the archive file is created
@@ -152,9 +251,7 @@ private:
   //----------------------------------------------------------------------------
   void ArchiveCreate(const std::string& arch_dir,
                      const std::string& dst_url,
-                     const std::vector<std::string>& vect_files,
-                     int fid);
-
+                     const std::vector<std::string>& vect_files, int fid);
 
   //----------------------------------------------------------------------------
   //! Send command to archive daemon and collect the response
@@ -177,7 +274,6 @@ private:
   //----------------------------------------------------------------------------
   std::vector<ArchDirStatus> ArchiveGetDirs(const std::string& root) const;
 
-
   //----------------------------------------------------------------------------
   //! Update the status of the archived directories dependin on the infomation
   //! that we got from the archiver daemon. All ongoin transfers will be in
@@ -192,26 +288,22 @@ private:
                            const std::set<std::string>& tx_dirs,
                            size_t& max_len_path);
 
-
   //----------------------------------------------------------------------------
   //! Get fileinfo for all files/dirs in the subtree and add it to the
   //! archive i.e.  do
-  //! "find -d --fileinfo /dir/" for directories or 
+  //! "find -d --fileinfo /dir/" for directories or
   //! "find -f --fileinfo /dir/ for files.
   //!
   //! @param arch_dir EOS directory beeing archived
   //! @param arch_ofs local archive file stream object
   //! @param num number of entries added
-  //! @param is_file if true add file entries to the archive, otherwise 
+  //! @param is_file if true add file entries to the archive, otherwise
   //!                directories
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  int ArchiveAddEntries(const std::string& arch_dir,
-                        std::ofstream& arch_ofs,
-                        int& num,
-                        bool is_file);
-
+  int ArchiveAddEntries(const std::string& arch_dir, std::ofstream& arch_ofs,
+                        int& num, bool is_file);
 
   //----------------------------------------------------------------------------
   //! Make EOS sub-tree immutable by adding the sys.acl=z:i rule to all of the
@@ -219,13 +311,12 @@ private:
   //!
   //! @param arch_dir EOS directory
   //! @param vect_files vector of special archive filenames
-  //! 
+  //!
   //! @return 0 is successful, otherwise errno. It sets the global retc in case
   //!         of error.
   //----------------------------------------------------------------------------
   int MakeSubTreeImmutable(const std::string& arch_dir,
                            const std::vector<std::string>& vect_files);
-
 
   //----------------------------------------------------------------------------
   //! Make EOS sub-tree mutable by removing the sys.acl=z:i rule from all of the
@@ -238,17 +329,15 @@ private:
   //----------------------------------------------------------------------------
   int MakeSubTreeMutable(const std::string& arch_dir);
 
-
   //----------------------------------------------------------------------------
   //! Check that the user has the necessary permissions to do an archiving
-  //! peration
+  //! operation.
   //!
   //! @param arch_dir archive directory
   //!
   //! @return true if user is allowed, otherwise False
   //----------------------------------------------------------------------------
   bool ArchiveCheckAcl(const std::string& arch_dir) const;
-
 
   //----------------------------------------------------------------------------
   //! Create backup file. If successful then the backup file is copied to the
@@ -271,153 +360,53 @@ private:
                    const std::string& twindow_val,
                    const std::set<std::string>& excl_xattr);
 
-
-public:
+  //----------------------------------------------------------------------------
+  //! Create a result stream from stdOut, stdErr & retc
+  //----------------------------------------------------------------------------
+  void MakeResult ();
 
   //----------------------------------------------------------------------------
-  //! The open function calls the requested cmd/subcmd and builds the result
+  //! Helper function able to detect key value pair output and convert to http
+  //! table format
   //----------------------------------------------------------------------------
-  int open (const char* path,
-            const char* info,
-            eos::common::Mapping::VirtualIdentity &vid,
-            XrdOucErrInfo *error);
-
-  // -------------------------------------------------------------------------
-  //! read a part of the result stream created during open
-  // -------------------------------------------------------------------------
-  int read (XrdSfsFileOffset offset, char *buff, XrdSfsXferSize blen);
-
-  // -------------------------------------------------------------------------
-  //! get the size of the result stream
-  // -------------------------------------------------------------------------
-  int stat (struct stat* buf);
-
-  // -------------------------------------------------------------------------
-  //! close a proc command
-  // -------------------------------------------------------------------------
-  int close ();
-
-  // -------------------------------------------------------------------------
-  //! add stdout,stderr to an external stdout,stderr variable
-  // -------------------------------------------------------------------------
-
-  void
-  AddOutput (XrdOucString &lStdOut, XrdOucString &lStdErr)
-  {
-    lStdOut += stdOut;
-    lStdErr += stdErr;
-  }
-
-  // -------------------------------------------------------------------------
-  //! open temporary outputfiles for find commands
-  // -------------------------------------------------------------------------
-  bool OpenTemporaryOutputFiles ();
-
-  // -------------------------------------------------------------------------
-  //! get the return code of a proc command
-  // -------------------------------------------------------------------------
-  int
-  GetRetc ()
-  {
-    return retc;
-  }
-
-
-  //----------------------------------------------------------------------------
-  //! Get result file name 
-  //----------------------------------------------------------------------------
-  inline const char* GetResultFn() const
-  {
-    return fresultStreamfilename.c_str();
-  }
-
-  // -------------------------------------------------------------------------
-  //! list of user proc commands
-  // -------------------------------------------------------------------------
-  int Attr ();
-  int Archive();
-  int Backup();
-  int Cd ();
-  int Chmod ();
-  int DirInfo (const char* path);
-  int Find ();
-  int File ();
-  int Fileinfo ();
-  int FileInfo (const char* path);
-  int Fuse ();
-  int Ls ();
-  int Map ();
-  int Member ();
-  int Mkdir ();
-  int Motd ();
-  int Quota ();
-  int Recycle ();
-  int Rm ();
-  int Rmdir ();
-  int Version ();
-  int Who ();
-  int Whoami ();
-
-  // -------------------------------------------------------------------------
-  //! list of admin proc commands
-  // -------------------------------------------------------------------------
-  int Access ();
-  int Chown ();
-  int Config ();
-  int Debug ();
-  int Fs ();
-  int Fsck ();
-  int Group ();
-  int Io ();
-  int Node ();
-  int Ns ();
-  int AdminQuota ();
-  int Rtlog ();
-  int Space ();
-  int Transfer ();
-  int Vid ();
-  int Vst ();
-
-  ProcCommand ();
-  ~ProcCommand ();
+  bool KeyValToHttpTable(XrdOucString &stdOut);
 };
 
+
+//------------------------------------------------------------------------------
+//! Class ProcInterface
+//------------------------------------------------------------------------------
 class ProcInterface
 {
-private:
-
 public:
-  // -------------------------------------------------------------------------
-  //! check if a path is requesting a proc commmand
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Check if a path is requesting a proc commmand
+  //----------------------------------------------------------------------------
   static bool IsProcAccess (const char* path);
 
-  // -------------------------------------------------------------------------
-  //! check if a proc command contains a 'write' action on the instance
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Check if a proc command contains a 'write' action on the instance
+  //----------------------------------------------------------------------------
   static bool IsWriteAccess (const char* path, const char* info);
 
-  // -------------------------------------------------------------------------
-  //! authorize if the virtual ID can execute the requested command
-  // -------------------------------------------------------------------------
-  static bool Authorize (
-                         const char* path,
-                         const char* info,
+  //----------------------------------------------------------------------------
+  //! Authorize if the virtual ID can execute the requested command
+  //----------------------------------------------------------------------------
+  static bool Authorize (const char* path, const char* info,
                          eos::common::Mapping::VirtualIdentity &vid,
-                         const XrdSecEntity* entity
-                         );
+                         const XrdSecEntity* entity);
 
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   ProcInterface ();
 
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   ~ProcInterface ();
 };
 
 EOSMGMNAMESPACE_END
 
-#endif
+#endif // __EOSMGM_PROCINTERFACE__HH__

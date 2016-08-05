@@ -689,30 +689,22 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
   bool is_allowed = false;
   eos::ContainerMD::XAttrMap attrmap;
 
+  // Load evt. the attributes
+  gOFS->_attr_ls(arch_dir.c_str(), *mError, *pVid, 0, attrmap, false);
 
-  // load evt. the attributes
-  gOFS->_attr_ls(arch_dir.c_str(),
-		 *mError,
-		 *pVid,
-		 0,
-		 attrmap,
-		 false);
-  
-
-  // ACL and permission check                                                                                                                                                                      
-  Acl acl(arch_dir.c_str(),
-          *mError,
-          *pVid,
-          attrmap,
-          true);
-
+  // ACL and permission check
+  Acl acl(arch_dir.c_str(), *mError,*pVid, attrmap, true);
   eos_info("acl=%d a=%d egroup=%d mutable=%d", acl.HasAcl(), acl.CanArchive(),
              acl.HasEgroup(), acl.IsMutable());
-  
+
   if (pVid->uid)
-      is_allowed = acl.CanArchive();
+  {
+    is_allowed = acl.CanArchive();
+  }
   else
+  {
     is_allowed = true;
+  }
 
   return is_allowed;
 }
@@ -932,10 +924,14 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
           acl_val.insert('i', pos_z + 2);
       }
       else
+      {
         acl_val += ",z:i";
+      }
     }
     else
+    {
       acl_val = "z:i";
+    }
 
     eos_debug("acl_key=%s, acl_val=%s", acl_key, acl_val.c_str());
 
@@ -1011,7 +1007,9 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 
       // Remove last comma
       if (new_acl.length())
+      {
         new_acl.erase(new_acl.length() - 1);
+      }
 
       acl_val = new_acl.c_str();
     }
@@ -1108,9 +1106,12 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
   info += arch_dir.c_str();
 
   if (is_file)
+  {
     info += "&mgm.option=fI";
-  else
+  }
+  else {
     info += "&mgm.option=dI";
+  }
 
   cmd_find->open("/proc/user", info.c_str(), *pVid, mError);
   int ret = cmd_find->close();
@@ -1232,8 +1233,9 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     rel_path = info_map["file"];
     rel_path.erase(0, arch_dir.length());
 
-    if (rel_path.empty())
+    if (rel_path.empty()) {
       rel_path = "./";
+    }
 
     if (is_file)
     {
@@ -1261,8 +1263,9 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
         arch_ofs << "\"" << it->first << "\": \"" << it->second << "\"";
         ++it;
 
-        if (it != attr_map.end())
+        if (it != attr_map.end()) {
           arch_ofs << ", ";
+        }
       }
 
       arch_ofs << "}]" << std::endl;
