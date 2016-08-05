@@ -1274,6 +1274,11 @@ XrdIo::attrGet(const char* name, char* value, size_t &size)
   errno = 0;
   if (!mAttrSync && mAttrLoaded)
   {
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
+    }
     std::string val = mFileMap.Get(name);
     size_t len = val.length() + 1;
     if (len > size)
@@ -1290,6 +1295,11 @@ XrdIo::attrGet(const char* name, char* value, size_t &size)
 
     if (mFileMap.Load(lBlob))
     {
+      if (!mFileMap.Count(name))
+      {
+	errno = ENODATA;
+	return SFS_ERROR;
+      }
       std::string val = mFileMap.Get(name);
       size_t len = val.length() + 1;
       if (len > size)
@@ -1297,6 +1307,14 @@ XrdIo::attrGet(const char* name, char* value, size_t &size)
       memcpy(value, val.c_str(), len);
       eos_static_info("key=%s value=%s", name, value);
       return SFS_OK;
+    }
+    else
+    {
+      if (!mFileMap.Count(name))
+      {
+	errno = ENODATA;
+	return SFS_ERROR;
+      }
     }
   }
   else
@@ -1317,6 +1335,11 @@ XrdIo::attrGet(string name, std::string& value)
   errno = 0;
   if (!mAttrSync && mAttrLoaded)
   {
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
+    }
     value = mFileMap.Get(name);
     return SFS_OK;
   }
@@ -1327,8 +1350,18 @@ XrdIo::attrGet(string name, std::string& value)
     mAttrLoaded = true;
     if (mFileMap.Load(lBlob))
     {
+      if (!mFileMap.Count(name))
+      {
+	errno = ENODATA;
+	return SFS_ERROR;
+      }
       value = mFileMap.Get(name);
       return SFS_OK;
+    }
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
     }
   }
   else

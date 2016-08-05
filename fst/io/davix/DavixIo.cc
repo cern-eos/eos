@@ -718,6 +718,11 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
   errno = 0;
   if (!mAttrSync && mAttrLoaded)
   {
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
+    }
     std::string val = mFileMap.Get(name);
     size_t len = val.length() + 1;
     if (len > size)
@@ -734,6 +739,11 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
 
     if (mFileMap.Load(lBlob))
     {
+      if (!mFileMap.Count(name))
+      {
+	errno = ENODATA;
+	return SFS_ERROR;
+      }
       std::string val = mFileMap.Get(name);
       size_t len = val.length() + 1;
       if (len > size)
@@ -741,6 +751,11 @@ DavixIo::attrGet (const char* name, char* value, size_t &size)
       memcpy(value, val.c_str(), len);
       eos_static_info("key=%s value=%s", name, value);
       return 0;
+    }
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
     }
   }
   else
@@ -762,6 +777,11 @@ DavixIo::attrGet (std::string name, std::string &value)
   errno = 0;
   if (!mAttrSync && mAttrLoaded)
   {
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
+    }
     value = mFileMap.Get(name);
 
     return 0;
@@ -774,8 +794,18 @@ DavixIo::attrGet (std::string name, std::string &value)
 
     if (mFileMap.Load(lBlob))
     {
+      if (!mFileMap.Count(name))
+      {
+	errno = ENODATA;
+	return SFS_ERROR;
+      }
       value = mFileMap.Get(name);
       return 0;
+    }
+    if (!mFileMap.Count(name))
+    {
+      errno = ENODATA;
+      return SFS_ERROR;
     }
   }
   else
