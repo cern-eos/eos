@@ -57,12 +57,63 @@ EOSMGMNAMESPACE_BEGIN
  */
 
 //------------------------------------------------------------------------------
+//! Class IFilter used as interface to implement various types of filters
+//! for the archive and backup operations.
+//------------------------------------------------------------------------------
+class IFilter
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Type of the filter
+  //----------------------------------------------------------------------------
+  enum Type
+  {
+    kFile, ///< File filter
+    kDir,  ///< Directory filter
+    kNone
+  };
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param type filter type
+  //----------------------------------------------------------------------------
+  IFilter(Type type = Type::kNone): mType(type) {};
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~IFilter() {};
+
+  //----------------------------------------------------------------------------
+  //! Filter the current entry
+  //!
+  //! @param entry_info entry information on which the filter is applied
+  //!
+  //! @return true if entry should be filtered out, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool FilterOut(const std::map<std::string, std::string>& entry_info) = 0;
+
+  //----------------------------------------------------------------------------
+  //! Get filter type
+  //!
+  //! @return type of the filter
+  //----------------------------------------------------------------------------
+  Type GetType() const {
+    return mType;
+  }
+
+ private:
+  Type mType; ///< Filter type
+};
+
+
+//------------------------------------------------------------------------------
 //! Class handling proc command execution
 //------------------------------------------------------------------------------
 class ProcCommand: public eos::common::LogId
 {
 public:
-
   //----------------------------------------------------------------------------
   //! The open function calls the requested cmd/subcmd and builds the result
   //----------------------------------------------------------------------------
@@ -174,7 +225,6 @@ public:
   ~ProcCommand ();
 
 private:
-
   //----------------------------------------------------------------------------
   //! Response structre holding information about the status of an archived dir
   //----------------------------------------------------------------------------
@@ -299,11 +349,12 @@ private:
   //! @param num number of entries added
   //! @param is_file if true add file entries to the archive, otherwise
   //!                directories
+  //! @param filter filter to be applied to the entries
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   int ArchiveAddEntries(const std::string& arch_dir, std::ofstream& arch_ofs,
-                        int& num, bool is_file);
+                        int& num, bool is_file, IFilter* filter = NULL);
 
   //----------------------------------------------------------------------------
   //! Make EOS sub-tree immutable by adding the sys.acl=z:i rule to all of the

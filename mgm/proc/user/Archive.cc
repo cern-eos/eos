@@ -1056,8 +1056,8 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 //------------------------------------------------------------------------------
 int
 ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
-                               std::ofstream& arch_ofs,
-                               int& num, bool is_file)
+                               std::ofstream& arch_ofs, int& num, bool is_file,
+                               IFilter* filter)
 {
   num = 0;
   std::map<std::string, std::string> info_map;
@@ -1154,7 +1154,6 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
     unseal_str = XrdOucString(line.c_str());
     line = XrdMqMessage::UnSeal(unseal_str);
-    num++;
     line_iss.clear();
     line_iss.str(line);
 
@@ -1239,6 +1238,13 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
     if (is_file)
     {
+      // Filter out any entries that don't need to got into the archive file
+      if (filter && (filter->GetType() == IFilter::Type::kFile) &&
+          filter->FilterOut(info_map))
+      {
+        continue;
+      }
+
       arch_ofs << "[\"f\", \"" << rel_path << "\", "
                << "\"" << info_map["size"] << "\", "
                << "\"" << info_map["mtime"] << "\", "
@@ -1271,6 +1277,8 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
       arch_ofs << "}]" << std::endl;
       attr_map.clear();
     }
+
+    num++;
   }
 
   delete[] tmp_buff;
