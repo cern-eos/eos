@@ -306,6 +306,53 @@ com_space (char* arg1)
     }
   }
 
+
+  if (subcommand == "kinetic-json-store")
+  {
+    in = "mgm.cmd=space&mgm.subcmd=kinetic-json-store";
+
+    XrdOucString spacename = subtokenizer.GetToken();
+    XrdOucString key = subtokenizer.GetToken();
+    XrdOucString file = subtokenizer.GetToken();
+    std::string val;
+
+    if (!spacename.length())
+      printusage = true;
+
+    if (!key.length())
+      printusage = true;
+
+    if (!file.length())
+      printusage = true;
+
+    in += "&mgm.space=";
+    in += spacename;
+
+    in += "&mgm.space.kinetic-json-store.key=";
+    in += key;
+    in += "&mgm.space.kinetic-json-store.val=";
+
+    if (file.length())
+    {
+      std::ifstream ifs(file.c_str(), std::ios::in | std::ios::binary);
+      if (!ifs)
+      {
+	fprintf(stderr, "error: unable to read %s - errno=%d\n", file.c_str(), errno);
+	global_retc = errno;
+	return (0);
+      }
+      
+      val = std::string((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+      // store the value b64 encoded
+      XrdOucString val64;
+      
+      eos::common::SymKey::Base64Encode((char*) val.c_str(), val.length(), val64);
+      in += "base64:";
+      in += val64.c_str();
+      ok = true;
+    }
+  }
+
   if (subcommand == "node-get")
   {
     in = "mgm.cmd=space&mgm.subcmd=node-get";
@@ -476,6 +523,8 @@ com_space_usage:
   fprintf(stdout, "\n");
   fprintf(stdout, "       space node-get <space-name> <node.key>                        : get the value of <node.key> and base64 decode before output\n");
   fprintf(stdout, "                                                                     : if the value for <node.key> is identical for all nodes in the referenced space, it is dumped only once, otherwise the value is dumped for each node separately\n");
+  fprintf(stdout, "       space kinetic-json-store cluster|security|location <local-file>\n");
+  fprintf(stdout, "                                                                     : store a modified json file on the MGM (without publishing)\n");
   fprintf(stdout, "       space reset <space-name>  [--egroup|drain|scheduledrain|schedulebalance] \n");
   fprintf(stdout, "                                                                     : reset a space e.g. recompute the drain state machine\n");
   fprintf(stdout, "       space status <space-name> [-m]                                : print's all defined variables for space\n");

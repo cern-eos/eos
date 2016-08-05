@@ -406,6 +406,9 @@ XrdMgmOfs::_attr_set (const char *path,
             return SFS_ERROR;
           }
         }
+        XrdOucString val64 = value;
+        XrdOucString val;
+        eos::common::SymKey::DeBase64(val64, val);
 
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
@@ -448,11 +451,11 @@ XrdMgmOfs::_attr_set (const char *path,
 	  XrdOucString val;
 	  eos::common::SymKey::DeBase64(val64, val);
 
-	  fmd->setAttribute(key, val.c_str());
-	  fmd->setMTimeNow();
-	  eosView->updateFileStore(fmd.get());
-	  errno = 0;
-	}
+          fmd->setAttribute(key, val.c_str());
+          fmd->setMTimeNow();
+          eosView->updateFileStore(fmd);
+          errno = 0;
+        }
       }
     }
     catch (eos::MDException &e)

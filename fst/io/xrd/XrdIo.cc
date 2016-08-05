@@ -875,6 +875,7 @@ XrdIo::fileClose (uint16_t timeout)
     }
   }
 
+  // Wait for any async requests before closing
   if (mMetaHandler)
   {
     if (mMetaHandler->WaitOK() != XrdCl::errNone)
