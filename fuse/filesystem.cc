@@ -203,6 +203,7 @@ filesystem::log_settings ()
  s += fbcs.c_str ();
  log ("WARNING", s.c_str ());
 
+ eos_static_warning ("proc filesystem path   := %s", getenv ("EOS_FUSE_PROCPATH")?getenv ("EOS_FUSE_PROCPATH"):"/proc/");
  eos_static_warning ("krb5 authentication    := %s", use_user_krb5cc? "true" : "false");
  eos_static_warning ("krb5 unsafe inmem krb5 := %s", use_unsafe_krk5? "true" : "false");
  eos_static_warning ("x509 authentication    := %s", use_user_gsiproxy? "true" : "false");
@@ -4854,6 +4855,14 @@ filesystem::init (int argc, char* argv[], void *userdata, std::map<std::string,s
  if ((getenv("EOS_FUSE_CACHE_PAGE_SIZE")))
  {
    CacheEntry::SetMaxSize((size_t)strtoul(getenv("EOS_FUSE_CACHE_PAGE_SIZE"), 0, 10));
+ }
+
+ // set the path of the proc fs (default is "/proc/"
+ if (getenv ("EOS_FUSE_PROCPATH"))
+ {
+   std::string pp(getenv ("EOS_FUSE_PROCPATH"));
+   if(pp[pp.size()]!='/') pp.append("/");
+   proccache_SetProcPath(pp.c_str());
  }
 
  // Get the number of levels in the top hierarchy protected agains deletions

@@ -31,6 +31,8 @@ extern "C"
 {
 #endif
 
+  void proccache_SetProcPath (const char* procpath);
+
 //! returns 0 if the proccache does NOT have an entry for the given pid
 //! returns 1 if the proccache DOES have an entry for the given pid
   int proccache_HasEntry (int pid);
