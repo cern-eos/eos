@@ -568,12 +568,6 @@ class ArchiveFile(object):
                         self.logger.error(err_msg)
                         raise CheckEntryException("failed metainfo partial match")
                 else:
-                    # TODO:(esindril) Fix ctime propagation in EOS. For the time
-                    # being remove it from the comparison.
-                    idx_ctime = self.header["file_meta"].index("ctime") + 2
-                    del meta_info[idx_ctime]
-                    del entry[idx_ctime]
-
                     if not meta_info == entry:
                         err_msg = ("Verify failed for entry={0} expect={1} got={2}"
                                    "").format(dst, entry, meta_info)

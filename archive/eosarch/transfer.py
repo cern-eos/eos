@@ -774,9 +774,11 @@ class Transfer(object):
             # Send the utime async request to set the mtime
             mtime = dict_meta['mtime']
             mtime_sec, mtime_nsec = mtime.split('.', 1)
+            ctime = dict_meta['ctime']
+            ctime_sec, ctime_nsec = ctime.split('.', 1)
             arg = ''.join([url.path, "?eos.ruid=0&eos.rgid=0&mgm.pcmd=utimes",
-                           "&tv1_sec=0&tv1_nsec=0&tv2_sec=", mtime_sec,
-                           "&tv2_nsec=", mtime_nsec])
+                           "&tv1_sec=", ctime_sec, "&tv1_nsec=", ctime_nsec,
+                           "&tv2_sec=", mtime_sec, "&tv2_nsec=", mtime_nsec])
             xrd_st = fs.query(QueryCode.OPAQUEFILE, arg.encode("utf-8"),
                               callback=metahandler.register(oper, surl))
 
