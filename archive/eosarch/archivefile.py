@@ -618,34 +618,3 @@ class ArchiveFile(object):
                 err_msg = "Dir={0} failed setting metadata".format(surl)
                 self.logger.error(err_msg)
                 raise IOError(err_msg)
-
-    def del_empty_dirs(self):
-        """ This is done in case of a backup operation with a time window so that
-        we delete any empty directories from the subtree. For this we need to walk
-        the directory structure from the deepest one to the root.
-
-        Raises:
-            IOError: Cand not delete directory
-        """
-        lst_dirs = []
-        tags = ['container', 'files']
-
-        for dentry in self.dirs():
-            lst_dirs.insert(0, dentry)
-
-        for dentry in lst_dirs:
-            __, dst = self.get_endpoints(dentry[1])
-            url = client.URL(dst.encode("utf-8"))
-            # Get a list which contains:
-            # ['relative_path', 'd', number_containers, number_files]
-            info = get_entry_info(url, dentry[1], tags, is_dir=True)
-            self.logger.info("Info is: {0}".format(info))
-
-            if int(info[2]) == 0 and int(info[3]) == 0:
-                fs = self.get_fs(dst)
-                st_rm, __ = fs.rmdir((url.path + "?eos.ruid=0&eos.rgid=0").encode("utf-8"))
-
-                if not st_rm.ok:
-                    err_msg = "Error removing entry={0}".format(dst)
-                    self.logger.error(err_msg)
-                    raise IOError()

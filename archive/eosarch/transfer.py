@@ -1019,10 +1019,6 @@ class Transfer(object):
         check_ok, lst_failed = self.archive.verify(True)
         self.backup_write_status(lst_failed, check_ok)
 
-        # Delete empty dirs if this was a backup with a time window
-        if self.archive.header['twindow_type'] and self.archive.header['twindow_val']:
-            self.archive.del_empty_dirs()
-
         self.set_status("cleaning")
         self.logger.info("TIMING_transfer={0} sec".format(time.time() - t0))
         self.backup_tx_clean()
