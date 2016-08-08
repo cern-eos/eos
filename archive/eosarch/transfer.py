@@ -565,7 +565,8 @@ class Transfer(object):
         # For inital PUT copy also the archive file to tape
         if self.init_put:
             __, dst = self.archive.get_endpoints(self.config.ARCH_INIT)
-            self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0", dst))
+            self.list_jobs.append((self.efile_full + "?eos.ruid=0&eos.rgid=0" +
+                                   "&eos.app=archive", dst))
 
         # Copy files
         for fentry in self.archive.files():
@@ -590,7 +591,7 @@ class Transfer(object):
                                "&eos.mtime=", dfile['mtime'],
                                "&eos.bookingsize=", dfile['size'],
                                "&eos.targetsize=", dfile['size'],
-                               "&eos.ruid=0&eos.rgid=0"])
+                               "&eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
                 # If checksum 0 don't enforce it
                 if dfile['xs'] != "0":
@@ -599,9 +600,9 @@ class Transfer(object):
                 # For backup we try to read as root from the source
                 if self.oper == self.config.BACKUP_OP:
                     if '?' in src:
-                        src = ''.join([src, "&eos.ruid=0&eos.rgid=0"])
+                        src = ''.join([src, "&eos.ruid=0&eos.rgid=0&eos.app=archive"])
                     else:
-                        src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
+                        src = ''.join([src, "?eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
                     # If this is a version file we save it as a 2-replica layout
                     if is_version_file(fentry[1]):
@@ -618,7 +619,7 @@ class Transfer(object):
                             continue
             else:
                 # For PUT read the files from EOS as root
-                src = ''.join([src, "?eos.ruid=0&eos.rgid=0"])
+                src = ''.join([src, "?eos.ruid=0&eos.rgid=0&eos.app=archive"])
 
             self.logger.info("Copying from {0} to {1}".format(src, dst))
             self.list_jobs.append((src, dst))
