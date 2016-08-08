@@ -25,13 +25,14 @@
 #define __EOSMGM_BACKUP_HH__
 
 #include "mgm/ProcInterface.hh"
+#include <set>
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class TwindowFilter to exclude older entries
 //------------------------------------------------------------------------------
-class TwindowFilter: public IFilter
+class TwindowFilter: public IFilter, public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
@@ -48,17 +49,27 @@ public:
   ~TwindowFilter() {};
 
   //----------------------------------------------------------------------------
-  //! Filter the current entry
+  //! Filter the file entry
   //!
   //! @param entry_info entry information on which the filter is applied
   //!
   //! @return true if entry should be filtered out, otherwise false
   //----------------------------------------------------------------------------
-  bool FilterOut(const std::map<std::string, std::string>& entry_info);
+  bool FilterOutFile(const std::map<std::string, std::string>& entry_info);
+
+  //----------------------------------------------------------------------------
+  //! Filter the directory entry
+  //!
+  //! @param path current directory path
+  //!
+  //! @return true if entry should be filtered out, otherwise false
+  //----------------------------------------------------------------------------
+  bool FilterOutDir(const std::string& path);
 
 private:
   std::string mTwindowType; ///< Time window type
   std::string mTwindowVal; ///< Time window value
+  std::set<std::string> mSetDirs; ///< Set of directories to keep
 };
 
 EOSMGMNAMESPACE_END
