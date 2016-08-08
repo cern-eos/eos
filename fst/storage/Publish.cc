@@ -288,14 +288,36 @@ Storage::Publish ()
 	  std::map<std::string, std::string> health;
 	  if (fileSystemsVector[i]->getHealth(health))
 	  {
-	    if(health.count("summary")) {
+	    if(health.count("summary")) 
+	    {
 	      success &= fileSystemsVector[i]->SetString("stat.health", health["summary"].c_str());
 	    }
-	    else {
+	    else 
+	    {
 	      success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
 	    }
+	    if( health.count("indicator") )  
+            {
+	      auto indicator = strtoll(health["indicator"].c_str(), 0, 10);
+	      success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator", indicator);
+	    }
+	    if( health.count("drives_total") ) 
+            {
+	      auto drives_total = strtoll(health["drives_total"].c_str(), 0, 10);
+	      success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total", drives_total);
+	    }
+	    if( health.count("drives_failed") ) 
+            {
+	      auto drives_failed = strtoll(health["drives_failed"].c_str(), 0, 10);
+	      success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed", drives_failed);
+	    }
+	    if( health.count("redundancy_factor") ) 
+            {
+	      auto redundancy_factor = strtoll(health["redundancy_factor"].c_str(), 0, 10);
+	      success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor", redundancy_factor);
+	    }
 	  }
-	  
+
 	  long long r_open = 0;
 	  long long w_open = 0;
 	  {

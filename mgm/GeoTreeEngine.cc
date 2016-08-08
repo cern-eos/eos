@@ -1072,8 +1072,10 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
       continue;
     }
     // if we don't have a proxy to match, if a client geotag is given then use it else use the file system client
+    bool trimlastlevel = geotag || (!geotag && clientgeotag.empty());
     if(!geotag) geotag = (clientgeotag.empty()?&((*(entries[i]->foregroundFastStruct->treeInfo))[fsIdxs[i]].fullGeotag):&clientgeotag);
-    //const std::string & geotag = clientgeotag.empty()?(*entries[i]->foregroundFastStruct->treeInfo)[fsIdxs[i]].fullGeotag:clientgeotag;
+    // the deepest intermediate node is a numeric id for both scheduling and GW trees and they are unrelated
+    // we don't want to keep this to project the fst location on the gw tree as it would not make sense
 
     if(proxyGroup.empty())
     {
@@ -1103,7 +1105,8 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx> &fs
 
     // get the closest node from the filesystem
     SchedTreeBase::tFastTreeIdx idx;
-    idx=pxyentry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(geotag->c_str());
+    idx=pxyentry->foregroundFastStruct->tag2NodeIdx->getClosestFastTreeNode(
+        trimlastlevel?std::string(*geotag,0,geotag->rfind("::")).c_str():geotag->c_str() );
     bool schedsuccess=false;
     if( proxyschedtype==filesticky )
     {

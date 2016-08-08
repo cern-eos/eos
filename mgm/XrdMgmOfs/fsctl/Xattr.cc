@@ -79,7 +79,7 @@
         XrdOucString key = env.Get("mgm.xattrname");
         key.replace("user.admin.", "sys.");
         int rc = gOFS->attr_get(spath.c_str(), error, client,
-                                (const char*) 0, key.c_str(), value);
+                                (const char*) "eos.attr.val.encoding=base64", key.c_str(), value);
 
         XrdOucString response = "getxattr: retc=";
 	response += rc? (errno?errno:-1):rc;

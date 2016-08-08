@@ -1,4 +1,4 @@
-yum install -y cmake
+yum install -y cmake3
 yum install --disablerepo=epel -y xrootd-server-devel xrootd-private-devel xrootd-client
 yum install -y sparsehash-devel
 yum install -y ncurses ncurses-devel ncurses-static openssl openssl-devel openssl-static
@@ -17,5 +17,6 @@ yum install -y e2fsprogs-devel
 yum install -y perl-Time-HiRes
 yum install -y json-c json-c-devel
 yum install -y jsoncpp jsoncpp-devel
+yum install -y xrootd-devel xrootd-private-devel xrootd-client-devel xrootd-server-devel
 ( cd /tmp/; git clone  https://github.com/zeromq/cppzmq; cp cppzmq/zmq.hpp /usr/include/ )
 
