@@ -958,6 +958,9 @@ Storage::RunBootThread (FileSystem* fs)
 bool
 Storage::OpenTransaction (unsigned int fsid, unsigned long long fid)
 {
+  if (!fileSystemsMap.count(fsid))
+    return true;
+
   FileSystem* fs = fileSystemsMap[fsid];
   if (fs)
   {
@@ -970,6 +973,9 @@ Storage::OpenTransaction (unsigned int fsid, unsigned long long fid)
 bool
 Storage::CloseTransaction (unsigned int fsid, unsigned long long fid)
 {
+  if (!fileSystemsMap.count(fsid))
+    return true;
+
   FileSystem* fs = fileSystemsMap[fsid];
   if (fs)
   {
