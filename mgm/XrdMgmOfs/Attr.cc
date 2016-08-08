@@ -451,7 +451,7 @@ XrdMgmOfs::_attr_set (const char *path,
 
           fmd->setAttribute(key, val.c_str());
           fmd->setMTimeNow();
-          eosView->updateFileStore(fmd);
+          eosView->updateFileStore(fmd.get());
           errno = 0;
         }
       }
