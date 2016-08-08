@@ -394,9 +394,6 @@ XrdMgmOfs::_attr_set (const char *path,
       }
       else
       {
-        XrdOucString val64 = value;
-        XrdOucString val;
-        eos::common::SymKey::DeBase64(val64, val);
         // check format of acl
         if (Key.beginswith("user.acl") || Key.beginswith("sys.acl"))
         {

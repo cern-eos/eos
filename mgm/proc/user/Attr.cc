@@ -180,14 +180,10 @@ ProcCommand::Attr ()
                 stdOut += "success: set attribute ";
                 stdOut += key;
                 stdOut += "=\"";
-<<<<<<< HEAD
-                stdOut += val;
-=======
                 XrdOucString valu64;
                 XrdOucString value = val;
                 eos::common::SymKey::DeBase64(val, valu64);
                 stdOut += valu64.c_str();
->>>>>>> beryl_emerald
                 stdOut += "\" in file/directory ";
                 stdOut += foundit->first.c_str();
                 stdOut += "\n";
