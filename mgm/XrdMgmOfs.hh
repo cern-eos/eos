@@ -97,7 +97,6 @@
 #ifndef __EOSMGM_MGMOFS__HH__
 #define __EOSMGM_MGMOFS__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "authz/XrdCapability.hh"
 #include "common/Mapping.hh"
 #include "common/SymKeys.hh"
@@ -131,7 +130,6 @@
 #include "namespace/accounting/SyncTimeAccounting.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucTable.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -139,38 +137,41 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
-/*----------------------------------------------------------------------------*/
 #include <dirent.h>
 #include "zmq.hpp"
 
-/*----------------------------------------------------------------------------*/
 
 USE_EOSMGMNAMESPACE
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class implementing atomic meta data commands
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId {
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
   friend class ProcCommand;
 
 public:
-  // ---------------------------------------------------------------------------
-  // Object Allocation Functions
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMgmOfs (XrdSysError *lp);
 
-  // ---------------------------------------------------------------------------
-  // return a MGM directory object
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~XrdMgmOfs();
 
-  XrdSfsDirectory *
+  //----------------------------------------------------------------------------
+  // Create MGM directory object
+  //----------------------------------------------------------------------------
+  XrdSfsDirectory*
   newDir (char *user = 0, int MonID = 0);
 
-  // ---------------------------------------------------------------------------
-  // return a MGM file object
-  // ---------------------------------------------------------------------------
-  XrdSfsFile *
+  //----------------------------------------------------------------------------
+  // Create MGM file object
+  //----------------------------------------------------------------------------
+  XrdSfsFile*
   newFile (char *user = 0, int MonID = 0);
 
   // ---------------------------------------------------------------------------
@@ -335,8 +336,8 @@ public:
             const char *opaque = 0,
             bool simulate = false,
             bool keepversion = false,
-            bool lock_quota = true, 
-	    bool no_recycling = false);
+            bool lock_quota = true,
+            bool no_recycling = false);
 
   // ---------------------------------------------------------------------------
   // find files internal function
@@ -352,7 +353,7 @@ public:
              time_t millisleep = 0,
              bool nscounter = true,
              int maxdepth = 0,
-	     const char* filematch = 0
+             const char* filematch = 0
              );
 
   // ---------------------------------------------------------------------------
@@ -530,7 +531,8 @@ public:
   // ---------------------------------------------------------------------------
   // check access permissions by vid
   // ---------------------------------------------------------------------------
-  int _access (const char*, int mode, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char*);
+  int _access (const char*, int mode, XrdOucErrInfo&,
+               eos::common::Mapping::VirtualIdentity &vid, const char*);
 
   // ---------------------------------------------------------------------------
   // define access permissions by vid for a file/directory
@@ -543,11 +545,14 @@ public:
   // ---------------------------------------------------------------------------
   // set utimes
   // ---------------------------------------------------------------------------
-  int utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+  int utimes (const char*, struct timespec *tvp, XrdOucErrInfo&,
+              const XrdSecEntity*, const char*);
+
   // ---------------------------------------------------------------------------
   // set utimes by vid
   // ---------------------------------------------------------------------------
-  int _utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char* opaque = 0);
+  int _utimes (const char*, struct timespec *tvp, XrdOucErrInfo&,
+               eos::common::Mapping::VirtualIdentity &vid, const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // touch a file
@@ -779,22 +784,6 @@ public:
   int Emsg (const char *, XrdOucErrInfo&, int, const char *x,
             const char *y = "");
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @brief the MGM Ofs object constructor
-  //----------------------------------------------------------------------------
-  XrdMgmOfs (XrdSysError *lp);
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-
-  virtual
-  ~XrdMgmOfs ()
-  {
-  }
-
   // ---------------------------------------------------------------------------
   // Configuration routine
   // ---------------------------------------------------------------------------
@@ -819,7 +808,6 @@ public:
   // Signal handler thread function
   // ---------------------------------------------------------------------------
   void* SignalHandlerThread ();
-
 
   // ---------------------------------------------------------------------------
   // Initialization function
@@ -905,15 +893,22 @@ public:
   // ---------------------------------------------------------------------------
   void FsConfigListener ();
 
+  //------------------------------------------------------------------------------
+  //! Add backup job to the queue to be picked up by the archive/backup submitter
+  //! thread.
+  //!
+  //! @param job_opaque string representing the opaque information necessary for
+  //!        the backup operation to be executed
+  //! @return true if submission successful, otherwise false
+  //------------------------------------------------------------------------------
+  bool SubmitBackupJob(const std::string& job_opaque);
+
   // ---------------------------------------------------------------------------
   // configuration variables
   // ---------------------------------------------------------------------------
   char *ConfigFN; //< name of the configuration file
-
   ConfigEngine* ConfEngine; //< storing/restoring configuration
-
   XrdCapability* CapabilityEngine; //< authorization module for token encryption/decryption
-
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject
   XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker
@@ -924,7 +919,8 @@ public:
   XrdOucString MgmDefaultReceiverQueue; //< Queue where we are sending to by default
   XrdOucString MgmOfsName; //< mount point of the filesystem
   XrdOucString MgmOfsAlias; //< alias of this MGM instance
-  XrdOucString MgmOfsTargetPort; //< xrootd port where redirections go on the OSTs -default is 1094
+  //! Xrootd port where redirections go on the FSTs -default is 1094
+  XrdOucString MgmOfsTargetPort;
   XrdOucString MgmOfsQueue; //< our mgm queue name
   XrdOucString MgmOfsInstanceName; //< name of the EOS instance
   XrdOucString MgmConfigDir; //< Directory where config files are stored
@@ -971,10 +967,9 @@ public:
   ZMQ* zMQ; //<  ZMQ processor
 #endif
 
-  // ---------------------------------------------------------------------------
-  // namespace specific variables
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
+  // Namespace specific variables
+  //----------------------------------------------------------------------------
   enum eNamespace {
     kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
   };
@@ -986,10 +981,9 @@ public:
   bool RemoveStallRuleAfterBoot; //< indicates that after a boot there shouldn't be a stall rule for all alias '*'
   static const char* gNameSpaceState[]; //< const strings to print the namespace boot state as in eNamespace
 
-  // ---------------------------------------------------------------------------
-  // state variables
-  // ---------------------------------------------------------------------------
-
+  //----------------------------------------------------------------------------
+  // State variables
+  //----------------------------------------------------------------------------
   bool IsReadOnly; //< true if this is a read-only redirector
   bool IsRedirect; //< true if the Redirect function should be called to redirect
   bool IsStall; //< true if the Stall function should be called to send a wait
@@ -999,9 +993,9 @@ public:
   bool MgmRedirector; //<  Act's only as a redirector, disables many components in the MGM
   bool ErrorLog; //<  Mgm writes error log with cluster collected file into /var/log/eos/error.log if <true>
 
-  // ---------------------------------------------------------------------------
-  // namespace variables
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Namespace variables
+  //----------------------------------------------------------------------------
   eos::ChangeLogContainerMDSvc *eosDirectoryService; //< changelog for directories
   eos::ChangeLogFileMDSvc *eosFileService; //< changelog for files
   eos::IView *eosView; //< hierarchical view of the namespace
@@ -1012,63 +1006,73 @@ public:
   eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
   XrdOucString MgmMetaLogDir; //  Directory containing the meta data (change) log files
 
-  // ---------------------------------------------------------------------------
-  // thread variables
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Thread variables
+  //----------------------------------------------------------------------------
   pthread_t deletion_tid; //< Thead Id of the deletion thread
   pthread_t stats_tid; //< Thread Id of the stats thread
   pthread_t fsconfiglistener_tid; //< Thread ID of the fs listener/config change thread
 
-  // ---------------------------------------------------------------------------
-  // class objects
-  // ---------------------------------------------------------------------------
-  XrdAccAuthorize *Authorization; //< Authorization   Service
-
-  Stat MgmStats; //<  Mgm Namespace Statistics
-
+  //----------------------------------------------------------------------------
+  // Class objects
+  //----------------------------------------------------------------------------
+  XrdAccAuthorize *Authorization; ///< Authorization service
+  Stat MgmStats; ///<  Mgm Namespace Statistics
   Iostat IoStats; //<  Mgm IO Statistics
+  //! Mgm IO Report store path by default is /var/tmp/eos/report
+  XrdOucString IoReportStorePath;
 
-  XrdOucString IoReportStorePath; //<  Mgm IO Report store path by default is /var/tmp/eos/report
-
-  eos::common::CommentLog* commentLog; //<  Class implementing comment log: mgm writes all proc commands with a comment into /var/log/eos/comments.log
-
+  //! Class implementing comment log: mgm writes all proc commands with a
+  //! comment into /var/log/eos/comments.log.
+  eos::common::CommentLog* commentLog;
   Fsck FsCheck; //<  Class checking the filesystem
-  google::sparse_hash_map<unsigned long long, time_t> MgmHealMap; //< map remembering 'healing' inodes
-
+   //! Map remembering 'healing' inodes
+  google::sparse_hash_map<unsigned long long, time_t> MgmHealMap;
   XrdSysMutex MgmHealMapMutex; //< mutex protecting the help map
-
   Master MgmMaster; //<  Master/Slave configuration/failover class
 
-  std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap; //< this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
-
+  //! Map storing the last time of a filesystem dump, this information is used
+  //! to track filesystems which have not been checked decentral by an FST. It
+  //! is filled in the 'dumpmd' function definde in Procinterface
+  std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap;
   XrdSysMutex DumpmdTimeMapMutex; //< mutex protecting the 'dumpmd' time
-
   eos::common::RWMutex PathMapMutex; //< mutex protecting the path map
-
-  std::map<std::string, std::string> PathMap; //< containing global path remapping
-
+  std::map<std::string, std::string> PathMap; //< Map for global path remapping
   XrdMqSharedObjectManager ObjectManager; //< Shared Hash/Queue ObjectManager
-
   HttpServer Httpd; //<  Http daemon if available
-
   LRU LRUd; //< LRU object running the LRU policy engine
-
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
-
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
-
-  bool UTF8; //< true if running in less restrictive character set mode
-
+  bool UTF8; //< True if running in less restrictive character set mode
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
   std::string mFstGwHost; ///< FST gateway redirect fqdn host
   int mFstGwPort; ///< FST gateway redirect port, default 1094
 
-private:
-
+ private:
   eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
+  pthread_t mSubmitterTid; ///< Archive submitter thread
+  XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
+  std::list<std::string> mBackupsList; ///< Backup jobs queue
+
+  //----------------------------------------------------------------------------
+  //! Static method to start a thread that will queue, build and submit backup
+  //! operations to the archiver daemon.
+  //!
+  //! @param arg mgm object
+  //----------------------------------------------------------------------------
+  static void* StartArchiveSubmitter(void* arg);
+
+  //----------------------------------------------------------------------------
+  //! Implementation of the archive/backup submitter thread
+  //----------------------------------------------------------------------------
+  void* ArchiveSubmitter();
+
+  //------------------------------------------------------------------------------
+  //! Stop the submitted thread and join
+  //------------------------------------------------------------------------------
+  void StopArchiveSubmitter();
 };
-/*----------------------------------------------------------------------------*/
-extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
-/*----------------------------------------------------------------------------*/
+
+extern XrdMgmOfs* gOFS; //< Global handle to XrdMgmOfs object
 
 #endif
