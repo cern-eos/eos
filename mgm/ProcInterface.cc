@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
@@ -40,13 +39,9 @@
 #include "namespace/views/HierarchicalView.hh"
 #include "namespace/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/persistency/ChangeLogFileMDSvc.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
-/*----------------------------------------------------------------------------*/
-
 #include <vector>
 #include <map>
 #include <string>
@@ -55,47 +50,29 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * Constructor
- */
-ProcInterface::ProcInterface () { }
+//------------------------------------------------------------------------------
+//                            *** ProcInterface ***
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-/**
- * Destructor
- */
-
-/*----------------------------------------------------------------------------*/
-ProcInterface::~ProcInterface () { }
-
-/*----------------------------------------------------------------------------*/
-/**
- * Check if a path indicates a proc command
- * @param path input path for a proc command
- * @return true if proc command otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check if a path indicates a proc command
+//------------------------------------------------------------------------------
 bool
 ProcInterface::IsProcAccess (const char* path)
 {
   XrdOucString inpath = path;
+
   if (inpath.beginswith("/proc/"))
   {
     return true;
   }
+
   return false;
 }
 
-/**
- * Check if a proc command is a 'write' command modifying state of an MGM
- * @param path input arguments for proc command
- * @param info CGI for proc command
- * @return true if write access otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check if a proc command is a 'write' command modifying state of an MGM
+//------------------------------------------------------------------------------
 bool
 ProcInterface::IsWriteAccess (const char* path, const char* info)
 {
@@ -111,16 +88,14 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
   XrdOucString cmd = procEnv.Get("mgm.cmd");
   XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
-  // ----------------------------------------------------------------------------
-  // filter here all namespace modifying proc messages
-  // ----------------------------------------------------------------------------
+  // Filter here all namespace modifying proc messages
   if (((cmd == "file") &&
        ((subcmd == "adjustreplica") ||
         (subcmd == "drop") ||
         (subcmd == "layout") ||
         (subcmd == "verify") ||
-	(subcmd == "version") ||
-	(subcmd == "versions") || 
+        (subcmd == "version") ||
+        (subcmd == "versions") ||
         (subcmd == "rename"))) ||
       ((cmd == "attr") &&
        ((subcmd == "set") ||
@@ -178,28 +153,17 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Authorize a proc command based on the clients VID
- * @param path specifies user or admin command path
- * @param info CGI providing proc arguments
- * @param vid virtual id of the client
- * @param entity security entity object
- * @return true if authorized otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Authorize a proc command based on the clients VID
+//------------------------------------------------------------------------------
 bool
-ProcInterface::Authorize (const char* path,
-                          const char* info,
+ProcInterface::Authorize (const char* path, const char* info,
                           eos::common::Mapping::VirtualIdentity& vid,
                           const XrdSecEntity* entity)
 {
   XrdOucString inpath = path;
 
-  // ----------------------------------------------------------------------------
-  // administrator access
-  // ----------------------------------------------------------------------------
+  // Administrator access
   if (inpath.beginswith("/proc/admin/"))
   {
     // hosts with 'sss' authentication can run 'admin' commands
@@ -216,17 +180,13 @@ ProcInterface::Authorize (const char* path,
       return true;
     }
 
-    // --------------------------------------------------------------------------
-    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm)
-    // --------------------------------------------------------------------------
+    // One has to be part of the virtual users 2(daemon) || 3(adm)/4(adm)
     return ( (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
             (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
             (eos::common::Mapping::HasGid(4, vid.gid_list)));
   }
 
-  // ----------------------------------------------------------------------------
-  // user access
-  // ----------------------------------------------------------------------------
+  // User access
   if (inpath.beginswith("/proc/user/"))
   {
     return true;
@@ -235,12 +195,13 @@ ProcInterface::Authorize (const char* path,
   return false;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Constructor ProcCommand
- */
+//------------------------------------------------------------------------------
+//                            *** ProcCommand ***
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Constructor ProcCommand
+//------------------------------------------------------------------------------
 ProcCommand::ProcCommand ()
 {
   stdOut = "";
@@ -264,12 +225,9 @@ ProcCommand::ProcCommand ()
   fstdoutfilename = fstderrfilename = fresultStreamfilename = "";
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Destructor
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 ProcCommand::~ProcCommand ()
 {
   if (fstdout)
@@ -300,18 +258,15 @@ ProcCommand::~ProcCommand ()
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * Open temporary output files for results of find commands
- * @return true if successful otherwise false
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open temporary output files for results of find commands
+//------------------------------------------------------------------------------
 bool
 ProcCommand::OpenTemporaryOutputFiles ()
 {
   char tmpdir [4096];
-  snprintf(tmpdir, sizeof (tmpdir) - 1, "/tmp/eos.mgm/%llu", (unsigned long long) XrdSysThread::ID());
+  snprintf(tmpdir, sizeof (tmpdir) - 1, "/tmp/eos.mgm/%llu",
+           (unsigned long long) XrdSysThread::ID());
   fstdoutfilename = tmpdir;
   fstdoutfilename += ".stdout";
   fstderrfilename = tmpdir;
@@ -347,22 +302,13 @@ ProcCommand::OpenTemporaryOutputFiles ()
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * open a proc command e.g. call the appropriate user or admin commmand and
- * store the output in a resultstream of in case of find in temporary output
- * files.
- * @param inpath path indicating user or admin command
- * @param info CGI describing the proc command
- * @param vid_in virtual identity of the user requesting a command
- * @param error object to store errors
- * @return SFS_OK in any case
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Open a proc command e.g. call the appropriate user or admin commmand and
+// store the output in a resultstream of in case of find in temporary output
+// files.
+//------------------------------------------------------------------------------
 int
-ProcCommand::open (const char* inpath,
-                   const char* info,
+ProcCommand::open (const char* inpath, const char* info,
                    eos::common::Mapping::VirtualIdentity &vid_in,
                    XrdOucErrInfo *error)
 {
@@ -382,26 +328,22 @@ ProcCommand::open (const char* inpath,
     mUserCmd = true;
   }
 
-
-  // ---------------------------------------------
-  // deal with '&' ... sigh 
-  // ---------------------------------------------
+  // Deal with '&' ... sigh
   XrdOucString sinfo = ininfo;
   for (int i = 0; i < sinfo.length(); i++)
   {
-
-    if (sinfo[i] == '&') 
+    if (sinfo[i] == '&')
     {
-      // figure out if this is a real separator or 
+      // figure out if this is a real separator or
       XrdOucString follow=sinfo.c_str()+i+1;
-      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) && (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")))
+      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) &&
+          (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")))
       {
-	sinfo.erase(i,1);
-	sinfo.insert("#AND#",i);
+        sinfo.erase(i,1);
+        sinfo.insert("#AND#",i);
       }
     }
   }
-  // ---------------------------------------------
 
   pOpaque = new XrdOucEnv(sinfo.c_str());
 
@@ -418,20 +360,15 @@ ProcCommand::open (const char* inpath,
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
   mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
-
   eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(), sinfo.c_str());
   int envlen = 0;
   mArgs = pOpaque->Env(envlen);
-
   mFuseFormat = false;
   mJsonFormat = false;
   mHttpFormat = false;
 
-  // ----------------------------------------------------------------------------
-  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line
+  // If set to FUSE, don't print the stdout,stderr tags and we guarantee a line
   // feed in the end
-  // ----------------------------------------------------------------------------
-
   XrdOucString format = pOpaque->Get("mgm.format");
 
   if (format == "fuse")
@@ -459,9 +396,7 @@ ProcCommand::open (const char* inpath,
     mJsonFormat = true;
   }
 
-  // ----------------------------------------------------------------------------
-  // admin command section
-  // ----------------------------------------------------------------------------
+  // Admin command section
   if (mAdminCmd)
   {
     if (mCmd == "archive")
@@ -560,9 +495,7 @@ ProcCommand::open (const char* inpath,
     return SFS_OK;
   }
 
-  // ----------------------------------------------------------------------------
-  // user command section
-  // ----------------------------------------------------------------------------
+  // User command section
   if (mUserCmd)
   {
     if (mCmd == "archive")
@@ -663,35 +596,25 @@ ProcCommand::open (const char* inpath,
     }
     else
     {
-      // ------------------------------------------------------------------------
-      // command not implemented
-      // ------------------------------------------------------------------------
+      // Command not implemented
       stdErr += "errro: no such user command '";
       stdErr += mCmd;
       stdErr += "'";
       retc = EINVAL;
     }
-    
+
     MakeResult();
     return SFS_OK;
   }
 
-  // ----------------------------------------------------------------------------
-  // if neither admin nor proc command
-  // ----------------------------------------------------------------------------
-  return gOFS->Emsg((const char*) "open", *error, EINVAL, "execute command - not implemented ", ininfo);
+  // If neither admin nor proc command
+  return gOFS->Emsg((const char*) "open", *error, EINVAL,
+                    "execute command - not implemented ", ininfo);
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * read a part of the result stream produced during open
- * @param mOffset offset where to start
- * @param buff buffer to store stream
- * @param blen len to return
- * @return number of bytes read
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Read a part of the result stream produced during open
+//------------------------------------------------------------------------------
 int
 ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
 {
@@ -726,15 +649,10 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
   }
 }
 
-/*----------------------------------------------------------------------------*/
-/**
- * return stat information for the result stream to tell the client the size
- * of the proc output
- * @param buf stat structure to fill
- * @return SFS_OK in any case
- */
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get stat information for the result stream to tell the client the size of
+//the proc output
+//------------------------------------------------------------------------------
 int
 ProcCommand::stat (struct stat* buf)
 {
@@ -744,13 +662,10 @@ ProcCommand::stat (struct stat* buf)
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
-
-/**
- * close the proc stream and store the clients comment for the command in the
- * comment log file
- * @return 0 if comment has been successfully stored otherwise !=0
- */
+//------------------------------------------------------------------------------
+// Close the proc stream and store the clients comment for the command in the
+// comment log file
+//------------------------------------------------------------------------------
 int
 ProcCommand::close ()
 {
@@ -779,7 +694,6 @@ ProcCommand::close ()
  * Depending on the output format the key-value CGI returned changes => see
  * implementation.
  */
-
 /*----------------------------------------------------------------------------*/
 void
 ProcCommand::MakeResult ()
@@ -840,7 +754,7 @@ ProcCommand::MakeResult ()
             {
               mResultStream += "<h3>&#10004;&nbsp;";
               mResultStream += "Success!";
- 	      mResultStream += "</h3>";
+              mResultStream += "</h3>";
             }
             else
             {
@@ -858,37 +772,37 @@ ProcCommand::MakeResult ()
       // ------------------------------------------------------------------------
       if (!stdJson.length())
       {
-	Json::Value json;
-	Json::Value jsonresult;
-	json["errormsg"] = stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
-	std::string sretc;
-	json["retc"] = (long long) retc;
+        Json::Value json;
+        Json::Value jsonresult;
+        json["errormsg"] = stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
+        std::string sretc;
+        json["retc"] = (long long) retc;
 
 
-	std::string line;
-	std::stringstream ss;
-	ss.str(stdOut.c_str());
-	do
-	{
-	  Json::Value jsonentry;
-	  line.clear();
-	  if (!std::getline(ss,line))
-	    break;
+        std::string line;
+        std::stringstream ss;
+        ss.str(stdOut.c_str());
+        do
+        {
+          Json::Value jsonentry;
+          line.clear();
+          if (!std::getline(ss,line))
+            break;
 
-	  if (!line.length())
-	    continue;
+          if (!line.length())
+            continue;
 
 
-	  XrdOucString sline = line.c_str();
-	  while (sline.replace("<n>","n")){}
-	  while (sline.replace("?configstatus@rw","_rw")) {}
-	  line = sline.c_str();
+          XrdOucString sline = line.c_str();
+          while (sline.replace("<n>","n")){}
+          while (sline.replace("?configstatus@rw","_rw")) {}
+          line = sline.c_str();
 
-	  std::map <std::string , std::string> map;
-	  
-	  eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
+          std::map <std::string , std::string> map;
+
+          eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
           // these values violate the JSON hierarchy and have to be rewritten
-	  
+
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
@@ -900,24 +814,24 @@ ProcCommand::MakeResult ()
           eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer","geotagbalancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "geobalancer","geobalancer.status");
           eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer","groupbalancer.status");
-	  
-	  for (auto it=map.begin(); it!=map.end(); ++it)
-	  {
 
-	    std::vector<std::string> token;
-	    eos::common::StringConversion::Tokenize(it->first, token, ".");
+          for (auto it=map.begin(); it!=map.end(); ++it)
+          {
 
-	    char* conv;
-	    double val;
-	    errno = 0;
-	    val = strtod(it->second.c_str(), &conv);
-	    std::string value;
-	    if (it->second.length())
-	      value = it->second.c_str();
-	    else
-	      value = "NULL";
+            std::vector<std::string> token;
+            eos::common::StringConversion::Tokenize(it->first, token, ".");
 
-	    if(token.empty()) continue;
+            char* conv;
+            double val;
+            errno = 0;
+            val = strtod(it->second.c_str(), &conv);
+            std::string value;
+            if (it->second.length())
+              value = it->second.c_str();
+            else
+              value = "NULL";
+
+            if(token.empty()) continue;
 
             auto *jep = &(jsonentry[token[0]]);
             for(int i=1;i<(int)token.size();i++)
@@ -925,50 +839,50 @@ ProcCommand::MakeResult ()
               jep = &((*jep)[token[i]]);
             }
 
-	    if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
-	    {
-	      // non numeric
+            if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
+            {
+              // non numeric
               (*jep) = value;
-	    }
-	    else
-	    {
-	      // numeric
-	      (*jep) = val;
-	    }
-	  }
-	  jsonresult.append(jsonentry);
-	} while (1);
-	
-	if (mCmd.length())
-	{
-	  if (mSubCmd.length())
-	    json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
-	  else
-	    json[mCmd.c_str()] = jsonresult;
-	}
-	else
-	  json["result"] = jsonresult;
+            }
+            else
+            {
+              // numeric
+              (*jep) = val;
+            }
+          }
+          jsonresult.append(jsonentry);
+        } while (1);
 
-	std::stringstream r;
-	r << json;
-	if (mJsonCallback.length())
-	{
-	  // JSONP
-	  mResultStream = mJsonCallback;
-	  mResultStream += "([\n";
-	  mResultStream += r.str().c_str();
-	  mResultStream += "\n]);";
-	}
-	else 
-	{
-	  // JSON
-	  mResultStream = r.str().c_str();
-	}
+        if (mCmd.length())
+        {
+          if (mSubCmd.length())
+            json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
+          else
+            json[mCmd.c_str()] = jsonresult;
+        }
+        else
+          json["result"] = jsonresult;
+
+        std::stringstream r;
+        r << json;
+        if (mJsonCallback.length())
+        {
+          // JSONP
+          mResultStream = mJsonCallback;
+          mResultStream += "([\n";
+          mResultStream += r.str().c_str();
+          mResultStream += "\n]);";
+        }
+        else
+        {
+          // JSON
+          mResultStream = r.str().c_str();
+        }
       }
       else
       {
-	mResultStream = "mgm.proc.json=";
-	mResultStream += stdJson;
+        mResultStream = "mgm.proc.json=";
+        mResultStream += stdJson;
       }
     }
     if (!mResultStream.endswith('\n'))
@@ -1164,7 +1078,5 @@ table
   }
   return ok;
 }
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_END
-
