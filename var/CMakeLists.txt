@@ -35,8 +35,15 @@ install(DIRECTORY DESTINATION /usr/lib/tmpfiles.d/)
 install(
   FILES
   eos/html/error.html
-  DESTINATION ${CMAKE_INSTALL_LOCALSTATEDIR}/eos/html/
+  DESTINATION /var/eos/html/
   PERMISSIONS OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+install(
+  FILES
+  eos/test/fuse/untar/untar.tgz
+  eos/test/fuse/untar/xrootd.tgz
+  DESTINATION /var/eos/test/fuse/untar/
+  PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
 
 install(
   FILES
