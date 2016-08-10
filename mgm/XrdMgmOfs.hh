@@ -903,6 +903,16 @@ public:
   //------------------------------------------------------------------------------
   bool SubmitBackupJob(const std::string& job_opaque);
 
+  //------------------------------------------------------------------------------
+  //! Get set of pending backups i.e. return the path of the backup operations
+  //! that are still pending at the MGM.
+  //!
+  //! @return vector of ArchDirStatus object representing the status of the
+  //!         pending backup operations
+  //------------------------------------------------------------------------------
+  std::vector<ProcCommand::ArchDirStatus>
+  GetPendingBkps();
+
   // ---------------------------------------------------------------------------
   // configuration variables
   // ---------------------------------------------------------------------------
@@ -1049,10 +1059,10 @@ public:
   int mFstGwPort; ///< FST gateway redirect port, default 1094
 
  private:
-  eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
+  eos::common::Mapping::VirtualIdentity vid; ///< Virtual identity
   pthread_t mSubmitterTid; ///< Archive submitter thread
   XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
-  std::list<std::string> mBackupsList; ///< Backup jobs queue
+  std::list<std::string> mPendingBkps; ///< Backup jobs queue
 
   //----------------------------------------------------------------------------
   //! Static method to start a thread that will queue, build and submit backup
