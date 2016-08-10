@@ -33,7 +33,11 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Constructor
+//                            *** TwindowFilter ***
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+// File/dir filter constructor
 //------------------------------------------------------------------------------
 TwindowFilter::TwindowFilter(const std::string& twindow_type,
                              const std::string& twindow_val):
@@ -97,6 +101,10 @@ TwindowFilter::FilterOutDir(const std::string& path)
 }
 
 //------------------------------------------------------------------------------
+//                            *** ProcCommand ***
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
 // Backup command
 //------------------------------------------------------------------------------
 int ProcCommand::Backup()
@@ -127,8 +135,9 @@ int ProcCommand::Backup()
   // If local path we assume local EOS instance
   if (src_url.GetProtocol() == "file")
   {
-    if (*src_surl.rbegin() != '/')
+    if (*src_surl.rbegin() != '/') {
       src_surl += '/';
+    }
 
     oss << "root://" << gOFS->ManagerId << "/" << src_surl;
     src_url.FromString(oss.str());
@@ -181,6 +190,7 @@ int ProcCommand::Backup()
   {
     stdErr = "error: failed listing backup destination directory";
     retc = EIO;
+    delete response;
     return SFS_OK;
   }
 
@@ -188,6 +198,7 @@ int ProcCommand::Backup()
   {
     stdErr = "error: backup destination directory is not empty";
     retc = EIO;
+    delete response;
     return SFS_OK;
   }
 
@@ -199,9 +210,8 @@ int ProcCommand::Backup()
   std::string twindow_val = (pOpaque->Get("mgm.backup.vtime") ?
                              pOpaque->Get("mgm.backup.vtime") : "");
 
-  if (!twindow_type.empty()
-      && twindow_type != "ctime"
-      && twindow_type != "mtime")
+  if (!twindow_type.empty()  && (twindow_type != "ctime")
+      && (twindow_type != "mtime"))
   {
     stdErr = "error: unkown time window type, should be ctime/mtime";
     retc = EINVAL;
@@ -220,11 +230,27 @@ int ProcCommand::Backup()
     set_xattrs.insert(token);
   }
 
+  // If create flag is not present then put job in the queue
+  if (!pOpaque->Get("mgm.backup.create"))
+  {
+    int envlen;
+    std::string job_spec = pOpaque->Env(envlen);
+
+    if (!gOFS->SubmitBackupJob(job_spec))
+    {
+      eos_err("error=\"backup job already pending\"");
+      stdErr = "error: identic backup job already pending";
+      retc = EINVAL;
+    }
+
+    return SFS_OK;
+  }
+
+  // Do the actual tree scan and build the backup file
   retc = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
 
   if (!retc)
   {
-    // Check if this is an incremental backup with a time windown
     std::string bfile_url = dst_url.GetURL();
     bfile_url += EOS_COMMON_PATH_BACKUP_FILE_PREFIX;
     bfile_url += "backup.file";

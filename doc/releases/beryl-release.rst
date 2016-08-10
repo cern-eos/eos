@@ -10,6 +10,11 @@ Beryl Release Notes
 ``V0.3.195 Aquamarine``
 +++++++++++++++++++++++
 
+Bug Fix
++++++++
+
+- FUSE: fix possible size inconsistency after utimes call storing size=0 in kernel cache 
+
 New Features
 ++++++++++++
 

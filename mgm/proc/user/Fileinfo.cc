@@ -774,13 +774,13 @@ ProcCommand::DirInfo (const char* path)
 	dmd->getMTime(mtime);
 	dmd->getTMTime(tmtime);
 
-	fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
-                static_cast<long long int>(ctime.tv_sec),
-                static_cast<long long int>(ctime.tv_nsec),
-                static_cast<long long int>(mtime.tv_sec),
-                static_cast<long long int>(mtime.tv_nsec),
-                static_cast<long long int>(tmtime.tv_sec),
-                static_cast<long long int>(tmtime.tv_sec));
+	//fprintf(stderr,"%lli.%lli %lli.%lli %lli.%lli\n",
+        //        static_cast<long long int>(ctime.tv_sec),
+        //        static_cast<long long int>(ctime.tv_nsec),
+        //        static_cast<long long int>(mtime.tv_sec),
+        //        static_cast<long long int>(mtime.tv_nsec),
+        //        static_cast<long long int>(tmtime.tv_sec),
+        //        static_cast<long long int>(tmtime.tv_sec));
 
         time_t filectime = (time_t) ctime.tv_sec;
         time_t filemtime = (time_t) mtime.tv_sec;

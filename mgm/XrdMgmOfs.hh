@@ -979,7 +979,26 @@ public:
   // ---------------------------------------------------------------------------
   void FsConfigListener ();
 
-  
+  //------------------------------------------------------------------------------
+  //! Add backup job to the queue to be picked up by the archive/backup submitter
+  //! thread.
+  //!
+  //! @param job_opaque string representing the opaque information necessary for
+  //!        the backup operation to be executed
+  //! @return true if submission successful, otherwise false
+  //------------------------------------------------------------------------------
+  bool SubmitBackupJob(const std::string& job_opaque);
+
+  //------------------------------------------------------------------------------
+  //! Get set of pending backups i.e. return the path of the backup operations
+  //! that are still pending at the MGM.
+  //!
+  //! @return vector of ArchDirStatus object representing the status of the
+  //!         pending backup operations
+  //------------------------------------------------------------------------------
+  std::vector<ProcCommand::ArchDirStatus>
+  GetPendingBkps();
+
   // ---------------------------------------------------------------------------
   // configuration variables
   // ---------------------------------------------------------------------------
@@ -1176,6 +1195,28 @@ private:
   //! Initialize MGM statistics to 0
   //----------------------------------------------------------------------------
   void InitStats();
+
+  pthread_t mSubmitterTid; ///< Archive submitter thread
+  XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
+  std::list<std::string> mPendingBkps; ///< Backup jobs queue
+
+  //----------------------------------------------------------------------------
+  //! Static method to start a thread that will queue, build and submit backup
+  //! operations to the archiver daemon.
+  //!
+  //! @param arg mgm object
+  //----------------------------------------------------------------------------
+  static void* StartArchiveSubmitter(void* arg);
+
+  //----------------------------------------------------------------------------
+  //! Implementation of the archive/backup submitter thread
+  //----------------------------------------------------------------------------
+  void* ArchiveSubmitter();
+
+  //------------------------------------------------------------------------------
+  //! Stop the submitted thread and join
+  //------------------------------------------------------------------------------
+  void StopArchiveSubmitter();
 };
 /*----------------------------------------------------------------------------*/
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

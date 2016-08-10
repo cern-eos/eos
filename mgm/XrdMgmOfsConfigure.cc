@@ -1908,6 +1908,15 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     NoGo = 1;
   }
 
+  eos_info("starting archive submitter thread");
+
+  if (XrdSysThread::Run(&mSubmitterTid, XrdMgmOfs::StartArchiveSubmitter,
+                        static_cast<void*>(this), XRDSYSTHREAD_HOLD,
+                        "Archive/backup submitter thread"))
+  {
+    eos_crit("cannot start archive/backup submitter thread");
+    NoGo = 1;
+  }
 
   if (!MgmRedirector)
   {

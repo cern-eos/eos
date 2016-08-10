@@ -144,16 +144,15 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
     mCapabilityValidity(3600),
+    deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0),
     mFstGwHost(""),
-    mFstGwPort(0)
+    mFstGwPort(0),
+    mSubmitterTid(0)
 {
   eDest = ep;
   ConfigFN = 0;
   eos::common::LogId();
   eos::common::LogId::SetSingleShotLogId();
-
-  fsconfiglistener_tid = stats_tid = deletion_tid = 0;
-  mZmqContext = new zmq::context_t(1);
 }
 
 //------------------------------------------------------------------------------
@@ -466,3 +465,126 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Static method to start a thread that will queue, build and submit backup
+// operations to the archiver daemon.
+//------------------------------------------------------------------------------
+void*
+XrdMgmOfs::StartArchiveSubmitter(void* arg)
+{
+  return reinterpret_cast<XrdMgmOfs*>(arg)->ArchiveSubmitter();
+}
+
+//------------------------------------------------------------------------------
+// Method to stop the submitter thread
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::StopArchiveSubmitter()
+{
+  XrdSysThread::Cancel(mSubmitterTid);
+  XrdSysThread::Join(mSubmitterTid, NULL);
+}
+
+//------------------------------------------------------------------------------
+// Implementation of the archive/backup sumitter thread
+//------------------------------------------------------------------------------
+void*
+XrdMgmOfs::ArchiveSubmitter()
+{
+  ProcCommand pcmd;
+  XrdSysTimer timer;
+  std::string job_opaque;
+  XrdOucString std_out, std_err;
+  int max, running, pending;
+  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::Mapping::Root(root_vid);
+  eos_debug("msg=\"starting archive/backup submitter thread\"");
+  std::ostringstream cmd_json;
+  cmd_json << "{\"cmd\": \"stats\", "
+           << "\"opt\": \"\", "
+           << "\"uid\": \"0\", "
+           << "\"gid\": \"0\" }";
+
+  while (1)
+  {
+    XrdSysThread::SetCancelOff();
+    {
+      XrdSysMutexHelper lock(mJobsQMutex);
+
+      if (!mPendingBkps.empty())
+      {
+        // Check if archiver has slots available
+        if (!pcmd.ArchiveExecuteCmd(cmd_json.str()))
+        {
+          std_out.resize(0);
+          std_err.resize(0);
+          pcmd.AddOutput(std_out, std_err);
+
+          if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
+                      &max, &running, &pending) == 3))
+          {
+            while ((running + pending < max) && !mPendingBkps.empty())
+            {
+              running++;
+              job_opaque = mPendingBkps.back();
+              mPendingBkps.pop_back();
+              job_opaque += "&mgm.backup.create=1";
+
+              if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0))
+              {
+                pcmd.AddOutput(std_out, std_err);
+                eos_err("failed backup, msg=\"%s\"", std_err.c_str());
+              }
+            }
+          }
+        }
+        else
+        {
+          eos_err("failed to send stats command to archive daemon");
+        }
+      }
+    }
+
+    XrdSysThread::SetCancelOn();
+    timer.Wait(5000);
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Submit backup job
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::SubmitBackupJob(const std::string& job_opaque)
+{
+  XrdSysMutexHelper lock(mJobsQMutex);
+  auto it = std::find(mPendingBkps.begin(), mPendingBkps.end(), job_opaque);
+
+  if (it == mPendingBkps.end())
+  {
+    mPendingBkps.push_front(job_opaque);
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Get vector of pending backups
+//------------------------------------------------------------------------------
+std::vector<ProcCommand::ArchDirStatus>
+XrdMgmOfs::GetPendingBkps()
+{
+  std::vector<ProcCommand::ArchDirStatus> bkps;
+  XrdSysMutexHelper lock(mJobsQMutex);
+
+  for (auto it = mPendingBkps.begin(); it != mPendingBkps.end(); ++it)
+  {
+    XrdOucEnv opaque(it->c_str());
+    bkps.emplace_back("N/A", "N/A", opaque.Get("mgm.backup.dst"), "backup",
+                      "pending at MGM");
+  }
+
+  return bkps;
+}

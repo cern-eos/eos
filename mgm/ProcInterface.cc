@@ -52,20 +52,6 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /**
- * Constructor 
- */
-ProcInterface::ProcInterface () { }
-
-/*----------------------------------------------------------------------------*/
-/**
- * Destructor 
- */
-
-/*----------------------------------------------------------------------------*/
-ProcInterface::~ProcInterface () { }
-
-/*----------------------------------------------------------------------------*/
-/**
  * Check if a path indicates a proc command
  * @param path input path for a proc command
  * @return true if proc command otherwise false
