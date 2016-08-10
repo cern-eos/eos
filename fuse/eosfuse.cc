@@ -505,7 +505,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
    // the stat above bypasses the local consistency cache
    off_t csize = LayoutWrapper::CacheAuthSize(ino);
    if (csize>0)
-     newattr.st_size = attr->st_size;
+     newattr.st_size = csize;
 
    if (to_set & FUSE_SET_ATTR_SIZE)
    {
