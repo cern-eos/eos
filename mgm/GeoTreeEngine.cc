@@ -127,11 +127,8 @@ const unsigned char GeoTreeEngine::sntFilesystem=1,GeoTreeEngine::sntDataproxy=4
 std::map<std::string,unsigned char> GeoTreeEngine::gQueue2NotifType;
 const unsigned char GeoTreeEngine::fsTypeEosReplica=1, GeoTreeEngine::fsTypeEosPIO=2, GeoTreeEngine::fsTypeKinetic=4, GeoTreeEngine::fstTypeAll=255;
 
-bool GeoTreeEngine::forceRefresh()
+bool GeoTreeEngine::forceRefreshSched()
 {
-  // signal a pause to the background updating
-  PauseUpdater();
-
   // prevent any other use of the fast structures
   pAddRmFsMutex.LockWrite();
   pTreeMapMutex.LockWrite();
@@ -159,10 +156,20 @@ bool GeoTreeEngine::forceRefresh()
   pTreeMapMutex.UnLockWrite();
   updateTreeInfo(gNotificationsBufferFs,gNotificationsBufferDp);
   pAddRmFsMutex.UnLockWrite();
+
+  return true;
+}
+
+bool GeoTreeEngine::forceRefresh()
+{
+  // signal a pause to the background updating
+  PauseUpdater();
+  // do the refreshes
+  bool result = forceRefreshSched() && rebuildAllPxyGr();
   // signal a resume to the background updating
   ResumeUpdater();
 
-  return true;
+  return result;
 }
 
 bool GeoTreeEngine::insertFsIntoGroup(FileSystem *fs ,
@@ -3849,6 +3856,40 @@ bool GeoTreeEngine::matchHostPxyGr(FsNode *host , const std::string &status, boo
     eos_debug("success");
   }
 
+  return true;
+}
+
+bool GeoTreeEngine::rebuildAllPxyGr(bool updateFastStructures)
+{
+  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+
+  auto som = eos::common::GlobalConfig::gConfig.SOM();
+  som->HashMutex.LockRead();
+  std::vector<std::string> vproxygroups;
+  for(auto it=FsView::gFsView.mNodeView.begin(); it!=FsView::gFsView.mNodeView.end(); it++)
+  {
+    XrdMqSharedHash *hash = NULL;
+    std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+        it->second->GetConfigQueuePrefix(), it->first.c_str());
+    if ((hash = som->GetObject(nodeconfigname.c_str(), "hash")))
+    {
+      if(hash)
+      vproxygroups.push_back( hash->Get("proxygroups") );
+    }
+    else
+      eos_static_warning("cannot read config queue for node %s",it->first.c_str());
+  }
+  som->HashMutex.UnLockRead();
+
+  auto vit = vproxygroups.begin();
+  for(auto it=FsView::gFsView.mNodeView.begin(); it!=FsView::gFsView.mNodeView.end(); it++)
+  {
+    if(!matchHostPxyGr(it->second,*(vit++),false,false))
+    {
+      eos_static_err("updating proxy tree for node %s failed!",it->first.c_str());
+      return false;
+    }
+  }
   return true;
 }
 
