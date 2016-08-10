@@ -1554,8 +1554,14 @@ public:
   // ---------------------------------------------------------------------------
   static const unsigned char fsTypeEosReplica, fsTypeEosPIO, fsTypeKinetic, fstTypeAll;
   // ---------------------------------------------------------------------------
-  //! Force a refresh of the information in the tree
-  //! It's needed only a startup time as some change notification might be missed
+  //! Force a refresh of the information in the scheduling trees
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool forceRefreshSched();
+
+  // ---------------------------------------------------------------------------
+  //! Force a refresh of the information in the scheduling trees and in theproxy trees
   // @return
   //   true if success false else
   // ---------------------------------------------------------------------------
@@ -1931,6 +1937,13 @@ public:
   //   true if success false else
   // ---------------------------------------------------------------------------
   bool matchHostPxyGr(FsNode *host , const std::string &status, bool lockFsView, bool updateFastStructures = true);
+
+  //! Rebuild all the proxy trees in the GeotreeEngine
+  // @return
+  //   true if success false else
+  // ---------------------------------------------------------------------------
+  bool rebuildAllPxyGr(bool updateFastStructures = true);
+
 };
 
 extern GeoTreeEngine gGeoTreeEngine;
