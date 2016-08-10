@@ -48,12 +48,19 @@ namespace eos
         pQuotaStats = pFileSvc->pQuotaStats;
       }
 
+      virtual void publishOffset(uint64_t offset) 
+      {
+	pFileSvc->setFollowOffset(offset);
+      }
+
       //------------------------------------------------------------------------
       // Unpack new data and put it in the queue
       //------------------------------------------------------------------------
       virtual bool processRecord( uint64_t offset, char type,
                                   const eos::Buffer &buffer )
       {
+	publishOffset(offset);
+
         //----------------------------------------------------------------------
         // Update
         //----------------------------------------------------------------------
@@ -592,7 +599,6 @@ extern "C"
       pthread_setcancelstate( PTHREAD_CANCEL_DISABLE, 0 );
       offset = file->follow( &f, offset );
       f.commit();
-      fileSvc->setFollowOffset(offset);
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
       file->wait(pollInt);
     }

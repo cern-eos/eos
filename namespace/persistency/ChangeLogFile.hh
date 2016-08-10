@@ -47,6 +47,14 @@ namespace eos
       //------------------------------------------------------------------------
       virtual bool processRecord( uint64_t offset, char type,
                                   const Buffer &buffer ) = 0;
+
+    
+      //------------------------------------------------------------------------
+      //! Publish latest off
+      //! Get's called with latest offset position of the scan process
+      //! @return void
+      //------------------------------------------------------------------------
+      virtual void publishOffset(uint64_t offset) {}
   };
 
   //----------------------------------------------------------------------------
