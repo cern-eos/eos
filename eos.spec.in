@@ -210,6 +210,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %dir %attr(700,daemon,daemon) /var/eos
 %dir %attr(755,daemon,daemon) /var/log/eos
 %dir %attr(755,daemon,daemon) /var/log/eos/fuse
+%attr(555,daemon,daemon) /var/eos/html/error.html
 
 %post -n eos-server
 /sbin/chkconfig --add eos
@@ -454,12 +455,13 @@ Group: Applications/File
 Requires: eos-server cadaver bc
 
 %description -n eos-test
-Contains an instance test script and some test executables.
+Contains an instance and fuse test script and some test executables and test archives.
 
 %files -n eos-test
 %defattr(-, root, root, -)
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-rain-test
+%{_sbindir}/eos-fuse-test
 %{_sbindir}/xrdcpabort
 %{_sbindir}/xrdcpappend
 %{_sbindir}/xrdcpposixcache
@@ -475,6 +477,8 @@ Contains an instance test script and some test executables.
 %{_sbindir}/xrdstress.exe
 %{_sbindir}/eos-io-test
 %{_sbindir}/eos-io-tool
+%attr(444,daemon,daemon) /var/eos/test/fuse/untar/untar.tgz
+%attr(444,daemon,daemon) /var/eos/test/fuse/untar/xrootd.tgz
 
 #-------------------------------------------------------------------------------
 # Package eos-cleanup

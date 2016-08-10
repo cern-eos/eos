@@ -128,7 +128,7 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 install(
-  PROGRAMS xrdstress eos-instance-test eos-rain-test eoscp-rain-test eos-io-test eos-oc-test
+  PROGRAMS xrdstress eos-instance-test fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-oc-test
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR}
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE

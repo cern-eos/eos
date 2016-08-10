@@ -528,7 +528,7 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
   eos::common::Mapping::VirtualIdentity_t root_ident;
   eos::common::Mapping::Root(root_ident);
   XrdOucErrInfo out_error;
-  XrdMgmOfsDirectory proc_dir;
+  XrdMgmOfsDirectory proc_dir = XrdMgmOfsDirectory();
   int retc = proc_dir._open(gOFS->MgmProcArchivePath.c_str(),
                             root_ident, static_cast<const char*>(0));
 
@@ -726,7 +726,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
   std::ostringstream oss;
   oss << "/tmp/eos.mgm/archive." << XrdSysThread::ID();
   std::string arch_fn = oss.str();
-  std::ofstream arch_ofs(arch_fn.c_str());
+  std::fstream arch_ofs(arch_fn.c_str());
 
   if (!arch_ofs.is_open())
   {
@@ -1052,8 +1052,8 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 //------------------------------------------------------------------------------
 int
 ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
-                               std::ofstream& arch_ofs,
-                               int& num, bool is_file)
+                               std::fstream& ofs, int& num, bool is_file,
+                               IFilter* filter)
 {
   num = 0;
   std::map<std::string, std::string> info_map;
@@ -1147,7 +1147,6 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
 
     unseal_str = XrdOucString(line.c_str());
     line = XrdMqMessage::UnSeal(unseal_str);
-    num++;
     line_iss.clear();
     line_iss.str(line);
 
@@ -1226,42 +1225,61 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     rel_path = info_map["file"];
     rel_path.erase(0, arch_dir.length());
 
-    if (rel_path.empty())
+    if (rel_path.empty()) {
       rel_path = "./";
+    }
+
+    info_map["file"] = rel_path;
+    // TODO(esindril): The file path should be base64 encoded to avoid any surprises
 
     if (is_file)
     {
-      arch_ofs << "[\"f\", \"" << rel_path << "\", "
-               << "\"" << info_map["size"] << "\", "
-               << "\"" << info_map["mtime"] << "\", "
-               << "\"" << info_map["ctime"] << "\", "
-               << "\"" << info_map["uid"] << "\", "
-               << "\"" << info_map["gid"] << "\", "
-               << "\"" << info_map["mode"] << "\", "
-               << "\"" << info_map["xstype"] << "\", "
-               << "\"" << info_map["xs"] << "\"]"
-               << std::endl;
+      // Filter out file entries if necessary
+      if (filter && filter->FilterOutFile(info_map))
+      {
+        continue;
+      }
+
+      ofs << "[\"f\", \"" << info_map["file"] << "\", "
+          << "\"" << info_map["size"] << "\", "
+          << "\"" << info_map["mtime"] << "\", "
+          << "\"" << info_map["ctime"] << "\", "
+          << "\"" << info_map["uid"] << "\", "
+          << "\"" << info_map["gid"] << "\", "
+          << "\"" << info_map["mode"] << "\", "
+          << "\"" << info_map["xstype"] << "\", "
+          << "\"" << info_map["xs"] << "\"]"
+          << std::endl;
     }
     else
     {
-      arch_ofs << "[\"d\", \"" << rel_path << "\", "
-               << "\"" << info_map["uid"] << "\", "
-               << "\"" << info_map["gid"] << "\", "
-               << "\"" << info_map["mode"] << "\", "
-               << "{";
+      // Filter out directory entries if necessary
+      if (filter && filter->FilterOutDir(info_map["file"]))
+      {
+        continue;
+      }
+
+      ofs << "[\"d\", \"" << info_map["file"] << "\", "
+          << "\"" << info_map["uid"] << "\", "
+          << "\"" << info_map["gid"] << "\", "
+          << "\"" << info_map["mode"] << "\", "
+          << "{";
 
       for (auto it = attr_map.begin(); it != attr_map.end(); /*empty*/)
       {
-        arch_ofs << "\"" << it->first << "\": \"" << it->second << "\"";
+        ofs << "\"" << it->first << "\": \"" << it->second << "\"";
         ++it;
 
-        if (it != attr_map.end())
-          arch_ofs << ", ";
+        if (it != attr_map.end()) {
+          ofs << ", ";
+        }
       }
 
-      arch_ofs << "}]" << std::endl;
+      ofs << "}]" << std::endl;
       attr_map.clear();
     }
+
+    num++;
   }
 
   delete[] tmp_buff;
