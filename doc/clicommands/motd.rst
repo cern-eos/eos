@@ -3,4 +3,4 @@ motd
 
 .. code-block:: text
 
-   motd : message of the day
+  motd :                 Message of the day

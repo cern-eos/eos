@@ -3,4 +3,4 @@ mkdir
 
 .. code-block:: text
 
-   usage: mkdir -p <path>                                                :  create directory <path>
+  usage: mkdir -p <path>                                                :  create directory <path>

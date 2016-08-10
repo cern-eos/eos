@@ -3,4 +3,4 @@ version
 
 .. code-block:: text
 
-   version : verbose client/server version
+  version :              Verbose client/server version

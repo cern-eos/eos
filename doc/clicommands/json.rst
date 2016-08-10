@@ -3,4 +3,4 @@ json
 
 .. code-block:: text
 
-   json : toggle JSON output flag for stdout
+  json :                 Toggle JSON output flag for stdout

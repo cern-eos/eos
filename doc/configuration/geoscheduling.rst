@@ -1,7 +1,7 @@
 .. highlight:: rst
 
 .. index::
-   single: File Geoscheduling
+   pair: File Geoscheduling; GEOTAG
 
 File Geoscheduling
 ==================
@@ -114,15 +114,19 @@ Here follows the list of these parameters.
 
 Internal state
 ~~~~~~~~~~~~~~
-The internal state of the GeoTreeEngine is essentially composed of *scheduling trees* and *snapshots*. It also includes the penalty accounting table and the fs age/latency report. 
-The former can be obtained with commands
+The internal state of the GeoTreeEngine is essentially composed of *scheduling trees* and *snapshots*. 
+They can be displayed with commands
 
 ::
 
    geosched show tree
    geosched show snapshot
+
+.. warning::
+      
+      By design, information attached to the trees might not be up-to-date. Contrary to the snapshots that should be keep up-to-date.
    
-and the latter with the command
+The internal state also includes the penalty accounting table and the fs age/latency report. They can be displayed with the command
 
 ::
 
@@ -272,6 +276,13 @@ The list of inhibited branches for each operation can be managed with the comman
    geosched disabled add
    geosched disabled rm
    geosched disabled show
+
+.. warning:: 
+   By default, placing data to ungeotagged fs is disabled. That means that for very basic instances (like dev ones), this disabling should be removed by the command
+   
+   ::
+   
+      geosched disabled rm nogeotag * *
 
 One can foresee multiple applications for this. An example can be found in **the default value that forbids any placement operation to a non-geotagged filesystem**.
 

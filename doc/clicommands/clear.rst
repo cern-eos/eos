@@ -3,4 +3,4 @@ clear
 
 .. code-block:: text
 
-   [H[2J
+  [3;J[H[2J

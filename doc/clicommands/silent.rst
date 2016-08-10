@@ -3,4 +3,4 @@ silent
 
 .. code-block:: text
 
-   silent : toggle silent flag for stdout
+  silent :               Toggle silent flag for stdout

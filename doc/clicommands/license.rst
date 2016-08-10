@@ -3,4 +3,4 @@ license
 
 .. code-block:: text
 
-   license : display Software License
+  license :              Display Software License

@@ -3,4 +3,4 @@ exit
 
 .. code-block:: text
 
-   exit : exit from EOS console
+  exit :                 Exit from EOS console

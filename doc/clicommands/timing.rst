@@ -3,4 +3,4 @@ timing
 
 .. code-block:: text
 
-   timing : toggle timing flag for execution time measurement
+  timing :               Toggle timing flag for execution time measurement

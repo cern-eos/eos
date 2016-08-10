@@ -3,4 +3,4 @@ pwd
 
 .. code-block:: text
 
-   pwd : print working directory
+  pwd :                  Print working directory
