@@ -5,7 +5,7 @@
 
 
 Configuration
-===============================
+=============
 
 .. toctree::
    :maxdepth: 1
@@ -23,6 +23,7 @@ Configuration
    configuration/lru
    configuration/master
    configuration/permission
+   configuration/proxys
    configuration/quota
    configuration/recyclebin
    configuration/scheduler
