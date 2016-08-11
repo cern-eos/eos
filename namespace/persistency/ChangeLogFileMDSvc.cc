@@ -426,7 +426,7 @@ namespace eos
 		 (current->getFlags() & QUOTA_NODE_FLAG) == 0 )
 	    current = pContSvc->getContainerMD( current->getParentId() );
 	}
-	catch( MDException &e ) {}
+	catch( MDException &e )
 	{
 	  // The corresponding container is not there (yet).
 	  // We catch this exception and accept this extremely rare condition and resulting miscounting
