@@ -109,6 +109,7 @@ com_fileinfo_usage:
   fprintf(stdout, "                                                                 --size  :  selects to add the size information to the output\n");
   fprintf(stdout, "                                                              --checksum :  selects to add the checksum information to the output\n");
   fprintf(stdout, "                                                              --fullpath :  selects to add the full path information to each replica\n");
+  fprintf(stdout, "                                                              --proxy    :  selects to add the proxy information if any\n");
   fprintf(stdout, "                                                                  -m     :  print single line in monitoring format\n");
   fprintf(stdout, "                                                                  --env  :  print in OucEnv format\n");
   fprintf(stdout, "                                                                  -s     :  silent - used to run as internal command\n");

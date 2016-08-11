@@ -26,6 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
+#include "mgm/Quota.hh"
 #include "common/LayoutId.hh"
 
 /*----------------------------------------------------------------------------*/
@@ -305,7 +306,7 @@ ProcCommand::FileInfo (const char* path)
           }
         }
 
-        if (Monitoring || (!(option.length())) || (option == "--fullpath") || (option == "-m"))
+        if (Monitoring || (!(option.length())) || (option == "--fullpath") || (option == "--proxy") || (option == "-m"))
         {
           char ctimestring[4096];
           char mtimestring[4096];
@@ -502,7 +503,17 @@ ProcCommand::FileInfo (const char* path)
 
           eos::IFileMD::LocationVector::const_iterator lociter;
           eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+          // scheduling stuff to get the proxy scheduling
+          std::vector<unsigned int> selectedfs;
+          std::vector<std::string> proxys;
+          std::vector<std::string> firewalleps;
+          std::vector<unsigned int> unavailfs;
+          std::vector<unsigned int> replacedfs;
+          std::vector<unsigned int>::const_iterator sfs;
+          size_t fsIndex;
+          Scheduler::AccessArguments acsargs;
           int i = 0;
+          int schedretc = -1;
           for (lociter = loc_vect.begin(); lociter != loc_vect.end(); ++lociter)
           {
             // ignore filesystem id 0
@@ -533,6 +544,8 @@ ProcCommand::FileInfo (const char* path)
                   std::string out = "";
                   stdOut += " #   fs-id  ";
                   std::string format = "header=1|indent=12|headeronly=1|key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
+                  if((option.find("-proxy")) != STR_NPOS)
+                    format += "|sep= |key=proxygroup:width=24:format=s";
                   filesystem->Print(out, format);
                   stdOut += out.c_str();
                 }
@@ -544,8 +557,59 @@ ProcCommand::FileInfo (const char* path)
 
                 std::string out = "";
                 std::string format = "key=host:width=24:format=s|sep= |sep= |key=schedgroup:width=16:format=s|sep= |key=path:width=16:format=s|sep= |key=stat.boot:width=10:format=s|sep= |key=configstatus:width=14:format=s|sep= |key=stat.drain:width=12:format=s|sep= |key=stat.active:width=8:format=s|sep= |key=stat.geotag:width=24:format=s";
+                if((option.find("-proxy")) != STR_NPOS)
+                format += "|sep= |key=proxygroup:width=24:format=s";
                 filesystem->Print(out, format);
                 stdOut += out.c_str();
+                if( (filesystem->GetString("proxygroup").size()) && (filesystem->GetString("proxygroup")!="<none>") &&
+                    filesystem->GetString("filestickyproxydepth").size() && filesystem->GetLongLong("filestickyproxydepth")>=0 )
+                {
+                  // we do the scheduling only once when we meet a filesystem that requires it
+                  if(schedretc == -1)
+                  {
+                    acsargs.bookingsize=fmd->getSize();
+                    acsargs.dataproxys=&proxys;
+                    acsargs.firewallentpts=NULL;
+                    acsargs.forcedfsid=0;
+                    std::string space = filesystem->GetString("schedgroup");
+                    space.resize(space.rfind("."));
+                    acsargs.forcedspace=space.c_str();
+                    acsargs.fsindex=&fsIndex;
+                    acsargs.isRW=false;
+                    acsargs.lid=fmd->getLayoutId();
+                    acsargs.inode=(ino64_t) fmd->getId();
+                    acsargs.locationsfs=&selectedfs;
+                    for(auto it=loc_vect.begin(); it!=loc_vect.end();it++)
+                      selectedfs.push_back(*it);
+                    std::string stried_cgi="";
+                    acsargs.tried_cgi=&stried_cgi;
+                    acsargs.unavailfs=&unavailfs;
+                    acsargs.vid=&vid;
+
+                    if (!acsargs.isValid())
+                    {
+                      // there is something wrong in the arguments of file access
+                      eos_static_err("open - invalid access argument");
+                    }
+
+                    schedretc = Quota::FileAccess(&acsargs);
+
+                    if(schedretc)
+                    eos_static_warning("cannot schedule the proxy");
+                  }
+
+                  if(schedretc)
+                  {
+                    stdOut += "     sticky to undefined";
+                  }
+                  else
+                  {
+                    stdOut += "sticky to ";
+                    int k;
+                    for( k=0; k<loc_vect.size() && selectedfs[k]!=loc_vect[i]; k++ );
+                    stdOut += proxys[k].c_str();
+                  }
+                }
               }
               else
               {
