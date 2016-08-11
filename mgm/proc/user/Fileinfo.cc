@@ -806,6 +806,9 @@ ProcCommand::DirInfo (const char* path)
           stdOut = "  Directory: '";
           stdOut += spath;
           stdOut += "'";
+	  stdOut += "  Treesize: ";
+	  stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getTreeSize());
+	  stdOut += "\n";
           stdOut += "  Container: ";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_containers);
           stdOut += "  Files: ";
@@ -864,6 +867,9 @@ ProcCommand::DirInfo (const char* path)
           stdOut += "file=";
           stdOut += spath;
           stdOut += " ";
+	  stdOut += "treesize=";
+	  stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long) fmd->getTreeSize());
+	  stdOut += " ";
           stdOut += "container=";
           stdOut += eos::common::StringConversion::GetSizeString(sizestring, (unsigned long long)num_containers);
           stdOut += " ";
