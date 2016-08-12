@@ -49,7 +49,8 @@ public:
   ~TwindowFilter() {};
 
   //----------------------------------------------------------------------------
-  //! Filter the file entry
+  //! Filter file entry if it is a version file i.e. contains ".sys.v#." or if
+  //! it is ouside the timewindow
   //!
   //! @param entry_info entry information on which the filter is applied
   //!

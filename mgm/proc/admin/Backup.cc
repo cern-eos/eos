@@ -46,12 +46,21 @@ TwindowFilter::TwindowFilter(const std::string& twindow_type,
 {}
 
 //----------------------------------------------------------------------------
-// Filter the current file entry
+// Filter file entry if it is a version file i.e. contains ".sys.v#." or if
+// it is ouside the timewindow
 //----------------------------------------------------------------------------
 bool
 TwindowFilter::FilterOutFile(
     const std::map<std::string, std::string>& entry_info)
 {
+  std::string path = entry_info.find("file")->second;
+
+  // Filter if this is a version file
+  if (path.find(".sys.v#.") != std::string::npos)
+  {
+    return true;
+  }
+
   const auto iter = entry_info.find(mTwindowType);
 
   if (iter == entry_info.end())
@@ -64,13 +73,13 @@ TwindowFilter::FilterOutFile(
   float value = strtof(svalue.c_str(), &end);
   float ref_value = strtof(mTwindowVal.c_str(), &end);
 
+  // Filter if ouside the timewindow
   if (value < ref_value)
   {
     return true;
   }
 
   // Extract directory/ies that need to stay - we try to remove empty dirs
-  std::string path = entry_info.find("file")->second;
   size_t pos = 0;
 
   while ((pos = path.rfind('/')) != std::string::npos)
@@ -334,12 +343,8 @@ ProcCommand::BackupCreate(const std::string& src_surl,
     return retc;
   }
 
-  std::unique_ptr<IFilter> filter;
-
-  if (!twindow_type.empty() && !twindow_val.empty())
-  {
-    filter.reset(new TwindowFilter(twindow_type, twindow_val));
-  }
+  // Create filter
+  std::unique_ptr<IFilter> filter (new TwindowFilter(twindow_type, twindow_val));
 
   // Add files info
   if (ArchiveAddEntries(src_url.GetPath(), files_ofs, num_files,
