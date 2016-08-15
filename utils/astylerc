@@ -1,0 +1,42 @@
+# Indent with 2 spaces
+--indent=spaces=2
+
+# Style
+--style=otbs
+
+# Break long logical conditionals
+--break-after-logical
+
+# Delete empty lines within a method
+--delete-empty-lines
+
+#unpad all
+--unpad-paren
+
+# Pad empty lines around header blocks
+--break-blocks
+
+# Pad header blocks like if, while, for etc.
+--pad-header
+
+# Pad operators
+--pad-oper
+
+# Convert tabs to spaces
+--convert-tabs
+
+# Align pointers
+--align-pointer=type
+
+# Align references
+--align-reference=type
+
+# Set the maximum line length to 80
+--max-code-length=80
+
+# Break closing headers ('else', 'catch') from their immeditate preceding
+# closing brackets
+--break-closing-brackets
+
+# Add brackets to one liners
+--add-brackets
