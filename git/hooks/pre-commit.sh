@@ -25,12 +25,8 @@
 #-------------------------------------------------------------------------------
 # Description: Pre-commit script which is called automatically when executing
 # the git commit command. The commit will fail if the script returns a non-zero
-# value. The script applies the Astyle formatting to all file added in the
-# current commit.
+# value. It applies Astyle formatting to all files added in the current commit.
 #-------------------------------------------------------------------------------
-
-# Exit if there is any error
-set -e
 
 # Check for astyle executable
 ASTYLE=$(which astyle)
@@ -44,15 +40,15 @@ fi
 # Set the astyle options to be used
 GIT_ROOT=$(git rev-parse --show-toplevel)
 ARTISTIC_STYLE_OPTIONS=$(cat ${GIT_ROOT}/utils/astylerc | grep -v '^#' | tr '\n' ' ')
-# echo "Astyle options: ${ARTISTIC_STYLE_OPTIONS}"
+#echo "Astyle options: ${ARTISTIC_STYLE_OPTIONS}"
 
 # Grab all the files to be commited i.e. the ones added to the local index
-FILES=`git diff --cached --name-only --diff-filter=ACMR | grep -E "\.(c|h|cpp|hpp|cc|hh)$"`
+FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "\.(c|h|cpp|hpp|cc|hh)$")
+set -e
 
 for FILE in ${FILES}; do
     ${ASTYLE} ${ARTISTIC_STYLE_OPTIONS} -n ${FILE}
     git add ${FILE}
 done
 
-echo "Return 0"
 exit 0
