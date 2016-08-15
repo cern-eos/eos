@@ -170,9 +170,13 @@ XrdMgmOfs::chksum (XrdSfsFileSystem::csFunc Func,
     return SFS_ERROR;
   }
 
+  // Set the checksum type
+  std::string cksum_type = eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+  sprintf(buff, "!%s ", cksum_type.c_str());
+
   // copy the checksum buffer
   const char *hv = "0123456789abcdef";
-  size_t j = 0;
+  size_t j = strlen(buff);
   for (size_t i = 0; i < eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId()); i++)
   {
 
