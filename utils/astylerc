@@ -10,7 +10,7 @@
 # Delete empty lines within a method
 --delete-empty-lines
 
-#unpad all
+# Unpad all
 --unpad-paren
 
 # Pad empty lines around header blocks
