@@ -68,47 +68,27 @@ class IFilter
 {
 public:
   //----------------------------------------------------------------------------
-  //! Type of the filter
-  //----------------------------------------------------------------------------
-  enum Type
-  {
-    kFile, ///< File filter
-    kDir,  ///< Directory filter
-    kNone
-  };
-
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param type filter type
-  //----------------------------------------------------------------------------
-  IFilter(Type type = Type::kNone): mType(type) {};
-
-  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~IFilter() {};
 
   //----------------------------------------------------------------------------
-  //! Filter the current entry
+  //! Filter the file entry
   //!
   //! @param entry_info entry information on which the filter is applied
   //!
   //! @return true if entry should be filtered out, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool FilterOut(const std::map<std::string, std::string>& entry_info) = 0;
+  virtual bool FilterOutFile(const std::map<std::string, std::string>& entry_info) = 0 ;
 
   //----------------------------------------------------------------------------
-  //! Get filter type
+  //! Filter the directory entry
   //!
-  //! @return type of the filter
+  //! @param path current directory path
+  //!
+  //! @return true if entry should be filtered out, otherwise false
   //----------------------------------------------------------------------------
-  Type GetType() const {
-    return mType;
-  }
-
- private:
-  Type mType; ///< Filter type
+  virtual bool FilterOutDir(const std::string& path) = 0;
 };
 
 
@@ -359,7 +339,7 @@ private:
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  int ArchiveAddEntries(const std::string& arch_dir, std::ofstream& arch_ofs,
+  int ArchiveAddEntries(const std::string& arch_dir, std::fstream& arch_ofs,
                         int& num, bool is_file, IFilter* filter = NULL);
 
   //----------------------------------------------------------------------------

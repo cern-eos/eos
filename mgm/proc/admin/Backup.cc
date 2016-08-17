@@ -24,6 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include <string>
 #include <iomanip>
+#include <fstream>
 /*----------------------------------------------------------------------------*/
 #include "mgm/proc/admin/Backup.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -36,16 +37,16 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 TwindowFilter::TwindowFilter(const std::string& twindow_type,
                              const std::string& twindow_val):
-    IFilter(IFilter::Type::kFile),
     mTwindowType(twindow_type),
     mTwindowVal(twindow_val)
 {}
 
 //----------------------------------------------------------------------------
-//! Filter the current entry
+// Filter the current file entry
 //----------------------------------------------------------------------------
 bool
-TwindowFilter::FilterOut(const std::map<std::string, std::string>& entry_info)
+TwindowFilter::FilterOutFile(
+    const std::map<std::string, std::string>& entry_info)
 {
   const auto iter = entry_info.find(mTwindowType);
 
@@ -64,7 +65,35 @@ TwindowFilter::FilterOut(const std::map<std::string, std::string>& entry_info)
     return true;
   }
 
+  // Extract directory/ies that need to stay - we try to remove empty dirs
+  std::string path = entry_info.find("file")->second;
+  size_t pos = 0;
+
+  while ((pos = path.rfind('/')) != std::string::npos)
+  {
+    path = path.substr(0, pos + 1);
+    mSetDirs.insert(path);
+    path = path.substr(0, pos);
+  }
+
+  // Always add root directory
+  mSetDirs.insert("./");
   return false;
+}
+
+//----------------------------------------------------------------------------
+// Filter the current dir entry
+//----------------------------------------------------------------------------
+bool
+TwindowFilter::FilterOutDir(const std::string& path)
+{
+  if (mSetDirs.find(path) != mSetDirs.end())
+  {
+    return false;
+  }
+
+  eos_info("Filter out directory=%s", path.c_str());
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -136,6 +165,7 @@ int ProcCommand::Backup()
   if (!stat_info->TestFlags(XrdCl::StatInfo::IsReadable) ||
       !stat_info->TestFlags(XrdCl::StatInfo::IsWritable))
   {
+    delete stat_info;
     stdErr = "error: backup destination is not readable or writable";
     retc = EPERM;
     return SFS_OK;
@@ -214,7 +244,6 @@ int ProcCommand::Backup()
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Create backup file which uses functionality from the archive mechanism
 //------------------------------------------------------------------------------
@@ -253,59 +282,32 @@ ProcCommand::BackupCreate(const std::string& src_surl,
     return retc;
   }
 
-  std::ofstream backup_ofs(backup_fn.c_str());
+  // Create tmp file holding information about the file entries. If twindow
+  // specified then also use a filter object.
+  std::string files_fn = backup_fn + "_files";
+  std::fstream files_ofs(files_fn.c_str(), std::fstream::out | std::fstream::trunc);
 
-  if (!backup_ofs.is_open())
+  if (!files_ofs.is_open())
   {
-    eos_err("Failed to open local backup file:%s", backup_fn.c_str());
+    eos_err("Failed to create files backup file=%s", files_fn.c_str());
+    stdErr = "failed to create backup file at MGM ";
+    retc = EIO;
+    return retc;
+  }
+
+  files_ofs.clear();
+  files_ofs.close();
+  files_ofs.open(files_fn.c_str(), std::fstream::in | std::fstream::out);
+
+  if (!files_ofs.is_open())
+  {
+    unlink(files_fn.c_str());
+    eos_err("Failed to open files backup file=%s", files_fn.c_str());
     stdErr = "failed to open backup file at MGM ";
     retc = EIO;
     return retc;
   }
 
-  // Write backup JSON header leaving blank the fields for the number of
-  // files/dirs and timestamp which will be filled in later on.
-  // Note: we treat backups as archive get operations from tape to disk
-  // therefore we need to swap the src and destination in the header
-  backup_ofs << "{"
-             << "\"src\": \"" << dst_surl << "\", "
-             << "\"dst\": \"" << src_surl << "\", "
-             << "\"svc_class\": \"\", "
-             << "\"dir_meta\": [\"uid\", \"gid\", \"mode\", \"attr\"], "
-             << "\"file_meta\": [\"size\", \"mtime\", \"ctime\", \"uid\", \"gid\", "
-             << "\"mode\", \"xstype\", \"xs\"], "
-             << "\"excl_xattr\": [";
-
-  // Add the list of excluded xattrs
-  for (auto it = excl_xattr.begin(); it != excl_xattr.end(); /*empty*/)
-  {
-    backup_ofs << "\"" << *it << "\"";
-    ++it;
-
-    if (it != excl_xattr.end())
-      backup_ofs << ", ";
-  }
-
-  backup_ofs << "], "
-             << "\"uid\": \"" << pVid->uid << "\", "
-             << "\"gid\": \"" << pVid->gid << "\", "
-             << "\"twindow_type\": \"" << twindow_type << "\", "
-             << "\"twindow_val\": \"" << twindow_val << "\", "
-             << "\"timestamp\": " << std::setw(10) << "" << ", "
-             << "\"num_dirs\": " << std::setw(10) << "" << ", "
-             << "\"num_files\": " << std::setw(10) << ""
-             << "}" << std::endl;
-
-  // Add directories info
-  if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_dirs,
-                        false))
-  {
-    backup_ofs.close();
-    unlink(backup_fn.c_str());
-    return retc;
-  }
-
-  // Create a filter object if twindow entries specified for files
   std::unique_ptr<IFilter> filter;
 
   if (!twindow_type.empty() && !twindow_val.empty())
@@ -314,15 +316,71 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   }
 
   // Add files info
-  if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_files,
+  if (ArchiveAddEntries(src_url.GetPath(), files_ofs, num_files,
                         true, filter.get()) || (num_files == 0))
   {
-    backup_ofs.close();
-    unlink(backup_fn.c_str());
+    files_ofs.close();
+    unlink(files_fn.c_str());
     return retc;
   }
 
-  // Rewind the stream and update the header with the number of files and dirs
+  // Create tmp file holding information about the dir entries
+  std::string dirs_fn = backup_fn + "_dirs";
+  std::fstream dirs_ofs(dirs_fn.c_str() , std::fstream::out | std::fstream::trunc);
+
+  if (!dirs_ofs.is_open())
+  {
+    files_ofs.close();
+    unlink(files_fn.c_str());
+    eos_err("Failed to create local backup file=%s", dirs_fn.c_str());
+    stdErr = "failed to create backup file at MGM ";
+    retc = EIO;
+    return retc;
+  }
+
+  dirs_ofs.clear();
+  dirs_ofs.close();
+  dirs_ofs.open(dirs_fn.c_str(), std::fstream::in | std::fstream::out);
+
+  if (!dirs_ofs.is_open())
+  {
+    files_ofs.close();
+    unlink(files_fn.c_str());
+    unlink(dirs_fn.c_str());
+    eos_err("Failed to open dirs backup file=%s", dirs_fn.c_str());
+    stdErr = "failed to open backup file at MGM ";
+    retc = EIO;
+    return retc;
+  }
+
+  // Add dirs info
+  if (ArchiveAddEntries(src_url.GetPath(), dirs_ofs, num_dirs, false,
+                        filter.get()))
+  {
+    files_ofs.close();
+    unlink(files_fn.c_str());
+    dirs_ofs.close();
+    unlink(dirs_fn.c_str());
+    return retc;
+  }
+
+  // Create the final backup file, write JSON header, append dir and file info
+  std::fstream backup_ofs(backup_fn.c_str(), std::fstream::out);
+
+  if (!backup_ofs.is_open())
+  {
+    eos_err("Failed to open local backup file=%s", backup_fn.c_str());
+    stdErr = "failed to open backup file at MGM ";
+    retc = EIO;
+    files_ofs.close();
+    unlink(files_fn.c_str());
+    dirs_ofs.close();
+    unlink(dirs_fn.c_str());
+    return retc;
+  }
+
+  // Note: we treat backups as archive get operations from tape to disk
+  // therefore we need to swap the src and destination in the header
   num_dirs--; // don't count current dir
   backup_ofs.seekp(0);
   backup_ofs << "{"
@@ -355,6 +413,18 @@ ProcCommand::BackupCreate(const std::string& src_surl,
              << "\"num_dirs\": " << std::setw(10) << num_dirs << ", "
              << "\"num_files\": " << std::setw(10) << num_files
              << "}" << std::endl;
+
+  // Append the directory entries
+  dirs_ofs.seekp(0);
+  backup_ofs << dirs_ofs.rdbuf();
+
+  // Append the file entries
+  files_ofs.seekp(0);
+  backup_ofs << files_ofs.rdbuf();
+
+  // Close all files
+  files_ofs.close();
+  dirs_ofs.close();
   backup_ofs.close();
 
   // Copy local backup file to backup destination
@@ -382,7 +452,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
     if (!status_run.IsOK())
     {
-      eos_err("Failed run for copy process, msg=", status_run.ToStr().c_str());
+      eos_err("Failed run for copy process, msg=%s", status_run.ToStr().c_str());
       stdErr = "error: failed run for copy process, msg=";
       stdErr += status_run.ToStr().c_str();
       retc = EIO;
@@ -390,37 +460,17 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   }
   else
   {
-    eos_err("Failed prepare for copy process, msg=", status_prep.ToStr().c_str());
+    eos_err("Failed prepare for copy process, msg=%s", status_prep.ToStr().c_str());
     stdErr = "error: failed prepare for copy process, msg=";
     stdErr += status_prep.ToStr().c_str();
     retc = EIO;
   }
 
-  // Remove local backup file
+  // Remove local files
+  unlink(files_fn.c_str());
+  unlink(dirs_fn.c_str());
   unlink(backup_fn.c_str());
   return retc;
 }
 
-/*
-//------------------------------------------------------------------------------
-// Filter the entries that will make it into the backup
-//------------------------------------------------------------------------------
-bool
-ProcCommand::BackupFileFilter(std::map<std::string, std::string>& info_map,
-                              const std::string& type, const std::string& value)
-{
-  if (info_map.find(type) == info_map.end()) {
-    return true;
-  }
-
-  float filter_val = std::stof(value)
-  float entry_val = std::stof(info_map[filter_type]);
-
-  if (entry_val < filter_val) {
-    return false;
-  }
-
-  return true;
-}
-*/
 EOSMGMNAMESPACE_END
