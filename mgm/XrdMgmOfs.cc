@@ -147,21 +147,31 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 /******************************************************************************/
 /******************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep) :
-mFstGwHost (""),
-mFstGwPort (0)
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
+    deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0),
+    mFstGwHost(""), mFstGwPort(0), mSubmitterTid(0)
 {
   eDest = ep;
   ConfigFN = 0;
   eos::common::LogId();
   eos::common::LogId::SetSingleShotLogId();
-
-  fsconfiglistener_tid = stats_tid = deletion_tid = 0;
-
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
+XrdMgmOfs::~XrdMgmOfs()
+{
+  StopArchiveSubmitter();
+}
+
+//------------------------------------------------------------------------------
+// This is just kept to be compatible with standard OFS plugins, but it is not
+// used for the moment.
+//------------------------------------------------------------------------------
 bool
 XrdMgmOfs::Init (XrdSysError &ep)
 /*----------------------------------------------------------------------------*/
@@ -172,7 +182,6 @@ XrdMgmOfs::Init (XrdSysError &ep)
  */
 /*----------------------------------------------------------------------------*/
 {
-
   return true;
 }
 
@@ -754,6 +763,7 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
   return stime;
 }
 
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::Redirect (XrdOucErrInfo &error,
@@ -786,6 +796,7 @@ XrdMgmOfs::Redirect (XrdOucErrInfo &error,
   return SFS_REDIRECT;
 }
 
+
 /*----------------------------------------------------------------------------*/
 void*
 XrdMgmOfs::StartMgmStats (void *pp)
@@ -804,4 +815,109 @@ XrdMgmOfs::StartMgmFsConfigListener (void *pp)
   XrdMgmOfs* ofs = (XrdMgmOfs*) pp;
   ofs->FsConfigListener();
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Static method to start a thread that will queue, build and submit backup
+// operations to the archiver daemon.
+//------------------------------------------------------------------------------
+void*
+XrdMgmOfs::StartArchiveSubmitter(void* arg)
+{
+  return reinterpret_cast<XrdMgmOfs*>(arg)->ArchiveSubmitter();
+}
+
+//------------------------------------------------------------------------------
+// Method to stop the submitter thread
+//------------------------------------------------------------------------------
+void
+XrdMgmOfs::StopArchiveSubmitter()
+{
+  XrdSysThread::Cancel(mSubmitterTid);
+  XrdSysThread::Join(mSubmitterTid, NULL);
+}
+
+//------------------------------------------------------------------------------
+// Implementation of the archive/backup sumitter thread
+//------------------------------------------------------------------------------
+void*
+XrdMgmOfs::ArchiveSubmitter()
+{
+  ProcCommand pcmd;
+  XrdSysTimer timer;
+  XrdOucString std_out, std_err;
+  int max, running, pending;
+  eos::common::Mapping::VirtualIdentity root_vid;
+  eos::common::Mapping::Root(root_vid);
+  eos_debug("msg=\"starting archive/backup submitter thread\"");
+  std::ostringstream cmd_json;
+  cmd_json << "{\"cmd\": \"stats\", "
+           << "\"opt\": \"\", "
+           << "\"uid\": \"0\", "
+           << "\"gid\": \"0\" }";
+
+  while (1)
+  {
+    XrdSysThread::SetCancelOff();
+    {
+      XrdSysMutexHelper lock(mJobsQMutex);
+      eos_info("run submitter thread loop");
+
+      if (!mBackupsList.empty())
+      {
+        eos_info("backups queue not empty");
+        // Check if archiver has slots available
+        if (!pcmd.ArchiveExecuteCmd(cmd_json.str()))
+        {
+          std_out.resize(0);
+          std_err.resize(0);
+          pcmd.AddOutput(std_out, std_err);
+          eos_info("archiver status=%s", std_out.c_str());
+
+          if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
+                      &max, &running, &pending) == 3) &&
+              (running + pending <= max))
+          {
+            eos_info("add new job");
+            std::string job_opaque = mBackupsList.back();
+            mBackupsList.pop_back();
+            job_opaque += "&mgm.backup.create=1";
+
+            if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0))
+            {
+              pcmd.AddOutput(std_out, std_err);
+              eos_err("failed backup, msg=\"%s\"", std_err.c_str());
+            }
+          }
+        }
+        else
+        {
+          eos_err("failed to send stats command to archive daemon");
+        }
+      }
+    }
+
+    XrdSysThread::SetCancelOn();
+    timer.Wait(5000);
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Submit backup job
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::SubmitBackupJob(const std::string& job_opaque)
+{
+  XrdSysMutexHelper lock(mJobsQMutex);
+  auto it = std::find(mBackupsList.begin(), mBackupsList.end(), job_opaque);
+
+  if (it == mBackupsList.end())
+  {
+    mBackupsList.push_front(job_opaque);
+    return true;
+  }
+
+  return false;
 }
