@@ -99,8 +99,9 @@ LayoutWrapper::LayoutWrapper(eos::fst::Layout* file) :
 //------------------------------------------------------------------------------
 LayoutWrapper::~LayoutWrapper()
 {
-  if (mCacheCreator)
+  if (mCacheCreator) {
     (*mCache).resize(mMaxOffset);
+  }
 
   delete mFile;
 }
@@ -278,15 +279,15 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
         eos_static_err("failed to lazy open request %s at url %s code=%d "
                        "errno=%d - repair failed", request.c_str(),
                        user_url.c_str(), status.code, status.errNo);
-	errno = status.errNo;
+        errno = status.errNo;
         return -1;
       }
       else
       {
         // Reissue the open
-	SyncResponseHandler handler;
-	fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
-	status = handler.Sync(response);
+        SyncResponseHandler handler;
+        fs.Query (XrdCl::QueryCode::OpaqueFile, arg, &handler);
+        status = handler.Sync(response);
 
         if (!status.IsOK())
         {
@@ -294,7 +295,7 @@ int LayoutWrapper::LazyOpen(const std::string& path, XrdSfsFileOpenMode flags,
                          "errno=%d - still unwritable after repair",
                          request.c_str(), user_url.c_str(), status.code,
                          status.errNo);
-	  errno = status.errNo;
+          errno = status.errNo;
           return -1;
         }
       }
@@ -355,7 +356,6 @@ LayoutWrapper::Repair(const std::string& path, const char* opaque)
     file_path.erase(0, 1);
   }
 
-
   // mgm.zzz is a workaround for a bug in the MGM which does deal properly with potential opaque info for the authentication given as xrd.*
   // the opaque tags are sorted and mgm.zzz protects the subcmd tag which might be corrupted by the following xrd.*
   std::string cmd = "mgm.cmd=file&mgm.subcmd=version&mgm.zzz=ignore&eos.app=fuse&"
@@ -395,7 +395,6 @@ LayoutWrapper::Restore()
   off_t restore_size=0;
   {
     XrdSysMutexHelper l(gCacheAuthorityMutex);
-    
 
     // the file could have been unlinked in the meanwhile or could exceed our local cache size, so no need/way to restore
     if (!mCanCache || (!gCacheAuthority.count(mInode)) || gCacheAuthority[mInode].mPartial)
@@ -409,7 +408,7 @@ LayoutWrapper::Restore()
 
   XrdCl::URL u(mPath.c_str());
   std::string params = "eos.atomic=1&eos.app=restore";
-   
+
   XrdOucEnv env(mOpaque.c_str());
 
   if (env.Get("xrd.wantprot"))
@@ -436,7 +435,7 @@ LayoutWrapper::Restore()
     params += "&eos.encodepath=";
     params += env.Get("eos.encodepath");
   }
-  
+
   u.SetParams(params.c_str());
 
   std::unique_ptr <eos::fst::PlainLayout> file (new eos::fst::PlainLayout(
@@ -449,38 +448,38 @@ LayoutWrapper::Restore()
       eos_static_warning("restore failed to open path=%s - snooze 5s ...", u.GetURL().c_str());
       sleeper.Snooze(5);
     }
-    else 
+    else
     {
       size_t blocksize=4*1024*1024;
       int retc = 0 ;
       for (off_t offset = 0 ; offset < restore_size; offset += blocksize)
       {
-	size_t length = blocksize;
-	if ( (restore_size - offset) < (off_t)blocksize)
-	{
-	  length = restore_size - offset;
-	}
-	char* ptr;
-	if (!(*mCache).peekData (ptr, offset, length))
-	{
-	  (*mCache).releasePeek();
-	  eos_static_err("read-error while restoring : peekData failed");
-	  return false;
-	}
+        size_t length = blocksize;
+        if ( (restore_size - offset) < (off_t)blocksize)
+        {
+          length = restore_size - offset;
+        }
+        char* ptr;
+        if (!(*mCache).peekData (ptr, offset, length))
+        {
+          (*mCache).releasePeek();
+          eos_static_err("read-error while restoring : peekData failed");
+          return false;
+        }
 
-	(*mCache).releasePeek();
+        (*mCache).releasePeek();
 
-	if ( (retc = file->Write(offset, ptr, length)) < 0)
-	{
-	  eos_static_err("write-error while restoring : file %s  opaque %s",
-			 mPath.c_str(), params.c_str());
-	  file->Close();
-	  break;
-	}
-	else
-	{
-	  eos_static_info("restored path=%s offset=%llu length=%lu", mPath.c_str(), offset, length);
-	}
+        if ( (retc = file->Write(offset, ptr, length)) < 0)
+        {
+          eos_static_err("write-error while restoring : file %s  opaque %s",
+                         mPath.c_str(), params.c_str());
+          file->Close();
+          break;
+        }
+        else
+        {
+          eos_static_info("restored path=%s offset=%llu length=%lu", mPath.c_str(), offset, length);
+        }
       }
 
       // retrieve the new inode
@@ -494,19 +493,19 @@ LayoutWrapper::Restore()
 
       if (file->Close())
       {
-	XrdSysTimer sleeper;
-	eos_static_warning("restore failed to close path=%s - snooze 5s ...", u.GetURL().c_str());
-	sleeper.Snooze(5);
+        XrdSysTimer sleeper;
+        eos_static_warning("restore failed to close path=%s - snooze 5s ...", u.GetURL().c_str());
+        sleeper.Snooze(5);
       }
       else
       {
-	XrdSysMutexHelper l(gCacheAuthorityMutex);
-	if (gCacheAuthority.count(mInode))
-	{
-	  gCacheAuthority[mInode].mRestoreInode = newInode;
-	}
-	eos_static_notice("restored path=%s from cache length=%llu inode=%llu new-inode=%llu ", mPath.c_str(), restore_size, mInode, newInode);
-	return true;
+        XrdSysMutexHelper l(gCacheAuthorityMutex);
+        if (gCacheAuthority.count(mInode))
+        {
+          gCacheAuthority[mInode].mRestoreInode = newInode;
+        }
+        eos_static_notice("restored path=%s from cache length=%llu inode=%llu new-inode=%llu ", mPath.c_str(), restore_size, mInode, newInode);
+        return true;
       }
     }
   }
@@ -522,8 +521,9 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
   int retc = 0;
   static int sCleanupTime = 0;
 
-  if (inlineRepair)
+  if (inlineRepair) {
     mInlineRepair = inlineRepair;
+  }
 
   eos_static_debug("opening file %s, lazy open is %d flags=%x inline-repair=%s",
                    path.c_str(), (int)!doOpen, flags, mInlineRepair ? "true" : "false");
@@ -541,7 +541,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
 
   if (buf)
     Utimes(buf);
-  
+
   if (buf)
     mSize = buf->st_size;
 
@@ -552,7 +552,7 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
     if (retc < 0)
       return retc;
 
-    if (getenv("EOS_FUSE_ASYNC_OPEN")) 
+    if (getenv("EOS_FUSE_ASYNC_OPEN"))
     {
       // Do the async open on the FST and return
       eos::fst::PlainLayout* plain_layout = static_cast<eos::fst::PlainLayout*>(mFile);
@@ -596,9 +596,11 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
         XrdCl::URL url (mFile->GetLastUrl ());
         const std::string &username = url.GetUserName ();
         if (!username.empty () && username[0]!='*'
-        && static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo () == kXR_NotAuthorized)
+            && static_cast<eos::fst::PlainLayout*> (mFile)->GetLastErrNo () == kXR_NotAuthorized)
         {
-          eos_static_notice("async open failed for path=%s because of authentication, credentials might have been lost on redirect. Trying to fix with a sync open", path.c_str ());
+          eos_static_notice("async open failed for path=%s because of "
+                            "authentication, credentials might have been lost "
+                            "on redirect. Trying to fix with a sync open", path.c_str ());
         }
         else
         {
@@ -606,14 +608,20 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
           return -1;
         }
 #ifdef STOPONREDIRECT
-        eos_static_notice("async open failed for path=%s, trying to fix it with other replicas", path.c_str ());
+        eos_static_notice("async open failed for path=%s, trying to fix it "
+                          "with other replicas", path.c_str ());
         XrdCl::URL url (mFile->GetLastUrl ());
         sopaque += url.GetHostName ().c_str ();
         sopaque.append (',');
 #endif
       }
-      else // async open ok, don't need a sync open
+      else
+      {
+        // Async open ok, don't need a sync open
         retry = false;
+      }
+
+      mDoneAsyncOpen = false;
     }
 
     std::string _lasturl,_path(path);
@@ -714,7 +722,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       }
       else
         retry = false;
-
     }
 
     // We don't want to truncate the file in case we reopen it
@@ -750,7 +757,6 @@ int LayoutWrapper::Open(const std::string& path, XrdSfsFileOpenMode flags,
       mCanCache = true;
       mCacheCreator = true;
       mSize = gCacheAuthority[mInode].mSize;
-
       eos_static_notice("acquired cap owner-authority for file %s size=%d ino=%lu create=%d truncate=%d",
                         path.c_str(), (*mCache).size(), mInode, flags & SFS_O_CREAT, flags & SFS_O_TRUNC);
     }
@@ -949,9 +955,15 @@ int LayoutWrapper::Sync()
 //------------------------------------------------------------------------------
 int LayoutWrapper::Close()
 {
+  // Wait for any async open in-flight
+  if (mDoneAsyncOpen)
+  {
+    (void) static_cast<eos::fst::PlainLayout*>(mFile)->WaitOpenAsync();
+    mDoneAsyncOpen = false;
+  }
+
   XrdSysMutexHelper mLock(mMakeOpenMutex);
   eos_static_debug("closing file %s ", mPath.c_str());;
-
 
   // for latency simulation purposes
   if (getenv("EOS_FUSE_LAZY_LAG_CLOSE") && mFlags)
