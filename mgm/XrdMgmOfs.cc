@@ -845,6 +845,7 @@ XrdMgmOfs::ArchiveSubmitter()
 {
   ProcCommand pcmd;
   XrdSysTimer timer;
+  std::string job_opaque;
   XrdOucString std_out, std_err;
   int max, running, pending;
   eos::common::Mapping::VirtualIdentity root_vid;
@@ -861,32 +862,31 @@ XrdMgmOfs::ArchiveSubmitter()
     XrdSysThread::SetCancelOff();
     {
       XrdSysMutexHelper lock(mJobsQMutex);
-      eos_info("run submitter thread loop");
 
-      if (!mBackupsList.empty())
+      if (!mPendingBkps.empty())
       {
-        eos_info("backups queue not empty");
         // Check if archiver has slots available
         if (!pcmd.ArchiveExecuteCmd(cmd_json.str()))
         {
           std_out.resize(0);
           std_err.resize(0);
           pcmd.AddOutput(std_out, std_err);
-          eos_info("archiver status=%s", std_out.c_str());
 
           if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
-                      &max, &running, &pending) == 3) &&
-              (running + pending <= max))
+                      &max, &running, &pending) == 3))
           {
-            eos_info("add new job");
-            std::string job_opaque = mBackupsList.back();
-            mBackupsList.pop_back();
-            job_opaque += "&mgm.backup.create=1";
-
-            if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0))
+            while ((running + pending < max) && !mPendingBkps.empty())
             {
-              pcmd.AddOutput(std_out, std_err);
-              eos_err("failed backup, msg=\"%s\"", std_err.c_str());
+              running++;
+              job_opaque = mPendingBkps.back();
+              mPendingBkps.pop_back();
+              job_opaque += "&mgm.backup.create=1";
+
+              if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0))
+              {
+                pcmd.AddOutput(std_out, std_err);
+                eos_err("failed backup, msg=\"%s\"", std_err.c_str());
+              }
             }
           }
         }
@@ -911,13 +911,32 @@ bool
 XrdMgmOfs::SubmitBackupJob(const std::string& job_opaque)
 {
   XrdSysMutexHelper lock(mJobsQMutex);
-  auto it = std::find(mBackupsList.begin(), mBackupsList.end(), job_opaque);
+  auto it = std::find(mPendingBkps.begin(), mPendingBkps.end(), job_opaque);
 
-  if (it == mBackupsList.end())
+  if (it == mPendingBkps.end())
   {
-    mBackupsList.push_front(job_opaque);
+    mPendingBkps.push_front(job_opaque);
     return true;
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Get vector of pending backups
+//------------------------------------------------------------------------------
+std::vector<ProcCommand::ArchDirStatus>
+XrdMgmOfs::GetPendingBkps()
+{
+  std::vector<ProcCommand::ArchDirStatus> bkps;
+  XrdSysMutexHelper lock(mJobsQMutex);
+
+  for (auto it = mPendingBkps.begin(); it != mPendingBkps.end(); ++it)
+  {
+    XrdOucEnv opaque(it->c_str());
+    bkps.emplace_back("N/A", "N/A", opaque.Get("mgm.backup.dst"), "backup",
+                      "pending at MGM");
+  }
+
+  return bkps;
 }
