@@ -24,17 +24,13 @@
 #ifndef __EOSMGM_PROCINTERFACE__HH__
 #define __EOSMGM_PROCINTERFACE__HH__
 
-/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
 #include "proc/proc_fs.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSec/XrdSecEntity.hh"
-
-/*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -241,25 +237,33 @@ public:
   int ArchiveExecuteCmd(const::string& cmd);
 
 private:
-
   //----------------------------------------------------------------------------
   //! Response structre holding information about the status of an archived dir
   //----------------------------------------------------------------------------
   struct ArchDirStatus
   {
-    time_t ctime;
-    std::string path;
-    std::string status;
+    std::string mTime;
+    std::string mUuid;
+    std::string mPath;
+    std::string mOp;
+    std::string mStatus;
 
-    ArchDirStatus(time_t ct, std::string dpath, std::string st):
-      ctime(ct),
-      path(dpath),
-      status(st)
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    ArchDirStatus(const std::string& xtime, const std::string& uuid,
+                  const std::string& path, const std::string& op,
+                  const std::string& st):
+        mTime(xtime), mUuid(uuid), mPath(path), mOp(op), mStatus(st)
     {};
 
+    //--------------------------------------------------------------------------
+    //! Destructor
+    //--------------------------------------------------------------------------
     ~ArchDirStatus() {};
   };
 
+private:
   XrdOucString path; //< path argument for the proc command
   eos::common::Mapping::VirtualIdentity* pVid; //< pointer to virtual identity
   XrdOucString mCmd; //< proc command name
@@ -334,13 +338,13 @@ private:
   //! status "transferring" while the rest will display the status of the
   //! archive.
   //!
-  //! @param dirs vector of archvied directories
-  //! @param tx_dirs set containing the paths of ongoing transfers
-  //! @param max_len_path maximum path length used later for listing
+  //! @param dirs vector of archived directories
+  //! @param tx_dirs vector of ongoing transfers
+  //! @param max_path_len max path length of the entries in the dirs vector
   //----------------------------------------------------------------------------
   void ArchiveUpdateStatus(std::vector<ArchDirStatus>& dirs,
-                           const std::set<std::string>& tx_dirs,
-                           size_t& max_len_path);
+                           std::vector<ArchDirStatus>& tx_dirs,
+                           size_t& max_path_len);
 
   //----------------------------------------------------------------------------
   //! Get fileinfo for all files/dirs in the subtree and add it to the
@@ -397,8 +401,10 @@ private:
   //----------------------------------------------------------------------------
   //! Format listing output. Includes combining the information that we get
   //! from the archiver daemon with the list of pending transfers at the MGM.
+  //!
+  //! @param cmd_json command to be sent to the archive dameon
   //----------------------------------------------------------------------------
-  void ArchiveFormatListing();
+  void ArchiveFormatListing(const std::string& cmd_json);
 
   //----------------------------------------------------------------------------
   //! Create backup file. If successful then the backup file is copied to the
