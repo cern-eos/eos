@@ -192,11 +192,11 @@ class ProcCacheEntry
   UpdateIfPsChanged (ProcCache *procCache);
 
 public:
-  ProcCacheEntry (unsigned int pid) :
+  ProcCacheEntry (unsigned int pid, const char* procpath=0) :
       pPid (pid), pPPid(), pSid(), pFsUid(-1), pFsGid(-1), pStartTime (0), pError (0)
   {
     std::stringstream ss;
-    ss << "/proc/" << pPid;
+    ss << (procpath?procpath:"/proc/") << pPid;
     pProcPrefix = ss.str ();
     pMutex.SetBlocking(true);
   }
@@ -291,11 +291,14 @@ class ProcCache
   std::map<int, ProcCacheEntry*> pCatalog;
   // RWMutex to protect entry
   eos::common::RWMutex pMutex;
+  // path od the proc filesystem
+  std::string pProcPath;
 
 public:
   ProcCache ()
   {
     pMutex.SetBlocking(true);
+    pProcPath = "/proc/";
   }
   ~ProcCache ()
   {
@@ -312,6 +315,12 @@ public:
     return static_cast<bool> (pCatalog.count (pid));
   }
 
+  void
+  SetProcPath (const char *procpath)
+  {
+    pProcPath = procpath;
+  }
+
   //! returns true if the cache has an up-to-date entry after the call
   int
   InsertEntry (int pid)
@@ -322,7 +331,7 @@ public:
     {
       //eos_static_debug("There and pid is %d",pid);
       eos::common::RWMutexWriteLock lock (pMutex);
-      pCatalog[pid] = new ProcCacheEntry (pid);
+      pCatalog[pid] = new ProcCacheEntry (pid,pProcPath.c_str());
     }
     auto entry = GetEntry (pid);
     if ((errCode = entry->UpdateIfPsChanged (this)))
