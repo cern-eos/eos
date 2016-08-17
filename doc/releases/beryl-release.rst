@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.195 Aquamarine``
++++++++++++++++++++++++
+
+New Features
+++++++++++++
+
+- TEST: adding eos-fuse-test suite to eos-test RPM (use eos-fuse-test to display individual test categories)
+
 ``V0.3.194 Aquamarine``
 +++++++++++++++++++++++
 
