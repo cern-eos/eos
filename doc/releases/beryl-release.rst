@@ -7,6 +7,19 @@
 Beryl Release Notes
 ===================
 
+``V0.3.194 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
++++++++
+
+- FUSE: fix truncate bug putting a stall file size after truncate into the kernel cache
+
+New Features
+++++++++++++
+
+- TEST: add test for truncate bug to eos-fuse-test
+
 ``V0.3.193 Aquamarine``
 +++++++++++++++++++++++
 
