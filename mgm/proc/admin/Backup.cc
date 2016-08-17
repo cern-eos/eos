@@ -73,7 +73,9 @@ int ProcCommand::Backup()
   if (dst_url.GetProtocol() == "file")
   {
     if (*dst_surl.rbegin() != '/')
+    {
       dst_surl += '/';
+    }
 
     oss.clear();
     oss.str("");
@@ -141,15 +143,16 @@ int ProcCommand::Backup()
   }
 
   // Get the list of excluded extended attribute values which are not enforced
-  // and not checked druing the verification step
+  // and not checked during the verification step
   std::string token;
   std::string str_xattr = (pOpaque->Get("mgm.backup.excl_xattr") ?
                            pOpaque->Get("mgm.backup.excl_xattr") : "");
   std::set<std::string> set_xattrs;
   std::istringstream iss(str_xattr);
 
-  while (std::getline(iss, token, ','))
+  while (std::getline(iss, token, ',')) {
     set_xattrs.insert(token);
+  }
 
   retc = BackupCreate(src_surl, dst_surl, twindow_type, twindow_val, set_xattrs);
 
@@ -205,7 +208,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
     return retc;
   }
 
-  // own the directory by daemon
+  // Own the directory by daemon
   if (::chown(cPath.GetParentPath(), 2, 2))
   {
     eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
@@ -292,8 +295,9 @@ ProcCommand::BackupCreate(const std::string& src_surl,
     backup_ofs << "\"" << *it << "\"";
     ++it;
 
-    if (it != excl_xattr.end())
+    if (it != excl_xattr.end()) {
       backup_ofs << ", ";
+    }
   }
 
   backup_ofs << "], "
@@ -351,5 +355,26 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   return retc;
 }
 
+/*
+//------------------------------------------------------------------------------
+// Filter the entries that will make it into the backup
+//------------------------------------------------------------------------------
+bool
+ProcCommand::BackupFileFilter(std::map<std::string, std::string>& info_map,
+                              const std::string& type, const std::string& value)
+{
+  if (info_map.find(type) == info_map.end()) {
+    return true;
+  }
 
+  float filter_val = std::stof(value)
+  float entry_val = std::stof(info_map[filter_type]);
+
+  if (entry_val < filter_val) {
+    return false;
+  }
+
+  return true;
+}
+*/
 EOSMGMNAMESPACE_END

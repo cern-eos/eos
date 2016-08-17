@@ -69,22 +69,19 @@ private:
   //----------------------------------------------------------------------------
   //! Response structre holding information about the status of an archived dir
   //----------------------------------------------------------------------------
-
-  struct ArchDirStatus {
+  struct ArchDirStatus
+  {
     time_t ctime;
     std::string path;
     std::string status;
 
-    ArchDirStatus (time_t ct, std::string dpath, std::string st) :
-    ctime (ct),
-    path (dpath),
-    status (st)
-    {
-    };
+    ArchDirStatus(time_t ct, std::string dpath, std::string st):
+      ctime(ct),
+      path(dpath),
+      status(st)
+    {};
 
-    ~ArchDirStatus ()
-    {
-    };
+    ~ArchDirStatus() {};
   };
 
 
@@ -105,11 +102,10 @@ private:
   const char* mSelection; //< selection argument from the opaque request
   XrdOucString mOutFormat; //< output format type e.g. fuse or json
 
-
-  // -------------------------------------------------------------------------
-  //! the 'find' command does not keep results in memory but writes to
+  //----------------------------------------------------------------------------
+  //! The 'find' command does not keep results in memory but writes to
   //! a temporary output file which is streamed to the client
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   FILE* fstdout;
   FILE* fstderr;
   FILE* fresultStream;
@@ -153,11 +149,9 @@ private:
   //!
   //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
-  void ArchiveCreate (const std::string& arch_dir,
-                      const std::string& dst_url,
-                      const std::vector<std::string>& vect_files,
-                      int fid);
-
+  void ArchiveCreate(const std::string& arch_dir,
+                     const std::string& dst_url,
+                     const std::vector<std::string>& vect_files, int fid);
 
   //----------------------------------------------------------------------------
   //! Send command to archive daemon and collect the response
@@ -167,7 +161,7 @@ private:
   //! @return 0 is successful, otherwise errno. The output of the command or
   //!         any possible error messages are saved in stdOut and stdErr.
   //----------------------------------------------------------------------------
-  int ArchiveExecuteCmd (const::string& cmd);
+  int ArchiveExecuteCmd(const::string& cmd);
 
 
   //----------------------------------------------------------------------------
@@ -178,8 +172,7 @@ private:
   //! @return vector containing the full path of the directories currently
   //!         archived
   //----------------------------------------------------------------------------
-  std::vector<ArchDirStatus> ArchiveGetDirs (const std::string& root) const;
-
+  std::vector<ArchDirStatus> ArchiveGetDirs(const std::string& root) const;
 
   //----------------------------------------------------------------------------
   //! Update the status of the archived directories dependin on the infomation
@@ -191,10 +184,9 @@ private:
   //! @param tx_dirs set containing the paths of ongoing transfers
   //! @param max_len_path maximum path length used later for listing
   //----------------------------------------------------------------------------
-  void ArchiveUpdateStatus (std::vector<ArchDirStatus>& dirs,
-                            const std::set<std::string>& tx_dirs,
-                            size_t& max_len_path);
-
+  void ArchiveUpdateStatus(std::vector<ArchDirStatus>& dirs,
+                           const std::set<std::string>& tx_dirs,
+                           size_t& max_len_path);
 
   //----------------------------------------------------------------------------
   //! Get fileinfo for all files/dirs in the subtree and add it to the
@@ -210,11 +202,8 @@ private:
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
-  int ArchiveAddEntries (const std::string& arch_dir,
-                         std::ofstream& arch_ofs,
-                         int& num,
-                         bool is_file);
-
+  int ArchiveAddEntries(const std::string& arch_dir, std::ofstream& arch_ofs,
+                        int& num, bool is_file);
 
   //----------------------------------------------------------------------------
   //! Make EOS sub-tree immutable by adding the sys.acl=z:i rule to all of the
@@ -226,9 +215,8 @@ private:
   //! @return 0 is successful, otherwise errno. It sets the global retc in case
   //!         of error.
   //----------------------------------------------------------------------------
-  int MakeSubTreeImmutable (const std::string& arch_dir,
-                            const std::vector<std::string>& vect_files);
-
+  int MakeSubTreeImmutable(const std::string& arch_dir,
+                           const std::vector<std::string>& vect_files);
 
   //----------------------------------------------------------------------------
   //! Make EOS sub-tree mutable by removing the sys.acl=z:i rule from all of the
@@ -239,19 +227,17 @@ private:
   //! @return 0 is successful, otherwise errno. It sets the global retc in case
   //!         of error.
   //----------------------------------------------------------------------------
-  int MakeSubTreeMutable (const std::string& arch_dir);
-
+  int MakeSubTreeMutable(const std::string& arch_dir);
 
   //----------------------------------------------------------------------------
   //! Check that the user has the necessary permissions to do an archiving
-  //! peration
+  //! operation.
   //!
   //! @param arch_dir archive directory
   //!
   //! @return true if user is allowed, otherwise False
   //----------------------------------------------------------------------------
-  bool ArchiveCheckAcl (const std::string& arch_dir) const;
-
+  bool ArchiveCheckAcl(const std::string& arch_dir) const;
 
   //----------------------------------------------------------------------------
   //! Create backup file. If successful then the backup file is copied to the
@@ -268,12 +254,11 @@ private:
   //! @return 0 if successful, otherwise errno. It sets the global retc in case
   //!         of error
   //----------------------------------------------------------------------------
-  int BackupCreate (const std::string& backup_dir,
-                    const std::string& dst_url,
-                    const std::string& twindow_type,
-                    const std::string& twindow_val,
-                    const std::set<std::string>& excl_xattr);
-
+  int BackupCreate(const std::string& backup_dir,
+                   const std::string& dst_url,
+                   const std::string& twindow_type,
+                   const std::string& twindow_val,
+                   const std::set<std::string>& excl_xattr);
 
 public:
 
@@ -387,41 +372,41 @@ public:
   ~ProcCommand ();
 };
 
-class ProcInterface {
-private:
 
+//------------------------------------------------------------------------------
+//! Class ProcInterface
+//------------------------------------------------------------------------------
+class ProcInterface
+{
 public:
-  // -------------------------------------------------------------------------
-  //! check if a path is requesting a proc commmand
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Check if a path is requesting a proc commmand
+  //----------------------------------------------------------------------------
   static bool IsProcAccess (const char* path);
 
-  // -------------------------------------------------------------------------
-  //! check if a proc command contains a 'write' action on the instance
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Check if a proc command contains a 'write' action on the instance
+  //----------------------------------------------------------------------------
   static bool IsWriteAccess (const char* path, const char* info);
 
-  // -------------------------------------------------------------------------
-  //! authorize if the virtual ID can execute the requested command
-  // -------------------------------------------------------------------------
-  static bool Authorize (
-                         const char* path,
-                         const char* info,
+  //----------------------------------------------------------------------------
+  //! Authorize if the virtual ID can execute the requested command
+  //----------------------------------------------------------------------------
+  static bool Authorize (const char* path, const char* info,
                          eos::common::Mapping::VirtualIdentity &vid,
-                         const XrdSecEntity* entity
-                         );
+                         const XrdSecEntity* entity);
 
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Constructor
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   ProcInterface ();
 
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Destructor
-  // -------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   ~ProcInterface ();
 };
 
 EOSMGMNAMESPACE_END
 
-#endif
+#endif // __EOSMGM_PROCINTERFACE__HH__
