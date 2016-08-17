@@ -172,7 +172,7 @@ class Transfer(object):
     Attributes:
         req_json (JSON): Command received from the EOS MGM. Needs to contains the
             following entries: cmd, src, opt, uid, gid
-        threads (list): List of threads doing parital transfers(CopyProcess jobs)
+        threads (list): List of threads doing partial transfers(CopyProcess jobs)
     """
     def __init__(self, req_json, config):
         self.config = config
