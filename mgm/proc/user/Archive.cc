@@ -1237,6 +1237,7 @@ ProcCommand::ArchiveAddEntries(const std::string& arch_dir,
     }
 
     info_map["file"] = rel_path;
+    // TODO(esindril): The file path should be base64 encoded to avoid any surprises
 
     if (is_file)
     {
