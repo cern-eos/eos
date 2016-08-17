@@ -25,11 +25,47 @@
 #include <string>
 #include <iomanip>
 /*----------------------------------------------------------------------------*/
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/admin/Backup.hh"
 #include "mgm/XrdMgmOfs.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+TwindowFilter::TwindowFilter(const std::string& twindow_type,
+                             const std::string& twindow_val):
+    IFilter(IFilter::Type::kFile),
+    mTwindowType(twindow_type),
+    mTwindowVal(twindow_val)
+{}
+
+//----------------------------------------------------------------------------
+//! Filter the current entry
+//----------------------------------------------------------------------------
+bool
+TwindowFilter::FilterOut(const std::map<std::string, std::string>& entry_info)
+{
+  const auto iter = entry_info.find(mTwindowType);
+
+  if (iter == entry_info.end())
+  {
+    return false;
+  }
+
+  char* end;
+  std::string svalue = iter->second;
+  float value = strtof(svalue.c_str(), &end);
+  float ref_value = strtof(mTwindowVal.c_str(), &end);
+
+  if (value < ref_value)
+  {
+    return true;
+  }
+
+  return false;
+}
 
 //------------------------------------------------------------------------------
 // Backup command
@@ -261,16 +297,25 @@ ProcCommand::BackupCreate(const std::string& src_surl,
              << "}" << std::endl;
 
   // Add directories info
-  if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_dirs, false))
+  if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_dirs,
+                        false))
   {
     backup_ofs.close();
     unlink(backup_fn.c_str());
     return retc;
   }
 
+  // Create a filter object if twindow entries specified for files
+  std::unique_ptr<IFilter> filter;
+
+  if (!twindow_type.empty() && !twindow_val.empty())
+  {
+    filter.reset(new TwindowFilter(twindow_type, twindow_val));
+  }
+
   // Add files info
-  if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_files, true) ||
-      (num_files == 0))
+  if (ArchiveAddEntries(src_url.GetPath(), backup_ofs, num_files,
+                        true, filter.get()) || (num_files == 0))
   {
     backup_ofs.close();
     unlink(backup_fn.c_str());
@@ -295,7 +340,8 @@ ProcCommand::BackupCreate(const std::string& src_surl,
     backup_ofs << "\"" << *it << "\"";
     ++it;
 
-    if (it != excl_xattr.end()) {
+    if (it != excl_xattr.end())
+    {
       backup_ofs << ", ";
     }
   }
