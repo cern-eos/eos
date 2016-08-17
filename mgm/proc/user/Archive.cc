@@ -122,6 +122,9 @@ ProcCommand::Archive()
 
     retc = ArchiveExecuteCmd(cmd_json.str());
 
+    // TODO(esindril): Refactor this code have the list and transfer command
+    // the same formatting mechanism. Avoid doing the formatting on the
+    // eosarchi daemon side.
     if (!retc)
     {
       // Parse response from the archiver regarding ongoing transfers
@@ -286,7 +289,12 @@ ProcCommand::Archive()
         return SFS_OK;
       }
 
-      ArchiveCreate(spath.c_str(), surl, vect_files, fid);
+      if (MakeSubTreeImmutable(spath.c_str(), vect_files))
+      {
+        return retc;
+      }
+
+      ArchiveCreate(spath.c_str(), surl, fid);
       return SFS_OK;
     }
     else if ((mSubCmd == "put") ||
@@ -307,7 +315,7 @@ ProcCommand::Archive()
           arch_err += ARCH_PUT_ERR;
           arch_url += ARCH_PUT_ERR;
         }
-        else if (mSubCmd == "get") // get retry
+        else if (mSubCmd == "get")
         {
           arch_err += ARCH_GET_ERR;
           arch_url += ARCH_GET_ERR;
@@ -448,12 +456,24 @@ ProcCommand::Archive()
 
   // Send request to archiver process if no error occured
   if (!retc)
+  {
     retc = ArchiveExecuteCmd(cmd_json.str());
+  }
 
   eos_debug("retc=%i, stdOut=%s, stdErr=%s", retc, stdOut.c_str(), stdErr.c_str());
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Format listing output. Includes combining the information that we get
+// from the archiver daemon with the list of pending transfers at the MGM.
+//------------------------------------------------------------------------------
+void
+ProcCommand::ArchiveFormatListing()
+{
+
+
+}
 
 //------------------------------------------------------------------------------
 // Get archive status for both already archived directories as well as for dirs
@@ -512,7 +532,6 @@ ProcCommand::ArchiveUpdateStatus(std::vector<ProcCommand::ArchDirStatus>& dirs,
     }
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Get the list of files in proc/arhive whose name represents the fid of the
@@ -588,7 +607,6 @@ ProcCommand::ArchiveGetDirs(const std::string& root) const
 
   return dirs;
 }
-
 
 //------------------------------------------------------------------------------
 // Send command to archive daemon and collect the response
@@ -678,7 +696,6 @@ ProcCommand::ArchiveExecuteCmd(const::string& cmd)
   return retc;
 }
 
-
 //------------------------------------------------------------------------------
 // Check if the current user has the necessary permissions to do an archiving
 // operation
@@ -715,15 +732,10 @@ ProcCommand::ArchiveCheckAcl(const std::string& arch_dir) const
 //------------------------------------------------------------------------------
 void
 ProcCommand::ArchiveCreate(const std::string& arch_dir,
-                           const std::string& dst_url,
-                           const std::vector<std::string>& vect_files,
-                           int fid)
+                           const std::string& dst_url, int fid)
 {
   int num_dirs = 0;
   int num_files = 0;
-
-  if (MakeSubTreeImmutable(arch_dir, vect_files))
-    return;
 
   // Create the output directory if necessary and open the temporary file in
   // which we construct the archive file
@@ -734,7 +746,7 @@ ProcCommand::ArchiveCreate(const std::string& arch_dir,
 
   if (!arch_ofs.is_open())
   {
-    eos_err("failed to open local archive file:%s", arch_fn.c_str());
+    eos_err("failed to open local archive file=%s", arch_fn.c_str());
     stdErr = "failed to open archive file at MGM ";
     retc = EIO;
     return;
@@ -948,7 +960,6 @@ ProcCommand::MakeSubTreeImmutable(const std::string& arch_dir,
   return retc;
 }
 
-
 //----------------------------------------------------------------------------
 // Make EOS sub-tree mutable by removing the sys.acl=z:i rule from all of the
 // directories in the sub-tree.
@@ -1049,7 +1060,6 @@ ProcCommand::MakeSubTreeMutable(const std::string& arch_dir)
 
   return retc;
 }
-
 
 //------------------------------------------------------------------------------
 // Get fileinfo for all files/dirs in the subtree and add it to the archive

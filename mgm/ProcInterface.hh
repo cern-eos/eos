@@ -91,7 +91,6 @@ public:
   virtual bool FilterOutDir(const std::string& path) = 0;
 };
 
-
 //------------------------------------------------------------------------------
 //! Class handling proc command execution
 //------------------------------------------------------------------------------
@@ -99,23 +98,55 @@ class ProcCommand: public eos::common::LogId
 {
 public:
   //----------------------------------------------------------------------------
-  //! The open function calls the requested cmd/subcmd and builds the result
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ProcCommand ();
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ProcCommand ();
+
+  //----------------------------------------------------------------------------
+  //! Open a proc command e.g. call the appropriate user or admin commmand and
+  //! store the output in a resultstream of in case of find in temporary output
+  //! files.
+  //!
+  //! @param inpath path indicating user or admin command
+  //! @param info CGI describing the proc command
+  //! @param vid_in virtual identity of the user requesting a command
+  //! @param error object to store errors
+  //!
+  //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
   int open (const char* path, const char* info,
             eos::common::Mapping::VirtualIdentity &vid, XrdOucErrInfo *error);
 
   //----------------------------------------------------------------------------
   //! Read a part of the result stream created during open
+  //!
+  //! @param mOffset offset where to start
+  //! @param buff buffer to store stream
+  //! @param blen len to return
+  //!
+  //! @return number of bytes read
   //----------------------------------------------------------------------------
   int read (XrdSfsFileOffset offset, char *buff, XrdSfsXferSize blen);
 
   //----------------------------------------------------------------------------
   //! Get the size of the result stream
+  //!
+  //! @param buf stat structure to fill
+  //!
+  //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
   int stat (struct stat* buf);
 
   //----------------------------------------------------------------------------
-  //! Close a proc command
+  //! Close the proc stream and store the clients comment for the command in the
+  //! comment log file
+  //!
+  //! @return 0 if comment has been successfully stored otherwise != 0
   //----------------------------------------------------------------------------
   int close ();
 
@@ -130,15 +161,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! open temporary outputfiles for find commands
+  //! Open temporary outputfiles for find commands
+  //!
+  //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   bool OpenTemporaryOutputFiles ();
 
   //----------------------------------------------------------------------------
-  //! get the return code of a proc command
+  //! Get the return code of a proc command
   //----------------------------------------------------------------------------
-  int
-  GetRetc ()
+  inline int GetRetc ()
   {
     return retc;
   }
@@ -199,14 +231,14 @@ public:
   int Vst ();
 
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Send command to archive daemon and collect the response
+  //!
+  //! @param cmd archive command in JSON format
+  //!
+  //! @return 0 is successful, otherwise errno. The output of the command or
+  //!         any possible error messages are saved in stdOut and stdErr.
   //----------------------------------------------------------------------------
-  ProcCommand ();
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~ProcCommand ();
+  int ArchiveExecuteCmd(const::string& cmd);
 
 private:
 
@@ -227,7 +259,6 @@ private:
 
     ~ArchDirStatus() {};
   };
-
 
   XrdOucString path; //< path argument for the proc command
   eos::common::Mapping::VirtualIdentity* pVid; //< pointer to virtual identity
@@ -279,26 +310,13 @@ private:
   //!
   //! @param arch_dir directory for which the archive file is created
   //! @param dst_url archive destination URL (i.e. CASTOR location)
-  //! @param vect_files vector of special archive filenames
   //! @param fid inode number of the archive root directory used for fast find
   //!        functionality of archived directories through .../proc/archive/
   //!
   //! @return void, it sets the global retc in case of error
   //----------------------------------------------------------------------------
   void ArchiveCreate(const std::string& arch_dir,
-                     const std::string& dst_url,
-                     const std::vector<std::string>& vect_files, int fid);
-
-  //----------------------------------------------------------------------------
-  //! Send command to archive daemon and collect the response
-  //!
-  //! @param cmd archive command in JSON format
-  //!
-  //! @return 0 is successful, otherwise errno. The output of the command or
-  //!         any possible error messages are saved in stdOut and stdErr.
-  //----------------------------------------------------------------------------
-  int ArchiveExecuteCmd(const::string& cmd);
-
+                     const std::string& dst_url, int fid);
 
   //----------------------------------------------------------------------------
   //! Get list of archived files from the proc/archive directory
@@ -311,8 +329,8 @@ private:
   std::vector<ArchDirStatus> ArchiveGetDirs(const std::string& root) const;
 
   //----------------------------------------------------------------------------
-  //! Update the status of the archived directories dependin on the infomation
-  //! that we got from the archiver daemon. All ongoin transfers will be in
+  //! Update the status of the archived directories depending on the infomation
+  //! that we got from the archiver daemon. All ongoing transfers will be in
   //! status "transferring" while the rest will display the status of the
   //! archive.
   //!
@@ -377,6 +395,12 @@ private:
   bool ArchiveCheckAcl(const std::string& arch_dir) const;
 
   //----------------------------------------------------------------------------
+  //! Format listing output. Includes combining the information that we get
+  //! from the archiver daemon with the list of pending transfers at the MGM.
+  //----------------------------------------------------------------------------
+  void ArchiveFormatListing();
+
+  //----------------------------------------------------------------------------
   //! Create backup file. If successful then the backup file is copied to the
   //! backup_dir location. If not it sets the retc and stdErr string accordingly.
   //!
@@ -419,31 +443,47 @@ class ProcInterface
 {
 public:
   //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ProcInterface () {};
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ProcInterface () {};
+
+  //----------------------------------------------------------------------------
   //! Check if a path is requesting a proc commmand
+  //!
+  //! @param path input path for a proc command
+  //!
+  //! @return true if proc command otherwise false
   //----------------------------------------------------------------------------
   static bool IsProcAccess (const char* path);
 
   //----------------------------------------------------------------------------
   //! Check if a proc command contains a 'write' action on the instance
-  //----------------------------------------------------------------------------
+  //!
+  //! @param path input arguments for proc command
+  //! @param info CGI for proc command
+  //!
+  //! @return true if write access otherwise false
+   //----------------------------------------------------------------------------
   static bool IsWriteAccess (const char* path, const char* info);
 
   //----------------------------------------------------------------------------
   //! Authorize if the virtual ID can execute the requested command
+  //!
+  //! @param path specifies user or admin command path
+  //! @param info CGI providing proc arguments
+  //! @param vid virtual id of the client
+  //! @param entity security entity object
+  //!
+  //! @return true if authorized otherwise false
   //----------------------------------------------------------------------------
   static bool Authorize (const char* path, const char* info,
                          eos::common::Mapping::VirtualIdentity &vid,
                          const XrdSecEntity* entity);
-
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
-  ProcInterface ();
-
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
-  ~ProcInterface ();
 };
 
 EOSMGMNAMESPACE_END
