@@ -65,7 +65,8 @@ class Dispatcher(object):
                    self.config.PURGE_OP:  self.start_transfer,
                    self.config.BACKUP_OP: self.start_transfer,
                    self.config.TX_OP:     self.do_show_transfers,
-                   self.config.KILL_OP:   self.do_kill}
+                   self.config.KILL_OP:   self.do_kill,
+                   self.config.STATS:     self.get_stats}
         ctx = zmq.Context.instance()
         self.logger.info("Started dispatcher process ...")
         # Socket used for communication with EOS MGM
@@ -233,7 +234,8 @@ class Dispatcher(object):
         while len(self.procs) < self.config.MAX_TRANSFERS and self.pending:
             (__, pinfo) = self.pending.popitem() # take the oldest one
             # Don't pipe stdout and stderr as we log all the output
-            pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py', "{0}".format(pinfo.orig_req)],
+            pinfo.proc = subprocess.Popen(['/usr/bin/eosarch_run.py',
+                                           "{0}".format(pinfo.orig_req)],
                                           close_fds=True)
             pinfo.pid = pinfo.proc.pid
             self.procs[pinfo.uuid] = pinfo
@@ -378,6 +380,22 @@ class Dispatcher(object):
         self.logger.debug("Kill pid={0}, msg={0}".format(proc.pid, msg))
         return msg
 
+    def get_stats(self, req_json):
+        """ Get archive daemon stats info.
+
+        Args:
+            req_json (JSON command): Arguments for stats command include:
+            {
+              cmd: stats,
+              opt: \"\",
+              uid: uid,
+              gid: gid
+            }
+
+        Returns: string containing information about number of slots
+        """
+        return "OK max={0} running={1} pending={2}".format(
+            self.config.MAX_TRANSFERS, len(self.procs), len(self.pending))
 
 def main():
     """ Main function """
@@ -438,6 +456,6 @@ if __name__ == '__main__':
     try:
         main()
     except ValueError as __:
-        # This is to deal the exception thrown when trying to close the log
-        # file which is already deleted manualy by an exterior process
+        # This is to deal with exceptions thrown when trying to close the log
+        # file which is already deleted manually by an exterior process
         pass
