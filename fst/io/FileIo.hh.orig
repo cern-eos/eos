@@ -24,15 +24,13 @@
 
 #ifndef __EOSFST_FILEIO_HH__
 #define __EOSFST_FILEIO_HH__
-
-/*----------------------------------------------------------------------------*/
-#include <string>
-#include <list>
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/Statfs.hh"
 #include "fst/Namespace.hh"
 #include "fst/XrdFstOfsFile.hh"
+#include <string>
+#include <list>
 /*----------------------------------------------------------------------------*/
 
 //------------------------------------------------------------------------------
@@ -49,6 +47,37 @@ class FileIo : public eos::common::LogId {
 public:
 
   //--------------------------------------------------------------------------
+<<<<<<< HEAD
+=======
+  //! Constructor
+  //!
+  //! @param file original OFS file
+  //! @param client security entity
+  //!
+  //--------------------------------------------------------------------------
+  FileIo () :
+  eos::common::LogId (),
+  mFilePath (""),
+  mLastUrl(""),
+  mLastErrMsg(""),
+  mIsOpen(false)
+  {
+    //empty
+  }
+
+
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+
+  virtual
+  ~FileIo () {
+    //empty
+  }
+
+
+  //--------------------------------------------------------------------------
+>>>>>>> 7c1f8b5965059ac55872b220632da2f60ae4ce9c
   //! Open file
   //!
   //! @param flags open flags
@@ -306,7 +335,6 @@ public:
       mType(ioType),
       mLastUrl(""),
       mLastErrMsg(""),
-	  mIsOpen(false),
       mExternalStorage(false)
   { }
 
@@ -402,8 +430,12 @@ protected:
   std::string mLastErrMsg; ///< last error message seen
   int mLastErrCode; ///< last error code
   int mLastErrNo; ///< last error no
-  bool mIsOpen; ///< Mark if file is opened, so that we close it properly
+<<<<<<< HEAD
+
   bool mExternalStorage; ///< indicates if this is an IO module to talk to an external storage system
+=======
+  bool mIsOpen; ///< Mark if file is opened, so that we close it properly
+>>>>>>> 7c1f8b5965059ac55872b220632da2f60ae4ce9c
 };
 
 EOSFSTNAMESPACE_END

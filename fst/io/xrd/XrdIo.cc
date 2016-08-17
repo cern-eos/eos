@@ -70,6 +70,7 @@ void AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
   {
     // Store the last URL we are connected after open
     mFileIO->mLastUrl = mFileIO->mXrdFile->GetLastURL().GetURL();
+    mFileIO->mIsOpen = true;
   }
   mLayoutOpenHandler->HandleResponseWithHosts(status, 0, 0);
   delete this;
@@ -84,8 +85,7 @@ FileIo (path, "XrdIo"),
 mDoReadahead (false),
 mBlocksize (ReadaheadBlock::sDefaultBlocksize),
 mXrdFile (NULL),
-mMetaHandler (new AsyncMetaHandler ()),
-mIsOpen (false)
+mMetaHandler (new AsyncMetaHandler ())
 {
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
@@ -124,6 +124,10 @@ mIsOpen (false)
 
 XrdIo::~XrdIo ()
 {
+  if(mIsOpen) {
+    fileClose();
+  }
+
   if (mDoReadahead)
   {
     while (!mQueueBlocks.empty())

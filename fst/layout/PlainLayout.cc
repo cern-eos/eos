@@ -319,25 +319,7 @@ PlainLayout::Stat (struct stat* buf)
 int
 PlainLayout::Close ()
 {
-  int rc = SFS_OK;
-  AsyncMetaHandler* ptr_handler =
-      static_cast<AsyncMetaHandler*> (mFileIO->fileGetAsyncHandler());
-
-  if (ptr_handler)
-  {
-    if (ptr_handler->WaitOK() != XrdCl::errNone)
-    {
-      eos_err("error=async requests failed for file %s", mLastUrl.c_str());
-      rc = SFS_ERROR;
-    }
-  }
-
-  int rc_close = mFileIO->fileClose(mTimeout);
-
-  if (rc != SFS_OK)
-    rc_close = rc;
-
-  return rc_close;
+ return mFileIO->fileClose(mTimeout);
 }
 
 //------------------------------------------------------------------------------
