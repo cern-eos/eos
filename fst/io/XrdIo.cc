@@ -572,7 +572,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
     if (length && !done_read)
     {
       eos_debug("readahead useless, use the classic way for reading");
-      handler = mMetaHandler->Register(offset, length, NULL, false);
+      handler = mMetaHandler->Register(offset, length, buffer , false);
 
       // If previous read requests failed then we won't get a new handler
       // and we return directly an error
@@ -582,7 +582,7 @@ XrdIo::ReadAsync (XrdSfsFileOffset offset, char* buffer, XrdSfsXferSize length,
 
       status = mXrdFile->Read(static_cast<uint64_t> (offset),
                               static_cast<uint32_t> (length),
-                              pBuff, handler, timeout);
+                              buffer, handler, timeout);
 
       if (!status.IsOK())
       {

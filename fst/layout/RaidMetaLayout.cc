@@ -696,6 +696,7 @@ RaidMetaLayout::Read (XrdSfsFileOffset offset, char* buffer,
          if (!RecoverPieces(all_errs))
          {
            eos_err("failed recovery of stripe");
+	   delete[] recover_block;
            return SFS_ERROR;
          }
          else
