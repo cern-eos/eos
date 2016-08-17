@@ -305,9 +305,14 @@ function LinkSession
   fi
   SymlinkName="${SymlinkBaseNameSession}.${EXTENSION}"
   #echo "ln -sf $CREDTAG $SymlinkName"
-  ln -sf $CREDTAG $SymlinkName
+  # create the symlink and then rename it so the overwrite is atomic
+  ln -sf $CREDTAG $SymlinkName.tmp
   if [ $? -ne 0 ]; then
     echo "Error creating credentials symlink." >&2
+  fi
+  mv -Tf $SymlinkName.tmp $SymlinkName
+  if [ $? -ne 0 ]; then
+    echo "Error renaming temporary credentials symlink." >&2
   fi
 }
 
@@ -334,9 +339,14 @@ function LinkUserGlob
     CFILE="/var/run/eosd/credentials/store/$SymlinkName"
   fi
   #echo "ln -sf $CFILE $SymlinkPathName"
-  ln -sf $CFILE $SymlinkPathName
+  # create the symlink and then rename it so the overwrite is atomic
+  ln -sf $CFILE $SymlinkPathName.tmp
   if [ $? -ne 0 ]; then
     echo "Error creating credentials symlink." >&2
+  fi
+  mv -Tf $SymlinkPathName.tmp $SymlinkPathName
+  if [ $? -ne 0 ]; then
+    echo "Error renaming temporary credentials symlink." >&2
   fi
   # cleanup the other credentials in the store as only one global credential is required at a time
   find /var/run/eosd/credentials/store -uid ${UID} -not -name $( basename ${CFILE} ) -exec rm -f \{} \; >/dev/null 2>&1
