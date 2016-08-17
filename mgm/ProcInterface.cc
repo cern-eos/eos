@@ -910,8 +910,6 @@ ProcCommand::MakeResult ()
 	    continue;
 
 
-	  size_t fpos; 
-
 	  XrdOucString sline = line.c_str();
 	  while (sline.replace("<n>","n")){}
 	  while (sline.replace("?configstatus@rw","_rw")) {}
