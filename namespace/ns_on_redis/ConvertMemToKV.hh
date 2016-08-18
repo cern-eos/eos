@@ -29,6 +29,7 @@
 #include "namespace/ns_in_memory/ContainerMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogContainerMDSvc.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogFileMDSvc.hh"
+#include "namespace/ns_on_redis/RedisClient.hh"
 #include <cstdint>
 
 EOSNSNAMESPACE_BEGIN
@@ -36,7 +37,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Class ConvertContainerMD
 //------------------------------------------------------------------------------
-class ConvertContainerMD : public eos::ContainerMD {
+class ConvertContainerMD : public eos::ContainerMD
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -46,7 +48,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ConvertContainerMD(){};
+  virtual ~ConvertContainerMD() {};
 
   //----------------------------------------------------------------------------
   //! Add container
@@ -67,13 +69,16 @@ public:
 private:
   std::string pFilesKey; ///< Key of hmap holding info about files
   std::string pDirsKey;  ///< Key of hmap holding info about subcontainers
+  redox::RedoxHash pFilesMap; ///< Map of files
+  redox::RedoxHash pDirsMap; ///< Map of dirs
 };
 
 
 //------------------------------------------------------------------------------
 //! Class for converting in-memory containers to KV-store representation
 //------------------------------------------------------------------------------
-class ConvertContainerMDSvc : public eos::ChangeLogContainerMDSvc {
+class ConvertContainerMDSvc : public eos::ChangeLogContainerMDSvc
+{
 public:
   //----------------------------------------------------------------------------
   //! Recreate the container in the KV store
@@ -105,7 +110,8 @@ private:
 //------------------------------------------------------------------------------
 //! Class for converting in-memory files to KV-store representation
 //------------------------------------------------------------------------------
-class ConvertFileMDSvc : public eos::ChangeLogFileMDSvc {
+class ConvertFileMDSvc : public eos::ChangeLogFileMDSvc
+{
 public:
   //----------------------------------------------------------------------------
   //! Initizlize the file service

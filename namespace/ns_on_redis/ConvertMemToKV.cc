@@ -22,7 +22,6 @@
 #include "namespace/ns_in_memory/FileMD.hh"
 #include "namespace/ns_in_memory/persistency/ChangeLogConstants.hh"
 #include "namespace/ns_on_redis/Constants.hh"
-#include "namespace/ns_on_redis/RedisClient.hh"
 #include "namespace/utils/StringConvertion.hh"
 
 // Static global variables
@@ -42,10 +41,12 @@ std::uint64_t ConvertFileMDSvc::sNumFileBuckets = 1024 * 1024;
 //------------------------------------------------------------------------------
 ConvertContainerMD::ConvertContainerMD(id_t id, IFileMDSvc* file_svc,
                                        IContainerMDSvc* cont_svc)
-    : eos::ContainerMD(id, file_svc, cont_svc)
+  : eos::ContainerMD(id, file_svc, cont_svc)
 {
   pFilesKey = stringify(id) + constants::sMapFilesSuffix;
   pDirsKey = stringify(id) + constants::sMapDirsSuffix;
+  pFilesMap = redox::RedoxHash(*sRedox, pFilesKey);
+  pDirsMap = redox::RedoxHash(*sRedox, pDirsKey);
 }
 
 //------------------------------------------------------------------------------
@@ -56,6 +57,8 @@ ConvertContainerMD::updateInternal()
 {
   pFilesKey = stringify(pId) + constants::sMapFilesSuffix;
   pDirsKey = stringify(pId) + constants::sMapDirsSuffix;
+  pFilesMap.setKey(pFilesKey);
+  pDirsMap.setKey(pDirsKey);
 }
 
 //------------------------------------------------------------------------------
@@ -65,7 +68,7 @@ void
 ConvertContainerMD::addContainer(eos::IContainerMD* container)
 {
   try {
-    sRedox->hset(pDirsKey, container->getName(), container->getId());
+    pDirsMap.hset(container->getName(), container->getId());
   } catch (std::runtime_error& redis_err) {
     MDException e(EINVAL);
     e.getMessage() << "Failed to add subcontainer #" << container->getId()
@@ -81,7 +84,7 @@ void
 ConvertContainerMD::addFile(eos::IFileMD* file)
 {
   try {
-    sRedox->hset(pFilesKey, file->getName(), file->getId());
+    pFilesMap.hset(file->getName(), file->getId());
   } catch (std::runtime_error& redis_err) {
     MDException e(EINVAL);
     e.getMessage() << "File #" << file->getId() << " already exists or"
@@ -99,14 +102,14 @@ ConvertContainerMD::addFile(eos::IFileMD* file)
 //------------------------------------------------------------------------------
 void
 ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
-                                         ContainerList& orphans,
-                                         ContainerList& nameConflicts)
+    ContainerList& orphans,
+    ContainerList& nameConflicts)
 {
   eos::Buffer ebuff;
   pChangeLog->readRecord(it->second.logOffset, ebuff);
   std::shared_ptr<IContainerMD> container =
-      std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc,
-                                           this);
+    std::make_shared<ConvertContainerMD>(IContainerMD::id_t(0), pFileSvc,
+                                         this);
   dynamic_cast<ConvertContainerMD*>(container.get())->deserialize(ebuff);
   dynamic_cast<ConvertContainerMD*>(container.get())->updateInternal();
   it->second.ptr = container;
@@ -125,7 +128,8 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
     }
 
     std::shared_ptr<IContainerMD> parent = parentIt->second.ptr;
-    std::shared_ptr<IContainerMD> child = parent->findContainer(container->getName());
+    std::shared_ptr<IContainerMD> child = parent->findContainer(
+                                            container->getName());
 
     if (!child) {
       parent->addContainer(container.get());
@@ -140,8 +144,8 @@ ConvertContainerMDSvc::recreateContainer(IdMap::iterator& it,
   try {
     std::string buffer(ebuff.getDataPtr(), ebuff.getSize());
     std::string sid = stringify(container->getId());
-    std::string bucket_key = getBucketKey(container->getId());
-    sRedox->hset(bucket_key, sid, buffer);
+    redox::RedoxHash bucket_map(*sRedox, getBucketKey(container->getId()));
+    bucket_map.hset(sid, buffer);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << container->getId()
@@ -157,7 +161,8 @@ void
 ConvertContainerMDSvc::exportToQuotaView(IContainerMD* cont)
 {
   if ((cont->getFlags() & QUOTA_NODE_FLAG) != 0) {
-    sRedox->sadd(quota::sSetQuotaIds, cont->getId());
+    redox::RedoxSet set_quotaids(*sRedox, quota::sSetQuotaIds);
+    set_quotaids.sadd(cont->getId());
   }
 }
 
@@ -218,7 +223,7 @@ ConvertFileMDSvc::initialize()
   pFirstFreeId = scanner.getLargestId() + 1;
 
   // Recreate the files
-  for (auto&& elem : pIdMap) {
+  for (auto && elem : pIdMap) {
     // Unpack the serialized buffers
     std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
     dynamic_cast<FileMD*>(file.get())->deserialize(*elem.second.buffer);
@@ -233,12 +238,11 @@ ConvertFileMDSvc::initialize()
       std::string buffer(elem.second.buffer->getDataPtr(),
                          elem.second.buffer->getSize());
       std::string sid = stringify(file->getId());
-      std::string bucket_key = getBucketKey(file->getId());
-      sRedox->hset(bucket_key, sid, buffer);
+      redox::RedoxHash bucket_map(*sRedox, getBucketKey(file->getId()));
+      bucket_map.hset(sid, buffer);
     } catch (std::runtime_error& redis_err) {
       MDException e(ENOENT);
-      e.getMessage() << "File #" << file->getId()
-                     << " failed to contact backend";
+      e.getMessage() << "File #" << file->getId() << " failed to contact backend";
       throw e;
     }
 
@@ -278,31 +282,36 @@ ConvertFileMDSvc::exportToFsView(IFileMD* file)
 {
   IFileMD::LocationVector loc_vect = file->getLocations();
   std::string key, val;
+  redox::RedoxSet fs_set(*sRedox, "");
 
   for (const auto& elem : loc_vect) {
     // Store fsid if it doesn't exist
     key = fsview::sSetFsIds;
     val = stringify(elem);
+    fs_set.setKey(key);
 
-    if (!sRedox->sismember(key, val)) {
-      sRedox->sadd(key, val);
+    if (!fs_set.sismember(val)) {
+      fs_set.sadd(val);
     }
 
     // Add file to corresponding fs file set
     key = val + fsview::sFilesSuffix;
-    sRedox->sadd(key, stringify(file->getId()));
+    fs_set.setKey(key);
+    fs_set.sadd(stringify(file->getId()));
   }
 
   IFileMD::LocationVector unlink_vect = file->getUnlinkedLocations();
 
   for (const auto& elem : unlink_vect) {
     key = stringify(elem) + fsview::sUnlinkedSuffix;
-    ;
-    sRedox->sadd(key, stringify(file->getId()));
+    fs_set.setKey(key);
+    fs_set.sadd(stringify(file->getId()));
   }
 
+  fs_set.setKey(fsview::sNoReplicaPrefix);
+
   if ((file->getNumLocation() == 0) && (file->getNumUnlinkedLocation() == 0)) {
-    sRedox->sadd(fsview::sNoReplicaPrefix, stringify(file->getId()));
+    fs_set.sadd(stringify(file->getId()));
   }
 }
 
@@ -314,7 +323,7 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
 {
   // Search for a quota node
   std::shared_ptr<IContainerMD> current =
-      pContSvc->getContainerMD(file->getContainerId());
+    pContSvc->getContainerMD(file->getContainerId());
 
   while ((current->getId() != 1) &&
          ((current->getFlags() & QUOTA_NODE_FLAG) == 0)) {
@@ -327,27 +336,29 @@ ConvertFileMDSvc::exportToQuotaView(IFileMD* file)
 
   // Add current file to the hmap contained in the current quota node
   std::string quota_uid_key =
-      stringify(current->getId()) + quota::sQuotaUidsSuffix;
+    stringify(current->getId()) + quota::sQuotaUidsSuffix;
   std::string quota_gid_key =
-      stringify(current->getId()) + quota::sQuotaGidsSuffix;
+    stringify(current->getId()) + quota::sQuotaGidsSuffix;
   const std::string suid = stringify(file->getCUid());
   const std::string sgid = stringify(file->getCGid());
   // Compute physical size
   eos::IFileMD::layoutId_t lid = file->getLayoutId();
   const int64_t size =
-      file->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
+    file->getSize() * eos::common::LayoutId::GetSizeFactor(lid);
+  redox::RedoxHash quota_map(*sRedox, quota_uid_key);
   std::string field = suid + quota::sPhysicalSpaceTag;
-  (void)sRedox->hincrby(quota_uid_key, field, size);
-  field = sgid + quota::sPhysicalSpaceTag;
-  (void)sRedox->hincrby(quota_gid_key, field, size);
+  (void)quota_map.hincrby(field, size);
   field = suid + quota::sSpaceTag;
-  (void)sRedox->hincrby(quota_uid_key, field, file->getSize());
-  field = sgid + quota::sSpaceTag;
-  (void)sRedox->hincrby(quota_gid_key, field, file->getSize());
+  (void)quota_map.hincrby(field, file->getSize());
   field = suid + quota::sFilesTag;
-  (void)sRedox->hincrby(quota_uid_key, field, 1);
+  (void)quota_map.hincrby(field, 1);
+  quota_map.setKey(quota_gid_key);
+  field = sgid + quota::sPhysicalSpaceTag;
+  (void)quota_map.hincrby(field, size);
+  field = sgid + quota::sSpaceTag;
+  (void)quota_map.hincrby(field, file->getSize());
   field = sgid + quota::sFilesTag;
-  (void)sRedox->hincrby(quota_gid_key, field, 1);
+  (void)quota_map.hincrby(field, 1);
 }
 
 EOSNSNAMESPACE_END
@@ -402,11 +413,11 @@ main(int argc, char* argv[])
 
   std::unique_ptr<eos::IFileMDSvc> file_svc(new eos::ConvertFileMDSvc());
   std::unique_ptr<eos::IContainerMDSvc> cont_svc(
-      new eos::ConvertContainerMDSvc());
+    new eos::ConvertContainerMDSvc());
   std::map<std::string, std::string> config_cont{{"changelog_path", dir_chlog},
-                                                 {"slave_mode", "false"}};
+    {"slave_mode", "false"}};
   std::map<std::string, std::string> config_file{{"changelog_path", file_chlog},
-                                                 {"slave_mode", "false"}};
+    {"slave_mode", "false"}};
   // Initialize the container meta-data service
   cont_svc->setFileMDService(file_svc.get());
   cont_svc->configure(config_cont);
@@ -415,7 +426,6 @@ main(int argc, char* argv[])
   file_svc->setContMDService(cont_svc.get());
   file_svc->configure(config_file);
   file_svc->initialize();
-
   // TODO(esindril): save the first free file and container id in the meta_hmap
   return 0;
 }

@@ -34,7 +34,6 @@ void
 RedisClient::Initialize() noexcept
 {
   // empty
-  std::cerr << "Calling RedisClient::Initialize" << std::endl;
 }
 
 //------------------------------------------------------------------------------
@@ -43,7 +42,6 @@ RedisClient::Initialize() noexcept
 void
 RedisClient::Finalize()
 {
-  std::cerr << "Calling RedisClient::Finalize !!! " << std::endl;
   std::lock_guard<std::mutex> lock(pMutexMap);
 
   for (auto& elem : pMapClients) {
@@ -108,13 +106,20 @@ RedisClient::getInstance(const std::string& host, uint32_t port)
 //------------------------------------------------------------------------------
 // Initialization and finalization
 //------------------------------------------------------------------------------
-namespace {
+namespace
+{
 struct RedisInitializer {
   // Initializer
-  RedisInitializer() noexcept { RedisClient::Initialize(); }
+  RedisInitializer() noexcept
+  {
+    RedisClient::Initialize();
+  }
 
   // Finalizer
-  ~RedisInitializer() { RedisClient::Finalize(); }
+  ~RedisInitializer()
+  {
+    RedisClient::Finalize();
+  }
 } finalizer;
 } // namespace
 

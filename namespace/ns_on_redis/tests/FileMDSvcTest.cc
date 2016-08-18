@@ -35,7 +35,8 @@
 //------------------------------------------------------------------------------
 // FileMDSvcTest class
 //------------------------------------------------------------------------------
-class FileMDSvcTest : public CppUnit::TestCase {
+class FileMDSvcTest : public CppUnit::TestCase
+{
 public:
   CPPUNIT_TEST_SUITE(FileMDSvcTest);
   CPPUNIT_TEST(loadTest);
@@ -58,10 +59,10 @@ FileMDSvcTest::loadTest()
   std::unique_ptr<eos::IFileMDSvc> fileSvc{new eos::FileMDSvc};
   fileSvc->setContMDService(contSvc.get());
   std::map<std::string, std::string> config = {{"redis_host", "localhost"},
-                                               {"redis_port", "6380"}};
+    {"redis_port", "6380"}
+  };
   fileSvc->configure(config);
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
-
   std::shared_ptr<eos::IFileMD> file1 = fileSvc->createFile();
   std::shared_ptr<eos::IFileMD> file2 = fileSvc->createFile();
   std::shared_ptr<eos::IFileMD> file3 = fileSvc->createFile();
@@ -77,7 +78,6 @@ FileMDSvcTest::loadTest()
   file3->setName("file3");
   file4->setName("file4");
   file5->setName("file5");
-
   eos::IFileMD::id_t id1 = file1->getId();
   eos::IFileMD::id_t id2 = file2->getId();
   eos::IFileMD::id_t id3 = file3->getId();
@@ -94,7 +94,6 @@ FileMDSvcTest::loadTest()
   CPPUNIT_ASSERT(fileSvc->getNumFiles() == 3);
   fileSvc->finalize();
   CPPUNIT_ASSERT_NO_THROW(fileSvc->initialize());
-
   std::shared_ptr<eos::IFileMD> fileRec1 = fileSvc->getFileMD(id1);
   std::shared_ptr<eos::IFileMD> fileRec3 = fileSvc->getFileMD(id3);
   std::shared_ptr<eos::IFileMD> fileRec5 = fileSvc->getFileMD(id5);
@@ -121,8 +120,8 @@ void
 FileMDSvcTest::checkFileTest()
 {
   std::map<std::string, std::string> config = {{"redis_host", "localhost"},
-                                               {"redis_port", "6380"}};
-
+    {"redis_port", "6380"}
+  };
   std::unique_ptr<eos::ContainerMDSvc> contSvc{new eos::ContainerMDSvc()};
   std::unique_ptr<eos::FileMDSvc> fileSvc{new eos::FileMDSvc()};
   std::unique_ptr<eos::IView> view{new eos::HierarchicalView()};
@@ -139,12 +138,13 @@ FileMDSvcTest::checkFileTest()
   fileSvc->addChangeListener(fsView.get());
   // Create test container and file
   std::shared_ptr<eos::IContainerMD> cont =
-      view->createContainer("/test_dir", true);
+    view->createContainer("/test_dir", true);
   std::shared_ptr<eos::IFileMD> file =
-      view->createFile("/test_dir/test_file1.dat");
+    view->createFile("/test_dir/test_file1.dat");
   eos::IFileMD::id_t fid = file->getId();
   std::string sfid = std::to_string(fid);
   CPPUNIT_ASSERT(file != nullptr);
+
   // Add some replica and unlink locations
   for (int i = 1; i <= 4; ++i) {
     file->addLocation(i);
@@ -153,39 +153,48 @@ FileMDSvcTest::checkFileTest()
   file->unlinkLocation(3);
   file->unlinkLocation(4);
   view->updateFileStore(file.get());
-
   // Corrupt the backend KV store
   std::string key;
   redox::Redox* redox = eos::RedisClient::getInstance(
-      config["redis_host"], std::stoi(config["redis_port"]));
+                          config["redis_host"], std::stoi(config["redis_port"]));
   key = "1" + eos::fsview::sFilesSuffix;
-  CPPUNIT_ASSERT(redox->srem(key, sfid));
+  redox::RedoxSet fs_set(*redox, key);
+  CPPUNIT_ASSERT(fs_set.srem(sfid));
   key = "4" + eos::fsview::sUnlinkedSuffix;
-  CPPUNIT_ASSERT(redox->srem(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.srem(sfid));
   key = eos::fsview::sNoReplicaPrefix;
-  CPPUNIT_ASSERT(redox->sadd(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.sadd(sfid));
   key = "5" + eos::fsview::sFilesSuffix;
-  CPPUNIT_ASSERT(redox->sadd(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.sadd(sfid));
   // Need to add fsid by hand
-  CPPUNIT_ASSERT(redox->sadd(eos::fsview::sSetFsIds, "5"));
-
+  fs_set.setKey(eos::fsview::sSetFsIds);
+  CPPUNIT_ASSERT(fs_set.sadd("5"));
   // Introduce file in the set to be checked and trigger a check
-  CPPUNIT_ASSERT_NO_THROW(redox->sadd(eos::constants::sSetCheckFiles, sfid));
+  fs_set.setKey(eos::constants::sSetCheckFiles);
+  CPPUNIT_ASSERT_NO_THROW(fs_set.sadd(sfid));
   CPPUNIT_ASSERT(fileSvc->checkFiles());
-
   // Check that the back-end KV store is consistent
   key = "1" + eos::fsview::sFilesSuffix;
-  CPPUNIT_ASSERT(redox->sismember(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.sismember(sfid));
   key = "2" + eos::fsview::sFilesSuffix;
-  CPPUNIT_ASSERT(redox->sismember(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.sismember(sfid));
   key = "5" + eos::fsview::sFilesSuffix;
-  CPPUNIT_ASSERT(!redox->sismember(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(!fs_set.sismember(sfid));
   key = "3" + eos::fsview::sUnlinkedSuffix;
-  CPPUNIT_ASSERT(redox->sismember(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.sismember(sfid));
   key = "4" + eos::fsview::sUnlinkedSuffix;
-  CPPUNIT_ASSERT(redox->sismember(key, sfid));
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.sismember(sfid));
   key = eos::fsview::sNoReplicaPrefix;
-  CPPUNIT_ASSERT(redox->scard(key) == 0);
+  fs_set.setKey(key);
+  CPPUNIT_ASSERT(fs_set.scard() == 0);
   file->unlinkAllLocations();
   file->removeAllLocations();
   view->removeFile(file.get());

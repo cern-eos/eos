@@ -39,7 +39,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Implementation of the hierarchical namespace
 //------------------------------------------------------------------------------
-class HierarchicalView : public IView {
+class HierarchicalView : public IView
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -116,7 +117,7 @@ public:
   //! Create a file for given uri
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> createFile(const std::string& uri,
-                                              uid_t uid = 0, gid_t gid = 0);
+      uid_t uid = 0, gid_t gid = 0);
 
   //----------------------------------------------------------------------------
   //! Create a link for given uri
@@ -161,8 +162,8 @@ public:
   //! Get a container (directory)
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD> getContainer(const std::string& uri,
-                                                     bool follow = true,
-                                                     size_t* link_depth = 0);
+      bool follow = true,
+      size_t* link_depth = 0);
 
   //----------------------------------------------------------------------------
   //! Create a container (directory)
@@ -197,7 +198,7 @@ public:
   //------------------------------------------------------------------------
   //! Get real path translating existing symlink
   //------------------------------------------------------------------------
-  virtual std::string getRealPath( const std::string &path );
+  virtual std::string getRealPath(const std::string& path);
 
   //----------------------------------------------------------------------------
   //! Get quota node id concerning given container
@@ -231,8 +232,9 @@ public:
   virtual void
   setQuotaStats(IQuotaStats* quotaStats)
   {
-    if (pQuotaStats)
+    if (pQuotaStats) {
       delete pQuotaStats;
+    }
 
     pQuotaStats = quotaStats;
   }
@@ -258,8 +260,8 @@ private:
   //! Get last existing container in the provided path
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> findLastContainer(std::vector<char*>& elements,
-                                                  size_t end, size_t& index,
-                                                  size_t* link_depths = 0);
+      size_t end, size_t& index,
+      size_t* link_depths = 0);
 
   //----------------------------------------------------------------------------
   //! Clean up contents of container
@@ -267,24 +269,6 @@ private:
   //! @param cont container object
   //----------------------------------------------------------------------------
   void cleanUpContainer(IContainerMD* cont);
-
-  //----------------------------------------------------------------------------
-  // File visitor for reloading
-  //----------------------------------------------------------------------------
-  class FileVisitor : public IFileVisitor {
-  public:
-    FileVisitor(IContainerMDSvc* contSvc, IQuotaStats* quotaStats, IView* view)
-        : pContSvc(contSvc), pQuotaStats(quotaStats), pView(view)
-    {
-    }
-
-    virtual void visitFile(IFileMD* file);
-
-  private:
-    IContainerMDSvc* pContSvc;
-    IQuotaStats* pQuotaStats;
-    IView* pView;
-  };
 
   //----------------------------------------------------------------------------
   // Data members

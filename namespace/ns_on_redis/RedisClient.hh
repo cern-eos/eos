@@ -26,6 +26,8 @@
 
 #include "namespace/Namespace.hh"
 #include "redox.hpp"
+#include "redox/redoxSet.hpp"
+#include "redox/redoxHash.hpp"
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -35,7 +37,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! Singleton Redis client class used throughout the namespace implementation
 //------------------------------------------------------------------------------
-class RedisClient {
+class RedisClient
+{
 public:
   //----------------------------------------------------------------------------
   //! Initialize

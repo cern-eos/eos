@@ -61,7 +61,8 @@ class QuotaStats;
 //! Besides these, we also save the ids of all the containers that are also
 //! quota nodes in a set structure called "quota_set_ids".
 //------------------------------------------------------------------------------
-class QuotaNode : public IQuotaNode {
+class QuotaNode : public IQuotaNode
+{
   friend class ConvertContainerMDSvc;
   friend class ConvertFileMDSvc;
 
@@ -173,12 +174,13 @@ private:
   //----------------------------------------------------------------------------
   std::vector<std::string> getAllGidFields();
 
+  redox::Redox* pRedox; ///< Redis client
   //! Quota quota node uid hash key e.g. quota_node:id_t:uid
   std::string pQuotaUidKey;
   //! Quota quota node gid hash key e.g. quota_node:id_t:gid
   std::string pQuotaGidKey;
-  redox::Redox* pRedox; ///< Redis client
-
+  redox::RedoxHash pUidMap; ///< Redox hmap for uids
+  redox::RedoxHash pGidMap; ///< Redox hmap for gids
   static const std::string sSpaceTag;         ///< Tag for space quota
   static const std::string sPhysicalSpaceTag; ///< Tag for physical space quota
   static const std::string sFilesTag;         ///< Tag for number of files quota
@@ -192,7 +194,8 @@ private:
 //! ids for the corresponding quota nodes. The key name of the set in the
 //! Redis instance needs to be unique i.e the sSetQuotaIds static variable.
 //----------------------------------------------------------------------------
-class QuotaStats : public IQuotaStats {
+class QuotaStats : public IQuotaStats
+{
   friend class QuotaNode;
   friend class ConvertContainerMDSvc;
   friend class ConvertFileMDSvc;
@@ -232,11 +235,12 @@ public:
   std::set<std::string> getAllIds();
 
 private:
-  static const std::string sSetQuotaIds;     ///< Set of quota node ids
+  static const std::string sSetQuotaIds;     ///< Ket of quota node ids set
   static const std::string sQuotaUidsSuffix; ///< Quota hmap of uids suffix
   static const std::string sQuotaGidsSuffix; ///< Quota hmap of gids suffix
-  redox::Redox* pRedox;                      ///< Redix client
   std::map<IContainerMD::id_t, IQuotaNode*> pNodeMap; ///< Map of quota nodes
+  redox::Redox* pRedox;                      ///< Redix client
+  redox::RedoxSet pIdsSet; ///< Set of quota node ids
 };
 
 EOSNSNAMESPACE_END

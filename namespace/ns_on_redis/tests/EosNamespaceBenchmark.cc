@@ -86,7 +86,7 @@ PrintStatus(eos::IView* view, eos::common::LinuxStat::linux_stat_t* st1,
             eos::common::LinuxStat::linux_stat_t* st2,
             eos::common::LinuxMemConsumption::linux_mem_t* /*mem1*/,
             eos::common::LinuxMemConsumption::linux_mem_t* mem2,
-	    const double& rate, bool print_total = false)
+            const double& rate, bool print_total = false)
 {
   XrdOucString sizestring;
   XrdOucString stdOut;
@@ -113,19 +113,19 @@ PrintStatus(eos::IView* view, eos::common::LinuxStat::linux_stat_t* st1,
   stdOut += "# -------------------------------------------------------------\n";
   stdOut += "ALL      memory virtual                   ";
   stdOut += eos::common::StringConversion::GetReadableSizeString(
-      sizestring, mem2->vmsize, "B");
+              sizestring, mem2->vmsize, "B");
   stdOut += "\n";
   stdOut += "ALL      memory resident                  ";
   stdOut += eos::common::StringConversion::GetReadableSizeString(
-      sizestring, mem2->resident, "B");
+              sizestring, mem2->resident, "B");
   stdOut += "\n";
   stdOut += "ALL      memory share                     ";
   stdOut += eos::common::StringConversion::GetReadableSizeString(
-      sizestring, mem2->share, "B");
+              sizestring, mem2->share, "B");
   stdOut += "\n";
   stdOut += "ALL      memory growths                   ";
   stdOut += eos::common::StringConversion::GetReadableSizeString(
-      sizestring, (st2->vsize - st1->vsize), "B");
+              sizestring, (st2->vsize - st1->vsize), "B");
   stdOut += "\n";
   stdOut += "# -------------------------------------------------------------\n";
   stdOut += "ALL      rate                             ";
@@ -137,7 +137,8 @@ PrintStatus(eos::IView* view, eos::common::LinuxStat::linux_stat_t* st1,
   fprintf(stderr, "%s", stdOut.c_str());
 }
 
-class RThread {
+class RThread
+{
 public:
   RThread() = default;
   ~RThread() = default;
@@ -183,22 +184,23 @@ RunReader(void* tconf)
                    "/eos/nsbench/level_0_%08u/"
                    "level_1_%08u/level_2_%08u/file____________________%08u",
                    static_cast<unsigned int>(i), static_cast<unsigned int>(j),
-		   static_cast<unsigned int>(k), static_cast<unsigned int>(n));
+                   static_cast<unsigned int>(k), static_cast<unsigned int>(n));
           std::string file_path = static_cast<char*>(s_file_path);
 
           if (dolock) {
             nslock.LockRead();
-	  }
+          }
+
           std::shared_ptr<eos::IFileMD> fmd = view->getFile(file_path);
 
           if (fmd) {
             unsigned long long size = fmd->getSize();
-	    (void) size;
+            (void) size;
           }
 
           if (dolock) {
             nslock.UnLockRead();
-	  }
+          }
         }
       }
     }
@@ -224,8 +226,8 @@ main(int argc, char** argv)
   }
 
   std::map<std::string, std::string> config = {{"redis_host", argv[1]},
-                                               {"redis_port", argv[2]}};
-
+    {"redis_port", argv[2]}
+  };
   size_t n_i = std::stoi(argv[3]);
   size_t n_j = 64;
   size_t n_k = 64;
@@ -234,7 +236,7 @@ main(int argc, char** argv)
   // Create Namespace and populate dirs
   try {
     std::cerr << "# ***********************************************************"
-	      << std::endl;
+              << std::endl;
     std::cerr << "[i] Initialize Directory Namespace..." << std::endl;
     std::cerr << "# ***********************************************************"
               << std::endl;
@@ -258,17 +260,17 @@ main(int argc, char** argv)
           char s_container_path[1024];
           snprintf(static_cast<char*>(s_container_path), sizeof(s_container_path) - 1,
                    "/eos/nsbench/level_0_%08u/level_1_%08u/level_2_%08u/",
-		   static_cast<unsigned int>(i), static_cast<unsigned int>(j),
-		   static_cast<unsigned int>(k));
+                   static_cast<unsigned int>(i), static_cast<unsigned int>(j),
+                   static_cast<unsigned int>(k));
           std::string container_path = static_cast<char*>(s_container_path);
           std::shared_ptr<eos::IContainerMD> cont =
-              view->createContainer(container_path, true);
+            view->createContainer(container_path, true);
           cont->setAttribute("sys.forced.blocksize", "4k");
           cont->setAttribute("sys.forced.checksum", "adler");
           cont->setAttribute("sys.forced.layout", "replica");
           cont->setAttribute("sys.forced.nstripes", "2");
           cont->setAttribute("user.acl",
-              "u:atlas003:rw,egroup:atlas-comp-cern-storage-support:rw");
+                             "u:atlas003:rw,egroup:atlas-comp-cern-storage-support:rw");
           view->updateContainerStore(cont.get());
         }
       }
@@ -299,7 +301,7 @@ main(int argc, char** argv)
     eos::common::LinuxMemConsumption::linux_mem_t mem[10];
     eos::common::LinuxStat::GetStat(st[0]);
     eos::common::LinuxMemConsumption::GetMemoryFootprint(mem[0]);
-    eos::common::Timing tm("directories");
+    eos::common::Timing tm("files");
     COMMONTIMING("dir-start", &tm);
 
     for (size_t i = 0; i < n_i; i++) {
@@ -315,11 +317,11 @@ main(int argc, char** argv)
             snprintf(static_cast<char*>(s_file_path), sizeof(s_file_path) - 1,
                      "/eos/nsbench/level_0_%08u/"
                      "level_1_%08u/level_2_%08u/file____________________%08u",
-		     static_cast<unsigned int>(i), static_cast<unsigned int>(j),
-		     static_cast<unsigned int>(k), static_cast<unsigned int>(n));
+                     static_cast<unsigned int>(i), static_cast<unsigned int>(j),
+                     static_cast<unsigned int>(k), static_cast<unsigned int>(n));
             std::string file_path = static_cast<char*>(s_file_path);
             std::shared_ptr<eos::IFileMD> fmd =
-                view->createFile(file_path, 0, 0);
+              view->createFile(file_path, 0, 0);
             // add two locations
             fmd->addLocation(k);
             fmd->addLocation(k + 1);
@@ -347,7 +349,6 @@ main(int argc, char** argv)
   }
 
   eos::IView* view = nullptr;
-
   // Run a parallel consumer thread benchmark without locking
   {
     eos::common::LinuxStat::linux_stat_t st[10];
@@ -386,7 +387,6 @@ main(int argc, char** argv)
     double rate = (n_files * n_i * n_j * n_k) / tm.RealTime() * 1000.0;
     PrintStatus(view, &st[0], &st[1], &mem[0], &mem[1], rate);
   }
-
   // Run a parallel consumer thread benchmark with namespace locking
   {
     eos::common::LinuxStat::linux_stat_t st[10];
@@ -423,6 +423,5 @@ main(int argc, char** argv)
     double rate = (n_files * n_i * n_j * n_k) / tm.RealTime() * 1000.0;
     PrintStatus(view, &st[0], &st[1], &mem[0], &mem[1], rate, true);
   }
-
   return 0;
 }

@@ -32,7 +32,8 @@
 #include <mutex>
 
 //! Forward declarations
-namespace redox {
+namespace redox
+{
 class Redox;
 }
 
@@ -43,7 +44,8 @@ class IQuotaStats;
 //------------------------------------------------------------------------------
 //! FileMDSvc based on Redis
 //------------------------------------------------------------------------------
-class FileMDSvc : public IFileMDSvc {
+class FileMDSvc : public IFileMDSvc
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -70,7 +72,7 @@ public:
   //----------------------------------------------------------------------------
   //! Finalize the file service
   //----------------------------------------------------------------------------
-  virtual void finalize(){};
+  virtual void finalize() {};
 
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
@@ -92,11 +94,6 @@ public:
   //! Remove object from the store
   //----------------------------------------------------------------------------
   virtual void removeFile(IFileMD* obj);
-
-  //----------------------------------------------------------------------------
-  //! Remove object from the store
-  //----------------------------------------------------------------------------
-  virtual void removeFile(IFileMD::id_t fileId);
 
   //----------------------------------------------------------------------------
   //! Get number of files
@@ -131,7 +128,7 @@ public:
   //----------------------------------------------------------------------------
   //! Visit all the files
   //----------------------------------------------------------------------------
-  void visit(IFileVisitor* visitor){};
+  void visit(IFileVisitor* visitor) {};
 
   //----------------------------------------------------------------------------
   //! Check files that had errors - these are stored in a separate set in the
@@ -182,6 +179,8 @@ private:
   IQuotaStats* pQuotaStats;
   IContainerMDSvc* pContSvc;
   redox::Redox* pRedox;
+  redox::RedoxHash mMetaMap; ///< Map holding metainfo about the namespace
+  redox::RedoxSet mSetCheckFiles; ///< Set of files being updated
   std::string pRedisHost;
   uint32_t pRedisPort;
   LRU<IFileMD::id_t, IFileMD> mFileCache;

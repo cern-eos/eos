@@ -32,8 +32,8 @@ std::uint64_t ContainerMDSvc::sNumContBuckets = 128 * 1024;
 // Constructor
 //------------------------------------------------------------------------------
 ContainerMDSvc::ContainerMDSvc()
-    : pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
-      pRedisPort(0), mContainerCache(static_cast<uint64_t>(10e6))
+  : pQuotaStats(nullptr), pFileSvc(nullptr), pRedox(nullptr), pRedisHost(""),
+    pRedisPort(0), mContainerCache(static_cast<uint64_t>(10e6))
 {
 }
 
@@ -43,8 +43,8 @@ ContainerMDSvc::ContainerMDSvc()
 void
 ContainerMDSvc::configure(const std::map<std::string, std::string>& config)
 {
-  std::string key_host = "redis_host";
-  std::string key_port = "redis_port";
+  const std::string key_host = "redis_host";
+  const std::string key_port = "redis_port";
 
   if (config.find(key_host) != config.end()) {
     pRedisHost = config.at(key_host);
@@ -89,8 +89,8 @@ ContainerMDSvc::getContainerMD(IContainerMD::id_t id)
 
   try {
     std::string sid = stringify(id);
-    std::string bucket_key = getBucketKey(id);
-    blob = pRedox->hget(bucket_key, sid);
+    redox::RedoxHash bucket_map(*pRedox, getBucketKey(id));
+    blob = bucket_map.hget(sid);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << id << " not found";
@@ -119,11 +119,10 @@ ContainerMDSvc::createContainer()
 {
   try {
     // Get the first free container id
-    uint64_t free_id = pRedox->hincrby(constants::sMapMetaInfoKey,
-                                       constants::sFirstFreeCid, 1);
+    redox::RedoxHash meta_map(*pRedox, constants::sMapMetaInfoKey);
+    uint64_t free_id = meta_map.hincrby(constants::sFirstFreeCid, 1);
     std::shared_ptr<IContainerMD> cont{new ContainerMD(
         free_id, pFileSvc, static_cast<IContainerMDSvc*>(this))};
-
     return mContainerCache.put(cont->getId(), cont);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
@@ -144,8 +143,8 @@ ContainerMDSvc::updateStore(IContainerMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    std::string bucket_key = getBucketKey(obj->getId());
-    pRedox->hset(bucket_key, sid, buffer);
+    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
+    bucket_map.hset(sid, buffer);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "File #" << obj->getId() << " failed to contact backend";
@@ -172,9 +171,10 @@ ContainerMDSvc::removeContainer(IContainerMD* obj)
 
   try {
     std::string sid = stringify(obj->getId());
-    std::string bucket_key = getBucketKey(obj->getId());
-    pRedox->hdel(bucket_key, sid);
-    pRedox->srem(constants::sSetCheckConts, sid);
+    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
+    bucket_map.hdel(sid);
+    //redox::RedoxSet check_conts(*pRedox, constants::sSetCheckConts);
+    //check_conts.srem(sid);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
     e.getMessage() << "Container #" << obj->getId() << " not found. "
@@ -273,7 +273,7 @@ ContainerMDSvc::getNumContainers()
   std::mutex mutex;
   std::condition_variable cond_var;
   auto callback_len = [&num_conts, &num_requests,
-                       &cond_var](redox::Command<long long int>& c) {
+  &cond_var](redox::Command<long long int>& c) {
     if (c.ok()) {
       num_conts += c.reply();
     }
@@ -282,7 +282,6 @@ ContainerMDSvc::getNumContainers()
       cond_var.notify_one();
     }
   };
-
   auto wrapper_cb = [&num_requests, &callback_len]() -> decltype(callback_len) {
     num_requests++;
     return callback_len;
@@ -291,9 +290,10 @@ ContainerMDSvc::getNumContainers()
   for (std::uint64_t i = 0; i < sNumContBuckets; ++i) {
     bucket_key = stringify(i);
     bucket_key += constants::sContKeySuffix;
+    redox::RedoxHash bucket_map(*pRedox, bucket_key);
 
     try {
-      pRedox->hlen(bucket_key, wrapper_cb());
+      bucket_map.hlen(wrapper_cb());
     } catch (std::runtime_error& redis_err) {
       // no change
     }
@@ -302,11 +302,11 @@ ContainerMDSvc::getNumContainers()
   // Wait for all responses
   {
     std::unique_lock<std::mutex> lock(mutex);
+
     while (num_requests != 0u) {
       cond_var.wait(lock);
     }
   }
-
   return num_conts;
 }
 
@@ -317,7 +317,7 @@ void
 ContainerMDSvc::notifyListeners(IContainerMD* obj,
                                 IContainerMDChangeListener::Action a)
 {
-  for (auto&& elem : pListeners) {
+  for (auto && elem : pListeners) {
     elem->containerMDChanged(obj, a);
   }
 }

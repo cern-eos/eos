@@ -50,7 +50,8 @@ EOSNSNAMESPACE_BEGIN
 //! fsview_noreplicas - file ids that don't have any replicas on any fs
 //! x:fsview_unlinked - set of file ids that are unlinked on file system "x"
 //------------------------------------------------------------------------------
-class FileSystemView : public IFsView {
+class FileSystemView : public IFsView
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -60,7 +61,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~FileSystemView(){};
+  virtual ~FileSystemView() {};
 
   //----------------------------------------------------------------------------
   //! Notify me about the changes in the main view
@@ -70,7 +71,7 @@ public:
   //----------------------------------------------------------------------------
   //! Notify me about files when recovering from changelog - not used
   //----------------------------------------------------------------------------
-  virtual void fileMDRead(IFileMD* obj){};
+  virtual void fileMDRead(IFileMD* obj) {};
 
   //----------------------------------------------------------------------------
   //! Recheck the current file object and make any modifications necessary so
@@ -132,12 +133,12 @@ public:
   //----------------------------------------------------------------------------
   //! Initizalie
   //----------------------------------------------------------------------------
-  void initialize(){};
+  void initialize() {};
 
   //----------------------------------------------------------------------------
   //! Finalize
   //----------------------------------------------------------------------------
-  void finalize(){};
+  void finalize() {};
 
   //----------------------------------------------------------------------------
   //! Add tree - TODO(esindril): review this
@@ -151,6 +152,8 @@ public:
 
 private:
   redox::Redox* pRedox; ///< Redix C++ client
+  redox::RedoxSet pNoReplicasSet; ///< Set of file ids without replicas
+  redox::RedoxSet pFsIdsSet; ///< Set of file ids in use
 };
 
 EOSNSNAMESPACE_END

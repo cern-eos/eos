@@ -33,7 +33,8 @@
 #include <map>
 
 //! Forward declarations
-namespace redox {
+namespace redox
+{
 class Redox;
 }
 
@@ -44,7 +45,8 @@ class ContainerMD;
 //------------------------------------------------------------------------------
 //! Container metadata service based on Redis
 //------------------------------------------------------------------------------
-class ContainerMDSvc : public IContainerMDSvc {
+class ContainerMDSvc : public IContainerMDSvc
+{
   friend ContainerMD;
 
 public:
@@ -56,7 +58,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ContainerMDSvc(){};
+  virtual ~ContainerMDSvc() {};
 
   //----------------------------------------------------------------------------
   //! Initizlize the container service
@@ -71,7 +73,7 @@ public:
   //----------------------------------------------------------------------------
   //! Finalize the container service
   //----------------------------------------------------------------------------
-  virtual void finalize(){};
+  virtual void finalize() {};
 
   //----------------------------------------------------------------------------
   //! Get the container metadata information for the given container ID
@@ -110,7 +112,7 @@ public:
   //! Create container in parent
   //----------------------------------------------------------------------------
   std::shared_ptr<IContainerMD> createInParent(const std::string& name,
-					       IContainerMD* parent);
+      IContainerMD* parent);
 
   //----------------------------------------------------------------------------
   //! Get the lost+found container, create if necessary
@@ -175,6 +177,8 @@ private:
   std::string pRedisHost;   ///< Redis instance host
   uint32_t pRedisPort;      ///< Redis instance port
   LRU<IContainerMD::id_t, IContainerMD> mContainerCache;
+  // TODO: decide on how to ensure container consistency in case of a crash
+  redox::RedoxSet pCheckConts; ///< Set of container idsd to be checked
 };
 
 EOSNSNAMESPACE_END

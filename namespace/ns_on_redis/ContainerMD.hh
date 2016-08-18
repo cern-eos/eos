@@ -38,7 +38,8 @@
 #include <vector>
 
 //! Forward declarations
-namespace redox {
+namespace redox
+{
 class Redox;
 }
 
@@ -50,7 +51,8 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single container
 //------------------------------------------------------------------------------
-class ContainerMD : public IContainerMD {
+class ContainerMD : public IContainerMD
+{
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -406,16 +408,6 @@ public:
   //----------------------------------------------------------------------------
   //! Serialize the object to a buffer
   //----------------------------------------------------------------------------
-  void serialize(std::string& buffer);
-
-  //----------------------------------------------------------------------------
-  //! Deserialize the class to a buffer
-  //----------------------------------------------------------------------------
-  void deserialize(const std::string& buffer);
-
-  //----------------------------------------------------------------------------
-  //! Serialize the object to a buffer
-  //----------------------------------------------------------------------------
   void serialize(Buffer& buffer);
 
   //----------------------------------------------------------------------------
@@ -448,11 +440,13 @@ private:
   tmtime_t pTMTime;
   uint64_t pTreeSize;
 
-  IContainerMDSvc* pContSvc; ///< Container metadata service
-  IFileMDSvc* pFileSvc;      ///< File metadata service
-  std::string pFilesKey;     ///< Key of hmap holding info about files
-  std::string pDirsKey;      ///< Key of hmap holding info about subcontainers
-  redox::Redox* pRedox;      ///< Redis client
+  IContainerMDSvc* pContSvc;  ///< Container metadata service
+  IFileMDSvc* pFileSvc;       ///< File metadata service
+  redox::Redox* pRedox;       ///< Redis client
+  std::string pFilesKey; ///< Map files key
+  std::string pDirsKey; ///< Map dir key
+  redox::RedoxHash pFilesMap; ///< Map holding info about files
+  redox::RedoxHash pDirsMap;  ///< Map holding info about subcontainers
   //! Dir name to id map
   std::map<std::string, eos::IContainerMD::id_t> mDirsMap;
   std::map<std::string, eos::IFileMD::id_t> mFilesMap; ///< File name to id map

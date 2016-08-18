@@ -35,9 +35,9 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 HierarchicalView::HierarchicalView()
-    : pContainerSvc(nullptr), pFileSvc(nullptr),
-      pRoot(std::shared_ptr<IContainerMD>(nullptr)), pRedox(nullptr),
-      pRedisHost(), pRedisPort(0)
+  : pContainerSvc(nullptr), pFileSvc(nullptr),
+    pRoot(std::shared_ptr<IContainerMD>(nullptr)), pRedox(nullptr),
+    pRedisHost(), pRedisPort(0)
 {
   std::map<std::string, std::string> config;
   pQuotaStats = new QuotaStats(config);
@@ -46,7 +46,10 @@ HierarchicalView::HierarchicalView()
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-HierarchicalView::~HierarchicalView() { delete pQuotaStats; }
+HierarchicalView::~HierarchicalView()
+{
+  delete pQuotaStats;
+}
 
 //------------------------------------------------------------------------------
 // Configure the view
@@ -68,8 +71,8 @@ HierarchicalView::configure(const std::map<std::string, std::string>& config)
 
   delete pQuotaStats;
   pQuotaStats = new QuotaStats(config);
-  std::string key_host = "redis_host";
-  std::string key_port = "redis_port";
+  const std::string key_host = "redis_host";
+  const std::string key_port = "redis_port";
 
   if (config.find(key_host) != config.end()) {
     pRedisHost = config.at(key_host);
@@ -166,7 +169,7 @@ HierarchicalView::getFile(const std::string& uri, bool follow,
   size_t position;
   eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
   std::shared_ptr<IContainerMD> cont =
-      findLastContainer(elements, elements.size() - 1, position, link_depths);
+    findLastContainer(elements, elements.size() - 1, position, link_depths);
 
   if (position != elements.size() - 1) {
     MDException e(ENOENT);
@@ -191,7 +194,7 @@ HierarchicalView::getFile(const std::string& uri, bool follow,
       if ((*link_depths) > 255) {
         MDException e(ELOOP);
         e.getMessage() << "Too many symbolic links were encountered in "
-                          "translating the pathname";
+                       "translating the pathname";
         throw e;
       }
 
@@ -222,7 +225,7 @@ HierarchicalView::createFile(const std::string& uri, uid_t uid, gid_t gid)
   eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
   size_t position;
   std::shared_ptr<IContainerMD> cont =
-      findLastContainer(elements, elements.size() - 1, position);
+    findLastContainer(elements, elements.size() - 1, position);
 
   if (position != elements.size() - 1) {
     MDException e(ENOENT);
@@ -298,7 +301,7 @@ HierarchicalView::unlinkFile(const std::string& uri)
   eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
   size_t position;
   std::shared_ptr<IContainerMD> cont =
-      findLastContainer(elements, elements.size() - 1, position);
+    findLastContainer(elements, elements.size() - 1, position);
 
   if (position != elements.size() - 1) {
     MDException e(ENOENT);
@@ -327,7 +330,7 @@ void
 HierarchicalView::unlinkFile(eos::IFileMD* file)
 {
   std::shared_ptr<IContainerMD> cont =
-      pContainerSvc->getContainerMD(file->getContainerId());
+    pContainerSvc->getContainerMD(file->getContainerId());
   file->setContainerId(0);
   file->unlinkAllLocations();
   updateFileStore(file);
@@ -350,7 +353,7 @@ HierarchicalView::removeFile(IFileMD* file)
 
   if (file->getContainerId() != 0) {
     std::shared_ptr<IContainerMD> cont =
-        pContainerSvc->getContainerMD(file->getContainerId());
+      pContainerSvc->getContainerMD(file->getContainerId());
     cont->removeFile(file->getName());
   }
 
@@ -365,7 +368,7 @@ HierarchicalView::getContainer(const std::string& uri, bool follow,
                                size_t* link_depth)
 {
   if (uri == "/") {
-    return std::shared_ptr<IContainerMD>{pContainerSvc->getContainerMD(1)};
+    return std::shared_ptr<IContainerMD> {pContainerSvc->getContainerMD(1)};
   }
 
   size_t lLinkDepth = 0;
@@ -388,8 +391,7 @@ HierarchicalView::getContainer(const std::string& uri, bool follow,
     cont = findLastContainer(elements, elements.size(), position, link_depth);
   } else {
     // Follow all symlinks but not the final container
-    cont =
-        findLastContainer(elements, elements.size() - 1, position, link_depth);
+    cont = findLastContainer(elements, elements.size() - 1, position, link_depth);
     cont = cont->findContainer(elements[elements.size() - 1]);
 
     if (cont) {
@@ -433,7 +435,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   // Look for the last existing container
   size_t position;
   std::shared_ptr<IContainerMD> lastContainer =
-      findLastContainer(elements, elements.size(), position);
+    findLastContainer(elements, elements.size(), position);
 
   if (position == elements.size()) {
     MDException e(EEXIST);
@@ -457,7 +459,7 @@ HierarchicalView::createContainer(const std::string& uri, bool createParents)
   // Create the container with all missing parents if required
   for (size_t i = position; i < elements.size(); ++i) {
     std::shared_ptr<IContainerMD> newContainer{
-        pContainerSvc->createContainer()};
+      pContainerSvc->createContainer()};
     newContainer->setName(elements[i]);
     newContainer->setCTimeNow();
     lastContainer->addContainer(newContainer.get());
@@ -487,7 +489,7 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
   eos::PathProcessor::splitPath(elements, static_cast<char*>(uriBuffer));
   size_t position;
   std::shared_ptr<IContainerMD> parent =
-      findLastContainer(elements, elements.size() - 1, position);
+    findLastContainer(elements, elements.size() - 1, position);
 
   if ((position != (elements.size() - 1))) {
     MDException e(ENOENT);
@@ -497,7 +499,7 @@ HierarchicalView::removeContainer(const std::string& uri, bool recursive)
 
   // Check if the container exist and remove it
   std::shared_ptr<IContainerMD> cont{
-      parent->findContainer(elements[elements.size() - 1])};
+    parent->findContainer(elements[elements.size() - 1])};
 
   if (!cont) {
     MDException e(ENOENT);
@@ -548,7 +550,7 @@ HierarchicalView::findLastContainer(std::vector<char*>& elements, size_t end,
             if ((*link_depths) > 255) {
               MDException e(ELOOP);
               e.getMessage() << "Too many symbolic links were encountered "
-                                "in translating the pathname";
+                             "in translating the pathname";
               throw e;
             }
           }
@@ -593,35 +595,6 @@ HierarchicalView::cleanUpContainer(IContainerMD* cont)
 }
 
 //------------------------------------------------------------------------------
-// Update quota
-//------------------------------------------------------------------------------
-void
-HierarchicalView::FileVisitor::visitFile(IFileMD* file)
-{
-  if (file->getContainerId() == 0) {
-    return;
-  }
-
-  std::shared_ptr<IContainerMD> cont;
-
-  try {
-    cont = pContSvc->getContainerMD(file->getContainerId());
-  } catch (MDException& e) {
-  }
-
-  if (cont == nullptr) {
-    return;
-  }
-
-  // Update quota stats
-  IQuotaNode* node = pView->getQuotaNode(cont.get());
-
-  if (node != nullptr) {
-    node->addFile(file);
-  }
-}
-
-//------------------------------------------------------------------------------
 // Get uri for the container
 //------------------------------------------------------------------------------
 std::string
@@ -638,7 +611,7 @@ HierarchicalView::getUri(const IContainerMD* container) const
   std::vector<std::string> elements;
   elements.reserve(10);
   std::shared_ptr<IContainerMD> cursor =
-      pContainerSvc->getContainerMD(container->getId());
+    pContainerSvc->getContainerMD(container->getId());
 
   while (cursor->getId() != 1) {
     elements.push_back(cursor->getName());
@@ -672,7 +645,7 @@ HierarchicalView::getUri(const IFileMD* file) const
 
   // Get the uri
   std::shared_ptr<IContainerMD> cont =
-      pContainerSvc->getContainerMD(file->getContainerId());
+    pContainerSvc->getContainerMD(file->getContainerId());
   std::string path = getUri(cont.get());
   return path + file->getName();
 }
@@ -680,45 +653,41 @@ HierarchicalView::getUri(const IFileMD* file) const
 //------------------------------------------------------------------------
 // Get real path translating existing symlink
 //------------------------------------------------------------------------
-std::string HierarchicalView::getRealPath( const std::string &uri )
+std::string HierarchicalView::getRealPath(const std::string& uri)
 {
-  size_t link_depths=0;
-  char uriBuffer[uri.length()+1];
-  strcpy( uriBuffer, uri.c_str() );
+  size_t link_depths = 0;
+  char uriBuffer[uri.length() + 1];
+  strcpy(uriBuffer, uri.c_str());
   std::vector<char*> elements;
 
-  if (uri == "/")
-  {
-    MDException e( ENOENT );
+  if (uri == "/") {
+    MDException e(ENOENT);
     e.getMessage() << " is not a file";
     throw e;
   }
 
-  eos::PathProcessor::splitPath( elements, uriBuffer );
+  eos::PathProcessor::splitPath(elements, uriBuffer);
   size_t position;
+  auto cont = findLastContainer(elements, elements.size() - 1, position,
+                                &link_depths);
 
-  auto cont = findLastContainer( elements, elements.size()-1, position,
-				 &link_depths);
-
-  if( position != elements.size()-1 )
-  {
-    MDException e( ENOENT );
+  if (position != elements.size() - 1) {
+    MDException e(ENOENT);
     e.getMessage() << "Container does not exist";
     throw e;
   }
 
   // replace the last existing container with the resolved container path
   std::string newcontainer = getUri(cont.get());
-  size_t oldlength=0;
+  size_t oldlength = 0;
 
-  for (size_t i=0; i< position; i++)
-  {
-    oldlength += strlen(elements[i])+1;
+  for (size_t i = 0; i < position; i++) {
+    oldlength += strlen(elements[i]) + 1;
   }
 
   std::string newpath = uri;
-  newpath.erase(0,oldlength+1);
-  newpath.insert(0,newcontainer);
+  newpath.erase(0, oldlength + 1);
+  newpath.insert(0, newcontainer);
   return newpath;
 }
 
@@ -743,7 +712,7 @@ HierarchicalView::getQuotaNode(const IContainerMD* container, bool search)
 
   // Search for the node
   std::shared_ptr<IContainerMD> current =
-      pContainerSvc->getContainerMD(container->getId());
+    pContainerSvc->getContainerMD(container->getId());
 
   if (search) {
     while (current->getName() != pRoot->getName() &&
@@ -830,7 +799,7 @@ HierarchicalView::removeQuotaNode(IContainerMD* container)
 
   if (container->getId() != 1) {
     parent = getQuotaNode(
-        pContainerSvc->getContainerMD(container->getParentId()).get(), true);
+               pContainerSvc->getContainerMD(container->getParentId()).get(), true);
   }
 
   container->getFlags() &= ~QUOTA_NODE_FLAG;
@@ -875,7 +844,7 @@ HierarchicalView::renameContainer(IContainerMD* container,
   }
 
   std::shared_ptr<IContainerMD> parent{
-      pContainerSvc->getContainerMD(container->getParentId())};
+    pContainerSvc->getContainerMD(container->getParentId())};
 
   if (parent->findContainer(newName) != nullptr) {
     MDException ex;
@@ -920,7 +889,7 @@ HierarchicalView::renameFile(IFileMD* file, const std::string& newName)
   }
 
   std::shared_ptr<IContainerMD> parent{
-      pContainerSvc->getContainerMD(file->getContainerId())};
+    pContainerSvc->getContainerMD(file->getContainerId())};
 
   if (parent->findContainer(newName) != nullptr) {
     MDException ex;
@@ -978,7 +947,6 @@ HierarchicalView::absPath(std::string& mypath)
   }
 
   mypath = abspath;
-  fprintf(stderr, "abspath: %s => %s\n", path.c_str(), mypath.c_str());
 }
 
 EOSNSNAMESPACE_END
