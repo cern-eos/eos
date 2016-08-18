@@ -32,7 +32,8 @@ EOSNSNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc, IContainerMDSvc* cont_svc):
+ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
+                         IContainerMDSvc* cont_svc):
   IContainerMD(), pId(id), pParentId(0), pFlags(0), pName(""), pCUid(0),
   pCGid(0), pMode(040755), pACLId(0), pTreeSize(0), pFileSvc(file_svc),
   pContSvc(cont_svc)
@@ -104,8 +105,9 @@ ContainerMD::findContainer(const std::string& name)
 {
   ContainerMap::iterator it = pSubContainers.find(name);
 
-  if (it == pSubContainers.end())
+  if (it == pSubContainers.end()) {
     return std::shared_ptr<IContainerMD>((IContainerMD*)0);
+  }
 
   return pContSvc->getContainerMD(it->second);
 }
@@ -137,8 +139,9 @@ ContainerMD::findFile(const std::string& name)
 {
   FileMap::iterator it = pFiles.find(name);
 
-  if (it == pFiles.end())
+  if (it == pFiles.end()) {
     return std::shared_ptr<IFileMD>((IFileMD*)0);
+  }
 
   return pFileSvc->getFileMD(it->second);
 }
@@ -152,8 +155,8 @@ ContainerMD::addFile(IFileMD* file)
   file->setContainerId(pId);
   pFiles[file->getName()] = file->getId();
   IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
-				 0,0, file->getSize() );
-  file->getFileMDSvc()->notifyListeners( &e );
+                                 0, 0, file->getSize());
+  file->getFileMDSvc()->notifyListeners(&e);
 }
 
 //------------------------------------------------------------------------------
@@ -162,13 +165,12 @@ ContainerMD::addFile(IFileMD* file)
 void
 ContainerMD::removeFile(const std::string& name)
 {
-  if (pFiles.count(name))
-  {
+  if (pFiles.count(name)) {
     std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(pFiles[name]);
     IFileMDChangeListener::Event e(file.get(), IFileMDChangeListener::SizeChange,
-				   0, 0, -file->getSize() );
-    file->getFileMDSvc()->notifyListeners( &e );
-    pFiles.erase( name );
+                                   0, 0, -file->getSize());
+    file->getFileMDSvc()->notifyListeners(&e);
+    pFiles.erase(name);
   }
 }
 
@@ -180,11 +182,17 @@ void
 ContainerMD::cleanUp()
 {
   std::shared_ptr<IContainerMD> cont;
-  for (auto itf = pFiles.begin(); itf != pFiles.end(); ++itf)
-    pFileSvc->removeFile(itf->second);
+  std::shared_ptr<IFileMD> file;
 
-  for (auto itc = pSubContainers.begin(); itc != pSubContainers.end(); ++itc)
-  {
+  for (auto itf = pFiles.begin(); itf != pFiles.end(); ++itf) {
+    file = pFileSvc->getFileMD(itf->second);
+
+    if (file) {
+      pFileSvc->removeFile(file.get());
+    }
+  }
+
+  for (auto itc = pSubContainers.begin(); itc != pSubContainers.end(); ++itc) {
     cont = pContSvc->getContainerMD(itc->second);
     cont->cleanUp();
     pContSvc->removeContainer(cont.get());
@@ -212,8 +220,7 @@ ContainerMD::serialize(Buffer& buffer)
   buffer.putData(&len, sizeof(len));
   XAttrMap::iterator it;
 
-  for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it)
-  {
+  for (it = pXAttrs.begin(); it != pXAttrs.end(); ++it) {
     uint16_t strLen = it->first.length() + 1;
     buffer.putData(&strLen, sizeof(strLen));
     buffer.putData(it->first.c_str(), strLen);
@@ -229,7 +236,6 @@ ContainerMD::serialize(Buffer& buffer)
   uint16_t l2 = k2.length() + 1;
   uint16_t l3;
   char stime[64];
-
   snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_sec);
   l3 = strlen(stime) + 1;
   // key
@@ -240,7 +246,6 @@ ContainerMD::serialize(Buffer& buffer)
   buffer.putData(stime, l3);
   snprintf(stime, sizeof(stime), "%llu", (unsigned long long)pMTime.tv_nsec);
   l3 = strlen(stime) + 1;
-
   // key
   buffer.putData(&l2, sizeof(l2));
   buffer.putData(k2.c_str(), l2);
@@ -276,8 +281,7 @@ ContainerMD::deserialize(Buffer& buffer)
   len = 0;
   offset = buffer.grabData(offset, &len, sizeof(len));
 
-  for (uint16_t i = 0; i < len; ++i)
-  {
+  for (uint16_t i = 0; i < len; ++i) {
     offset = buffer.grabData(offset, &len1, sizeof(len1));
     char strBuffer1[len1];
     offset = buffer.grabData(offset, strBuffer1, len1);
@@ -286,21 +290,17 @@ ContainerMD::deserialize(Buffer& buffer)
     offset = buffer.grabData(offset, strBuffer2, len2);
     std::string key = strBuffer1;
 
-    if (key=="sys.mtime.s")
-    {
+    if (key == "sys.mtime.s") {
       // Stored modification time in s
-      pMTime.tv_sec = strtoull(strBuffer2,0,10);
+      pMTime.tv_sec = strtoull(strBuffer2, 0, 10);
     }
-    else
-    {
-      if (key== "sys.mtime.ns")
-      {
-	// Stored modification time in ns
-	pMTime.tv_nsec = strtoull(strBuffer2,0,10);
+    else {
+      if (key == "sys.mtime.ns") {
+        // Stored modification time in ns
+        pMTime.tv_nsec = strtoull(strBuffer2, 0, 10);
       }
-      else
-      {
-	pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
+      else {
+        pXAttrs.insert(std::make_pair <char*, char*>(strBuffer1, strBuffer2));
       }
     }
   }
@@ -316,27 +316,57 @@ ContainerMD::deserialize(Buffer& buffer)
 static char convertModetUser(mode_t mode)
 {
   char perms = 0;
-  if (mode & S_IRUSR) perms |= CANREAD;
-  if (mode & S_IWUSR) perms |= CANWRITE;
-  if (mode & S_IXUSR) perms |= CANENTER;
+
+  if (mode & S_IRUSR) {
+    perms |= CANREAD;
+  }
+
+  if (mode & S_IWUSR) {
+    perms |= CANWRITE;
+  }
+
+  if (mode & S_IXUSR) {
+    perms |= CANENTER;
+  }
+
   return perms;
 }
 
 static char convertModetGroup(mode_t mode)
 {
   char perms = 0;
-  if (mode & S_IRGRP) perms |= CANREAD;
-  if (mode & S_IWGRP) perms |= CANWRITE;
-  if (mode & S_IXGRP) perms |= CANENTER;
+
+  if (mode & S_IRGRP) {
+    perms |= CANREAD;
+  }
+
+  if (mode & S_IWGRP) {
+    perms |= CANWRITE;
+  }
+
+  if (mode & S_IXGRP) {
+    perms |= CANENTER;
+  }
+
   return perms;
 }
 
 static char convertModetOther(mode_t mode)
 {
   char perms = 0;
-  if (mode & S_IROTH) perms |= CANREAD;
-  if (mode & S_IWOTH) perms |= CANWRITE;
-  if (mode & S_IXOTH) perms |= CANENTER;
+
+  if (mode & S_IROTH) {
+    perms |= CANREAD;
+  }
+
+  if (mode & S_IWOTH) {
+    perms |= CANWRITE;
+  }
+
+  if (mode & S_IXOTH) {
+    perms |= CANENTER;
+  }
+
   return perms;
 }
 
@@ -344,8 +374,9 @@ static bool checkPerms(char actual, char requested)
 {
   for (int i = 0; i < 3; ++i)
     if (requested & (1 << i))
-      if (!(actual & (1 << i)))
-	return false;
+      if (!(actual & (1 << i))) {
+        return false;
+      }
 
   return true;
 }
@@ -357,28 +388,37 @@ bool
 ContainerMD::access(uid_t uid, gid_t gid, int flags)
 {
   // root can do everything
-  if (uid == 0)
+  if (uid == 0) {
     return true;
+  }
 
   // daemon can read everything
-  if ((uid == DAEMONUID ) && (!(flags & W_OK)))
+  if ((uid == DAEMONUID) && (!(flags & W_OK))) {
     return true;
+  }
 
   // Convert the flags
   char convFlags = 0;
-  if (flags & R_OK) convFlags |= CANREAD;
-  if (flags & W_OK) convFlags |= CANWRITE;
-  if (flags & X_OK) convFlags |= CANENTER;
+
+  if (flags & R_OK) {
+    convFlags |= CANREAD;
+  }
+
+  if (flags & W_OK) {
+    convFlags |= CANWRITE;
+  }
+
+  if (flags & X_OK) {
+    convFlags |= CANENTER;
+  }
 
   // Check the perms
-  if (uid == pCUid)
-  {
+  if (uid == pCUid) {
     char user = convertModetUser(pMode);
     return checkPerms(user, convFlags);
   }
 
-  if (gid == pCGid)
-  {
+  if (gid == pCGid) {
     char group = convertModetGroup(pMode);
     return checkPerms(group, convFlags);
   }
@@ -395,8 +435,7 @@ ContainerMD::getNameFiles() const
 {
   std::set<std::string> fnames;
 
-  for (auto it = pFiles.begin(); it != pFiles.end(); ++it)
-  {
+  for (auto it = pFiles.begin(); it != pFiles.end(); ++it) {
     fnames.insert(it->first);
   }
 
@@ -411,8 +450,7 @@ ContainerMD::getNameContainers() const
 {
   std::set<std::string> dnames;
 
-  for (auto it = pSubContainers.begin(); it != pSubContainers.end(); ++it)
-  {
+  for (auto it = pSubContainers.begin(); it != pSubContainers.end(); ++it) {
     dnames.insert(it->first);
   }
 
@@ -423,7 +461,7 @@ ContainerMD::getNameContainers() const
 // Set modification time
 //------------------------------------------------------------------------------
 void
-ContainerMD::setMTime( mtime_t mtime)
+ContainerMD::setMTime(mtime_t mtime)
 {
   pMTime.tv_sec = mtime.tv_sec;
   pMTime.tv_nsec = mtime.tv_nsec;
@@ -447,9 +485,9 @@ void ContainerMD::setMTimeNow()
 //------------------------------------------------------------------------------
 // Trigger an mtime change event
 //------------------------------------------------------------------------------
-void ContainerMD::notifyMTimeChange( IContainerMDSvc *containerMDSvc )
+void ContainerMD::notifyMTimeChange(IContainerMDSvc* containerMDSvc)
 {
-  containerMDSvc->notifyListeners( this , IContainerMDChangeListener::MTimeChange);
+  containerMDSvc->notifyListeners(this , IContainerMDChangeListener::MTimeChange);
 }
 
 EOSNSNAMESPACE_END

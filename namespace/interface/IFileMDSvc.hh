@@ -42,9 +42,8 @@ class IQuotaStats;
 //----------------------------------------------------------------------------
 class IFileMDChangeListener
 {
- public:
-  enum Action
-  {
+public:
+  enum Action {
     Updated = 0,
     Deleted,
     Created,
@@ -58,29 +57,28 @@ class IFileMDChangeListener
   //------------------------------------------------------------------------
   //! Event sent to the listener
   //------------------------------------------------------------------------
-  struct Event
-  {
+  struct Event {
     Event(IFileMD* _file, Action _action,
-	  IFileMD::location_t _location = 0,
-	  IFileMD::location_t _oldLocation = 0,
-	  int64_t _changed_size = 0):
-	file(_file),
-	fileId(0),
-	action(_action),
-	location(_location),
-	oldLocation(_oldLocation),
-	sizeChange(_changed_size) {}
+          IFileMD::location_t _location = 0,
+          IFileMD::location_t _oldLocation = 0,
+          int64_t _changed_size = 0):
+      file(_file),
+      fileId(0),
+      action(_action),
+      location(_location),
+      oldLocation(_oldLocation),
+      sizeChange(_changed_size) {}
 
     Event(IFileMD::id_t _fileId, Action _action,
-	  IFileMD::location_t _location = 0,
-	  IFileMD::location_t _oldLocation = 0,
-	  int64_t _changed_size = 0):
-	file(0),
-	fileId(_fileId),
-	action(_action),
-	location(_location),
-	oldLocation(_oldLocation),
-	sizeChange(_changed_size) {}
+          IFileMD::location_t _location = 0,
+          IFileMD::location_t _oldLocation = 0,
+          int64_t _changed_size = 0):
+      file(0),
+      fileId(_fileId),
+      action(_action),
+      location(_location),
+      oldLocation(_oldLocation),
+      sizeChange(_changed_size) {}
 
 
     IFileMD*             file;
@@ -104,7 +102,7 @@ class IFileMDChangeListener
 //----------------------------------------------------------------------------
 class IFileVisitor
 {
- public:
+public:
   virtual void visitFile(IFileMD* file) = 0;
 };
 
@@ -117,7 +115,7 @@ class IFileVisitor
 //----------------------------------------------------------------------------
 class IFileMDSvc
 {
- public:
+public:
   //------------------------------------------------------------------------
   //! Destructor
   //------------------------------------------------------------------------
@@ -161,11 +159,6 @@ class IFileMDSvc
   virtual void removeFile(IFileMD* obj) = 0;
 
   //------------------------------------------------------------------------
-  //! Remove object from the store
-  //------------------------------------------------------------------------
-  virtual void removeFile(IFileMD::id_t fileId) = 0;
-
-  //------------------------------------------------------------------------
   //! Get number of files
   //------------------------------------------------------------------------
   virtual uint64_t getNumFiles() = 0;
@@ -196,7 +189,7 @@ class IFileMDSvc
   //------------------------------------------------------------------------
   //! Visit all the files
   //------------------------------------------------------------------------
-  virtual void visit( IFileVisitor *visitor ) = 0;
+  virtual void visit(IFileVisitor* visitor) = 0;
 };
 
 EOSNSNAMESPACE_END
