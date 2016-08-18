@@ -34,9 +34,5 @@
 # Set the maximum line length to 80
 --max-code-length=80
 
-# Break closing headers ('else', 'catch') from their immeditate preceding
-# closing brackets
---break-closing-brackets
-
 # Add brackets to one liners
 --add-brackets
