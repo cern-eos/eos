@@ -47,7 +47,7 @@ FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E "\.(c|h|cpp|h
 set -e
 
 for FILE in ${FILES}; do
-    ${ASTYLE} ${ARTISTIC_STYLE_OPTIONS} -n ${FILE}
+    ${ASTYLE} --options=none ${ARTISTIC_STYLE_OPTIONS} -n ${FILE}
     git add ${FILE}
 done
 
