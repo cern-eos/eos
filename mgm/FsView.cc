@@ -40,7 +40,7 @@ std::string FsNode::gManagerId;
 bool FsSpace::gDisableDefaults = false;
 
 #ifndef EOSMGMFSVIEWTEST
-ConfigEngine* FsView::ConfEngine = 0;
+IConfigEngine* FsView::ConfEngine = 0;
 #endif
 
 //------------------------------------------------------------------------------

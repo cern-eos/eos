@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ConfigEngine.hh
+// File: IConfigEngine.hh
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_CONFIGENGINE__HH__
-#define __EOSMGM_CONFIGENGINE__HH__
+#ifndef __EOSMGM_ICONFIGENGINE__HH__
+#define __EOSMGM_ICONFIGENGINE__HH__
 
 /*----------------------------------------------------------------------------*/
 // this is needed because of some openssl definition conflict!
@@ -46,14 +46,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-/*----------------------------------------------------------------------------*/
-#include <redox.hpp>
-#include <redox/redoxSet.hpp>
-#include <redox/redoxHash.hpp>
-/*----------------------------------------------------------------------------*/
 
 /**
- * @file ConfigEngine.hh
+ * @file IConfigEngine.hh
  * 
  * @brief Interface Class responsible to handle configuration (load,save, publish)
  * 
@@ -63,15 +58,14 @@
  */
 
 /*----------------------------------------------------------------------------*/
-EOSMGMNAMESPACE_BEGIN
 
-#define EOSMGMCONFIGENGINE_EOS_SUFFIX ".eoscf"
+EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 /** 
- * @brief Class implementing the changelog store/history
- *
- */
+ *  * @brief Class implementing the changelog store/history
+ *   *
+ *    */
 /*----------------------------------------------------------------------------*/
 class ConfigEngineChangeLog : public eos::common::LogId
 {
@@ -107,37 +101,35 @@ public:
  * The class provides reset/load/store functionality. 
  */
 /*----------------------------------------------------------------------------*/
-class ConfigEngine : public eos::common::LogId
+class IConfigEngine : public eos::common::LogId
 {
 public:
 
-  ConfigEngine() {};
+  IConfigEngine() {};
 
-  virtual ~ConfigEngine() {};
+  virtual ~IConfigEngine() {};
 
   static XrdOucHash<XrdOucString> configDefinitions; ///< config definitions currently in memory
 
   // ---------------------------------------------------------------------------
   // Load a configuration
   // ---------------------------------------------------------------------------
-  virtual bool LoadConfig (XrdOucEnv& env, XrdOucString &err) {return true;};
+  virtual bool LoadConfig (XrdOucEnv& env, XrdOucString &err) = 0;
 
   // ---------------------------------------------------------------------------
   // Save a configuration
   // ---------------------------------------------------------------------------
-  virtual bool SaveConfig (XrdOucEnv& env, XrdOucString &err) {return true;};
+  virtual bool SaveConfig (XrdOucEnv& env, XrdOucString &err) = 0;
 
   // ---------------------------------------------------------------------------
   // List all configurations
   // ---------------------------------------------------------------------------
-  virtual bool ListConfigs (XrdOucString &configlist, bool showbackups = false)
-  { return true;}
+  virtual bool ListConfigs (XrdOucString &configlist, bool showbackups = false) = 0;
 
   // ---------------------------------------------------------------------------
   // Dump a configuration
   // ---------------------------------------------------------------------------
-  virtual bool DumpConfig (XrdOucString &out, XrdOucEnv &filter) {
-    return true; }
+  bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
 
   // ---------------------------------------------------------------------------
   // Reset the current configuration
@@ -148,7 +140,25 @@ public:
   // Parse a configuration
   // ---------------------------------------------------------------------------
   bool ParseConfig (XrdOucString &broadcast, XrdOucString &err);
-  
+
+  // ---------------------------------------------------------------------------
+  //! Get the changlog object
+  // ---------------------------------------------------------------------------
+ 
+  ConfigEngineChangeLog*
+  GetChangeLog ()
+  {
+  return &changeLog;
+  }
+ 
+  void
+  Diffs (XrdOucString &diffs)
+  {
+    diffs = changeLog.configChanges;
+    while (diffs.replace ("&", " "))
+    {
+    }
+  };
   
   // ---------------------------------------------------------------------------
   //! Set the autosave mode
@@ -174,7 +184,7 @@ public:
   // Do an autosave
   // ---------------------------------------------------------------------------
   virtual bool
-  AutoSave () {return true;}
+  AutoSave () = 0;
   // ---------------------------------------------------------------------------
   // Set a configuration value
   // ---------------------------------------------------------------------------
@@ -182,7 +192,7 @@ public:
   SetConfigValue (const char* prefix,
                   const char* fsname,
                   const char* def,
-                  bool tochangelog = true) {}
+                  bool tochangelog = true) = 0;
 
   // ---------------------------------------------------------------------------
   // Delete a configuration value
@@ -190,13 +200,13 @@ public:
   virtual void
   DeleteConfigValue (const char* prefix,
                      const char* fsname,
-                     bool tochangelog = true) {}
+                     bool tochangelog = true) =0;
 
   // ---------------------------------------------------------------------------
   // set config folder
   // ---------------------------------------------------------------------------
   virtual void
-  SetConfigDir (const char* configdir) {};
+  SetConfigDir (const char* configdir) = 0;
   
   // ---------------------------------------------------------------------------
   // Function applying a deletion of a configuration key to the responsible
@@ -219,13 +229,16 @@ public:
   // ---------------------------------------------------------------------------
   static int DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg);
 
-
   // ---------------------------------------------------------------------------
   // Apply a configuration
   // ---------------------------------------------------------------------------
   bool ApplyConfig (XrdOucString &err);
 
-protected:
+  // ---------------------------------------------------------------------------
+  // Push a configuration to Redis
+  // ---------------------------------------------------------------------------
+  virtual bool PushToRedis (XrdOucEnv &env, XrdOucString &err) { return true;}
+
   /// mutex protecting the configuration engine
   XrdSysMutex Mutex;
 
@@ -247,80 +260,9 @@ protected:
  // broadcasting flag - if enabled all changes are broadcasted into the MGM
  // configuration queue (config/<instance>/mgm)
   bool configBroadcast;
-  
-};
 
-//-------------------------------------------------------------------------------
-// ConfigEngineFile class
-//-------------------------------------------------------------------------------
-class ConfigEngineFile : public ConfigEngine  
-{
-  private:
-  
-  // Changelog class
+ // Changelog class
   ConfigEngineChangeLog changeLog;
-  
-  public:
-  // ---------------------------------------------------------------------------
-  // Constructor
-  // ---------------------------------------------------------------------------
-  ConfigEngineFile (const char* configdir);
-
-  ~ConfigEngineFile();
-
-  static XrdOucHash<XrdOucString> configDefinitionsFile; ///< config definitions of the last loaded file
-
-  // ---------------------------------------------------------------------------
-  // Load a configuration
-  // ---------------------------------------------------------------------------
-  bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // Save a configuration
-  // ---------------------------------------------------------------------------
-  bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // List all configurations
-  // ---------------------------------------------------------------------------
-  bool ListConfigs (XrdOucString &configlist, bool showbackups = false);
-
-  // ---------------------------------------------------------------------------
-  // Dump a configuration
-  // ---------------------------------------------------------------------------
-  bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
-
-
-  void
-  SetConfigDir (const char* configdir)
-  {
-    configDir = configdir;
-    changeLog.configChanges = "";
-    currentConfigFile = "default";
-  }
-
-  // ---------------------------------------------------------------------------
-  //! Get the changlog object
-  // ---------------------------------------------------------------------------
-
-  ConfigEngineChangeLog*
-  GetChangeLog ()
-  {
-    return &changeLog;
-  }
-    // ---------------------------------------------------------------------------
-  //! Show diffs between the last stored and current configuration
-  // ---------------------------------------------------------------------------
-
-  void
-  Diffs (XrdOucString &diffs)
-  {
-    diffs = changeLog.configChanges;
-    while (diffs.replace ("&", " "))
-    {
-    }
-  };
-
 
   // ---------------------------------------------------------------------------
   //! Comparison function for sorted listing
@@ -339,25 +281,7 @@ class ConfigEngineFile : public ConfigEngine
   }
 
   // ---------------------------------------------------------------------------
-<<<<<<< HEAD
-  // Parse a configuration
-  // ---------------------------------------------------------------------------
-  void
-    SetConfigValue (const char* prefix,
-                   const char* fsname,
-                   const char* def,
-                   bool tochangelog = true);
-  
-  // ---------------------------------------------------------------------------
-  // Reset the current configuration
-  // ---------------------------------------------------------------------------
-  bool LoadConfig (XrdOucEnv& env, XrdOucString &err);
-
-  // ---------------------------------------------------------------------------
-  // Save a configuration
-=======
   //! Print the current configuration
->>>>>>> moved common functions to ConfigEngine, implemented Config Dump in Redis
   // ---------------------------------------------------------------------------
   bool SaveConfig (XrdOucEnv& env, XrdOucString &err);
 
@@ -414,32 +338,6 @@ class ConfigEngineRedis : public ConfigEngine
   // ---------------------------------------------------------------------------
   bool DumpConfig (XrdOucString &out, XrdOucEnv &filter);
 
-<<<<<<< HEAD
-  // ---------------------------------------------------------------------------
-  // Reset the current configuration
-  // ---------------------------------------------------------------------------
-  void ResetConfig ();
-
-  // ---------------------------------------------------------------------------
-  // set config folder
-  // ---------------------------------------------------------------------------
-    void
-  SetConfigDir (const char* configdir)
-  {
-    //nothing for Redis
-  }
-
-  // ---------------------------------------------------------------------------
-  // Function applying a deletion of a configuration key to the responsible
-  // ---------------------------------------------------------------------------
-  int ApplyKeyDeletion (const char* key);
-
->>>>>>> added abstract class for ConfigEngine, with 2 implementations, File and Redis ( to complete)
-  void
-    DeleteConfigValueByMatch (const char* prefix, const char* match);
-
-=======
->>>>>>> moved common functions to ConfigEngine, implemented Config Dump in Redis
   //----------------------------------------------------------------------------
   // Redis conf specific functions
   //----------------------------------------------------------------------------
@@ -483,16 +381,12 @@ class ConfigEngineRedis : public ConfigEngine
   private:
 
   redox::Redox client;
+=======
+private:
+ 
+  virtual void FilterConfig(PrintInfo &info,XrdOucString &out,const char * configName) = 0;
+>>>>>>> MGM: Refector ConfigEngine after Elvin review, separated header files, new class names, made ConfigEngine abstract, removed Dynamic Cast:mgm/IConfigEngine.hh
   
-  std::string REDIS_HOST;
-
-  int REDIS_PORT;
-
-  std::string conf_set_key = "EOSConfig:list";
-  std::string conf_hash_key_prefix = "EOSConfig";
-  std::string conf_backup_hash_key_prefix = "EOSConfig:backup";
-  std::string conf_set_backup_key = "EOSConfig:backuplist";
-
 };
 
 EOSMGMNAMESPACE_END

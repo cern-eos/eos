@@ -1368,9 +1368,9 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Start the config engine
   if (MgmOfsConfigEngineType == "file") 
-    ConfEngine = new ConfigEngineFile(MgmConfigDir.c_str());
+    ConfEngine = new FileConfigEngine(MgmConfigDir.c_str());
   else if (MgmOfsConfigEngineType == "redis") 
-    ConfEngine = new ConfigEngineRedis(MgmConfigDir.c_str());	  
+    ConfEngine = new RedisConfigEngine(MgmConfigDir.c_str(),MgmOfsConfigEngineRedisHost.c_str(),MgmOfsConfigEngineRedisPort);	  
   else {
     Eroute.Emsg("Config", "Invalid Config Engine Type!",
                 MgmOfsConfigEngineType.c_str());

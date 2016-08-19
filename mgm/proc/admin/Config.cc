@@ -118,9 +118,8 @@ ProcCommand::Config ()
    }
    else if (pVid->uid == 0)
    {
-     eos_notice("config load2Redis: %s", pOpaque->Env(envlen));
-     ConfigEngineRedis* redis_conf = dynamic_cast<ConfigEngineRedis*> (gOFS->ConfEngine);
-     if (!redis_conf->LoadConfig2Redis(*pOpaque, stdErr))
+     eos_notice("config export: %s", pOpaque->Env(envlen));
+     if (!gOFS->ConfEngine->PushToRedis(*pOpaque, stdErr))
      {
        retc = errno;
      }
@@ -199,8 +198,7 @@ ProcCommand::Config ()
    else 
    {
      eos_notice("config diff");
-     ConfigEngineFile* file_conf = dynamic_cast<ConfigEngineFile*> (gOFS->ConfEngine);
-     file_conf->Diffs(stdOut);
+     gOFS->ConfEngine->Diffs(stdOut);
    }
  }
 
@@ -220,8 +218,7 @@ ProcCommand::Config ()
        nlines = atoi(val);
        if (nlines < 1) nlines = 1;
      }
-     ConfigEngineFile* file_conf = dynamic_cast<ConfigEngineFile*> (gOFS->ConfEngine);
-     file_conf->GetChangeLog()->Tail(nlines, stdOut);
+     gOFS->ConfEngine->GetChangeLog()->Tail(nlines, stdOut);
      eos_notice("config changelog");
   }
  }

@@ -108,7 +108,9 @@
 #include "common/LinuxStat.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
-#include "mgm/ConfigEngine.hh"
+#include "mgm/IConfigEngine.hh"
+#include "mgm/FileConfigEngine.hh"
+#include "mgm/RedisConfigEngine.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Iostat.hh"
@@ -1015,7 +1017,7 @@ public:
   // ---------------------------------------------------------------------------
   char* ConfigFN; //< name of the configuration file
 
-  ConfigEngine* ConfEngine; //< storing/restoring configuration
+  IConfigEngine* ConfEngine; //< storing/restoring configuration
 
   XrdCapability*
   CapabilityEngine; //< authorization module for token encryption/decryption

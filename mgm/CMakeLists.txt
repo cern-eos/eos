@@ -43,9 +43,9 @@ include_directories(
 add_library(
   XrdEosMgm MODULE
   Access.cc
-  ConfigEngine.cc
-  ConfigEngineFile.cc
-  ConfigEngineRedis.cc
+  IConfigEngine.cc
+  FileConfigEngine.cc
+  RedisConfigEngine.cc
   GeoTreeEngine.cc
   Messaging.cc
   VstMessaging.cc
@@ -161,15 +161,14 @@ target_link_libraries(
   ${UUID_LIBRARIES}
   ${NCURSES_LIBRARY}
   ${GLIBC_DL_LIBRARY}
-  ${LIBEV_LIBRARIES}
   ${REDOX_LIBRARIES}
+  ${LIBEV_LIBRARIES}
   ${XROOTD_CL_LIBRARY}
   ${XROOTD_POSIX_LIBRARY}
   ${XROOTD_UTILS_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT}
   ${JSONCPP_LIBRARIES}
-  ${REDOX_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
 #-------------------------------------------------------------------------------

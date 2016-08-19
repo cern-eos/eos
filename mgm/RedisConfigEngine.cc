@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ConfigEngineRedis.cc
+// File: RedisConfigEngine.cc
 // Author: Andrea Manzi - CERN
 // ----------------------------------------------------------------------
 
@@ -22,46 +22,33 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Mapping.hh"
-#include "mgm/Access.hh"
-#include "mgm/ConfigEngine.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Vid.hh"
-#include "mgm/txengine/TransferEngine.hh"
-#include "mq/XrdMqMessage.hh"
-/*----------------------------------------------------------------------------*/
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cstdio>
-#include <sys/stat.h>
+#include "mgm/RedisConfigEngine.hh"
 /*----------------------------------------------------------------------------*/
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//                     *** ConfigEngineRedis class ***
+//                     *** RedisConfigEngine class ***
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConfigEngineRedis::ConfigEngineRedis (const char* configdir)
+RedisConfigEngine::RedisConfigEngine (const char* configdir, const char* redisHost, int redisPort)
 {
   SetConfigDir(configdir);
   currentConfigFile = "default";
   autosave = false;
-  REDIS_HOST = gOFS->MgmOfsConfigEngineRedisHost.c_str();
-  REDIS_PORT = gOFS->MgmOfsConfigEngineRedisPort;
-  client.connect(REDIS_HOST, REDIS_PORT);
+  redisHost = redisHost;
+  redisPort = redisPort;
+  client.connect(redisHost, redisPort);
   configBroadcast = true;
 }
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-ConfigEngineRedis::~ConfigEngineRedis() {
+RedisConfigEngine::~RedisConfigEngine() {
   client.disconnect();
 }
 
@@ -69,7 +56,7 @@ ConfigEngineRedis::~ConfigEngineRedis() {
 // Load a given configuration file
 //------------------------------------------------------------------------------
 bool
-ConfigEngineRedis::LoadConfig (XrdOucEnv &env, XrdOucString &err)
+RedisConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
@@ -93,7 +80,7 @@ ConfigEngineRedis::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 
   redox::RedoxHash rdx_hash(client,hash_key);
 
-  if (!SetConfigFromRedis(rdx_hash, err))
+  if (!PullFromRedis(rdx_hash, err))
 	     return false;
   if (!ApplyConfig(err))
      	return false;
@@ -107,7 +94,7 @@ ConfigEngineRedis::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
+RedisConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Store the current configuration to a given file or Redis 
@@ -237,7 +224,7 @@ ConfigEngineRedis::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineRedis::ListConfigs (XrdOucString &configlist, bool showbackup)
+RedisConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief List the existing configurations
@@ -303,10 +290,10 @@ ConfigEngineRedis::ListConfigs (XrdOucString &configlist, bool showbackup)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineRedis::SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err)
+RedisConfigEngine::PullFromRedis (redox::RedoxHash &hash, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 /**
- *  * @brief set the configuration from Redis Hash
+ *  * @brief Pull the configuration from Redis Hash
  *   */
 /*----------------------------------------------------------------------------*/
 {
@@ -328,81 +315,18 @@ ConfigEngineRedis::SetConfigFromRedis (redox::RedoxHash &hash, XrdOucString &err
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-ConfigEngineRedis::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
+void
+RedisConfigEngine::FilterConfig (PrintInfo &pinfo, XrdOucString &out,const char * configName)
 /*----------------------------------------------------------------------------*/
 /**
- * @brief Dump function for selective configuration printing
+ * @brief Filter the configuration and create the output
  */
 /*----------------------------------------------------------------------------*/
 {
-  struct PrintInfo pinfo;
-
-  const char* name = filter.Get("mgm.config.file");
-
-  pinfo.out = &out;
-  pinfo.option = "vfqcgms";
-
-  if (
-      filter.Get("mgm.config.vid") ||
-      filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.quota") ||
-      filter.Get("mgm.config.comment") ||
-      filter.Get("mgm.config.policy") ||
-      filter.Get("mgm.config.global") ||
-      filter.Get("mgm.config.map") ||
-      filter.Get("mgm.config.geosched")
-  )
-  {
-    pinfo.option = "";
-  }
-
-  if (filter.Get("mgm.config.vid"))
-  {
-    pinfo.option += "v";
-  }
-  if (filter.Get("mgm.config.fs"))
-  {
-    pinfo.option += "f";
-  }
-  if (filter.Get("mgm.config.policy"))
-  {
-    pinfo.option += "p";
-  }
-  if (filter.Get("mgm.config.quota"))
-  {
-    pinfo.option += "q";
-  }
-  if (filter.Get("mgm.config.comment"))
-  {
-    pinfo.option += "c";
-  }
-  if (filter.Get("mgm.config.global"))
-  {
-    pinfo.option += "g";
-  }
-  if (filter.Get("mgm.config.map"))
-  {
-    pinfo.option += "m";
-  }
-  if (filter.Get("mgm.config.geosched"))
-  {
-    pinfo.option += "s";
-  }
-
-  if (name == 0)
-  {
-    configDefinitions.Apply(PrintEachConfig, &pinfo);
-    while (out.replace("&", " "))
-    {
-    }
-  }
-  else
-  { 
     std::string hash_key;
     hash_key += conf_hash_key_prefix.c_str();
     hash_key += ":";
-    hash_key += name;
+    hash_key += configName;
 
     eos_notice("HASH KEY NAME => %s",hash_key.c_str());
 
@@ -441,14 +365,11 @@ ConfigEngineRedis::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
         out += "\n";
       }
     }
-
-  }
-  return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineRedis::AutoSave ()
+RedisConfigEngine::AutoSave ()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Do an autosave
@@ -477,7 +398,7 @@ ConfigEngineRedis::AutoSave ()
 
 /*----------------------------------------------------------------------------*/
 void
-ConfigEngineRedis::SetConfigValue (const char* prefix,
+RedisConfigEngine::SetConfigValue (const char* prefix,
 			      const char* key,
 			      const char* val,
 			      bool noBroadcast)
@@ -565,7 +486,7 @@ ConfigEngineRedis::SetConfigValue (const char* prefix,
 
 /*----------------------------------------------------------------------------*/
 void
-ConfigEngineRedis::DeleteConfigValue (const char* prefix,
+RedisConfigEngine::DeleteConfigValue (const char* prefix,
 				 const char* key,
 				 bool noBroadcast)
 /*----------------------------------------------------------------------------*/
@@ -634,7 +555,7 @@ ConfigEngineRedis::DeleteConfigValue (const char* prefix,
 
 /* ---------------------------------------------------------------------------*/
 bool 
-ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err) 
+RedisConfigEngine::PushToRedis (XrdOucEnv &env, XrdOucString &err) 
 /**
  * Dump a configuration to Redis from the current loaded config
  *
@@ -726,8 +647,9 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
       redox::RedoxSet rdx_set(client, conf_set_key);
 
       //add the hash key to the set if it's not there
-      if (!rdx_set.sismember(hash_key) )
-		rdx_set.sadd(hash_key);
+      if (!rdx_set.sismember(hash_key) ) {
+        rdx_set.sadd(hash_key);
+      }
 
       return true;
     }
@@ -745,7 +667,7 @@ ConfigEngineRedis::LoadConfig2Redis (XrdOucEnv &env, XrdOucString &err)
 
 /* ---------------------------------------------------------------------------*/
 int 
-ConfigEngineRedis::SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg)
+RedisConfigEngine::SetConfigToRedisHash  (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Callback function of XrdOucHash to set to Redox Hash each key

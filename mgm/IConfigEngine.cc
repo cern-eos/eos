@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ConfigEngine.cc
+// File: IConfigEngine.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "mgm/Access.hh"
-#include "mgm/ConfigEngine.hh"
+#include "mgm/IConfigEngine.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Vid.hh"
@@ -40,11 +40,11 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-XrdOucHash<XrdOucString> ConfigEngine::configDefinitions;
+XrdOucHash<XrdOucString> IConfigEngine::configDefinitions;
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg)
+IConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Delete configuration keys by match
@@ -63,7 +63,7 @@ ConfigEngine::DeleteConfigByMatch (const char* key, XrdOucString* def, void* Arg
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
+IConfigEngine::ApplyEachConfig (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Callback function of XrdOucHash to apply a key to the corresponding
@@ -237,7 +237,7 @@ ConfigEngine::ApplyEachConfig(const char* key, XrdOucString* def, void* Arg)
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
+IConfigEngine::PrintEachConfig (const char* key, XrdOucString* def, void* Arg)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Callback function of XrdOucHash to print individual configuration keys
@@ -315,7 +315,7 @@ ConfigEngine::PrintEachConfig(const char* key, XrdOucString* def, void* Arg)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngine::ApplyConfig (XrdOucString &err)
+IConfigEngine::ApplyConfig (XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Apply a given configuration defition
@@ -368,7 +368,7 @@ ConfigEngine::ApplyConfig (XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
+IConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 /**
  *  * @brief Parse a given configuration
@@ -419,7 +419,7 @@ ConfigEngine::ParseConfig (XrdOucString &inconfig, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 void
-ConfigEngine::ResetConfig()
+IConfigEngine::ResetConfig()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Reset the configuration
@@ -456,7 +456,7 @@ ConfigEngine::ResetConfig()
 
 /*----------------------------------------------------------------------------*/
 void
-ConfigEngine::DeleteConfigValueByMatch (const char* prefix,
+IConfigEngine::DeleteConfigValueByMatch (const char* prefix,
                                         const char* match)
 /*----------------------------------------------------------------------------*/
 /**
@@ -476,7 +476,7 @@ ConfigEngine::DeleteConfigValueByMatch (const char* prefix,
 
 /*----------------------------------------------------------------------------*/
 int
-ConfigEngine::ApplyKeyDeletion (const char* key)
+IConfigEngine::ApplyKeyDeletion (const char* key)
 /*----------------------------------------------------------------------------*/
 /**
  *  @brief Deletion of a configuration key to the responsible object
@@ -585,6 +585,83 @@ ConfigEngine::ApplyKeyDeletion (const char* key)
   }
 
   return 0;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+IConfigEngine::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
+/*----------------------------------------------------------------------------*/
+/**
+ *  * @brief Dump function for selective configuration printing
+ *   */
+/*----------------------------------------------------------------------------*/
+{
+  struct PrintInfo pinfo;
+
+  const char* name = filter.Get("mgm.config.file");
+
+  pinfo.out = &out;
+  pinfo.option = "vfqcgms";
+
+  if (
+      filter.Get("mgm.config.vid") ||
+      filter.Get("mgm.config.fs") ||
+      filter.Get("mgm.config.quota") ||
+      filter.Get("mgm.config.comment") ||
+      filter.Get("mgm.config.policy") ||
+      filter.Get("mgm.config.global") ||
+      filter.Get("mgm.config.map") ||
+      filter.Get("mgm.config.geosched")
+  )
+  {
+    pinfo.option = "";
+  }
+
+  if (filter.Get("mgm.config.vid"))
+  {
+    pinfo.option += "v";
+  }
+  if (filter.Get("mgm.config.fs"))
+  {
+    pinfo.option += "f";
+  }
+  if (filter.Get("mgm.config.policy"))
+  {
+    pinfo.option += "p";
+  }
+  if (filter.Get("mgm.config.quota"))
+  {
+    pinfo.option += "q";
+  }
+  if (filter.Get("mgm.config.comment"))
+  {
+    pinfo.option += "c";
+  }
+  if (filter.Get("mgm.config.global"))
+  {
+    pinfo.option += "g";
+  }
+  if (filter.Get("mgm.config.map"))
+  {
+    pinfo.option += "m";
+  }
+  if (filter.Get("mgm.config.geosched"))
+  {
+    pinfo.option += "s";
+  }
+
+  if (name == 0)
+  {
+    configDefinitions.Apply(PrintEachConfig, &pinfo);
+    while (out.replace("&", " "))
+    {
+    }
+  }
+  else 
+  {	
+    FilterConfig(pinfo,out,name);
+  }
+  return true;
 }
 
 

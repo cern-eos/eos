@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ConfigEngineFile.cc
+// File: FileConfigEngine.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -22,26 +22,12 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Mapping.hh"
-#include "mgm/Access.hh"
-#include "mgm/ConfigEngine.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Vid.hh"
-#include "mgm/txengine/TransferEngine.hh"
-#include "mq/XrdMqMessage.hh"
-/*----------------------------------------------------------------------------*/
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <cstdio>
-#include <sys/stat.h>
-/*----------------------------------------------------------------------------*/
+#include "mgm/FileConfigEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
 // config definitions of the last loaded file
-XrdOucHash<XrdOucString> ConfigEngineFile::configDefinitionsFile;
+XrdOucHash<XrdOucString> FileConfigEngine::configDefinitionsFile;
 
 
 /*----------------------------------------------------------------------------*/
@@ -218,13 +204,13 @@ ConfigEngineChangeLog::Tail (unsigned int nlines, XrdOucString &tail)
 }
 
 //------------------------------------------------------------------------------
-//                     *** ConfigEngineFile class ***
+//                     *** FileConfigEngine class ***
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ConfigEngineFile::ConfigEngineFile (const char* configdir)
+FileConfigEngine::FileConfigEngine (const char* configdir)
 {
   SetConfigDir(configdir);
   changeLog.configChanges = "";
@@ -239,14 +225,14 @@ ConfigEngineFile::ConfigEngineFile (const char* configdir)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-ConfigEngineFile::~ConfigEngineFile() {
+FileConfigEngine::~FileConfigEngine() {
 }
 
 //------------------------------------------------------------------------------
 // Load a given configuration file
 //------------------------------------------------------------------------------
 bool
-ConfigEngineFile::LoadConfig (XrdOucEnv &env, XrdOucString &err)
+FileConfigEngine::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 {
   const char* name = env.Get("mgm.config.file");
   eos_notice("loading name=%s ", name);
@@ -325,7 +311,7 @@ ConfigEngineFile::LoadConfig (XrdOucEnv &env, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineFile::SaveConfig (XrdOucEnv &env, XrdOucString &err)
+FileConfigEngine::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Store the current configuration to a given file or Redis 
@@ -480,7 +466,7 @@ ConfigEngineFile::SaveConfig (XrdOucEnv &env, XrdOucString &err)
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineFile::ListConfigs (XrdOucString &configlist, bool showbackup)
+FileConfigEngine::ListConfigs (XrdOucString &configlist, bool showbackup)
 /*----------------------------------------------------------------------------*/
 /**
  * @brief List the existing configurations
@@ -555,7 +541,7 @@ ConfigEngineFile::ListConfigs (XrdOucString &configlist, bool showbackup)
   }
   closedir(dir);
   // do the sorting
-  qsort(allstat, nobjects, sizeof (struct filestat), ConfigEngineFile::CompareCtime);
+  qsort(allstat, nobjects, sizeof (struct filestat), FileConfigEngine::CompareCtime);
 
   if (allstat && (nobjects > 0))
   {
@@ -615,80 +601,17 @@ ConfigEngineFile::ListConfigs (XrdOucString &configlist, bool showbackup)
 }
 
 /*----------------------------------------------------------------------------*/
-bool
-ConfigEngineFile::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
+void
+FileConfigEngine::FilterConfig (PrintInfo &pinfo,XrdOucString &out,const char * configName)
 /*----------------------------------------------------------------------------*/
 /**
- * @brief Dump function for selective configuration printing
+ * @brief Filter configuration and print
  */
 /*----------------------------------------------------------------------------*/
 {
-  struct PrintInfo pinfo;
-
-  const char* name = filter.Get("mgm.config.file");
-
-  pinfo.out = &out;
-  pinfo.option = "vfqcgms";
-
-  if (
-      filter.Get("mgm.config.vid") ||
-      filter.Get("mgm.config.fs") ||
-      filter.Get("mgm.config.quota") ||
-      filter.Get("mgm.config.comment") ||
-      filter.Get("mgm.config.policy") ||
-      filter.Get("mgm.config.global") ||
-      filter.Get("mgm.config.map") ||
-      filter.Get("mgm.config.geosched")
-  )
-  {
-    pinfo.option = "";
-  }
-
-  if (filter.Get("mgm.config.vid"))
-  {
-    pinfo.option += "v";
-  }
-  if (filter.Get("mgm.config.fs"))
-  {
-    pinfo.option += "f";
-  }
-  if (filter.Get("mgm.config.policy"))
-  {
-    pinfo.option += "p";
-  }
-  if (filter.Get("mgm.config.quota"))
-  {
-    pinfo.option += "q";
-  }
-  if (filter.Get("mgm.config.comment"))
-  {
-    pinfo.option += "c";
-  }
-  if (filter.Get("mgm.config.global"))
-  {
-    pinfo.option += "g";
-  }
-  if (filter.Get("mgm.config.map"))
-  {
-    pinfo.option += "m";
-  }
-  if (filter.Get("mgm.config.geosched"))
-  {
-    pinfo.option += "s";
-  }
-
-  if (name == 0)
-  {
-    configDefinitions.Apply(PrintEachConfig, &pinfo);
-    while (out.replace("&", " "))
-    {
-    }
-  }
-  else 
-  {
     // dump from stored config file
     XrdOucString fullpath = configDir;
-    fullpath += name;
+    fullpath += configName;
     fullpath += EOSMGMCONFIGENGINE_EOS_SUFFIX;
 
     std::ifstream infile(fullpath.c_str());
@@ -722,13 +645,11 @@ ConfigEngineFile::DumpConfig (XrdOucString &out, XrdOucEnv &filter)
 	out += "\n";
       }
     }
-  }
-  return true;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-ConfigEngineFile::AutoSave ()
+FileConfigEngine::AutoSave ()
 /*----------------------------------------------------------------------------*/
 /**
  * @brief Do an autosave
@@ -766,7 +687,7 @@ ConfigEngineFile::AutoSave ()
 
 /*----------------------------------------------------------------------------*/
 void
-ConfigEngineFile::SetConfigValue (const char* prefix,
+FileConfigEngine::SetConfigValue (const char* prefix,
 			      const char* key,
 			      const char* val,
 			      bool tochangelog)
@@ -859,7 +780,7 @@ ConfigEngineFile::SetConfigValue (const char* prefix,
 
 /*----------------------------------------------------------------------------*/
 void
-ConfigEngineFile::DeleteConfigValue (const char* prefix,
+FileConfigEngine::DeleteConfigValue (const char* prefix,
 				 const char* key,
 				 bool tochangelog)
 /*----------------------------------------------------------------------------*/

@@ -46,7 +46,7 @@
 #include <map>
 #include <set>
 #ifndef EOSMGMFSVIEWTEST
-#include "mgm/ConfigEngine.hh"
+#include "mgm/IConfigEngine.hh"
 #endif
 //------------------------------------------------------------------------------
 //! @file FsView.hh
@@ -885,7 +885,7 @@ private:
 public:
 
 #ifndef EOSMGMFSVIEWTEST
-  static ConfigEngine* ConfEngine;
+  static IConfigEngine* ConfEngine;
 #endif
 
   //----------------------------------------------------------------------------
@@ -1119,7 +1119,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set the configuration engine object
   //----------------------------------------------------------------------------
-  void SetConfigEngine(ConfigEngine* engine)
+  void SetConfigEngine(IConfigEngine* engine)
   {
     ConfEngine = engine;
   }
