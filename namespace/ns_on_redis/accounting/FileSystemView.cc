@@ -165,35 +165,36 @@ FileSystemView::fileMDCheck(IFileMD* file)
     pNoReplicasSet.srem(file->getId(), wrapper_cb());
   }
 
-  redox::RedoxSet fs_set(*pRedox, 0);
+  redox::RedoxSet replica_set(*pRedox, "");
+  redox::RedoxSet unlink_set(*pRedox, "");
+  IFileMD::id_t fsid;
 
   do {
     reply = pFsIdsSet.sscan(cursor);
     cursor = reply.first;
-    IFileMD::id_t fsid;
 
     for (auto && sfsid : reply.second) {
       fsid = std::stoull(sfsid);
       // Deal with the fs replica set
       key = sfsid + fsview::sFilesSuffix;
-      fs_set.setKey(key);
+      replica_set.setKey(key);
 
       if (std::find(replica_locs.begin(), replica_locs.end(), fsid) !=
           replica_locs.end()) {
-        fs_set.sadd(file->getId(), wrapper_cb());
+        replica_set.sadd(file->getId(), wrapper_cb());
       } else {
-        fs_set.srem(file->getId(), wrapper_cb());
+        replica_set.srem(file->getId(), wrapper_cb());
       }
 
       // Deal with the fs unlinked set
       key = sfsid + fsview::sUnlinkedSuffix;
-      fs_set.setKey(key);
+      unlink_set.setKey(key);
 
       if (std::find(unlink_locs.begin(), unlink_locs.end(), fsid) !=
           unlink_locs.end()) {
-        fs_set.sadd(file->getId(), wrapper_cb());
+        unlink_set.sadd(file->getId(), wrapper_cb());
       } else {
-        fs_set.srem(file->getId(), wrapper_cb());
+        unlink_set.srem(file->getId(), wrapper_cb());
       }
     }
   } while (cursor);
@@ -206,6 +207,32 @@ FileSystemView::fileMDCheck(IFileMD* file)
       cond_var.wait(lock);
     }
   }
+  // Clean up all the fsids that don't hold any files either replicas
+  // or unlinked
+  std::vector<std::string> to_remove;
+
+  do {
+    reply = pFsIdsSet.sscan(cursor);
+    cursor = reply.first;
+
+    for (auto && sfsid : reply.second) {
+      fsid = std::stoull(sfsid);
+      key = sfsid + fsview::sFilesSuffix;
+      replica_set.setKey(key);
+      key = sfsid + fsview::sUnlinkedSuffix;
+      unlink_set.setKey(key);
+
+      if ((replica_set.scard() == 0) && (unlink_set.scard() == 0)) {
+        to_remove.emplace_back(sfsid);
+      }
+    }
+  } while (cursor);
+
+  // Drop all the unused fs ids
+  if (pFsIdsSet.srem(to_remove) != (long long int)to_remove.size()) {
+    has_error = true;
+  }
+
   return !has_error;
 }
 
@@ -308,8 +335,8 @@ FileSystemView::getNumFileSystems()
 void
 FileSystemView::initialize(const std::map<std::string, std::string>& config)
 {
-  std::string key_host = "redis_host";
-  std::string key_port = "redis_port";
+  const std::string key_host = "redis_host";
+  const std::string key_port = "redis_port";
   std::string host{""};
   uint32_t port{0};
 
@@ -322,6 +349,8 @@ FileSystemView::initialize(const std::map<std::string, std::string>& config)
   }
 
   pRedox = RedisClient::getInstance(host, port);
+  pNoReplicasSet.setClient(*pRedox);
+  pFsIdsSet.setClient(*pRedox);
 }
 
 EOSNSNAMESPACE_END

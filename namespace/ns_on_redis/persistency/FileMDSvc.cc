@@ -157,7 +157,7 @@ FileMDSvc::updateStore(IFileMD* obj)
   }
 
   if (!dynamic_cast<FileMD*>(obj)->IsConsistent()) {
-    mSetCheckFiles.srem(obj->getId(), nullptr);
+    mSetCheckFiles.srem(obj->getId());
     dynamic_cast<FileMD*>(obj)->SetConsistent(true);
   }
 }
@@ -181,6 +181,8 @@ FileMDSvc::removeFile(IFileMD* obj)
     throw e;
   }
 
+  // Remove file from the set of files to chec
+  mSetCheckFiles.srem(file_id);
   IFileMDChangeListener::Event e(file_id, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   // TODO (esindril): Wait for any async notification from the views before
@@ -226,14 +228,15 @@ FileMDSvc::getNumFiles()
     }
   }
 
-  // Wait for all responses
   {
+    // Wait for all responses
     std::unique_lock<std::mutex> lock(mutex);
 
     while (num_requests != 0u) {
       cond_var.wait(lock);
     }
   }
+
   return num_files;
 }
 
@@ -313,7 +316,7 @@ FileMDSvc::checkFiles()
 
     for (auto && elem : reply.second) {
       if (checkFile(std::stoull(elem))) {
-        to_drop.insert(to_drop.end(), elem);
+        to_drop.emplace_back(elem);
       } else {
         is_ok = false;
       }
@@ -322,7 +325,9 @@ FileMDSvc::checkFiles()
 
   if (!to_drop.empty()) {
     try {
-      mSetCheckFiles.srem(to_drop);
+      if (mSetCheckFiles.srem(to_drop) != (long long int) to_drop.size()) {
+        fprintf(stderr, "Failed to drop files that have been fixed\n");
+      }
     } catch (std::runtime_error& e) {
       fprintf(stderr, "Failed to drop files that have been fixed\n");
     }

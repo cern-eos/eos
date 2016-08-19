@@ -43,10 +43,25 @@ ContainerMD::ContainerMD(id_t id, IFileMDSvc* file_svc,
 {
   mNotificationCb = [&](redox::Command<int>& c) {
     // Use this callback for del, hdel and hset operations. The return value in
-    // all these cases should be 1.
-    if ((c.ok() && c.reply() != 1) || !c.ok()) {
+    // all these cases should be 1 except for HDEL/DEL which can be 0.
+    bool failed = false;
+    std::string cmd = c.cmd();
+    std::string op = cmd.substr(0, cmd.find(' '));
+
+    if ((op == "HDEL") || (op == "DEL")) {
+      if (!c.ok()) {
+        failed = true;
+      }
+    } else {
+      if (((c.ok() && c.reply() != 1) || !c.ok())) {
+        failed = true;
+      }
+    }
+
+    if (failed) {
       std::ostringstream oss;
-      oss << "Failed command: " << c.cmd() << " error: " << c.lastError();
+      oss << "Failed command: " << cmd << " error: " << c.lastError()
+          << " for directory: " << pName.c_str();
       std::unique_lock<std::mutex> lock(mMutex);
       mErrors.emplace(mErrors.end(), oss.str());
     }
@@ -124,8 +139,8 @@ ContainerMD::removeContainer(const std::string& name)
 
   if (!waitAsyncReplies()) {
     MDException e(ENOENT);
-    e.getMessage() << "Container " << name
-                   << " error while contacting KV-store";
+    e.getMessage() << "Container " << name << " error contacting KV-store in "
+                   << __FUNCTION__;
     throw e;
   }
 }
@@ -324,8 +339,8 @@ ContainerMD::cleanUp()
 
   if (!waitAsyncReplies()) {
     MDException e(ENOENT);
-    e.getMessage() << "Container " << pName
-                   << " error while contacting KV-store";
+    e.getMessage() << "Container " << pName << " error contacting KV-store in "
+                   << __FUNCTION__;
     throw e;
   }
 }
@@ -851,6 +866,10 @@ ContainerMD::waitAsyncReplies()
 
   if (!mErrors.empty()) {
     // TODO(esindril): print the accumulated errors
+    for (auto && elem : mErrors) {
+      fprintf(stderr, "[%s] Error: %s\n", __FUNCTION__, elem.c_str());
+    }
+
     return false;
   }
 

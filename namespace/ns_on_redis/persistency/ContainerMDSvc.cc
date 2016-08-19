@@ -299,14 +299,15 @@ ContainerMDSvc::getNumContainers()
     }
   }
 
-  // Wait for all responses
   {
+    // Wait for all responses
     std::unique_lock<std::mutex> lock(mutex);
 
     while (num_requests != 0u) {
       cond_var.wait(lock);
     }
   }
+
   return num_conts;
 }
 
