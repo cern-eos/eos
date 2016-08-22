@@ -14,6 +14,8 @@ Bug Fix
 =======
 
 - NS: fix slave follower getQuotaNode exception preventing quota accounting on slave
+- FUSE: swap unlock and pool-fd push (which is protected by the same file abstraction rwmutex)
+
 
 New Feature
 +++++++++++
