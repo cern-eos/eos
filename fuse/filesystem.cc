@@ -1085,10 +1085,10 @@ filesystem::remove_fd2file (int fd, unsigned long inode, uid_t uid, gid_t gid, p
        }      
        if (iter1->second.empty ()) inodexrdlogin2fds.erase (iter1);
 
-       rwmutex_fd2fabst.UnLockWrite();
-       
        // Return fd to the pool
        pool_fd.push (fd);
+
+       rwmutex_fd2fabst.UnLockWrite();
      }
      else
      {
