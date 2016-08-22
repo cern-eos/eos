@@ -39,7 +39,7 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declration
+//! Forward declaration
 class IFileMDSvc;
 class IContainerMD;
 
@@ -72,15 +72,6 @@ public:
   FileMD& operator=(const FileMD& other) = delete;
 
   //----------------------------------------------------------------------------
-  //! Get file id
-  //----------------------------------------------------------------------------
-  inline id_t
-  getId() const
-  {
-    return pId;
-  }
-
-  //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
   void getCTime(ctime_t& ctime) const;
@@ -109,6 +100,15 @@ public:
   //! Set modification time to now
   //----------------------------------------------------------------------------
   void setMTimeNow();
+
+  //----------------------------------------------------------------------------
+  //! Get file id
+  //----------------------------------------------------------------------------
+  inline id_t
+  getId() const
+  {
+    return pId;
+  }
 
   //----------------------------------------------------------------------------
   //! Get size
@@ -237,7 +237,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! replace location by index
+  //! Replace location by index
   //----------------------------------------------------------------------------
   void replaceLocation(unsigned int index, location_t newlocation);
 
@@ -261,7 +261,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Test the location
+  //! Test if location exists
   //----------------------------------------------------------------------------
   bool
   hasLocation(location_t location)
@@ -276,7 +276,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get number of location
+  //! Get number of locations
   //----------------------------------------------------------------------------
   inline size_t
   getNumLocation() const
@@ -612,8 +612,8 @@ private:
   std::list<std::string> mErrors; ///< Error messages from the callbacks
   std::mutex mMutex; ///< Mutex for condition variable and access to the errors
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
-  std::atomic<std::uint32_t>
-  mNumAsyncReq;   ///< Number of in-flight async requests
+  //! Number of in-flight async requests
+  std::atomic<std::uint32_t> mNumAsyncReq;
   bool mIsConsistent; ///< Mark if object is fully consistent in the back-end
   //! Redox callback for notifications sent to listeners
   std::function<void(redox::Command<int>&)> mNotificationCb;

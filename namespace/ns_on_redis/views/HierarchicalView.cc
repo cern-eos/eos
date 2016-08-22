@@ -324,7 +324,7 @@ HierarchicalView::unlinkFile(const std::string& uri)
 }
 
 //------------------------------------------------------------------------------
-// Unlink the file
+// Unlink the file - this is only used for testing
 //------------------------------------------------------------------------------
 void
 HierarchicalView::unlinkFile(eos::IFileMD* file)

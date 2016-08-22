@@ -32,14 +32,14 @@
 
 EOSNSNAMESPACE_BEGIN
 
-//! Forward declration
+//! Forward declaration
 class IContainerMDSvc;
 class IQuotaStats;
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Interface for a listener that is notified about all of the
 //! actions performed in a IFileMDSvc
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class IFileMDChangeListener
 {
 public:
@@ -54,39 +54,26 @@ public:
     SizeChange
   };
 
-  //------------------------------------------------------------------------
+  //---------------------------------------------------------------------------
   //! Event sent to the listener
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   struct Event {
     Event(IFileMD* _file, Action _action,
           IFileMD::location_t _location = 0,
           IFileMD::location_t _oldLocation = 0,
           int64_t _changed_size = 0):
       file(_file),
-      fileId(0),
       action(_action),
+      sizeChange(_changed_size),
       location(_location),
-      oldLocation(_oldLocation),
-      sizeChange(_changed_size) {}
-
-    Event(IFileMD::id_t _fileId, Action _action,
-          IFileMD::location_t _location = 0,
-          IFileMD::location_t _oldLocation = 0,
-          int64_t _changed_size = 0):
-      file(0),
-      fileId(_fileId),
-      action(_action),
-      location(_location),
-      oldLocation(_oldLocation),
-      sizeChange(_changed_size) {}
-
+      oldLocation(_oldLocation) {}
 
     IFileMD*             file;
-    IFileMD::id_t        fileId;
     Action               action;
+    int64_t              sizeChange;
     IFileMD::location_t  location;
     IFileMD::location_t  oldLocation;
-    int64_t              sizeChange;
+
   };
 
   virtual ~IFileMDChangeListener() {}
@@ -97,9 +84,9 @@ public:
   virtual void RemoveTree(IContainerMD* obj , int64_t dsize) = 0;
 };
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //! Interface for a file visitor
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 class IFileVisitor
 {
 public:

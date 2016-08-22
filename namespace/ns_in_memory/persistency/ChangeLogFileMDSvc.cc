@@ -67,8 +67,7 @@ public:
       if (it != pUpdated.end()) {
         it->second.file   = file;
         it->second.offset = offset;
-      }
-      else {
+      } else {
         pUpdated[file->getId()] = FileHelper(offset, file);
       }
     }
@@ -140,7 +139,7 @@ public:
         // the code above.
         handleReplicas(currentFile.get(), 0);
         fileIdMap->erase(it);
-        IFileMDChangeListener::Event e(*itD,
+        IFileMDChangeListener::Event e(currentFile.get(),
                                        IFileMDChangeListener::Deleted);
         pFileSvc->notifyListeners(&e);
       }
@@ -625,8 +624,7 @@ public:
 
     if (type == eos::UPDATE_RECORD_MAGIC) {
       pUpdates[id] = RecordData(offset, id, newOffset);
-    }
-    else if (type == eos::DELETE_RECORD_MAGIC) {
+    } else if (type == eos::DELETE_RECORD_MAGIC) {
       pUpdates.erase(id);
     }
 
@@ -666,8 +664,7 @@ void ChangeLogFileMDSvc::initialize()
     }
 
     logOpenFlags = ChangeLogFile::ReadOnly;
-  }
-  else {
+  } else {
     logOpenFlags = ChangeLogFile::Create | ChangeLogFile::Append;
   }
 
@@ -709,8 +706,7 @@ void ChangeLogFileMDSvc::initialize()
 
       try {
         cont = pContSvc->getContainerMD(file->getContainerId());
-      }
-      catch (MDException& e) {}
+      } catch (MDException& e) {}
 
       if (!cont) {
         if (!pSlaveMode) {
@@ -726,8 +722,7 @@ void ChangeLogFileMDSvc::initialize()
         }
 
         continue;
-      }
-      else {
+      } else {
         cont->addFile(file.get());
       }
     }
@@ -940,7 +935,7 @@ void ChangeLogFileMDSvc::removeFile(IFileMD* obj)
   eos::Buffer buffer;
   buffer.putData(&fileId, sizeof(FileMD::id_t));
   pChangeLog->storeRecord(eos::DELETE_RECORD_MAGIC, buffer);
-  IFileMDChangeListener::Event e(fileId, IFileMDChangeListener::Deleted);
+  IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
   pIdMap.erase(it);
 }
@@ -983,8 +978,7 @@ void ChangeLogFileMDSvc::visit(IFileVisitor* visitor)
       if (progress == 0) {
         fprintf(stderr, "PROGRESS [ scan %-64s ] %02u%% estimate none \n", "file-visit",
                 (unsigned int)progress);
-      }
-      else {
+      } else {
         fprintf(stderr, "PROGRESS [ scan %-64s ] %02u%% estimate %3.02fs\n",
                 "file-visit", (unsigned int)progress, estimate);
       }
@@ -1062,8 +1056,7 @@ const
     data->logFileName = newLogFileName;
     data->originalLog = pChangeLog;
     data->newRecord   = pChangeLog->getNextOffset();
-  }
-  catch (MDException& e) {
+  } catch (MDException& e) {
     delete data;
     throw;
   }
@@ -1107,8 +1100,7 @@ void ChangeLogFileMDSvc::compact(void*& compactingData)
       type = data->originalLog->readRecord(it->offset, buff);
       it->newOffset = data->newLog->storeRecord(type, buff);
     }
-  }
-  catch (MDException& e) {
+  } catch (MDException& e) {
     data->newLog->close();
     delete data;
     compactingData = 0;
@@ -1140,8 +1132,7 @@ void ChangeLogFileMDSvc::compactCommit(void* compactingData, bool autorepair)
     data->originalLog->scanAllRecordsAtOffset(&updateHandler,
         data->newRecord,
         autorepair);
-  }
-  catch (MDException& e) {
+  } catch (MDException& e) {
     data->newLog->close();
     delete data;
     throw;
