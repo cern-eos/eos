@@ -46,7 +46,8 @@ class IContainerMD;
 //------------------------------------------------------------------------------
 //! Class holding the metadata information concerning a single file
 //------------------------------------------------------------------------------
-class FileMD : public IFileMD {
+class FileMD : public IFileMD
+{
   friend class FileSystemView;
 
 public:
@@ -58,7 +59,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  virtual ~FileMD(){};
+  virtual ~FileMD() {};
 
   //----------------------------------------------------------------------------
   //! Copy constructor
@@ -180,8 +181,9 @@ public:
   {
     char zero = 0;
 
-    for (uint8_t i = 0; i < size; i++)
+    for (uint8_t i = 0; i < size; i++) {
       pChecksum.putData(&zero, 1);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -227,8 +229,9 @@ public:
   location_t
   getLocation(unsigned int index)
   {
-    if (index < pLocation.size())
+    if (index < pLocation.size()) {
       return pLocation[index];
+    }
 
     return 0;
   }
@@ -416,10 +419,11 @@ public:
   void
   setFlag(uint8_t n, bool flag)
   {
-    if (flag)
+    if (flag) {
       pFlags |= (1 << n);
-    else
+    } else {
       pFlags &= !(1 << n);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -489,8 +493,9 @@ public:
   {
     XAttrMap::iterator it = pXAttrs.find(name);
 
-    if (it != pXAttrs.end())
+    if (it != pXAttrs.end()) {
       pXAttrs.erase(it);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -578,6 +583,13 @@ public:
     mIsConsistent = is_consistent;
   }
 
+  //----------------------------------------------------------------------------
+  //! Wait for replies to asynchronous requests
+  //!
+  //! @return true if all replies successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool waitAsyncReplies();
+
 protected:
   id_t pId;
   ctime_t pCTime;
@@ -601,11 +613,11 @@ private:
   std::mutex mMutex; ///< Mutex for condition variable and access to the errors
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
   std::atomic<std::uint32_t>
-      mNumAsyncReq;   ///< Number of in-flight async requests
+  mNumAsyncReq;   ///< Number of in-flight async requests
   bool mIsConsistent; ///< Mark if object is fully consistent in the back-end
-  //! Redox callback for notifications send to listeners
+  //! Redox callback for notifications sent to listeners
   std::function<void(redox::Command<int>&)> mNotificationCb;
-  //! Wrapper callback which returns a callback used by the Redox clietn
+  //! Wrapper callback which returns a callback used by the Redox client
   std::function<decltype(mNotificationCb)(void)> mWrapperCb;
 };
 

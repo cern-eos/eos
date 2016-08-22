@@ -76,6 +76,8 @@ public:
 
   //----------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID
+  //!
+  //! @param id file id
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id);
 
@@ -139,19 +141,28 @@ public:
   bool checkFiles();
 
   //----------------------------------------------------------------------------
-  //! Add file object to consistency check list to recover it in case of a crash
+  //! Add file to consistency check list to recover it in case of a crash.
   //!
   //! @param id file object id
   //----------------------------------------------------------------------------
-  void addToConsistencyCheck(IFileMD::id_t id);
+  void addToDirtySet(IFileMD::id_t id);
+
+  //----------------------------------------------------------------------------
+  //! Remove all accumulated objects from the local "dirty" set and mark them
+  //! in the backend set accordingly.
+  //!
+  //! @param id file id
+  //----------------------------------------------------------------------------
+  void flushDirtySet(IFileMD::id_t id);
 
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
 
-  static std::uint64_t sNumFileBuckets; ///< Numver of buckets power of 2
+  static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
+  static std::chrono::seconds sFlushInterval; ///< Interval for backend flush
 
   //----------------------------------------------------------------------------
-  //! Recheck a file object
+  //! Check file object consistency
   //!
   //! @param fid file id
   //!
@@ -175,15 +186,17 @@ private:
   //----------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
-  ListenerList pListeners;
-  IQuotaStats* pQuotaStats;
-  IContainerMDSvc* pContSvc;
-  redox::Redox* pRedox;
-  redox::RedoxHash mMetaMap; ///< Map holding metainfo about the namespace
-  redox::RedoxSet mSetCheckFiles; ///< Set of files being updated
-  std::string pRedisHost;
-  uint32_t pRedisPort;
-  LRU<IFileMD::id_t, IFileMD> mFileCache;
+  ListenerList pListeners; ///< List of listeners to notify of changes
+  IQuotaStats* pQuotaStats; ///< Quota view
+  IContainerMDSvc* pContSvc; ///< Container metadata service
+  uint32_t pRedisPort; ///< Redis instance port
+  std::string pRedisHost; ///< Redis intance host
+  redox::Redox* pRedox; ///< Redox client object
+  redox::RedoxHash mMetaMap ; ///< Map holding metainfo about the namespace
+  redox::RedoxSet mDirtyFidBackend; ///< Set of "dirty" files
+  std::set<std::string> mFlushFidSet; ///< Modified fids which are consistent
+  LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
+  std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
 };
 
 EOSNSNAMESPACE_END

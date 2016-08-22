@@ -26,14 +26,16 @@
 
 EOSNSNAMESPACE_BEGIN
 
-std::uint64_t FileMDSvc::sNumFileBuckets = 1024 * 1024;
+std::uint64_t FileMDSvc::sNumFileBuckets(1024 * 1024);
+std::chrono::seconds FileMDSvc::sFlushInterval(5);
 
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
-  : pQuotaStats(nullptr), pContSvc(nullptr), pRedox(nullptr), mMetaMap(),
-    mSetCheckFiles(), pRedisHost(""), pRedisPort(0), mFileCache(10e6) {}
+  : pQuotaStats(nullptr), pContSvc(nullptr), pRedisPort(0), pRedisHost(""),
+    pRedox(nullptr), mMetaMap(), mDirtyFidBackend(), mFlushFidSet(),
+    mFileCache(10e6), mFlushTimestamp(std::time(nullptr)) {}
 
 //------------------------------------------------------------------------------
 // Configure the file service
@@ -68,8 +70,8 @@ FileMDSvc::initialize()
   pRedox = RedisClient::getInstance(pRedisHost, pRedisPort);
   mMetaMap.setKey(constants::sMapMetaInfoKey);
   mMetaMap.setClient(*pRedox);
-  mSetCheckFiles.setKey(constants::sSetCheckFiles);
-  mSetCheckFiles.setClient(*pRedox);
+  mDirtyFidBackend.setKey(constants::sSetCheckFiles);
+  mDirtyFidBackend.setClient(*pRedox);
 }
 
 //------------------------------------------------------------------------------
@@ -156,10 +158,9 @@ FileMDSvc::updateStore(IFileMD* obj)
     throw e;
   }
 
-  if (!dynamic_cast<FileMD*>(obj)->IsConsistent()) {
-    mSetCheckFiles.srem(obj->getId());
-    dynamic_cast<FileMD*>(obj)->SetConsistent(true);
-  }
+  // Flush fids in bunches to avoid too many round trips to the backend
+  flushDirtySet(obj->getId());
+  dynamic_cast<FileMD*>(obj)->SetConsistent(true);
 }
 
 //------------------------------------------------------------------------------
@@ -168,26 +169,24 @@ FileMDSvc::updateStore(IFileMD* obj)
 void
 FileMDSvc::removeFile(IFileMD* obj)
 {
-  IFileMD::id_t file_id = obj->getId();
-
   try {
-    std::string sid = stringify(file_id);
-    redox::RedoxHash bucket_map(*pRedox, getBucketKey(file_id));
+    std::string sid = stringify(obj->getId());
+    redox::RedoxHash bucket_map(*pRedox, getBucketKey(obj->getId()));
     bucket_map.hdel(sid);
   } catch (std::runtime_error& redis_err) {
     MDException e(ENOENT);
-    e.getMessage() << "File #" << file_id << " not found. ";
+    e.getMessage() << "File #" << obj->getId() << " not found. ";
     e.getMessage() << "The object was not created in this store!";
     throw e;
   }
 
-  // Remove file from the set of files to chec
-  mSetCheckFiles.srem(file_id);
-  IFileMDChangeListener::Event e(file_id, IFileMDChangeListener::Deleted);
+  IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Deleted);
   notifyListeners(&e);
-  // TODO (esindril): Wait for any async notification from the views before
-  // deleting the file object
-  mFileCache.remove(file_id);
+  // Wait for any async notification before deleting the object
+  (void) dynamic_cast<FileMD*>(obj)->waitAsyncReplies();
+  mFileCache.remove(obj->getId());
+  flushDirtySet(obj->getId());
+  dynamic_cast<FileMD*>(obj)->SetConsistent(true);
 }
 
 //------------------------------------------------------------------------------
@@ -196,8 +195,8 @@ FileMDSvc::removeFile(IFileMD* obj)
 uint64_t
 FileMDSvc::getNumFiles()
 {
-  std::atomic<std::uint32_t> num_requests{0};
-  std::atomic<std::uint64_t> num_files{0};
+  std::atomic<std::uint32_t> num_requests(0);
+  std::atomic<std::uint64_t> num_files(0);
   std::string bucket_key("");
   std::mutex mutex;
   std::condition_variable cond_var;
@@ -300,7 +299,7 @@ FileMDSvc::setQuotaStats(IQuotaStats* quota_stats)
 }
 
 //------------------------------------------------------------------------------
-// Check files that have errors
+// Check file object consistency
 //------------------------------------------------------------------------------
 bool
 FileMDSvc::checkFiles()
@@ -311,7 +310,7 @@ FileMDSvc::checkFiles()
   std::vector<std::string> to_drop;
 
   do {
-    reply = mSetCheckFiles.sscan(cursor);
+    reply = mDirtyFidBackend.sscan(cursor);
     cursor = reply.first;
 
     for (auto && elem : reply.second) {
@@ -325,7 +324,7 @@ FileMDSvc::checkFiles()
 
   if (!to_drop.empty()) {
     try {
-      if (mSetCheckFiles.srem(to_drop) != (long long int) to_drop.size()) {
+      if (mDirtyFidBackend.srem(to_drop) != (long long int) to_drop.size()) {
         fprintf(stderr, "Failed to drop files that have been fixed\n");
       }
     } catch (std::runtime_error& e) {
@@ -346,6 +345,11 @@ FileMDSvc::checkFile(std::uint64_t fid)
   bool is_ok = true;
   std::shared_ptr<IFileMD> file = getFileMD(fid);
 
+  if (file == nullptr) {
+    fprintf(stderr, "[%s] Fid: %lu not found.\n", __FUNCTION__, fid);
+    return false;
+  }
+
   for (auto && elem : pListeners) {
     if (!elem->fileMDCheck(file.get())) {
       is_ok = false;
@@ -354,23 +358,6 @@ FileMDSvc::checkFile(std::uint64_t fid)
   }
 
   return is_ok;
-}
-
-//------------------------------------------------------------------------------
-// Add file object to consistency check list
-//------------------------------------------------------------------------------
-void
-FileMDSvc::addToConsistencyCheck(IFileMD::id_t id)
-{
-  try {
-    mSetCheckFiles.sadd(id);
-  } catch (std::runtime_error& redis_err) {
-    MDException e(ENOENT);
-    e.getMessage() << "File #" << id
-                   << " failed to insert into the set of files to be checked "
-                   << "- got an exception";
-    throw e;
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -386,6 +373,53 @@ FileMDSvc::getBucketKey(IContainerMD::id_t id) const
   std::string bucket_key = stringify(id);
   bucket_key += constants::sFileKeySuffix;
   return bucket_key;
+}
+
+//------------------------------------------------------------------------------
+// Add file object to consistency check list
+//------------------------------------------------------------------------------
+void
+FileMDSvc::addToDirtySet(IFileMD::id_t id)
+{
+  // Remove from the set of fid to be flushed and update the backend only if
+  // wasn't in the set - optimize the number of RTT to backend.
+  if (mFlushFidSet.erase(stringify(id)) == 0) {
+    try {
+      mDirtyFidBackend.sadd(id);  // add to backend set
+    } catch (std::runtime_error& redis_err) {
+      MDException e(ENOENT);
+      e.getMessage() << "File #" << id
+                     << " failed to insert into the set of files to be checked "
+                     << "- got an exception";
+      throw e;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Remove all accumulated file ids from the local "dirty" set and mark them in
+// the backend set accordingly.
+//------------------------------------------------------------------------------
+void
+FileMDSvc::flushDirtySet(IFileMD::id_t id)
+{
+  (void) mFlushFidSet.insert(stringify(id));
+  std::time_t now = std::time(nullptr);
+  std::chrono::seconds duration(now - mFlushTimestamp);
+
+  if (duration >= sFlushInterval) {
+    mFlushTimestamp = now;
+    std::vector<std::string> to_del(mFlushFidSet.begin(), mFlushFidSet.end());
+    mFlushFidSet.clear();
+
+    try {
+      mDirtyFidBackend.srem(to_del);
+    } catch (std::runtime_error& redis_err) {
+      MDException e(ENOENT);
+      e.getMessage() << "Failed to clear set of dirty files - backend error";
+      throw e;
+    }
+  }
 }
 
 EOSNSNAMESPACE_END

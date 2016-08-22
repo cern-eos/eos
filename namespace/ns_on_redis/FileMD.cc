@@ -27,9 +27,10 @@ EOSNSNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc)
-    : IFileMD(), pId(id), pCTime{0}, pMTime{0},pSize(0), pContainerId(0), pCUid(0), pCGid(0),
-  pLayoutId(0), pFlags(0), pChecksum(0), pFileMDSvc(dynamic_cast<FileMDSvc*>(fileMDSvc)),
-  mMutex(), mAsyncCv(), mNumAsyncReq(0), mIsConsistent(true)
+  : IFileMD(), pId(id), pCTime{0}, pMTime{0}, pSize(0), pContainerId(0), pCUid(0),
+    pCGid(0), pLayoutId(0), pFlags(0), pChecksum(0),
+    pFileMDSvc(dynamic_cast<FileMDSvc*>(fileMDSvc)), mMutex(), mAsyncCv(),
+    mNumAsyncReq(0), mIsConsistent(true)
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
@@ -45,11 +46,10 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc)
       mAsyncCv.notify_one();
     }
   };
-
   mWrapperCb = [&]() -> decltype(mNotificationCb) {
     // Mark object as inconsistent so we can recover it in case of a crash
     if (mIsConsistent) {
-      pFileMDSvc->addToConsistencyCheck(pId);
+      pFileMDSvc->addToDirtySet(pId);
       mIsConsistent = false;
     }
 
@@ -124,7 +124,7 @@ FileMD::removeLocation(location_t location)
     if (*it == location) {
       pUnlinkedLocation.erase(it);
       IFileMDChangeListener::Event e(
-	this, IFileMDChangeListener::LocationRemoved, location);
+        this, IFileMDChangeListener::LocationRemoved, location);
       pFileMDSvc->notifyListeners(&e);
       return;
     }
@@ -158,7 +158,7 @@ FileMD::unlinkLocation(location_t location)
       pUnlinkedLocation.push_back(*it);
       pLocation.erase(it);
       IFileMDChangeListener::Event e(
-          this, IFileMDChangeListener::LocationUnlinked, location);
+        this, IFileMDChangeListener::LocationUnlinked, location);
       pFileMDSvc->notifyListeners(&e);
       return;
     }
@@ -178,7 +178,7 @@ FileMD::unlinkAllLocations()
     pUnlinkedLocation.push_back(loc);
     pLocation.pop_back();
     IFileMDChangeListener::Event e(
-        this, IFileMDChangeListener::LocationUnlinked, loc);
+      this, IFileMDChangeListener::LocationUnlinked, loc);
     pFileMDSvc->notifyListeners(&e);
   }
 }
@@ -216,13 +216,13 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
   env += "&location=";
   char locs[16];
 
-  for (auto&& elem : pLocation) {
+  for (auto && elem : pLocation) {
     snprintf(static_cast<char*>(locs), sizeof(locs), "%u", elem);
     env += static_cast<char*>(locs);
     env += ",";
   }
 
-  for (auto&& elem : pUnlinkedLocation) {
+  for (auto && elem : pUnlinkedLocation) {
     snprintf(static_cast<char*>(locs), sizeof(locs), "!%u", elem);
     env += static_cast<char*>(locs);
     env += ",";
@@ -235,7 +235,7 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
     char hx[3];
     hx[0] = 0;
     snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-	     *reinterpret_cast<unsigned char*>(pChecksum.getDataPtr() + i));
+             *reinterpret_cast<unsigned char*>(pChecksum.getDataPtr() + i));
     env += static_cast<char*>(hx);
   }
 }
@@ -246,24 +246,10 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
 bool
 FileMD::serialize(eos::Buffer& buffer)
 {
-  bool ret = true;
-
   if (pFileMDSvc == nullptr) {
     MDException ex(ENOTSUP);
     ex.getMessage() << "This was supposed to be a read only copy!";
     throw ex;
-  }
-
-  // Check that all notifications for async requests have been received
-  {
-    std::unique_lock<std::mutex> lock(mMutex);
-    while (mNumAsyncReq != 0u) {
-      mAsyncCv.wait(lock);
-    }
-
-    if (!mErrors.empty()) {
-      ret = false;
-    }
   }
 
   buffer.putData(&pId, sizeof(pId));
@@ -274,7 +260,6 @@ FileMD::serialize(eos::Buffer& buffer)
   tmp |= (pSize & 0x0000ffffffffffff);
   buffer.putData(&tmp, sizeof(tmp));
   buffer.putData(&pContainerId, sizeof(pContainerId));
-
   // Symbolic links are serialized as <name>//<link>
   std::string nameAndLink = pName;
 
@@ -326,7 +311,7 @@ FileMD::serialize(eos::Buffer& buffer)
     }
   }
 
-  return ret;
+  return waitAsyncReplies();
 }
 
 //------------------------------------------------------------------------------
@@ -350,7 +335,6 @@ FileMD::deserialize(const eos::Buffer& buffer)
   char strBuffer[len];
   offset = buffer.grabData(offset, static_cast<char*>(strBuffer), len);
   pName = static_cast<char*>(strBuffer);
-
   // Possibly extract symbolic link
   size_t link_pos = pName.find("//");
 
@@ -398,8 +382,8 @@ FileMD::deserialize(const eos::Buffer& buffer)
       char strBuffer2[len2];
       offset = buffer.grabData(offset, static_cast<char*>(strBuffer2), len2);
       pXAttrs.insert(std::pair<std::string, std::string>
-		     (static_cast<char*>(strBuffer1),
-		      static_cast<char*>(strBuffer2)));
+                     (static_cast<char*>(strBuffer1),
+                      static_cast<char*>(strBuffer2)));
     }
   }
 }
@@ -412,7 +396,6 @@ FileMD::setSize(uint64_t size)
 {
   int64_t sizeChange = (size & 0x0000ffffffffffff) - pSize;
   pSize = size & 0x0000ffffffffffff;
-
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0, 0,
                                  sizeChange);
   pFileMDSvc->notifyListeners(&e);
@@ -488,6 +471,25 @@ FileMD::setMTimeNow()
 #else
   clock_gettime(CLOCK_REALTIME, &pMTime);
 #endif
+}
+
+//------------------------------------------------------------------------------
+// Wait for replies to asynchronous requests
+//------------------------------------------------------------------------------
+bool
+FileMD::waitAsyncReplies()
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+
+  while (mNumAsyncReq != 0u) {
+    mAsyncCv.wait(lock);
+  }
+
+  if (!mErrors.empty()) {
+    return false;
+  }
+
+  return true;
 }
 
 EOSNSNAMESPACE_END

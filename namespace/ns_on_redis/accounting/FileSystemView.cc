@@ -52,8 +52,7 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
 
   // File has been deleted
   case IFileMDChangeListener::Deleted:
-    // Note: for this type of action we only have the file id
-    pNoReplicasSet.srem(e->fileId);
+    pNoReplicasSet.srem(file->getId(), file->mWrapperCb());
     break;
 
   // Add location
