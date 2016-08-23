@@ -81,9 +81,6 @@ FileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   case IFileMDChangeListener::LocationRemoved:
     key = std::to_string(e->location) + fsview::sUnlinkedSuffix;
     val = std::to_string(file->getId());
-    // TODO: this should add the file to the set of inconsistent ids
-    // and also set the consistent flag for the current file
-    file->SetConsistent(false);
     fs_set = redox::RedoxSet(*pRedox, key);
     fs_set.srem(val);
 

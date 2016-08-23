@@ -30,10 +30,11 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc)
   : IFileMD(), pId(id), pCTime{0}, pMTime{0}, pSize(0), pContainerId(0), pCUid(0),
     pCGid(0), pLayoutId(0), pFlags(0), pChecksum(0),
     pFileMDSvc(dynamic_cast<FileMDSvc*>(fileMDSvc)), mMutex(), mAsyncCv(),
-    mNumAsyncReq(0), mIsConsistent(true)
+    mNumAsyncReq(0)
 {
   pCTime.tv_sec = pCTime.tv_nsec = 0;
   pMTime.tv_sec = pMTime.tv_nsec = 0;
+  // Notification callback used by Redox client
   mNotificationCb = [&](redox::Command<int>& c) {
     if (!c.ok()) {
       std::unique_lock<std::mutex> lock(mMutex);
@@ -46,13 +47,8 @@ FileMD::FileMD(id_t id, IFileMDSvc* fileMDSvc)
       mAsyncCv.notify_one();
     }
   };
+  // Wrapper callback accounts for the number of requests in-flight
   mWrapperCb = [&]() -> decltype(mNotificationCb) {
-    // Mark object as inconsistent so we can recover it in case of a crash
-    if (mIsConsistent) {
-      pFileMDSvc->addToDirtySet(pId);
-      mIsConsistent = false;
-    }
-
     ++mNumAsyncReq;
     return mNotificationCb;
   };

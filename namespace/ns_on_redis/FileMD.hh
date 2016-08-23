@@ -562,28 +562,6 @@ public:
   void deserialize(const Buffer& buffer);
 
   //----------------------------------------------------------------------------
-  //! Get consistency status
-  //!
-  //! @return true if file is consistent in the back-end store, otherwise false
-  //----------------------------------------------------------------------------
-  inline bool
-  IsConsistent() const
-  {
-    return mIsConsistent;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set consistency status
-  //!
-  //! @param is_consistent new status
-  //----------------------------------------------------------------------------
-  void
-  SetConsistent(bool is_consistent)
-  {
-    mIsConsistent = is_consistent;
-  }
-
-  //----------------------------------------------------------------------------
   //! Wait for replies to asynchronous requests
   //!
   //! @return true if all replies successful, otherwise false
@@ -614,7 +592,6 @@ private:
   std::condition_variable mAsyncCv; ///< Condition variable for async requests
   //! Number of in-flight async requests
   std::atomic<std::uint32_t> mNumAsyncReq;
-  bool mIsConsistent; ///< Mark if object is fully consistent in the back-end
   //! Redox callback for notifications sent to listeners
   std::function<void(redox::Command<int>&)> mNotificationCb;
   //! Wrapper callback which returns a callback used by the Redox client

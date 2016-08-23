@@ -140,26 +140,12 @@ public:
   //----------------------------------------------------------------------------
   bool checkFiles();
 
-  //----------------------------------------------------------------------------
-  //! Add file to consistency check list to recover it in case of a crash.
-  //!
-  //! @param id file object id
-  //----------------------------------------------------------------------------
-  void addToDirtySet(IFileMD::id_t id);
-
-  //----------------------------------------------------------------------------
-  //! Remove all accumulated objects from the local "dirty" set and mark them
-  //! in the backend set accordingly.
-  //!
-  //! @param id file id
-  //----------------------------------------------------------------------------
-  void flushDirtySet(IFileMD::id_t id);
-
 private:
   typedef std::list<IFileMDChangeListener*> ListenerList;
 
   static std::uint64_t sNumFileBuckets; ///< Number of buckets power of 2
-  static std::chrono::seconds sFlushInterval; ///< Interval for backend flush
+  //! Interval for backend flush of consistent file ids
+  static std::chrono::seconds sFlushInterval;
 
   //----------------------------------------------------------------------------
   //! Check file object consistency
@@ -186,9 +172,26 @@ private:
   //----------------------------------------------------------------------------
   std::string getBucketKey(IContainerMD::id_t id) const;
 
+  //----------------------------------------------------------------------------
+  //! Add file to consistency check list to recover it in case of a crash
+  //!
+  //! @param file IFileMD object
+  //----------------------------------------------------------------------------
+  void addToDirtySet(IFileMD* file);
+
+  //----------------------------------------------------------------------------
+  //! Remove all accumulated objects from the local "dirty" set and mark them
+  //! in the backend set accordingly.
+  //!
+  //! @param id file id
+  //! @param force if true then force flush
+  //----------------------------------------------------------------------------
+  void flushDirtySet(IFileMD::id_t id, bool force = false);
+
   ListenerList pListeners; ///< List of listeners to notify of changes
   IQuotaStats* pQuotaStats; ///< Quota view
   IContainerMDSvc* pContSvc; ///< Container metadata service
+  std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
   uint32_t pRedisPort; ///< Redis instance port
   std::string pRedisHost; ///< Redis intance host
   redox::Redox* pRedox; ///< Redox client object
@@ -196,7 +199,6 @@ private:
   redox::RedoxSet mDirtyFidBackend; ///< Set of "dirty" files
   std::set<std::string> mFlushFidSet; ///< Modified fids which are consistent
   LRU<IFileMD::id_t, IFileMD> mFileCache; ///< Local cache of file objects
-  std::time_t mFlushTimestamp; ///< Timestamp of the last dirty set flush
 };
 
 EOSNSNAMESPACE_END

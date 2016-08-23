@@ -33,9 +33,9 @@ std::chrono::seconds FileMDSvc::sFlushInterval(5);
 // Constructor
 //------------------------------------------------------------------------------
 FileMDSvc::FileMDSvc()
-  : pQuotaStats(nullptr), pContSvc(nullptr), pRedisPort(0), pRedisHost(""),
-    pRedox(nullptr), mMetaMap(), mDirtyFidBackend(), mFlushFidSet(),
-    mFileCache(10e6), mFlushTimestamp(std::time(nullptr)) {}
+  : pQuotaStats(nullptr), pContSvc(nullptr), mFlushTimestamp(std::time(nullptr)),
+    pRedisPort(0), pRedisHost(""), pRedox(nullptr), mMetaMap(),
+    mDirtyFidBackend(), mFlushFidSet(), mFileCache(10e6) {}
 
 //------------------------------------------------------------------------------
 // Configure the file service
@@ -160,7 +160,6 @@ FileMDSvc::updateStore(IFileMD* obj)
 
   // Flush fids in bunches to avoid too many round trips to the backend
   flushDirtySet(obj->getId());
-  dynamic_cast<FileMD*>(obj)->SetConsistent(true);
 }
 
 //------------------------------------------------------------------------------
@@ -185,8 +184,7 @@ FileMDSvc::removeFile(IFileMD* obj)
   // Wait for any async notification before deleting the object
   (void) dynamic_cast<FileMD*>(obj)->waitAsyncReplies();
   mFileCache.remove(obj->getId());
-  flushDirtySet(obj->getId());
-  dynamic_cast<FileMD*>(obj)->SetConsistent(true);
+  flushDirtySet(obj->getId(), true);
 }
 
 //------------------------------------------------------------------------------
@@ -275,6 +273,9 @@ FileMDSvc::addChangeListener(IFileMDChangeListener* listener)
 void
 FileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 {
+  // Mark file as inconsistent so we can recover it in case of a crash
+  addToDirtySet(event->file);
+
   for (auto && elem : pListeners) {
     elem->fileMDChanged(event);
   }
@@ -337,27 +338,25 @@ FileMDSvc::checkFiles()
 
 //------------------------------------------------------------------------------
 // Recheck individual file - the information stored in the filemd map is the
-// one reliabe and to be enforced.
+// one reliable and to be enforced.
 //------------------------------------------------------------------------------
 bool
 FileMDSvc::checkFile(std::uint64_t fid)
 {
-  bool is_ok = true;
-  std::shared_ptr<IFileMD> file = getFileMD(fid);
+  try {
+    std::shared_ptr<IFileMD> file = getFileMD(fid);
 
-  if (file == nullptr) {
+    for (auto && elem : pListeners) {
+      if (!elem->fileMDCheck(file.get())) {
+        return false;
+      }
+    }
+  } catch (MDException& e) {
     fprintf(stderr, "[%s] Fid: %lu not found.\n", __FUNCTION__, fid);
     return false;
   }
 
-  for (auto && elem : pListeners) {
-    if (!elem->fileMDCheck(file.get())) {
-      is_ok = false;
-      break;
-    }
-  }
-
-  return is_ok;
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -379,16 +378,18 @@ FileMDSvc::getBucketKey(IContainerMD::id_t id) const
 // Add file object to consistency check list
 //------------------------------------------------------------------------------
 void
-FileMDSvc::addToDirtySet(IFileMD::id_t id)
+FileMDSvc::addToDirtySet(IFileMD* file)
 {
   // Remove from the set of fid to be flushed and update the backend only if
   // wasn't in the set - optimize the number of RTT to backend.
-  if (mFlushFidSet.erase(stringify(id)) == 0) {
+  IFileMD::id_t fid = file->getId();
+
+  if (mFlushFidSet.erase(stringify(fid)) == 0) {
     try {
-      mDirtyFidBackend.sadd(id);  // add to backend set
+      mDirtyFidBackend.sadd(fid);  // add to backend set
     } catch (std::runtime_error& redis_err) {
       MDException e(ENOENT);
-      e.getMessage() << "File #" << id
+      e.getMessage() << "File #" << fid
                      << " failed to insert into the set of files to be checked "
                      << "- got an exception";
       throw e;
@@ -401,13 +402,13 @@ FileMDSvc::addToDirtySet(IFileMD::id_t id)
 // the backend set accordingly.
 //------------------------------------------------------------------------------
 void
-FileMDSvc::flushDirtySet(IFileMD::id_t id)
+FileMDSvc::flushDirtySet(IFileMD::id_t id, bool force)
 {
   (void) mFlushFidSet.insert(stringify(id));
   std::time_t now = std::time(nullptr);
   std::chrono::seconds duration(now - mFlushTimestamp);
 
-  if (duration >= sFlushInterval) {
+  if (force || (duration >= sFlushInterval)) {
     mFlushTimestamp = now;
     std::vector<std::string> to_del(mFlushFidSet.begin(), mFlushFidSet.end());
     mFlushFidSet.clear();
