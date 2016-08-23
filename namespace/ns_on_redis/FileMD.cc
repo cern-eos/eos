@@ -239,7 +239,7 @@ FileMD::getEnv(std::string& env, bool escapeAnd)
 //------------------------------------------------------------------------------
 // Serialize the object to a std::string buffer
 //------------------------------------------------------------------------------
-bool
+void
 FileMD::serialize(eos::Buffer& buffer)
 {
   if (pFileMDSvc == nullptr) {
@@ -307,7 +307,17 @@ FileMD::serialize(eos::Buffer& buffer)
     }
   }
 
-  return waitAsyncReplies();
+  if (!waitAsyncReplies()) {
+    MDException ex(EIO);
+    ex.getMessage() << "KV-store asynchronous reuqests failed: ";
+
+    // Append all the error messages to the exception description
+    for (auto && err : mErrors) {
+      ex.getMessage() << "(" << err << ") ";
+    }
+
+    throw ex;
+  }
 }
 
 //------------------------------------------------------------------------------

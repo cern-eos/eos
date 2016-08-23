@@ -40,7 +40,7 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 class IFileMD
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Type definitions
   //----------------------------------------------------------------------------
@@ -314,27 +314,28 @@ class IFileMD
   //----------------------------------------------------------------------------
   //! Add extended attribute
   //----------------------------------------------------------------------------
-  virtual void setAttribute (const std::string &name, const std::string &value) = 0;
+  virtual void setAttribute(const std::string& name,
+                            const std::string& value) = 0;
 
   //----------------------------------------------------------------------------
   //! Remove attribute
   //----------------------------------------------------------------------------
-  virtual void removeAttribute (const std::string &name) = 0;
+  virtual void removeAttribute(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
   //! Check if the attribute exist
   //----------------------------------------------------------------------------
-  virtual bool hasAttribute (const std::string &name) const = 0;
+  virtual bool hasAttribute(const std::string& name) const = 0;
 
   //----------------------------------------------------------------------------
   //! Return number of attributes
   //----------------------------------------------------------------------------
-  virtual size_t numAttributes () const = 0;
+  virtual size_t numAttributes() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get the attribute
   //----------------------------------------------------------------------------
-  virtual std::string getAttribute (const std::string &name) const = 0;
+  virtual std::string getAttribute(const std::string& name) const = 0;
 
   //----------------------------------------------------------------------------
   //! Get attribute begin iterator
@@ -346,8 +347,17 @@ class IFileMD
   //----------------------------------------------------------------------------
   virtual XAttrMap::iterator attributesEnd() = 0;
 
- private:
+  //----------------------------------------------------------------------------
+  //! Serialize the object to a buffer
+  //----------------------------------------------------------------------------
+  virtual void serialize(Buffer& buffer) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Deserialize the class to a buffer
+  //----------------------------------------------------------------------------
+  virtual void deserialize(const Buffer& buffer) = 0;
+
+private:
   //----------------------------------------------------------------------------
   //! Make copy constructor and assignment operator private to avoid "slicing"
   //! when dealing with derived classes.

@@ -687,7 +687,7 @@ void ChangeLogFileMDSvc::initialize()
     for (it = pIdMap.begin(); it != pIdMap.end(); ++it) {
       // Unpack the serialized buffers
       std::shared_ptr<IFileMD> file = std::make_shared<FileMD>(0, this);
-      static_cast<FileMD*>(file.get())->deserialize(*it->second.buffer);
+      file.get()->deserialize(*it->second.buffer);
       it->second.ptr = file;
       delete it->second.buffer;
       it->second.buffer = 0;
@@ -908,7 +908,7 @@ void ChangeLogFileMDSvc::updateStore(IFileMD* obj)
 
   // Store the file in the changelog and notify the listener
   eos::Buffer buffer;
-  dynamic_cast<FileMD*>(obj)->serialize(buffer);
+  obj->serialize(buffer);
   it->second.logOffset = pChangeLog->storeRecord(eos::UPDATE_RECORD_MAGIC,
                          buffer);
   IFileMDChangeListener::Event e(obj, IFileMDChangeListener::Updated);
