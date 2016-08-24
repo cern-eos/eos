@@ -26,9 +26,9 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/IConfigEngine.hh"
-#include <redox.hpp>
-#include <redox/redoxSet.hpp>
-#include <redox/redoxHash.hpp>
+#include "redox.hpp"
+#include "redox/redoxSet.hpp"
+#include "redox/redoxHash.hpp"
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "mgm/Access.hh"

@@ -33,15 +33,15 @@ include_directories(
   ${NCURSES_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${REDOX_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR}/auth_plugin/)
-
-#add_subdirectory (test)
+  ${CMAKE_BINARY_DIR}/auth_plugin/
+  ${CPPUNIT_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
 #-------------------------------------------------------------------------------
-add_library(
-  XrdEosMgm MODULE
+
+#-----------------------------------------------------------------------------
+set(XRDEOSMGM_SRCS
   Access.cc
   IConfigEngine.cc
   FileConfigEngine.cc
@@ -132,6 +132,15 @@ add_library(
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)  
 
+add_library(
+  XrdEosMgm  MODULE
+  ${XRDEOSMGM_SRCS})
+
+add_library(
+  XrdEosMgm-Static STATIC
+  ${XRDEOSMGM_SRCS})
+
+
 #-------------------------------------------------------------------------------
 # Add dependecy to EosAuthProto so we guarantee that the protocol buffer files
 # are generated when we try to build XrdEosMgm
@@ -171,16 +180,50 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
+
+target_link_libraries(
+  XrdEosMgm-Static
+  EosNsCommon-Static
+  eosCommon-Static
+  eosCommonServer
+  EosPluginManager
+  eosCapability-Static
+  XrdMqClient-Static
+  EosAuthProto
+  ${Z_LIBRARY}
+  ${ZMQ_LIBRARIES}
+  ${LDAP_LIBRARIES}
+  ${UUID_LIBRARIES}
+  ${NCURSES_LIBRARY}
+  ${GLIBC_DL_LIBRARY}
+  ${LIBEV_LIBRARIES}
+  ${REDOX_LIBRARIES}
+  ${XROOTD_CL_LIBRARY}
+  ${XROOTD_POSIX_LIBRARY}
+  ${XROOTD_UTILS_LIBRARY}
+  ${OPENSSL_CRYPTO_LIBRARY}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${JSONCPP_LIBRARIES}
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${PROTOBUF_LIBRARIES})
+
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
 #-------------------------------------------------------------------------------
 add_executable(testmgmview FsView.cc test/MgmViewTest.cc)
+
 
 add_executable(
   testschedulingtree
   geotree/SchedulingTreeTest.cc
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
+
+add_executable(
+  EosMgmConfigTest
+  test/ConfigEngineTest.cc)
+
+add_dependencies(EosMgmConfigTest EosAuthProto)
 
 target_compile_definitions(
   testmgmview PUBLIC -DEOSMGMFSVIEWTEST)
@@ -208,6 +251,16 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
+target_link_libraries(
+  EosMgmConfigTest
+  XrdEosMgm-Static
+  ${CPPUNIT_LIBRARY})
+
+set_target_properties(
+  XrdEosMgm-Static
+  PROPERTIES
+  POSITION_INDEPENDENT_CODE True)
+
 install(
   TARGETS XrdEosMgm
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
@@ -220,3 +273,6 @@ install(
   PERMISSIONS OWNER_READ OWNER_EXECUTE
 	      GROUP_READ GROUP_EXECUTE
 	      WORLD_READ WORLD_EXECUTE)
+
+
+
