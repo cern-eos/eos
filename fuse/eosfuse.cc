@@ -386,6 +386,7 @@ EosFuse::getattr (fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
  if (!retc)
  {
    fuse_reply_attr (req, &stbuf, me.config.attrcachetime);
+   eos_static_debug("mode=%x timeout=%.02f\n", stbuf.st_mode, me.config.attrcachetime);
  }
  else
    fuse_reply_err (req, retc);
@@ -504,6 +505,7 @@ EosFuse::setattr (fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set,
    if (!retc)
    {
      fuse_reply_attr (req, &newattr, me.config.attrcachetime);
+     eos_static_debug("mode=%x timeout=%.02f\n", newattr.st_mode, me.config.attrcachetime);
    }
    else
      fuse_reply_err (req, errno);
@@ -601,6 +603,7 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
      me.fs ().store_p2i (e.attr.st_ino, ifullpath);
 
      fuse_reply_entry (req, &e);
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
 
      // Add entry to cached dir
      me.fs ().dir_cache_add_entry (parent, e.attr.st_ino, &e);
@@ -612,6 +615,7 @@ EosFuse::lookup (fuse_req_t req, fuse_ino_t parent, const char *name)
      e.attr_timeout = me.config.neg_entrycachetime;
      e.entry_timeout = me.config.neg_entrycachetime;
      fuse_reply_entry (req, &e);
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
    }
  }
 
@@ -761,7 +765,7 @@ EosFuse::readdir (fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct
      //........................................................................
      // Add the stat to the cache
      //........................................................................
-     for (size_t i = 2; i < cnt; i++) // tht two first ones are . and ..
+     for (size_t i = 2; i < cnt; i++) // the two first ones are . and ..
      {
        entriesstats[i].attr_timeout = me.config.attrcachetime;
        entriesstats[i].entry_timeout = me.config.entrycachetime;
@@ -978,6 +982,7 @@ EosFuse::mkdir (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mode
      }
 
      fuse_reply_entry (req, &e);
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
    }
  }
  else
@@ -1566,6 +1571,8 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
        fuse_reply_entry (req, &e);
      else
        fuse_reply_create (req, &e, fi);
+
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
 
      COMMONTIMING ("_stop_", &timing);
      eos_static_notice ("RT %-16s %.04f", __FUNCTION__, timing.RealTime ());
@@ -2239,6 +2246,7 @@ EosFuse::symlink (fuse_req_t req, const char *link, fuse_ino_t parent, const cha
      e.ino = e.attr.st_ino;
      me.fs ().store_p2i ((unsigned long long) e.attr.st_ino, ifullpath);
      fuse_reply_entry (req, &e);
+     eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
      return;
    }
    else

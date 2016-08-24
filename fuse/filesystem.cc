@@ -764,6 +764,7 @@ filesystem::dir_cache_get_entry (fuse_req_t req,
        }
        store_p2i (entry_inode, efullpath);
        fuse_reply_entry (req, &e);
+       eos_static_debug("mode=%x timeout=%.02f\n", e.attr.st_mode, e.attr_timeout);
        retc = 1; // found
      }
    }
@@ -2939,6 +2940,8 @@ filesystem::mkdir (const char* path,
      buf->st_mode &= (~S_ISVTX); // clear the vxt bit
      buf->st_mode &= (~S_ISUID); // clear suid
      buf->st_mode &= (~S_ISGID); // clear sgid
+
+     buf->st_mode |= mode_overlay;
      errno = 0;
    }
  }
