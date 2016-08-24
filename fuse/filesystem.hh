@@ -821,6 +821,14 @@ bool dir_cache_update_entry (unsigned long long entry_inode,
  //----------------------------------------------------------------------------
  int is_toplevel_rm (pid_t pid, const char* local_dir);
 
+
+ //----------------------------------------------------------------------------
+ //! Get the configured overlay mode
+ mode_t get_mode_overlay() 
+ {
+   return mode_overlay;
+ }
+
  //----------------------------------------------------------------------------
  //! Initialisation function
  //----------------------------------------------------------------------------

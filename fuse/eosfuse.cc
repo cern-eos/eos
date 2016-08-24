@@ -1524,7 +1524,7 @@ EosFuse::create (fuse_req_t req, fuse_ino_t parent, const char *name, mode_t mod
    e.attr_timeout = me.config.attrcachetime;
    e.entry_timeout = me.config.entrycachetime;
    e.ino = rinode;
-   e.attr.st_mode = S_IFREG;
+   e.attr.st_mode = S_IFREG | mode | me.fs().get_mode_overlay();
    e.attr.st_uid = fuse_req_ctx (req)->uid;
    e.attr.st_gid = fuse_req_ctx (req)->gid;
    e.attr.st_dev = 0;
