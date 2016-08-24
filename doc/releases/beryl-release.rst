@@ -7,6 +7,14 @@
 Beryl Release Notes
 ===================
 
+``V0.3.197 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- FUSE: return correct (also overlayed) mode bits after file creation
+
 ``V0.3.196 Aquamarine``
 +++++++++++++++++++++++
 
