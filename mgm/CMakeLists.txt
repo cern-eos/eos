@@ -33,8 +33,7 @@ include_directories(
   ${NCURSES_INCLUDE_DIRS}
   ${SPARSEHASH_INCLUDE_DIRS}
   ${REDOX_INCLUDE_DIRS}
-  ${CMAKE_BINARY_DIR}/auth_plugin/
-  ${CPPUNIT_INCLUDE_DIRS})
+  ${CMAKE_BINARY_DIR}/auth_plugin/)
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm library
@@ -136,9 +135,11 @@ add_library(
   XrdEosMgm  MODULE
   ${XRDEOSMGM_SRCS})
 
-add_library(
-  XrdEosMgm-Static STATIC
-  ${XRDEOSMGM_SRCS})
+if (CPPUNIT_FOUND)
+  add_library(
+    XrdEosMgm-Static STATIC
+    ${XRDEOSMGM_SRCS})
+endif()
 
 
 #-------------------------------------------------------------------------------
@@ -180,7 +181,7 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
-
+if (CPPUNIT_FOUND)
 target_link_libraries(
   XrdEosMgm-Static
   EosNsCommon-Static
@@ -206,6 +207,7 @@ target_link_libraries(
   ${JSONCPP_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
+endif()
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the scheduling part
@@ -219,11 +221,29 @@ add_executable(
   geotree/SchedulingSlowTree.cc
   geotree/SchedulingTreeCommon.cc)
 
-add_executable(
-  EosMgmConfigTest
-  test/ConfigEngineTest.cc)
+if (CPPUNIT_FOUND)
+  add_executable(
+    EosMgmConfigTest
+    test/ConfigEngineTest.cc)
 
-add_dependencies(EosMgmConfigTest EosAuthProto)
+  target_include_directories(
+    EosMgmConfigTest PUBLIC
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CPPUNIT_INCLUDE_DIRS}>
+    $<INSTALL_INTERFACE:include>)
+
+  target_link_libraries(
+    EosMgmConfigTest
+    XrdEosMgm-Static
+    ${CPPUNIT_LIBRARY})
+
+  set_target_properties(
+    XrdEosMgm-Static
+    PROPERTIES
+    POSITION_INDEPENDENT_CODE True)
+endif()
+
+
 
 target_compile_definitions(
   testmgmview PUBLIC -DEOSMGMFSVIEWTEST)
@@ -250,16 +270,6 @@ target_link_libraries(
   eosCommon
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
-
-target_link_libraries(
-  EosMgmConfigTest
-  XrdEosMgm-Static
-  ${CPPUNIT_LIBRARY})
-
-set_target_properties(
-  XrdEosMgm-Static
-  PROPERTIES
-  POSITION_INDEPENDENT_CODE True)
 
 install(
   TARGETS XrdEosMgm
