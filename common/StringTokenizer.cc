@@ -30,178 +30,164 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Constructor
- * 
+ *
  */
 /*----------------------------------------------------------------------------*/
-StringTokenizer::StringTokenizer (const char* s)
+StringTokenizer::StringTokenizer(const char* s)
 {
   // -----------------------------------------------------------
   // the constructor just parses lines not token's within a line
   // -----------------------------------------------------------
-
-  if (s)
-  {
+  if (s) {
     fBuffer = strdup(s);
-  }
-  else
-  {
+  } else {
     fBuffer = 0;
     return;
   }
 
   bool inquote = false;
-  if (fBuffer[0] != 0)
-  {
+
+  if (fBuffer[0] != 0) {
     // set the first pointer to offset 0
     fLineStart.push_back(0);
   }
+
   // intelligent parsing considering quoting
-  for (size_t i = 0; i < strlen(fBuffer); i++)
-  {
+  for (size_t i = 0; i < strlen(fBuffer); i++) {
     if ((fBuffer[i] == '"') &&
         ((i == 0) ||
-         ((fBuffer[i - 1] != '\\'))))
-    {
-      if (inquote)
+         ((fBuffer[i - 1] != '\\')))) {
+      if (inquote) {
         inquote = false;
-      else
+      } else {
         inquote = true;
+      }
     }
-    if ((!inquote) && fBuffer[i] == '\n')
-    {
+
+    if ((!inquote) && fBuffer[i] == '\n') {
       fLineStart.push_back(i + 1);
     }
   }
+
   fCurrentLine = -1;
   fCurrentArg = -1;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Destructor
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
-StringTokenizer::~StringTokenizer ()
+StringTokenizer::~StringTokenizer()
 {
-  if (fBuffer)
-  {
+  if (fBuffer) {
     free(fBuffer);
     fBuffer = 0;
   }
 }
 
-/** 
+/**
  * Return the next parsed line
- * 
- * 
+ *
+ *
  * @return char reference to the next line
  */
 const char*
-StringTokenizer::GetLine ()
+StringTokenizer::GetLine()
 {
   fCurrentLine++;
-  if (fCurrentLine < (int) fLineStart.size())
-  {
+
+  if (fCurrentLine < (int) fLineStart.size()) {
     char* line = fBuffer + fLineStart[fCurrentLine];
     char* wordptr = line;
     bool inquote = false;
     size_t len = strlen(line) + 1;
 
-    for (size_t i = 0; i < len; i++)
-    {
+    for (size_t i = 0; i < len; i++) {
       if ((line[i] == '"') &&
           ((i == 0) ||
-           ((line[i - 1] != '\\'))))
-      {
-        if (inquote)
-        {
+           ((line[i - 1] != '\\')))) {
+        if (inquote) {
           inquote = false;
-        }
-        else
-        {
+        } else {
           inquote = true;
         }
       }
 
       if (!inquote)
-        if ((line[i] == ' ') && (i < len) && (line[i + 1] == ' '))
+        if ((line[i] == ' ') && (i < len) && (line[i + 1] == ' ')) {
           continue;
+        }
 
-      if ((line[i] == ' ') || (line[i] == 0) || (line[i] == '\n'))
-        {
-          if (!inquote)
-          {
-          if ((i > 1) && (line[i - 1] == '\\'))
-          {
+      if ((line[i] == ' ') || (line[i] == 0) || (line[i] == '\n')) {
+        if (!inquote) {
+          if ((i > 1) && (line[i - 1] == '\\')) {
             // don't start a new word here
-            }
-            else
-            {
-              line[i] = 0;
-              fLineArgs.push_back(wordptr);
-              // start a new word here
-              wordptr = line + i + 1;
-            }
+          } else {
+            line[i] = 0;
+            fLineArgs.push_back(wordptr);
+            // start a new word here
+            wordptr = line + i + 1;
           }
+        }
       }
 
-      if ((!inquote) && (line[i] == '\n'))
-      {
+      if ((!inquote) && (line[i] == '\n')) {
         line[i] = 0;
       }
     }
+
     return line;
-  }
-  else
-  {
+  } else {
     return 0;
   }
 }
 
-/** 
+/**
  * Return next parsed space seperated token taking into account escaped blanks and quoted strings
- * 
- * 
+ *
+ *
  * @return char reference to the next argument token
  */
 const char*
-StringTokenizer::GetToken ()
+StringTokenizer::GetToken(bool escapeand)
 {
   fCurrentArg++;
-  if (fCurrentArg < (int) fLineArgs.size())
-  {
+
+  if (fCurrentArg < (int) fLineArgs.size()) {
     // patch out quotes
     XrdOucString item = fLineArgs[fCurrentArg].c_str();
-    if (item.beginswith("\""))
+
+    if (item.beginswith("\"")) {
       item.erase(0, 1);
+    }
+
     if (item.endswith("\"") &&
-        (!item.endswith("\\\"")))
-    {
+        (!item.endswith("\\\""))) {
       item.erase(item.length() - 1);
     }
 
     int pos = 0;
-    while ((pos = item.find("&",pos)) != STR_NPOS)
-    {
-      if ((pos == 0) ||
-          (item[pos - 1] != '\\'))
-      {
-        item.erase(pos, 1);
-        item.insert("#AND#", pos);
+
+    while ((pos = item.find("&", pos)) != STR_NPOS) {
+      if (escapeand) {
+        if ((pos == 0) ||
+            (item[pos - 1] != '\\')) {
+          item.erase(pos, 1);
+          item.insert("#AND#", pos);
+        }
       }
+
       pos++;
     }
 
     fLineArgs[fCurrentArg] = item.c_str();
-
     return fLineArgs[fCurrentArg].c_str();
-  }
-  else
-  {
+  } else {
     return 0;
   }
 }

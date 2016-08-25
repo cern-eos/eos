@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //! @file ReedSLayout.hh
-//! @author Elvin-Alin Sindrilaru <esindril@cern.ch> 
+//! @author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //! @brief Implementation of the Reed-Solomon layout
 //------------------------------------------------------------------------------
 
@@ -47,22 +47,21 @@ public:
   //! @param client security information
   //! @param outError error information
   //! @param io access type
-  //! @param timeout timeout value 
+  //! @param timeout timeout value
   //! @param storeRecovery if true write back the recovered blocks to file
   //! @param targetSize expected final size
   //! @param bookingOpaque opaque information
   //!
   //----------------------------------------------------------------------------
-  ReedSLayout (XrdFstOfsFile* file,
-               unsigned long lid,
-               const XrdSecEntity* client,
-               XrdOucErrInfo* outError,
-               eos::common::LayoutId::eIoType io,
-               uint16_t timeout = 0,
-               bool storeRecovery = false,
-               off_t targetSize = 0,
-               std::string bookingOpaque = "oss.size");
-
+  ReedSLayout(XrdFstOfsFile* file,
+              unsigned long lid,
+              const XrdSecEntity* client,
+              XrdOucErrInfo* outError,
+              const char* path,
+              uint16_t timeout = 0,
+              bool storeRecovery = false,
+              off_t targetSize = 0,
+              std::string bookingOpaque = "oss.size");
 
   //----------------------------------------------------------------------------
   //! Truncate file
@@ -72,7 +71,7 @@ public:
   //! @return 0 if successful, otherwise error
   //!
   //----------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset);
+  virtual int Truncate(XrdSfsFileOffset offset);
 
 
   //----------------------------------------------------------------------------
@@ -83,7 +82,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset lenght);
+  virtual int Fallocate(XrdSfsFileOffset lenght);
 
 
   //----------------------------------------------------------------------------
@@ -95,14 +94,14 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
+  virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ReedSLayout ();
+  virtual ~ReedSLayout();
 
 private:
 
@@ -110,16 +109,16 @@ private:
   bool mDoneInitialisation; ///< Jerasure codes initialisation status
   unsigned int w;           ///< word size for Jerasure
   unsigned int mPacketSize; ///< packet size for Jerasure
-  int *matrix;
-  int *bitmatrix;
-  int **schedule;
+  int* matrix;
+  int* bitmatrix;
+  int** schedule;
 
-  
+
   //----------------------------------------------------------------------------
   //! Initialise the Jerasure structures used for encoding and decoding
   //!
   //! @return true if initalisation successful, otherwise false
-  //!  
+  //!
   //----------------------------------------------------------------------------
   bool InitialiseJerasure();
 
@@ -130,18 +129,18 @@ private:
   //! @param w number to be checked
   //!
   //! @return true if number is prime, otherwise false
-  //! 
+  //!
   //----------------------------------------------------------------------------
   bool IsPrime(int w);
-  
-  
+
+
   //----------------------------------------------------------------------------
   //! Compute error correction blocks
   //!
   //! @return true if parity info computed successfully, otherwise false
   //!
   //----------------------------------------------------------------------------
-  virtual bool ComputeParity ();
+  virtual bool ComputeParity();
 
 
   //----------------------------------------------------------------------------
@@ -152,7 +151,7 @@ private:
   //! @return 0 if successful, otherwise error
   //!
   //--------------------------------------------------------------------------
-  virtual int WriteParityToFiles (uint64_t offsetGroup);
+  virtual int WriteParityToFiles(uint64_t offsetGroup);
 
 
   //--------------------------------------------------------------------------
@@ -163,7 +162,7 @@ private:
   //! @return true if recovery successful, false otherwise
   //!
   //--------------------------------------------------------------------------
-  virtual bool RecoverPiecesInGroup (XrdCl::ChunkList& grp_errs);
+  virtual bool RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs);
 
 
   //--------------------------------------------------------------------------
@@ -174,9 +173,9 @@ private:
   //! @param length data length
   //!
   //--------------------------------------------------------------------------
-  virtual void AddDataBlock (uint64_t offset,
-                             const char* pBuffer,
-                             uint32_t length);
+  virtual void AddDataBlock(uint64_t offset,
+                            const char* pBuffer,
+                            uint32_t length);
 
 
   //--------------------------------------------------------------------------
@@ -187,7 +186,7 @@ private:
   //! @return index with the same values as idSmall, identical function
   //!
   //--------------------------------------------------------------------------
-  virtual unsigned int MapSmallToBig (unsigned int idSmall);
+  virtual unsigned int MapSmallToBig(unsigned int idSmall);
 
 
   //--------------------------------------------------------------------------
@@ -199,7 +198,7 @@ private:
   //! @param global_off initial offset
   //!
   //! @return tuple made up of the logical index of the stripe data file the
-  //!         piece belongs to and the local offset within that file. 
+  //!         piece belongs to and the local offset within that file.
   //!
   //--------------------------------------------------------------------------
   virtual std::pair<int, uint64_t>
@@ -225,14 +224,14 @@ private:
   //--------------------------------------------------------------------------
   //! Disable copy constructor
   //--------------------------------------------------------------------------
-  ReedSLayout (const ReedSLayout&) = delete;
+  ReedSLayout(const ReedSLayout&) = delete;
 
 
   //--------------------------------------------------------------------------
   //! Disable assign operator
   //--------------------------------------------------------------------------
   ReedSLayout& operator = (const ReedSLayout&) = delete;
-  
+
 };
 
 EOSFSTNAMESPACE_END

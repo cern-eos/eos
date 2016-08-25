@@ -34,13 +34,13 @@ char HeaderCRC::msTagName[] = "_HEADER__RAIDIO_";
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-HeaderCRC::HeaderCRC (int sizeHeader, int sizeBlock) :
-mValid (false),
-mNumBlocks (-1),
-mIdStripe (-1),
-mSizeLastBlock (-1),
-mSizeBlock (sizeBlock),
-mSizeHeader (sizeHeader)
+HeaderCRC::HeaderCRC(int sizeHeader, int sizeBlock) :
+  mValid(false),
+  mNumBlocks(-1),
+  mIdStripe(-1),
+  mSizeLastBlock(-1),
+  mSizeBlock(sizeBlock),
+  mSizeHeader(sizeHeader)
 {
   //empty
 }
@@ -49,13 +49,13 @@ mSizeHeader (sizeHeader)
 //------------------------------------------------------------------------------
 // Constructor with parameter
 //------------------------------------------------------------------------------
-HeaderCRC::HeaderCRC (int sizeHeader, long long numBlocks, int sizeBlock) :
-mValid (false),
-mNumBlocks (numBlocks),
-mIdStripe (-1),
-mSizeLastBlock (-1),
-mSizeBlock (sizeBlock),
-mSizeHeader (sizeHeader)
+HeaderCRC::HeaderCRC(int sizeHeader, long long numBlocks, int sizeBlock) :
+  mValid(false),
+  mNumBlocks(numBlocks),
+  mIdStripe(-1),
+  mSizeLastBlock(-1),
+  mSizeBlock(sizeBlock),
+  mSizeHeader(sizeHeader)
 {
   strncpy(mTag, msTagName, strlen(msTagName));
 }
@@ -64,7 +64,7 @@ mSizeHeader (sizeHeader)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-HeaderCRC::~HeaderCRC ()
+HeaderCRC::~HeaderCRC()
 {
   //empty
 }
@@ -73,15 +73,14 @@ HeaderCRC::~HeaderCRC ()
 // Read header from generic file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
+HeaderCRC::ReadFromFile(FileIo*& pFile, uint16_t timeout)
 {
   long int offset = 0;
   size_t read_sizeblock = 0;
   char* buff = new char[mSizeHeader];
 
-  if (pFile->Read(offset, buff, mSizeHeader, timeout) !=
-      static_cast<uint32_t> (mSizeHeader))
-  {
+  if (pFile->fileRead(offset, buff, mSizeHeader, timeout) !=
+      static_cast<uint32_t>(mSizeHeader)) {
     delete[] buff;
     mValid = false;
     return mValid;
@@ -90,8 +89,7 @@ HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
   memcpy(mTag, buff, sizeof mTag);
   std::string tag = mTag;
 
-  if (strncmp(mTag, msTagName, strlen(msTagName)))
-  {
+  if (strncmp(mTag, msTagName, strlen(msTagName))) {
     delete[] buff;
     mValid = false;
     return mValid;
@@ -106,8 +104,7 @@ HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
   offset += sizeof mSizeLastBlock;
   memcpy(&read_sizeblock, buff + offset, sizeof read_sizeblock);
 
-  if (mSizeBlock != read_sizeblock)
-  {
+  if (mSizeBlock != read_sizeblock) {
     eos_err("error=block size read from file does not match block size expected");
     mValid = false;
   }
@@ -122,11 +119,10 @@ HeaderCRC::ReadFromFile (FileIo*& pFile, uint16_t timeout)
 // Write header to generic file
 //------------------------------------------------------------------------------
 bool
-HeaderCRC::WriteToFile (FileIo*& pFile, uint16_t timeout)
+HeaderCRC::WriteToFile(FileIo*& pFile, uint16_t timeout)
 {
   int offset = 0;
   char* buff = new char[mSizeHeader];
-
   memcpy(buff + offset, msTagName, sizeof msTagName);
   offset += sizeof mTag;
   memcpy(buff + offset, &mIdStripe, sizeof mIdStripe);
@@ -139,10 +135,11 @@ HeaderCRC::WriteToFile (FileIo*& pFile, uint16_t timeout)
   offset += sizeof mSizeBlock;
   memset(buff + offset, 0, mSizeHeader - offset);
 
-  if (pFile->Write(0, buff, mSizeHeader, timeout) < 0)
+  if (pFile->fileWrite(0, buff, mSizeHeader, timeout) < 0) {
     mValid = false;
-  else
+  } else {
     mValid = true;
+  }
 
   delete[] buff;
   return mValid;

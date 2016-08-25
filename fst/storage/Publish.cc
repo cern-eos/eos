@@ -32,7 +32,7 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Storage::Publish ()
+Storage::Publish()
 {
   eos_static_info("Publisher activated ...");
   struct timeval tv1, tv2;
@@ -42,40 +42,41 @@ Storage::Publish ()
   // get our network speed
   // ---------------------------------------------------------------------
   char* tmpname = tmpnam(NULL);
-  XrdOucString getnetspeed = "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
+  XrdOucString getnetspeed =
+    "ip route list | sed -ne '/^default/s/.*dev //p' | xargs ethtool | grep Speed | cut -d ':' -f2 | cut -d 'M' -f1 >> ";
   getnetspeed += tmpname;
   eos::common::ShellCmd scmd1(getnetspeed.c_str());
   eos::common::cmd_status rc = scmd1.wait(5);
-  if (rc.exit_code) 
-  {
+
+  if (rc.exit_code) {
     eos_static_err("ip route list call failed to get netspeed");
   }
 
   XrdOucString lNodeGeoTag = (getenv("EOS_GEOTAG") ? getenv("EOS_GEOTAG") : "");
-  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ? getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
-
+  XrdOucString lEthernetDev = (getenv("EOS_FST_NETWORK_INTERFACE") ?
+                               getenv("EOS_FST_NETWORK_INTERFACE") : "eth0");
   FILE* fnetspeed = fopen(tmpname, "r");
-  if (fnetspeed)
-  {
-    if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1)
-    {
+
+  if (fnetspeed) {
+    if ((fscanf(fnetspeed, "%llu", &netspeed)) == 1) {
       // we get MB as a number => convert into bytes
       netspeed *= 1000000;
-      eos_static_info("ethtool:networkspeed=%.02f GB/s", 1.0 * netspeed / 1000000000.0);
+      eos_static_info("ethtool:networkspeed=%.02f GB/s",
+                      1.0 * netspeed / 1000000000.0);
     }
+
     fclose(fnetspeed);
   }
 
-  eos_static_info("publishing:networkspeed=%.02f GB/s", 1.0 * netspeed / 1000000000.0);
-
+  eos_static_info("publishing:networkspeed=%.02f GB/s",
+                  1.0 * netspeed / 1000000000.0);
   // ---------------------------------------------------------------------
   // give some time before publishing
   // ---------------------------------------------------------------------
   XrdSysTimer sleeper;
   sleeper.Snooze(3);
 
-  while (!eos::fst::Config::gConfig.FstNodeConfigQueue.length())
-  {
+  while (!eos::fst::Config::gConfig.FstNodeConfigQueue.length()) {
     XrdSysTimer sleeper;
     sleeper.Snooze(5);
     eos_static_info("Snoozing ...");
@@ -85,37 +86,34 @@ Storage::Publish ()
   std::string publish_uptime = "";
   std::string publish_sockets = "";
 
-  while (1)
-  {
+  while (1) {
     {
       // ---------------------------------------------------------------------
       // retrieve uptime information
       // ---------------------------------------------------------------------
       XrdOucString uptime = "uptime | tr -d \"\n\" > ";
       uptime += tmpname;
-
       eos::common::ShellCmd scmd2(uptime.c_str());
       rc = scmd2.wait(5);
-      if (rc.exit_code)
-      {
+
+      if (rc.exit_code) {
         eos_static_err("retrieve uptime call failed");
       }
+
       eos::common::StringConversion::LoadFileIntoString(tmpname, publish_uptime);
       XrdOucString sockets = "cat /proc/net/tcp | wc -l | tr -d \"\n\" >";
       sockets += tmpname;
-
       eos::common::ShellCmd scmd3(sockets.c_str());
       rc = scmd3.wait(5);
-      if (rc.exit_code)
-      {
+
+      if (rc.exit_code) {
         eos_static_err("retrieve #socket call failed");
       }
+
       eos::common::StringConversion::LoadFileIntoString(tmpname, publish_sockets);
     }
-
     time_t now = time(NULL);
     gettimeofday(&tv1, &tz);
-
     // TODO: derive this from a global variable
     // smear the publishing cycle around x +- x/2 seconds
     int PublishInterval = 10;
@@ -123,20 +121,18 @@ Storage::Publish ()
       XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
       PublishInterval = eos::fst::Config::gConfig.PublishInterval;
     }
-    if ((PublishInterval < 2) || (PublishInterval > 3600))
-    {
+
+    if ((PublishInterval < 2) || (PublishInterval > 3600)) {
       // default to 10 +- 5 seconds
       PublishInterval = 10;
     }
 
-    unsigned int lReportIntervalMilliSeconds = (PublishInterval * 500)+ (unsigned int) ((PublishInterval * 1000.0) * rand() / RAND_MAX);
-
+    unsigned int lReportIntervalMilliSeconds = (PublishInterval * 500) +
+        (unsigned int)((PublishInterval * 1000.0) * rand() / RAND_MAX);
     // retrieve the process memory and thread state
-
     eos::common::LinuxStat::linux_stat_t osstat;
 
-    if (!eos::common::LinuxStat::GetStat(osstat))
-    {
+    if (!eos::common::LinuxStat::GetStat(osstat)) {
       eos_err("failed to get the memory usage information");
     }
 
@@ -146,104 +142,95 @@ Storage::Publish ()
       static time_t last_consistency_stats = 0;
       static time_t next_consistency_stats = 0;
 
-      if (!gOFS.ObjectManager.OpenMuxTransaction())
-      {
+      if (!gOFS.ObjectManager.OpenMuxTransaction()) {
         eos_static_err("cannot open mux transaction");
-      }
-      else
-      {
+      } else {
         // copy out statfs info
-        for (size_t i = 0; i < fileSystemsVector.size(); i++)
-        {
-          if (!fileSystemsVector[i])
-          {
+        for (size_t i = 0; i < fileSystemsVector.size(); i++) {
+          if (!fileSystemsVector[i]) {
             eos_static_err("found 0 vector in filesystems vector %u", i);
             continue;
           }
 
-          if (!(fsid = fileSystemsVector[i]->GetId()))
-          {
+          if (!(fsid = fileSystemsVector[i]->GetId())) {
             // during the boot phase we can find a filesystem without ID
             continue;
           }
 
           XrdOucString r_open_hotfiles;
           XrdOucString w_open_hotfiles;
-
           // make a top hotfile list or read open files
           {
             std::map<unsigned int, std::set<unsigned long long>> Rhotfiles;
             std::map<unsigned int, std::set<unsigned long long>> Whotfiles;
-	    {
-	      XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-	      if (gOFS.ROpenFid.count(fsid))
-	      {
-		for ( auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end(); ++it )
-		{
-		  Rhotfiles[it->second].insert(it->first);
-		}
-	      }
-	      if (gOFS.WOpenFid.count(fsid))
-	      {
-		for ( auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end(); ++it )
-		{
-		  Whotfiles[it->second].insert(it->first);
-		}
-	      }
-	    }
-
-            size_t cnt=0;
-            for ( auto it = Rhotfiles.rbegin(); it != Rhotfiles.rend(); ++it)
             {
+              XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+
+              if (gOFS.ROpenFid.count(fsid)) {
+                for (auto it = gOFS.ROpenFid[fsid].begin(); it != gOFS.ROpenFid[fsid].end();
+                     ++it) {
+                  Rhotfiles[it->second].insert(it->first);
+                }
+              }
+
+              if (gOFS.WOpenFid.count(fsid)) {
+                for (auto it = gOFS.WOpenFid[fsid].begin(); it != gOFS.WOpenFid[fsid].end();
+                     ++it) {
+                  Whotfiles[it->second].insert(it->first);
+                }
+              }
+            }
+            size_t cnt = 0;
+
+            for (auto it = Rhotfiles.rbegin(); it != Rhotfiles.rend(); ++it) {
               XrdOucString hexfid;
-              for ( auto fit = it->second.begin(); fit != it->second.end(); ++fit)
-              {
+
+              for (auto fit = it->second.begin(); fit != it->second.end(); ++fit) {
                 eos::common::FileId::Fid2Hex(*fit, hexfid);
                 r_open_hotfiles += (int) it->first;
                 r_open_hotfiles += ":";
                 r_open_hotfiles += hexfid.c_str();
                 r_open_hotfiles += " ";
-                if (cnt==10)
+
+                if (cnt == 10) {
                   break;
+                }
               }
             }
 
-            cnt=0;
-            for ( auto it = Whotfiles.rbegin(); it != Whotfiles.rend(); ++it)
-            {
+            cnt = 0;
+
+            for (auto it = Whotfiles.rbegin(); it != Whotfiles.rend(); ++it) {
               XrdOucString hexfid;
-              for ( auto fit = it->second.begin(); fit != it->second.end(); ++fit)
-              {
+
+              for (auto fit = it->second.begin(); fit != it->second.end(); ++fit) {
                 eos::common::FileId::Fid2Hex(*fit, hexfid);
                 w_open_hotfiles += (int) it->first;
                 w_open_hotfiles += ":";
                 w_open_hotfiles += hexfid.c_str();
                 w_open_hotfiles += " ";
-                if (cnt==10)
+
+                if (cnt == 10) {
                   break;
+                }
               }
             }
           }
-
           // Retrieve Statistics from the SQLITE DB
           std::map<std::string, size_t>::const_iterator isit;
-
-
           bool success = true;
-          if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted)
-          {
-            if (next_consistency_stats < now)
-            {
+
+          if (fileSystemsVector[i]->GetStatus() == eos::common::FileSystem::kBooted) {
+            if (next_consistency_stats < now) {
               eos_static_debug("msg=\"publish consistency stats\"");
               last_consistency_stats = now;
               XrdSysMutexHelper ISLock(fileSystemsVector[i]->InconsistencyStatsMutex);
               gFmdDbMapHandler.GetInconsistencyStatistics(fsid,
-                 *fileSystemsVector[i]->GetInconsistencyStats(),
-                 *fileSystemsVector[i]->GetInconsistencySets());
+                  *fileSystemsVector[i]->GetInconsistencyStats(),
+                  *fileSystemsVector[i]->GetInconsistencySets());
 
               for (isit = fileSystemsVector[i]->GetInconsistencyStats()->begin();
-                   isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++)
-              {
+                   isit != fileSystemsVector[i]->GetInconsistencyStats()->end(); isit++) {
                 //eos_static_debug("%-24s => %lu", isit->first.c_str(), isit->second);
                 std::string sname = "stat.fsck.";
                 sname += isit->first;
@@ -253,121 +240,194 @@ Storage::Publish ()
           }
 
           eos::common::Statfs* statfs = 0;
-          if ((statfs = fileSystemsVector[i]->GetStatfs()))
-          {
+
+          if ((statfs = fileSystemsVector[i]->GetStatfs())) {
             // call the update function which stores into the filesystem shared hash
-            if (!fileSystemsVector[i]->SetStatfs(statfs->GetStatfs()))
-            {
-              eos_static_err("cannot SetStatfs on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
+            if (!fileSystemsVector[i]->SetStatfs(statfs->GetStatfs())) {
+              eos_static_err("cannot SetStatfs on filesystem %s",
+                             fileSystemsVector[i]->GetPath().c_str());
             }
           }
 
-          // copy out net info 
-          success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
-          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
+          // copy out net info
+          success &= fileSystemsVector[i]->SetDouble("stat.net.ethratemib",
+                     netspeed / (8 * 1024 * 1024));
+          success &= fileSystemsVector[i]->SetDouble("stat.net.inratemib",
+                     fstLoad.GetNetRate(lEthernetDev.c_str(), "rxbytes") / 1024.0 / 1024.0);
+          success &= fileSystemsVector[i]->SetDouble("stat.net.outratemib",
+                     fstLoad.GetNetRate(lEthernetDev.c_str(), "txbytes") / 1024.0 / 1024.0);
           //          eos_static_debug("Path is %s %f\n", fileSystemsVector[i]->GetPath().c_str(), fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),"writeSectors")*512.0/1000000.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "readSectors")*512.0 / 1000000.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "writeSectors")*512.0 / 1000000.0);
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.load", fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(), "millisIO") / 1000.0);
+          std::map<std::string, std::string> iostats;
 
-	  long long r_open = 0;
-	  long long w_open = 0;
-	  {
-	    XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
-	    r_open =  (long long) gOFS.ROpenFid[fsid].size();
-	    w_open =  (long long) gOFS.WOpenFid[fsid].size();
-	  }
-
-	  success &= fileSystemsVector[i]->SetLongLong("stat.ropen", r_open);
-	  success &= fileSystemsVector[i]->SetLongLong("stat.wopen", w_open);
-
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes", fileSystemsVector[i]->GetLongLong("stat.statfs.bfree") * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes", (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") - fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled", 100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") - fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) / (1 + fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity", fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused", (fileSystemsVector[i]->GetLongLong("stat.statfs.files") - fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) * fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
-	  
-	  long long used_files=0;
-          {
-             eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
-             used_files = (long long) (gFmdDbMapHandler.FmdHelperMap.count(fsid) ? gFmdDbMapHandler.FmdHelperMap[fsid].size() : 0);
+          if (fileSystemsVector[i]->getFileIOStats(iostats)) {
+            double readratemb  = strtod(iostats["read-mb-second"].c_str(), 0);
+            double writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
+            double diskload    = strtod(iostats["load"].c_str(), 0);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb", readratemb);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb",
+                       writeratemb);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.load", diskload);
+          } else {
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.readratemb",
+                       fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
+                                           "readSectors") * 512.0 / 1000000.0);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.writeratemb",
+                       fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
+                                           "writeSectors") * 512.0 / 1000000.0);
+            success &= fileSystemsVector[i]->SetDouble("stat.disk.load",
+                       fstLoad.GetDiskRate(fileSystemsVector[i]->GetPath().c_str(),
+                                           "millisIO") / 1000.0);
           }
 
-	  success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", used_files);
+          std::map<std::string, std::string> health;
 
-          success &= fileSystemsVector[i]->SetString("stat.boot", fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
+          if (fileSystemsVector[i]->getHealth(health)) {
+            if (health.count("summary")) {
+              success &= fileSystemsVector[i]->SetString("stat.health",
+                         health["summary"].c_str());
+            } else {
+              success &= fileSystemsVector[i]->SetString("stat.health", "unknown");
+            }
+
+            if (health.count("indicator"))  {
+              auto indicator = strtoll(health["indicator"].c_str(), 0, 10);
+              success &= fileSystemsVector[i]->SetLongLong("stat.health.indicator",
+                         indicator);
+            }
+
+            if (health.count("drives_total")) {
+              auto drives_total = strtoll(health["drives_total"].c_str(), 0, 10);
+              success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_total",
+                         drives_total);
+            }
+
+            if (health.count("drives_failed")) {
+              auto drives_failed = strtoll(health["drives_failed"].c_str(), 0, 10);
+              success &= fileSystemsVector[i]->SetLongLong("stat.health.drives_failed",
+                         drives_failed);
+            }
+
+            if (health.count("redundancy_factor")) {
+              auto redundancy_factor = strtoll(health["redundancy_factor"].c_str(), 0, 10);
+              success &= fileSystemsVector[i]->SetLongLong("stat.health.redundancy_factor",
+                         redundancy_factor);
+            }
+          }
+
+          long long r_open = 0;
+          long long w_open = 0;
+          {
+            XrdSysMutexHelper fLock(gOFS.OpenFidMutex);
+            r_open = (long long) gOFS.ROpenFid[fsid].size();
+            w_open = (long long) gOFS.WOpenFid[fsid].size();
+          }
+          success &= fileSystemsVector[i]->SetLongLong("stat.ropen", r_open);
+          success &= fileSystemsVector[i]->SetLongLong("stat.wopen", w_open);
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.freebytes",
+                     fileSystemsVector[i]->GetLongLong("stat.statfs.bfree") *
+                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.usedbytes",
+                     (fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") -
+                      fileSystemsVector[i]->GetLongLong("stat.statfs.bfree")) *
+                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetDouble("stat.statfs.filled",
+                     100.0 * ((fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") -
+                               fileSystemsVector[i]->GetLongLong("stat.statfs.bfree"))) /
+                     (1 + fileSystemsVector[i]->GetLongLong("stat.statfs.blocks")));
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.capacity",
+                     fileSystemsVector[i]->GetLongLong("stat.statfs.blocks") *
+                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          success &= fileSystemsVector[i]->SetLongLong("stat.statfs.fused",
+                     (fileSystemsVector[i]->GetLongLong("stat.statfs.files") -
+                      fileSystemsVector[i]->GetLongLong("stat.statfs.ffree")) *
+                     fileSystemsVector[i]->GetLongLong("stat.statfs.bsize"));
+          {
+            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
+            success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles",
+                       (long long)(gFmdDbMapHandler.FmdMap.count(fsid) ?
+                                   gFmdDbMapHandler.FmdMap[fsid]->size() : 0));
+          }
+          unsigned long long used_files = 0;
+          {
+            eos::common::RWMutexReadLock lock(gFmdDbMapHandler.Mutex);
+            used_files = 0;
+
+            if (gFmdDbMapHandler.FmdSqliteMap.count(fsid)) {
+              eos::common::RWMutexReadLock flock(gFmdDbMapHandler.FmdSqliteMutexMap[fsid]);
+              used_files = (long long)(gFmdDbMapHandler.FmdSqliteMap[fsid].size());
+            }
+          }
+          success &= fileSystemsVector[i]->SetLongLong("stat.usedfiles", used_files);
+          success &= fileSystemsVector[i]->SetString("stat.boot",
+                     fileSystemsVector[i]->GetStatusAsString(fileSystemsVector[i]->GetStatus()));
           success &= fileSystemsVector[i]->SetString("stat.geotag", lNodeGeoTag.c_str());
           struct timeval tvfs;
           gettimeofday(&tvfs, &tz);
-          size_t nowms = tvfs.tv_sec*1000 + tvfs.tv_usec/1000;
+          size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;
           success &= fileSystemsVector[i]->SetLongLong("stat.publishtimestamp", nowms);
-          success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running", fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
-          success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running", fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
-
+          success &= fileSystemsVector[i]->SetLongLong("stat.drainer.running",
+                     fileSystemsVector[i]->GetDrainQueue()->GetRunningAndQueued());
+          success &= fileSystemsVector[i]->SetLongLong("stat.balancer.running",
+                     fileSystemsVector[i]->GetBalanceQueue()->GetRunningAndQueued());
           // copy out IOPS + bandwidth measurement
-          success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops", fileSystemsVector[i]->getIOPS());
-          success &= fileSystemsVector[i]->SetDouble("stat.disk.bw", fileSystemsVector[i]->getSeqBandwidth()); // in MB
-
-	  {
+          success &= fileSystemsVector[i]->SetLongLong("stat.disk.iops",
+                     fileSystemsVector[i]->getIOPS());
+          success &= fileSystemsVector[i]->SetDouble("stat.disk.bw",
+                     fileSystemsVector[i]->getSeqBandwidth()); // in MB
+          {
             // we have to set something which is not empty to update the value
-            if (!r_open_hotfiles.length())
-	    {
-	      r_open_hotfiles=" ";
+            if (!r_open_hotfiles.length()) {
+              r_open_hotfiles = " ";
             }
-            if (!w_open_hotfiles.length())
-	    {
-              w_open_hotfiles=" ";
-	    }
-            // copy out hot file list
-            success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles", r_open_hotfiles.c_str());
-            success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles", w_open_hotfiles.c_str());
-	  }
 
+            if (!w_open_hotfiles.length()) {
+              w_open_hotfiles = " ";
+            }
+
+            // copy out hot file list
+            success &= fileSystemsVector[i]->SetString("stat.ropen.hotfiles",
+                       r_open_hotfiles.c_str());
+            success &= fileSystemsVector[i]->SetString("stat.wopen.hotfiles",
+                       w_open_hotfiles.c_str());
+          }
           {
             long long fbytes = fileSystemsVector[i]->GetLongLong("stat.statfs.freebytes");
-
             XrdSysMutexHelper(fileSystemFullMapMutex);
             // stop the writers if it get's critical under 5 GB space
+            int full_gb = 5;
 
-	    int full_gb = 5;
-	    if (getenv("EOS_FS_FULL_SIZE_IN_GB"))
-	    {
-	      full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
-	    }
-
-            if ((fbytes < full_gb * 1024ll * 1024ll * 1024ll))
-            {
-              fileSystemFullMap[fsid] = true;
+            if (getenv("EOS_FS_FULL_SIZE_IN_GB")) {
+              full_gb = atoi(getenv("EOS_FS_FULL_SIZE_IN_GB"));
             }
-            else
-            {
+
+            if ((fbytes < full_gb * 1024ll * 1024ll * 1024ll)) {
+              fileSystemFullMap[fsid] = true;
+            } else {
               fileSystemFullMap[fsid] = false;
             }
 
-            if ((fbytes < 1024ll * 1024ll * 1024ll) || (fbytes <= fileSystemsVector[i]->GetLongLong("headroom")))
-            {
+            if ((fbytes < 1024ll * 1024ll * 1024ll) ||
+                (fbytes <= fileSystemsVector[i]->GetLongLong("headroom"))) {
               fileSystemFullWarnMap[fsid] = true;
-            }
-            else
-            {
+            } else {
               fileSystemFullWarnMap[fsid] = false;
             }
           }
 
-          if (!success)
-          {
-            eos_static_err("cannot set net parameters on filesystem %s", fileSystemsVector[i]->GetPath().c_str());
+          if (!success) {
+            eos_static_err("cannot set net parameters on filesystem %s",
+                           fileSystemsVector[i]->GetPath().c_str());
           }
         }
 
         {
           // set node status values
           gOFS.ObjectManager.HashMutex.LockRead();
-          // we received a new symkey 
-          XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(Config::gConfig.FstNodeConfigQueue.c_str(), "hash");
-          if (hash)
-          {
+          // we received a new symkey
+          XrdMqSharedHash* hash = gOFS.ObjectManager.GetObject(
+                                    Config::gConfig.FstNodeConfigQueue.c_str(), "hash");
+
+          if (hash) {
             hash->Set("stat.sys.kernel", eos::fst::Config::gConfig.KernelVersion.c_str());
             hash->SetLongLong("stat.sys.vsize", osstat.vsize);
             hash->SetLongLong("stat.sys.rss", osstat.rss);
@@ -377,25 +437,42 @@ Storage::Publish ()
             hash->Set("stat.sys.uptime", publish_uptime.c_str());
             hash->Set("stat.sys.sockets", publish_sockets.c_str());
             hash->Set("stat.sys.eos.start", eos::fst::Config::gConfig.StartDate.c_str());
-	    hash->Set("stat.geotag", lNodeGeoTag.c_str());
-	    hash->Set("debug.state", LC_STRING(eos::common::Logging::GetPriorityString(eos::common::Logging::gPriorityLevel)));
+            hash->Set("stat.geotag", lNodeGeoTag.c_str());
+            hash->Set("debug.state",
+                      LC_STRING(eos::common::Logging::GetPriorityString(
+                                  eos::common::Logging::gPriorityLevel)));
+            // copy out net info
+            hash->SetDouble("stat.net.ethratemib", netspeed / (8 * 1024 * 1024));
+            hash->SetDouble("stat.net.inratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
+                            "rxbytes") / 1024.0 / 1024.0);
+            hash->SetDouble("stat.net.outratemib", fstLoad.GetNetRate(lEthernetDev.c_str(),
+                            "txbytes") / 1024.0 / 1024.0);
+            struct timeval tvfs;
+            gettimeofday(&tvfs, &tz);
+            size_t nowms = tvfs.tv_sec * 1000 + tvfs.tv_usec / 1000;
+            hash->SetLongLong("stat.publishtimestamp", nowms);
           }
+
           gOFS.ObjectManager.HashMutex.UnLockRead();
         }
+
         gOFS.ObjectManager.CloseMuxTransaction();
-        next_consistency_stats = last_consistency_stats + 60; // report the consistency only once per minute
+        next_consistency_stats = last_consistency_stats +
+                                 60; // report the consistency only once per minute
       }
     }
+
     gettimeofday(&tv2, &tz);
-    int lCycleDuration = (int) ((tv2.tv_sec * 1000.0)-(tv1.tv_sec * 1000.0) + (tv2.tv_usec / 1000.0) - (tv1.tv_usec / 1000.0));
+    int lCycleDuration = (int)((tv2.tv_sec * 1000.0) - (tv1.tv_sec * 1000.0) +
+                               (tv2.tv_usec / 1000.0) - (tv1.tv_usec / 1000.0));
     int lSleepTime = lReportIntervalMilliSeconds - lCycleDuration;
-    eos_static_debug("msg=\"publish interval\" %d %d", lReportIntervalMilliSeconds, lCycleDuration);
-    if (lSleepTime < 0)
-    {
-      eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds", lReportIntervalMilliSeconds, lCycleDuration);
-    }
-    else
-    {
+    eos_static_debug("msg=\"publish interval\" %d %d", lReportIntervalMilliSeconds,
+                     lCycleDuration);
+
+    if (lSleepTime < 0) {
+      eos_static_warning("Publisher cycle exceeded %d millisecons - took %d milliseconds",
+                         lReportIntervalMilliSeconds, lCycleDuration);
+    } else {
       XrdSysTimer sleeper;
       sleeper.Snooze(lSleepTime / 1000);
     }

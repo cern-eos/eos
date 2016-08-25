@@ -49,8 +49,8 @@
 #include "XrdSys/XrdSysPlugin.hh"
 /*----------------------------------------------------------------------------*/
 extern XrdOucTrace gMgmOfsTrace;
-extern void xrdmgmofs_shutdown (int sig);
-extern void xrdmgmofs_stacktrace (int sig);
+extern void xrdmgmofs_shutdown(int sig);
+extern void xrdmgmofs_stacktrace(int sig);
 
 /*----------------------------------------------------------------------------*/
 
@@ -60,7 +60,7 @@ USE_EOSMGMNAMESPACE
 // Static method used to start the FileView initialization thread
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::StaticInitializeFileView (void* arg)
+XrdMgmOfs::StaticInitializeFileView(void* arg)
 {
   return reinterpret_cast<XrdMgmOfs*>(arg)->InitializeFileView();
 }
@@ -69,7 +69,7 @@ XrdMgmOfs::StaticInitializeFileView (void* arg)
 // Method ran by the FileView initialization thread
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::InitializeFileView ()
+XrdMgmOfs::InitializeFileView()
 {
   {
     XrdSysMutexHelper lock(InitializationMutex);
@@ -84,26 +84,23 @@ XrdMgmOfs::InitializeFileView ()
   // set the client stall
   {
     eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-    if (Access::gStallRules.count(std::string("*")))
-    {
-      if (!RemoveStallRuleAfterBoot)
-      {
-	oldstallrule = Access::gStallRules[std::string("*")];
-	oldstallcomment = Access::gStallComment[std::string("*")];
-	oldstallglobal = Access::gStallGlobal;
-      }
-      else
-      {
-	RemoveStallRuleAfterBoot = false;
+
+    if (Access::gStallRules.count(std::string("*"))) {
+      if (!RemoveStallRuleAfterBoot) {
+        oldstallrule = Access::gStallRules[std::string("*")];
+        oldstallcomment = Access::gStallComment[std::string("*")];
+        oldstallglobal = Access::gStallGlobal;
+      } else {
+        RemoveStallRuleAfterBoot = false;
       }
     }
+
     Access::gStallRules[std::string("*")] = "100";
     Access::gStallGlobal = true;
     Access::gStallComment[std::string("*")] = "namespace is booting";
   }
 
-  try
-  {
+  try {
     time_t t1 = time(0);
     eosView->initialize2();
     time_t t2 = time(0);
@@ -111,181 +108,146 @@ XrdMgmOfs::InitializeFileView ()
       eos::common::RWMutexWriteLock view_lock(eosViewRWMutex);
       eosView->initialize3();
       time_t t3 = time(0);
-      eos_notice("eos file view initialize2: %d seconds", t2-t1);
-      eos_notice("eos file view initialize3: %d seconds", t3-t2);
+      eos_notice("eos file view initialize2: %d seconds", t2 - t1);
+      eos_notice("eos file view initialize3: %d seconds", t3 - t2);
 
-      if (MgmMaster.IsMaster())
-      {
-	// create ../proc/<x> files
-	XrdOucString procpathwhoami = MgmProcPath;
-	procpathwhoami += "/whoami";
-	XrdOucString procpathwho = MgmProcPath;
-	procpathwho += "/who";
-	XrdOucString procpathquota = MgmProcPath;
-	procpathquota += "/quota";
-	XrdOucString procpathreconnect = MgmProcPath;
-	procpathreconnect += "/reconnect";
-	XrdOucString procpathmaster = MgmProcPath;
-	procpathmaster += "/master";
+      if (MgmMaster.IsMaster()) {
+        // create ../proc/<x> files
+        XrdOucString procpathwhoami = MgmProcPath;
+        procpathwhoami += "/whoami";
+        XrdOucString procpathwho = MgmProcPath;
+        procpathwho += "/who";
+        XrdOucString procpathquota = MgmProcPath;
+        procpathquota += "/quota";
+        XrdOucString procpathreconnect = MgmProcPath;
+        procpathreconnect += "/reconnect";
+        XrdOucString procpathmaster = MgmProcPath;
+        procpathmaster += "/master";
+        XrdOucErrInfo error;
+        eos::common::Mapping::VirtualIdentity vid;
+        eos::common::Mapping::Root(vid);
+        std::shared_ptr<eos::IFileMD> fmd;
 
-	XrdOucErrInfo error;
-	eos::common::Mapping::VirtualIdentity vid;
-	eos::common::Mapping::Root(vid);
-	std::shared_ptr<eos::IFileMD> fmd;
+        try {
+          fmd = eosView->getFile(procpathwhoami.c_str());
+          fmd.reset();
+        } catch (eos::MDException& e) {
+          fmd = eosView->createFile(procpathwhoami.c_str(), 0, 0);
+        }
 
-	try
-	{
-	  fmd = eosView->getFile(procpathwhoami.c_str());
-	  fmd.reset();
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = eosView->createFile(procpathwhoami.c_str(), 0, 0);
-	}
+        if (fmd) {
+          fmd->setSize(4096);
+          eosView->updateFileStore(fmd.get());
+        }
 
-	if (fmd)
-	{
-	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd.get());
-	}
+        try {
+          fmd = eosView->getFile(procpathwho.c_str());
+          fmd.reset();
+        } catch (eos::MDException& e) {
+          fmd = eosView->createFile(procpathwho.c_str(), 0, 0);
+        }
 
-	try
-	{
-	  fmd = eosView->getFile(procpathwho.c_str());
-	  fmd.reset();
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = eosView->createFile(procpathwho.c_str(), 0, 0);
-	}
+        if (fmd) {
+          fmd->setSize(4096);
+          eosView->updateFileStore(fmd.get());
+        }
 
-	if (fmd)
-	{
-	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd.get());
-	}
+        try {
+          fmd = eosView->getFile(procpathquota.c_str());
+          fmd.reset();
+        } catch (eos::MDException& e) {
+          fmd = eosView->createFile(procpathquota.c_str(), 0, 0);
+        }
 
-	try
-	{
-	  fmd = eosView->getFile(procpathquota.c_str());
-	  fmd.reset();
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = eosView->createFile(procpathquota.c_str(), 0, 0);
-	}
+        if (fmd) {
+          fmd->setSize(4096);
+          eosView->updateFileStore(fmd.get());
+        }
 
-	if (fmd)
-	{
-	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd.get());
-	}
+        try {
+          fmd = eosView->getFile(procpathreconnect.c_str());
+          fmd.reset();
+        } catch (eos::MDException& e) {
+          fmd = eosView->createFile(procpathreconnect.c_str(), 0, 0);
+        }
 
-	try
-	{
-	  fmd = eosView->getFile(procpathreconnect.c_str());
-	  fmd.reset();
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = eosView->createFile(procpathreconnect.c_str(), 0, 0);
-	}
+        if (fmd) {
+          fmd->setSize(4096);
+          eosView->updateFileStore(fmd.get());
+        }
 
-	if (fmd)
-	{
-	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd.get());
-	}
+        try {
+          fmd = eosView->getFile(procpathmaster.c_str());
+          fmd.reset();
+        } catch (eos::MDException& e) {
+          fmd = eosView->createFile(procpathmaster.c_str(), 0, 0);
+        }
 
-	try
-	{
-	  fmd = eosView->getFile(procpathmaster.c_str());
-	  fmd.reset();
-	}
-	catch (eos::MDException &e)
-	{
-	  fmd = eosView->createFile(procpathmaster.c_str(), 0, 0);
-	}
+        if (fmd) {
+          fmd->setSize(4096);
+          eosView->updateFileStore(fmd.get());
+        }
 
-	if (fmd)
-	{
-	  fmd->setSize(4096);
-	  eosView->updateFileStore(fmd.get());
-	}
-
-	{
-	  XrdSysMutexHelper lock(InitializationMutex);
-	  Initialized = kBooted;
-	  eos_static_alert("msg=\"namespace booted (as master)\"");
-	}
+        {
+          XrdSysMutexHelper lock(InitializationMutex);
+          Initialized = kBooted;
+          eos_static_alert("msg=\"namespace booted (as master)\"");
+        }
       }
     }
 
-
-    if (!MgmMaster.IsMaster())
-    {
+    if (!MgmMaster.IsMaster()) {
       eos_static_info("msg=\"starting slave listener\"");
-
       struct stat buf;
       buf.st_size = 0;
       ::stat(gOFS->MgmNsFileChangeLogFile.c_str(), &buf);
-
       eos::IChLogContainerMDSvc* eos_chlog_dirsvc =
-	  dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
+        dynamic_cast<eos::IChLogContainerMDSvc*>(gOFS->eosDirectoryService);
       eos::IChLogFileMDSvc* eos_chlog_filesvc =
-	  dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
+        dynamic_cast<eos::IChLogFileMDSvc*>(gOFS->eosFileService);
 
-      if (eos_chlog_dirsvc && eos_chlog_filesvc)
-      {
-	eos_chlog_filesvc->startSlave();
-	eos_chlog_dirsvc->startSlave();
+      if (eos_chlog_dirsvc && eos_chlog_filesvc) {
+        eos_chlog_filesvc->startSlave();
+        eos_chlog_dirsvc->startSlave();
 
-      // wait that the follower reaches the offset seen now
-	while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size)
-      {
-	XrdSysTimer sleeper;
-	sleeper.Wait(5000);
-	  eos_static_info("msg=\"waiting for the namespace to reach the follow "
-			  "point\" is-offset=%llu follow-offset=%llu",  \
-			  eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
-	}
+        // wait that the follower reaches the offset seen now
+        while (eos_chlog_filesvc->getFollowOffset() < (uint64_t) buf.st_size) {
+          XrdSysTimer sleeper;
+          sleeper.Wait(5000);
+          eos_static_info("msg=\"waiting for the namespace to reach the follow "
+                          "point\" is-offset=%llu follow-offset=%llu",  \
+                          eos_chlog_filesvc->getFollowOffset(), (uint64_t) buf.st_size);
+        }
       }
 
       {
-	XrdSysMutexHelper lock(InitializationMutex);
-	Initialized = kBooted;
-	eos_static_alert("msg=\"namespace booted (as slave)\"");
+        XrdSysMutexHelper lock(InitializationMutex);
+        Initialized = kBooted;
+        eos_static_alert("msg=\"namespace booted (as slave)\"");
       }
     }
 
     time_t tstop = time(0);
-
     MgmMaster.MasterLog(eos_notice("eos namespace file loading stopped after %d "
-				   "seconds", (tstop - tstart)));
-
+                                   "seconds", (tstop - tstart)));
     {
       eos::common::RWMutexWriteLock lock(Access::gAccessMutex);
-      if (oldstallrule.length())
-      {
-	Access::gStallRules[std::string("*")] = oldstallrule;
+
+      if (oldstallrule.length()) {
+        Access::gStallRules[std::string("*")] = oldstallrule;
+      } else {
+        Access::gStallRules.erase(std::string("*"));
       }
-      else
-      {
-	Access::gStallRules.erase(std::string("*"));
+
+      if (oldstallcomment.length()) {
+        Access::gStallComment[std::string("*")] = oldstallcomment;
+      } else {
+        Access::gStallComment.erase(std::string("*"));
       }
-      if (oldstallcomment.length())
-      {
-	Access::gStallComment[std::string("*")] = oldstallcomment;
-      }
-      else
-      {
-	Access::gStallComment.erase(std::string("*"));
-      }
+
       Access::gStallGlobal = oldstallglobal;
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     {
       XrdSysMutexHelper lock(InitializationMutex);
       Initialized = kFailed;
@@ -293,9 +255,9 @@ XrdMgmOfs::InitializeFileView ()
     time_t tstop = time(0);
     errno = e.getErrno();
     eos_crit("namespace file loading initialization failed after %d seconds",
-	     (tstop - tstart));
+             (tstop - tstart));
     eos_crit("initialization returnd ec=%d %s\n", e.getErrno(),
-	     e.getMessage().str().c_str());
+             e.getMessage().str().c_str());
   }
 
   {
@@ -303,25 +265,24 @@ XrdMgmOfs::InitializeFileView ()
     InitializationTime = (time(0) - InitializationTime);
 
     // grab process status after boot
-    if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup))
+    if (!eos::common::LinuxStat::GetStat(LinuxStatsStartup)) {
       eos_crit("failed to grab /proc/self/stat information");
     }
+  }
 
   // fill the current accounting
   // load all the quota nodes from the namespace
   Quota::LoadNodes();
-
-
   return 0;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::Configure (XrdSysError &Eroute)
+XrdMgmOfs::Configure(XrdSysError& Eroute)
 {
   // the process run's as root, but acts on the filesystem as daemon
-  char *var;
-  const char *val;
+  char* var;
+  const char* val;
   int cfgFD, retc, NoGo = 0;
   XrdOucStream Config(&Eroute, getenv("XRDINSTANCE"));
   XrdOucString role = "server";
@@ -332,7 +293,6 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   IssueCapability = false;
   MgmRedirector = false;
   StartTime = time(NULL);
-
   // set short timeouts in the new XrdCl class
   XrdCl::DefaultEnv::GetEnv()->PutInt("TimeoutResolution", 1);
   // set connection window short
@@ -341,49 +301,41 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
-
-  UTF8 = getenv("EOS_UTF8")?true:false;
-
+  UTF8 = getenv("EOS_UTF8") ? true : false;
   Shutdown = false;
-
   setenv("XrdSecPROTOCOL", "sss", 1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");
-
   MgmOfsTargetPort = "1094";
   MgmOfsName = "";
   MgmOfsAlias = "";
   MgmOfsBrokerUrl = "root://localhost:1097//eos/";
   MgmOfsInstanceName = "testinstance";
-
   MgmConfigDir = "";
   MgmMetaLogDir = "";
   MgmTxDir = "";
   MgmAuthDir = "";
   MgmArchiveDir = "";
-
   MgmHealMap.set_deleted_key(0);
-
   IoReportStorePath = "/var/tmp/eos/report";
   MgmOfsVstBrokerUrl = "";
   MgmArchiveDstUrl = "";
   MgmArchiveSvcClass = "default";
-
   eos::common::StringConversion::InitLookupTables();
 
-  if (getenv("EOS_VST_BROKER_URL"))
+  if (getenv("EOS_VST_BROKER_URL")) {
     MgmOfsVstBrokerUrl = getenv("EOS_VST_BROKER_URL");
+  }
 
-  if (getenv("EOS_ARCHIVE_URL"))
-  {
+  if (getenv("EOS_ARCHIVE_URL")) {
     MgmArchiveDstUrl = getenv("EOS_ARCHIVE_URL");
 
     // Make sure it ends with a '/'
-    if (MgmArchiveDstUrl[MgmArchiveDstUrl.length() - 1] != '/')
+    if (MgmArchiveDstUrl[MgmArchiveDstUrl.length() - 1] != '/') {
       MgmArchiveDstUrl += '/';
+    }
   }
 
-  if (getenv("EOS_ARCHIVE_SVCCLASS"))
-  {
+  if (getenv("EOS_ARCHIVE_SVCCLASS")) {
     MgmArchiveSvcClass = getenv("EOS_ARCHIVE_SVCCLASS");
   }
 
@@ -391,76 +343,77 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // this is used to store temporary results for commands like find, backup
   // or achive
   struct stat dir_stat;
-  if (!::stat("/tmp/eos.mgm/", &dir_stat) && S_ISDIR(dir_stat.st_mode))
-  {
+
+  if (!::stat("/tmp/eos.mgm/", &dir_stat) && S_ISDIR(dir_stat.st_mode)) {
     XrdOucString systemline = "rm -rf /tmp/eos.mgm/* >& /dev/null &";
     int rrc = system(systemline.c_str());
 
-    if (WEXITSTATUS(rrc))
+    if (WEXITSTATUS(rrc)) {
       eos_err("%s returned %d", systemline.c_str(), rrc);
-  }
-  else
-  {
+    }
+  } else {
     eos::common::Path out_dir("/tmp/eos.mgm/empty");
 
-    if (!out_dir.MakeParentPath(S_IRWXU))
-    {
+    if (!out_dir.MakeParentPath(S_IRWXU)) {
       eos_err("Unable to create temporary output file directory /tmp/eos.mgm/");
       Eroute.Emsg("Config", errno, "create temporary outputfile"
-		  " directory /tmp/eos.mgm/");
+                  " directory /tmp/eos.mgm/");
       NoGo = 1;
-      return NoGo;;
+      return NoGo;
+      ;
     }
 
     // Own the directory by daemon
-    if (::chown(out_dir.GetParentPath(), 2, 2))
-    {
+    if (::chown(out_dir.GetParentPath(), 2, 2)) {
       eos_err("Unable to own temporary outputfile directory %s",
-	      out_dir.GetParentPath());
+              out_dir.GetParentPath());
       Eroute.Emsg("Config", errno, "own outputfile directory /tmp/eos.mgm/");
       NoGo = 1;
-      return NoGo;;
+      return NoGo;
+      ;
     }
   }
 
   ErrorLog = true;
   bool ConfigAutoSave = false;
   MgmConfigAutoLoad = "";
-
   long myPort = 0;
   std::string ns_lib_path {""};
 
-  if (getenv("XRDDEBUG"))
+  if (getenv("XRDDEBUG")) {
     gMgmOfsTrace.What = TRACE_MOST | TRACE_debug;
+  }
 
   {
     // borrowed from XrdOfs
     unsigned int myIPaddr = 0;
-
     char buff[256], *bp;
     int i;
-
     // Obtain port number we will be using
     //
-    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **) 0, 10) : 0;
-
+    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char**) 0, 10) : 0;
     // Establish our hostname and IPV4 address
     //
-    char *errtext=0;
-    HostName = XrdSysDNS::getHostName(0,&errtext);
-    if(!HostName || std::string(HostName)=="0.0.0.0")
-    {
+    char* errtext = 0;
+    HostName = XrdSysDNS::getHostName(0, &errtext);
+
+    if (!HostName || std::string(HostName) == "0.0.0.0") {
       return Eroute.Emsg("Config", errno, "cannot get hostname : %s", errtext);
     }
 
-    if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+    if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) {
+      myIPaddr = 0x7f000001;
+    }
+
     strcpy(buff, "[::");
     bp = buff + 3;
     bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
     *bp++ = ']';
     *bp++ = ':';
     sprintf(bp, "%ld", myPort);
+
     for (i = 0; HostName[i] && HostName[i] != '.'; i++);
+
     HostName[i] = '\0';
     HostPref = strdup(HostName);
     HostName[i] = '.';
@@ -471,727 +424,605 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     ManagerId += (int) myPort;
     unsigned int ip = 0;
 
-    if (XrdSysDNS::Host2IP(HostName, &ip))
-    {
+    if (XrdSysDNS::Host2IP(HostName, &ip)) {
       char buff[1024];
       XrdSysDNS::IP2String(ip, 0, buff, 1024);
       ManagerIp = buff;
       ManagerPort = myPort;
-    }
-    else
-    {
+    } else {
       return Eroute.Emsg("Config", errno, "convert hostname to IP address", HostName);
     }
-
 
     Eroute.Say("=====> mgmofs.managerid: ", ManagerId.c_str(), "");
   }
 
-  if (!ConfigFN || !*ConfigFN)
-  {
+  if (!ConfigFN || !*ConfigFN) {
     Eroute.Emsg("Config", "Configuration file not specified.");
-  }
-  else
-  {
+  } else {
     // Try to open the configuration file.
     //
-    if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
+    if ((cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0) {
       return Eroute.Emsg("Config", errno, "open config file", ConfigFN);
+    }
+
     Config.Attach(cfgFD);
     // Now start reading records until eof.
     //
     XrdOucString nsin;
     XrdOucString nsout;
 
-    while ((var = Config.GetMyFirstWord()))
-    {
-      if (!strncmp(var, "all.", 4))
-      {
-	var += 4;
-	if (!strcmp("role", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for all.role missing.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    XrdOucString lrole = val;
+    while ((var = Config.GetMyFirstWord())) {
+      if (!strncmp(var, "all.", 4)) {
+        var += 4;
 
-	    if ((val = Config.GetWord()))
-	    {
-	      if (!strcmp(val, "if"))
-	      {
-		if ((val = Config.GetWord()))
-		{
-		  if (!strcmp(val, HostName))
-		  {
-		    role = lrole;
-		  }
-		  if (!strcmp(val, HostPref))
-		  {
-		    role = lrole;
-		  }
-		}
-	      }
-	      else
-	      {
-		role = lrole;
-	      }
-	    }
-	    else
-	    {
-	      role = lrole;
-	    }
-	  }
-	}
+        if (!strcmp("role", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for all.role missing.");
+            NoGo = 1;
+          } else {
+            XrdOucString lrole = val;
+
+            if ((val = Config.GetWord())) {
+              if (!strcmp(val, "if")) {
+                if ((val = Config.GetWord())) {
+                  if (!strcmp(val, HostName)) {
+                    role = lrole;
+                  }
+
+                  if (!strcmp(val, HostPref)) {
+                    role = lrole;
+                  }
+                }
+              } else {
+                role = lrole;
+              }
+            } else {
+              role = lrole;
+            }
+          }
+        }
       }
-      if (!strncmp(var, "mgmofs.", 7))
-      {
-	var += 7;
 
-	if (!strcmp("fs", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for fs invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    Eroute.Say("=====> mgmofs.fs: ", val, "");
-	    MgmOfsName = val;
-	  }
-	}
+      if (!strncmp(var, "mgmofs.", 7)) {
+        var += 7;
 
-	if (!strcmp("targetport", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for fs invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    Eroute.Say("=====> mgmofs.targetport: ", val, "");
-	    MgmOfsTargetPort = val;
-	  }
-	}
+        if (!strcmp("fs", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for fs invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.fs: ", val, "");
+            MgmOfsName = val;
+          }
+        }
 
-	if (!strcmp("capability", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config",
-			"argument 2 for capbility missing. Can be true/lazy/1 or false/0");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))
-		|| (!(strcmp(val, "lazy"))))
-	    {
-	      IssueCapability = true;
-	    }
-	    else
-	    {
-	      if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0"))))
-	      {
-		IssueCapability = false;
-	      }
-	      else
-	      {
-		Eroute.Emsg("Config",
-			    "argument 2 for capbility invalid. Can be <true>/1 or <false>/0");
-		NoGo = 1;
-	      }
-	    }
-	  }
-	}
+        if (!strcmp("targetport", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for fs invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.targetport: ", val, "");
+            MgmOfsTargetPort = val;
+          }
+        }
 
-	if (!strcmp("broker", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config",
-			"argument 2 for broker missing. Should be URL like root://<host>/<queue>/");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if (getenv("EOS_BROKER_URL"))
-	    {
-	      MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
-	    }
-	    else
-	    {
-	      MgmOfsBrokerUrl = val;
-	    }
-	  }
-	}
+        if (!strcmp("capability", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config",
+                        "argument 2 for capbility missing. Can be true/lazy/1 or false/0");
+            NoGo = 1;
+          } else {
+            if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))
+                || (!(strcmp(val, "lazy")))) {
+              IssueCapability = true;
+            } else {
+              if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0")))) {
+                IssueCapability = false;
+              } else {
+                Eroute.Emsg("Config",
+                            "argument 2 for capbility invalid. Can be <true>/1 or <false>/0");
+                NoGo = 1;
+              }
+            }
+          }
+        }
 
-	if (!strcmp("instance", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config",
-			"argument 2 for instance missing. Should be the name of the EOS cluster");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if (getenv("EOS_INSTANCE_NAME"))
-	    {
-	      MgmOfsInstanceName = getenv("EOS_INSTANCE_NAME");
-	    }
-	    else
-	    {
-	      MgmOfsInstanceName = val;
-	    }
-	  }
-	  Eroute.Say("=====> mgmofs.instance : ", MgmOfsInstanceName.c_str(), "");
-	}
+        if (!strcmp("broker", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config",
+                        "argument 2 for broker missing. Should be URL like root://<host>/<queue>/");
+            NoGo = 1;
+          } else {
+            if (getenv("EOS_BROKER_URL")) {
+              MgmOfsBrokerUrl = getenv("EOS_BROKER_URL");
+            } else {
+              MgmOfsBrokerUrl = val;
+            }
+          }
+        }
 
-	if (!strcmp("nslib", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "no namespace library path provided");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    ns_lib_path = val;
-	  }
+        if (!strcmp("instance", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config",
+                        "argument 2 for instance missing. Should be the name of the EOS cluster");
+            NoGo = 1;
+          } else {
+            if (getenv("EOS_INSTANCE_NAME")) {
+              MgmOfsInstanceName = getenv("EOS_INSTANCE_NAME");
+            } else {
+              MgmOfsInstanceName = val;
+            }
+          }
 
-	  Eroute.Say("=====> mgmofs.nslib : ", ns_lib_path.c_str());
-	}
-	if (!strcmp("authlib", var))
-	{
-	  if ((!(val = Config.GetWord())) || (::access(val, R_OK)))
-	  {
-	    Eroute.Emsg("Config", "I cannot acccess you authorization library!");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    AuthLib = val;
-	  }
-	  Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
-	}
+          Eroute.Say("=====> mgmofs.instance : ", MgmOfsInstanceName.c_str(), "");
+        }
 
-	if (!strcmp("authorize", var))
-	{
-	  if ((!(val = Config.GetWord())) ||
-	      (strcmp("true", val) && strcmp("false", val) &&
-	       strcmp("1", val) && strcmp("0", val)))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
-			"Must be <true>, <false>, <1> or <0>!");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if ((!strcmp("true", val) || (!strcmp("1", val))))
-	    {
-	      authorize = true;
-	    }
-	  }
+        if (!strcmp("nslib", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "no namespace library path provided");
+            NoGo = 1;
+          } else {
+            ns_lib_path = val;
+          }
 
-	  if (authorize)
-	    Eroute.Say("=====> mgmofs.authorize : true");
-	  else
-	    Eroute.Say("=====> mgmofs.authorize : false");
-	}
+          Eroute.Say("=====> mgmofs.nslib : ", ns_lib_path.c_str());
+        }
 
-	if (!strcmp("errorlog", var))
-	{
-	  if ((!(val = Config.GetWord())) ||
-	      (strcmp("true", val) && strcmp("false", val) &&
-	       strcmp("1", val) && strcmp("0", val)))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
-			"Must be <true>, <false>, <1> or <0>!");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if ((!strcmp("true", val) || (!strcmp("1", val))))
-	    {
-	      ErrorLog = true;
-	    }
-	    else
-	    {
-	      ErrorLog = false;
-	    }
-	  }
-	  if (ErrorLog)
-	    Eroute.Say("=====> mgmofs.errorlog : true");
-	  else
-	    Eroute.Say("=====> mgmofs.errorlog : false");
-	}
+        if (!strcmp("authlib", var)) {
+          if ((!(val = Config.GetWord())) || (::access(val, R_OK))) {
+            Eroute.Emsg("Config", "I cannot acccess you authorization library!");
+            NoGo = 1;
+          } else {
+            AuthLib = val;
+          }
 
-	if (!strcmp("redirector", var))
-	{
-	  if ((!(val = Config.GetWord())) ||
-	      (strcmp("true", val) && strcmp("false", val) &&
-	       strcmp("1", val) && strcmp("0", val)))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
-			"Must be <true>,<false>,<1> or <0>!");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if ((!strcmp("true", val) || (!strcmp("1", val))))
-	    {
-	      MgmRedirector = true;
-	    }
-	    else
-	    {
-	      MgmRedirector = false;
-	    }
-	  }
+          Eroute.Say("=====> mgmofs.authlib : ", AuthLib.c_str());
+        }
 
-	  if (ErrorLog)
-	    Eroute.Say("=====> mgmofs.errorlog   : true");
-	  else
-	    Eroute.Say("=====> mgmofs.errorlog   : false");
-	}
+        if (!strcmp("authorize", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument 2 for authorize illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              authorize = true;
+            }
+          }
 
-	if (!strcmp("configdir", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for configdir invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmConfigDir = val;
+          if (authorize) {
+            Eroute.Say("=====> mgmofs.authorize : true");
+          } else {
+            Eroute.Say("=====> mgmofs.authorize : false");
+          }
+        }
 
-	    if (!MgmConfigDir.endswith("/"))
-	      MgmConfigDir += "/";
-	  }
-	}
+        if (!strcmp("errorlog", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument 2 for errorlog illegal or missing. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              ErrorLog = true;
+            } else {
+              ErrorLog = false;
+            }
+          }
 
-	if (!strcmp("archivedir", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for archivedir invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmArchiveDir = val;
+          if (ErrorLog) {
+            Eroute.Say("=====> mgmofs.errorlog : true");
+          } else {
+            Eroute.Say("=====> mgmofs.errorlog : false");
+          }
+        }
 
-	    if (!MgmArchiveDir.endswith("/"))
-	      MgmArchiveDir += "/";
-	  }
-	}
+        if (!strcmp("redirector", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument 2 for redirector illegal or missing. "
+                        "Must be <true>,<false>,<1> or <0>!");
+            NoGo = 1;
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              MgmRedirector = true;
+            } else {
+              MgmRedirector = false;
+            }
+          }
 
-	if (!strcmp("autosaveconfig", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config",
-			"argument 2 for autosaveconfig missing. Can be true/1 or false/0");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1"))))
-	    {
-	      ConfigAutoSave = true;
-	    }
-	    else
-	    {
-	      if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0"))))
-	      {
-		ConfigAutoSave = false;
-	      }
-	      else
-	      {
-		Eroute.Emsg("Config",
-			    "argument 2 for autosaveconfig invalid. Can be <true>/1 or <false>/0");
-		NoGo = 1;
-	      }
-	    }
-	  }
-	}
+          if (ErrorLog) {
+            Eroute.Say("=====> mgmofs.errorlog   : true");
+          } else {
+            Eroute.Say("=====> mgmofs.errorlog   : false");
+          }
+        }
 
-	if (!strcmp("autoloadconfig", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for autoloadconfig invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmConfigAutoLoad = val;
-	  }
-	}
+        if (!strcmp("configdir", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for configdir invalid.");
+            NoGo = 1;
+          } else {
+            MgmConfigDir = val;
 
-	if (!strcmp("alias", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for alias missing.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmOfsAlias = val;
-	  }
-	}
+            if (!MgmConfigDir.endswith("/")) {
+              MgmConfigDir += "/";
+            }
+          }
+        }
 
-	if (!strcmp("metalog", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for metalog missing");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmMetaLogDir = val;
-	    // just try to create it in advance
-	    XrdOucString makeit = "mkdir -p ";
-	    makeit += MgmMetaLogDir;
-	    int src = system(makeit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", makeit.c_str(), src);
-	    XrdOucString chownit = "chown -R daemon ";
-	    chownit += MgmMetaLogDir;
-	    src = system(chownit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", chownit.c_str(), src);
+        if (!strcmp("archivedir", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for archivedir invalid.");
+            NoGo = 1;
+          } else {
+            MgmArchiveDir = val;
 
-	    if (::access(MgmMetaLogDir.c_str(), W_OK | R_OK | X_OK))
-	    {
-	      Eroute.Emsg("Config", "cannot acccess the meta data changelog "
-			  "directory for r/w!", MgmMetaLogDir.c_str());
-	      NoGo = 1;
-	    }
-	    else
-	    {
-	      Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(), "");
-	    }
-	  }
-	}
+            if (!MgmArchiveDir.endswith("/")) {
+              MgmArchiveDir += "/";
+            }
+          }
+        }
 
-	if (!strcmp("txdir", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for txdir missing");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmTxDir = val;
-	    // just try to create it in advance
-	    XrdOucString makeit = "mkdir -p ";
-	    makeit += MgmTxDir;
-	    int src = system(makeit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", makeit.c_str(), src);
-	    XrdOucString chownit = "chown -R daemon ";
-	    chownit += MgmTxDir;
-	    src = system(chownit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", chownit.c_str(), src);
+        if (!strcmp("autosaveconfig", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config",
+                        "argument 2 for autosaveconfig missing. Can be true/1 or false/0");
+            NoGo = 1;
+          } else {
+            if ((!(strcmp(val, "true"))) || (!(strcmp(val, "1")))) {
+              ConfigAutoSave = true;
+            } else {
+              if ((!(strcmp(val, "false"))) || (!(strcmp(val, "0")))) {
+                ConfigAutoSave = false;
+              } else {
+                Eroute.Emsg("Config",
+                            "argument 2 for autosaveconfig invalid. Can be <true>/1 or <false>/0");
+                NoGo = 1;
+              }
+            }
+          }
+        }
 
-	    if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK))
-	    {
-	      Eroute.Emsg("Config", "cannot acccess the transfer directory for r/w:",
-			  MgmTxDir.c_str());
-	      NoGo = 1;
-	    }
-	    else
-	    {
-	      Eroute.Say("=====> mgmofs.txdir:   ", MgmTxDir.c_str(), "");
-	    }
-	  }
-	}
+        if (!strcmp("autoloadconfig", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for autoloadconfig invalid.");
+            NoGo = 1;
+          } else {
+            MgmConfigAutoLoad = val;
+          }
+        }
 
-	if (!strcmp("authdir", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for authdir missing");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    MgmAuthDir = val;
-	    // just try to create it in advance
-	    XrdOucString makeit = "mkdir -p ";
-	    makeit += MgmAuthDir;
-	    int src = system(makeit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", makeit.c_str(), src);
-	    XrdOucString chownit = "chown -R daemon ";
-	    chownit += MgmAuthDir;
-	    src = system(chownit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", chownit.c_str(), src);
+        if (!strcmp("alias", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for alias missing.");
+            NoGo = 1;
+          } else {
+            MgmOfsAlias = val;
+          }
+        }
 
-	    if ((src = ::chmod(MgmAuthDir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR)))
-	    {
-	      eos_err("chmod 700 %s returned %d", MgmAuthDir.c_str(), src);
-	      NoGo = 1;
-	    }
+        if (!strcmp("metalog", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for metalog missing");
+            NoGo = 1;
+          } else {
+            MgmMetaLogDir = val;
+            // just try to create it in advance
+            XrdOucString makeit = "mkdir -p ";
+            makeit += MgmMetaLogDir;
+            int src = system(makeit.c_str());
 
-	    if (::access(MgmAuthDir.c_str(), W_OK | R_OK | X_OK))
-	    {
-	      Eroute.Emsg("Config", "cannot acccess the authentication directory "
-			  "for r/w:", MgmAuthDir.c_str());
-	      NoGo = 1;
-	    }
-	    else
-	    {
-	      Eroute.Say("=====> mgmofs.authdir:   ", MgmAuthDir.c_str(), "");
-	    }
-	  }
-	}
+            if (src) {
+              eos_err("%s returned %d", makeit.c_str(), src);
+            }
 
-	if (!strcmp("reportstorepath", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument 2 for reportstorepath missing");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    IoReportStorePath = val;
-	    // just try to create it in advance
-	    XrdOucString makeit = "mkdir -p ";
-	    makeit += IoReportStorePath;
-	    int src = system(makeit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", makeit.c_str(), src);
-	    XrdOucString chownit = "chown -R daemon ";
-	    chownit += IoReportStorePath;
-	    src = system(chownit.c_str());
-	    if (src)
-	      eos_err("%s returned %d", chownit.c_str(), src);
+            XrdOucString chownit = "chown -R daemon ";
+            chownit += MgmMetaLogDir;
+            src = system(chownit.c_str());
 
-	    if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK))
-	    {
-	      Eroute.Emsg("Config", "cannot acccess the reportstore directory "
-			  "for r/w:", IoReportStorePath.c_str());
-	      NoGo = 1;
-	    }
-	    else
-	    {
-	      Eroute.Say("=====> mgmofs.reportstorepath: ", IoReportStorePath.c_str(), "");
-	    }
-	  }
-	}
+            if (src) {
+              eos_err("%s returned %d", chownit.c_str(), src);
+            }
 
-	// Get the fst gateway hostname and port
-	if (!strcmp("fstgw", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "fst gateway value not specified");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    mFstGwHost = val;
-	    size_t pos = mFstGwHost.find(':');
+            if (::access(MgmMetaLogDir.c_str(), W_OK | R_OK | X_OK)) {
+              Eroute.Emsg("Config", "cannot acccess the meta data changelog "
+                          "directory for r/w!", MgmMetaLogDir.c_str());
+              NoGo = 1;
+            } else {
+              Eroute.Say("=====> mgmofs.metalog: ", MgmMetaLogDir.c_str(), "");
+            }
+          }
+        }
 
-	    if (pos == std::string::npos)
-	    {
-	      // Use a default value if no port is specified
-	      mFstGwPort = 1094;
-	    }
-	    else
-	    {
-	      mFstGwPort = atoi(mFstGwHost.substr(pos + 1).c_str());
-	      mFstGwHost = mFstGwHost.erase(pos);
-	    }
+        if (!strcmp("txdir", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for txdir missing");
+            NoGo = 1;
+          } else {
+            MgmTxDir = val;
+            // just try to create it in advance
+            XrdOucString makeit = "mkdir -p ";
+            makeit += MgmTxDir;
+            int src = system(makeit.c_str());
 
-	    Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
-		       std::to_string((long long int)mFstGwPort).c_str());
-	  }
-	}
+            if (src) {
+              eos_err("%s returned %d", makeit.c_str(), src);
+            }
 
-	if (!strcmp("trace", var))
-	{
-	  static struct traceopts
-	  {
-	    const char *opname;
-	    int opval;
-	  } tropts[] =
-	  {
-	    {"aio", TRACE_aio},
-	    {"all", TRACE_ALL},
-	    {"chmod", TRACE_chmod},
-	    {"close", TRACE_close},
-	    {"closedir", TRACE_closedir},
-	    {"debug", TRACE_debug},
-	    {"delay", TRACE_delay},
-	    {"dir", TRACE_dir},
-	    {"exists", TRACE_exists},
-	    {"getstats", TRACE_getstats},
-	    {"fsctl", TRACE_fsctl},
-	    {"io", TRACE_IO},
-	    {"mkdir", TRACE_mkdir},
-	    {"most", TRACE_MOST},
-	    {"open", TRACE_open},
-	    {"opendir", TRACE_opendir},
-	    {"qscan", TRACE_qscan},
-	    {"read", TRACE_read},
-	    {"readdir", TRACE_readdir},
-	    {"redirect", TRACE_redirect},
-	    {"remove", TRACE_remove},
-	    {"rename", TRACE_rename},
-	    {"sync", TRACE_sync},
-	    {"truncate", TRACE_truncate},
-	    {"write", TRACE_write},
-	    {"authorize", TRACE_authorize},
-	    {"map", TRACE_map},
-	    {"role", TRACE_role},
-	    {"access", TRACE_access},
-	    {"attributes", TRACE_attributes},
-	    {"allows", TRACE_allows}
-	  };
-	  int i, neg, trval = 0, numopts = sizeof (tropts) / sizeof (struct traceopts);
+            XrdOucString chownit = "chown -R daemon ";
+            chownit += MgmTxDir;
+            src = system(chownit.c_str());
 
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "trace option not specified");
-	    return 1;
-	  }
+            if (src) {
+              eos_err("%s returned %d", chownit.c_str(), src);
+            }
 
-	  while (val)
-	  {
-	    Eroute.Say("=====> mgmofs.trace: ", val, "");
-	    if (!strcmp(val, "off")) trval = 0;
-	    else
-	    {
-	      if ((neg = (val[0] == '-' && val[1]))) val++;
-	      for (i = 0; i < numopts; i++)
-	      {
-		if (!strcmp(val, tropts[i].opname))
-		{
-		  if (neg) trval &= ~tropts[i].opval;
-		  else trval |= tropts[i].opval;
-		  break;
-		}
-	      }
-	      if (i >= numopts)
-		Eroute.Say("Config warning: ignoring invalid trace option '", val, "'.");
-	    }
-	    val = Config.GetWord();
-	  }
+            if (::access(MgmTxDir.c_str(), W_OK | R_OK | X_OK)) {
+              Eroute.Emsg("Config", "cannot acccess the transfer directory for r/w:",
+                          MgmTxDir.c_str());
+              NoGo = 1;
+            } else {
+              Eroute.Say("=====> mgmofs.txdir:   ", MgmTxDir.c_str(), "");
+            }
+          }
+        }
 
-	  gMgmOfsTrace.What = trval;
-	}
-	if (!strcmp("auththreads", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    Eroute.Say("=====> mgmofs.auththreads: ", val, "");
-	    mNumAuthThreads = atoi(val);
-	  }
-	}
+        if (!strcmp("authdir", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for authdir missing");
+            NoGo = 1;
+          } else {
+            MgmAuthDir = val;
+            // just try to create it in advance
+            XrdOucString makeit = "mkdir -p ";
+            makeit += MgmAuthDir;
+            int src = system(makeit.c_str());
 
-	// Configure frontend port number on which clients submit requests
-	if (!strcmp("authport", var))
-	{
-	  if (!(val = Config.GetWord()))
-	  {
-	    Eroute.Emsg("Config", "argument for frontend port invalid.");
-	    NoGo = 1;
-	  }
-	  else
-	  {
-	    Eroute.Say("=====> mgmofs.authport: ", val, "");
-	    mFrontendPort = atoi(val);
-	  }
-	}
+            if (src) {
+              eos_err("%s returned %d", makeit.c_str(), src);
+            }
+
+            XrdOucString chownit = "chown -R daemon ";
+            chownit += MgmAuthDir;
+            src = system(chownit.c_str());
+
+            if (src) {
+              eos_err("%s returned %d", chownit.c_str(), src);
+            }
+
+            if ((src = ::chmod(MgmAuthDir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR))) {
+              eos_err("chmod 700 %s returned %d", MgmAuthDir.c_str(), src);
+              NoGo = 1;
+            }
+
+            if (::access(MgmAuthDir.c_str(), W_OK | R_OK | X_OK)) {
+              Eroute.Emsg("Config", "cannot acccess the authentication directory "
+                          "for r/w:", MgmAuthDir.c_str());
+              NoGo = 1;
+            } else {
+              Eroute.Say("=====> mgmofs.authdir:   ", MgmAuthDir.c_str(), "");
+            }
+          }
+        }
+
+        if (!strcmp("reportstorepath", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for reportstorepath missing");
+            NoGo = 1;
+          } else {
+            IoReportStorePath = val;
+            // just try to create it in advance
+            XrdOucString makeit = "mkdir -p ";
+            makeit += IoReportStorePath;
+            int src = system(makeit.c_str());
+
+            if (src) {
+              eos_err("%s returned %d", makeit.c_str(), src);
+            }
+
+            XrdOucString chownit = "chown -R daemon ";
+            chownit += IoReportStorePath;
+            src = system(chownit.c_str());
+
+            if (src) {
+              eos_err("%s returned %d", chownit.c_str(), src);
+            }
+
+            if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK)) {
+              Eroute.Emsg("Config", "cannot acccess the reportstore directory "
+                          "for r/w:", IoReportStorePath.c_str());
+              NoGo = 1;
+            } else {
+              Eroute.Say("=====> mgmofs.reportstorepath: ", IoReportStorePath.c_str(), "");
+            }
+          }
+        }
+
+        // Get the fst gateway hostname and port
+        if (!strcmp("fstgw", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "fst gateway value not specified");
+            NoGo = 1;
+          } else {
+            mFstGwHost = val;
+            size_t pos = mFstGwHost.find(':');
+
+            if (pos == std::string::npos) {
+              // Use a default value if no port is specified
+              mFstGwPort = 1094;
+            } else {
+              mFstGwPort = atoi(mFstGwHost.substr(pos + 1).c_str());
+              mFstGwHost = mFstGwHost.erase(pos);
+            }
+
+            Eroute.Say("=====> mgmofs.fstgw: ", mFstGwHost.c_str(), ":",
+                       std::to_string((long long int)mFstGwPort).c_str());
+          }
+        }
+
+        if (!strcmp("trace", var)) {
+          static struct traceopts {
+            const char* opname;
+            int opval;
+          } tropts[] = {
+            {"aio", TRACE_aio},
+            {"all", TRACE_ALL},
+            {"chmod", TRACE_chmod},
+            {"close", TRACE_close},
+            {"closedir", TRACE_closedir},
+            {"debug", TRACE_debug},
+            {"delay", TRACE_delay},
+            {"dir", TRACE_dir},
+            {"exists", TRACE_exists},
+            {"getstats", TRACE_getstats},
+            {"fsctl", TRACE_fsctl},
+            {"io", TRACE_IO},
+            {"mkdir", TRACE_mkdir},
+            {"most", TRACE_MOST},
+            {"open", TRACE_open},
+            {"opendir", TRACE_opendir},
+            {"qscan", TRACE_qscan},
+            {"read", TRACE_read},
+            {"readdir", TRACE_readdir},
+            {"redirect", TRACE_redirect},
+            {"remove", TRACE_remove},
+            {"rename", TRACE_rename},
+            {"sync", TRACE_sync},
+            {"truncate", TRACE_truncate},
+            {"write", TRACE_write},
+            {"authorize", TRACE_authorize},
+            {"map", TRACE_map},
+            {"role", TRACE_role},
+            {"access", TRACE_access},
+            {"attributes", TRACE_attributes},
+            {"allows", TRACE_allows}
+          };
+          int i, neg, trval = 0, numopts = sizeof(tropts) / sizeof(struct traceopts);
+
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "trace option not specified");
+            return 1;
+          }
+
+          while (val) {
+            Eroute.Say("=====> mgmofs.trace: ", val, "");
+
+            if (!strcmp(val, "off")) {
+              trval = 0;
+            } else {
+              if ((neg = (val[0] == '-' && val[1]))) {
+                val++;
+              }
+
+              for (i = 0; i < numopts; i++) {
+                if (!strcmp(val, tropts[i].opname)) {
+                  if (neg) {
+                    trval &= ~tropts[i].opval;
+                  } else {
+                    trval |= tropts[i].opval;
+                  }
+
+                  break;
+                }
+              }
+
+              if (i >= numopts) {
+                Eroute.Say("Config warning: ignoring invalid trace option '", val, "'.");
+              }
+            }
+
+            val = Config.GetWord();
+          }
+
+          gMgmOfsTrace.What = trval;
+        }
+
+        if (!strcmp("auththreads", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for number of auth threads is invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.auththreads: ", val, "");
+            mNumAuthThreads = atoi(val);
+          }
+        }
+
+        // Configure frontend port number on which clients submit requests
+        if (!strcmp("authport", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for frontend port invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.authport: ", val, "");
+            mFrontendPort = atoi(val);
+          }
+        }
       }
     }
   }
 
-  if (MgmRedirector)
+  if (MgmRedirector) {
     Eroute.Say("=====> mgmofs.redirector : true");
-  else
+  } else {
     Eroute.Say("=====> mgmofs.redirector : false");
+  }
 
-  if (!MgmOfsBrokerUrl.endswith("/"))
-  {
+  if (!MgmOfsBrokerUrl.endswith("/")) {
     MgmOfsBrokerUrl += "/";
   }
 
-  if (!MgmOfsBrokerUrl.endswith("//eos/"))
-  {
+  if (!MgmOfsBrokerUrl.endswith("//eos/")) {
     Eroute.Say("Config error: the broker url has to be of the form <root://<hostname>[:<port>]//");
     return 1;
   }
 
-  if (MgmOfsVstBrokerUrl.length() && (!MgmOfsVstBrokerUrl.endswith("//eos/")))
-  {
+  if (MgmOfsVstBrokerUrl.length() && (!MgmOfsVstBrokerUrl.endswith("//eos/"))) {
     Eroute.Say("Config error: the vst broker url has to be of the form <root://<hostname>[:<port>]//");
     return 1;
   }
 
-  if (!MgmConfigDir.length())
-  {
+  if (!MgmConfigDir.length()) {
     Eroute.Say("Config error: configuration directory is not defined : mgm.configdir=</var/eos/config/>");
     return 1;
   }
 
-  if (!MgmMetaLogDir.length())
-  {
+  if (!MgmMetaLogDir.length()) {
     Eroute.Say("Config error: meta data log directory is not defined : mgm.metalog=</var/eos/md/>");
     return 1;
   }
 
-  if (!MgmTxDir.length())
-  {
+  if (!MgmTxDir.length()) {
     Eroute.Say("Config error: transfer directory is not defined : mgm.txdir=</var/eos/tx/>");
     return 1;
   }
 
-  if (!MgmAuthDir.length())
-  {
+  if (!MgmAuthDir.length()) {
     Eroute.Say("Config error: auth directory is not defined: mgm.authdir=</var/eos/auth/>");
     return 1;
   }
 
-  if (!MgmArchiveDir.length())
-  {
+  if (!MgmArchiveDir.length()) {
     Eroute.Say("Config notice: archive directory is not defined - archiving is disabled");
   }
 
-  if (!ns_lib_path.empty())
-  {
+  if (!ns_lib_path.empty()) {
     eos::common::PluginManager& pm = eos::common::PluginManager::GetInstance();
     pm.LoadByPath(ns_lib_path);
   }
+
   MgmOfsBroker = MgmOfsBrokerUrl;
   MgmDefaultReceiverQueue = MgmOfsBrokerUrl;
   MgmDefaultReceiverQueue += "*/fst";
-
   MgmOfsBrokerUrl += HostName;
   MgmOfsBrokerUrl += "/mgm";
 
-  if (MgmOfsVstBrokerUrl.length())
-  {
+  if (MgmOfsVstBrokerUrl.length()) {
     MgmOfsVstBrokerUrl += MgmOfsInstanceName;
     MgmOfsVstBrokerUrl += "/";
     MgmOfsVstBrokerUrl += HostName;
@@ -1201,14 +1032,10 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmOfsQueue = "/eos/";
   MgmOfsQueue += ManagerId;
   MgmOfsQueue += "/mgm";
-
   // setup the circular in-memory logging buffer
   eos::common::Logging::Init();
-
   // configure log-file fan out
-
   std::vector<std::string> lFanOutTags;
-
   lFanOutTags.push_back("Balancer");
   lFanOutTags.push_back("Converter");
   lFanOutTags.push_back("DrainJob");
@@ -1216,38 +1043,41 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   lFanOutTags.push_back("Master");
   lFanOutTags.push_back("Recycle");
   lFanOutTags.push_back("LRU");
+  lFanOutTags.push_back("WFE");
+  lFanOutTags.push_back("WFE::Job");
   lFanOutTags.push_back("GroupBalancer");
   lFanOutTags.push_back("GeoBalancer");
   lFanOutTags.push_back("GeoTreeEngine");
   lFanOutTags.push_back("#");
-
   // get the XRootD log directory
-  char *logdir = 0;
+  char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
 
-  if (logdir)
-  {
-    for (size_t i = 0; i < lFanOutTags.size(); i++)
-    {
+  if (logdir) {
+    for (size_t i = 0; i < lFanOutTags.size(); i++) {
       std::string lLogFile = logdir;
       lLogFile += "/";
-      if (lFanOutTags[i] == "#")
-	lLogFile += "Clients";
-      else
-	lLogFile += lFanOutTags[i];
+
+      if (lFanOutTags[i] == "#") {
+        lLogFile += "Clients";
+      } else {
+        lLogFile += lFanOutTags[i];
+      }
+
       lLogFile += ".log";
       FILE* fp = fopen(lLogFile.c_str(), "a+");
-      if (fp)
-	eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
-      else
-	fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
+
+      if (fp) {
+        eos::common::Logging::AddFanOut(lFanOutTags[i].c_str(), fp);
+      } else {
+        fprintf(stderr, "error: failed to open sub-logfile=%s", lLogFile.c_str());
       }
     }
+  }
 
   // ---------------------------------------------------------------------------
   // add some alias for the logging
   // ---------------------------------------------------------------------------
-
   // ---------------------------------------------------------------------------
   // HTTP module
   // ---------------------------------------------------------------------------
@@ -1262,20 +1092,17 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos::common::Logging::AddFanOutAlias("WebDAVReponse", "Http");
   eos::common::Logging::AddFanOutAlias("S3Handler", "Http");
   eos::common::Logging::AddFanOutAlias("S3Store", "Http");
-
   eos::common::Logging::SetUnit(MgmOfsBrokerUrl.c_str());
-
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
-
   XrdOucString ttybroadcastkillline = "pkill -9 -f \"eos-tty-broadcast\"";
   int rrc = system(ttybroadcastkillline.c_str());
-  if (WEXITSTATUS(rrc))
-  {
+
+  if (WEXITSTATUS(rrc)) {
     eos_info("%s returned %d", ttybroadcastkillline.c_str(), rrc);
   }
 
-  if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") && getenv("EOS_TTY_BROADCAST_EGREP"))
-  {
+  if (getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE") &&
+      getenv("EOS_TTY_BROADCAST_EGREP")) {
     XrdOucString ttybroadcastline = "eos-tty-broadcast ";
     ttybroadcastline += getenv("EOS_TTY_BROADCAST_LISTEN_LOGFILE");
     ttybroadcastline += " ";
@@ -1283,20 +1110,21 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     ttybroadcastline += " >& /dev/null &";
     eos_info("%s\n", ttybroadcastline.c_str());
     rrc = system(ttybroadcastline.c_str());
-    if (WEXITSTATUS(rrc))
-    {
+
+    if (WEXITSTATUS(rrc)) {
       eos_info("%s returned %d", ttybroadcastline.c_str(), rrc);
     }
   }
 
   int pos1 = MgmDefaultReceiverQueue.find("//");
   int pos2 = MgmDefaultReceiverQueue.find("//", pos1 + 2);
-  if (pos2 != STR_NPOS)
+
+  if (pos2 != STR_NPOS) {
     MgmDefaultReceiverQueue.erase(0, pos2 + 1);
+  }
 
   Eroute.Say("=====> mgmofs.defaultreceiverqueue : ",
-	     MgmDefaultReceiverQueue.c_str(), "");
-
+             MgmDefaultReceiverQueue.c_str(), "");
   // set our Eroute for XrdMqMessage
   XrdMqMessage::Eroute = *eDest;
 
@@ -1304,60 +1132,55 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   if (!MgmOfsName.length())
     Eroute.Say("Config error: no mgmofs fs has been defined (mgmofs.fs /...)", "",
-	       "");
-  else
+               "");
+  else {
     Eroute.Say("=====> mgmofs.fs: ", MgmOfsName.c_str(), "");
+  }
 
-  if (ErrorLog)
+  if (ErrorLog) {
     Eroute.Say("=====> mgmofs.errorlog : enabled");
-  else
+  } else {
     Eroute.Say("=====> mgmofs.errorlog : disabled");
+  }
 
   // we need to specify this if the server was not started with the explicit manager option ... e.g. see XrdOfs
-
   Eroute.Say("=====> all.role: ", role.c_str(), "");
 
-  if (role == "manager")
-    putenv((char *) "XRDREDIRECT=R");
+  if (role == "manager") {
+    putenv((char*) "XRDREDIRECT=R");
+  }
 
-  if ((AuthLib != "") && (authorize))
-  {
+  if ((AuthLib != "") && (authorize)) {
     // load the authorization plugin
-    XrdSysPlugin *myLib;
-    XrdAccAuthorize * (*ep)(XrdSysLogger *, const char *, const char *);
-
+    XrdSysPlugin* myLib;
+    XrdAccAuthorize * (*ep)(XrdSysLogger*, const char*, const char*);
     // Authorization comes from the library or we use the default
     //
     Authorization = XrdAccAuthorizeObject(Eroute.logger(), ConfigFN, 0);
 
-    if (!(myLib = new XrdSysPlugin(&Eroute, AuthLib.c_str())))
-    {
+    if (!(myLib = new XrdSysPlugin(&Eroute, AuthLib.c_str()))) {
       Eroute.Emsg("Config", "Failed to load authorization library!");
       NoGo = 1;
-    }
-    else
-    {
-      ep = (XrdAccAuthorize * (*)(XrdSysLogger *, const char *, const char *))
-	(myLib->getPlugin("XrdAccAuthorizeObject"));
-      if (!ep)
-      {
-	Eroute.Emsg("Config", "Failed to get authorization library plugin!");
-	NoGo = 1;
-      }
-      else
-      {
-	Authorization = ep(Eroute.logger(), ConfigFN, 0);
+    } else {
+      ep = (XrdAccAuthorize * (*)(XrdSysLogger*, const char*, const char*))
+           (myLib->getPlugin("XrdAccAuthorizeObject"));
+
+      if (!ep) {
+        Eroute.Emsg("Config", "Failed to get authorization library plugin!");
+        NoGo = 1;
+      } else {
+        Authorization = ep(Eroute.logger(), ConfigFN, 0);
       }
     }
   }
 
-  if ((retc = Config.LastError()))
+  if ((retc = Config.LastError())) {
     NoGo = Eroute.Emsg("Config", -retc, "read config file", ConfigFN);
-  Config.Close();
+  }
 
+  Config.Close();
   XrdOucString unit = "mgm@";
   unit += ManagerId;
-
   eos::common::Logging::SetLogPriority(LOG_INFO);
   eos::common::Logging::SetUnit(unit.c_str());
   std::string filter =
@@ -1366,35 +1189,34 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures";
   eos::common::Logging::SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,UpdateHint,Update"
-	     "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
-	     "RegisterNode,SharedHash,"
-	     "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures");
-
+             "UpdateQuotaStatus,SetConfigValue,Deletion,GetQuota,PrintOut,"
+             "RegisterNode,SharedHash,"
+             "placeNewReplicas,accessReplicas,placeNewReplicasOneGroup,accessReplicasOneGroup,accessHeadReplicaMultipleGroup,listenFsChange,updateTreeInfo,updateAtomicPenalties,updateFastStructures");
   // we automatically append the host name to the config dir
   MgmConfigDir += HostName;
   MgmConfigDir += "/";
-
   XrdOucString makeit = "mkdir -p ";
   makeit += MgmConfigDir;
   int src = system(makeit.c_str());
-  if (src)
+
+  if (src) {
     eos_err("%s returned %d", makeit.c_str(), src);
+  }
 
   XrdOucString chownit = "chown -R daemon ";
   chownit += MgmConfigDir;
   src = system(chownit.c_str());
-  if (src)
+
+  if (src) {
     eos_err("%s returned %d", chownit.c_str(), src);
+  }
 
   // check config directory access
-  if (::access(MgmConfigDir.c_str(), W_OK | R_OK | X_OK))
-  {
+  if (::access(MgmConfigDir.c_str(), W_OK | R_OK | X_OK)) {
     Eroute.Emsg("Config", "Cannot acccess the configuration directory for r/w!",
-		MgmConfigDir.c_str());
+                MgmConfigDir.c_str());
     NoGo = 1;
-  }
-  else
-  {
+  } else {
     Eroute.Say("=====> mgmofs.configdir: ", MgmConfigDir.c_str(), "");
   }
 
@@ -1403,89 +1225,77 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   commentLog = new eos::common::CommentLog("/var/log/eos/mgm/logbook.log");
 
   // Create comment log
-  if (commentLog && commentLog->IsValid())
-  {
+  if (commentLog && commentLog->IsValid()) {
     Eroute.Say("=====> comment log in /var/log/eos/mgm/logbook.log");
-  }
-  else
-  {
+  } else {
     Eroute.Emsg("Config", "Cannot create/open the comment log file "
-		"/var/log/eos/mgm/logbook.log");
+                "/var/log/eos/mgm/logbook.log");
     NoGo = 1;
   }
 
-  if (ConfigAutoSave && (!getenv("EOS_AUTOSAVE_CONFIG")))
-  {
+  if (ConfigAutoSave && (!getenv("EOS_AUTOSAVE_CONFIG"))) {
     Eroute.Say("=====> mgmofs.autosaveconfig: true", "");
     ConfEngine->SetAutoSave(true);
-  }
-  else
-  {
-    if (getenv("EOS_AUTOSAVE_CONFIG"))
-    {
+  } else {
+    if (getenv("EOS_AUTOSAVE_CONFIG")) {
       eos_info("autosave config=%s", getenv("EOS_AUTOSAVE_CONFIG"));
       XrdOucString autosave = getenv("EOS_AUTOSAVE_CONFIG");
-      if ((autosave == "1") || (autosave == "true"))
-      {
-	Eroute.Say("=====> mgmofs.autosaveconfig: true", "");
-	ConfEngine->SetAutoSave(true);
+
+      if ((autosave == "1") || (autosave == "true")) {
+        Eroute.Say("=====> mgmofs.autosaveconfig: true", "");
+        ConfEngine->SetAutoSave(true);
+      } else {
+        Eroute.Say("=====> mgmofs.autosaveconfig: false", "");
+        ConfEngine->SetAutoSave(false);
       }
-      else
-      {
-	Eroute.Say("=====> mgmofs.autosaveconfig: false", "");
-	ConfEngine->SetAutoSave(false);
-      }
-    }
-    else
-    {
+    } else {
       Eroute.Say("=====> mgmofs.autosaveconfig: false", "");
     }
   }
 
-  if (getenv("EOS_MGM_ALIAS"))
+  if (getenv("EOS_MGM_ALIAS")) {
     MgmOfsAlias = getenv("EOS_MGM_ALIAS");
+  }
 
   // we don't put the alias we need call-back's to appear on our node
-  if (MgmOfsAlias.length())
+  if (MgmOfsAlias.length()) {
     Eroute.Say("=====> mgmofs.alias: ", MgmOfsAlias.c_str());
+  }
 
   XrdOucString keytabcks = "unaccessible";
   // ----------------------------------------------------------
   // build the adler & sha1 checksum of the default keytab file
   // ----------------------------------------------------------
   int fd = ::open("/etc/eos.keytab", O_RDONLY);
-
   XrdOucString symkey = "";
 
-  if (fd > 0)
-  {
+  if (fd > 0) {
     char buffer[65535];
     char keydigest[SHA_DIGEST_LENGTH + 1];
     SHA_CTX sha1;
     SHA1_Init(&sha1);
     size_t nread = ::read(fd, buffer, sizeof(buffer));
 
-    if (nread > 0)
-    {
+    if (nread > 0) {
       unsigned int adler;
       SHA1_Update(&sha1, (const char*) buffer, nread);
       adler = adler32(0L, Z_NULL, 0);
       adler = adler32(adler, (const Bytef*) buffer, nread);
       char sadler[1024];
-      snprintf(sadler, sizeof (sadler) - 1, "%08x", adler);
+      snprintf(sadler, sizeof(sadler) - 1, "%08x", adler);
       keytabcks = sadler;
     }
+
     SHA1_Final((unsigned char*) keydigest, &sha1);
     eos::common::SymKey::Base64Encode(keydigest, SHA_DIGEST_LENGTH, symkey);
     close(fd);
   }
 
   eos_notice("MGM_HOST=%s MGM_PORT=%ld VERSION=%s RELEASE=%s KEYTABADLER=%s "
-	     "SYMKEY=%s", HostName, myPort, VERSION, RELEASE, keytabcks.c_str(),
-	     symkey.c_str());
+             "SYMKEY=%s", HostName, myPort, VERSION, RELEASE, keytabcks.c_str(),
+             symkey.c_str());
 
-  if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0))
-  {
+  if (!eos::common::gSymKeyStore.SetKey64(symkey.c_str(), 0)) {
     eos_crit("unable to store the created symmetric key %s", symkey.c_str());
     return 1;
   }
@@ -1497,14 +1307,12 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   // ----------------------------------------------------------
   XrdOucString configbasequeue = "/config/";
   configbasequeue += MgmOfsInstanceName.c_str();
-
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
   AllConfigQueue = configbasequeue;
   AllConfigQueue += "/all/";
   FstConfigQueue = configbasequeue;
   FstConfigQueue += "/fst/";
-
   SpaceConfigQueuePrefix = configbasequeue;
   SpaceConfigQueuePrefix += "/space/";
   NodeConfigQueuePrefix = "/config/";
@@ -1512,43 +1320,43 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   NodeConfigQueuePrefix += "/node/";
   GroupConfigQueuePrefix = configbasequeue;
   GroupConfigQueuePrefix += "/group/";
-
   FsNode::gManagerId = ManagerId.c_str();
-
   FsView::gFsView.SetConfigQueues(MgmConfigQueue.c_str(),
-				  NodeConfigQueuePrefix.c_str(),
-				  GroupConfigQueuePrefix.c_str(),
-				  SpaceConfigQueuePrefix.c_str());
+                                  NodeConfigQueuePrefix.c_str(),
+                                  GroupConfigQueuePrefix.c_str(),
+                                  SpaceConfigQueuePrefix.c_str());
   FsView::gFsView.SetConfigEngine(ConfEngine);
-
   ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // we need to set the shared object manager to be used
   eos::common::GlobalConfig::gConfig.SetSOM(&ObjectManager);
-
   // set the object manager to listener only
   ObjectManager.EnableBroadCast(false);
-
   // setup the modifications which the fs listener thread is waiting for
-
   ObjectManager.SetDebug(false);
 
   if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(MgmConfigQueue.c_str(),
-      "/eos/*/mgm"))
+      "/eos/*/mgm")) {
     eos_crit("Cannot add global config queue %s\n", MgmConfigQueue.c_str());
+  }
+
   if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(AllConfigQueue.c_str(),
-      "/eos/*"))
+      "/eos/*")) {
     eos_crit("Cannot add global config queue %s\n", AllConfigQueue.c_str());
+  }
+
   if (!eos::common::GlobalConfig::gConfig.AddConfigQueue(FstConfigQueue.c_str(),
-      "/eos/*/fst"))
+      "/eos/*/fst")) {
     eos_crit("Cannot add global config queue %s\n", FstConfigQueue.c_str());
+  }
 
   std::string out = "";
   eos::common::GlobalConfig::gConfig.PrintBroadCastMap(out);
   fprintf(stderr, "%s", out.c_str());
 
   // eventuall autoload a configuration
-  if (getenv("EOS_AUTOLOAD_CONFIG"))
+  if (getenv("EOS_AUTOLOAD_CONFIG")) {
     MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
+  }
 
   XrdOucString instancepath = "/eos/";
   MgmProcPath = "/eos/";
@@ -1556,8 +1364,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   // Remove leading "eos" from the instance name when building the proc path for
   // "aesthetic" reasons.
-  if (subpath.beginswith("eos"))
-  {
+  if (subpath.beginswith("eos")) {
     subpath.erase(0, 3);
   }
 
@@ -1570,9 +1377,14 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   MgmProcMasterPath += "/master";
   MgmProcArchivePath = MgmProcPath;
   MgmProcArchivePath += "/archive";
+  MgmProcWorkflowPath = MgmProcPath;
+  MgmProcWorkflowPath += "/workflow";
+  MgmProcLockPath = MgmProcPath;
+  MgmProcLockPath += "/lock";
+  MgmProcDelegationPath = MgmProcPath;
+  MgmProcDelegationPath += "/delegation";
   Recycle::gRecyclingPrefix.insert(0, MgmProcPath.c_str());
   instancepath += subpath;
-
   //  eos_emerg("%s",(char*)"test emerg");
   //  eos_alert("%s",(char*)"test alert");
   //  eos_crit("%s", (char*)"test crit");
@@ -1581,54 +1393,45 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   //  eos_notice("%s",(char*)"test notice");
   //  eos_info("%s",(char*)"test info");
   //  eos_debug("%s",(char*)"test debug");
-
   // Initialize user mapping
   eos::common::Mapping::Init();
 
   // Initialize the master/slave class
-  if (!MgmMaster.Init())
+  if (!MgmMaster.Init()) {
     return 1;
+  }
 
   // Configure the meta data catalog
   eosViewRWMutex.SetBlocking(true);
 
-  if (!MgmMaster.BootNamespace())
+  if (!MgmMaster.BootNamespace()) {
     return 1;
+  }
 
   // Check the '/' directory
   std::shared_ptr<eos::IContainerMD> rootmd;
 
-  try
-  {
+  try {
     rootmd = eosView->getContainer("/");
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     Eroute.Emsg("Config", "cannot get the / directory meta data");
     eos_crit("eos view cannot retrieve the / directory");
     return 1;
   }
 
   // Check the '/' directory permissions
-  if (!rootmd->getMode())
-  {
-    if (MgmMaster.IsMaster())
-    {
+  if (!rootmd->getMode()) {
+    if (MgmMaster.IsMaster()) {
       // no permissions set yet
-      try
-      {
-	rootmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
-			S_IWGRP | S_IXGRP | S_ISGID);
+      try {
+        rootmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
+                        S_IWGRP | S_IXGRP | S_ISGID);
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the / directory mode to inital mode");
+        eos_crit("cannot set the / directory mode to 755");
+        return 1;
       }
-      catch (eos::MDException &e)
-      {
-	Eroute.Emsg("Config", "cannot set the / directory mode to inital mode");
-	eos_crit("cannot set the / directory mode to 755");
-	return 1;
-      }
-    }
-    else
-    {
+    } else {
       Eroute.Emsg("Config", "/ directory has no 755 permissions set");
       eos_crit("cannot see / directory with mode to 755");
       return 1;
@@ -1637,155 +1440,192 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   eos_info("/ permissions are %o", rootmd->getMode());
 
-  if (MgmMaster.IsMaster())
-  {
+  if (MgmMaster.IsMaster()) {
     // create /eos
     std::shared_ptr<eos::IContainerMD> eosmd;
-    try
-    {
-      eosmd = eosView->getContainer("/eos/");
-    }
-    catch (eos::MDException &e) {}
 
-    if (!eosmd)
-    {
-      try
-      {
-	eosmd = eosView->createContainer("/eos/", true);
-	// set attribute inheritance
-	eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
-		       S_IWGRP | S_IXGRP | S_ISGID);
-	// set default checksum 'adler'
-	eosmd->setAttribute("sys.forced.checksum", "adler");
-	eosView->updateContainerStore(eosmd.get());
-	eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
-      }
-      catch (eos::MDException &e)
-      {
-	Eroute.Emsg("Config", "cannot set the /eos/ directory mode to inital mode");
-	eos_crit("cannot set the /eos/ directory mode to 755");
-	return 1;
+    try {
+      eosmd = eosView->getContainer("/eos/");
+    } catch (eos::MDException& e) {}
+
+    if (!eosmd) {
+      try {
+        eosmd = eosView->createContainer("/eos/", true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP |
+                       S_IWGRP | S_IXGRP | S_ISGID);
+        // set default checksum 'adler'
+        eosmd->setAttribute("sys.forced.checksum", "adler");
+        eosView->updateContainerStore(eosmd.get());
+        eos_info("/eos permissions are %o checksum is set <adler>", eosmd->getMode());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/ directory mode to inital mode");
+        eos_crit("cannot set the /eos/ directory mode to 755");
+        return 1;
       }
     }
 
     // check recycle directory
-    try
-    {
+    try {
       eosmd = eosView->getContainer(Recycle::gRecyclingPrefix.c_str());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       // nothing in this case
       eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
-    if (!eosmd)
-    {
-      try
-      {
-	eosmd = eosView->createContainer(Recycle::gRecyclingPrefix.c_str(), true);
-	// set attribute inheritance
-	eosmd->setMode(S_IFDIR | S_IRWXU);
-
-	eosView->updateContainerStore(eosmd.get());
-	eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
-		 eosmd->getMode());
-      }
-      catch (eos::MDException &e)
-      {
-	Eroute.Emsg("Config", "cannot set the recycle directory mode to inital mode");
-	eos_crit("cannot set the %s directory mode to 700",
-		 Recycle::gRecyclingPrefix.c_str());
-	eos_crit("%s", e.what());
-	return 1;
+    if (!eosmd) {
+      try {
+        eosmd = eosView->createContainer(Recycle::gRecyclingPrefix.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU);
+        eosView->updateContainerStore(eosmd.get());
+        eos_info("%s permissions are %o", Recycle::gRecyclingPrefix.c_str(),
+                 eosmd->getMode());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the recycle directory mode to inital mode");
+        eos_crit("cannot set the %s directory mode to 700",
+                 Recycle::gRecyclingPrefix.c_str());
+        eos_crit("%s", e.what());
+        return 1;
       }
     }
 
-    try
-    {
+    try {
       eosmd = eosView->getContainer(MgmProcPath.c_str());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
-    if (!eosmd)
-    {
-      try
-      {
-	eosmd = eosView->createContainer(MgmProcPath.c_str(), true);
-	// set attribute inheritance
-	eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
-	eosView->updateContainerStore(eosmd.get());
-      }
-      catch (eos::MDException &e)
-      {
-	Eroute.Emsg("Config", "cannot set the /eos/proc directory mode to inital mode");
-	eos_crit("cannot set the /eos/proc directory mode to 755");
-	return 1;
+    if (!eosmd) {
+      try {
+        eosmd = eosView->createContainer(MgmProcPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IROTH | S_IXOTH | S_IRGRP | S_IXGRP);
+        eosView->updateContainerStore(eosmd.get());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config", "cannot set the /eos/proc directory mode to inital mode");
+        eos_crit("cannot set the /eos/proc directory mode to 755");
+        return 1;
       }
     }
 
     // Create output directory layout conversions
-    try
-    {
+    try {
       eosmd = eosView->getContainer(MgmProcConversionPath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // conversion directory is owned by daemon
       eosView->updateContainerStore(eosmd.get());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
-    if (!eosmd)
-    {
-      try
-      {
-	eosmd = eosView->createContainer(MgmProcConversionPath.c_str(), true);
-	// set attribute inheritance
-	eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-	eosView->updateContainerStore(eosmd.get());
-      }
-      catch (eos::MDException &e)
-      {
-	Eroute.Emsg("Config",
-		    "cannot set the /eos/../proc/conversion directory mode to inital mode");
-	eos_crit("cannot set the /eos/../proc/conversion directory mode to 700");
-	return 1;
+    if (!eosmd) {
+      try {
+        eosmd = eosView->createContainer(MgmProcConversionPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosView->updateContainerStore(eosmd.get());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config",
+                    "cannot set the /eos/../proc/conversion directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/conversion directory mode to 700");
+        return 1;
       }
     }
 
     // Create directory for fast find functionality of archived dirs
-    try
-    {
+    try {
       eosmd = eosView->getContainer(MgmProcArchivePath.c_str());
       eosmd->setMode(S_IFDIR | S_IRWXU);
       eosmd->setCUid(2); // archive directory is owned by daemon
       eosView->updateContainerStore(eosmd.get());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
     }
 
-    if (!eosmd)
-    {
-      try
-      {
-	eosmd = eosView->createContainer(MgmProcArchivePath.c_str(), true);
-	// Set attribute inheritance
-	eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
-	eosView->updateContainerStore(eosmd.get());
+    if (!eosmd) {
+      try {
+        eosmd = eosView->createContainer(MgmProcArchivePath.c_str(), true);
+        // Set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        eosView->updateContainerStore(eosmd.get());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config",
+                    "cannot set the /eos/../proc/archive directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/archive directory mode to 700");
+        return 1;
       }
-      catch (eos::MDException &e)
-      {
-	Eroute.Emsg("Config",
-		    "cannot set the /eos/../proc/archive directory mode to inital mode");
-	eos_crit("cannot set the /eos/../proc/archive directory mode to 700");
-	return 1;
+    }
+
+    // Create workflow directory
+    try {
+      eosmd = gOFS->eosView->getContainer(MgmProcWorkflowPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // workflow directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd.get());
+    } catch (eos::MDException& e) {
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = gOFS->eosView->createContainer(MgmProcWorkflowPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd.get());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config",
+                    "cannot set the /eos/../proc/workflow directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/workflow directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create lock directory
+    try {
+      eosmd = gOFS->eosView->getContainer(MgmProcLockPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // lock directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd.get());
+    } catch (eos::MDException& e) {
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = gOFS->eosView->createContainer(MgmProcLockPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd.get());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config",
+                    "cannot set the /eos/../proc/lock directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/lock directory mode to 700");
+        return 1;
+      }
+    }
+
+    // Create delegation directory
+    try {
+      eosmd = gOFS->eosView->getContainer(MgmProcDelegationPath.c_str());
+      eosmd->setMode(S_IFDIR | S_IRWXU);
+      eosmd->setCUid(2); // delegation directory is owned by daemon
+      gOFS->eosView->updateContainerStore(eosmd.get());
+    } catch (eos::MDException& e) {
+      eosmd = std::shared_ptr<eos::IContainerMD>((eos::IContainerMD*)0);
+    }
+
+    if (!eosmd) {
+      try {
+        eosmd = gOFS->eosView->createContainer(MgmProcDelegationPath.c_str(), true);
+        // set attribute inheritance
+        eosmd->setMode(S_IFDIR | S_IRWXU | S_IRWXG);
+        gOFS->eosView->updateContainerStore(eosmd.get());
+      } catch (eos::MDException& e) {
+        Eroute.Emsg("Config",
+                    "cannot set the /eos/../proc/delegation directory mode to inital mode");
+        eos_crit("cannot set the /eos/../proc/delegation directory mode to 700");
+        return 1;
       }
     }
 
@@ -1794,94 +1634,95 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
     oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
     mArchiveEndpoint = oss.str();
   }
-  //-------------------------------------------
 
+  //-------------------------------------------
   XrdMqSharedHash* hash = 0;
 
   // - we disable a lot of features if we are only a redirector
-  if (!MgmRedirector)
-  {
+  if (!MgmRedirector) {
     // create the specific listener class
     MgmOfsMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
-				    MgmDefaultReceiverQueue.c_str(),
-				    true, true, &ObjectManager);
-    if (!MgmOfsMessaging->StartListenerThread()) NoGo = 1;
+                                    MgmDefaultReceiverQueue.c_str(),
+                                    true, true, &ObjectManager);
+
+    if (!MgmOfsMessaging->StartListenerThread()) {
+      NoGo = 1;
+    }
+
     MgmOfsMessaging->SetLogId("MgmOfsMessaging");
 
-    if ((!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie()))
-    {
+    if ((!MgmOfsMessaging) || (MgmOfsMessaging->IsZombie())) {
       Eroute.Emsg("Config", "cannot create messaging object(thread)");
       return NoGo;
     }
 
     if (MgmOfsVstBrokerUrl.length() &&
-	(!getenv("EOS_VST_BROKER_DISABLE") ||
-	 (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1"))))
-    {
+        (!getenv("EOS_VST_BROKER_DISABLE") ||
+         (strcmp(getenv("EOS_VST_BROKER_DISABLE"), "1")))) {
       MgmOfsVstMessaging = new VstMessaging(MgmOfsVstBrokerUrl.c_str(), "/eos/*/vst",
-					    true, true, 0);
-      if (!MgmOfsVstMessaging->StartListenerThread()) NoGo = 1;
+                                            true, true, 0);
+
+      if (!MgmOfsVstMessaging->StartListenerThread()) {
+        NoGo = 1;
+      }
+
       MgmOfsMessaging->SetLogId("MgmOfsVstMessaging");
 
-      if ((!MgmOfsVstMessaging) || (MgmOfsVstMessaging->IsZombie()))
-      {
-	Eroute.Emsg("Config", "cannot create vst messaging object(thread)");
-	return NoGo;
+      if ((!MgmOfsVstMessaging) || (MgmOfsVstMessaging->IsZombie())) {
+        Eroute.Emsg("Config", "cannot create vst messaging object(thread)");
+        return NoGo;
       }
     }
-
 
     ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
     ObjectManager.HashMutex.LockRead();
     hash = ObjectManager.GetHash("/eos/*");
-
-
     ObjectManager.HashMutex.UnLockRead();
-
     XrdOucString dumperfile = MgmMetaLogDir;
     dumperfile += "/so.mgm.dump";
-
     ObjectManager.StartDumper(dumperfile.c_str());
     ObjectManager.SetAutoReplyQueueDerive(true);
   }
 
-    // hook to the appropiate config file
-    XrdOucString stdOut;
-    XrdOucString stdErr;
+  // hook to the appropiate config file
+  XrdOucString stdOut;
+  XrdOucString stdErr;
+
   if (!MgmMaster.ApplyMasterConfig(stdOut, stdErr,
-				   Master::Transition::Type::kMasterToMaster))
-  {
+                                   Master::Transition::Type::kMasterToMaster)) {
     Eroute.Emsg("Config", "failed to apply master configuration");
     return 1;
   }
 
-  if (!MgmRedirector)
-  {
-    if (ErrorLog)
-    {
+  if (!MgmRedirector) {
+    if (ErrorLog) {
       // run the error log console
       XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
       int rrc = system(errorlogkillline.c_str());
-      if (WEXITSTATUS(rrc))
-	eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+
+      if (WEXITSTATUS(rrc)) {
+        eos_info("%s returned %d", errorlogkillline.c_str(), rrc);
+      }
 
       XrdOucString errorlogline = "eos -b console log _MGMID_ >& /dev/null &";
       rrc = system(errorlogline.c_str());
-      if (WEXITSTATUS(rrc))
-	eos_info("%s returned %d", errorlogline.c_str(), rrc);
-      }
 
-    if (MgmMaster.IsMaster())
-    {
+      if (WEXITSTATUS(rrc)) {
+        eos_info("%s returned %d", errorlogline.c_str(), rrc);
+      }
+    }
+
+    if (MgmMaster.IsMaster()) {
       eos_info("starting file view loader thread");
+
       if ((XrdSysThread::Run(&tid, XrdMgmOfs::StaticInitializeFileView,
-			     static_cast<void *> (this), 0, "File View Loader")))
-      {
-	eos_crit("cannot start file view loader");
-	NoGo = 1;
+                             static_cast<void*>(this), 0, "File View Loader"))) {
+        eos_crit("cannot start file view loader");
+        NoGo = 1;
       }
     }
   }
+
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   eos::common::RWMutex::EstimateLatenciesAndCompensation();
   FsView::gFsView.ViewMutex.SetDebugName("FsView");
@@ -1902,8 +1743,7 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
   eos_info("starting statistics thread");
 
   if ((XrdSysThread::Run(&stats_tid, XrdMgmOfs::StartMgmStats,
-			 static_cast<void*>(this), 0, "Statistics Thread")))
-  {
+                         static_cast<void*>(this), 0, "Statistics Thread"))) {
     eos_crit("cannot start statistics thread");
     NoGo = 1;
   }
@@ -1912,55 +1752,63 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   if (XrdSysThread::Run(&mSubmitterTid, XrdMgmOfs::StartArchiveSubmitter,
                         static_cast<void*>(this), XRDSYSTHREAD_HOLD,
-                        "Archive/backup submitter thread"))
-  {
+                        "Archive/backup submitter thread")) {
     eos_crit("cannot start archive/backup submitter thread");
     NoGo = 1;
   }
 
-  if (!MgmRedirector)
-  {
+  if (!MgmRedirector) {
     eos_info("starting fs listener thread");
+
     if ((XrdSysThread::Run(&fsconfiglistener_tid,
-			   XrdMgmOfs::StartMgmFsConfigListener,
-			   static_cast<void*>(this), 0, "FsListener Thread")))
-    {
+                           XrdMgmOfs::StartMgmFsConfigListener,
+                           static_cast<void*>(this), 0, "FsListener Thread"))) {
       eos_crit("cannot start fs listener thread");
       NoGo = 1;
     }
-
   }
 
   gGeoTreeEngine.StartUpdater();
   XrdSysTimer sleeper;
-    sleeper.Snooze(1);
-  if(!ObjectNotifier.Start())
+  sleeper.Snooze(1);
+
+  if (!ObjectNotifier.Start()) {
     eos_crit("error starting the shared object change notifier");
+  }
+
   // initialize the transfer database
-  if (!gTransferEngine.Init("/var/eos/tx"))
-  {
+  if (!gTransferEngine.Init("/var/eos/tx")) {
     eos_crit("cannot intialize transfer database");
     NoGo = 1;
   }
 
   // create the 'default' quota space which is needed if quota is disabled!
-  if (!Httpd.Start())
+  if (!Httpd.Start()) {
     eos_warning("msg=\"cannot start httpd daemon\"");
+  }
 
   // start the Egroup fetching
-  if (!gOFS->EgroupRefresh.Start())
+  if (!gOFS->EgroupRefresh.Start()) {
     eos_warning("msg=\"cannot start egroup thread\"");
+  }
 
   // start the LRU daemon
-  if (!LRUd.Start())
+  if (!LRUd.Start()) {
     eos_warning("msg=\"cannot start LRU thread\"");
+  }
+
+  // start the WFE daemon
+  if (!gOFS->WFEd.Start()) {
+    eos_warning("msg=\"cannot start WFE thread\"");
+  }
+
   // start the recycler garbage collection thread on a master machine
-  if ((MgmMaster.IsMaster()) && (!Recycler.Start()))
+  if ((MgmMaster.IsMaster()) && (!Recycler.Start())) {
     eos_warning("msg=\"cannot start recycle thread\"");
+  }
 
   // add all stat entries with 0
   InitStats();
-
   // set IO accounting file
   XrdOucString ioaccounting = MgmMetaLogDir;
   ioaccounting += "/iostat.";
@@ -1970,66 +1818,61 @@ XrdMgmOfs::Configure (XrdSysError &Eroute)
 
   if (!IoStats.SetStoreFileName(ioaccounting.c_str()))
     eos_warning("couldn't load anything from the io stat dump file %s",
-		ioaccounting.c_str());
-  else
+                ioaccounting.c_str());
+  else {
     eos_notice("loaded io stat dump file %s", ioaccounting.c_str());
-  // start IO ciruclate thread
+  }
 
+  // start IO ciruclate thread
   IoStats.StartCirculate();
 
-  if (!MgmRedirector)
-  {
-    if (hash)
-    {
+  if (!MgmRedirector) {
+    if (hash) {
       // ask for a broadcast from fst's
       hash->BroadCastRequest("/eos/*/fst");
     }
   }
 
-  if (!getenv("EOS_NO_SHUTDOWN"))
-  {
+  if (!getenv("EOS_NO_SHUTDOWN")) {
     // add shutdown handler
     (void) signal(SIGINT, xrdmgmofs_shutdown);
     (void) signal(SIGTERM, xrdmgmofs_shutdown);
     (void) signal(SIGQUIT, xrdmgmofs_shutdown);
 
     // add SEGV handler
-    if (!getenv("EOS_NO_STACKTRACE"))
-    {
+    if (!getenv("EOS_NO_STACKTRACE")) {
       (void) signal(SIGSEGV, xrdmgmofs_stacktrace);
       (void) signal(SIGABRT, xrdmgmofs_stacktrace);
       (void) signal(SIGBUS, xrdmgmofs_stacktrace);
     }
   }
 
-  if (mNumAuthThreads && mFrontendPort)
-  {
+  if (mNumAuthThreads && mFrontendPort) {
     eos_info("starting the authentication master thread");
 
     if ((XrdSysThread::Run(&auth_tid, XrdMgmOfs::StartAuthMasterThread,
-			   static_cast<void *>(this), 0, "Auth Master Thread")))
-    {
+                           static_cast<void*>(this), 0, "Auth Master Thread"))) {
       eos_crit("cannot start the authentication master thread");
       NoGo = 1;
     }
 
     eos_info("starting the authentication worker threads");
 
-    for (unsigned int i = 0; i < mNumAuthThreads; i++)
-    {
+    for (unsigned int i = 0; i < mNumAuthThreads; i++) {
       pthread_t worker_tid;
 
       if ((XrdSysThread::Run(&worker_tid, XrdMgmOfs::StartAuthWorkerThread,
-			     static_cast<void *>(this), 0, "Auth Worker Thread")))
-      {
-	eos_crit("cannot start the authentication thread %i", i);
-	NoGo = 1;
+                             static_cast<void*>(this), 0, "Auth Worker Thread"))) {
+        eos_crit("cannot start the authentication thread %i", i);
+        NoGo = 1;
       }
 
       mVectTid.push_back(worker_tid);
     }
   }
 
+  // to be sure not to miss any notification while everything is starting up
+  gGeoTreeEngine.forceRefresh();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

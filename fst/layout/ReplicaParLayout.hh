@@ -49,20 +49,23 @@ public:
   //! @param timeout timeout value
   //!
   //----------------------------------------------------------------------------
-  ReplicaParLayout (XrdFstOfsFile* file,
-                    unsigned long lid,
-                    const XrdSecEntity* client,
-                    XrdOucErrInfo* outError,
-                    eos::common::LayoutId::eIoType io,
-                    uint16_t timeout = 0);
-
-
+  ReplicaParLayout(XrdFstOfsFile* file,
+                   unsigned long lid,
+                   const XrdSecEntity* client,
+                   XrdOucErrInfo* outError,
+                   const char* path,
+                   uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~ReplicaParLayout ();
+  virtual ~ReplicaParLayout();
 
+  //--------------------------------------------------------------------------
+  // Redirect to new target
+  //--------------------------------------------------------------------------
+
+  virtual void Redirect(const char* path);
 
   //----------------------------------------------------------------------------
   //! Open file
@@ -75,11 +78,10 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode,
-                    const char* opaque);
-
+  virtual int Open(
+    XrdSfsFileOpenMode flags,
+    mode_t mode,
+    const char* opaque);
 
   //----------------------------------------------------------------------------
   //! Read from file
@@ -92,14 +94,14 @@ public:
   //! @return number of bytes read or -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        bool readahead = false);
+  virtual int64_t Read(XrdSfsFileOffset offset,
+                       char* buffer,
+                       XrdSfsXferSize length,
+                       bool readahead = false);
 
 
   //----------------------------------------------------------------------------
-  //! Vector read 
+  //! Vector read
   //!
   //! @param chunkList list of chunks for the vector read
   //! @param len total length of the vector read
@@ -107,8 +109,8 @@ public:
   //! @return number of bytes read of -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
-                         uint32_t len);
+  virtual int64_t ReadV(XrdCl::ChunkList& chunkList,
+                        uint32_t len);
 
 
   //----------------------------------------------------------------------------
@@ -121,9 +123,9 @@ public:
   //! @return number of bytes written or -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length);
+  virtual int64_t Write(XrdSfsFileOffset offset,
+                        const char* buffer,
+                        XrdSfsXferSize length);
 
 
   //----------------------------------------------------------------------------
@@ -134,7 +136,7 @@ public:
   //! @return 0 on success, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset);
+  virtual int Truncate(XrdSfsFileOffset offset);
 
 
   //----------------------------------------------------------------------------
@@ -145,7 +147,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset length);
+  virtual int Fallocate(XrdSfsFileOffset length);
 
 
   //----------------------------------------------------------------------------
@@ -157,8 +159,8 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
+  virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset);
 
 
   //----------------------------------------------------------------------------
@@ -167,7 +169,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Remove ();
+  virtual int Remove();
 
 
   //----------------------------------------------------------------------------
@@ -176,7 +178,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Sync ();
+  virtual int Sync();
 
 
   //----------------------------------------------------------------------------
@@ -187,7 +189,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf);
+  virtual int Stat(struct stat* buf);
 
 
   //----------------------------------------------------------------------------
@@ -196,7 +198,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Close ();
+  virtual int Close();
 
 private:
 
@@ -206,7 +208,7 @@ private:
   //! replica file object, index 0 is the local file
   std::vector<FileIo*> mReplicaFile;
   std::vector<std::string> mReplicaUrl; ///< URLs of the replica files
-
+  bool hasWriteError;
 };
 
 EOSFSTNAMESPACE_END

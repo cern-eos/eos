@@ -22,13 +22,13 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "common/Attr.hh"
 #include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
 #include "fst/ScanDir.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 /*----------------------------------------------------------------------------*/
 #include <cstdlib>
 #include <cstring>
@@ -38,18 +38,17 @@
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #endif
-#include <fts.h>
 #include <syslog.h>
 #include <unistd.h>
 #include <fcntl.h>
 /*----------------------------------------------------------------------------*/
 
-// --------------------------------------------------------------------------- 
+// ---------------------------------------------------------------------------
 // - we miss ioprio.h and gettid
 // ---------------------------------------------------------------------------
 
 static int
-ioprio_set (int which, int who, int ioprio)
+ioprio_set(int which, int who, int ioprio)
 {
 #ifdef __APPLE__
   return 0;
@@ -83,8 +82,7 @@ ioprio_set (int which, int who, int ioprio)
  * is only served when no one else is using the disk.
  */
 
-enum
-{
+enum {
   IOPRIO_CLASS_NONE,
   IOPRIO_CLASS_RT,
   IOPRIO_CLASS_BE,
@@ -96,8 +94,7 @@ enum
  */
 #define IOPRIO_BE_NR    (8)
 
-enum
-{
+enum {
   IOPRIO_WHO_PROCESS = 1,
   IOPRIO_WHO_PGRP,
   IOPRIO_WHO_USER,
@@ -106,123 +103,88 @@ enum
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-ScanDir::~ScanDir ()
+ScanDir::~ScanDir()
 {
-  if ((bgThread && thread))
-  {
+  if ((bgThread && thread)) {
     XrdSysThread::Cancel(thread);
     XrdSysThread::Join(thread, NULL);
     closelog();
   }
-  if (buffer)
-  {
+
+  if (buffer) {
     free(buffer);
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void
-scandir_cleanup_paths (void *arg)
+scandir_cleanup_handle(void* arg)
 {
-  char **paths = (char**) arg;
-  if (paths)
-  {
-    free(paths);
-    paths = 0;
+  FileIo::FtsHandle* handle = static_cast<FileIo::FtsHandle*>(arg);
+
+  if (handle) {
+    delete handle;
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void
-scandir_cleanup_fts (void *arg)
+ScanDir::ScanFiles()
 {
-  FTS *tree = (FTS*) arg;
-  if (tree)
-  {
-    fts_close(tree);
-    tree = 0;
-  }
-}
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(dirPath.c_str()));
 
-/*----------------------------------------------------------------------------*/
-void
-ScanDir::ScanFiles ()
-{
-  char **paths = (char**) calloc(2, sizeof (char*));
-  if (!paths)
-  {
+  if (!io) {
+    if (bgThread) {
+      eos_err("msg=\"no IO plug-in available\" url=\"%s\"", dirPath.c_str());
+    } else {
+      fprintf(stderr, "error: no IO plug-in available for url=%s\n", dirPath.c_str());
+    }
+
     return;
   }
 
-  pthread_cleanup_push(scandir_cleanup_paths, paths);
+  FileIo::FtsHandle* handle = io->ftsOpen();
 
-  paths[0] = (char*) dirPath.c_str();
-  paths[1] = 0;
-
-  FTS *tree = fts_open(paths, FTS_NOCHDIR, 0);
-
-  if (!tree)
-  {
-    if (bgThread)
-    {
+  if (!handle) {
+    if (bgThread) {
       eos_err("fts_open failed");
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "error: fts_open failed! \n");
     }
 
-    free(paths);
     return;
   }
 
-  pthread_cleanup_push(scandir_cleanup_fts, tree);
+  pthread_cleanup_push(scandir_cleanup_handle, handle);
+  std::string filePath;
 
+  while ((filePath = io->ftsRead(handle)) != "") {
+    if (!bgThread) {
+      fprintf(stderr, "[ScanDir] processing file %s\n", filePath.c_str());
+    }
 
-  FTSENT *node;
-  while ((node = fts_read(tree)))
-  {
-    if (node->fts_level > 0 && node->fts_name[0] == '.')
-    {
-      fts_set(tree, node, FTS_SKIP);
-    }
-    else
-    {
-      if (node->fts_info == FTS_F)
-      {
-        XrdOucString filePath = node->fts_accpath;
-        if (!filePath.matches("*.xsmap"))
-        {
-          if (!bgThread)
-            fprintf(stderr, "[ScanDir] processing file %s\n", filePath.c_str());
-          CheckFile(filePath.c_str());
-        }
-      }
-    }
-    if (bgThread)
+    CheckFile(filePath.c_str());
+
+    if (bgThread) {
       XrdSysThread::CancelPoint();
-  }
-  if (fts_close(tree))
-  {
-    if (bgThread)
-    {
-      eos_err("fts_close failed");
     }
-    else
-    {
+  }
+
+  if (io->ftsClose(handle)) {
+    if (bgThread) {
+      eos_err("fts_close failed");
+    } else {
       fprintf(stderr, "error: fts_close failed \n");
     }
   }
 
-  free(paths);
-
-  pthread_cleanup_pop(0);
+  delete handle;
   pthread_cleanup_pop(0);
 }
 
 /*----------------------------------------------------------------------------*/
 void
-ScanDir::CheckFile (const char* filepath)
+ScanDir::CheckFile(const char* filepath)
 {
   float scantime;
   unsigned long layoutid = 0;
@@ -230,119 +192,112 @@ ScanDir::CheckFile (const char* filepath)
   std::string filePath, checksumType, checksumStamp, logicalFileName;
   char checksumVal[SHA_DIGEST_LENGTH];
   size_t checksumLen;
-
   filePath = filepath;
-  eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
-
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
   noTotalFiles++;
-
   // get last modification time
   struct stat buf1;
   struct stat buf2;
-  if (stat(filePath.c_str(), &buf1))
-  {
-    if (bgThread)
-    {
-      eos_err("cannot stat %s", filePath.c_str());
+
+  if ((io->fileOpen(0, 0)) || io->fileStat(&buf1)) {
+    if (bgThread) {
+      eos_err("cannot open/stat %s", filePath.c_str());
+    } else {
+      fprintf(stderr, "error: cannot open/stat %s\n", filePath.c_str());
     }
-    else
-    {
-      fprintf(stderr, "error: cannot stat %s\n", filePath.c_str());
-    }
-    if (attr)
-      delete attr;
+
     return;
   }
 
 #ifndef _NOOFS
+
   if (bgThread) {
     eos::common::Path cPath(filePath.c_str());
     eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
-    
     // check if somebody is still writing on that file and skip in that case
     XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
+
     if (gOFS.WOpenFid[fsId].count(fid)) {
-      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%x\n", filePath.c_str(), (int)fid, fsId);
-      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%x", filePath.c_str(), (int)fid, fsId);
+      syslog(LOG_ERR, "skipping scan w-open file: localpath=%s fsid=%d fid=%x\n",
+             filePath.c_str(), (int) fid, fsId);
+      eos_warning("skipping scan of w-open file: localpath=%s fsid=%d fid=%x",
+                  filePath.c_str(), (int) fid, fsId);
       return;
     }
   }
+
 #endif
+  io->attrGet("user.eos.checksumtype", checksumType);
+  memset(checksumVal, 0, sizeof(checksumVal));
+  checksumLen = SHA_DIGEST_LENGTH;
 
-  if (attr)
-  {
-    checksumType = attr->Get("user.eos.checksumtype");
-    memset(checksumVal, 0, sizeof (checksumVal));
-    checksumLen = SHA_DIGEST_LENGTH;
-    if (!attr->Get("user.eos.checksum", checksumVal, checksumLen))
-    {
-      checksumLen = 0;
-    }
+  if (io->attrGet("user.eos.checksum", checksumVal, checksumLen)) {
+    checksumLen = 0;
+  }
 
-    checksumStamp = attr->Get("user.eos.timestamp");
-    logicalFileName = attr->Get("user.eos.lfn");
+  io->attrGet("user.eos.timestamp", checksumStamp);
+  io->attrGet("user.eos.lfn", logicalFileName);
 
-    if (RescanFile(checksumStamp))
-    {
-      //     if (checksumType.compare(""))
-      if (1)
-      {
-        bool blockcxerror = false;
-        bool filecxerror = false;
+  if (RescanFile(checksumStamp)) {
+    //     if (checksumType.compare(""))
+    if (1) {
+      bool blockcxerror = false;
+      bool filecxerror = false;
+      XrdOucString envstring = "eos.layout.checksum=";
+      envstring += checksumType.c_str();
+      XrdOucEnv env(envstring.c_str());
+      unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
+      layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
+                                              checksumtype);
 
-        XrdOucString envstring = "eos.layout.checksum=";
-        envstring += checksumType.c_str();
-        XrdOucEnv env(envstring.c_str());
-        unsigned long checksumtype = eos::common::LayoutId::GetChecksumFromEnv(env);
-        layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, checksumtype);
-        if (!ScanFileLoadAware(filePath.c_str(), scansize, scantime, checksumVal, layoutid, logicalFileName.c_str(), filecxerror, blockcxerror))
-        {
-          if ((!stat(filePath.c_str(), &buf2)) && (buf1.st_mtime == buf2.st_mtime))
-          {
-            if (filecxerror)
-            {
-              if (bgThread)
-              {
-                syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
-                eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(), logicalFileName.c_str());
-              }
-              else
-                fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n", filePath.c_str(), logicalFileName.c_str());
+      if (!ScanFileLoadAware(io, scansize, scantime, checksumVal, layoutid,
+                             logicalFileName.c_str(), filecxerror, blockcxerror)) {
+        if ((!io->fileStat(&buf2)) && (buf1.st_mtime == buf2.st_mtime)) {
+          if (filecxerror) {
+            if (bgThread) {
+              syslog(LOG_ERR, "corrupted file checksum: localpath=%s lfn=\"%s\" \n",
+                     filePath.c_str(), logicalFileName.c_str());
+              eos_err("corrupted file checksum: localpath=%s lfn=\"%s\"", filePath.c_str(),
+                      logicalFileName.c_str());
+            } else {
+              fprintf(stderr, "[ScanDir] corrupted  file checksum: localpath=%slfn=\"%s\" \n",
+                      filePath.c_str(), logicalFileName.c_str());
             }
           }
-          else
-          {
-            if (bgThread)
-            {
-              eos_err("file %s has been modified during the scan ... ignoring checksum error", filePath.c_str());
-            }
-            else
-            {
-              fprintf(stderr, "[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n", filePath.c_str());
-            }
+        } else {
+          if (bgThread) {
+            eos_err("file %s has been modified during the scan ... ignoring checksum error",
+                    filePath.c_str());
+          } else {
+            fprintf(stderr,
+                    "[ScanDir] file %s has been modified during the scan ... ignoring checksum error\n",
+                    filePath.c_str());
           }
         }
-        //collect statistics
-        durationScan += scantime;
-        totalScanSize += scansize;
+      }
 
+      //collect statistics
+      durationScan += scantime;
+      totalScanSize += scansize;
 
-        if ((!attr->Set("user.eos.timestamp", GetTimestampSmeared())) ||
-            (!attr->Set("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
-            (!attr->Set("user.eos.blockcxerror", blockcxerror ? "1" : "0")))
-        {
-          if (bgThread)
-          {
-            eos_err("Can not set extended attributes to file %s", filePath.c_str());
-          }
-          else
-          {
-            fprintf(stderr, "error: [CheckFile] Can not set extended attributes to file. \n");
-          }
+      if ((io->attrSet("user.eos.timestamp", GetTimestampSmeared())) ||
+          (io->attrSet("user.eos.filecxerror", filecxerror ? "1" : "0")) ||
+          (io->attrSet("user.eos.blockcxerror", blockcxerror ? "1" : "0"))) {
+        if (bgThread) {
+          eos_err("Can not set extended attributes to file %s", filePath.c_str());
+        } else {
+          fprintf(stderr,
+                  "error: [CheckFile] Can not set extended attributes to file. \n");
         }
-        if (bgThread)
-        {
-          if (filecxerror || blockcxerror)
+      }
+
+#ifndef _NOOFS
+
+      if (bgThread) {
+        if (filecxerror || blockcxerror) {
+          XrdOucString manager = "";
+          // ask the meta data handling class to update the error flags for this file
+          gFmdDbMapHandler.ResyncDisk(filePath.c_str(), fsId, false);
           {
             XrdOucString manager = "";
             // ask the meta data handling class to update the error flags for this file
@@ -351,13 +306,13 @@ ScanDir::CheckFile (const char* filepath)
               XrdSysMutexHelper lock(eos::fst::Config::gConfig.Mutex);
               manager = eos::fst::Config::gConfig.Manager.c_str();
             }
-            if (manager.length())
-            {
+
+            if (manager.length()) {
               errno = 0;
               eos::common::Path cPath(filePath.c_str());
               eos::common::FileId::fileid_t fid = strtoul(cPath.GetName(), 0, 16);
-              if (fid && !errno)
-              {
+
+              if (fid && !errno) {
                 // call the autorepair method on the MGM
                 // if the MGM has autorepair disabled it won't do anything
                 gFmdDbMapHandler.CallAutoRepair(manager.c_str(), fid);
@@ -366,91 +321,74 @@ ScanDir::CheckFile (const char* filepath)
           }
         }
       }
-      else
-      {
-        noNoChecksumFiles++;
-      }
+
+#endif
+    } else {
+      noNoChecksumFiles++;
     }
-    else
-    {
-      SkippedFiles++;
-    }
-    delete attr;
+  } else {
+    SkippedFiles++;
   }
+
+  io->fileClose();
 }
 
 /*----------------------------------------------------------------------------*/
 eos::fst::CheckSum*
-ScanDir::GetBlockXS (const char* filepath, unsigned long long maxfilesize)
+ScanDir::GetBlockXS(const char* filepath, unsigned long long maxfilesize)
 {
   unsigned long layoutid = 0;
   std::string checksumType, checksumSize, logicalFileName;
   XrdOucString fileXSPath = filepath;
+  std::unique_ptr<eos::fst::FileIo> io(FileIoPluginHelper::GetIoObject(filepath));
 
-  eos::common::Attr *attr = eos::common::Attr::OpenAttr(fileXSPath.c_str());
+  if (!io->fileOpen(0)) {
+    io->attrGet("user.eos.blockchecksum", checksumType);
+    io->attrGet("user.eos.blocksize", checksumSize);
+    io->attrGet("user.eos.lfn", logicalFileName);
 
-  if (attr)
-  {
-    checksumType = attr->Get("user.eos.blockchecksum");
-    checksumSize = attr->Get("user.eos.blocksize");
-    logicalFileName = attr->Get("user.eos.lfn");
-    delete attr;
-
-    if (checksumType.compare(""))
-    {
+    if (checksumType.compare("")) {
       XrdOucString envstring = "eos.layout.blockchecksum=";
       envstring += checksumType.c_str();
       XrdOucEnv env(envstring.c_str());
-      unsigned long checksumtype = eos::common::LayoutId::GetBlockChecksumFromEnv(env);
-
+      unsigned long checksumtype = eos::common::LayoutId::GetBlockChecksumFromEnv(
+                                     env);
       int blockSize = atoi(checksumSize.c_str());
       int blockSizeSymbol = eos::common::LayoutId::BlockSizeEnum(blockSize);
+      layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain,
+                                              eos::common::LayoutId::kNone, 0, blockSizeSymbol, checksumtype);
+      eos::fst::CheckSum* checksum = eos::fst::ChecksumPlugins::GetChecksumObject(
+                                       layoutid, true);
 
-      layoutid = eos::common::LayoutId::GetId(eos::common::LayoutId::kPlain, eos::common::LayoutId::kNone, 0, blockSizeSymbol, checksumtype);
-
-      eos::fst::CheckSum *checksum = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid, true);
-
-      if (checksum)
-      {
+      if (checksum) {
         // get size of XS file
         struct stat info;
 
-        if (stat(fileXSPath.c_str(), &info))
-        {
-          if (bgThread)
-          {
+        if (stat(fileXSPath.c_str(), &info)) {
+          if (bgThread) {
             eos_err("cannot open file %s", fileXSPath.c_str());
-          }
-          else
-          {
+          } else {
             fprintf(stderr, "error: cannot open file %s\n", fileXSPath.c_str());
           }
         }
 
-        if (checksum->OpenMap(fileXSPath.c_str(), maxfilesize, blockSize, false))
-        {
+        if (checksum->OpenMap(fileXSPath.c_str(), maxfilesize, blockSize, false)) {
           return checksum;
-        }
-        else
-        {
+        } else {
           delete checksum;
           return NULL;
         }
-      }
-      else
-      {
-        if (bgThread)
-        {
+      } else {
+        if (bgThread) {
           eos_err("cannot get checksum object for layout id %lx", layoutid);
-        }
-        else
-        {
-          fprintf(stderr, "error: cannot get checksum object for layout id %lx\n", layoutid);
+        } else {
+          fprintf(stderr, "error: cannot get checksum object for layout id %lx\n",
+                  layoutid);
         }
       }
-    }
-    else
+    } else {
       return NULL;
+    }
   }
 
   return NULL;
@@ -458,158 +396,157 @@ ScanDir::GetBlockXS (const char* filepath, unsigned long long maxfilesize)
 
 /*----------------------------------------------------------------------------*/
 std::string
-ScanDir::GetTimestamp ()
+ScanDir::GetTimestamp()
 {
-
   char buffer[65536];
-  size_t size = sizeof (buffer) - 1;
+  size_t size = sizeof(buffer) - 1;
   long long timestamp;
   struct timeval tv;
-
   gettimeofday(&tv, NULL);
   timestamp = tv.tv_sec * 1000000 + tv.tv_usec;
-
   snprintf(buffer, size, "%lli", timestamp);
   return std::string(buffer);
 }
 
 /*----------------------------------------------------------------------------*/
 std::string
-ScanDir::GetTimestampSmeared ()
+ScanDir::GetTimestampSmeared()
 {
-
   char buffer[65536];
-  size_t size = sizeof (buffer) - 1;
+  size_t size = sizeof(buffer) - 1;
   long long timestamp;
   struct timeval tv;
-
   gettimeofday(&tv, NULL);
   timestamp = tv.tv_sec * 1000000 + tv.tv_usec;
-
-  // smear +- 20% of testInterval around the value 
-  long int smearing = (long int) ((0.2 * 2 * testInterval * random() / RAND_MAX)) - ((long int) (0.2 * testInterval));
+  // smear +- 20% of testInterval around the value
+  long int smearing = (long int)((0.2 * 2 * testInterval * random() / RAND_MAX))
+                      - ((long int)(0.2 * testInterval));
   snprintf(buffer, size, "%lli", timestamp + smearing);
   return std::string(buffer);
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-ScanDir::RescanFile (std::string fileTimestamp)
+ScanDir::RescanFile(std::string fileTimestamp)
 {
-  if (!fileTimestamp.compare(""))
-    return true; //first time we check
+  if (!fileTimestamp.compare("")) {
+    return true;  //first time we check
+  }
 
   long long oldTime = atoll(fileTimestamp.c_str());
   long long newTime = atoll(GetTimestamp().c_str());
 
-  if (((newTime - oldTime) / 1000000) < testInterval)
-  {
+  if (((newTime - oldTime) / 1000000) < testInterval) {
     return false;
-  }
-  else
-  {
+  } else {
     return true;
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void*
-ScanDir::StaticThreadProc (void* arg)
+ScanDir::StaticThreadProc(void* arg)
 {
-  return reinterpret_cast<ScanDir*> (arg)->ThreadProc();
+  return reinterpret_cast<ScanDir*>(arg)->ThreadProc();
 }
 
 /*----------------------------------------------------------------------------*/
 void*
-ScanDir::ThreadProc (void)
+ScanDir::ThreadProc(void)
 {
-
-  if (bgThread)
-  {
+  if (bgThread) {
     // set low IO priority
     int retc = 0;
     pid_t tid = (pid_t) syscall(SYS_gettid);
 
-    if ((retc = ioprio_set(IOPRIO_WHO_PROCESS, tid, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 7))))
-    {
-      eos_err("cannot set io priority to lowest best effort = retc=%d errno=%d\n", retc, errno);
-    }
-    else
-    {
+    if ((retc = ioprio_set(IOPRIO_WHO_PROCESS, tid,
+                           IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 7)))) {
+      eos_err("cannot set io priority to lowest best effort = retc=%d errno=%d\n",
+              retc, errno);
+    } else {
       eos_notice("setting io priority to 7(lowest best-effort) for PID %u", tid);
     }
   }
 
-
-  if (bgThread)
+  if (bgThread) {
     XrdSysThread::SetCancelOn();
+  }
 
-
-  if (bgThread)
-  {
+  if (bgThread) {
     // get a random smearing and avoid that all start at the same time!
-    // start in the range of 0 to 4 hours 
+    // start in the range of 0 to 4 hours
     size_t sleeper = (4 * 3600.0 * random() / RAND_MAX);
-    for (size_t s = 0; s < (sleeper); s++)
-    {
-      if (bgThread)
+
+    for (size_t s = 0; s < (sleeper); s++) {
+      if (bgThread) {
         XrdSysThread::CancelPoint();
+      }
+
       XrdSysTimer sleeper;
       sleeper.Wait(1000);
     }
   }
 
-  do
-  {
+  do {
     struct timezone tz;
     struct timeval tv_start, tv_end;
-
     noScanFiles = 0;
     totalScanSize = 0;
     noCorruptFiles = 0;
     noNoChecksumFiles = 0;
     noTotalFiles = 0;
     SkippedFiles = 0;
-
     gettimeofday(&tv_start, &tz);
     ScanFiles();
     gettimeofday(&tv_end, &tz);
+    durationScan = ((tv_end.tv_sec - tv_start.tv_sec) * 1000.0) + ((
+                     tv_end.tv_usec - tv_start.tv_usec) / 1000.0);
 
-    durationScan = ((tv_end.tv_sec - tv_start.tv_sec) * 1000.0) + ((tv_end.tv_usec - tv_start.tv_usec) / 1000.0);
-    if (bgThread)
-    {
-      syslog(LOG_ERR, "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles, SkippedFiles);
-      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles, SkippedFiles);
-    }
-    else
-    {
-      fprintf(stderr, "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n", dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize, ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles, SkippedFiles);
+    if (bgThread) {
+      syslog(LOG_ERR,
+             "Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n",
+             dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
+             ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles,
+             SkippedFiles);
+      eos_notice("Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li",
+                 dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
+                 ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles,
+                 SkippedFiles);
+    } else {
+      fprintf(stderr,
+              "[ScanDir] Directory: %s, files=%li scanduration=%.02f [s] scansize=%lli [Bytes] [ %lli MB ] scannedfiles=%li  corruptedfiles=%li nochecksumfiles=%li skippedfiles=%li\n",
+              dirPath.c_str(), noTotalFiles, (durationScan / 1000.0), totalScanSize,
+              ((totalScanSize / 1000) / 1000), noScanFiles, noCorruptFiles, noNoChecksumFiles,
+              SkippedFiles);
     }
 
-    if (!bgThread)
+    if (!bgThread) {
       break;
-    else
-    {
+    } else {
       // run again after 4 hours
-      for (size_t s = 0; s < (4 * 3600); s++)
-      {
-        if (bgThread)
+      for (size_t s = 0; s < (4 * 3600); s++) {
+        if (bgThread) {
           XrdSysThread::CancelPoint();
+        }
+
         XrdSysTimer sleeper;
         sleeper.Wait(1000);
       }
     }
 
-    if (bgThread)
+    if (bgThread) {
       XrdSysThread::CancelPoint();
-  }
-  while (1);
+    }
+  } while (1);
+
   return NULL;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, float &scantime, const char* checksumVal, unsigned long layoutid, const char* lfn, bool &filecxerror, bool &blockcxerror)
+ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
+                           unsigned long long& scansize, float& scantime, const char* checksumVal,
+                           unsigned long layoutid, const char* lfn, bool& filecxerror, bool& blockcxerror)
 {
   double load;
   bool retVal, corruptBlockXS = false;
@@ -618,181 +555,172 @@ ScanDir::ScanFileLoadAware (const char* path, unsigned long long &scansize, floa
   struct timezone tz;
   struct timeval opentime;
   struct timeval currenttime;
-  eos::fst::CheckSum *normalXS, *blockXS;
-
+  eos::fst::CheckSum* normalXS, *blockXS;
   scansize = 0;
   scantime = 0;
-
-  filePath = path;
+  filePath = io->GetPath();
   fileXSPath = filePath + ".xsmap";
-
   normalXS = eos::fst::ChecksumPlugins::GetChecksumObject(layoutid);
-
   gettimeofday(&opentime, &tz);
-
-  int fd = open(path, O_RDONLY);
-  if (fd < 0)
-  {
-    delete normalXS;
-    return false;
-  }
-
   struct stat current_stat;
-  if (fstat(fd, &current_stat)) 
-  {
+
+  if (io->fileStat(&current_stat)) {
     delete normalXS;
     return false;
   }
 
   blockXS = GetBlockXS(fileXSPath.c_str(), current_stat.st_size);
 
-  if ((!normalXS) && (!blockXS))
-  {
+  if ((!normalXS) && (!blockXS)) {
     // there is nothing to do here
-    close(fd);
     return false;
   }
- 
-  if (normalXS) normalXS->Reset();
+
+  if (normalXS) {
+    normalXS->Reset();
+  }
 
   int nread = 0;
   off_t offset = 0;
 
-  do
-  {
+  do {
     errno = 0;
-    nread = read(fd, buffer, bufferSize);
-    if (nread < 0)
-    {
-      close(fd);
-      if (blockXS)
-      {
+    nread = io->fileRead(offset, buffer, bufferSize);
+
+    if (nread < 0) {
+      if (blockXS) {
         blockXS->CloseMap();
         delete blockXS;
       }
-      if (normalXS) delete normalXS;
+
+      if (normalXS) {
+        delete normalXS;
+      }
+
       return false;
     }
 
-    if (nread)
-    {
+    if (nread) {
       if (!corruptBlockXS && blockXS)
-        if (!blockXS->CheckBlockSum(offset, buffer, nread))
+        if (!blockXS->CheckBlockSum(offset, buffer, nread)) {
           corruptBlockXS = true;
+        }
 
       //      fprintf(stderr,"adding %ld %llu\n", nread,offset);
-      if (normalXS) normalXS->Add(buffer, nread, offset);
+      if (normalXS) {
+        normalXS->Add(buffer, nread, offset);
+      }
 
       offset += nread;
-      if (currentRate)
-      {
+
+      if (currentRate) {
         // regulate the verification rate
         gettimeofday(&currenttime, &tz);
-        scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+        scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
+                      currenttime.tv_usec - opentime.tv_usec) / 1000.0));
         float expecttime = (1.0 * offset / currentRate) / 1000.0;
-        if (expecttime > scantime)
-        {
+
+        if (expecttime > scantime) {
           XrdSysTimer sleeper;
           sleeper.Wait(expecttime - scantime);
         }
+
         //adjust the rate according to the load information
         load = fstLoad->GetDiskRate("sda", "millisIO") / 1000.0;
-        if (load > 0.7)
-        {
+
+        if (load > 0.7) {
           //adjust currentRate
-          if (currentRate > 5)
+          if (currentRate > 5) {
             currentRate = 0.9 * currentRate;
-        }
-        else
-        {
+          }
+        } else {
           currentRate = rateBandwidth;
         }
       }
     }
-  }
-  while (nread == bufferSize);
+  } while (nread == bufferSize);
 
   gettimeofday(&currenttime, &tz);
-  scantime = (((currenttime.tv_sec - opentime.tv_sec)*1000.0) + ((currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
+                currenttime.tv_usec - opentime.tv_usec) / 1000.0));
   scansize = (unsigned long long) offset;
 
-  if (normalXS) normalXS->Finalize();
+  if (normalXS) {
+    normalXS->Finalize();
+  }
 
   //check file checksum only for replica layouts
-  if ((normalXS) && (!normalXS->Compare(checksumVal)))
-  {
-    if (bgThread)
-    {
-      eos_err("Computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
-    }
-    else
-    {
-      fprintf(stderr, "error: computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(), scansize);
-      if (setChecksum)
-      {
-        eos::common::Attr *attr = eos::common::Attr::OpenAttr(filePath.c_str());
-        if (attr)
-        {
-          int checksumlen = 0;
-          normalXS->GetBinChecksum(checksumlen);
-          if ((!attr->Set("user.eos.checksum", normalXS->GetBinChecksum(checksumlen), checksumlen)) ||
-              (!attr->Set("user.eos.filecxerror", "0")))
-          {
-            fprintf(stderr, "error: failed to reset existing checksum \n");
-          }
-          else
-          {
-            fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(), normalXS->GetHexChecksum());
-          }
-          delete attr;
+  if ((normalXS) && (!normalXS->Compare(checksumVal))) {
+    if (bgThread) {
+      eos_err("Computed checksum is %s scansize %llu\n", normalXS->GetHexChecksum(),
+              scansize);
+    } else {
+      fprintf(stderr, "error: computed checksum is %s scansize %llu\n",
+              normalXS->GetHexChecksum(), scansize);
+
+      if (setChecksum) {
+        int checksumlen = 0;
+        normalXS->GetBinChecksum(checksumlen);
+
+        if (io->attrSet("user.eos.checksum", normalXS->GetBinChecksum(checksumlen),
+                        checksumlen) ||
+            io->attrSet("user.eos.filecxerror", "0")) {
+          fprintf(stderr, "error: failed to reset existing checksum \n");
+        } else {
+          fprintf(stdout, "success: reset checksum of %s to %s\n", filePath.c_str(),
+                  normalXS->GetHexChecksum());
         }
       }
     }
+
     noCorruptFiles++;
     retVal = false;
     filecxerror = true;
-  }
-  else
-  {
+  } else {
     retVal = true;
   }
 
   //check block checksum
-  if (corruptBlockXS)
-  {
+  if (corruptBlockXS) {
     blockcxerror = true;
-    if (bgThread)
-    {
-      syslog(LOG_ERR, "corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n", path, fileXSPath.c_str(), lfn);
-      eos_crit("corrupted block checksum: localpath=%s blockxspath=%s lfn=%s", path, fileXSPath.c_str(), lfn);
-    }
-    else
-    {
-      fprintf(stderr, "[ScanDir] corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n", path, fileXSPath.c_str(), lfn);
+
+    if (bgThread) {
+      syslog(LOG_ERR,
+             "corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n",
+             io->GetPath().c_str(), fileXSPath.c_str(), lfn);
+      eos_crit("corrupted block checksum: localpath=%s blockxspath=%s lfn=%s",
+               io->GetPath().c_str(), fileXSPath.c_str(), lfn);
+    } else {
+      fprintf(stderr,
+              "[ScanDir] corrupted block checksum: localpath=%s blockxspath=%s lfn=%s\n",
+              io->GetPath().c_str(), fileXSPath.c_str(), lfn);
     }
 
     retVal &= false;
-  }
-  else
-  {
+  } else {
     retVal &= true;
   }
 
   //collect statistics
   noScanFiles++;
 
-  if (normalXS) normalXS->Finalize();
-  if (blockXS)
-  {
+  if (normalXS) {
+    normalXS->Finalize();
+  }
+
+  if (blockXS) {
     blockXS->CloseMap();
     delete blockXS;
   }
 
-  if (normalXS) delete normalXS;
-  close(fd);
+  if (normalXS) {
+    delete normalXS;
+  }
 
-  if (bgThread)
+  if (bgThread) {
     XrdSysThread::CancelPoint();
+  }
+
   return retVal;
 }
 

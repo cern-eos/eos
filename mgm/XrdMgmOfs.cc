@@ -42,9 +42,11 @@
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Acl.hh"
+#include "mgm/Workflow.hh"
 #include "mgm/txengine/TransferEngine.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Macros.hh"
+#include "mgm/GeoTreeEngine.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdVersion.hh"
 #include "XrdOss/XrdOss.hh"
@@ -78,9 +80,9 @@
 
 
 /*----------------------------------------------------------------------------*/
-XrdSysError gMgmOfsEroute (0);
-XrdSysError *XrdMgmOfs::eDest;
-XrdOucTrace gMgmOfsTrace (&gMgmOfsEroute);
+XrdSysError gMgmOfsEroute(0);
+XrdSysError* XrdMgmOfs::eDest;
+XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 const char* XrdMgmOfs::gNameSpaceState[] = {"down", "booting", "booted", "failed", "compacting"};
 XrdMgmOfs* gOFS = 0;
 
@@ -97,39 +99,42 @@ XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
 //! @returns configures and returns our MgmOfs object
 //------------------------------------------------------------------------------
 extern "C"
-XrdSfsFileSystem *
-XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
-                     XrdSysLogger *lp,
-                     const char *configfn)
+XrdSfsFileSystem*
+XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
+                    XrdSysLogger* lp,
+                    const char* configfn)
 {
   gMgmOfsEroute.SetPrefix("MgmOfs_");
   gMgmOfsEroute.logger(lp);
-
   static XrdMgmOfs myFS(&gMgmOfsEroute);
-
   XrdOucString vs = "MgmOfs (meta data redirector) ";
   vs += VERSION;
   gMgmOfsEroute.Say("++++++ (c) 2015 CERN/IT-DSS ", vs.c_str());
 
   // Initialize the subsystems
-  if (!myFS.Init(gMgmOfsEroute)) return 0;
+  if (!myFS.Init(gMgmOfsEroute)) {
+    return 0;
+  }
 
   // Disable XRootd log rotation
   lp->setRotate(0);
   gOFS = &myFS;
-
   // By default enable stalling and redirection
   gOFS->IsStall = true;
   gOFS->IsRedirect = true;
-
   myFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-  if (myFS.Configure(gMgmOfsEroute)) return 0;
 
+  if (myFS.Configure(gMgmOfsEroute)) {
+    return 0;
+  }
 
   // Initialize authorization module ServerAcc
-  gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn, 0);
-  if (!gOFS->CapabilityEngine)
+  gOFS->CapabilityEngine = (XrdCapability*) XrdAccAuthorizeObject(lp, configfn,
+                           0);
+
+  if (!gOFS->CapabilityEngine) {
     return 0;
+  }
 
   return gOFS;
 }
@@ -142,24 +147,34 @@ XrdSfsGetFileSystem (XrdSfsFileSystem *native_fs,
 //------------------------------------------------------------------------------
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
-XrdMgmOfs::XrdMgmOfs (XrdSysError *ep):
-    mCapabilityValidity(3600),
-    deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0),
-    mFstGwHost(""),
-    mFstGwPort(0),
-    mSubmitterTid(0)
+XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
+  mCapabilityValidity(3600),
+  deletion_tid(0), stats_tid(0), fsconfiglistener_tid(0),
+  mFstGwHost(""),
+  mFstGwPort(0),
+  mSubmitterTid(0)
 {
   eDest = ep;
   ConfigFN = 0;
   eos::common::LogId();
   eos::common::LogId::SetSingleShotLogId();
+  mZmqContext = new zmq::context_t(1);
 }
 
 //------------------------------------------------------------------------------
-// Init function
+// Destructor
+//------------------------------------------------------------------------------
+XrdMgmOfs::~XrdMgmOfs()
+{
+  StopArchiveSubmitter();
+}
+
+//------------------------------------------------------------------------------
+// This is just kept to be compatible with standard OFS plugins, but it is not
+// used for the moment.
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::Init (XrdSysError &ep)
+XrdMgmOfs::Init(XrdSysError& ep)
 {
   return true;
 }
@@ -167,19 +182,19 @@ XrdMgmOfs::Init (XrdSysError &ep)
 //------------------------------------------------------------------------------
 // Return a MGM directory object
 //------------------------------------------------------------------------------
-XrdSfsDirectory *
-XrdMgmOfs::newDir (char *user, int MonID)
+XrdSfsDirectory*
+XrdMgmOfs::newDir(char* user, int MonID)
 {
-  return (XrdSfsDirectory *)new XrdMgmOfsDirectory(user, MonID);
+  return (XrdSfsDirectory*)new XrdMgmOfsDirectory(user, MonID);
 }
 
 //------------------------------------------------------------------------------
 // Return MGM file object
 //------------------------------------------------------------------------------
-XrdSfsFile *
-XrdMgmOfs::newFile (char *user, int MonID)
+XrdSfsFile*
+XrdMgmOfs::newFile(char* user, int MonID)
 {
-  return (XrdSfsFile *)new XrdMgmOfsFile(user, MonID);
+  return (XrdSfsFile*)new XrdMgmOfsFile(user, MonID);
 }
 
 
@@ -220,26 +235,27 @@ XrdMgmOfs::newFile (char *user, int MonID)
 // Test for stall rule
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::HasStall (const char* path,
-                     const char* rule,
-                     int &stalltime,
-                     XrdOucString &stallmsg)
+XrdMgmOfs::HasStall(const char* path,
+                    const char* rule,
+                    int& stalltime,
+                    XrdOucString& stallmsg)
 {
-  if (!rule)
+  if (!rule) {
     return false;
+  }
+
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
-  if (Access::gStallRules.count(std::string(rule)))
-  {
+
+  if (Access::gStallRules.count(std::string(rule))) {
     stalltime = atoi(Access::gStallRules[std::string(rule)].c_str());
-    stallmsg = "Attention: you are currently hold in this instance and each request is stalled for ";
+    stallmsg =
+      "Attention: you are currently hold in this instance and each request is stalled for ";
     stallmsg += (int) stalltime;
     stallmsg += " seconds after an errno of type: ";
     stallmsg += rule;
     eos_static_info("info=\"stalling\" path=\"%s\" errno=\"%s\"", path, rule);
     return true;
-  }
-  else
-  {
+  } else {
     return false;
   }
 }
@@ -248,55 +264,58 @@ XrdMgmOfs::HasStall (const char* path,
 // Test for redirection rule
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::HasRedirect (const char* path,
-                        const char* rule,
-                        XrdOucString &host,
-                        int &port)
+XrdMgmOfs::HasRedirect(const char* path,
+                       const char* rule,
+                       XrdOucString& host,
+                       int& port)
 {
-  if (!rule)
+  if (!rule) {
     return false;
+  }
 
   std::string srule = rule;
   eos::common::RWMutexReadLock lock(Access::gAccessMutex);
-  if (Access::gRedirectionRules.count(srule))
-  {
+
+  if (Access::gRedirectionRules.count(srule)) {
     std::string delimiter = ":";
     std::vector<std::string> tokens;
     eos::common::StringConversion::Tokenize(Access::gRedirectionRules[srule],
                                             tokens, delimiter);
-    if (tokens.size() == 1)
-    {
+
+    if (tokens.size() == 1) {
       host = tokens[0].c_str();
       port = 1094;
-    }
-    else
-    {
+    } else {
       host = tokens[0].c_str();
       port = atoi(tokens[1].c_str());
-      if (port == 0)
+
+      if (port == 0) {
         port = 1094;
+      }
     }
 
     eos_static_info("info=\"redirect\" path=\"%s\" host=%s port=%d errno=%s",
                     path, host.c_str(), port, rule);
 
-    if (srule == "ENONET")
+    if (srule == "ENONET") {
       gOFS->MgmStats.Add("RedirectENONET", 0, 0, 1);
+    }
 
-    if (srule == "ENOENT")
+    if (srule == "ENOENT") {
       gOFS->MgmStats.Add("redirectENOENT", 0, 0, 1);
+    }
 
     return true;
-  }
-  else
+  } else {
     return false;
+  }
 }
 
 //------------------------------------------------------------------------------
 // Return the version of the MGM software
 //------------------------------------------------------------------------------
-const char *
-XrdMgmOfs::getVersion ()
+const char*
+XrdMgmOfs::getVersion()
 {
   static XrdOucString FullVersion = XrdVERSION;
   FullVersion += " MgmOfs ";
@@ -309,34 +328,126 @@ XrdMgmOfs::getVersion ()
 // Prepare a file (EOS does nothing, only stall/redirect if configured)
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::prepare (XrdSfsPrep &pargs,
-                    XrdOucErrInfo &error,
-                    const XrdSecEntity * client)
+XrdMgmOfs::prepare(XrdSfsPrep& pargs,
+                   XrdOucErrInfo& error,
+                   const XrdSecEntity* client)
+/*----------------------------------------------------------------------------*/
+/*
+ * Prepare a file (EOS will call a prepare workflow if defined)
+ *
+ * @return SFS_OK,SFS_ERR
+ */
+/*----------------------------------------------------------------------------*/
 {
-  const char *tident = error.getErrUser();
+  static const char* epname = "prepare";
+  const char* tident = error.getErrUser();
   eos::common::Mapping::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, 0, tident, vid);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-  ACCESSMODE_R;
+  ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-  return SFS_OK;
+  std::string cmd = "mgm.pcmd=event";
+
+  if (!(pargs.opts & Prep_STAGE)) {
+    return Emsg(epname, error, EOPNOTSUPP, "prepare");
+  }
+
+  XrdOucTList* pptr = pargs.paths;
+  XrdOucTList* optr = pargs.oinfo;
+  int retc = SFS_OK;
+
+  // check that all files exist
+  while (pptr) {
+    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    eos_info("path=\"%s\"", prep_path.c_str());
+    XrdSfsFileExistence check;
+
+    if (_exists(prep_path.c_str(),
+                check,
+                error,
+                client,
+                "") || (check != XrdSfsFileExistIsFile)) {
+      if (check != XrdSfsFileExistIsFile) {
+        Emsg(epname, error, ENOENT,
+             "prepare - file does not exist or is not accessible to you",
+             prep_path.c_str());
+      }
+
+      return SFS_ERROR;
+    }
+
+    if (pptr) {
+      pptr = pptr->next;
+    }
+
+    if (optr) {
+      optr = optr->next;
+    }
+  }
+
+  pptr = pargs.paths;
+  optr = pargs.oinfo;
+
+  while (pptr) {
+    XrdOucString prep_path = pptr ? (pptr->text ? pptr->text : "") : "";
+    eos_info("path=\"%s\"", prep_path.c_str());
+    XrdOucString prep_info = optr ? (optr->text ? optr->text : "") : "";
+    XrdOucEnv prep_env(prep_info.c_str());
+    prep_info = cmd.c_str();
+    prep_info += "&";
+    prep_info += "&mgm.event=prepare";
+    prep_info += "&mgm.workflow=";
+
+    if (prep_env.Get("eos.workflow")) {
+      prep_info += prep_env.Get("eos.workflow");
+    } else {
+      prep_info += "default";
+    }
+
+    prep_info += "&mgm.fid=0&mgm.path=";
+    prep_info += prep_path.c_str();
+    prep_info += "&mgm.logid=";
+    prep_info += this->logId;
+    XrdSfsFSctl args;
+    args.Arg1 = prep_path.c_str();
+    args.Arg1Len = prep_path.length();
+    args.Arg2 = prep_info.c_str();
+    args.Arg2Len = prep_info.length();
+
+    if (XrdMgmOfs::FSctl(SFS_FSCTL_PLUGIN,
+                         args,
+                         error,
+                         client) != SFS_DATA) {
+      retc = SFS_ERROR;
+    }
+
+    if (pptr) {
+      pptr = pptr->next;
+    }
+
+    if (optr) {
+      optr = optr->next;
+    }
+  }
+
+  return retc;
 }
 
 //------------------------------------------------------------------------------
 //! Truncate a file (not supported in EOS, only via the file interface)
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::truncate (const char*,
-                     XrdSfsFileOffset,
-                     XrdOucErrInfo& error,
-                     const XrdSecEntity* client,
-                     const char* path)
+XrdMgmOfs::truncate(const char*,
+                    XrdSfsFileOffset,
+                    XrdOucErrInfo& error,
+                    const XrdSecEntity* client,
+                    const char* path)
 {
-  static const char *epname = "truncate";
-  const char *tident = error.getErrUser();
+  static const char* epname = "truncate";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
   EXEC_TIMING_BEGIN("IdMap");
@@ -354,38 +465,34 @@ XrdMgmOfs::truncate (const char*,
 // Return error message
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::Emsg (const char *pfx,
-                 XrdOucErrInfo &einfo,
-                 int ecode,
-                 const char *op,
-                 const char *target)
+XrdMgmOfs::Emsg(const char* pfx,
+                XrdOucErrInfo& einfo,
+                int ecode,
+                const char* op,
+                const char* target)
 {
-  char *etext, buffer[4096], unkbuff[64];
+  char* etext, buffer[4096], unkbuff[64];
 
   // Get the reason for the error
-  if (ecode < 0) ecode = -ecode;
-  if (!(etext = strerror(ecode)))
-  {
+  if (ecode < 0) {
+    ecode = -ecode;
+  }
+
+  if (!(etext = strerror(ecode))) {
     sprintf(unkbuff, "reason unknown (%d)", ecode);
     etext = unkbuff;
   }
 
   // Format the error message
-  snprintf(buffer, sizeof (buffer), "Unable to %s %s; %s", op, target, etext);
+  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
 
-  if ((ecode == EIDRM) || (ecode == ENODATA))
-  {
+  if ((ecode == EIDRM) || (ecode == ENODATA)) {
     eos_debug("Unable to %s %s; %s", op, target, etext);
-  }
-  else
-  {
-    if ((!strcmp(op, "stat")) ||
-        ((!strcmp(pfx,"attr_get") || (!strcmp(pfx,"attr_ls"))) && (ecode == ENOENT)))
-    {
+  } else {
+    if ((!strcmp(op, "stat")) || ((!strcmp(pfx, "attr_get") ||
+                                   (!strcmp(pfx, "attr_ls"))) && (ecode == ENOENT))) {
       eos_debug("Unable to %s %s; %s", op, target, etext);
-    }
-    else
-    {
+    } else {
       eos_err("Unable to %s %s; %s", op, target, etext);
     }
   }
@@ -394,7 +501,6 @@ XrdMgmOfs::Emsg (const char *pfx,
 #ifndef NODEBUG
   //   XrdMgmOfs::eDest->Emsg(pfx, buffer);
 #endif
-
   // Place the error message in the error object and return
   einfo.setErrInfo(ecode, buffer);
   return SFS_ERROR;
@@ -404,9 +510,9 @@ XrdMgmOfs::Emsg (const char *pfx,
 // Create stall response
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::Stall (XrdOucErrInfo &error,
-                  int stime,
-                  const char *msg)
+XrdMgmOfs::Stall(XrdOucErrInfo& error,
+                 int stime,
+                 const char* msg)
 
 {
   XrdOucString smessage = msg;
@@ -414,40 +520,35 @@ XrdMgmOfs::Stall (XrdOucErrInfo &error,
   smessage += stime;
   smessage += " seconds!";
   EPNAME("Stall");
-  const char *tident = error.getErrUser();
+  const char* tident = error.getErrUser();
   ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
-
   // Place the error message in the error object and return
   error.setErrInfo(0, smessage.c_str());
   return stime;
 }
 
-
 //------------------------------------------------------------------------------
 // Create redirect response
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::Redirect (XrdOucErrInfo &error,
-                     const char* host,
-                     int &port)
+XrdMgmOfs::Redirect(XrdOucErrInfo& error,
+                    const char* host,
+                    int& port)
 {
   EPNAME("Redirect");
-  const char *tident = error.getErrUser();
+  const char* tident = error.getErrUser();
   ZTRACE(delay, "Redirect " << host << ":" << port);
-
   // Place the error message in the error object and return
   error.setErrInfo(port, host);
   return SFS_REDIRECT;
 }
 
-
 //------------------------------------------------------------------------------
 // Statistics circular buffer thread startup function
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::StartMgmStats (void *pp)
+XrdMgmOfs::StartMgmStats(void* pp)
 {
-
   XrdMgmOfs* ofs = (XrdMgmOfs*) pp;
   ofs->MgmStats.Circulate();
   return 0;
@@ -457,9 +558,8 @@ XrdMgmOfs::StartMgmStats (void *pp)
 // Filesystem error/config listener thread startup function
 //------------------------------------------------------------------------------
 void*
-XrdMgmOfs::StartMgmFsConfigListener (void *pp)
+XrdMgmOfs::StartMgmFsConfigListener(void* pp)
 {
-
   XrdMgmOfs* ofs = (XrdMgmOfs*) pp;
   ofs->FsConfigListener();
   return 0;
@@ -505,46 +605,37 @@ XrdMgmOfs::ArchiveSubmitter()
            << "\"uid\": \"0\", "
            << "\"gid\": \"0\" }";
 
-  while (1)
-  {
+  while (1) {
     XrdSysThread::SetCancelOff();
     {
       XrdSysMutexHelper lock(mJobsQMutex);
 
-      if (!mPendingBkps.empty())
-      {
+      if (!mPendingBkps.empty()) {
         // Check if archiver has slots available
-        if (!pcmd.ArchiveExecuteCmd(cmd_json.str()))
-        {
+        if (!pcmd.ArchiveExecuteCmd(cmd_json.str())) {
           std_out.resize(0);
           std_err.resize(0);
           pcmd.AddOutput(std_out, std_err);
 
           if ((sscanf(std_out.c_str(), "max=%i running=%i pending=%i",
-                      &max, &running, &pending) == 3))
-          {
-            while ((running + pending < max) && !mPendingBkps.empty())
-            {
+                      &max, &running, &pending) == 3)) {
+            while ((running + pending < max) && !mPendingBkps.empty()) {
               running++;
               job_opaque = mPendingBkps.back();
               mPendingBkps.pop_back();
               job_opaque += "&mgm.backup.create=1";
 
-              if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0))
-              {
+              if (pcmd.open("/proc/admin", job_opaque.c_str(), root_vid, 0)) {
                 pcmd.AddOutput(std_out, std_err);
                 eos_err("failed backup, msg=\"%s\"", std_err.c_str());
               }
             }
           }
-        }
-        else
-        {
+        } else {
           eos_err("failed to send stats command to archive daemon");
         }
       }
     }
-
     XrdSysThread::SetCancelOn();
     timer.Wait(5000);
   }
@@ -561,8 +652,7 @@ XrdMgmOfs::SubmitBackupJob(const std::string& job_opaque)
   XrdSysMutexHelper lock(mJobsQMutex);
   auto it = std::find(mPendingBkps.begin(), mPendingBkps.end(), job_opaque);
 
-  if (it == mPendingBkps.end())
-  {
+  if (it == mPendingBkps.end()) {
     mPendingBkps.push_front(job_opaque);
     return true;
   }
@@ -579,8 +669,7 @@ XrdMgmOfs::GetPendingBkps()
   std::vector<ProcCommand::ArchDirStatus> bkps;
   XrdSysMutexHelper lock(mJobsQMutex);
 
-  for (auto it = mPendingBkps.begin(); it != mPendingBkps.end(); ++it)
-  {
+  for (auto it = mPendingBkps.begin(); it != mPendingBkps.end(); ++it) {
     XrdOucEnv opaque(it->c_str());
     bkps.emplace_back("N/A", "N/A", opaque.Get("mgm.backup.dst"), "backup",
                       "pending at MGM");

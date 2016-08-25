@@ -57,6 +57,7 @@ BuildRequires: zlib, zlib-devel
 BuildRequires: fuse-devel, fuse >= 2.5
 BuildRequires: redhat-rpm-config
 BuildRequires: protobuf, protobuf-devel, protobuf-compiler
+BuildRequires: kineticio >= 1.1.0
 BuildRequires: leveldb-devel
 BuildRequires: libattr-devel, xfsprogs-devel
 
@@ -129,11 +130,12 @@ Group: Applications/File
 Requires: xrootd >= %{xrootd_version}
 Requires: xrootd-client >= %{xrootd_version}
 Requires: eos-client
-Requires: libmicrohttpd
+Requires: libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
 Requires: protobuf
 Requires: jemalloc
+Requires: kineticio >= 1.1.0
 Requires: jsoncpp
 
 %if 0%{distribution} == 5
@@ -179,6 +181,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libeosCommonServer.so.%{major_version}
 %{_libdir}/libeosCommonServer.so
 %{_libdir}/libEosFstOss.so
+%{_libdir}/libEosFstIo.so
 %{_libdir}/libXrdEosFst.so
 %{_libdir}/libEosPluginManager.so.%{version}
 %{_libdir}/libEosPluginManager.so.%{major_version}
@@ -208,9 +211,11 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sysconfdir}/cron.d/eos-reports
 %{_sysconfdir}/logrotate.d/eos-logs
 %dir %attr(700,daemon,daemon) /var/eos
+%dir %attr(700,daemon,daemon) /var/eos/wfe
+%dir %attr(700,daemon,daemon) /var/eos/wfe/bash/
 %dir %attr(755,daemon,daemon) /var/log/eos
-%dir %attr(755,daemon,daemon) /var/log/eos/fuse
 %attr(555,daemon,daemon) /var/eos/html/error.html
+%attr(555,daemon,daemon) /var/eos/wfe/bash/shell
 
 %post -n eos-server
 /sbin/chkconfig --add eos

@@ -39,12 +39,12 @@ FuseWriteCache* FuseWriteCache::pInstance = NULL;
 FuseWriteCache*
 FuseWriteCache::GetInstance(size_t sizeMax)
 {
-  if (!pInstance)
-  {
+  if (!pInstance) {
     pInstance = new FuseWriteCache(sizeMax);
 
-    if (!pInstance->Init())
+    if (!pInstance->Init()) {
       return NULL;
+    }
   }
 
   return pInstance;
@@ -72,8 +72,7 @@ FuseWriteCache::Init()
 {
   // Start worker thread
   if ((XrdSysThread::Run(&mWriteThread, FuseWriteCache::StartWriterThread,
-                         static_cast<void*>(this))))
-  {
+                         static_cast<void*>(this)))) {
     eos_crit("can not start async writer thread");
     return false;
   }
@@ -115,13 +114,14 @@ FuseWriteCache::RunThreadWrites()
 {
   CacheEntry* pEntry = 0;
 
-  while (1)
-  {
+  while (1) {
     mWrReqQueue->wait_pop(pEntry);
-    if (pEntry == 0)
+
+    if (pEntry == 0) {
       break;
-    else
+    } else {
       ProcessWriteReq(pEntry);
+    }
   }
 }
 
@@ -142,8 +142,7 @@ FuseWriteCache::SubmitWrite(FileAbstraction*& fabst,
   eos_static_debug("initial request off=%zu, len=%zu", off, len);
 
   // While write bigger than cache entry size, break in smaller blocks
-  while (((off % CacheEntry::GetMaxSize()) + len) > CacheEntry::GetMaxSize())
-  {
+  while (((off % CacheEntry::GetMaxSize()) + len) > CacheEntry::GetMaxSize()) {
     nwrite = CacheEntry::GetMaxSize() - (off % CacheEntry::GetMaxSize());
     key = fabst->GenerateBlockKey(off);
     AddWrite(fabst, key, pBuf + written_off, off, nwrite);
@@ -152,11 +151,13 @@ FuseWriteCache::SubmitWrite(FileAbstraction*& fabst,
     written_off += nwrite;
   }
 
-  if (len)
-  {
+  if (len) {
     key = fabst->GenerateBlockKey(off);
     AddWrite(fabst, key, pBuf + written_off, off, len);
   }
+
+  // track the current size
+  fabst->TestMaxWriteOffset(off + len);
 }
 
 
@@ -175,8 +176,7 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
   key_entry_t::iterator it = mKeyEntryMap.find(k);
   eos_static_debug("off=%zu, len=%zu key=%lli", off, len, k);
 
-  if (it != mKeyEntryMap.end())
-  {
+  if (it != mKeyEntryMap.end()) {
     // Update existing CacheEntry
     size_t size_added;
     pEntry = it->second;
@@ -186,16 +186,12 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                      k, off, len, size_added, fabst->GetSizeWrites(),
                      pEntry->GetSizeData());
 
-    if (pEntry->IsFull())
-    {
+    if (pEntry->IsFull()) {
       eos_static_debug("cache entry full add to writes queue");
       mKeyEntryMap.erase(k);//mKeyEntryMap.find(k));
       mWrReqQueue->push(pEntry);
     }
-
-  }
-  else
-  {
+  } else {
     // Get CacheEntry obj - new or recycled
     pEntry = GetRecycledBlock(fabst, buf, off, len);
     fabst->IncrementWrites(len);
@@ -205,12 +201,11 @@ FuseWriteCache::AddWrite(FileAbstraction*& fabst,
                      pEntry->GetSizeData());
 
     // Deal with new entry
-    if (!pEntry->IsFull())
-    {
+    if (!pEntry->IsFull()) {
       mKeyEntryMap.insert(std::make_pair(k, pEntry));
-    }
-    else
+    } else {
       mWrReqQueue->push(pEntry);
+    }
   }
 }
 
@@ -226,28 +221,22 @@ FuseWriteCache::GetRecycledBlock(FileAbstraction* fabst,
 {
   CacheEntry* entry = 0;
 
-  if (mRecycleQueue->try_pop(entry))
-  {
+  if (mRecycleQueue->try_pop(entry)) {
     // Get obj from pool
     eos_debug("recycle cache entry");
     entry->DoRecycle(fabst, buf, off, len);
-  }
-  else
-  {
+  } else {
     mMutexSize.Lock();
     eos_debug("cache_alloc_size=%ji", mAllocSize);
 
-    if (mAllocSize >= mCacheSizeMax)
-    {
+    if (mAllocSize >= mCacheSizeMax) {
       mMutexSize.UnLock();
       // Froce a write to get a CacheEntry object
       ForceWrite();
       eos_debug("wait for recycled cache entry");
       mRecycleQueue->wait_pop(entry);
       entry->DoRecycle(fabst, buf, off, len);
-    }
-    else
-    {
+    } else {
       // No obj in pool, allocate new one
       eos_debug("allocate new cache entry");
       mAllocSize += CacheEntry::GetMaxSize();
@@ -271,9 +260,9 @@ FuseWriteCache::ProcessWriteReq(CacheEntry* pEntry)
                    pEntry->GetParentFile()->GetSizeWrites(),
                    pEntry->GetSizeData(), pEntry->GetOffsetStart());
   int retc = pEntry->DoWrite();
+
   // Put error code in error queue
-  if (retc == -1)
-  {
+  if (retc == -1) {
     error = std::make_pair(retc, pEntry->GetOffsetStart());
     pEntry->GetParentFile()->errorsQueue->push(error);
   }
@@ -295,8 +284,7 @@ FuseWriteCache::ForceWrite()
   auto iEnd = mKeyEntryMap.end();
   CacheEntry* pEntry = iStart->second;
 
-  if (iStart != iEnd)
-  {
+  if (iStart != iEnd) {
     eos_static_debug("force single write");
     mWrReqQueue->push(pEntry);
     mKeyEntryMap.erase(iStart);
@@ -312,15 +300,13 @@ void
 FuseWriteCache::ForceAllWrites(FileAbstraction* fabst, bool wait)
 {
   eos_debug("fabst_ptr=%p force all writes", fabst);
-
   {
     XrdSysMutexHelper lock(mMapLock);
     auto iStart = mKeyEntryMap.lower_bound(fabst->GetFirstPossibleKey());
     auto iEnd = mKeyEntryMap.lower_bound(fabst->GetLastPossibleKey());
     CacheEntry* pEntry = NULL;
 
-    while (iStart != iEnd)
-    {
+    while (iStart != iEnd) {
       pEntry = iStart->second;
       mWrReqQueue->push(pEntry);
       mKeyEntryMap.erase(iStart++);
@@ -329,8 +315,7 @@ FuseWriteCache::ForceAllWrites(FileAbstraction* fabst, bool wait)
     eos_debug("map entries size=%ji", mKeyEntryMap.size());
   }
 
-  if (wait)
-  {
+  if (wait) {
     fabst->WaitFinishWrites();
   }
 }

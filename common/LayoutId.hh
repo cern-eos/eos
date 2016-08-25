@@ -35,6 +35,7 @@
 #include "StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include <fcntl.h>
+
 /*----------------------------------------------------------------------------*/
 
 
@@ -56,8 +57,7 @@ public:
   //! Definition of layout errors
   //--------------------------------------------------------------------------
 
-  enum eLayoutError
-  {
+  enum eLayoutError {
     // this is used on FSTs in the Fmd Synchronization
     kOrphan = 0x1, ///< layout produces an orphan
     kUnregistered = 0x2, ///< layout has an unregistered stripe
@@ -70,8 +70,7 @@ public:
   //! Definition of checksum types
   //--------------------------------------------------------------------------
 
-  enum eChecksum
-  {
+  enum eChecksum {
     kNone = 0x1,
     kAdler = 0x2,
     kCRC32 = 0x3,
@@ -86,8 +85,7 @@ public:
   //! Definition of file layout types
   //--------------------------------------------------------------------------
 
-  enum eLayoutType
-  {
+  enum eLayoutType {
     kPlain = 0x0,
     kReplica = 0x1,
     kArchive = 0x2,
@@ -100,19 +98,55 @@ public:
   //! Definition of IO types
   //--------------------------------------------------------------------------
 
-  enum eIoType
-  {
+  enum eIoType {
     kLocal = 0x0,
-    kXrdCl = 0x1
+    kXrdCl = 0x1,
+    kRados = 0x2,
+    kKinetic = 0x3,
+    kDavix = 0x4
   };
 
+  static eIoType
+  GetIoType(const char* path)
+  {
+    XrdOucString spath = path;
+
+    if (spath.beginswith("root:")) {
+      return kXrdCl;
+    }
+
+    if (spath.beginswith("kinetic:")) {
+      return kKinetic;
+    }
+
+    if (spath.beginswith("rados:")) {
+      return kRados;
+    }
+
+    if (spath.beginswith("http:")) {
+      return kDavix;
+    }
+
+    if (spath.beginswith("https:")) {
+      return kDavix;
+    }
+
+    if (spath.beginswith("s3:")) {
+      return kDavix;
+    }
+
+    if (spath.beginswith("s3s:")) {
+      return kDavix;
+    }
+
+    return kLocal;
+  }
 
   //--------------------------------------------------------------------------
   //! Definition of predefined block sizes
   //--------------------------------------------------------------------------
 
-  enum eBlockSize
-  {
+  enum eBlockSize {
     k4k = 0x0,
     k64k = 0x1,
     k128k = 0x2,
@@ -127,8 +161,7 @@ public:
   //! Definition of stripe number
   //--------------------------------------------------------------------------
 
-  enum eStripeNumber
-  {
+  enum eStripeNumber {
     kOneStripe = 0x0,
     kTwoStripe = 0x1,
     kThreeStripe = 0x2,
@@ -153,13 +186,13 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetId (int layout,
-         int checksum = 1,
-         int stripesize = 1,
-         int stripewidth = 0,
-         int blockchecksum = 1,
-         int excessreplicas = 0,
-         int redundancystripes = 0)
+  GetId(int layout,
+        int checksum = 1,
+        int stripesize = 1,
+        int stripewidth = 0,
+        int blockchecksum = 1,
+        int excessreplicas = 0,
+        int redundancystripes = 0)
   {
     unsigned long id = (checksum |
                         ((layout & 0xf) << 4) |
@@ -167,20 +200,20 @@ public:
                         ((stripewidth & 0xf) << 16) |
                         ((blockchecksum & 0xf) << 20) |
                         ((excessreplicas & 0xf) << 24));
-  
+
     // Set the number of parity stripes depending on the layout type if not
     // already set explicitly
-    if (redundancystripes == 0)
-    {
-      if (layout == kRaidDP)
+    if (redundancystripes == 0) {
+      if (layout == kRaidDP) {
         redundancystripes = 2;
-      else if (layout == kRaid6)
+      } else if (layout == kRaid6) {
         redundancystripes = 2;
-      else if (layout == kArchive)
+      } else if (layout == kArchive) {
         redundancystripes = 3;
+      }
     }
-        
-    id |= ((redundancystripes & 0x7) << 28);    
+
+    id |= ((redundancystripes & 0x7) << 28);
     return id;
   }
 
@@ -190,17 +223,39 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  BlockSize (int blocksize)
+  BlockSize(int blocksize)
   {
+    if (blocksize == k4k) {
+      return (4 * 1024);
+    }
 
-    if (blocksize == k4k) return ( 4 * 1024);
-    if (blocksize == k64k) return ( 64 * 1024);
-    if (blocksize == k128k) return ( 128 * 1024);
-    if (blocksize == k512k) return ( 512 * 1024);
-    if (blocksize == k1M) return ( 1024 * 1024);
-    if (blocksize == k4M) return ( 4 * 1024 * 1024);
-    if (blocksize == k16M) return ( 16 * 1024 * 1024);
-    if (blocksize == k64M) return ( 64 * 1024 * 1024);
+    if (blocksize == k64k) {
+      return (64 * 1024);
+    }
+
+    if (blocksize == k128k) {
+      return (128 * 1024);
+    }
+
+    if (blocksize == k512k) {
+      return (512 * 1024);
+    }
+
+    if (blocksize == k1M) {
+      return (1024 * 1024);
+    }
+
+    if (blocksize == k4M) {
+      return (4 * 1024 * 1024);
+    }
+
+    if (blocksize == k16M) {
+      return (16 * 1024 * 1024);
+    }
+
+    if (blocksize == k64M) {
+      return (64 * 1024 * 1024);
+    }
 
     return 0;
   }
@@ -211,17 +266,39 @@ public:
   //--------------------------------------------------------------------------
 
   static int
-  BlockSizeEnum (unsigned long blocksize)
+  BlockSizeEnum(unsigned long blocksize)
   {
+    if (blocksize == (4 * 1024)) {
+      return k4k;
+    }
 
-    if (blocksize == (4 * 1024)) return k4k;
-    if (blocksize == (64 * 1024)) return k64k;
-    if (blocksize == (128 * 1024)) return k128k;
-    if (blocksize == (512 * 1024)) return k512k;
-    if (blocksize == (1024 * 1024)) return k1M;
-    if (blocksize == (4 * 1024 * 1024)) return k4M;
-    if (blocksize == (16 * 1024 * 1024)) return k16M;
-    if (blocksize == (64 * 1024 * 1024)) return k64M;
+    if (blocksize == (64 * 1024)) {
+      return k64k;
+    }
+
+    if (blocksize == (128 * 1024)) {
+      return k128k;
+    }
+
+    if (blocksize == (512 * 1024)) {
+      return k512k;
+    }
+
+    if (blocksize == (1024 * 1024)) {
+      return k1M;
+    }
+
+    if (blocksize == (4 * 1024 * 1024)) {
+      return k4M;
+    }
+
+    if (blocksize == (16 * 1024 * 1024)) {
+      return k16M;
+    }
+
+    if (blocksize == (64 * 1024 * 1024)) {
+      return k64M;
+    }
 
     return 0;
   }
@@ -232,9 +309,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetChecksum (unsigned long layout)
+  GetChecksum(unsigned long layout)
   {
-    return ( layout & 0xf);
+    return (layout & 0xf);
   }
 
 
@@ -243,14 +320,27 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetChecksumLen (unsigned long layout)
+  GetChecksumLen(unsigned long layout)
   {
+    if ((layout & 0xf) == kAdler) {
+      return 4;
+    }
 
-    if ((layout & 0xf) == kAdler) return 4;
-    if ((layout & 0xf) == kCRC32) return 4;
-    if ((layout & 0xf) == kCRC32C) return 4;
-    if ((layout & 0xf) == kMD5) return 16;
-    if ((layout & 0xf) == kSHA1) return 20;
+    if ((layout & 0xf) == kCRC32) {
+      return 4;
+    }
+
+    if ((layout & 0xf) == kCRC32C) {
+      return 4;
+    }
+
+    if ((layout & 0xf) == kMD5) {
+      return 16;
+    }
+
+    if ((layout & 0xf) == kSHA1) {
+      return 20;
+    }
 
     return 0;
   }
@@ -260,9 +350,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetLayoutType (unsigned long layout)
+  GetLayoutType(unsigned long layout)
   {
-    return ( (layout >> 4) & 0xf);
+    return ((layout >> 4) & 0xf);
   }
 
 
@@ -271,20 +361,21 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetStripeNumber (unsigned long layout)
+  GetStripeNumber(unsigned long layout)
   {
-    return ( (layout >> 8) & 0xff);
+    return ((layout >> 8) & 0xff);
   }
 
 
   //--------------------------------------------------------------------------
   //! Modify layout stripe number
   //--------------------------------------------------------------------------
+
   static void
-  SetStripeNumber (unsigned long &layout, int stripes)
+  SetStripeNumber(unsigned long& layout, int stripes)
   {
     unsigned long tmp = stripes & 0xff;
-    tmp <<= 8 ;
+    tmp <<= 8;
     tmp &= 0xff00;
     layout &= 0xffff00ff;
     layout |= tmp;
@@ -296,7 +387,7 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetBlocksize (unsigned long layout)
+  GetBlocksize(unsigned long layout)
   {
     return BlockSize(((layout >> 16) & 0xf));
   }
@@ -307,9 +398,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetBlocksizeType (unsigned long layout)
+  GetBlocksizeType(unsigned long layout)
   {
-    return ( (layout >> 16) & 0xf);
+    return ((layout >> 16) & 0xf);
   }
 
 
@@ -318,9 +409,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetBlockChecksum (unsigned long layout)
+  GetBlockChecksum(unsigned long layout)
   {
-    return ( (layout >> 20) & 0xf);
+    return ((layout >> 20) & 0xf);
   }
 
 
@@ -329,9 +420,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetExcessStripeNumber (unsigned long layout)
+  GetExcessStripeNumber(unsigned long layout)
   {
-    return ( (layout >> 24) & 0xf);
+    return ((layout >> 24) & 0xf);
   }
 
 
@@ -340,9 +431,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetRedundancyStripeNumber (unsigned long layout)
+  GetRedundancyStripeNumber(unsigned long layout)
   {
-    return ( (layout >> 28) & 0x7);
+    return ((layout >> 28) & 0x7);
   }
 
 
@@ -351,9 +442,9 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  MakeBlockChecksum (unsigned long xs)
+  MakeBlockChecksum(unsigned long xs)
   {
-    return ( xs << 20);
+    return (xs << 20);
   }
 
 
@@ -362,7 +453,7 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetBlockChecksumLen (unsigned long layout)
+  GetBlockChecksumLen(unsigned long layout)
   {
     return GetChecksumLen((layout >> 20) & 0xf);
   }
@@ -374,25 +465,30 @@ public:
   //--------------------------------------------------------------------------
 
   static double
-  GetSizeFactor (unsigned long layout)
+  GetSizeFactor(unsigned long layout)
   {
+    if (GetLayoutType(layout) == kPlain) {
+      return 1.0;
+    }
 
-    if (GetLayoutType(layout) == kPlain) return 1.0;
-
-    if (GetLayoutType(layout) == kReplica)
+    if (GetLayoutType(layout) == kReplica) {
       return 1.0 * (GetStripeNumber(layout) + 1 + GetExcessStripeNumber(layout));
+    }
 
     if (GetLayoutType(layout) == kRaidDP)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 )) /
-                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kRaid6)
-      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1 )) /
-                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
+      return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
 
     if (GetLayoutType(layout) == kArchive)
       return 1.0 * (((1.0 * (GetStripeNumber(layout) + 1)) /
-                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(layout))) + GetExcessStripeNumber(layout));
+                     (GetStripeNumber(layout) + 1 - GetRedundancyStripeNumber(
+                        layout))) + GetExcessStripeNumber(layout));
 
     return 1.0;
   }
@@ -404,12 +500,19 @@ public:
   //--------------------------------------------------------------------------
 
   static size_t
-  GetMinOnlineReplica (unsigned long layout)
+  GetMinOnlineReplica(unsigned long layout)
   {
+    if (GetLayoutType(layout) == kRaidDP) {
+      return (GetStripeNumber(layout) - 1);
+    }
 
-    if (GetLayoutType(layout) == kRaidDP) return ( GetStripeNumber(layout) - 1);
-    if (GetLayoutType(layout) == kRaid6) return ( GetStripeNumber(layout) - 1);
-    if (GetLayoutType(layout) == kArchive) return ( GetStripeNumber(layout) - 2);
+    if (GetLayoutType(layout) == kRaid6) {
+      return (GetStripeNumber(layout) - 1);
+    }
+
+    if (GetLayoutType(layout) == kArchive) {
+      return (GetStripeNumber(layout) - 2);
+    }
 
     return 1;
   }
@@ -421,14 +524,21 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetOnlineStripeNumber (unsigned long layout)
+  GetOnlineStripeNumber(unsigned long layout)
   {
+    if (GetLayoutType(layout) == kRaidDP) {
+      return (GetStripeNumber(layout) + 1);
+    }
 
-    if (GetLayoutType(layout) == kRaidDP) return ( GetStripeNumber(layout) + 1);
-    if (GetLayoutType(layout) == kRaid6) return ( GetStripeNumber(layout) + 1);
-    if (GetLayoutType(layout) == kArchive) return ( GetStripeNumber(layout) + 1);
+    if (GetLayoutType(layout) == kRaid6) {
+      return (GetStripeNumber(layout) + 1);
+    }
 
-    return ( GetStripeNumber(layout) + 1);
+    if (GetLayoutType(layout) == kArchive) {
+      return (GetStripeNumber(layout) + 1);
+    }
+
+    return (GetStripeNumber(layout) + 1);
   }
 
 
@@ -437,15 +547,31 @@ public:
   //--------------------------------------------------------------------------
 
   static const char*
-  GetChecksumString (unsigned long layout)
+  GetChecksumString(unsigned long layout)
   {
+    if (GetChecksum(layout) == kNone) {
+      return "none";
+    }
 
-    if (GetChecksum(layout) == kNone) return "none";
-    if (GetChecksum(layout) == kAdler) return "adler";
-    if (GetChecksum(layout) == kCRC32) return "crc32";
-    if (GetChecksum(layout) == kCRC32C) return "crc32c";
-    if (GetChecksum(layout) == kMD5) return "md5";
-    if (GetChecksum(layout) == kSHA1) return "sha";
+    if (GetChecksum(layout) == kAdler) {
+      return "adler";
+    }
+
+    if (GetChecksum(layout) == kCRC32) {
+      return "crc32";
+    }
+
+    if (GetChecksum(layout) == kCRC32C) {
+      return "crc32c";
+    }
+
+    if (GetChecksum(layout) == kMD5) {
+      return "md5";
+    }
+
+    if (GetChecksum(layout) == kSHA1) {
+      return "sha";
+    }
 
     return "none";
   }
@@ -456,15 +582,31 @@ public:
   //--------------------------------------------------------------------------
 
   static const char*
-  GetChecksumStringReal (unsigned long layout)
+  GetChecksumStringReal(unsigned long layout)
   {
+    if (GetChecksum(layout) == kNone) {
+      return "none";
+    }
 
-    if (GetChecksum(layout) == kNone) return "none";
-    if (GetChecksum(layout) == kAdler) return "adler32";
-    if (GetChecksum(layout) == kCRC32) return "crc32";
-    if (GetChecksum(layout) == kCRC32C) return "crc32c";
-    if (GetChecksum(layout) == kMD5) return "md5";
-    if (GetChecksum(layout) == kSHA1) return "sha1";
+    if (GetChecksum(layout) == kAdler) {
+      return "adler32";
+    }
+
+    if (GetChecksum(layout) == kCRC32) {
+      return "crc32";
+    }
+
+    if (GetChecksum(layout) == kCRC32C) {
+      return "crc32c";
+    }
+
+    if (GetChecksum(layout) == kMD5) {
+      return "md5";
+    }
+
+    if (GetChecksum(layout) == kSHA1) {
+      return "sha1";
+    }
 
     return "none";
   }
@@ -475,15 +617,31 @@ public:
   //--------------------------------------------------------------------------
 
   static const char*
-  GetBlockChecksumString (unsigned long layout)
+  GetBlockChecksumString(unsigned long layout)
   {
+    if (GetBlockChecksum(layout) == kNone) {
+      return "none";
+    }
 
-    if (GetBlockChecksum(layout) == kNone) return "none";
-    if (GetBlockChecksum(layout) == kAdler) return "adler";
-    if (GetBlockChecksum(layout) == kCRC32) return "crc32";
-    if (GetBlockChecksum(layout) == kCRC32C) return "crc32c";
-    if (GetBlockChecksum(layout) == kMD5) return "md5";
-    if (GetBlockChecksum(layout) == kSHA1) return "sha";
+    if (GetBlockChecksum(layout) == kAdler) {
+      return "adler";
+    }
+
+    if (GetBlockChecksum(layout) == kCRC32) {
+      return "crc32";
+    }
+
+    if (GetBlockChecksum(layout) == kCRC32C) {
+      return "crc32c";
+    }
+
+    if (GetBlockChecksum(layout) == kMD5) {
+      return "md5";
+    }
+
+    if (GetBlockChecksum(layout) == kSHA1) {
+      return "sha";
+    }
 
     return "none";
   }
@@ -494,16 +652,39 @@ public:
   //--------------------------------------------------------------------------
 
   static const char*
-  GetBlockSizeString (unsigned long layout)
+  GetBlockSizeString(unsigned long layout)
   {
-    if (GetBlocksizeType(layout) == k4k) return "4k";
-    if (GetBlocksizeType(layout) == k64k) return "64k";
-    if (GetBlocksizeType(layout) == k128k) return "128k";
-    if (GetBlocksizeType(layout) == k512k) return "512k";
-    if (GetBlocksizeType(layout) == k1M) return "1M";
-    if (GetBlocksizeType(layout) == k4M) return "4M";
-    if (GetBlocksizeType(layout) == k16M) return "16M";
-    if (GetBlocksizeType(layout) == k64M) return "64M";
+    if (GetBlocksizeType(layout) == k4k) {
+      return "4k";
+    }
+
+    if (GetBlocksizeType(layout) == k64k) {
+      return "64k";
+    }
+
+    if (GetBlocksizeType(layout) == k128k) {
+      return "128k";
+    }
+
+    if (GetBlocksizeType(layout) == k512k) {
+      return "512k";
+    }
+
+    if (GetBlocksizeType(layout) == k1M) {
+      return "1M";
+    }
+
+    if (GetBlocksizeType(layout) == k4M) {
+      return "4M";
+    }
+
+    if (GetBlocksizeType(layout) == k16M) {
+      return "16M";
+    }
+
+    if (GetBlocksizeType(layout) == k64M) {
+      return "64M";
+    }
 
     return "illegal";
   }
@@ -514,13 +695,27 @@ public:
   //--------------------------------------------------------------------------
 
   static const char*
-  GetLayoutTypeString (unsigned long layout)
+  GetLayoutTypeString(unsigned long layout)
   {
-    if (GetLayoutType(layout) == kPlain) return "plain";
-    if (GetLayoutType(layout) == kReplica) return "replica";
-    if (GetLayoutType(layout) == kRaidDP) return "raiddp";
-    if (GetLayoutType(layout) == kRaid6) return "raid6";
-    if (GetLayoutType(layout) == kArchive) return "archive";
+    if (GetLayoutType(layout) == kPlain) {
+      return "plain";
+    }
+
+    if (GetLayoutType(layout) == kReplica) {
+      return "replica";
+    }
+
+    if (GetLayoutType(layout) == kRaidDP) {
+      return "raiddp";
+    }
+
+    if (GetLayoutType(layout) == kRaid6) {
+      return "raid6";
+    }
+
+    if (GetLayoutType(layout) == kArchive) {
+      return "archive";
+    }
 
     return "none";
   }
@@ -530,24 +725,71 @@ public:
   //--------------------------------------------------------------------------
 
   static const char*
-  GetStripeNumberString (unsigned long layout)
+  GetStripeNumberString(unsigned long layout)
   {
-    if (GetStripeNumber(layout) == kOneStripe) return "1";
-    if (GetStripeNumber(layout) == kTwoStripe) return "2";
-    if (GetStripeNumber(layout) == kThreeStripe) return "3";
-    if (GetStripeNumber(layout) == kFourStripe) return "4";
-    if (GetStripeNumber(layout) == kFiveStripe) return "5";
-    if (GetStripeNumber(layout) == kSixStripe) return "6";
-    if (GetStripeNumber(layout) == kSevenStripe) return "7";
-    if (GetStripeNumber(layout) == kEightStripe) return "8";
-    if (GetStripeNumber(layout) == kNineStripe) return "9";
-    if (GetStripeNumber(layout) == kTenStripe) return "10";
-    if (GetStripeNumber(layout) == kElevenStripe) return "11";
-    if (GetStripeNumber(layout) == kTwelveStripe) return "12";
-    if (GetStripeNumber(layout) == kThirteenStripe) return "13";
-    if (GetStripeNumber(layout) == kFourteenStripe) return "14";
-    if (GetStripeNumber(layout) == kFivteenStripe) return "15";
-    if (GetStripeNumber(layout) == kSixteenStripe) return "16";
+    if (GetStripeNumber(layout) == kOneStripe) {
+      return "1";
+    }
+
+    if (GetStripeNumber(layout) == kTwoStripe) {
+      return "2";
+    }
+
+    if (GetStripeNumber(layout) == kThreeStripe) {
+      return "3";
+    }
+
+    if (GetStripeNumber(layout) == kFourStripe) {
+      return "4";
+    }
+
+    if (GetStripeNumber(layout) == kFiveStripe) {
+      return "5";
+    }
+
+    if (GetStripeNumber(layout) == kSixStripe) {
+      return "6";
+    }
+
+    if (GetStripeNumber(layout) == kSevenStripe) {
+      return "7";
+    }
+
+    if (GetStripeNumber(layout) == kEightStripe) {
+      return "8";
+    }
+
+    if (GetStripeNumber(layout) == kNineStripe) {
+      return "9";
+    }
+
+    if (GetStripeNumber(layout) == kTenStripe) {
+      return "10";
+    }
+
+    if (GetStripeNumber(layout) == kElevenStripe) {
+      return "11";
+    }
+
+    if (GetStripeNumber(layout) == kTwelveStripe) {
+      return "12";
+    }
+
+    if (GetStripeNumber(layout) == kThirteenStripe) {
+      return "13";
+    }
+
+    if (GetStripeNumber(layout) == kFourteenStripe) {
+      return "14";
+    }
+
+    if (GetStripeNumber(layout) == kFivteenStripe) {
+      return "15";
+    }
+
+    if (GetStripeNumber(layout) == kSixteenStripe) {
+      return "16";
+    }
 
     return "none";
   }
@@ -557,19 +799,32 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetChecksumFromEnv (XrdOucEnv& env)
+  GetChecksumFromEnv(XrdOucEnv& env)
   {
     const char* val = 0;
 
-    if ((val = env.Get("eos.layout.checksum")))
-    {
+    if ((val = env.Get("eos.layout.checksum"))) {
       XrdOucString xsum = val;
 
-      if (xsum == "adler") return kAdler;
-      if (xsum == "crc32") return kCRC32;
-      if (xsum == "crc32c") return kCRC32C;
-      if (xsum == "md5") return kMD5;
-      if (xsum == "sha") return kSHA1;
+      if (xsum == "adler") {
+        return kAdler;
+      }
+
+      if (xsum == "crc32") {
+        return kCRC32;
+      }
+
+      if (xsum == "crc32c") {
+        return kCRC32C;
+      }
+
+      if (xsum == "md5") {
+        return kMD5;
+      }
+
+      if (xsum == "sha") {
+        return kSHA1;
+      }
     }
 
     return kNone;
@@ -581,19 +836,32 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetBlockChecksumFromEnv (XrdOucEnv& env)
+  GetBlockChecksumFromEnv(XrdOucEnv& env)
   {
     const char* val = 0;
 
-    if ((val = env.Get("eos.layout.blockchecksum")))
-    {
+    if ((val = env.Get("eos.layout.blockchecksum"))) {
       XrdOucString xsum = val;
 
-      if (xsum == "adler") return kAdler;
-      if (xsum == "crc32") return kCRC32;
-      if (xsum == "crc32c") return kCRC32C;
-      if (xsum == "md5") return kMD5;
-      if (xsum == "sha") return kSHA1;
+      if (xsum == "adler") {
+        return kAdler;
+      }
+
+      if (xsum == "crc32") {
+        return kCRC32;
+      }
+
+      if (xsum == "crc32c") {
+        return kCRC32C;
+      }
+
+      if (xsum == "md5") {
+        return kMD5;
+      }
+
+      if (xsum == "sha") {
+        return kSHA1;
+      }
     }
 
     return kNone;
@@ -605,22 +873,44 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetBlocksizeFromEnv (XrdOucEnv& env)
+  GetBlocksizeFromEnv(XrdOucEnv& env)
   {
     const char* val = 0;
 
-    if ((val = env.Get("eos.layout.blocksize")))
-    {
+    if ((val = env.Get("eos.layout.blocksize"))) {
       XrdOucString bs = val;
 
-      if (bs == "4k") return k4k;
-      if (bs == "64k") return k64k;
-      if (bs == "128k") return k128k;
-      if (bs == "512k") return k512k;
-      if (bs == "1M") return k1M;
-      if (bs == "4M") return k4M;
-      if (bs == "16M") return k16M;
-      if (bs == "64M") return k64M;
+      if (bs == "4k") {
+        return k4k;
+      }
+
+      if (bs == "64k") {
+        return k64k;
+      }
+
+      if (bs == "128k") {
+        return k128k;
+      }
+
+      if (bs == "512k") {
+        return k512k;
+      }
+
+      if (bs == "1M") {
+        return k1M;
+      }
+
+      if (bs == "4M") {
+        return k4M;
+      }
+
+      if (bs == "16M") {
+        return k16M;
+      }
+
+      if (bs == "64M") {
+        return k64M;
+      }
     }
 
     return 0;
@@ -632,18 +922,28 @@ public:
   //--------------------------------------------------------------------------
 
   static unsigned long
-  GetLayoutFromEnv (XrdOucEnv& env)
+  GetLayoutFromEnv(XrdOucEnv& env)
   {
     const char* val = 0;
 
-    if ((val = env.Get("eos.layout.type")))
-    {
+    if ((val = env.Get("eos.layout.type"))) {
       XrdOucString typ = val;
 
-      if (typ == "replica") return kReplica;
-      if (typ == "raiddp") return kRaidDP;
-      if (typ == "raid6") return kRaid6;
-      if (typ == "archive") return kArchive;
+      if (typ == "replica") {
+        return kReplica;
+      }
+
+      if (typ == "raiddp") {
+        return kRaidDP;
+      }
+
+      if (typ == "raid6") {
+        return kRaid6;
+      }
+
+      if (typ == "archive") {
+        return kArchive;
+      }
     }
 
     return kPlain;
@@ -655,21 +955,19 @@ public:
   //----------------------------------------------------------------------------
 
   static unsigned long
-  GetStripeNumberFromEnv (XrdOucEnv& env)
+  GetStripeNumberFromEnv(XrdOucEnv& env)
   {
     const char* val = 0;
 
-    if ((val = env.Get("eos.layout.nstripes")))
-    {
+    if ((val = env.Get("eos.layout.nstripes"))) {
       int n = atoi(val);
 
-      if (((n - 1) >= kOneStripe) && ((n - 1) <= kSixteenStripe))
-      {
+      if (((n - 1) >= kOneStripe) && ((n - 1) <= kSixteenStripe)) {
         return n;
       }
     }
 
-    return ( kOneStripe + 1);
+    return (kOneStripe + 1);
   }
 
   //----------------------------------------------------------------------------
@@ -677,46 +975,50 @@ public:
   //----------------------------------------------------------------------------
 
   static const char*
-  GetEnvFromConversionIdString (XrdOucString& out, 
-                                const char* conversionlayoutidstring)
+  GetEnvFromConversionIdString(XrdOucString& out,
+                               const char* conversionlayoutidstring)
   {
-    if (!conversionlayoutidstring)
+    if (!conversionlayoutidstring) {
       return NULL;
+    }
 
     std::string keyval = conversionlayoutidstring;
     std::string plctplcy;
-    
+
     // check if this is already a complete env representation
-    if ( (keyval.find("eos.layout.type") != std::string::npos) &&
-	 (keyval.find("eos.layout.nstripes") != std::string::npos) &&
-	 (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
-	 (keyval.find("eos.layout.checksum") != std::string::npos) &&
-	 (keyval.find("eos.layout.blocksize") != std::string::npos) &&
-	 (keyval.find("eos.space") != std::string::npos) )
-    {
+    if ((keyval.find("eos.layout.type") != std::string::npos) &&
+        (keyval.find("eos.layout.nstripes") != std::string::npos) &&
+        (keyval.find("eos.layout.blockchecksum") != std::string::npos) &&
+        (keyval.find("eos.layout.checksum") != std::string::npos) &&
+        (keyval.find("eos.layout.blocksize") != std::string::npos) &&
+        (keyval.find("eos.space") != std::string::npos)) {
       out = conversionlayoutidstring;
       return out.c_str();
     }
 
     std::string space;
     std::string layout;
-    
-    if (!eos::common::StringConversion::SplitKeyValue(keyval, space,layout, "#"))
-      return NULL;
 
-    if(((int)layout.find("~"))!= STR_NPOS)
-      eos::common::StringConversion::SplitKeyValue(layout, layout,plctplcy, "~");
+    if (!eos::common::StringConversion::SplitKeyValue(keyval, space, layout, "#")) {
+      return NULL;
+    }
+
+    if (((int)layout.find("~")) != STR_NPOS) {
+      eos::common::StringConversion::SplitKeyValue(layout, layout, plctplcy, "~");
+    }
 
     errno = 0;
     unsigned long long lid = strtoll(layout.c_str(), 0, 16);
-    if (errno)
+
+    if (errno) {
       return NULL;
+    }
 
     std::string group("");
     std::string spaceStripped("");
+
     if (eos::common::StringConversion::SplitKeyValue(space, spaceStripped,
-                                                     group, "."))
-    {
+        group, ".")) {
       space = spaceStripped;
     }
 
@@ -732,13 +1034,13 @@ public:
     out += GetBlockSizeString(lid);
     out += "&eos.space=";
     out += space.c_str();
-    if(plctplcy.length())
-    {
+
+    if (plctplcy.length()) {
       out += "&eos.placementpolicy=";
       out += plctplcy.c_str();
     }
-    if (group != "")
-    {
+
+    if (group != "") {
       out += "&eos.group=";
       out += group.c_str();
     }
@@ -755,29 +1057,29 @@ public:
   //! @return SFS-like open flags
   //!
   //----------------------------------------------------------------------------
+
   static XrdSfsFileOpenMode
-  MapFlagsPosix2Sfs (int oflags)
+  MapFlagsPosix2Sfs(int oflags)
   {
     XrdSfsFileOpenMode sfs_flags = SFS_O_RDONLY; // 0x0000
 
-    if (oflags & O_CREAT)
-    {
+    if (oflags & O_CREAT) {
       sfs_flags |= SFS_O_CREAT;
     }
-    if (oflags & O_RDWR)
-    {
+
+    if (oflags & O_RDWR) {
       sfs_flags |= SFS_O_RDWR;
     }
-    if (oflags & O_TRUNC)
-    {
+
+    if (oflags & O_TRUNC) {
       sfs_flags |= SFS_O_TRUNC;
     }
-    if (oflags & O_WRONLY)
-    {
+
+    if (oflags & O_WRONLY) {
       sfs_flags |= SFS_O_WRONLY;
     }
-    if (oflags & O_APPEND)
-    {
+
+    if (oflags & O_APPEND) {
       sfs_flags |= SFS_O_RDWR;
     }
 
@@ -785,11 +1087,10 @@ public:
     // Could also forward O_EXLC as XrdCl::OpenFlags::Flags::New but there is
     // no corresponding flag in SFS
     // !!!
-    
     return sfs_flags;
   }
 
-  
+
   //----------------------------------------------------------------------------
   //! Map SFS-like open flags to XrdCl open flags
   //!
@@ -798,56 +1099,56 @@ public:
   //! @return XrdCl-like open flags
   //!
   //----------------------------------------------------------------------------
+
   static XrdCl::OpenFlags::Flags
-  MapFlagsSfs2XrdCl (XrdSfsFileOpenMode flags_sfs)
+  MapFlagsSfs2XrdCl(XrdSfsFileOpenMode flags_sfs)
   {
     XrdCl::OpenFlags::Flags xflags = XrdCl::OpenFlags::None;
 
-    if (flags_sfs & SFS_O_CREAT)
-    {
+    if (flags_sfs & SFS_O_CREAT) {
       xflags |= XrdCl::OpenFlags::Delete;
     }
-    if (flags_sfs & SFS_O_WRONLY)
-    {
+
+    if (flags_sfs & SFS_O_WRONLY) {
       xflags |= XrdCl::OpenFlags::Update;
     }
-    if (flags_sfs & SFS_O_RDWR)
-    {
+
+    if (flags_sfs & SFS_O_RDWR) {
       xflags |= XrdCl::OpenFlags::Update;
     }
-    if (flags_sfs & SFS_O_TRUNC)
-    {
+
+    if (flags_sfs & SFS_O_TRUNC) {
       xflags |= XrdCl::OpenFlags::Delete;
     }
+
     if ((!(flags_sfs & SFS_O_TRUNC)) &&
         (!(flags_sfs & SFS_O_WRONLY)) &&
         (!(flags_sfs & SFS_O_CREAT)) &&
-        (!(flags_sfs & SFS_O_RDWR)))
-    {
+        (!(flags_sfs & SFS_O_RDWR))) {
       xflags |= XrdCl::OpenFlags::Read;
     }
-    if (flags_sfs & SFS_O_POSC)
-    {
+
+    if (flags_sfs & SFS_O_POSC) {
       xflags |= XrdCl::OpenFlags::POSC;
     }
-    if (flags_sfs & SFS_O_NOWAIT)
-    {
+
+    if (flags_sfs & SFS_O_NOWAIT) {
       xflags |= XrdCl::OpenFlags::NoWait;
     }
-    if (flags_sfs & SFS_O_RAWIO)
-    {
-      // no idea what to do 
+
+    if (flags_sfs & SFS_O_RAWIO) {
+      // no idea what to do
     }
-    if (flags_sfs & SFS_O_RESET)
-    {
+
+    if (flags_sfs & SFS_O_RESET) {
       xflags |= XrdCl::OpenFlags::Refresh;
     }
-    if (flags_sfs & SFS_O_REPLICA)
-    {
+
+    if (flags_sfs & SFS_O_REPLICA) {
       // emtpy
     }
-    if (flags_sfs & SFS_O_MKPTH)
-    {
+
+    if (flags_sfs & SFS_O_MKPTH) {
       xflags |= XrdCl::OpenFlags::MakePath;
     }
 
@@ -863,26 +1164,43 @@ public:
   //! @return XrdCl-like open mode
   //!
   //----------------------------------------------------------------------------
+
   static XrdCl::Access::Mode
-  MapModeSfs2XrdCl (mode_t mode_sfs)
+  MapModeSfs2XrdCl(mode_t mode_sfs)
   {
     XrdCl::Access::Mode mode_xrdcl = XrdCl::Access::Mode::None;
 
-    if (mode_sfs & S_IRUSR) mode_xrdcl |= XrdCl::Access::Mode::UR;
+    if (mode_sfs & S_IRUSR) {
+      mode_xrdcl |= XrdCl::Access::Mode::UR;
+    }
 
-    if (mode_sfs & S_IWUSR) mode_xrdcl |= XrdCl::Access::Mode::UW;
+    if (mode_sfs & S_IWUSR) {
+      mode_xrdcl |= XrdCl::Access::Mode::UW;
+    }
 
-    if (mode_sfs & S_IXUSR) mode_xrdcl |= XrdCl::Access::Mode::UX;
+    if (mode_sfs & S_IXUSR) {
+      mode_xrdcl |= XrdCl::Access::Mode::UX;
+    }
 
-    if (mode_sfs & S_IRGRP) mode_xrdcl |= XrdCl::Access::Mode::GR;
+    if (mode_sfs & S_IRGRP) {
+      mode_xrdcl |= XrdCl::Access::Mode::GR;
+    }
 
-    if (mode_sfs & S_IWGRP) mode_xrdcl |= XrdCl::Access::Mode::GW;
+    if (mode_sfs & S_IWGRP) {
+      mode_xrdcl |= XrdCl::Access::Mode::GW;
+    }
 
-    if (mode_sfs & S_IXGRP) mode_xrdcl |= XrdCl::Access::Mode::GX;
+    if (mode_sfs & S_IXGRP) {
+      mode_xrdcl |= XrdCl::Access::Mode::GX;
+    }
 
-    if (mode_sfs & S_IROTH) mode_xrdcl |= XrdCl::Access::Mode::OR;
+    if (mode_sfs & S_IROTH) {
+      mode_xrdcl |= XrdCl::Access::Mode::OR;
+    }
 
-    if (mode_sfs & S_IXOTH) mode_xrdcl |= XrdCl::Access::Mode::OX;
+    if (mode_sfs & S_IXOTH) {
+      mode_xrdcl |= XrdCl::Access::Mode::OX;
+    }
 
     return mode_xrdcl;
   }
@@ -891,12 +1209,12 @@ public:
   //--------------------------------------------------------------------------
   //! Constructor
   //--------------------------------------------------------------------------
-  LayoutId ();
+  LayoutId();
 
   //--------------------------------------------------------------------------
   //! Destructor
   //--------------------------------------------------------------------------
-  ~LayoutId ();
+  ~LayoutId();
 };
 
 EOSCOMMONNAMESPACE_END

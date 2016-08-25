@@ -45,13 +45,13 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  LayoutPlugin ();
+  LayoutPlugin();
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~LayoutPlugin ();
+  ~LayoutPlugin();
 
 
   //----------------------------------------------------------------------------
@@ -68,13 +68,13 @@ public:
   //! @return requested layout type object
   //!
   //----------------------------------------------------------------------------
-  static Layout* GetLayoutObject (XrdFstOfsFile* file,
-                                  unsigned long layoutId,
-                                  const XrdSecEntity* client,
-                                  XrdOucErrInfo* error,
-                                  eos::common::LayoutId::eIoType accessType,
-                                  uint16_t timeout = 0,
-                                  bool storeRecovery = false);
+  static Layout* GetLayoutObject(XrdFstOfsFile* file,
+                                 unsigned long layoutId,
+                                 const XrdSecEntity* client,
+                                 XrdOucErrInfo* error,
+                                 const char* path,
+                                 uint16_t timeout = 0,
+                                 bool storeRecovery = false);
 };
 
 EOSFSTNAMESPACE_END

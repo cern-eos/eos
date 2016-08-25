@@ -23,7 +23,7 @@
 
 /**
  * @file   RWMutex.hh
- * 
+ *
  * @brief  Class implementing a fair read-write Mutex.
  *         When compiled with EOS_INSTRUMENTED_RWMUTEX, this class provide also
  *          - timing features.
@@ -78,24 +78,28 @@ inline size_t NowInt()
 {
   struct timespec ts;
   eos::common::Timing::GetTimeSpec(ts);
-  return 1000000000*ts.tv_sec+ts.tv_nsec;
+  return 1000000000 * ts.tv_sec + ts.tv_nsec;
 }
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
 
-struct RWMutexTimingStats
-{
+struct RWMutexTimingStats {
   double averagewaitread;
   double averagewaitwrite;
-  double minwaitwrite,maxwaitwrite;
-  double minwaitread,maxwaitread;
+  double minwaitwrite, maxwaitwrite;
+  double minwaitread, maxwaitread;
   size_t readLockCounterSample, writeLockCounterSample;
 };
 
-inline std::ostream& operator << (std::ostream &os, const RWMutexTimingStats &stats )
+inline std::ostream& operator << (std::ostream& os,
+                                  const RWMutexTimingStats& stats)
 {
-  os<<"\t"<<"RWMutex Read  Wait (number : min , avg , max)"<<" = "<<stats.readLockCounterSample<<" : "<<stats.minwaitread<<" , "<<stats.averagewaitread<<" , "<<stats.maxwaitread<<std::endl;
-  os<<"\t"<<"RWMutex Write Wait (number : min , avg , max)"<<" = "<<stats.writeLockCounterSample<<" : "<<stats.minwaitwrite<<" , "<<stats.averagewaitwrite<<" , "<<stats.maxwaitwrite<<std::endl;
+  os << "\t" << "RWMutex Read  Wait (number : min , avg , max)" << " = " <<
+     stats.readLockCounterSample << " : " << stats.minwaitread << " , " <<
+     stats.averagewaitread << " , " << stats.maxwaitread << std::endl;
+  os << "\t" << "RWMutex Write Wait (number : min , avg , max)" << " = " <<
+     stats.writeLockCounterSample << " : " << stats.minwaitwrite << " , " <<
+     stats.averagewaitwrite << " , " << stats.maxwaitwrite << std::endl;
   return os;
 }
 
@@ -124,16 +128,19 @@ private:
   // #########################################
 
   // ############# TIMING MEMBERS ##############
-  bool enabletiming,enablesampling;
+  bool enabletiming, enablesampling;
   static bool enabletimingglobal;
   static size_t timingCompensation, timingLatency, lockUnlockDuration ;
   int samplingModulo;
   static int samplingModulo_static;
   // ************* Counters ************
   // these counters come in addition to the counters in the non instrumented version of the class
-  size_t cumulatedwaitread,cumulatedwaitwrite,maxwaitread,maxwaitwrite,minwaitread,minwaitwrite,readLockCounterSample,writeLockCounterSample;
-  static size_t cumulatedwaitread_static,cumulatedwaitwrite_static,maxwaitread_static,maxwaitwrite_static,minwaitread_static,minwaitwrite_static;
-  static size_t readLockCounterSample_static,writeLockCounterSample_static;
+  size_t cumulatedwaitread, cumulatedwaitwrite, maxwaitread, maxwaitwrite,
+         minwaitread, minwaitwrite, readLockCounterSample, writeLockCounterSample;
+  static size_t cumulatedwaitread_static, cumulatedwaitwrite_static,
+         maxwaitread_static, maxwaitwrite_static, minwaitread_static,
+         minwaitwrite_static;
+  static size_t readLockCounterSample_static, writeLockCounterSample_static;
   // ***********************************
   // ###########################################
 
@@ -141,9 +148,9 @@ private:
   // ********* Actual Order Checking ********
   // this pointers refer to a memory location not thread specific so that if the thread terminates, this location is still valid
   // this flag is triggered by the class management and indicate to each thread to reset some thread specific stuff
-  static __thread bool *orderCheckReset_staticthread;
+  static __thread bool* orderCheckReset_staticthread;
   // this map contains the previously referenced flag for reset
-  static std::map<pthread_t,bool> threadOrderCheckResetFlags_static;
+  static std::map<pthread_t, bool> threadOrderCheckResetFlags_static;
   // each unsigned long is used as 64 bit flags to trace the lock status of mutexes for a given rule
   static __thread unsigned long ordermask_staticthread[EOS_RWMUTEX_ORDER_NRULES];
   // a mutex can be associated to up to EOS_RWMUTEX_ORDER_NRULES and the following array gives the locking rank for "this" RWMutex
@@ -154,8 +161,8 @@ private:
   // ****************************************
   // ******** Order Rules management  *******
   // to issue the message and to manage the rules. Not involved in the online checking.
-  static std::map<unsigned char,std::string> ruleIndex2Name_static;
-  static std::map<std::string,unsigned char> ruleName2Index_static;
+  static std::map<unsigned char, std::string> ruleIndex2Name_static;
+  static std::map<std::string, unsigned char> ruleName2Index_static;
   unsigned char ruleLocalIndexToGlobalIndex[EOS_RWMUTEX_ORDER_NRULES];
   // rulename -> order
   typedef std::map< std::string , std::vector<RWMutex*> > rules_t;
@@ -188,7 +195,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Set the time to wait the acquisition of the write mutex before releasing quicky and retrying
   // ---------------------------------------------------------------------------
-  void SetWLockTime(const size_t &nsec);
+  void SetWLockTime(const size_t& nsec);
 
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   // ---------------------------------------------------------------------------
@@ -235,7 +242,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Set the debug name
   // ---------------------------------------------------------------------------
-  void SetDebugName(const std::string &name);
+  void SetDebugName(const std::string& name);
 
 #ifdef __APPLE__
   static int round(double number);
@@ -248,7 +255,7 @@ public:
   // @param $second
   //   sampling between 0 and 1 (if <0, use the precomputed level for the class, see GetSamplingRateFromCPUOverhead)
   // ---------------------------------------------------------------------------
-  void SetSampling(bool on, float rate=-1.0);
+  void SetSampling(bool on, float rate = -1.0);
 
   // ---------------------------------------------------------------------------
   //! Return the timing sampling rate/status
@@ -258,12 +265,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Get the timing statistics at the instance level
   // ---------------------------------------------------------------------------
-  void GetTimingStatistics(RWMutexTimingStats &stats, bool compensate=true);
+  void GetTimingStatistics(RWMutexTimingStats& stats, bool compensate = true);
 
   // ---------------------------------------------------------------------------
   //! Check the orders defined by the rules and update
   // ---------------------------------------------------------------------------
-  void OrderViolationMessage(unsigned char rule, const std::string &message="");
+  void OrderViolationMessage(unsigned char rule, const std::string& message = "");
 
   // ---------------------------------------------------------------------------
   //! Check the orders defined by the rules and update for a lock
@@ -278,7 +285,8 @@ public:
   // ---------------------------------------------------------------------------
   //! Get the timing statistics at the class level
   // ---------------------------------------------------------------------------
-  static void GetTimingStatisticsGlobal(RWMutexTimingStats &stats, bool compensate=true);
+  static void GetTimingStatisticsGlobal(RWMutexTimingStats& stats,
+                                        bool compensate = true);
 
   // ---------------------------------------------------------------------------
   //! Compute the SamplingRate corresponding to a given CPU overhead
@@ -287,7 +295,7 @@ public:
   // @return
   //   sampling rate (the ratio of mutex to time so that the argument value is not violated)
   // ---------------------------------------------------------------------------
-  static float GetSamplingRateFromCPUOverhead(const double &overhead);
+  static float GetSamplingRateFromCPUOverhead(const double& overhead);
 
   // ---------------------------------------------------------------------------
   //! Compute the cost in time of taking timings so that it can be compensated in the statistics
@@ -296,7 +304,7 @@ public:
   // @return
   //   the compensation in nanoseconds
   // ---------------------------------------------------------------------------
-  static size_t EstimateTimingCompensation(size_t loopsize=1e6);
+  static size_t EstimateTimingCompensation(size_t loopsize = 1e6);
 
   // ---------------------------------------------------------------------------
   //! Compute the speed for lock/unlock cycle
@@ -305,7 +313,7 @@ public:
   // @return
   //   the duration of the cycle in nanoseconds
   // ---------------------------------------------------------------------------
-  static size_t EstimateLockUnlockDuration(size_t loopsize=1e6);
+  static size_t EstimateLockUnlockDuration(size_t loopsize = 1e6);
 
   // ---------------------------------------------------------------------------
   //! Compute the latency introduced by taking timings
@@ -316,7 +324,8 @@ public:
   // @return
   //   the latency in nanoseconds
   // ---------------------------------------------------------------------------
-  static size_t EstimateTimingAddedLatency(size_t loopsize=1e6, bool globaltiming=false);
+  static size_t EstimateTimingAddedLatency(size_t loopsize = 1e6,
+      bool globaltiming = false);
 
   // ---------------------------------------------------------------------------
   //! Compute the latency introduced by checking the mutexes locking orders
@@ -327,14 +336,15 @@ public:
   // @return
   //   the latency in nanoseconds
   // ---------------------------------------------------------------------------
-  static size_t EstimateOrderCheckingAddedLatency(size_t nmutexes=3, size_t loopsize=1e6);
+  static size_t EstimateOrderCheckingAddedLatency(size_t nmutexes = 3,
+      size_t loopsize = 1e6);
 
   // ---------------------------------------------------------------------------
   //! Performs the initialization of the class
   // ---------------------------------------------------------------------------
   static void InitializeClass();
 
-  static void EstimateLatenciesAndCompensation(size_t loopsize=1e6);
+  static void EstimateLatenciesAndCompensation(size_t loopsize = 1e6);
 
   static size_t GetTimingCompensation();
 
@@ -353,7 +363,8 @@ public:
   // @return
   //
   // ---------------------------------------------------------------------------
-  static int AddOrderRule(const std::string &rulename, const std::vector<RWMutex*> &order);
+  static int AddOrderRule(const std::string& rulename,
+                          const std::vector<RWMutex*>& order);
 
   // ---------------------------------------------------------------------------
   //! Reset order checking rules
@@ -368,7 +379,7 @@ public:
   //   the number of rules removed (0 or 1)
   //
   // ---------------------------------------------------------------------------
-  static int RemoveOrderRule(const std::string &rulename);
+  static int RemoveOrderRule(const std::string& rulename);
 
 
   // ---------------------------------------------------------------------------
@@ -414,13 +425,13 @@ public:
   //! Get Readlock Counter
   // ---------------------------------------------------------------------------
   size_t GetReadLockCounter();
- 
+
 
   // ---------------------------------------------------------------------------
   //! Get Writelock Counter
   // ---------------------------------------------------------------------------
   size_t GetWriteLockCounter();
- 
+
 
 };
 
@@ -431,12 +442,13 @@ class RWMutexWriteLock
 {
 private:
   RWMutex* Mutex;
+  bool     DoIt;
 
 public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  RWMutexWriteLock(RWMutex &mutex);
+  RWMutexWriteLock(RWMutex& mutex, bool doit = true);
 
   // ---------------------------------------------------------------------------
   //! Destructor
@@ -456,9 +468,9 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  RWMutexReadLock(RWMutex &mutex);
-  
-  RWMutexReadLock(RWMutex &mutex, bool allowcancel);
+  RWMutexReadLock(RWMutex& mutex);
+
+  RWMutexReadLock(RWMutex& mutex, bool allowcancel);
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------

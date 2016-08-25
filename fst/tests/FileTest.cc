@@ -28,7 +28,7 @@
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
-#include "fst/io/XrdIo.hh"
+#include "fst/io/xrd/XrdIo.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 /*----------------------------------------------------------------------------*/
 
@@ -60,7 +60,6 @@ void
 FileTest::WriteTest()
 {
   using namespace XrdCl;
-
   // Initialise
   XRootDStatus status;
   uint32_t file_size = (uint32_t)atoi(mEnv->GetMapping("file_size").c_str());
@@ -70,9 +69,9 @@ FileTest::WriteTest()
   CPPUNIT_ASSERT(url.IsValid());
   std::string file_url = address + "/" + file_path;
   mFile = new File();
-  status = mFile->Open(file_url, OpenFlags::Update | OpenFlags::Delete, Access::Mode::None);
+  status = mFile->Open(file_url, OpenFlags::Update | OpenFlags::Delete,
+                       Access::Mode::None);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Write file using 4MB chunks
   uint64_t off;
   uint32_t size_chunk = 1024 * 1024;
@@ -83,13 +82,11 @@ FileTest::WriteTest()
   urandom.close();
 
   // Create the readv list and the list for normal reads
-  for (int i = 0; i < num_chunks; i++)
-  {
+  for (int i = 0; i < num_chunks; i++) {
     off = i * size_chunk ;
     status = mFile->Write(off, size_chunk, buff_write);
 
-    if (!status.IsOK())
-    {
+    if (!status.IsOK()) {
       std::cerr << "Error while writing at off:" << off << std::endl;
       break;
     }
@@ -109,7 +106,6 @@ void
 FileTest::ReadVTest()
 {
   using namespace XrdCl;
-
   // Initialise
   XRootDStatus status;
   uint32_t file_size = (uint32_t)atoi(mEnv->GetMapping("file_size").c_str());
@@ -121,7 +117,6 @@ FileTest::ReadVTest()
   mFile = new File();
   status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
   CPPUNIT_ASSERT(status.IsOK());
-
   // Check that the file has the proper size
   StatInfo* stat = 0;
   status = mFile->Stat(false, stat);
@@ -129,11 +124,9 @@ FileTest::ReadVTest()
   CPPUNIT_ASSERT(stat);
   CPPUNIT_ASSERT(stat->GetSize() == file_size);
   CPPUNIT_ASSERT(stat->TestFlags(StatInfo::IsReadable)) ;
-
   // Clean up stat object
   delete stat;
   stat = 0;
-
   // Read the first 4KB out of each MB
   uint32_t size_chunk = 4096;
   uint32_t size_gap = 1024 * 1024;
@@ -147,8 +140,7 @@ FileTest::ReadVTest()
   ChunkList read_list;
 
   // Create the readv list and the list for normal reads
-  for (int i = 0; i < num_chunks; i++)
-  {
+  for (int i = 0; i < num_chunks; i++) {
     off = i * size_gap ;
     ptr_readv = buff_readv + i * size_chunk;
     ptr_read = buff_read + i * size_chunk;
@@ -166,14 +158,12 @@ FileTest::ReadVTest()
   delete vread_info;
 
   // Issue the normal read requests
-  for (auto chunk = read_list.begin(); chunk != read_list.end(); ++chunk)
-  {
+  for (auto chunk = read_list.begin(); chunk != read_list.end(); ++chunk) {
     status = mFile->Read(chunk->offset, chunk->length, chunk->buffer, nread);
 
-    if (!status.IsOK() || (nread != chunk->length))
-    {
+    if (!status.IsOK() || (nread != chunk->length)) {
       std::cerr << "Error while reading at off:" << chunk->offset
-		<< " len:" << chunk->length << std::endl;
+                << " len:" << chunk->length << std::endl;
       break;
     }
   }
@@ -181,16 +171,14 @@ FileTest::ReadVTest()
   // Compute CRC32C checksum for the readv buffer and normal reads
   eos::fst::CRC32C* chksumv = new eos::fst::CRC32C();
 
-  if (!chksumv->Add(buff_readv, num_chunks * size_chunk, 0))
-  {
+  if (!chksumv->Add(buff_readv, num_chunks * size_chunk, 0)) {
     std::cerr << "Checksum error: offset unaligned - skip computation" << std::endl;
     CPPUNIT_FAIL("Error computing readv checksum");
   }
 
   eos::fst::CRC32C* chksum = new eos::fst::CRC32C();
 
-  if (!chksum->Add(buff_read, num_chunks * size_chunk, 0))
-  {
+  if (!chksum->Add(buff_read, num_chunks * size_chunk, 0)) {
     std::cerr << "Checksum error: offset unaligned - skip computation" << std::endl;
     CPPUNIT_FAIL("Error computing readv checksum");
   }
@@ -199,7 +187,6 @@ FileTest::ReadVTest()
   std::string schksum = chksum->GetHexChecksum();
   //std::cout << "schksumv: " << schksumv << " and schksum: " << schksum << std::endl;
   CPPUNIT_ASSERT(schksumv == schksum);
-
   // Close and delete file object
   delete chksumv;
   delete chksum;
@@ -221,11 +208,11 @@ FileTest::SplitReadVTest()
   using namespace eos::common;
   using namespace eos::fst;
   unsigned long layout_id = LayoutId::GetId(LayoutId::kRaid6, 1,
-					    LayoutId::kSevenStripe,
-					    LayoutId::k1M,
-					    LayoutId::kCRC32);
+                            LayoutId::kSevenStripe,
+                            LayoutId::k1M,
+                            LayoutId::kCRC32);
   RaidMetaLayout* file =  new RaidDpLayout(NULL, layout_id, NULL, NULL,
-					   eos::common::LayoutId::kXrdCl);
+      "root://localhost//dummy");
   // Create readV request
   int num_datasets = 4;
   char* buff = new char[1024 * 1024];
@@ -237,14 +224,12 @@ FileTest::SplitReadVTest()
   char* ptr_off, *ptr_len;
 
   // Loop through all the sets of data in the test environment
-  for (int i = 1; i < num_datasets; i++)
-  {
+  for (int i = 1; i < num_datasets; i++) {
     // Read the initial offsets
     sstr.str("");
     sstr << "off" << i;
     str_off = mEnv->GetMapping(sstr.str());
     XrdOucTokenizer tok_off = XrdOucTokenizer((char*)str_off.c_str());
-
     // Read the initial lengths
     sstr.str("");
     sstr << "len" << i;
@@ -253,21 +238,19 @@ FileTest::SplitReadVTest()
     ptr_off = tok_off.GetLine();
     ptr_len = tok_len.GetLine();
 
-    while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken()))
-    {
+    while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken())) {
       //std::cout << "off = " << ptr_off << " len = " << ptr_len << std::endl;
       readV.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
-				       (uint32_t)atoi(ptr_len),
-				       (void*)0));
+                                       (uint32_t)atoi(ptr_len),
+                                       (void*)0));
     }
 
     int indx = 0;
     std::vector<XrdCl::ChunkList> result = ((RaidMetaLayout*)file)->SplitReadV(
-	readV);
+        readV);
 
     // Loop through the answers for each stripe and compare with the correct values
-    for (auto it_stripe = result.begin(); it_stripe != result.end(); ++it_stripe)
-    {
+    for (auto it_stripe = result.begin(); it_stripe != result.end(); ++it_stripe) {
       //Read the correct answer to compare with
       sstr.str("");
       sstr << "off" << i << "_stripe" << indx;
@@ -281,11 +264,10 @@ FileTest::SplitReadVTest()
       ptr_len = tok_len.GetLine();
       correct_rdv.clear();
 
-      while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken()))
-      {
-	correct_rdv.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
-					       (uint32_t)atoi(ptr_len),
-					       buff));
+      while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken())) {
+        correct_rdv.push_back(XrdCl::ChunkInfo((uint64_t)atoi(ptr_off),
+                                               (uint32_t)atoi(ptr_len),
+                                               buff));
       }
 
       // Test same length
@@ -293,10 +275,9 @@ FileTest::SplitReadVTest()
 
       // Test each individual chunk
       for (auto it_chunk = it_stripe->begin(), it_resp = correct_rdv.begin();
-	   it_chunk != it_stripe->end(); ++it_chunk, ++it_resp)
-      {
-	CPPUNIT_ASSERT(it_chunk->offset == it_resp->offset);
-	CPPUNIT_ASSERT(it_chunk->length == it_resp->length);
+           it_chunk != it_stripe->end(); ++it_chunk, ++it_resp) {
+        CPPUNIT_ASSERT(it_chunk->offset == it_resp->offset);
+        CPPUNIT_ASSERT(it_chunk->length == it_resp->length);
       }
 
       indx++;
@@ -329,8 +310,7 @@ FileTest::AlignBufferTest()
   XrdFstOssFile* ossfile = new XrdFstOssFile("test_id");
   std::vector<XrdOucIOVec> expect_resp;
 
-  for (int set = 1; set < num_datasets; ++set)
-  {
+  for (int set = 1; set < num_datasets; ++set) {
     // Read in the offset and legth of the request
     sstr.str("");
     sstr << "align" << set << "_off";
@@ -339,7 +319,6 @@ FileTest::AlignBufferTest()
     sstr << "align" << set << "_len";
     len_req = (size_t)atoi(mEnv->GetMapping(sstr.str()).c_str());
     char* buffer = new char[len_req];
-
     // Read the correct answer to compare with
     sstr.str("");
     sstr << "align" << set << "_resp_off";
@@ -353,8 +332,7 @@ FileTest::AlignBufferTest()
     ptr_len = tok_len.GetLine();
     expect_resp.clear();
 
-    while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken()))
-    {
+    while ((ptr_off = tok_off.GetToken()) && (ptr_len = tok_len.GetToken())) {
       XrdOucIOVec expect_piece = {atol(ptr_off), atoi(ptr_len), 0, 0};
       expect_resp.push_back(expect_piece);
     }
@@ -366,8 +344,7 @@ FileTest::AlignBufferTest()
     //          << " size resp:" << resp.size() << std::endl;
     CPPUNIT_ASSERT(resp.size() == expect_resp.size());
 
-    for (uint32_t indx = 0; indx < resp.size(); ++indx)
-    {
+    for (uint32_t indx = 0; indx < resp.size(); ++indx) {
       //std::cout << "resp off:" << resp[indx].offset
       //          << " len:" << resp[indx].size << std::endl;
       //std::cout << "exp off:" << expect_resp[indx].offset
@@ -391,7 +368,6 @@ void
 FileTest::DeleteFlagTest()
 {
   using namespace XrdCl;
-
   // Fill buffer with random characters
   uint64_t offset = 0;
   uint32_t block_size = 4 * 1024;
@@ -399,7 +375,6 @@ FileTest::DeleteFlagTest()
   std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
   urandom.read(buffer, block_size);
   urandom.close();
-
   // Initialise
   XRootDStatus status;
   std::string address = "root://root@" + mEnv->GetMapping("server");
@@ -409,12 +384,11 @@ FileTest::DeleteFlagTest()
   std::string file_url = address + "/" + file_path;
   mFile = new File();
   status = mFile->Open(file_url, OpenFlags::Delete | OpenFlags::Update,
-		       Access::Mode::UR | Access::Mode::UW);
+                       Access::Mode::UR | Access::Mode::UW);
   CPPUNIT_ASSERT(status.IsOK());
 
   // Write some data to the file
-  for (uint32_t i = 0; i < 10; i++)
-  {
+  for (uint32_t i = 0; i < 10; i++) {
     status = mFile->Write(offset, block_size, buffer);
     offset += block_size;
     CPPUNIT_ASSERT(status.IsOK());
@@ -427,7 +401,6 @@ FileTest::DeleteFlagTest()
   status = mFile->Fcntl(arg, response);
   CPPUNIT_ASSERT(status.IsOK());
   delete response;
-
   // Close the file and then test for its existance
   status = mFile->Close();
   status = mFile->Open(file_url, OpenFlags::Read, Access::Mode::None);
@@ -448,23 +421,23 @@ FileTest::ReadAsyncTest()
   XrdCl::URL url(address);
   CPPUNIT_ASSERT(url.IsValid());
   std::string file_url = address + "/" + file_path;
-  eos::fst::XrdIo* file = new eos::fst::XrdIo();
+  eos::fst::XrdIo* file = new eos::fst::XrdIo(file_url);
   std::cerr << "File url: " << file_url << std::endl;
-  CPPUNIT_ASSERT(!file->Open(file_url, SFS_O_RDONLY));
+  CPPUNIT_ASSERT(!file->fileOpen(SFS_O_RDONLY));
   // Get file size
   struct stat buff;
-  CPPUNIT_ASSERT(!file->Stat(&buff));
+  CPPUNIT_ASSERT(!file->fileStat(&buff));
   uint64_t file_size = buff.st_size;
-  off_t buff_size = 1025*4;
+  off_t buff_size = 1025 * 4;
   char buffer [buff_size];
   uint64_t offset = 0;
 
-  while (offset <= file_size)
-  {
-    CPPUNIT_ASSERT(file->ReadAsync(offset, buffer, buff_size, false) == buff_size);
+  while (offset <= file_size) {
+    CPPUNIT_ASSERT(file->fileReadAsync(offset, buffer, buff_size,
+                                       false) == buff_size);
     offset += buff_size;
   }
 
-  CPPUNIT_ASSERT(file->Close());
+  CPPUNIT_ASSERT(file->fileClose());
   delete file;
 }

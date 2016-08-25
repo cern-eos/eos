@@ -35,14 +35,22 @@
   gOFS->MgmStats.Add("Fuse-Statvfs", vid.uid, vid.gid, 1);
 
   XrdOucString space = env.Get("path");
-  if(env.Get("eos.encodepath"))
+
+  if (env.Get("eos.encodepath"))
+  {
     space = eos::common::StringConversion::curl_unescaped(space.c_str()).c_str();
+  }
 
   static XrdSysMutex statvfsmutex;
   static unsigned long long freebytes = 0;
   static unsigned long long freefiles = 0;
   static unsigned long long maxbytes = 0;
   static unsigned long long maxfiles = 0;
+
+  long long l_freebytes = 0;
+  long long l_freefiles = 0;
+  long long l_maxbytes = 0;
+  long long l_maxfiles = 0;
 
   static time_t laststat = 0;
 
@@ -52,38 +60,62 @@
   {
     response = "df: retc=";
     response += EINVAL;
-  }
-  else
+  } else
   {
-    statvfsmutex.Lock();
+    int spos = 0;
+    int deepness = 0;
 
-    // here we put some cache to avoid too heavy space recomputations
-    if ((time(NULL) - laststat) > (10 + (int) rand() / RAND_MAX))
+    while ((spos = space.find("/", spos)) != STR_NPOS)
     {
-      // take the sum's from all file systems in 'default'
-      if (FsView::gFsView.mSpaceView.count("default"))
-      {
-        eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
-        freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes", false);
-        freefiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
-
-        maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity", false);
-        maxfiles = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
-      }
+      deepness++;
+      spos++;
     }
-    statvfsmutex.UnLock();
+
+    if (deepness < 4)
+    {
+      statvfsmutex.Lock();
+
+      // here we put some cache to avoid too heavy space recomputations
+      if ((time(NULL) - laststat) > (10 + (int) rand() / RAND_MAX)) {
+        // take the sum's from all file systems in 'default'
+        if (FsView::gFsView.mSpaceView.count("default")) {
+          eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
+          freebytes =
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes",
+          false);
+          freefiles =
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.ffree", false);
+          maxbytes =
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity",
+          false);
+          maxfiles =
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.files", false);
+        }
+      }
+
+      statvfsmutex.UnLock();
+      l_freebytes = (long long)freebytes;
+      l_freefiles = (long long)freefiles;
+      l_maxbytes = (long long)maxbytes;
+      l_maxfiles = (long long)maxfiles;
+    } else {
+      const std::string sspace = space.c_str();
+      Quota::GetIndividualQuota(vid, sspace, l_maxbytes, l_freebytes, l_maxfiles, l_freefiles);
+    }
+
+
     response = "statvfs: retc=0";
     char val[1025];
-    snprintf(val, 1024, "%llu", freebytes);
+    snprintf(val, 1024, "%lld", l_freebytes);
     response += " f_avail_bytes=";
     response += val;
-    snprintf(val, 1024, "%llu", freefiles);
+    snprintf(val, 1024, "%lld", l_freefiles);
     response += " f_avail_files=";
     response += val;
-    snprintf(val, 1024, "%llu", maxbytes);
+    snprintf(val, 1024, "%lld", l_maxbytes);
     response += " f_max_bytes=";
     response += val;
-    snprintf(val, 1024, "%llu", maxfiles);
+    snprintf(val, 1024, "%lld", l_maxfiles);
     response += " f_max_files=";
     response += val;
     error.setErrInfo(response.length() + 1, response.c_str());

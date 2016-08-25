@@ -29,10 +29,10 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::fsctl (const int cmd,
-                  const char *args,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity * client)
+XrdMgmOfs::fsctl(const int cmd,
+                 const char* args,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief implements locate and space-ls function
@@ -47,34 +47,29 @@ XrdMgmOfs::fsctl (const int cmd,
  */
 /*----------------------------------------------------------------------------*/
 {
-  const char *tident = error.getErrUser();
-
+  const char* tident = error.getErrUser();
   eos::common::LogId ThreadLogId;
   ThreadLogId.SetSingleShotLogId(tident);
-
   eos_thread_info("cmd=%d args=%s", cmd, args);
-
   int opcode = cmd & SFS_FSCTL_CMD;
-  if (opcode == SFS_FSCTL_LOCATE)
-  {
 
+  if (opcode == SFS_FSCTL_LOCATE) {
     char locResp[4096];
     char rType[3], *Resp[] = {rType, locResp};
     rType[0] = 'S';
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(), gOFS->ManagerPort);
-    error.setErrInfo(strlen(locResp) + 3, (const char **) Resp, 2);
+    sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
+            gOFS->ManagerPort);
+    error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     return SFS_DATA;
   }
 
-  if (opcode == SFS_FSCTL_STATLS)
-  {
+  if (opcode == SFS_FSCTL_STATLS) {
     int blen = 0;
     char* buff = error.getMsgBuff(blen);
     XrdOucString space = "default";
-
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);
     unsigned long long freebytes = 0;
     unsigned long long maxbytes = 0;
@@ -82,52 +77,48 @@ XrdMgmOfs::fsctl (const int cmd,
     // -------------------------------------------------------------------------
     // take the sum's from all file systems in 'default'
     // -------------------------------------------------------------------------
-    if (FsView::gFsView.mSpaceView.count("default"))
-    {
+    if (FsView::gFsView.mSpaceView.count("default")) {
       std::string path = args;
-      if ((path == "/") || (path == ""))
-      {
+
+      if ((path == "/") || (path == "")) {
         space = "default";
-        freebytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
-        maxbytes = FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
-      }
-      else
-      {
-        if (path[path.length() - 1] != '/')
-	  path += '/';
+        freebytes =
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.freebytes");
+        maxbytes =
+          FsView::gFsView.mSpaceView["default"]->SumLongLong("stat.statfs.capacity");
+      } else {
+        if (path[path.length() - 1] != '/') {
+          path += '/';
+        }
 
-	// Get quota group values for path and id 0
-	auto map_quotas = Quota::GetGroupStatistics(path, 0);
+        // Get quota group values for path and id 0
+        auto map_quotas = Quota::GetGroupStatistics(path, 0);
 
-	if (!map_quotas.empty())
-	{
+        if (!map_quotas.empty()) {
           maxbytes = map_quotas[SpaceQuota::kAllGroupBytesTarget];
           freebytes = maxbytes - map_quotas[SpaceQuota::kAllGroupBytesIs];
-	}
+        }
       }
     }
 
-    static const char *Resp = "oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
-            "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
-
+    static const char* Resp = "oss.cgroup=%s&oss.space=%lld&oss.free=%lld"
+                              "&oss.maxf=%lld&oss.used=%lld&oss.quota=%lld";
     blen = snprintf(buff, blen, Resp, space.c_str(), maxbytes,
                     freebytes, 64 * 1024 * 1024 * 1024LL /* fake 64GB */,
                     maxbytes - freebytes, maxbytes);
-
     error.setErrCode(blen + 1);
     return SFS_DATA;
   }
-
 
   return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", args);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::FSctl (const int cmd,
-                  XrdSfsFSctl &args,
-                  XrdOucErrInfo &error,
-                  const XrdSecEntity * client)
+XrdMgmOfs::FSctl(const int cmd,
+                 XrdSfsFSctl& args,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief FS control funcition implementing the locate and plugin call
@@ -144,68 +135,47 @@ XrdMgmOfs::FSctl (const int cmd,
  */
 /*----------------------------------------------------------------------------*/
 {
-
   char ipath[16384];
   char iopaque[16384];
+  static const char* epname = "FSctl";
+  const char* tident = error.getErrUser();
 
-  static const char *epname = "FSctl";
-  const char *tident = error.getErrUser();
-
-  if (args.Arg1Len)
-  {
-    if (args.Arg1Len < 16384)
-    {
+  if (args.Arg1Len) {
+    if (args.Arg1Len < 16384) {
       strncpy(ipath, args.Arg1, args.Arg1Len);
       ipath[args.Arg1Len] = 0;
-    }
-    else
-    {
+    } else {
       return gOFS->Emsg(epname, error, EINVAL,
                         "convert path argument - string too long", "");
     }
-  }
-  else
-  {
+  } else {
     ipath[0] = 0;
   }
 
-  if (args.Arg2Len)
-  {
-    if (args.Arg2Len < 16384)
-    {
+  if (args.Arg2Len) {
+    if (args.Arg2Len < 16384) {
       strncpy(iopaque, args.Arg2, args.Arg2Len);
       iopaque[args.Arg2Len] = 0;
-    }
-    else
-    {
+    } else {
       return gOFS->Emsg(epname, error, EINVAL,
                         "convert opaque argument - string too long", "");
     }
-  }
-  else
-  {
+  } else {
     iopaque[0] = 0;
   }
 
   const char* inpath = ipath;
   const char* ininfo = iopaque;
-
   // Do the id mapping with the opaque information
   eos::common::Mapping::VirtualIdentity vid;
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, false);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   eos::common::LogId ThreadLogId;
   ThreadLogId.SetSingleShotLogId(tident);
-
   NAMESPACEMAP;
-
   BOUNCE_ILLEGAL_NAMES;
-
   // ---------------------------------------------------------------------------
   // from here on we can deal with XrdOucString which is more 'comfortable'
   // ---------------------------------------------------------------------------
@@ -213,14 +183,12 @@ XrdMgmOfs::FSctl (const int cmd,
   XrdOucString opaque = iopaque;
   XrdOucString result = "";
   XrdOucEnv env(opaque.c_str());
-
   const char* scmd = env.Get("mgm.pcmd");
-  XrdOucString execmd = scmd?scmd:"";
+  XrdOucString execmd = scmd ? scmd : "";
 
   // version is not submitted to access control
   // so that features of the instance can be retrieved by an authenticated user
-  if( execmd != "version" )
-  {
+  if (execmd != "version") {
     BOUNCE_NOT_ALLOWED;
   }
 
@@ -229,17 +197,15 @@ XrdMgmOfs::FSctl (const int cmd,
   // ---------------------------------------------------------------------------
   // XRootD Locate
   // ---------------------------------------------------------------------------
-  if ((cmd == SFS_FSCTL_LOCATE))
-  {
-
+  if ((cmd == SFS_FSCTL_LOCATE)) {
     ACCESSMODE_R;
     MAYSTALL;
     MAYREDIRECT;
-
     // check if this file exists
     XrdSfsFileExistence file_exists;
-    if ((_exists(spath.c_str(), file_exists, error, client, 0)) || (file_exists != XrdSfsFileExistIsFile))
-    {
+
+    if ((_exists(spath.c_str(), file_exists, error, client, 0)) ||
+        (file_exists != XrdSfsFileExistIsFile)) {
       return SFS_ERROR;
     }
 
@@ -249,244 +215,223 @@ XrdMgmOfs::FSctl (const int cmd,
     // we don't want to manage writes via global redirection - therefore we mark the files as 'r'
     rType[1] = 'r'; //(fstat.st_mode & S_IWUSR            ? 'w' : 'r');
     rType[2] = '\0';
-    sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(), gOFS->ManagerPort);
-    error.setErrInfo(strlen(locResp) + 3, (const char **) Resp, 2);
+    sprintf(locResp, "[::%s]:%d ", (char*) gOFS->ManagerIp.c_str(),
+            gOFS->ManagerPort);
+    error.setErrInfo(strlen(locResp) + 3, (const char**) Resp, 2);
     ZTRACE(fsctl, "located at headnode: " << locResp);
     return SFS_DATA;
   }
 
-  if (cmd != SFS_FSCTL_PLUGIN)
-  {
+  if (cmd != SFS_FSCTL_PLUGIN) {
     return Emsg("fsctl", error, EOPNOTSUPP, "fsctl", inpath);
   }
 
-  if ( scmd )
-  {
+  if (scmd) {
     // -------------------------------------------------------------------------
     // Adjust replica (repairOnClose from FST)
     // -------------------------------------------------------------------------
-    if (execmd == "adjustreplica")
-    {
+    if (execmd == "adjustreplica") {
 #include "fsctl/Adjustreplica.cc"
     }
 
     // -------------------------------------------------------------------------
     // Repair file (repair after scan error e.g. use the converter to rewrite)
     // -------------------------------------------------------------------------
-    if (execmd == "rewrite")
-    {
+    if (execmd == "rewrite") {
 #include "fsctl/Rewrite.cc"
     }
+
     // -------------------------------------------------------------------------
     // Commit a replica
     // -------------------------------------------------------------------------
-    if (execmd == "commit")
-    {
+    if (execmd == "commit") {
 #include "fsctl/Commit.cc"
     }
 
     // -------------------------------------------------------------------------
     // Drop a replica
     // -------------------------------------------------------------------------
-    if (execmd == "drop")
-    {
+    if (execmd == "drop") {
 #include "fsctl/Drop.cc"
+    }
+
+    // -------------------------------------------------------------------------
+    // Trigger an event
+    // -------------------------------------------------------------------------
+    if (execmd == "event") {
+#include "fsctl/Event.cc"
     }
 
     // -------------------------------------------------------------------------
     // Return's meta data in env representation
     // -------------------------------------------------------------------------
-    if (execmd == "getfmd")
-    {
+    if (execmd == "getfmd") {
 #include "fsctl/Getfmd.cc"
     }
 
     // -------------------------------------------------------------------------
     // Stat a file/dir - this we always redirect to the RW master
     // -------------------------------------------------------------------------
-    if (execmd == "stat")
-    {
+    if (execmd == "stat") {
 #include "fsctl/Stat.cc"
     }
 
     // -------------------------------------------------------------------------
     // Make a directory and return it's inode
     // -------------------------------------------------------------------------
-    
-    if (execmd == "mkdir")
-    {
+
+    if (execmd == "mkdir") {
 #include "fsctl/Mkdir.cc"
     }
 
     // -------------------------------------------------------------------------
     // chmod a dir
     // -------------------------------------------------------------------------
-    if (execmd == "chmod")
-    {
+    if (execmd == "chmod") {
 #include "fsctl/Chmod.cc"
     }
 
     // -------------------------------------------------------------------------
     // chown file/dir
     // -------------------------------------------------------------------------
-    if (execmd == "chown")
-    {
+    if (execmd == "chown") {
 #include "fsctl/Chown.cc"
     }
 
     // -------------------------------------------------------------------------
     // check access rights
     // -------------------------------------------------------------------------
-    if (execmd == "access")
-    {
+    if (execmd == "access") {
 #include "fsctl/Access.cc"
     }
 
     // -------------------------------------------------------------------------
     // parallel IO mode open
     // -------------------------------------------------------------------------
-    if (execmd == "open")
-    {
+    if (execmd == "open") {
 #include "fsctl/Open.cc"
     }
 
     // -------------------------------------------------------------------------
     // get open redirect
     // -------------------------------------------------------------------------
-    if (execmd == "redirect")
-    {
+    if (execmd == "redirect") {
 #include "fsctl/Redirect.cc"
     }
 
     // -------------------------------------------------------------------------
     // utimes
     // -------------------------------------------------------------------------
-    if (execmd == "utimes")
-    {
+    if (execmd == "utimes") {
 #include "fsctl/Utimes.cc"
     }
 
     // -------------------------------------------------------------------------
     // parallel IO mode open
     // -------------------------------------------------------------------------
-    if (execmd == "checksum")
-    {
+    if (execmd == "checksum") {
 #include "fsctl/Checksum.cc"
     }
 
     // -------------------------------------------------------------------------
     // Return the virtual 'filesystem' stat
     // -------------------------------------------------------------------------
-    if (execmd == "statvfs")
-    {
+    if (execmd == "statvfs") {
 #include "fsctl/Statvfs.cc"
     }
 
     // -------------------------------------------------------------------------
     // get/set/list/rm extended attributes
     // -------------------------------------------------------------------------
-    if (execmd == "xattr")
-    {
+    if (execmd == "xattr") {
 #include "fsctl/Xattr.cc"
     }
 
     // -------------------------------------------------------------------------
     // create a symbolic link
     // -------------------------------------------------------------------------
-    if (execmd == "symlink")
-    {
+    if (execmd == "symlink") {
 #include "fsctl/Symlink.cc"
     }
 
     // -------------------------------------------------------------------------
     // resolve a symbolic link
     // -------------------------------------------------------------------------
-    if (execmd == "readlink")
-    {
+    if (execmd == "readlink") {
 #include "fsctl/Readlink.cc"
     }
 
     // -------------------------------------------------------------------------
     // Schedule a balancer transfer
     // -------------------------------------------------------------------------
-    if (execmd == "schedule2balance")
-    {
+    if (execmd == "schedule2balance") {
 #include "fsctl/Schedule2Balance.cc"
     }
 
     // -------------------------------------------------------------------------
     // Schedule a drain transfer
     // -------------------------------------------------------------------------
-    if (execmd == "schedule2drain")
-    {
+    if (execmd == "schedule2drain") {
 #include "fsctl/Schedule2Drain.cc"
     }
 
     // -------------------------------------------------------------------------
     // Schedule deletion
     // -------------------------------------------------------------------------
-    if (execmd == "schedule2delete")
-    {
+    if (execmd == "schedule2delete") {
 #include "fsctl/Schedule2Delete.cc"
     }
 
     // -------------------------------------------------------------------------
     // Set the transfer state (and log)
     // -------------------------------------------------------------------------
-    if (execmd == "txstate")
-    {
+    if (execmd == "txstate") {
 #include "fsctl/Txstate.cc"
     }
 
     // -------------------------------------------------------------------------
     // Get the eos version (and the features)
     // -------------------------------------------------------------------------
-    if (execmd == "version")
-    {
+    if (execmd == "version") {
 #include "fsctl/Version.cc"
     }
 
-    if (execmd == "mastersignalbounce")
-    {
+    if (execmd == "mastersignalbounce") {
       // -----------------------------------------------------------------------
       // a remote master signaled us to bounce everything to him
       // -----------------------------------------------------------------------
       REQUIRE_SSS_OR_LOCAL_AUTH;
-
       gOFS->MgmMaster.TagNamespaceInodes();
       gOFS->MgmMaster.RedirectToRemoteMaster();
-
       const char* ok = "OK";
       error.setErrInfo(strlen(ok) + 1, ok);
       return SFS_DATA;
     }
 
-    if (execmd == "mastersignalreload")
-    {
+    if (execmd == "mastersignalreload") {
       // -----------------------------------------------------------------------
       // a remote master signaled us to reload our namespace now
       // -----------------------------------------------------------------------
-
       REQUIRE_SSS_OR_LOCAL_AUTH;
-
       const char* sf = env.Get("compact_files");
       const char* sd = env.Get("compact_dirs");
-      bool compact_files=false;
-      bool compact_directories=false;
-      
-      if (sf)
-	compact_files=true;
-      if (sd)
-	compact_directories=true;
+      bool compact_files = false;
+      bool compact_directories = false;
+
+      if (sf) {
+        compact_files = true;
+      }
+
+      if (sd) {
+        compact_directories = true;
+      }
 
       gOFS->MgmMaster.WaitNamespaceFilesInSync(compact_files, compact_directories);
       gOFS->MgmMaster.RebootSlaveNamespace();
-
       const char* ok = "OK";
       error.setErrInfo(strlen(ok) + 1, ok);
       return SFS_DATA;
     }
-
 
     eos_thread_err("No implementation for %s", execmd.c_str());
   }

@@ -72,8 +72,8 @@ class SlowTreeNode : public SchedTreeBase
   friend struct FastStructures;
 
   // tree parents
-  SlowTreeNode *pFather;
-  typedef std::map<std::string,SlowTreeNode*> tNodeMap;
+  SlowTreeNode* pFather;
+  typedef std::map<std::string, SlowTreeNode*> tNodeMap;
   int pLeavesCount;
   int pNodeCount;
   // branches are accessed by their geotag. Convenient for insertion;
@@ -87,26 +87,27 @@ class SlowTreeNode : public SchedTreeBase
 protected:
   void destroy()
   {
-    for(tNodeMap::iterator it=pChildren.begin(); it!=pChildren.end(); it++)
-    delete it->second;
+    for (tNodeMap::iterator it = pChildren.begin(); it != pChildren.end(); it++) {
+      delete it->second;
+    }
   }
 
   // update the aggregated data in the nodes and and the ordered set of the branches
   void update()
   {
-    if(!pChildren.empty())
-    {
+    if (!pChildren.empty()) {
       // first update the branches
       pLeavesCount = 0;
-      for(tNodeMap::const_iterator it=pChildren.begin();it!=pChildren.end();it++)
-      {
+
+      for (tNodeMap::const_iterator it = pChildren.begin(); it != pChildren.end();
+           it++) {
         // update this branch
         it->second->update();
         pLeavesCount += it->second->pLeavesCount;
       }
+    } else {
+      pLeavesCount = 1;
     }
-    else
-    pLeavesCount = 1;
   }
 public:
   SlowTreeNode() : pFather(0) , pLeavesCount(0), pNodeCount(0)
@@ -116,17 +117,20 @@ public:
     destroy();
   }
 
-  template<typename T1,typename T2> inline bool writeFastTreeNodeTemplate (struct FastTree<T1,T2>::FastTreeNode *ftn) const
+  template<typename T1, typename T2, typename T3> inline bool
+  writeFastTreeNodeTemplate(struct FastTree<T1, T2, T3>::FastTreeNode* ftn) const
   {
     pNodeState.writeCompactVersion(&ftn->fsData);
     return true;
   }
 
-  std::ostream& display(std::ostream &os) const;
-  std::ostream& recursiveDisplay(std::ostream &os, bool useColors=false, const std::string &prefix="") const;
+  std::ostream& display(std::ostream& os) const;
+  std::ostream& recursiveDisplay(std::ostream& os, bool useColors = false,
+                                 const std::string& prefix = "") const;
 };
 
-inline std::ostream& operator << (std::ostream &os, const SlowTreeNode &treenode)
+inline std::ostream& operator << (std::ostream& os,
+                                  const SlowTreeNode& treenode)
 {
   return treenode.display(os);
 }
@@ -148,48 +152,65 @@ class SlowTree : public SchedTreeBase
 
   void Init()
   {
-    pNodeCount=1; // because of pRootNode
-    pRootNode.pNodeInfo.nodeType=TreeNodeInfo::intermediate;
-    pRootNode.pFather=NULL;
+    pNodeCount = 1; // because of pRootNode
+    pRootNode.pNodeInfo.nodeType = TreeNodeInfo::intermediate;
+    pRootNode.pFather = NULL;
     pRootNode.pNodeCount = 1;
-    pDebugLevel=0;
+    pDebugLevel = 0;
   }
 
-  SlowTreeNode* insert( const TreeNodeInfo *info, const TreeNodeStateFloat *state, std::string &fullgeotag, const std::string &partialgeotag, SlowTreeNode* startfrom, SlowTreeNode* startedConstructingAt);
+  SlowTreeNode* insert(const TreeNodeInfo* info, const TreeNodeStateFloat* state,
+                       std::string& fullgeotag, const std::string& partialgeotag,
+                       SlowTreeNode* startfrom, SlowTreeNode* startedConstructingAt);
 
 public:
-  SlowTree(const std::string &groupId)
+  SlowTree(const std::string& groupId)
   {
     Init();
-    pRootNode.pNodeInfo.geotag=groupId;
+    pRootNode.pNodeInfo.geotag = groupId;
   }
-  void setName(const std::string &groupId)
+  void setName(const std::string& groupId)
   {
-    pRootNode.pNodeInfo.geotag=groupId;
+    pRootNode.pNodeInfo.geotag = groupId;
+  }
+  const std::string& getName() const
+  {
+    return pRootNode.pNodeInfo.geotag;
   }
   SlowTree()
-  { Init();}
+  {
+    Init();
+  }
   ~SlowTree()
   {}
-  void emitDebugInfo( const size_t debugLevel) const
+  void emitDebugInfo(const size_t debugLevel) const
   {}
-  SlowTreeNode* insert( const TreeNodeInfo *info, const TreeNodeStateFloat *state);
-  bool remove( const TreeNodeInfo *info);
+  SlowTreeNode* insert(const TreeNodeInfo* info, const TreeNodeStateFloat* state);
+  bool remove(const TreeNodeInfo* info);
   SlowTreeNode* moveToNewGeoTag(SlowTreeNode* node, const std::string newGeoTag);
   size_t getNodeCount() const
-  { return pNodeCount;}
-  std::ostream& display(std::ostream &os, bool useColors=false) const;
+  {
+    return pNodeCount;
+  }
+  std::ostream& display(std::ostream& os, bool useColors = false) const;
 
-  bool buildFastStrctures(
-      FastPlacementTree *fpt, FastROAccessTree *froat, FastRWAccessTree *frwat,
-      FastBalancingPlacementTree *fbpt, FastBalancingAccessTree *fbat,
-      FastDrainingPlacementTree *fdpt, FastDrainingAccessTree *fdat,
-      FastTreeInfo *fastinfo, Fs2TreeIdxMap *fs2idx, GeoTag2NodeIdxMap *geo2node) const;
+  bool buildFastStrcturesSched(
+    FastPlacementTree* fpt, FastROAccessTree* froat, FastRWAccessTree* frwat,
+    FastBalancingPlacementTree* fbpt, FastBalancingAccessTree* fbat,
+    FastDrainingPlacementTree* fdpt, FastDrainingAccessTree* fdat,
+    FastTreeInfo* fastinfo, Fs2TreeIdxMap* fs2idx,
+    GeoTag2NodeIdxMap* geo2node) const;
 
-  FastPlacementTree* allocateAndBuildFastTreeTemplate(FastPlacementTree *fasttree, FastTreeInfo *fastinfo, Fs2TreeIdxMap *fs2idx, GeoTag2NodeIdxMap *geo2node) const;
+  bool buildFastStrcturesGW(
+    FastGatewayAccessTree* fgat, Host2TreeIdxMap* host2idx, FastTreeInfo* fastinfo,
+    GeoTag2NodeIdxMap* geo2node) const;
+
+  FastPlacementTree* allocateAndBuildFastTreeTemplate(FastPlacementTree* fasttree,
+      FastTreeInfo* fastinfo, Fs2TreeIdxMap* fs2idx,
+      GeoTag2NodeIdxMap* geo2node) const;
 };
 
-inline std::ostream& operator << (std::ostream &os, const SlowTree &tree)
+inline std::ostream& operator << (std::ostream& os, const SlowTree& tree)
 {
   return tree.display(os);
 }

@@ -75,7 +75,8 @@ public:
   //!
   //! @return true if entry should be filtered out, otherwise false
   //----------------------------------------------------------------------------
-  virtual bool FilterOutFile(const std::map<std::string, std::string>& entry_info) = 0 ;
+  virtual bool FilterOutFile(const std::map<std::string, std::string>& entry_info)
+    = 0 ;
 
   //----------------------------------------------------------------------------
   //! Filter the directory entry
@@ -96,12 +97,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ProcCommand ();
+  ProcCommand();
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ProcCommand ();
+  ~ProcCommand();
 
   //----------------------------------------------------------------------------
   //! Open a proc command e.g. call the appropriate user or admin commmand and
@@ -115,8 +116,8 @@ public:
   //!
   //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
-  int open (const char* path, const char* info,
-            eos::common::Mapping::VirtualIdentity &vid, XrdOucErrInfo *error);
+  int open(const char* path, const char* info,
+           eos::common::Mapping::VirtualIdentity& vid, XrdOucErrInfo* error);
 
   //----------------------------------------------------------------------------
   //! Read a part of the result stream created during open
@@ -127,7 +128,7 @@ public:
   //!
   //! @return number of bytes read
   //----------------------------------------------------------------------------
-  int read (XrdSfsFileOffset offset, char *buff, XrdSfsXferSize blen);
+  int read(XrdSfsFileOffset offset, char* buff, XrdSfsXferSize blen);
 
   //----------------------------------------------------------------------------
   //! Get the size of the result stream
@@ -136,7 +137,7 @@ public:
   //!
   //! @return SFS_OK in any case
   //----------------------------------------------------------------------------
-  int stat (struct stat* buf);
+  int stat(struct stat* buf);
 
   //----------------------------------------------------------------------------
   //! Close the proc stream and store the clients comment for the command in the
@@ -144,13 +145,13 @@ public:
   //!
   //! @return 0 if comment has been successfully stored otherwise != 0
   //----------------------------------------------------------------------------
-  int close ();
+  int close();
 
   //----------------------------------------------------------------------------
   //! Add stdout,stderr to an external stdout,stderr variable
   //----------------------------------------------------------------------------
   void
-  AddOutput (XrdOucString &lStdOut, XrdOucString &lStdErr)
+  AddOutput(XrdOucString& lStdOut, XrdOucString& lStdErr)
   {
     lStdOut += stdOut;
     lStdErr += stdErr;
@@ -161,13 +162,13 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  bool OpenTemporaryOutputFiles ();
+  bool OpenTemporaryOutputFiles();
 
   //----------------------------------------------------------------------------
   //! Get the return code of a proc command
   //----------------------------------------------------------------------------
   int
-  GetRetc ()
+  GetRetc()
   {
     return retc;
   }
@@ -183,50 +184,50 @@ public:
   //----------------------------------------------------------------------------
   //! List of user proc commands
   //----------------------------------------------------------------------------
-  int Attr ();
+  int Attr();
   int Archive();
   int Backup();
-  int Cd ();
-  int Chmod ();
-  int DirInfo (const char* path);
-  int Find ();
-  int File ();
-  int Fileinfo ();
-  int FileInfo (const char* path);
-  int Fuse ();
-  int Ls ();
-  int Map ();
-  int Member ();
-  int Mkdir ();
-  int Motd ();
-  int Quota ();
-  int Recycle ();
-  int Rm ();
-  int Rmdir ();
-  int Version ();
-  int Who ();
-  int Whoami ();
+  int Cd();
+  int Chmod();
+  int DirInfo(const char* path);
+  int Find();
+  int File();
+  int Fileinfo();
+  int FileInfo(const char* path);
+  int Fuse();
+  int Ls();
+  int Map();
+  int Member();
+  int Mkdir();
+  int Motd();
+  int Quota();
+  int Recycle();
+  int Rm();
+  int Rmdir();
+  int Version();
+  int Who();
+  int Whoami();
 
   //----------------------------------------------------------------------------
   //! List of admin proc commands
   //----------------------------------------------------------------------------
-  int Access ();
-  int Chown ();
-  int Config ();
-  int Debug ();
-  int Fs ();
-  int Fsck ();
-  int GeoSched ();
-  int Group ();
-  int Io ();
-  int Node ();
-  int Ns ();
-  int AdminQuota ();
-  int Rtlog ();
-  int Space ();
-  int Transfer ();
-  int Vid ();
-  int Vst ();
+  int Access();
+  int Chown();
+  int Config();
+  int Debug();
+  int Fs();
+  int Fsck();
+  int GeoSched();
+  int Group();
+  int Io();
+  int Node();
+  int Ns();
+  int AdminQuota();
+  int Rtlog();
+  int Space();
+  int Transfer();
+  int Vid();
+  int Vst();
 
   //----------------------------------------------------------------------------
   //! Send command to archive daemon and collect the response
@@ -241,8 +242,7 @@ public:
   //----------------------------------------------------------------------------
   //! Response structre holding information about the status of an archived dir
   //----------------------------------------------------------------------------
-  struct ArchDirStatus
-  {
+  struct ArchDirStatus {
     std::string mTime;
     std::string mUuid;
     std::string mPath;
@@ -255,7 +255,7 @@ public:
     ArchDirStatus(const std::string& xtime, const std::string& uuid,
                   const std::string& path, const std::string& op,
                   const std::string& st):
-        mTime(xtime), mUuid(uuid), mPath(path), mOp(op), mStatus(st)
+      mTime(xtime), mUuid(uuid), mPath(path), mOp(op), mStatus(st)
     {};
 
     //--------------------------------------------------------------------------
@@ -307,7 +307,8 @@ private:
   bool mJsonFormat; //< indicates JSON format
   bool mHttpFormat; //< indicates HTTP format
   bool mClosed; //< indicates the proc command has been closed already
-  XrdOucString mJsonCallback; //< sets the JSONP callback namein a response
+  bool mBase64Encoding; //< indicates base64 encoding of response
+  XrdOucString mJsonCallback; //< sets the JSONP callback name in a response
 
   //----------------------------------------------------------------------------
   //! Create archive file. If successful then the archive file is copied to the
@@ -428,16 +429,18 @@ private:
                    const std::string& twindow_val,
                    const std::set<std::string>& excl_xattr);
 
+public:
+
   //----------------------------------------------------------------------------
   //! Create a result stream from stdOut, stdErr & retc
   //----------------------------------------------------------------------------
-  void MakeResult ();
+  void MakeResult();
 
   //----------------------------------------------------------------------------
   //! Helper function able to detect key value pair output and convert to http
   //! table format
   //----------------------------------------------------------------------------
-  bool KeyValToHttpTable(XrdOucString &stdOut);
+  bool KeyValToHttpTable(XrdOucString& stdOut);
 };
 
 
@@ -450,12 +453,12 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ProcInterface () {};
+  ProcInterface() {};
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ProcInterface () {};
+  ~ProcInterface() {};
 
   //----------------------------------------------------------------------------
   //! Check if a path is requesting a proc commmand
@@ -464,7 +467,7 @@ public:
   //!
   //! @return true if proc command otherwise false
   //----------------------------------------------------------------------------
-  static bool IsProcAccess (const char* path);
+  static bool IsProcAccess(const char* path);
 
   //----------------------------------------------------------------------------
   //! Check if a proc command contains a 'write' action on the instance
@@ -473,8 +476,8 @@ public:
   //! @param info CGI for proc command
   //!
   //! @return true if write access otherwise false
-   //----------------------------------------------------------------------------
-  static bool IsWriteAccess (const char* path, const char* info);
+  //----------------------------------------------------------------------------
+  static bool IsWriteAccess(const char* path, const char* info);
 
   //----------------------------------------------------------------------------
   //! Authorize if the virtual ID can execute the requested command
@@ -486,9 +489,9 @@ public:
   //!
   //! @return true if authorized otherwise false
   //----------------------------------------------------------------------------
-  static bool Authorize (const char* path, const char* info,
-                         eos::common::Mapping::VirtualIdentity &vid,
-                         const XrdSecEntity* entity);
+  static bool Authorize(const char* path, const char* info,
+                        eos::common::Mapping::VirtualIdentity& vid,
+                        const XrdSecEntity* entity);
 };
 
 EOSMGMNAMESPACE_END

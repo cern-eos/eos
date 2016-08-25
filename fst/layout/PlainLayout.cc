@@ -26,6 +26,7 @@
 #include "fst/io/FileIoPlugin.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
+
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -44,7 +45,7 @@ void AsyncLayoutOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus*
 
   if (status->IsOK()) {
     // Store the last URL we are connected after open
-    mPlainLayout->mLastUrl = mPlainLayout->mPlainFile->GetLastUrl();
+    mPlainLayout->mLastUrl = mPlainLayout->mFileIO->GetLastUrl();
     is_ok = true;
   }
 
@@ -66,16 +67,21 @@ PlainLayout::PlainLayout(XrdFstOfsFile* file,
                          unsigned long lid,
                          const XrdSecEntity* client,
                          XrdOucErrInfo* outError,
-                         eos::common::LayoutId::eIoType io,
+                         const char* path,
                          uint16_t timeout) :
-  Layout(file, lid, client, outError, io, timeout),
+  Layout(file, lid, client, outError, path, timeout),
   mFileSize(0), mDisableRdAhead(false), mHasAsyncResponse(false),
   mAsyncResponse(false), mIoOpenHandler(NULL), mFlags(0)
 {
+  // evt. mark an IO module as talking to external storage
+  if ((mFileIO->GetIoType() != "LocalIo")) {
+    mFileIO->SetExternalStorage();
+  }
+
   pthread_mutex_init(&mMutex, NULL);
   pthread_cond_init(&mCondVar, NULL);
-  mPlainFile = FileIoPlugin::GetIoObject(mIoType, mOfsFile, mSecEntity);
   mIsEntryServer = true;
+  mLocalPath = path;
 }
 
 //------------------------------------------------------------------------------
@@ -83,39 +89,47 @@ PlainLayout::PlainLayout(XrdFstOfsFile* file,
 //------------------------------------------------------------------------------
 PlainLayout::~PlainLayout()
 {
+  // mFileIO is deleted via mFileIO in the base class
   pthread_mutex_destroy(&mMutex);
   pthread_cond_destroy(&mCondVar);
 
   if (mIoOpenHandler) {
     delete mIoOpenHandler;
   }
+}
 
-  delete mPlainFile;
+//------------------------------------------------------------------------------
+// Redirect toa new target
+//------------------------------------------------------------------------------
+void PlainLayout::Redirect(const char* path)
+{
+  if (mFileIO) {
+    delete mFileIO;
+  }
+
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  mLocalPath = path;
 }
 
 //------------------------------------------------------------------------------
 // Open File
 //------------------------------------------------------------------------------
 int
-PlainLayout::Open(const std::string& path,
-                  XrdSfsFileOpenMode flags,
-                  mode_t mode,
-                  const char* opaque)
+PlainLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 {
+  int retc = mFileIO->fileOpen(flags, mode, opaque, mTimeout);
+  mLastUrl = mFileIO->GetLastUrl();
   mFlags = flags;
-  mLocalPath = path;
-  int retc = mPlainFile->Open(path, flags, mode, opaque, mTimeout);
-  mLastUrl = mPlainFile->GetLastUrl();
-  mLastErrCode = mPlainFile->GetLastErrCode();
-  mLastErrNo = mPlainFile->GetLastErrNo();
+  mLastErrCode = mFileIO->GetLastErrCode();
+  mLastErrNo = mFileIO->GetLastErrNo();
 
   // If open for read succeeded then get initial file size
   if (!retc && !(mFlags & (SFS_O_CREAT | SFS_O_TRUNC))) {
     struct stat st_info;
-    int retc_stat = mPlainFile->Stat(&st_info);
+    int retc_stat = mFileIO->fileStat(&st_info);
 
     if (retc_stat) {
-      eos_err("failed stat for file=%s", path.c_str());
+      eos_err("failed stat for file=%s", mLocalPath.c_str());
       return SFS_ERROR;
     }
 
@@ -129,16 +143,15 @@ PlainLayout::Open(const std::string& path,
 // Open asynchronously
 //------------------------------------------------------------------------------
 int
-PlainLayout::OpenAsync(const std::string& path, XrdSfsFileOpenMode flags,
+PlainLayout::OpenAsync(XrdSfsFileOpenMode flags,
                        mode_t mode, XrdCl::ResponseHandler* layout_handler,
                        const char* opaque)
 {
   mFlags = flags;
-  mLocalPath = path;
-  mIoOpenHandler = new eos::fst::AsyncIoOpenHandler(
-    static_cast<eos::fst::XrdIo*>(mPlainFile), layout_handler);
-  return static_cast<eos::fst::XrdIo*>(mPlainFile)->OpenAsync(
-           path, mIoOpenHandler, flags, mode, opaque, mTimeout);
+  mIoOpenHandler = new eos::fst::AsyncIoOpenHandler
+  (static_cast<eos::fst::XrdIo*>(mFileIO), layout_handler);
+  return static_cast<eos::fst::XrdIo*>(mFileIO)->fileOpenAsync
+         (mIoOpenHandler, flags, mode, opaque, mTimeout);
 }
 
 //------------------------------------------------------------------------------
@@ -159,7 +172,7 @@ PlainLayout::WaitOpenAsync()
     // Get initial file size if not new file or truncated
     if (!(mFlags & (SFS_O_CREAT | SFS_O_TRUNC))) {
       struct stat st_info;
-      int retc_stat = mPlainFile->Stat(&st_info);
+      int retc_stat = mFileIO->fileStat(&st_info);
 
       if (retc_stat) {
         eos_err("failed stat");
@@ -176,6 +189,7 @@ PlainLayout::WaitOpenAsync()
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
+
 int64_t
 PlainLayout::Read(XrdSfsFileOffset offset, char* buffer,
                   XrdSfsXferSize length, bool readahead)
@@ -191,10 +205,10 @@ PlainLayout::Read(XrdSfsFileOffset offset, char* buffer,
       }
 
       eos_static_info("read offset=%llu length=%lu", offset, length);
-      int64_t nread = mPlainFile->ReadAsync(offset, buffer, length, readahead);
+      int64_t nread = mFileIO->fileReadAsync(offset, buffer, length, readahead);
       // Wait for any async requests
       AsyncMetaHandler* ptr_handler = static_cast<AsyncMetaHandler*>
-                                      (mPlainFile->GetAsyncHandler());
+                                      (mFileIO->fileGetAsyncHandler());
 
       if (ptr_handler) {
         uint16_t error_type = ptr_handler->WaitOK();
@@ -216,7 +230,7 @@ PlainLayout::Read(XrdSfsFileOffset offset, char* buffer,
     }
   }
 
-  return mPlainFile->Read(offset, buffer, length, mTimeout);
+  return mFileIO->fileRead(offset, buffer, length, mTimeout);
 }
 
 //------------------------------------------------------------------------------
@@ -225,13 +239,14 @@ PlainLayout::Read(XrdSfsFileOffset offset, char* buffer,
 int64_t
 PlainLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
-  return mPlainFile->ReadV(chunkList);
+  return mFileIO->fileReadV(chunkList);
 }
 
 
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
+
 int64_t
 PlainLayout::Write(XrdSfsFileOffset offset, const char* buffer,
                    XrdSfsXferSize length)
@@ -242,71 +257,78 @@ PlainLayout::Write(XrdSfsFileOffset offset, const char* buffer,
     mFileSize = offset + length;
   }
 
-  return mPlainFile->WriteAsync(offset, buffer, length, mTimeout);
+  return mFileIO->fileWriteAsync(offset, buffer, length, mTimeout);
 }
 
 //------------------------------------------------------------------------------
 // Truncate file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Truncate(XrdSfsFileOffset offset)
 {
   mFileSize = offset;
-  return mPlainFile->Truncate(offset, mTimeout);
+  return mFileIO->fileTruncate(offset, mTimeout);
 }
 
 //------------------------------------------------------------------------------
 // Reserve space for file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Fallocate(XrdSfsFileOffset length)
 {
-  return mPlainFile->Fallocate(length);
+  return mFileIO->fileFallocate(length);
 }
 
 //------------------------------------------------------------------------------
 // Deallocate reserved space
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Fdeallocate(XrdSfsFileOffset fromOffset, XrdSfsFileOffset toOffset)
 {
-  return mPlainFile->Fdeallocate(fromOffset, toOffset);
+  return mFileIO->fileFdeallocate(fromOffset, toOffset);
 }
 
 //------------------------------------------------------------------------------
 // Sync file to disk
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Sync()
 {
-  return mPlainFile->Sync(mTimeout);
+  return mFileIO->fileSync(mTimeout);
 }
 
 //------------------------------------------------------------------------------
 // Get stats for file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Stat(struct stat* buf)
 {
-  return mPlainFile->Stat(buf, mTimeout);
+  return mFileIO->fileStat(buf, mTimeout);
 }
 
 //------------------------------------------------------------------------------
 // Close file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Close()
 {
-  return mPlainFile->Close(mTimeout);
+  return mFileIO->fileClose(mTimeout);
 }
 
 //------------------------------------------------------------------------------
 // Remove file
 //------------------------------------------------------------------------------
+
 int
 PlainLayout::Remove()
 {
-  return mPlainFile->Remove();
+  return mFileIO->fileRemove();
 }
 
 EOSFSTNAMESPACE_END

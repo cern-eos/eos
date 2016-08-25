@@ -1,7 +1,7 @@
 //------------------------------------------------------------------------------
 //! @file: XrdFstOfsFile.hh
 //! @author: Andreas-Joachim Peters - CERN
-//! @brief 
+//! @brief
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -31,7 +31,7 @@
 #include <cmath>
 /*----------------------------------------------------------------------------*/
 /******************************************************************************
- * NOTE: Added from the XRootD headers and should be removed in the future 
+ * NOTE: Added from the XRootD headers and should be removed in the future
  * when this header file is available in the private headers.
  ******************************************************************************/
 #include "XrdOfsTPCInfo.hh"
@@ -54,14 +54,16 @@ EOSFSTNAMESPACE_BEGIN;
 // This defines for reports what is a large seek e.g. > 128 kB = default RA size
 #define EOS_FSTOFS_LARGE_SEEKS 128*1024ll
 
-// Forward declaration 
+// Forward declaration
 class Layout;
+class CheckSum;
 
 //------------------------------------------------------------------------------
 //! Class
 //------------------------------------------------------------------------------
 
-class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
+class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId
+{
   friend class ReplicaParLayout;
   friend class RaidMetaLayout;
   friend class RaidDpLayout;
@@ -70,17 +72,17 @@ class XrdFstOfsFile : public XrdOfsFile, public eos::common::LogId {
 public:
 
   static const uint16_t msDefaultTimeout; ///< default timeout value
-  
+
   //--------------------------------------------------------------------------
   // Constructor
   //--------------------------------------------------------------------------
-  XrdFstOfsFile (const char* user, int MonID = 0);
+  XrdFstOfsFile(const char* user, int MonID = 0);
 
 
   //--------------------------------------------------------------------------
   // Destructor
   //--------------------------------------------------------------------------
-  virtual ~XrdFstOfsFile ();
+  virtual ~XrdFstOfsFile();
 
 
   //----------------------------------------------------------------------------
@@ -102,12 +104,12 @@ public:
                    const char* args,
                    const XrdSecEntity* client = 0);
 
-  
+
   //--------------------------------------------------------------------------
   //! Return the Etag
   //--------------------------------------------------------------------------
 
-  const char* GetETag ()
+  const char* GetETag()
   {
     return ETag.c_str();
   }
@@ -116,7 +118,7 @@ public:
   //! Enforce an mtime on close
   //--------------------------------------------------------------------------
 
-  void SetForcedMtime (unsigned long long mtime, unsigned long long mtime_ms)
+  void SetForcedMtime(unsigned long long mtime, unsigned long long mtime_ms)
   {
     mForcedMtime = mtime;
     mForcedMtime_ms = mtime_ms;
@@ -126,80 +128,86 @@ public:
   //! Return current mtime while open
   //--------------------------------------------------------------------------
 
-  time_t GetMtime ()
+  time_t GetMtime()
   {
-    if (fMd)
+    if (fMd) {
       return fMd->fMd.mtime();
-    else
+    } else {
       return 0;
+    }
   }
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int openofs (const char* fileName,
-               XrdSfsFileOpenMode openMode,
-               mode_t createMode,
-               const XrdSecEntity* client,
-               const char* opaque = 0);
+  int openofs(const char* fileName,
+              XrdSfsFileOpenMode openMode,
+              mode_t createMode,
+              const XrdSecEntity* client,
+              const char* opaque = 0);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int dropall (eos::common::FileId::fileid_t fileid, 
-	       std::string path, 
-	       std::string manager);
+  int dropall(eos::common::FileId::fileid_t fileid,
+              std::string path,
+              std::string manager);
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int open (const char* fileName,
-            XrdSfsFileOpenMode openMode,
-            mode_t createMode,
-            const XrdSecEntity* client,
-            const char* opaque = 0);
-
-
-  //--------------------------------------------------------------------------
-  //!
-  //--------------------------------------------------------------------------
-  int closeofs ();
-
-  //--------------------------------------------------------------------------
-  //!
-  //--------------------------------------------------------------------------
-  int close ();
+  int open(const char* fileName,
+           XrdSfsFileOpenMode openMode,
+           mode_t createMode,
+           const XrdSecEntity* client,
+           const char* opaque = 0);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int read (XrdSfsFileOffset fileOffset, // Preread only
-            XrdSfsXferSize amount);
+  int modified();
+
+  //--------------------------------------------------------------------------
+  //!
+  //--------------------------------------------------------------------------
+  int closeofs();
+
+  //--------------------------------------------------------------------------
+  //!
+  //--------------------------------------------------------------------------
+  int close();
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  XrdSfsXferSize read (XrdSfsFileOffset fileOffset,
-                       char* buffer,
-                       XrdSfsXferSize buffer_size);
+  int read(XrdSfsFileOffset fileOffset,  // Preread only
+           XrdSfsXferSize amount);
+
+
+  //--------------------------------------------------------------------------
+  //!
+  //--------------------------------------------------------------------------
+  XrdSfsXferSize read(XrdSfsFileOffset fileOffset,
+                      char* buffer,
+                      XrdSfsXferSize buffer_size);
 
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  XrdSfsXferSize readofs (XrdSfsFileOffset fileOffset,
-                          char* buffer,
-                          XrdSfsXferSize buffer_size);
+  XrdSfsXferSize readofs(XrdSfsFileOffset fileOffset,
+                         char* buffer,
+                         XrdSfsXferSize buffer_size);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int read (XrdSfsAio* aioparm);
+  int read(XrdSfsAio* aioparm);
 
 
   //--------------------------------------------------------------------------
@@ -210,12 +218,12 @@ public:
   //! @param readCount number of entries in the vector read structure
   //!
   //! @return number of bytes read upon success, otherwise SFS_ERROR
-  //! 
+  //!
   //--------------------------------------------------------------------------
   XrdSfsXferSize readvofs(XrdOucIOVec* readV,
                           uint32_t readCount);
 
-  
+
   //--------------------------------------------------------------------------
   //! Vector read - OFS interface method
   //!
@@ -223,7 +231,7 @@ public:
   //! @param readCount number of entries in the vector read structure
   //!
   //! @return number of bytes read upon success, otherwise SFS_ERROR
-  //! 
+  //!
   //--------------------------------------------------------------------------
   XrdSfsXferSize readv(XrdOucIOVec* readV,
                        int readCount);
@@ -232,88 +240,93 @@ public:
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  XrdSfsXferSize write (XrdSfsFileOffset fileOffset,
-                        const char* buffer,
-                        XrdSfsXferSize buffer_size);
+  XrdSfsXferSize write(XrdSfsFileOffset fileOffset,
+                       const char* buffer,
+                       XrdSfsXferSize buffer_size);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  XrdSfsXferSize writeofs (XrdSfsFileOffset fileOffset,
-                           const char* buffer,
-                           XrdSfsXferSize buffer_size);
+  XrdSfsXferSize writeofs(XrdSfsFileOffset fileOffset,
+                          const char* buffer,
+                          XrdSfsXferSize buffer_size);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int write (XrdSfsAio* aioparm);
+  int write(XrdSfsAio* aioparm);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int stat (struct stat* buf);
+  int stat(struct stat* buf);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  bool verifychecksum ();
+  bool verifychecksum();
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int sync ();
+  int sync();
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int syncofs ();
+  int syncofs();
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int sync (XrdSfsAio* aiop);
+  int sync(XrdSfsAio* aiop);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int truncate (XrdSfsFileOffset fileOffset);
+  int truncate(XrdSfsFileOffset fileOffset);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  int truncateofs (XrdSfsFileOffset fileOffset);
+  int truncateofs(XrdSfsFileOffset fileOffset);
 
 
   //--------------------------------------------------------------------------
   //!
   //--------------------------------------------------------------------------
-  std::string GetFstPath ();
+  std::string GetFstPath();
 
 
   //--------------------------------------------------------------------------
   //! Return logical path
   //--------------------------------------------------------------------------
-  std::string GetPath () {return Path.c_str();}
+
+  std::string GetPath()
+  {
+    return Path.c_str();
+  }
 
   //--------------------------------------------------------------------------
   //! Check if the TpcKey is still valid e.g. member of gOFS.TpcMap
   //--------------------------------------------------------------------------
-  bool TpcValid (); 
+  bool TpcValid();
 
 
   //--------------------------------------------------------------------------
   //! Return the file size seen at open time
   //--------------------------------------------------------------------------
-  off_t getOpenSize ()
+
+  off_t getOpenSize()
   {
     return openSize;
   }
@@ -321,7 +334,8 @@ public:
   //--------------------------------------------------------------------------
   //! Return the file id
   //--------------------------------------------------------------------------
-  unsigned long long getFileId ()
+
+  unsigned long long getFileId()
   {
     return fileid;
   }
@@ -329,28 +343,37 @@ public:
   //--------------------------------------------------------------------------
   //! Disable the checksumming before close
   //--------------------------------------------------------------------------
-  void disableChecksum(bool broadcast=true);
+  void disableChecksum(bool broadcast = true);
 
   //--------------------------------------------------------------------------
   //! Return checksum
   //--------------------------------------------------------------------------
-  eos::fst::CheckSum* GetChecksum() { return checkSum;}
+
+  eos::fst::CheckSum* GetChecksum()
+  {
+    return checkSum;
+  }
 
   //--------------------------------------------------------------------------
   //! Return FMD checksum
   //--------------------------------------------------------------------------
-  
-  std::string GetFmdChecksum() {
+  std::string GetFmdChecksum()
+  {
     return fMd->fMd.checksum();
   }
 
   //--------------------------------------------------------------------------
   //! Check for chunked upload flag
   //--------------------------------------------------------------------------
-  bool IsChunkedUpload() 
+
+  bool IsChunkedUpload()
   {
     return isOCchunk;
   }
+
+  //--------------------------------------------------------------------------
+  static int LayoutReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
+  static int FileIoReadCB(eos::fst::CheckSum::ReadCallBack::callback_data_t* cbd);
 
 protected:
   XrdOucEnv* openOpaque;
@@ -386,12 +409,16 @@ protected:
   bool opened; //! indicator that file is opened
   bool haswrite; //! indicator that file was written/modified
   bool hasReadError; //! indicator if a RAIN file could be reconstructed or not
+  bool hasWriteError; //! indicator for a write error
   bool isRW; //! indicator that file is opened for rw
   bool isCreation; //! indicator that a new file is created
   bool isReplication; //! indicator that the opened file is a replica transfer
   bool isInjection; //! indicator that the opened file is a file injection where the size and checksum must match
   bool isReconstruction; //! indicator that the opened file is in a RAIN reconstruction process
   bool deleteOnClose; //! indicator that the file has to be cleaned on close
+  bool eventOnClose; //! indicator to send a specified event to the mgm on close
+  XrdOucString
+  eventWorkflow; //! indicates the workflow to be triggered by an event
   bool repairOnClose; //! indicator that the file should get repaired on close
   bool commitReconstruction; //! indicator that this FST has to commmit after reconstruction
   // <- if the reconstructed piece is not existing on disk we commit anyway since it is a creation.
@@ -407,7 +434,7 @@ protected:
 
   bool isOCchunk; //! indicator this is an OC chunk upload
 
-  int writeErrorFlag; //! uses kOFSxx enums to specify an error condition 
+  int writeErrorFlag; //! uses kOFSxx enums to specify an error condition
 
   enum {
     kTpcNone = 0, //! no TPC access
@@ -425,19 +452,20 @@ protected:
     kTpcRun = 2, //! TPC is running (2nd sync received)
     kTpcDone = 3, //! TPC has finished
   };
-  
+
   int tpcState; //! uses kTPCXYZ enumgs above to tag the TPC state
-  
-  FmdHelper* fMd; //! pointer to the in-memory file meta data object             
+
+  FmdHelper* fMd; //! pointer to the in-memory file meta data object
   eos::fst::CheckSum* checkSum; //! pointer to a checksum object
   Layout* layOut; //! pointer to a layout object
 
-  unsigned long long maxOffsetWritten; //! largest byte position written of a new created file
+  unsigned long long
+  maxOffsetWritten; //! largest byte position written of a new created file
 
   off_t openSize; //! file size when the file was opened
   off_t closeSize; //! file size when the file was closed
 
- private:
+private:
   //----------------------------------------------------------------------------
   // File statistics for monitoring purposes
   //----------------------------------------------------------------------------
@@ -445,14 +473,18 @@ protected:
   struct timeval closeTime; //! time when a file was closed
   struct timezone tz; //! timezone
   XrdSysMutex vecMutex; //! mutex protecting the rvec/wvec variables
-  std::vector<unsigned long long> rvec; //! vector with all read  sizes -> to compute sigma,min,max,total
-  std::vector<unsigned long long> wvec; //! vector with all write sizes -> to compute sigma,min,max,total
+  std::vector<unsigned long long>
+  rvec; //! vector with all read  sizes -> to compute sigma,min,max,total
+  std::vector<unsigned long long>
+  wvec; //! vector with all write sizes -> to compute sigma,min,max,total
   unsigned long long rBytes; //! sum bytes read
   unsigned long long wBytes; //! sum bytes written
   unsigned long long sFwdBytes; //! sum bytes seeked forward
   unsigned long long sBwdBytes; //! sum bytes seeked backward
-  unsigned long long sXlFwdBytes; //! sum bytes with large forward seeks (> EOS_FSTOFS_LARGE_SEEKS)
-  unsigned long long sXlBwdBytes; //! sum bytes with large backward seeks (> EOS_FSTOFS_LARGE_SEEKS)
+  unsigned long long
+  sXlFwdBytes; //! sum bytes with large forward seeks (> EOS_FSTOFS_LARGE_SEEKS)
+  unsigned long long
+  sXlBwdBytes; //! sum bytes with large backward seeks (> EOS_FSTOFS_LARGE_SEEKS)
   unsigned long rCalls; //! number of read calls
   unsigned long wCalls; //! number of write calls
   unsigned long nFwdSeeks; //! number of seeks forward
@@ -462,46 +494,47 @@ protected:
   unsigned long long rOffset; //! offset since last read operation on this file
   unsigned long long wOffset; //! offset since last write operation on this file
   //! vector with all readv sizes -> to compute min,max,etc.
-  std::vector<unsigned long long> monReadvBytes; 
+  std::vector<unsigned long long> monReadvBytes;
   //! size of each read call coming from readv requests -> to compute min,max, etc.
   std::vector<unsigned long long> monReadSingleBytes;
   //! number of individual read op. in each readv call -> to compute min,max, etc.
-  std::vector<unsigned long> monReadvCount; 
+  std::vector<unsigned long> monReadvCount;
 
   struct timeval cTime; ///< current time
   struct timeval lrTime; ///<last read time
-  struct timeval lrvTime; ///< last readv time 
+  struct timeval lrvTime; ///< last readv time
   struct timeval lwTime; ///< last write time
   struct timeval rTime; ///< sum time to serve read requests in ms
   struct timeval rvTime; ///< sum time to server readv requests in ms
   struct timeval wTime; ///< sum time to serve write requests in ms
   XrdOucString tIdent; ///< tident
-  struct stat updateStat; ///< stat struct to check if a file is updated between open-close
+  struct stat
+    updateStat; ///< stat struct to check if a file is updated between open-close
 
-  
+
   //--------------------------------------------------------------------------
   //! Compute total time to serve read requests
   //--------------------------------------------------------------------------
-  void AddReadTime ();
+  void AddReadTime();
 
 
   //--------------------------------------------------------------------------
   //! Compute total time to serve vector read requests
   //--------------------------------------------------------------------------
-  void AddReadVTime ();
+  void AddReadVTime();
 
-  
+
   //--------------------------------------------------------------------------
   //! Compute total time to serve write requests
   //--------------------------------------------------------------------------
-  void AddWriteTime ();
+  void AddWriteTime();
 
 
   //--------------------------------------------------------------------------
   //! Compute general statistics on a set of input values
   //!
   //! @param vect input collection
-  //! @param min miniumum element 
+  //! @param min miniumum element
   //! @param max maximum element
   //! @param sum sum of the elements
   //! @param avg average value
@@ -516,33 +549,38 @@ protected:
     max = sum = sum2 = avg = sigma = 0;
     min = 0xffffffff;
     sum = std::accumulate(vect.begin(), vect.end(), 0);
-    avg = vect.size() ? (1.0 *sum / vect.size()) : 0;
+    avg = vect.size() ? (1.0 * sum / vect.size()) : 0;
 
-    // For when the compiler will be smart enough 
+    // For when the compiler will be smart enough
     //sigma = std::accumulate(begin(vect), end(vect), 0,
     //                      [&avg] (const T& init, const T& elem)
     //                      {
     //                        return elem + std::pwd((elem - avg), 2);
     //                      });
 
-    for (auto it = vect.begin(); it != vect.end(); ++it)
-    {
-      if (*it > max) max = *it;
-      if (*it < min) min = *it;
+    for (auto it = vect.begin(); it != vect.end(); ++it) {
+      if (*it > max) {
+        max = *it;
+      }
+
+      if (*it < min) {
+        min = *it;
+      }
+
       sum2 += std::pow((*it - avg), 2);
     }
 
     sigma = vect.size() ? (sqrt(sum2 / vect.size())) : 0;
 
-    if (min == 0xffffffff)
-      min = 0;    
+    if (min == 0xffffffff) {
+      min = 0;
+    }
   }
-  
 
   //--------------------------------------------------------------------------
   //! Create report as a string
   //--------------------------------------------------------------------------
-  void MakeReportEnv (XrdOucString& reportString);  
+  void MakeReportEnv(XrdOucString& reportString);
 
 private:
 
@@ -553,7 +591,7 @@ private:
   //! @param arg XrdFstOfsFile instance object
   //!
   //----------------------------------------------------------------------------
-  static void* StartDoTpcTransfer (void* arg);
+  static void* StartDoTpcTransfer(void* arg);
 
 
   //----------------------------------------------------------------------------
@@ -587,7 +625,7 @@ private:
   uint16_t mTimeout; ///< timeout for layout operations
 };
 
-EOSFSTNAMESPACE_END;
+EOSFSTNAMESPACE_END
 
 #endif
 

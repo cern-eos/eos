@@ -30,545 +30,551 @@
 EOSMGMNAMESPACE_BEGIN
 
 int
-ProcCommand::Node ()
+ProcCommand::Node()
 {
- if (mSubCmd == "ls")
- {
-   {
-     std::string output;
-     std::string format;
-     std::string fqdn;
-     
-     if ( pOpaque->Get("mgm.outhost") )
-       fqdn = pOpaque->Get("mgm.outhost");
+  if (mSubCmd == "ls") {
+    {
+      std::string output;
+      std::string format;
+      std::string fqdn;
 
-     std::string mListFormat = "";
-     format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
+      if (pOpaque->Get("mgm.outhost")) {
+        fqdn = pOpaque->Get("mgm.outhost");
+      }
 
-     if (mOutFormat == "l")
-       mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
+      std::string mListFormat = "";
+      format = FsView::GetNodeFormat(std::string(mOutFormat.c_str()));
 
-     if (fqdn != "brief")
-     {
-       if (format.find("S")!=std::string::npos) format.replace(format.find("S"), 1, "s");
-       if (mListFormat.find("S")!=std::string::npos) mListFormat.replace(mListFormat.find("S"), 1, "s");
-     }
+      if (mOutFormat == "l") {
+        mListFormat = FsView::GetFileSystemFormat(std::string(mOutFormat.c_str()));
+      }
 
-     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-     FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
-     stdOut += output.c_str();
-   }
- }
+      if (fqdn != "brief") {
+        if (format.find("S") != std::string::npos) {
+          format.replace(format.find("S"), 1, "s");
+        }
 
- if (mSubCmd == "status")
- {
-   std::string node = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
-   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        if (mListFormat.find("S") != std::string::npos) {
+          mListFormat.replace(mListFormat.find("S"), 1, "s");
+        }
+      }
 
-   if ((node.find(":") == std::string::npos))
-   {
-     node += ":1095"; // default eos fst port
-   }
-   if ((node.find("/eos/") == std::string::npos))
-   {
-     node.insert(0, "/eos/");
-     node.append("/fst");
-   }
+      eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+      FsView::gFsView.PrintNodes(output, format, mListFormat, mOutDepth, mSelection);
+      stdOut += output.c_str();
+    }
+  }
 
-   if (FsView::gFsView.mNodeView.count(node))
-   {
-     stdOut += "# ------------------------------------------------------------------------------------\n";
-     stdOut += "# Node Variables\n";
-     stdOut += "# ....................................................................................\n";
-     std::vector<std::string> keylist;
-     FsView::gFsView.mNodeView[node]->GetConfigKeys(keylist);
-     std::sort(keylist.begin(), keylist.end());
-     for (size_t i = 0; i < keylist.size(); i++)
-     {
-       char line[1024];
-       snprintf(line, sizeof (line) - 1, "%-32s := %s\n", keylist[i].c_str(), FsView::gFsView.mNodeView[node]->GetConfigMember(keylist[i].c_str()).c_str());
-       stdOut += line;
-     }
-   }
-   else
-   {
-     stdErr = "error: cannot find node - no node with name=";
-     stdErr += node.c_str();
-     retc = ENOENT;
-   }
- }
+  if (mSubCmd == "status") {
+    std::string node = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
- if (mSubCmd == "set")
- {
-   std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
-   std::string status = (pOpaque->Get("mgm.node.state")) ? pOpaque->Get("mgm.node.state") : "";
-   std::string txgw = (pOpaque->Get("mgm.node.txgw")) ? pOpaque->Get("mgm.node.txgw") : "";
-   std::string key = "status";
-   if (txgw.length())
-   {
-     key = "txgw";
-     status = txgw;
-   }
-   if ((!nodename.length()) || (!status.length()))
-   {
-     stdErr = "error: illegal parameters";
-     retc = EINVAL;
-   }
-   else
-   {
-     if ((nodename.find(":") == std::string::npos))
-     {
-       nodename += ":1095"; // default eos fst port
-     }
-     if ((nodename.find("/eos/") == std::string::npos))
-     {
-       nodename.insert(0, "/eos/");
-       nodename.append("/fst");
-     }
+    if ((node.find(":") == std::string::npos)) {
+      node += ":1095"; // default eos fst port
+    }
 
-     std::string tident = pVid->tident.c_str();
-     std::string rnodename = nodename;
-     {
-       // for sss + node identification
+    if ((node.find("/eos/") == std::string::npos)) {
+      node.insert(0, "/eos/");
+      node.append("/fst");
+    }
 
-       rnodename.erase(0, 5);
-       size_t dpos;
+    if (FsView::gFsView.mNodeView.count(node)) {
+      stdOut += "# ------------------------------------------------------------------------------------\n";
+      stdOut += "# Node Variables\n";
+      stdOut += "# ....................................................................................\n";
+      std::vector<std::string> keylist;
+      FsView::gFsView.mNodeView[node]->GetConfigKeys(keylist);
+      std::sort(keylist.begin(), keylist.end());
 
-       if ((dpos = rnodename.find(":")) != std::string::npos)
-       {
-         rnodename.erase(dpos);
-       }
+      for (size_t i = 0; i < keylist.size(); i++) {
+        char line[2048];
+        std::string val;
+        val = FsView::gFsView.mNodeView[node]->GetConfigMember(
+                keylist[i].c_str()).c_str();
 
-       if ((dpos = rnodename.find(".")) != std::string::npos)
-       {
-         rnodename.erase(dpos);
-       }
+        if (val.substr(0, 7) == "base64:") {
+          val = "base64:...";
+        }
 
-       size_t addpos = 0;
-       if ((addpos = tident.find("@")) != std::string::npos)
-       {
-         tident.erase(0, addpos + 1);
-       }
-     }
+        if (val.length() > 1024) {
+          val = "...";
+        }
 
-     eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+        snprintf(line, sizeof(line) - 1, "%-32s := %s\n", keylist[i].c_str(),
+                 val.c_str());
+        stdOut += line;
+      }
+    } else {
+      stdErr = "error: cannot find node - no node with name=";
+      stdErr += node.c_str();
+      retc = ENOENT;
+    }
+  }
 
-     if ((pVid->uid != 0) && ((pVid->prot != "sss") || tident.compare(0, tident.length(), rnodename, 0, tident.length())))
-     {
-       stdErr += "error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
-       retc = EPERM;
-     }
-     else
-     {
+  if (mSubCmd == "set") {
+    std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
+                           "";
+    std::string status = (pOpaque->Get("mgm.node.state")) ?
+                         pOpaque->Get("mgm.node.state") : "";
+    std::string txgw = (pOpaque->Get("mgm.node.txgw")) ?
+                       pOpaque->Get("mgm.node.txgw") : "";
+    std::string key = "status";
+    std::string action = (pOpaque->Get("mgm.node.action")) ?
+                         pOpaque->Get("mgm.node.action") : "";
 
-       if (!FsView::gFsView.mNodeView.count(nodename))
-       {
-         stdOut = "info: creating node '";
-         stdOut += nodename.c_str();
-         stdOut += "'";
+    if (txgw.length()) {
+      key = "txgw";
+      status = txgw;
+    }
 
-         //            stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
-         //retc = ENOENT;
+    if (action.size()) {
+      // we are setting a proxygroup
+      key = "proxygroups";
+      status = (pOpaque->Get("mgm.node.proxygroup")) ?
+               pOpaque->Get("mgm.node.proxygroup") : "clear";
 
-         if (!FsView::gFsView.RegisterNode(nodename.c_str()))
-         {
-           stdErr = "error: cannot register node <";
-           stdErr += nodename.c_str();
-           stdErr += ">";
-           retc = EIO;
-         }
-       }
-     }
-     if (!retc)
-     {
-       if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true, nodename.c_str()))
-       {
-         retc = EIO;
-         stdErr = "error: cannot set node config value";
-       }
-       // set also the manager name
-       if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager", FsNode::gManagerId, true, nodename.c_str(), true))
-       {
-         retc = EIO;
-         stdErr = "error: cannot set the manager name";
-       }
-     }
-   }
- }
+      if (status.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890._-")
+          != std::string::npos) {
+        status.clear();
+      }
+    }
 
- if (mSubCmd == "rm")
- {
-   if (pVid->uid == 0)
-   {
-     std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") : "";
-     if ((!nodename.length()))
-     {
-       stdErr = "error: illegal parameters";
-       retc = EINVAL;
-     }
-     else
-     {
-       if ((nodename.find(":") == std::string::npos))
-       {
-         nodename += ":1095"; // default eos fst port
-       }
-       if ((nodename.find("/eos/") == std::string::npos))
-       {
-         nodename.insert(0, "/eos/");
-         nodename.append("/fst");
-       }
+    if ((!nodename.length()) || (!status.length())) {
+      stdErr = "error: illegal parameters";
+      retc = EINVAL;
+    } else {
+      if ((nodename.find(":") == std::string::npos)) {
+        nodename += ":1095"; // default eos fst port
+      }
 
-       eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-       if (!FsView::gFsView.mNodeView.count(nodename))
-       {
-         stdErr = "error: no such node '";
-         stdErr += nodename.c_str();
-         stdErr += "'";
-         retc = ENOENT;
-       }
-       else
-       {
-         // we only remove a node if it has no heartbeat anymore
-         if ( (time(NULL)-FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5 )
-         {
-           stdErr = "error: this node was still sending a heartbeat < 5 seconds ago - stop the FST daemon first!\n";
-           retc = EBUSY;
-           return SFS_OK;
-         }
+      if ((nodename.find("/eos/") == std::string::npos)) {
+        nodename.insert(0, "/eos/");
+        nodename.append("/fst");
+      }
 
-         // we can only remove a node if all filesystems are in empty state
-         for (auto it = FsView::gFsView.mNodeView[nodename]->begin(); it != FsView::gFsView.mNodeView[nodename]->end(); it++)
-         {
-           if (FsView::gFsView.mIdView.count(*it))
-           {
-             FileSystem* fs = FsView::gFsView.mIdView[*it];
-             if (fs)
-             {
-               // check the empty state
-               if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty))
-               {
-                 stdErr = "error: unable to remove node '";
-                 stdErr += nodename.c_str();
-                 stdErr += "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n";
-                 retc = EBUSY;
-                 return SFS_OK;
-               }
-             }
-           }
-         }
-         std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(FsNode::sGetConfigQueuePrefix(), nodename.c_str());
-         if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(nodeconfigname.c_str()))
-         {
-           stdErr = "error: unable to remove config of node '";
-           stdErr += nodename.c_str();
-           stdErr += "'";
-           retc = EIO;
-         }
-         else
-         {
-           if (FsView::gFsView.UnRegisterNode(nodename.c_str()))
-           {
-             stdOut = "success: removed node '";
-             stdOut += nodename.c_str();
-             stdOut += "'";
-           }
-           else
-           {
-             stdErr = "error: unable to unregister node '";
-             stdErr += nodename.c_str();
-             stdErr += "'";
-           }
-         }
-       }
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
+      std::string tident = pVid->tident.c_str();
+      std::string rnodename = nodename;
+      {
+        // for sss + node identification
+        rnodename.erase(0, 5);
+        size_t dpos;
 
- if (mSubCmd == "config")
- {
-   if (pVid->uid == 0)
-   {
-     std::string identifier = (pOpaque->Get("mgm.node.name")) ? pOpaque->Get("mgm.node.name") : "";
-     std::string key = (pOpaque->Get("mgm.node.key")) ? pOpaque->Get("mgm.node.key") : "";
-     std::string value = (pOpaque->Get("mgm.node.value")) ? pOpaque->Get("mgm.node.value") : "";
+        if ((dpos = rnodename.find(":")) != std::string::npos) {
+          rnodename.erase(dpos);
+        }
 
-     if ((!identifier.length()) || (!key.length()) || (!value.length()))
-     {
-       stdErr = "error: illegal parameters";
-       retc = EINVAL;
-     }
-     else
-     {
-       eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-       std::vector<FsNode*> nodes;
-       FileSystem* fs = 0;
+        if ((dpos = rnodename.find(".")) != std::string::npos) {
+          rnodename.erase(dpos);
+        }
 
-       if ((identifier.find("*") != std::string::npos))
-       {
-         // apply this to all nodes !
-         std::map<std::string, FsNode*>::const_iterator it;
-         for (it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++)
-         {
-           nodes.push_back(it->second);
-         }
-       }
-       else
-       {
-         // by host:port name
-         std::string path = identifier;
-         if ((identifier.find(":") == std::string::npos))
-         {
-           identifier += ":1095"; // default eos fst port
-         }
-         if ((identifier.find("/eos/") == std::string::npos))
-         {
-           identifier.insert(0, "/eos/");
-           identifier.append("/fst");
-         }
-         if (FsView::gFsView.mNodeView.count(identifier))
-         {
-           nodes.push_back(FsView::gFsView.mNodeView[identifier]);
-         }
-       }
+        size_t addpos = 0;
 
-       for (size_t i = 0; i < nodes.size(); i++)
-       {
-         if (key == "configstatus")
-         {
-           eos::mgm::BaseView::const_iterator it;
-           for (it = nodes[i]->begin(); it != nodes[i]->end(); it++)
-           {
-             if (FsView::gFsView.mIdView.count(*it))
-             {
-               fs = FsView::gFsView.mIdView[*it];
-               if (fs)
-               {
-                 // check the allowed strings
-                 if ((eos::common::FileSystem::GetConfigStatusFromString(value.c_str()) != eos::common::FileSystem::kUnknown))
-                 {
-                   fs->SetString(key.c_str(), value.c_str());
-                   if (value == "off")
-                   {
-                     // we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
-                     fs->SetString("errc", "0");
-                   }
-                   FsView::gFsView.StoreFsConfig(fs);
-                 }
-                 else
-                 {
-                   stdErr += "error: not an allowed parameter <";
-                   stdErr += key.c_str();
-                   stdErr += ">\n";
-                   retc = EINVAL;
-                 }
-               }
-               else
-               {
-                 stdErr += "error: cannot identify the filesystem by <";
-                 stdErr += identifier.c_str();
-                 stdErr += ">\n";
-                 retc = EINVAL;
-               }
-             }
-           }
-         }
-         else
-         {
-           bool keyok = false;
-           if (key == "gw.ntx")
-           {
-             keyok = true;
-             int slots = atoi(value.c_str());
-             if ((slots < 1) || (slots > 100))
-             {
-               stdErr += "error: number of gateway transfer slots must be between 1-100\n";
-               retc = EINVAL;
-             }
-             else
-             {
-               if (nodes[i]->SetConfigMember(key, value, false))
-               {
-                 stdOut += "success: number of gateway transfer slots set to gw.ntx=";
-                 stdOut += (int) slots;
-               }
-               else
-               {
-                 stdErr += "error: failed to store the config value gw.ntx\n";
-                 retc = EFAULT;
-               }
-             }
-           }
+        if ((addpos = tident.find("@")) != std::string::npos) {
+          tident.erase(0, addpos + 1);
+        }
+      }
+      eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
 
-           if (key == "gw.rate")
-           {
-             keyok = true;
-             int bw = atoi(value.c_str());
-             if ((bw < 1) || (bw > 10000))
-             {
-               stdErr += "error: gateway transfer speed must be 1-10000 (MB/s)\n";
-               retc = EINVAL;
-             }
-             else
-             {
-               if (nodes[i]->SetConfigMember(key, value, false))
-               {
-                 stdOut += "success: gateway transfer rate set to gw.rate=";
-                 stdOut += (int) bw;
-                 stdOut += " Mb/s";
-               }
-               else
-               {
-                 stdErr += "error: failed to store the config value gw.rate\n";
-                 retc = EFAULT;
-               }
-             }
-           }
+      if ((pVid->uid != 0) && ((pVid->prot != "sss") ||
+                               tident.compare(0, tident.length(), rnodename, 0, tident.length()))) {
+        stdErr += "error: nodes can only be configured as 'root' or from the node itself them using sss protocol\n";
+        retc = EPERM;
+      } else {
+        if (!FsView::gFsView.mNodeView.count(nodename)) {
+          stdOut = "info: creating node '";
+          stdOut += nodename.c_str();
+          stdOut += "'";
 
-           if (key == "error.simulation")
-           {
-             keyok = true;
-             if (nodes[i]->SetConfigMember(key, value, false))
-             {
-               stdOut += "success: setting error simulation tag '";
-               stdOut += value.c_str();
-               stdOut += "'";
-             }
-             else
-             {
-               stdErr += "error: failed to store the error simulation tag\n";
-               retc = EFAULT;
-             }
-           }
+          //            stdErr="error: no such node '"; stdErr += nodename.c_str(); stdErr += "'";
+          //retc = ENOENT;
 
-           if (key == "publish.interval")
-           {
-             keyok = true;
-             if (nodes[i]->SetConfigMember(key, value, false))
-             {
-               stdOut += "success: setting publish interval to '";
-               stdOut += value.c_str();
-               stdOut += "'";
-             }
-             else
-             {
-               stdErr += "error: failed to store publish interval\n";
-               retc = EFAULT;
-             }
-           }
+          if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
+            stdErr = "error: cannot register node <";
+            stdErr += nodename.c_str();
+            stdErr += ">";
+            retc = EIO;
+          }
+        }
+      }
 
-           if (key == "debug.level")
-           {
-             keyok = true;
-             if (nodes[i]->SetConfigMember(key, value, false))
-             {
-               stdOut += "success: setting debug level to '";
-               stdOut += value.c_str();
-               stdOut += "'";
-             }
-             else
-             {
-               stdErr += "error: failed to store debug level interval\n";
-               retc = EFAULT;
-             }
-           }
+      if (!retc) {
+        if (action.size()) {
+          // we need to take the previous version of groupproxys to update it
+          std::string proxygroups = FsView::gFsView.mNodeView[nodename]->GetConfigMember(
+                                      key);
+          eos_static_debug(" old proxygroups value %s", proxygroups.c_str());
+          // find a previous occurence
+          std::set<std::string> groups;
+          std::string::size_type pos1 = 0, pos2 = 0;
 
-           if (!keyok)
-           {
-             stdErr += "error: the specified key is not known - consult the usage information of the command\n";
-             retc = EINVAL;
-           }
-         }
-         stdOut += "\n";
-       }
-       if (!nodes.size())
-       {
-         retc = EINVAL;
-         stdErr = "error: cannot find node <";
-         stdErr += identifier.c_str();
-         stdErr += ">";
-       }
-     }
-   }
-   else
-   {
-     retc = EPERM;
-     stdErr = "error: you have to take role 'root' to execute this command";
-   }
- }
+          if (proxygroups.size())
+            do {
+              pos2 = proxygroups.find(',', pos1);
+              groups.insert(proxygroups.substr(pos1,
+                                               pos2 == std::string::npos ? std::string::npos : pos2 - pos1));
+              pos1 = pos2;
 
- if (mSubCmd == "register")
- {
-   if (pVid->uid == 0)
-   {
-     XrdOucString registernode = pOpaque->Get("mgm.node.name");
-     XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
-     XrdOucString space2register = pOpaque->Get("mgm.node.space2register");
-     XrdOucString force = pOpaque->Get("mgm.node.force");
-     XrdOucString rootflag = pOpaque->Get("mgm.node.root");
+              if (pos1 != std::string::npos) {
+                pos1++;
+              }
+            } while (pos2 != std::string::npos);
 
-     if ((!registernode.c_str()) ||
-         (!path2register.c_str()) ||
-         (!space2register.c_str()) ||
-         (force.length() && (force != "true")) ||
-         (rootflag.length() && (rootflag != "true"))
-         )
-     {
-       stdErr = "error: invalid parameters";
-       retc = EINVAL;
-     }
-     else
-     {
-       XrdMqMessage message("mgm");
-       XrdOucString msgbody = "";
-       msgbody = eos::common::FileSystem::GetRegisterRequestString();
-       msgbody += "&mgm.path2register=";
-       msgbody += path2register;
-       msgbody += "&mgm.space2register=";
-       msgbody += space2register;
-       if (force.length())
-       {
-         msgbody += "&mgm.force=true";
-       }
-       if (rootflag.length())
-       {
-         msgbody += "&mgm.root=true";
-       }
+          if (action == "clear") {
+            proxygroups = "";
+          } else {
+            if (action == "add") {
+              groups.insert(status);
+            } else if (action == "rm") {
+              groups.erase(status);
+            }
 
-       message.SetBody(msgbody.c_str());
-       XrdOucString nodequeue = "/eos/";
-       if (registernode == "*")
-       {
-         nodequeue += "*";
-       }
-       else
-       {
-         nodequeue += registernode;
-       }
-       nodequeue += "/fst";
+            proxygroups.clear();
 
-       if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str()))
-       {
-         stdOut = "success: sent global register message to all fst nodes";
-       }
-       else
-       {
-         stdErr = "error: could not send global fst register message!";
-         retc = EIO;
-       }
-     }
-   }
-   else
-   {
-     stdErr = "error: you have to take the root role to execute the register command!";
-     retc = EPERM;
-   }
- }
- return SFS_OK;
+            for (auto it = groups.begin(); it != groups.end(); it++) {
+              proxygroups.append(*it + ",");
+            }
+
+            if (proxygroups.size()) {
+              proxygroups.resize(proxygroups.size() - 1);
+            }
+          }
+
+          eos_static_debug(" new proxygroups value %s", proxygroups.c_str());
+          status = proxygroups;
+        }
+
+        if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status, true,
+            nodename.c_str())) {
+          retc = EIO;
+          stdErr = "error: cannot set node config value";
+        }
+
+        // set also the manager name
+        if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember("manager",
+            FsNode::gManagerId, true, nodename.c_str(), true)) {
+          retc = EIO;
+          stdErr = "error: cannot set the manager name";
+        }
+      }
+    }
+  }
+
+  if (mSubCmd == "rm") {
+    if (pVid->uid == 0) {
+      std::string nodename = (pOpaque->Get("mgm.node")) ? pOpaque->Get("mgm.node") :
+                             "";
+
+      if ((!nodename.length())) {
+        stdErr = "error: illegal parameters";
+        retc = EINVAL;
+      } else {
+        if ((nodename.find(":") == std::string::npos)) {
+          nodename += ":1095"; // default eos fst port
+        }
+
+        if ((nodename.find("/eos/") == std::string::npos)) {
+          nodename.insert(0, "/eos/");
+          nodename.append("/fst");
+        }
+
+        eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
+
+        if (!FsView::gFsView.mNodeView.count(nodename)) {
+          stdErr = "error: no such node '";
+          stdErr += nodename.c_str();
+          stdErr += "'";
+          retc = ENOENT;
+        } else {
+          // we only remove a node if it has no heartbeat anymore
+          if ((time(NULL) - FsView::gFsView.mNodeView[nodename]->GetHeartBeat()) < 5) {
+            stdErr = "error: this node was still sending a heartbeat < 5 seconds ago - stop the FST daemon first!\n";
+            retc = EBUSY;
+            return SFS_OK;
+          }
+
+          // we can only remove a node if all filesystems are in empty state
+          for (auto it = FsView::gFsView.mNodeView[nodename]->begin();
+               it != FsView::gFsView.mNodeView[nodename]->end(); it++) {
+            if (FsView::gFsView.mIdView.count(*it)) {
+              FileSystem* fs = FsView::gFsView.mIdView[*it];
+
+              if (fs) {
+                // check the empty state
+                if ((fs->GetConfigStatus(false) != eos::common::FileSystem::kEmpty)) {
+                  stdErr = "error: unable to remove node '";
+                  stdErr += nodename.c_str();
+                  stdErr += "' - filesystems are not all in empty state - try to drain them or: node config <name> configstatus=empty\n";
+                  retc = EBUSY;
+                  return SFS_OK;
+                }
+              }
+            }
+          }
+
+          std::string nodeconfigname = eos::common::GlobalConfig::gConfig.QueuePrefixName(
+                                         FsNode::sGetConfigQueuePrefix(), nodename.c_str());
+
+          if (!eos::common::GlobalConfig::gConfig.SOM()->DeleteSharedHash(
+                nodeconfigname.c_str())) {
+            stdErr = "error: unable to remove config of node '";
+            stdErr += nodename.c_str();
+            stdErr += "'";
+            retc = EIO;
+          } else {
+            if (FsView::gFsView.UnRegisterNode(nodename.c_str())) {
+              stdOut = "success: removed node '";
+              stdOut += nodename.c_str();
+              stdOut += "'";
+            } else {
+              stdErr = "error: unable to unregister node '";
+              stdErr += nodename.c_str();
+              stdErr += "'";
+            }
+          }
+        }
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
+  if (mSubCmd == "config") {
+    if (pVid->uid == 0) {
+      std::string identifier = (pOpaque->Get("mgm.node.name")) ?
+                               pOpaque->Get("mgm.node.name") : "";
+      std::string key = (pOpaque->Get("mgm.node.key")) ? pOpaque->Get("mgm.node.key")
+                        : "";
+      std::string value = (pOpaque->Get("mgm.node.value")) ?
+                          pOpaque->Get("mgm.node.value") : "";
+
+      if ((!identifier.length()) || (!key.length()) || (!value.length())) {
+        stdErr = "error: illegal parameters";
+        retc = EINVAL;
+      } else {
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        std::vector<FsNode*> nodes;
+        FileSystem* fs = 0;
+
+        if ((identifier.find("*") != std::string::npos)) {
+          // apply this to all nodes !
+          std::map<std::string, FsNode*>::const_iterator it;
+
+          for (it = FsView::gFsView.mNodeView.begin();
+               it != FsView::gFsView.mNodeView.end(); it++) {
+            nodes.push_back(it->second);
+          }
+        } else {
+          // by host:port name
+          std::string path = identifier;
+
+          if ((identifier.find(":") == std::string::npos)) {
+            identifier += ":1095"; // default eos fst port
+          }
+
+          if ((identifier.find("/eos/") == std::string::npos)) {
+            identifier.insert(0, "/eos/");
+            identifier.append("/fst");
+          }
+
+          if (FsView::gFsView.mNodeView.count(identifier)) {
+            nodes.push_back(FsView::gFsView.mNodeView[identifier]);
+          }
+        }
+
+        for (size_t i = 0; i < nodes.size(); i++) {
+          if (key == "configstatus") {
+            eos::mgm::BaseView::const_iterator it;
+
+            for (it = nodes[i]->begin(); it != nodes[i]->end(); it++) {
+              if (FsView::gFsView.mIdView.count(*it)) {
+                fs = FsView::gFsView.mIdView[*it];
+
+                if (fs) {
+                  // check the allowed strings
+                  if ((eos::common::FileSystem::GetConfigStatusFromString(
+                         value.c_str()) != eos::common::FileSystem::kUnknown)) {
+                    fs->SetString(key.c_str(), value.c_str());
+
+                    if (value == "off") {
+                      // we have to remove the errc here, otherwise we cannot terminate drainjobs on file systems with errc set
+                      fs->SetString("errc", "0");
+                    }
+
+                    FsView::gFsView.StoreFsConfig(fs);
+                  } else {
+                    stdErr += "error: not an allowed parameter <";
+                    stdErr += key.c_str();
+                    stdErr += ">\n";
+                    retc = EINVAL;
+                  }
+                } else {
+                  stdErr += "error: cannot identify the filesystem by <";
+                  stdErr += identifier.c_str();
+                  stdErr += ">\n";
+                  retc = EINVAL;
+                }
+              }
+            }
+          } else {
+            bool keyok = false;
+
+            if (key == "gw.ntx") {
+              keyok = true;
+              int slots = atoi(value.c_str());
+
+              if ((slots < 1) || (slots > 100)) {
+                stdErr += "error: number of gateway transfer slots must be between 1-100\n";
+                retc = EINVAL;
+              } else {
+                if (nodes[i]->SetConfigMember(key, value, false)) {
+                  stdOut += "success: number of gateway transfer slots set to gw.ntx=";
+                  stdOut += (int) slots;
+                } else {
+                  stdErr += "error: failed to store the config value gw.ntx\n";
+                  retc = EFAULT;
+                }
+              }
+            }
+
+            if (key == "gw.rate") {
+              keyok = true;
+              int bw = atoi(value.c_str());
+
+              if ((bw < 1) || (bw > 10000)) {
+                stdErr += "error: gateway transfer speed must be 1-10000 (MB/s)\n";
+                retc = EINVAL;
+              } else {
+                if (nodes[i]->SetConfigMember(key, value, false)) {
+                  stdOut += "success: gateway transfer rate set to gw.rate=";
+                  stdOut += (int) bw;
+                  stdOut += " Mb/s";
+                } else {
+                  stdErr += "error: failed to store the config value gw.rate\n";
+                  retc = EFAULT;
+                }
+              }
+            }
+
+            if (key == "error.simulation") {
+              keyok = true;
+
+              if (nodes[i]->SetConfigMember(key, value, false)) {
+                stdOut += "success: setting error simulation tag '";
+                stdOut += value.c_str();
+                stdOut += "'";
+              } else {
+                stdErr += "error: failed to store the error simulation tag\n";
+                retc = EFAULT;
+              }
+            }
+
+            if (key == "publish.interval") {
+              keyok = true;
+
+              if (nodes[i]->SetConfigMember(key, value, false)) {
+                stdOut += "success: setting publish interval to '";
+                stdOut += value.c_str();
+                stdOut += "'";
+              } else {
+                stdErr += "error: failed to store publish interval\n";
+                retc = EFAULT;
+              }
+            }
+
+            if (key == "debug.level") {
+              keyok = true;
+
+              if (nodes[i]->SetConfigMember(key, value, false)) {
+                stdOut += "success: setting debug level to '";
+                stdOut += value.c_str();
+                stdOut += "'";
+              } else {
+                stdErr += "error: failed to store debug level interval\n";
+                retc = EFAULT;
+              }
+            }
+
+            if (!keyok) {
+              stdErr += "error: the specified key is not known - consult the usage information of the command\n";
+              retc = EINVAL;
+            }
+          }
+
+          stdOut += "\n";
+        }
+
+        if (!nodes.size()) {
+          retc = EINVAL;
+          stdErr = "error: cannot find node <";
+          stdErr += identifier.c_str();
+          stdErr += ">";
+        }
+      }
+    } else {
+      retc = EPERM;
+      stdErr = "error: you have to take role 'root' to execute this command";
+    }
+  }
+
+  if (mSubCmd == "register") {
+    if (pVid->uid == 0) {
+      XrdOucString registernode = pOpaque->Get("mgm.node.name");
+      XrdOucString path2register = pOpaque->Get("mgm.node.path2register");
+      XrdOucString space2register = pOpaque->Get("mgm.node.space2register");
+      XrdOucString force = pOpaque->Get("mgm.node.force");
+      XrdOucString rootflag = pOpaque->Get("mgm.node.root");
+
+      if ((!registernode.c_str()) ||
+          (!path2register.c_str()) ||
+          (!space2register.c_str()) ||
+          (force.length() && (force != "true")) ||
+          (rootflag.length() && (rootflag != "true"))
+         ) {
+        stdErr = "error: invalid parameters";
+        retc = EINVAL;
+      } else {
+        XrdMqMessage message("mgm");
+        XrdOucString msgbody = "";
+        msgbody = eos::common::FileSystem::GetRegisterRequestString();
+        msgbody += "&mgm.path2register=";
+        msgbody += path2register;
+        msgbody += "&mgm.space2register=";
+        msgbody += space2register;
+
+        if (force.length()) {
+          msgbody += "&mgm.force=true";
+        }
+
+        if (rootflag.length()) {
+          msgbody += "&mgm.root=true";
+        }
+
+        message.SetBody(msgbody.c_str());
+        XrdOucString nodequeue = "/eos/";
+
+        if (registernode == "*") {
+          nodequeue += "*";
+        } else {
+          nodequeue += registernode;
+        }
+
+        nodequeue += "/fst";
+
+        if (XrdMqMessaging::gMessageClient.SendMessage(message, nodequeue.c_str())) {
+          stdOut = "success: sent global register message to all fst nodes";
+        } else {
+          stdErr = "error: could not send global fst register message!";
+          retc = EIO;
+        }
+      }
+    } else {
+      stdErr = "error: you have to take the root role to execute the register command!";
+      retc = EPERM;
+    }
+  }
+
+  return SFS_OK;
 }
 
 EOSMGMNAMESPACE_END

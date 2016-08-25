@@ -38,10 +38,10 @@
 //! Forward declaration
 namespace eos
 {
-  namespace fst
-  {
-    class Layout;
-  }
+namespace fst
+{
+class Layout;
+}
 };
 
 //! Definition of an error occurring in a write operation
@@ -54,259 +54,260 @@ class LayoutWrapper;
 //------------------------------------------------------------------------------
 class FileAbstraction
 {
-  public:
+public:
 
-    //! Errors collected during writes
-    eos::common::ConcurrentQueue<error_type>* errorsQueue;
-    XrdSysRWLock mMutexRW; ///< RW mutex for file access
+  //! Errors collected during writes
+  eos::common::ConcurrentQueue<error_type>* errorsQueue;
+  XrdSysRWLock mMutexRW; ///< RW mutex for file access
 
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //!
-    //! @param fd file descriptor
-    //! @param file raw file object
-    //!
-    //--------------------------------------------------------------------------
-    FileAbstraction(const char* path="");
-
-
-    //--------------------------------------------------------------------------
-    //! Destructor
-    //--------------------------------------------------------------------------
-    ~FileAbstraction();
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param fd file descriptor
+  //! @param file raw file object
+  //!
+  //--------------------------------------------------------------------------
+  FileAbstraction(const char* path = "");
 
 
-    //--------------------------------------------------------------------------
-    //! Get size of writes in cache for current file
-    //--------------------------------------------------------------------------
-    size_t GetSizeWrites();
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  ~FileAbstraction();
 
 
-    //--------------------------------------------------------------------------
-    //! Get number of write blocks in cache for the file
-    //--------------------------------------------------------------------------
-    long long int GetNoWriteBlocks();
-
-    //--------------------------------------------------------------------------
-    //! Get fd value
-    //--------------------------------------------------------------------------
-    inline int GetFd() const
-    {
-      return mFd;
-    };
-
-    //--------------------------------------------------------------------------
-    //! Set fd value
-    //--------------------------------------------------------------------------
-    inline void SetFd( const int& fd)
-    {
-      mFd=fd;
-      mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
-      mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
-      eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
-                        this, mFirstPossibleKey, mLastPossibleKey);
-    };
+  //--------------------------------------------------------------------------
+  //! Get size of writes in cache for current file
+  //--------------------------------------------------------------------------
+  size_t GetSizeWrites();
 
 
-    //--------------------------------------------------------------------------
-    //! Get undelying raw file object
-    //--------------------------------------------------------------------------
-    inline LayoutWrapper* GetRawFileRW() const
-    {
-      return mFileRW;
-    };
+  //--------------------------------------------------------------------------
+  //! Get number of write blocks in cache for the file
+  //--------------------------------------------------------------------------
+  long long int GetNoWriteBlocks();
 
-    //--------------------------------------------------------------------------
-    //! Set undelying raw file object
-    //--------------------------------------------------------------------------
-    void SetRawFileRW(LayoutWrapper* file);
+  //--------------------------------------------------------------------------
+  //! Get fd value
+  //--------------------------------------------------------------------------
+  inline int GetFd() const
+  {
+    return mFd;
+  };
 
-    //--------------------------------------------------------------------------
-    //! Get undelying raw file object for RO
-    //--------------------------------------------------------------------------
-    inline LayoutWrapper* GetRawFileRO() const
-    {
-      return mFileRO;
-    };
-
-    //--------------------------------------------------------------------------
-    //! Set undelying raw file object
-    //--------------------------------------------------------------------------
-    void SetRawFileRO(LayoutWrapper* file);
-    
-
-    //--------------------------------------------------------------------------
-    //! Get first possible key value
-    //--------------------------------------------------------------------------
-    inline long long GetFirstPossibleKey() const
-    {
-      return mFirstPossibleKey;
-    };
-
-    //--------------------------------------------------------------------------
-    //! Get last possible key value
-    //--------------------------------------------------------------------------
-    inline long long GetLastPossibleKey() const
-    {
-      return mLastPossibleKey;
-    };
+  //--------------------------------------------------------------------------
+  //! Set fd value
+  //--------------------------------------------------------------------------
+  inline void SetFd(const int& fd)
+  {
+    mFd = fd;
+    mFirstPossibleKey = static_cast<long long>(1e14 * mFd);
+    mLastPossibleKey = static_cast<long long>((1e14 * (mFd + 1)));
+    eos_static_debug("ptr_obj=%p, first_key=%llu, last_key=%llu",
+                     this, mFirstPossibleKey, mLastPossibleKey);
+  };
 
 
-    //--------------------------------------------------------------------------
-    //! Increment the size of writes
-    //!
-    //! @param sizeWrite size writes
-    //!
-    //--------------------------------------------------------------------------
-    void IncrementWrites(size_t sizeWrite);
+  //--------------------------------------------------------------------------
+  //! Get undelying raw file object
+  //--------------------------------------------------------------------------
+  inline LayoutWrapper* GetRawFileRW() const
+  {
+    return mFileRW;
+  };
+
+  //--------------------------------------------------------------------------
+  //! Set undelying raw file object
+  //--------------------------------------------------------------------------
+  void SetRawFileRW(LayoutWrapper* file);
+
+  //--------------------------------------------------------------------------
+  //! Get undelying raw file object for RO
+  //--------------------------------------------------------------------------
+  inline LayoutWrapper* GetRawFileRO() const
+  {
+    return mFileRO;
+  };
+
+  //--------------------------------------------------------------------------
+  //! Set undelying raw file object
+  //--------------------------------------------------------------------------
+  void SetRawFileRO(LayoutWrapper* file);
 
 
-    //--------------------------------------------------------------------------
-    //! Decrement the size of writes
-    //!
-    //! @param sizeWrite size writes
-    //!
-    //--------------------------------------------------------------------------
-    void DecrementWrites(size_t sizeWrite);
+  //--------------------------------------------------------------------------
+  //! Get first possible key value
+  //--------------------------------------------------------------------------
+  inline long long GetFirstPossibleKey() const
+  {
+    return mFirstPossibleKey;
+  };
+
+  //--------------------------------------------------------------------------
+  //! Get last possible key value
+  //--------------------------------------------------------------------------
+  inline long long GetLastPossibleKey() const
+  {
+    return mLastPossibleKey;
+  };
 
 
-    //--------------------------------------------------------------------------
-    //! Increment the number of open requests
-    //--------------------------------------------------------------------------
-    void IncNumOpenRW();
+  //--------------------------------------------------------------------------
+  //! Increment the size of writes
+  //!
+  //! @param sizeWrite size writes
+  //!
+  //--------------------------------------------------------------------------
+  void IncrementWrites(size_t sizeWrite);
 
 
-    //--------------------------------------------------------------------------
-    //! Decrement the number of open requests
-    //--------------------------------------------------------------------------
-    void DecNumOpenRW();
-
-    //--------------------------------------------------------------------------
-    //! Increment the number of open requests ni RO
-    //--------------------------------------------------------------------------
-    void IncNumOpenRO();
-
-    //--------------------------------------------------------------------------
-    //! Decrement the number of open requests in RO
-    //--------------------------------------------------------------------------
-    void DecNumOpenRO();
-
-    //--------------------------------------------------------------------------
-    //! Increment the number of references
-    //--------------------------------------------------------------------------
-    void IncNumRefRW();
+  //--------------------------------------------------------------------------
+  //! Decrement the size of writes
+  //!
+  //! @param sizeWrite size writes
+  //!
+  //--------------------------------------------------------------------------
+  void DecrementWrites(size_t sizeWrite);
 
 
-    //--------------------------------------------------------------------------
-    //! Decrement the number of references
-    //--------------------------------------------------------------------------
-    void DecNumRefRW();
-
-    //--------------------------------------------------------------------------
-    //! Increment the number of references in RO
-    //--------------------------------------------------------------------------
-    void IncNumRefRO();
-
-    //--------------------------------------------------------------------------
-    //! Decrement the number of references in RO
-    //--------------------------------------------------------------------------
-    void DecNumRefRO();
-
-    //--------------------------------------------------------------------------
-    //! Decide if the file is still in use for RW access
-    //!
-    //! @return true if file is in use, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    bool IsInUseRW();
-
-    //--------------------------------------------------------------------------
-    //! Decide if the file is still in use for RO access
-    //!
-    //! @return true if file is in use, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    bool IsInUseRO();
-
-    //--------------------------------------------------------------------------
-    //! Decide if the file is still in use at all (RO or RW)
-    //!
-    //! @return true if file is in use, otherwise false
-    //!
-    //--------------------------------------------------------------------------
-    bool IsInUse();
+  //--------------------------------------------------------------------------
+  //! Increment the number of open requests
+  //--------------------------------------------------------------------------
+  void IncNumOpenRW();
 
 
-    //--------------------------------------------------------------------------
-    //! Method used to wait for writes to be done
-    //--------------------------------------------------------------------------
-    void WaitFinishWrites();
+  //--------------------------------------------------------------------------
+  //! Decrement the number of open requests
+  //--------------------------------------------------------------------------
+  void DecNumOpenRW();
+
+  //--------------------------------------------------------------------------
+  //! Increment the number of open requests ni RO
+  //--------------------------------------------------------------------------
+  void IncNumOpenRO();
+
+  //--------------------------------------------------------------------------
+  //! Decrement the number of open requests in RO
+  //--------------------------------------------------------------------------
+  void DecNumOpenRO();
+
+  //--------------------------------------------------------------------------
+  //! Increment the number of references
+  //--------------------------------------------------------------------------
+  void IncNumRefRW();
 
 
-    //--------------------------------------------------------------------------
-    //! Genereate block key
-    //!
-    //! @param offset offset piece
-    //!
-    //! @return block key
-    //!
-    //--------------------------------------------------------------------------
-    long long int GenerateBlockKey(off_t offset);
+  //--------------------------------------------------------------------------
+  //! Decrement the number of references
+  //--------------------------------------------------------------------------
+  void DecNumRefRW();
+
+  //--------------------------------------------------------------------------
+  //! Increment the number of references in RO
+  //--------------------------------------------------------------------------
+  void IncNumRefRO();
+
+  //--------------------------------------------------------------------------
+  //! Decrement the number of references in RO
+  //--------------------------------------------------------------------------
+  void DecNumRefRO();
+
+  //--------------------------------------------------------------------------
+  //! Decide if the file is still in use for RW access
+  //!
+  //! @return true if file is in use, otherwise false
+  //!
+  //--------------------------------------------------------------------------
+  bool IsInUseRW();
+
+  //--------------------------------------------------------------------------
+  //! Decide if the file is still in use for RO access
+  //!
+  //! @return true if file is in use, otherwise false
+  //!
+  //--------------------------------------------------------------------------
+  bool IsInUseRO();
+
+  //--------------------------------------------------------------------------
+  //! Decide if the file is still in use at all (RO or RW)
+  //!
+  //! @return true if file is in use, otherwise false
+  //!
+  //--------------------------------------------------------------------------
+  bool IsInUse();
 
 
-    //--------------------------------------------------------------------------
-    //! Get the queue of errros
-    //--------------------------------------------------------------------------
-    eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
+  //--------------------------------------------------------------------------
+  //! Method used to wait for writes to be done
+  //--------------------------------------------------------------------------
+  void WaitFinishWrites();
 
-    //--------------------------------------------------------------------------
-    //! Set a new utime on a file
-    //--------------------------------------------------------------------------
-    void SetUtimes(struct timespec* utime);
 
-    //--------------------------------------------------------------------------
-    //! Get last utime setting of a file and the path to it
-    //--------------------------------------------------------------------------
-    const char* GetUtimes(struct timespec* utime);
+  //--------------------------------------------------------------------------
+  //! Genereate block key
+  //!
+  //! @param offset offset piece
+  //!
+  //! @return block key
+  //!
+  //--------------------------------------------------------------------------
+  long long int GenerateBlockKey(off_t offset);
 
-    //--------------------------------------------------------------------------
-    //! Conditionally increase the max write offset if offset is bigger
-    //--------------------------------------------------------------------------
-    void TestMaxWriteOffset(off_t offset);
-    void GrabMaxWriteOffset();
 
-    void GrabUtimes();
+  //--------------------------------------------------------------------------
+  //! Get the queue of errros
+  //--------------------------------------------------------------------------
+  eos::common::ConcurrentQueue<error_type>& GetErrorQueue() const;
 
-    //--------------------------------------------------------------------------
-    //! Set the max write offset to offset
-    //--------------------------------------------------------------------------
-    void SetMaxWriteOffset(off_t offset);
+  //--------------------------------------------------------------------------
+  //! Set a new utime on a file
+  //--------------------------------------------------------------------------
+  void SetUtimes(struct timespec* utime);
 
-    //--------------------------------------------------------------------------
-    //! Get the max write offset
-    //--------------------------------------------------------------------------
-    off_t GetMaxWriteOffset();
+  //--------------------------------------------------------------------------
+  //! Get last utime setting of a file and the path to it
+  //--------------------------------------------------------------------------
+  const char* GetUtimes(struct timespec* utime);
 
-    eos::common::RWMutex mInUse; ///< we use this look to indicate that someone has a reference to it 
-    
-  private:
-    int mFd; ///< file descriptor used for the block key range
-    LayoutWrapper* mFileRW; ///< raw file object for RW access
-    LayoutWrapper* mFileRO; ///< raw file object for RO access
-    int mNoReferencesRW; ///< number of held referencess to this file in RW
-    int mNoReferencesRO; ///< number of held referencess to this file in RO
-    int mNumOpenRW; ///< number of open request without a matching close in RW
-    int mNumOpenRO; ///< number of open request without a matching close in RO
-    size_t mSizeWrites; ///< the size of write blocks in cache
-    long long mLastPossibleKey; ///< last possible offset in file
-    long long mFirstPossibleKey; ///< first possible offset in file
-    XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
-    XrdSysMutex mUtimeMutex;///<protect utime changes
-    struct timespec mUtime[2]; ///< cond variable tracking last set utime while file is still open
-    std::string mPath; ///< valid path to this file
-    XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
-    off_t mMaxWriteOffset; ///< maximum written offset
-    
+  //--------------------------------------------------------------------------
+  //! Conditionally increase the max write offset if offset is bigger
+  //--------------------------------------------------------------------------
+  void TestMaxWriteOffset(off_t offset);
+  void GrabMaxWriteOffset();
+
+  void GrabUtimes();
+
+  //--------------------------------------------------------------------------
+  //! Set the max write offset to offset
+  //--------------------------------------------------------------------------
+  void SetMaxWriteOffset(off_t offset);
+
+  //--------------------------------------------------------------------------
+  //! Get the max write offset
+  //--------------------------------------------------------------------------
+  off_t GetMaxWriteOffset();
+
+  eos::common::RWMutex
+  mInUse; ///< we use this look to indicate that someone has a reference to it
+
+private:
+  int mFd; ///< file descriptor used for the block key range
+  LayoutWrapper* mFileRW; ///< raw file object for RW access
+  LayoutWrapper* mFileRO; ///< raw file object for RO access
+  int mNoReferencesRW; ///< number of held referencess to this file in RW
+  int mNoReferencesRO; ///< number of held referencess to this file in RO
+  int mNumOpenRW; ///< number of open request without a matching close in RW
+  int mNumOpenRO; ///< number of open request without a matching close in RO
+  size_t mSizeWrites; ///< the size of write blocks in cache
+  long long mLastPossibleKey; ///< last possible offset in file
+  long long mFirstPossibleKey; ///< first possible offset in file
+  XrdSysCondVar mCondUpdate; ///< cond variable for updating file attributes
+  XrdSysMutex mUtimeMutex;///<protect utime changes
+  struct timespec
+    mUtime[2]; ///< cond variable tracking last set utime while file is still open
+  std::string mPath; ///< valid path to this file
+  XrdSysMutex mMaxWriteOffsetMutex; ///< mutex protecting the maximum write offset
+  off_t mMaxWriteOffset; ///< maximum written offset
 };
 
 #endif // __EOS_FUSE_FILEABSTRACTION_HH__

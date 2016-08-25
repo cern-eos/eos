@@ -43,7 +43,6 @@ EOSMGMNAMESPACE_BEGIN
 class Scheduler
 {
 public:
-
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -59,82 +58,165 @@ public:
 
   //! Types of scheduling
   enum tSchedType
-    { regular,balancing,draining};
+  { regular, balancing, draining};
+
+  //! Arguments to place a file placement
+  struct PlacementArguments {
+    /// INPUT
+    //! space name
+    const std::string* spacename;
+    //! file path
+    const char* path;
+    //! group tag for placement
+    const char* grouptag;
+    //! layout to be placed
+    unsigned long lid;
+    //! file inode
+    ino64_t inode;
+    //! indicates if placement should be local/spread/hybrid
+    tPlctPolicy plctpolicy;
+    //! indicates close to which Geotag collocated stripes should be placed
+    const std::string* plctTrgGeotag;
+    //! indicates placement with truncation
+    bool truncate;
+    //! forced index for the scheduling group to be used
+    int forced_scheduling_group_index;
+    //! size to book for the placement
+    unsigned long long bookingsize;
+    //! indicate if this is a request for regular, draining or balancing placement
+    tSchedType schedtype;
+    //! virtual identity of the client
+    const eos::common::Mapping::VirtualIdentity_t* vid;
+    /// INPUT/OUTPUT
+    //! filesystems to avoid
+    std::vector<unsigned int>* alreadyused_filesystems;
+    //! selected_filesystems filesystems selected by the scheduler
+    std::vector<unsigned int>* selected_filesystems;
+    //! if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+    std::vector<std::string>* dataproxys;
+    //! if non NULL, schedule a firewall entry point for each fs
+    std::vector<std::string>* firewallentpts;
+
+    PlacementArguments() :
+      spacename(0),
+      path(0),
+      grouptag(0),
+      lid(0),
+      inode(0),
+      plctpolicy(kScattered),
+      plctTrgGeotag(),
+      truncate(false),
+      forced_scheduling_group_index(-1),
+      bookingsize(1024 * 1024 * 1024ll),
+      schedtype(regular),
+      vid(0),
+      alreadyused_filesystems(0),
+      selected_filesystems(0),
+      dataproxys(0),
+      firewallentpts(0)
+    {}
+
+    bool isValid() const
+    {
+      return
+        spacename && spacename->size()
+        && path
+        && lid
+        && vid
+        && alreadyused_filesystems
+        && selected_filesystems;
+    }
+  };
 
   //----------------------------------------------------------------------------
   //! Take the decision where to place a new file in the system.
   //!
-  //! @param spacename space name
-  //! @param path file path
-  //! @param vid virtual id of client
-  //! @param grouptag group tag for placement
-  //! @param lid layout to be placed
-  //! @param alreadyused_filsystems filesystems to avoid
-  //! @param selected_filesystems filesystems selected by scheduler
-  //! @param plctpolicy indicates if placement should be local/spread/hybrid
-  //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
-  //!                      should be placed
-  //! @param truncate indicates placement with truncation
-  //! @param forched_scheduling_group_index forced index for the scheduling
-  //!                      subgroup to be used
-  //! @param bookingsize size to book for the placement
+  //! @param args the structure holding all the input and output arguments
   //!
   //! @return 0 if placement successful, otherwise a non-zero value
   //!         ENOSPC - no space quota defined for current space
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FilePlacement(const std::string& spacename,
-                           const char* path,
-                           eos::common::Mapping::VirtualIdentity_t& vid,
-                           const char* grouptag,
-                           unsigned long lid,
-                           std::vector<unsigned int>& alreadyused_filesystems,
-                           std::vector<unsigned int>& selected_filesystems,
-                           tPlctPolicy plctpolicy,
-                           const std::string& plctTrgGeotag = "",
-                           bool truncate = false,
-                           int forced_scheduling_group_index = -1,
-                           unsigned long long bookingsize = 1024 * 1024 * 1024ll,
-                           tSchedType schedtype = regular);
+  static int FilePlacement(PlacementArguments* args);
+
+  struct AccessArguments {
+    /// INPUT
+    //! forced filesystem for access
+    unsigned long forcedfsid;
+    //! forced space for access
+    const char* forcedspace;
+    //! cgi containing already tried hosts
+    const std::string* tried_cgi;
+    //! layout of the file
+    unsigned long lid;
+    //! file inode
+    ino64_t inode;
+    //! indicate pure read or rd/wr access
+    bool isRW;
+    //! size to book additionally for rd/wr access
+    unsigned long long bookingsize;
+    //! override geolocation defined in the virtual id
+    const std::string* overridegeoloc;
+    //! don't apply the penalty as this file access won't result in any IO
+    bool noIO;
+    //! indicate if this is a request for regular, draining or balancing access
+    tSchedType schedtype;
+    //! virtual identity of the client
+    const eos::common::Mapping::VirtualIdentity_t* vid;
+    /// INPUT/OUTPUT
+    //!filesystem ids where layout is stored
+    std::vector<unsigned int>* locationsfs;
+    //! if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
+    std::vector<std::string>* dataproxys;
+    //! firewallentpts if non NULL, schedule a firewall entry point for each fs
+    std::vector<std::string>* firewallentpts;
+    //! return index pointing to layout entry filesystem
+    unsigned long* fsindex;
+    //! return filesystems currently unavailable
+    std::vector<unsigned int>* unavailfs;
+
+    AccessArguments() :
+      forcedfsid(0),
+      forcedspace(0),
+      tried_cgi(),
+      lid(0),
+      inode(0),
+      isRW(false),
+      bookingsize(0),
+      overridegeoloc(),
+      noIO(false),
+      schedtype(regular),
+      vid(NULL),
+      locationsfs(NULL),
+      dataproxys(NULL),
+      firewallentpts(NULL),
+      fsindex(NULL),
+      unavailfs(NULL)
+    {}
+
+    bool isValid() const
+    {
+      return
+        lid
+        && vid
+        && locationsfs
+        && fsindex
+        && unavailfs;
+    }
+
+  };
 
   //----------------------------------------------------------------------------
   //! Take the decision from where to access a file.
   //!
-  //! @param vid virutal id of the client
-  //! @param focedfsid forced filesystem for access
-  //! @param forcedspace forced space for access
-  //! @param tried_cgi cgi containing already tried hosts
-  //! @param lid layout fo the file
-  //! @param locationsfs filesystem ids where layout is stored
-  //! @param fsindex return index pointing to layout entry filesystem
-  //! @param isRW indicate pure read or rd/wr access
-  //! @param bookingsize size to book additionally for rd/wr access
-  //! @param unavailfs return filesystems currently unavailable
-  //! @param min_fsstatus define minimum filesystem state to allow fs selection
-  //! @param overridegeoloc override geolocation defined in the virtual id
-  //! @param noIO don't apply the penalty as this file access won't result in
-  //!             any IO
+  //! @param args the structure holding all the input and output arguments
   //!
   //! @return 0 if successful, otherwise a non-zero value
   //!
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
-                        unsigned long forcedfsid,
-                        const char* forcedspace,
-                        std::string tried_cgi,
-                        unsigned long lid,
-                        std::vector<unsigned int>& locationsfs,
-                         unsigned long& fsindex,
-                        bool isRW,
-                        unsigned long long bookingsize,
-                        std::vector<unsigned int>& unavailfs,
-                        eos::common::FileSystem::fsstatus_t min_fsstatus =
-                        eos::common::FileSystem::kDrain,
-                        std::string overridegeoloc = "",
-                        bool noIO  = false,
-                        tSchedType schedtype = regular);
+  static int FileAccess(AccessArguments* args);
 
 protected:
 

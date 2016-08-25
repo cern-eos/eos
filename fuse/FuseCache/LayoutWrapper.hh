@@ -29,10 +29,12 @@
 
 //! Forward declaration
 class LayoutWrapper;
-namespace eos {
-  namespace fst {
-    class AsyncLayoutOpenHandler;
-  }
+namespace eos
+{
+namespace fst
+{
+class AsyncLayoutOpenHandler;
+}
 }
 
 //------------------------------------------------------------------------------
@@ -61,8 +63,7 @@ class LayoutWrapper
   XrdSysMutex mMakeOpenMutex;
   std::shared_ptr<Bufferll> mCache;
 
-  struct CacheEntry
-  {
+  struct CacheEntry {
     std::shared_ptr<Bufferll> mCache;
     time_t mLifeTime;
     time_t mOwnerLifeTime;
@@ -87,7 +88,7 @@ class LayoutWrapper
                const char* opaque, const struct stat* buf);
 
 
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -237,11 +238,14 @@ class LayoutWrapper
   //! Restore a file from the cache into EOS
   //----------------------------------------------------------------------------
   bool Restore();
-  
+
   //----------------------------------------------------------------------------
   //! Enable the restore flag when closing the file
   //----------------------------------------------------------------------------
-  void SetRestore() { mRestore = true; }
+  void SetRestore()
+  {
+    mRestore = true;
+  }
 
   //----------------------------------------------------------------------------
   //! Migrate cache inode after a restore operation
@@ -293,7 +297,7 @@ class LayoutWrapper
   {
     return mCanCache;
   }
-  
+
   //----------------------------------------------------------------------------
   //! Return FUSE inode
   //----------------------------------------------------------------------------
@@ -302,8 +306,7 @@ class LayoutWrapper
     return eos::common::FileId::FidToInode(mInode);
   }
 
-
- private:
+private:
   bool mDoneAsyncOpen; ///< Mark if async open was issued
   eos::fst::AsyncLayoutOpenHandler* mOpenHandler; ///< Asynchronous open handler
 };

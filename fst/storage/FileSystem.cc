@@ -10,7 +10,7 @@
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
  * the Free Software Foundation, either version 3 of the License, or    *
- * (at your option) any later version.                                
+ * (at your option) any later version.
  *                                                                      *
  * This program is distributed in the hope that it will be useful,      *
  * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
@@ -27,22 +27,21 @@
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
-#ifdef __APPLE__ 
+#ifdef __APPLE__
 #define O_DIRECT 0
 #endif
 
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-FileSystem::FileSystem (const char* queuepath,
-                        const char* queue, XrdMqSharedObjectManager* som
-                        ) : eos::common::FileSystem (queuepath, queue, som, true)
+FileSystem::FileSystem(const char* queuepath,
+                       const char* queue, XrdMqSharedObjectManager* som
+                      ) : eos::common::FileSystem(queuepath, queue, som, true)
 {
   last_blocks_free = 0;
   last_status_broadcast = 0;
   seqBandwidth = 0;
   IOPS = 0;
-
   transactionDirectory = "";
   statFs = 0;
   scanDir = 0;
@@ -52,36 +51,35 @@ FileSystem::FileSystem (const char* queuepath,
   n2 += "/balance";
   std::string n3 = queuepath;
   n3 += "/extern";
-  
   mLocalBootStatus = eos::common::FileSystem::kDown;
-  
   mTxDrainQueue = new TransferQueue(&mDrainQueue, n1.c_str());
   mTxBalanceQueue = new TransferQueue(&mBalanceQueue, n2.c_str());
   mTxExternQueue = new TransferQueue(&mExternQueue, n3.c_str());
-
   mTxMultiplexer.Add(mTxDrainQueue);
   mTxMultiplexer.Add(mTxBalanceQueue);
   mTxMultiplexer.Add(mTxExternQueue);
   mTxMultiplexer.Run();
-
+  mRecoverable = false;
+  mFileIO = FileIoPlugin::GetIoObject(GetPath().c_str());
 }
 
 /*----------------------------------------------------------------------------*/
-FileSystem::~FileSystem ()
+FileSystem::~FileSystem()
 {
-  if (scanDir)
-  {
+  if (scanDir) {
     delete scanDir;
+  }
+
+  if (mFileIO) {
+    delete mFileIO;
   }
 
   // ----------------------------------------------------------------------------
   // we call the FmdSqliteHandler shutdown function for this filesystem
   // ----------------------------------------------------------------------------
-
   gFmdDbMapHandler.ShutdownDB(GetId());
-
   // ----------------------------------------------------------------------------
-  // @todo we accept this tiny memory leak to be able to let running 
+  // @todo we accept this tiny memory leak to be able to let running
   // transfers callback their queue
   // -> we don't delete them here!
   //  if (mTxDrainQueue) {
@@ -98,50 +96,73 @@ FileSystem::~FileSystem ()
 
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::BroadcastError (const char* msg)
+FileSystem::BroadcastError(const char* msg)
 {
-  bool shutdown=false;
+  bool shutdown = false;
   {
     XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
-    if (gOFS.Shutdown)
+
+    if (gOFS.Shutdown) {
       shutdown = true;
+    }
   }
 
-  if(!shutdown) 
-  {
-  SetStatus(eos::common::FileSystem::kOpsError);
-  SetError(errno ? errno : EIO, msg);
+  if (!shutdown) {
+    SetStatus(eos::common::FileSystem::kOpsError);
+    SetError(errno ? errno : EIO, msg);
   }
 }
 
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::BroadcastError (int errc, const char* errmsg)
+FileSystem::BroadcastError(int errc, const char* errmsg)
 {
   bool shutdown = false;
   {
     XrdSysMutexHelper sLock(gOFS.ShutdownMutex);
-    if (gOFS.Shutdown)
+
+    if (gOFS.Shutdown) {
       shutdown = true;
+    }
   }
 
-  if (!shutdown) 
-  {
-  SetStatus(eos::common::FileSystem::kOpsError);
-  SetError(errno ? errno : EIO, errmsg);
-}
+  if (!shutdown) {
+    SetStatus(eos::common::FileSystem::kOpsError);
+    SetError(errno ? errno : EIO, errmsg);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
 eos::common::Statfs*
-FileSystem::GetStatfs ()
+FileSystem::GetStatfs()
 {
-  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str());
-  if ((!statFs) && GetPath().length())
-  {
+  if (!GetPath().length()) {
+    return 0;
+  }
+
+  eos::common::Statfs::Callback::callback_data_t lData;
+  std::string path = GetPath();
+  lData.path = path.c_str();
+  lData.caller = (void*) mFileIO;
+  // lData.statfs is set in DoStatfs
+  eos::common::Statfs::Callback::callback_t lCallback = FileIo::StatfsCB;
+  statFs = eos::common::Statfs::DoStatfs(GetPath().c_str(), lCallback, &lData);
+
+  if ((!statFs) && GetPath().length()) {
     eos_err("cannot statfs");
     BroadcastError("cannot statfs");
     return 0;
+  } else {
+    eos_static_debug("ec=%d error=%s recover=%d", GetStatus(),
+                     GetString("stat.errmsg").c_str(), mRecoverable);
+
+    if ((GetStatus() == eos::common::FileSystem::kOpsError) && mRecoverable) {
+      if (GetString("stat.errmsg") == "cannot statfs") {
+        // reset the statfs error
+        SetStatus(eos::common::FileSystem::kBooted);
+        SetError(0, "");
+      }
+    }
   }
 
   return statFs;
@@ -149,91 +170,86 @@ FileSystem::GetStatfs ()
 
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::CleanTransactions ()
+FileSystem::CleanTransactions()
 {
   DIR* tdir = opendir(GetTransactionDirectory());
-  if (tdir)
-  {
+
+  if (tdir) {
     struct dirent* name;
-    while ((name = readdir(tdir)))
-    {
+
+    while ((name = readdir(tdir))) {
       XrdOucString sname = name->d_name;
+
       // skipp . & ..
-      if (sname.beginswith("."))
+      if (sname.beginswith(".")) {
         continue;
+      }
+
       XrdOucString fulltransactionpath = GetTransactionDirectory();
       fulltransactionpath += "/";
       fulltransactionpath += name->d_name;
       struct stat buf;
-      if (!stat(fulltransactionpath.c_str(), &buf))
-      {
+
+      if (!stat(fulltransactionpath.c_str(), &buf)) {
         XrdOucString hexfid = name->d_name;
         XrdOucString localprefix = GetPath().c_str();
         XrdOucString fstPath;
-        eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix.c_str(), fstPath);
+        eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(), localprefix.c_str(),
+                                                fstPath);
         unsigned long long fileid = eos::common::FileId::Hex2Fid(hexfid.c_str());
-
         // we allow to keep files open for 1 week
         bool isOpen = false;
         {
           XrdSysMutexHelper wLock(gOFS.OpenFidMutex);
-          if (gOFS.WOpenFid[GetId()].count(fileid))
-          {
-            if (gOFS.WOpenFid[GetId()][fileid] > 0)
-            {
+
+          if (gOFS.WOpenFid[GetId()].count(fileid)) {
+            if (gOFS.WOpenFid[GetId()][fileid] > 0) {
               isOpen = true;
             }
           }
         }
 
-        if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen))
-        {
+        if ((buf.st_mtime < (time(NULL) - (7 * 86400))) && (!isOpen)) {
+          FmdHelper* fMd = 0;
+          fMd = gFmdDbMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
 
-	  FmdHelper* fMd = 0;
+          if (fMd) {
+            std::set<eos::common::FileSystem::fsid_t> location_set =
+              FmdHelper::GetLocations(fMd->fMd);
 
-	  fMd = gFmdDbMapHandler.GetFmd(fileid, GetId(), 0, 0, 0, 0, true);
+            if (location_set.count(GetId())) {
+              // close that transaction and keep the file
+              gOFS.Storage->CloseTransaction(GetId(), fileid);
+              delete fMd;
+              continue;
+            }
 
-	  if (fMd) 
-	  {
-	    std::set<eos::common::FileSystem::fsid_t> location_set = FmdHelper::GetLocations(fMd->fMd);
-	    if (location_set.count(GetId()))
-	    {
-	      // close that transaction and keep the file
-	      gOFS.Storage->CloseTransaction(GetId(), fileid);
-	      delete fMd;
-	      continue;
-	    }
-	    delete fMd;
-	  }
+            delete fMd;
+          }
 
           eos_static_info("action=delete transaction=%llx fstpath=%s",
                           sname.c_str(),
                           fulltransactionpath.c_str());
-
           // -------------------------------------------------------------------------------------------------------
           // clean-up this file locally
           // -------------------------------------------------------------------------------------------------------
-
           XrdOucErrInfo error;
           int retc = gOFS._rem("/CLEANTRANSACTIONS",
                                error, 0, 0, fstPath.c_str(),
                                fileid, GetId(), true);
-          if (retc)
-          {
+
+          if (retc) {
             eos_static_debug("deletion failed for %s", fstPath.c_str());
           }
-        }
-        else
-        {
+        } else {
           eos_static_info("action=keep transaction=%llx fstpath=%s isopen=%d",
                           sname.c_str(), fulltransactionpath.c_str(), isOpen);
         }
       }
     }
+
     closedir(tdir);
-  }
-  else
-  {
+  } else {
     eos_static_err("Unable to open transactiondirectory %s",
                    GetTransactionDirectory());
   }
@@ -241,64 +257,69 @@ FileSystem::CleanTransactions ()
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::SyncTransactions (const char* manager)
+FileSystem::SyncTransactions(const char* manager)
 {
-  bool ok=true;
-
+  bool ok = true;
   DIR* tdir = opendir(GetTransactionDirectory());
-  if (tdir)
-  {
+
+  if (tdir) {
     struct dirent* name;
-    while ((name = readdir(tdir)))
-    {
+
+    while ((name = readdir(tdir))) {
       XrdOucString sname = name->d_name;
+
       // skipp . & ..
-      if (sname.beginswith("."))
+      if (sname.beginswith(".")) {
         continue;
+      }
+
       XrdOucString fulltransactionpath = GetTransactionDirectory();
       fulltransactionpath += "/";
       fulltransactionpath += name->d_name;
       struct stat buf;
-      if (!stat(fulltransactionpath.c_str(), &buf))
-      {
+
+      if (!stat(fulltransactionpath.c_str(), &buf)) {
         XrdOucString hexfid = name->d_name;
-	std::string path = GetPath();
+        std::string path = GetPath();
         const char* localprefix = path.c_str();
         XrdOucString fstPath;
         eos::common::FileId::FidPrefix2FullPath(hexfid.c_str(),
                                                 localprefix, fstPath);
         unsigned long long fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
 
-	// try to sync this file from the MGM
-	if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager))
-        {
-	  eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
-	}
-	else
-	{
-	  eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx", (unsigned long) GetId(), fid);
-	  ok=false;
-	  continue;
+        // try to sync this file from the MGM
+        if (gFmdDbMapHandler.ResyncMgm(GetId(), fid, manager)) {
+          eos_static_info("msg=\"resync ok\" fsid=%lu fid=%llx", (unsigned long) GetId(),
+                          fid);
+        } else {
+          eos_static_err("msg=\"resync failed\" fsid=%lu fid=%llx",
+                         (unsigned long) GetId(), fid);
+          ok = false;
+          continue;
         }
       }
     }
+
     closedir(tdir);
-  }
-  else
-  {
-    ok=false;
+  } else {
+    ok = false;
     eos_static_err("Unable to open transactiondirectory %s",
                    GetTransactionDirectory());
   }
+
   return ok;
 }
 
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::RunScanner (Load* fstLoad, time_t interval)
+FileSystem::RunScanner(Load* fstLoad, time_t interval)
 {
-  if (scanDir)
-  {
+  // don't scan filesystems which are 'remote'
+  if (GetPath()[0] != '/') {
+    return;
+  }
+
+  if (scanDir) {
     delete scanDir;
   }
 
@@ -310,7 +331,7 @@ FileSystem::RunScanner (Load* fstLoad, time_t interval)
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::OpenTransaction (unsigned long long fid)
+FileSystem::OpenTransaction(unsigned long long fid)
 {
   XrdOucString tagfile = GetTransactionDirectory();
   tagfile += "/";
@@ -319,54 +340,62 @@ FileSystem::OpenTransaction (unsigned long long fid)
   tagfile += hexstring;
   int fd = open(tagfile.c_str(),
                 O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IROTH | S_IRGRP);
-  if (fd > 0)
-  {
+
+  if (fd > 0) {
     close(fd);
     return true;
   }
+
   return false;
 }
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::CloseTransaction (unsigned long long fid)
+FileSystem::CloseTransaction(unsigned long long fid)
 {
   XrdOucString tagfile = GetTransactionDirectory();
   tagfile += "/";
   XrdOucString hexstring = "";
   eos::common::FileId::Fid2Hex(fid, hexstring);
   tagfile += hexstring;
-  if (unlink(tagfile.c_str()))
+
+  if (unlink(tagfile.c_str())) {
     return false;
+  }
+
   return true;
 }
 
-
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::IoPing ()
+FileSystem::IoPing()
 {
-  std::string cmdbw="eos-iobw "; cmdbw += GetPath().c_str();
-  std::string cmdiops="eos-iops "; cmdiops += GetPath().c_str();
-
+  std::string cmdbw = "eos-iobw ";
+  cmdbw += GetPath().c_str();
+  std::string cmdiops = "eos-iops ";
+  cmdiops += GetPath().c_str();
   eos_info("\"%s\" \"%s\"", cmdbw.c_str(), cmdiops.c_str());
+  seqBandwidth = 0;
+  IOPS = 0;
 
-  std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdbw.c_str());
-  std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd (cmdiops.c_str());
+  // ----------------------
+  // exclude 'remote' disks
+  // ----------------------
+  if (GetPath()[0] == '/') {
+    std::string bwMeasurement = eos::common::StringConversion::StringFromShellCmd(
+                                  cmdbw.c_str());
+    std::string iopsMeasurement = eos::common::StringConversion::StringFromShellCmd(
+                                    cmdiops.c_str());
 
-  if ( 
+    if (
       bwMeasurement.length() &&
-      iopsMeasurement.length() )
-  {
-    seqBandwidth = strtol(bwMeasurement.c_str(),0,10);
-    IOPS = atoi(iopsMeasurement.c_str());
+      iopsMeasurement.length()) {
+      seqBandwidth = strtol(bwMeasurement.c_str(), 0, 10);
+      IOPS = atoi(iopsMeasurement.c_str());
+    }
   }
-  else
-  {
-    seqBandwidth = 0;
-    IOPS = 0;
-  }
-  eos_info("bw=%lld iops=%d",seqBandwidth,IOPS);
+
+  eos_info("bw=%lld iops=%d", seqBandwidth, IOPS);
 }
 
 

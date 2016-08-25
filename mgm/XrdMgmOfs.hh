@@ -73,6 +73,7 @@
  * - Httpd
  * - Recycler
  * - LRU
+ * - WFE
  *
  * Many functions in the MgmOfs interface take CGI parameters. The supported
  * CGI parameter are:
@@ -113,6 +114,7 @@
 #include "mgm/Iostat.hh"
 #include "mgm/Fsck.hh"
 #include "mgm/LRU.hh"
+#include "mgm/WFE.hh"
 #include "mgm/Master.hh"
 #include "mgm/Egroup.hh"
 #include "mgm/Recycle.hh"
@@ -146,15 +148,27 @@ USE_EOSMGMNAMESPACE
 class XrdMgmOfsFile;
 class XrdMgmOfsDirectory;
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class implementing atomic meta data commands
 /*----------------------------------------------------------------------------*/
-class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId {
+class XrdMgmOfs : public XrdSfsFileSystem, public eos::common::LogId
+{
   friend class XrdMgmOfsFile;
   friend class XrdMgmOfsDirectory;
   friend class ProcCommand;
 
 public:
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  XrdMgmOfs(XrdSysError* lp);
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //---------------------------------------------------------------------------
+  virtual ~XrdMgmOfs();
+
   // ---------------------------------------------------------------------------
   // Object Allocation Functions
   // ---------------------------------------------------------------------------
@@ -167,7 +181,7 @@ public:
   //!
   //! @return MGM directory object
   //----------------------------------------------------------------------------
-  XrdSfsDirectory* newDir (char *user = 0, int MonID = 0);
+  XrdSfsDirectory* newDir(char* user = 0, int MonID = 0);
 
   //----------------------------------------------------------------------------
   //! Return a MGM file object
@@ -175,9 +189,9 @@ public:
   //! @param user user-name
   //! @param MonID monitor ID
   //!
-  //! @return MGM file object 
+  //! @return MGM file object
   //----------------------------------------------------------------------------
-  XrdSfsFile* newFile (char *user = 0, int MonID = 0);
+  XrdSfsFile* newFile(char* user = 0, int MonID = 0);
 
   //----------------------------------------------------------------------------
   //! Meta data functions
@@ -188,68 +202,68 @@ public:
   //----------------------------------------------------------------------------
   // Chmod by client
   //----------------------------------------------------------------------------
-  int chmod (const char *Name,
-             XrdSfsMode Mode,
-             XrdOucErrInfo &out_error,
-             const XrdSecEntity *client = 0,
-             const char *opaque = 0);
+  int chmod(const char* Name,
+            XrdSfsMode Mode,
+            XrdOucErrInfo& out_error,
+            const XrdSecEntity* client = 0,
+            const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // chmod by vid
   // ---------------------------------------------------------------------------
-  int _chmod (const char *Name,
-              XrdSfsMode& Mode,
-              XrdOucErrInfo &out_error,
-              eos::common::Mapping::VirtualIdentity &vid,
-              const char *opaque = 0);
+  int _chmod(const char* Name,
+             XrdSfsMode& Mode,
+             XrdOucErrInfo& out_error,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // chown by vid
   // ---------------------------------------------------------------------------
-  int _chown (const char *Name,
-              uid_t uid,
-              gid_t gid,
-              XrdOucErrInfo &out_error,
-              eos::common::Mapping::VirtualIdentity &vid,
-              const char *opaque = 0);
+  int _chown(const char* Name,
+             uid_t uid,
+             gid_t gid,
+             XrdOucErrInfo& out_error,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // checksum by client
   // ---------------------------------------------------------------------------
-  int chksum (XrdSfsFileSystem::csFunc Func,
-              const char *csName,
-              const char *Path,
-              XrdOucErrInfo &out_error,
-              const XrdSecEntity *client = 0,
-              const char *opaque = 0);
+  int chksum(XrdSfsFileSystem::csFunc Func,
+             const char* csName,
+             const char* Path,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client = 0,
+             const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // check if file exists by client
   // ---------------------------------------------------------------------------
-  int exists (const char *fileName,
-              XrdSfsFileExistence &exists_flag,
-              XrdOucErrInfo &out_error,
-              const XrdSecEntity *client = 0,
-              const char *opaque = 0);
+  int exists(const char* fileName,
+             XrdSfsFileExistence& exists_flag,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client = 0,
+             const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // check if file exists by client bypassing authorization/mapping/bouncing
   // ---------------------------------------------------------------------------
-  int _exists (const char *fileName,
-               XrdSfsFileExistence &exists_flag,
-               XrdOucErrInfo &out_error,
-               const XrdSecEntity *client = 0,
-               const char *opaque = 0);
+  int _exists(const char* fileName,
+              XrdSfsFileExistence& exists_flag,
+              XrdOucErrInfo& out_error,
+              const XrdSecEntity* client = 0,
+              const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   //! check if file eixsts by vid
   // ---------------------------------------------------------------------------
   int
-  _exists (const char *fileName,
-           XrdSfsFileExistence &exists_flag,
-           XrdOucErrInfo &out_error,
-           eos::common::Mapping::VirtualIdentity &vid,
-           const char *opaque = 0);
+  _exists(const char* fileName,
+          XrdSfsFileExistence& exists_flag,
+          XrdOucErrInfo& out_error,
+          eos::common::Mapping::VirtualIdentity& vid,
+          const char* opaque = 0);
 
   enum eFSCTL {
     kFsctlMgmOfsOffset = 40000
@@ -258,25 +272,25 @@ public:
   // ---------------------------------------------------------------------------
   // EOS plugin call fan-out function
   // ---------------------------------------------------------------------------
-  int FSctl (const int cmd,
-             XrdSfsFSctl &args,
-             XrdOucErrInfo &error,
-             const XrdSecEntity *client);
+  int FSctl(const int cmd,
+            XrdSfsFSctl& args,
+            XrdOucErrInfo& error,
+            const XrdSecEntity* client);
 
   // ---------------------------------------------------------------------------
   // fsctl
   // ---------------------------------------------------------------------------
-  int fsctl (const int cmd,
-             const char *args,
-             XrdOucErrInfo &out_error,
-             const XrdSecEntity *client = 0);
+  int fsctl(const int cmd,
+            const char* args,
+            XrdOucErrInfo& out_error,
+            const XrdSecEntity* client = 0);
 
   // ---------------------------------------------------------------------------
   //! get stats function (fake ok)
   // ---------------------------------------------------------------------------
 
   int
-  getStats (char *buff, int blen)
+  getStats(char* buff, int blen)
   {
     return 0;
   }
@@ -286,215 +300,215 @@ public:
   //!
   //! @return return a version string
   //----------------------------------------------------------------------------
-  const char *getVersion ();
+  const char* getVersion();
 
 
   // ---------------------------------------------------------------------------
   // create directory
   // ---------------------------------------------------------------------------
-  int mkdir (const char *dirName,
-             XrdSfsMode Mode,
-             XrdOucErrInfo &out_error,
-             const XrdSecEntity *client = 0,
-             const char *opaque = 0)
+  int mkdir(const char* dirName,
+            XrdSfsMode Mode,
+            XrdOucErrInfo& out_error,
+            const XrdSecEntity* client = 0,
+            const char* opaque = 0)
   {
     return mkdir(dirName, Mode, out_error, client, opaque, 0);
   }
 
-  int mkdir (const char *dirName,
-             XrdSfsMode Mode,
-             XrdOucErrInfo &out_error,
-             const XrdSecEntity *client = 0,
-             const char *opaque = 0,
-             ino_t* outino = 0);
+  int mkdir(const char* dirName,
+            XrdSfsMode Mode,
+            XrdOucErrInfo& out_error,
+            const XrdSecEntity* client = 0,
+            const char* opaque = 0,
+            ino_t* outino = 0);
 
   // ---------------------------------------------------------------------------
   // create directory by vid
   // ---------------------------------------------------------------------------
-  int _mkdir (const char *dirName,
-              XrdSfsMode Mode,
-              XrdOucErrInfo &out_error,
-              eos::common::Mapping::VirtualIdentity &vid,
-              const char *opaque = 0,
-              ino_t* outino = 0);
+  int _mkdir(const char* dirName,
+             XrdSfsMode Mode,
+             XrdOucErrInfo& out_error,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const char* opaque = 0,
+             ino_t* outino = 0);
 
   //----------------------------------------------------------------------------
   //! Prepare a file (EOS does nothing, only stall/redirect if configured)
   //!
   //! @return always SFS_OK
   //----------------------------------------------------------------------------
-  int prepare (XrdSfsPrep &pargs,
-               XrdOucErrInfo &out_error,
-               const XrdSecEntity *client = 0);
+  int prepare(XrdSfsPrep& pargs,
+              XrdOucErrInfo& out_error,
+              const XrdSecEntity* client = 0);
 
   // ---------------------------------------------------------------------------
   // delete file
   // ---------------------------------------------------------------------------
-  int rem (const char *path,
-           XrdOucErrInfo &out_error,
-           const XrdSecEntity *client = 0,
-           const char *opaque = 0);
+  int rem(const char* path,
+          XrdOucErrInfo& out_error,
+          const XrdSecEntity* client = 0,
+          const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // delete file by vid
   // ---------------------------------------------------------------------------
-  int _rem (const char *path,
-            XrdOucErrInfo &out_error,
-            eos::common::Mapping::VirtualIdentity &vid,
-            const char *opaque = 0,
-            bool simulate = false,
-            bool keepversion = false,
-	    bool no_recycling = false);
+  int _rem(const char* path,
+           XrdOucErrInfo& out_error,
+           eos::common::Mapping::VirtualIdentity& vid,
+           const char* opaque = 0,
+           bool simulate = false,
+           bool keepversion = false,
+           bool no_recycling = false);
 
   // ---------------------------------------------------------------------------
   // find files internal function
   // ---------------------------------------------------------------------------
-  int _find (const char *path,
-             XrdOucErrInfo &out_error,
-             XrdOucString &stdErr,
-             eos::common::Mapping::VirtualIdentity &vid,
-             std::map<std::string, std::set<std::string> > &found,
-             const char* key = 0,
-             const char* val = 0,
-             bool nofiles = false,
-             time_t millisleep = 0,
-             bool nscounter = true,
-             int maxdepth = 0,
-	     const char* filematch = 0
-             );
+  int _find(const char* path,
+            XrdOucErrInfo& out_error,
+            XrdOucString& stdErr,
+            eos::common::Mapping::VirtualIdentity& vid,
+            std::map<std::string, std::set<std::string> >& found,
+            const char* key = 0,
+            const char* val = 0,
+            bool nofiles = false,
+            time_t millisleep = 0,
+            bool nscounter = true,
+            int maxdepth = 0,
+            const char* filematch = 0
+           );
 
   // ---------------------------------------------------------------------------
   // delete dir
   // ---------------------------------------------------------------------------
-  int remdir (const char *dirName,
-              XrdOucErrInfo &out_error,
-              const XrdSecEntity *client = 0,
-              const char *opaque = 0);
+  int remdir(const char* dirName,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client = 0,
+             const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // delete dir by vid
   // ---------------------------------------------------------------------------
-  int _remdir (const char *dirName,
-               XrdOucErrInfo &out_error,
-               eos::common::Mapping::VirtualIdentity &vid,
-               const char *opaque = 0,
-               bool simulate = false);
+  int _remdir(const char* dirName,
+              XrdOucErrInfo& out_error,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const char* opaque = 0,
+              bool simulate = false);
 
   // ---------------------------------------------------------------------------
   // rename file
   // ---------------------------------------------------------------------------
-  int rename (const char *oldFileName,
-              const char *newFileName,
-              XrdOucErrInfo &out_error,
-              const XrdSecEntity *client = 0,
-              const char *opaqueO = 0,
-              const char *opaqueN = 0);
+  int rename(const char* oldFileName,
+             const char* newFileName,
+             XrdOucErrInfo& out_error,
+             const XrdSecEntity* client = 0,
+             const char* opaqueO = 0,
+             const char* opaqueN = 0);
 
   // ---------------------------------------------------------------------------
   // rename file by vid
   // ---------------------------------------------------------------------------
-  int rename (const char *oldFileName,
-              const char *newFileName,
-              XrdOucErrInfo &out_error,
-              eos::common::Mapping::VirtualIdentity &vid,
-              const char *opaqueO = 0,
-              const char *opaqueN = 0,
+  int rename(const char* oldFileName,
+             const char* newFileName,
+             XrdOucErrInfo& out_error,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const char* opaqueO = 0,
+             const char* opaqueN = 0,
+             bool overwrite = false);
+
+  // ---------------------------------------------------------------------------
+  // rename file by vid
+  // ---------------------------------------------------------------------------
+  int _rename(const char* oldFileName,
+              const char* newFileName,
+              XrdOucErrInfo& out_error,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const char* opaqueO = 0,
+              const char* opaqueN = 0,
+              bool updateCTime = false,
+              bool checkQuota = false,
               bool overwrite = false);
-
-  // ---------------------------------------------------------------------------
-  // rename file by vid
-  // ---------------------------------------------------------------------------
-  int _rename (const char *oldFileName,
-               const char *newFileName,
-               XrdOucErrInfo &out_error,
-               eos::common::Mapping::VirtualIdentity &vid,
-               const char *opaqueO = 0,
-               const char *opaqueN = 0,
-               bool updateCTime = false,
-               bool checkQuota = false,
-               bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // symlink file/dir
   // ---------------------------------------------------------------------------
-  int symlink (const char *sourceName,
-               const char *targetName,
-               XrdOucErrInfo &out_error,
-               const XrdSecEntity *client = 0,
-               const char *opaqueO = 0,
-               const char *opaqueN = 0);
+  int symlink(const char* sourceName,
+              const char* targetName,
+              XrdOucErrInfo& out_error,
+              const XrdSecEntity* client = 0,
+              const char* opaqueO = 0,
+              const char* opaqueN = 0);
 
   // ---------------------------------------------------------------------------
   // symlink file/dir by vid
   // ---------------------------------------------------------------------------
-  int symlink (const char *sourceName,
-               const char *targetName,
-               XrdOucErrInfo &out_error,
-               eos::common::Mapping::VirtualIdentity &vid,
-               const char *opaqueO = 0,
-               const char *opaqueN = 0,
-               bool overwrite = false);
+  int symlink(const char* sourceName,
+              const char* targetName,
+              XrdOucErrInfo& out_error,
+              eos::common::Mapping::VirtualIdentity& vid,
+              const char* opaqueO = 0,
+              const char* opaqueN = 0,
+              bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // symlink file/dir by vid
   // ---------------------------------------------------------------------------
-  int _symlink (const char *sourceName,
-                const char *targetName,
-                XrdOucErrInfo &out_error,
-                eos::common::Mapping::VirtualIdentity &vid,
-                const char *opaqueO = 0,
-                const char *opaqueN = 0);
+  int _symlink(const char* sourceName,
+               const char* targetName,
+               XrdOucErrInfo& out_error,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const char* opaqueO = 0,
+               const char* opaqueN = 0);
 
   // ---------------------------------------------------------------------------
   // read symbolic link
   // ---------------------------------------------------------------------------
-  int readlink (const char *name,
-                XrdOucErrInfo &out_error,
-                XrdOucString &link,
-                const XrdSecEntity *client = 0,
-                const char *info = 0
-                );
+  int readlink(const char* name,
+               XrdOucErrInfo& out_error,
+               XrdOucString& link,
+               const XrdSecEntity* client = 0,
+               const char* info = 0
+              );
 
   // ---------------------------------------------------------------------------
   // read symbolic link
   // ---------------------------------------------------------------------------
-  int _readlink (const char *name,
-                 XrdOucErrInfo &out_error,
-                 eos::common::Mapping::VirtualIdentity &vid,
-                 XrdOucString &link
-                 );
+  int _readlink(const char* name,
+                XrdOucErrInfo& out_error,
+                eos::common::Mapping::VirtualIdentity& vid,
+                XrdOucString& link
+               );
 
 
   // ---------------------------------------------------------------------------
   // stat file
   // ---------------------------------------------------------------------------
-  int stat (const char *Name,
-            struct stat *buf,
-            XrdOucErrInfo &out_error,
-            std::string* etag,
-            const XrdSecEntity *client = 0,
-            const char *opaque = 0,
-            bool follow = true,
-            std::string* uri = 0
-            );
+  int stat(const char* Name,
+           struct stat* buf,
+           XrdOucErrInfo& out_error,
+           std::string* etag,
+           const XrdSecEntity* client = 0,
+           const char* opaque = 0,
+           bool follow = true,
+           std::string* uri = 0
+          );
 
-  int stat (const char *Name,
-            struct stat *buf,
-            XrdOucErrInfo &out_error,
-            const XrdSecEntity *client = 0,
-            const char *opaque = 0);
+  int stat(const char* Name,
+           struct stat* buf,
+           XrdOucErrInfo& out_error,
+           const XrdSecEntity* client = 0,
+           const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // stat file by vid
   // ---------------------------------------------------------------------------
-  int _stat (const char *Name,
-             struct stat *buf,
-             XrdOucErrInfo &out_error,
-             eos::common::Mapping::VirtualIdentity &vid,
-             const char *opaque = 0,
-             std::string* etag = 0,
-             bool follow = true,
-             std::string* uri = 0);
+  int _stat(const char* Name,
+            struct stat* buf,
+            XrdOucErrInfo& out_error,
+            eos::common::Mapping::VirtualIdentity& vid,
+            const char* opaque = 0,
+            std::string* etag = 0,
+            bool follow = true,
+            std::string* uri = 0);
 
 
   // ---------------------------------------------------------------------------
@@ -502,263 +516,272 @@ public:
   // ---------------------------------------------------------------------------
 
   int
-  stat (const char *Name,
-        mode_t &mode,
-        XrdOucErrInfo &out_error,
-        const XrdSecEntity *client = 0,
-        const char *opaque = 0)
+  stat(const char* Name,
+       mode_t& mode,
+       XrdOucErrInfo& out_error,
+       const XrdSecEntity* client = 0,
+       const char* opaque = 0)
   {
     struct stat bfr;
     int rc = stat(Name, &bfr, out_error, client, opaque);
-    if (!rc) mode = bfr.st_mode;
+
+    if (!rc) {
+      mode = bfr.st_mode;
+    }
+
     return rc;
   }
 
   // ---------------------------------------------------------------------------
   // stat link
   // ---------------------------------------------------------------------------
-  int lstat (const char *Name,
-             struct stat *buf,
-             XrdOucErrInfo &out_error,
-             const XrdSecEntity *client = 0,
-             const char *opaque = 0);
+  int lstat(const char* Name,
+            struct stat* buf,
+            XrdOucErrInfo& out_error,
+            const XrdSecEntity* client = 0,
+            const char* opaque = 0);
 
   //----------------------------------------------------------------------------
   //! Truncate a file (not supported in EOS, only via the file interface)
   //!
   //! @return SFS_ERROR and EOPNOTSUPP
   //----------------------------------------------------------------------------
-  int truncate (const char*, XrdSfsFileOffset, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+  int truncate(const char*, XrdSfsFileOffset, XrdOucErrInfo&, const XrdSecEntity*,
+               const char*);
 
   // ---------------------------------------------------------------------------
   // check access permissions
   // ---------------------------------------------------------------------------
-  int access (const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+  int access(const char*, int mode, XrdOucErrInfo&, const XrdSecEntity*,
+             const char*);
 
   // ---------------------------------------------------------------------------
   // check access permissions by vid
   // ---------------------------------------------------------------------------
-  int _access (const char*, int mode, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char*);
+  int _access(const char*, int mode, XrdOucErrInfo&,
+              eos::common::Mapping::VirtualIdentity& vid, const char*);
 
   // ---------------------------------------------------------------------------
   // define access permissions by vid for a file/directory
   // ---------------------------------------------------------------------------
-  int acc_access (const char*,
-                  XrdOucErrInfo&,
-                  eos::common::Mapping::VirtualIdentity &vid,
-                  std::string& accperm);
+  int acc_access(const char*,
+                 XrdOucErrInfo&,
+                 eos::common::Mapping::VirtualIdentity& vid,
+                 std::string& accperm);
 
   // ---------------------------------------------------------------------------
   // set utimes
   // ---------------------------------------------------------------------------
-  int utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, const XrdSecEntity*, const char*);
+  int utimes(const char*, struct timespec* tvp, XrdOucErrInfo&,
+             const XrdSecEntity*, const char*);
   // ---------------------------------------------------------------------------
   // set utimes by vid
   // ---------------------------------------------------------------------------
-  int _utimes (const char*, struct timespec *tvp, XrdOucErrInfo&, eos::common::Mapping::VirtualIdentity &vid, const char* opaque = 0);
+  int _utimes(const char*, struct timespec* tvp, XrdOucErrInfo&,
+              eos::common::Mapping::VirtualIdentity& vid, const char* opaque = 0);
 
   // ---------------------------------------------------------------------------
   // touch a file
   // ---------------------------------------------------------------------------
-  int _touch (const char *path,
-              XrdOucErrInfo &error,
-              eos::common::Mapping::VirtualIdentity &vid,
-              const char *ininfo = 0);
+  int _touch(const char* path,
+             XrdOucErrInfo& error,
+             eos::common::Mapping::VirtualIdentity& vid,
+             const char* ininfo = 0);
 
   // ---------------------------------------------------------------------------
   // list extended attributes of a directory
   // ---------------------------------------------------------------------------
-  int attr_ls (const char *path,
-               XrdOucErrInfo &out_error,
-               const XrdSecEntity *client,
-               const char *opaque,
-               eos::IContainerMD::XAttrMap &map);
+  int attr_ls(const char* path,
+              XrdOucErrInfo& out_error,
+              const XrdSecEntity* client,
+              const char* opaque,
+              eos::IContainerMD::XAttrMap& map);
 
   // ---------------------------------------------------------------------------
   // set extended attribute of a directory
   // ---------------------------------------------------------------------------
-  int attr_set (const char *path,
-                XrdOucErrInfo &out_error,
-                const XrdSecEntity *client,
-                const char *opaque,
-                const char *key,
-                const char *value);
+  int attr_set(const char* path,
+               XrdOucErrInfo& out_error,
+               const XrdSecEntity* client,
+               const char* opaque,
+               const char* key,
+               const char* value);
 
   // ---------------------------------------------------------------------------
   // get extended attribute of a directory
   // ---------------------------------------------------------------------------
-  int attr_get (const char *path,
-                XrdOucErrInfo &out_error,
-                const XrdSecEntity *client,
-                const char *opaque,
-                const char *key,
-                XrdOucString &value);
+  int attr_get(const char* path,
+               XrdOucErrInfo& out_error,
+               const XrdSecEntity* client,
+               const char* opaque,
+               const char* key,
+               XrdOucString& value);
 
   // ---------------------------------------------------------------------------
   // remove extended attribute of a directory
   // ---------------------------------------------------------------------------
-  int attr_rem (const char *path,
-                XrdOucErrInfo &out_error,
-                const XrdSecEntity *client,
-                const char *opaque,
-                const char *key);
+  int attr_rem(const char* path,
+               XrdOucErrInfo& out_error,
+               const XrdSecEntity* client,
+               const char* opaque,
+               const char* key);
 
   // ---------------------------------------------------------------------------
   // list extended attributes by vid
   // ---------------------------------------------------------------------------
-  int _attr_ls (const char *path,
-                XrdOucErrInfo &out_error,
-                eos::common::Mapping::VirtualIdentity &vid,
-                const char *opaque,
-                eos::IContainerMD::XAttrMap &map,
-		bool lock=true,
-		bool links=false);
+  int _attr_ls(const char* path,
+               XrdOucErrInfo& out_error,
+               eos::common::Mapping::VirtualIdentity& vid,
+               const char* opaque,
+               eos::IContainerMD::XAttrMap& map,
+               bool lock = true,
+               bool links = false);
 
   // ---------------------------------------------------------------------------
   // set extended attribute by vid
   // ---------------------------------------------------------------------------
-  int _attr_set (const char *path,
-                 XrdOucErrInfo &out_error,
-                 eos::common::Mapping::VirtualIdentity &vid,
-                 const char *opaque,
-                 const char *key,
-                 const char *value);
+  int _attr_set(const char* path,
+                XrdOucErrInfo& out_error,
+                eos::common::Mapping::VirtualIdentity& vid,
+                const char* opaque,
+                const char* key,
+                const char* value);
 
   // ---------------------------------------------------------------------------
   // get extended attribute by vid
   // ---------------------------------------------------------------------------
-  int _attr_get (const char *path,
-                 XrdOucErrInfo &out_error,
-                 eos::common::Mapping::VirtualIdentity &vid,
-                 const char *opaque,
-                 const char *key,
-                 XrdOucString &value,
-                 bool islocked = false);
+  int _attr_get(const char* path,
+                XrdOucErrInfo& out_error,
+                eos::common::Mapping::VirtualIdentity& vid,
+                const char* opaque,
+                const char* key,
+                XrdOucString& value,
+                bool islocked = false);
 
   // ---------------------------------------------------------------------------
   // remove extended attribute by vid
   // ---------------------------------------------------------------------------
-  int _attr_rem (const char *path,
-                 XrdOucErrInfo &out_error,
-                 eos::common::Mapping::VirtualIdentity &vid,
-                 const char *opaque,
-                 const char *key);
+  int _attr_rem(const char* path,
+                XrdOucErrInfo& out_error,
+                eos::common::Mapping::VirtualIdentity& vid,
+                const char* opaque,
+                const char* key);
 
   // ---------------------------------------------------------------------------
   // clear all extended attributes by vid
   // ---------------------------------------------------------------------------
 
-  int _attr_clear (const char *path,
-                   XrdOucErrInfo &out_error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   const char *opaque);
+  int _attr_clear(const char* path,
+                  XrdOucErrInfo& out_error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  const char* opaque);
 
   // ---------------------------------------------------------------------------
   // drop stripe by vid
   // ---------------------------------------------------------------------------
-  int _dropstripe (const char *path,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   unsigned long fsid,
-                   bool forceRemove = false);
+  int _dropstripe(const char* path,
+                  XrdOucErrInfo& error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  unsigned long fsid,
+                  bool forceRemove = false);
 
   // ---------------------------------------------------------------------------
   // verify stripe by vid
   // ---------------------------------------------------------------------------
-  int _verifystripe (const char *path,
-                     XrdOucErrInfo &error,
-                     eos::common::Mapping::VirtualIdentity &vid,
-                     unsigned long fsid,
-                     XrdOucString options);
+  int _verifystripe(const char* path,
+                    XrdOucErrInfo& error,
+                    eos::common::Mapping::VirtualIdentity& vid,
+                    unsigned long fsid,
+                    XrdOucString options);
 
   // ---------------------------------------------------------------------------
   // move stripe by vid
   // ---------------------------------------------------------------------------
-  int _movestripe (const char *path,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   unsigned long sourcefsid,
-                   unsigned long targetfsid,
-                   bool expressflag = false);
+  int _movestripe(const char* path,
+                  XrdOucErrInfo& error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  unsigned long sourcefsid,
+                  unsigned long targetfsid,
+                  bool expressflag = false);
 
   // ---------------------------------------------------------------------------
   // copy stripe by vid
   // ---------------------------------------------------------------------------
-  int _copystripe (const char *path,
-                   XrdOucErrInfo &error,
-                   eos::common::Mapping::VirtualIdentity &vid,
-                   unsigned long sourcefsid,
-                   unsigned long targetfsid,
-                   bool expressflag = false);
+  int _copystripe(const char* path,
+                  XrdOucErrInfo& error,
+                  eos::common::Mapping::VirtualIdentity& vid,
+                  unsigned long sourcefsid,
+                  unsigned long targetfsid,
+                  bool expressflag = false);
 
   // ---------------------------------------------------------------------------
   // replicate stripe by vid
   // ---------------------------------------------------------------------------
-  int _replicatestripe (const char *path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        unsigned long sourcefsid,
-                        unsigned long targetfsid,
-                        bool dropstripe = false,
-                        bool expressflag = false);
+  int _replicatestripe(const char* path,
+                       XrdOucErrInfo& error,
+                       eos::common::Mapping::VirtualIdentity& vid,
+                       unsigned long sourcefsid,
+                       unsigned long targetfsid,
+                       bool dropstripe = false,
+                       bool expressflag = false);
 
   // ---------------------------------------------------------------------------
   // replicate stripe providing file meta data by vid
   // ---------------------------------------------------------------------------
-  int _replicatestripe (eos::IFileMD* fmd,
-                        const char* path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        unsigned long sourcefsid,
-                        unsigned long targetfsid,
-                        bool dropstripe = false,
-                        bool expressflag = false);
+  int _replicatestripe(eos::IFileMD* fmd,
+                       const char* path,
+                       XrdOucErrInfo& error,
+                       eos::common::Mapping::VirtualIdentity& vid,
+                       unsigned long sourcefsid,
+                       unsigned long targetfsid,
+                       bool dropstripe = false,
+                       bool expressflag = false);
 
   // ---------------------------------------------------------------------------
   // merge one file into another one (used by conversion)
   // ---------------------------------------------------------------------------
 
-  int merge (const char* src_path,
-             const char* dst_path,
-             XrdOucErrInfo &error,
-             eos::common::Mapping::VirtualIdentity &vid
-             );
+  int merge(const char* src_path,
+            const char* dst_path,
+            XrdOucErrInfo& error,
+            eos::common::Mapping::VirtualIdentity& vid
+           );
 
   // ---------------------------------------------------------------------------
   // create a versioned file
   // ---------------------------------------------------------------------------
 
-  int Version (eos::common::FileId::fileid_t fileid,
-               XrdOucErrInfo &error,
-               eos::common::Mapping::VirtualIdentity &vid,
-               int max_versions,
-               XrdOucString* versionedname = 0,
-               bool simulate = false);
+  int Version(eos::common::FileId::fileid_t fileid,
+              XrdOucErrInfo& error,
+              eos::common::Mapping::VirtualIdentity& vid,
+              int max_versions,
+              XrdOucString* versionedname = 0,
+              bool simulate = false);
 
   // ---------------------------------------------------------------------------
   // purge versioned files to max_versions
   // ---------------------------------------------------------------------------
 
-  int PurgeVersion (const char* versiondir,
-                    XrdOucErrInfo &error,
-                    int max_versions);
+  int PurgeVersion(const char* versiondir,
+                   XrdOucErrInfo& error,
+                   int max_versions);
 
   // ---------------------------------------------------------------------------
   // send resync command to a file system
   // ---------------------------------------------------------------------------
-  int SendResync (eos::common::FileId::fileid_t fid,
-                  eos::common::FileSystem::fsid_t fsid);
+  int SendResync(eos::common::FileId::fileid_t fid,
+                 eos::common::FileSystem::fsid_t fsid);
 
   // ---------------------------------------------------------------------------
   // static Mkpath is not supported
   // ---------------------------------------------------------------------------
 
   static int
-  Mkpath (const char *path,
-          mode_t mode,
-          const char *info = 0,
-          XrdSecEntity* client = 0,
-          XrdOucErrInfo* error = 0)
+  Mkpath(const char* path,
+         mode_t mode,
+         const char* info = 0,
+         XrdSecEntity* client = 0,
+         XrdOucErrInfo* error = 0)
   {
     return SFS_ERROR;
   }
@@ -767,64 +790,50 @@ public:
   // make a file sharing path with signature
   // ---------------------------------------------------------------------------
 
-  std::string CreateSharePath (const char* path,
-                               const char* info,
-                               time_t expires,
-                               XrdOucErrInfo &error,
-                               eos::common::Mapping::VirtualIdentity &vid);
+  std::string CreateSharePath(const char* path,
+                              const char* info,
+                              time_t expires,
+                              XrdOucErrInfo& error,
+                              eos::common::Mapping::VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
   // verify a file sharing path with signature
   // ---------------------------------------------------------------------------
 
-  bool VerifySharePath (const char* path,
-                        XrdOucEnv* opaque);
+  bool VerifySharePath(const char* path,
+                       XrdOucEnv* opaque);
 
 
   // ---------------------------------------------------------------------------
   // create Ofs error messsage
   // ---------------------------------------------------------------------------
-  int Emsg (const char *, XrdOucErrInfo&, int, const char *x,
-            const char *y = "");
-
-  // ---------------------------------------------------------------------------
-  // Constructor
-  // ---------------------------------------------------------------------------
-  XrdMgmOfs (XrdSysError *lp);
-
-  // ---------------------------------------------------------------------------
-  //! Destructor
-  // ---------------------------------------------------------------------------
-
-  virtual
-  ~XrdMgmOfs ()
-  {
-  }
+  int Emsg(const char*, XrdOucErrInfo&, int, const char* x,
+           const char* y = "");
 
   // ---------------------------------------------------------------------------
   // Configuration routine
   // ---------------------------------------------------------------------------
-  virtual int Configure (XrdSysError &);
+  virtual int Configure(XrdSysError&);
 
   // ---------------------------------------------------------------------------
   // Namespace file view initialization thread start function
   // ---------------------------------------------------------------------------
-  static void* StaticInitializeFileView (void* arg);
+  static void* StaticInitializeFileView(void* arg);
 
   // ---------------------------------------------------------------------------
   // Namepsace file view boot function
   // ---------------------------------------------------------------------------
-  void* InitializeFileView ();
+  void* InitializeFileView();
 
   // ---------------------------------------------------------------------------
   // Signal handler thread start function
   // ---------------------------------------------------------------------------
-  static void* StaticSignalHandlerThread (void* arg);
+  static void* StaticSignalHandlerThread(void* arg);
 
   // ---------------------------------------------------------------------------
   // Signal handler thread function
   // ---------------------------------------------------------------------------
-  void* SignalHandlerThread ();
+  void* SignalHandlerThread();
 
   //----------------------------------------------------------------------------
   //! Init function
@@ -833,7 +842,7 @@ public:
   //! not used for the moment.
   //!
   //----------------------------------------------------------------------------
-  virtual bool Init (XrdSysError &);
+  virtual bool Init(XrdSysError&);
 
   //----------------------------------------------------------------------------
   // Create Stall response
@@ -844,7 +853,7 @@ public:
   //!
   //! @return number of seconds of stalling
   //----------------------------------------------------------------------------
-  int Stall (XrdOucErrInfo &error, int stime, const char *msg);
+  int Stall(XrdOucErrInfo& error, int stime, const char* msg);
 
   //----------------------------------------------------------------------------
   //! Create Redirection response
@@ -854,24 +863,24 @@ public:
   //! @param port redirection target port
   //!
   //!---------------------------------------------------------------------------
-  int Redirect (XrdOucErrInfo &error, const char* host, int &port);
+  int Redirect(XrdOucErrInfo& error, const char* host, int& port);
 
   // ---------------------------------------------------------------------------
   // Test if a client needs to be stalled
   // ---------------------------------------------------------------------------
-  bool ShouldStall (const char* function,
-                    int accessmode,
-                    eos::common::Mapping::VirtualIdentity &vid,
-                    int &stalltime, XrdOucString &stallmsg);
+  bool ShouldStall(const char* function,
+                   int accessmode,
+                   eos::common::Mapping::VirtualIdentity& vid,
+                   int& stalltime, XrdOucString& stallmsg);
 
   // ---------------------------------------------------------------------------
   // Test if a  client should be redirected
   // ---------------------------------------------------------------------------
-  bool ShouldRedirect (const char* function,
-                       int accessmode,
-                       eos::common::Mapping::VirtualIdentity &vid,
-                       XrdOucString &host,
-                       int &port);
+  bool ShouldRedirect(const char* function,
+                      int accessmode,
+                      eos::common::Mapping::VirtualIdentity& vid,
+                      XrdOucString& host,
+                      int& port);
 
   //----------------------------------------------------------------------------
   //! Test if there is stall configured for the given rule
@@ -886,10 +895,10 @@ public:
   //! The interface is generic to check for individual paths, but currently we
   //! just implemented global rules for any paths. See Access.cc for details.
   //----------------------------------------------------------------------------
-  bool HasStall (const char* path,
-                 const char* rule,
-                 int &stalltime,
-                 XrdOucString &stallmsg);
+  bool HasStall(const char* path,
+                const char* rule,
+                int& stalltime,
+                XrdOucString& stallmsg);
 
   //----------------------------------------------------------------------------
   //!Test if there is redirect configured for a given rule
@@ -904,59 +913,61 @@ public:
   //! The interface is generic to check for individual paths, but currently we
   //! just implemented global rules for any paths. See Access.cc for details.
   //----------------------------------------------------------------------------
-  bool HasRedirect (const char* path,
-                    const char* rule,
-                    XrdOucString &host,
-                    int &port);
+  bool HasRedirect(const char* path,
+                   const char* rule,
+                   XrdOucString& host,
+                   int& port);
 
   // Retrieve a mapping for a given path
   // ---------------------------------------------------------------------------
-  void PathRemap (const char* inpath, XrdOucString &outpath); // global namespace remapping
+  void PathRemap(const char* inpath,
+                 XrdOucString& outpath);  // global namespace remapping
 
   // ---------------------------------------------------------------------------
   // Add a path mapping rule
   // ---------------------------------------------------------------------------
-  bool AddPathMap (const char* source, const char* target); // add a mapping to the path map
+  bool AddPathMap(const char* source,
+                  const char* target);  // add a mapping to the path map
 
   // ---------------------------------------------------------------------------
   // Reset path mapping
   // ---------------------------------------------------------------------------
-  void ResetPathMap (); // reset/empty the path map
+  void ResetPathMap();  // reset/empty the path map
 
   // ---------------------------------------------------------------------------
   // Send an explicit deletion message to any fsid/fid pair
   // ---------------------------------------------------------------------------
-  bool DeleteExternal (eos::common::FileSystem::fsid_t fsid,
-                       unsigned long long fid);
+  bool DeleteExternal(eos::common::FileSystem::fsid_t fsid,
+                      unsigned long long fid);
 
-  
+
   // ---------------------------------------------------------------------------
   // Statistics circular buffer thread startup function
   // ---------------------------------------------------------------------------
-  static void* StartMgmStats (void *pp);
+  static void* StartMgmStats(void* pp);
 
-  
+
   // ---------------------------------------------------------------------------
   // Filesystem error/config listener thread startup function
   // ---------------------------------------------------------------------------
-  static void* StartMgmFsConfigListener (void *pp);
+  static void* StartMgmFsConfigListener(void* pp);
 
-  
+
   //----------------------------------------------------------------------------
   //! Authentication master thread startup static function
   //!
   //! @param pp pointer to the XrdMgmOfs class
   //!
   //----------------------------------------------------------------------------
-  static void* StartAuthMasterThread (void *pp);
+  static void* StartAuthMasterThread(void* pp);
 
-  
+
   //----------------------------------------------------------------------------
   //! Authentication master thread function - accepts requests from EOS AUTH
   //! plugins which he then forwards to worker threads.
   //----------------------------------------------------------------------------
-  void AuthMasterThread ();
-  
+  void AuthMasterThread();
+
 
   //----------------------------------------------------------------------------
   //! Authentication worker thread startup static function
@@ -964,20 +975,20 @@ public:
   //! @param pp pointer to the XrdMgmOfs class
   //!
   //----------------------------------------------------------------------------
-  static void* StartAuthWorkerThread (void *pp);
+  static void* StartAuthWorkerThread(void* pp);
 
 
   //----------------------------------------------------------------------------
   //! Authentication worker thread function - accepts requests from the master,
   //! executed the proper action and replies with the result.
   //----------------------------------------------------------------------------
-  void AuthWorkerThread ();
-  
-  
+  void AuthWorkerThread();
+
+
   // ---------------------------------------------------------------------------
   // Filesystem error and configuration change listener thread function
   // ---------------------------------------------------------------------------
-  void FsConfigListener ();
+  void FsConfigListener();
 
   //------------------------------------------------------------------------------
   //! Add backup job to the queue to be picked up by the archive/backup submitter
@@ -1002,13 +1013,13 @@ public:
   // ---------------------------------------------------------------------------
   // configuration variables
   // ---------------------------------------------------------------------------
-  char *ConfigFN; //< name of the configuration file
+  char* ConfigFN; //< name of the configuration file
 
   ConfigEngine* ConfEngine; //< storing/restoring configuration
 
-  XrdCapability* CapabilityEngine; //< authorization module for token encryption/decryption
+  XrdCapability*
+  CapabilityEngine; //< authorization module for token encryption/decryption
   uint64_t mCapabilityValidity; ///< Time in seconds the capability is valid
-
   XrdOucString MgmOfsBroker; //< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; //< Url of the message broker with MGM subject
   XrdOucString MgmOfsVstBrokerUrl; //< Url of the message broker
@@ -1016,56 +1027,77 @@ public:
   XrdOucString MgmArchiveSvcClass; ///< CASTOR svcClass for archive transfers
   Messaging* MgmOfsMessaging; //< messaging interface class
   VstMessaging* MgmOfsVstMessaging; //< admin messaging interface class
-  XrdOucString MgmDefaultReceiverQueue; //< Queue where we are sending to by default
+  XrdOucString
+  MgmDefaultReceiverQueue; //< Queue where we are sending to by default
   XrdOucString MgmOfsName; //< mount point of the filesystem
   XrdOucString MgmOfsAlias; //< alias of this MGM instance
-  XrdOucString MgmOfsTargetPort; //< xrootd port where redirections go on the OSTs -default is 1094
+  XrdOucString
+  MgmOfsTargetPort; //< xrootd port where redirections go on the OSTs -default is 1094
   XrdOucString MgmOfsQueue; //< our mgm queue name
   XrdOucString MgmOfsInstanceName; //< name of the EOS instance
   XrdOucString MgmConfigDir; //< Directory where config files are stored
-  XrdOucString MgmConfigAutoLoad; //< Name of the automatically loaded configuration file
+  XrdOucString
+  MgmConfigAutoLoad; //< Name of the automatically loaded configuration file
   //! Directory where tmp. archive transfer files are saved
-  XrdOucString MgmArchiveDir; 
+  XrdOucString MgmArchiveDir;
   XrdOucString MgmProcPath; //< Directory with proc files
-  XrdOucString MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
+  XrdOucString
+  MgmProcConversionPath; //< Directory with conversion files (used as temporary files when a layout is changed using third party copy)
+  XrdOucString MgmProcWorkflowPath; //< Directory with worflows
+  XrdOucString MgmProcLockPath; //< Directory with client locks
+  XrdOucString MgmProcDelegationPath; //< Directory with client delegations
   XrdOucString MgmProcMasterPath; //< Full path to the master indication proc file
   XrdOucString MgmProcArchivePath; ///< EOS directory where archive dir inodes
-                                   ///< are saved for fast find functionality
+  ///< are saved for fast find functionality
   XrdOucString AuthLib; //< path to a possible authorizationn library
-  XrdOucString MgmNsFileChangeLogFile; //< path to namespace changelog file for files
-  XrdOucString MgmNsDirChangeLogFile; //< path to namespace changelog file for directories
+  XrdOucString
+  MgmNsFileChangeLogFile; //< path to namespace changelog file for files
+  XrdOucString
+  MgmNsDirChangeLogFile; //< path to namespace changelog file for directories
   XrdOucString MgmConfigQueue; //< name of the mgm-wide broadcasted shared hash
-  XrdOucString AllConfigQueue; //< name of the cluster-wide broadcasted shared hash
+  XrdOucString
+  AllConfigQueue; //< name of the cluster-wide broadcasted shared hash
   XrdOucString FstConfigQueue; //< name of the fst-wide broadcasted shared hash
 
-  XrdOucString SpaceConfigQueuePrefix; //< name of the prefix for space configuration
-  XrdOucString NodeConfigQueuePrefix; //< name of the prefix for node configuration
-  XrdOucString GroupConfigQueuePrefix; //< name of the prefix for group configuration
+  XrdOucString
+  SpaceConfigQueuePrefix; //< name of the prefix for space configuration
+  XrdOucString
+  NodeConfigQueuePrefix; //< name of the prefix for node configuration
+  XrdOucString
+  GroupConfigQueuePrefix; //< name of the prefix for group configuration
 
-  XrdOucString MgmTxDir; //<  Directory containing the transfer database and archive
+  XrdOucString
+  MgmTxDir; //<  Directory containing the transfer database and archive
   XrdOucString MgmAuthDir; //< Directory containing exported authentication token
 
   XrdOucString ManagerId; //< manager id in <host>:<port> format
   XrdOucString ManagerIp; //< manager ip in <xxx.yyy.zzz.vvv> format
   int ManagerPort; //< manager port as number e.g. 1094
 
-  eos::common::LinuxStat::linux_stat_t LinuxStatsStartup; // => process state after namespace load time
+  eos::common::LinuxStat::linux_stat_t
+  LinuxStatsStartup; // => process state after namespace load time
 
-  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToDrainFid; // map with scheduled fids for draining
+  std::map<eos::common::FileSystem::fsid_t, time_t>
+  ScheduledToDrainFid; // map with scheduled fids for draining
   XrdSysMutex ScheduledToDrainFidMutex; //< mutex protecting ScheduledToDrainFid
-  std::map<eos::common::FileSystem::fsid_t, time_t> ScheduledToBalanceFid; // map with scheduled fids for balancing
-  XrdSysMutex ScheduledToBalanceFidMutex; //< mutex protecting ScheduledToBalanceFid
+  std::map<eos::common::FileSystem::fsid_t, time_t>
+  ScheduledToBalanceFid; // map with scheduled fids for balancing
+  XrdSysMutex
+  ScheduledToBalanceFidMutex; //< mutex protecting ScheduledToBalanceFid
 
   time_t StartTime; //< out starttime
   char* HostName; //< our hostname as derived in XrdOfs
   char* HostPref; //< our hostname as derived in XrdOfs without domain
 
-  static XrdSysError *eDest; //< error routing object
+  static XrdSysError* eDest; //< error routing object
 
-  // ---------------------------------------------------------------------------
-  // namespace specific variables
-  // ---------------------------------------------------------------------------
+#ifdef HAVE_ZMQ
+  ZMQ* zMQ; //<  ZMQ processor
+#endif
 
+  //----------------------------------------------------------------------------
+  // Namespace specific variables
+  //----------------------------------------------------------------------------
   enum eNamespace {
     kDown = 0, kBooting = 1, kBooted = 2, kFailed = 3, kCompacting = 4
   };
@@ -1075,7 +1107,8 @@ public:
   XrdSysMutex InitializationMutex; //< mutex protecting above variables
   bool Shutdown; //< true if the shutdown function was called => avoid to join some threads
   bool RemoveStallRuleAfterBoot; //< indicates that after a boot there shouldn't be a stall rule for all alias '*'
-  static const char* gNameSpaceState[]; //< const strings to print the namespace boot state as in eNamespace
+  static const char*
+  gNameSpaceState[]; //< const strings to print the namespace boot state as in eNamespace
 
   // ---------------------------------------------------------------------------
   // state variables
@@ -1090,18 +1123,20 @@ public:
   bool MgmRedirector; //<  Act's only as a redirector, disables many components in the MGM
   bool ErrorLog; //<  Mgm writes error log with cluster collected file into /var/log/eos/error.log if <true>
 
-  // ---------------------------------------------------------------------------
-  // namespace variables
-  // ---------------------------------------------------------------------------
-  eos::IContainerMDSvc *eosDirectoryService; //< changelog for directories
-  eos::IFileMDSvc *eosFileService; //< changelog for files
-  eos::IView *eosView; //< hierarchical view of the namespace
-  eos::IFsView *eosFsView; //< filesystem view of the namespace
+  //----------------------------------------------------------------------------
+  // Namespace variables
+  //----------------------------------------------------------------------------
+  eos::IContainerMDSvc* eosDirectoryService; //< changelog for directories
+  eos::IFileMDSvc* eosFileService; //< changelog for files
+  eos::IView* eosView; //< hierarchical view of the namespace
+  eos::IFsView* eosFsView; //< filesystem view of the namespace
   eos::IFileMDChangeListener* eosContainerAccounting; //< subtree accoutning
-  eos::IContainerMDChangeListener* eosSyncTimeAccounting; //< subtree mtime propagation
+  eos::IContainerMDChangeListener*
+  eosSyncTimeAccounting; //< subtree mtime propagation
   XrdSysMutex eosViewMutex; //< mutex making the namespace single threaded
   eos::common::RWMutex eosViewRWMutex; //< rw namespace mutex
-  XrdOucString MgmMetaLogDir; //  Directory containing the meta data (change) log files
+  XrdOucString
+  MgmMetaLogDir; //  Directory containing the meta data (change) log files
 
   // ---------------------------------------------------------------------------
   // thread variables
@@ -1119,28 +1154,27 @@ public:
   unsigned int mFrontendPort; ///< frontend port number for incoming requests
   unsigned int mNumAuthThreads; ///< max number of auth worker threads
   zmq::context_t* mZmqContext; ///< ZMQ context for all the sockets
-  
-  // ---------------------------------------------------------------------------
-  // class objects
-  // ---------------------------------------------------------------------------
-  XrdAccAuthorize *Authorization; //< Authorization   Service
 
-  Stat MgmStats; //<  Mgm Namespace Statistics
-
+  XrdAccAuthorize* Authorization; ///< Authorization service
+  Stat MgmStats; ///<  Mgm Namespace Statistics
   Iostat IoStats; //<  Mgm IO Statistics
 
-  XrdOucString IoReportStorePath; //<  Mgm IO Report store path by default is /var/tmp/eos/report
+  XrdOucString
+  IoReportStorePath; //<  Mgm IO Report store path by default is /var/tmp/eos/report
 
-  eos::common::CommentLog* commentLog; //<  Class implementing comment log: mgm writes all proc commands with a comment into /var/log/eos/comments.log
+  eos::common::CommentLog*
+  commentLog; //<  Class implementing comment log: mgm writes all proc commands with a comment into /var/log/eos/comments.log
 
   Fsck FsCheck; //<  Class checking the filesystem
-  google::sparse_hash_map<unsigned long long, time_t> MgmHealMap; //< map remembering 'healing' inodes
+  google::sparse_hash_map<unsigned long long, time_t>
+  MgmHealMap; //< map remembering 'healing' inodes
 
   XrdSysMutex MgmHealMapMutex; //< mutex protecting the help map
 
   Master MgmMaster; //<  Master/Slave configuration/failover class
 
-  std::map<eos::common::FileSystem::fsid_t, time_t> DumpmdTimeMap; //< this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
+  std::map<eos::common::FileSystem::fsid_t, time_t>
+  DumpmdTimeMap; //< this map stores the last time of a filesystem dump, this information is used to track filesystems which have not been checked decentral by an FST. It is filled in the 'dumpmd' function definde in Procinterface
 
   XrdSysMutex DumpmdTimeMapMutex; //< mutex protecting the 'dumpmd' time
 
@@ -1149,19 +1183,22 @@ public:
   std::map<std::string, std::string> PathMap; //< containing global path remapping
 
   XrdMqSharedObjectManager ObjectManager; //< Shared Hash/Queue ObjectManager
-  XrdMqSharedObjectChangeNotifier ObjectNotifier; //< Shared Hash/Queue Object Change Notifier
+  XrdMqSharedObjectChangeNotifier
+  ObjectNotifier; //< Shared Hash/Queue Object Change Notifier
 
   GeoTreeEngine GeotreeEngine; //< Placement / Access Engine
 
   // map keeping the modification times of directories, they are either directly inserted from directory/file creation or they are set from a directory listing
-  XrdSysMutex MgmDirectoryModificationTimeMutex; //<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime
+  XrdSysMutex
+  MgmDirectoryModificationTimeMutex; //<  mutex protecting Directory Modificatino Time map MgmDirectoryModificationTime
 
-  google::sparse_hash_map<unsigned long long, struct timespec> MgmDirectoryModificationTime;
+  google::sparse_hash_map<unsigned long long, struct timespec>
+    MgmDirectoryModificationTime;
 
   HttpServer Httpd; //<  Http daemon if available
 
   LRU LRUd; //< LRU object running the LRU policy engine
-
+  WFE WFEd; //< WFE object running the WFE engine
   Egroup EgroupRefresh; //<  Egroup refresh object running asynchronous Egroup fetch thread
 
   Recycle Recycler; //<  Recycle object running the recycle bin deletion thread
@@ -1171,15 +1208,17 @@ public:
   std::string mArchiveEndpoint; ///< archive ZMQ connection endpoint
   std::string mFstGwHost; ///< FST gateway redirect fqdn host
   int mFstGwPort; ///< FST gateway redirect port, default 1094
-  
-private:
 
+private:
   eos::common::Mapping::VirtualIdentity vid; ///< virtual identity
-  std::map<std::string, XrdMgmOfsDirectory*> mMapDirs; ///< uuid to directory obj. mapping
+  std::map<std::string, XrdMgmOfsDirectory*>
+  mMapDirs; ///< uuid to directory obj. mapping
   std::map<std::string, XrdMgmOfsFile*> mMapFiles; ///< uuid to file obj. mapping
   XrdSysMutex mMutexDirs; ///< mutex for protecting the access at the dirs map
   XrdSysMutex mMutexFiles; ///< mutex for protecting the access at the files map
-
+  pthread_t mSubmitterTid; ///< Archive submitter thread
+  XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
+  std::list<std::string> mPendingBkps; ///< Backup jobs queue
 
   //----------------------------------------------------------------------------
   //! Check that the auth ProtocolBuffer request has not been tampered with
@@ -1190,15 +1229,10 @@ private:
   //----------------------------------------------------------------------------
   bool ValidAuthRequest(eos::auth::RequestProto* reqProto);
 
-  
   //----------------------------------------------------------------------------
   //! Initialize MGM statistics to 0
   //----------------------------------------------------------------------------
   void InitStats();
-
-  pthread_t mSubmitterTid; ///< Archive submitter thread
-  XrdSysMutex mJobsQMutex; ///< Mutex for archive/backup job queue
-  std::list<std::string> mPendingBkps; ///< Backup jobs queue
 
   //----------------------------------------------------------------------------
   //! Static method to start a thread that will queue, build and submit backup
@@ -1218,8 +1252,7 @@ private:
   //------------------------------------------------------------------------------
   void StopArchiveSubmitter();
 };
-/*----------------------------------------------------------------------------*/
+
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
-/*----------------------------------------------------------------------------*/
 
 #endif

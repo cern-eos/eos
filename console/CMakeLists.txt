@@ -26,6 +26,7 @@ include_directories(
   ${CMAKE_BINARY_DIR}
   ${PROTOBUF_INCLUDE_DIRS}
   ${XROOTD_INCLUDE_DIRS}
+  ${KINETICIO_INCLUDE_DIR}
   ${OPENSSL_INCLUDE_DIRS})
 
 #-------------------------------------------------------------------------------
@@ -73,6 +74,7 @@ add_executable(
   commands/com_group.cc
   commands/com_info.cc
   commands/com_io.cc
+  commands/com_kinetic.cc
   commands/com_json.cc
   commands/com_license.cc
   commands/com_ls.cc
@@ -118,6 +120,7 @@ add_dependencies(eos EosFstIo)
 if(CLIENT)
   target_link_libraries(
     eos
+    EosFstIoa
     eosCommon
     ${Z_LIBRARY}
     ${UUID_LIBRARIES}
@@ -129,10 +132,12 @@ if(CLIENT)
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KINETICIO_LIBRARIES})
 else()
   target_link_libraries(
     eos
+    EosFstIo-Static
     eosCommon-Static
     XrdMqClient-Static
     ${Z_LIBRARY}
@@ -144,7 +149,8 @@ else()
     ${XROOTD_POSIX_LIBRARY}
     ${XROOTD_UTILS_LIBRARY}
     ${OPENSSL_CRYPTO_LIBRARY}
-    ${CMAKE_THREAD_LIBS_INIT})
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${KINETICIO_LIBRARIES})
 endif()
 
 if (MacOSX)

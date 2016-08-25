@@ -57,14 +57,18 @@ function getLocalBranchAndDistTag()
 
   local BRANCH_OR_TAG=${1}
   local PLATFORM=${2}
-  local TAG_REGEX="^[04]+\..*$"
+  local TAG_REGEX="^[034]+\..*$"
   local TAG_REGEX_AQUAMARINE="^0.3.*$"
+  local TAG_REGEX_EMERALD="^3.*$"
+
   local TAG_REGEX_CITRINE="^4.*$"
 
   # If this is a tag get the branch it belogs to
   if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX} ]]; then
       if [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_AQUAMARINE} ]]; then
 	  BRANCH="aquamarine"
+	  elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_EMERALD} ]]; then
+	  BRANCH="emerald"
       elif [[ "${BRANCH_OR_TAG}" =~ ${TAG_REGEX_CITRINE} ]]; then
 	  BRANCH="citrine"
       fi
@@ -73,13 +77,15 @@ function getLocalBranchAndDistTag()
       # For beryl_aquamarine use aquamarine as release
       if [[ "${BRANCH}" == "beryl_aquamarine" ]]; then
 	  BRANCH="aquamarine"
+      elif [[ "${BRANCH}"  == "beryl_emerald" ]]; then
+	  BRANCH="emerald"
       elif [[ "${BRANCH}"  == "master" ]]; then
 	  BRANCH="citrine"
       fi
   fi
 
   # For aquamarine still use the old ".slc-*" dist tag for SLC5/6
-  if [[ "${BRANCH}" == "aquamarine" ]] ; then
+  if [[ "${BRANCH}" == "aquamarine" ]] || [[ "${BRANCH}" == "emerald" ]] ; then
       if [[ "${PLATFORM}" == "el-5" ]] || [[ "${PLATFORM}" == "el-6" ]]; then
 	  DIST=".slc${PLATFORM: -1}"
       else
@@ -128,6 +134,9 @@ set -e
 # Get local branch and dist tag for the RPMS
 getLocalBranchAndDistTag ${BRANCH_OR_TAG} ${PLATFORM}
 
+# ensure that script reports errors
+set -e
+
 # Create cmake build directory and build without dependencies
 cd ..; mkdir build; cd build
 # Use cmake3 if installed, otherwise fallback to cmake command
@@ -146,8 +155,16 @@ SRC_RPM=$(find ./SRPMS -name "eos-*.src.rpm" -print0)
 
 # Get the mock configurations from gitlab
 git clone ssh://git@gitlab.cern.ch:7999/dss/dss-ci-mock.git ../dss-ci-mock
+
 # Prepare the mock configuration
 head -n -1 ../dss-ci-mock/eos-templates/${PLATFORM}-${ARCHITECTURE}.cfg.in | sed "s/__XROOTD_TAG__/$XROOTD_TAG/" | sed "s/__BUILD_NUMBER__/${BUILD_NUMBER}/" > eos.cfg
+if [[ ${BRANCH} == 'emerald' || ${BRANCH} == 'danburite' ]]; then
+    # Add kineticio and kineticio dependency repos
+    echo -e '\n[kio-depend]\nname=kio-depend\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio-depend/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
+    echo -e '\n[kio]\nname=kio\nbaseurl=https://dss-ci-repo.web.cern.ch/dss-ci-repo/kinetic/kineticio/'$PLATFORM'-'$ARCHITECTURE'\nenabled=1 \n' >> eos.cfg
+    # Add eos dependencies repos
+    echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \n' >> eos.cfg
+fi
 # Add eos dependencies repos
 # TODO: move these dependencies inside the dss-ci-mock repository
 echo -e '\n[eos-depend]\nname=EOS Dependencies\nbaseurl=http://dss-ci-repo.web.cern.ch/dss-ci-repo/eos/'${BRANCH}'-depend/'$PLATFORM'-'$ARCHITECTURE'/\ngpgcheck=0\nenabled=1 \nexclude=xrootd*\n' >> eos.cfg
@@ -159,7 +176,7 @@ echo -e '"""' >> eos.cfg
 mock --yum --init --uniqueext="eos_${BRANCH}" -r ./eos.cfg --rebuild ./${SRC_RPM} --resultdir ../rpms -D "dist ${DIST}"
 
 # List of branches for CI YUM repo
-BRANCH_LIST=('aquamarine' 'citrine')
+BRANCH_LIST=('aquamarine' 'citrine' 'emerald' 'danburite')
 
 # If building one of the production branches then push rpms to YUM repo
 if [[ ${BRANCH_LIST[*]} =~ ${BRANCH} ]]; then

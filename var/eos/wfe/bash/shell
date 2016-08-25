@@ -1,0 +1,20 @@
+#!/bin/bash
+bn=`basename $0`
+tag=$1
+shift
+logfile="/var/log/eos/wfe/$tag.log"
+tmplogfile=`mktemp`
+mkdir -p /var/log/eos/wfe/
+echo "----------------------------------------------------------------------------------------------------------------------" >> $tmplogfile
+echo -n  `date +%s` `date`  >> $tmplogfile
+echo " $bn $*" >> $tmplogfile
+
+eval $* >>  $tmplogfile
+retc=$?
+echo "retc=$retc" >> $tmplogfile
+cat $tmplogfile >> $logfile
+unlink $tmplogfile
+
+exit $retc
+
+

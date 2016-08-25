@@ -21,6 +21,25 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+if(KINETICIO_FOUND)
+    set(KINETICIO_SRC "io/kinetic/KineticIo.cc")
+    set(KINETICIO_HDR "io/kinetic/KineticIo.hh")
+else()
+    set(KINETICIO_SRC "")
+    set(KINETICIO_HDR "")
+endif()
+
+if(DAVIX_FOUND)
+    add_definitions(-DDAVIX_FOUND)
+    set(DAVIX_SRC "io/davix/DavixIo.cc")
+    set(DAVIX_HDR "io/davix/DavixIo.hh")
+else()
+    set(DAVIX_INCLUDE_DIR "")
+    set(DAVIX_LIBRARIES "")
+    set(DAVIX_SRC "")
+    set(DAVIX_HDR "")
+endif()
+
 include_directories(
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_BINARY_DIR}
@@ -31,6 +50,9 @@ include_directories(
   ${OPENSSL_INCLUDE_DIRS}
   ${Z_INCLUDE_DIRS}
   ${XFS_INCLUDE_DIRS}
+  ${KINETICIO_INCLUDE_DIR}
+  ${JSONC_INCLUDE_DIR}
+  ${DAVIX_INCLUDE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/gf-complete/include
   ${CMAKE_CURRENT_SOURCE_DIR}/layout/jerasure/include)
 
@@ -143,7 +165,12 @@ set(
   # File IO interface
   #-----------------------------------------------------------------------------
   io/FileIo.hh
-  io/XrdIo.cc                    io/XrdIo.hh
+  io/local/LocalIo.cc	         io/local/LocalIo.hh
+  io/local/FsIo.cc               io/local/FsIo.hh
+  ${KINETICIO_SRC}               ${KINETICIO_HDR}
+  ${DAVIX_SRC}		         ${DAVIX_HDR}
+  io/rados/RadosIo.cc            io/rados/RadosIo.hh
+  io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/HeaderCRC.cc                io/HeaderCRC.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
   io/ChunkHandler.cc             io/ChunkHandler.hh
@@ -187,6 +214,10 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${XROOTD_SERVER_LIBRARY}
   ${OPENSSL_CRYPTO_LIBRARY}
+  ${JSONC_LIBRARIES}
+  ${KINETICIO_LIBRARIES}
+  ${DAVIX_LIBRARIES}			
+  ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARIES})
 
@@ -234,6 +265,9 @@ else()
     ${XROOTD_UTILS_LIBRARY}
     ${NCURSES_LIBRARY_STATIC}
     ${OPENSSL_CRYPTO_LIBRARY_STATIC}
+    ${JSONC_LIBRARIES}
+    ${KINETICIO_LIBRARIES}
+    ${DAVIX_LIBRARIES}			
     ${CMAKE_THREAD_LIBS_INIT})
 
   set_target_properties(
@@ -267,6 +301,7 @@ target_compile_definitions(
 
 target_link_libraries(
   EosFstOss
+  EosFstIo
   eosCommon
   ${UUID_LIBRARIES}
   ${XROOTD_SERVER_LIBRARY})
@@ -281,18 +316,9 @@ set(
   ScanDir.cc
   Messaging.cc
   io/FileIoPlugin-Server.cc
-  io/LocalIo.cc                  io/LocalIo.hh
   ${CMAKE_SOURCE_DIR}/common/LayoutId.hh
-
-  #-----------------------------------------------------------------------------
-  # OFS layer implementation
-  #-----------------------------------------------------------------------------
   XrdFstOfs.cc                   XrdFstOfs.hh
   XrdFstOfsFile.cc               XrdFstOfsFile.hh
-
-  #-----------------------------------------------------------------------------
-  # Storage interface
-  #-----------------------------------------------------------------------------
   storage/Balancer.cc
   storage/Cleaner.cc             storage/Comunicator.cc
   storage/Drainer.cc             storage/ErrorReport.cc
@@ -301,43 +327,30 @@ set(
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
   storage/Trim.cc                storage/Verify.cc
-
-  #-----------------------------------------------------------------------------
-  # Transfer interface
-  #-----------------------------------------------------------------------------
   txqueue/TransferMultiplexer.cc
   txqueue/TransferJob.cc
   txqueue/TransferQueue.cc
-
-  #-----------------------------------------------------------------------------
-  # File metadata interface
-  #-----------------------------------------------------------------------------
   Fmd.cc               Fmd.hh
   FmdHandler.cc        FmdHandler.hh
   FmdDbMap.cc          FmdDbMap.hh
   FmdClient.cc         FmdClient.hh
   ${FMDBASE_SRCS}
   ${FMDBASE_HDRS}
-
-  #-----------------------------------------------------------------------------
-  # HTTP interface
-  #-----------------------------------------------------------------------------
   http/HttpServer.cc    http/HttpServer.hh
   http/HttpHandler.cc   http/HttpHandler.hh
   http/s3/S3Handler.cc  http/s3/S3Handler.hh
+  io/FileIoPlugin-Server.cc
+  ${EOSFSTIO_SRCS_SERVER})
 
-  #-----------------------------------------------------------------------------
-  # EosFstIo interface
-  #-----------------------------------------------------------------------------
-  ${EOSFSTIO_SRCS})
-
-add_library(XrdEosFst MODULE ${XRDEOSFST_SRCS})
+add_library(XrdEosFst MODULE 
+            ${XRDEOSFST_SRCS})
 
 target_compile_definitions(
   XrdEosFst PUBLIC -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
 
 target_link_libraries(
    XrdEosFst
+   EosFstIo
    eosCommon
    eosCommonServer
    EosFstIo-Static
@@ -411,16 +424,19 @@ target_link_libraries(
   ${XROOTD_UTILS_LIBRARY}
   ${CMAKE_THREAD_LIBS_INIT})
 
-target_link_libraries(eos-check-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-compute-blockxs eosCommon ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(eos-adler32 eosCommon ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(eos-check-blockxs  EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries(eos-compute-blockxs  EosFstIo-Static eosCommon  ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries(eos-adler32  EosFstIo-Static eosCommon ${CMAKE_THREAD_LIBS_INIT} )
 
 target_link_libraries(
   eos-scan-fs
   eosCommon
   eosCommonServer
+  EosFstIo-Static
   ${GLIBC_RT_LIBRARY}
   ${XROOTD_CL_LIBRARY}
+  ${KINETICIO_LIBRARIES} 
+  ${DAVIX_LIBRARIES}
   ${PROTOBUF_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT})
 
@@ -439,4 +455,21 @@ install(
   eos-ioping eos-adler32
   eos-check-blockxs eos-compute-blockxs eos-scan-fs
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
+endif()
+
+if (MacOSX)
+  install(
+    TARGETS
+    EosFstIo XrdEosFst eoscp
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+else()
+  install(
+    TARGETS
+    EosFstIo EosFstOss XrdEosFst eoscp
+    LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 endif()

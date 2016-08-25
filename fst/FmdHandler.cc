@@ -25,7 +25,6 @@
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/Attr.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -54,15 +53,14 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 int
-FmdHandler::CompareMtime (const void* a, const void *b)
+FmdHandler::CompareMtime(const void* a, const void* b)
 {
-
-  struct filestat
-  {
+  struct filestat {
     struct stat buf;
     char filename[1024];
   };
-  return ( (((struct filestat*) b)->buf.st_mtime) - ((struct filestat*) a)->buf.st_mtime);
+  return ((((struct filestat*) b)->buf.st_mtime) - ((struct filestat*)
+          a)->buf.st_mtime);
 }
 
 

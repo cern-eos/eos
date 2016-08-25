@@ -35,6 +35,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/RWMutex.hh"
+#include "common/StringConversion.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucHash.hh"
@@ -56,60 +57,72 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-class Mapping {
+class Mapping
+{
 private:
 public:
 
   // Constants used throughout the Mapping class
   static const std::string PROXY_GEOTAG;
 
-  typedef std::vector<uid_t> uid_vector; //< typdef of list storing valid uids of a user
-  typedef std::vector<gid_t> gid_vector; //< typdef of list storing valid gids of a user
-  typedef std::map<uid_t, uid_vector > UserRoleMap_t; //< typedef of map storing uid vectors per uid
-  typedef std::map<uid_t, gid_vector > GroupRoleMap_t; //< typedef of map storing gid vectors per gid
-  typedef std::map<std::string, uid_t> VirtualUserMap_t; //< typedef of map storing translation rules from auth methods to uids
-  typedef std::map<std::string, gid_t> VirtualGroupMap_t; //< typedef of map storing translation rules from auth methods to gids
-  typedef std::map<uid_t, bool > SudoerMap_t; //< typde of map storing members of the suid group
-  typedef std::map<std::string, std::string> GeoLocationMap_t; //< typdef of map storing translation of string(IP) => geo location string
-  typedef std::set<std::pair<std::string, std::string>> AllowedTidentMatches_t; //< typdef of set storing all host patterns which are allowed to use tident mapping
+  typedef std::vector<uid_t>
+  uid_vector; //< typdef of list storing valid uids of a user
+  typedef std::vector<gid_t>
+  gid_vector; //< typdef of list storing valid gids of a user
+  typedef std::map<uid_t, uid_vector >
+  UserRoleMap_t; //< typedef of map storing uid vectors per uid
+  typedef std::map<uid_t, gid_vector >
+  GroupRoleMap_t; //< typedef of map storing gid vectors per gid
+  typedef std::map<std::string, uid_t>
+  VirtualUserMap_t; //< typedef of map storing translation rules from auth methods to uids
+  typedef std::map<std::string, gid_t>
+  VirtualGroupMap_t; //< typedef of map storing translation rules from auth methods to gids
+  typedef std::map<uid_t, bool >
+  SudoerMap_t; //< typde of map storing members of the suid group
+  typedef std::map<std::string, std::string>
+  GeoLocationMap_t; //< typdef of map storing translation of string(IP) => geo location string
+  typedef std::set<std::pair<std::string, std::string>>
+      AllowedTidentMatches_t; //< typdef of set storing all host patterns which are allowed to use tident mapping
   // ---------------------------------------------------------------------------
   //! Class wrapping an uid/gid pari
   // ---------------------------------------------------------------------------
 
-  class id_pair {
+  class id_pair
+  {
   public:
     uid_t uid;
     gid_t gid;
 
-    id_pair (uid_t iuid, gid_t igid)
+    id_pair(uid_t iuid, gid_t igid)
     {
       uid = iuid;
       gid = igid;
     }
 
-    ~id_pair ()
+    ~id_pair()
     {
     };
   };
 
-  class ip_cache {
+  class ip_cache
+  {
   public:
     // IP host entry and last resolution time pair
     typedef std::pair<time_t, std::string> entry_t;
     // Constructor
 
-    ip_cache (int lifetime = 300)
+    ip_cache(int lifetime = 300)
     {
       mLifeTime = lifetime;
     }
     // Destructor
 
-    virtual ~ip_cache ()
+    virtual ~ip_cache()
     {
     }
 
     // Getter translates host name to IP string
-    std::string GetIp (const char* hostname);
+    std::string GetIp(const char* hostname);
 
   private:
     std::map<std::string, entry_t> mIp2HostMap;
@@ -149,7 +162,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  Nobody (VirtualIdentity &vid)
+  Nobody(VirtualIdentity& vid)
   {
     vid.uid = vid.gid = 99;
     vid.uid_list.clear();
@@ -158,6 +171,7 @@ public:
     vid.gid_list.push_back(99);
     vid.name = "nobody";
     vid.sudoer = false;
+    vid.tident = "nobody@unknown";
   }
 
   // ---------------------------------------------------------------------------
@@ -165,7 +179,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  Root (VirtualIdentity &vid)
+  Root(VirtualIdentity& vid)
   {
     vid.uid = vid.gid = 0;
     vid.uid_list.clear();
@@ -179,17 +193,66 @@ public:
   }
 
   // ---------------------------------------------------------------------------
+  //! Function converting vid to a string representation
+  // ---------------------------------------------------------------------------
+
+  static std::string
+  VidToString(VirtualIdentity& vid)
+  {
+    char vids[4096];
+    snprintf(vids, sizeof(vids), "%u:%u:%s:%s:%s:%s:%s",
+             vid.uid,
+             vid.gid,
+             vid.uid_string.c_str(),
+             vid.gid_string.c_str(),
+             vid.name.c_str(),
+             vid.prot.c_str(),
+             vid.tident.c_str());
+    return std::string(vids);
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Function converting vid frin a string representation
+  // ---------------------------------------------------------------------------
+
+  static bool
+  VidFromString(VirtualIdentity& vid, const char* vidstring)
+  {
+    std::string svid = vidstring;
+    std::vector<std::string> tokens;
+    eos::common::StringConversion::Tokenize(
+      vidstring,
+      tokens,
+      ":");
+
+    if (tokens.size() != 7) {
+      return false;
+    }
+
+    vid.uid = strtoul(tokens[0].c_str(), 0, 10);
+    vid.gid = strtoul(tokens[1].c_str(), 0, 10);
+    vid.uid_string = tokens[2].c_str();
+    vid.gid_string = tokens[3].c_str();
+    vid.name = tokens[4].c_str();
+    vid.prot = tokens[5].c_str();
+    vid.tident = tokens[6].c_str();
+    return true;
+  }
+
+  // ---------------------------------------------------------------------------
   //! Function checking if we come from a localhost connection
   // ---------------------------------------------------------------------------
 
   static bool
-  IsLocalhost (VirtualIdentity &vid)
+  IsLocalhost(VirtualIdentity& vid)
   {
-    if ( (vid.host == "localhost") || 
-	 (vid.host == "localhost.localdomain") ||
-	 (vid.host == "localhost6") || 
-	 (vid.host == "localhost6.localdomain6") )
+    if ((vid.host == "localhost") ||
+        (vid.host == "localhost.localdomain") ||
+        (vid.host == "localhost6") ||
+        (vid.host == "localhost6.localdomain6")) {
       return true;
+    }
+
     return false;
   }
 
@@ -198,11 +261,13 @@ public:
   // ---------------------------------------------------------------------------
 
   static bool
-  HasUid (uid_t uid, VirtualIdentity &vid)
+  HasUid(uid_t uid, VirtualIdentity& vid)
   {
     for (size_t i = 0; i < vid.uid_list.size(); i++)
-      if (vid.uid_list[i] == uid)
+      if (vid.uid_list[i] == uid) {
         return true;
+      }
+
     return false;
   }
 
@@ -211,11 +276,13 @@ public:
   // ---------------------------------------------------------------------------
 
   static bool
-  HasGid (gid_t gid, VirtualIdentity &vid)
+  HasGid(gid_t gid, VirtualIdentity& vid)
   {
     for (size_t i = 0; i < vid.gid_list.size(); i++)
-      if (vid.gid_list[i] == gid)
+      if (vid.gid_list[i] == gid) {
         return true;
+      }
+
     return false;
   }
   // ---------------------------------------------------------------------------
@@ -223,7 +290,7 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  Copy (VirtualIdentity &vidin, VirtualIdentity &vidout)
+  Copy(VirtualIdentity& vidin, VirtualIdentity& vidout)
   {
     vidout.uid = vidin.uid;
     vidout.gid = vidin.gid;
@@ -236,8 +303,13 @@ public:
     vidout.uid_string = vidin.uid_string;
     vidout.gid_string = vidin.gid_string;
 
-    for (unsigned int i = 0; i < vidin.uid_list.size(); i++) vidout.uid_list.push_back(vidin.uid_list[i]);
-    for (unsigned int i = 0; i < vidin.gid_list.size(); i++) vidout.gid_list.push_back(vidin.gid_list[i]);
+    for (unsigned int i = 0; i < vidin.uid_list.size(); i++) {
+      vidout.uid_list.push_back(vidin.uid_list[i]);
+    }
+
+    for (unsigned int i = 0; i < vidin.gid_list.size(); i++) {
+      vidout.gid_list.push_back(vidin.gid_list[i]);
+    }
 
     vidout.host = vidin.host;
     vidout.host = vidin.host;
@@ -251,7 +323,8 @@ public:
   // ---------------------------------------------------------------------------
   //! Main mapping function to create a virtual identity from authentication information
   // ---------------------------------------------------------------------------
-  static void IdMap (const XrdSecEntity* client, const char* env, const char* tident, Mapping::VirtualIdentity &vid, bool log = true);
+  static void IdMap(const XrdSecEntity* client, const char* env,
+                    const char* tident, Mapping::VirtualIdentity& vid, bool log = true);
 
   // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has
@@ -337,12 +410,12 @@ public:
   // ---------------------------------------------------------------------------
   //! Function to expire unused ActiveTident entries by default after 1 day
   // ---------------------------------------------------------------------------
-  static void ActiveExpire (int interval = 300, bool force = false);
+  static void ActiveExpire(int interval = 300, bool force = false);
 
   // ---------------------------------------------------------------------------
   //! Function initializing static maps
   // ---------------------------------------------------------------------------
-  static void Init ();
+  static void Init();
 
   // ---------------------------------------------------------------------------
   //! Map storing the client identifiers and last usage time
@@ -365,28 +438,32 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  KommaListToUidVector (const char* list, std::vector<uid_t> &vector_list)
+  KommaListToUidVector(const char* list, std::vector<uid_t>& vector_list)
   {
     XrdOucString slist = list;
     XrdOucString number = "";
     int kommapos;
-    if (!slist.endswith(","))
+
+    if (!slist.endswith(",")) {
       slist += ",";
-    do
-    {
+    }
+
+    do {
       kommapos = slist.find(",");
-      if (kommapos != STR_NPOS)
-      {
+
+      if (kommapos != STR_NPOS) {
         number.assign(slist, 0, kommapos - 1);
         int errc;
         std::string username = number.c_str();
         uid_t uid = UserNameToUid(username, errc);
-        if (!errc)
+
+        if (!errc) {
           vector_list.push_back(uid);
+        }
+
         slist.erase(0, kommapos + 1);
       }
-    }
-    while (kommapos != STR_NPOS);
+    } while (kommapos != STR_NPOS);
   }
 
   // ---------------------------------------------------------------------------
@@ -394,54 +471,60 @@ public:
   // ---------------------------------------------------------------------------
 
   static void
-  KommaListToGidVector (const char* list, std::vector<gid_t> &vector_list)
+  KommaListToGidVector(const char* list, std::vector<gid_t>& vector_list)
   {
     XrdOucString slist = list;
     XrdOucString number = "";
     int kommapos;
-    if (!slist.endswith(","))
+
+    if (!slist.endswith(",")) {
       slist += ",";
-    do
-    {
+    }
+
+    do {
       kommapos = slist.find(",");
-      if (kommapos != STR_NPOS)
-      {
+
+      if (kommapos != STR_NPOS) {
         number.assign(slist, 0, kommapos - 1);
         int errc;
         std::string groupname = number.c_str();
         gid_t gid = GroupNameToGid(groupname, errc);
-        if (!errc)
+
+        if (!errc) {
           vector_list.push_back(gid);
+        }
+
         slist.erase(0, kommapos + 1);
       }
-    }
-    while (kommapos != STR_NPOS);
+    } while (kommapos != STR_NPOS);
   }
 
   // ---------------------------------------------------------------------------
   //! Printout mapping in the format specified by option
   // ---------------------------------------------------------------------------
 
-  static void Print (XrdOucString &stdOut, XrdOucString option = "");
+  static void Print(XrdOucString& stdOut, XrdOucString option = "");
 
   // ---------------------------------------------------------------------------
   //! Add physical ids for name to vid
   // ---------------------------------------------------------------------------
-  static void getPhysicalIds (const char* name, VirtualIdentity &vid);
+  static void getPhysicalIds(const char* name, VirtualIdentity& vid);
 
   // ---------------------------------------------------------------------------
   //! Check if a vector contains uid
   // ---------------------------------------------------------------------------
 
   static bool
-  HasUid (uid_t uid, uid_vector vector)
+  HasUid(uid_t uid, uid_vector vector)
   {
     uid_vector::const_iterator it;
-    for (it = vector.begin(); it != vector.end(); ++it)
-    {
-      if ((*it) == uid)
+
+    for (it = vector.begin(); it != vector.end(); ++it) {
+      if ((*it) == uid) {
         return true;
+      }
     }
+
     return false;
   }
 
@@ -450,14 +533,16 @@ public:
   // ---------------------------------------------------------------------------
 
   static bool
-  HasGid (gid_t gid, gid_vector vector)
+  HasGid(gid_t gid, gid_vector vector)
   {
     uid_vector::const_iterator it;
-    for (it = vector.begin(); it != vector.end(); ++it)
-    {
-      if ((*it) == gid)
+
+    for (it = vector.begin(); it != vector.end(); ++it) {
+      if ((*it) == gid) {
         return true;
+      }
     }
+
     return false;
   }
 
@@ -466,14 +551,17 @@ public:
   // ---------------------------------------------------------------------------
 
   static bool
-  IsUid (XrdOucString idstring, uid_t &id)
+  IsUid(XrdOucString idstring, uid_t& id)
   {
     id = strtoul(idstring.c_str(), 0, 10);
     char revid[1024];
     sprintf(revid, "%lu", (unsigned long) id);
     XrdOucString srevid = revid;
-    if (idstring == srevid)
+
+    if (idstring == srevid) {
       return true;
+    }
+
     return false;
   }
 
@@ -483,14 +571,17 @@ public:
   // ---------------------------------------------------------------------------
 
   static bool
-  IsGid (XrdOucString idstring, gid_t &id)
+  IsGid(XrdOucString idstring, gid_t& id)
   {
     id = strtoul(idstring.c_str(), 0, 10);
     char revid[1024];
     sprintf(revid, "%lu", (unsigned long) id);
     XrdOucString srevid = revid;
-    if (idstring == srevid)
+
+    if (idstring == srevid) {
       return true;
+    }
+
     return false;
   }
 
@@ -499,7 +590,8 @@ public:
   // ---------------------------------------------------------------------------
 
   static const char*
-  ReduceTident (XrdOucString &tident, XrdOucString &wildcardtident, XrdOucString &mytident, XrdOucString &myhost)
+  ReduceTident(XrdOucString& tident, XrdOucString& wildcardtident,
+               XrdOucString& mytident, XrdOucString& myhost)
   {
     int dotpos = tident.find(".");
     int addpos = tident.find("@");
@@ -519,33 +611,33 @@ public:
   // ---------------------------------------------------------------------------
   //! Convert a uid to a user name
   // ---------------------------------------------------------------------------
-  static std::string UidToUserName (uid_t uid, int &errc);
+  static std::string UidToUserName(uid_t uid, int& errc);
 
   // ---------------------------------------------------------------------------
   //! Convert a gid to a group name
   // ---------------------------------------------------------------------------
-  static std::string GidToGroupName (uid_t gid, int &errc);
+  static std::string GidToGroupName(uid_t gid, int& errc);
 
   // ---------------------------------------------------------------------------
   //! Convert a user name to a uid
   // ---------------------------------------------------------------------------
-  static uid_t UserNameToUid (const std::string &username, int &errc);
+  static uid_t UserNameToUid(const std::string& username, int& errc);
 
   // ---------------------------------------------------------------------------
   //! Convert a group name to a gid
   // ---------------------------------------------------------------------------
-  static gid_t GroupNameToGid (const std::string &groupname, int &errc);
+  static gid_t GroupNameToGid(const std::string& groupname, int& errc);
 
   // ---------------------------------------------------------------------------
   //! Convert a uid into a string
   // ---------------------------------------------------------------------------
 
   static std::string
-  UidAsString (uid_t uid)
+  UidAsString(uid_t uid)
   {
     std::string uidstring = "";
     char suid[1024];
-    snprintf(suid, sizeof (suid) - 1, "%u", uid);
+    snprintf(suid, sizeof(suid) - 1, "%u", uid);
     uidstring = suid;
     return uidstring;
   }
@@ -555,11 +647,11 @@ public:
   // ---------------------------------------------------------------------------
 
   static std::string
-  GidAsString (gid_t gid)
+  GidAsString(gid_t gid)
   {
     std::string gidstring = "";
     char sgid[1024];
-    snprintf(sgid, sizeof (sgid) - 1, "%u", gid);
+    snprintf(sgid, sizeof(sgid) - 1, "%u", gid);
     gidstring = sgid;
     return gidstring;
   }

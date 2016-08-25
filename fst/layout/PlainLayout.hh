@@ -38,9 +38,9 @@ class PlainLayout;
 //! Class used for handling asynchronous open responses for this layout
 //------------------------------------------------------------------------------
 class AsyncLayoutOpenHandler:
-    public XrdCl::ResponseHandler, public eos::common::LogId
+  public XrdCl::ResponseHandler, public eos::common::LogId
 {
- public:
+public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -64,7 +64,7 @@ class AsyncLayoutOpenHandler:
                                        XrdCl::AnyObject* response,
                                        XrdCl::HostList* hostList);
 
- private:
+private:
   PlainLayout* mPlainLayout; ///< Layout object corresponding to this handler
 };
 
@@ -87,24 +87,27 @@ public:
   //! @param timeout timeout value
   //!
   //----------------------------------------------------------------------------
-  PlainLayout (XrdFstOfsFile* file,
-               unsigned long lid,
-               const XrdSecEntity* client,
-               XrdOucErrInfo* outError,
-               eos::common::LayoutId::eIoType io,
-               uint16_t timeout = 0);
+  PlainLayout(XrdFstOfsFile* file,
+              unsigned long lid,
+              const XrdSecEntity* client,
+              XrdOucErrInfo* outError,
+              const char* path,
+              uint16_t timeout = 0);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~PlainLayout ();
+  virtual ~PlainLayout();
 
+  // -------------------------------------------------------------------------
+  // Redirect to new target
+  // -------------------------------------------------------------------------
+  virtual void Redirect(const char* path);
 
-  //----------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   //! Open file
   //!
-  //! @param path file path
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
@@ -112,10 +115,10 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode,
-                    const char* opaque = "");
+  virtual int Open(
+    XrdSfsFileOpenMode flags,
+    mode_t mode,
+    const char* opaque = "");
 
   //--------------------------------------------------------------------------
   //! Open file asynchronously
@@ -128,9 +131,9 @@ public:
   //!
   //! @return 0 if successful, -1 otherwise and error code is set
   //--------------------------------------------------------------------------
-  virtual int OpenAsync (const std::string& path, XrdSfsFileOpenMode flags,
-                         mode_t mode, XrdCl::ResponseHandler* handler,
-                         const char* opaque = "");
+  virtual int OpenAsync(XrdSfsFileOpenMode flags,
+                        mode_t mode, XrdCl::ResponseHandler* handler,
+                        const char* opaque = "");
 
   //--------------------------------------------------------------------------
   //! Wait for the asynchronous open response
@@ -150,14 +153,14 @@ public:
   //! @return number of bytes read or -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        bool readahead = false);
+  virtual int64_t Read(XrdSfsFileOffset offset,
+                       char* buffer,
+                       XrdSfsXferSize length,
+                       bool readahead = false);
 
-  
+
   //----------------------------------------------------------------------------
-  //! Vector read 
+  //! Vector read
   //!
   //! @param chunkList list of chunks for the vector read
   //! @param len total length of the vector read
@@ -165,10 +168,10 @@ public:
   //! @return number of bytes read of -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
-                         uint32_t len);
+  virtual int64_t ReadV(XrdCl::ChunkList& chunkList,
+                        uint32_t len);
 
-  
+
   //----------------------------------------------------------------------------
   //! Write to file
   //!
@@ -179,9 +182,9 @@ public:
   //! @return number of bytes written or -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length);
+  virtual int64_t Write(XrdSfsFileOffset offset,
+                        const char* buffer,
+                        XrdSfsXferSize length);
 
 
   //----------------------------------------------------------------------------
@@ -192,7 +195,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset);
+  virtual int Truncate(XrdSfsFileOffset offset);
 
 
   //----------------------------------------------------------------------------
@@ -203,7 +206,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Fallocate (XrdSfsFileOffset length);
+  virtual int Fallocate(XrdSfsFileOffset length);
 
 
   //----------------------------------------------------------------------------
@@ -215,8 +218,8 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Fdeallocate (XrdSfsFileOffset fromOffset,
-                           XrdSfsFileOffset toOffset);
+  virtual int Fdeallocate(XrdSfsFileOffset fromOffset,
+                          XrdSfsFileOffset toOffset);
 
 
   //----------------------------------------------------------------------------
@@ -225,7 +228,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Remove ();
+  virtual int Remove();
 
 
   //----------------------------------------------------------------------------
@@ -234,7 +237,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Sync ();
+  virtual int Sync();
 
 
   //----------------------------------------------------------------------------
@@ -245,7 +248,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf);
+  virtual int Stat(struct stat* buf);
 
 
   //----------------------------------------------------------------------------
@@ -254,12 +257,11 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Close ();
+  virtual int Close();
 
 private:
 
   uint64_t mFileSize; ///< file size
-  FileIo* mPlainFile; ///< file handler, in this case the same as the initial one
   bool mDisableRdAhead; ///< if any write operations is done, disable rdahead
   bool mHasAsyncResponse; ///< true if async open response arrived
   bool mAsyncResponse; ///< True if successful, otherwise false
@@ -271,7 +273,7 @@ private:
   //----------------------------------------------------------------------------
   //! Disable copy constructor
   //----------------------------------------------------------------------------
-  PlainLayout (const PlainLayout&) = delete;
+  PlainLayout(const PlainLayout&) = delete;
 
 
   //----------------------------------------------------------------------------

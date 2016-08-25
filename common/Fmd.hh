@@ -23,10 +23,10 @@
 
 /**
  * @file   Fmd.hh
- * 
+ *
  * @brief  Classes for FST File Meta Data Handling.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_FMD_HH__
@@ -53,7 +53,10 @@
 #include <dirent.h>
 #include <zlib.h>
 #include <openssl/sha.h>
+#include <limits>
 
+#undef max
+#undef min
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -71,7 +74,8 @@ EOSCOMMONNAMESPACE_BEGIN
 /*----------------------------------------------------------------------------*/
 //! Class implementing the file meta header stored in changelog files on FSTs.
 /*----------------------------------------------------------------------------*/
-class FmdHeader : public LogId {
+class FmdHeader : public LogId
+{
 public:
 
   // ---------------------------------------------------------------------------
@@ -92,12 +96,18 @@ public:
   //! FMD header object
   // ---------------------------------------------------------------------------
   struct FMDHEADER fmdHeader;
-  
+
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  FmdHeader() {fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC; strncpy(fmdHeader.version,FMDVERSION,10); fmdHeader.ctime=time(0); fmdHeader.fsid=0;}
-  
+  FmdHeader()
+  {
+    fmdHeader.magic = EOSCOMMONFMDHEADER_MAGIC;
+    strncpy(fmdHeader.version, FMDVERSION, 10);
+    fmdHeader.ctime = time(0);
+    fmdHeader.fsid = 0;
+  }
+
   // ---------------------------------------------------------------------------
   //! Destructor
   // ---------------------------------------------------------------------------
@@ -106,12 +116,15 @@ public:
   // ---------------------------------------------------------------------------
   //! Set the filesystem id into the header
   // ---------------------------------------------------------------------------
-  void SetId(int infsid) { fmdHeader.fsid = infsid;} 
+  void SetId(int infsid)
+  {
+    fmdHeader.fsid = infsid;
+  }
 
   // ---------------------------------------------------------------------------
   //! Read a header from an open file
   // ---------------------------------------------------------------------------
-  bool Read(int fd, bool ignoreversion=false);
+  bool Read(int fd, bool ignoreversion = false);
 
   // ---------------------------------------------------------------------------
   //! Write a header to an open file
@@ -127,19 +140,21 @@ public:
 // ---------------------------------------------------------------------------
 //! Class implementing file meta data
 // ---------------------------------------------------------------------------
-class Fmd : public LogId {
+class Fmd : public LogId
+{
 
 public:
   // ---------------------------------------------------------------------------
   //! Changelog entry struct
   // ---------------------------------------------------------------------------
   struct FMD {
-    unsigned long long magic;     //< EOSCOMMONFMDCREATE_MAGIC | EOSCOMMONFMDDELETE_MAGIC
+    unsigned long long
+    magic;     //< EOSCOMMONFMDCREATE_MAGIC | EOSCOMMONFMDDELETE_MAGIC
     unsigned long sequenceheader; //< must be equal to sequencetrailer
     unsigned long long fid;       //< fileid
     unsigned long long cid;       //< container id (e.g. directory id)
     unsigned long fsid;           //< filesystem id
-    unsigned long ctime;          //< creation time 
+    unsigned long ctime;          //< creation time
     unsigned long ctime_ns;       //< ns of creation time
     unsigned long mtime;          //< modification time | deletion time
     unsigned long mtime_ns;       //< ns of modification time
@@ -155,7 +170,7 @@ public:
   };
 
   // ---------------------------------------------------------------------------
-  //! File Metadata object 
+  //! File Metadata object
   struct FMD fMd;
   // ---------------------------------------------------------------------------
 
@@ -163,7 +178,8 @@ public:
   //! File meta data object replication function (copy constructor)
   // ---------------------------------------------------------------------------
 
-  void Replicate(struct FMD &fmd) {
+  void Replicate(struct FMD& fmd)
+  {
     fMd.magic = fmd.magic;
     fMd.fid   = fmd.fid;
     fMd.cid   = fmd.cid;
@@ -177,49 +193,67 @@ public:
     fMd.uid   = fmd.uid;
     fMd.gid   = fmd.gid;
     strncpy(fMd.name, fmd.name, 255);
-    strncpy(fMd.container, fmd.container,255);
+    strncpy(fMd.container, fmd.container, 255);
   }
 
   // ---------------------------------------------------------------------------
   //! return the crc32 for the given ptr/size
   // ---------------------------------------------------------------------------
-  static unsigned long ComputeCrc32(char* ptr, unsigned long size) {
+  static unsigned long ComputeCrc32(char* ptr, unsigned long size)
+  {
     uLong crc = crc32(0L, Z_NULL, 0);
-    return (unsigned long) crc32(crc,(const Bytef*) ptr, size);
+    return (unsigned long) crc32(crc, (const Bytef*) ptr, size);
   }
 
   // ---------------------------------------------------------------------------
   //! Check if the given FMD is a creation block
   // ---------------------------------------------------------------------------
-  static bool IsCreate(struct FMD* pMd) {
+  static bool IsCreate(struct FMD* pMd)
+  {
     return (pMd->magic == EOSCOMMONFMDCREATE_MAGIC);
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Check if the given FMD is a deletion block
   // ---------------------------------------------------------------------------
-  static bool IsDelete(struct FMD* pMd) {
+  static bool IsDelete(struct FMD* pMd)
+  {
     return (pMd->magic == EOSCOMMONFMDDELETE_MAGIC);
   }
 
   // ---------------------------------------------------------------------------
   //! Check if the given FMD is valid and the sequence number is ascending
   // ---------------------------------------------------------------------------
-  static int IsValid(struct FMD* pMd, unsigned long &sequencenumber) {
-    if ( (!IsCreate(pMd)) && (!IsDelete(pMd)) )           {return EINVAL;}
-    if (pMd->sequenceheader != pMd->sequencetrailer) {return EFAULT;}
-    if (pMd->sequenceheader <= sequencenumber)       {return EOVERFLOW;}
+  static int IsValid(struct FMD* pMd, unsigned long& sequencenumber)
+  {
+    if ((!IsCreate(pMd)) && (!IsDelete(pMd)))           {
+      return EINVAL;
+    }
+
+    if (pMd->sequenceheader != pMd->sequencetrailer) {
+      return EFAULT;
+    }
+
+    if (pMd->sequenceheader <= sequencenumber)       {
+      return EOVERFLOW;
+    }
+
     //    fprintf(stderr,"computed CRC is %lx vs %lx", ComputeCrc32((char*)(&(pMd->fid)), sizeof(struct FMD) - sizeof(pMd->magic) - (2*sizeof(pMd->sequencetrailer)) - sizeof(pMd->crc32)), pMd->crc32);
-    if (pMd->crc32 != ComputeCrc32((char*)(&(pMd->fid)), sizeof(struct FMD) - sizeof(pMd->magic) - (2*sizeof(pMd->sequencetrailer)) - sizeof(pMd->crc32) )) {return EILSEQ;}
+    if (pMd->crc32 != ComputeCrc32((char*)(&(pMd->fid)),
+                                   sizeof(struct FMD) - sizeof(pMd->magic) - (2 * sizeof(pMd->sequencetrailer)) -
+                                   sizeof(pMd->crc32))) {
+      return EILSEQ;
+    }
+
     sequencenumber = pMd->sequenceheader;
     return 0;
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Write FMD to an open file
   // ---------------------------------------------------------------------------
   bool Write(int fd);
-  
+
   // ---------------------------------------------------------------------------
   //! Re-Write FMD to an open file
   // ---------------------------------------------------------------------------
@@ -233,18 +267,24 @@ public:
   // ---------------------------------------------------------------------------
   //! Make FMD a creation block
   // ---------------------------------------------------------------------------
-  void MakeCreationBlock() { fMd.magic =  EOSCOMMONFMDCREATE_MAGIC;}
+  void MakeCreationBlock()
+  {
+    fMd.magic =  EOSCOMMONFMDCREATE_MAGIC;
+  }
 
   // ---------------------------------------------------------------------------
   //! Make FMD a deletion bock
   // ---------------------------------------------------------------------------
-  void MakeDeletionBlock() { fMd.magic =  EOSCOMMONFMDDELETE_MAGIC;}
-  
+  void MakeDeletionBlock()
+  {
+    fMd.magic =  EOSCOMMONFMDDELETE_MAGIC;
+  }
+
   // ---------------------------------------------------------------------------
   //! Dump FMD
   // ---------------------------------------------------------------------------
   static void Dump(struct FMD* fmd);
-  
+
   // ---------------------------------------------------------------------------
   //! Convert FMD into env representation
   // ---------------------------------------------------------------------------
@@ -253,12 +293,19 @@ public:
   // ---------------------------------------------------------------------------
   //! Conver env representation into FMD
   // ---------------------------------------------------------------------------
-  static bool EnvToFmd(XrdOucEnv &env, struct Fmd::FMD &fmd);
+  static bool EnvToFmd(XrdOucEnv& env, struct Fmd::FMD& fmd);
 
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  Fmd(int fid=0, int fsid=0) {memset(&fMd,0, sizeof(struct FMD)); LogId();fMd.fid=fid; fMd.fsid=fsid;fMd.cid=0;};
+  Fmd(int fid = 0, int fsid = 0)
+  {
+    memset(&fMd, 0, sizeof(struct FMD));
+    LogId();
+    fMd.fid = fid;
+    fMd.fsid = fsid;
+    fMd.cid = 0;
+  };
 
   // ---------------------------------------------------------------------------
   //! Destructor
@@ -270,15 +317,20 @@ public:
 //! Class handling many FMD changelog files at a time
 // ---------------------------------------------------------------------------
 
-class FmdHandler : public LogId {
+class FmdHandler : public LogId
+{
 private:
   bool isOpen;
 public:
-  google::sparse_hash_map<int,int> fdChangeLogRead;  //< hash storing the file descriptor's for read by filesystem id
-  google::sparse_hash_map<int,int> fdChangeLogWrite; //< hash storing the file descriptor's for write by filesystem id
-  google::sparse_hash_map<int,int> fdChangeLogSequenceNumber; //< hash storing the last sequence number by filesystem id
+  google::sparse_hash_map<int, int>
+  fdChangeLogRead; //< hash storing the file descriptor's for read by filesystem id
+  google::sparse_hash_map<int, int>
+  fdChangeLogWrite; //< hash storing the file descriptor's for write by filesystem id
+  google::sparse_hash_map<int, int>
+  fdChangeLogSequenceNumber; //< hash storing the last sequence number by filesystem id
 
-  XrdOucString ChangeLogFileName;//< buffer variable for the changelog file name - not useful since we have many
+  XrdOucString
+  ChangeLogFileName;//< buffer variable for the changelog file name - not useful since we have many
   XrdOucString ChangeLogDir;     //< path to the directory with changelog files
   RWMutex Mutex;                 //< Mutex protecting the FMD handler
   FmdHeader fmdHeader;           //< buffer variable to store a header
@@ -286,7 +338,8 @@ public:
   // ---------------------------------------------------------------------------
   //! Define a changelog file for a filesystem id
   // ---------------------------------------------------------------------------
-  bool SetChangeLogFile(const char* changelogfile, int fsid, XrdOucString option="") ;
+  bool SetChangeLogFile(const char* changelogfile, int fsid,
+                        XrdOucString option = "") ;
 
   // ---------------------------------------------------------------------------
   //! Attach to an existing changelog file
@@ -296,19 +349,20 @@ public:
   // ---------------------------------------------------------------------------
   //! Read all FMD entries from a changelog file
   // ---------------------------------------------------------------------------
-  bool ReadChangeLogHash(int fsid, XrdOucString option="");
+  bool ReadChangeLogHash(int fsid, XrdOucString option = "");
 
   // ---------------------------------------------------------------------------
   //! Trim a changelog file
   // ---------------------------------------------------------------------------
-  bool TrimLogFile(int fsid, XrdOucString option="");
+  bool TrimLogFile(int fsid, XrdOucString option = "");
 
   // the meta data handling functions
-  
+
   // ---------------------------------------------------------------------------
   //! attach or create a fmd record
   // ---------------------------------------------------------------------------
-  Fmd* GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t gid, unsigned int layoutid, bool isRW=false);
+  Fmd* GetFmd(unsigned long long fid, unsigned int fsid, uid_t uid, gid_t gid,
+              unsigned int layoutid, bool isRW = false);
 
   // ---------------------------------------------------------------------------
   //! Create a deletion fmd record
@@ -323,21 +377,23 @@ public:
   // ---------------------------------------------------------------------------
   //! Initialize the changelog hash
   // ---------------------------------------------------------------------------
-  void Reset(int fsid) {
+  void Reset(int fsid)
+  {
     FmdMap[fsid].clear();
   }
-    
+
   // ---------------------------------------------------------------------------
   //! Comparison function for modification times
   // ---------------------------------------------------------------------------
-  static int CompareMtime(const void* a, const void *b);
+  static int CompareMtime(const void* a, const void* b);
 
   // that is all we need for meta data handling
 
   // ---------------------------------------------------------------------------
   //! Hash map pointing from fid to offset in changelog file
   // ---------------------------------------------------------------------------
-  google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> > FmdMap;
+  google::sparse_hash_map<unsigned long long, google::dense_hash_map<unsigned long long, unsigned long long> >
+  FmdMap;
 
   // ---------------------------------------------------------------------------
   //! Hash map with fid file sizes
@@ -346,20 +402,28 @@ public:
   // ---------------------------------------------------------------------------
   //! Create a new changelog filename in 'dir' (the fsid suffix is not added!)
   // ---------------------------------------------------------------------------
-  const char* CreateChangeLogName(const char* cldir, XrdOucString &clname) {
-    clname = cldir; clname += "/"; clname += "fmd."; char now[1024]; sprintf(now,"%u",(unsigned int) time(0)); clname += now;
+  const char* CreateChangeLogName(const char* cldir, XrdOucString& clname)
+  {
+    clname = cldir;
+    clname += "/";
+    clname += "fmd.";
+    char now[1024];
+    sprintf(now, "%u", (unsigned int) time(0));
+    clname += now;
     return clname.c_str();
   }
 
   // ---------------------------------------------------------------------------
   //! Constructor
   // ---------------------------------------------------------------------------
-  FmdHandler() {
-    SetLogId("CommonFmdHandler"); isOpen=false;
-    FmdSize.set_empty_key(std::numeric_limits<long long>::max()-1);
+  FmdHandler()
+  {
+    SetLogId("CommonFmdHandler");
+    isOpen = false;
+    FmdSize.set_empty_key(std::numeric_limits<long long>::max() - 1);
     FmdSize.set_deleted_key(std::numeric_limits<long long>::max());
-    ChangeLogFileName="";
-    ChangeLogDir="";
+    ChangeLogFileName = "";
+    ChangeLogDir = "";
   }
 
   // ---------------------------------------------------------------------------

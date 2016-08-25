@@ -28,7 +28,6 @@
 #include "fst/Namespace.hh"
 #include "fst/Load.hh"
 #include "common/LayoutId.hh"
-#include "common/Attr.hh"
 /*----------------------------------------------------------------------------*/
 #include "XrdOuc/XrdOucString.hh"
 /*----------------------------------------------------------------------------*/
@@ -62,7 +61,7 @@ protected:
 
 public:
 
-  CheckSum ()
+  CheckSum()
   {
     Name = "";
     ChecksumMap = 0;
@@ -71,7 +70,7 @@ public:
     finalized = false;
   }
 
-  CheckSum (const char* name)
+  CheckSum(const char* name)
   {
     Name = name;
     needsRecalculation = false;
@@ -89,119 +88,180 @@ public:
     finalized = false;
   }
 
-  virtual bool Add (const char* buffer, size_t length, off_t offset) = 0;
+  virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
 
   virtual void
-  Finalize () { finalized = true;};
-  virtual void Reset () = 0;
+  Finalize()
+  {
+    finalized = true;
+  };
+  virtual void Reset() = 0;
 
   virtual void
-  ResetInit (off_t offsetInit, size_t lengthInit, const char* checksumInitHex) { };
+  ResetInit(off_t offsetInit, size_t lengthInit, const char* checksumInitHex) { };
 
   virtual void
-  SetDirty ()
+  SetDirty()
   {
     needsRecalculation = true;
   }
 
-  virtual const char* GetHexChecksum () = 0;
-  virtual const char* GetBinChecksum (int &len) = 0;
+  virtual const char* GetHexChecksum() = 0;
+  virtual const char* GetBinChecksum(int& len) = 0;
 
   virtual bool
-  SetBinChecksum (const void* buffer, int len)
+  SetBinChecksum(const void* buffer, int len)
   {
-    if (len < GetCheckSumLen())
+    if (len < GetCheckSumLen()) {
       return false;
+    }
+
     needsRecalculation = false;
     int ilen = 0;
     memcpy((void*) GetBinChecksum(ilen), buffer, GetCheckSumLen());
     return true;
   }
 
-  virtual bool Compare (const char* refchecksum);
-  virtual off_t GetLastOffset () = 0;
+  virtual bool Compare(const char* refchecksum);
+  virtual off_t GetLastOffset() = 0;
 
   virtual off_t
-  GetMaxOffset ()
+  GetMaxOffset()
   {
     return GetLastOffset();
   }
-  virtual int GetCheckSumLen () = 0;
+  virtual int GetCheckSumLen() = 0;
 
   const char*
-  GetName ()
+  GetName()
   {
     return Name.c_str();
   }
 
   bool
-  NeedsRecalculation ()
+  NeedsRecalculation()
   {
     return needsRecalculation;
   }
 
-  virtual bool ScanFile (const char* path, unsigned long long &scansize, float &scantime, int rate = 0);
-  virtual bool ScanFile (int fd, unsigned long long &scansize, float &scantime, int rate = 0);
-  virtual bool ScanFile (const char* path, off_t offsetInit, size_t lengthInit, const char* partialChecksum,
-                         unsigned long long &scansize, float &scantime, int rate = 0);
-  virtual bool SetXSMap (off_t offset);
-  virtual bool VerifyXSMap (off_t offset);
+  class ReadCallBack
+  {
+  public:
 
-  virtual bool OpenMap (const char* mapfilepath, size_t maxfilesize, size_t blocksize, bool isRW);
-  virtual bool ChangeMap (size_t newsize, bool shrink = true);
-  virtual bool SyncMap ();
-  virtual bool CloseMap ();
+    typedef struct callback_data {
+      callback_data() : caller(0), path(0), offset(0), buffer(0), size(0), retc(-1)
+      {
+      }
+      void* caller;
+      const char* path;
+      off_t offset;
+      char* buffer;
+      size_t size;
+      int retc;
+    } callback_data_t;
 
-  virtual void AlignBlockExpand (off_t offset, size_t len, off_t &aligned_offset, size_t &aligend_len);
-  virtual void AlignBlockShrink (off_t offset, size_t len, off_t &aligned_offset, size_t &aligend_len);
-  virtual bool AddBlockSum (off_t offset, const char* buffer, size_t buffersize); // this only calculates the checksum on full blocks, not matching edge is not calculated
-  virtual bool CheckBlockSum (off_t offset, const char* buffer, size_t buffersizem); // this only verifies the checksum on full blocks, not matching edge is not calculated
-  virtual bool AddBlockSumHoles (int fd);
+    typedef int (*callback_t)(callback_data_t*);
+
+    ReadCallBack()
+    {
+      call = 0;
+    }
+
+    ReadCallBack(callback_t tocall, callback_data_t& info)
+    {
+      call = tocall;
+      data = info;
+      data.retc = 0;
+    }
+
+    virtual ~ReadCallBack()
+    {
+    };
+
+    ReadCallBack(const ReadCallBack& obj)
+    {
+      call = obj.call;
+      data = obj.data;
+    }
+
+    callback_t call;
+    callback_data_t data;
+  };
+
+  virtual bool ScanFile(const char* path, unsigned long long& scansize,
+                        float& scantime, int rate = 0);
+  virtual bool ScanFile(ReadCallBack rcb, unsigned long long& scansize,
+                        float& scantime, int rate = 0);
+  virtual bool ScanFile(int fd, unsigned long long& scansize, float& scantime,
+                        int rate = 0);
+  virtual bool ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
+                        const char* partialChecksum,
+                        unsigned long long& scansize, float& scantime, int rate = 0);
+  virtual bool SetXSMap(off_t offset);
+  virtual bool VerifyXSMap(off_t offset);
+
+  virtual bool OpenMap(const char* mapfilepath, size_t maxfilesize,
+                       size_t blocksize, bool isRW);
+  virtual bool ChangeMap(size_t newsize, bool shrink = true);
+  virtual bool SyncMap();
+  virtual bool CloseMap();
+
+  virtual void AlignBlockExpand(off_t offset, size_t len, off_t& aligned_offset,
+                                size_t& aligend_len);
+  virtual void AlignBlockShrink(off_t offset, size_t len, off_t& aligned_offset,
+                                size_t& aligend_len);
+  virtual bool AddBlockSum(off_t offset, const char* buffer,
+                           size_t buffersize);  // this only calculates the checksum on full blocks, not matching edge is not calculated
+  virtual bool CheckBlockSum(off_t offset, const char* buffer,
+                             size_t buffersizem); // this only verifies the checksum on full blocks, not matching edge is not calculated
+  virtual bool AddBlockSumHoles(int fd);
 
   virtual const char*
-  MakeBlockXSPath (const char *filepath)
+  MakeBlockXSPath(const char* filepath)
   {
-    if ((!filepath))
+    if ((!filepath)) {
       return 0;
+    }
+
     BlockXSPath = filepath;
     BlockXSPath += ".xsmap";
     return BlockXSPath.c_str();
   }
 
   virtual bool
-  UnlinkXSPath ()
+  UnlinkXSPath()
   {
     // return 0 if success
-    if (BlockXSPath.length())
-    {
+    if (BlockXSPath.length()) {
       return ::unlink(BlockXSPath.c_str());
     }
+
     return true;
   }
 
   virtual unsigned long long
-  GetXSBlocksChecked ()
+  GetXSBlocksChecked()
   {
     return nXSBlocksChecked;
   }
 
   virtual unsigned long long
-  GetXSBlocksWritten ()
+  GetXSBlocksWritten()
   {
     return nXSBlocksWritten;
   }
 
   virtual unsigned long long
-  GetXSBlocksWrittenHoles ()
+  GetXSBlocksWrittenHoles()
   {
     return nXSBlocksWrittenHoles;
   }
 
   virtual
-  ~CheckSum () { };
+  ~CheckSum() { };
 
   virtual void
-  Print ()
+  Print()
   {
     fprintf(stderr, "%s\n", GetHexChecksum());
   }
@@ -215,9 +275,9 @@ public:
   //----------------------------------------------------------------------------
 
   inline unsigned int
-  GetTotalRef ()
+  GetTotalRef()
   {
-    return ( mNumWr + mNumRd);
+    return (mNumWr + mNumRd);
   };
 
 
@@ -229,7 +289,7 @@ public:
   //! @return number of rd/wr references to this xs obj
   //!
   //----------------------------------------------------------------------------
-  unsigned int GetNumRef (bool isRW);
+  unsigned int GetNumRef(bool isRW);
 
 
   //----------------------------------------------------------------------------
@@ -238,7 +298,7 @@ public:
   //! @param isRW the type of references added rd/wr
   //!
   //----------------------------------------------------------------------------
-  void IncrementRef (bool isRW);
+  void IncrementRef(bool isRW);
 
 
   //----------------------------------------------------------------------------
@@ -247,7 +307,7 @@ public:
   //! @param isRW the type of references substracted rd/wr
   //!
   //----------------------------------------------------------------------------
-  void DecrementRef (bool isRW);
+  void DecrementRef(bool isRW);
 
 
   std::string CheckSumMapFile;

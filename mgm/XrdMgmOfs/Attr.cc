@@ -29,11 +29,11 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_ls (const char *inpath,
-                    XrdOucErrInfo &error,
-                    const XrdSecEntity *client,
-                    const char *ininfo,
-                    eos::IContainerMD::XAttrMap & map)
+XrdMgmOfs::attr_ls(const char* inpath,
+                   XrdOucErrInfo& error,
+                   const XrdSecEntity* client,
+                   const char* ininfo,
+                   eos::IContainerMD::XAttrMap& map)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given file/directory
@@ -50,39 +50,30 @@ XrdMgmOfs::attr_ls (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "attr_ls";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "attr_ls";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
   XrdOucEnv access_Env(info);
-
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
-
   return _attr_ls(path, error, vid, info, map);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_set (const char *inpath,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *ininfo,
-                     const char *key,
-                     const char *value)
+XrdMgmOfs::attr_set(const char* inpath,
+                    XrdOucErrInfo& error,
+                    const XrdSecEntity* client,
+                    const char* ininfo,
+                    const char* key,
+                    const char* value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set an extended attribute for a given file/directory to key=value
@@ -100,38 +91,30 @@ XrdMgmOfs::attr_set (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "attr_set";
-  const char *tident = error.getErrUser();
+  static const char* epname = "attr_set";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
   XrdOucEnv access_Env(info);
-
   AUTHORIZE(client, &access_Env, AOP_Update, "update", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
-
   return _attr_set(path, error, vid, info, key, value);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_get (const char *inpath,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *ininfo,
-                     const char *key,
-                     XrdOucString & value)
+XrdMgmOfs::attr_get(const char* inpath,
+                    XrdOucErrInfo& error,
+                    const XrdSecEntity* client,
+                    const char* ininfo,
+                    const char* key,
+                    XrdOucString& value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief get an extended attribute for a given file/directory by key
@@ -149,38 +132,29 @@ XrdMgmOfs::attr_get (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "attr_get";
-  const char *tident = error.getErrUser();
+  static const char* epname = "attr_get";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
   XrdOucEnv access_Env(info);
-
   AUTHORIZE(client, &access_Env, AOP_Stat, "access", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
-
   return _attr_get(path, error, vid, info, key, value);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::attr_rem (const char *inpath,
-                     XrdOucErrInfo &error,
-                     const XrdSecEntity *client,
-                     const char *ininfo,
-                     const char *key)
+XrdMgmOfs::attr_rem(const char* inpath,
+                    XrdOucErrInfo& error,
+                    const XrdSecEntity* client,
+                    const char* ininfo,
+                    const char* key)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete an extended attribute for a given file/directory by key
@@ -197,40 +171,31 @@ XrdMgmOfs::attr_rem (const char *inpath,
  */
 /*----------------------------------------------------------------------------*/
 {
-
-  static const char *epname = "attr_rm";
-  const char *tident = error.getErrUser();
+  static const char* epname = "attr_rm";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   NAMESPACEMAP;
-
   BOUNCE_ILLEGAL_NAMES;
-
   XrdOucEnv access_Env(info);
-
   AUTHORIZE(client, &access_Env, AOP_Delete, "delete", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
-
   return _attr_rem(path, error, vid, info, key);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_attr_ls (const char *path,
-                     XrdOucErrInfo &error,
-                     eos::common::Mapping::VirtualIdentity &vid,
-                     const char *info,
-                     eos::IContainerMD::XAttrMap & map,
-                     bool lock,
-                     bool links)
+XrdMgmOfs::_attr_ls(const char* path,
+                    XrdOucErrInfo& error,
+                    eos::common::Mapping::VirtualIdentity& vid,
+                    const char* info,
+                    eos::IContainerMD::XAttrMap& map,
+                    bool lock,
+                    bool links)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief list extended attributes for a given file/directory
@@ -247,7 +212,7 @@ XrdMgmOfs::_attr_ls (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "attr_ls";
+  static const char* epname = "attr_ls";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
@@ -255,91 +220,88 @@ XrdMgmOfs::_attr_ls (const char *path,
   gOFS->MgmStats.Add("AttrLs", vid.uid, vid.gid, 1);
 
   // ---------------------------------------------------------------------------
-  if (lock)
+  if (lock) {
     gOFS->eosViewRWMutex.LockRead();
+  }
 
-  try
-  {
+  try {
     dh = gOFS->eosView->getContainer(path);
     eos::IContainerMD::XAttrMap::const_iterator it;
-    for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-    {
+
+    for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
       map[it->first] = it->second;
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
-  if (!dh)
-  {
-    try
-    {
+  if (!dh) {
+    try {
       fmd = gOFS->eosView->getFile(path);
       eos::IFileMD::XAttrMap::const_iterator it;
 
-      for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it)
-      {
-	map[it->first] = it->second;
+      for (it = fmd->attributesBegin(); it != fmd->attributesEnd(); ++it) {
+        map[it->first] = it->second;
       }
 
       errno = 0;
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       fmd.reset();
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
   }
 
   // check for attribute references
-  if (map.count("sys.attr.link"))
-  {
-    try
-    {
+  if (map.count("sys.attr.link")) {
+    try {
       dh = gOFS->eosView->getContainer(map["sys.attr.link"]);
       eos::IContainerMD::XAttrMap::const_iterator it;
-      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it)
-      {
-        XrdOucString key = it->first.c_str();
-        if (links)
-          key.replace("sys.", "sys.link.");
 
-        if (!map.count(it->first))
+      for (it = dh->attributesBegin(); it != dh->attributesEnd(); ++it) {
+        XrdOucString key = it->first.c_str();
+
+        if (links) {
+          key.replace("sys.", "sys.link.");
+        }
+
+        if (!map.count(it->first)) {
           map[key.c_str()] = it->second;
+        }
       }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       dh.reset();
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
   }
 
-  if (lock)
+  if (lock) {
     gOFS->eosViewRWMutex.UnLockRead();
+  }
 
   EXEC_TIMING_END("AttrLs");
 
-  if (errno)
+  if (errno) {
     return Emsg(epname, error, errno, "list attributes", path);
+  }
 
   return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_attr_set (const char *path,
-                      XrdOucErrInfo &error,
-                      eos::common::Mapping::VirtualIdentity &vid,
-                      const char *info,
-                      const char *key,
-                      const char *value)
+XrdMgmOfs::_attr_set(const char* path,
+                     XrdOucErrInfo& error,
+                     eos::common::Mapping::VirtualIdentity& vid,
+                     const char* info,
+                     const char* key,
+                     const char* value)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief set an extended attribute for a given directory with key=value
@@ -358,19 +320,20 @@ XrdMgmOfs::_attr_set (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "attr_set";
+  static const char* epname = "attr_set";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrSet");
   gOFS->MgmStats.Add("AttrSet", vid.uid, vid.gid, 1);
 
-  if (!key || !value)
+  if (!key || !value) {
     return Emsg(epname, error, EINVAL, "set attribute", path);
+  }
 
   std::string vpath = path;
-  if (vpath.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)
-  {
+
+  if (vpath.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos) {
     // if never put any attribute on version directories
     errno = 0;
     return SFS_OK;
@@ -378,35 +341,30 @@ XrdMgmOfs::_attr_set (const char *path,
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  try
-  {
+
+  try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
-    if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
+
+    if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
       errno = EPERM;
-    else
-    {
+    } else {
       // check permissions in case of user attributes
       if (dh && Key.beginswith("user.") && (vid.uid != dh->getCUid())
-          && (!vid.sudoer))
-      {
+          && (!vid.sudoer)) {
         errno = EPERM;
-      }
-      else
-      {
+      } else {
+        XrdOucString val64 = value;
+        XrdOucString val;
+        eos::common::SymKey::DeBase64(val64, val);
+
         // check format of acl
-        if (Key.beginswith("user.acl") || Key.beginswith("sys.acl"))
-        {
-          if (!Acl::IsValid(value, error, Key.beginswith("sys.acl")))
-          {
+        if (Key.beginswith("user.acl") || Key.beginswith("sys.acl")) {
+          if (!Acl::IsValid(val.c_str(), error, Key.beginswith("sys.acl"))) {
             errno = EINVAL;
             return SFS_ERROR;
           }
         }
-
-        XrdOucString val64 = value;
-        XrdOucString val;
-        eos::common::SymKey::DeBase64(val64, val);
 
         dh->setAttribute(key, val.c_str());
         dh->setMTimeNow();
@@ -415,73 +373,61 @@ XrdMgmOfs::_attr_set (const char *path,
         errno = 0;
       }
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  if (!dh)
-  {
-    try
-    {
+  if (!dh) {
+    try {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
 
-      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-      {
-	errno = EPERM;
+      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
+        errno = EPERM;
+      } else {
+        // check permissions in case of user attributes
+        if (fmd && Key.beginswith("user.") && (vid.uid != fmd->getCUid())
+            && (!vid.sudoer)) {
+          errno = EPERM;
+        } else {
+          XrdOucString val64 = value;
+          XrdOucString val;
+          eos::common::SymKey::DeBase64(val64, val);
+          fmd->setAttribute(key, val.c_str());
+          fmd->setMTimeNow();
+          eosView->updateFileStore(fmd.get());
+          errno = 0;
+        }
       }
-      else
-      {
-	// check permissions in case of user attributes
-	if (fmd && Key.beginswith("user.") && (vid.uid != fmd->getCUid())
-	    && (!vid.sudoer))
-	{
-	  errno = EPERM;
-	}
-	else
-	{
-	  XrdOucString val64 = value;
-	  XrdOucString val;
-	  eos::common::SymKey::DeBase64(val64, val);
-
-	  fmd->setAttribute(key, val.c_str());
-	  fmd->setMTimeNow();
-	  eosView->updateFileStore(fmd.get());
-	  errno = 0;
-	}
-      }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       fmd.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
   EXEC_TIMING_END("AttrSet");
 
-  if (errno)
+  if (errno) {
     return Emsg(epname, error, errno, "set attributes", path);
+  }
 
   return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_attr_get (const char *path,
-                      XrdOucErrInfo &error,
-                      eos::common::Mapping::VirtualIdentity &vid,
-                      const char *info,
-                      const char *key,
-                      XrdOucString &value,
-                      bool islocked)
+XrdMgmOfs::_attr_get(const char* path,
+                     XrdOucErrInfo& error,
+                     eos::common::Mapping::VirtualIdentity& vid,
+                     const char* info,
+                     const char* key,
+                     XrdOucString& value,
+                     bool islocked)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief get an extended attribute for a given directory by key
@@ -499,57 +445,53 @@ XrdMgmOfs::_attr_get (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "attr_get";
+  static const char* epname = "attr_get";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrGet");
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
 
-  if (!key)
+  if (!key) {
     return Emsg(epname, error, EINVAL, "get attribute", path);
+  }
 
   value = "";
   XrdOucString link;
+  bool b64 = false;
 
-  bool b64=false;
-
-  if (info)
-  {
+  if (info) {
     XrdOucEnv env(info);
-    if (env.Get("eos.attr.val.encoding") && (std::string(env.Get("eos.attr.val.encoding")) == "base64"))
-    {
-      b64=true;
+
+    if (env.Get("eos.attr.val.encoding") &&
+        (std::string(env.Get("eos.attr.val.encoding")) == "base64")) {
+      b64 = true;
     }
   }
 
   // ---------------------------------------------------------------------------
-  if (!islocked) gOFS->eosViewRWMutex.LockRead();
-  try
-  {
+  if (!islocked) {
+    gOFS->eosViewRWMutex.LockRead();
+  }
+
+  try {
     dh = gOFS->eosView->getContainer(path);
     value = (dh->getAttribute(key)).c_str();
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());
   }
 
-  if (dh && errno)
-  {
+  if (dh && errno) {
     // try linked attributes
-    try
-    {
+    try {
       std::string lkey = "sys.attr.link";
       link = (dh->getAttribute(lkey)).c_str();
       dh = gOFS->eosView->getContainer(link.c_str());
       value = (dh->getAttribute(key)).c_str();
       errno = 0;
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       dh.reset();
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -557,40 +499,38 @@ XrdMgmOfs::_attr_get (const char *path,
     }
   }
 
-  if (!dh)
-  {
-    try
-    {
+  if (!dh) {
+    try {
       fmd = gOFS->eosView->getFile(path);
       value = (fmd->getAttribute(key)).c_str();
       errno = 0;
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
-  if (!islocked) gOFS->eosViewRWMutex.UnLockRead();
+  if (!islocked) {
+    gOFS->eosViewRWMutex.UnLockRead();
+  }
 
   // we always decode attributes here, even if they are stored as base64:
-
-  XrdOucString val64=value;
+  XrdOucString val64 = value;
   eos::common::SymKey::DeBase64(val64, value);
 
-  if (b64)
-  {
-    // on request do base64 encoding                                                                                                                                                                                                                                                               
+  if (b64) {
+    // on request do base64 encoding
     XrdOucString nb64 = value;
     eos::common::SymKey::Base64(nb64, value);
   }
 
   EXEC_TIMING_END("AttrGet");
 
-  if (errno)
+  if (errno) {
     return Emsg(epname, error, errno, "get attributes", path);
+  }
+
   ;
 
   return SFS_OK;
@@ -598,11 +538,11 @@ XrdMgmOfs::_attr_get (const char *path,
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_attr_rem (const char *path,
-                      XrdOucErrInfo &error,
-                      eos::common::Mapping::VirtualIdentity &vid,
-                      const char *info,
-                      const char *key)
+XrdMgmOfs::_attr_rem(const char* path,
+                     XrdOucErrInfo& error,
+                     eos::common::Mapping::VirtualIdentity& vid,
+                     const char* info,
+                     const char* key)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete an extended attribute for a given file/directory by key
@@ -620,112 +560,91 @@ XrdMgmOfs::_attr_rem (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "attr_rm";
+  static const char* epname = "attr_rm";
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   EXEC_TIMING_BEGIN("AttrRm");
   gOFS->MgmStats.Add("AttrRm", vid.uid, vid.gid, 1);
 
-  if (!key)
+  if (!key) {
     return Emsg(epname, error, EINVAL, "delete attribute", path);
+  }
 
   // ---------------------------------------------------------------------------
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
-  try
-  {
+
+  try {
     dh = gOFS->eosView->getContainer(path);
     XrdOucString Key = key;
 
-    if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-    {
+    if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
       errno = EPERM;
-    }
-    else
-    {
+    } else {
       // TODO: REVIEW: check permissions
-      if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))
-      {
-	errno = EPERM;
-      }
-      else
-      {
-	if (dh->hasAttribute(key))
-	{
-	  dh->removeAttribute(key);
-	  eosView->updateContainerStore(dh.get());
-	}
-	else
-	{
-	  errno = ENODATA;
-	}
+      if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
+        errno = EPERM;
+      } else {
+        if (dh->hasAttribute(key)) {
+          dh->removeAttribute(key);
+          eosView->updateContainerStore(dh.get());
+        } else {
+          errno = ENODATA;
+        }
       }
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     dh.reset();
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
   }
 
-  if (!dh)
-  {
-    try 
-    {
+  if (!dh) {
+    try {
       fmd = gOFS->eosView->getFile(path);
       XrdOucString Key = key;
 
-      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid)))
-      {
-	errno = EPERM;
+      if (Key.beginswith("sys.") && ((!vid.sudoer) && (vid.uid))) {
+        errno = EPERM;
+      } else {
+        // check permissions
+        if (vid.uid && (fmd->getCUid() != vid.uid)) {
+          // TODO: REVIEW: only owner can set file attributes
+          errno = EPERM;
+        } else {
+          if (fmd->hasAttribute(key)) {
+            fmd->removeAttribute(key);
+            eosView->updateFileStore(fmd.get());
+            errno = 0;
+          } else {
+            errno = ENODATA;
+          }
+        }
       }
-      else
-      {
-	// check permissions
-	if (vid.uid && (fmd->getCUid() != vid.uid))
-	{
-	  // TODO: REVIEW: only owner can set file attributes
-	  errno = EPERM;
-	}
-	else
-	{
-	  if (fmd->hasAttribute(key))
-	  {
-	    fmd->removeAttribute(key);
-	    eosView->updateFileStore(fmd.get());
-	    errno = 0;
-	  }
-	  else
-	  {
-	    errno = ENODATA;
-	  }
-	}
-      }
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       dh.reset();
       errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(), e.getMessage().str().c_str());
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
     }
   }
 
-
   EXEC_TIMING_END("AttrRm");
 
-  if (errno)
+  if (errno) {
     return Emsg(epname, error, errno, "remove attribute", path);
+  }
 
   return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_attr_clear (const char *path,
-                        XrdOucErrInfo &error,
-                        eos::common::Mapping::VirtualIdentity &vid,
-                        const char *info)
+XrdMgmOfs::_attr_clear(const char* path,
+                       XrdOucErrInfo& error,
+                       eos::common::Mapping::VirtualIdentity& vid,
+                       const char* info)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief clear all  extended attribute for a given file/directory
@@ -744,16 +663,15 @@ XrdMgmOfs::_attr_clear (const char *path,
 {
   eos::IContainerMD::XAttrMap map;
 
-  if (_attr_ls(path, error, vid, info, map))
-  {
+  if (_attr_ls(path, error, vid, info, map)) {
     return SFS_ERROR;
   }
 
   int success = SFS_OK;
-  for (auto it = map.begin(); it != map.end(); ++it)
-  {
 
+  for (auto it = map.begin(); it != map.end(); ++it) {
     success |= _attr_rem(path, error, vid, info, it->first.c_str());
   }
+
   return success;
 }

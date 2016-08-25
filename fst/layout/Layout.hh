@@ -57,7 +57,7 @@ public:
   //! @param file file handler
   //!
   //----------------------------------------------------------------------------
-  Layout (XrdFstOfsFile* file);
+  Layout(XrdFstOfsFile* file);
 
 
   //----------------------------------------------------------------------------
@@ -68,21 +68,22 @@ public:
   //! @param client security information
   //! @param outError error information
   //! @param io access type informatio ( ofs/xrd )
-  //! @param timeout timeout value 
+  //! @param timeout timeout value
+  //! @param timeout timeout value
   //!
   //----------------------------------------------------------------------------
-  Layout (XrdFstOfsFile* file,
-          unsigned long lid,
-          const XrdSecEntity* client,
-          XrdOucErrInfo* outError,
-          eos::common::LayoutId::eIoType io,
-          uint16_t timeout = 0);
+  Layout(XrdFstOfsFile* file,
+         unsigned long lid,
+         const XrdSecEntity* client,
+         XrdOucErrInfo* outError,
+         const char* path,
+         uint16_t timeout = 0);
 
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  virtual ~Layout ();
+  virtual ~Layout();
 
 
   //----------------------------------------------------------------------------
@@ -90,7 +91,7 @@ public:
   //--------------------------------------------------------------------------
 
   const char*
-  GetName ()
+  GetName()
   {
     return mName.c_str();
   }
@@ -101,7 +102,7 @@ public:
   //--------------------------------------------------------------------------
 
   const char*
-  GetLocalReplicaPath ()
+  GetLocalReplicaPath()
   {
     return mLocalPath.c_str();
   }
@@ -112,7 +113,7 @@ public:
   //--------------------------------------------------------------------------
 
   inline unsigned int
-  GetLayoutId ()
+  GetLayoutId()
   {
     return mLayoutId;
   }
@@ -120,8 +121,9 @@ public:
   //--------------------------------------------------------------------------
   //! Get last remote URL (if available)
   //--------------------------------------------------------------------------
+
   const std::string&
-  GetLastUrl ()
+  GetLastUrl()
   {
     return mLastUrl;
   }
@@ -130,7 +132,7 @@ public:
   //! Get last errCode
   //--------------------------------------------------------------------------
   const int&
-  GetLastErrCode ()
+  GetLastErrCode()
   {
     return mLastErrCode;
   }
@@ -139,7 +141,7 @@ public:
   //! Get last errCode
   //--------------------------------------------------------------------------
   const int&
-  GetLastErrNo ()
+  GetLastErrNo()
   {
     return mLastErrNo;
   }
@@ -149,7 +151,7 @@ public:
   //--------------------------------------------------------------------------
 
   virtual bool
-  IsEntryServer ()
+  IsEntryServer()
   {
     return mIsEntryServer;
   }
@@ -158,7 +160,6 @@ public:
   //----------------------------------------------------------------------------
   //! Open a file of the current layout type
   //!
-  //! @param path file path
   //! @param flags open flags
   //! @param mode open mode
   //! @param opaque opaque information
@@ -166,11 +167,10 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Open (const std::string& path,
-                    XrdSfsFileOpenMode flags,
-                    mode_t mode,
-                    const char* opaque) = 0;
-
+  virtual int Open(
+    XrdSfsFileOpenMode flags,
+    mode_t mode,
+    const char* opaque) = 0;
 
   //----------------------------------------------------------------------------
   //! Read from file
@@ -182,14 +182,14 @@ public:
   //! @return number of bytes read or -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t Read (XrdSfsFileOffset offset,
-                        char* buffer,
-                        XrdSfsXferSize length,
-                        bool readahead = false) = 0;
+  virtual int64_t Read(XrdSfsFileOffset offset,
+                       char* buffer,
+                       XrdSfsXferSize length,
+                       bool readahead = false) = 0;
 
-  
+
   //----------------------------------------------------------------------------
-  //! Vector read 
+  //! Vector read
   //!
   //! @param chunkList list of chunks for the vector read
   //! @param len total length of the vector read
@@ -197,10 +197,10 @@ public:
   //! @return number of bytes read of -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t ReadV (XrdCl::ChunkList& chunkList,
-                         uint32_t len) = 0;
+  virtual int64_t ReadV(XrdCl::ChunkList& chunkList,
+                        uint32_t len) = 0;
 
-  
+
   //----------------------------------------------------------------------------
   //! Write to file
   //!
@@ -211,9 +211,9 @@ public:
   //! @return number of bytes written or -1 if error
   //!
   //----------------------------------------------------------------------------
-  virtual int64_t Write (XrdSfsFileOffset offset,
-                         const char* buffer,
-                         XrdSfsXferSize length) = 0;
+  virtual int64_t Write(XrdSfsFileOffset offset,
+                        const char* buffer,
+                        XrdSfsXferSize length) = 0;
 
 
   //----------------------------------------------------------------------------
@@ -224,7 +224,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Truncate (XrdSfsFileOffset offset) = 0;
+  virtual int Truncate(XrdSfsFileOffset offset) = 0;
 
 
   //----------------------------------------------------------------------------
@@ -237,7 +237,7 @@ public:
   //--------------------------------------------------------------------------
 
   virtual int
-  Fallocate (XrdSfsFileOffset lenght)
+  Fallocate(XrdSfsFileOffset lenght)
   {
     return 0;
   }
@@ -254,8 +254,8 @@ public:
   //--------------------------------------------------------------------------
 
   virtual int
-  Fdeallocate (XrdSfsFileOffset fromOffset,
-               XrdSfsFileOffset toOffset)
+  Fdeallocate(XrdSfsFileOffset fromOffset,
+              XrdSfsFileOffset toOffset)
   {
     return 0;
   }
@@ -269,7 +269,7 @@ public:
   //--------------------------------------------------------------------------
 
   virtual int
-  Remove ()
+  Remove()
   {
     return 0;
   }
@@ -281,7 +281,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Sync () = 0;
+  virtual int Sync() = 0;
 
 
   //----------------------------------------------------------------------------
@@ -290,7 +290,7 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Close () = 0;
+  virtual int Close() = 0;
 
 
   //----------------------------------------------------------------------------
@@ -301,9 +301,31 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //!
   //----------------------------------------------------------------------------
-  virtual int Stat (struct stat* buf) = 0;
+  virtual int Stat(struct stat* buf) = 0;
 
-  
+  //--------------------------------------------------------------------------
+  //! Get stats about the file
+  //!
+  //! @param buf stat buffer
+  //!
+  //! @return 0 if successful, -1 otherwise and error code is set
+  //!
+  //--------------------------------------------------------------------------
+
+  FileIo* GetFileIo()
+  {
+    return mFileIO;
+  }
+
+  virtual void Redirect(const char* path)
+  {
+    if (mFileIO) {
+      delete mFileIO;
+    }
+
+    mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+  }
+
 protected:
 
   bool mIsEntryServer; ///< mark entry server
@@ -320,6 +342,7 @@ protected:
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
 
+  FileIo* mFileIO; //< IO object as entry server
 };
 
 EOSFSTNAMESPACE_END

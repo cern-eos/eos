@@ -30,27 +30,26 @@
 /*----------------------------------------------------------------------------*/
 
 int
-XrdMgmOfs::stat (const char *inpath,
-		 struct stat *buf,
-		 XrdOucErrInfo &error,
-		 const XrdSecEntity *client,
-		 const char *ininfo
-		 )
+XrdMgmOfs::stat(const char* inpath,
+                struct stat* buf,
+                XrdOucErrInfo& error,
+                const XrdSecEntity* client,
+                const char* ininfo
+               )
 {
-
   return stat(inpath, buf, error, 0, client, ininfo, false);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::stat (const char *inpath,
-		 struct stat *buf,
-		 XrdOucErrInfo &error,
-		 std::string *etag,
-		 const XrdSecEntity *client,
-		 const char *ininfo,
-		 bool follow,
-		 std::string *uri)
+XrdMgmOfs::stat(const char* inpath,
+                struct stat* buf,
+                XrdOucErrInfo& error,
+                std::string* etag,
+                const XrdSecEntity* client,
+                const char* ininfo,
+                bool follow,
+                std::string* uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -69,62 +68,52 @@ XrdMgmOfs::stat (const char *inpath,
 /*----------------------------------------------------------------------------*/
 
 {
-  static const char *epname = "stat";
-  const char *tident = error.getErrUser();
-
-
+  static const char* epname = "stat";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   XrdSecEntity mappedclient;
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
   XrdOucEnv Open_Env(info);
-
   AUTHORIZE(client, &Open_Env, AOP_Stat, "stat", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid, false);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_R;
   MAYSTALL;
-
   eos::common::Path cPath(path);
   // ---------------------------------------------------------------------------
   // never redirect stat's for the master mode
   // ---------------------------------------------------------------------------
 
-  if (cPath.GetFullPath() != gOFS->MgmProcMasterPath)
-  {
+  if (cPath.GetFullPath() != gOFS->MgmProcMasterPath) {
     MAYREDIRECT;
   }
 
   errno = 0;
   int rc = _stat(path, buf, error, vid, info, etag, follow, uri);
-  if (rc && (errno == ENOENT))
-  {
+
+  if (rc && (errno == ENOENT)) {
     MAYREDIRECT_ENOENT;
     MAYSTALL_ENOENT;
   }
+
   return rc;
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_stat (const char *path,
-		  struct stat *buf,
-		  XrdOucErrInfo &error,
-		  eos::common::Mapping::VirtualIdentity &vid,
-		  const char *ininfo,
-		  std::string* etag,
-		  bool follow,
-		  std::string* uri)
+XrdMgmOfs::_stat(const char* path,
+                 struct stat* buf,
+                 XrdOucErrInfo& error,
+                 eos::common::Mapping::VirtualIdentity& vid,
+                 const char* ininfo,
+                 std::string* etag,
+                 bool follow,
+                 std::string* uri)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief return stat information for a given path
@@ -143,10 +132,9 @@ XrdMgmOfs::_stat (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "_stat";
+  static const char* epname = "_stat";
   EXEC_TIMING_BEGIN("Stat");
   gOFS->MgmStats.Add("Stat", vid.uid, vid.gid, 1);
-
   // ---------------------------------------------------------------------------
   // try if that is a file
   errno = 0;
@@ -154,65 +142,55 @@ XrdMgmOfs::_stat (const char *path,
   eos::common::Path cPath(path);
 
   // Stat on the master proc entry succeeds only if this MGM is in RW master mode
-  if (cPath.GetFullPath() == gOFS->MgmProcMasterPath)
-  {
-    if (!gOFS->MgmMaster.IsMaster())
-    {
+  if (cPath.GetFullPath() == gOFS->MgmProcMasterPath) {
+    if (!gOFS->MgmMaster.IsMaster()) {
       return Emsg(epname, error, ENODEV, "stat", cPath.GetPath());
     }
   }
 
   eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
-  try
-  {
+  try {
     fmd = gOFS->eosView->getFile(cPath.GetPath(), follow);
 
-    if (uri)
-    {
+    if (uri) {
       *uri = gOFS->eosView->getUri(fmd.get());
     }
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-	      e.getMessage().str().c_str());
+              e.getMessage().str().c_str());
 
-    if (errno == ELOOP)
-    {
+    if (errno == ELOOP) {
       return Emsg(epname, error, errno, "stat", cPath.GetPath());
     }
   }
 
-  if (fmd)
-  {
-    memset(buf, 0, sizeof (struct stat));
+  if (fmd) {
+    memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = eos::common::FileId::FidToInode(fmd->getId());
 
-    if (fmd->isLink())
+    if (fmd->isLink()) {
       buf->st_mode = S_IFLNK;
-    else
+    } else {
       buf->st_mode = S_IFREG;
+    }
 
     uint16_t flags = fmd->getFlags();
 
-    if (fmd->isLink())
-    {
+    if (fmd->isLink()) {
       buf->st_mode |= (S_IRWXU | S_IRWXG | S_IRWXO);
       buf->st_nlink = 1;
-    }
-    else
-    {
-      if (!flags)
-	buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
-      else
-	buf->st_mode |= flags;
+    } else {
+      if (!flags) {
+        buf->st_mode |= (S_IRUSR | S_IRGRP | S_IROTH | S_IWUSR);
+      } else {
+        buf->st_mode |= flags;
+      }
 
       buf->st_nlink = fmd->getNumLocation();
     }
-
 
     buf->st_uid = fmd->getCUid();
     buf->st_gid = fmd->getCGid();
@@ -221,7 +199,6 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_blksize = 512;
     buf->st_blocks = Quota::MapSizeCB(fmd.get()) / 512; // including layout factor
     eos::IFileMD::ctime_t atime;
-
     // adding also nanosecond to stat struct
     fmd->getCTime(atime);
 #ifdef __APPLE__
@@ -232,55 +209,53 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_ctim.tv_sec = atime.tv_sec;
     buf->st_ctim.tv_nsec = atime.tv_nsec;
 #endif
-
     fmd->getMTime(atime);
-
 #ifdef __APPLE__
     buf->st_mtimespec.tv_sec = atime.tv_sec;
     buf->st_mtimespec.tv_nsec = atime.tv_nsec;
-
     buf->st_atimespec.tv_sec = atime.tv_sec;
     buf->st_atimespec.tv_nsec = atime.tv_nsec;
 #else
     buf->st_mtime = atime.tv_sec;
     buf->st_mtim.tv_sec = atime.tv_sec;
     buf->st_mtim.tv_nsec = atime.tv_nsec;
-
     buf->st_atime = atime.tv_sec;
     buf->st_atim.tv_sec = atime.tv_sec;
     buf->st_atim.tv_nsec = atime.tv_nsec;
 #endif
 
-    if (etag)
-    {
+    if (etag) {
       // if there is a checksum we use the checksum, otherwise we return inode+mtime
       size_t cxlen = eos::common::LayoutId::GetChecksumLen(fmd->getLayoutId());
-      if (cxlen)
-      {
-	// use inode + checksum
-	char setag[256];
-	snprintf(setag, sizeof (setag) - 1, "\"%llu:", (unsigned long long) buf->st_ino);
-	// if MD5 checksums are used we omit the inode number in the ETag (S3 wants that)
-	if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) != eos::common::LayoutId::kMD5)
-	  *etag = setag;
-	else
-	  *etag = "";
 
-	for (unsigned int i = 0; i < cxlen; i++)
-	{
-	  char hb[3];
-	  sprintf(hb, "%02x", (i < cxlen) ? (unsigned char) (fmd->getChecksum().getDataPadded(i)) : 0);
-	  *etag += hb;
-	}
-	*etag += "\"";
-      }
-      else
-      {
-	// use inode + mtime
-	char setag[256];
-	snprintf(setag, sizeof (setag) - 1, "\"%llu:%llu\"", (unsigned long long) buf->st_ino,
-		 (unsigned long long) buf->st_mtime);
-	*etag = setag;
+      if (cxlen) {
+        // use inode + checksum
+        char setag[256];
+        snprintf(setag, sizeof(setag) - 1, "\"%llu:", (unsigned long long) buf->st_ino);
+
+        // if MD5 checksums are used we omit the inode number in the ETag (S3 wants that)
+        if (eos::common::LayoutId::GetChecksum(fmd->getLayoutId()) !=
+            eos::common::LayoutId::kMD5) {
+          *etag = setag;
+        } else {
+          *etag = "";
+        }
+
+        for (unsigned int i = 0; i < cxlen; i++) {
+          char hb[3];
+          sprintf(hb, "%02x", (i < cxlen) ? (unsigned char)(
+                    fmd->getChecksum().getDataPadded(i)) : 0);
+          *etag += hb;
+        }
+
+        *etag += "\"";
+      } else {
+        // use inode + mtime
+        char setag[256];
+        snprintf(setag, sizeof(setag) - 1, "\"%llu:%llu\"",
+                 (unsigned long long) buf->st_ino,
+                 (unsigned long long) buf->st_mtime);
+        *etag = setag;
       }
     }
 
@@ -293,22 +268,19 @@ XrdMgmOfs::_stat (const char *path,
   errno = 0;
 
   // ---------------------------------------------------------------------------
-  try
-  {
+  try {
     cmd = gOFS->eosView->getContainer(cPath.GetPath(), follow);
 
-    if (uri)
-    {
+    if (uri) {
       *uri = gOFS->eosView->getUri(cmd.get());
     }
 
-    memset(buf, 0, sizeof (struct stat));
+    memset(buf, 0, sizeof(struct stat));
     buf->st_dev = 0xcaff;
     buf->st_ino = cmd->getId();
     buf->st_mode = cmd->getMode();
 
-    if (cmd->attributesBegin() != cmd->attributesEnd())
-    {
+    if (cmd->attributesBegin() != cmd->attributesEnd()) {
       buf->st_mode |= S_ISVTX;
     }
 
@@ -317,20 +289,21 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_gid = cmd->getCGid();
     buf->st_rdev = 0; /* device type (if inode device) */
     buf->st_size = cmd->getTreeSize();
-    buf->st_blksize = 0;
+    buf->st_blksize = cmd->getNumContainers() + cmd->getNumFiles();
     buf->st_blocks = 0;
-
     eos::IContainerMD::ctime_t ctime;
     eos::IContainerMD::ctime_t mtime;
     eos::IContainerMD::ctime_t tmtime;
     cmd->getCTime(ctime);
     cmd->getMTime(mtime);
 
-    if (gOFS->eosSyncTimeAccounting)
+    if (gOFS->eosSyncTimeAccounting) {
       cmd->getTMTime(tmtime);
-    else
+    } else
       // if there is no sync time accounting we just use the normal modification time
+    {
       tmtime = mtime;
+    }
 
 #ifdef __APPLE__
     buf->st_atimespec.tv_sec = tmtime.tv_sec;
@@ -351,22 +324,20 @@ XrdMgmOfs::_stat (const char *path,
     buf->st_ctim.tv_nsec = ctime.tv_nsec;
 #endif
 
-    if (etag)
-    {
+    if (etag) {
       // use inode + mtime
       char setag[256];
-      snprintf(setag, sizeof (setag) - 1, "\"%llx:%llu.%03lu\"",
-	       (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime,
-	       (unsigned long) buf->st_atim.tv_nsec/1000000);
+      snprintf(setag, sizeof(setag) - 1, "\"%llx:%llu.%03lu\"",
+               (unsigned long long) cmd->getId(), (unsigned long long) buf->st_atime,
+               (unsigned long) buf->st_atim.tv_nsec / 1000000);
       *etag = setag;
     }
 
     return SFS_OK;
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(), e.getMessage().str().c_str());
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+              e.getMessage().str().c_str());
     return Emsg(epname, error, errno, "stat", cPath.GetPath());
   }
 }
@@ -375,11 +346,11 @@ XrdMgmOfs::_stat (const char *path,
 // Stat following links (not existing in EOS - behaves like stat)
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::lstat (const char *path,
-		  struct stat *buf,
-		  XrdOucErrInfo &error,
-		  const XrdSecEntity *client,
-		  const char *info)
+XrdMgmOfs::lstat(const char* path,
+                 struct stat* buf,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client,
+                 const char* info)
 
 {
   return stat(path, buf, error, client, info);

@@ -7,6 +7,21 @@
 Beryl Release Notes
 ===================
 
+``V0.3.196 Aquamarine``
++++++++++++++++++++++++
+
+Bug Fix
+=======
+
+- NS: fix slave follower getQuotaNode exception preventing quota accounting on slave
+- FUSE: swap unlock and pool-fd push (which is protected by the same file abstraction rwmutex)
+
+
+New Feature
++++++++++++
+
+- MGM: add 'Treesize' to the output of 'file info'
+
 ``V0.3.195 Aquamarine``
 +++++++++++++++++++++++
 

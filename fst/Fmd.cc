@@ -28,7 +28,6 @@
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/Attr.hh"
 #include "fst/FmdDbMap.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -46,17 +45,20 @@
 EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Dump an Fmd record to stderr
- * 
+ *
  * @param fmd handle to the Fmd struct
  */
 
 /*----------------------------------------------------------------------------*/
 void
-FmdHelper::Dump (struct Fmd* fmd)
+FmdHelper::Dump(struct Fmd* fmd)
 {
-  fprintf(stderr, "%08" PRIx64 " %06" PRIu64 " %04" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %08" PRIu64 " %08" PRIu64 " %08" PRIu64 " %s %s %s %03" PRIu32 " %05" PRIu32 " %05" PRIu32 "\n",
+  fprintf(stderr, "%08" PRIx64 " %06" PRIu64 " %04" PRIu32 " %010" PRIu32 " %010"
+          PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010" PRIu32 " %010"
+          PRIu32 " %08" PRIu64 " %08" PRIu64 " %08" PRIu64 " %s %s %s %03" PRIu32 " %05"
+          PRIu32 " %05" PRIu32 "\n",
           fmd->fid(),
           fmd->cid(),
           fmd->fsid(),
@@ -79,21 +81,24 @@ FmdHelper::Dump (struct Fmd* fmd)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Convert a Fmd struct into an env representation
- * 
- * 
+ *
+ *
  * @return env representation
  */
 
 /*----------------------------------------------------------------------------*/
 XrdOucEnv*
-FmdHelper::FmdToEnv ()
+FmdHelper::FmdToEnv()
 {
   char serialized[1024 * 64];
-  sprintf(serialized, "id=%" PRIu64 "&cid=%" PRIu64 "&ctime=%" PRIu32 "&ctime_ns=%" PRIu32 "&mtime=%" PRIu32 "&"
-          "mtime_ns=%" PRIu32 "&size=%" PRIu64 "&checksum=%s&lid=%" PRIu32 "&uid=%" PRIu32 "&gid=%" PRIu32 "&",
-          fMd.fid(), fMd.cid(), fMd.ctime(), fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(), fMd.size(),
+  sprintf(serialized, "id=%" PRIu64 "&cid=%" PRIu64 "&ctime=%" PRIu32
+          "&ctime_ns=%" PRIu32 "&mtime=%" PRIu32 "&"
+          "mtime_ns=%" PRIu32 "&size=%" PRIu64 "&checksum=%s&lid=%" PRIu32 "&uid=%" PRIu32
+          "&gid=%" PRIu32 "&",
+          fMd.fid(), fMd.cid(), fMd.ctime(), fMd.ctime_ns(), fMd.mtime(), fMd.mtime_ns(),
+          fMd.size(),
           fMd.checksum().c_str(), fMd.lid(), fMd.uid(), fMd.gid());
   return new XrdOucEnv(serialized);
 }

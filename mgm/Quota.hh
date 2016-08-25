@@ -28,9 +28,9 @@
 // this is needed because of some openssl definition conflict!
 #undef des_set_key
 /*----------------------------------------------------------------------------*/
-#include <vector>
-#include <set>
-#include <stdint.h>
+#include <google/dense_hash_map>
+#include <google/sparsehash/densehashtable.h>
+/*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -89,21 +89,20 @@ public:
   //! @return true if user has enough quota, otherwise false
   //----------------------------------------------------------------------------
   bool CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
-		       unsigned int desired_inodes);
+                       unsigned int desired_inodes);
 
   //----------------------------------------------------------------------------
   //! Print quota information
   //!
   //----------------------------------------------------------------------------
   void PrintOut(XrdOucString& output, long uid_sel = -1,
-		long gid_sel = -1, bool monitoring = false,
-		bool translate_ids = false);
+                long gid_sel = -1, bool monitoring = false,
+                bool translate_ids = false);
 
   //----------------------------------------------------------------------------
   //! Quota type tags
   //----------------------------------------------------------------------------
-  enum eQuotaTag
-  {
+  enum eQuotaTag {
     kUserBytesIs = 1,                 kUserLogicalBytesIs = 2,
     kUserLogicalBytesTarget = 3,      kUserBytesTarget = 4,
     kUserFilesIs = 5,                 kUserFilesTarget = 6,
@@ -251,7 +250,7 @@ private:
   //----------------------------------------------------------------------------
   const char*
   GetQuotaPercentage(unsigned long long is, unsigned long long avail,
-		     XrdOucString& spercentage);
+                     XrdOucString& spercentage);
 
   //----------------------------------------------------------------------------
   //! Get quota status
@@ -367,8 +366,11 @@ public:
   //!
   //----------------------------------------------------------------------------
   static void GetIndividualQuota(eos::common::Mapping::VirtualIdentity_t& vid,
-				 const std::string& path, long long& max_bytes,
-				 long long& free_bytes);
+                                 const std::string& path,
+                                 long long& max_bytes,
+                                 long long& free_bytes,
+                                 long long& max_files,
+                                 long long& free_files);
 
 
   //----------------------------------------------------------------------------
@@ -385,9 +387,9 @@ public:
   //! @return true if quota set successful, otherwise false
   //----------------------------------------------------------------------------
   static bool SetQuotaTypeForId(const std::string& qpath, long id,
-				Quota::IdT id_type, Quota::Type quota_type,
-				unsigned long long value, std::string& msg,
-				int& retc);
+                                Quota::IdT id_type, Quota::Type quota_type,
+                                unsigned long long value, std::string& msg,
+                                int& retc);
 
 
   //----------------------------------------------------------------------------
@@ -402,8 +404,8 @@ public:
   //! @return true if quota set successful, otherwise false
   //----------------------------------------------------------------------------
   static bool SetQuotaForTag(const std::string& qpath,
-			     const std::string& quota_tag,
-			     long id, unsigned long long value);
+                             const std::string& quota_tag,
+                             long id, unsigned long long value);
 
   //----------------------------------------------------------------------------
   //! Remove all quota types for an id
@@ -417,7 +419,7 @@ public:
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
   static bool RmQuotaForId(const std::string& path, long id,
-			   Quota::IdT id_type, std::string& msg, int& retc);
+                           Quota::IdT id_type, std::string& msg, int& retc);
 
   //----------------------------------------------------------------------------
   //! Remove quota type for id
@@ -432,8 +434,8 @@ public:
   //! @return true if operation successful, otherwise false
   //----------------------------------------------------------------------------
   static bool RmQuotaTypeForId(const std::string& qpath, long id,
-			       Quota::IdT id_type, Quota::Type quota_type,
-			       std::string& msg, int& retc);
+                               Quota::IdT id_type, Quota::Type quota_type,
+                               std::string& msg, int& retc);
 
   //------------------------------------------------------------------------------
   //! Remove quota specified by the quota tag
@@ -445,8 +447,9 @@ public:
   //!
   //! @return true if quota set successful, otherwise false
   //------------------------------------------------------------------------------
-  static bool RmQuotaForTag(const std::string& space, const std::string& quota_stag,
-			    long id);
+  static bool RmQuotaForTag(const std::string& space,
+                            const std::string& quota_stag,
+                            long id);
 
   //----------------------------------------------------------------------------
   //! Removes a quota node
@@ -498,7 +501,7 @@ public:
   //! @return true if quota is respected, otherwise false
   //----------------------------------------------------------------------------
   static bool Check(const std::string& path, uid_t uid, gid_t gid,
-		    long long desired_vol, unsigned int desired_inodes);
+                    long long desired_vol, unsigned int desired_inodes);
 
   //----------------------------------------------------------------------------
   //! Callback function to calculate how much pyhisical space a file occupies
@@ -524,8 +527,8 @@ public:
   //! Print out quota information
   //----------------------------------------------------------------------------
   static void PrintOut(const std::string& path, XrdOucString& output,
-		       long uid_sel = -1, long gid_sel = -1,
-		       bool monitoring = false, bool translate_ids = false);
+                       long uid_sel = -1, long gid_sel = -1,
+                       bool monitoring = false, bool translate_ids = false);
 
   //----------------------------------------------------------------------------
   //! Take the decision where to place a new file in the system. The core of the
@@ -538,6 +541,8 @@ public:
   //! @param lid layout to be placed
   //! @param alreadyused_filsystems filesystems to avoid
   //! @param selected_filesystems filesystems selected by scheduler
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param plctpolicy indicates if placement should be local/spread/hybrid
   //! @param plctTrgGeotag indicates close to which Geotag collocated stripes
   //!                      should be placed
@@ -552,19 +557,7 @@ public:
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   static
-  int FilePlacement(const std::string& space,
-		    const char* path,
-		    eos::common::Mapping::VirtualIdentity_t& vid,
-		    const char* grouptag,
-		    unsigned long lid,
-		    std::vector<unsigned int>& alreadyused_filesystems,
-		    std::vector<unsigned int>& selected_filesystems,
-		    Scheduler::tPlctPolicy plctpolicy,
-		    const std::string& plctTrgGeotag,
-		    bool truncate = false,
-		    int forced_scheduling_group_index = -1,
-		    unsigned long long bookingsize = 1024 * 1024 * 1024ll,
-		    eos::mgm::Scheduler::tSchedType schedtype=eos::mgm::Scheduler::regular);
+  int FilePlacement(Scheduler::PlacementArguments* args);
 
   //----------------------------------------------------------------------------
   //! Take the decision from where to access a file. The core of the
@@ -576,6 +569,8 @@ public:
   //! @param tried_cgi cgi containing already tried hosts
   //! @param lid layout fo the file
   //! @param locationsfs filesystem ids where layout is stored
+  //! @param dataproxys if non null, schedule dataproxys for each fs
+  //! @param firewallentpts if non null, schedule firewall entry points for each fs
   //! @param fsindex return index pointing to layout entry filesystem
   //! @param isRW indicate pure read or rd/wr access
   //! @param bookingsize size to book additionally for rd/wr access
@@ -588,21 +583,7 @@ public:
   //! @return 0 if successful, otherwise a non-zero value
   //! @warning Must be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
-  static int FileAccess(eos::common::Mapping::VirtualIdentity_t& vid,
-			unsigned long forcedfsid,
-			const char* forcedspace,
-			std::string tried_cgi,
-			unsigned long lid,
-			std::vector<unsigned int>& locationsfs,
-			unsigned long& fsindex,
-			 bool isRW,
-			unsigned long long bookingsize,
-			std::vector<unsigned int>& unavailfs,
-			eos::common::FileSystem::fsstatus_t min_fsstatus =
-			eos::common::FileSystem::kDrain,
-			std::string overridegeoloc = "",
-			bool noIO = false,
-			eos::mgm::Scheduler::tSchedType schedtype=eos::mgm::Scheduler::regular);
+  static int FileAccess(Scheduler::AccessArguments* args);
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< mutex to protect access to pMapQuota

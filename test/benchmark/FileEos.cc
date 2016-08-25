@@ -78,46 +78,39 @@ FileEos::Write(Result*& result)
   uint64_t file_size = mFileSize;
   uint32_t block_size = mBlockSize;
   eos::common::Timing wr_timing("write");
-
   // Fill buffer with random characters
   char* buffer = new char[block_size];
   std::ifstream urandom("/dev/urandom", std::ios::in | std::ios::binary);
   urandom.read(buffer, block_size);
   urandom.close();
-
   // Open the file for writing and get and XrdFileIo object
   mode_t mode_sfs = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IROTH;
   XrdSfsFileOpenMode flags_sfs = SFS_O_CREAT | SFS_O_RDWR;
-  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl, NULL, NULL);
-  
   COMMONTIMING("OPEN", &wr_timing);
   std::string full_path = mBmkInstance;
   full_path += "/";
   full_path += mFilePath;
-  retc = file->Open(full_path, flags_sfs, mode_sfs, "");
+  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
+                             full_path.c_str());
+  retc = file->fileOpen(flags_sfs, mode_sfs, "");
 
-  if (retc)
-  {
+  if (retc) {
     eos_err("Error while opening file: %s", full_path.c_str());
     delete file;
     return retc;
   }
 
   COMMONTIMING("WRITE", &wr_timing);
-
   // Do the actual writing
   uint64_t offset = 0;
   uint64_t length = 0;
   int64_t nwrite;
 
-  while (file_size > 0)
-  {
+  while (file_size > 0) {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nwrite = file->WriteAsync(offset, buffer, length);
+    nwrite = file->fileWriteAsync(offset, buffer, length);
 
-    if (nwrite != (int64_t)length)
-    {
+    if (nwrite != (int64_t)length) {
       eos_err("Failed while doing write at offset=%llu", offset);
       retc = -1;
       break;
@@ -128,21 +121,18 @@ FileEos::Write(Result*& result)
   }
 
   COMMONTIMING("WAIT_ASYNC", &wr_timing);
-
   // Collect all the write responses
   eos::fst::AsyncMetaHandler* ptr_handler =
-      static_cast<eos::fst::AsyncMetaHandler*>(file->GetAsyncHandler());
-  
-  if (ptr_handler && (!ptr_handler->WaitOK()))
-  {
+    static_cast<eos::fst::AsyncMetaHandler*>(file->fileGetAsyncHandler());
+
+  if (ptr_handler && (!ptr_handler->WaitOK())) {
     eos_err("Error while waiting for write async responses");
     retc = -1;
   }
 
   COMMONTIMING("CLOSE", &wr_timing);
-  retc = file->Close();
+  retc = file->fileClose();
   COMMONTIMING("END", &wr_timing);
-
   // Collect statistics for this operation in the result object at job level
   ResultProto& pb_result = result->GetPbResult();
   float transaction_time = wr_timing.GetTagTimelapse("OPEN", "END");
@@ -155,10 +145,10 @@ FileEos::Write(Result*& result)
   pb_result.add_closetime(wr_timing.GetTagTimelapse("CLOSE", "END"));
   pb_result.add_transactiontime(wr_timing.GetTagTimelapse("OPEN", "END"));
   pb_result.add_readspeed(0);
-  pb_result.add_writespeed(Result::GetTransferSpeed((float)offset, transaction_time));
+  pb_result.add_writespeed(Result::GetTransferSpeed((float)offset,
+                           transaction_time));
   pb_result.add_readtotal(0);
   pb_result.add_writetotal(offset);
-
   delete file;
   delete[] buffer;
   return retc;
@@ -183,62 +173,55 @@ FileEos::ReadGw(Result*& result)
   // Allocate a pool of read buffers and then do round-robin for reading in them
   // so as to minimse the probability of two requests writing in the same buffer
   // at the same time
-  for (int32_t i = 0; i < total_buffs; i++)
-  {
+  for (int32_t i = 0; i < total_buffs; i++) {
     buffer = new char[block_size];
     vect_buff.push_back(buffer);
   }
 
   // Open the file for reading and get and XrdFileIo object
   XrdSfsFileOpenMode flags_sfs = SFS_O_RDONLY;
-  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
-                             eos::common::LayoutId::kXrdCl, NULL, NULL);
   COMMONTIMING("OPEN", &rd_timing);
   std::string full_path = mBmkInstance;
   full_path += "/";
   full_path += mFilePath;
-  retc = file->Open(full_path, flags_sfs, 0, "fst.readahead=true");
+  eos::fst::FileIo* file = eos::fst::FileIoPlugin::GetIoObject(
+                             full_path.c_str());
+  retc = file->fileOpen(flags_sfs, 0, "fst.readahead=true");
 
-  if (retc)
-  {
+  if (retc) {
     eos_err("Error while opening files: %s", full_path.c_str());
     delete file;
     return retc;
   }
 
   COMMONTIMING("READ", &rd_timing);
-
   // Do the actual reading
   int32_t indx_buff = 0;
   uint64_t offset = 0;
   uint64_t length = 0;
   int64_t nread;
 
-  while (file_size > 0)
-  {
+  while (file_size > 0) {
     length = ((file_size > block_size) ?  block_size : file_size);
-    nread = file->ReadAsync(offset, vect_buff[indx_buff], length, true);
+    nread = file->fileReadAsync(offset, vect_buff[indx_buff], length, true);
     offset += nread;
     file_size -= nread;
     indx_buff = (indx_buff + 1) % total_buffs;
   }
 
   COMMONTIMING("WAIT_ASYNC", &rd_timing);
-
   // Collect all the read responses
   eos::fst::AsyncMetaHandler* ptr_handler =
-      static_cast<eos::fst::AsyncMetaHandler*>(file->GetAsyncHandler());
-  
-  if (ptr_handler && (!ptr_handler->WaitOK()))
-  {
+    static_cast<eos::fst::AsyncMetaHandler*>(file->fileGetAsyncHandler());
+
+  if (ptr_handler && (!ptr_handler->WaitOK())) {
     eos_err("Error while waiting for read async responses");
     retc = -1;
   }
 
   COMMONTIMING("CLOSE", &rd_timing);
-  retc = file->Close();
+  retc = file->fileClose();
   COMMONTIMING("END", &rd_timing);
-
   // Collect statistics for this operation in the result object at thread level
   ResultProto& pb_result = result->GetPbResult();
   float transaction_time = rd_timing.GetTagTimelapse("OPEN", "END");
@@ -250,14 +233,14 @@ FileEos::ReadGw(Result*& result)
   pb_result.add_writewaitasync(0);
   pb_result.add_closetime(rd_timing.GetTagTimelapse("CLOSE", "END"));
   pb_result.add_transactiontime(rd_timing.GetTagTimelapse("OPEN", "END"));
-  pb_result.add_readspeed(Result::GetTransferSpeed((float)offset, transaction_time));
+  pb_result.add_readspeed(Result::GetTransferSpeed((float)offset,
+                          transaction_time));
   pb_result.add_writespeed(0);
   pb_result.add_readtotal(offset);
   pb_result.add_writetotal(0);
 
   //Free allocated memory
-  for (uint32_t i = 0; i < vect_buff.size(); i++)
-  {
+  for (uint32_t i = 0; i < vect_buff.size(); i++) {
     delete[] vect_buff[i];
   }
 
@@ -290,8 +273,7 @@ FileEos::ReadPio(Result*& result)
   // Allocate a pool of read buffers and then do round-robin for reading in them
   // so as to minimse the probability of two requests writing in the same buffer
   // at the same time
-  for (int32_t i = 0; i < total_buffs; i++)
-  {
+  for (int32_t i = 0; i < total_buffs; i++) {
     buffer = new char[block_size];
     vect_buff.push_back(buffer);
   }
@@ -300,8 +282,7 @@ FileEos::ReadPio(Result*& result)
   COMMONTIMING("OPEN", &rd_timing);
   XrdCl::URL url(mBmkInstance);
 
-  if (!url.IsValid())
-  {
+  if (!url.IsValid()) {
     cerr << "URL is invalid." << endl;
     return -1;
   }
@@ -312,8 +293,7 @@ FileEos::ReadPio(Result*& result)
   arg.FromString(request);
   status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     //..........................................................................
     // Parse output
     //..........................................................................
@@ -330,14 +310,12 @@ FileEos::ReadPio(Result*& result)
     XrdOucEnv* openOpaque = new XrdOucEnv(stringOpaque.c_str());
     char* opaqueInfo = (char*) strstr(origResponse.c_str(), "&&mgm.logid");
 
-    if (opaqueInfo)
-    {
+    if (opaqueInfo) {
       opaqueInfo += 2;
       eos::common::LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
 
       for (unsigned int i = 0; i <= eos::common::LayoutId::GetStripeNumber(layout);
-           i++)
-      {
+           i++) {
         tag = "pio.";
         tag += static_cast<int>(i);
         stripePath = "root://";
@@ -347,34 +325,29 @@ FileEos::ReadPio(Result*& result)
         stripeUrls.push_back(stripePath.c_str());
       }
 
-      if (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaidDP)
-      {
+      if (eos::common::LayoutId::GetLayoutType(layout) ==
+          eos::common::LayoutId::kRaidDP) {
         file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-                                          eos::common::LayoutId::kXrdCl);
-      }
-      else if ((eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kRaid6) ||
-               (eos::common::LayoutId::GetLayoutType(layout) == eos::common::LayoutId::kArchive))
-      {
+                                          "");
+      } else if ((eos::common::LayoutId::GetLayoutType(layout) ==
+                  eos::common::LayoutId::kRaid6) ||
+                 (eos::common::LayoutId::GetLayoutType(layout) ==
+                  eos::common::LayoutId::kArchive)) {
         file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-                                         eos::common::LayoutId::kXrdCl);
-      }
-      else
-      {
+                                         "");
+      } else {
         eos_err("No such supported layout for PIO");
         file = 0;
       }
 
-      if (file)
-      {
+      if (file) {
         retc = file->OpenPio(stripeUrls, flags_sfs, 0, opaqueInfo);
 
-        if (retc)
-        {
+        if (retc) {
           eos_err("error=open PIO failed for path=%s", mFilePath.c_str());
 
           //Free allocated memory
-          for (uint32_t i = 0; i < vect_buff.size(); i++)
-          {
+          for (uint32_t i = 0; i < vect_buff.size(); i++) {
             delete vect_buff[i];
           }
 
@@ -383,18 +356,14 @@ FileEos::ReadPio(Result*& result)
           delete file;
           return retc;
         }
-      }
-      else
-      {
+      } else {
         delete response;
         delete openOpaque;
         delete file;
         cout << "Falling back to read gw.(0)" << endl;
         return ReadGw(result);
       }
-    }
-    else
-    {
+    } else {
       eos_err("error=opaque info not what we expected");
       delete response;
       delete openOpaque;
@@ -402,14 +371,11 @@ FileEos::ReadPio(Result*& result)
       cout << "Falling back to read gw.(1)" << endl;
       return ReadGw(result);
     }
-  }
-  else
-  {
+  } else {
     eos_warning("Failed to get PIO request falling back to GW mode");
 
     //Free allocated memory
-    for (uint32_t i = 0; i < vect_buff.size(); i++)
-    {
+    for (uint32_t i = 0; i < vect_buff.size(); i++) {
       delete vect_buff[i];
     }
 
@@ -419,15 +385,13 @@ FileEos::ReadPio(Result*& result)
   }
 
   COMMONTIMING("READ", &rd_timing);
-
   // Do the actual reading
   int32_t indx_buff = 0;
   uint64_t offset = 0;
   uint64_t length = 0;
   int64_t nread;
 
-  while (file_size > 0)
-  {
+  while (file_size > 0) {
     length = ((file_size > block_size) ?  block_size : file_size);
     nread = file->Read(offset, vect_buff[indx_buff], length);
     offset += nread;
@@ -438,7 +402,6 @@ FileEos::ReadPio(Result*& result)
   COMMONTIMING("CLOSE", &rd_timing);
   retc = file->Close();
   COMMONTIMING("END", &rd_timing);
-  
   // Collect statistics for this operation in the result object at thread level
   ResultProto& pb_result = result->GetPbResult();
   float transaction_time = rd_timing.GetTagTimelapse("OPEN", "END");
@@ -450,14 +413,14 @@ FileEos::ReadPio(Result*& result)
   pb_result.add_writewaitasync(0);
   pb_result.add_closetime(rd_timing.GetTagTimelapse("CLOSE", "END"));
   pb_result.add_transactiontime(rd_timing.GetTagTimelapse("OPEN", "END"));
-  pb_result.add_readspeed(Result::GetTransferSpeed((float)offset, transaction_time));
+  pb_result.add_readspeed(Result::GetTransferSpeed((float)offset,
+                          transaction_time));
   pb_result.add_writespeed(0);
   pb_result.add_readtotal(offset);
   pb_result.add_writetotal(0);
 
   //Free allocated memory
-  for (uint32_t i = 0; i < vect_buff.size(); i++)
-  {
+  for (uint32_t i = 0; i < vect_buff.size(); i++) {
     delete[] vect_buff[i];
   }
 

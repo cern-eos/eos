@@ -25,8 +25,8 @@
  * @file   FileSystem.hh
  *
  * @brief  Base class for FileSystem abstraction.
- * 
- * 
+ *
+ *
  */
 
 #ifndef __EOSCOMMON_FILESYSTEM_HH__
@@ -67,7 +67,7 @@ protected:
   std::string mQueue;
 
   //! Filesystem Path e.g. /data01
-  std::string mPath; // 
+  std::string mPath; //
 
   //! Indicates that if the filesystem is deleted - the deletion should be broadcasted or not (only MGMs should broadcast deletion!)
   bool BroadCastDeletion;
@@ -113,8 +113,7 @@ public:
 
   //! Snapshot Structure of a filesystem
 
-  typedef struct fs_snapshot
-  {
+  typedef struct fs_snapshot {
     fsid_t mId;
     std::string mQueue;
     std::string mQueuePath;
@@ -124,6 +123,8 @@ public:
     std::string mUuid;
     std::string mHost;
     std::string mHostPort;
+    std::string mProxyGroup;
+    int8_t      mFileStickyProxyDepth;
     std::string mPort;
     std::string mGeoTag;
     size_t mPublishTimestamp;
@@ -170,16 +171,31 @@ public:
     bool mDrainerOn;
   } fs_snapshot_t;
 
+  typedef struct host_snapshot {
+    std::string mQueue;
+    std::string mHost;
+    std::string mHostPort;
+    std::string mGeoTag;
+    size_t mPublishTimestamp;
+    fsactive_t mActiveStatus;
+    time_t mHeartBeatTime;
+    double mNetEthRateMiB;
+    double mNetInRateMiB;
+    double mNetOutRateMiB;
+    long mGopen; // number of files open as data proxy
+  } host_snapshot_t;
+
   // ------------------------------------------------------------------------
   // Constructor
   // ------------------------------------------------------------------------
-  FileSystem (const char* queuepath, const char* queue, XrdMqSharedObjectManager* som, bool bc2mgm = false);
+  FileSystem(const char* queuepath, const char* queue,
+             XrdMqSharedObjectManager* som, bool bc2mgm = false);
 
   // ------------------------------------------------------------------------
   // Destructor
   // ------------------------------------------------------------------------
   virtual
-  ~FileSystem ();
+  ~FileSystem();
 
   //------------------------------------------------------------------------
   // Enums
@@ -187,51 +203,55 @@ public:
 
   //! Values for a boot status
 
-  enum eBootStatus
-  {
+  enum eBootStatus {
     kOpsError = -2, kBootFailure = -1, kDown = 0, kBootSent = 1, kBooting = 2, kBooted = 3
   };
 
   //! Values for a configuration status
 
-  enum eConfigStatus
-  {
+  enum eConfigStatus {
     kUnknown = -1, kOff = 0, kEmpty, kDrainDead, kDrain, kRO, kWO, kRW
   };
 
   //! Values for a drain status
 
-  enum eDrainStatus
-  {
+  enum eDrainStatus {
     kNoDrain = 0, kDrainPrepare = 1, kDrainWait = 2, kDraining = 3, kDrained = 4, kDrainStalling = 5, kDrainExpired = 6, kDrainLostFiles = 7
   };
 
   //! Values describing if a filesystem is online or offline (combination of multiple conditions)
 
-  enum eActiveStatus
-  {
+  enum eActiveStatus {
     kOffline = 0, kOnline = 1
   };
 
   //! Value indication the way a boot message should be executed on an FST node
 
-  enum eBootConfig
-  {
+  enum eBootConfig {
     kBootOptional = 0, kBootForced = 1, kBootResync = 2
   };
 
   //------------------------------------------------------------------------
   // Conversion Functions
   //------------------------------------------------------------------------
-  static const char* GetStatusAsString (int status); //!< return the file system status as a string
-  static const char* GetDrainStatusAsString (int status); //!< return the drain status as a string
-  static const char* GetConfigStatusAsString (int status); //!< return the configuration status as a string
-  static int GetStatusFromString (const char* ss); //!< parse a string status into the enum value
-  static int GetDrainStatusFromString (const char* ss); //!< parse a drain status into the enum value
-  static int GetConfigStatusFromString (const char* ss); //!< parse a configuration status into the enum value
-  static fsactive_t GetActiveStatusFromString (const char* ss); //!< parse an active status into an fsactive_t value
-  static const char* GetAutoBootRequestString (); //!< return the message string for an auto boot request
-  static const char* GetRegisterRequestString (); //!< return the message string to register a filesystem
+  static const char* GetStatusAsString(int
+                                       status);  //!< return the file system status as a string
+  static const char* GetDrainStatusAsString(int
+      status);  //!< return the drain status as a string
+  static const char* GetConfigStatusAsString(int
+      status);  //!< return the configuration status as a string
+  static int GetStatusFromString(const char*
+                                 ss);  //!< parse a string status into the enum value
+  static int GetDrainStatusFromString(const char*
+                                      ss);  //!< parse a drain status into the enum value
+  static int GetConfigStatusFromString(const char*
+                                       ss);  //!< parse a configuration status into the enum value
+  static fsactive_t GetActiveStatusFromString(const char*
+      ss);  //!< parse an active status into an fsactive_t value
+  static const char*
+  GetAutoBootRequestString();  //!< return the message string for an auto boot request
+  static const char*
+  GetRegisterRequestString();  //!< return the message string to register a filesystem
 
   //------------------------------------------------------------------------
   // Cache Members
@@ -251,16 +271,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  OpenTransaction ()
+  OpenTransaction()
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->OpenTransaction();
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -270,16 +288,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  CloseTransaction ()
+  CloseTransaction()
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->CloseTransaction();
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -293,16 +309,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetId (fsid_t fsid)
+  SetId(fsid_t fsid)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->SetLongLong("id", (long long) fsid);
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -312,16 +326,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetString (const char* key, const char* str, bool broadcast = true)
+  SetString(const char* key, const char* str, bool broadcast = true)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->Set(key, str, broadcast);
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -331,16 +343,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetDouble (const char* key, double f, bool broadcast = true)
+  SetDouble(const char* key, double f, bool broadcast = true)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->SetDouble(key, f, broadcast);
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -350,16 +360,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetLongLong (const char* key, long long l, bool broadcast = true)
+  SetLongLong(const char* key, long long l, bool broadcast = true)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->SetLongLong(key, l, broadcast);
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -369,7 +377,7 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetStatus (fsstatus_t status, bool broadcast = true)
+  SetStatus(fsstatus_t status, bool broadcast = true)
   {
     mInternalBootStatus = status;
     return SetString("stat.boot", GetStatusAsString(status), broadcast);
@@ -380,12 +388,13 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetActiveStatus (fsactive_t active)
+  SetActiveStatus(fsactive_t active)
   {
-    if (active == kOnline)
+    if (active == kOnline) {
       return SetString("stat.active", "online", false);
-    else
+    } else {
       return SetString("stat.active", "offline", false);
+    }
   }
 
   //------------------------------------------------------------------------
@@ -393,7 +402,7 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetDrainStatus (fsstatus_t status)
+  SetDrainStatus(fsstatus_t status)
   {
     return SetString("stat.drain", GetDrainStatusAsString(status));
   }
@@ -403,20 +412,21 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  SetDrainProgress (int percent)
+  SetDrainProgress(int percent)
   {
-    if ((percent < 0) || (percent > 100))
+    if ((percent < 0) || (percent > 100)) {
       return false;
+    }
 
     return SetLongLong("stat.drainprogress", (long long) percent);
   }
 
-  //------------------------------------------------------------------------  
+  //------------------------------------------------------------------------
   //! Set the configuration status.
   //------------------------------------------------------------------------
 
   bool
-  SetConfigStatus (fsstatus_t status)
+  SetConfigStatus(fsstatus_t status)
   {
     return SetString("configstatus", GetConfigStatusAsString(status));
   }
@@ -424,7 +434,7 @@ public:
   //------------------------------------------------------------------------
   //! Set the filesystem statfs structure.
   //------------------------------------------------------------------------
-  bool SetStatfs (struct statfs* statfs);
+  bool SetStatfs(struct statfs* statfs);
 
 
   //------------------------------------------------------------------------
@@ -436,38 +446,41 @@ public:
   //------------------------------------------------------------------------
 
   fsactive_t
-  GetActiveStatus (bool cached = false)
+  GetActiveStatus(bool cached = false)
   {
     // this function can be used with a small cache which 1s expiration time to avoid too many lookup's in tight loops
     fsactive_t rActive = 0;
-    if (cached)
-    {
+
+    if (cached) {
       time_t now = time(NULL);
       cActiveLock.Lock();
-      if (now - cActiveTime)
-      {
+
+      if (now - cActiveTime) {
         cActiveTime = now;
-      }
-      else
-      {
+      } else {
         rActive = cActive;
         cActiveLock.UnLock();
         return rActive;
       }
     }
+
     std::string active = GetString("stat.active");
-    if (active == "online")
-    {
+
+    if (active == "online") {
       cActive = kOnline;
-      if (cached)
+
+      if (cached) {
         cActiveLock.UnLock();
+      }
+
       return kOnline;
-    }
-    else
-    {
+    } else {
       cActive = kOffline;
-      if (cached)
+
+      if (cached) {
         cActiveLock.UnLock();
+      }
+
       return kOffline;
     }
   }
@@ -477,7 +490,7 @@ public:
   //------------------------------------------------------------------------
 
   fsactive_t
-  GetActiveStatus (fs_snapshot_t snapshot)
+  GetActiveStatus(fs_snapshot_t snapshot)
   {
     return snapshot.mActiveStatus;
   }
@@ -487,16 +500,14 @@ public:
   //------------------------------------------------------------------------
 
   bool
-  GetKeys (std::vector<std::string> &keys)
+  GetKeys(std::vector<std::string>& keys)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->GetKeys(keys);
       return true;
-    }
-    else
-    {
+    } else {
       return false;
     }
   }
@@ -506,22 +517,21 @@ public:
   //------------------------------------------------------------------------
 
   std::string
-  GetString (const char* key)
+  GetString(const char* key)
   {
     std::string skey = key;
-    if (skey == "<n>")
-    {
+
+    if (skey == "<n>") {
       return std::string("1");
     }
+
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       // avoid to return a string with a 0 pointer !
       std::string tmp =  mHash->Get(key);
-      return (tmp.length()?tmp:"");
-    }
-    else
-    {
+      return (tmp.length() ? tmp : "");
+    } else {
       skey = "";
       return skey;
     }
@@ -532,16 +542,14 @@ public:
   //------------------------------------------------------------------------
 
   double
-  GetAge (const char* key)
+  GetAge(const char* key)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       // avoid to return a string with a 0 pointer !
       return mHash->GetAgeInSeconds(key);
-    }
-    else
-    {
+    } else {
       return 0;
     }
   }
@@ -551,21 +559,19 @@ public:
   //------------------------------------------------------------------------
 
   long long
-  GetLongLong (const char* key)
+  GetLongLong(const char* key)
   {
     std::string skey = key;
-    if (skey == "<n>")
-    {
+
+    if (skey == "<n>") {
       return 1;
     }
 
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       return mHash->GetLongLong(key);
-    }
-    else
-    {
+    } else {
       return 0;
     }
   }
@@ -575,15 +581,13 @@ public:
   //------------------------------------------------------------------------
 
   double
-  GetDouble (const char* key)
+  GetDouble(const char* key)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       return mHash->GetDouble(key);
-    }
-    else
-    {
+    } else {
       return 0;
     }
   }
@@ -593,7 +597,7 @@ public:
   //------------------------------------------------------------------------
 
   long long
-  GetPrebookedSpace ()
+  GetPrebookedSpace()
   {
     // this is dummy for the moment, but will later return 'scheduled' used space
     return PreBookedSpace;
@@ -604,7 +608,7 @@ public:
   //------------------------------------------------------------------------
 
   void
-  PreBookSpace (unsigned long long book)
+  PreBookSpace(unsigned long long book)
   {
     PreBookedSpace += book;
   }
@@ -614,7 +618,7 @@ public:
   //------------------------------------------------------------------------
 
   void
-  FreePreBookedSpace ()
+  FreePreBookedSpace()
   {
     PreBookedSpace = 0;
   }
@@ -624,7 +628,7 @@ public:
   //------------------------------------------------------------------------
 
   TransferQueue*
-  GetDrainQueue ()
+  GetDrainQueue()
   {
     return mDrainQueue;
   }
@@ -634,7 +638,7 @@ public:
   //------------------------------------------------------------------------
 
   TransferQueue*
-  GetBalanceQueue ()
+  GetBalanceQueue()
   {
     return mBalanceQueue;
   }
@@ -644,7 +648,7 @@ public:
   //------------------------------------------------------------------------
 
   TransferQueue*
-  GetExternQueue ()
+  GetExternQueue()
   {
     return mExternQueue;
   }
@@ -652,19 +656,19 @@ public:
   //------------------------------------------------------------------------
   //! Check if filesystem has a valid heartbeat.
   //------------------------------------------------------------------------
-  bool HasHeartBeat (fs_snapshot_t &fs);
+  bool HasHeartBeat(fs_snapshot_t& fs);
 
   //------------------------------------------------------------------------
   //! Reserve Space on a filesystem.
   //------------------------------------------------------------------------
-  bool ReserveSpace (fs_snapshot_t &fs, unsigned long long bookingsize);
+  bool ReserveSpace(fs_snapshot_t& fs, unsigned long long bookingsize);
 
   //------------------------------------------------------------------------
   //! Return the filesystem id.
   //------------------------------------------------------------------------
 
   fsid_t
-  GetId ()
+  GetId()
   {
     return (fsid_t) GetLongLong("id");
   }
@@ -674,7 +678,7 @@ public:
   //------------------------------------------------------------------------
 
   std::string
-  GetQueuePath ()
+  GetQueuePath()
   {
     return mQueuePath;
   }
@@ -684,7 +688,7 @@ public:
   //------------------------------------------------------------------------
 
   std::string
-  GetQueue ()
+  GetQueue()
   {
     return mQueue;
   }
@@ -694,7 +698,7 @@ public:
   //------------------------------------------------------------------------
 
   std::string
-  GetPath ()
+  GetPath()
   {
     return mPath;
   }
@@ -704,19 +708,17 @@ public:
   //------------------------------------------------------------------------
 
   fsstatus_t
-  GetStatus (bool cached = false)
+  GetStatus(bool cached = false)
   {
     fsstatus_t rStatus = 0;
-    if (cached)
-    {
+
+    if (cached) {
       time_t now = time(NULL);
       cStatusLock.Lock();
-      if (now - cStatusTime)
-      {
+
+      if (now - cStatusTime) {
         cStatusTime = now;
-      }
-      else
-      {
+      } else {
         rStatus = cStatus;
         cStatusLock.UnLock();
         return rStatus;
@@ -725,13 +727,16 @@ public:
 
     cStatus = GetStatusFromString(GetString("stat.boot").c_str());
     rStatus = cStatus;
-    if (cached)
+
+    if (cached) {
       cStatusLock.UnLock();
+    }
+
     return rStatus;
   }
 
   fsstatus_t
-  GetInternalBootStatus ()
+  GetInternalBootStatus()
   {
     return mInternalBootStatus;
   }
@@ -741,7 +746,7 @@ public:
   //------------------------------------------------------------------------
 
   fsstatus_t
-  GetDrainStatus ()
+  GetDrainStatus()
   {
     return GetDrainStatusFromString(GetString("stat.drain").c_str());
   }
@@ -751,19 +756,17 @@ public:
   //------------------------------------------------------------------------
 
   fsstatus_t
-  GetConfigStatus (bool cached = false)
+  GetConfigStatus(bool cached = false)
   {
     fsstatus_t rConfigStatus = 0;
-    if (cached)
-    {
+
+    if (cached) {
       time_t now = time(NULL);
       cConfigLock.Lock();
-      if (now - cConfigTime)
-      {
+
+      if (now - cConfigTime) {
         cConfigTime = now;
-      }
-      else
-      {
+      } else {
         rConfigStatus = cConfigStatus;
         cConfigLock.UnLock();
         return rConfigStatus;
@@ -772,10 +775,11 @@ public:
 
     cConfigStatus = GetConfigStatusFromString(GetString("configstatus").c_str());
     rConfigStatus = cConfigStatus;
-    if (cached)
-    {
+
+    if (cached) {
       cConfigLock.UnLock();
     }
+
     return rConfigStatus;
   }
 
@@ -784,7 +788,7 @@ public:
   //------------------------------------------------------------------------
 
   int
-  GetErrCode ()
+  GetErrCode()
   {
     return atoi(GetString("stat.errc").c_str());
   }
@@ -792,17 +796,24 @@ public:
   //------------------------------------------------------------------------
   //! Snapshot filesystem.
   //------------------------------------------------------------------------
-  bool SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock = true);
+  bool SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock = true);
+
+  //------------------------------------------------------------------------
+  //! Snapshot host.
+  //------------------------------------------------------------------------
+
+  static bool SnapShotHost(XrdMqSharedObjectManager* som,
+                           const std::string& queue, FileSystem::host_snapshot_t& fs, bool dolock = true);
 
   //------------------------------------------------------------------------
   //! Dump Function printing the filesystem variables to out.
   //------------------------------------------------------------------------
   void
-  Print (std::string &out, std::string listformat)
+  Print(std::string& out, std::string listformat)
   {
     XrdMqRWMutexReadLock lock(mSom->HashMutex);
-    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mHash->Print(out, listformat);
     }
   }
@@ -810,7 +821,7 @@ public:
   //------------------------------------------------------------------------
   //! Create Config key-value pair.
   //------------------------------------------------------------------------
-  void CreateConfig (std::string &key, std::string &val);
+  void CreateConfig(std::string& key, std::string& val);
 
 
 };

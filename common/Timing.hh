@@ -23,10 +23,10 @@
 
 /**
  * @file   Timing.hh
- * 
+ *
  * @brief  Class providing real-time code measurements.
- * 
- * 
+ *
+ *
  */
 
 
@@ -45,7 +45,7 @@ EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 //! Class implementing comfortable time measurements through methods/functions
-//! 
+//!
 //! Example
 //! eos::common::Timing tm("Test");
 //! COMMONTIMING("START",&tm);
@@ -71,9 +71,9 @@ public:
   //! Constructor - used only internally
   // ---------------------------------------------------------------------------
 
-  Timing (const char* name, struct timeval &i_tv)
+  Timing(const char* name, struct timeval& i_tv)
   {
-    memcpy(&tv, &i_tv, sizeof (struct timeval));
+    memcpy(&tv, &i_tv, sizeof(struct timeval));
     tag = name;
     next = 0;
     ptr = this;
@@ -82,7 +82,7 @@ public:
   //! Constructor - tag is used as the name for the measurement in Print
   // ---------------------------------------------------------------------------
 
-  Timing (const char* i_maintag)
+  Timing(const char* i_maintag)
   {
     tag = "BEGIN";
     next = 0;
@@ -101,79 +101,78 @@ public:
     Timing* ptr = this->next;
     Timing* ptrBegin = 0;
     Timing* ptrEnd = 0;
-    
-    while (ptr)
-    {
-      if (tagBegin.compare(ptr->tag.c_str()) == 0)
-      {
+
+    while (ptr) {
+      if (tagBegin.compare(ptr->tag.c_str()) == 0) {
         ptrBegin = ptr;
       }
 
-      if (tagEnd.compare(ptr->tag.c_str()) == 0)
-      {
+      if (tagEnd.compare(ptr->tag.c_str()) == 0) {
         ptrEnd = ptr;
       }
 
-      if (ptrBegin && ptrEnd) break;
-      
+      if (ptrBegin && ptrEnd) {
+        break;
+      }
+
       ptr = ptr->next;
     }
 
-    if (ptrBegin && ptrEnd)
-    {
-      time_elapsed = static_cast<float>(((ptrEnd->tv.tv_sec - ptrBegin->tv.tv_sec) *1000000 +
-                                       (ptrEnd->tv.tv_usec - ptrBegin->tv.tv_usec)) / 1000.0);
+    if (ptrBegin && ptrEnd) {
+      time_elapsed = static_cast<float>(((ptrEnd->tv.tv_sec - ptrBegin->tv.tv_sec) *
+                                         1000000 +
+                                         (ptrEnd->tv.tv_usec - ptrBegin->tv.tv_usec)) / 1000.0);
     }
-    
+
     return time_elapsed;
   }
-  
+
   // ---------------------------------------------------------------------------
   //! Return the age of a timespec
   // ---------------------------------------------------------------------------
   static long long
-  GetAgeInNs ( const struct timespec *ts , const struct timespec *now=NULL)
+  GetAgeInNs(const struct timespec* ts , const struct timespec* now = NULL)
   {
     struct timespec tsn;
-    if(!now)
-    {
+
+    if (!now) {
       GetTimeSpec(tsn);
       now = &tsn;
     }
 
-    return (now->tv_sec-ts->tv_sec)*1000000000 + (now->tv_nsec-ts->tv_nsec);
+    return (now->tv_sec - ts->tv_sec) * 1000000000 + (now->tv_nsec - ts->tv_nsec);
   }
 
   // ---------------------------------------------------------------------------
   //! Return the age of a ns timestamp
   // ---------------------------------------------------------------------------
   static long long
-  GetAgeInNs ( long long ts , const struct timespec *now=NULL)
+  GetAgeInNs(long long ts , const struct timespec* now = NULL)
   {
     struct timespec tsn;
-    if(!now)
-    {
+
+    if (!now) {
       GetTimeSpec(tsn);
       now = &tsn;
     }
 
-    return (now->tv_sec*1000000000 + now->tv_nsec) - ts;
+    return (now->tv_sec * 1000000000 + now->tv_nsec) - ts;
   }
 
   // ---------------------------------------------------------------------------
   //! Return the coarse age of a ns timestamp
   // ---------------------------------------------------------------------------
   static long long
-  GetCoarseAgeInNs ( long long ts , const struct timespec *now=NULL)
+  GetCoarseAgeInNs(long long ts , const struct timespec* now = NULL)
   {
     struct timespec tsn;
-    if(!now)
-    {
-      GetTimeSpec(tsn,true);
+
+    if (!now) {
+      GetTimeSpec(tsn, true);
       now = &tsn;
     }
 
-    return (now->tv_sec*1000000000 + now->tv_nsec) - ts;
+    return (now->tv_sec * 1000000000 + now->tv_nsec) - ts;
   }
 
   // ---------------------------------------------------------------------------
@@ -181,22 +180,30 @@ public:
   // ---------------------------------------------------------------------------
 
   void
-  Print ()
+  Print()
   {
     char msg[512];
     Timing* p = this->next;
     Timing* n;
     cerr << std::endl;
-    while ((n = p->next))
-    {
 
-      sprintf(msg, "                                        [%12s] %12s<=>%-12s : %.03f\n", maintag.c_str(), p->tag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+    while ((n = p->next)) {
+      sprintf(msg,
+              "                                        [%12s] %12s<=>%-12s : %.03f\n",
+              maintag.c_str(), p->tag.c_str(), n->tag.c_str(),
+              (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
+                      p->tv.tv_usec)) / 1000.0);
       cerr << msg;
       p = n;
     }
+
     n = p;
     p = this->next;
-    sprintf(msg, "                                        =%12s= %12s<=>%-12s : %.03f\n", maintag.c_str(), p->tag.c_str(), n->tag.c_str(), (float) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0);
+    sprintf(msg,
+            "                                        =%12s= %12s<=>%-12s : %.03f\n",
+            maintag.c_str(), p->tag.c_str(), n->tag.c_str(),
+            (float)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 + (n->tv.tv_usec -
+                    p->tv.tv_usec)) / 1000.0);
     cerr << msg;
   }
 
@@ -205,17 +212,19 @@ public:
   // ---------------------------------------------------------------------------
 
   double
-  RealTime ()
+  RealTime()
   {
     Timing* p = this->next;
     Timing* n;
-    while ((n = p->next))
-    {
+
+    while ((n = p->next)) {
       p = n;
     }
+
     n = p;
     p = this->next;
-    return (double) ((n->tv.tv_sec - p->tv.tv_sec) *1000000 + (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0;
+    return (double)((n->tv.tv_sec - p->tv.tv_sec) * 1000000 +
+                    (n->tv.tv_usec - p->tv.tv_usec)) / 1000.0;
   }
 
   // ---------------------------------------------------------------------------
@@ -223,18 +232,56 @@ public:
   // ---------------------------------------------------------------------------
 
   virtual
-  ~Timing ()
+  ~Timing()
   {
     Timing* n = next;
-    if (n) delete n;
+
+    if (n) {
+      delete n;
+    }
   };
+
+  // ---------------------------------------------------------------------------
+  //! Time Conversion Function for timestamp time strings
+  // ---------------------------------------------------------------------------
+
+  static std::string
+  UnixTimstamp_to_Day(time_t when)
+  {
+    struct tm* now = localtime(&when);
+    std::string year;
+    std::string month;
+    std::string day;
+    char sDay[4096];
+    snprintf(sDay, sizeof(sDay), "%04u%02u%02u",
+             (unsigned int)(now->tm_year + 1900),
+             (unsigned int)(now->tm_mon + 1),
+             (unsigned int)(now->tm_mday));
+    return sDay;
+  }
+
+  // ---------------------------------------------------------------------------
+  //! Time Conversion Function for strings to unix time
+  // ---------------------------------------------------------------------------
+
+  static time_t
+  Day_to_UnixTimestamp(std::string day)
+  {
+    tzset();
+    struct tm ctime;
+    memset(&ctime, 0, sizeof(struct tm));
+    strptime(day.c_str(), "%Y%m%d", &ctime);
+    time_t ts = mktime(&ctime) - timezone;
+    return ts;
+  }
+
 
   // ---------------------------------------------------------------------------
   //! Wrapper Function to hide difference between Apple and Linux
   // ---------------------------------------------------------------------------
 
   static void
-  GetTimeSpec (struct timespec &ts, bool coarse=false)
+  GetTimeSpec(struct timespec& ts, bool coarse = false)
   {
 #ifdef __APPLE__
     struct timeval tv;
@@ -242,14 +289,18 @@ public:
     ts.tv_sec = tv.tv_sec;
     ts.tv_nsec = tv.tv_usec * 1000;
 #else
-    if(coarse)
+
+    if (coarse)
 #ifdef CLOCK_REALTIME_COARSE
       clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+
 #else
       clock_gettime(CLOCK_REALTIME, &ts);
 #endif
-    else
+    else {
       clock_gettime(CLOCK_REALTIME, &ts);
+    }
+
 #endif
   }
 
@@ -258,36 +309,36 @@ public:
   // ---------------------------------------------------------------------------
 
   static std::string
-  UnixTimstamp_to_ISO8601 (time_t now)
+  UnixTimstamp_to_ISO8601(time_t now)
   {
-    struct tm *utctime;
+    struct tm* utctime;
     char str[21];
     struct tm utc;
     utctime = gmtime_r(&now, &utc);
+
     if (!utctime) {
       now = 0;
       utctime = gmtime_r(&now, &utc);
     }
+
     strftime(str, 21, "%Y-%m-%dT%H:%M:%SZ", utctime);
     return str;
   }
 
   // ---------------------------------------------------------------------------
-  //! Time Conversion Function for strings to ISO8601 time 
+  //! Time Conversion Function for strings to ISO8601 time
   // ---------------------------------------------------------------------------
 
   static time_t
-  ISO8601_to_UnixTimestamp (std::string iso)
+  ISO8601_to_UnixTimestamp(std::string iso)
   {
     tzset();
     char temp[64];
-    memset(temp, 0, sizeof (temp));
+    memset(temp, 0, sizeof(temp));
     strncpy(temp, iso.c_str(), (iso.length() < 64) ? iso.length() : 64);
-
     struct tm ctime;
-    memset(&ctime, 0, sizeof (struct tm));
+    memset(&ctime, 0, sizeof(struct tm));
     strptime(temp, "%FT%T%z", &ctime);
-
     time_t ts = mktime(&ctime) - timezone;
     return ts;
   }
@@ -296,6 +347,7 @@ public:
   std::string utctime(time_t ttime)
   {
     struct tm utc;
+
     if (!gmtime_r(&ttime, &utc)) {
       time_t zt = 0;
       gmtime_r(&zt, &utc);
@@ -310,13 +362,13 @@ public:
     };
     static char result[40];
     sprintf(result, "%.3s, %02d %.3s %d %.2d:%.2d:%.2d GMT",
-	    wday_name[utc.tm_wday],
-	    utc.tm_mday,
-	    mon_name[utc.tm_mon],
-	    1900 + utc.tm_year,
-	    utc.tm_hour,
-	    utc.tm_min, 
-	    utc.tm_sec);
+            wday_name[utc.tm_wday],
+            utc.tm_mday,
+            mon_name[utc.tm_mon],
+            1900 + utc.tm_year,
+            utc.tm_hour,
+            utc.tm_min,
+            utc.tm_sec);
     return std::string(result);
   }
 };
@@ -325,12 +377,12 @@ public:
 //! Macro to place a measurement throughout the code
 // ---------------------------------------------------------------------------
 #define COMMONTIMING( __ID__,__LIST__)                                \
-  do {	   				                        \
-    struct timeval tp = {0};					\
-    struct timezone tz = {0};					\
-    gettimeofday(&tp, &tz);					\
-    (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp);	\
-    (__LIST__)->ptr = (__LIST__)->ptr->next;			\
+  do {                                    \
+    struct timeval tp = {0};          \
+    struct timezone tz = {0};         \
+    gettimeofday(&tp, &tz);         \
+    (__LIST__)->ptr->next=new eos::common::Timing(__ID__,tp); \
+    (__LIST__)->ptr = (__LIST__)->ptr->next;      \
   } while(false);
 
 EOSCOMMONNAMESPACE_END

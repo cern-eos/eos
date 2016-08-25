@@ -33,6 +33,7 @@
 #include "common/FileSystem.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/io/FileIo.hh"
 /*----------------------------------------------------------------------------*/
 #include <syslog.h>
 /*----------------------------------------------------------------------------*/
@@ -79,60 +80,70 @@ private:
 
 public:
 
-  ScanDir (const char* dirpath, eos::common::FileSystem::fsid_t fsid, eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10, int ratebandwidth = 100, bool setchecksum = false) :
-  fstLoad (fstload), fsId (fsid), dirPath (dirpath), testInterval (testinterval), rateBandwidth (ratebandwidth)
+  ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
+          eos::fst::Load* fstload, bool bgthread = true, long int testinterval = 10,
+          int ratebandwidth = 100, bool setchecksum = false) :
+    fstLoad(fstload), fsId(fsid), dirPath(dirpath), testInterval(testinterval),
+    rateBandwidth(ratebandwidth)
   {
     thread = 0;
-    noNoChecksumFiles = noScanFiles = noCorruptFiles = noTotalFiles = SkippedFiles = 0;
+    noNoChecksumFiles = noScanFiles = noCorruptFiles = noTotalFiles = SkippedFiles =
+                                        0;
     durationScan = 0;
     totalScanSize = bufferSize = 0;
     buffer = 0;
     bgThread = bgthread;
-
-    alignment = pathconf(dirPath.c_str(), _PC_REC_XFER_ALIGN);
+    alignment = pathconf((dirpath[0] != '/') ? "/" : dirPath.c_str(),
+                         _PC_REC_XFER_ALIGN);
     size_t palignment = alignment;
 
-    if (alignment > 0)
-    {
+    if (alignment > 0) {
       bufferSize = 256 * alignment;
       setChecksum = setchecksum;
-      if (posix_memalign((void**) &buffer, palignment, bufferSize))
-      {
+
+      if (posix_memalign((void**) &buffer, palignment, bufferSize)) {
         buffer = 0;
-        fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n", dirPath.c_str());
+        fprintf(stderr, "error: error calling posix_memaling on dirpath=%s. \n",
+                dirPath.c_str());
         return;
       }
+
 #ifdef __APPLE__
       palignment = 0;
 #endif
-    }
-    else
-    {
+    } else {
       fprintf(stderr, "error: OS does not provide alignment\n");
+
+      if (!bgthread) {
+        exit(-1);
+      }
+
       return;
     }
 
-    if (bgthread)
-    {
+    if (bgthread) {
       openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
-      XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void *> (this), XRDSYSTHREAD_HOLD, "ScanDir Thread");
+      XrdSysThread::Run(&thread, ScanDir::StaticThreadProc, static_cast<void*>(this),
+                        XRDSYSTHREAD_HOLD, "ScanDir Thread");
     }
   };
 
-  void ScanFiles ();
+  void ScanFiles();
 
-  void CheckFile (const char*);
-  eos::fst::CheckSum* GetBlockXS (const char*, unsigned long long maxfilesize);
-  bool ScanFileLoadAware (const char*, unsigned long long &, float &, const char*, unsigned long, const char* lfn, bool &filecxerror, bool &blockxserror);
+  void CheckFile(const char*);
+  eos::fst::CheckSum* GetBlockXS(const char*, unsigned long long maxfilesize);
+  bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>&,
+                         unsigned long long&, float&, const char*, unsigned long, const char* lfn,
+                         bool& filecxerror, bool& blockxserror);
 
-  std::string GetTimestamp ();
-  std::string GetTimestampSmeared ();
-  bool RescanFile (std::string);
+  std::string GetTimestamp();
+  std::string GetTimestampSmeared();
+  bool RescanFile(std::string);
 
-  static void* StaticThreadProc (void*);
-  void* ThreadProc ();
+  static void* StaticThreadProc(void*);
+  void* ThreadProc();
 
-  virtual ~ScanDir ();
+  virtual ~ScanDir();
 
 };
 

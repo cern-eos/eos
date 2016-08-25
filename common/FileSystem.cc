@@ -36,9 +36,9 @@ EOSCOMMONNAMESPACE_BEGIN;
 /*----------------------------------------------------------------------------*/
 //! Constructor
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Constructor of a filesystem object.
- * 
+ *
  * @param queuepath Named Queue to specify the receiver filesystem of modifications e.g. /eos/<host:port>/fst/<path>
  * @param queue     Named Queue to specify the reciever of modifications e.g. /eos/<host:port>/fst
  * @param som       Handle to the shared obejct manager to store filesystem key-value pairs
@@ -46,7 +46,8 @@ EOSCOMMONNAMESPACE_BEGIN;
  */
 
 /*----------------------------------------------------------------------------*/
-FileSystem::FileSystem (const char* queuepath, const char* queue, XrdMqSharedObjectManager* som, bool bc2mgm)
+FileSystem::FileSystem(const char* queuepath, const char* queue,
+                       XrdMqSharedObjectManager* som, bool bc2mgm)
 {
   XrdSysMutexHelper cLock(mConstructorLock);
   mQueuePath = queuepath;
@@ -62,372 +63,516 @@ FileSystem::FileSystem (const char* queuepath, const char* queue, XrdMqSharedObj
   cActiveTime = 0;
   cStatusTime = 0;
   cConfigTime = 0;
-
   std::string broadcast = queue;
-  if (bc2mgm)
-    broadcast = "/eos/*/mgm";
 
-  if (mSom)
-  {
+  if (bc2mgm) {
+    broadcast = "/eos/*/mgm";
+  }
+
+  if (mSom) {
     mSom->HashMutex.LockRead();
-    if (!(mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-    {
+
+    if (!(mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
       mSom->HashMutex.UnLockRead();
       // create the hash object
       mSom->CreateSharedHash(mQueuePath.c_str(), broadcast.c_str(), som);
       mSom->HashMutex.LockRead();
       mHash = mSom->GetObject(mQueuePath.c_str(), "hash");
-      if (mHash)
-      {
+
+      if (mHash) {
         mHash->OpenTransaction();
         mHash->Set("queue", mQueue);
         mHash->Set("queuepath", mQueuePath);
         mHash->Set("path", mPath);
-        std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
-        if (hostport.length())
-        {
+        std::string hostport =
+          eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
+
+        if (hostport.length()) {
           size_t ppos = hostport.find(":");
           std::string host = hostport;
           std::string port = hostport;
-          if (ppos != std::string::npos)
-          {
+
+          if (ppos != std::string::npos) {
             host.erase(ppos);
             port.erase(0, ppos + 1);
-          }
-          else
-          {
+          } else {
             port = "1094";
           }
+
           mHash->Set("hostport", hostport);
           mHash->Set("host", host);
           mHash->Set("port", port);
           mHash->Set("configstatus", "down");
-        }
-        else
-        {
+        } else {
           eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
         }
+
         mHash->CloseTransaction();
       }
+
       mSom->HashMutex.UnLockRead();
-    }
-    else
-    {
+    } else {
       mHash->SetBroadCastQueue(broadcast.c_str());
       mHash->OpenTransaction();
       mHash->Set("queue", mQueue);
       mHash->Set("queuepath", mQueuePath);
       mHash->Set("path", mPath);
-      std::string hostport = eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
-      if (hostport.length())
-      {
+      std::string hostport =
+        eos::common::StringConversion::GetStringHostPortFromQueue(mQueue.c_str());
+
+      if (hostport.length()) {
         size_t ppos = hostport.find(":");
         std::string host = hostport;
         std::string port = hostport;
-        if (ppos != std::string::npos)
-        {
+
+        if (ppos != std::string::npos) {
           host.erase(ppos);
           port.erase(0, ppos + 1);
-        }
-        else
-        {
+        } else {
           port = "1094";
         }
+
         mHash->Set("hostport", hostport);
         mHash->Set("host", host);
         mHash->Set("port", port);
-      }
-      else
-      {
+      } else {
         eos_static_crit("there is no hostport defined for queue %s\n", mQueue.c_str());
       }
-      mHash->CloseTransaction();
 
+      mHash->CloseTransaction();
       mSom->HashMutex.UnLockRead();
     }
-    mDrainQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "drainq", this, mSom, bc2mgm);
-    mBalanceQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "balanceq", this, mSom, bc2mgm);
-    mExternQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "externq", this, mSom, bc2mgm);
-  }
-  else
-  {
+
+    mDrainQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "drainq",
+                                    this, mSom, bc2mgm);
+    mBalanceQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(),
+                                      "balanceq", this, mSom, bc2mgm);
+    mExternQueue = new TransferQueue(mQueue.c_str(), mQueuePath.c_str(), "externq",
+                                     this, mSom, bc2mgm);
+  } else {
     mHash = 0;
     mDrainQueue = 0;
     mBalanceQueue = 0;
     mExternQueue = 0;
   }
-  if (bc2mgm)
+
+  if (bc2mgm) {
     BroadCastDeletion = false;
-  else
+  } else {
     BroadCastDeletion = true;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Destructor
- * 
+ *
  */
 
 /*----------------------------------------------------------------------------*/
-FileSystem::~FileSystem ()
+FileSystem::~FileSystem()
 {
   XrdSysMutexHelper cLock(mConstructorLock);
+
   // remove the shared hash of this file system
-  if (mSom)
-  {
+  if (mSom) {
     mSom->DeleteSharedHash(mQueuePath.c_str(), BroadCastDeletion);
   }
 
-  if (mDrainQueue)
+  if (mDrainQueue) {
     delete mDrainQueue;
-  if (mBalanceQueue)
+  }
+
+  if (mBalanceQueue) {
     delete mBalanceQueue;
-  if (mExternQueue)
+  }
+
+  if (mExternQueue) {
     delete mExternQueue;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return the given status as a string
- * 
+ *
  * @param status status to convert into a string
- * 
+ *
  * @return string representation of status
  */
 
 /*----------------------------------------------------------------------------*/
 const char*
-FileSystem::GetStatusAsString (int status)
+FileSystem::GetStatusAsString(int status)
 {
-  if (status == kDown) return "down";
-  if (status == kOpsError) return "opserror";
-  if (status == kBootFailure) return "bootfailure";
-  if (status == kBootSent) return "bootsent";
-  if (status == kBooting) return "booting";
-  if (status == kBooted) return "booted";
+  if (status == kDown) {
+    return "down";
+  }
+
+  if (status == kOpsError) {
+    return "opserror";
+  }
+
+  if (status == kBootFailure) {
+    return "bootfailure";
+  }
+
+  if (status == kBootSent) {
+    return "bootsent";
+  }
+
+  if (status == kBooting) {
+    return "booting";
+  }
+
+  if (status == kBooted) {
+    return "booted";
+  }
+
   return "unknown";
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return given drain status as a string
- * 
+ *
  * @param status drain status to convert into a string
- * 
+ *
  * @return string representation of drain status
  */
 
 /*----------------------------------------------------------------------------*/
 const char*
-FileSystem::GetDrainStatusAsString (int status)
+FileSystem::GetDrainStatusAsString(int status)
 {
-  if (status == kNoDrain) return "nodrain";
-  if (status == kDrainPrepare) return "prepare";
-  if (status == kDrainWait) return "waiting";
-  if (status == kDraining) return "draining";
-  if (status == kDrained) return "drained";
-  if (status == kDrainStalling) return "stalling";
-  if (status == kDrainExpired) return "expired";
-  if (status == kDrainLostFiles) return "lostfiles";
+  if (status == kNoDrain) {
+    return "nodrain";
+  }
+
+  if (status == kDrainPrepare) {
+    return "prepare";
+  }
+
+  if (status == kDrainWait) {
+    return "waiting";
+  }
+
+  if (status == kDraining) {
+    return "draining";
+  }
+
+  if (status == kDrained) {
+    return "drained";
+  }
+
+  if (status == kDrainStalling) {
+    return "stalling";
+  }
+
+  if (status == kDrainExpired) {
+    return "expired";
+  }
+
+  if (status == kDrainLostFiles) {
+    return "lostfiles";
+  }
+
   return "unknown";
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return given configuration status as a string
- * 
+ *
  * @param status configuration status
- * 
+ *
  * @return string representation of configuration status
  */
 
 /*----------------------------------------------------------------------------*/
 const char*
-FileSystem::GetConfigStatusAsString (int status)
+FileSystem::GetConfigStatusAsString(int status)
 {
-  if (status == kUnknown) return "unknown";
-  if (status == kOff) return "off";
-  if (status == kEmpty) return "empty";
-  if (status == kDrainDead) return "draindead";
-  if (status == kDrain) return "drain";
-  if (status == kRO) return "ro";
-  if (status == kWO) return "wo";
-  if (status == kRW) return "rw";
+  if (status == kUnknown) {
+    return "unknown";
+  }
+
+  if (status == kOff) {
+    return "off";
+  }
+
+  if (status == kEmpty) {
+    return "empty";
+  }
+
+  if (status == kDrainDead) {
+    return "draindead";
+  }
+
+  if (status == kDrain) {
+    return "drain";
+  }
+
+  if (status == kRO) {
+    return "ro";
+  }
+
+  if (status == kWO) {
+    return "wo";
+  }
+
+  if (status == kRW) {
+    return "rw";
+  }
+
   return "unknown";
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Get the status from a string representation
- * 
+ *
  * @param ss string representation of status
- * 
+ *
  * @return status as int
  */
 
 /*----------------------------------------------------------------------------*/
 int
-FileSystem::GetStatusFromString (const char* ss)
+FileSystem::GetStatusFromString(const char* ss)
 {
-  if (!ss)
+  if (!ss) {
     return kDown;
+  }
 
-  if (!strcmp(ss, "down")) return kDown;
-  if (!strcmp(ss, "opserror")) return kOpsError;
-  if (!strcmp(ss, "bootfailure")) return kBootFailure;
-  if (!strcmp(ss, "bootsent")) return kBootSent;
-  if (!strcmp(ss, "booting")) return kBooting;
-  if (!strcmp(ss, "booted")) return kBooted;
+  if (!strcmp(ss, "down")) {
+    return kDown;
+  }
+
+  if (!strcmp(ss, "opserror")) {
+    return kOpsError;
+  }
+
+  if (!strcmp(ss, "bootfailure")) {
+    return kBootFailure;
+  }
+
+  if (!strcmp(ss, "bootsent")) {
+    return kBootSent;
+  }
+
+  if (!strcmp(ss, "booting")) {
+    return kBooting;
+  }
+
+  if (!strcmp(ss, "booted")) {
+    return kBooted;
+  }
+
   return kDown;
 }
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return configuration status from a string representation
- * 
+ *
  * @param ss string representation of configuration status
- * 
+ *
  * @return configuration status as int
  */
 
 /*----------------------------------------------------------------------------*/
 int
-FileSystem::GetConfigStatusFromString (const char* ss)
+FileSystem::GetConfigStatusFromString(const char* ss)
 {
-  if (!ss)
+  if (!ss) {
     return kDown;
+  }
 
-  if (!strcmp(ss, "unknown")) return kUnknown;
-  if (!strcmp(ss, "off")) return kOff;
-  if (!strcmp(ss, "empty")) return kEmpty;
-  if (!strcmp(ss, "draindead")) return kDrainDead;
-  if (!strcmp(ss, "drain")) return kDrain;
-  if (!strcmp(ss, "ro")) return kRO;
-  if (!strcmp(ss, "wo")) return kWO;
-  if (!strcmp(ss, "rw")) return kRW;
+  if (!strcmp(ss, "unknown")) {
+    return kUnknown;
+  }
+
+  if (!strcmp(ss, "off")) {
+    return kOff;
+  }
+
+  if (!strcmp(ss, "empty")) {
+    return kEmpty;
+  }
+
+  if (!strcmp(ss, "draindead")) {
+    return kDrainDead;
+  }
+
+  if (!strcmp(ss, "drain")) {
+    return kDrain;
+  }
+
+  if (!strcmp(ss, "ro")) {
+    return kRO;
+  }
+
+  if (!strcmp(ss, "wo")) {
+    return kWO;
+  }
+
+  if (!strcmp(ss, "rw")) {
+    return kRW;
+  }
+
   return kUnknown;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return drains status from string representation
- * 
+ *
  * @param ss string representation of drain status
- * 
+ *
  * @return drain status as int
  */
 
 /*----------------------------------------------------------------------------*/
 int
-FileSystem::GetDrainStatusFromString (const char* ss)
+FileSystem::GetDrainStatusFromString(const char* ss)
 {
-  if (!ss)
+  if (!ss) {
     return kNoDrain;
+  }
 
-  if (!strcmp(ss, "nodrain")) return kNoDrain;
-  if (!strcmp(ss, "prepare")) return kDrainPrepare;
-  if (!strcmp(ss, "wait")) return kDrainWait;
-  if (!strcmp(ss, "draining"))return kDraining;
-  if (!strcmp(ss, "stalling"))return kDrainStalling;
-  if (!strcmp(ss, "drained")) return kDrained;
-  if (!strcmp(ss, "expired")) return kDrainExpired;
-  if (!strcmp(ss, "lostfiles")) return kDrainLostFiles;
+  if (!strcmp(ss, "nodrain")) {
+    return kNoDrain;
+  }
+
+  if (!strcmp(ss, "prepare")) {
+    return kDrainPrepare;
+  }
+
+  if (!strcmp(ss, "wait")) {
+    return kDrainWait;
+  }
+
+  if (!strcmp(ss, "draining")) {
+    return kDraining;
+  }
+
+  if (!strcmp(ss, "stalling")) {
+    return kDrainStalling;
+  }
+
+  if (!strcmp(ss, "drained")) {
+    return kDrained;
+  }
+
+  if (!strcmp(ss, "expired")) {
+    return kDrainExpired;
+  }
+
+  if (!strcmp(ss, "lostfiles")) {
+    return kDrainLostFiles;
+  }
 
   return kNoDrain;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return active status from a string representation
- * 
+ *
  * @param ss string representation of active status
- * 
+ *
  * @return active status as fsactive_t
  */
 
 /*----------------------------------------------------------------------------*/
 FileSystem::fsactive_t
-FileSystem::GetActiveStatusFromString (const char* ss)
+FileSystem::GetActiveStatusFromString(const char* ss)
 {
-  if (!ss)
+  if (!ss) {
     return kOffline;
-  if (!strcmp(ss, "online")) return kOnline;
-  if (!strcmp(ss, "offline")) return kOffline;
+  }
+
+  if (!strcmp(ss, "online")) {
+    return kOnline;
+  }
+
+  if (!strcmp(ss, "offline")) {
+    return kOffline;
+  }
+
   return kOffline;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Return boot request string
- * 
- * 
+ *
+ *
  * @return boot request string
  */
 
 /*----------------------------------------------------------------------------*/
 const char*
-FileSystem::GetAutoBootRequestString ()
+FileSystem::GetAutoBootRequestString()
 {
   return "mgm.cmd=bootreq";
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
- * Return register request string 
- * 
- * 
+/**
+ * Return register request string
+ *
+ *
  * @return register request string
  */
 
 /*----------------------------------------------------------------------------*/
 const char*
-FileSystem::GetRegisterRequestString ()
+FileSystem::GetRegisterRequestString()
 {
   return "mgm.cmd=register";
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Store a configuration key-val pair. Internally these keys are prefixed with 'stat.'
- * 
+ *
  * @param key key string
  * @param val value string
  */
 
 /*----------------------------------------------------------------------------*/
 void
-FileSystem::CreateConfig (std::string &key, std::string &val)
+FileSystem::CreateConfig(std::string& key, std::string& val)
 {
   key = val = "";
   fs_snapshot_t fs;
-
   XrdMqRWMutexReadLock lock(mSom->HashMutex);
-
   key = mQueuePath;
   val = mHash->StoreAsString("stat.");
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Snapshots all variables of a filesystem into a snapsthot struct
- * 
- * @param fs Snapshot struct to be filled 
+ *
+ * @param fs Snapshot struct to be filled
  * @param dolock Indicates if the shared hash representing the filesystme has to be locked or not
- * 
+ *
  * @return true if successful - false
  */
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
+FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
 {
-  if (dolock)
-  {
+  if (dolock) {
     mSom->HashMutex.LockRead();
   }
-  if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash")))
-  {
+
+  if ((mHash = mSom->GetObject(mQueuePath.c_str(), "hash"))) {
     fs.mId = (fsid_t) mHash->GetUInt("id");
     fs.mQueue = mQueue;
     fs.mQueuePath = mQueuePath;
@@ -435,28 +580,37 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mUuid = mHash->Get("uuid");
     fs.mHost = mHash->Get("host");
     fs.mHostPort = mHash->Get("hostport");
-    fs.mPort = mHash->Get("port");
+    fs.mProxyGroup = mHash->Get("proxygroup");
+    fs.mFileStickyProxyDepth = -1;
 
+    if (mHash->Get("filestickyproxydepth").size()) {
+      fs.mFileStickyProxyDepth = mHash->GetLongLong("filestickyproxydepth");
+    }
+
+    fs.mPort = mHash->Get("port");
     std::string::size_type dpos = 0;
-    if ((dpos = fs.mGroup.find(".")) != std::string::npos)
-    {
+
+    if ((dpos = fs.mGroup.find(".")) != std::string::npos) {
       std::string s = fs.mGroup;
       s.erase(0, dpos + 1);
       fs.mGroupIndex = atoi(s.c_str());
-    }
-    else
-    {
+    } else {
       fs.mGroupIndex = 0;
     }
+
     fs.mSpace = fs.mGroup;
-    if (dpos != std::string::npos)
+
+    if (dpos != std::string::npos) {
       fs.mSpace.erase(dpos);
+    }
+
     fs.mPath = mPath;
     fs.mErrMsg = mHash->Get("stat.errmsg");
     fs.mGeoTag = mHash->Get("stat.geotag");
     fs.mPublishTimestamp = (size_t)mHash->GetLongLong("stat.publishtimestamp");
     fs.mStatus = GetStatusFromString(mHash->Get("stat.boot").c_str());
-    fs.mConfigStatus = GetConfigStatusFromString(mHash->Get("configstatus").c_str());
+    fs.mConfigStatus = GetConfigStatusFromString(
+                         mHash->Get("configstatus").c_str());
     fs.mDrainStatus = GetDrainStatusFromString(mHash->Get("stat.drain").c_str());
     fs.mActiveStatus = GetActiveStatusFromString(mHash->Get("stat.active").c_str());
     fs.mHeadRoom = mHash->GetLongLong("headroom");
@@ -483,32 +637,28 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mDiskFused = (long) mHash->GetLongLong("stat.statfs.fused");
     fs.mDiskFilled = (double) mHash->GetDouble("stat.statfs.filled");
     fs.mNominalFilled = (double) mHash->GetDouble("stat.nominal.filled");
-
     fs.mFiles = (long) mHash->GetLongLong("stat.usedfiles");
     fs.mDiskNameLen = (long) mHash->GetLongLong("stat.statfs.namelen");
     fs.mDiskRopen = (long) mHash->GetLongLong("stat.ropen");
     fs.mDiskWopen = (long) mHash->GetLongLong("stat.wopen");
     fs.mWeightRead = 1.0;
     fs.mWeightWrite = 1.0;
-
     fs.mScanInterval = (time_t) mHash->GetLongLong("scaninterval");
     fs.mGracePeriod = (time_t) mHash->GetLongLong("graceperiod");
     fs.mDrainPeriod = (time_t) mHash->GetLongLong("drainperiod");
     fs.mDrainerOn   = (mHash->Get("stat.drainer") == "on");
     fs.mBalThresh   = mHash->GetDouble("stat.balance.threshold");
 
-    if (dolock)
-    {
+    if (dolock) {
       mSom->HashMutex.UnLockRead();
     }
+
     return true;
-  }
-  else
-  {
-    if (dolock)
-    {
+  } else {
+    if (dolock) {
       mSom->HashMutex.UnLockRead();
     }
+
     fs.mId = 0;
     fs.mQueue = "";
     fs.mQueuePath = "";
@@ -517,9 +667,11 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
     fs.mUuid = "";
     fs.mHost = "";
     fs.mHostPort = "";
+    fs.mProxyGroup = "";
+    fs.mFileStickyProxyDepth = -1;
     fs.mPort = "";
     fs.mErrMsg = "";
-    fs.mGeoTag ="";
+    fs.mGeoTag = "";
     fs.mPublishTimestamp = 0;
     fs.mStatus = 0;
     fs.mConfigStatus = 0;
@@ -555,21 +707,80 @@ FileSystem::SnapShotFileSystem (FileSystem::fs_snapshot_t &fs, bool dolock)
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
+ * Snapshots all variables of a filesystem into a snapsthot struct
+ *
+ * @param fs Snapshot struct to be filled
+ * @param dolock Indicates if the shared hash representing the filesystme has to be locked or not
+ *
+ * @return true if successful - false
+ */
+
+/*----------------------------------------------------------------------------*/
+bool
+FileSystem::SnapShotHost(XrdMqSharedObjectManager* som,
+                         const std::string& queue, FileSystem::host_snapshot_t& host, bool dolock)
+{
+  if (dolock) {
+    som->HashMutex.LockRead();
+  }
+
+  XrdMqSharedHash* hash = NULL;
+
+  if ((hash = som->GetObject(queue.c_str(), "hash"))) {
+    host.mQueue = queue;
+    host.mHost        = hash->Get("stat.host");
+    host.mHostPort      = hash->Get("stat.hostport");
+    host.mGeoTag        = hash->Get("stat.geotag");
+    host.mPublishTimestamp = hash->GetLongLong("stat.publishtimestamp");
+    host.mActiveStatus = GetActiveStatusFromString(
+                           hash->Get("stat.active").c_str());
+    host.mNetEthRateMiB = hash->GetDouble("stat.net.ethratemib");
+    host.mNetInRateMiB  = hash->GetDouble("stat.net.inratemib");
+    host.mNetOutRateMiB = hash->GetDouble("stat.net.outratemib");
+    host.mGopen = hash->GetLongLong("stat.dataproxy.gopen");
+
+    if (dolock) {
+      som->HashMutex.UnLockRead();
+    }
+
+    return true;
+  } else {
+    if (dolock) {
+      som->HashMutex.UnLockRead();
+    }
+
+    host.mQueue = queue;
+    host.mHost = "";
+    host.mHostPort = "";
+    host.mGeoTag        = "";
+    host.mPublishTimestamp = 0;
+    host.mActiveStatus = kOffline;
+    host.mNetEthRateMiB = 0;
+    host.mNetInRateMiB  = 0;
+    host.mNetOutRateMiB = 0;
+    host.mGopen = 0;
+    return false;
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/**
  * Store a given statfs struct into the hash representation
- * 
+ *
  * @param statfs struct to read
- * 
+ *
  * @return true if successful otherwise false
  *
  */
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::SetStatfs (struct statfs* statfs)
+FileSystem::SetStatfs(struct statfs* statfs)
 {
-  if (!statfs)
+  if (!statfs) {
     return false;
+  }
 
   bool success = true;
   success &= SetLongLong("stat.statfs.type", statfs->f_type);
@@ -579,67 +790,64 @@ FileSystem::SetStatfs (struct statfs* statfs)
   success &= SetLongLong("stat.statfs.bavail", statfs->f_bavail);
   success &= SetLongLong("stat.statfs.files", statfs->f_files);
   success &= SetLongLong("stat.statfs.ffree", statfs->f_ffree);
-
 #ifdef __APPLE__
   success &= SetLongLong("stat.statfs.namelen", MNAMELEN);
 #else
   success &= SetLongLong("stat.statfs.namelen", statfs->f_namelen);
 #endif
-
   return success;
 }
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Try if one can reserve <bookingspace> in this filesystem.
- * 
+ *
  * @param fs Snapshot of the filesystem.
  * @param bookingsize Size to be reserved
- * 
+ *
  * @return true if there is enough space - false if not
  */
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::ReserveSpace (fs_snapshot_t &fs, unsigned long long bookingsize)
+FileSystem::ReserveSpace(fs_snapshot_t& fs, unsigned long long bookingsize)
 {
   long long headroom = fs.mHeadRoom;
   long long freebytes = fs.mDiskFreeBytes;
   long long prebooked = GetPrebookedSpace();
 
   // guarantee that we don't overbook the filesystem and we keep <headroom> free
-  if ((unsigned long long) (freebytes - prebooked) > ((unsigned long long) headroom + bookingsize))
-  {
+  if ((unsigned long long)(freebytes - prebooked) > ((unsigned long long) headroom
+      + bookingsize)) {
     // there is enough space
     return true;
-  }
-  else
-  {
+  } else {
     return false;
   }
 }
 
 
 /*----------------------------------------------------------------------------*/
-/** 
+/**
  * Check if the filesystem has a valid heartbeat
- * 
+ *
  * @param fs Snapshot of the filesystem
- * 
+ *
  * @return true if filesystem got a heartbeat during the last 300 seconds - otherwise false
  */
 
 /*----------------------------------------------------------------------------*/
 bool
-FileSystem::HasHeartBeat (fs_snapshot_t &fs)
+FileSystem::HasHeartBeat(fs_snapshot_t& fs)
 {
   time_t now = time(NULL);
   time_t hb = fs.mHeartBeatTime;
-  if ((now - hb) < 60)
-  {
+
+  if ((now - hb) < 60) {
     // we allow some time drift plus overload delay of 60 seconds
     return true;
   }
+
   return false;
 }
 

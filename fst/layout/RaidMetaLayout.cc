@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 // File: RaidMetaLayout.cc
-// Author Elvin-Alin Sindrilaru <esindril@cern.ch> 
+// Author Elvin-Alin Sindrilaru <esindril@cern.ch>
 //------------------------------------------------------------------------------
 
 /************************************************************************
@@ -41,358 +41,322 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-RaidMetaLayout::RaidMetaLayout (XrdFstOfsFile* file,
-                                unsigned long lid,
-                                const XrdSecEntity* client,
-                                XrdOucErrInfo* outError,
-                                eos::common::LayoutId::eIoType io,
-                                uint16_t timeout,
-                                bool storeRecovery,
-                                off_t targetSize,
-                                std::string bookingOpaque) :
-Layout (file, lid, client, outError, io, timeout),
-mIsRw (false),
-mIsOpen (false),
-mIsPio (false),
-mDoTruncate (false),
-mUpdateHeader (false),
-mDoneRecovery (false),
-mFullDataBlocks (false),
-mIsStreaming (true),
-mStoreRecovery (storeRecovery),
-mLastWriteOffset( 0 ),
-mTargetSize (targetSize),
-mBookingOpaque (bookingOpaque)
+RaidMetaLayout::RaidMetaLayout(XrdFstOfsFile* file,
+                               unsigned long lid,
+                               const XrdSecEntity* client,
+                               XrdOucErrInfo* outError,
+                               const char* path,
+                               uint16_t timeout,
+                               bool storeRecovery,
+                               off_t targetSize,
+                               std::string bookingOpaque) :
+  Layout(file, lid, client, outError, path, timeout),
+  mIsRw(false),
+  mIsOpen(false),
+  mIsPio(false),
+  mDoTruncate(false),
+  mUpdateHeader(false),
+  mDoneRecovery(false),
+  mFullDataBlocks(false),
+  mIsStreaming(true),
+  mStoreRecovery(storeRecovery),
+  mLastWriteOffset(0),
+  mTargetSize(targetSize),
+  mBookingOpaque(bookingOpaque)
 {
- mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
- mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1;
- mNbParityFiles = eos::common::LayoutId::GetRedundancyStripeNumber(lid);
- mNbDataFiles = mNbTotalFiles - mNbParityFiles;
- mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
- mOffGroupParity = -1;
- mPhysicalStripeIndex = -1;
- mIsEntryServer = false;
+  mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
+  mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1;
+  mNbParityFiles = eos::common::LayoutId::GetRedundancyStripeNumber(lid);
+  mNbDataFiles = mNbTotalFiles - mNbParityFiles;
+  mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
+  mOffGroupParity = -1;
+  mPhysicalStripeIndex = -1;
+  mIsEntryServer = false;
 }
 
 
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-RaidMetaLayout::~RaidMetaLayout ()
+RaidMetaLayout::~RaidMetaLayout()
 {
- while (!mHdrInfo.empty())
- {
-   HeaderCRC* hd = mHdrInfo.back();
-   mHdrInfo.pop_back();
-   delete hd;
- }
+  while (!mHdrInfo.empty()) {
+    HeaderCRC* hd = mHdrInfo.back();
+    mHdrInfo.pop_back();
+    delete hd;
+  }
 
- while (!mStripe.empty())
- {
-   FileIo* file = mStripe.back();
-   mStripe.pop_back();
-   delete file;
- }
+  while (!mStripe.empty()) {
+    FileIo* file = mStripe.back();
+    mStripe.pop_back();
 
- while (!mDataBlocks.empty())
- {
-   char* ptr_char = mDataBlocks.back();
-   mDataBlocks.pop_back();
-   delete[] ptr_char;
- }
+    if (file == mFileIO) {
+      mFileIO = NULL;
+    }
+
+    delete file;
+  }
+
+  while (!mDataBlocks.empty()) {
+    char* ptr_char = mDataBlocks.back();
+    mDataBlocks.pop_back();
+    delete[] ptr_char;
+  }
 }
 
+//------------------------------------------------------------------------------
+// Redirect to new target
+//------------------------------------------------------------------------------
+void RaidMetaLayout::Redirect(const char* path)
+{
+  if (mFileIO) {
+    delete mFileIO;
+  }
+
+  mFileIO = FileIoPlugin::GetIoObject(path, mOfsFile, mSecEntity);
+}
 
 //------------------------------------------------------------------------------
 // Open file layout
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Open (const std::string& path,
-                      XrdSfsFileOpenMode flags,
-                      mode_t mode,
-                      const char* opaque)
+RaidMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
 
 {
- // Do some minimal checkups
- if (mNbTotalFiles < 2)
- {
-   eos_err("failed open layout - stripe size at least 2");
-   return SFS_ERROR;
- }
+// Do some minimal checkups
+  if (mNbTotalFiles < 2) {
+    eos_err("failed open layout - stripe size at least 2");
+    return SFS_ERROR;
+  }
 
- if (mStripeWidth < 64)
- {
-   eos_err("failed open layout - stripe width at least 64");
-   return SFS_ERROR;
- }
+  if (mStripeWidth < 64) {
+    eos_err("failed open layout - stripe width at least 64");
+    return SFS_ERROR;
+  }
 
- // Get the index of the current stripe
- const char* index = mOfsFile->openOpaque->Get("mgm.replicaindex");
+// Get the index of the current stripe
+  const char* index = mOfsFile->openOpaque->Get("mgm.replicaindex");
 
- if (index)
- {
-   mPhysicalStripeIndex = atoi(index);
+  if (index) {
+    mPhysicalStripeIndex = atoi(index);
 
-   if ((mPhysicalStripeIndex < 0) ||
-       (mPhysicalStripeIndex > eos::common::LayoutId::kSixteenStripe))
-   {
-     eos_err("illegal stripe index %d", mPhysicalStripeIndex);
-     errno = EINVAL;
-     return SFS_ERROR;
-   }
- }
+    if ((mPhysicalStripeIndex < 0) ||
+        (mPhysicalStripeIndex > eos::common::LayoutId::kSixteenStripe)) {
+      eos_err("illegal stripe index %d", mPhysicalStripeIndex);
+      errno = EINVAL;
+      return SFS_ERROR;
+    }
+  }
 
- // Get the index of the head stripe
- const char* head = mOfsFile->openOpaque->Get("mgm.replicahead");
+// Get the index of the head stripe
+  const char* head = mOfsFile->openOpaque->Get("mgm.replicahead");
 
- if (head)
- {
-   mStripeHead = atoi(head);
+  if (head) {
+    mStripeHead = atoi(head);
 
-   if ((mStripeHead < 0) ||
-       (mStripeHead > eos::common::LayoutId::kSixteenStripe))
-   {
-     eos_err("illegal stripe head %d", mStripeHead);
-     errno = EINVAL;
-     return SFS_ERROR;
-   }
- }
- else
- {
-   eos_err("stripe head missing");
-   errno = EINVAL;
-   return SFS_ERROR;
- }
+    if ((mStripeHead < 0) ||
+        (mStripeHead > eos::common::LayoutId::kSixteenStripe)) {
+      eos_err("illegal stripe head %d", mStripeHead);
+      errno = EINVAL;
+      return SFS_ERROR;
+    }
+  } else {
+    eos_err("stripe head missing");
+    errno = EINVAL;
+    return SFS_ERROR;
+  }
 
- // Add opaque information to enable readahead
- XrdOucString enhanced_opaque = opaque;
- enhanced_opaque += "&fst.readahead=true";
- enhanced_opaque += "&fst.blocksize=";
- enhanced_opaque += static_cast<int> (mStripeWidth);
+// Add opaque information to enable readahead
+  XrdOucString enhanced_opaque = opaque;
+  enhanced_opaque += "&fst.readahead=true";
+  enhanced_opaque += "&fst.blocksize=";
+  enhanced_opaque += static_cast<int>(mStripeWidth);
 
- // Do open on local stripe - force it in RDWR mode if store recovery enabled
- mLocalPath = path;
- FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kLocal,
-                                          mOfsFile, mSecEntity);
+// evt. mark an IO module as talking to external storage
+  if ((mFileIO->GetIoType() != "LocalIo")) {
+    mFileIO->SetExternalStorage();
+  }
 
- // When recovery enabled we open the files in RDWR mode
- if (mStoreRecovery)
- {
-   flags = SFS_O_RDWR;
-   mIsRw = true;
- }
- else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))
- {
-   mStoreRecovery = true;
-   mIsRw = true;
-   flags |= (SFS_O_RDWR | SFS_O_TRUNC);
- }
+// When recovery enabled we open the files in RDWR mode
+  if (mStoreRecovery) {
+    flags = SFS_O_RDWR;
+    mIsRw = true;
+  } else if (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)) {
+    mStoreRecovery = true;
+    mIsRw = true;
+    flags |= (SFS_O_RDWR | SFS_O_TRUNC);
+  }
 
- eos_debug("open_mode=%x truncate=%d", flags, ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead) )?1:0));
- 
- // the local stripe is expected to be reconstructed in a recovery on the gateway server, since it might exist it is truncated
- if (file && file->Open(path, flags | ((mStoreRecovery && (mPhysicalStripeIndex == mStripeHead) ) ? SFS_O_TRUNC : 0), mode, enhanced_opaque.c_str(), mTimeout) )
- {
-   if (file->Open(path, flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() , mTimeout ) )
-   {
-     eos_err("error=failed to open local ", path.c_str());
-     errno = EIO;
-     mLastErrMsg = file->GetLastErrMsg();
-     delete file;
-     file = 0;
-     return SFS_ERROR;
-   }
- }
-   
- // Local stripe is always on the first position
- if (!mStripe.empty())
- {
-   eos_err("vector of stripe files is not empty ");
-   errno = EIO;
-   return SFS_ERROR;
- }
+  eos_debug("open_mode=%x truncate=%d", flags, ((mStoreRecovery &&
+            (mPhysicalStripeIndex == mStripeHead)) ? 1 : 0));
 
- mStripe.push_back(file);
- mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+// the local stripe is expected to be reconstructed in a recovery on the gateway server, since it might exist it is truncated
+  if (mFileIO && mFileIO->fileOpen(flags | ((mStoreRecovery &&
+                                   (mPhysicalStripeIndex == mStripeHead)) ? SFS_O_TRUNC : 0), mode,
+                                   enhanced_opaque.c_str(), mTimeout)) {
+    if (mFileIO->fileOpen(flags | SFS_O_CREAT, mode, enhanced_opaque.c_str() ,
+                          mTimeout)) {
+      eos_err("error=failed to open local ", mFileIO->GetPath().c_str());
+      errno = EIO;
+      return SFS_ERROR;
+    }
+  }
 
- // Read header information for the local file
- HeaderCRC* hd = mHdrInfo.back();
- file = mStripe.back();
+// Local stripe is always on the first position
+  if (!mStripe.empty()) {
+    eos_err("vector of stripe files is not empty ");
+    errno = EIO;
+    return SFS_ERROR;
+  }
 
- if (file && !hd->ReadFromFile(file, mTimeout))
-   eos_warning("reading header failed for local stripe - will try to recover");
- 
- // Operations done only by the entry server
- if (mPhysicalStripeIndex == mStripeHead)
- {
-   int nmissing = 0;
-   std::vector<std::string> stripe_urls;
-   mIsEntryServer = true;
+  mStripe.push_back(mFileIO);
+  mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+// Read header information for the local file
+  HeaderCRC* hd = mHdrInfo.back();
 
-   // Allocate memory for blocks - used only by the entry server
-   for (unsigned int i = 0; i < mNbTotalBlocks; i++)
-   {
-     mDataBlocks.push_back(new char[mStripeWidth]);
-   }
-   
-   // Assign stripe urls and check minimal requirements
-   for (unsigned int i = 0; i < mNbTotalFiles; i++)
-   {
-     XrdOucString stripetag = "mgm.url";
-     stripetag += static_cast<int> (i);
-     const char* stripe = mOfsFile->capOpaque->Get(stripetag.c_str());
+  if (!hd->ReadFromFile(mFileIO, mTimeout)) {
+    eos_warning("reading header failed for local stripe - will try to recover");
+  }
 
-     if ((mOfsFile->isRW && (!stripe)) ||
-         ((nmissing > 0) && (!stripe)))
-     {
-       eos_err("failed to open stripe - missing url for %s", stripetag.c_str());
-       errno = EINVAL;
-       return SFS_ERROR;
-     }
+// Operations done only by the entry server
+  if (mPhysicalStripeIndex == mStripeHead) {
+    int nmissing = 0;
+    std::vector<std::string> stripe_urls;
+    mIsEntryServer = true;
 
-     if (!stripe)
-     {
-       nmissing++;
-       stripe_urls.push_back("");
-     }
-     else
-     {
-       stripe_urls.push_back(stripe);
-     }
-   }
+    // Allocate memory for blocks - used only by the entry server
+    for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
+      mDataBlocks.push_back(new char[mStripeWidth]);
+    }
 
-   if (nmissing)
-   {
-     eos_err("failed to open RaidMetaLayout - stripes are missing");
-     errno = EREMOTEIO;
-     return SFS_ERROR;
-   }
+    // Assign stripe urls and check minimal requirements
+    for (unsigned int i = 0; i < mNbTotalFiles; i++) {
+      XrdOucString stripetag = "mgm.url";
+      stripetag += static_cast<int>(i);
+      const char* stripe = mOfsFile->capOpaque->Get(stripetag.c_str());
 
-   // Open remote stripes
-   for (unsigned int i = 0; i < stripe_urls.size(); i++)
-   {
-     if (i != (unsigned int) mPhysicalStripeIndex)
-     {
-       eos_info("Open remote stipe i=%i ", i);
-       int envlen;
-       const char* val;
-       XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
-       XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
-       stripe_urls[i] += remoteOpenPath.c_str();
-       stripe_urls[i] += "?";
+      if ((mOfsFile->isRW && (!stripe)) ||
+          ((nmissing > 0) && (!stripe))) {
+        eos_err("failed to open stripe - missing url for %s", stripetag.c_str());
+        errno = EINVAL;
+        return SFS_ERROR;
+      }
 
-       // Create the opaque information for the next stripe file
-       if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex")))
-       {
-         XrdOucString oldindex = "mgm.replicaindex=";
-         XrdOucString newindex = "mgm.replicaindex=";
-         oldindex += val;
-         newindex += static_cast<int> (i);
-         remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
-       }
-       else
-       {
-         remoteOpenOpaque += "&mgm.replicaindex=";
-         remoteOpenOpaque += static_cast<int> (i);
-       }
-       
-       // if (mStoreRecovery)
-       //   remoteOpenOpaque += "&fst.store=1";
+      if (!stripe) {
+        nmissing++;
+        stripe_urls.push_back("");
+      } else {
+        stripe_urls.push_back(stripe);
+      }
+    }
 
-       stripe_urls[i] += remoteOpenOpaque.c_str();
-       int ret = -1;
-       FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl,
-                                                mOfsFile, mSecEntity);
+    if (nmissing) {
+      eos_err("failed to open RaidMetaLayout - stripes are missing");
+      errno = EREMOTEIO;
+      return SFS_ERROR;
+    }
 
-       // Set the correct open flags for the stripe
-       if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY)))
-       {
-         mIsRw = true;
-         eos_debug( "Write case with flags:%x.", flags);
-       }
-       else
-       {
-         mode = 0;
-         eos_debug("Read case with flags=%x.", flags);
-       }
+    // Open remote stripes
+    for (unsigned int i = 0; i < stripe_urls.size(); i++) {
+      if (i != (unsigned int) mPhysicalStripeIndex) {
+        eos_info("Open remote stipe i=%i ", i);
+        int envlen;
+        const char* val;
+        XrdOucString remoteOpenOpaque = mOfsFile->openOpaque->Env(envlen);
+        XrdOucString remoteOpenPath = mOfsFile->openOpaque->Get("mgm.path");
+        stripe_urls[i] += remoteOpenPath.c_str();
+        stripe_urls[i] += "?";
 
-       // Doing the actual open
-       ret = file->Open(stripe_urls[i], flags, mode, enhanced_opaque.c_str(), mTimeout);
+        // Create the opaque information for the next stripe file
+        if ((val = mOfsFile->openOpaque->Get("mgm.replicaindex"))) {
+          XrdOucString oldindex = "mgm.replicaindex=";
+          XrdOucString newindex = "mgm.replicaindex=";
+          oldindex += val;
+          newindex += static_cast<int>(i);
+          remoteOpenOpaque.replace(oldindex.c_str(), newindex.c_str());
+        } else {
+          remoteOpenOpaque += "&mgm.replicaindex=";
+          remoteOpenOpaque += static_cast<int>(i);
+        }
 
-       if (ret == SFS_ERROR)
-       {
-         eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
-         mLastErrMsg = file->GetLastErrMsg();
-         delete file;
-         file = NULL;
-       }
-       else
-       {
-         mLastUrl = file->GetLastUrl();
-       }
+        // if (mStoreRecovery)
+        //   remoteOpenOpaque += "&fst.store=1";
+        stripe_urls[i] += remoteOpenOpaque.c_str();
+        int ret = -1;
+        FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i].c_str(), mOfsFile,
+                       mSecEntity);
 
-       mStripe.push_back(file);
-       mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+        // Set the correct open flags for the stripe
+        if (mStoreRecovery || (flags & (SFS_O_RDWR | SFS_O_TRUNC | SFS_O_WRONLY))) {
+          mIsRw = true;
+          eos_debug("Write case with flags:%x.", flags);
+        } else {
+          mode = 0;
+          eos_debug("Read case with flags=%x.", flags);
+        }
 
-       // Read header information for remote files
-       hd = mHdrInfo.back();
-       file = mStripe.back();
-       
-       if (file && !hd->ReadFromFile(file, mTimeout))
-       {
-         eos_warning("reading header failed for remote stripe phyid=%i",
-                     mStripe.size() - 1);
-       }
-     }
-   }
+        // Doing the actual open
+        ret = file->fileOpen(flags, mode, enhanced_opaque.c_str(), mTimeout);
 
-   // Consistency checks
-   if (mStripe.size() != mNbTotalFiles)
-   {
-     eos_err("number of files opened is different from the one expected");
-     errno = EIO;
-     return SFS_ERROR;
-   }
+        if (ret == SFS_ERROR) {
+          eos_warning("warning=failed to open remote stripes", stripe_urls[i].c_str());
+          delete file;
+          file = NULL;
+        } else {
+          mLastUrl = file->GetLastUrl();
+        }
 
-   // Only the head node does the validation of the headers
-   if (!ValidateHeader())
-   {
-     eos_err("headers invalid - can not continue");
-     errno = EIO;
-     return SFS_ERROR;
-   }
- }
+        mStripe.push_back(file);
+        mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+        // Read header information for remote files
+        hd = mHdrInfo.back();
+        file = mStripe.back();
 
- // Get file size based on the data stored in the local stripe header
- mFileSize = -1;
+        if (file && !hd->ReadFromFile(file, mTimeout)) {
+          eos_warning("reading header failed for remote stripe phyid=%i",
+                      mStripe.size() - 1);
+        }
+      }
+    }
 
- if (mHdrInfo[0]->IsValid())
- {
-   mFileSize = mHdrInfo[0]->GetSizeFile();
- }
- else
- {
-   // For the entry server we just need to re-read the header as it was
-   // recovered in the above ValidateHeader method. For the rest of the
-   // stripes it doesn't matter if they have or not the correct file size -
-   // anyway we can not recover here :D
-   if (mIsEntryServer)
-   {
-     if (mHdrInfo[0]->IsValid())
-     {
-       mFileSize = mHdrInfo[0]->GetSizeFile();
-     }
-     else
-     {
-       eos_err("the head node can not compute the file size");
-       return SFS_ERROR;
-     }
-   }
- }
+    // Consistency checks
+    if (mStripe.size() != mNbTotalFiles) {
+      eos_err("number of files opened is different from the one expected");
+      errno = EIO;
+      return SFS_ERROR;
+    }
 
- eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
- mIsOpen = true;
- return SFS_OK;
+    // Only the head node does the validation of the headers
+    if (!ValidateHeader()) {
+      eos_err("headers invalid - can not continue");
+      errno = EIO;
+      return SFS_ERROR;
+    }
+  }
+
+// Get file size based on the data stored in the local stripe header
+  mFileSize = -1;
+
+  if (mHdrInfo[0]->IsValid()) {
+    mFileSize = mHdrInfo[0]->GetSizeFile();
+  } else {
+    // For the entry server we just need to re-read the header as it was
+    // recovered in the above ValidateHeader method. For the rest of the
+    // stripes it doesn't matter if they have or not the correct file size -
+    // anyway we can not recover here :D
+    if (mIsEntryServer) {
+      if (mHdrInfo[0]->IsValid()) {
+        mFileSize = mHdrInfo[0]->GetSizeFile();
+      } else {
+        eos_err("the head node can not compute the file size");
+        return SFS_ERROR;
+      }
+    }
+  }
+
+  eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
+  mIsOpen = true;
+  return SFS_OK;
 }
 
 
@@ -400,234 +364,202 @@ RaidMetaLayout::Open (const std::string& path,
 // Open file using paralled IO
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::OpenPio (std::vector<std::string> stripeUrls,
-                         XrdSfsFileOpenMode flags,
-                         mode_t mode,
-                         const char* opaque)
+RaidMetaLayout::OpenPio(std::vector<std::string> stripeUrls,
+                        XrdSfsFileOpenMode flags,
+                        mode_t mode,
+                        const char* opaque)
 
 {
- std::vector<std::string> stripe_urls = stripeUrls;
+  std::vector<std::string> stripe_urls = stripeUrls;
 
- // Do some minimal checkups
- if (mNbTotalFiles < 2)
- {
-   eos_err("failed open layout - stripe size at least 2");
-   return SFS_ERROR;
- }
+// Do some minimal checkups
+  if (mNbTotalFiles < 2) {
+    eos_err("failed open layout - stripe size at least 2");
+    return SFS_ERROR;
+  }
 
- if (mStripeWidth < 64)
- {
-   eos_err("failed open layout - stripe width at least 64");
-   return SFS_ERROR;
- }
+  if (mStripeWidth < 64) {
+    eos_err("failed open layout - stripe width at least 64");
+    return SFS_ERROR;
+  }
 
- // Allocate memory for blocks - done only once
- for (unsigned int i = 0; i < mNbTotalBlocks; i++)
- {
-   mDataBlocks.push_back(new char[mStripeWidth]);
- }
+// Allocate memory for blocks - done only once
+  for (unsigned int i = 0; i < mNbTotalBlocks; i++) {
+    mDataBlocks.push_back(new char[mStripeWidth]);
+  }
 
- //!!!!
- // TODO: allow open only in read only mode
- // Set the correct open flags for the stripe
- if (mStoreRecovery ||
-     (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC)))
- {
-   mIsRw = true;
-   mStoreRecovery = true;
-   eos_debug("Write case");
- }
- else
- {
-   mode = 0;
-   eos_debug("Read case");
- }
+//!!!!
+// TODO: allow open only in read only mode
+// Set the correct open flags for the stripe
+  if (mStoreRecovery ||
+      (flags & (SFS_O_CREAT | SFS_O_WRONLY | SFS_O_RDWR | SFS_O_TRUNC))) {
+    mIsRw = true;
+    mStoreRecovery = true;
+    eos_debug("Write case");
+  } else {
+    mode = 0;
+    eos_debug("Read case");
+  }
 
- // Open stripes
- for (unsigned int i = 0; i < stripe_urls.size(); i++)
- {
-   int ret = -1;
-   FileIo* file = FileIoPlugin::GetIoObject(eos::common::LayoutId::kXrdCl);
-   XrdOucString openOpaque = opaque;
-   openOpaque += "&mgm.replicaindex=";
-   openOpaque += static_cast<int> (i);
-   openOpaque += "&fst.readahead=true";
-   openOpaque += "&fst.blocksize=";
-   openOpaque += static_cast<int> (mStripeWidth);
+// Open stripes
+  for (unsigned int i = 0; i < stripe_urls.size(); i++) {
+    int ret = -1;
+    FileIo* file = FileIoPlugin::GetIoObject(stripe_urls[i]);
+    XrdOucString openOpaque = opaque;
+    openOpaque += "&mgm.replicaindex=";
+    openOpaque += static_cast<int>(i);
+    openOpaque += "&fst.readahead=true";
+    openOpaque += "&fst.blocksize=";
+    openOpaque += static_cast<int>(mStripeWidth);
+    ret = file->fileOpen(flags, mode, openOpaque.c_str());
 
-   ret = file->Open(stripe_urls[i], flags, mode, openOpaque.c_str());
-      
-   if (ret == SFS_ERROR)
-   {
-     eos_err("failed to open remote stripes", stripe_urls[i].c_str());
+    if (ret == SFS_ERROR) {
+      eos_err("failed to open remote stripes", stripe_urls[i].c_str());
 
-     // If flag is SFS_RDWR then we can try to create the file
-     if (flags & SFS_O_RDWR)
-     {
-       XrdSfsFileOpenMode tmp_flags = flags | SFS_O_CREAT;
-       mode_t tmp_mode = mode | SFS_O_CREAT;
-       ret = file->Open(stripe_urls[i], tmp_flags, tmp_mode, openOpaque.c_str());
+      // If flag is SFS_RDWR then we can try to create the file
+      if (flags & SFS_O_RDWR) {
+        XrdSfsFileOpenMode tmp_flags = flags | SFS_O_CREAT;
+        mode_t tmp_mode = mode | SFS_O_CREAT;
+        ret = file->fileOpen(tmp_flags, tmp_mode, openOpaque.c_str());
 
-       if (ret == SFS_ERROR)
-       {
-         eos_err("error=failed to create remote stripes %s", stripe_urls[i].c_str());
-         mLastErrMsg = file->GetLastErrMsg();
-         delete file;
-         file = NULL;
-       }
-     }
-     else
-     {
-       mLastErrMsg = file->GetLastErrMsg();
-       delete file;
-       file = NULL;
-     }
-   }
-   else
-   {
-     mLastUrl = file->GetLastUrl();
-   }
+        if (ret == SFS_ERROR) {
+          eos_err("error=failed to create remote stripes %s", stripe_urls[i].c_str());
+          delete file;
+          file = NULL;
+        }
+      } else {
+        delete file;
+        file = NULL;
+      }
+    } else {
+      mLastUrl = file->GetLastUrl();
+    }
 
-   mStripe.push_back(file);
-   mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+    mStripe.push_back(file);
+    mHdrInfo.push_back(new HeaderCRC(mSizeHeader, mStripeWidth));
+    // Read header information for remote files
+    HeaderCRC* hd = mHdrInfo.back();
+    file = mStripe.back();
 
-   // Read header information for remote files
-   HeaderCRC* hd = mHdrInfo.back();
-   file = mStripe.back();
+    if (file && !hd->ReadFromFile(file, mTimeout)) {
+      eos_err("RAIN header invalid");
+    }
+  }
 
-   if (file && !hd->ReadFromFile(file, mTimeout))
-     eos_err("RAIN header invalid");
- }
+// For PIO if header invalid then we abort
+  if (!ValidateHeader()) {
+    eos_err("headers invalid - can not continue");
+    return SFS_ERROR;
+  }
 
- // For PIO if header invalid then we abort
- if (!ValidateHeader())
- {
-   eos_err("headers invalid - can not continue");
-   return SFS_ERROR;
- }
+// Get the size of the file
+  mFileSize = -1;
 
- // Get the size of the file
- mFileSize = -1;
+  for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
+    if (mHdrInfo[i]->IsValid()) {
+      mFileSize = mHdrInfo[i]->GetSizeFile();
+      break;
+    }
+  }
 
- for (unsigned int i = 0; i < mHdrInfo.size(); i++)
- {
-   if (mHdrInfo[i]->IsValid())
-   {
-     mFileSize = mHdrInfo[i]->GetSizeFile();
-     break;
-   }
- }
-
- eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
- mIsPio = true;
- mIsOpen = true;
- mIsEntryServer = true;
- return SFS_OK;
+  eos_debug("Finished open with size: %lli.", (long long int) mFileSize);
+  mIsPio = true;
+  mIsOpen = true;
+  mIsEntryServer = true;
+  return SFS_OK;
 }
 
 
 //------------------------------------------------------------------------------
 // Test and recover if headers are corrupted
 //------------------------------------------------------------------------------
+
 bool
-RaidMetaLayout::ValidateHeader ()
+RaidMetaLayout::ValidateHeader()
 {
- bool new_file = true;
- bool all_hd_valid = true;
- unsigned int hd_id_valid = -1;
- std::vector<unsigned int> physical_ids_invalid;
- std::set<unsigned int> used_stripes;
+  bool new_file = true;
+  bool all_hd_valid = true;
+  unsigned int hd_id_valid = -1;
+  std::vector<unsigned int> physical_ids_invalid;
+  std::set<unsigned int> used_stripes;
 
- for (unsigned int i = 0; i < mHdrInfo.size(); i++)
- {
-   if (mHdrInfo[i]->IsValid())
-   {
-     unsigned int sid = mHdrInfo[i]->GetIdStripe();
+  for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
+    if (mHdrInfo[i]->IsValid()) {
+      unsigned int sid = mHdrInfo[i]->GetIdStripe();
 
-     if (used_stripes.count(sid))
-     {
-       eos_err("found two physical files with the same stripe id - abort");
-       return false;
-     }
-     
-     mapPL[i] = sid;
-     mapLP[sid] = i;
-     used_stripes.insert(sid);
-     hd_id_valid = i;
-     new_file = false;
-   }
-   else
-   {
-     all_hd_valid = false;
-     physical_ids_invalid.push_back(i);
-   }
- }
+      if (used_stripes.count(sid)) {
+        eos_err("found two physical files with the same stripe id - abort");
+        return false;
+      }
 
- if (new_file || all_hd_valid)
- {
-   eos_debug("file is either new or there are no corruptions.");
+      mapPL[i] = sid;
+      mapLP[sid] = i;
+      used_stripes.insert(sid);
+      hd_id_valid = i;
+      new_file = false;
+    } else {
+      all_hd_valid = false;
+      physical_ids_invalid.push_back(i);
+    }
+  }
 
-   if (new_file)
-   {
-     for (unsigned int i = 0; i < mHdrInfo.size(); i++)
-     {
-       mHdrInfo[i]->SetState(true); //set valid header
-       mHdrInfo[i]->SetNoBlocks(0);
-       mHdrInfo[i]->SetSizeLastBlock(0);
-       mapPL[i] = i;
-       mapLP[i] = i;
-     }
-   }
+  if (new_file || all_hd_valid) {
+    eos_debug("file is either new or there are no corruptions.");
 
-   return true;
- }
+    if (new_file) {
+      for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
+        mHdrInfo[i]->SetState(true); //set valid header
+        mHdrInfo[i]->SetNoBlocks(0);
+        mHdrInfo[i]->SetSizeLastBlock(0);
+        mapPL[i] = i;
+        mapLP[i] = i;
+      }
+    }
 
- // Can not recover from more than mNbParityFiles corruptions
- if (physical_ids_invalid.size() > mNbParityFiles)
- {
-   eos_err("can not recover more than %u corruptions", mNbParityFiles);
-   return false;
- }
+    return true;
+  }
 
- while (physical_ids_invalid.size())
- {
-   unsigned int physical_id = physical_ids_invalid.back();
-   physical_ids_invalid.pop_back();
+// Can not recover from more than mNbParityFiles corruptions
+  if (physical_ids_invalid.size() > mNbParityFiles) {
+    eos_err("can not recover more than %u corruptions", mNbParityFiles);
+    return false;
+  }
 
-   for (unsigned int i = 0; i < mNbTotalFiles; i++)
-   {
-     if (find(used_stripes.begin(), used_stripes.end(), i) == used_stripes.end())
-     {
-       // Add the new mapping
-       mapPL[physical_id] = i;
-       used_stripes.insert(i);
-       mHdrInfo[physical_id]->SetIdStripe(i);
-       mHdrInfo[physical_id]->SetState(true);
-       mHdrInfo[physical_id]->SetNoBlocks(mHdrInfo[hd_id_valid]->GetNoBlocks());
-       mHdrInfo[physical_id]->SetSizeLastBlock(mHdrInfo[hd_id_valid]->GetSizeLastBlock());
+  while (physical_ids_invalid.size()) {
+    unsigned int physical_id = physical_ids_invalid.back();
+    physical_ids_invalid.pop_back();
 
-       // If file successfully opened, we need to store the info
-       if (mStoreRecovery && mStripe[physical_id])
-       {
-         mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id], mTimeout);
-       }
-       
-       break;
-     }
-   }
- }
+    for (unsigned int i = 0; i < mNbTotalFiles; i++) {
+      if (find(used_stripes.begin(), used_stripes.end(), i) == used_stripes.end()) {
+        // Add the new mapping
+        mapPL[physical_id] = i;
+        used_stripes.insert(i);
+        mHdrInfo[physical_id]->SetIdStripe(i);
+        mHdrInfo[physical_id]->SetState(true);
+        mHdrInfo[physical_id]->SetNoBlocks(mHdrInfo[hd_id_valid]->GetNoBlocks());
+        mHdrInfo[physical_id]->SetSizeLastBlock(
+          mHdrInfo[hd_id_valid]->GetSizeLastBlock());
 
- used_stripes.clear();
+        // If file successfully opened, we need to store the info
+        if (mStoreRecovery && mStripe[physical_id]) {
+          mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id], mTimeout);
+        }
 
- // Populate the stripe url map
- for (unsigned int i = 0; i < mNbTotalFiles; i++)
- {
-   mapLP[mapPL[i]] = i;
-   eos_debug("physica:%i, logical:%i", i, mapPL[i]);
- }
+        break;
+      }
+    }
+  }
 
- mDoneRecovery = true;
- return true;
+  used_stripes.clear();
+
+// Populate the stripe url map
+  for (unsigned int i = 0; i < mNbTotalFiles; i++) {
+    mapLP[mapPL[i]] = i;
+    eos_debug("physica:%i, logical:%i", i, mapPL[i]);
+  }
+
+  mDoneRecovery = true;
+  return true;
 }
 
 
@@ -635,324 +567,285 @@ RaidMetaLayout::ValidateHeader ()
 // Read from file
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::Read (XrdSfsFileOffset offset, char* buffer,
-                      XrdSfsXferSize length, bool readahead)
+RaidMetaLayout::Read(XrdSfsFileOffset offset, char* buffer,
+                     XrdSfsXferSize length, bool readahead)
 {
- eos_debug("offset=%llu, length=%i", offset, length);
- XrdSysMutexHelper scope_lock(mExclAccess);
- eos::common::Timing rt("read");
- COMMONTIMING("start", &rt);
- unsigned int stripe_id;
- unsigned int physical_id;
- int64_t read_length = 0;
- uint64_t off_local = 0;
- uint64_t end_raw_offset = (uint64_t)(offset + length);
- AsyncMetaHandler* phandler = 0;
- XrdCl::ChunkList all_errs;
+  eos_debug("offset=%llu, length=%i", offset, length);
+  XrdSysMutexHelper scope_lock(mExclAccess);
+  eos::common::Timing rt("read");
+  COMMONTIMING("start", &rt);
+  unsigned int stripe_id;
+  unsigned int physical_id;
+  int64_t read_length = 0;
+  uint64_t off_local = 0;
+  uint64_t end_raw_offset = (uint64_t)(offset + length);
+  AsyncMetaHandler* phandler = 0;
+  XrdCl::ChunkList all_errs;
 
- if (!mIsEntryServer)
- {
-   // Non-entry server doing only local read operation
-   if (mStripe[0])
-     read_length = mStripe[0]->Read(offset, buffer, length, mTimeout);
- }
- else
- {
-   // Only entry server does this
-   if ((uint64_t)offset > mFileSize)
-   {
-     eos_warning("offset:%lld larger then file size:%lld", offset, mFileSize);
-     return 0;
-   }
+  if (!mIsEntryServer) {
+    // Non-entry server doing only local read operation
+    if (mStripe[0]) {
+      read_length = mStripe[0]->fileRead(offset, buffer, length, mTimeout);
+    }
+  } else {
+    // Only entry server does this
+    if ((uint64_t)offset > mFileSize) {
+      eos_warning("offset:%lld larger then file size:%lld", offset, mFileSize);
+      return 0;
+    }
 
-   if (end_raw_offset > (uint64_t)mFileSize)
-   {
-     eos_warning("read to big, resizing the read length");
-     length = static_cast<int>(mFileSize - offset);
-   }
+    if (end_raw_offset > (uint64_t)mFileSize) {
+      eos_warning("read to big, resizing the read length");
+      length = static_cast<int>(mFileSize - offset);
+    }
 
-   if ((offset < 0) && (mIsRw))
-   {
-     // Force recover file mode - use first extra block as dummy buffer
-     offset = 0;
-     int64_t len = mFileSize;
+    if ((offset < 0) && (mIsRw)) {
+      // Force recover file mode - use first extra block as dummy buffer
+      offset = 0;
+      int64_t len = mFileSize;
 
-     // If file smaller than a group, set the read size to the size of the group
-     if (mFileSize < mSizeGroup)
-     {
-       len = mSizeGroup;
-     }
+      // If file smaller than a group, set the read size to the size of the group
+      if (mFileSize < mSizeGroup) {
+        len = mSizeGroup;
+      }
 
-     char* recover_block = new char[mStripeWidth];
+      char* recover_block = new char[mStripeWidth];
 
-     while ((uint32_t)len >= mStripeWidth)
-     {
-       all_errs.push_back(XrdCl::ChunkInfo((uint64_t)offset,
-                                           (uint32_t) mStripeWidth,
-                                           (void*)recover_block));
-                          
-       if (offset % mSizeGroup == 0)
-       {
-         if (!RecoverPieces(all_errs))
-         {
-           eos_err("failed recovery of stripe");
-	   delete[] recover_block;
-           return SFS_ERROR;
-         }
-         else
-         {
-           all_errs.clear();
-         }
-       }
+      while ((uint32_t)len >= mStripeWidth) {
+        all_errs.push_back(XrdCl::ChunkInfo((uint64_t)offset,
+                                            (uint32_t) mStripeWidth,
+                                            (void*)recover_block));
 
-       len -= mSizeGroup;
-       offset += mSizeGroup;
-     }
+        if (offset % mSizeGroup == 0) {
+          if (!RecoverPieces(all_errs)) {
+            eos_err("failed recovery of stripe");
+            delete[] recover_block;
+            return SFS_ERROR;
+          } else {
+            all_errs.clear();
+          }
+        }
 
-     delete[] recover_block;
-   }
-   else
-   {
-     // Reset all the async handlers
-     for (unsigned int i = 0; i < mStripe.size(); i++)
-     {
-       if (mStripe[i])
-       {
-         phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
-         if (phandler)
-           phandler->Reset();
-       }
-     }
+        len -= mSizeGroup;
+        offset += mSizeGroup;
+      }
 
-     // Split original read in chunks which can be read from one stripe and return
-     // their relative offsets in the original file
-     int64_t nbytes = 0;
-     bool do_recovery = false;
-     bool got_error = false;
-     std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead((uint64_t)offset,
-                                                           (uint32_t)length,
-                                                           buffer);
+      delete[] recover_block;
+    } else {
+      // Reset all the async handlers
+      for (unsigned int i = 0; i < mStripe.size(); i++) {
+        if (mStripe[i]) {
+          phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
 
-     for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk)
-     {
-       COMMONTIMING("read remote in", &rt);
-       got_error = false;
-       auto local_pos = GetLocalPos(chunk->offset);
-       physical_id = mapLP[local_pos.first];
-       off_local = local_pos.second + mSizeHeader;
+          if (phandler) {
+            phandler->Reset();
+          }
+        }
+      }
 
-       if (mStripe[physical_id])
-       {
-         eos_debug("Read stripe_id=%i, logic_offset=%ji, local_offset=%ji, length=%d",
-                   local_pos.first, chunk->offset, off_local, chunk->length);
-         nbytes = mStripe[physical_id]->ReadAsync(off_local,
-                                                  (char*)chunk->buffer,
-                                                  chunk->length,
-                                                  true, mTimeout);
+      // Split original read in chunks which can be read from one stripe and return
+      // their relative offsets in the original file
+      int64_t nbytes = 0;
+      bool do_recovery = false;
+      bool got_error = false;
+      std::vector<XrdCl::ChunkInfo> split_chunk = SplitRead((uint64_t)offset,
+          (uint32_t)length,
+          buffer);
 
-         if (nbytes != chunk->length)
-           got_error = true;
-       }
-       else
-       {
-         // File not opened, we register it as a read error
-         got_error = true;
-       }
+      for (auto chunk = split_chunk.begin(); chunk != split_chunk.end(); ++chunk) {
+        COMMONTIMING("read remote in", &rt);
+        got_error = false;
+        auto local_pos = GetLocalPos(chunk->offset);
+        physical_id = mapLP[local_pos.first];
+        off_local = local_pos.second + mSizeHeader;
 
-       // Save errors in the map to be recovered
-       if (got_error)
-       {
-         all_errs.push_back(*chunk);
-         do_recovery = true;
-       }
-     }
+        if (mStripe[physical_id]) {
+          eos_debug("Read stripe_id=%i, logic_offset=%ji, local_offset=%ji, length=%d",
+                    local_pos.first, chunk->offset, off_local, chunk->length);
+          nbytes = mStripe[physical_id]->fileReadAsync(off_local,
+                   (char*)chunk->buffer,
+                   chunk->length,
+                   true, mTimeout);
 
-     // Collect errros
-     XrdCl::ChunkList local_errs;
+          if (nbytes != chunk->length) {
+            got_error = true;
+          }
+        } else {
+          // File not opened, we register it as a read error
+          got_error = true;
+        }
 
-     for (unsigned int j = 0; j < mStripe.size(); j++)
-     {
-       if (mStripe[j])
-       {
-         phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->GetAsyncHandler());
-       
-         if (phandler)
-         {
-           uint16_t error_type = phandler->WaitOK();
-           
-           if (error_type != XrdCl::errNone)
-           {
-             local_errs = phandler->GetErrors();
-             stripe_id = mapPL[j];
+        // Save errors in the map to be recovered
+        if (got_error) {
+          all_errs.push_back(*chunk);
+          do_recovery = true;
+        }
+      }
 
-             // Translate local to global errors
-             for (auto err = local_errs.begin(); err != local_errs.end(); err++)
-             {
-               err->offset = GetGlobalOff(stripe_id, (err->offset - mSizeHeader));
-               all_errs.push_back(*err);
-             }
+      // Collect errros
+      XrdCl::ChunkList local_errs;
 
-             local_errs.clear();
-             do_recovery = true;
+      for (unsigned int j = 0; j < mStripe.size(); j++) {
+        if (mStripe[j]) {
+          phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->fileGetAsyncHandler());
 
-             // If timeout error, then disable current file as we assume that
-             // the server is down
-             if (error_type == XrdCl::errOperationExpired)
-             {
-               eos_debug("debug=calling close on the file after a timeout error");
-               mStripe[j]->Close(mTimeout);
-               delete mStripe[j];
-               mStripe[j] = NULL;
-             }
-           }        
-         }
-       }
-     }
+          if (phandler) {
+            uint16_t error_type = phandler->WaitOK();
 
-     // Try to recover any corrupted blocks
-     if (do_recovery && (!RecoverPieces(all_errs)))
-     {
-       eos_err("read recovery failed");
-       return SFS_ERROR;
-     }
+            if (error_type != XrdCl::errNone) {
+              local_errs = phandler->GetErrors();
+              stripe_id = mapPL[j];
 
-     read_length = length;
-   }
- }
+              // Translate local to global errors
+              for (auto err = local_errs.begin(); err != local_errs.end(); err++) {
+                err->offset = GetGlobalOff(stripe_id, (err->offset - mSizeHeader));
+                all_errs.push_back(*err);
+              }
 
- COMMONTIMING("read return", &rt);
- //rt.Print();
- return read_length;
+              local_errs.clear();
+              do_recovery = true;
+
+              // If timeout error, then disable current file as we assume that
+              // the server is down
+              if (error_type == XrdCl::errOperationExpired) {
+                eos_debug("debug=calling close on the file after a timeout error");
+                mStripe[j]->fileClose(mTimeout);
+                delete mStripe[j];
+                mStripe[j] = NULL;
+              }
+            }
+          }
+        }
+      }
+
+      // Try to recover any corrupted blocks
+      if (do_recovery && (!RecoverPieces(all_errs))) {
+        eos_err("read recovery failed");
+        return SFS_ERROR;
+      }
+
+      read_length = length;
+    }
+  }
+
+  COMMONTIMING("read return", &rt);
+//rt.Print();
+  return read_length;
 }
 
 
 //------------------------------------------------------------------------------
-// Vector read 
+// Vector read
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
+RaidMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 {
   int64_t nread = 0;
   AsyncMetaHandler* phandler = 0;
   XrdCl::ChunkList all_errs;
 
-  if (!mIsEntryServer)
-  {
+  if (!mIsEntryServer) {
     // Non-entry server doing local readv operations
-    if (mStripe[0])
-    {
-      nread = mStripe[0]->ReadV(chunkList);
+    if (mStripe[0]) {
+      nread = mStripe[0]->fileReadV(chunkList);
 
-      if (nread != len)
-      {
+      if (nread != len) {
         eos_err("error local vector read");
         return SFS_ERROR;
       }
     }
-  }
-  else
-  {
+  } else {
     // Reset all the async handlers
-    for (unsigned int i = 0; i < mStripe.size(); i++)
-    {
-      if (mStripe[i])
-      {
-        phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
-        if (phandler)
+    for (unsigned int i = 0; i < mStripe.size(); i++) {
+      if (mStripe[i]) {
+        phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
+
+        if (phandler) {
           phandler->Reset();
+        }
       }
     }
-    
+
     // Entry server splits requests per stripe returning the relative position of
     // each chunks inside the stripe file including the header offset
     bool do_recovery = false;
     bool got_error = false;
     uint32_t stripe_id;
     uint32_t physical_id;
-    std::vector<XrdCl::ChunkList> stripe_chunks = SplitReadV(chunkList, mSizeHeader);
+    std::vector<XrdCl::ChunkList> stripe_chunks = SplitReadV(chunkList,
+        mSizeHeader);
 
-    for (stripe_id = 0; stripe_id < stripe_chunks.size(); ++stripe_id)
-    {
+    for (stripe_id = 0; stripe_id < stripe_chunks.size(); ++stripe_id) {
       physical_id = mapLP[stripe_id];
 
-      if (mStripe[physical_id])
-      {
+      if (mStripe[physical_id]) {
         eos_debug("readv stripe=%u, read_count=%i physical_id=%u ",
                   stripe_id, stripe_chunks[stripe_id].size(), physical_id);
-        nread = mStripe[physical_id]->ReadVAsync(stripe_chunks[stripe_id], mTimeout);
-      
-        if (nread == SFS_ERROR)
+        nread = mStripe[physical_id]->fileReadVAsync(stripe_chunks[stripe_id],
+                mTimeout);
+
+        if (nread == SFS_ERROR) {
           got_error = true;
-      }    
-      else
-      {
+        }
+      } else {
         // File not opened, we register it as a read error
         got_error = true;
       }
-      
+
       // Save errors in the map to be recovered
-      if (got_error)
-      {
+      if (got_error) {
         do_recovery = true;
-        
+
         for (auto chunk = stripe_chunks[stripe_id].begin();
-             chunk != stripe_chunks[stripe_id].end(); ++chunk)
-        {
+             chunk != stripe_chunks[stripe_id].end(); ++chunk) {
           chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
           all_errs.push_back(*chunk);
         }
       }
     }
-    
+
     // Collect errors
     XrdCl::ChunkList local_errs;
 
-    for (unsigned int j = 0; j < mStripe.size(); j++)
-    {
-      if (mStripe[j])
-      {
-        phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->GetAsyncHandler());
-        
-        if (phandler)
-        {
+    for (unsigned int j = 0; j < mStripe.size(); j++) {
+      if (mStripe[j]) {
+        phandler = static_cast<AsyncMetaHandler*>(mStripe[j]->fileGetAsyncHandler());
+
+        if (phandler) {
           uint16_t error_type = phandler->WaitOK();
-          
-          if (error_type != XrdCl::errNone)
-          {
+
+          if (error_type != XrdCl::errNone) {
             // Get the type of error and the map
             local_errs = phandler->GetErrors();
             stripe_id = mapPL[j];
-            
-            for (auto chunk = local_errs.begin(); chunk != local_errs.end(); chunk++)
-            {
+
+            for (auto chunk = local_errs.begin(); chunk != local_errs.end(); chunk++) {
               chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
               all_errs.push_back(*chunk);
             }
 
             do_recovery = true;
-            
+
             // If timeout error, then disable current file as we asume that
             // the server is down
-            if (error_type == XrdCl::errOperationExpired)
-            {
+            if (error_type == XrdCl::errOperationExpired) {
               eos_debug("debug=calling close on the file after a timeout error");
-              mStripe[j]->Close(mTimeout);
+              mStripe[j]->fileClose(mTimeout);
               delete mStripe[j];
               mStripe[j] = NULL;
             }
-          }        
+          }
         }
       }
     }
 
-     // Try to recover any corrupted blocks
-     if (do_recovery && (!RecoverPieces(all_errs)))
-     {
-       eos_err("read recovery failed");
-       return SFS_ERROR;
-     }
-  }       
-  
+    // Try to recover any corrupted blocks
+    if (do_recovery && (!RecoverPieces(all_errs))) {
+      eos_err("read recovery failed");
+      return SFS_ERROR;
+    }
+  }
+
   return (uint64_t)len;
 }
 
@@ -961,128 +854,120 @@ RaidMetaLayout::ReadV (XrdCl::ChunkList& chunkList, uint32_t len)
 // Write to file
 //------------------------------------------------------------------------------
 int64_t
-RaidMetaLayout::Write (XrdSfsFileOffset offset,
-                       const char* buffer,
-                       XrdSfsXferSize length)
+RaidMetaLayout::Write(XrdSfsFileOffset offset,
+                      const char* buffer,
+                      XrdSfsXferSize length)
 {
- XrdSysMutexHelper scope_lock(mExclAccess);
- eos::common::Timing wt("write");
- COMMONTIMING("start", &wt);
- int64_t nwrite;
- int64_t nbytes;
- int64_t write_length = 0;
- uint64_t off_local;
- uint64_t offset_end = offset + length;
- unsigned int physical_id;
- eos_debug("off=%ji, len=%i", offset, length);
+  XrdSysMutexHelper scope_lock(mExclAccess);
+  eos::common::Timing wt("write");
+  COMMONTIMING("start", &wt);
+  int64_t nwrite;
+  int64_t nbytes;
+  int64_t write_length = 0;
+  uint64_t off_local;
+  uint64_t offset_end = offset + length;
+  unsigned int physical_id;
+  eos_debug("off=%ji, len=%i", offset, length);
 
- if (!mIsEntryServer)
- {
-   // Non-entry server doing only local operations
-   if (mStripe[0])
-     write_length = mStripe[0]->Write(offset, buffer, length, mTimeout);
- }
- else
- {
-   // Detect if this is a non-streaming write
-   if (mIsStreaming && ((uint64_t)offset != mLastWriteOffset))
-   {
-     eos_debug("enable non-streaming mode");
-     mIsStreaming= false;
-   }
-   
-   mLastWriteOffset += length;
+  if (!mIsEntryServer) {
+    // Non-entry server doing only local operations
+    if (mStripe[0]) {
+      write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
+    }
+  } else {
+    // Detect if this is a non-streaming write
+    if (mIsStreaming && ((uint64_t)offset != mLastWriteOffset)) {
+      eos_debug("enable non-streaming mode");
+      mIsStreaming = false;
+    }
 
-   // Only entry server does this
-   while (length)
-   {
-     auto pos = GetLocalPos(offset);
-     physical_id = mapLP[pos.first];  
-     off_local = pos.second;
-     off_local += mSizeHeader;
-     nwrite = (length < (int64_t)mStripeWidth) ? length : mStripeWidth;
+    mLastWriteOffset += length;
 
-     // Deal with the case when offset is not aligned (sparse writing) and the
-     // length goes beyond the current stripe that we are writing to
-     if ((offset % mStripeWidth != 0) &&
-         (offset / mStripeWidth) != ((offset + nwrite) / mStripeWidth))
-     {
-       nwrite = mStripeWidth - (offset % mStripeWidth);
-     }
-     
-     COMMONTIMING("write remote", &wt);
+    // Only entry server does this
+    while (length) {
+      auto pos = GetLocalPos(offset);
+      physical_id = mapLP[pos.first];
+      off_local = pos.second;
+      off_local += mSizeHeader;
+      nwrite = (length < (int64_t)mStripeWidth) ? length : mStripeWidth;
 
-     // Write to stripe
-     if (mStripe[physical_id])
-     {
-       nbytes = mStripe[physical_id]->WriteAsync(off_local, buffer,
-                                                 nwrite, mTimeout);
+      // Deal with the case when offset is not aligned (sparse writing) and the
+      // length goes beyond the current stripe that we are writing to
+      if ((offset % mStripeWidth != 0) &&
+          (offset / mStripeWidth) != ((offset + nwrite) / mStripeWidth)) {
+        nwrite = mStripeWidth - (offset % mStripeWidth);
+      }
 
-       if (nbytes != nwrite)
-       {
-         eos_err("failed while write operation");
-         write_length = SFS_ERROR;
-         break;
-       }
-     }
+      COMMONTIMING("write remote", &wt);
 
-     // By default we assume the file is written in streaming mode but we also
-     // save the pieces in the map in case the write turns out not to be in
-     // streaming mode. In this way, we can recompute the parity at any later
-     // point in time by using the map of pieces written.
-     if (mIsStreaming)
-       AddDataBlock(offset, buffer, nwrite);
+      // Write to stripe
+      if (mStripe[physical_id]) {
+        nbytes = mStripe[physical_id]->fileWriteAsync(off_local, buffer,
+                 nwrite, mTimeout);
 
-     AddPiece(offset, nwrite);
-     
-     offset += nwrite;
-     length -= nwrite;
-     buffer += nwrite;
-     write_length += nwrite;
-   }
+        if (nbytes != nwrite) {
+          eos_err("failed while write operation");
+          write_length = SFS_ERROR;
+          break;
+        }
+      }
 
-   // Non-streaming mode - try to compute parity if enough data
-   if (!mIsStreaming && !SparseParityComputation(false))
-   {
-     eos_err("failed while doing SparseParityComputation");
-     return SFS_ERROR;
-   }
+      // By default we assume the file is written in streaming mode but we also
+      // save the pieces in the map in case the write turns out not to be in
+      // streaming mode. In this way, we can recompute the parity at any later
+      // point in time by using the map of pieces written.
+      if (mIsStreaming) {
+        AddDataBlock(offset, buffer, nwrite);
+      }
 
-   if (offset_end > mFileSize)
-   {
-     eos_debug("setting mFileSize=%llu to offset_end=%llu", mFileSize, offset_end);
-     mFileSize = offset_end;
-     mDoTruncate = true;
-   }
- }
+      AddPiece(offset, nwrite);
+      offset += nwrite;
+      length -= nwrite;
+      buffer += nwrite;
+      write_length += nwrite;
+    }
 
- COMMONTIMING("end", &wt);
- //  wt.Print();
- return write_length;
+    // Non-streaming mode - try to compute parity if enough data
+    if (!mIsStreaming && !SparseParityComputation(false)) {
+      eos_err("failed while doing SparseParityComputation");
+      return SFS_ERROR;
+    }
+
+    if (offset_end > mFileSize) {
+      eos_debug("setting mFileSize=%llu to offset_end=%llu", mFileSize, offset_end);
+      mFileSize = offset_end;
+      mDoTruncate = true;
+    }
+  }
+
+  COMMONTIMING("end", &wt);
+//  wt.Print();
+  return write_length;
 }
 
 
 //------------------------------------------------------------------------------
 // Compute and write parity blocks to files
 //------------------------------------------------------------------------------
+
 bool
-RaidMetaLayout::DoBlockParity (uint64_t offGroup)
+RaidMetaLayout::DoBlockParity(uint64_t offGroup)
 {
   bool done;
   eos::common::Timing up("parity");
   COMMONTIMING("Compute-In", &up);
-  
-  // Compute parity blocks
-  if ((done = ComputeParity()))
-  {
-   COMMONTIMING("Compute-Out", &up);
 
-   // Write parity blocks to files
-   if (WriteParityToFiles(offGroup) == SFS_ERROR)
-     done = false;
-  
-   COMMONTIMING("WriteParity", &up);
-   mFullDataBlocks = false;
+  // Compute parity blocks
+  if ((done = ComputeParity())) {
+    COMMONTIMING("Compute-Out", &up);
+
+    // Write parity blocks to files
+    if (WriteParityToFiles(offGroup) == SFS_ERROR) {
+      done = false;
+    }
+
+    COMMONTIMING("WriteParity", &up);
+    mFullDataBlocks = false;
   }
 
   //  up.Print();
@@ -1092,45 +977,37 @@ RaidMetaLayout::DoBlockParity (uint64_t offGroup)
 
 //------------------------------------------------------------------------------
 // Recover pieces from the whole file. The map contains the original position of
-// the corrupted pieces in the initial file. 
+// the corrupted pieces in the initial file.
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::RecoverPieces (XrdCl::ChunkList& errs)
+RaidMetaLayout::RecoverPieces(XrdCl::ChunkList& errs)
 {
- bool success = true;
- XrdCl::ChunkList grp_errs;
+  bool success = true;
+  XrdCl::ChunkList grp_errs;
 
- while (!errs.empty())
- {
-   uint64_t group_off = (errs.begin()->offset / mSizeGroup) * mSizeGroup;
+  while (!errs.empty()) {
+    uint64_t group_off = (errs.begin()->offset / mSizeGroup) * mSizeGroup;
 
-   for (auto chunk = errs.begin(); chunk != errs.end(); /**/)
-   {
-     if ((chunk->offset >= group_off) &&
-         (chunk->offset < group_off + mSizeGroup))
-     {
-       grp_errs.push_back(*chunk);
-       chunk = errs.erase(chunk);
-     }
-     else
-     {
-       ++chunk;
-     }
-   }
+    for (auto chunk = errs.begin(); chunk != errs.end(); /**/) {
+      if ((chunk->offset >= group_off) &&
+          (chunk->offset < group_off + mSizeGroup)) {
+        grp_errs.push_back(*chunk);
+        chunk = errs.erase(chunk);
+      } else {
+        ++chunk;
+      }
+    }
 
-   if (!grp_errs.empty())
-   {
-     success = success && RecoverPiecesInGroup(grp_errs);
-     grp_errs.clear();
-   }
-   else
-   {
-     eos_warning("no elements, although we saw some before");
-   }
- }
+    if (!grp_errs.empty()) {
+      success = success && RecoverPiecesInGroup(grp_errs);
+      grp_errs.clear();
+    } else {
+      eos_warning("no elements, although we saw some before");
+    }
+  }
 
- mDoneRecovery = true;
- return success;
+  mDoneRecovery = true;
+  return success;
 }
 
 
@@ -1141,14 +1018,12 @@ void
 RaidMetaLayout::AddPiece(uint64_t offset, uint32_t length)
 {
   auto it = mMapPieces.find(offset);
-  
-  if (it != mMapPieces.end())
-  {
-    if (length > it->second)
+
+  if (it != mMapPieces.end()) {
+    if (length > it->second) {
       it->second = length;
-  }
-  else
-  {
+    }
+  } else {
     mMapPieces.insert(std::make_pair(offset, length));
   }
 }
@@ -1160,33 +1035,26 @@ RaidMetaLayout::AddPiece(uint64_t offset, uint32_t length)
 void
 RaidMetaLayout::MergePieces()
 {
- uint64_t off_end;
- auto it1 = mMapPieces.begin();
- auto it2 = it1;
- it2++;
+  uint64_t off_end;
+  auto it1 = mMapPieces.begin();
+  auto it2 = it1;
+  it2++;
 
- while (it2 != mMapPieces.end())
- {
-   off_end = it1->first + it1->second;
+  while (it2 != mMapPieces.end()) {
+    off_end = it1->first + it1->second;
 
-   if (off_end >= it2->first)
-   {
-     if (off_end >= it2->first + it2->second)
-     {
-       mMapPieces.erase(it2++);
-     }
-     else
-     {
-       it1->second += (it2->second - (off_end - it2->first));
-       mMapPieces.erase(it2++);
-     }
-   }
-   else
-   {
-     it1++;
-     it2++;
-   }
- }
+    if (off_end >= it2->first) {
+      if (off_end >= it2->first + it2->second) {
+        mMapPieces.erase(it2++);
+      } else {
+        it1->second += (it2->second - (off_end - it2->first));
+        mMapPieces.erase(it2++);
+      }
+    } else {
+      it1++;
+      it2++;
+    }
+  }
 }
 
 
@@ -1194,85 +1062,74 @@ RaidMetaLayout::MergePieces()
 // Read data from the current group for parity computation
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::ReadGroup (uint64_t offGroup)
+RaidMetaLayout::ReadGroup(uint64_t offGroup)
 {
- unsigned int physical_id;
- uint64_t off_local;
- bool ret = true;
- unsigned int id_stripe;
- int64_t nread = 0;
- AsyncMetaHandler* phandler = 0;
+  unsigned int physical_id;
+  uint64_t off_local;
+  bool ret = true;
+  unsigned int id_stripe;
+  int64_t nread = 0;
+  AsyncMetaHandler* phandler = 0;
 
- // Collect all the write the responses and reset all the handlers
- for ( unsigned int i = 0; i < mStripe.size(); i++ )
- {
-   if (mStripe[i])
-   {
-     phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
-     
-     if (phandler)
-     {
-       if (phandler->WaitOK() != XrdCl::errNone)
-       {
-         eos_err("write failed in previous requests.");
-         return false;
-       }
-       
-       phandler->Reset();
-     }
-   }
- }
+// Collect all the write the responses and reset all the handlers
+  for (unsigned int i = 0; i < mStripe.size(); i++) {
+    if (mStripe[i]) {
+      phandler = static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
 
- for (unsigned int i = 0; i < mNbDataBlocks; i++)
- {
-   id_stripe = i % mNbDataFiles;
-   physical_id = mapLP[id_stripe];
-   off_local = ((offGroup / mSizeLine) + (i / mNbDataFiles)) * mStripeWidth;
-   off_local += mSizeHeader;
+      if (phandler) {
+        if (phandler->WaitOK() != XrdCl::errNone) {
+          eos_err("write failed in previous requests.");
+          return false;
+        }
 
-   if (mStripe[physical_id])
-   {
-     // Do read operation - chunk info is not interesting at this point
-     // !!!Here we can only do normal async requests without readahead as this
-     // would lead to corruptions in the parity information computed!!!
-     nread = mStripe[physical_id]->ReadAsync(off_local,
-                                             mDataBlocks[MapSmallToBig(i)],
-                                             mStripeWidth,
-                                             false, mTimeout);
-     
-     if (nread != (int64_t)mStripeWidth)
-     {
-       eos_err("error while reading local data blocks stripe=%u", id_stripe);
-       ret = false;
-       break;
-     }
-   }
-   else
-   {
-     eos_err("error FS not available");
-     ret = false;
-     break;
-   }
- }
- 
- // Collect read responses only for the data files as we only read from these
- for ( unsigned int i = 0; i < mNbDataFiles; i++ )
- {
-   physical_id = mapLP[i];
-   
-   if (mStripe[physical_id])
-   {  
-     phandler = static_cast<AsyncMetaHandler*>(mStripe[physical_id]->GetAsyncHandler());
-   
-     if (phandler && (phandler->WaitOK() != XrdCl::errNone))
-     {
-       eos_err("error while reading data blocks stripe=%u", i);
-       ret = false;
-     }
-   }
- }
-  
- return ret;
+        phandler->Reset();
+      }
+    }
+  }
+
+  for (unsigned int i = 0; i < mNbDataBlocks; i++) {
+    id_stripe = i % mNbDataFiles;
+    physical_id = mapLP[id_stripe];
+    off_local = ((offGroup / mSizeLine) + (i / mNbDataFiles)) * mStripeWidth;
+    off_local += mSizeHeader;
+
+    if (mStripe[physical_id]) {
+      // Do read operation - chunk info is not interesting at this point
+      // !!!Here we can only do normal async requests without readahead as this
+      // would lead to corruptions in the parity information computed!!!
+      nread = mStripe[physical_id]->fileReadAsync(off_local,
+              mDataBlocks[MapSmallToBig(i)],
+              mStripeWidth,
+              false, mTimeout);
+
+      if (nread != (int64_t)mStripeWidth) {
+        eos_err("error while reading local data blocks stripe=%u", id_stripe);
+        ret = false;
+        break;
+      }
+    } else {
+      eos_err("error FS not available");
+      ret = false;
+      break;
+    }
+  }
+
+// Collect read responses only for the data files as we only read from these
+  for (unsigned int i = 0; i < mNbDataFiles; i++) {
+    physical_id = mapLP[i];
+
+    if (mStripe[physical_id]) {
+      phandler = static_cast<AsyncMetaHandler*>
+                 (mStripe[physical_id]->fileGetAsyncHandler());
+
+      if (phandler && (phandler->WaitOK() != XrdCl::errNone)) {
+        eos_err("error while reading data blocks stripe=%u", i);
+        ret = false;
+      }
+    }
+  }
+
+  return ret;
 }
 
 
@@ -1280,69 +1137,67 @@ RaidMetaLayout::ReadGroup (uint64_t offGroup)
 // Get a list of the group offsets for which we can compute the parity info
 //------------------------------------------------------------------------------
 void
-RaidMetaLayout::GetOffsetGroups (std::set<uint64_t>& offGroups, bool forceAll)
+RaidMetaLayout::GetOffsetGroups(std::set<uint64_t>& offGroups, bool forceAll)
 {
- size_t length;
- uint64_t offset;
- uint64_t off_group;
- uint64_t off_piece_end;
- bool done_delete;
- auto it = mMapPieces.begin();
+  size_t length;
+  uint64_t offset;
+  uint64_t off_group;
+  uint64_t off_piece_end;
+  bool done_delete;
+  auto it = mMapPieces.begin();
 
- while (it != mMapPieces.end())
- {
-   done_delete = false;
-   offset = it->first;
-   length = it->second;
-   off_piece_end = offset + length;
-   off_group = (offset / mSizeGroup) * mSizeGroup;
+  while (it != mMapPieces.end()) {
+    done_delete = false;
+    offset = it->first;
+    length = it->second;
+    off_piece_end = offset + length;
+    off_group = (offset / mSizeGroup) * mSizeGroup;
 
-   if (forceAll)
-   {
-     mMapPieces.erase(it++);
+    if (forceAll) {
+      mMapPieces.erase(it++);
 
-     while (off_group < off_piece_end)
-     {
-       offGroups.insert(off_group);
-       off_group += mSizeGroup;
-     }
-   }
-   else
-   {
-     if (off_group < offset) off_group += mSizeGroup;
-     bool once = true;
-     std::pair<uint64_t, uint32_t> elem;
+      while (off_group < off_piece_end) {
+        offGroups.insert(off_group);
+        off_group += mSizeGroup;
+      }
+    } else {
+      if (off_group < offset) {
+        off_group += mSizeGroup;
+      }
 
-     while ((off_group < off_piece_end) &&
-            (off_group + mSizeGroup <= off_piece_end))
-     {
-       if (!done_delete)
-       {
-         mMapPieces.erase(it++);
-         done_delete = true;
-       }
+      bool once = true;
+      std::pair<uint64_t, uint32_t> elem;
 
-       if (once && (off_group > offset))
-       {
-         once = false;
-         elem = std::make_pair(offset, (off_group - offset));
-       }
+      while ((off_group < off_piece_end) &&
+             (off_group + mSizeGroup <= off_piece_end)) {
+        if (!done_delete) {
+          mMapPieces.erase(it++);
+          done_delete = true;
+        }
 
-       // Save group offset in the list
-       offGroups.insert(off_group);
-       off_group += mSizeGroup;
-     }
+        if (once && (off_group > offset)) {
+          once = false;
+          elem = std::make_pair(offset, (off_group - offset));
+        }
 
-     if (!once) mMapPieces.insert(elem);
+        // Save group offset in the list
+        offGroups.insert(off_group);
+        off_group += mSizeGroup;
+      }
 
-     if (done_delete && (off_group + mSizeGroup > off_piece_end))
-     {
-       mMapPieces.insert(std::make_pair(off_group, off_piece_end - off_group));
-     }
+      if (!once) {
+        mMapPieces.insert(elem);
+      }
 
-     if (!done_delete) it++;
-   }
- }
+      if (done_delete && (off_group + mSizeGroup > off_piece_end)) {
+        mMapPieces.insert(std::make_pair(off_group, off_piece_end - off_group));
+      }
+
+      if (!done_delete) {
+        it++;
+      }
+    }
+  }
 }
 
 
@@ -1350,31 +1205,32 @@ RaidMetaLayout::GetOffsetGroups (std::set<uint64_t>& offGroups, bool forceAll)
 // Compute parity for the non-streaming case and write it to files
 //------------------------------------------------------------------------------
 bool
-RaidMetaLayout::SparseParityComputation (bool force)
+RaidMetaLayout::SparseParityComputation(bool force)
 {
- bool done = true;
- std::set<uint64_t> off_grps;
+  bool done = true;
+  std::set<uint64_t> off_grps;
 
- if (mMapPieces.empty()) return false;
+  if (mMapPieces.empty()) {
+    return false;
+  }
 
- MergePieces();
- GetOffsetGroups(off_grps, force);
+  MergePieces();
+  GetOffsetGroups(off_grps, force);
 
- for (auto off = off_grps.begin(); off != off_grps.end(); off++)
- {
-   if (ReadGroup(*off))
-   {
-     done = DoBlockParity(*off);
-     if (!done) break;
-   }
-   else
-   {
-     done = false;
-     break;
-   }
- }
+  for (auto off = off_grps.begin(); off != off_grps.end(); off++) {
+    if (ReadGroup(*off)) {
+      done = DoBlockParity(*off);
 
- return done;
+      if (!done) {
+        break;
+      }
+    } else {
+      done = false;
+      break;
+    }
+  }
+
+  return done;
 }
 
 
@@ -1382,53 +1238,40 @@ RaidMetaLayout::SparseParityComputation (bool force)
 // Sync files to disk
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Sync ()
+RaidMetaLayout::Sync()
 {
- int ret = SFS_OK;
- 
- if (mIsOpen)
- {
-   // Sync local file
-   if (mStripe[0])
-   {
-     if (mStripe[0]->Sync(mTimeout))
-     {
-       eos_err("local file could not be synced");
-       ret = SFS_ERROR;
-     }
-   }
-   else
-   {
-     eos_warning("local file could not be synced as it is NULL");
-   }
+  int ret = SFS_OK;
 
-   if (mIsEntryServer)
-   {
-     // Sync remote files
-     for (unsigned int i = 1; i < mStripe.size(); i++)
-     {
-       if (mStripe[i])
-       {
-         if (mStripe[i]->Sync(mTimeout))
-         {
-           eos_err("file %i could not be synced", i);
-           ret = SFS_ERROR;
-         }
-       }
-       else
-       {
-         eos_warning("remote file could not be synced as it is NULL");
-       }
-     }
-   }
- }
- else
- {
-   eos_err("file is not opened");
-   ret = SFS_ERROR;
- }
+  if (mIsOpen) {
+    // Sync local file
+    if (mStripe[0]) {
+      if (mStripe[0]->fileSync(mTimeout)) {
+        eos_err("local file could not be synced");
+        ret = SFS_ERROR;
+      }
+    } else {
+      eos_warning("local file could not be synced as it is NULL");
+    }
 
- return ret;
+    if (mIsEntryServer) {
+      // Sync remote files
+      for (unsigned int i = 1; i < mStripe.size(); i++) {
+        if (mStripe[i]) {
+          if (mStripe[i]->fileSync(mTimeout)) {
+            eos_err("file %i could not be synced", i);
+            ret = SFS_ERROR;
+          }
+        } else {
+          eos_warning("remote file could not be synced as it is NULL");
+        }
+      }
+    }
+  } else {
+    eos_err("file is not opened");
+    ret = SFS_ERROR;
+  }
+
+  return ret;
 }
 
 
@@ -1436,45 +1279,35 @@ RaidMetaLayout::Sync ()
 // Unlink all connected pieces
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Remove ()
+RaidMetaLayout::Remove()
 {
-  eos_debug("Calling RaidMetaLayout::Remove"); 
+  eos_debug("Calling RaidMetaLayout::Remove");
   int ret = SFS_OK;
 
-  if (mIsEntryServer)
-  {
+  if (mIsEntryServer) {
     // Unlink remote stripes
-    for (unsigned int i = 1; i < mStripe.size(); i++)
-    {
-      if (mStripe[i])
-      {
-        if (mStripe[i]->Remove(mTimeout))
-        {
+    for (unsigned int i = 1; i < mStripe.size(); i++) {
+      if (mStripe[i]) {
+        if (mStripe[i]->fileRemove(mTimeout)) {
           eos_err("failed to remove remote stripe %i", i);
           ret = SFS_ERROR;
         }
-      }
-      else
-      {
+      } else {
         eos_warning("remote file could not be removed as it is NULL");
       }
     }
   }
 
   // Unlink local stripe
-  if (mStripe[0])
-  {
-    if (mStripe[0]->Remove(mTimeout))
-    {
+  if (mStripe[0]) {
+    if (mStripe[0]->fileRemove(mTimeout)) {
       eos_err("failed to remove local stripe");
       ret = SFS_ERROR;
     }
-  }
-  else
-  {
+  } else {
     eos_warning("local file could not be removed as it is NULL");
   }
-  
+
   return ret;
 }
 
@@ -1483,63 +1316,48 @@ RaidMetaLayout::Remove ()
 // Get stat about file
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Stat (struct stat* buf)
+RaidMetaLayout::Stat(struct stat* buf)
 {
- eos_debug("Calling Stat");
- int rc = SFS_OK; //TODO: change this, actually change the logic in XrdFstOfsFile
-                  // concerning stat before the file is opened
- bool found = false;
+  eos_debug("Calling Stat");
+  int rc = SFS_OK; //TODO: change this, actually change the logic in XrdFstOfsFile
+  // concerning stat before the file is opened
+  bool found = false;
 
- if (mIsOpen)
- {
-   if (mIsEntryServer)
-   {
-     for (unsigned int i = 0; i < mStripe.size(); i++)
-     {
-       if (mStripe[i])
-       {
-         if (mStripe[i]->Stat(buf, mTimeout) == SFS_OK)
-         {
-           found = true;
-           break;
-         }
-       }
-       else
-       {
-         eos_warning("file %i could not be stat as it is NULL", i);
-       }
-     }
-   }
-   else
-   {
-     if (mStripe[0])
-     {
-       if (mStripe[0]->Stat(buf, mTimeout) == SFS_OK)
-       {
-         found = true;
-       }
-     }
-     else
-     {
-       eos_warning("local file could no be stat as it is NULL");
-     }
-   }
-   
-   // Obs: when we can not compute the file size, we take it from fmd
-   buf->st_size = mFileSize;
-   if (!found)
-   {
-     eos_err("No valid stripe found for stat");
-     rc = SFS_ERROR;
-   }
- }
- else
- {
-   eos_err("File not opened");
-   rc = SFS_ERROR;
- }
+  if (mIsOpen) {
+    if (mIsEntryServer) {
+      for (unsigned int i = 0; i < mStripe.size(); i++) {
+        if (mStripe[i]) {
+          if (mStripe[i]->fileStat(buf, mTimeout) == SFS_OK) {
+            found = true;
+            break;
+          }
+        } else {
+          eos_warning("file %i could not be stat as it is NULL", i);
+        }
+      }
+    } else {
+      if (mStripe[0]) {
+        if (mStripe[0]->fileStat(buf, mTimeout) == SFS_OK) {
+          found = true;
+        }
+      } else {
+        eos_warning("local file could no be stat as it is NULL");
+      }
+    }
 
- return rc;
+    // Obs: when we can not compute the file size, we take it from fmd
+    buf->st_size = mFileSize;
+
+    if (!found) {
+      eos_err("No valid stripe found for stat");
+      rc = SFS_ERROR;
+    }
+  } else {
+    eos_err("File not opened");
+    rc = SFS_ERROR;
+  }
+
+  return rc;
 }
 
 
@@ -1547,165 +1365,128 @@ RaidMetaLayout::Stat (struct stat* buf)
 // Close file
 //------------------------------------------------------------------------------
 int
-RaidMetaLayout::Close ()
+RaidMetaLayout::Close()
 {
- XrdSysMutexHelper scope_lock(mExclAccess);
- eos::common::Timing ct("close");
- COMMONTIMING("start", &ct);
- int rc = SFS_OK;
- 
- if (mIsOpen)
- {
-   if (mIsEntryServer)
-   {
-     if (mStoreRecovery)
-     {
-       if (mDoneRecovery || mDoTruncate)
-       {
-         eos_debug("truncating after done a recovery or at end of write");
-         mDoTruncate = false;
-         mDoneRecovery = false;
+  XrdSysMutexHelper scope_lock(mExclAccess);
+  eos::common::Timing ct("close");
+  COMMONTIMING("start", &ct);
+  int rc = SFS_OK;
 
-         if (Truncate(mFileSize))
-         {
-           eos_err("Error while doing truncate");
-           rc = SFS_ERROR;
-         }
-       }
+  if (mIsOpen) {
+    if (mIsEntryServer) {
+      if (mStoreRecovery) {
+        if (mDoneRecovery || mDoTruncate) {
+          eos_debug("truncating after done a recovery or at end of write");
+          mDoTruncate = false;
+          mDoneRecovery = false;
 
-       // Check if we still have to compute parity for the last group of blocks
-       if (mIsStreaming)
-       {
-         if ((mOffGroupParity != -1) &&
-             (mOffGroupParity < (int64_t)mFileSize))
-         {
-           if (!DoBlockParity(mOffGroupParity))
-           {
-             eos_err("failed to do last group parity");
-             rc = SFS_ERROR;
-           }
-         }
-       }
-       else
-       {
-         SparseParityComputation(true);
-       }
+          if (Truncate(mFileSize)) {
+            eos_err("Error while doing truncate");
+            rc = SFS_ERROR;
+          }
+        }
 
-       // Collect all the write responses and reset all the handlers
-       for (unsigned int i = 0; i < mStripe.size(); i++)
-       {
-         if (mStripe[i])
-         {
-           AsyncMetaHandler* phandler =
-             static_cast<AsyncMetaHandler*>(mStripe[i]->GetAsyncHandler());
+        // Check if we still have to compute parity for the last group of blocks
+        if (mIsStreaming) {
+          if ((mOffGroupParity != -1) &&
+              (mOffGroupParity < (int64_t)mFileSize)) {
+            if (!DoBlockParity(mOffGroupParity)) {
+              eos_err("failed to do last group parity");
+              rc = SFS_ERROR;
+            }
+          }
+        } else {
+          SparseParityComputation(true);
+        }
 
-           if (phandler)
-           {
-             if (phandler->WaitOK() != XrdCl::errNone)
-             {
-               eos_err("write failed in previous requests.");
-               rc = SFS_ERROR;
-             }
+        // Collect all the write responses and reset all the handlers
+        for (unsigned int i = 0; i < mStripe.size(); i++) {
+          if (mStripe[i]) {
+            AsyncMetaHandler* phandler =
+              static_cast<AsyncMetaHandler*>(mStripe[i]->fileGetAsyncHandler());
 
-             phandler->Reset();
-           }
-         }
-       }
-       
-       // Update the header information and write it to all stripes
-       long int num_blocks = ceil((mFileSize * 1.0) / mStripeWidth);
-       size_t size_last_block = mFileSize % mStripeWidth;
-       eos_debug("num_blocks=%li, size_last_block=%llu", num_blocks,
+            if (phandler) {
+              if (phandler->WaitOK() != XrdCl::errNone) {
+                eos_err("write failed in previous requests.");
+                rc = SFS_ERROR;
+              }
+
+              phandler->Reset();
+            }
+          }
+        }
+
+        // Update the header information and write it to all stripes
+        long int num_blocks = ceil((mFileSize * 1.0) / mStripeWidth);
+        size_t size_last_block = mFileSize % mStripeWidth;
+        eos_debug("num_blocks=%li, size_last_block=%llu", num_blocks,
                   (long long int) size_last_block);
 
-       if (size_last_block == 0)
-       {
-         num_blocks++;
-       }
+        if (size_last_block == 0) {
+          num_blocks++;
+        }
 
-       for (unsigned int i = 0; i < mHdrInfo.size(); i++)
-       {
-         if (num_blocks != mHdrInfo[i]->GetNoBlocks())
-         {
-           mHdrInfo[i]->SetNoBlocks(num_blocks);
-           mUpdateHeader = true;
-         }
+        for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
+          if (num_blocks != mHdrInfo[i]->GetNoBlocks()) {
+            mHdrInfo[i]->SetNoBlocks(num_blocks);
+            mUpdateHeader = true;
+          }
 
-         if (size_last_block != mHdrInfo[i]->GetSizeLastBlock())
-         {
-           mHdrInfo[i]->SetSizeLastBlock(size_last_block);
-           mUpdateHeader = true;
-         }
-       }
+          if (size_last_block != mHdrInfo[i]->GetSizeLastBlock()) {
+            mHdrInfo[i]->SetSizeLastBlock(size_last_block);
+            mUpdateHeader = true;
+          }
+        }
 
-       COMMONTIMING("updateheader", &ct);
+        COMMONTIMING("updateheader", &ct);
 
-       if (mUpdateHeader)
-       {
-         for (unsigned int i = 0; i < mStripe.size(); i++)
-         {
-           mHdrInfo[i]->SetIdStripe(mapPL[i]);
+        if (mUpdateHeader) {
+          for (unsigned int i = 0; i < mStripe.size(); i++) {
+            mHdrInfo[i]->SetIdStripe(mapPL[i]);
 
-           if (mStripe[i])
-           {
-             if (!mHdrInfo[i]->WriteToFile(mStripe[i], mTimeout))
-             {
-               eos_err("write header to file failed for stripe:%i", i);
-               rc =  SFS_ERROR;
-             }
-           }
-           else
-           {
-             eos_warning("could not write header info to NULL file.");
-           }
-         }
+            if (mStripe[i]) {
+              if (!mHdrInfo[i]->WriteToFile(mStripe[i], mTimeout)) {
+                eos_err("write header to file failed for stripe:%i", i);
+                rc =  SFS_ERROR;
+              }
+            } else {
+              eos_warning("could not write header info to NULL file.");
+            }
+          }
 
-         mUpdateHeader = false;
-       }
-     }
+          mUpdateHeader = false;
+        }
+      }
 
-     // Close remote files
-     for (unsigned int i = 1; i < mStripe.size(); i++)
-     {
-       if (mStripe[i])
-       {
-         if (mStripe[i]->Close(mTimeout))
-         {
-           eos_err("error=failed to close remote file %i", i);
-           mLastErrMsg = mStripe[i]->GetLastErrMsg();
-           rc = SFS_ERROR;
-         }
-       }
-       else
-       {
-         eos_warning("remote stripe could not be closed as the file is NULL");
-       }
-     }
-   }
+      // Close remote files
+      for (unsigned int i = 1; i < mStripe.size(); i++) {
+        if (mStripe[i]) {
+          if (mStripe[i]->fileClose(mTimeout)) {
+            eos_err("error=failed to close remote file %i", i);
+            rc = SFS_ERROR;
+          }
+        } else {
+          eos_warning("remote stripe could not be closed as the file is NULL");
+        }
+      }
+    }
 
-   // Close local file
-   if (mStripe[0])
-   {
-     if (mStripe[0]->Close(mTimeout))
-     {
-       eos_err("failed to close local file");
-       mLastErrMsg = mStripe[0]->GetLastErrMsg();
-       rc = SFS_ERROR;
-     }
-   }
-   else
-   {
-     eos_warning("local stripe could not be closed as the file is NULL");     
-   }
- }
- else
- {
-   eos_err("file is not opened");
-   rc = SFS_ERROR;
- }
+    // Close local file
+    if (mStripe[0]) {
+      if (mStripe[0]->fileClose(mTimeout)) {
+        eos_err("failed to close local file");
+        rc = SFS_ERROR;
+      }
+    } else {
+      eos_warning("local stripe could not be closed as the file is NULL");
+    }
+  } else {
+    eos_err("file is not opened");
+    rc = SFS_ERROR;
+  }
 
- mIsOpen = false;
- return rc;
+  mIsOpen = false;
+  return rc;
 }
 
 
@@ -1722,15 +1503,15 @@ RaidMetaLayout::SplitRead(uint64_t off, uint32_t len, char* buff)
   XrdCl::ChunkList split_read;
   split_read.reserve((len / mStripeWidth) + 2); // worst case
 
-  while (((off / mStripeWidth) != ((off + len) / mStripeWidth)) || (len))
-  {
+  while (((off / mStripeWidth) != ((off + len) / mStripeWidth)) || (len)) {
     block_end = ((off / mStripeWidth) + 1) * mStripeWidth;
     sz = static_cast<uint32_t>(block_end - off);
-    
+
     // Deal with last piece case
-    if (sz > len)
+    if (sz > len) {
       sz = len;
-    
+    }
+
     // Add piece
     split_read.push_back(XrdCl::ChunkInfo(off, sz, (void*)ptr_data));
     off += sz;
@@ -1750,28 +1531,27 @@ RaidMetaLayout::SplitReadV(XrdCl::ChunkList& chunkList, uint32_t sizeHdr)
 {
   std::vector<XrdCl::ChunkList> stripe_readv; ///< readV request per stripe files
   stripe_readv.reserve(mNbDataFiles);
-  
-  for (unsigned int i = 0; i < mNbDataFiles; ++i)
+
+  for (unsigned int i = 0; i < mNbDataFiles; ++i) {
     stripe_readv.push_back(XrdCl::ChunkList());
-  
+  }
+
   // Split any pieces spanning more than one chunk
-  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk)
-  {
+  for (auto chunk = chunkList.begin(); chunk != chunkList.end(); ++chunk) {
     std::vector<XrdCl::ChunkInfo> split_read = SplitRead(chunk->offset,
-                                                         chunk->length,
-                                                         static_cast<char*>(chunk->buffer));
-    
+        chunk->length,
+        static_cast<char*>(chunk->buffer));
+
     // Split each readV request to the corresponding stripe file from which we
     // need to read it, adjusting the relative offset inside the stripe file
-    for (auto iter = split_read.begin(); iter != split_read.end(); ++iter)
-    {
+    for (auto iter = split_read.begin(); iter != split_read.end(); ++iter) {
       auto pos = GetLocalPos(iter->offset);
       iter->offset = pos.second + sizeHdr;
       stripe_readv[pos.first].push_back(*iter);
-    }    
-  } 
+    }
+  }
 
-  return stripe_readv;  
+  return stripe_readv;
 }
 
 

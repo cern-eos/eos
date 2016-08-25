@@ -29,10 +29,10 @@
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::rem (const char *inpath,
-                XrdOucErrInfo &error,
-                const XrdSecEntity *client,
-                const char *ininfo)
+XrdMgmOfs::rem(const char* inpath,
+               XrdOucErrInfo& error,
+               const XrdSecEntity* client,
+               const char* ininfo)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -48,43 +48,34 @@ XrdMgmOfs::rem (const char *inpath,
 /*----------------------------------------------------------------------------*/
 
 {
-
-  static const char *epname = "rem";
-  const char *tident = error.getErrUser();
-
+  static const char* epname = "rem";
+  const char* tident = error.getErrUser();
   // use a thread private vid
   eos::common::Mapping::VirtualIdentity vid;
-
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
-
   XrdOucEnv env(info);
-
   AUTHORIZE(client, &env, AOP_Delete, "remove", inpath, error);
-
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, info, tident, vid);
   EXEC_TIMING_END("IdMap");
-
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
-
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
   MAYREDIRECT;
-
   return _rem(path, error, vid, info);
 }
 
 /*----------------------------------------------------------------------------*/
 int
-XrdMgmOfs::_rem (const char *path,
-                 XrdOucErrInfo &error,
-                 eos::common::Mapping::VirtualIdentity &vid,
-                 const char *ininfo,
-                 bool simulate,
-                 bool keepversion,
-		 bool no_recycling)
+XrdMgmOfs::_rem(const char* path,
+                XrdOucErrInfo& error,
+                eos::common::Mapping::VirtualIdentity& vid,
+                const char* ininfo,
+                bool simulate,
+                bool keepversion,
+                bool no_recycling)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief delete a file from the namespace
@@ -105,73 +96,64 @@ XrdMgmOfs::_rem (const char *path,
  */
 /*----------------------------------------------------------------------------*/
 {
-  static const char *epname = "rem";
-
+  static const char* epname = "rem";
   EXEC_TIMING_BEGIN("Rm");
-
   eos_info("path=%s vid.uid=%u vid.gid=%u", path, vid.uid, vid.gid);
 
-  if (!simulate)
-  {
+  if (!simulate) {
     gOFS->MgmStats.Add("Rm", vid.uid, vid.gid, 1);
   }
+
   // Perform the actual deletion
   //
   errno = 0;
-
   XrdSfsFileExistence file_exists;
-  if ((_exists(path, file_exists, error, vid, 0)))
-  {
+
+  if ((_exists(path, file_exists, error, vid, 0))) {
     return SFS_ERROR;
   }
 
-  if (file_exists != XrdSfsFileExistIsFile)
-  {
-    if (file_exists == XrdSfsFileExistIsDirectory)
+  if (file_exists != XrdSfsFileExistIsFile) {
+    if (file_exists == XrdSfsFileExistIsDirectory) {
       errno = EISDIR;
-    else
+    } else {
       errno = ENOENT;
+    }
 
     return Emsg(epname, error, errno, "remove", path);
   }
 
   // ---------------------------------------------------------------------------
   gOFS->eosViewRWMutex.LockWrite();
-
   // free the booked quota
   std::shared_ptr<eos::IFileMD> fmd;
   std::shared_ptr<eos::IContainerMD> container;
   eos::IContainerMD::XAttrMap attrmap;
   uid_t owner_uid = 0;
   gid_t owner_gid = 0;
+  eos::common::FileId::fileid_t fid = 0;
   bool doRecycle = false; // indicating two-step deletion via recycle-bin
   std::string aclpath;
 
-  try
-  {
+  try {
     fmd = gOFS->eosView->getFile(path, false);
-  }
-  catch (eos::MDException &e)
-  {
+  } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-	      e.getMessage().str().c_str());
+              e.getMessage().str().c_str());
   }
 
-  if (fmd)
-  {
+  if (fmd) {
     owner_uid = fmd->getCUid();
     owner_gid = fmd->getCGid();
-
+    fid = fmd->getId();
     eos_info("got fmd=%lld", (unsigned long long) fmd.get());
-    try
-    {
+
+    try {
       container = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
       aclpath = gOFS->eosView->getUri(container.get());
       eos_info("got container=%lld", (unsigned long long) container.get());
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       container.reset();
     }
 
@@ -179,66 +161,59 @@ XrdMgmOfs::_rem (const char *path,
     Acl acl(aclpath.c_str(), error, vid, attrmap, false);
     eos_info("acl=%s mutable=%d", attrmap["sys.acl"].c_str(), acl.IsMutable());
 
-    if (vid.uid && !acl.IsMutable())
-    {
+    if (vid.uid && !acl.IsMutable()) {
       errno = EPERM;
       gOFS->eosViewRWMutex.UnLockWrite();
       return Emsg(epname, error, errno, "remove file - immutable", path);
     }
 
     bool stdpermcheck = false;
-    if (acl.HasAcl())
-    {
+
+    if (acl.HasAcl()) {
       eos_info("acl=%d r=%d w=%d wo=%d egroup=%d delete=%d not-delete=%d mutable=%d",
                acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
                acl.HasEgroup(), acl.CanDelete(), acl.CanNotDelete(), acl.IsMutable());
 
-      if ((!acl.CanWrite()) && (!acl.CanWriteOnce()))
-      {
+      if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
         // we have to check the standard permissions
         stdpermcheck = true;
       }
-    }
-    else
-    {
+    } else {
       stdpermcheck = true;
     }
 
-    if (container)
-    {
-      if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK)))
-      {
+    if (container) {
+      if (stdpermcheck && (!container->access(vid.uid, vid.gid, W_OK | X_OK))) {
         errno = EPERM;
         gOFS->eosViewRWMutex.UnLockWrite();
         return Emsg(epname, error, errno, "remove file", path);
       }
 
       // check if this directory is write-once for the mapped user
-      if (acl.CanWriteOnce() && (fmd->getSize()))
-      {
+      if (acl.CanWriteOnce() && (fmd->getSize())) {
         gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // this is a write once user
-        return Emsg(epname, error, EPERM, "remove existing file - you are write-once user");
+        return Emsg(epname, error, EPERM,
+                    "remove existing file - you are write-once user");
       }
 
       // if there is a !d policy we cannot delete files which we don't own
       if (((vid.uid) && (vid.uid != 3) && (vid.gid != 4) && (acl.CanNotDelete())) &&
-          ((fmd->getCUid() != vid.uid)))
-
-      {
+          ((fmd->getCUid() != vid.uid))) {
         gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // deletion is forbidden for not-owner
-        return Emsg(epname, error, EPERM, "remove existing file - ACL forbids file deletion");
+        return Emsg(epname, error, EPERM,
+                    "remove existing file - ACL forbids file deletion");
       }
 
-      if ((!stdpermcheck) && (!acl.CanWrite()))
-      {
+      if ((!stdpermcheck) && (!acl.CanWrite())) {
         gOFS->eosViewRWMutex.UnLockWrite();
         errno = EPERM;
         // this user is not allowed to write
-        return Emsg(epname, error, EPERM, "remove existing file - you don't have write permissions");
+        return Emsg(epname, error, EPERM,
+                    "remove existing file - you don't have write permissions");
       }
 
       // -----------------------------------------------------------------------
@@ -246,159 +221,131 @@ XrdMgmOfs::_rem (const char *path,
       // already recycled files/dirs
       // -----------------------------------------------------------------------
       XrdOucString sPath = path;
+
       if (!(no_recycling) && attrmap.count(Recycle::gRecyclingAttribute) &&
-          (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str())))
-      {
+          (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
         // ---------------------------------------------------------------------
         // this is two-step deletion via a recyle bin
         // ---------------------------------------------------------------------
         doRecycle = true;
-      }
-      else
-      {
+      } else {
         // ---------------------------------------------------------------------
         // this is one-step deletion just removing files 'forever' and now
         // ---------------------------------------------------------------------
-        if (!simulate)
-        {
-          try
-          {
+        if (!simulate) {
+          try {
             eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(container.get());
             eos_info("got quota node=%lld", (unsigned long long) ns_quota);
 
-            if (ns_quota)
+            if (ns_quota) {
               ns_quota->removeFile(fmd.get());
-          }
-          catch (eos::MDException &e) { }
+            }
+          } catch (eos::MDException& e) { }
         }
       }
     }
   }
 
-  if (!doRecycle)
-  {
-    try
-    {
-      if (!simulate)
-      {
+  if (!doRecycle) {
+    try {
+      if (!simulate) {
         eos_info("unlinking from view %s", path);
         gOFS->eosView->unlinkFile(path);
-	// Reload file object that was modifed in the unlinkFile method
-	// TODO: this can be dropped if you use the unlinkFile which takes
-	// as argument the IFileMD object
-	fmd = gOFS->eosFileService->getFileMD(fmd->getId());
+        // Reload file object that was modifed in the unlinkFile method
+        // TODO: this can be dropped if you use the unlinkFile which takes
+        // as argument the IFileMD object
+        fmd = gOFS->eosFileService->getFileMD(fmd->getId());
 
-        if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation()))
-        {
+        if ((!fmd->getNumUnlinkedLocation()) && (!fmd->getNumLocation())) {
           gOFS->eosView->removeFile(fmd.get());
         }
 
-        if (container)
-        {        
-	  container->setMTimeNow();
-	  container->notifyMTimeChange( gOFS->eosDirectoryService );
-	  eosView->updateContainerStore(container.get());
+        if (container) {
+          container->setMTimeNow();
+          container->notifyMTimeChange(gOFS->eosDirectoryService);
+          eosView->updateContainerStore(container.get());
         }
       }
+
       errno = 0;
-    }
-    catch (eos::MDException &e)
-    {
+    } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
                 e.getErrno(), e.getMessage().str().c_str());
     }
   }
 
-  if (doRecycle && (!simulate))
-  {
+  if (doRecycle && (!simulate)) {
     // Two-step deletion recycle logic
     XrdOucString recyclePath;
     gOFS->eosViewRWMutex.UnLockWrite();
     // -------------------------------------------------------------------------
     std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
 
-    if (Quota::ExistsResponsible(recycle_space))
-    {
+    if (Quota::ExistsResponsible(recycle_space)) {
       if (!Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
-			fmd->getSize(), fmd->getNumLocation()))
-      {
+                        fmd->getSize(), fmd->getNumLocation())) {
         // This is the very critical case where we have to reject the delete
         // since the recycle space is full
         errno = ENOSPC;
         return Emsg(epname, error, ENOSPC, "remove existing file - the recycle "
-		    "space is full");
-      }
-      else
-      {
+                    "space is full");
+      } else {
         // Move the file to the recycle bin
         eos::common::Mapping::VirtualIdentity rootvid;
         eos::common::Mapping::Root(rootvid);
         int rc = 0;
-
         Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
                          &vid, fmd->getCUid(), fmd->getCGid(),
                          fmd->getId());
 
-        if ((rc = lRecycle.ToGarbage(epname, error)))
+        if ((rc = lRecycle.ToGarbage(epname, error))) {
           return rc;
-	else
-	{
-	  recyclePath = error.getErrText();
-	}
+        } else {
+          recyclePath = error.getErrText();
+        }
       }
-    }
-    else
-    {
+    } else {
       // There is no quota defined on that recycle path
       errno = ENODEV;
       return Emsg(epname, error, ENODEV, "remove existing file - the recycle "
-		  "space has no quota configuration");
+                  "space has no quota configuration");
     }
 
-    if (!keepversion)
-    {
+    if (!keepversion) {
       // call the version purge function in case there is a version (without gQuota locked)
       eos::common::Path cPath(path);
       XrdOucString vdir;
       vdir += cPath.GetVersionDirectory();
 
       // tag the version directory key on the garbage file
-      if (recyclePath.length())
-      {
+      if (recyclePath.length()) {
         eos::common::Mapping::VirtualIdentity rootvid;
         eos::common::Mapping::Root(rootvid);
-	struct stat buf;
-	if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0))
-	{
-	  char sp[256];
-	  snprintf(sp, sizeof (sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
-	  
-	  if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "", Recycle::gRecyclingVersionKey.c_str(),sp))
-	  {
-	    eos_err("msg=\"failed to set attribute on recycle path\" path=%s", recyclePath.c_str());
-	  
-	  }
-	}
-	else
-	{
-	  eos_err("msg\"failed to stat recycle path\" path=%s", recyclePath.c_str());
-	}
+        struct stat buf;
+
+        if (!gOFS->_stat(vdir.c_str(), &buf, error, rootvid, 0, 0)) {
+          char sp[256];
+          snprintf(sp, sizeof(sp) - 1, "%016llx", (unsigned long long) buf.st_ino);
+
+          if (gOFS->_attr_set(recyclePath.c_str(), error, vid, "",
+                              Recycle::gRecyclingVersionKey.c_str(), sp)) {
+            eos_err("msg=\"failed to set attribute on recycle path\" path=%s",
+                    recyclePath.c_str());
+          }
+        } else {
+          eos_err("msg\"failed to stat recycle path\" path=%s", recyclePath.c_str());
+        }
       }
 
       gOFS->PurgeVersion(vdir.c_str(), error, 0);
       error.clear();
-      
-
       errno = 0; // purge might return ENOENT if there was no version
     }
-  }
-  else
-  {
+  } else {
     gOFS->eosViewRWMutex.UnLockWrite();
 
-    if ((!errno) && (!keepversion))
-    {
+    if ((!errno) && (!keepversion)) {
       // call the version purge function in case there is a version (without gQuota locked)
       eos::common::Path cPath(path);
       XrdOucString vdir;
@@ -411,15 +358,23 @@ XrdMgmOfs::_rem (const char *path,
 
   EXEC_TIMING_END("Rm");
 
-  if (errno)
-  {
+  if (errno) {
     return Emsg(epname, error, errno, "remove", path);
-  }
-  else
-  {
-    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u "
-	     "vid.uid=%u vid.gid=%u", doRecycle, path, owner_uid, owner_gid,
-	     vid.uid, vid.gid);
+  } else {
+    Workflow workflow;
+    // eventually trigger a workflow
+    workflow.Init(&attrmap);
+    workflow.SetFile(path, fid);
+    int ret_wfe = 0;
+
+    if ((ret_wfe = workflow.Trigger("delete", "default", vid)) < 0) {
+      eos_debug("msg=\"no workflow defined for delete\"");
+    } else {
+      eos_debug("msg=\"workflow trigger returned\" retc=%d", ret_wfe);
+    }
+
+    eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
+             doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
     return SFS_OK;
   }
 }

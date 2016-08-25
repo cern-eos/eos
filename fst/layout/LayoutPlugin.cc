@@ -35,7 +35,7 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-LayoutPlugin::LayoutPlugin ()
+LayoutPlugin::LayoutPlugin()
 {
   // empty
 }
@@ -44,7 +44,7 @@ LayoutPlugin::LayoutPlugin ()
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-LayoutPlugin::~LayoutPlugin ()
+LayoutPlugin::~LayoutPlugin()
 {
   //empty
 }
@@ -54,26 +54,34 @@ LayoutPlugin::~LayoutPlugin ()
 // Get layout object
 //------------------------------------------------------------------------------
 Layout*
-LayoutPlugin::GetLayoutObject (XrdFstOfsFile* file,
-                               unsigned long layoutId,
-                               const XrdSecEntity* client,
-                               XrdOucErrInfo* error,
-                               eos::common::LayoutId::eIoType io,
-                               uint16_t timeout,
-                               bool storeRecovery)
+LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
+                              unsigned long layoutId,
+                              const XrdSecEntity* client,
+                              XrdOucErrInfo* error,
+                              const char* path,
+                              uint16_t timeout,
+                              bool storeRecovery)
 {
-  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain)
-    return static_cast<Layout*> (new PlainLayout(file, layoutId, client, error, io, timeout ));
-  
-  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)
-    return static_cast<Layout*> (new ReplicaParLayout(file, layoutId, client, error, io, timeout));
-  
-  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP)
-    return static_cast<Layout*> (new RaidDpLayout(file, layoutId, client, error, io, timeout, storeRecovery));
-  
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
+    return static_cast<Layout*>(new PlainLayout(file, layoutId, client, error, path,
+                                timeout));
+  }
+
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica) {
+    return static_cast<Layout*>(new ReplicaParLayout(file, layoutId, client, error,
+                                path, timeout));
+  }
+
+  if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP) {
+    return static_cast<Layout*>(new RaidDpLayout(file, layoutId, client, error,
+                                path, timeout, storeRecovery));
+  }
+
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
-      (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive))
-    return static_cast<Layout*> (new ReedSLayout(file, layoutId, client, error, io, timeout, storeRecovery));
+      (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive)) {
+    return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
+                                timeout, storeRecovery));
+  }
 
   return 0;
 }

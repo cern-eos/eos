@@ -64,11 +64,9 @@ EOSMGMNAMESPACE_BEGIN
  *
  */
 /*----------------------------------------------------------------------------*/
-struct SchedTreeBase
-{
+struct SchedTreeBase {
   // settings
-  struct Settings
-  {
+  struct Settings {
     //char spreadingFillRatioCap;
     //char fillRatioCompTol;
     size_t debugLevel;// 0(off)->3(full)
@@ -94,12 +92,12 @@ protected:
   }
 
   SchedTreeBase() :
-  pDebugLevel(gSettings.debugLevel), pCheckLevel(gSettings.checkLevel)
+    pDebugLevel(gSettings.debugLevel), pCheckLevel(gSettings.checkLevel)
   {
   }
 
 public:
-  SchedTreeBase& operator = (const SchedTreeBase &model)
+  SchedTreeBase& operator = (const SchedTreeBase& model)
   {
     pDebugLevel = model.pDebugLevel;
     pCheckLevel = model.pCheckLevel;
@@ -128,21 +126,22 @@ public:
   // this keeps the FastTree as small as possible and necessary
   // note that this class could be derived from a base class to
   // have specific info for different node types
-  struct TreeNodeInfo
-  {
-    typedef enum
-    {
+  struct TreeNodeInfo {
+    typedef enum {
       intermediate, fs
-    }tNodeType;
+    } tNodeType;
     tNodeType nodeType;
     std::string geotag;
     std::string fullGeotag;
     std::string host;
+    std::string hostport;
+    std::string proxygroup;
+    int8_t fileStickyProxyDepth;
     eos::common::FileSystem::fsid_t fsId;
     float netSpeedClass;
 
     std::ostream&
-    display(std::ostream &os) const;
+    display(std::ostream& os) const;
 
   };
 
@@ -150,29 +149,47 @@ public:
   // it MUST be necessary to the decision making process
   //enum tStatus { Drainer = 1<<1, Draining = 1<<2, Balancer = 1<<3, Balancing = 1<<4, Available = 1<<5, Readable = 1<<6, Writable = 1<<7, All = ~0, None = 0 };
   enum tStatus
-  { Drainer = 1, Draining = 1<<1, Balancer = 1<<2, Balancing = 1<<3, Available = 1<<4, Readable = 1<<5, Writable = 1<<6, Disabled = 1<<7, All = ~0, None = 0};
+  { Drainer = 1, Draining = 1 << 1, Balancer = 1 << 2, Balancing = 1 << 3, Available = 1 << 4, Readable = 1 << 5, Writable = 1 << 6, Disabled = 1 << 7, All = ~0, None = 0};
   static std::string fsStatusToStr(int16_t s)
   {
-    std::string out="";
-    if(s&Disabled) out = out + "DIS";
-    if(!(s&Available)) out = out + "Unv";
-    if(s&Balancer) out = out + "Bin";
-    if(s&Balancing) out = out + "Bout";
-    if(s&Drainer) out = out + "Din";
-    if(s&Draining) out = out + "Dout";
-    if(s&Writable)
-    {
-      if(s&Readable)
-      out = out +"RW";
-      else
-      out = out +"WO";
+    std::string out = "";
+
+    if (s & Disabled) {
+      out = out + "DIS";
     }
-    else
-    {
-      if(s&Readable)
-      out = out +"RO";
-      else
-      out = out +"noIO";
+
+    if (!(s & Available)) {
+      out = out + "Unv";
+    }
+
+    if (s & Balancer) {
+      out = out + "Bin";
+    }
+
+    if (s & Balancing) {
+      out = out + "Bout";
+    }
+
+    if (s & Drainer) {
+      out = out + "Din";
+    }
+
+    if (s & Draining) {
+      out = out + "Dout";
+    }
+
+    if (s & Writable) {
+      if (s & Readable) {
+        out = out + "RW";
+      } else {
+        out = out + "WO";
+      }
+    } else {
+      if (s & Readable) {
+        out = out + "RO";
+      } else {
+        out = out + "noIO";
+      }
     }
 
     return out;
@@ -180,19 +197,27 @@ public:
 
   static std::string intermediateStatusToStr(int16_t s)
   {
-    std::string out="";
-    if(s&Disabled) out = +"Dis";
-    if(!(s&Available)) out = +"Unv";
-    if(out.empty())
-    out="OK";
+    std::string out = "";
+
+    if (s & Disabled) {
+      out = +"Dis";
+    }
+
+    if (!(s & Available)) {
+      out = +"Unv";
+    }
+
+    if (out.empty()) {
+      out = "OK";
+    }
+
     return out;
   }
 
   template<typename T>
-  struct TreeNodeState
-  {
+  struct TreeNodeState {
     TreeNodeState() :
-    mStatus(Available), ulScore(0), dlScore(0), totalSpace(0), fillRatio(0)
+      mStatus(Available), ulScore(0), dlScore(0), totalSpace(0), fillRatio(0)
     {
     }
     typedef TreeNodeState<T> tSelf;
@@ -205,8 +230,7 @@ public:
     T fillRatio;
   };
 
-  struct TreeNodeSlots
-  {
+  struct TreeNodeSlots {
     typedef TreeNodeSlots tSelf;
     unsigned char freeSlotsCount;
     unsigned char takenSlotsCount;
@@ -216,15 +240,14 @@ public:
     char maxUlScore;
 
     TreeNodeSlots() :
-    freeSlotsCount(0),takenSlotsCount(0),
-    avgDlScore(0),avgUlScore(0),
-    maxDlScore(0),maxUlScore(0)
+      freeSlotsCount(0), takenSlotsCount(0),
+      avgDlScore(0), avgUlScore(0),
+      maxDlScore(0), maxUlScore(0)
     {}
   };
 
   typedef TreeNodeState<char> TreeNodeStateChar;
-  struct TreeNodeStateFloat : public TreeNodeState<float>
-  {
+  struct TreeNodeStateFloat : public TreeNodeState<float> {
     void
     writeCompactVersion(TreeNodeStateChar* target) const
     {
@@ -238,8 +261,10 @@ public:
 
   template<typename T>
   inline static signed char
-  comparePlct(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol )
+  comparePlct(const TreeNodeState<T>* const& lefts,
+              const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+              const TreeNodeSlots* const& rightp, const char& spreadingFillRatioCap,
+              const char& fillRatioCompTol)
   {
     // this function compares the scheduling priority of two branches
     // inside a FastTree branches are in a vector which is kept sorted.
@@ -250,65 +275,94 @@ public:
     // -1 if left  > right
     //  0 if left == right
     //  1 if right < left
-
     // lexicographic order
-
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // -1 - Should be in the right state
-    mask = Available|Writable;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    mask = Available | Writable;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // 1 - respect of SpreadingFillRatioCap
-    if (lefts->fillRatio > spreadingFillRatioCap && rights->fillRatio <= spreadingFillRatioCap)
-    return 1;
-    if (lefts->fillRatio <= spreadingFillRatioCap && rights->fillRatio > spreadingFillRatioCap)
-    return -1;
+    if (lefts->fillRatio > spreadingFillRatioCap &&
+        rights->fillRatio <= spreadingFillRatioCap) {
+      return 1;
+    }
+
+    if (lefts->fillRatio <= spreadingFillRatioCap &&
+        rights->fillRatio > spreadingFillRatioCap) {
+      return -1;
+    }
 
     // 2 - as few replicas as possible
-    if (leftp->takenSlotsCount > rightp->takenSlotsCount)
-    return 1;
-    if (leftp->takenSlotsCount < rightp->takenSlotsCount)
-    return -1;
+    if (leftp->takenSlotsCount > rightp->takenSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->takenSlotsCount < rightp->takenSlotsCount) {
+      return -1;
+    }
 
     //#define USEMAXSLOT
 #ifdef USEMAXSLOT
+
     // 3 - as many available slots as possible
-    if(leftp->freeSlotsCount
-        < rightp->freeSlotsCount) return 1;
-    if(leftp->freeSlotsCount
-        > rightp->freeSlotsCount) return -1;
+    if (leftp->freeSlotsCount
+        < rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount
+        > rightp->freeSlotsCount) {
+      return -1;
+    }
+
     //  else return false;
 #else
+
     // 3 - as empty as possible
-    if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol)
-    return 1;
-    if (lefts->fillRatio + fillRatioCompTol < rights->fillRatio)
-    return -1;
+    if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol) {
+      return 1;
+    }
+
+    if (lefts->fillRatio + fillRatioCompTol < rights->fillRatio) {
+      return -1;
+    }
+
     //  else return false;
 #endif
-
     return 0;
   }
 
   template<typename T>
   inline static signed char
-  compareAccessRO(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp)
+  compareAccessRO(const TreeNodeState<T>* const& lefts,
+                  const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                  const TreeNodeSlots* const& rightp)
   {
     // this function compares the scheduling priority of two branches
     // inside a FastTree branches are in a vector which is kept sorted.
@@ -319,27 +373,36 @@ public:
     // -1 if left  > right
     //  0 if left == right
     //  1 if right > left
-
     // lexicographic order
-
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
 
-    mask = Available|Readable;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
+
+    mask = Available | Readable;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // we might add a notion of depth to minimize latency
     return 0;
@@ -347,8 +410,9 @@ public:
 
   template<typename T>
   inline static signed char
-  compareAccessDrain(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp)
+  compareAccessDrain(const TreeNodeState<T>* const& lefts,
+                     const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                     const TreeNodeSlots* const& rightp)
   {
     // this function compares the scheduling priority of two branches
     // inside a FastTree branches are in a vector which is kept sorted.
@@ -359,37 +423,46 @@ public:
     // -1 if left  > right
     //  0 if left == right
     //  1 if right > left
-
     // lexicographic order
-
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // should be readable or draining
-    int16_t mask2 = Available|Draining;
-    mask = Available|Readable;
+    int16_t mask2 = Available | Draining;
+    mask = Available | Readable;
+
     if (
-        ( (mask!=(lefts->mStatus&mask)) && (mask2!=(lefts->mStatus&mask2)) )
-        &&
-        ( (mask==(rights->mStatus&mask)) || (mask2==(rights->mStatus&mask2)) )
-        )
-    return 1;
+      ((mask != (lefts->mStatus & mask)) && (mask2 != (lefts->mStatus & mask2)))
+      &&
+      ((mask == (rights->mStatus & mask)) || (mask2 == (rights->mStatus & mask2)))
+    ) {
+      return 1;
+    }
+
     if (
-        ( (mask==(lefts->mStatus&mask)) || (mask2==(lefts->mStatus&mask2)) )
-        &&
-        ( (mask!=(rights->mStatus&mask)) && (mask2!=(rights->mStatus&mask2)) )
-        )
-    return -1;
+      ((mask == (lefts->mStatus & mask)) || (mask2 == (lefts->mStatus & mask2)))
+      &&
+      ((mask != (rights->mStatus & mask)) && (mask2 != (rights->mStatus & mask2)))
+    ) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // we might add a notion of depth to minimize latency
     return 0;
@@ -397,8 +470,9 @@ public:
 
   template<typename T>
   inline static signed char
-  compareAccessRW(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp)
+  compareAccessRW(const TreeNodeState<T>* const& lefts,
+                  const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                  const TreeNodeSlots* const& rightp)
   {
     // this function compares the scheduling priority of two branches
     // inside a FastTree branches are in a vector which is kept sorted.
@@ -409,27 +483,36 @@ public:
     // -1 if left  > right
     //  0 if left == right
     //  1 if right > left
-
     // lexicographic order
-
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
 
-    mask = Available|Readable|Writable;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
+
+    mask = Available | Readable | Writable;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // we might add a notion of depth to minimize latency
     return 0;
@@ -437,86 +520,130 @@ public:
 
   template<typename T>
   inline static signed char
-  compareDrnPlct(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol)
+  compareDrnPlct(const TreeNodeState<T>* const& lefts,
+                 const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                 const TreeNodeSlots* const& rightp, const char& spreadingFillRatioCap,
+                 const char& fillRatioCompTol)
   {
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // -1 - Should be a drainer
-    mask = Available|Writable|Drainer;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    mask = Available | Writable | Drainer;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // 1 - respect of SpreadingFillRatioCap
-    if (lefts->fillRatio > spreadingFillRatioCap && rights->fillRatio <= spreadingFillRatioCap)
-    return 1;
-    if (lefts->fillRatio <= spreadingFillRatioCap && rights->fillRatio > spreadingFillRatioCap)
-    return -1;
+    if (lefts->fillRatio > spreadingFillRatioCap &&
+        rights->fillRatio <= spreadingFillRatioCap) {
+      return 1;
+    }
+
+    if (lefts->fillRatio <= spreadingFillRatioCap &&
+        rights->fillRatio > spreadingFillRatioCap) {
+      return -1;
+    }
 
     // 2 - as few replicas as possible
-    if (leftp->takenSlotsCount > rightp->takenSlotsCount)
-    return 1;
-    if (leftp->takenSlotsCount < rightp->takenSlotsCount)
-    return -1;
+    if (leftp->takenSlotsCount > rightp->takenSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->takenSlotsCount < rightp->takenSlotsCount) {
+      return -1;
+    }
 
     //#define USEMAXSLOT
 #ifdef USEMAXSLOT
+
     // 3 - as many available slots as possible
-    if(leftp->freeSlotsCount
-        < rightp->freeSlotsCount) return 1;
-    if(leftp->freeSlotsCount
-        > rightp->freeSlotsCount) return -1;
+    if (leftp->freeSlotsCount
+        < rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount
+        > rightp->freeSlotsCount) {
+      return -1;
+    }
+
     //  else return false;
 #else
+
     // 3 - as empty as possible
-    if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol)
-    return 1;
-    if (lefts->fillRatio + fillRatioCompTol < rights->fillRatio)
-    return -1;
+    if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol) {
+      return 1;
+    }
+
+    if (lefts->fillRatio + fillRatioCompTol < rights->fillRatio) {
+      return -1;
+    }
+
     //  else return false;
 #endif
-
     return 0;
   }
 
   template<typename T>
   inline static signed char
-  compareDrnAccess(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp)
+  compareDrnAccess(const TreeNodeState<T>* const& lefts,
+                   const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                   const TreeNodeSlots* const& rightp)
   {
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // lexicographic order
     // -1 - Should be a draining
-    mask = Available|Readable;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    mask = Available | Readable;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // we might add a notion of depth to minimize latency
     return 0;
@@ -524,87 +651,165 @@ public:
 
   template<typename T>
   inline static signed char
-  compareBlcPlct(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol)
+  compareBlcPlct(const TreeNodeState<T>* const& lefts,
+                 const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                 const TreeNodeSlots* const& rightp, const char& spreadingFillRatioCap,
+                 const char& fillRatioCompTol)
   {
     // lexicographic order
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // -1 - Should be a balancer
-    mask = Available|Writable|Balancer;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    mask = Available | Writable | Balancer;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
 
     // 1 - respect of SpreadingFillRatioCap
-    if (lefts->fillRatio > spreadingFillRatioCap && rights->fillRatio <= spreadingFillRatioCap)
-    return 1;
-    if (lefts->fillRatio <= spreadingFillRatioCap && rights->fillRatio > spreadingFillRatioCap)
-    return -1;
+    if (lefts->fillRatio > spreadingFillRatioCap &&
+        rights->fillRatio <= spreadingFillRatioCap) {
+      return 1;
+    }
+
+    if (lefts->fillRatio <= spreadingFillRatioCap &&
+        rights->fillRatio > spreadingFillRatioCap) {
+      return -1;
+    }
 
     // 2 - as few replicas as possible
-    if (leftp->takenSlotsCount > rightp->takenSlotsCount)
-    return 1;
-    if (leftp->takenSlotsCount < rightp->takenSlotsCount)
-    return -1;
+    if (leftp->takenSlotsCount > rightp->takenSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->takenSlotsCount < rightp->takenSlotsCount) {
+      return -1;
+    }
 
     //#define USEMAXSLOT
 #ifdef USEMAXSLOT
+
     // 3 - as many available slots as possible
-    if(leftp->freeSlotsCount
-        < rightp->freeSlotsCount) return 1;
-    if(leftp->freeSlotsCount
-        > rightp->freeSlotsCount) return -1;
+    if (leftp->freeSlotsCount
+        < rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount
+        > rightp->freeSlotsCount) {
+      return -1;
+    }
+
     //  else return false;
 #else
+
     // 3 - as empty as possible
-    if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol)
-    return 1;
-    if (lefts->fillRatio + fillRatioCompTol < rights->fillRatio)
-    return -1;
+    if (lefts->fillRatio > rights->fillRatio + fillRatioCompTol) {
+      return 1;
+    }
+
+    if (lefts->fillRatio + fillRatioCompTol < rights->fillRatio) {
+      return -1;
+    }
+
     //  else return false;
 #endif
-
     return 0;
   }
 
   template<typename T>
   inline static signed char
-  compareBlcAccess(const TreeNodeState<T>* const &lefts, const TreeNodeSlots* const &leftp, const TreeNodeState<T>* const &rights,
-      const TreeNodeSlots* const &rightp, const char &spreadingFillRatioCap, const char &fillRatioCompTol)
+  compareBlcAccess(const TreeNodeState<T>* const& lefts,
+                   const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                   const TreeNodeSlots* const& rightp, const char& spreadingFillRatioCap,
+                   const char& fillRatioCompTol)
   {
     // -2 - Should not be disabled
     int16_t mask = Disabled;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return -1;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // lexicographic order
     // -1 - Should be a balancing
-    mask = Available|Readable;
-    if ( (mask!=(lefts->mStatus&mask)) && (mask==(rights->mStatus&mask)) )
-    return 1;
-    if ( (mask==(lefts->mStatus&mask)) && (mask!=(rights->mStatus&mask)) )
-    return -1;
+    mask = Available | Readable;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // 0 - Having at least one free slot
-    if (!leftp->freeSlotsCount && rightp->freeSlotsCount)
-    return 1;
-    if (leftp->freeSlotsCount && !rightp->freeSlotsCount)
-    return -1;
+    if (!leftp->freeSlotsCount && rightp->freeSlotsCount) {
+      return 1;
+    }
+
+    if (leftp->freeSlotsCount && !rightp->freeSlotsCount) {
+      return -1;
+    }
+
+    // we might add a notion of depth to minimize latency
+    return 0;
+  }
+
+  template<typename T>
+  inline static signed char
+  compareGateway(const TreeNodeState<T>* const& lefts,
+                 const TreeNodeSlots* const& leftp, const TreeNodeState<T>* const& rights,
+                 const TreeNodeSlots* const& rightp)
+  {
+    // -2 - Should not be disabled
+    int16_t mask = Disabled;
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return -1;
+    }
+
+    // lexicographic order
+    // -1 - Should be a balancing
+    mask = Available;
+
+    if ((mask != (lefts->mStatus & mask)) && (mask == (rights->mStatus & mask))) {
+      return 1;
+    }
+
+    if ((mask == (lefts->mStatus & mask)) && (mask != (rights->mStatus & mask))) {
+      return -1;
+    }
 
     // we might add a notion of depth to minimize latency
     return 0;
@@ -620,46 +825,50 @@ public:
 // class SchedTreeBase
 
 inline std::ostream&
-operator <<(std::ostream &os, const SchedTreeBase::TreeNodeInfo &info)
+operator <<(std::ostream& os, const SchedTreeBase::TreeNodeInfo& info)
 {
   return info.display(os);
 }
 std::ostream&
-operator <<(std::ostream &os, const SchedTreeBase::FastTreeInfo &info);
+operator <<(std::ostream& os, const SchedTreeBase::FastTreeInfo& info);
 
 template <class RandomAccessIterator, class Compare>
-void insertionSort (RandomAccessIterator first, RandomAccessIterator last, Compare comp)
+void insertionSort(RandomAccessIterator first, RandomAccessIterator last,
+                   Compare comp)
 {
-  RandomAccessIterator it1,it2;
+  RandomAccessIterator it1, it2;
   typedef typename std::iterator_traits<RandomAccessIterator>::value_type
   valtype;
 
-  for(it1=first+1; it1!=last; ++it1)
-  {
+  for (it1 = first + 1; it1 != last; ++it1) {
     valtype data = *it1;
-    for(it2=it1-1;it2>=first;--it2)
-    {
-      if(comp(*it2,data))
-      *(it2+1) = *it2;
-      else
-      break;
+
+    for (it2 = it1 - 1; it2 >= first; --it2) {
+      if (comp(*it2, data)) {
+        *(it2 + 1) = *it2;
+      } else {
+        break;
+      }
     }
-    *(it2+1) = data;
+
+    *(it2 + 1) = data;
   }
+
   return;
 }
 
 template <class RandomAccessIterator, class Compare>
-void bubbleSort (RandomAccessIterator first, RandomAccessIterator last, Compare comp)
+void bubbleSort(RandomAccessIterator first, RandomAccessIterator last,
+                Compare comp)
 {
-  for(auto it1=first+1; it1!=last; ++it1)
-  {
-    for(auto it2=last-1;it2>=it1;--it2)
-    {
-      if( comp(*(it2-1) , *it2) )
-      std::swap(*(it2-1),*it2);
+  for (auto it1 = first + 1; it1 != last; ++it1) {
+    for (auto it2 = last - 1; it2 >= it1; --it2) {
+      if (comp(*(it2 - 1) , *it2)) {
+        std::swap(*(it2 - 1), *it2);
+      }
     }
   }
+
   return;
 }
 
@@ -667,19 +876,22 @@ inline void insertionSort(int* arr, int size)
 {
   assert(arr);
   assert(size > 0);
-  for (int i = 1; i < size; ++i)
-  {
+
+  for (int i = 1; i < size; ++i) {
     int j = 0;
     int data = arr[i];
-    for (j = i-1; j >= 0; --j)
-    {
-      if (arr[j] > data)
-      arr[j+1] = arr[j];
-      else
-      break;
+
+    for (j = i - 1; j >= 0; --j) {
+      if (arr[j] > data) {
+        arr[j + 1] = arr[j];
+      } else {
+        break;
+      }
     }
-    arr[j+1] = data;
+
+    arr[j + 1] = data;
   }
+
   return;
 }
 

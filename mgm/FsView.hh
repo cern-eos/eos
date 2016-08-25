@@ -63,8 +63,7 @@ class GeoTree;
 //------------------------------------------------------------------------------
 //! Base class representing any element in a GeoTree
 //------------------------------------------------------------------------------
-struct GeoTreeElement
-{
+struct GeoTreeElement {
   //! Pointer to father node in the tree
   GeoTreeElement* mFather;
 
@@ -93,7 +92,7 @@ struct GeoTreeElement
 //------------------------------------------------------------------------------
 class GeoTreeNodeOrderHelper
 {
- public:
+public:
   bool operator()(const GeoTreeElement* const& left,
                   const GeoTreeElement* const& right) const
   {
@@ -106,7 +105,7 @@ class GeoTreeNodeOrderHelper
 //------------------------------------------------------------------------------
 class GeoTreeAggregator
 {
- public:
+public:
   virtual ~GeoTreeAggregator()
   {};
 
@@ -135,12 +134,12 @@ class GeoTreeAggregator
 
   // Aggregate the leaves and the nodes at any level of the tree
   virtual bool aggregateLeavesAndNodes(
-      const std::set<eos::common::FileSystem::fsid_t>& leaves,
-      const std::map<std::string , GeoTreeElement*>& nodes,
-      const size_t& idx)
+    const std::set<eos::common::FileSystem::fsid_t>& leaves,
+    const std::map<std::string , GeoTreeElement*>& nodes,
+    const size_t& idx)
   {
     return (leaves.empty() ? true : aggregateLeaves(leaves, idx))
-        && (nodes.empty() ? true : aggregateNodes(nodes, idx, !leaves.empty()));
+           && (nodes.empty() ? true : aggregateNodes(nodes, idx, !leaves.empty()));
   }
 };
 
@@ -168,7 +167,7 @@ class GeoTree
   //----------------------------------------------------------------------------
   std::string getGeoTag(const fsid_t& fs) const;
 
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -206,11 +205,11 @@ class GeoTree
   //! Only the leaves are iterated in alphabetical order of their geotag
   //----------------------------------------------------------------------------
   class const_iterator: public
-  std::iterator<std::bidirectional_iterator_tag, fsid_t>
+    std::iterator<std::bidirectional_iterator_tag, fsid_t>
   {
     friend class GeoTree;
     std::map<fsid_t, tElement*>::const_iterator mIt;
-   public:
+  public:
     const_iterator operator++(int);
     const_iterator operator--(int);
     const_iterator operator++();
@@ -269,7 +268,7 @@ class GeoTree
 //------------------------------------------------------------------------------
 class BaseView : public GeoTree
 {
- private:
+private:
   //! Last heartbeat time
   time_t mHeartBeat;
 
@@ -288,7 +287,7 @@ class BaseView : public GeoTree
   //! Number of items in queue (meaning depends on inheritor)
   size_t mInQueue;
 
- public:
+public:
 
   std::string mName; ///< Name of the base view
   std::string mType; ///< type of the base view
@@ -446,7 +445,7 @@ class BaseView : public GeoTree
 //------------------------------------------------------------------------------
 class FsSpace : public BaseView
 {
- public:
+public:
 #ifndef EOSMGMFSVIEWTEST
   Balancer* mBalancer; ///< Threaded object supervising space balancing
   Converter* mConverter; ///< Threaded object running layout conversion jobs
@@ -473,94 +472,115 @@ class FsSpace : public BaseView
     mGroupBalancer = new GroupBalancer(name);
     mGeoBalancer = new GeoBalancer(name);
 
-    if (!gDisableDefaults)
-    {
+    if (!gDisableDefaults) {
       // Set default balancing variables
       // Disable balancing by default
-      if (GetConfigMember("balancer") == "")
+      if (GetConfigMember("balancer") == "") {
         SetConfigMember("balancer", "off", true, "/eos/*/mgm");
+      }
 
       // Set deviation treshold
-      if (GetConfigMember("balancer.threshold") == "")
+      if (GetConfigMember("balancer.threshold") == "") {
         SetConfigMember("balancer.threshold", "20", true, "/eos/*/mgm");
+      }
 
       // Set balancing rate per balancing stream
-      if (GetConfigMember("balancer.node.rate") == "")
+      if (GetConfigMember("balancer.node.rate") == "") {
         SetConfigMember("balancer.node.rate", "25", true, "/eos/*/mgm");
+      }
 
       // Set parallel balancing streams per node
-      if (GetConfigMember("balancer.node.ntx") == "")
+      if (GetConfigMember("balancer.node.ntx") == "") {
         SetConfigMember("balancer.node.ntx", "2", true, "/eos/*/mgm");
+      }
 
       // Set drain rate per drain stream
-      if (GetConfigMember("drain.node.rate") == "")
+      if (GetConfigMember("drain.node.rate") == "") {
         SetConfigMember("drainer.node.rate", "25", true, "/eos/*/mgm");
+      }
 
       // Set parallel draining streams per node
-      if (GetConfigMember("drainer.node.ntx") == "")
+      if (GetConfigMember("drainer.node.ntx") == "") {
         SetConfigMember("drainer.node.ntx", "2", true, "/eos/*/mgm");
+      }
 
       // Set the grace period before drain start on opserror to 1 day
-      if (GetConfigMember("graceperiod") == "")
+      if (GetConfigMember("graceperiod") == "") {
         SetConfigMember("graceperiod", "86400", true, "/eos/*/mgm");
+      }
 
       // Set the time for a drain by default to 1 day
-      if (GetConfigMember("drainperiod") == "")
+      if (GetConfigMember("drainperiod") == "") {
         SetConfigMember("drainperiod", "86400", true, "/eos/*/mgm");
+      }
 
       // Set the scan interval by default to 1 week
-      if (GetConfigMember("scaninterval") == "")
+      if (GetConfigMember("scaninterval") == "") {
         SetConfigMember("scaninterval", "604800", true, "/eos/*/mgm");
+      }
 
       // Disable quota by default
-      if (GetConfigMember("quota") == "")
+      if (GetConfigMember("quota") == "") {
         SetConfigMember("quota", "off", true, "/eos/*/mgm");
+      }
 
       // Set the group modulo to 0
-      if (GetConfigMember("groupmod") == "")
+      if (GetConfigMember("groupmod") == "") {
         SetConfigMember("groupmod", "0", true, "/eos/*/mgm");
+      }
 
       // Set the group size to 0
-      if (GetConfigMember("groupsize") == "")
+      if (GetConfigMember("groupsize") == "") {
         SetConfigMember("groupsize", "0", true, "/eos/*/mgm");
+      }
 
       // Disable converter by default
-      if (GetConfigMember("converter") == "")
+      if (GetConfigMember("converter") == "") {
         SetConfigMember("converter", "off", true, "/eos/*/mgm");
+      }
 
       // Set two converter streams by default
-      if (GetConfigMember("converter.ntx") == "")
+      if (GetConfigMember("converter.ntx") == "") {
         SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      }
 
-      if (GetConfigMember("groupbalancer") == "")
+      if (GetConfigMember("groupbalancer") == "") {
         SetConfigMember("groupbalancer", "off", true, "/eos/*/mgm");
+      }
 
       // Set the groupbalancer max number of scheduled files by default
-      if (GetConfigMember("groupbalancer.ntx") == "")
+      if (GetConfigMember("groupbalancer.ntx") == "") {
         SetConfigMember("groupbalancer.ntx", "10", true, "/eos/*/mgm");
+      }
 
       // Set the groupbalancer threshold by default
-      if (GetConfigMember("groupbalancer.threshold") == "")
+      if (GetConfigMember("groupbalancer.threshold") == "") {
         SetConfigMember("groupbalancer.threshold", "5", true, "/eos/*/mgm");
+      }
 
-      if (GetConfigMember("geotagbalancer") == "")
+      if (GetConfigMember("geotagbalancer") == "") {
         SetConfigMember("geotagbalancer", "off", true, "/eos/*/mgm");
+      }
 
       // Set the geotagbalancer max number of scheduled files by default
-      if (GetConfigMember("geotagbalancer.ntx") == "")
+      if (GetConfigMember("geotagbalancer.ntx") == "") {
         SetConfigMember("geotagbalancer.ntx", "10", true, "/eos/*/mgm");
+      }
 
       // Set the geotagbalancer threshold by default
-      if (GetConfigMember("geotagbalancer.threshold") == "")
+      if (GetConfigMember("geotagbalancer.threshold") == "") {
         SetConfigMember("geotagbalancer.threshold", "5", true, "/eos/*/mgm");
+      }
 
       // Disable lru by default
-      if (GetConfigMember("lru") == "")
+      if (GetConfigMember("lru") == "") {
         SetConfigMember("converter", "off", true, "/eos/*/mgm");
+      }
 
       // Set one week lru interval by default
-      if (GetConfigMember("lru.interval") == "604800")
+      if (GetConfigMember("lru.interval") == "604800") {
         SetConfigMember("converter.ntx", "2", true, "/eos/*/mgm");
+      }
     }
 
 #endif
@@ -573,17 +593,21 @@ class FsSpace : public BaseView
   {
 #ifndef EOSMGMFSVIEWTEST
 
-    if (mBalancer)
+    if (mBalancer) {
       mBalancer->Stop();
+    }
 
-    if (mConverter)
+    if (mConverter) {
       mConverter->Stop();
+    }
 
-    if (mGroupBalancer)
+    if (mGroupBalancer) {
       mGroupBalancer->Stop();
+    }
 
-    if (mGeoBalancer)
+    if (mGeoBalancer) {
       mGeoBalancer->Stop();
+    }
 
 #endif
   }
@@ -595,13 +619,21 @@ class FsSpace : public BaseView
   {
 #ifndef EOSMGMFSVIEWTEST
 
-    if (mBalancer) delete mBalancer;
+    if (mBalancer) {
+      delete mBalancer;
+    }
 
-    if (mConverter) delete mConverter;
+    if (mConverter) {
+      delete mConverter;
+    }
 
-    if (mGroupBalancer) delete mGroupBalancer;
+    if (mGroupBalancer) {
+      delete mGroupBalancer;
+    }
 
-    if (mGeoBalancer) delete mGeoBalancer;
+    if (mGeoBalancer) {
+      delete mGeoBalancer;
+    }
 
     mBalancer = 0;
     mConverter = 0;
@@ -647,11 +679,11 @@ class FsGroup : public BaseView
 {
   friend class FsView;
 
- protected:
+protected:
   //! Index of the described group (normally 0,1,2,3...)
   unsigned int mIndex;
 
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -706,24 +738,42 @@ class FsGroup : public BaseView
 //------------------------------------------------------------------------------
 class FsNode : public BaseView
 {
- public:
+public:
 
   static std::string gManagerId; ///< Name of the responsible manager
   eos::common::TransferQueue* mGwQueue; ///< Gateway transfer queue
 
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //! @param name nodeview name
-  //----------------------------------------------------------------------------
+  // Snapshoting
+  bool SnapShotHost(FileSystem::host_snapshot_t& host, bool dolock);
+
+  // check heartbeat
+  bool HasHeartBeat(eos::common::FileSystem::host_snapshot_t& fs);
+
+  // get active status
+  eos::common::FileSystem::fsactive_t GetActiveStatus();
+
+  // set active status
+  bool SetActiveStatus(eos::common::FileSystem::fsactive_t active);
+
+
+  // ---------------------------------------------------------------------------
+  /**
+   * @brief Constructor
+   * @param name nodeview name
+   */
+  // ---------------------------------------------------------------------------
+
   FsNode(const char* name)
   {
     mName = name;
     mType = "nodesview";
+    SetConfigMember("stat.hostport", GetMember("hostport"), true, mName.c_str(),
+                    false);
     std::string n = mName.c_str();
     n += "/gw";
     mGwQueue = new eos::common::TransferQueue(
-        mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*) 0,
-        eos::common::GlobalConfig::gConfig.SOM(), false);
+      mName.c_str(), n.c_str(), "txq", (eos::common::FileSystem*) 0,
+      eos::common::GlobalConfig::gConfig.SOM(), false);
   }
 
   //----------------------------------------------------------------------------
@@ -744,20 +794,17 @@ class FsNode : public BaseView
 #ifndef EOSMGMFSVIEWTEST
 
     // Define the manager ID
-    if (!(GetConfigMember("manager").length()))
-    {
+    if (!(GetConfigMember("manager").length())) {
       SetConfigMember("manager", gManagerId, true, mName.c_str(), true);
     }
 
     // By default set 2 balancing streams per node
-    if (!(GetConfigMember("stat.balance.ntx").length()))
-    {
+    if (!(GetConfigMember("stat.balance.ntx").length())) {
       SetConfigMember("stat.balance.ntx", "2", true, mName.c_str(), true);
     }
 
     // By default set 25 MB/s stream balancing rate
-    if (!(GetConfigMember("stat.balance.rate").length()))
-    {
+    if (!(GetConfigMember("stat.balance.rate").length())) {
       SetConfigMember("stat.balance.rate", "25", true, mName.c_str(), true);
     }
 
@@ -765,40 +812,46 @@ class FsNode : public BaseView
     eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
 
     // Store the sym key as configuration member
-    if (!(GetConfigMember("symkey").length()))
-    {
+    if (!(GetConfigMember("symkey").length())) {
       SetConfigMember("symkey", symkey->GetKey64(), true, mName.c_str(), true);
     }
 
     // Set the default debug level to notice
-    if (!(GetConfigMember("debug.level").length()))
-    {
+    if (!(GetConfigMember("debug.level").length())) {
       SetConfigMember("debug.level", "info", true, mName.c_str(), true);
     }
 
     // Set by default as no transfer gateway
-    if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off"))
-    {
+    if ((GetConfigMember("txgw") != "on") && (GetConfigMember("txgw") != "off")) {
       SetConfigMember("txgw", "off", true, mName.c_str(), true);
     }
 
-    // Set by default 10 transfers per gateway node
+    // set by default as no dataproxy
+    if ((GetConfigMember("dataproxy") != "on") &&
+        (GetConfigMember("dataproxy") != "off")) {
+      SetConfigMember("dataproxy", "on", true, mName.c_str(), true);
+    }
+
+    // set by default as no data entry point
+    if ((GetConfigMember("dataep") != "on") &&
+        (GetConfigMember("dataep") != "off")) {
+      SetConfigMember("dataep", "on", true, mName.c_str(), true);
+    }
+
+    // set by default 10 transfers per gateway node
     if ((strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == 0) ||
-        (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX))
-    {
+        (strtol(GetConfigMember("gw.ntx").c_str(), 0, 10) == LONG_MAX)) {
       SetConfigMember("gw.ntx", "10", true, mName.c_str(), true);
     }
 
     // Set by default the gateway stream transfer speed to 120 Mb/s
     if ((strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == 0) ||
-        (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX))
-    {
+        (strtol(GetConfigMember("gw.rate").c_str(), 0, 10) == LONG_MAX)) {
       SetConfigMember("gw.rate", "120", true, mName.c_str(), true);
     }
 
     // Set by default the MGM domain e.g. same geographical position as the MGM
-    if (!(GetConfigMember("domain").length()))
-    {
+    if (!(GetConfigMember("domain").length())) {
       SetConfigMember("domain", "MGM", true, mName.c_str(), true);
     }
 
@@ -829,7 +882,7 @@ class FsNode : public BaseView
 //------------------------------------------------------------------------------
 class FsView : public eos::common::LogId
 {
- private:
+private:
 
   //! Next free filesystem ID if a new one has to be registered
   eos::common::FileSystem::fsid_t NextFsId;
@@ -841,7 +894,7 @@ class FsView : public eos::common::LogId
   std::map<std::string, eos::common::FileSystem::fsid_t> Uuid2FsMap;
   std::string MgmConfigQueueName; ///< MGM configuration queue name
 
- public:
+public:
 
 #ifndef EOSMGMFSVIEWTEST
   static ConfigEngine* ConfEngine;
@@ -1044,8 +1097,7 @@ class FsView : public eos::common::LogId
   //----------------------------------------------------------------------------
   void StopHeartBeat()
   {
-    if (hbthread)
-    {
+    if (hbthread) {
       XrdSysThread::Cancel(hbthread);
       XrdSysThread::Join(hbthread, 0);
       hbthread = 0;
@@ -1140,7 +1192,7 @@ class DoubleAggregator : public GeoTreeAggregator
   //! End index (excluded) of each depth level in the statistics vectors
   std::vector<size_t> pDepthLevelsIndexes;
   std::vector<std::string> pGeoTags; ///< Full geotags at the elements of the tree
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Get the sums at each tree element
@@ -1192,14 +1244,14 @@ class DoubleAggregator : public GeoTreeAggregator
                     const std::vector<size_t>& depthLevelsIndexes);
 
   virtual bool aggregateLeaves(
-      const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
+    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 
   virtual bool aggregateNodes(
-      const std::map<std::string , GeoTreeElement*>& nodes,
-      const size_t& idx, bool includeSelf = false);
+    const std::map<std::string , GeoTreeElement*>& nodes,
+    const size_t& idx, bool includeSelf = false);
 
   virtual bool deepAggregate(
-      const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
+    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 };
 
 //------------------------------------------------------------------------------
@@ -1222,7 +1274,7 @@ class LongLongAggregator : public GeoTreeAggregator
   std::vector<std::string> pGeoTags; ///< Full geotags at the elements of the tree
   BaseView* pView; ///< The base view ordering the statistics
 
- public:
+public:
 
   //----------------------------------------------------------------------------
   //! Constructor given the name of the parameter to compute the statistics for
@@ -1259,14 +1311,14 @@ class LongLongAggregator : public GeoTreeAggregator
                     const std::vector<size_t>& depthLevelsIndexes);
 
   virtual bool aggregateLeaves(
-      const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
+    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 
   virtual bool aggregateNodes(
-      const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
-      bool includeSelf = false);
+    const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
+    bool includeSelf = false);
 
   virtual bool deepAggregate(
-      const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
+    const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 };
 
 EOSMGMNAMESPACE_END

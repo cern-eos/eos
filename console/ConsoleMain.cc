@@ -42,62 +42,63 @@ XrdPosixXrootd posixsingleton;
 // ----------------------------------------------------------------------------
 // - Implemented Commands                                                     -
 // ----------------------------------------------------------------------------
-extern int com_access (char*);
-extern int com_archive (char*);
-extern int com_attr (char*);
-extern int com_backup (char*);
-extern int com_cd (char*);
-extern int com_chmod (char*);
-extern int com_chown (char*);
-extern int com_clear (char*);
-extern int com_config (char*);
-extern int com_console (char*);
-extern int com_cp (char*);
-extern int com_debug (char*);
-extern int com_dropbox (char*);
-extern int com_file (char*);
-extern int com_fileinfo (char*);
-extern int com_find (char*);
-extern int com_fs (char*);
-extern int com_fsck (char*);
-extern int com_fuse (char*);
-extern int com_geosched (char*);
-extern int com_group (char*);
-extern int com_help (char *);
-extern int com_info (char *);
-extern int com_io (char *);
-extern int com_json (char *);
-extern int com_license (char*);
-extern int com_ln (char*);
-extern int com_ls (char*);
-extern int com_map (char*);
-extern int com_member (char*);
-extern int com_mkdir (char*);
-extern int com_motd (char*);
-extern int com_mv (char*);
-extern int com_node (char*);
-extern int com_ns (char*);
-extern int com_pwd (char*);
-extern int com_quit (char *);
-extern int com_quota (char*);
-extern int com_reconnect (char*);
-extern int com_recycle (char*);
-extern int com_rm (char*);
-extern int com_rmdir (char*);
-extern int com_role (char*);
-extern int com_rtlog (char*);
-extern int com_silent (char*);
-extern int com_space (char*);
-extern int com_stat (char*);
-extern int com_test (char*);
-extern int com_timing (char*);
-extern int com_transfer (char*);
-extern int com_touch (char*);
-extern int com_version (char*);
-extern int com_vid (char*);
-extern int com_vst (char*);
-extern int com_whoami (char*);
-extern int com_who (char*);
+extern int com_access(char*);
+extern int com_archive(char*);
+extern int com_attr(char*);
+extern int com_backup(char*);
+extern int com_cd(char*);
+extern int com_chmod(char*);
+extern int com_chown(char*);
+extern int com_clear(char*);
+extern int com_config(char*);
+extern int com_console(char*);
+extern int com_cp(char*);
+extern int com_debug(char*);
+extern int com_dropbox(char*);
+extern int com_file(char*);
+extern int com_fileinfo(char*);
+extern int com_find(char*);
+extern int com_fs(char*);
+extern int com_fsck(char*);
+extern int com_fuse(char*);
+extern int com_geosched(char*);
+extern int com_group(char*);
+extern int com_help(char*);
+extern int com_info(char*);
+extern int com_io(char*);
+extern int com_json(char*);
+extern int com_kinetic(char*);
+extern int com_license(char*);
+extern int com_ln(char*);
+extern int com_ls(char*);
+extern int com_map(char*);
+extern int com_member(char*);
+extern int com_mkdir(char*);
+extern int com_motd(char*);
+extern int com_mv(char*);
+extern int com_node(char*);
+extern int com_ns(char*);
+extern int com_pwd(char*);
+extern int com_quit(char*);
+extern int com_quota(char*);
+extern int com_reconnect(char*);
+extern int com_recycle(char*);
+extern int com_rm(char*);
+extern int com_rmdir(char*);
+extern int com_role(char*);
+extern int com_rtlog(char*);
+extern int com_silent(char*);
+extern int com_space(char*);
+extern int com_stat(char*);
+extern int com_test(char*);
+extern int com_timing(char*);
+extern int com_transfer(char*);
+extern int com_touch(char*);
+extern int com_version(char*);
+extern int com_vid(char*);
+extern int com_vst(char*);
+extern int com_whoami(char*);
+extern int com_who(char*);
 
 // ----------------------------------------------------------------------------
 // - Global Variables                                                         -
@@ -129,7 +130,8 @@ bool json = false;
 eos::common::IoPipe iopipe;
 int retcfd = 0;
 
-XrdOucEnv* CommandEnv = 0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
+XrdOucEnv* CommandEnv =
+  0; // this is a pointer to the result of client_admin... or client_user.... = it get's invalid when the output_result function is called
 
 
 static sigjmp_buf sigjump_buf;
@@ -139,15 +141,16 @@ static sigjmp_buf sigjump_buf;
 // ----------------------------------------------------------------------------
 
 void
-exit_handler (int a)
+exit_handler(int a)
 {
   fprintf(stdout, "\n");
   fprintf(stderr, "<Control-C>\n");
   write_history(historyfile.c_str());
-  if (ispipe)
-  {
+
+  if (ispipe) {
     iopipe.UnLockProducer();
   }
+
   exit(-1);
 }
 
@@ -156,9 +159,9 @@ exit_handler (int a)
 // ----------------------------------------------------------------------------
 
 void
-jump_handler (int a)
+jump_handler(int a)
 {
-  siglongjmp(sigjump_buf,1);
+  siglongjmp(sigjump_buf, 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -166,15 +169,17 @@ jump_handler (int a)
 // ----------------------------------------------------------------------------
 
 const char*
-abspath (const char* in)
+abspath(const char* in)
 {
   static XrdOucString inpath;
   inpath = in;
-  if (inpath.beginswith("/"))
+
+  if (inpath.beginswith("/")) {
     return inpath.c_str();
+  }
+
   inpath = pwd;
   inpath += in;
-
   eos::common::Path cPath(inpath.c_str());
   inpath = cPath.GetPath();
   return inpath.c_str();
@@ -189,14 +194,17 @@ wants_help(const char* arg1)
   XrdOucString allargs = " ";
   allargs += arg1;
   allargs += " ";
+
   if ((allargs.find(" help ") != STR_NPOS) ||
       (allargs.find("\"-h\"") != STR_NPOS) ||
       (allargs.find("\"--help\"") != STR_NPOS) ||
       (allargs.find(" -h ") != STR_NPOS) ||
       (allargs.find(" \"-h\" ") != STR_NPOS) ||
       (allargs.find(" --help ") != STR_NPOS) ||
-      (allargs.find(" \"--help\" ") != STR_NPOS))
+      (allargs.find(" \"--help\" ") != STR_NPOS)) {
     return 1;
+  }
+
   return 0;
 }
 
@@ -230,6 +238,7 @@ COMMAND commands[] = {
   { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
   { (char*) "io", com_io, (char*) "IO Interface"},
   { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
+  { (char*) "kinetic", com_kinetic, (char*) "Admin commands for kinetic clusters"},
   { (char*) "license", com_license, (char*) "Display Software License"},
   { (char*) "ls", com_ls, (char*) "List a directory"},
   { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
@@ -263,32 +272,31 @@ COMMAND commands[] = {
   { (char*) "who", com_who, (char*) "Statistics about connected users"},
   { (char*) "?", com_help, (char*) "Synonym for `help'"},
   { (char*) ".q", com_quit, (char*) "Exit from EOS console"},
-  { (char *) 0, (int (*)(char*))0, (char *) 0}
+  { (char*) 0, (int (*)(char*))0, (char*) 0}
 };
 
 // ----------------------------------------------------------------------------
 // - Forward Declarations
 // ----------------------------------------------------------------------------
-char *stripwhite (char *string);
-COMMAND *find_command (char *command);
-char **EOSConsole_completion (const char *text, int start, int intend);
-char *command_generator (const char *text, int state);
-char *dir_generator (const char *text, int state);
-char *filedir_generator (const char *text, int state);
-int valid_argument (char *caller, char *arg);
-int execute_line (char *line);
+char* stripwhite(char* string);
+COMMAND* find_command(char* command);
+char** EOSConsole_completion(const char* text, int start, int intend);
+char* command_generator(const char* text, int state);
+char* dir_generator(const char* text, int state);
+char* filedir_generator(const char* text, int state);
+int valid_argument(char* caller, char* arg);
+int execute_line(char* line);
 
 /* The name of this program, as taken from argv[0]. */
-char *progname;
+char* progname;
 
 /* When non-zero, this global means the user is done using this program. */
 int done;
 
-char *
-dupstr (char *s)
+char*
+dupstr(char* s)
 {
-  char *r;
-
+  char* r;
   r = (char*) malloc(strlen(s) + 1);
   strcpy(r, s);
   return (r);
@@ -296,30 +304,25 @@ dupstr (char *s)
 
 /* Switches stdin,stdout,stderr to pipe mode where we are a persistant communication daemon for a the eospipe command forwarding commands */
 bool
-startpipe ()
+startpipe()
 {
   XrdOucString pipedir = "";
   XrdOucString stdinname = "";
   XrdOucString stdoutname = "";
   XrdOucString stderrname = "";
   XrdOucString retcname = "";
-
   ispipe = true;
-
   close(STDIN_FILENO);
   close(STDOUT_FILENO);
   close(STDERR_FILENO);
 
-  if (!iopipe.Init())
-  {
+  if (!iopipe.Init()) {
     fprintf(stderr, "error: cannot set IoPipe\n");
     return false;
   }
 
   XrdSysLogger* logger = new XrdSysLogger();
   XrdSysError eDest(logger);
-
-
   int stdinfd = iopipe.AttachStdin(eDest);
   int stdoutfd = iopipe.AttachStdout(eDest);
   int stderrfd = iopipe.AttachStderr(eDest);
@@ -328,21 +331,18 @@ startpipe ()
   if ((stdinfd < 0) ||
       (stdoutfd < 0) ||
       (stderrfd < 0) ||
-      (retcfd < 0))
-  {
+      (retcfd < 0)) {
     fprintf(stderr, "error: cannot attach to pipes\n");
     return false;
   }
 
-  if (!iopipe.LockProducer())
-  {
+  if (!iopipe.LockProducer()) {
     return false;
   }
 
   stdin = fdopen(stdinfd, "r");
   stdout = fdopen(stdoutfd, "w");
   stderr = fdopen(stderrfd, "w");
-
   return true;
 }
 
@@ -355,14 +355,12 @@ startpipe ()
    on command names if this is the first word in the line, or on filenames
    if not. */
 void
-initialize_readline ()
+initialize_readline()
 {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = (char*) "EOS Console";
-
   /* Tell the completer that we want a crack first. */
   rl_attempted_completion_function = EOSConsole_completion;
-
   rl_completion_append_character = '\0';
 }
 
@@ -371,31 +369,29 @@ initialize_readline ()
    the word to complete.  We can use the entire contents of rl_line_buffer
    in case we want to do some simple parsing.  Return the array of matches,
    or 0 if there aren't any. */
-char **
-EOSConsole_completion (const char *text, int start, int intend)
+char**
+EOSConsole_completion(const char* text, int start, int intend)
 {
-  char **matches;
-
-  matches = (char **) 0;
+  char** matches;
+  matches = (char**) 0;
 
   /* If this word is at the start of the line, then it is a command
      to complete.  Otherwise it is the name of a file in the current
      directory. */
-  if (start == 0)
-  {
+  if (start == 0) {
     rl_completion_append_character = ' ';
     matches = rl_completion_matches(text, command_generator);
   }
 
   XrdOucString cmd = rl_line_buffer;
+
   if (cmd.beginswith("mkdir ") ||
       cmd.beginswith("rmdir ") ||
       cmd.beginswith("find ") ||
       cmd.beginswith("cd ") ||
       cmd.beginswith("chown ") ||
       cmd.beginswith("chmod ") ||
-      cmd.beginswith("attr "))
-  {
+      cmd.beginswith("attr ")) {
     // dir completion
     rl_completion_append_character = '\0';
     matches = rl_completion_matches(text, dir_generator);
@@ -403,8 +399,7 @@ EOSConsole_completion (const char *text, int start, int intend)
 
   if (cmd.beginswith("rm ") ||
       cmd.beginswith("ls ") ||
-      cmd.beginswith("fileinfo "))
-  {
+      cmd.beginswith("fileinfo ")) {
     // dir/file completion
     rl_completion_append_character = '\0';
     matches = rl_completion_matches(text, filedir_generator);
@@ -413,16 +408,15 @@ EOSConsole_completion (const char *text, int start, int intend)
   return (matches);
 }
 
-char *
-dir_generator (const char *text, int state)
+char*
+dir_generator(const char* text, int state)
 {
   static int list_index, len;
 
   /* If this is a new word to complete, initialize now.  This includes
      saving the length of TEXT for efficiency, and initializing the index
      variable to 0. */
-  if (!state)
-  {
+  if (!state) {
     list_index = 0;
     len = strlen(text);
   }
@@ -434,244 +428,214 @@ dir_generator (const char *text, int state)
   bool oldsilent = silent;
   silent = true;
   XrdOucString inarg = text;
-
   bool absolute = false;
-  if (inarg.beginswith("/"))
-  {
+
+  if (inarg.beginswith("/")) {
     absolute = true;
+
     // absolute pathnames
-    if (inarg.endswith("/"))
-    {
+    if (inarg.endswith("/")) {
       // that's ok
-    }
-    else
-    {
+    } else {
       int rpos = inarg.rfind("/");
-      if ((rpos != STR_NPOS))
+
+      if ((rpos != STR_NPOS)) {
         inarg.erase(rpos + 1);
-    }
-  }
-  else
-  {
-    // relative pathnames
-    if ((!inarg.length()) || (!inarg.endswith("/")))
-    {
-      inarg = pwd.c_str();
-    }
-    else
-    {
-      inarg = pwd.c_str();
-      inarg += text;
-    }
-  }
-
-
-  //  while (inarg.replace("//","/")) {};
-
-  XrdOucString comarg = "-F ";
-  comarg += inarg;
-
-  char buffer[4096];
-  sprintf(buffer, "%s", comarg.c_str());
-  com_ls((char*) buffer);
-  silent = oldsilent;
-  XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
-  do
-  {
-    subtokenizer.GetLine();
-    XrdOucString entry = subtokenizer.GetToken();
-
-    if (entry.length() == 0)
-      break;
-
-    if (entry.endswith('\n'))
-      entry.erase(entry.length() - 1);
-
-    if (!entry.endswith("/"))
-      continue;
-
-    if (entry.length())
-      dirs.push_back(entry.c_str());
-    else
-      break;
-  }
-  while (1);
-
-
-  for (unsigned int i = list_index; i < dirs.size(); i++)
-  {
-    list_index++;
-    XrdOucString compare = "";
-    if (absolute)
-    {
-      compare = inarg;
-      compare += dirs[i].c_str();
-    }
-    else
-    {
-      compare = dirs[i].c_str();
-    }
-    //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
-    if (strncmp(compare.c_str(), text, len) == 0)
-    {
-      return (dupstr((char*) compare.c_str()));
-    }
-  }
-
-  /* If no names matched, then return 0. */
-  return ((char *) 0);
-}
-
-char *
-filedir_generator (const char *text, int state)
-{
-  static int list_index, len;
-
-  /* If this is a new word to complete, initialize now.  This includes
-     saving the length of TEXT for efficiency, and initializing the index
-     variable to 0. */
-  if (!state)
-  {
-    list_index = 0;
-    len = strlen(text);
-  }
-
-  /* Return the next name which partially matches from the command list. */
-  // create a dirlist
-  std::vector<std::string> dirs;
-  dirs.resize(0);
-  bool oldsilent = silent;
-  silent = true;
-  XrdOucString inarg = text;
-
-  bool absolute = false;
-  if (inarg.beginswith("/"))
-  {
-    absolute = true;
-    // absolute pathnames
-    if (inarg.endswith("/"))
-    {
-      // that's ok
-    }
-    else
-    {
-      int rpos = inarg.rfind("/");
-      if ((rpos != STR_NPOS))
-        inarg.erase(rpos + 1);
-    }
-  }
-  else
-  {
-    // relative pathnames
-    if ((!inarg.length()) || (!inarg.endswith("/")))
-    {
-      if (!inarg.length())
-        inarg = "";
-      else
-      {
-        int rpos = inarg.rfind("/");
-        if ((rpos != STR_NPOS))
-          inarg.erase(rpos + 1);
-        else
-          inarg = "";
       }
     }
-    else
-    {
+  } else {
+    // relative pathnames
+    if ((!inarg.length()) || (!inarg.endswith("/"))) {
+      inarg = pwd.c_str();
+    } else {
       inarg = pwd.c_str();
       inarg += text;
     }
   }
 
-
   //  while (inarg.replace("//","/")) {};
-
   XrdOucString comarg = "-F ";
   comarg += inarg;
-
   char buffer[4096];
   sprintf(buffer, "%s", comarg.c_str());
   com_ls((char*) buffer);
-
   silent = oldsilent;
-
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
-  do
-  {
+
+  do {
     subtokenizer.GetLine();
     XrdOucString entry = subtokenizer.GetToken();
-    if (entry.endswith('\n'))
-      entry.erase(entry.length() - 1);
 
-    if (entry.length())
-    {
-      dirs.push_back(entry.c_str());
-    }
-    else
-    {
+    if (entry.length() == 0) {
       break;
     }
-  }
-  while (1);
 
+    if (entry.endswith('\n')) {
+      entry.erase(entry.length() - 1);
+    }
 
-  for (unsigned int i = list_index; i < dirs.size(); i++)
-  {
+    if (!entry.endswith("/")) {
+      continue;
+    }
+
+    if (entry.length()) {
+      dirs.push_back(entry.c_str());
+    } else {
+      break;
+    }
+  } while (1);
+
+  for (unsigned int i = list_index; i < dirs.size(); i++) {
     list_index++;
     XrdOucString compare = "";
-    if (absolute)
-    {
+
+    if (absolute) {
       compare = inarg;
       compare += dirs[i].c_str();
+    } else {
+      compare = dirs[i].c_str();
     }
-    else
-    {
-      compare = inarg;
-      compare += dirs[i].c_str();
-    }
+
     //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
-    if (strncmp(compare.c_str(), text, len) == 0)
-    {
+    if (strncmp(compare.c_str(), text, len) == 0) {
       return (dupstr((char*) compare.c_str()));
     }
   }
 
   /* If no names matched, then return 0. */
-  return ((char *) 0);
+  return ((char*) 0);
+}
+
+char*
+filedir_generator(const char* text, int state)
+{
+  static int list_index, len;
+
+  /* If this is a new word to complete, initialize now.  This includes
+     saving the length of TEXT for efficiency, and initializing the index
+     variable to 0. */
+  if (!state) {
+    list_index = 0;
+    len = strlen(text);
+  }
+
+  /* Return the next name which partially matches from the command list. */
+  // create a dirlist
+  std::vector<std::string> dirs;
+  dirs.resize(0);
+  bool oldsilent = silent;
+  silent = true;
+  XrdOucString inarg = text;
+  bool absolute = false;
+
+  if (inarg.beginswith("/")) {
+    absolute = true;
+
+    // absolute pathnames
+    if (inarg.endswith("/")) {
+      // that's ok
+    } else {
+      int rpos = inarg.rfind("/");
+
+      if ((rpos != STR_NPOS)) {
+        inarg.erase(rpos + 1);
+      }
+    }
+  } else {
+    // relative pathnames
+    if ((!inarg.length()) || (!inarg.endswith("/"))) {
+      if (!inarg.length()) {
+        inarg = "";
+      } else {
+        int rpos = inarg.rfind("/");
+
+        if ((rpos != STR_NPOS)) {
+          inarg.erase(rpos + 1);
+        } else {
+          inarg = "";
+        }
+      }
+    } else {
+      inarg = pwd.c_str();
+      inarg += text;
+    }
+  }
+
+  //  while (inarg.replace("//","/")) {};
+  XrdOucString comarg = "-F ";
+  comarg += inarg;
+  char buffer[4096];
+  sprintf(buffer, "%s", comarg.c_str());
+  com_ls((char*) buffer);
+  silent = oldsilent;
+  XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
+
+  do {
+    subtokenizer.GetLine();
+    XrdOucString entry = subtokenizer.GetToken();
+
+    if (entry.endswith('\n')) {
+      entry.erase(entry.length() - 1);
+    }
+
+    if (entry.length()) {
+      dirs.push_back(entry.c_str());
+    } else {
+      break;
+    }
+  } while (1);
+
+  for (unsigned int i = list_index; i < dirs.size(); i++) {
+    list_index++;
+    XrdOucString compare = "";
+
+    if (absolute) {
+      compare = inarg;
+      compare += dirs[i].c_str();
+    } else {
+      compare = inarg;
+      compare += dirs[i].c_str();
+    }
+
+    //    fprintf(stderr,"%s %s %d\n", compare.c_str(), text, len);
+    if (strncmp(compare.c_str(), text, len) == 0) {
+      return (dupstr((char*) compare.c_str()));
+    }
+  }
+
+  /* If no names matched, then return 0. */
+  return ((char*) 0);
 }
 
 /* Generator function for command completion.  STATE lets us know whether
    to start from scratch; without any state (i.e. STATE == 0), then we
    start at the top of the list. */
-char *
-command_generator (const char *text, int state)
+char*
+command_generator(const char* text, int state)
 {
   static int list_index, len;
-  char *name;
+  char* name;
 
   /* If this is a new word to complete, initialize now.  This includes
      saving the length of TEXT for efficiency, and initializing the index
      variable to 0. */
-  if (!state)
-  {
+  if (!state) {
     list_index = 0;
     len = strlen(text);
   }
 
   /* Return the next name which partially matches from the command list. */
-  while ((name = commands[list_index].name))
-  {
+  while ((name = commands[list_index].name)) {
     list_index++;
 
-    if (strncmp(name, text, len) == 0)
-    {
+    if (strncmp(name, text, len) == 0) {
       XrdOucString withspace = name;
       return (dupstr((char*) withspace.c_str()));
     }
   }
 
   /* If no names matched, then return 0. */
-  return ((char *) 0);
+  return ((char*) 0);
 }
 
 /* **************************************************************** */
@@ -682,29 +646,38 @@ command_generator (const char *text, int state)
 /* **************************************************************** */
 
 void
-command_result_stdout_to_vector (std::vector<std::string> &string_vector)
+command_result_stdout_to_vector(std::vector<std::string>& string_vector)
 {
   string_vector.clear();
-  if (!CommandEnv)
-  {
+
+  if (!CommandEnv) {
     fprintf(stderr, "error: command env is 0!\n");
     return;
   }
 
   rstdout = CommandEnv->Get("mgm.proc.stdout");
 
-  if (!rstdout.length())
+  if (!rstdout.length()) {
     return;
+  }
 
-  XrdMqMessage::UnSeal(rstdout);
+  if (rstdout.beginswith("base64:")) {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstdout, ub64out);
+    rstdout = ub64out;
+  } else {
+    XrdMqMessage::UnSeal(rstdout);
+  }
 
   XrdOucTokenizer subtokenizer((char*) rstdout.c_str());
   const char* nextline = 0;
   int i = 0;
-  while ((nextline = subtokenizer.GetLine()))
-  {
-    if ((!strlen(nextline)) || (nextline[0] == '\n'))
+
+  while ((nextline = subtokenizer.GetLine())) {
+    if ((!strlen(nextline)) || (nextline[0] == '\n')) {
       continue;
+    }
+
     string_vector.resize(i + 1);
     string_vector.push_back(nextline);
     i++;
@@ -712,21 +685,41 @@ command_result_stdout_to_vector (std::vector<std::string> &string_vector)
 }
 
 int
-output_result (XrdOucEnv* result, bool highlighting)
+output_result(XrdOucEnv* result, bool highlighting)
 {
-  if (!result)
+  if (!result) {
     return EINVAL;
+  }
 
   rstdout = result->Get("mgm.proc.stdout");
   rstderr = result->Get("mgm.proc.stderr");
   rstdjson = result->Get("mgm.proc.json");
 
-  XrdMqMessage::UnSeal(rstdout);
-  XrdMqMessage::UnSeal(rstderr);
-  XrdMqMessage::UnSeal(rstdjson);
+  if (rstdout.beginswith("base64:")) {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstdout, ub64out);
+    rstdout = ub64out;
+  } else {
+    XrdMqMessage::UnSeal(rstdout);
+  }
 
-  if (highlighting && global_highlighting)
-  {
+  if (rstderr.beginswith("base64:")) {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstderr, ub64out);
+    rstderr = ub64out;
+  } else {
+    XrdMqMessage::UnSeal(rstderr);
+  }
+
+  if (rstdjson.beginswith("base64:")) {
+    XrdOucString ub64out;
+    eos::common::SymKey::DeBase64(rstdjson, ub64out);
+    rstdjson = ub64out;
+  } else {
+    XrdMqMessage::UnSeal(rstdjson);
+  }
+
+  if (highlighting && global_highlighting) {
     // color replacements
     rstdout.replace("online", "\033[1monline\033[0m");
     rstdout.replace("offline", "\033[47;31m\e[5moffline\033[0m");
@@ -734,13 +727,11 @@ output_result (XrdOucEnv* result, bool highlighting)
     rstdout.replace(" ok", "\033[49;32m ok\033[0m");
     rstdout.replace("warning", "\033[49;33mwarning\033[0m");
     rstdout.replace("exceeded", "\033[49;31mexceeded\033[0m");
-
     rstdout.replace("[booted]", "\033[1m[booted]\033[0m");
     rstdout.replace("[down]", "\033[49;31m[down]\033[0m");
     rstdout.replace("[failed]", "\033[49;31m[failed]\033[0m");
     rstdout.replace("[booting]", "\033[49;32m[booting]\033[0m");
     rstdout.replace("[compacting]", "\033[49;34m[compacting]\033[0m");
-
     // replication highlighting
     rstdout.replace("master-rw", "\033[49;31mmaster-rw\033[0m");
     rstdout.replace("master-ro", "\033[49;34mmaster-ro\033[0m");
@@ -756,39 +747,35 @@ output_result (XrdOucEnv* result, bool highlighting)
   }
 
   int retc = EFAULT;
-  if (result->Get("mgm.proc.retc"))
-  {
+
+  if (result->Get("mgm.proc.retc")) {
     retc = atoi(result->Get("mgm.proc.retc"));
   }
-  if (json)
-  {
+
+  if (json) {
     if (rstdjson.length())
-      if (!silent)
-      {
+      if (!silent) {
         fprintf(stdout, "%s", rstdjson.c_str());
-        if (rstdjson.endswith('\n'))
-        {
+
+        if (rstdjson.endswith('\n')) {
           fprintf(stdout, "\n");
         }
       }
-  }
-  else
-  {
+  } else {
     if (rstdout.length())
-      if (!silent)
-      {
+      if (!silent) {
         fprintf(stdout, "%s", rstdout.c_str());
-        if (!rstdout.endswith('\n'))
-        {
+
+        if (!rstdout.endswith('\n')) {
           fprintf(stdout, "\n");
         }
       }
 
-    if (rstderr.length())
-    {
+    if (rstderr.length()) {
       fprintf(stderr, "%s (errc=%d) (%s)\n", rstderr.c_str(), retc, strerror(retc));
     }
   }
+
   fflush(stdout);
   fflush(stderr);
   CommandEnv = 0;
@@ -797,20 +784,25 @@ output_result (XrdOucEnv* result, bool highlighting)
 }
 
 XrdOucEnv*
-client_admin_command (XrdOucString &in)
+client_admin_command(XrdOucString& in)
 {
-  if (user_role.length())
+  if (user_role.length()) {
     in += "&eos.ruid=";
+  }
+
   in += user_role;
-  if (group_role.length())
+
+  if (group_role.length()) {
     in += "&eos.rgid=";
+  }
+
   in += group_role;
-  if (json)
-  {
+
+  if (json) {
     in += "&mgm.format=json";
   }
-  if (global_comment.length())
-  {
+
+  if (global_comment.length()) {
     in += "&mgm.comment=";
     in += global_comment;
     global_comment = "";
@@ -824,8 +816,7 @@ client_admin_command (XrdOucString &in)
   path += "?";
   path += in;
 
-  if (debug)
-  {
+  if (debug) {
     printf("debug: %s\n", path.c_str());
   }
 
@@ -833,15 +824,13 @@ client_admin_command (XrdOucString &in)
   XrdCl::File* client = new XrdCl::File();
   XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     off_t offset = 0;
     uint32_t nbytes = 0;
     char buffer[4096 + 1];
     status = client->Read(offset, 4096, buffer, nbytes);
 
-    while (status.IsOK() && (nbytes > 0))
-    {
+    while (status.IsOK() && (nbytes > 0)) {
       buffer[nbytes] = 0;
       out += buffer;
       offset += nbytes;
@@ -850,22 +839,18 @@ client_admin_command (XrdOucString &in)
 
     (void) client->Close();
     TIMING("stop", &mytiming);
-
     delete client;
 
-    if (timing)
-    {
+    if (timing) {
       mytiming.Print();
     }
 
     CommandEnv = new XrdOucEnv(out.c_str());
     return CommandEnv;
-  }
-  else
-  {
+  } else {
     std::string errmsg;
     errmsg = status.GetErrorMessage();
-    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
   }
 
   delete client;
@@ -873,24 +858,30 @@ client_admin_command (XrdOucString &in)
 }
 
 XrdOucEnv*
-client_user_command (XrdOucString &in)
+client_user_command(XrdOucString& in)
 {
-  if (user_role.length())
+  if (user_role.length()) {
     in += "&eos.ruid=";
+  }
+
   in += user_role;
-  if (group_role.length())
+
+  if (group_role.length()) {
     in += "&eos.rgid=";
+  }
+
   in += group_role;
-  if (json)
-  {
+
+  if (json) {
     in += "&mgm.format=json";
   }
-  if (global_comment.length())
-  {
+
+  if (global_comment.length()) {
     in += "&mgm.comment=";
     in += global_comment;
     global_comment = "";
   }
+
   XrdMqTiming mytiming("eos");
   TIMING("start", &mytiming);
   XrdOucString out = "";
@@ -898,20 +889,17 @@ client_user_command (XrdOucString &in)
   path += "//proc/user/";
   path += "?";
   path += in;
-
   XrdCl::OpenFlags::Flags flags_xrdcl = XrdCl::OpenFlags::Read;
   XrdCl::File* client = new XrdCl::File();
   XrdCl::XRootDStatus status = client->Open(path.c_str(), flags_xrdcl);
 
-  if (status.IsOK())
-  {
+  if (status.IsOK()) {
     off_t offset = 0;
     uint32_t nbytes = 0;
     char buffer[4096 + 1];
     status = client->Read(offset, 4096, buffer, nbytes);
 
-    while (status.IsOK() && (nbytes > 0))
-    {
+    while (status.IsOK() && (nbytes > 0)) {
       buffer[nbytes] = 0;
       out += buffer;
       offset += nbytes;
@@ -920,33 +908,33 @@ client_user_command (XrdOucString &in)
 
     (void) client->Close();
     TIMING("stop", &mytiming);
-
     delete client;
 
-    if (timing)
-    {
+    if (timing) {
       mytiming.Print();
+    }
+
+    if (debug) {
+      printf("out=%s\n", out.c_str());
     }
 
     CommandEnv = new XrdOucEnv(out.c_str());
     return CommandEnv;
-  }
-  else
-  {
+  } else {
     std::string errmsg;
     errmsg = status.GetErrorMessage();
-    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo,errmsg.c_str());
+    fprintf(stderr, "error: errc=%d msg=\"%s\"\n", status.errNo, errmsg.c_str());
   }
+
   return 0;
 }
 
 /* Return non-zero if ARG is a valid argument for CALLER, else print
    an error message and return zero. */
 int
-valid_argument (char *caller, char *arg)
+valid_argument(char* caller, char* arg)
 {
-  if (!arg || !*arg)
-  {
+  if (!arg || !*arg) {
     //fprintf (stderr, "%s: Argument required.\n", caller);
     return (0);
   }
@@ -959,13 +947,13 @@ valid_argument (char *caller, char *arg)
 // ----------------------------------------------------------------------------
 
 void
-read_pwdfile ()
+read_pwdfile()
 {
   std::string lpwd;
   eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(), lpwd);
-  if (lpwd.length())
-  {
-    // apply 
+
+  if (lpwd.length()) {
+    // apply
     com_cd((char*) lpwd.c_str());
   }
 }
@@ -974,56 +962,82 @@ read_pwdfile ()
 // - Colour Definitions
 // ----------------------------------------------------------------------------
 
-std::string textnormal ("\001\033[0m\002");
-std::string textblack ("\001\033[49;30m\002");
-std::string textred ("\001\033[49;31m\002");
-std::string textrederror ("\001\033[47;31m\e[5m\002");
-std::string textblueerror ("\001\033[47;34m\e[5m\002");
-std::string textgreen ("\001\033[49;32m\002");
-std::string textyellow ("\001\033[49;33m\002");
-std::string textblue ("\001\033[49;34m\002");
-std::string textbold ("\001\033[1m\002");
-std::string textunbold ("\001\033[0m\002");
+std::string textnormal("\001\033[0m\002");
+std::string textblack("\001\033[49;30m\002");
+std::string textred("\001\033[49;31m\002");
+std::string textrederror("\001\033[47;31m\e[5m\002");
+std::string textblueerror("\001\033[47;34m\e[5m\002");
+std::string textgreen("\001\033[49;32m\002");
+std::string textyellow("\001\033[49;33m\002");
+std::string textblue("\001\033[49;34m\002");
+std::string textbold("\001\033[1m\002");
+std::string textunbold("\001\033[0m\002");
 
 // ----------------------------------------------------------------------------
 // - Usage Information
 // ----------------------------------------------------------------------------
 
 void
-usage ()
+usage()
 {
-  fprintf(stderr, "`eos' is the command line interface (CLI) of the EOS storage system.\n");
-  fprintf(stderr, "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--verAsion] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
-  fprintf(stderr, "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
-  fprintf(stderr, "            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
-  fprintf(stderr, "            -j, --json                          : switch to json output format\n");
-  fprintf(stderr, "            -p, --pipe                          : run stdin,stdout,stderr on local pipes and go to background\n");
-  fprintf(stderr, "            -h, --help                          : print help text\n");
-  fprintf(stderr, "            -v, --version                       : print version information\n");
-  fprintf(stderr, "            <mgm-url>                           : xroot URL of the management server e.g. root://<hostname>[:<port>]\n");
-  fprintf(stderr, "            <cmd>                               : eos shell command (use 'eos help' to see available commands)\n");
-  fprintf(stderr, "            {<argN>}                            : single or list of arguments for the eos shell command <cmd>\n");
-  fprintf(stderr, "            <filename>.eosh                     : eos script file name ending with .eosh suffix\n\n");
+  fprintf(stderr,
+          "`eos' is the command line interface (CLI) of the EOS storage system.\n");
+  fprintf(stderr,
+          "Usage: eos [-r|--role <uid> <gid>] [-b|--batch] [-v|--verAsion] [-p|--pipe] [-j||--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+  fprintf(stderr,
+          "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
+  fprintf(stderr,
+          "            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
+  fprintf(stderr,
+          "            -j, --json                          : switch to json output format\n");
+  fprintf(stderr,
+          "            -p, --pipe                          : run stdin,stdout,stderr on local pipes and go to background\n");
+  fprintf(stderr,
+          "            -h, --help                          : print help text\n");
+  fprintf(stderr,
+          "            -v, --version                       : print version information\n");
+  fprintf(stderr,
+          "            <mgm-url>                           : xroot URL of the management server e.g. root://<hostname>[:<port>]\n");
+  fprintf(stderr,
+          "            <cmd>                               : eos shell command (use 'eos help' to see available commands)\n");
+  fprintf(stderr,
+          "            {<argN>}                            : single or list of arguments for the eos shell command <cmd>\n");
+  fprintf(stderr,
+          "            <filename>.eosh                     : eos script file name ending with .eosh suffix\n\n");
   fprintf(stderr, "Environment Variables: \n");
-  fprintf(stderr, "            EOS_MGM_URL                         : set's the redirector URL\n");
-  fprintf(stderr, "            EOS_HISTORY_FILE                    : set's the command history file - by default '$HOME/.eos_history' is used\n\n");
-  fprintf(stderr, "            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
-  fprintf(stderr, "            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
-  fprintf(stderr, "            EOS_PWD_FILE                        : set's the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
-  fprintf(stderr, "            EOS_ENABLE_PIPEMODE                 : allows the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
+  fprintf(stderr,
+          "            EOS_MGM_URL                         : set's the redirector URL\n");
+  fprintf(stderr,
+          "            EOS_HISTORY_FILE                    : set's the command history file - by default '$HOME/.eos_history' is used\n\n");
+  fprintf(stderr,
+          "            EOS_SOCKS4_HOST                     : set's the SOCKS4 proxy host name\n");
+  fprintf(stderr,
+          "            EOS_SOCKS4_PORT                     : set's the SOCKS4 proxy port\n");
+  fprintf(stderr,
+          "            EOS_PWD_FILE                        : set's the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
+  fprintf(stderr,
+          "            EOS_ENABLE_PIPEMODE                 : allows the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr, "Return Value: \n");
-  fprintf(stderr, "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
+  fprintf(stderr,
+          "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
   fprintf(stderr, "Examples:\n");
-  fprintf(stderr, "            eos                                 : start the interactive eos shell client connected to localhost or URL defined in environment variabel EOS_MGM_URL\n");
-  fprintf(stderr, "            eos -r 0 0                          : as before but take role root/root [only numeric IDs are supported]\n");
-  fprintf(stderr, "            eos root://myeos                    : start the interactive eos shell connecting to MGM host 'myeos'\n");
-  fprintf(stderr, "            eos -b whoami                       : run the eos shell command 'whoami' in batch mode without syntax highlighting\n");
-  fprintf(stderr, "            eos space ls --io                   : run the eos shell command 'space' with arguments 'ls --io'\n");
-  fprintf(stderr, "            eos --version                       : print version information\n");
-  fprintf(stderr, "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell.\n");
+  fprintf(stderr,
+          "            eos                                 : start the interactive eos shell client connected to localhost or URL defined in environment variabel EOS_MGM_URL\n");
+  fprintf(stderr,
+          "            eos -r 0 0                          : as before but take role root/root [only numeric IDs are supported]\n");
+  fprintf(stderr,
+          "            eos root://myeos                    : start the interactive eos shell connecting to MGM host 'myeos'\n");
+  fprintf(stderr,
+          "            eos -b whoami                       : run the eos shell command 'whoami' in batch mode without syntax highlighting\n");
+  fprintf(stderr,
+          "            eos space ls --io                   : run the eos shell command 'space' with arguments 'ls --io'\n");
+  fprintf(stderr,
+          "            eos --version                       : print version information\n");
+  fprintf(stderr,
+          "            eos -b eosscript.eosh               : run the eos shell script 'eosscript.eosh'. This script has to contain linewise commands which are understood by the eos interactive shell.\n");
   fprintf(stderr, "\n");
-  fprintf(stderr, " You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.");
-
+  fprintf(stderr,
+          " You can leave the interactive shell with <Control-D>. <Control-C> cleans the current shell line or terminates the shell when a command is currently executed.");
   fprintf(stderr, "Report bugs to eos-dev@cern.ch\n");
 }
 
@@ -1032,13 +1046,12 @@ usage ()
 // ----------------------------------------------------------------------------
 
 int
-main (int argc, char* argv[])
+main(int argc, char* argv[])
 {
-  char *line, *s;
+  char* line, *s;
   serveruri = (char*) "root://localhost";
 
-  if (getenv("EOS_MGM_URL"))
-  {
+  if (getenv("EOS_MGM_URL")) {
     serveruri = getenv("EOS_MGM_URL");
   }
 
@@ -1046,37 +1059,28 @@ main (int argc, char* argv[])
   XrdOucString grole = "";
   bool selectedrole = false;
   int argindex = 1;
-
   int retc = system("test -t 0 && test -t 1");
 
-  if (getenv("EOS_ENABLE_PIPEMODE"))
-  {
+  if (getenv("EOS_ENABLE_PIPEMODE")) {
     runpipe = true;
-  } 
-  else
-  {
+  } else {
     runpipe = false;
   }
 
-  if (!retc)
-  {
+  if (!retc) {
     hasterminal = true;
     global_highlighting = true;
     interactive = true;
-  }
-  else
-  {
+  } else {
     hasterminal = false;
     global_highlighting = false;
     interactive = false;
   }
 
-  if (argc > 1)
-  {
+  if (argc > 1) {
     XrdOucString in1 = argv[argindex];
 
-    if (in1.beginswith("-"))
-    {
+    if (in1.beginswith("-")) {
       if ((in1 != "--help") &&
           (in1 != "--version") &&
           (in1 != "--batch") &&
@@ -1088,27 +1092,25 @@ main (int argc, char* argv[])
           (in1 != "-p") &&
           (in1 != "-v") &&
           (in1 != "-j") &&
-          (in1 != "-r"))
-      {
+          (in1 != "-r")) {
         usage();
         exit(-1);
       }
     }
-    if ((in1 == "--help") || (in1 == "-h"))
-    {
+
+    if ((in1 == "--help") || (in1 == "-h")) {
       usage();
       exit(-1);
     }
 
-    if ((in1 == "--version") || (in1 == "-v"))
-    {
+    if ((in1 == "--version") || (in1 == "-v")) {
       fprintf(stderr, "EOS %s (CERN)\n\n", VERSION);
-      fprintf(stderr, "Written by CERN-IT-DSS (Andreas-Joachim Peters, Lukasz Janyst & Elvin Sindrilaru)\n");
+      fprintf(stderr,
+              "Written by CERN-IT-DSS (Andreas-Joachim Peters, Lukasz Janyst & Elvin Sindrilaru)\n");
       exit(-1);
     }
 
-    if ((in1 == "--batch") || (in1 == "-b"))
-    {
+    if ((in1 == "--batch") || (in1 == "-b")) {
       interactive = false;
       global_highlighting = false;
       runpipe = false;
@@ -1116,8 +1118,7 @@ main (int argc, char* argv[])
       in1 = argv[argindex];
     }
 
-    if ((in1 == "--json") || (in1 == "-j"))
-    {
+    if ((in1 == "--json") || (in1 == "-j")) {
       interactive = false;
       global_highlighting = false;
       json = true;
@@ -1126,28 +1127,25 @@ main (int argc, char* argv[])
       in1 = argv[argindex];
     }
 
-    if ((in1 == "fuse"))
-    {
+    if ((in1 == "fuse")) {
       interactive = false;
       global_highlighting = false;
       runpipe = false;
     }
 
-    if ((in1 == "--pipe") || (in1 == "-p"))
-    {
+    if ((in1 == "--pipe") || (in1 == "-p")) {
       pipemode = true;
       argindex++;
       in1 = argv[argindex];
 
-      if (!startpipe())
-      {
-        fprintf(stderr, "error: unable to start the pipe - maybe there is already a process with 'eos -p' running?\n");
+      if (!startpipe()) {
+        fprintf(stderr,
+                "error: unable to start the pipe - maybe there is already a process with 'eos -p' running?\n");
         exit(-1);
       }
     }
 
-    if ((in1 == "--role") || (in1 == "-r"))
-    {
+    if ((in1 == "--role") || (in1 == "-r")) {
       urole = argv[argindex + 1];
       grole = argv[argindex + 2];
       in1 = argv[argindex + 3];
@@ -1157,89 +1155,93 @@ main (int argc, char* argv[])
       cmdline += urole;
       cmdline += " ";
       cmdline += grole;
-
       in1 = argv[argindex];
-      if (in1.length())
-      {
+
+      if (in1.length()) {
         silent = true;
       }
+
       execute_line((char*) cmdline.c_str());
-      if (in1.length())
-      {
+
+      if (in1.length()) {
         silent = false;
       }
+
       selectedrole = true;
     }
 
-    if ((in1 == "--batch") || (in1 == "-b"))
-    {
+    if ((in1 == "--batch") || (in1 == "-b")) {
       interactive = false;
       argindex++;
       in1 = argv[argindex];
     }
 
-    if ((in1 == "cp"))
-    {
+    if ((in1 == "cp")) {
       interactive = false;
       global_highlighting = false;
       runpipe = false;
     }
 
-    if ((in1 == "fuse"))
-    {
+    if ((in1 == "fuse")) {
       interactive = false;
     }
 
-    if (in1.beginswith("root://"))
-    {
+    if (in1.beginswith("root://")) {
       serveruri = argv[argindex];
       argindex++;
       in1 = argv[argindex];
     }
 
-    if (in1.length())
-    {
+    if (in1.length()) {
       // check if this is a file (workaournd for XrdOucString bug
-      if ((in1.length()>5) && (in1.endswith(".eosh")) && (!access(in1.c_str(), R_OK)))
-      {
+      if ((in1.length() > 5) && (in1.endswith(".eosh")) &&
+          (!access(in1.c_str(), R_OK))) {
         // this is a script file
         char str[16384];
         fstream file_op(in1.c_str(), ios::in);
-        while (!file_op.eof())
-        {
+
+        while (!file_op.eof()) {
           file_op.getline(str, 16384);
           XrdOucString cmdline = "";
           cmdline = str;
-          if (!cmdline.length())
+
+          if (!cmdline.length()) {
             break;
-          while (cmdline.beginswith(" "))
-          {
+          }
+
+          while (cmdline.beginswith(" ")) {
             cmdline.erase(0, 1);
           }
-          while (cmdline.endswith(" "))
-          {
+
+          while (cmdline.endswith(" ")) {
             cmdline.erase(cmdline.length() - 1, 1);
           }
+
           execute_line((char*) cmdline.c_str());
         }
+
         file_op.close();
         exit(0);
-      }
-      else
-      {
+      } else {
         XrdOucString cmdline = "";
+
         // this are commands
-        for (int i = argindex; i < argc; i++)
-        {
-	  if (i!=argindex)
-	    cmdline += "\"";
+        for (int i = argindex; i < argc; i++) {
+          if (i != argindex) {
+            cmdline += "\"";
+          }
+
           cmdline += argv[i];
-	  if (i!=argindex)
-	    cmdline += "\"";
+
+          if (i != argindex) {
+            cmdline += "\"";
+          }
+
           cmdline += " ";
         }
-        if ((!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost")))
-        {
+
+        if ((!selectedrole) && (!getuid()) &&
+            (serveruri.beginswith("root://localhost"))) {
           // we are root, we always select also the root role by default
           XrdOucString cmdline = "role 0 0 ";
           silent = true;
@@ -1248,62 +1250,52 @@ main (int argc, char* argv[])
         }
 
         // strip leading and trailing white spaces
-        while (cmdline.beginswith(" "))
-        {
+        while (cmdline.beginswith(" ")) {
           cmdline.erase(0, 1);
         }
-        while (cmdline.endswith(" "))
-        {
+
+        while (cmdline.endswith(" ")) {
           cmdline.erase(cmdline.length() - 1, 1);
         }
 
         // here we can use the 'eospipe' mechanism if allowed
 
-        if (runpipe)
-        {
+        if (runpipe) {
           cmdline += "\n";
           // put the eos daemon into batch mode
           interactive = false;
           global_highlighting = false;
           iopipe.Init(); // need to initialize for Checkproducer
 
-          if (!iopipe.CheckProducer())
-          {
+          if (!iopipe.CheckProducer()) {
             // we need to run a pipe daemon, so we fork here and let the fork run the code like 'eos -p'
-            if (!fork())
-            {
-              for (int i = 1; i < argc; i++)
-              {
-                for (size_t j = 0; j < strlen(argv[i]); j++)
-                {
+            if (!fork()) {
+              for (int i = 1; i < argc; i++) {
+                for (size_t j = 0; j < strlen(argv[i]); j++) {
                   argv[i][j] = '*';
                 }
               }
+
               // detach from the session id
               pid_t sid;
-              if ((sid = setsid()) < 0)
-              {
+
+              if ((sid = setsid()) < 0) {
                 fprintf(stderr, "ERROR: failed to create new session (setsid())\n");
                 exit(-1);
               }
+
               startpipe();
               pipemode = true;
               // enters down the readline loop with modified stdin,stdout,stderr
-            }
-            else
-            {
+            } else {
               // now we just deal with the pipes from the client end
               exit(pipe_command(cmdline.c_str()));
             }
-          }
-          else
-          {
+          } else {
             // now we just deal with the pipes from the client end
             exit(pipe_command(cmdline.c_str()));
           }
-        }
-        else
-        {
+        } else {
           execute_line((char*) cmdline.c_str());
           exit(global_retc);
         }
@@ -1311,11 +1303,10 @@ main (int argc, char* argv[])
     }
   }
 
-
   /* by default select the root role if we are root@localhost */
 
-  if ((!selectedrole) && (!getuid()) && (serveruri.beginswith("root://localhost")))
-  {
+  if ((!selectedrole) && (!getuid()) &&
+      (serveruri.beginswith("root://localhost"))) {
     // we are root, we always select also the root role by default
     XrdOucString cmdline = "role 0 0 ";
     silent = true;
@@ -1328,12 +1319,10 @@ main (int argc, char* argv[])
   eos::common::Logging::SetUnit("eos");
   eos::common::Logging::SetLogPriority(LOG_NOTICE);
 
-
   /* install a shutdown handler */
   //signal(SIGINT, exit_handler);
 
-  if (!interactive)
-  {
+  if (!interactive) {
     textnormal = "";
     textblack = "";
     textred = "";
@@ -1346,96 +1335,87 @@ main (int argc, char* argv[])
     textunbold = "";
   }
 
-  if (interactive)
-  {
-    fprintf(stderr, "# ---------------------------------------------------------------------------\n");
+  if (interactive) {
+    fprintf(stderr,
+            "# ---------------------------------------------------------------------------\n");
     fprintf(stderr, "# EOS  Copyright (C) 2011 CERN/Switzerland\n");
-    fprintf(stderr, "# This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.\n");
-    fprintf(stderr, "# This is free software, and you are welcome to redistribute it \n");
+    fprintf(stderr,
+            "# This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.\n");
+    fprintf(stderr,
+            "# This is free software, and you are welcome to redistribute it \n");
     fprintf(stderr, "# under certain conditions; type `license' for details.\n");
-    fprintf(stderr, "# ---------------------------------------------------------------------------\n");
-
+    fprintf(stderr,
+            "# ---------------------------------------------------------------------------\n");
     execute_line((char*) "motd");
     execute_line((char*) "version");
   }
 
-
   char prompt[4096];
-  if (pipemode)
-  {
+
+  if (pipemode) {
     prompt[0] = 0;
-  }
-  else
-  {
-    sprintf(prompt, "%sEOS Console%s [%s%s%s] |> ", textbold.c_str(), textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str());
+  } else {
+    sprintf(prompt, "%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),
+            textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str());
   }
 
   progname = argv[0];
-
   initialize_readline(); /* Bind our completer. */
 
-  if (getenv("EOS_HISTORY_FILE"))
-  {
+  if (getenv("EOS_HISTORY_FILE")) {
     historyfile = getenv("EOS_HISTORY_FILE");
-  }
-  else
-  {
-    if (getenv("HOME"))
-    {
+  } else {
+    if (getenv("HOME")) {
       historyfile = getenv("HOME");
       historyfile += "/.eos_history";
     }
   }
-  if (getenv("EOS_PWD_FILE"))
-  {
+
+  if (getenv("EOS_PWD_FILE")) {
     pwdfile = getenv("EOS_PWD_FILE");
-  }
-  else
-  {
-    if (getenv("HOME"))
-    {
+  } else {
+    if (getenv("HOME")) {
       pwdfile = getenv("HOME");
       pwdfile += "/.eos_pwd";
     }
   }
+
   read_history(historyfile.c_str());
   // load the last used current working directory
   read_pwdfile();
 
   /* Loop reading and executing lines until the user quits. */
-  for (; done == 0;)
-  {
+  for (; done == 0;) {
     char prompt[4096];
-    if (pipemode)
-    {
+
+    if (pipemode) {
       prompt[0] = 0;
+    } else {
+      sprintf(prompt, "%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),
+              textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str(),
+              pwd.c_str());
     }
-    else
-    {
-      sprintf(prompt, "%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(), textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str(), pwd.c_str());
-    }
-    if (pipemode)
-    {
+
+    if (pipemode) {
       signal(SIGALRM, exit_handler);
       alarm(60);
     }
-    
-    
+
     signal(SIGINT, jump_handler);
-    
-    if ( sigsetjmp(sigjump_buf,1) ) {
+
+    if (sigsetjmp(sigjump_buf, 1)) {
       signal(SIGINT, jump_handler);
-      fprintf(stdout,"\n");
+      fprintf(stdout, "\n");
     }
-    
+
     line = readline(prompt);
     signal(SIGINT, exit_handler);
-    
-    if (pipemode)
+
+    if (pipemode) {
       alarm(0);
-    
-    if (!line)
-    {
+    }
+
+    if (!line) {
       fprintf(stdout, "\n");
       break;
     }
@@ -1445,8 +1425,7 @@ main (int argc, char* argv[])
        and execute it. */
     s = stripwhite(line);
 
-    if (*s)
-    {
+    if (*s) {
       add_history(s);
       // 20 minutes timeout for commands ... that is long !
       signal(SIGALRM, exit_handler);
@@ -1460,15 +1439,15 @@ main (int argc, char* argv[])
       fflush(stdout);
       fflush(stderr);
 
-      if (pipemode)
-      {
+      if (pipemode) {
         n = write(retcfd, &global_retc, 1);
         n = write(retcfd, &newline, 1);
-        if (n != 1)
-        {
+
+        if (n != 1) {
           fprintf(stderr, "error: unable to write retc to retc-socket\n");
           exit(-1);
         }
+
         // we send the stop sequence to the pipe thread listeners
         fprintf(stdout, "#__STOP__#\n");
         fprintf(stderr, "#__STOP__#\n");
@@ -1491,26 +1470,23 @@ main (int argc, char* argv[])
 // ----------------------------------------------------------------------------
 
 int
-execute_line (char *line)
+execute_line(char* line)
 {
   int i;
-  COMMAND *command;
-  char *word;
-
+  COMMAND* command;
+  char* word;
   exec_line = line;
-
   size_t cbpos = exec_line.find("--comment \"");
   size_t cepos;
-  if (cbpos != std::string::npos)
-  {
+
+  if (cbpos != std::string::npos) {
     cepos = exec_line.find("\"", cbpos + 12);
-    if (cepos == std::string::npos)
-    {
-      fprintf(stderr, "error: syntax for comment is '<command> <args> --comment \"...\"'\n");
+
+    if (cepos == std::string::npos) {
+      fprintf(stderr,
+              "error: syntax for comment is '<command> <args> --comment \"...\"'\n");
       return 0;
-    }
-    else
-    {
+    } else {
       global_comment = exec_line.substr(cbpos + 10, cepos + 1 - (cbpos + 10)).c_str();
       exec_line.erase(cbpos, cepos + 1);
       line = (char*) exec_line.c_str();
@@ -1519,67 +1495,75 @@ execute_line (char *line)
 
   /* Isolate the command word. */
   i = 0;
-  while (line[i] && (line[i] == ' '))
+
+  while (line[i] && (line[i] == ' ')) {
     i++;
+  }
+
   word = line + i;
 
-  while (line[i] && ((line[i] != ' ')))
+  while (line[i] && ((line[i] != ' '))) {
     i++;
+  }
 
-  if (line[i])
+  if (line[i]) {
     line[i++] = '\0';
+  }
 
   command = find_command(word);
 
-  if (!command)
-  {
+  if (!command) {
     fprintf(stderr, "%s: No such command for EOS Console.\n", word);
     global_retc = -1;
     return (-1);
   }
 
   /* Get argument to command, if any. */
-  while (line[i] == ' ')
+  while (line[i] == ' ') {
     i++;
+  }
 
   word = line + i;
-
   /* Call the function. */
-  return ((*(command->func)) (word));
+  return ((*(command->func))(word));
 }
 
 /* Look up NAME as the name of a command, and return a pointer to that
    command.  Return a 0 pointer if NAME isn't a command name. */
-COMMAND *
-find_command (char *name)
+COMMAND*
+find_command(char* name)
 {
   int i;
 
   for (i = 0; commands[i].name; i++)
-    if (strcmp(name, commands[i].name) == 0)
+    if (strcmp(name, commands[i].name) == 0) {
       return (&commands[i]);
+    }
 
-  return ((COMMAND *) 0);
+  return ((COMMAND*) 0);
 }
 
 /* Strip whitespace from the start and end of STRING.  Return a pointer
    into STRING. */
 char*
-stripwhite (char *string)
+stripwhite(char* string)
 {
-  char *s, *t;
+  char* s, *t;
 
   for (s = string; (*s) == ' '; s++)
     ;
 
-  if (*s == 0)
+  if (*s == 0) {
     return (s);
+  }
 
   t = s + strlen(s) - 1;
-  while (t > s && ((*t) == ' '))
-    t--;
-  *++t = '\0';
 
+  while (t > s && ((*t) == ' ')) {
+    t--;
+  }
+
+  *++t = '\0';
   return s;
 }
 

@@ -35,13 +35,9 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Master.hh"
-/*----------------------------------------------------------------------------*/
 #include "XrdSfs/XrdSfsInterface.hh"
-/*----------------------------------------------------------------------------*/
 #include <iostream>
 #include <fstream>
-/*----------------------------------------------------------------------------*/
-
 #include <vector>
 #include <map>
 #include <string>
@@ -50,22 +46,22 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
-/**
- * Check if a path indicates a proc command
- * @param path input path for a proc command
- * @return true if proc command otherwise false
- */
+//------------------------------------------------------------------------------
+//                            *** ProcInterface ***
+//------------------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Check if a path indicates a proc command
+//------------------------------------------------------------------------------
 bool
-ProcInterface::IsProcAccess (const char* path)
+ProcInterface::IsProcAccess(const char* path)
 {
   XrdOucString inpath = path;
-  if (inpath.beginswith("/proc/"))
-  {
+
+  if (inpath.beginswith("/proc/")) {
     return true;
   }
+
   return false;
 }
 
@@ -78,13 +74,12 @@ ProcInterface::IsProcAccess (const char* path)
 
 /*----------------------------------------------------------------------------*/
 bool
-ProcInterface::IsWriteAccess (const char* path, const char* info)
+ProcInterface::IsWriteAccess(const char* path, const char* info)
 {
   XrdOucString inpath = (path ? path : "");
   XrdOucString ininfo = (info ? info : "");
 
-  if (!inpath.beginswith("/proc/"))
-  {
+  if (!inpath.beginswith("/proc/")) {
     return false;
   }
 
@@ -100,8 +95,8 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
         (subcmd == "drop") ||
         (subcmd == "layout") ||
         (subcmd == "verify") ||
-	(subcmd == "version") ||
-	(subcmd == "versions") || 
+        (subcmd == "version") ||
+        (subcmd == "versions") ||
         (subcmd == "rename"))) ||
       ((cmd == "attr") &&
        ((subcmd == "set") ||
@@ -149,10 +144,7 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
       ((cmd == "transfer") &&
        ((subcmd != ""))) ||
       ((cmd == "recycle") &&
-       ((subcmd != "ls"))))
-
-  {
-
+       ((subcmd != "ls")))) {
     return true;
   }
 
@@ -171,36 +163,33 @@ ProcInterface::IsWriteAccess (const char* path, const char* info)
 
 /*----------------------------------------------------------------------------*/
 bool
-ProcInterface::Authorize (const char* path,
-                          const char* info,
-                          eos::common::Mapping::VirtualIdentity& vid,
-                          const XrdSecEntity* entity)
+ProcInterface::Authorize(const char* path,
+                         const char* info,
+                         eos::common::Mapping::VirtualIdentity& vid,
+                         const XrdSecEntity* entity)
 {
   XrdOucString inpath = path;
 
   // ----------------------------------------------------------------------------
   // administrator access
   // ----------------------------------------------------------------------------
-  if (inpath.beginswith("/proc/admin/"))
-  {
+  if (inpath.beginswith("/proc/admin/")) {
     // hosts with 'sss' authentication can run 'admin' commands
     std::string protocol = entity ? entity->prot : "";
+
     // we allow sss only with the daemon login is admin
-    if ((protocol == "sss") && (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)))
-    {
+    if ((protocol == "sss") &&
+        (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list))) {
       return true;
     }
 
     // root can do it
-    if (!vid.uid)
-    {
+    if (!vid.uid) {
       return true;
     }
 
-    // --------------------------------------------------------------------------
-    // one has to be part of the virtual users 2(daemon) || 3(adm)/4(adm) 
-    // --------------------------------------------------------------------------
-    return ( (eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
+    // One has to be part of the virtual users 2(daemon) || 3(adm)/4(adm)
+    return ((eos::common::Mapping::HasUid(DAEMONUID, vid.uid_list)) ||
             (eos::common::Mapping::HasUid(3, vid.uid_list)) ||
             (eos::common::Mapping::HasGid(4, vid.gid_list)));
   }
@@ -208,8 +197,7 @@ ProcInterface::Authorize (const char* path,
   // ----------------------------------------------------------------------------
   // user access
   // ----------------------------------------------------------------------------
-  if (inpath.beginswith("/proc/user/"))
-  {
+  if (inpath.beginswith("/proc/user/")) {
     return true;
   }
 
@@ -222,7 +210,7 @@ ProcInterface::Authorize (const char* path,
  */
 
 /*----------------------------------------------------------------------------*/
-ProcCommand::ProcCommand ()
+ProcCommand::ProcCommand()
 {
   stdOut = "";
   stdErr = "";
@@ -251,31 +239,27 @@ ProcCommand::ProcCommand ()
  */
 
 /*----------------------------------------------------------------------------*/
-ProcCommand::~ProcCommand ()
+ProcCommand::~ProcCommand()
 {
-  if (fstdout)
-  {
+  if (fstdout) {
     fclose(fstdout);
     fstdout = 0;
     unlink(fstdoutfilename.c_str());
   }
 
-  if (fstderr)
-  {
+  if (fstderr) {
     fclose(fstderr);
     fstderr = 0;
     unlink(fstderrfilename.c_str());
   }
 
-  if (fresultStream)
-  {
+  if (fresultStream) {
     fclose(fresultStream);
     fresultStream = 0;
     unlink(fresultStreamfilename.c_str());
   }
 
-  if (pOpaque)
-  {
+  if (pOpaque) {
     delete pOpaque;
     pOpaque = 0;
   }
@@ -289,42 +273,50 @@ ProcCommand::~ProcCommand ()
 
 /*----------------------------------------------------------------------------*/
 bool
-ProcCommand::OpenTemporaryOutputFiles ()
+ProcCommand::OpenTemporaryOutputFiles()
 {
   char tmpdir [4096];
-  snprintf(tmpdir, sizeof (tmpdir) - 1, "/tmp/eos.mgm/%llu", (unsigned long long) XrdSysThread::ID());
+  snprintf(tmpdir, sizeof(tmpdir) - 1, "/tmp/eos.mgm/%llu",
+           (unsigned long long) XrdSysThread::ID());
   fstdoutfilename = tmpdir;
   fstdoutfilename += ".stdout";
   fstderrfilename = tmpdir;
   fstderrfilename += ".stderr";
   fresultStreamfilename = tmpdir;
   fresultStreamfilename += ".mResultstream";
-
   eos::common::Path cPath(fstdoutfilename.c_str());
 
-  if (!cPath.MakeParentPath(S_IRWXU))
-  {
+  if (!cPath.MakeParentPath(S_IRWXU)) {
     eos_err("Unable to create temporary outputfile directory %s", tmpdir);
     return false;
   }
 
   // own the directory by daemon
-  if (::chown(cPath.GetParentPath(), 2, 2))
-  {
-    eos_err("Unable to own temporary outputfile directory %s", cPath.GetParentPath());
+  if (::chown(cPath.GetParentPath(), 2, 2)) {
+    eos_err("Unable to own temporary outputfile directory %s",
+            cPath.GetParentPath());
   }
 
   fstdout = fopen(fstdoutfilename.c_str(), "w");
   fstderr = fopen(fstderrfilename.c_str(), "w");
   fresultStream = fopen(fresultStreamfilename.c_str(), "w+");
 
-  if ((!fstdout) || (!fstderr) || (!fresultStream))
-  {
-    if (fstdout) fclose(fstdout);
-    if (fstderr) fclose(fstderr);
-    if (fresultStream) fclose(fresultStream);
+  if ((!fstdout) || (!fstderr) || (!fresultStream)) {
+    if (fstdout) {
+      fclose(fstdout);
+    }
+
+    if (fstderr) {
+      fclose(fstderr);
+    }
+
+    if (fresultStream) {
+      fclose(fresultStream);
+    }
+
     return false;
   }
+
   return true;
 }
 
@@ -342,53 +334,49 @@ ProcCommand::OpenTemporaryOutputFiles ()
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::open (const char* inpath,
-                   const char* info,
-                   eos::common::Mapping::VirtualIdentity &vid_in,
-                   XrdOucErrInfo *error)
+ProcCommand::open(const char* inpath,
+                  const char* info,
+                  eos::common::Mapping::VirtualIdentity& vid_in,
+                  XrdOucErrInfo* error)
 {
   pVid = &vid_in;
   mClosed = false;
   path = inpath;
   mDoSort = false;
   mError = error;
-
   ininfo = info;
-  if ((path.beginswith("/proc/admin")))
-  {
+
+  if ((path.beginswith("/proc/admin"))) {
     mAdminCmd = true;
   }
-  if (path.beginswith("/proc/user"))
-  {
+
+  if (path.beginswith("/proc/user")) {
     mUserCmd = true;
   }
 
-
   // ---------------------------------------------
-  // deal with '&' ... sigh 
+  // deal with '&' ... sigh
   // ---------------------------------------------
   XrdOucString sinfo = ininfo;
-  for (int i = 0; i < sinfo.length(); i++)
-  {
 
-    if (sinfo[i] == '&') 
-    {
-      // figure out if this is a real separator or 
-      XrdOucString follow=sinfo.c_str()+i+1;
-      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) && (!follow.beginswith("xrd.")) && (!follow.beginswith("callback")))
-      {
-	sinfo.erase(i,1);
-	sinfo.insert("#AND#",i);
+  for (int i = 0; i < sinfo.length(); i++) {
+    if (sinfo[i] == '&') {
+      // figure out if this is a real separator or
+      XrdOucString follow = sinfo.c_str() + i + 1;
+
+      if (!follow.beginswith("mgm.") && (!follow.beginswith("eos.")) &&
+          (!follow.beginswith("xrd.")) && (!follow.beginswith("callback"))) {
+        sinfo.erase(i, 1);
+        sinfo.insert("#AND#", i);
       }
     }
   }
-  // ---------------------------------------------
 
+  // ---------------------------------------------
   pOpaque = new XrdOucEnv(sinfo.c_str());
 
-  if (!pOpaque)
-  {
-    // alloc failed 
+  if (!pOpaque) {
+    // alloc failed
     return SFS_ERROR;
   }
 
@@ -398,38 +386,38 @@ ProcCommand::open (const char* inpath,
   mSubCmd = pOpaque->Get("mgm.subcmd");
   mOutFormat = pOpaque->Get("mgm.outformat");
   long depth = pOpaque->GetInt("mgm.outdepth");
-  if(depth>0) mOutDepth = (unsigned)depth;
+
+  if (depth > 0) {
+    mOutDepth = (unsigned)depth;
+  }
+
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
   mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
-
-  eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(), sinfo.c_str());
+  eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(),
+                   sinfo.c_str());
   int envlen = 0;
   mArgs = pOpaque->Env(envlen);
-
   mFuseFormat = false;
   mJsonFormat = false;
   mHttpFormat = false;
-
-  // ----------------------------------------------------------------------------
-  // if set to FUSE, don't print the stdout,stderr tags and we guarantee a line 
+  mBase64Encoding = false;
+  // If set to FUSE, don't print the stdout,stderr tags and we guarantee a line
   // feed in the end
-  // ----------------------------------------------------------------------------
-
   XrdOucString format = pOpaque->Get("mgm.format");
 
-  if (format == "fuse")
-  {
+  if (format == "fuse") {
     mFuseFormat = true;
   }
-  if (format == "json")
-  {
+
+  if (format == "json") {
     mJsonFormat = true;
   }
-  if (format == "http")
-  {
+
+  if (format == "http") {
     mHttpFormat = true;
   }
+
   stdOut = "";
   stdErr = "";
   retc = 0;
@@ -437,107 +425,73 @@ ProcCommand::open (const char* inpath,
   mOffset = 0;
   mLen = 0;
   mDoSort = true;
+  XrdOucString encoding = pOpaque->Get("mgm.enc");
 
-  if (mJsonCallback.length())
-  {
+  if (encoding == "b64") {
+    mBase64Encoding = true;
+  }
+
+  if (mJsonCallback.length()) {
     mJsonFormat = true;
   }
 
   // ----------------------------------------------------------------------------
   // admin command section
   // ----------------------------------------------------------------------------
-  if (mAdminCmd)
-  {
-    if (mCmd == "archive")
-    {
+  if (mAdminCmd) {
+    if (mCmd == "archive") {
       Archive();
       mDoSort = false;
-    }
-    else if (mCmd == "backup")
-    {
+    } else if (mCmd == "backup") {
       Backup();
       mDoSort = false;
-    }
-    else if (mCmd == "access")
-    {
+    } else if (mCmd == "access") {
       Access();
       mDoSort = false;
-    }
-    else if (mCmd == "config")
-    {
+    } else if (mCmd == "config") {
       Config();
       mDoSort = false;
-    }
-    else if (mCmd == "node")
-    {
+    } else if (mCmd == "node") {
       Node();
       mDoSort = false;
-    }
-    else if (mCmd == "space")
-    {
+    } else if (mCmd == "space") {
       Space();
       mDoSort = false;
-    }
-    else if (mCmd == "geosched")
-    {
+    } else if (mCmd == "geosched") {
       GeoSched();
       mDoSort = false;
-    }
-    else if (mCmd == "group")
-    {
+    } else if (mCmd == "group") {
       Group();
       mDoSort = false;
-    }
-    else if (mCmd == "fs")
-    {
+    } else if (mCmd == "fs") {
       Fs();
       mDoSort = false;
-    }
-    else if (mCmd == "ns")
-    {
+    } else if (mCmd == "ns") {
       Ns();
       mDoSort = false;
-    }
-    else if (mCmd == "io")
-    {
+    } else if (mCmd == "io") {
       Io();
       mDoSort = false;
-    }
-    else if (mCmd == "fsck")
-    {
+    } else if (mCmd == "fsck") {
       Fsck();
       mDoSort = false;
-    }
-    else if (mCmd == "quota")
-    {
+    } else if (mCmd == "quota") {
       AdminQuota();
       mDoSort = false;
-    }
-    else if (mCmd == "transfer")
-    {
+    } else if (mCmd == "transfer") {
       Transfer();
       mDoSort = false;
-    }
-    else if (mCmd == "debug")
-    {
+    } else if (mCmd == "debug") {
       Debug();
-    }
-    else if (mCmd == "vid")
-    {
+    } else if (mCmd == "vid") {
       Vid();
-    }
-    else if (mCmd == "vst")
-    {
-       Vst();
-       mDoSort = false;
-    }
-    else if (mCmd == "rtlog")
-    {
+    } else if (mCmd == "vst") {
+      Vst();
+      mDoSort = false;
+    } else if (mCmd == "rtlog") {
       Rtlog();
       mDoSort = false;
-    }
-    else
-    {
+    } else {
       // command is not implemented
       stdErr += "error: no such admin command '";
       stdErr += mCmd;
@@ -552,106 +506,62 @@ ProcCommand::open (const char* inpath,
   // ----------------------------------------------------------------------------
   // user command section
   // ----------------------------------------------------------------------------
-  if (mUserCmd)
-  {
-    if (mCmd == "archive")
-    {
+  if (mUserCmd) {
+    if (mCmd == "archive") {
       Archive();
       mDoSort = false;
-    }
-    else if (mCmd == "motd")
-    {
+    } else if (mCmd == "motd") {
       Motd();
       mDoSort = false;
-    }
-    else if (mCmd == "version")
-    {
+    } else if (mCmd == "version") {
       Version();
       mDoSort = false;
-    }
-    else if (mCmd == "quota")
-    {
+    } else if (mCmd == "quota") {
       Quota();
       mDoSort = false;
-    }
-    else if (mCmd == "who")
-    {
+    } else if (mCmd == "who") {
       Who();
       mDoSort = false;
-    }
-    else if (mCmd == "fuse")
-    {
+    } else if (mCmd == "fuse") {
       return Fuse();
-    }
-    else if (mCmd == "file")
-    {
+    } else if (mCmd == "file") {
       File();
       mDoSort = false;
-    }
-    else if (mCmd == "fileinfo")
-    {
+    } else if (mCmd == "fileinfo") {
       Fileinfo();
       mDoSort = false;
-    }
-    else if (mCmd == "mkdir")
-    {
+    } else if (mCmd == "mkdir") {
       Mkdir();
-    }
-    else if (mCmd == "rmdir")
-    {
+    } else if (mCmd == "rmdir") {
       Rmdir();
-    }
-    else if (mCmd == "cd")
-    {
+    } else if (mCmd == "cd") {
       Cd();
       mDoSort = false;
-    }
-    else if (mCmd == "chown")
-    {
+    } else if (mCmd == "chown") {
       Chown();
-    }
-    else if (mCmd == "ls")
-    {
+    } else if (mCmd == "ls") {
       Ls();
       mDoSort = false;
-    }
-    else if (mCmd == "rm")
-    {
+    } else if (mCmd == "rm") {
       Rm();
-    }
-    else if (mCmd == "whoami")
-    {
+    } else if (mCmd == "whoami") {
       Whoami();
       mDoSort = false;
-    }
-    else if (mCmd == "find")
-    {
+    } else if (mCmd == "find") {
       Find();
-    }
-    else if (mCmd == "map")
-    {
+    } else if (mCmd == "map") {
       Map();
-    }
-    else if (mCmd == "member")
-    {
+    } else if (mCmd == "member") {
       Member();
-    }
-    else if (mCmd == "attr")
-    {
+    } else if (mCmd == "attr") {
       Attr();
       mDoSort = false;
-    }
-    else if (mCmd == "chmod")
-    {
+    } else if (mCmd == "chmod") {
       Chmod();
-    }
-    else if (mCmd == "recycle")
-    {
+    } else if (mCmd == "recycle") {
       Recycle();
       mDoSort = false;
-    }
-    else
-    {
+    } else {
       // ------------------------------------------------------------------------
       // command not implemented
       // ------------------------------------------------------------------------
@@ -660,7 +570,7 @@ ProcCommand::open (const char* inpath,
       stdErr += "'";
       retc = EINVAL;
     }
-    
+
     MakeResult();
     return SFS_OK;
   }
@@ -668,7 +578,8 @@ ProcCommand::open (const char* inpath,
   // ----------------------------------------------------------------------------
   // if neither admin nor proc command
   // ----------------------------------------------------------------------------
-  return gOFS->Emsg((const char*) "open", *error, EINVAL, "execute command - not implemented ", ininfo);
+  return gOFS->Emsg((const char*) "open", *error, EINVAL,
+                    "execute command - not implemented ", ininfo);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -682,33 +593,27 @@ ProcCommand::open (const char* inpath,
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
+ProcCommand::read(XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
 {
-  if (fresultStream)
-  {
+  if (fresultStream) {
     // file based results go here ...
-    if ((fseek(fresultStream, mOffset, 0)) == 0)
-    {
+    if ((fseek(fresultStream, mOffset, 0)) == 0) {
       size_t nread = fread(buff, 1, blen, fresultStream);
-      if (nread > 0)
+
+      if (nread > 0) {
         return nread;
-    }
-    else
-    {
+      }
+    } else {
       eos_err("seek to %llu failed\n", mOffset);
     }
+
     return 0;
-  }
-  else
-  {
+  } else {
     // memory based results go here ...
-    if (((unsigned int) blen <= (mLen - mOffset)))
-    {
+    if (((unsigned int) blen <= (mLen - mOffset))) {
       memcpy(buff, mResultStream.c_str() + mOffset, blen);
       return blen;
-    }
-    else
-    {
+    } else {
       memcpy(buff, mResultStream.c_str() + mOffset, (mLen - mOffset));
       return (mLen - mOffset);
     }
@@ -725,11 +630,10 @@ ProcCommand::read (XrdSfsFileOffset mOffset, char* buff, XrdSfsXferSize blen)
 
 /*----------------------------------------------------------------------------*/
 int
-ProcCommand::stat (struct stat* buf)
+ProcCommand::stat(struct stat* buf)
 {
-  memset(buf, 0, sizeof (struct stat));
+  memset(buf, 0, sizeof(struct stat));
   buf->st_size = mLen;
-
   return SFS_OK;
 }
 
@@ -741,24 +645,22 @@ ProcCommand::stat (struct stat* buf)
  * @return 0 if comment has been successfully stored otherwise !=0
  */
 int
-ProcCommand::close ()
+ProcCommand::close()
 {
-  if (!mClosed)
-  {
+  if (!mClosed) {
     // only instance users or sudoers can add to the log book
-    if ((pVid->uid <= 2) || (pVid->sudoer))
-    {
-      if (mComment.length() && gOFS->commentLog)
-      {
+    if ((pVid->uid <= 2) || (pVid->sudoer)) {
+      if (mComment.length() && gOFS->commentLog) {
         if (!gOFS->commentLog->Add(mExecTime, mCmd.c_str(), mSubCmd.c_str(),
-                                   mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc))
-        {
+                                   mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc)) {
           eos_err("failed to log to comment log file");
         }
       }
     }
+
     mClosed = true;
   }
+
   return retc;
 }
 
@@ -771,19 +673,16 @@ ProcCommand::close ()
 
 /*----------------------------------------------------------------------------*/
 void
-ProcCommand::MakeResult ()
+ProcCommand::MakeResult()
 {
   mResultStream = "";
 
-  if (!fstdout)
-  {
-    if (mDoSort)
-    {
+  if (!fstdout) {
+    if (mDoSort) {
       eos::common::StringConversion::SortLines(stdOut);
     }
 
-    if ((!mFuseFormat && !mJsonFormat && !mHttpFormat))
-    {
+    if ((!mFuseFormat && !mJsonFormat && !mHttpFormat)) {
       // The default format
       mResultStream = "mgm.proc.stdout=";
       mResultStream += XrdMqMessage::Seal(stdOut);
@@ -792,17 +691,16 @@ ProcCommand::MakeResult ()
       mResultStream += "&mgm.proc.retc=";
       mResultStream += retc;
     }
-    if (mFuseFormat || mHttpFormat)
-    {
-    if (mFuseFormat)
-    {
+
+    if (mFuseFormat || mHttpFormat) {
+      if (mFuseFormat) {
         mResultStream += stdOut;
-      }
-      else
-      {
-        mResultStream += "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
+      } else {
+        mResultStream +=
+          "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
         mResultStream += "<html>\n";
-        mResultStream += "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
+        mResultStream +=
+          "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
         mResultStream += "<meta charset=\"utf-8\"> \n";
         mResultStream += "<div class=\"httptable\" id=\"";
         mResultStream += mCmd;
@@ -810,199 +708,196 @@ ProcCommand::MakeResult ()
         mResultStream += mSubCmd;
         mResultStream += "\">\n";
 
-      // ------------------------------------------------------------------------
-      // FUSE format contains only STDOUT
-      // ------------------------------------------------------------------------
-        if (stdOut.length() && KeyValToHttpTable(stdOut))
-        {
-      mResultStream += stdOut;
-    }
-        else
-        {
-          if (stdErr.length() || retc)
-          {
+        // ------------------------------------------------------------------------
+        // FUSE format contains only STDOUT
+        // ------------------------------------------------------------------------
+        if (stdOut.length() && KeyValToHttpTable(stdOut)) {
+          mResultStream += stdOut;
+        } else {
+          if (stdErr.length() || retc) {
             mResultStream += stdOut;
             mResultStream += "<h3>&#9888;&nbsp;<font color=\"red\">";
             mResultStream += stdErr;
             mResultStream += "</font></h3>";
-          }
-          else
-          {
-            if (!stdOut.length())
-            {
+          } else {
+            if (!stdOut.length()) {
               mResultStream += "<h3>&#10004;&nbsp;";
               mResultStream += "Success!";
- 	      mResultStream += "</h3>";
-            }
-            else
-            {
+              mResultStream += "</h3>";
+            } else {
               mResultStream += stdOut;
             }
           }
         }
+
         mResultStream += "</div>";
       }
     }
-    if (mJsonFormat)
-    {
+
+    if (mJsonFormat) {
       // ------------------------------------------------------------------------
       // only few commands actually return stdJson as output
       // ------------------------------------------------------------------------
-      if (!stdJson.length())
-      {
-	Json::Value json;
-	Json::Value jsonresult;
-	json["errormsg"] = stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
-	std::string sretc;
-	json["retc"] = (long long) retc;
+      if (!stdJson.length()) {
+        Json::Value json;
+        Json::Value jsonresult;
+        json["errormsg"] =
+          stdErr.c_str(); //eos::common::StringConversion::json_encode(sstdErr).c_str();
+        std::string sretc;
+        json["retc"] = (long long) retc;
+        std::string line;
+        std::stringstream ss;
+        ss.str(stdOut.c_str());
 
+        do {
+          Json::Value jsonentry;
+          line.clear();
 
-	std::string line;
-	std::stringstream ss;
-	ss.str(stdOut.c_str());
-	do
-	{
-	  Json::Value jsonentry;
-	  line.clear();
-	  if (!std::getline(ss,line))
-	    break;
+          if (!std::getline(ss, line)) {
+            break;
+          }
 
-	  if (!line.length())
-	    continue;
+          if (!line.length()) {
+            continue;
+          }
 
-	  XrdOucString sline = line.c_str();
-	  while (sline.replace("<n>","n")){}
-	  while (sline.replace("?configstatus@rw","_rw")) {}
-	  line = sline.c_str();
+          XrdOucString sline = line.c_str();
 
-	  std::map <std::string , std::string> map;
-	  
-	  eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
+          while (sline.replace("<n>", "n")) {}
+
+          while (sline.replace("?configstatus@rw", "_rw")) {}
+
+          line = sline.c_str();
+          std::map <std::string , std::string> map;
+          eos::common::StringConversion::GetKeyValueMap(line.c_str(), map, "=", " ");
           // these values violate the JSON hierarchy and have to be rewritten
-	  
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer","cfg.balancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer","cfg.geotagbalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer","cfg.geobalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer","cfg.groupbalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe","cfg.wfe.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru","cfg.lru.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "balancer","balancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "converter","converter.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer","geotagbalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "geobalancer","geobalancer.status");
-          eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer","groupbalancer.status");
-	  
-	  for (auto it=map.begin(); it!=map.end(); ++it)
-	  {
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.balancer",
+              "cfg.balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geotagbalancer",
+              "cfg.geotagbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.geobalancer",
+              "cfg.geobalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.groupbalancer",
+              "cfg.groupbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.wfe", "cfg.wfe.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "cfg.lru", "cfg.lru.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "stat.health",
+              "stat.health.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "balancer",
+              "balancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "converter",
+              "converter.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "geotagbalancer",
+              "geotagbalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "geobalancer",
+              "geobalancer.status");
+          eos::common::StringConversion::ReplaceMapKey(map, "groupbalancer",
+              "groupbalancer.status");
 
-	    std::vector<std::string> token;
-	    eos::common::StringConversion::Tokenize(it->first, token, ".");
+          for (auto it = map.begin(); it != map.end(); ++it) {
+            std::vector<std::string> token;
+            eos::common::StringConversion::Tokenize(it->first, token, ".");
+            char* conv;
+            double val;
+            errno = 0;
+            val = strtod(it->second.c_str(), &conv);
+            std::string value;
 
-	    char* conv;
-	    double val;
-	    errno = 0;
-	    val = strtod(it->second.c_str(), &conv);
-	    std::string value;
-	    if (it->second.length())
-	      value = it->second.c_str();
-	    else
-	      value = "NULL";
+            if (it->second.length()) {
+              value = it->second.c_str();
+            } else {
+              value = "NULL";
+            }
 
-	    if(token.empty()) continue;
+            if (token.empty()) {
+              continue;
+            }
 
-            auto *jep = &(jsonentry[token[0]]);
-            for(int i=1;i<(int)token.size();i++)
-            {
+            auto* jep = &(jsonentry[token[0]]);
+
+            for (int i = 1; i < (int)token.size(); i++) {
               jep = &((*jep)[token[i]]);
             }
 
-	    if (errno || (!val && (conv  == it->second.c_str())) || ( (conv-it->second.c_str()) != (long long)it->second.length()))
-	    {
-	      // non numeric
+            if (errno || (!val && (conv  == it->second.c_str())) ||
+                ((conv - it->second.c_str()) != (long long)it->second.length())) {
+              // non numeric
               (*jep) = value;
-	    }
-	    else
-	    {
-	      // numeric
-	      (*jep) = val;
-	    }
-	  }
-	  jsonresult.append(jsonentry);
-	} while (1);
-	
-	if (mCmd.length())
-	{
-	  if (mSubCmd.length())
-	    json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
-	  else
-	    json[mCmd.c_str()] = jsonresult;
-	}
-	else
-	  json["result"] = jsonresult;
+            } else {
+              // numeric
+              (*jep) = val;
+            }
+          }
 
-	std::stringstream r;
-	r << json;
-	if (mJsonCallback.length())
-	{
-	  // JSONP
-	  mResultStream = mJsonCallback;
-	  mResultStream += "([\n";
-	  mResultStream += r.str().c_str();
-	  mResultStream += "\n]);";
-	}
-	else 
-	{
-	  // JSON
-	  mResultStream = r.str().c_str();
-	}
-      }
-      else
-      {
-	mResultStream = "mgm.proc.json=";
-	mResultStream += stdJson;
+          jsonresult.append(jsonentry);
+        } while (1);
+
+        if (mCmd.length()) {
+          if (mSubCmd.length()) {
+            json[mCmd.c_str()][mSubCmd.c_str()] = jsonresult;
+          } else {
+            json[mCmd.c_str()] = jsonresult;
+          }
+        } else {
+          json["result"] = jsonresult;
+        }
+
+        std::stringstream r;
+        r << json;
+
+        if (mJsonCallback.length()) {
+          // JSONP
+          mResultStream = mJsonCallback;
+          mResultStream += "([\n";
+          mResultStream += r.str().c_str();
+          mResultStream += "\n]);";
+        } else {
+          // JSON
+          mResultStream = r.str().c_str();
+        }
+      } else {
+        mResultStream = "mgm.proc.json=";
+        mResultStream += stdJson;
       }
     }
-    if (!mResultStream.endswith('\n'))
-    {
+
+    if (!mResultStream.endswith('\n')) {
       mResultStream += "\n";
     }
-    if (retc)
-    {
+
+    if (retc) {
       eos_static_err("%s (errno=%u)", stdErr.c_str(), retc);
     }
+
     mLen = mResultStream.length();
     mOffset = 0;
-  }
-  else
-  {
+  } else {
     // --------------------------------------------------------------------------
     // file based results CANNOT be sorted and don't have mFuseFormat
     // --------------------------------------------------------------------------
-    if (!mFuseFormat)
-    {
+    if (!mFuseFormat) {
       // ------------------------------------------------------------------------
       // create the stdout result
       // ------------------------------------------------------------------------
       if (!fseek(fstdout, 0, 0) &&
           !fseek(fstderr, 0, 0) &&
-          !fseek(fresultStream, 0, 0))
-      {
+          !fseek(fresultStream, 0, 0)) {
         fprintf(fresultStream, "&mgm.proc.stdout=");
-
         std::ifstream inStdout(fstdoutfilename.c_str());
         std::ifstream inStderr(fstderrfilename.c_str());
         std::string entry;
 
-        while (std::getline(inStdout, entry))
-        {
+        while (std::getline(inStdout, entry)) {
           XrdOucString sentry = entry.c_str();
           sentry += "\n";
-          if (!mFuseFormat)
-          {
+
+          if (!mFuseFormat) {
             XrdMqMessage::Seal(sentry);
           }
+
           fprintf(fresultStream, "%s", sentry.c_str());
         }
+
         // ----------------------------------------------------------------------
         // close and remove - if this fails there is nothing to recover anyway
         // ----------------------------------------------------------------------
@@ -1013,30 +908,27 @@ ProcCommand::MakeResult ()
         // create the stderr result
         // ----------------------------------------------------------------------
         fprintf(fresultStream, "&mgm.proc.stderr=");
-        while (std::getline(inStderr, entry))
-        {
+
+        while (std::getline(inStderr, entry)) {
           XrdOucString sentry = entry.c_str();
           sentry += "\n";
           XrdMqMessage::Seal(sentry);
           fprintf(fresultStream, "%s", sentry.c_str());
         }
+
         // ----------------------------------------------------------------------
         // close and remove - if this fails there is nothing to recover anyway
         // ----------------------------------------------------------------------
         fclose(fstderr);
         fstderr = 0;
         unlink(fstderrfilename.c_str());
-
         fprintf(fresultStream, "&mgm.proc.retc=%d", retc);
         mLen = ftell(fresultStream);
         // ----------------------------------------------------------------------
         // spool the resultstream to the beginning
         // ----------------------------------------------------------------------
         fseek(fresultStream, 0, 0);
-      }
-      else
-      {
-
+      } else {
         eos_static_err("cannot seek to position 0 in result files");
       }
     }
@@ -1052,42 +944,39 @@ ProcCommand::MakeResult ()
 
 /*----------------------------------------------------------------------------*/
 bool
-ProcCommand::KeyValToHttpTable (XrdOucString & stdOut)
+ProcCommand::KeyValToHttpTable(XrdOucString& stdOut)
 {
-  while (stdOut.replace("= ", "=\"\""))
-  {
+  while (stdOut.replace("= ", "=\"\"")) {
   }
+
   std::string stmp = stdOut.c_str();
   XrdOucTokenizer tokenizer((char*) stmp.c_str());
   const char* line;
   bool ok = true;
-
   std::vector<std::string> keys;
   std::vector < std::map < std::string, std::string >> keyvaluetable;
   std::string table;
 
-  while ((line = tokenizer.GetLine()))
-  {
-    if (strlen(line) <= 1)
+  while ((line = tokenizer.GetLine())) {
+    if (strlen(line) <= 1) {
       continue;
+    }
 
     std::map<std::string, std::string> keyval;
+
     if (eos::common::StringConversion::GetKeyValueMap(line,
-                                                      keyval,
-                                                      "=",
-                                                      " ",
-                                                      &keys))
-    {
+        keyval,
+        "=",
+        " ",
+        &keys)) {
       keyvaluetable.push_back(keyval);
-    }
-    else
-    {
+    } else {
       ok = false;
       break;
     }
   }
-  if (ok)
-  {
+
+  if (ok) {
     table +=
       R"literal(<style>
 table

@@ -29,7 +29,7 @@ using namespace eos::common;
 
 /* Node listing, configuration, manipulation */
 int
-com_node (char* arg1)
+com_node(char* arg1)
 {
   XrdOucString in = "";
   bool silent = false;
@@ -44,90 +44,89 @@ com_node (char* arg1)
   subtokenizer.GetLine();
   XrdOucString subcommand = subtokenizer.GetToken();
 
-  if (wants_help(arg1))
+  if (wants_help(arg1)) {
     goto com_node_usage;
+  }
 
-  if (subcommand == "ls")
-  {
+  if (subcommand == "ls") {
     in = "mgm.cmd=node&mgm.subcmd=ls";
     option = "";
 
-    do
-    {
+    do {
       ok = false;
       subtokenizer.GetLine();
       option = subtokenizer.GetToken();
-      if (option.length())
-      {
-        if (option == "-m")
-        {
+
+      if (option.length()) {
+        if (option == "-m") {
           in += "&mgm.outformat=m";
           ok = true;
           highlighting = false;
         }
-        if (option == "-l")
-        {
+
+        if (option == "-l") {
           in += "&mgm.outformat=l";
           ok = true;
         }
-        if (option == "--io")
-        {
+
+        if (option == "--io") {
           in += "&mgm.outformat=io";
           ok = true;
         }
-        if (option == "--sys")
-        {
+
+        if (option == "--sys") {
           in += "&mgm.outformat=sys";
           ok = true;
         }
-        if (option == "--fsck")
-        {
+
+        if (option == "--fsck") {
           in += "&mgm.outformat=fsck";
           ok = true;
         }
-        if (option == "-s")
-        {
+
+        if (option == "-s") {
           silent = true;
           ok = true;
         }
-	if ( (option == "--brief") || (option == "-b") )
-	{
-	  in += "&mgm.outhost=brief";
-	  ok = true;
-	}
-        if (!option.beginswith("-"))
-        {
+
+        if ((option == "--brief") || (option == "-b")) {
+          in += "&mgm.outhost=brief";
+          ok = true;
+        }
+
+        if (!option.beginswith("-")) {
           in += "&mgm.selection=";
           in += option;
-          if (!sel)
+
+          if (!sel) {
             ok = true;
+          }
+
           sel = true;
         }
 
-        if (!ok)
+        if (!ok) {
           printusage = true;
-      }
-      else
-      {
+        }
+      } else {
         ok = true;
       }
-    }
-    while (option.length());
+    } while (option.length());
   }
 
-  if (subcommand == "set")
-  {
+  if (subcommand == "set") {
     in = "mgm.cmd=node&mgm.subcmd=set";
     XrdOucString nodename = subtokenizer.GetToken();
     XrdOucString active = subtokenizer.GetToken();
 
-    if ((active != "on") && (active != "off"))
-    {
+    if ((active != "on") && (active != "off")) {
       printusage = true;
     }
 
-    if (!nodename.length())
+    if (!nodename.length()) {
       printusage = true;
+    }
+
     in += "&mgm.node=";
     in += nodename;
     in += "&mgm.node.state=";
@@ -135,31 +134,32 @@ com_node (char* arg1)
     ok = true;
   }
 
-  if (subcommand == "status")
-  {
+  if (subcommand == "status") {
     in = "mgm.cmd=node&mgm.subcmd=status";
     XrdOucString nodename = subtokenizer.GetToken();
 
-    if (!nodename.length())
+    if (!nodename.length()) {
       printusage = true;
+    }
+
     in += "&mgm.node=";
     in += nodename;
     ok = true;
   }
 
-  if (subcommand == "gw")
-  {
+  if (subcommand == "txgw") {
     in = "mgm.cmd=node&mgm.subcmd=set";
     XrdOucString nodename = subtokenizer.GetToken();
     XrdOucString active = subtokenizer.GetToken();
 
-    if ((active != "on") && (active != "off"))
-    {
+    if ((active != "on") && (active != "off")) {
       printusage = true;
     }
 
-    if (!nodename.length())
+    if (!nodename.length()) {
       printusage = true;
+    }
+
     in += "&mgm.node=";
     in += nodename;
     in += "&mgm.node.txgw=";
@@ -167,30 +167,70 @@ com_node (char* arg1)
     ok = true;
   }
 
-  if (subcommand == "rm")
-  {
+  if (subcommand == "proxygroupadd" || subcommand == "proxygrouprm" ||
+      subcommand == "proxygroupclear") {
+    in = "mgm.cmd=node&mgm.subcmd=set";
+    XrdOucString action;
+
+    if (subcommand == "proxygroupadd") {
+      action = "add";
+    }
+
+    if (subcommand == "proxygrouprm") {
+      action = "rm";
+    }
+
+    if (subcommand == "proxygroupclear") {
+      action = "clear";
+    }
+
+    XrdOucString proxygroup;
+
+    if (action != "clear") {
+      proxygroup = subtokenizer.GetToken();
+    }
+
+    XrdOucString nodename = subtokenizer.GetToken();
+
+    if (!nodename.length() || (!proxygroup.length() && !(action == "clear"))) {
+      printusage = true;
+    }
+
+    in += "&mgm.node=";
+    in += nodename;
+
+    if (proxygroup.length()) {
+      in += "&mgm.node.proxygroup=";
+      in += proxygroup;
+    }
+
+    in += "&mgm.node.action=";
+    in += action;
+    ok = true;
+  }
+
+  if (subcommand == "rm") {
     in = "mgm.cmd=node&mgm.subcmd=rm";
     XrdOucString nodename = subtokenizer.GetToken();
 
-    if (!nodename.length())
+    if (!nodename.length()) {
       printusage = true;
+    }
+
     in += "&mgm.node=";
     in += nodename;
     ok = true;
   }
 
-  if (subcommand == "config")
-  {
+  if (subcommand == "config") {
     XrdOucString nodename = subtokenizer.GetToken();
     XrdOucString keyval = subtokenizer.GetToken();
 
-    if ((!nodename.length()) || (!keyval.length()))
-    {
+    if ((!nodename.length()) || (!keyval.length())) {
       goto com_node_usage;
     }
 
-    if ((keyval.find("=")) == STR_NPOS)
-    {
+    if ((keyval.find("=")) == STR_NPOS) {
       // not like <key>=<val>
       goto com_node_usage;
     }
@@ -200,8 +240,9 @@ com_node (char* arg1)
     std::string delimiter = "=";
     eos::common::StringConversion::Tokenize(is, token, delimiter);
 
-    if (token.size() != 2)
+    if (token.size() != 2) {
       goto com_node_usage;
+    }
 
     XrdOucString in = "mgm.cmd=node&mgm.subcmd=config&mgm.node.name=";
     in += nodename;
@@ -209,13 +250,11 @@ com_node (char* arg1)
     in += token[0].c_str();
     in += "&mgm.node.value=";
     in += token[1].c_str();
-
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
 
-  if (subcommand == "register")
-  {
+  if (subcommand == "register") {
     XrdOucString nodename = subtokenizer.GetToken();
     XrdOucString path2register = subtokenizer.GetToken();
     XrdOucString space2register = subtokenizer.GetToken();
@@ -224,45 +263,32 @@ com_node (char* arg1)
     bool forceflag = false;
     bool rootflag = false;
 
-    if (flag1.length())
-    {
-      if (flag1 == "--force")
-      {
+    if (flag1.length()) {
+      if (flag1 == "--force") {
         forceflag = true;
-      }
-      else
-      {
-        if (flag1 == "--root")
-        {
+      } else {
+        if (flag1 == "--root") {
           rootflag = true;
-        }
-        else
-        {
+        } else {
           goto com_node_usage;
         }
       }
-      if (flag2.length())
-      {
-        if (flag2 == "--force")
-        {
+
+      if (flag2.length()) {
+        if (flag2 == "--force") {
           forceflag = true;
-        }
-        else
-        {
-          if (flag2 == "--root")
-          {
+        } else {
+          if (flag2 == "--root") {
             rootflag = true;
-          }
-          else
-          {
+          } else {
             goto com_node_usage;
           }
         }
       }
     }
 
-    if ((!nodename.length()) || (!path2register.length()) || (!space2register.length()))
-    {
+    if ((!nodename.length()) || (!path2register.length()) ||
+        (!space2register.length())) {
       goto com_node_usage;
     }
 
@@ -273,75 +299,104 @@ com_node (char* arg1)
     in += "&mgm.node.space2register=";
     in += space2register;
 
-    if (forceflag)
-    {
+    if (forceflag) {
       in += "&mgm.node.force=true";
     }
 
-    if (rootflag)
-    {
+    if (rootflag) {
       in += "&mgm.node.root=true";
     }
+
     global_retc = output_result(client_admin_command(in));
     return (0);
   }
 
-  if (printusage || (!ok))
+  if (printusage || (!ok)) {
     goto com_node_usage;
+  }
 
   result = client_admin_command(in);
 
-  if (!silent)
-  {
+  if (!silent) {
     global_retc = output_result(result, highlighting);
-  }
-  else
-  {
-    if (result)
-    {
+  } else {
+    if (result) {
       global_retc = 0;
-    }
-    else
-    {
+    } else {
       global_retc = EINVAL;
     }
   }
 
   return (0);
-
 com_node_usage:
-
-  fprintf(stdout, "usage: node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>]  : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
-  fprintf(stdout, "                                                                  -s : silent mode\n");
-  fprintf(stdout, "                                                          -b,--brief : display host names without domain names\n");
-  fprintf(stdout, "                                                                  -m : monitoring key=value output format\n");
-  fprintf(stdout, "                                                                  -l : long output - list also file systems after each node\n");
-  fprintf(stdout, "                                                                --io : print IO statistics\n");
-  fprintf(stdout, "                                                              --sys  : print SYS statistics (memory + threads)\n");
-  fprintf(stdout, "                                                              --fsck : print filesystem check statistcis\n");
-  fprintf(stdout, "       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node\n");
-  fprintf(stdout, "                                                               <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n");
-  fprintf(stdout, "                                                               <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n");
-  fprintf(stdout, "                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write|fmd_open\n");
-  fprintf(stdout, "                                                                       io_read  : simulate read  errors\n");
-  fprintf(stdout, "                                                                       io_write : simulate write errors\n");
-  fprintf(stdout, "                                                                       xs_read  : simulate checksum errors when reading a file\n");
-  fprintf(stdout, "                                                                       xs_write : simulate checksum errors when writing a file\n");
-  fprintf(stdout, "                                                                       fmd_open : simulate a file metadata mismatch when opening a file\n");
-  fprintf(stdout, "                                                                       <none>   : disable error simulation (every value than the previous ones are fine!)\n");
-  fprintf(stdout, "                                                               <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n");
-  fprintf(stdout, "                                                               <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n");
-  fprintf(stdout, "                                                               <key> : for other keys see help of 'fs config' for details\n");
+  fprintf(stdout,
+          "usage: node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>]  : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list\n");
+  fprintf(stdout,
+          "                                                                  -s : silent mode\n");
+  fprintf(stdout,
+          "                                                          -b,--brief : display host names without domain names\n");
+  fprintf(stdout,
+          "                                                                  -m : monitoring key=value output format\n");
+  fprintf(stdout,
+          "                                                                  -l : long output - list also file systems after each node\n");
+  fprintf(stdout,
+          "                                                                --io : print IO statistics\n");
+  fprintf(stdout,
+          "                                                              --sys  : print SYS statistics (memory + threads)\n");
+  fprintf(stdout,
+          "                                                              --fsck : print filesystem check statistcis\n");
+  fprintf(stdout,
+          "       node config <host:port> <key>=<value>                    : configure file system parameters for each filesystem of this node\n");
+  fprintf(stdout,
+          "                                                               <key> : gw.rate=<mb/s> - set the transfer speed per gateway transfer\n");
+  fprintf(stdout,
+          "                                                               <key> : gw.ntx=<#>     - set the number of concurrent transfers for a gateway node\n");
+  fprintf(stdout,
+          "                                                               <key> : error.simulation=io_read|io_write|xs_read|xs_write|fmd_open\n");
+  fprintf(stdout,
+          "                                                                       io_read  : simulate read  errors\n");
+  fprintf(stdout,
+          "                                                                       io_write : simulate write errors\n");
+  fprintf(stdout,
+          "                                                                       xs_read  : simulate checksum errors when reading a file\n");
+  fprintf(stdout,
+          "                                                                       xs_write : simulate checksum errors when writing a file\n");
+  fprintf(stdout,
+          "                                                                       fmd_open : simulate a file metadata mismatch when opening a file\n");
+  fprintf(stdout,
+          "                                                                       <none>   : disable error simulation (every value than the previous ones are fine!)\n");
+  fprintf(stdout,
+          "                                                               <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n");
+  fprintf(stdout,
+          "                                                               <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n");
+  fprintf(stdout,
+          "                                                               <key> : for other keys see help of 'fs config' for details\n");
   fprintf(stdout, "\n");
-  fprintf(stdout, "       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
-  fprintf(stdout, "       node rm  <queue-name>|<host:port>                        : remove a node\n");
-  fprintf(stdout, "       node register <host:port|*> <path2register> <space2register> [--force] [--root]\n");
-  fprintf(stdout, "       node gw <queue-name>|<host:port> <on|off>                : enable (on) or disable (off) node as a transfer gateway\n");
-  fprintf(stdout, "                                                                : register filesystems on node <host:port>\n");
-  fprintf(stdout, "                                                                  <path2register> is used as match for the filesystems to register e.g. /data matches filesystems /data01 /data02 etc. ... /data/ registers all subdirectories in /data/\n");
-  fprintf(stdout, "                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
-  fprintf(stdout, "                                                                --force : removes any existing filesystem label and re-registers\n");
-  fprintf(stdout, "                                                                --root  : allows to register paths on the root partition\n");
-  fprintf(stdout, "       node status <queue-name>|<host:port>                     : print's all defined variables for a node\n");
+  fprintf(stdout,
+          "       node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n");
+  fprintf(stdout,
+          "       node rm  <queue-name>|<host:port>                        : remove a node\n");
+  fprintf(stdout,
+          "       node register <host:port|*> <path2register> <space2register> [--force] [--root]\n");
+  fprintf(stdout,
+          "                                                                : register filesystems on node <host:port>\n");
+  fprintf(stdout,
+          "                                                                  <path2register> is used as match for the filesystems to register e.g. /data matches filesystems /data01 /data02 etc. ... /data/ registers all subdirectories in /data/\n");
+  fprintf(stdout,
+          "                                                                  <space2register> is formed as <space>:<n> where <space> is the space name and <n> must be equal to the number of filesystems which are matched by <path2register> e.g. data:4 or spare:22 ...\n");
+  fprintf(stdout,
+          "                                                                --force : removes any existing filesystem label and re-registers\n");
+  fprintf(stdout,
+          "                                                                --root  : allows to register paths on the root partition\n");
+  fprintf(stdout,
+          "       node txgw       <queue-name>|<host:port> <on|off>        : enable (on) or disable (off) node as a transfer gateway\n");
+  fprintf(stdout,
+          "       node proxygroupadd <group-name> <queue-name>|<host:port> : add a node to a proxy group\n");
+  fprintf(stdout,
+          "       node proxygrouprm  <group-name> <queue-name>|<host:port> : rm a node from a proxy group\n");
+  fprintf(stdout,
+          "       node proxygroupclear  <queue-name>|<host:port>              : clear the list of groups a node belongs to\n");
+  fprintf(stdout,
+          "       node status     <queue-name>|<host:port>                 : print's all defined variables for a node\n");
   return (0);
 }

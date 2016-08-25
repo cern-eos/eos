@@ -23,48 +23,55 @@
 
 /*----------------------------------------------------------------------------*/
 #include "fst/ScanDir.hh"
-#include "common/Attr.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+
 #include "fst/FmdDbMap.hh"
+
 #include "fst/Config.hh"
 #include "common/LayoutId.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
+
 eos::fst::FmdDbMapHandler gFmdDbMapHandler; // needed for compilation
 eos::fst::Config eos::fst::Config::gConfig; // needed for compilation
+
 /*----------------------------------------------------------------------------*/
 
 int
-main (int argc, char *argv[])
+main(int argc, char* argv[])
 {
   bool setxs = false;
-  if ((argc < 2) || (argc > 3))
-  {
+  eos::common::Logging::Init();
+  eos::common::Logging::SetLogPriority(LOG_INFO);
+  eos::common::Logging::SetUnit("Scandir");
+
+  if ((argc < 2) || (argc > 3)) {
     fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");
     exit(-1);
   }
 
-  if (argc == 3)
-  {
+  if (argc == 3) {
     XrdOucString set = argv[2];
-    if (set != "--setxs")
-    {
+
+    if (set != "--setxs") {
       fprintf(stderr, "usage: eos-scan-fs <directory> [--setxs]\n");
       exit(-1);
     }
+
     setxs = true;
   }
-  srand((unsigned int) time(NULL));
 
+  srand((unsigned int) time(NULL));
   eos::fst::Load fstLoad(1);
   fstLoad.Monitor();
   usleep(100000);
   XrdOucString dirName = argv[1];
-  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad, false, 10, 100, setxs);
-  if (sd)
-  {
+  eos::fst::ScanDir* sd = new eos::fst::ScanDir(dirName.c_str(), 0, &fstLoad,
+      false, 10, 100, setxs);
+
+  if (sd) {
     eos::fst::ScanDir::StaticThreadProc((void*) sd);
     delete sd;
   }
